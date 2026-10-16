@@ -84,7 +84,10 @@ export type GameSpec = {
     seats: SeatSpec[]
     /**
      * The deal's seed; the host picks one when absent (and records it).
-     * 32 bits: exact as a JSON number in every language.
+     * The server always draws its own, unless the request carries the
+     * admin token (a fixed deal for a playtest): a seed a player chose
+     * or guessed would let them replay the deal. 32 bits: exact as a
+     * JSON number in every language.
      */
     seed?: number | null
     /** In player turns; the engine's default when absent. */

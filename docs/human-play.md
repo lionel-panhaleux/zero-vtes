@@ -305,9 +305,11 @@ for history.
   `scripts/check_ts.sh` (a game typed against `protocol.ts`); with a
   server running (Node 22 or later, for its `WebSocket`), `node
   crates/server/tests/client.mjs <url>` plays a game over HTTP and
-  WebSocket and has a deck with a card outside the pool refused (with
-  `ZVTES_ADMIN_TOKEN`, its feedback read back from `/admin/feedback` and
-  the refused card counted at `/admin/unsupported`), `node
+  WebSocket (its seed the server's, not the one it asks) and has a deck
+  with a card outside the pool refused (with `ZVTES_ADMIN_TOKEN`, its
+  feedback read back from `/admin/feedback`, the refused card counted at
+  `/admin/unsupported`, one spec dealt twice differently and the
+  operator's seed kept), `node
   crates/server/tests/load.mjs <url> <n>` n at
   once,
   `node crates/server/tests/rejoin.mjs <url>` a seat joining again (after

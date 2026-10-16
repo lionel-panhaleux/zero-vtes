@@ -1,8 +1,8 @@
 // A full game against a running zvtes-server, as a client would play it
 // (docs/protocol.md §2): POST /games, the WebSocket, `join` with the
 // token, answers by option index, a `feedback` mid-game, the record
-// refused mid-game and read at the end, a deck with a card outside the
-// pool refused; with ZVTES_ADMIN_TOKEN, the feedback read from
+// refused mid-game and read at the end, its seed the server's, a deck
+// with a card outside the pool refused; with ZVTES_ADMIN_TOKEN, the feedback read from
 // /admin/feedback and the refused card counted at /admin/unsupported.
 // `node crates/server/tests/client.mjs [http://127.0.0.1:8040]`
 const base = process.argv[2] ?? 'http://127.0.0.1:8040'
@@ -10,7 +10,11 @@ const version = await (await fetch(`${base}/version`)).json()
 console.log(`server: engine ${version.engine}, protocol ${version.protocol}, profiles ${version.profiles}`)
 const decks = await (await fetch(`${base}/catalog`)).json()
 const bot = version.profiles.includes('network') ? 'network' : 'aggro_bleed'
+// A seed asked for: the server deals its own (a player's would let them
+// replay the deal), unless the operator asks.
+const asked_seed = 12345
 const spec = {
+    seed: asked_seed,
     time_limit: 40,
     client: 'client.mjs',
     seats: [0, 1, 2, 3].map(i => ({
@@ -76,6 +80,7 @@ for (;;) {
 console.log(`over: ${last.reason.type} after ${decisions} decisions, ${seq} messages, vp_halves ${last.vp_halves}`)
 const rec = await (await fetch(`${base}/games/${game}/record`, { headers: { authorization: `Bearer ${token}` } })).json()
 if (!rec.result || rec.spec.seats[seat].name != 'human') throw new Error('bad record')
+if (rec.spec.seed === asked_seed) throw new Error('the client chose the seed')
 // Complete: the turn it ended on, each network bot's nudges.
 if (!(rec.result.turns >= 1)) throw new Error(`no turns recorded: ${rec.result.turns}`)
 if (bot == 'network' && !rec.bots.every(b => Object.keys(b.nudges ?? {}).length > 0)) throw new Error('a network bot without its nudges')
@@ -87,6 +92,30 @@ if (process.env.ZVTES_ADMIN_TOKEN) {
     const list = await (await fetch(`${base}/admin/feedback`, { headers: { authorization: `Bearer ${process.env.ZVTES_ADMIN_TOKEN}` } })).json()
     if (!list.some(f => f.game == game && f.decision == noted)) throw new Error('feedback not listed at /admin/feedback')
     console.log(`feedback: noted at decision ${noted}, listed for the admin`)
+    // One spec, two games: two deals; the operator's own seed kept.
+    const admin = { authorization: `Bearer ${process.env.ZVTES_ADMIN_TOKEN}` }
+    // Each game created, its seed read (once stored), then left.
+    const seed_of = async headers => {
+        const r = await fetch(`${base}/games`, { method: 'POST', headers: { 'content-type': 'application/json', ...headers }, body: JSON.stringify(spec) })
+        const { game: g, token: t } = await r.json()
+        let stored
+        for (let i = 0; i < 50 && !stored?.ok; i++) {
+            if (i) await new Promise(r => setTimeout(r, 100))
+            stored = await fetch(`${base}/admin/games/${g}/record`, { headers: admin })
+        }
+        const seed = (await stored.json()).spec.seed
+        const s = new WebSocket(`${base.replace('http', 'ws')}/games/${g}/ws`)
+        await new Promise(r => (s.onopen = r))
+        s.send(JSON.stringify({ type: 'join', token: t }))
+        s.send(JSON.stringify({ type: 'leave' }))
+        await new Promise(r => setTimeout(r, 200))
+        s.close()
+        return seed
+    }
+    const again = await seed_of({})
+    if (again === rec.spec.seed || again === asked_seed) throw new Error(`one spec dealt alike: ${again}`)
+    if ((await seed_of(admin)) !== asked_seed) throw new Error("the operator's seed not kept")
+    console.log(`seeds: the server's (${rec.spec.seed}, ${again}), the operator's kept`)
 }
 ws.close()
 

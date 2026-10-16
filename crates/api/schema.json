@@ -2385,7 +2385,7 @@
           }
         },
         "seed": {
-          "description": "The deal's seed; the host picks one when absent (and records it).\n32 bits: exact as a JSON number in every language.",
+          "description": "The deal's seed; the host picks one when absent (and records it).\nThe server always draws its own, unless the request carries the\nadmin token (a fixed deal for a playtest): a seed a player chose\nor guessed would let them replay the deal. 32 bits: exact as a\nJSON number in every language.",
           "type": [
             "integer",
             "null"

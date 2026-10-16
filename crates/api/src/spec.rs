@@ -11,7 +11,10 @@ pub type DeckList = BTreeMap<String, u32>;
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub struct GameSpec {
     /// The deal's seed; the host picks one when absent (and records it).
-    /// 32 bits: exact as a JSON number in every language.
+    /// The server always draws its own, unless the request carries the
+    /// admin token (a fixed deal for a playtest): a seed a player chose
+    /// or guessed would let them replay the deal. 32 bits: exact as a
+    /// JSON number in every language.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub seed: Option<u32>,
     /// In player turns; the engine's default when absent.

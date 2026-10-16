@@ -14,7 +14,9 @@
 //! - `ZVTES_ADMIN_SHA256`: the admin token's SHA-256 (hex), never the
 //!   token: `GET /admin/games`, `/admin/games/{id}/record`,
 //!   `/admin/feedback` and `/admin/unsupported` with `Authorization:
-//!   Bearer <token>` (absent: no admin routes)
+//!   Bearer <token>`, and a `POST /games` keeping its spec's seed (a
+//!   playtest's fixed deal); absent: no admin routes, the server's seeds
+//!   always
 
 mod games;
 mod store;
@@ -250,10 +252,15 @@ async fn create(
     State(app): State<Shared>,
     ConnectInfo(peer): ConnectInfo<SocketAddr>,
     headers: HeaderMap,
-    Json(spec): Json<GameSpec>,
+    Json(mut spec): Json<GameSpec>,
 ) -> Response {
-    if let Some(max) = spec.time_limit.filter(|&t| t > app.config.time_limit) {
-        let _ = max;
+    // The deal's seed is the server's: a client's (or one guessed from the
+    // clock) would let its player replay the deal and read the hidden
+    // cards. A fixed one for the operator's playtests only.
+    if !admin(&app, &headers) {
+        spec.seed = Some(games::random_seed());
+    }
+    if spec.time_limit.is_some_and(|t| t > app.config.time_limit) {
         return refuse(
             StatusCode::BAD_REQUEST,
             SpecError::TimeLimit {

@@ -418,7 +418,7 @@ ended; the last `pool`, `blood` and `torpor` told are the next view's.
 | `GET /openapi.json`, `/schema.json`, `/protocol.ts` | the API reference's document, and the types as JSON Schema and TypeScript |
 | `GET /version` | protocol, engine commit, bot profiles offered, limits (seats, time limit, idle timeout) |
 | `GET /catalog` | the precon decklists the engine plays |
-| `POST /games` | body: a `GameSpec` (one human seat); `{game, seat, token}`, or a `SpecError` (400) |
+| `POST /games` | body: a `GameSpec` (one human seat); `{game, seat, token}`, or a `SpecError` (400). The deal's seed is the server's: a spec's `seed` is kept only with the admin token (a playtest's fixed deal) |
 | `GET /games/{game}/ws` | WebSocket: one JSON command or message per text frame; the first command is `join` with the token. 404 to any request once the game has left the server (the idle timeout passed, after its end or with no command, or the server restarted), so a client whose socket will not reopen can `fetch` it to tell |
 | `GET /games/{game}/record` | the game's record (§11), `Authorization: Bearer <token>`, once the game is over (409 before: the record replayed would show the hidden cards) |
 | `GET /admin/games?since=&engine=&limit=` | the games recorded, oldest first: `id`, `engine`, `client`, `started`, `ended` (absent: going on the server now), `result`, `entries` (the operator's: `Authorization: Bearer <admin token>`) |
@@ -477,7 +477,8 @@ the protocol: the engine's internal state, card images, layout.
 
 `protocol` is semver: a new field or a new id in a set is a minor
 version (readers ignore what they do not know), and so is a route's
-new refusal by a status its clients already handle; a removed or
+new refusal by a status its clients already handle, or a request field
+the server now decides itself (`POST /games`'s seed); a removed or
 renamed field or a changed meaning, a major one. The api crate's own readers,
 1.3.0 on, read past a record entry type they do not know, and read an
 end reason, an error or a value of a §12 closed set (a decision's `by`

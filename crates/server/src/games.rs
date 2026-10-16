@@ -143,8 +143,8 @@ pub async fn start(
     store: UnboundedSender<Put>,
     idle: Duration,
 ) -> Result<(String, Seat, String), SpecError> {
-    let id = random_hex(8);
-    let token = random_hex(16);
+    let id = random_hex::<8>();
+    let token = random_hex::<16>();
     let (ready_tx, ready_rx) = oneshot::channel();
     let (jobs_tx, jobs_rx) = mpsc::channel::<Job>();
     let thread_id = id.clone();
@@ -251,11 +251,24 @@ fn flush(game: &Game, store: &UnboundedSender<Put>, flushed: &mut usize, ended: 
     }
 }
 
-fn random_hex(bytes: usize) -> String {
+/// `N` bytes of the system's randomness.
+fn random_bytes<const N: usize>() -> [u8; N] {
     use std::io::Read;
-    let mut b = vec![0u8; bytes];
+    let mut b = [0u8; N];
     std::fs::File::open("/dev/urandom")
         .and_then(|mut f| f.read_exact(&mut b))
         .expect("random bytes");
-    b.iter().map(|x| format!("{x:02x}")).collect()
+    b
+}
+
+/// A deal's seed from the system's randomness.
+pub fn random_seed() -> u32 {
+    u32::from_le_bytes(random_bytes())
+}
+
+fn random_hex<const N: usize>() -> String {
+    random_bytes::<N>()
+        .iter()
+        .map(|x| format!("{x:02x}"))
+        .collect()
 }
