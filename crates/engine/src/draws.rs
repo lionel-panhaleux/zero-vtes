@@ -25,6 +25,38 @@ pub enum Interrupt {
         seat: SeatId,
         minion: crate::ids::MinionId,
     },
+    /// Baba Yaga: `minion`, locked, may unlock (once each turn).
+    MayUnlock {
+        seat: SeatId,
+        minion: crate::ids::MinionId,
+    },
+    /// Public Vilification short of blood: `seat` picks, one blood at a
+    /// time, which of the vampires allotted it receive from `from`.
+    ShortfallPicks {
+        seat: SeatId,
+        from: crate::ids::MinionId,
+        /// One slot per blood allotted (Public Vilification's 3), fixed for
+        /// `Copy`.
+        to: [Option<crate::ids::MinionId>; 8],
+    },
+    /// Superior Mettle [FOR]: `minion` may burn `n` blood to prevent the
+    /// opposing initial strike's damage this round.
+    MayPreventForBlood {
+        seat: SeatId,
+        minion: crate::ids::MinionId,
+        n: u8,
+    },
+    /// Osebo Kholo: its title card moves to the oldest ready untitled vampire
+    /// of its clan and sect, `seat` (its controller) choosing among equals.
+    MoveCardToOldest { seat: SeatId, card: CardId },
+    /// Summon History: `seat` may put in play for `minion` a card found
+    /// costing or of capacity `x` or less (LSJ 20100204, PIB 20111101).
+    PutInPlaySearch {
+        seat: SeatId,
+        minion: crate::ids::MinionId,
+        x: u8,
+        vampire: bool,
+    },
     /// Game of Malkav: `seat` secretly chooses a number from 1 to `max`
     /// (`Choice::SetX`, kept apart from the state, `Engine::secret_numbers`);
     /// the `last` pick reveals them all at once.
@@ -503,6 +535,11 @@ impl Interrupt {
             | Interrupt::RemoveFromAsh { seat, .. }
             | Interrupt::DisciplineSearch { seat, .. }
             | Interrupt::AllySearch { seat, .. }
+            | Interrupt::PutInPlaySearch { seat, .. }
+            | Interrupt::MoveCardToOldest { seat, .. }
+            | Interrupt::MayPreventForBlood { seat, .. }
+            | Interrupt::ShortfallPicks { seat, .. }
+            | Interrupt::MayUnlock { seat, .. }
             | Interrupt::StealUpTo { seat, .. }
             | Interrupt::MoveBloodUpTo { seat, .. }
             | Interrupt::PurgePick { seat, .. }
@@ -967,6 +1004,36 @@ impl Engine {
                     self.state.seats[s.index()].library.shuffle(&mut self.rng);
                     continue;
                 }
+                Interrupt::ShortfallPicks { from, to, .. } => {
+                    if self.state.minions[from.index()].blood > 0 && to.iter().any(Option::is_some)
+                    {
+                        return;
+                    }
+                    self.interrupts.remove(0);
+                    continue;
+                }
+                Interrupt::MoveCardToOldest { card, .. } => {
+                    let to = self.oldest_for(card);
+                    if to.len() > 1 && self.state.cards[card.index()].present() {
+                        return;
+                    }
+                    self.interrupts.remove(0);
+                    if let Some(&m) = to.first() {
+                        self.move_title_card(card, m);
+                    }
+                    continue;
+                }
+                Interrupt::PutInPlaySearch {
+                    minion, x, vampire, ..
+                } => {
+                    if present(minion) && !self.put_in_play_finds(s, minion, x, vampire).is_empty()
+                    {
+                        return;
+                    }
+                    self.interrupts.remove(0);
+                    self.shuffle_searched(s, vampire);
+                    continue;
+                }
                 Interrupt::DisciplineSearch { minion, .. } => {
                     if present(minion) && !self.discipline_masters(s).is_empty() {
                         return;
@@ -975,14 +1042,13 @@ impl Engine {
                     self.state.seats[s.index()].library.shuffle(&mut self.rng);
                     continue;
                 }
-                Interrupt::CorruptionOwner { minion, .. } => {
+                Interrupt::CorruptionOwner { seat, minion } => {
                     if self.state.minions[minion.index()].corruption.len() > 1 {
                         return;
                     }
                     self.interrupts.remove(0);
-                    let v = &mut self.state.minions[minion.index()];
-                    if let [(owner, _)] = v.corruption[..] {
-                        v.burn_corruption(owner, 1);
+                    if let [(owner, _)] = self.state.minions[minion.index()].corruption[..] {
+                        self.state.burn_corruption(minion, owner, 1, seat);
                     }
                     continue;
                 }
@@ -1024,6 +1090,17 @@ impl Engine {
                     c.present() && !c.locked && present(minion)
                 }
                 Interrupt::MayGainPool { seat, .. } => !self.state.seats[seat.index()].ousted,
+                Interrupt::MayUnlock { minion, .. } => {
+                    present(minion) && self.state.minions[minion.index()].locked
+                }
+                Interrupt::MayPreventForBlood { minion, n, .. } => {
+                    present(minion)
+                        && self.state.minions[minion.index()].blood >= n
+                        && self
+                            .combat
+                            .as_ref()
+                            .is_some_and(|c| c.side_of_minion(minion).is_some())
+                }
                 // Unspent still, the card still in hand, another to draw.
                 Interrupt::Redraw { seat, minion, card } => {
                     self.redrawer(seat) == Some(minion)
@@ -1504,6 +1581,32 @@ impl Engine {
                 options.extend(self.mage_allies(s, minion));
                 (WindowLabel::LibrarySearch, options)
             }
+            Interrupt::ShortfallPicks { to, .. } => {
+                let mut picks: Vec<MinionId> = Vec::new();
+                for &t in to.iter().flatten() {
+                    if !picks.contains(&t) {
+                        picks.push(t);
+                    }
+                }
+                (
+                    WindowLabel::ResolutionChoice,
+                    picks.into_iter().map(Choice::ChooseMinion).collect(),
+                )
+            }
+            Interrupt::MoveCardToOldest { card, .. } => (
+                WindowLabel::ResolutionChoice,
+                self.oldest_for(card)
+                    .into_iter()
+                    .map(Choice::ChooseMinion)
+                    .collect(),
+            ),
+            Interrupt::PutInPlaySearch {
+                minion, x, vampire, ..
+            } => {
+                let mut options = vec![Choice::Pass];
+                options.extend(self.put_in_play_finds(s, minion, x, vampire));
+                (WindowLabel::LibrarySearch, options)
+            }
             Interrupt::CorruptionOwner { minion, .. } => (
                 WindowLabel::ResolutionChoice,
                 st.minions[minion.index()]
@@ -1763,7 +1866,9 @@ impl Engine {
                 WindowLabel::ResolutionChoice,
                 vec![Choice::Pass, Choice::ResolveRider { card: card.0 }],
             ),
-            Interrupt::MayGainPool { minion, .. } => (
+            Interrupt::MayGainPool { minion, .. }
+            | Interrupt::MayPreventForBlood { minion, .. }
+            | Interrupt::MayUnlock { minion, .. } => (
                 WindowLabel::ResolutionChoice,
                 vec![Choice::Pass, Choice::ResolvePrinted { minion }],
             ),
@@ -2064,9 +2169,16 @@ impl Engine {
         let ash = &mut self.state.seats[s.index()].ash;
         let k = ash.iter().rposition(|&c| c == card).expect("ash ally");
         let (_, copy) = ash.take(k);
+        let m = self.put_ally_in_play(s, card, copy);
+        self.state.minions[m.index()].locked |= locked;
+    }
+
+    /// An ally put in play, not recruited: inferior, its starting life,
+    /// able to act this turn (LSJ 20100204).
+    fn put_ally_in_play(&mut self, s: SeatId, card: u16, copy: crate::copies::CopyId) -> MinionId {
         let m = self.recruit_ally(s, card, copy, 0);
         self.state.minions[m.index()].recruited = false;
-        self.state.minions[m.index()].locked |= locked;
+        m
     }
 
     /// The allies in `seat`'s ash heap matching one of `of` (any, if
@@ -2344,7 +2456,17 @@ impl Engine {
     /// change of control has its new controller choose (The Rack).
     pub(crate) fn give_card_control(&mut self, card: CardId, seat: SeatId) {
         self.state.cards[card.index()].controller = seat;
-        let rechooses = cards::lookup(self.state.cards[card.index()].card).is_some_and(|d| {
+        let def = cards::lookup(self.state.cards[card.index()].card);
+        // The choice its ability made was the old controller's (Powerbase:
+        // Luanda, rules-qa 77.16).
+        if def.is_some_and(|d| {
+            d.abilities
+                .iter()
+                .any(|a| a.effects.contains(&crate::cards::Effect::CardChoosesTarget))
+        }) {
+            self.state.cards[card.index()].chosen.clear();
+        }
+        let rechooses = def.is_some_and(|d| {
             d.modes[0]
                 .effects
                 .contains(&crate::cards::Effect::RechoosesOnControlChange)
@@ -2495,6 +2617,111 @@ impl Engine {
         out
     }
 
+    /// Osebo Kholo: each title card whose vampire is not a ready one of its
+    /// clan and sect, or has an older ready untitled one beside it, moves to
+    /// the oldest ready untitled one, if any (`Effect::MovesToOldestUntitled`).
+    pub(crate) fn settle_moving_titles(&mut self) {
+        let st = &self.state;
+        let mut due = Vec::new();
+        for (i, c) in st.cards.iter().enumerate() {
+            let id = CardId(i as u32);
+            let (Some(h), Some((clan, sect))) = (c.host, moving_title(c.card)) else {
+                continue;
+            };
+            if !c.present() {
+                continue;
+            }
+            let v = &st.minions[h.index()];
+            let holds = v.ready() && v.clan() == Some(clan) && st.sect_of(h) == Some(sect);
+            if holds && st.older_ready_untitled(clan, sect, h).next().is_none() {
+                continue;
+            }
+            let pending = self
+                .interrupts
+                .iter()
+                .any(|i| matches!(i, Interrupt::MoveCardToOldest { card, .. } if *card == id));
+            if !pending && !self.oldest_for(id).is_empty() {
+                due.push(Interrupt::MoveCardToOldest {
+                    seat: st.card_controller(id),
+                    card: id,
+                });
+            }
+        }
+        self.interrupts.extend(due);
+    }
+
+    /// A title card moved to `m`: its title `m`'s, contested as gained.
+    fn move_title_card(&mut self, card: CardId, m: MinionId) {
+        self.state.cards[card.index()].host = Some(m);
+        if let Some(t) = cards::card_title(self.state.cards[card.index()].card) {
+            self.gain_title(m, t, Some(card));
+        }
+    }
+
+    /// The oldest ready untitled vampires a moving title card may go to.
+    fn oldest_for(&self, card: CardId) -> Vec<MinionId> {
+        let st = &self.state;
+        let Some((clan, sect)) = moving_title(st.cards[card.index()].card) else {
+            return Vec::new();
+        };
+        let all: Vec<MinionId> = st.ready_untitled(clan, sect).collect();
+        let top = all.iter().filter_map(|&m| st.capacity_of(m)).max();
+        all.into_iter()
+            .filter(|&m| st.capacity_of(m) == top)
+            .collect()
+    }
+
+    /// What Summon History may put in play for `m`: the library and ash
+    /// heap allies, retainers and equipment costing `x` or less (a cost X
+    /// as 0, PIB 20111101) `m` may hold, or (`vampire`) the crypt and ash
+    /// heap's non-scarce vampires of capacity `x` or less.
+    fn put_in_play_finds(&self, s: SeatId, m: MinionId, x: u8, vampire: bool) -> Vec<Choice> {
+        use crate::library::{CardType, Cost};
+        let seat = &self.state.seats[s.index()];
+        if vampire {
+            let ok = |c: u16| {
+                let v = &crate::crypt::CRYPT[c as usize];
+                !v.scarce && v.capacity <= x
+            };
+            let mut cards = distinct(&seat.crypt, ok);
+            cards.extend(distinct(&seat.ash_crypt, ok));
+            cards.sort_unstable();
+            cards.dedup();
+            return cards.into_iter().map(Choice::AshVampire).collect();
+        }
+        let ok = |c: u16| {
+            let lib = &crate::library::LIBRARY[c as usize];
+            let cost = |k: Cost| match k {
+                Cost::Fixed(n) => n,
+                Cost::None | Cost::X => 0,
+            };
+            let kind = [CardType::Ally, CardType::Retainer, CardType::Equipment]
+                .iter()
+                .any(|t| lib.types.contains(t));
+            kind && cost(lib.pool_cost).max(cost(lib.blood_cost)) <= x
+                && (lib.types.contains(&CardType::Ally) || self.state.can_hold(m, c, &[]))
+        };
+        let mut out = Vec::new();
+        for (zone, cards) in [(Zone::Library, &seat.library), (Zone::AshHeap, &seat.ash)] {
+            out.extend(
+                distinct(cards, ok)
+                    .into_iter()
+                    .map(|card| Choice::TakeFrom { zone, card }),
+            );
+        }
+        out
+    }
+
+    /// The pile Summon History searched, shuffled afterward.
+    fn shuffle_searched(&mut self, s: SeatId, vampire: bool) {
+        let seat = &mut self.state.seats[s.index()];
+        if vampire {
+            seat.crypt.shuffle(&mut self.rng);
+        } else {
+            seat.library.shuffle(&mut self.rng);
+        }
+    }
+
     /// The (pool, blood) a searched ally costs, `m`'s printed reductions
     /// and the cost modifiers in play applied.
     fn searched_ally_cost(&self, s: SeatId, m: MinionId, card: u16) -> (i32, u8) {
@@ -2557,9 +2784,9 @@ impl Engine {
                         return;
                     }
                 }
+                let n = self.state.minions[minion.index()].corruption_of(s);
+                self.state.burn_corruption(minion, s, n, s);
                 let v = &mut self.state.minions[minion.index()];
-                let n = v.corruption_of(s);
-                v.burn_corruption(s, n);
                 if v.owner != s {
                     let origin = v.origin.or(v.temp_from).unwrap_or(v.owner);
                     v.origin = (origin != s).then_some(origin);
@@ -2936,10 +3163,7 @@ impl Engine {
                     let k = from.iter().rposition(|&x| x == card).expect("found card");
                     let (_, copy) = from.take(k);
                     self.state.minions[minion.index()].blood -= blood;
-                    // Put in play, not recruited: it may act this turn
-                    // (as Raise the Dead's, LSJ 20100204).
-                    let m = self.recruit_ally(s, card, copy, 0);
-                    self.state.minions[m.index()].recruited = false;
+                    self.put_ally_in_play(s, card, copy);
                     if zone == Zone::Hand {
                         self.replace(s, 1, None);
                     }
@@ -2954,6 +3178,87 @@ impl Engine {
                     }
                 } else {
                     self.state.seats[s.index()].library.shuffle(&mut self.rng);
+                }
+            }
+            (Interrupt::ShortfallPicks { seat, from, mut to }, Choice::ChooseMinion(m)) => {
+                if let Some(slot) = to.iter_mut().find(|t| **t == Some(m)) {
+                    *slot = None;
+                }
+                self.state.burn_blood(from, 1);
+                self.state.gain_blood(m, 1);
+                self.interrupts[0] = Interrupt::ShortfallPicks { seat, from, to };
+            }
+            (Interrupt::MoveCardToOldest { card, .. }, Choice::ChooseMinion(m)) => {
+                self.interrupts.remove(0);
+                self.move_title_card(card, m);
+            }
+            (
+                Interrupt::PutInPlaySearch {
+                    minion, vampire, ..
+                },
+                c,
+            ) => {
+                self.interrupts.remove(0);
+                match c {
+                    Choice::TakeFrom { zone, card } => {
+                        let seat = &mut self.state.seats[s.index()];
+                        let from = match zone {
+                            Zone::Library => &mut seat.library,
+                            Zone::AshHeap => &mut seat.ash,
+                            Zone::Hand => unreachable!("Summon History searches no hand"),
+                        };
+                        let k = from.iter().rposition(|&x| x == card).expect("found card");
+                        let (_, copy) = from.take(k);
+                        self.shuffle_searched(s, false);
+                        let lib = &crate::library::LIBRARY[card as usize];
+                        // Put in play, not recruited, employed or equipped:
+                        // inferior, able to act this turn (LSJ 20100204).
+                        if lib.types.contains(&crate::library::CardType::Ally) {
+                            self.put_ally_in_play(s, card, copy);
+                        } else if lib.types.contains(&crate::library::CardType::Retainer) {
+                            let play = crate::cards::PlayCtx {
+                                copy: crate::copies::Untracked(copy),
+                                ..crate::cards::PlayCtx::new(
+                                    s,
+                                    card,
+                                    0,
+                                    Some(minion),
+                                    crate::cards::Target::Minion(minion),
+                                    0,
+                                )
+                            };
+                            self.put_retainer(s, minion, play, true);
+                        } else {
+                            let entering = CardInPlay::entering(card, copy, s, Some(minion), 0);
+                            if let Some(id) =
+                                self.place_now(entering, crate::plays::ModeLayers::Push, false)
+                            {
+                                self.enter_library_contest(id);
+                            }
+                        }
+                    }
+                    // The crypt's copy if there is one (as Legacy's merge).
+                    Choice::AshVampire(card) => {
+                        let seat = &mut self.state.seats[s.index()];
+                        let (pile, k) = match seat.crypt.iter().position(|&c| c == card) {
+                            Some(k) => (&mut seat.crypt, k),
+                            None => {
+                                let k = seat
+                                    .ash_crypt
+                                    .iter()
+                                    .position(|&c| c == card)
+                                    .expect("in the ash heap");
+                                (&mut seat.ash_crypt, k)
+                            }
+                        };
+                        let (_, copy) = pile.take(k);
+                        self.shuffle_searched(s, true);
+                        let forced = self.state.controls_copy(s, card);
+                        let m = self.add_minion(s, card, 0, false);
+                        self.state.minions[m.index()].copy = crate::copies::Untracked(copy);
+                        self.vampire_entered(s, m, card, forced);
+                    }
+                    _ => self.shuffle_searched(s, vampire),
                 }
             }
             (Interrupt::DisciplineSearch { minion, .. }, c) => {
@@ -3199,9 +3504,9 @@ impl Engine {
                     pool,
                 };
             }
-            (Interrupt::CorruptionOwner { minion, .. }, Choice::ChooseSeat(owner)) => {
+            (Interrupt::CorruptionOwner { seat, minion }, Choice::ChooseSeat(owner)) => {
                 self.interrupts.remove(0);
-                self.state.minions[minion.index()].burn_corruption(owner, 1);
+                self.state.burn_corruption(minion, owner, 1, seat);
             }
             (Interrupt::MinionOf { seat, purpose, .. }, Choice::ChooseMinion(m)) => {
                 self.interrupts.remove(0);
@@ -3324,11 +3629,29 @@ impl Engine {
                 self.interrupts.remove(0);
                 self.state.seats[seat.index()].pool += n as i32;
             }
+            (Interrupt::MayUnlock { minion, .. }, Choice::ResolvePrinted { .. }) => {
+                self.interrupts.remove(0);
+                self.state
+                    .turn_uses
+                    .push(crate::state::once_unlock_key(minion));
+                self.effect_unlock(minion);
+            }
+            (Interrupt::MayPreventForBlood { minion, n, .. }, Choice::ResolvePrinted { .. }) => {
+                self.interrupts.remove(0);
+                self.state.burn_blood(minion, n);
+                if let Some(c) = self.combat.as_mut() {
+                    if let Some(i) = c.side_of_minion(minion) {
+                        c.sides[i].prevent_strike(u8::MAX, true);
+                    }
+                }
+            }
             (
                 Interrupt::MayPutOn { .. }
                 | Interrupt::MayAddCounter { .. }
                 | Interrupt::MayTorture { .. }
-                | Interrupt::MayGainPool { .. },
+                | Interrupt::MayGainPool { .. }
+                | Interrupt::MayPreventForBlood { .. }
+                | Interrupt::MayUnlock { .. },
                 Choice::Pass,
             ) => {
                 self.interrupts.remove(0);
@@ -3707,4 +4030,14 @@ impl Engine {
             .map(|(i, _)| Choice::BurnInPlay { card: i as u32 })
             .collect()
     }
+}
+
+/// The clan and sect a title card moves among (Osebo Kholo).
+fn moving_title(card: u16) -> Option<(&'static str, crate::crypt::Sect)> {
+    cards::lookup(card)?.modes.iter().find_map(|m| {
+        m.effects.iter().find_map(|e| match *e {
+            Effect::MovesToOldestUntitled { clan, sect } => Some((clan, sect)),
+            _ => None,
+        })
+    })
 }

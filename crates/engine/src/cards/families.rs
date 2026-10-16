@@ -130,7 +130,9 @@ impl Effect {
             | E::PutOnActorRemembering
             | E::BurnActorBlood(..)
             | E::If { .. }
-            | E::GameOfMalkav => (Family::Play, false),
+            | E::GameOfMalkav
+            | E::DrawCryptBloodIfBlackHand(..)
+            | E::SearchPutInPlayUpToX { .. } => (Family::Play, false),
             E::TargetLeavesTorpor
             | E::BloodToActing(..)
             | E::PreyBurnsPool(..)
@@ -153,6 +155,9 @@ impl Effect {
             | E::TargetBecomesSect(..)
             | E::ActorBecomesBlackHand
             | E::RemoveTargetForPool
+            | E::BurnEdge
+            | E::TargetBecomesBlackHand
+            | E::RemoveCryptTop
             | E::StealTargetVampire => (Family::Shared, false),
             E::CounterToTarget(..)
             | E::BloodPerHostage
@@ -175,7 +180,6 @@ impl Effect {
             | E::PayPool(..)
             | E::SpendMasterPhaseAction
             | E::LockSelf
-            | E::BurnEdge
             | E::SpendDiscardPhaseAction
             | E::AddHostBlood(..)
             | E::AddCounter(..)
@@ -250,7 +254,6 @@ impl Effect {
             | E::PeekHandsOfReadyClan(..)
             | E::MarkBleedToll
             | E::HostBleedThisTurn(..)
-            | E::TargetInterceptThisAction(..)
             | E::BleedToRemembered
             | E::HostVotes(..)
             | E::HostAsIfUnlockedForAuspex
@@ -269,6 +272,9 @@ impl Effect {
             | E::ToggleLockTarget
             | E::HuntStealthUntilUnlock(..)
             | E::DrawThenBottom
+            | E::HandToBottomX
+            | E::CardChoosesTarget
+            | E::PreyPoolToCounter(..)
             | E::MethuselahVotes { .. }
             | E::TakeControlOfHost
             | E::RemoveOwnAshCards(..)
@@ -357,7 +363,10 @@ impl Effect {
             | E::AllySkipsNextUnlock
             | E::WakeTarget
             | E::BleedModX { .. }
-            | E::YoungerIntercept(..) => (Family::Action, false),
+            | E::YoungerIntercept(..)
+            | E::ActionCardToHand
+            | E::BarSectVotesInReferendum(..)
+            | E::StealthOnNextAction(..) => (Family::Action, false),
             E::Strike(..)
             | E::Maneuver
             | E::Press
@@ -370,7 +379,7 @@ impl Effect {
             | E::AggravatedHandsThisCombat
             | E::FortitudeProofStrike
             | E::NullifyOpposingWeapons
-            | E::EnvironmentalDamage(..)
+            | E::EnvironmentalDamage { .. }
             | E::UndodgeableStrike
             | E::AggravatedStrike
             | E::FirstStrike
@@ -427,7 +436,10 @@ impl Effect {
             | E::StrengthThisCombat(..)
             | E::OrgyOfBlood
             | E::DrawOutBeast { .. }
-            | E::OpposingControllerBurnsPool(..) => (Family::Combat, false),
+            | E::OpposingControllerBurnsPool(..)
+            | E::OpposingNoDodgeThisRound
+            | E::MayBurnToPreventInitialStrikes(..)
+            | E::OpposingNoCombatEndsThisRound => (Family::Combat, false),
             E::Prevent(..)
             | E::PreventXPlus(..)
             | E::PreventNonAggravated(..)
@@ -555,7 +567,9 @@ impl Effect {
             | E::SoulGemDraw
             | E::BurnPoolUnlessBurnVampire { .. }
             | E::SkipNextUnlock
-            | E::BurnSelfWithoutStored => (Family::Rider, false),
+            | E::BurnSelfWithoutStored
+            | E::RevealTopCancels { .. }
+            | E::MayUnlockOncePerTurn => (Family::Rider, false),
             // Read where the action is declared or offered: its kind, its
             // cost, its stealth, its bleed (`declare_action`, `stealth`,
             // `bleed_amount`).
@@ -587,7 +601,8 @@ impl Effect {
             | E::CancelableForBlockerBlood(..)
             | E::SearchStore(..)
             | E::CanceledGetsMasterAction
-            | E::CancelableForPool(..) => (Family::Marker, false),
+            | E::CancelableForPool(..)
+            | E::MovesToOldestUntitled { .. } => (Family::Marker, false),
             // What the card is (`card_title`, `becomes_weapon`, `is_gun`).
             E::RepresentsTitle(..) | E::BecomesWeapon | E::BecomesGun => (Family::Marker, false),
             // Read by `give_card_control`, `about_to_leave_ready`,

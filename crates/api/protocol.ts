@@ -1007,6 +1007,11 @@ export type Purpose =
     | 'move_off_burned_bearer'
     | 'secret_number'
     | 'search_equip_for'
+    | 'put_in_play_search'
+    | 'move_card_to_oldest'
+    | 'may_prevent_for_blood'
+    | 'shortfall_picks'
+    | 'may_unlock'
     | 'give_blood'
     | 'move_between'
     | 'diablerie_equipment'
@@ -1295,15 +1300,19 @@ export type Title = {
     /**
      * `primogen`, `prince`, `baron`, `justicar`, `inner_circle`,
      * `archbishop`, `bishop`, `cardinal`, `priscus`, `regent`, `magaji`,
-     * `independent` (named in `of`), `votes` (a title by its votes only).
+     * `independent` or `laibon` (a unique title named in `of`), `votes` (a
+     * title by its votes only).
      */
     id: string
     /**
      * The city (a prince, a baron, an archbishop), the clan (a justicar,
-     * the Inner Circle) or an independent title's name.
+     * the Inner Circle) or an independent or Laibon title's name.
      */
     of?: string | null
-    /** Its votes, when the title says them (`independent`, `votes`). */
+    /**
+     * Its votes, when the title says them (`independent`, `laibon`,
+     * `votes`).
+     */
     votes?: number | null
 }
 

@@ -3461,6 +3461,31 @@
           "const": "search_equip_for"
         },
         {
+          "description": "Summon History: `seat` may search library and/or ash heap for an\nally, retainer or equipment costing `n` or less (`take_from`), or\ncrypt and/or ash heap for a vampire of capacity `n` or less\n(`ash_vampire`), to put in play for `minion`; or pass.",
+          "type": "string",
+          "const": "put_in_play_search"
+        },
+        {
+          "description": "A title card moving on (Osebo Kholo): `seat` picks which of the\noldest ready untitled vampires of its clan and sect gets `card`.",
+          "type": "string",
+          "const": "move_card_to_oldest"
+        },
+        {
+          "description": "Superior Mettle: `minion` may burn `n` blood to prevent the\nopposing initial strike's damage this round (`resolve_printed`, or\npass).",
+          "type": "string",
+          "const": "may_prevent_for_blood"
+        },
+        {
+          "description": "Public Vilification short of blood: `seat` picks the next vampire\nto receive 1 blood from `minion`.",
+          "type": "string",
+          "const": "shortfall_picks"
+        },
+        {
+          "description": "Baba Yaga: `minion` may unlock (`resolve_printed`, or pass).",
+          "type": "string",
+          "const": "may_unlock"
+        },
+        {
           "description": "Blood Trade: 1 blood from `from` to a vampire of another\nMethuselah's, the player's choice.",
           "type": "string",
           "const": "give_blood"
@@ -4727,18 +4752,18 @@
       "type": "object",
       "properties": {
         "id": {
-          "description": "`primogen`, `prince`, `baron`, `justicar`, `inner_circle`,\n`archbishop`, `bishop`, `cardinal`, `priscus`, `regent`, `magaji`,\n`independent` (named in `of`), `votes` (a title by its votes only).",
+          "description": "`primogen`, `prince`, `baron`, `justicar`, `inner_circle`,\n`archbishop`, `bishop`, `cardinal`, `priscus`, `regent`, `magaji`,\n`independent` or `laibon` (a unique title named in `of`), `votes` (a\ntitle by its votes only).",
           "type": "string"
         },
         "of": {
-          "description": "The city (a prince, a baron, an archbishop), the clan (a justicar,\nthe Inner Circle) or an independent title's name.",
+          "description": "The city (a prince, a baron, an archbishop), the clan (a justicar,\nthe Inner Circle) or an independent or Laibon title's name.",
           "type": [
             "string",
             "null"
           ]
         },
         "votes": {
-          "description": "Its votes, when the title says them (`independent`, `votes`).",
+          "description": "Its votes, when the title says them (`independent`, `laibon`,\n`votes`).",
           "type": [
             "integer",
             "null"

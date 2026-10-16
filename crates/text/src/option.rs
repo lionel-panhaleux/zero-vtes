@@ -524,6 +524,12 @@ fn asked(
         (P::MayTorture, K::ResolveRider) => "Lock The Path of Lilith: a torture counter".into(),
         (P::MayGainPool, K::Pass) => "Gain no pool".into(),
         (P::MayGainPool, K::ResolvePrinted) => format!("Gain {} pool", about?.n?),
+        (P::MayPreventForBlood, K::Pass) => "Burn no blood".into(),
+        (P::MayPreventForBlood, K::ResolvePrinted) => {
+            format!("Burn {} blood to prevent the damage", about?.n?)
+        }
+        (P::MayUnlock, K::Pass) => "Stay locked".into(),
+        (P::MayUnlock, K::ResolvePrinted) => "Unlock".into(),
         (P::EntryRemoveOrBurn, K::Pass) => format!("Burn {}", whom()?),
         (P::EntryRemoveOrBurn, K::FindCard) => verb("Take ", "Remove ")?,
         (P::EntryRemoveOrBurn, K::AshVampire) => verb("Choose ", "Remove ")?,

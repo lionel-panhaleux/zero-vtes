@@ -49,7 +49,7 @@ What it still needs:
    (cards).
 8. **What players asked for**: the cards their refused decks named,
    counted (engine: Demand for cards counted), to steer the next rounds
-   (cards: Round 14).
+   (cards: Round 15).
 
 Not needed for the beta but in the same order: the repository open to
 outsiders (engine), the demo video and the proposal to Thomas (platforms).

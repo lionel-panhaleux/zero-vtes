@@ -328,6 +328,23 @@ ids!(
         /// to put on `minion` (`find_card`, or pass), requirements ignored,
         /// for half its cost rounded down.
         SearchEquipFor,
+        /// Summon History: `seat` may search library and/or ash heap for an
+        /// ally, retainer or equipment costing `n` or less (`take_from`), or
+        /// crypt and/or ash heap for a vampire of capacity `n` or less
+        /// (`ash_vampire`), to put in play for `minion`; or pass.
+        PutInPlaySearch,
+        /// A title card moving on (Osebo Kholo): `seat` picks which of the
+        /// oldest ready untitled vampires of its clan and sect gets `card`.
+        MoveCardToOldest,
+        /// Superior Mettle: `minion` may burn `n` blood to prevent the
+        /// opposing initial strike's damage this round (`resolve_printed`, or
+        /// pass).
+        MayPreventForBlood,
+        /// Public Vilification short of blood: `seat` picks the next vampire
+        /// to receive 1 blood from `minion`.
+        ShortfallPicks,
+        /// Baba Yaga: `minion` may unlock (`resolve_printed`, or pass).
+        MayUnlock,
         /// Blood Trade: 1 blood from `from` to a vampire of another
         /// Methuselah's, the player's choice.
         GiveBlood,

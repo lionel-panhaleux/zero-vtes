@@ -982,7 +982,7 @@ fn london_evening_star_gives_intercept() {
     until(&mut e, SeatId(1), WindowLabel::MinionPhase);
     pick(&mut e, play(0, 0, z));
     pick_when(&mut e, block(ilse));
-    let lock = use_at(star, 0, None, Target::Minion(ilse));
+    let lock = use_at(star, 0, None, Target::None);
     let req = offering(&mut e, lock);
     e.choose(index_of(&req, lock));
     until(&mut e, SeatId(0), WindowLabel::CombatStrike);

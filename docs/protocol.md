@@ -189,7 +189,7 @@ A JSON object with `seq`, `reply_to`? and a `type`:
 … 41: the schema's `Window`). `source` is the card whose terms or effect
 the decision chooses, when it is one (a play's or an action's terms, a
 referendum's): the options' `effects` say what each choice gets.
-`purpose` is what an effect asks the choice for, when one does (76 ids,
+`purpose` is what an effect asks the choice for, when one does (81 ids,
 the schema's `Purpose`: `pay_or_burn`, `store_search`…, one per kind
 of effect choice the engine asks). The purpose says the verb
 (`remove_uncontrolled`: the slot chosen is removed); where it has
@@ -458,8 +458,9 @@ Snake_case ids from sets the protocol does not close:
   Disciplines: KRCG abbreviations (`dom`, `aus`…); circles likewise; card
   types (`action_modifier`, `reaction`, `combat`…).
 - Titles: `primogen`, `prince`, `baron`, `justicar`, `inner_circle`,
-  `archbishop`, `bishop`, `cardinal`, `priscus`, `regent`, `magaji`, or
-  an independent title's name.
+  `archbishop`, `bishop`, `cardinal`, `priscus`, `regent`, `magaji`,
+  `independent` or `laibon` (a unique title, its name in `of`), `votes`
+  (a title by its votes only).
 
 Closed sets (`Window`, `OptionKind`, `EffectKind`, `Role`, `MarkerKind`,
 `Trait`, `Zone`…) are listed in the schema; a client should read a value a later

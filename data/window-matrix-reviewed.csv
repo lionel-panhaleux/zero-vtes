@@ -779,3 +779,25 @@ id,name,types,disciplines,in_precon,windows,flags,needs_review,review
 102075,University Hunting Ground,Master,,no,MASTER_PHASE,,,ok
 102268,Banu Haqim Justicar,Political Action,,no,ACTION_DECLARE_POLITICAL,,,ok
 102272,Lasombra Justicar,Political Action,,no,ACTION_DECLARE_POLITICAL,,,ok
+100002,419 Operation,Action,,no,ACTION_DECLARE,,,ok
+100325,Changeling Skin Mask,Equipment,,no,ACTION_DECLARE_EQUIP,,,ok
+100495,Dark Steel,Combat,obt/pot,no,COMBAT_BEFORE_RANGE,,,ok
+100522,Demonstration,Master,,no,MASTER_PHASE,,,ok
+100663,Esprit de Corps,Action,pot/pre,no,ACTION_DECLARE,cancel_as_played,,ok
+100723,Festivo dello Estinto,Master,,no,MASTER_PHASE,,,ok
+100990,Inside Dirt,Action,,no,ACTION_DECLARE,,,ok
+101170,Marked Territory,Action,,no,ACTION_DECLARE,,,ok
+101332,Osebo Kholo,Action Modifier/Reaction,,no,REFERENDUM,usable_locked,,ok
+101436,Powerbase: Luanda,Master,,no,MASTER_PHASE,in_play_action,,ok
+101514,Public Vilification,Political Action,,no,ACTION_DECLARE_POLITICAL,,,ok
+101570,Recruitment Exercise,Action,,no,ACTION_DECLARE,,,ok
+101633,Rewind Time,Reaction,tem/pre,no,REACTION_DURING_ACTION;CARD_AS_PLAYED,cancel_as_played,,ok
+101638,Rise of the Fallen,Action,,no,ACTION_DECLARE,,,ok
+101679,Sanguine Entrapment,Combat,cel/qui,no,COMBAT_BEFORE_RANGE,,,ok
+101749,Shakar: the Hunt,Master,,no,MASTER_PHASE,trifle;in_play_action,,ok
+101854,Spoils of War,Action Modifier,,no,ACTION_AFTER_RESOLUTION,,,ok
+101897,Summon History,Action,tem,no,ACTION_DECLARE,,,ok
+101905,Superior Mettle,Combat,for,no,COMBAT_DAMAGE_PREVENTION,,,ok
+101924,Tabriz Assembly,Master,,no,MASTER_PHASE,in_play_action,,ok
+101935,Tangle Atropos' Hand,Action Modifier,tem/pot,no,ACTION_BLOCK_ATTEMPT,,,ok
+101944,Taste of Death,Combat,qui,no,COMBAT_STRIKE_DECLARATION,,,ok

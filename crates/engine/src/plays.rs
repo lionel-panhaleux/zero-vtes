@@ -500,6 +500,7 @@ impl Engine {
             | Actor::HostOutOfCombat
             | Actor::HostControllersPrey
             | Actor::Controller
+            | Actor::ControllersPrey
             | Actor::ForOwnCombatant
             | Actor::OpposingCombatant
             | Actor::ChosenController => {
@@ -770,6 +771,14 @@ impl Engine {
                     if st.barred_this_turn.contains(&card) {
                         continue;
                     }
+                    // Mimir: no other Methuselah's master card targets him,
+                    // the bleeding vampire Archon Investigation burns
+                    // included (LSJ 20010817, PIB 20131013).
+                    if mode.effects.contains(&Effect::BurnActingMinion)
+                        && action.is_some_and(|a| st.shielded_from_master(a.acting, seat, card))
+                    {
+                        continue;
+                    }
                     // Approximation of Loyalty [PRE]: no more action
                     // modifiers on this action.
                     if action.is_some_and(|a| a.no_more_modifiers && a.seat == seat)
@@ -931,7 +940,7 @@ impl Engine {
                     // A political action card cannot be played if its terms
                     // cannot be met (LSJ 20100129).
                     if mode.effects.iter().any(|e| match (e, actor) {
-                        (Effect::CallReferendum(r), Some(m)) => !r.feasible(st, seat, m),
+                        (Effect::CallReferendum(r), Some(m)) => !r.feasible(st, seat, m, mode),
                         _ => false,
                     }) {
                         continue;
@@ -986,6 +995,19 @@ impl Engine {
                         actor.and_then(|m| cards::plays_card_as_vampire(st, m, card, mi));
                     if let Some(m) = actor {
                         if !cards::has_disciplines(st, m, card, mi) {
+                            continue;
+                        }
+                        // "Cannot use cards requiring Celerity" (Nehemiah):
+                        // the mode played.
+                        let barred = st.printed_mod(
+                            m,
+                            cards::Stat::CannotPlay,
+                            crate::state::PrintedCtx {
+                                card: Some((card, mi as u8)),
+                                ..Default::default()
+                            },
+                        );
+                        if barred > 0 {
                             continue;
                         }
                         // One political action per minion per turn
@@ -1046,7 +1068,17 @@ impl Engine {
                         // Charisma's discount, taken as the payment takes it
                         // (off the pool cost if any, else the blood).
                         reduce(&mut pool, &mut blood, recruit_off(st, mode, m));
-                        if blood.saturating_sub(potential) > st.minions[m.index()].blood {
+                        // A burn the card asks for, beyond its cost as paid
+                        // (ANK 20210226).
+                        let beyond = mode
+                            .requires
+                            .iter()
+                            .find_map(|r| match r {
+                                Requirement::ActorBloodAtLeast(n) => Some(*n),
+                                _ => None,
+                            })
+                            .unwrap_or(0);
+                        if blood.saturating_sub(potential) + beyond > st.minions[m.index()].blood {
                             continue;
                         }
                         // "This ally cannot have or use equipment or
@@ -1248,6 +1280,7 @@ impl Engine {
                                 .filter(|&id| {
                                     st.minions[id.index()].present()
                                         && shielded != Some(id)
+                                        && !st.shielded_from_master(id, seat, card)
                                         // "Cannot be the target of directed
                                         // actions requiring Dominate or
                                         // Presence" (Aggressive Corpse).
@@ -2594,6 +2627,27 @@ impl Engine {
             canceled: false,
             cost_paid: false,
         };
+        // Andrew Stuart: the top card revealed as he plays a card requiring
+        // his Discipline; requiring it too, the play canceled at once (LSJ
+        // 20100728), its cost paid (RBK cancel-a-card), his blood burned.
+        if let Some(m) = ctx.actor {
+            for r in self.printed_riders(m, Hook::HostPlaysCard, None) {
+                for e in r.effects {
+                    let Effect::RevealTopCancels { disc, burn } = *e else {
+                        unreachable!("not a play rider effect: {e:?}");
+                    };
+                    let uses = played_disciplines(ctx.card, ctx.mode)
+                        .iter()
+                        .any(|t| t.eq_ignore_ascii_case(disc));
+                    let top = self.state.seats[ctx.seat.index()].library.last().copied();
+                    if uses && top.is_some_and(|c| cards::CardFilter::Discipline(disc).matches(c)) {
+                        pending.canceled = true;
+                        pending.cost_paid = true;
+                        self.state.burn_blood(m, burn);
+                    }
+                }
+            }
+        }
         // Two Wrongs: the next card that would change the bleed's target,
         // canceled as it is played, its cost paid (RBK cancel-a-card).
         let redirects = cards::lookup(ctx.card).is_some_and(|d| {
@@ -2610,6 +2664,19 @@ impl Engine {
             a.redirect_shield = false;
             pending.canceled = true;
             pending.cost_paid = true;
+        }
+        // Canceled as it is played, before anyone could answer (Andrew
+        // Stuart, Two Wrongs): settled at once, nothing being played any
+        // more; an open stack's window goes on.
+        if pending.canceled {
+            self.settle_canceled(pending.ctx, pending.cost_paid);
+            if std::mem::take(&mut self.ousted_during_play) {
+                return;
+            }
+            if !matches!(self.flow, Flow::AsPlayed { .. }) {
+                self.flow = resume;
+            }
+            return;
         }
         let flow = std::mem::replace(&mut self.flow, Flow::GameOver);
         match flow {
@@ -3081,9 +3148,11 @@ impl Engine {
     }
 
     /// `ctx` plays, for `m`'s combat opponent, a card restricting `m`'s
-    /// strikes (Groundfighting): hand strikes only (Immortal Grapple), or
-    /// no equipment while `m` is armed (Drawing Out the Beast); not range,
-    /// dodges, strike counts, equipment or Disciplines (LSJ 20050221).
+    /// strikes (Groundfighting): hand strikes only (Immortal Grapple), no
+    /// dodge or no combat ends (Sanguine Entrapment, rules-qa 77.9), or no
+    /// equipment while `m` is armed (Drawing Out the Beast); not range,
+    /// undodgeable strikes, strike counts, equipment or Disciplines (LSJ
+    /// 20050221).
     pub(crate) fn restricts_strikes_of(&self, m: MinionId, ctx: &PlayCtx) -> bool {
         let Some(cb) = self.combat.as_ref() else {
             return false;
@@ -3098,7 +3167,9 @@ impl Engine {
             && cards::lookup(ctx.card).is_some_and(|d| {
                 d.modes.get(ctx.mode as usize).is_some_and(|md| {
                     md.effects.iter().any(|e| match e {
-                        Effect::OnlyHandStrikes => true,
+                        Effect::OnlyHandStrikes
+                        | Effect::OpposingNoDodgeThisRound
+                        | Effect::OpposingNoCombatEndsThisRound => true,
                         Effect::DrawOutBeast { .. } => armed,
                         _ => false,
                     })
@@ -4026,6 +4097,19 @@ impl Engine {
                     ..CardInPlay::entering(ctx.card, *ctx.copy, s, None, ctx.mode)
                 }));
             }
+            Effect::DrawCryptBloodIfBlackHand(n) => {
+                let seat = &mut self.state.seats[s.index()];
+                if let Some((card, copy)) = seat.crypt.take_top() {
+                    let black_hand = card != crate::state::CREATED
+                        && crate::crypt::CRYPT[card as usize].black_hand;
+                    seat.uncontrolled.push(crate::state::UncontrolledSlot {
+                        card,
+                        copy: crate::copies::Untracked(copy),
+                        counters: if black_hand { n } else { 0 },
+                        banished: None,
+                    });
+                }
+            }
             // Mozambique Allure: the crypt draw ends in the uncontrolled
             // region; the new sect replaces the old, its title none
             // (required untitled).
@@ -4330,6 +4414,16 @@ impl Engine {
                     self.replace(s, 1, None);
                 }
             }
+            Effect::SearchPutInPlayUpToX { vampire } => {
+                if let Some(m) = ctx.actor {
+                    self.interrupts.push(Interrupt::PutInPlaySearch {
+                        seat: s,
+                        minion: m,
+                        x: ctx.x,
+                        vampire,
+                    });
+                }
+            }
             // The named retainer from hand, if still there and affordable:
             // its cost paid, requirements as normal, not an action (Pack
             // Alpha [ani]); a card played from hand is replaced.
@@ -4373,6 +4467,9 @@ impl Engine {
                     } else {
                         self.put_retainer(s, m, play, true);
                     }
+                    // Baba Yaga's unlock: a recruit or employ by another card
+                    // counts (PIB 20150105-2).
+                    self.recruits_or_employs_riders(m);
                     self.replace(s, 1, None);
                     // Paid down to 0 on one's own turn (Piper): ousted, the
                     // turn passed with it; out of turn, `resolve_play`
@@ -4847,6 +4944,20 @@ impl Engine {
     /// is its host (or the user's combatant).
     pub(crate) fn apply_shared_effect(&mut self, effect: Effect, ctx: &PlayCtx, by: By) {
         match effect {
+            Effect::BurnEdge => self.state.seats[ctx.seat.index()].has_edge = false,
+            Effect::RemoveCryptTop => {
+                let seat = &mut self.state.seats[ctx.seat.index()];
+                if let Some((card, copy)) = seat.crypt.take_top() {
+                    seat.removed_crypt.put(card, copy);
+                }
+            }
+            Effect::TargetBecomesBlackHand => {
+                if let Target::Minion(t) = ctx.target {
+                    if self.state.minions[t.index()].present() {
+                        self.state.minions[t.index()].gained_black_hand = true;
+                    }
+                }
+            }
             // For good: the cards on it go with it; its ash heap stays its
             // owner's; a title it carries may now be contested
             // (Graverobbing, Form of Corruption).
@@ -5276,7 +5387,7 @@ impl Engine {
                 match ability.actor {
                     // The controller picks the ability's target (a hunting
                     // ground: "a ready vampire you control can gain 1 blood").
-                    Actor::Controller => {
+                    Actor::Controller | Actor::ControllersPrey => {
                         if gate(None).is_none() {
                             continue;
                         }
@@ -5597,7 +5708,7 @@ impl Engine {
                 return None;
             }
             if ability.effects.iter().any(|e| match e {
-                Effect::CallReferendum(r) => !r.feasible(st, seat, m),
+                Effect::CallReferendum(r) => !r.feasible(st, seat, m, ability),
                 _ => false,
             }) {
                 return None;
@@ -5709,9 +5820,12 @@ impl Engine {
             _ => true,
         };
         // An `ActingCandidate` ability reads its card for `CardUnlocked`
-        // only.
+        // and `CardLocked` only.
         let card = match source {
-            AbilitySource::Card(_) if actor == Actor::ActingCandidate && r != R::CardUnlocked => {
+            AbilitySource::Card(_)
+                if actor == Actor::ActingCandidate
+                    && !matches!(r, R::CardUnlocked | R::CardLocked) =>
+            {
                 None
             }
             AbilitySource::Card(id) => Some(id),
@@ -6619,6 +6733,7 @@ impl Engine {
                 let c = &st.cards[id.index()];
                 match mode.actor {
                     Actor::Controller => (st.card_controller(id), None),
+                    Actor::ControllersPrey => (st.prey(st.card_controller(id)), None),
                     Actor::ChosenController => (owner(c.chosen[0]), None),
                     // The vampire using it pays, as its host would; the
                     // controller of the vampire using it is the user, whoever
@@ -7403,11 +7518,6 @@ impl Engine {
                         a.intercept_given.push((actor.expect("actor"), x as i8));
                     }
                 }
-                Effect::TargetInterceptThisAction(n) => {
-                    if let (Some(a), Target::Minion(t)) = (self.action.as_mut(), target) {
-                        a.intercept_given.push((t, n));
-                    }
-                }
                 Effect::LockHost => {
                     self.state.minions[host.expect("host").index()].locked = true;
                 }
@@ -7427,7 +7537,6 @@ impl Engine {
                         a.card_to_library = true;
                     }
                 }
-                Effect::BurnEdge => self.state.seats[ctx.seat.index()].has_edge = false,
                 Effect::ToggleLockTarget => {
                     if let Target::Minion(m) = ctx.target {
                         if self.state.minions[m.index()].locked {
@@ -7669,6 +7778,29 @@ impl Engine {
                     let k = (n as usize).min(self.state.seats[ctx.seat.index()].hand.len());
                     self.discard_at_random(ctx.seat, k);
                     self.replace(ctx.seat, k, None);
+                }
+                Effect::PreyPoolToCounter(n) => {
+                    let prey = self.state.prey(ctx.seat);
+                    let moved = (self.state.seats[prey.index()].pool.max(0) as u8).min(n);
+                    self.state.cards[source.card().index()].counters += moved;
+                    let mut loss = vec![0i32; self.state.seats.len()];
+                    loss[prey.index()] = moved as i32;
+                    self.burn_pool_batch(&loss);
+                }
+                Effect::CardChoosesTarget => {
+                    if let (AbilitySource::Card(c), Target::Minion(t)) = (source, target) {
+                        self.state.cards[c.index()].chosen = vec![t];
+                    }
+                }
+                Effect::HandToBottomX => {
+                    let hand = self.state.seats[ctx.seat.index()].hand.len();
+                    let n = ctx.x.min(hand.min(u8::MAX as usize) as u8);
+                    if n > 0 {
+                        self.interrupts.push(Interrupt::Bottom {
+                            seat: ctx.seat,
+                            left: n,
+                        });
+                    }
                 }
                 // The number picked, capped by the library as the ability
                 // resolves; drawn with no discard-down before the same

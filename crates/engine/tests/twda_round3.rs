@@ -1596,13 +1596,14 @@ fn confusion_of_the_eye_is_not_offered_on_an_automatic_pass() {
 // Abombwe: "Put this card on a Laibon or on a vampire with Protean [pro]."
 // [LSJ 20051116-2] "The requirements are ignored if the card is not played
 // in the normal fashion": Childe of the Revolution's search puts it on the
-// new childe (no Protean); played, only on a vampire with [pro].
+// new childe (no Protean); played, only on a Laibon or a vampire with [pro].
 #[test]
 fn abombwe_needs_protean_only_when_played() {
     let mut e = game(2);
     let b = e.add_minion(SeatId(0), find_card("Atiena"), 5, false);
     let other = e.add_minion(SeatId(0), plain("Brujah", 0), 4, false);
     let p = e.add_minion(SeatId(1), vampire_with("pro", 0), 4, false);
+    let laibon = e.add_minion(SeatId(1), find_card("Babalawo Alafin"), 4, false);
     hand(&mut e, 0, &["Abombwe", "Childe of the Revolution"]);
     e.at_master_phase();
     let req = request(&mut e);
@@ -1617,6 +1618,7 @@ fn abombwe_needs_protean_only_when_played() {
         })
         .collect();
     assert!(targets.contains(&Target::Minion(p)));
+    assert!(targets.contains(&Target::Minion(laibon)), "a Laibon");
     assert!(!targets.contains(&Target::Minion(other)));
     pick(&mut e, Choice::Pass);
     let before = e.state.minions.len();

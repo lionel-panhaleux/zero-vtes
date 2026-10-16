@@ -150,6 +150,19 @@ impl Damage {
     }
 }
 
+/// Side `i`'s printed bonus to a ranged strike, at either range
+/// (Noluthando's damage, The Dracon's steal).
+fn ranged_bonus(st: &GameState, c: &CombatCtx, i: usize, ranged: bool, stat: cards::Stat) -> i32 {
+    if !ranged {
+        return 0;
+    }
+    let ctx = crate::state::PrintedCtx {
+        opponent: Some(c.sides[1 - i].minion),
+        ..Default::default()
+    };
+    st.printed_mod(c.sides[i].minion, stat, ctx)
+}
+
 /// Does the weapon a strike came from carry rider `e` on its strike?
 fn source_rider(st: &crate::state::GameState, source: Option<CardId>, e: Effect) -> bool {
     source.is_some_and(|w| {
@@ -278,6 +291,13 @@ pub struct Side {
     /// This side cannot strike: combat ends in this round (Hunter's Mark
     /// [CEL][THA] on the opposing minion: the first).
     pub no_combat_ends_round: Option<u8>,
+    /// This side cannot strike: dodge in this round (Sanguine Entrapment).
+    pub no_dodge_round: Option<u8>,
+    /// From the round after this one, each round of the combat, it may
+    /// burn n blood to prevent the opposing initial strike's damage
+    /// (Superior Mettle [FOR]); `burn_to_prevent_asked`: the round offered.
+    pub burn_to_prevent: Option<(u8, u8)>,
+    pub burn_to_prevent_asked: Option<u8>,
     /// Barred from "strike: combat ends" this combat (Mind of the Wilds;
     /// set again in a later combat of the action).
     pub no_combat_ends_combat: bool,
@@ -309,8 +329,10 @@ pub struct Side {
     /// A strike this minion can choose this round (Hunger of Marduk).
     pub round_strike: Option<StrikeKind>,
     /// Environmental damage the opposing minion takes each round, this
-    /// combat (Carrion Crows).
+    /// combat (Carrion Crows); `environmental_close` at close range only
+    /// (Dark Steel).
     pub environmental: u8,
+    pub environmental_close: u8,
     /// Riders of the chosen strike: undodgeable (Dust Up [ani]),
     /// aggravated (Sculpt the Flesh [pro]), its card put on the opposing
     /// minion as it lands (`held`).
@@ -443,7 +465,7 @@ impl Side {
 
     /// Prevent up to `n` of the pending damage from the opposing strike,
     /// aggravated first when `aggravated` (none otherwise).
-    fn prevent_strike(&mut self, n: u8, aggravated: bool) {
+    pub(crate) fn prevent_strike(&mut self, n: u8, aggravated: bool) {
         let (s, p) = (self.strike_damage, self.pending);
         let before = Damage {
             normal: s.normal.min(p.normal),
@@ -520,6 +542,9 @@ impl Side {
             long_maneuvers: self.long_maneuvers,
             combat_continue_presses: self.combat_continue_presses,
             no_combat_ends_round: self.no_combat_ends_round,
+            no_dodge_round: self.no_dodge_round,
+            burn_to_prevent: self.burn_to_prevent,
+            burn_to_prevent_asked: self.burn_to_prevent_asked,
             no_combat_ends_combat: self.no_combat_ends_combat,
             frozen_round: self.frozen_round,
             no_strike_round: self.no_strike_round,
@@ -539,6 +564,7 @@ impl Side {
             marble: self.marble,
             combat_ends_round: self.combat_ends_round,
             environmental: self.environmental,
+            environmental_close: self.environmental_close,
             aggravated_hands: self.aggravated_hands_combat,
             aggravated_hands_combat: self.aggravated_hands_combat,
             prevent_each_round: self.prevent_each_round,
@@ -847,13 +873,8 @@ impl CombatCtx {
             } => {
                 // "+1 damage with ranged strikes (even at close range)"
                 // (Noluthando): part of the strike's damage.
-                let n = if ranged {
-                    let more = st.printed_mod(s.minion, cards::Stat::RangedStrikeDamage, ctx);
-                    (n as i32 + more).max(0) as u8
-                } else {
-                    n
-                }
-                .saturating_sub(less);
+                let more = ranged_bonus(st, self, i, ranged, cards::Stat::RangedStrikeDamage);
+                let n = ((n as i32 + more).max(0) as u8).saturating_sub(less);
                 let gun = s
                     .strike_source
                     .is_some_and(|w| cards::is_gun(st.cards[w.index()].card));
@@ -1058,6 +1079,11 @@ impl CombatCtx {
                 false
             }
             Effect::Strike(StrikeKind::CombatEnds { .. }) if no_ends => false,
+            Effect::Strike(StrikeKind::Dodge)
+                if self.sides[side].no_dodge_round == Some(self.round) =>
+            {
+                false
+            }
             // Gabi: no dodge against her the first round.
             Effect::Strike(StrikeKind::Dodge)
                 if self.round == 1
@@ -2165,6 +2191,36 @@ impl Engine {
         }
     }
 
+    /// Superior Mettle [FOR]: in a later round's prevention step, the
+    /// opposing initial strike's damage pending, its vampire is offered the
+    /// burn (`Interrupt::MayPreventForBlood`), once a round.
+    pub(crate) fn settle_burn_to_prevent(&mut self) {
+        let Some(c) = self.combat.as_mut() else {
+            return;
+        };
+        let Step::Prevent(i) = c.step else {
+            return;
+        };
+        let s = &c.sides[i];
+        let Some((from, n)) = s.burn_to_prevent else {
+            return;
+        };
+        let m = s.minion;
+        if c.round <= from
+            || c.pair != 0
+            || !s.preventing
+            || s.burn_to_prevent_asked == Some(c.round)
+            || s.strike_damage.total().min(s.pending.total()) == 0
+            || self.state.minions[m.index()].blood < n
+        {
+            return;
+        }
+        let seat = s.seat;
+        c.sides[i].burn_to_prevent_asked = Some(c.round);
+        self.interrupts
+            .push(crate::draws::Interrupt::MayPreventForBlood { seat, minion: m, n });
+    }
+
     /// Anathema: a combatant carrying one whose blood went from some to 0
     /// in this combat is burned, the opposing Methuselah gaining its
     /// capacity in pool (RTR 19980623; LSJ 20021120, 20021117).
@@ -2570,7 +2626,10 @@ impl Engine {
                 }
                 c.sides[1 - i].pending.add(n, false);
                 // Environmental damage (Carrion Crows): dodge or not.
-                let n = c.sides[i].environmental;
+                let mut n = c.sides[i].environmental;
+                if c.range == Range::Close {
+                    n += c.sides[i].environmental_close;
+                }
                 c.sides[1 - i].pending.add(n, false);
             }
         }
@@ -2741,19 +2800,16 @@ impl Engine {
                 if rc.present() && rc.host == Some(c.sides[j].minion) {
                     match k {
                         StrikeKind::Damage { .. } if harmless[i] => {}
-                        StrikeKind::Damage { n, .. } => {
-                            let ctx = crate::state::PrintedCtx {
-                                opponent: Some(c.sides[j].minion),
-                                ..Default::default()
-                            };
-                            let more = st.printed_mod(
-                                c.sides[i].minion,
-                                cards::Stat::RangedStrikeDamage,
-                                ctx,
-                            );
+                        StrikeKind::Damage { n, ranged, .. } => {
+                            let more =
+                                ranged_bonus(st, c, i, ranged, cards::Stat::RangedStrikeDamage);
                             retainer_hits.push((r, (n as i32 + more).max(0) as u8, false, i));
                         }
-                        StrikeKind::StealBlood { n, .. } => retainer_hits.push((r, n, true, i)),
+                        StrikeKind::StealBlood { n, ranged } => {
+                            let more =
+                                ranged_bonus(st, c, i, ranged, cards::Stat::RangedStrikeSteal);
+                            retainer_hits.push((r, (n as i32 + more).max(0) as u8, true, i));
+                        }
                         _ => {}
                     }
                 }
@@ -2807,6 +2863,8 @@ impl Engine {
                 }
                 StrikeKind::StealBlood { n, ranged } => {
                     if (ranged || close) && !dodged {
+                        let more = ranged_bonus(st, c, i, ranged, cards::Stat::RangedStrikeSteal);
+                        let n = (n as i32 + more).max(0) as u8;
                         steals[i] = n.min(self.state.minions[c.sides[j].minion.index()].blood);
                     }
                 }
@@ -3887,7 +3945,15 @@ impl Engine {
             }
             Effect::PreventStrike { n, aggravated } => c.sides[i].prevent_strike(n, aggravated),
             Effect::NullifyOpposingWeapons => c.sides[i].nullifies_weapons = true,
-            Effect::EnvironmentalDamage(n) => c.sides[i].environmental += n,
+            Effect::OpposingNoDodgeThisRound => c.sides[1 - i].no_dodge_round = Some(c.round),
+            Effect::MayBurnToPreventInitialStrikes(n) => {
+                c.sides[i].burn_to_prevent = Some((c.round, n))
+            }
+            Effect::OpposingNoCombatEndsThisRound => {
+                c.sides[1 - i].no_combat_ends_round = Some(c.round)
+            }
+            Effect::EnvironmentalDamage { n, close: false } => c.sides[i].environmental += n,
+            Effect::EnvironmentalDamage { n, close: true } => c.sides[i].environmental_close += n,
             Effect::RoundStrike(k) => c.sides[i].round_strike = Some(k),
             Effect::SetRange(r) => {
                 if !c.range_set {

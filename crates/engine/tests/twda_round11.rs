@@ -1510,7 +1510,7 @@ fn perfect_clarity_spares_its_vampire_absolute_tyrannys_minus_one() {
             let r = e.referendum().expect("referendum");
             (
                 [r.votes_of(&e.state, a), r.votes_of(&e.state, b)],
-                r.tally(),
+                r.tally(&e.state),
             )
         };
         pick(&mut e, play(0, 1, x));
@@ -1519,7 +1519,7 @@ fn perfect_clarity_spares_its_vampire_absolute_tyrannys_minus_one() {
         let spared = u8::from(!clarity);
         assert_eq!(r.votes_of(&e.state, a), before[0] - spared);
         assert_eq!(r.votes_of(&e.state, b), before[1] - 1);
-        assert_eq!(r.tally(), (cast.0 - spared as u32, cast.1 - 1));
+        assert_eq!(r.tally(&e.state), (cast.0 - spared as u32, cast.1 - 1));
     }
 }
 

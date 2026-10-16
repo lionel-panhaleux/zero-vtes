@@ -3178,6 +3178,24 @@ fn my_kin_against_the_world_unlocks_the_clan() {
     assert_eq!(blood(&e, a), 3, "X = 1 blood");
 }
 
+// "If this vampire is Laibon, you may choose younger Laibon regardless of
+// clan": an Osebo picks a locked younger Harbinger of Skulls.
+#[test]
+fn my_kin_against_the_world_unlocks_a_laibon_of_another_clan() {
+    let mut e = game(2);
+    let a = e.add_minion(SeatId(0), find_card("Massassi"), 4, false);
+    let h = e.add_minion(SeatId(0), find_card("Babalawo Alafin"), 4, false);
+    e.state.minions[h.index()].locked = true;
+    e.add_minion(SeatId(1), plain("Ventrue", 0), 4, false);
+    hand(&mut e, 0, &["My Kin Against the World"]);
+    pick(&mut e, play(0, 0, a));
+    // The one younger Laibon: chosen at once; untitled, the card's vote
+    // passes it.
+    pick_when(&mut e, set_x(1));
+    until(&mut e, SeatId(0), WindowLabel::MinionPhase);
+    assert!(!e.state.minions[h.index()].locked);
+}
+
 // The Sargon Fragment [LSJ 20010627] "the card to retrieve must be named
 // when declaring the action", [LSJ 20050228] "any copy of the named card in
 // the ash heap can be fetched", and "This vampire gets superior

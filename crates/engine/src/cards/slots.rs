@@ -82,6 +82,7 @@ impl Requirement {
             | R::ActorNotBlackHand
             | R::AttemptingCapacityAtLeast(..)
             | R::AttemptingAllyOrYounger
+            | R::AttemptingYoungerVampire
             | R::OwnMinionInCombat
             | R::AnyAttemptNeedsIntercept
             | R::StrikeNormalDamagePending
@@ -153,7 +154,6 @@ impl Requirement {
             | R::NonGunDamagePending
             | R::NoContinuePress
             | R::ActorHasBlocked
-            | R::ActorTitleNotIn(..)
             | R::ActorCapacityAtLeast(..)
             | R::PollingStep
             | R::ActorNotForcedYet
@@ -230,6 +230,8 @@ impl Requirement {
             | R::ActorPassedReferendumThisTurn
             | R::OwnUncontrolledNotEmpty
             | R::PlayedByAllyOrCapacityAtMost(..)
+            | R::PlayedByYoungerVampire
+            | R::PlayedActionCardTargetsYou
             | R::OwnAshVampire
             | R::OpposingAllyBurned
             | R::OwnAshHas(..)
@@ -266,7 +268,11 @@ impl Requirement {
             | R::NoSlaveTookCombat
             | R::OthersHuntingGroundsAtLeast(..)
             | R::PreyUncontrolledHasBlood
-            | R::BleedTargetAshAtLeast(..) => &[S::Play],
+            | R::BleedTargetAshAtLeast(..)
+            | R::NoOlderReadyUntitled { .. }
+            | R::IsEquipLabeledFromHand(..)
+            | R::ControlsReadyBlackHand => &[S::Play],
+            R::ActorBlackHand | R::ActorTitleNotIn(..) => &[S::Play, S::MinionTarget],
             R::HostBelowCapacity
             | R::HostControllerPoolAtLeast(..)
             | R::HostBloodAtLeast(..)
@@ -289,7 +295,6 @@ impl Requirement {
             | R::EnteredBeforeThisTurn
             | R::EnteredBeforeThisAction
             | R::HostNoCopyOfControllers
-            | R::CardLocked
             | R::ActionTargetsHost
             | R::LifeAtLeast(..)
             | R::BoonTargetActive
@@ -392,8 +397,12 @@ impl Requirement {
             | R::OpponentSectIn(..)
             | R::OpponentControllerHasGehenna
             | R::OtherNonHuntAction
-            | R::TargetSeatControlsReadyClan(..)
+            | R::TargetSeatControlsReadyClan { .. }
             | R::TargetSeatControlsReadySect { .. }
+            | R::OpponentInfernal
+            | R::PreyControlsReadyTitled(..)
+            | R::DirectedAtCard(..)
+            | R::SourceCalledReferendum
             | R::SourceTitleIn(..) => &[S::Printed],
             R::ActiveControlsNonSect(..) => &[S::Rider],
             R::ActorReady | R::BleedTargetPoolAtMost(..) => &[S::Play, S::MinionTarget],
@@ -430,6 +439,7 @@ impl Requirement {
             R::TargetNotNamed(..) | R::Controlled | R::NotControlled | R::TargetUnlocked => {
                 &[S::MinionTarget, S::CardTarget]
             }
+            R::ActorAndTargetSect(..) => &[S::MinionTarget],
             R::TargetCapacityAtLeast(..)
             | R::SameClanAsActor
             | R::Younger
@@ -475,7 +485,9 @@ impl Requirement {
             | R::MayBeLocked => &[S::Engine(Site::PlayOptions)],
             R::BlockedByOlder => &[S::Engine(Site::VampireRider(Hook::HostBlocked))],
             R::PlayedActionCardAtYour(..) => &[S::Play, S::Engine(Site::AsPlayed)],
-            R::CardUnlocked => &[S::Card, S::Engine(Site::AbilityGateCard)],
+            R::CardUnlocked | R::CardLocked => &[S::Card, S::Engine(Site::AbilityGateCard)],
+            R::ReferendumToBurnThisCard => &[S::Card],
+            R::NotFirstChosen | R::TargetHasCorruption => &[S::MinionTarget],
             R::HostCombatOpponentNotReady => &[S::Card, S::Engine(Site::VampireAbility)],
             R::SuperiorVersion => &[S::Card, S::Rider],
             R::NotHost => &[
@@ -540,7 +552,12 @@ mod tests {
     fn card_ability_readers(ability: &ModeDef) -> Option<Vec<Slot>> {
         use Slot::*;
         let mut readers = match ability.actor {
-            Actor::Controller | Actor::Methuselah | Actor::ChosenController => vec![Card, Play],
+            Actor::Controller
+            | Actor::ControllersPrey
+            | Actor::Methuselah
+            | Actor::ChosenController => {
+                vec![Card, Play]
+            }
             Actor::AnyReadyVampire
             | Actor::OpposingCombatant
             | Actor::ActingMinion
@@ -721,7 +738,7 @@ mod tests {
                     continue;
                 };
                 let mut minion = vec![Site::AbilityTargets];
-                if a.actor == Actor::Controller {
+                if matches!(a.actor, Actor::Controller | Actor::ControllersPrey) {
                     minion.push(Site::ControllerTarget);
                 }
                 w.mode(d.name, &at, a, &readers, &minion);

@@ -274,7 +274,7 @@ fn business_pressure_has_each_methuselah_choose_the_pool_they_burn() {
     request(&mut e);
     let r = e.referendum().expect("referendum");
     assert!(r.pressure.is_none(), "resolved");
-    assert_eq!(r.tally(), (6, 6));
+    assert_eq!(r.tally(&e.state), (6, 6));
     assert_eq!(pool(&e), vec![8, 7, 10]);
 }
 
@@ -295,7 +295,7 @@ fn camarilla_conclave_takes_votes_from_non_camarilla_vampires_once_an_action() {
     pick_when(&mut e, votes(hartmut, false));
     pick_when(&mut e, use_at(conclave, 1, None, Target::None));
     request(&mut e);
-    assert_eq!(e.referendum().expect("referendum").tally(), (0, 1));
+    assert_eq!(e.referendum().expect("referendum").tally(&e.state), (0, 1));
     assert_eq!(e.state.cards[conclave.index()].counters, 3);
     never_offered_where(
         &mut e,
@@ -336,7 +336,7 @@ fn camarilla_conclave_needs_a_political_action_not_a_card() {
     pick_when(&mut e, votes(hartmut, false));
     pick_when(&mut e, minus);
     request(&mut e);
-    assert_eq!(e.referendum().expect("referendum").tally(), (0, 1));
+    assert_eq!(e.referendum().expect("referendum").tally(&e.state), (0, 1));
 
     // A blood hunt: never offered.
     let (mut e, diana) = table("Diana Iadanza");

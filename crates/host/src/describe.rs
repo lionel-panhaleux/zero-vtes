@@ -1071,6 +1071,28 @@ pub fn about(e: &Engine, req: &DecisionRequest, names: &impl Names) -> Option<Ab
                 minion: m(minion),
                 ..a()
             },
+            I::PutInPlaySearch { minion, x, .. } => About {
+                minion: m(minion),
+                n: Some(x),
+                ..a()
+            },
+            I::MoveCardToOldest { card: c, .. } => About {
+                card: card(c),
+                ..a()
+            },
+            I::MayPreventForBlood { minion, n, .. } => About {
+                minion: m(minion),
+                n: Some(n),
+                ..a()
+            },
+            I::ShortfallPicks { from, .. } => About {
+                minion: m(from),
+                ..a()
+            },
+            I::MayUnlock { minion, .. } => About {
+                minion: m(minion),
+                ..a()
+            },
         });
     }
     match req.window {
@@ -1400,9 +1422,9 @@ pub fn key(e: &Engine, req: &DecisionRequest, choice: &Choice, names: &impl Name
             // the crypt if there.
             let crypt = match e.interrupt() {
                 Some(Interrupt::CryptSearch { .. }) => true,
-                Some(Interrupt::BaseSearch { seat, .. }) => {
-                    e.state.seats[seat.index()].crypt.contains(&c)
-                }
+                Some(
+                    Interrupt::BaseSearch { seat, .. } | Interrupt::PutInPlaySearch { seat, .. },
+                ) => e.state.seats[seat.index()].crypt.contains(&c),
                 _ => false,
             };
             k.zone = Some(ZoneRef {

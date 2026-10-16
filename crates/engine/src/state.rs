@@ -36,6 +36,11 @@ pub fn once_redraw_key(m: MinionId) -> (crate::cards::AbilitySource, u8) {
     (crate::cards::AbilitySource::Vampire(m), u8::MAX - 2)
 }
 
+/// The `turn_uses` key of a once-each-turn printed unlock (Baba Yaga).
+pub fn once_unlock_key(m: MinionId) -> (crate::cards::AbilitySource, u8) {
+    (crate::cards::AbilitySource::Vampire(m), u8::MAX - 3)
+}
+
 /// The cards of `cards` that `keep` keeps, one of each (copies are alike),
 /// in card order.
 pub fn distinct(cards: &[u16], keep: impl Fn(u16) -> bool) -> Vec<u16> {
@@ -72,7 +77,7 @@ pub fn title_key(t: Title) -> Option<TitleKey> {
         Title::Regent => Some(TitleKey::Named("Regent")),
         // Nor is the Laibon magaji (rulebook "Laibon").
         Title::Bishop | Title::Cardinal | Title::Priscus | Title::Magaji | Title::Votes(_) => None,
-        Title::Independent { name, .. } => Some(TitleKey::Named(name)),
+        Title::Independent { name, .. } | Title::Laibon { name, .. } => Some(TitleKey::Named(name)),
         Title::None | Title::Primogen => None,
     }
 }
@@ -90,7 +95,9 @@ pub fn title_votes(t: Title) -> u8 {
         Title::Magaji => 2,
         // A priscus votes in the prisci block (its ballot), not with votes.
         Title::Priscus => 0,
-        Title::Independent { votes, .. } | Title::Votes(votes) => votes,
+        Title::Independent { votes, .. } | Title::Laibon { votes, .. } | Title::Votes(votes) => {
+            votes
+        }
     }
 }
 
@@ -124,6 +131,10 @@ pub struct PrintedCtx {
     pub enters_combat: bool,
     /// The action's card puts a vampire in play (João Bilé).
     pub puts_vampire_in_play: bool,
+    /// The library card of the card in play the action targets (Bulscu).
+    pub target_card: Option<u16>,
+    /// The vampire calling the referendum votes are read in (Maldavis).
+    pub calling: Option<MinionId>,
 }
 
 impl PrintedCtx {
@@ -303,6 +314,9 @@ pub struct Minion {
     pub timed: Vec<(crate::cards::Lasting, Expiry, SeatId)>,
     /// Unlocks at the end of the turn (Enkidu, The Noah's employ).
     pub unlock_end_of_turn: bool,
+    /// Stealth its next action this turn gets, taken as it is declared
+    /// (Tangle Atropos' Hand [TEM]).
+    pub next_action_stealth: u8,
     /// The circle New Blood chose as he entered play (`Minion::circle`).
     pub chosen_circle: Option<&'static str>,
     /// Fiendish Tongue: the clan it must still be and the blood it can burn
@@ -400,7 +414,7 @@ impl Minion {
     }
 
     /// Burn up to n of `seat`'s corruption counters.
-    pub fn burn_corruption(&mut self, seat: SeatId, n: u8) {
+    fn burn_corruption(&mut self, seat: SeatId, n: u8) {
         if let Some((_, k)) = self.corruption.iter_mut().find(|(s, _)| *s == seat) {
             *k = k.saturating_sub(n);
         }
@@ -438,6 +452,7 @@ impl Minion {
             gained_black_hand: false,
             timed: Vec::new(),
             unlock_end_of_turn: false,
+            next_action_stealth: 0,
             chosen_circle: None,
             discard_unlock: None,
             corruption: Vec::new(),
@@ -1111,6 +1126,9 @@ pub struct GameState {
     /// Vampires chosen this turn by a vampire's ability: (the Methuselah
     /// using it, the chooser, the chosen) (Lucinde, Alastor G7).
     pub chosen_this_turn: Vec<(SeatId, MinionId, MinionId)>,
+    /// The Methuselahs who burned corruption counters during the action
+    /// under way, whoever's (Rise of the Fallen, rules-qa 77.28).
+    pub corruption_burned: Vec<SeatId>,
     /// The minion performing the action under way (Midget: "while Midget is
     /// acting").
     pub acting: Option<MinionId>,
@@ -1902,6 +1920,21 @@ impl GameState {
             R::ActionEntersCombat => ctx.enters_combat,
             R::ActionPutsVampireInPlay => ctx.puts_vampire_in_play,
             R::OpponentAlly => opp.is_some_and(|o| o.is_ally()),
+            R::OpponentInfernal => ctx.opponent.is_some_and(|o| self.is_infernal(o)),
+            R::PreyControlsReadyTitled(classes) => {
+                let prey = self.prey(src.owner);
+                self.minions_of(prey).any(|m| {
+                    self.minions[m.index()].ready()
+                        && classes.iter().any(|c| c.matches(self.title_of(m)))
+                })
+            }
+            R::DirectedAtCard(filters) => {
+                ctx.directed == Some(true)
+                    && ctx
+                        .target_card
+                        .is_some_and(|c| filters.iter().any(|f| f.matches(c)))
+            }
+            R::SourceCalledReferendum => ctx.calling == Some(source),
             R::NoEdge => !self.seats[src.owner.index()].has_edge,
             // "While you have the Edge" (Anxo Vilela).
             R::HasEdge => self.seats[src.owner.index()].has_edge,
@@ -1913,11 +1946,11 @@ impl GameState {
                 })
             }),
             // Queen Anne, Cornelius Ottavio: read as the bleed is.
-            R::TargetSeatControlsReadyClan(clans) => ctx.target.is_some_and(|s| {
+            R::TargetSeatControlsReadyClan { clans, not } => ctx.target.is_some_and(|s| {
                 self.minions_of(s).any(|m| {
                     let v = &self.minions[m.index()];
                     v.ready() && v.clan().is_some_and(|c| clans.contains(&c))
-                })
+                }) != not
             }),
             R::TargetSeatControlsReadySect { sect, not } => ctx.target.is_some_and(|s| {
                 self.minions_of(s).any(|m| {
@@ -2689,6 +2722,23 @@ impl GameState {
             {
                 Some((self.cards[l.source.index()].card, n as i32))
             }
+            Modifier::OwnMinionsStat { stat: s, n }
+                if s == stat && self.minions[m.index()].owner == self.card_controller(l.source) =>
+            {
+                Some((self.cards[l.source.index()].card, n as i32))
+            }
+            Modifier::SectStat {
+                sect,
+                stat: s,
+                n,
+                during,
+            } if s == stat
+                && self.minions[m.index()].is_vampire()
+                && self.sect_of(m) == Some(sect)
+                && during_reads(during) =>
+            {
+                Some((self.cards[l.source.index()].card, n as i32))
+            }
             // Every minion of the clan (Week of Nightmares: "Ravnos get
             // +1 bleed and +1 strength").
             Modifier::ClanStat {
@@ -2856,6 +2906,19 @@ impl GameState {
             || self.printed_mod(m, Stat::NoEquipment, PrintedCtx::default()) > 0
     }
 
+    /// `seat`'s master card `card` cannot target `m`, another's (Mimir).
+    pub fn shielded_from_master(&self, m: MinionId, seat: SeatId, card: u16) -> bool {
+        crate::library::LIBRARY[card as usize]
+            .types
+            .contains(&crate::library::CardType::Master)
+            && self.minions[m.index()].owner != seat
+            && self.printed_mod(
+                m,
+                crate::cards::Stat::NoOthersMasterTargeting,
+                PrintedCtx::default(),
+            ) > 0
+    }
+
     /// `m` cannot be the target of a directed action requiring one of the
     /// Disciplines of `tags` (a mode's tags, any level).
     pub fn immune_to_directed(&self, m: MinionId, tags: &[&str]) -> bool {
@@ -2932,6 +2995,55 @@ impl GameState {
                 Modifier::OnlyMustHunt => !self.must_hunt(m) && !self.gehenna_immune(m),
                 _ => false,
             })
+    }
+
+    /// The ready untitled vampires of `clan` and `sect`, any Methuselah's
+    /// (Osebo Kholo).
+    pub fn ready_untitled(
+        &self,
+        clan: &'static str,
+        sect: Sect,
+    ) -> impl Iterator<Item = MinionId> + '_ {
+        (0..self.minions.len())
+            .map(|i| MinionId(i as u32))
+            .filter(move |&o| {
+                let v = &self.minions[o.index()];
+                v.ready()
+                    && v.is_vampire()
+                    && v.clan() == Some(clan)
+                    && self.sect_of(o) == Some(sect)
+                    && self.title_of(o) == Title::None
+            })
+    }
+
+    /// Those of them older than `m`.
+    pub fn older_ready_untitled(
+        &self,
+        clan: &'static str,
+        sect: Sect,
+        m: MinionId,
+    ) -> impl Iterator<Item = MinionId> + '_ {
+        self.ready_untitled(clan, sect)
+            .filter(move |&o| o != m && self.younger_than(m, o))
+    }
+
+    /// `seat`'s n corruption counters on `m` burned by `by`, noted for the
+    /// action under way (Rise of the Fallen).
+    pub fn burn_corruption(&mut self, m: MinionId, seat: SeatId, n: u8, by: SeatId) {
+        self.minions[m.index()].burn_corruption(seat, n);
+        if n > 0 && !self.corruption_burned.contains(&by) {
+            self.corruption_burned.push(by);
+        }
+    }
+
+    /// Meets every sect and title requirement of the cards it plays or
+    /// uses (Vlad Tepes; ANK 20201028, PIB 20150306).
+    pub fn meets_sect_and_title_requirements(&self, m: MinionId) -> bool {
+        self.printed_mod(
+            m,
+            crate::cards::Stat::MeetsSectAndTitleRequirements,
+            PrintedCtx::default(),
+        ) > 0
     }
 
     /// Is `m` Black Hand: printed, or become so (Mateusz Kazimirski)?
@@ -3358,7 +3470,7 @@ impl GameState {
             | Title::Cardinal
             | Title::Priscus
             | Title::Regent => sect == Sect::Sabbat,
-            Title::Magaji => sect == Sect::Laibon,
+            Title::Magaji | Title::Laibon { .. } => sect == Sect::Laibon,
             Title::Independent { .. } => sect == Sect::Independent,
             // A personal title, kept through a sect change (LSJ 20010714).
             Title::Votes(_) => true,

@@ -123,6 +123,9 @@ pub struct ActionCtx {
     /// The next card that would change the bleed's target is canceled as
     /// it is played, its cost paid (Two Wrongs).
     pub redirect_shield: bool,
+    /// Vampires of this sect cast no votes or ballots in the action's
+    /// referendum (Bruce de Guy).
+    pub barred_vote_sect: Option<crate::crypt::Sect>,
     /// A card on the acting minion applied its effect to this action
     /// (Aching Beauty's burn): no other vampire may mask it (RTR 19980623).
     pub host_card_applied: bool,
@@ -411,6 +414,9 @@ pub struct ActionCtx {
     /// The action's card goes to the library, shuffled, as it would go to
     /// the ash heap (Epikasta Rigatos).
     pub card_to_library: bool,
+    /// The action's card goes back to its player's hand as the action ends
+    /// (Tangle Atropos' Hand [tem]).
+    pub card_to_hand: bool,
     /// The vampire of the uncontrolled region named as the action was
     /// declared, by slot and card (Malgorzata's removal).
     pub uncontrolled_named: Option<(u8, u16)>,
@@ -904,6 +910,11 @@ impl ActionCtx {
                         .any(|e| matches!(e, Effect::BecomesVampire { .. }))
                 })
             }),
+            target_card: match self.target {
+                Target::Card(c) => Some(st.cards[c.index()].card),
+                _ => None,
+            },
+            calling: None,
         }
     }
 
@@ -997,6 +1008,7 @@ impl Engine {
     ) {
         self.state.minions[minion.index()].locked = true;
         self.state.action_serial += 1;
+        self.state.corruption_burned.clear();
         self.state.acting = Some(minion);
         if kind == ActionKind::Hunt {
             self.state.minions[minion.index()].hunted = true;
@@ -1249,6 +1261,9 @@ impl Engine {
             seat_state.veil_left -= 1;
             self.action.as_mut().expect("action").stealth_mods += 1;
         }
+        // Tangle Atropos' Hand [TEM]: its vampire's next action this turn.
+        let next = std::mem::take(&mut self.state.minions[minion.index()].next_action_stealth);
+        self.action.as_mut().expect("action").stealth_mods += next;
         self.flow = Flow::Action;
         self.host_announces_riders(minion);
         self.non_anarch_acts_riders(minion);
@@ -2092,12 +2107,7 @@ impl Engine {
                     ab.effects
                         .iter()
                         .map(|e| match e {
-                            Effect::AttemptingIntercept(n)
-                            | Effect::TargetInterceptThisAction(n)
-                                if *n > 0 =>
-                            {
-                                *n as u8
-                            }
+                            Effect::AttemptingIntercept(n) if *n > 0 => *n as u8,
                             _ => 0,
                         })
                         .sum::<u8>()
@@ -2554,14 +2564,14 @@ impl Engine {
             }
             Choice::BurnCorruptionToFail { minion } => {
                 a.corruption_fails -= 1;
-                self.state.minions[minion.index()].burn_corruption(seat, 1);
+                self.state.burn_corruption(*minion, seat, 1, seat);
                 a.attempt_fails();
                 self.flow = Flow::Action;
             }
             Choice::BurnCorruptionToUnlock { minion } => {
                 let n = std::mem::take(&mut a.corruption_unlock);
                 a.window.play();
-                self.state.minions[minion.index()].burn_corruption(seat, n);
+                self.state.burn_corruption(*minion, seat, n, seat);
                 if !a.no_unlock {
                     self.state.unlock(a.acting);
                 }
@@ -3313,6 +3323,12 @@ impl Engine {
                 a.attempt_fails();
                 a.ended_early = true;
                 a.canceled = true;
+            }
+            Effect::ActionCardToHand => a.card_to_hand = a.card.is_some(),
+            Effect::BarSectVotesInReferendum(sect) => a.barred_vote_sect = Some(sect),
+            Effect::StealthOnNextAction(n) => {
+                let m = play.actor.expect("the acting vampire");
+                self.state.minions[m.index()].next_action_stealth += n;
             }
             Effect::QueueCombatWithAttempting => {
                 if let ActionState::Attempt(m) = a.state {
@@ -4470,6 +4486,7 @@ impl Engine {
                     self.burn_minion(acting);
                 }
                 a.card_entered_play = true;
+                self.recruits_or_employs_riders(acting);
                 if pool > 0 && self.state.seats[seat.index()].pool == 0 {
                     self.action = Some(a);
                     if self.oust_and_pass(seat) {
@@ -4651,7 +4668,11 @@ impl Engine {
                         .iter()
                         .all(|&r| cards::holds_for_seat(r, &self.state, seat, Some(&a), t)),
                     _ => true,
-                };
+                }
+                    // The Edge it burns no longer its player's: nothing
+                    // happens (Inside Dirt; Patsy's rules-qa 58.11).
+                    && (!mode.effects.contains(&Effect::BurnEdge)
+                        || self.state.seats[seat.index()].has_edge);
                 if !target_ok {
                     a.outcome = Some(Outcome::Fizzled);
                 }
@@ -5282,9 +5303,9 @@ impl Engine {
                         // the acting Methuselah's choice.
                         Effect::BurnCorruptionFromTarget => {
                             let t = target.minion();
-                            let v = &mut self.state.minions[t.index()];
+                            let v = &self.state.minions[t.index()];
                             if let [(owner, _)] = v.corruption[..] {
-                                v.burn_corruption(owner, 1);
+                                self.state.burn_corruption(t, owner, 1, seat);
                             } else {
                                 self.interrupts
                                     .push(crate::draws::Interrupt::CorruptionOwner {
@@ -5461,10 +5482,45 @@ impl Engine {
         self.after_resolution();
     }
 
+    /// `m` successfully recruited an ally or employed a retainer: its
+    /// printed riders (Baba Yaga's unlock, once each turn).
+    pub(crate) fn recruits_or_employs_riders(&mut self, m: MinionId) {
+        let seat = self.state.minions[m.index()].owner;
+        for r in self.printed_riders(m, Hook::HostRecruitsOrEmploys, None) {
+            for &e in r.effects {
+                match e {
+                    Effect::MayUnlockOncePerTurn => {
+                        if !self
+                            .state
+                            .turn_uses
+                            .contains(&crate::state::once_unlock_key(m))
+                        {
+                            self.interrupts
+                                .push(crate::draws::Interrupt::MayUnlock { seat, minion: m });
+                        }
+                    }
+                    other => unreachable!("not a recruit rider effect: {other:?}"),
+                }
+            }
+        }
+    }
+
     /// Riders of a vampire that successfully hunted (Adisa), and of the
     /// cards that became another on it (Enhanced Coagulant, not as
     /// equipment).
     pub(crate) fn successful_hunt_riders(&mut self, m: MinionId) {
+        // Festivo dello Estinto: up to its capacity, from the bank.
+        let fill = self.state.in_play_layers().any(|l| {
+            matches!(l.modifier, cards::Modifier::SectHuntToCapacity(s)
+                if self.state.sect_of(m) == Some(s))
+        });
+        if fill {
+            let cap = self.state.capacity_of(m).unwrap_or(0);
+            let v = &self.state.minions[m.index()];
+            if v.blood < cap {
+                self.state.gain_blood(m, cap - v.blood);
+            }
+        }
         // "Do not replace until a vampire successfully hunts" (Restricted
         // Vitae).
         self.release_held(Release::SuccessfulHunt);
@@ -5496,6 +5552,30 @@ impl Engine {
     /// discarded if it did not enter play, NRA identity is recorded.
     fn finish_action(&mut self) {
         self.state.acting = None;
+        // Rise of the Fallen: the prey of a Methuselah whose corruption
+        // counters burned during the action burns 1 pool after it.
+        let burned = std::mem::take(&mut self.state.corruption_burned);
+        if !burned.is_empty() {
+            let on = |c: &CardInPlay| c.present();
+            let mut loss = vec![0i32; self.state.seats.len()];
+            for (id, r) in self.fired_riders(Hook::CorruptionBurnedInAction, &HookAt::on(&on)) {
+                let controller = self.state.card_controller(id);
+                if !burned.contains(&controller) {
+                    continue;
+                }
+                for e in r.effects {
+                    match *e {
+                        Effect::PreyBurnsPool(n) => {
+                            loss[self.state.prey(controller).index()] += n as i32
+                        }
+                        other => unreachable!("not an action-end rider effect: {other:?}"),
+                    }
+                }
+            }
+            if loss.iter().any(|&n| n > 0) {
+                self.burn_pool_batch(&loss);
+            }
+        }
         // Coagulated Entity's capacity ends with the action; the excess
         // drains (`drain_all_excess`).
         self.state.action_capacity = None;
@@ -5590,6 +5670,11 @@ impl Engine {
             } else if cards::removed_once_played(play.card, play.mode) {
                 self.state.seats[seat.index()]
                     .removed
+                    .put(play.card, *play.copy);
+            } else if !a.card_entered_play && !a.card_returned && a.card_to_hand {
+                // Tangle Atropos' Hand: back in hand, discarded down after.
+                self.state.seats[seat.index()]
+                    .hand
                     .put(play.card, *play.copy);
             } else if !a.card_entered_play && !a.card_returned && a.card_to_library {
                 // Epikasta Rigatos: to the library instead, shuffled.

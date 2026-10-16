@@ -119,6 +119,10 @@ fn add(e: &E, w: Whom, when: Option<When>, out: &mut Vec<Effect>) {
             to: Some(zvtes_api::ids::Zone::Hand),
             ..detail(of(K::Move), "political_from_ash_heap")
         }),
+        E::ActionCardToHand => push(Effect {
+            to: Some(zvtes_api::ids::Zone::Hand),
+            ..detail(of(K::Move), "action_card")
+        }),
         E::BloodToActing(v) => push(on(n(K::Blood, i(v)), On::Acting)),
         E::BloodToChosen(v) | E::HuntingGroundBlood(v) => push(on(n(K::Blood, i(v)), On::Chosen)),
         E::BloodToTargetToStart(_) => push(detail(on(of(K::Blood), On::Target), "to_start")),
@@ -146,6 +150,7 @@ fn add(e: &E, w: Whom, when: Option<When>, out: &mut Vec<Effect>) {
         E::AddStealth(v) => push(n(K::Stealth, i(v))),
         E::ReduceStealth(v) => push(n(K::Stealth, -i(v))),
         E::HuntStealthUntilUnlock(v) => push(detail(n(K::Stealth, i(v)), "on_hunts")),
+        E::StealthOnNextAction(v) => push(detail(n(K::Stealth, i(v)), "next_action")),
         E::AddIntercept(v) => push(n(K::Intercept, i(v))),
         E::AttemptingIntercept(v) => push(n(K::Intercept, i32::from(v))),
         E::Strike(k) | E::CommittedStrike(k) => push(Effect {
@@ -157,6 +162,7 @@ fn add(e: &E, w: Whom, when: Option<When>, out: &mut Vec<Effect>) {
             push(detail(n(K::Damage, i(v)), "weapon_strike"))
         }
         E::DamageTarget(v) => push(on(n(K::Damage, i(v)), On::Target)),
+        E::EnvironmentalDamage { n: v, .. } => push(detail(n(K::Damage, i(v)), "environmental")),
         E::StrengthThisRound(v) => push(detail(n(K::Strength, i(v)), "this_round")),
         E::StrengthThisCombat(v) => push(n(K::Strength, i(v))),
         E::Prevent(v) => push(n(K::Prevent, i(v))),
@@ -238,6 +244,16 @@ fn add(e: &E, w: Whom, when: Option<When>, out: &mut Vec<Effect>) {
         E::SearchEquip => push(detail(of(K::Search), "equipment")),
         E::DrawThenBottom => push(detail(of(K::Draw), "then_bottom")),
         E::DrawCryptThenRemove => push(detail(of(K::Draw), "crypt_then_remove")),
+        E::DrawCryptBloodIfBlackHand(v) => push(detail(n(K::Draw, i(v)), "crypt_black_hand")),
+        E::HandToBottomX => push(Effect {
+            to: Some(zvtes_api::ids::Zone::Library),
+            ..detail(x(of(K::Move)), "hand_to_bottom")
+        }),
+        // Paul Cordwood's cost.
+        E::RemoveCryptTop => push(cost(Effect {
+            to: Some(zvtes_api::ids::Zone::Removed),
+            ..detail(of(K::Move), "crypt_top")
+        })),
         E::DrawThenDiscardDown(v) => push(detail(n(K::Draw, i(v)), "then_discard_down")),
         E::BleedMod { n: v, .. } => push(n(K::Bleed, i(v))),
         E::ReduceBleedX => push(x(n(K::Bleed, -1))),
@@ -248,6 +264,9 @@ fn add(e: &E, w: Whom, when: Option<When>, out: &mut Vec<Effect>) {
             push(detail(on(n(K::Counters, i(pool)), On::Card), "bank"))
         }
         E::PoolToCounter(v) => push(detail(on(n(K::Counters, i(v)), On::Card), "from_pool")),
+        E::PreyPoolToCounter(v) => {
+            push(detail(on(n(K::Counters, i(v)), On::Card), "from_prey_pool"))
+        }
         E::PayActionWithCountersX => push(cost(x(on(n(K::Counters, -1), On::Card)))),
         E::CounterToTarget(_) => push(on(n(K::Counters, 1), On::Target)),
         E::CountersToUncontrolledTarget => push(on(of(K::Counters), On::Uncontrolled)),

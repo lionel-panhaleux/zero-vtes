@@ -378,6 +378,25 @@ impl Prompt<'_> {
                 "Search your library for an equipment card to put on {}",
                 self.minion()?
             ),
+            P::PutInPlaySearch => format!(
+                "Search for a card of cost or capacity {} or less to put in play for {}",
+                a.n?,
+                self.minion()?
+            ),
+            P::MoveCardToOldest => format!(
+                "Move {} to one of the oldest ready untitled vampires of its clan and sect",
+                self.card()?
+            ),
+            P::MayPreventForBlood => format!(
+                "{} can burn {} blood to prevent the opposing strike's damage",
+                self.minion()?,
+                a.n?
+            ),
+            P::ShortfallPicks => format!(
+                "{} is short of blood: choose who receives the next one",
+                self.minion()?
+            ),
+            P::MayUnlock => format!("{} can unlock", self.minion()?),
             P::MoveOffBurnedBearer => format!(
                 "{} is about to be burned: put {} on another minion?",
                 self.minion()?,

@@ -280,7 +280,7 @@ impl Mark {
                 RefMark {
                     action,
                     hunted,
-                    votes: r.tally(),
+                    votes: r.tally(&e.state),
                     forced_fail: r.forced_fail,
                     canceled: r.canceled,
                 }

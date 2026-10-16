@@ -3926,4 +3926,184 @@ fuzz_tests! {
         seeds: 120,
         ..BASE
     };
+    /// Legacy cards for TWDA decks, round 14 (slice 16z): the library cards.
+    random_games_with_twda_round_14a_hold_invariants_and_replay: Fixture {
+        slice: &[
+            "419 Operation",
+            "Changeling Skin Mask",
+            "Dark Steel",
+            "Demonstration",
+            "Esprit de Corps",
+            "Festivo dello Estinto",
+            "Inside Dirt",
+            "Marked Territory",
+            "Osebo Kholo",
+            "Powerbase: Luanda",
+            "Public Vilification",
+            "Recruitment Exercise",
+            "Rewind Time",
+            "Rise of the Fallen",
+            "Sanguine Entrapment",
+            "Shakar: the Hunt",
+            "Spoils of War",
+            "Summon History",
+            "Superior Mettle",
+            "Tabriz Assembly",
+            "Tangle Atropos' Hand",
+            "Taste of Death",
+            // For Summon History's search.
+            "Kevlar Vest",
+        ],
+        covers: &[
+            "play:419 Operation",
+            "play:Changeling Skin Mask",
+            "play:Dark Steel",
+            "play:Demonstration",
+            "play:Esprit de Corps",
+            "play:Festivo dello Estinto",
+            "play:Inside Dirt",
+            "play:Marked Territory",
+            "play:Osebo Kholo",
+            "play:Powerbase: Luanda",
+            "play:Public Vilification",
+            "play:Recruitment Exercise",
+            "play:Rewind Time",
+            "play:Rise of the Fallen",
+            "play:Sanguine Entrapment",
+            "play:Shakar: the Hunt",
+            "play:Spoils of War",
+            "play:Summon History",
+            "play:Superior Mettle",
+            "play:Tabriz Assembly",
+            "play:Tangle Atropos' Hand",
+            "play:Taste of Death",
+            "ability:419 Operation",
+            "ability:Changeling Skin Mask",
+            "ability:Demonstration",
+            "ability:Marked Territory",
+            "ability:Powerbase: Luanda",
+            "ability:Shakar: the Hunt",
+            "ability:Tabriz Assembly",
+        ],
+        setup: |e, _| {
+            let has = |c: &CryptCard, d: &str| c.disciplines.iter().any(|x| x.eq_ignore_ascii_case(d));
+            let sabbat = |c: &CryptCard| c.sect == zvtes::crypt::Sect::Sabbat;
+            per_seat(e, |c| c.clan == "Osebo", 4);
+            per_seat(e, |c| c.clan == "Nosferatu antitribu", 4);
+            per_seat(e, |c| c.clan == "Gangrel antitribu", 4);
+            per_seat(e, |c| c.clan == "Brujah antitribu", 4);
+            per_seat(e, |c| c.clan == "Ventrue antitribu", 4);
+            per_seat(e, |c| c.clan == "True Brujah", 4);
+            per_seat(e, |c| c.black_hand, 4);
+            per_seat(e, |c| c.infernal, 4);
+            per_seat(e, |c| sabbat(c) && c.title != zvtes::crypt::Title::None, 4);
+            per_seat(e, |c| has(c, "cel") && has(c, "qui"), 4);
+            per_seat(e, |c| has(c, "obt") && has(c, "pot"), 4);
+            per_seat(e, |c| has(c, "pot") && has(c, "pre"), 4);
+            per_seat(e, |c| has(c, "tem"), 4);
+            per_seat(e, |c| has(c, "for"), 4);
+        },
+        seeds: 200,
+        ..BASE
+    };
+    /// Legacy cards for TWDA decks, round 14 (slice 16z): the vampires.
+    random_games_with_twda_round_14b_hold_invariants_and_replay: Fixture {
+        // Political actions for Bruce de Guy, Quentin, Masika's discards;
+        // allies and retainers for Baba Yaga and Carna.
+        slice: &[
+            "Kine Resources Contested",
+            "ECTU Operative",
+            "Raven Spy",
+            "Laptop Computer",
+            "Giant's Blood",
+            // A [tha] card for Claudio Severino's discard.
+            "Theft of Vitae",
+        ],
+        covers: &[
+            "ability:Alex Camille",
+            "ability:Carna, The Princess Witch",
+            "ability:Claudio Severino",
+            "ability:Dan Murdock",
+            // Gold Pan Dan's unlock needs a combat leaving his opponent out
+            // of the ready region: rare (tested in twda_round14).
+            "ability:Kyle Strathcona, Cardinal of Canada",
+            "ability:Masika",
+            "ability:Quentin",
+            "ability:Mélusine d'Anjou",
+            "ability:Karif al Numair",
+            "ability:Gerald FitzGerald",
+            "ability:Paul Cordwood",
+            "ability:Bruce de Guy",
+            "ability:Nehemiah",
+            "ability:Baba Yaga, the Iron Hag",
+            "ability:Synner-G",
+        ],
+        setup: |e, _| {
+            named(
+                e,
+                &[
+                    "Alex Camille",
+                    "Carna, The Princess Witch",
+                    "Claudio Severino",
+                    "Dan Murdock",
+                    "Gold Pan Dan",
+                    "Kyle Strathcona, Cardinal of Canada",
+                    "Masika",
+                    "Quentin",
+                    "Mélusine d'Anjou",
+                    "Karif al Numair",
+                    "Gerald FitzGerald",
+                    "Paul Cordwood",
+                    "Bruce de Guy",
+                    "Nehemiah",
+                    "Baba Yaga, the Iron Hag",
+                    "Synner-G",
+                    "Vlad Tepes",
+                    "Andrew Stuart",
+                    "Orlando Oriundus",
+                    "Mimir",
+                    "Strohmann",
+                    "De Sade",
+                    "Dracon, The",
+                    "Selena",
+                    "Suhailah",
+                    "Righteous Endeavor",
+                    "Maldavis",
+                    "Bulscu",
+                    "Badr, Shadow of Granada",
+                    "Aimery Methuin",
+                    "Dr. Julius Sutphen",
+                    "Martin Franckel",
+                ],
+            );
+            per_seat(e, |c| c.sect == zvtes::crypt::Sect::Sabbat && c.capacity >= 4, 4);
+            per_seat(e, |c| c.clan == "Tremere", 4);
+            // Younger untitled Sabbat vampires beside Gerald FitzGerald.
+            per_seat(
+                e,
+                |c| {
+                    c.sect == zvtes::crypt::Sect::Sabbat
+                        && c.title == zvtes::crypt::Title::None
+                        && c.capacity <= 5
+                },
+                4,
+            );
+            // A retainer on Carna, for her to burn.
+            let carna = find_card("Carna, The Princess Witch");
+            if let Some(m) = (0..e.state.minions.len())
+                .map(|i| zvtes::ids::MinionId(i as u32))
+                .find(|m| e.state.minions[m.index()].crypt_card() == Some(carna))
+            {
+                let owner = e.state.minions[m.index()].owner;
+                e.state.cards.push(zvtes::state::CardInPlay::new(
+                    zvtes::state::find_library("Raven Spy"),
+                    owner,
+                    Some(m),
+                    0,
+                ));
+            }
+        },
+        seeds: 120,
+        ..BASE
+    };
 }

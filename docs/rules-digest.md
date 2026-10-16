@@ -146,7 +146,8 @@ are read live, never snapshotted as the phase begins (33.1, 60.22, 40.5,
 controller (32.7, 49.5, 73.7): Open War's pool goes to its controller;
 Zizi's "your ready region" is her controller's. Designating another player
 needs that addressing; an unaddressed "a vampire", "each Ravnos", "Toreador
-get …" is any Methuselah's (49.5, 28.2, 33.3, 53.7, 69.2, 70.2). A name with
+get …", "any other controlled Sabbat vampire" is any Methuselah's (49.5,
+28.2, 33.3, 53.7, 69.2, 70.2, 77.6). A name with
 no region ("while /Ludmijla Rakoczy/ is ready", "unless Brunhilde is ready")
 is any Methuselah's copy (73.7, 58.5). In an action card, "you" is the
 acting Methuselah (25.5).
@@ -188,7 +189,9 @@ on the vampire) (3.2, 51.7). Reducing the opposing value is legal even to
 no effect (on zero or negative stealth, LSJ 20021211, 48.1), within its own
 timing: a third party's stealth strip needs the defender attempting (1.3),
 "during the action" reductions wait for the block attempts (66.1),
-Gwenllian Arwyn's -1 intercept only while stealth is needed (15.2). §9.2.
+Gwenllian Arwyn's -1 intercept only while stealth is needed (15.2). A
+gift of intercept "to a minion" (London Evening Star, Masika) goes to a
+minion attempting to block that needs it (77.20). §9.2.
 
 **D16. An ally playing cards "as a vampire" is one only for the card it so
 plays** (73.6): Spectral Servitor, Herald of Topheth, Infernal Servitor are
@@ -214,7 +217,9 @@ Shadow Cast's set of Methuselahs, 24.5).
 
 **D20. A cost is not an effect.** A card's "burn n blood" effect is not its
 cost: cost reductions do not touch it (62.2, 63.5; Graverobbing, Second
-Tradition: Domain, Deep Ecology, Stygian Shroud, ANK 20210226). A gift is
+Tradition: Domain, Deep Ecology, Stygian Shroud, ANK 20210226), and the card
+is not played without that blood beyond its cost as paid, surcharges
+included (77.8). A gift is
 not a cost (45.3). An action's costs are paid as it resolves, never at
 announcement (3.6, 42.1, 54.4, 55.3, 52.10); burning the card that grants an
 action as the action is declared is not a cost (54.4). §7.3.
@@ -1170,8 +1175,9 @@ Advanced rules §1.7 (costs and payment), §1.8 (playing and canceling).
   action card as it is played, before its action is declared (71.26).
 - Groundfighting cancels "a combat card … that would restrict this
   anarch's choice of strikes this round" — in the pool, a grapple leaving
-  only hand strikes (Immortal Grapple) and Drawing Out the Beast against an
-  armed anarch (LSJ 20050221); the canceled card's cost is paid (71.6).
+  only hand strikes (Immortal Grapple), Drawing Out the Beast against an
+  armed anarch (LSJ 20050221) and Sanguine Entrapment's barred dodge or
+  combat ends (77.9); the canceled card's cost is paid (71.6).
 - Hide the Mind [obf] "a combat card requiring Auspex": any, the player's
   own included (29.11).
 - What a cancellation reaches: advanced rules §1.8.4.
@@ -2682,7 +2688,10 @@ prisci's alone (52.9, 70.6) — read "a Methuselah's ballots" in rules-qa as
   abstaining (15.2). Danielle Diron's vote ability is offered in torpor too
   (58.8).
 - Arishat: "a vampire" any vampire, any Methuselah's, herself included, one
-  yet to vote as well (it then casts none) (58.8). T.J.: during the polling
+  yet to vote as well (it then casts none) (58.8). "Cancel the votes and
+  ballots of a vampire" (Demonstration) is that vampire made to abstain, as
+  Quentin's text says it: its votes cast and to come, not its Methuselah's
+  (77.14). T.J.: during the polling
   step of a referendum called by a vampire whose title, read then, is a
   Camarilla one (contested or off-sect excluded; a blood hunt is called by
   none); lock and 2 blood are the cost (unlocked, 2 blood, in torpor too);
@@ -3388,7 +3397,10 @@ Advanced rules §1.13 (contests), §5.8 (titles).
   baron of the same city would contest it (19.6).
 - Patsy: the Edge no longer its caller's controller's by resolution, nothing
   happens (no title removed, no pool burned); the title of a card
-  representing it burns the card (58.11). "n votes (titled)" is a title of
+  representing it burns the card (58.11); Inside Dirt's action likewise
+  (77.13). Osebo Kholo's move is a standing condition, the oldest ready
+  untitled Laibon Osebo taking the card as the game settles, a tie picked by
+  its controller (77.1). "n votes (titled)" is a title of
   its own, removable like any (58.3).
 - Karl Schrekt meets a justicar requirement (59.14, §4.4).
 - Advanced rules §5.8.2 (off-sect and off-clan titles), §5.8.3 (how
@@ -3806,7 +3818,8 @@ rules-qa batch.
   can, even from an empty deck) vs RTR 20000501 and LSJ 20070411-2 (a card
   needing a crypt card cannot be played with an empty crypt, Mozambique
   Allure); the ledger applies the specific rulings to Mozambique Allure;
-  related 60.18, 62.14, 71.9.
+  KRCG left Recruitment Exercise with LSJ 20060620 alone (77.35); related
+  60.18, 62.14, 71.9.
 - **K34** ANK 20210309-3 (a master card on a vampire offering it an effect:
   the vampire's controller decides, Chanjelin Ward) refines 7.5 and 32.7;
   69.15 follows it; the reference dangles upstream (vtes-rulings).
@@ -3875,6 +3888,8 @@ read, for the owner to confirm or correct:
   74.1–74.6 and 74.13 answered by the owner).
 - 75.1 (75.2 confirmed, 75.3 settled by 44.1).
 - 76.1–76.23, 76.25 graded green or amber (76.24 answered by the owner).
+- 77.1–77.27, 77.29–77.35 graded green, amber or corrected (77.28 answered
+  by the owner: the counters you burned).
 - The "Question (implemented reading)" tails: 48.2 (a card granting several
   strikes bars further cards until all are made), 48.3 (the switch of
   blocker takes effect at once, no impulse left to others), 48.8 (a rescue

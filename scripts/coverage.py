@@ -8,8 +8,8 @@ choosing a round).
 
 Banned cards are out of scope (owner, 2026-10-14): counted apart, never as
 missing. A demand file is the server's count of the ids its refusals named
-(`/admin/unsupported`, the engine board's "Demand for cards counted"): a JSON
-list of {"id": <KRCG id>, "count": n}.
+(`/admin/unsupported`, behind the admin token): a JSON list of
+{"id": <KRCG id>, "count": n}, most asked first.
 
 Usage: python3 scripts/coverage.py [vtes.json] [--twda twda.json]
                                    [--demand demand.json] [--sets]

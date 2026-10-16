@@ -6,6 +6,7 @@ use crate::cards::Window;
 use crate::crypt::CRYPT;
 use crate::decision::{Choice, DecisionRequest, WindowLabel};
 use crate::game::{Engine, Flow};
+use crate::ids::{MinionId, SeatId};
 use crate::state::UncontrolledSlot;
 
 /// Transfers granted at the start of an influence phase: 1/2/3 on the first
@@ -197,60 +198,7 @@ impl Engine {
                         m
                     }
                 };
-                // An Anarch entering play: counted first, the Convert's
-                // ability next (Hackerspace, ANK 20210410).
-                if self.state.sect_of(m) == Some(crate::crypt::Sect::Anarch) {
-                    self.anarch_arrives(s);
-                }
-                // New Blood: "choose any circle and draw 1 card from your
-                // crypt" as he enters.
-                if entry_has(out.card, crate::cards::Effect::ChooseCircleOnEntry) {
-                    self.interrupts
-                        .push(crate::draws::Interrupt::ChooseCircle { seat: s, minion: m });
-                }
-                // Hermana Hambrienta: "burns 2 blood or is burned", after
-                // the excess drained (LSJ 20051126).
-                if let Some(n) = entry_burn(out.card) {
-                    self.interrupts
-                        .push(crate::draws::Interrupt::BloodOrBurned {
-                            seat: s,
-                            minion: m,
-                            n,
-                            card: None,
-                        });
-                }
-                if entry_has(out.card, crate::cards::Effect::DrawCryptOnEntry) {
-                    let st = &mut self.state.seats[s.index()];
-                    if let Some((card, copy)) = st.crypt.take_top() {
-                        st.uncontrolled.push(crate::state::UncontrolledSlot {
-                            card,
-                            copy: crate::copies::Untracked(copy),
-                            counters: 0,
-                            banished: None,
-                        });
-                    }
-                }
-                // Anarch Convert: his entry ability before any contest.
-                if is_anarch_convert(out.card) {
-                    self.interrupts
-                        .push(crate::draws::Interrupt::AnarchConvert {
-                            seat: s,
-                            convert: m,
-                            forced,
-                            chosen: None,
-                        });
-                } else if let Some((n, clan)) = entry_distribution(out.card) {
-                    // Erlik: before any contest (LSJ 20080526).
-                    self.interrupts
-                        .push(crate::draws::Interrupt::DistributeFrom {
-                            seat: s,
-                            from: m,
-                            clan,
-                            left: n,
-                        });
-                } else {
-                    self.stage_contests(m);
-                }
+                self.vampire_entered(s, m, out.card, forced);
                 self.flow = Flow::Influence { left };
                 // Twilight Camp: a non-titled non-Anarch vampire put in play
                 // from the uncontrolled region may be made Anarch.
@@ -321,6 +269,68 @@ impl Engine {
             }
             Choice::Pass => self.open_phase_rotation(Flow::Influence { left }),
             other => unreachable!("illegal influence choice {other:?}"),
+        }
+    }
+}
+
+impl Engine {
+    /// A crypt card just put in play as `s`'s vampire `m`: its entry
+    /// effects, then any contest (influenced out, or put in play: Summon
+    /// History); `forced`: another copy already controlled.
+    pub(crate) fn vampire_entered(&mut self, s: SeatId, m: MinionId, card: u16, forced: bool) {
+        // An Anarch entering play: counted first, the Convert's
+        // ability next (Hackerspace, ANK 20210410).
+        if self.state.sect_of(m) == Some(crate::crypt::Sect::Anarch) {
+            self.anarch_arrives(s);
+        }
+        // New Blood: "choose any circle and draw 1 card from your
+        // crypt" as he enters.
+        if entry_has(card, crate::cards::Effect::ChooseCircleOnEntry) {
+            self.interrupts
+                .push(crate::draws::Interrupt::ChooseCircle { seat: s, minion: m });
+        }
+        // Hermana Hambrienta: "burns 2 blood or is burned", after
+        // the excess drained (LSJ 20051126).
+        if let Some(n) = entry_burn(card) {
+            self.interrupts
+                .push(crate::draws::Interrupt::BloodOrBurned {
+                    seat: s,
+                    minion: m,
+                    n,
+                    card: None,
+                });
+        }
+        if entry_has(card, crate::cards::Effect::DrawCryptOnEntry) {
+            let st = &mut self.state.seats[s.index()];
+            if let Some((card, copy)) = st.crypt.take_top() {
+                st.uncontrolled.push(crate::state::UncontrolledSlot {
+                    card,
+                    copy: crate::copies::Untracked(copy),
+                    counters: 0,
+                    banished: None,
+                });
+            }
+        }
+        // Anarch Convert: his entry ability before any contest.
+        if is_anarch_convert(card) {
+            self.interrupts
+                .push(crate::draws::Interrupt::AnarchConvert {
+                    seat: s,
+                    convert: m,
+                    forced,
+                    chosen: None,
+                });
+        } else if let Some((n, clan)) = entry_distribution(card) {
+            // Erlik: before any contest (LSJ 20080526).
+            self.interrupts
+                .push(crate::draws::Interrupt::DistributeFrom {
+                    seat: s,
+                    from: m,
+                    clan,
+                    left: n,
+                });
+        } else {
+            self.stage_contests(m);
         }
     }
 }

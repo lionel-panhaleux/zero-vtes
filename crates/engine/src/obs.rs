@@ -459,7 +459,7 @@ fn encode_as(e: &Engine, req: &DecisionRequest, v: Version, omniscient: bool) ->
                 }
                 (None, None) => 0,
             });
-            let (yes, no) = r.tally();
+            let (yes, no) = r.tally(st);
             let mut f = [0.0; TOK_F];
             f[F_VOTES_FOR] = yes as f32 / 5.0;
             f[F_VOTES_AGAINST] = no as f32 / 5.0;

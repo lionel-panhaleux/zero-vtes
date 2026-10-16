@@ -258,7 +258,11 @@ fn the_prisci_block_gives_its_3_votes_to_the_ballots_majority() {
     to_referendum(&mut e);
     pick_when(&mut e, votes(khin, false));
     let r = e.referendum().expect("referendum");
-    assert_eq!(r.tally(), (0, 3), "Khin Aye's ballot: the block against");
+    assert_eq!(
+        r.tally(&e.state),
+        (0, 3),
+        "Khin Aye's ballot: the block against"
+    );
 }
 
 // "Sabbat cardinal: Aaradhya can unlock after performing a successful
@@ -849,13 +853,13 @@ fn absolute_tyranny_reduces_votes_never_below_nothing() {
     to_referendum(&mut e);
     pick_when(&mut e, votes(hartmut, false));
     pick_when(&mut e, votes(p, false));
-    assert_eq!(e.referendum().expect("referendum").tally().1, 3);
+    assert_eq!(e.referendum().expect("referendum").tally(&e.state).1, 3);
     pick_when(&mut e, play(0, 1, aaradhya));
     pick_when(&mut e, play(0, 1, khin));
     request(&mut e);
     let r = e.referendum().expect("referendum");
     assert_eq!(r.votes_of(&e.state, hartmut), 0);
-    assert_eq!(r.tally().1, 0, "-1 counted 0");
+    assert_eq!(r.tally(&e.state).1, 0, "-1 counted 0");
 }
 
 // [LSJ 20020612] Unthinkable Humiliation "Can be played any time during

@@ -127,13 +127,15 @@ pub struct MinionView {
 pub struct Title {
     /// `primogen`, `prince`, `baron`, `justicar`, `inner_circle`,
     /// `archbishop`, `bishop`, `cardinal`, `priscus`, `regent`, `magaji`,
-    /// `independent` (named in `of`), `votes` (a title by its votes only).
+    /// `independent` or `laibon` (a unique title named in `of`), `votes` (a
+    /// title by its votes only).
     pub id: String,
     /// The city (a prince, a baron, an archbishop), the clan (a justicar,
-    /// the Inner Circle) or an independent title's name.
+    /// the Inner Circle) or an independent or Laibon title's name.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub of: Option<String>,
-    /// Its votes, when the title says them (`independent`, `votes`).
+    /// Its votes, when the title says them (`independent`, `laibon`,
+    /// `votes`).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub votes: Option<u8>,
 }

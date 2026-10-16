@@ -115,6 +115,7 @@ pub fn part(e: &Effect, names: &Names) -> Option<String> {
             _ => "burn the target".into(),
         },
         K::Stealth if d == Some("on_hunts") => format!("+{n} stealth on hunts"),
+        K::Stealth if d == Some("next_action") => format!("+{n} stealth on its next action"),
         K::Stealth if n < 0 => format!("-{a} stealth"),
         K::Stealth => format!("+{n} stealth"),
         K::Intercept => format!("+{n} intercept"),
@@ -123,6 +124,7 @@ pub fn part(e: &Effect, names: &Names) -> Option<String> {
         K::Damage if d == Some("weapon_strike") => {
             format!("a melee weapon's strike at +{n} damage")
         }
+        K::Damage if d == Some("environmental") => format!("{n} environmental damage"),
         K::Damage => format!("{n} damage"),
         K::Strength if d == Some("this_round") => format!("+{n} strength this round"),
         K::Strength => format!("+{n} strength"),
@@ -182,6 +184,9 @@ pub fn part(e: &Effect, names: &Names) -> Option<String> {
             Some("give") => "give to prey".into(),
             Some("from_ash_heap") => "take from prey's ash heap".into(),
             Some("political_from_ash_heap") => "a political action card to hand".into(),
+            Some("action_card") => "the action card to hand".into(),
+            Some("hand_to_bottom") => "cards from hand to the library's bottom".into(),
+            Some("crypt_top") => "remove the crypt's top card".into(),
             _ => format!("fetch {}", names.card_id(e.card)),
         },
         K::Votes => match d {
@@ -203,6 +208,7 @@ pub fn part(e: &Effect, names: &Names) -> Option<String> {
         K::Draw => match d {
             Some("then_bottom") => "draw, then bottom a card".into(),
             Some("crypt_then_remove") => "crypt draw, then remove one".into(),
+            Some("crypt_black_hand") => format!("crypt draw, +{n} blood if Black Hand"),
             _ => format!("draw {n}, discard down"),
         },
         K::Bleed if e.x => "-X bleed".into(),
@@ -210,6 +216,7 @@ pub fn part(e: &Effect, names: &Names) -> Option<String> {
         K::Counters => match (d, on) {
             (Some("bank"), _) => format!("bank {n} pool"),
             (Some("from_pool"), _) => format!("{n} pool to the card"),
+            (Some("from_prey_pool"), _) => format!("{n} of prey's pool to the card"),
             _ if e.cost && e.x => "pay with X counters".into(),
             _ if e.x => "burn X counters".into(),
             (_, Some(On::Target)) => "counter on target".into(),

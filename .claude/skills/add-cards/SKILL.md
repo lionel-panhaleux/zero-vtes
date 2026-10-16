@@ -25,8 +25,12 @@ readings, commit checklist): a round outlives one context window.
 Start from `python3 scripts/coverage.py <vtes.json> --twda <twda.json>
 [--demand <counts.json>]`: the pool's coverage by type (and by set with
 `--sets`), the TWDA decks in the pool and kept, and the ids players asked
-for most (the server's `/admin/unsupported` counts, once served). Its
-summary goes in the cards board's header at the round's end.
+for most (the server's `/admin/unsupported` counts, from the 1.7.0 deploy
+on: they need the admin token, so ask Z-main or the owner for the file —
+`curl -H "Authorization: Bearer $(cat ~/.config/zvtes/admin_token)"
+https://engine.krcg.org/admin/unsupported > demand.json`, run by whoever
+holds the token, never printed). Its summary goes in the cards board's
+header at the round's end.
 
 The owner's metric (2026-10-14): recent (2025+) TWDA decks entering the
 *kept* corpus. `python3 scripts/round_choice.py <vtes.json> --twda

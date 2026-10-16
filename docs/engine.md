@@ -456,6 +456,12 @@ engine masks), `cards/mod.rs` (the vocabulary: `Window`, `Actor`,
   windows, polling — never in as-played or terms windows; using one is an effect
   (impulse reset / polling commitment). A starving vampire's forced hunt is
   offered beside untimed abilities, not instead.
+- Two settle steps run beside the interrupts: `settle_moving_titles`
+  (Osebo Kholo's standing move, marked by `Effect::MovesToOldestUntitled`;
+  a tie among the oldest is `Interrupt::MoveCardToOldest`, the card's
+  controller's) and `settle_burn_to_prevent` (Superior Mettle's offer each
+  later round, `Side::burn_to_prevent` and `burn_to_prevent_asked`,
+  `Interrupt::MayPreventForBlood`).
 
 ### 6.3 Turn and phases
 
@@ -533,6 +539,20 @@ engine masks), `cards/mod.rs` (the vocabulary: `Window`, `Actor`,
   only (`cards::plays_card_as_vampire`, its "non-action" limit included;
   `has_disciplines` reads it so): `holds`' `ActorSectIn` /
   `ActorCapacityAtLeast` read sect and capacity alone (rules-qa 73.6).
+- A play canceled as it opens (Andrew Stuart: `Hook::HostPlaysCard` →
+  `Effect::RevealTopCancels`; Two Wrongs) settles at once in
+  `open_as_played`, with no as-played window.
+- Vlad Tepes (`Stat::MeetsSectAndTitleRequirements`,
+  `GameState::meets_sect_and_title_requirements`) holds `ActorSectIn` and
+  `ActorTitleIn` for what he plays or uses; a referendum's terms are read
+  as if (`ReferendumDef::feasible`'s `as_if`, from the action's card or
+  granted mode: `cards::meets_as_if`, `cards::term_filter_holds`).
+  `Stat::CannotPlay` (Nehemiah's [cel] modes) and
+  `Stat::NoOthersMasterTargeting` (Mimir, `GameState::shielded_from_master`;
+  Archon Investigation's burn of an acting minion too) are read in
+  `play_options`. A card mode's `Requirement::ActorBloodAtLeast` (a burn
+  it asks for, ANK 20210226) is read beyond the cost as it would be paid,
+  surcharges included, in the offer's affordability.
 
 ### 6.5 Actions
 
@@ -620,6 +640,17 @@ engine masks), `cards/mod.rs` (the vocabulary: `Window`, `Actor`,
   `barred_blockers`, `vampires_cannot_block`, `no_unlock`, `no_reactions`,
   `put_if_no_block`, `after_resolution_unlocks`, `cost_reduction`, …); combat
   riders from the action go through `Engine::combat_riders`.
+- `Minion::next_action_stealth` (Tangle Atropos' Hand [TEM]) is taken as
+  the vampire's next action is declared, cleared at the turn's end;
+  `ActionCtx::card_to_hand` returns the action's card as it ends. An action
+  card burning the Edge fizzles once the Edge is gone (Inside Dirt, rules-qa
+  77.13). `Hook::CorruptionBurnedInAction` fires in `finish_action` for the
+  seats in `GameState::corruption_burned`: the burners, fed by
+  `GameState::burn_corruption`'s `by`, cleared at declaration (Rise of the
+  Fallen, rules-qa 77.28). `Hook::HostRecruitsOrEmploys`
+  (`recruits_or_employs_riders`) follows a recruit or employ's success and
+  `EmployNamed` (Baba Yaga: `Effect::MayUnlockOncePerTurn`,
+  `Interrupt::MayUnlock`, `state::once_unlock_key`).
 
 ### 6.6 Block loop
 
@@ -784,6 +815,13 @@ engine masks), `cards/mod.rs` (the vocabulary: `Window`, `Actor`,
 - The Book of Going Forth by Night: `Engine::burn_minion` first offers an
   ally opposing a bearer of `Modifier::HostStealsOpposingAllyOnBurn` to
   `book_takes_ally` (stolen, locked, 1 life; the round over, no press).
+- Environmental damage (`Effect::EnvironmentalDamage { n, close }`,
+  `Side::environmental_close`): dealt in normal strike resolution each
+  round, at close range only if `close` (Dark Steel). `Side::no_dodge_round`
+  bars the opposing minion's dodge, or its combat-ends strike, this round
+  (Sanguine Entrapment). A ranged strike's bonuses (`combat::ranged_bonus`:
+  `Stat::RangedStrikeDamage`, `RangedStrikeSteal`, The Dracon) are read by
+  `CombatCtx::strike_hit` and the retainer arms alike.
 
 ### 6.8 Referendums
 
@@ -815,6 +853,14 @@ engine masks), `cards/mod.rs` (the vocabulary: `Window`, `Actor`,
   `Interrupt::SearchEquipFor` (asked under `LibrarySearch`, so the card stays
   hidden): the equipment put on, not equipped (`place_now` with its layers),
   half its cost.
+- `tally(&st)` reads `Stat::DoublesControllersVotes` (Orlando: the votes
+  of his controller's vampires doubled). Bruce de Guy's bar
+  (`ActionCtx::barred_vote_sect` → `ReferendumCtx::barred_sect`) is read by
+  `may_vote`. `RefEffect::MoveDistributedFromFirst` (Public Vilification)
+  moves the `DistributeBlood` points from the first chosen vampire, short of
+  blood `Interrupt::ShortfallPicks`; `TermsState::term_start` keeps a term's
+  picks apart from an earlier term's. A cast turned by another's effect pays
+  no vote toll (`vampire_cast`'s `first`).
 
 ### 6.9 Contests and titles
 
@@ -839,6 +885,9 @@ engine masks), `cards/mod.rs` (the vocabulary: `Window`, `Actor`,
   own vampires while the caller claims the title (`Requirement::NoSelfContest`);
   Zane's referendum (`RefEffect::CallerContestsChosenTitle`) gains the chosen
   prince's very title, contested with its holder.
+- Laibon titles: `Title::Laibon { name, votes }` (from `gen_crypt.py`;
+  the host's title id `laibon`); Osebo Kholo moves as §6.2 says, gaining
+  through `gain_title`.
 
 ### 6.10 Minions
 
@@ -963,6 +1012,14 @@ engine masks), `cards/mod.rs` (the vocabulary: `Window`, `Actor`,
 - A card that becomes another (`cards::became`): its windowless mode only.
   Living Manse is equipment to equip and a location in play
   (`cards::is_equipment_in_play`; out of `equipment_on`).
+- Powerbase: Luanda's choice (`Effect::CardChoosesTarget`) gates its granted
+  action (`Requirement::ActorIsChosen` with `CardLocked`: the ability gate
+  reads `CardLocked` for `ActingCandidate`); `give_card_control` clears it.
+  419 Operation: the prey's use (`Actor::ControllersPrey`),
+  `Effect::PreyPoolToCounter`. Modifiers by sect (`Modifier::SectStat`,
+  `SectHuntToCapacity`: Festivo's top-up in `successful_hunt_riders`) and
+  for the controller's minions (`Modifier::OwnMinionsStat`, in
+  `bearer_mods`: Esprit de Corps).
 
 ### 6.12 Printed vampire text
 
@@ -1096,6 +1153,11 @@ engine masks), `cards/mod.rs` (the vocabulary: `Window`, `Actor`,
   ending with the combat; read in `Engine::replace`; several cards
   replaced at once go one at a time, `Interrupt::PursuitDraw` then
   `PursuitDiscard`, rules-qa 63.11).
+- Summon History (`Effect::SearchPutInPlayUpToX`, `Interrupt::PutInPlaySearch`,
+  `put_in_play_finds`; the host shows the crypt as the `AshVampire` zone): the
+  card put in play, a vampire through `influence::vampire_entered` (shared
+  with influence-out). `Effect::HandToBottomX` (Nehemiah) moves the picked
+  count to the library's bottom (`Interrupt::Bottom`).
 
 ### 6.15 Costs and reductions
 

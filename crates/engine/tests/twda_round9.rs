@@ -1255,7 +1255,7 @@ fn the_eldest_are_kholo_gives_every_laibon_ravnos_votes() {
     let req = offering(&mut e, votes(theirs, false));
     e.choose(index_of(&req, votes(theirs, false)));
     let ctx = e.referendum().expect("the referendum");
-    assert_eq!(ctx.tally(), (2, 2));
+    assert_eq!(ctx.tally(&e.state), (2, 2));
 }
 
 // Cryptic Rider: "Only usable on a successful referendum. The next

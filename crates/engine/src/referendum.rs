@@ -127,6 +127,9 @@ pub struct Allocation {
 pub struct TermsState {
     /// Index of the term being chosen.
     pub term: usize,
+    /// How many minions the terms before the current one chose: a
+    /// distribution's own picks follow them (Public Vilification).
+    pub term_start: usize,
     /// Points allocated so far, in allocation order.
     pub alloc: Vec<(SeatId, u8)>,
     /// Seats still to allocate for the current `Allocate` (or shortfall)
@@ -179,6 +182,8 @@ pub struct ReferendumCtx {
     /// Only vampires of this sect vote (Closed Session, Fall of the
     /// Camarilla's ban, Private Audience, Cardinal Benediction).
     pub only_sect: Option<Sect>,
+    /// Vampires of this sect do not vote (Bruce de Guy).
+    pub barred_sect: Option<Sect>,
     /// Votes each non-Camarilla vampire loses (Camarilla Conclave), but
     /// the vampire a reaction does not affect (Perfect Clarity).
     pub penalties: Vec<(cards::Penalized, u8, Option<MinionId>)>,
@@ -237,7 +242,10 @@ impl ReferendumCtx {
         let printed = st.printed_mod(
             m,
             crate::cards::Stat::Votes,
-            crate::state::PrintedCtx::default(),
+            crate::state::PrintedCtx {
+                calling: self.calling,
+                ..Default::default()
+            },
         );
         // "Each non-priscus titled vampire gets -1 vote" (Eat the Rich).
         let rich = i32::from(
@@ -297,9 +305,9 @@ impl ReferendumCtx {
         v.ready()
             && !v.expelled
             && !self.abstaining.contains(&m)
-            && st
-                .sect_of(m)
-                .is_some_and(|s| self.only_sect.is_none_or(|o| s == o))
+            && st.sect_of(m).is_some_and(|s| {
+                self.only_sect.is_none_or(|o| s == o) && self.barred_sect != Some(s)
+            })
     }
 
     /// The votes `m` casts on `favor`'s side: its votes, plus printed votes
@@ -357,14 +365,31 @@ impl ReferendumCtx {
 
     /// (for, against) over the standing records, the prisci block's 3 votes
     /// to the side with more prisci ballots, none on a tie
-    /// (rulebook "The Prisci Block"; rules-qa 52.9).
-    pub fn tally(&self) -> (u32, u32) {
+    /// (rulebook "The Prisci Block"; rules-qa 52.9); a vampire's votes
+    /// doubled while a ready vampire of its controller's doubles them, read
+    /// as it is tallied (Orlando Oriundus).
+    pub fn tally(&self, st: &crate::state::GameState) -> (u32, u32) {
+        let doubles = |s: SeatId| {
+            st.minions_of(s).any(|m| {
+                st.printed_mod(
+                    m,
+                    crate::cards::Stat::DoublesControllersVotes,
+                    crate::state::PrintedCtx::default(),
+                ) > 0
+            })
+        };
         let live = self.records.iter().filter(|r| !r.canceled);
         let (mut f, mut a) = live.clone().fold((0, 0), |(f, a), r| {
-            if r.favor {
-                (f + r.n as u32, a)
+            let k = if matches!(r.source, Source::Vampire(_)) && doubles(r.seat) {
+                2
             } else {
-                (f, a + r.n as u32)
+                1
+            };
+            let n = r.n as u32 * k;
+            if r.favor {
+                (f + n, a)
+            } else {
+                (f, a + n)
             }
         });
         let ballots = live.fold((0u32, 0u32), |(f, a), r| {
@@ -480,6 +505,10 @@ impl Engine {
             forcers: Vec::new(),
             card_voted: Vec::new(),
             only_sect: def.and_then(|d| d.only_sect),
+            barred_sect: match kind {
+                RefKind::Political => self.action.as_ref().and_then(|a| a.barred_vote_sect),
+                RefKind::BloodHunt { .. } => None,
+            },
             penalties: Vec::new(),
             pressure: None,
             auto_pass: false,
@@ -552,6 +581,7 @@ impl Engine {
     fn next_term(&self, ctx: &mut ReferendumCtx) {
         loop {
             ctx.terms.term += 1;
+            ctx.terms.term_start = ctx.terms.minions.len();
             match ctx.current_term() {
                 None => {
                     ctx.step = RefStep::Polling;
@@ -701,6 +731,15 @@ impl Engine {
     fn minion_choices(&self, ctx: &ReferendumCtx, filter: &[cards::Requirement]) -> Vec<MinionId> {
         let st = &self.state;
         let acting = self.action.as_ref().map(|a| a.acting);
+        // The action's card or granted mode, for Vlad Tepes's as if.
+        let as_if = self.action.as_ref().is_some_and(|a| {
+            let mode = match (a.card, a.source, a.ability) {
+                (Some(p), _, _) => cards::lookup(p.card).map(|d| &d.modes[p.mode as usize]),
+                (None, Some(src), Some(ab)) => Some(src.mode(st, ab)),
+                _ => None,
+            };
+            mode.is_some_and(|mode| cards::meets_as_if(st, a.acting, mode))
+        });
         (0..st.minions.len())
             .map(|i| MinionId(i as u32))
             .filter(|&m| {
@@ -710,14 +749,16 @@ impl Engine {
                     && match ctx.current_term() {
                         Some(cards::Term::DistributeBlood { per_max, .. }) => {
                             per_max == 0
-                                || (ctx.terms.minions.iter().filter(|&&k| k == m).count()
-                                    as u8)
+                                || (ctx.terms.minions[ctx.terms.term_start..]
+                                    .iter()
+                                    .filter(|&&k| k == m)
+                                    .count() as u8)
                                     < per_max
                         }
                         _ => !ctx.terms.minions.contains(&m),
                     }
                     && filter.iter().all(|&r| {
-                        cards::holds_for_minion(
+                        cards::term_filter_holds(
                             r,
                             st,
                             ctx.caller,
@@ -725,6 +766,7 @@ impl Engine {
                             acting,
                             m,
                             self.action.as_ref(),
+                            as_if,
                         )
                     })
             })
@@ -1198,7 +1240,7 @@ impl Engine {
             }
             (Term::DistributeBlood { points, .. }, Choice::ChooseMinion(m)) => {
                 ctx.terms.minions.push(*m);
-                ctx.terms.minions.len() as u8 >= self.points_of(points)
+                (ctx.terms.minions.len() - ctx.terms.term_start) as u8 >= self.points_of(points)
             }
             (Term::ChooseClan, Choice::ChooseClan(c)) => {
                 ctx.terms.clan = Some(c);
@@ -1257,7 +1299,7 @@ impl Engine {
                 return None;
             }
             Choice::CastVotes { minion, favor } => {
-                if let Some(record) = self.vampire_cast(ctx, *minion, *favor) {
+                if let Some(record) = self.vampire_cast(ctx, *minion, *favor, true) {
                     ctx.records.push(record);
                 }
                 ctx.window.commit();
@@ -1316,8 +1358,11 @@ impl Engine {
         ctx: &ReferendumCtx,
         m: MinionId,
         favor: bool,
+        first: bool,
     ) -> Option<VoteRecord> {
-        let toll = if favor {
+        // A toll on votes against: the first cast only, not a turned one
+        // (ANK 20221019).
+        let toll = if favor || !first {
             0
         } else {
             self.vote_against_toll(ctx, m)
@@ -1372,7 +1417,7 @@ impl Engine {
             return;
         }
         debug_assert!(ctx.step == RefStep::Polling && ctx.window.is_closed());
-        let (favor, against) = ctx.tally();
+        let (favor, against) = ctx.tally(&self.state);
         let passed = (favor > against || ctx.auto_pass) && !ctx.forced_fail;
         // "The attached vampire burns 1 blood after a referendum passes"
         // (Condemnation: Mute [DAI]): any referendum.
@@ -1743,6 +1788,7 @@ impl Engine {
                 | RefEffect::ChosenShuffleFromAsh(_) => {}
                 RefEffect::CallerGainsPool(n) => gain[ctx.caller.index()] += n as i32,
                 RefEffect::BloodToChosenEach
+                | RefEffect::MoveDistributedFromFirst
                 | RefEffect::CallerHandSizeForGame(_)
                 | RefEffect::CallerContestsChosenTitle
                 | RefEffect::BurnVampiresBleedAtLeast(_)
@@ -1834,6 +1880,39 @@ impl Engine {
                 for &m in &ctx.terms.minions {
                     if self.state.minions[m.index()].present() {
                         self.state.burn_blood(m, 1);
+                    }
+                }
+            }
+            RefEffect::MoveDistributedFromFirst => {
+                if let [from, picks @ ..] = &ctx.terms.minions[..] {
+                    let v = &self.state.minions[from.index()];
+                    let to: Vec<MinionId> = picks
+                        .iter()
+                        .copied()
+                        .filter(|t| self.state.minions[t.index()].present())
+                        .collect();
+                    if v.ready() {
+                        if (v.blood as usize) >= to.len() {
+                            for t in to {
+                                self.state.burn_blood(*from, 1);
+                                self.state.gain_blood(t, 1);
+                            }
+                        } else {
+                            let mut slots = [None; 8];
+                            debug_assert!(
+                                to.len() <= slots.len(),
+                                "more blood allotted than slots"
+                            );
+                            for (s, t) in slots.iter_mut().zip(to) {
+                                *s = Some(t);
+                            }
+                            self.interrupts
+                                .push(crate::draws::Interrupt::ShortfallPicks {
+                                    seat: ctx.caller,
+                                    from: *from,
+                                    to: slots,
+                                });
+                        }
                     }
                 }
             }
@@ -2289,8 +2368,8 @@ impl Engine {
                 let m = play.target.minion();
                 ctx.forcers.extend(play.actor);
                 // A cast already made is turned: cast again on the side
-                // chosen (its printed side votes, its toll), the votes
-                // gained since it was cast kept.
+                // chosen (its printed side votes; no toll again, ANK
+                // 20221019), the votes gained since it was cast kept.
                 let old = ctx
                     .records
                     .iter()
@@ -2300,7 +2379,7 @@ impl Engine {
                     r.n.saturating_sub(ctx.votes_cast(&self.state, m, r.favor))
                 });
                 let previous = old.map(|i| ctx.records.remove(i));
-                match self.vampire_cast(&ctx, m, favor) {
+                match self.vampire_cast(&ctx, m, favor, previous.is_none()) {
                     Some(mut record) => {
                         record.n += extra;
                         // Forced, a vampire with nothing to cast casts nothing.

@@ -636,6 +636,8 @@ impl Engine {
             self.rest_fury_tokens();
             self.pay_press_toll();
             self.settle_anathema();
+            self.settle_moving_titles();
+            self.settle_burn_to_prevent();
             self.state.settle_entries();
             self.settle_servitors();
             self.settle_hunts_to_torpor();
@@ -2225,6 +2227,7 @@ impl Engine {
         self.state.chosen_this_turn.clear();
         for i in 0..self.state.minions.len() {
             self.state.minions[i].bleed_bonus_turn = 0;
+            self.state.minions[i].next_action_stealth = 0;
             self.state.minions[i]
                 .timed
                 .retain(|&(_, until, _)| until != Expiry::EndOfTurn);
@@ -2506,7 +2509,7 @@ mod tests {
     #[test]
     fn crypt_data_is_complete() {
         // The 200 V5 vampires, then the owner's legacy additions.
-        assert_eq!(CRYPT.len(), 549);
+        assert_eq!(CRYPT.len(), 596);
         assert_eq!(PRECONS.len(), 14);
         for (name, list) in PRECONS.iter() {
             let n: u32 = list.iter().map(|&(_, k)| k as u32).sum();
