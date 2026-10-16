@@ -78,8 +78,9 @@ runs" (every run's command, numbers and lessons), `docs/boards/training.md`.
 
 - **Harvest** (daily, on Z-main's schedule): `python3 scripts/harvest.py`
   in the shared checkout on `main`, clean (it refuses another branch or
-  engine edits: the report replays the new records on its checkout and
-  caches the turns for good; `--no-turns` skips both), then read the
+  engine edits: the report replays the new records before protocol 1.7.0
+  on its checkout and caches the turns for good, a newer one carries its
+  own; `--no-turns` skips both), then read the
   day's report and take what it shows through `intake`. The corpus is
   always the main checkout's `data/server-records/` (each worktree has its
   own ignored `data/`: a pull there would split the corpus and its cursor).
@@ -106,8 +107,9 @@ runs" (every run's command, numbers and lessons), `docs/boards/training.md`.
   counts (`games_report.py`'s docstring has the rule), written by
   `python3 scripts/games_report.py --list <file>` in the shared checkout
   on `main`, after the harvest (its defaults: from a worktree the list is
-  empty and new records' turns would cache that worktree's engine; not
-  with `--no-turns`, which counts other games short), as absolute paths,
+  empty and records before 1.7.0 would cache that worktree's engine's
+  turns; not with `--no-turns`, which counts those games short), as
+  absolute paths,
   comma-separated: `--bc data/records,$(cat <file>)`, the same for
   `--starts`. Imitation (`--bc`) keeps only the human who won (owner,
   2026-10-15: the bot is strong and not every human is good; only a game

@@ -4,10 +4,11 @@
 (`scripts/games_report.py`), both on the one corpus,
 `data/server-records/` of the main checkout — whichever worktree runs
 it: each worktree has its own ignored `data/`, and a pull into one would
-split the corpus and its cursor. The report replays each new record on
-this script's checkout for its turns and caches them in the corpus for
-good, so the script refuses a checkout not on `main` or with uncommitted
-edits under `crates/` (`--no-turns` skips the replay and the check).
+split the corpus and its cursor. A record before protocol 1.7.0 carries
+no turn count: the report replays it on this script's checkout for its
+turns and caches them in the corpus for good, so the script refuses a
+checkout not on `main` or with uncommitted edits under `crates/`
+(`--no-turns` skips the replay and the check).
 
 Usage: python3 scripts/harvest.py [--out DIR] [report options…]
 (the other options go to `games_report.py`). Exits non-zero when either

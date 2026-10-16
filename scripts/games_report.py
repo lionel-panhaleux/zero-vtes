@@ -13,11 +13,11 @@ A game counts when it ended normally with a human seat; abandoned games,
 engine errors, games a server restart ended, games still going, games
 without a human, the server's test scripts' (`spec.client`) and very
 short ones (fewer than --min-rounds rounds, or with turns unknown fewer
-than --min-decisions human decisions) are counted apart. The record holds no
-turn count: the turns are read by replaying it on this checkout's engine
-(`cargo build -p zvtes-host --profile ci --example replay`, run once a
-record, cached in `<dir>/reports/index.json`); "≥" marks a game the
-engine stopped partway. Decks are named from the server's catalog
+than --min-decisions human decisions) are counted apart. A record carries
+its turn count from protocol 1.7.0 (`result.turns`); an older one's turns
+are read by replaying it on this checkout's engine (`cargo build -p
+zvtes-host --profile ci --example replay`, run once a record, cached in
+`<dir>/reports/index.json`); "≥" marks a game the engine stopped partway. Decks are named from the server's catalog
 (`/catalog`, cached in `<dir>/reports/catalog.json`) when a seat's list
 equals one; else "custom", with the closest catalog deck when near.
 Each report ends with the bots' waste in its counted games (`waste`:
@@ -295,9 +295,10 @@ def report(title, games, args, listing):
         f"{len(games)} games read; {len(counted)} counted (ended normally, a human seat, not a test client, "
         f"at least {args.min_rounds} rounds — or {args.min_decisions} human decisions when the turns are unknown)"
         + "".join(f"; {n} {s}" for s, n in sorted(apart.items()))
-        + f". `*`: fewer than {SMALL} in the sample. Turns: replayed on this checkout's engine, "
-        "`≥` where it stops partway. Nudges are not recorded: a network profile plays the nudges "
-        "its server served (`crates/server/src/games.rs`)."
+        + f". `*`: fewer than {SMALL} in the sample. Turns: as recorded (protocol 1.7.0 on), else "
+        "replayed on this checkout's engine, `≥` where it stops partway. Nudges: each network "
+        "bot's in its record from 1.7.0 (before, those its server served, "
+        "`crates/server/src/games.rs`)."
     )
     out.append("")
 
@@ -478,7 +479,12 @@ def main():
         seen = index.get(path.stem, {})
         finished = record.get("ended") is not None and record.get("result") is not None
         turns = (None, False)
-        if not args.no_turns and finished:
+        recorded = record["result"].get("turns") if finished else None
+        if recorded is not None:
+            # Its end turn as recorded; read partway when a restart's
+            # replay stopped (its failure says so).
+            turns = (recorded, record["result"].get("failure") is None)
+        elif not args.no_turns and finished:
             if seen.get("entries") == len(record["entries"]) and "turns" in seen:
                 turns = (seen["turns"], seen["whole"])
             else:

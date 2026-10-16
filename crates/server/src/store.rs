@@ -459,6 +459,7 @@ impl Store {
                         winner: None,
                         reason: EndReason::ServerRestart,
                         failure: Some("the record does not read".into()),
+                        turns: None,
                     };
                     end_row(pool, &game, now, value(&result)).await
                 }
@@ -602,10 +603,13 @@ mod tests {
             (played.vp_halves, played.winner)
         );
         assert_eq!(going.failure, None);
+        // The turn its record reads to, recorded.
+        assert!(going.turns.is_some_and(|t| t >= 1));
         let unreadable = result(store.record(&id("unreadable"), None).await);
         assert_eq!(unreadable.reason, EndReason::ServerRestart);
         assert_eq!(unreadable.vp_halves, vec![0; 4]);
         assert!(unreadable.failure.is_some());
+        assert_eq!(unreadable.turns, None);
         let partway = result(store.record(&id("partway"), None).await);
         assert_eq!(partway.reason, EndReason::ServerRestart);
         assert_eq!(partway.vp_halves.len(), 4);

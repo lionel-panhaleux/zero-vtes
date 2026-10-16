@@ -169,19 +169,21 @@ pub fn ended(record: &GameRecord, reason: EndReason) -> GameResult {
         Ok::<_, String>((
             vp,
             (n < all).then(|| format!("the record reads {n} of its {all} decisions")),
+            Some(e.state.turn),
         ))
     }));
     let none = vec![0; record.spec.seats.len()];
-    let (vp_halves, failure) = match read {
+    let (vp_halves, failure, turns) = match read {
         Ok(Ok(read)) => read,
-        Ok(Err(why)) => (none, Some(format!("the record does not read: {why}"))),
-        Err(_) => (none, Some("the record's replay panicked".into())),
+        Ok(Err(why)) => (none, Some(format!("the record does not read: {why}")), None),
+        Err(_) => (none, Some("the record's replay panicked".into()), None),
     };
     GameResult {
         winner: crate::game::winner(&vp_halves),
         vp_halves,
         reason,
         failure,
+        turns,
     }
 }
 

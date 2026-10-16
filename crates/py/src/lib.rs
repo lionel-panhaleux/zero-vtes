@@ -1051,18 +1051,7 @@ impl GamePool {
     /// Set with any of the keys; those left out are kept.
     #[getter]
     fn nudges(&self) -> std::collections::BTreeMap<&'static str, f32> {
-        let n = self.nudges;
-        [
-            ("rescue", n.rescue),
-            ("pass", n.pass),
-            ("reaction", n.reaction),
-            ("bleed", n.bleed),
-            ("idle", n.idle),
-            ("draw", n.draw),
-            ("stuck", n.stuck),
-            ("nightmare", n.nightmare),
-        ]
-        .into()
+        self.nudges.named().into()
     }
 
     #[setter]

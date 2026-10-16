@@ -149,10 +149,11 @@ change resends the pending decision.
 
 ### The game record
 
-Versions, spec (human names replaced), bot profiles (weights' hash),
-one entry per decision (seat, time, index, `ChoiceKey` with engine
-copies, by whom, the options shown when filtered), undos, settings,
-typed refusals, result and failure. Stored as entries appended (a
+Versions, spec (human names replaced), bot profiles (weights' hash, a
+network's nudges), one entry per decision (seat, time, index,
+`ChoiceKey` with engine copies, by whom, the options shown when
+filtered), undos, settings, typed refusals, result (its end turn) and
+failure. Stored as entries appended (a
 `game_entries` table), not a growing JSONB rewrite. A one-shot
 converter brings the 30 corpus games over; `train/assess.py` and the
 replay example read records through `host`'s `Replayer`; the old reader
@@ -231,7 +232,8 @@ their idle timeout (cap undercounts).
 The pull and the report (B4), daily as one command: `python3
 scripts/harvest.py` from the shared checkout on `main`, clean (it
 refuses another branch or engine edits: the report caches the turns it
-replays), both steps into the main checkout's `data/server-records/`.
+replays from records before 1.7.0), both steps into the main checkout's
+`data/server-records/`.
 `python3 scripts/fetch_games.py --finished` pulls into
 `data/server-records/` (ignored) from the cursor
 `data/server-records/.since` (the newest game's start + 1, held back to a
@@ -244,8 +246,9 @@ weights and table size; human win rate and VP a seat by bot profile and
 weights; the decks humans win with and the bot decks that lose; the
 notable human games with their replay command). It counts the finished
 games with a human seat apart from the abandoned, short, test-script
-(`client.mjs`, `load.mjs`) and failed ones; the turns come from replaying
-each record once (`--no-turns` skips it), cached in
+(`client.mjs`, `load.mjs`) and failed ones; the turns come from the
+record (`result.turns`, protocol 1.7.0 on), or, for an older one, from
+replaying it once (`--no-turns` skips that), cached in
 `<dir>/reports/index.json`.
 
 ## C. Succubus Club

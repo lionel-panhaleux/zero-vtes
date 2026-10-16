@@ -267,6 +267,11 @@ export type AllocationError = 'none' | 'length' | 'total' | 'cap' | 'min_nonzero
 export type BotRecord = {
     /** "network" or a scripted style. */
     kind: string
+    /**
+     * A network's nudges by name, those not zero (records before 1.7.0
+     * have none).
+     */
+    nudges?: Record<string, number>
     profile: string
     seat: number
     /**
@@ -727,6 +732,11 @@ export type GameResult = {
      */
     failure?: string | null
     reason: EndReason
+    /**
+     * The turn the game ended on (for a game a restart ended, the turn
+     * its record reads to); absent in records before 1.7.0.
+     */
+    turns?: number | null
     vp_halves: number[]
     winner?: number | null
 }

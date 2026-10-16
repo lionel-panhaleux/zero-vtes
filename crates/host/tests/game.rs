@@ -189,6 +189,9 @@ fn games_play_to_their_end_through_handle() {
             "seed {seed}"
         );
         assert!(r.spec.seats[human as usize].name == "human");
+        // The turn it ended on, recorded (the report reads no replay).
+        let turns = r.result.as_ref().unwrap().turns;
+        assert!(turns.is_some_and(|t| t >= 1), "seed {seed}: {turns:?}");
         let entries = r
             .entries
             .iter()

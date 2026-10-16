@@ -500,6 +500,31 @@ impl Nudges {
         *self == Nudges::default()
     }
 
+    /// Each nudge by name, as a record keeps them (a new field fails to
+    /// compile here until it is named).
+    pub fn named(&self) -> [(&'static str, f32); 8] {
+        let Nudges {
+            rescue,
+            pass,
+            reaction,
+            bleed,
+            idle,
+            draw,
+            stuck,
+            nightmare,
+        } = *self;
+        [
+            ("rescue", rescue),
+            ("pass", pass),
+            ("reaction", reaction),
+            ("bleed", bleed),
+            ("idle", idle),
+            ("draw", draw),
+            ("stuck", stuck),
+            ("nightmare", nightmare),
+        ]
+    }
+
     /// The nudge on option `o` of `req`. Reads only the deciding seat's
     /// legal view.
     pub fn bias(&self, e: &Engine, req: &DecisionRequest, o: &Choice) -> f32 {

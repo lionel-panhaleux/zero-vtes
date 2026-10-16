@@ -20,7 +20,10 @@ longer offers what was chosen) — but for the block windows offering only
 attempts that cannot reach the stealth, which an engine before rules-qa
 73.8 skipped: a record reading further past them is read so
 (`Replay::elided`). Each game names the engine commit its wasm was built
-from below — check out that commit to read it as it was played.
+from below — check out that commit to read it as it was played. These
+converted games carry neither their bots' nudges nor their turn count
+(the Bots column says the run); a server record does from protocol
+1.7.0 on (`bots[].nudges`, `result.turns`).
 
 | File (`.json`) | Engine | Seats (in order; the human's in bold) | Bots | Result |
 |---|---|---|---|---|

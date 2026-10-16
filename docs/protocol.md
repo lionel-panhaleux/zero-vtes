@@ -429,13 +429,15 @@ the WebSocket's `Origin` against the platforms it serves.
 Every game served is recorded (`GameRecord`), and served to its seat
 once the game is over (§10): the spec with its seed
 (human names replaced), the bot profiles (weights' hash, temperature,
-seed), each decision answered — seat, time, option index, its key with
+seed, a network's nudges by name), each decision answered — seat, time, option index, its key with
 the engine's copy numbers, by whom (`human`, `bot`, `order`, `auto`),
 the options shown when settings hid some — undos (decision numbers then
 repeat from `to`: a reader drops what they take back), settings
 changes, refused commands, the players' feedback (at its decision), the
-result and any engine failure. A game going when its server restarts is
-ended at the restart, `server_restart`: its victory points where its
+result (with the turn the game ended on, `turns`; for a game a restart
+ended, the turn its record reads to) and any engine failure. A game
+going when its server restarts is ended at the restart,
+`server_restart`: its victory points where its
 record reads to on the restarted server's engine, `failure` saying why
 when it does not read to its end (rules fixes change the engine, §14).
 A record replays by index on its engine commit, and reads by key on a

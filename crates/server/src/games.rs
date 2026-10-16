@@ -124,6 +124,12 @@ impl Bots for ServerBots {
                 weights: Some(p.hash.clone()),
                 temperature: Some(temperature),
                 seed,
+                nudges: nudges()
+                    .named()
+                    .into_iter()
+                    .filter(|&(_, v)| v != 0.0)
+                    .map(|(k, v)| (k.to_string(), v))
+                    .collect(),
             },
         ))
     }

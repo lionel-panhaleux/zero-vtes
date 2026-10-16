@@ -456,6 +456,14 @@
           "description": "\"network\" or a scripted style.",
           "type": "string"
         },
+        "nudges": {
+          "description": "A network's nudges by name, those not zero (records before 1.7.0\nhave none).",
+          "type": "object",
+          "additionalProperties": {
+            "type": "number",
+            "format": "float"
+          }
+        },
         "profile": {
           "type": "string"
         },
@@ -2326,6 +2334,15 @@
         },
         "reason": {
           "$ref": "#/$defs/EndReason"
+        },
+        "turns": {
+          "description": "The turn the game ended on (for a game a restart ended, the turn\nits record reads to); absent in records before 1.7.0.",
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint32",
+          "minimum": 0
         },
         "vp_halves": {
           "type": "array",

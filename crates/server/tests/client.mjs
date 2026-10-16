@@ -65,6 +65,9 @@ for (;;) {
 console.log(`over: ${last.reason.type} after ${decisions} decisions, ${seq} messages, vp_halves ${last.vp_halves}`)
 const rec = await (await fetch(`${base}/games/${game}/record`, { headers: { authorization: `Bearer ${token}` } })).json()
 if (!rec.result || rec.spec.seats[seat].name != 'human') throw new Error('bad record')
+// Complete: the turn it ended on, each network bot's nudges.
+if (!(rec.result.turns >= 1)) throw new Error(`no turns recorded: ${rec.result.turns}`)
+if (bot == 'network' && !rec.bots.every(b => Object.keys(b.nudges ?? {}).length > 0)) throw new Error('a network bot without its nudges')
 console.log(`record: ${rec.entries.length} entries, bots ${rec.bots.map(b => b.profile)}`)
 const fed = rec.entries.find(e => e.type == 'feedback')
 if (noted === undefined || !fed || fed.decision != noted) throw new Error('feedback not recorded at its decision')

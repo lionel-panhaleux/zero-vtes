@@ -3,6 +3,8 @@
 //! Copy numbers here are the engine's (one per card, in decklist order),
 //! not a viewer's.
 
+use std::collections::BTreeMap;
+
 use serde::{Deserialize, Serialize};
 
 use crate::ids::{DecisionNo, Seat};
@@ -46,6 +48,10 @@ pub struct BotRecord {
     /// Its sampling seed: replaying uses the recorded options, the seed
     /// re-simulates the bot.
     pub seed: u32,
+    /// A network's nudges by name, those not zero (records before 1.7.0
+    /// have none).
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub nudges: BTreeMap<String, f32>,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
@@ -117,4 +123,8 @@ pub struct GameResult {
     /// for a game a restart ended, why its record did not read to its end.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub failure: Option<String>,
+    /// The turn the game ended on (for a game a restart ended, the turn
+    /// its record reads to); absent in records before 1.7.0.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub turns: Option<u32>,
 }

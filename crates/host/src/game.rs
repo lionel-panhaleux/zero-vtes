@@ -159,6 +159,7 @@ impl Game {
                         weights: None,
                         temperature: None,
                         seed: bot_seed,
+                        nudges: Default::default(),
                     },
                 ),
                 _ => bots
@@ -941,11 +942,13 @@ impl Game {
         self.pending = None;
         self.over = Some(over.clone());
         self.record.ended = Some(self.clock.now());
+        let turns = Some(self.session.engine().state.turn);
         self.record.result = Some(GameResult {
             vp_halves,
             winner,
             reason,
             failure,
+            turns,
         });
         told.into_iter().chain([Message::Over(over)]).collect()
     }
