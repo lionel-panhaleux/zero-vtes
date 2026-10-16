@@ -430,8 +430,9 @@ ended; the last `pool`, `blood` and `torpor` told are the next view's.
 | `GET /admin/feedback?since=&limit=` | the players' feedback, oldest first: `game`, `engine`, `at` (Unix ms), `decision`, `text` (the operator's) |
 | `GET /admin/unsupported` | the cards refused decks named (`SpecError` `unsupported`), counted: `[{id, count}]`, KRCG ids, the most asked first (ids and counts only; the operator's) |
 
-No account: the token is the seat, never in a URL. The server checks
-the WebSocket's `Origin` against the platforms it serves.
+No account: the token is the seat, never in a URL. Any page may play
+(`engine.krcg.org` allows every origin, the WebSocket's too): the
+token is the gate, no cookie or credential rides a request.
 
 ## 11. Records
 

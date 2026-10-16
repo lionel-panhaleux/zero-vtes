@@ -7,7 +7,7 @@
 //! - `ZVTES_POLICY`: the `.zvp` weights of the `network` profile
 //! - `ZVTES_ORIGINS`: the page origins whose browsers may open a socket,
 //!   comma-separated (a client sending no origin is let through)
-//!   (absent: any — development)
+//!   (absent or empty: any, as `engine.krcg.org` runs)
 //! - `ZVTES_MAX_GAMES` (64), `ZVTES_GAMES_PER_HOUR` per address (30),
 //!   `ZVTES_IDLE` seconds (1800), `ZVTES_TIME_LIMIT` max turns (200),
 //!   `ZVTES_RETENTION` days (730), `ZVTES_RATE` commands a second (20)
