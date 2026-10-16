@@ -214,6 +214,9 @@ pub struct Engine {
     /// What combats did, for a narrator (`CombatNote`): `None`, the
     /// default, keeps nothing; the taker drains it.
     pub combat_notes: Option<Vec<crate::combat::CombatNote>>,
+    /// A pair's strikes note waiting for the strike a first strike held
+    /// back (`CombatCtx::held_strike`): one note a pair.
+    pub(crate) held_note: Option<crate::combat::CombatNote>,
     /// The game's random source after setup (random discards): replay is
     /// the seed plus the decision log.
     pub(crate) rng: Rng,
@@ -395,6 +398,7 @@ impl Engine {
             rng,
             last_outcome: None,
             combat_notes: None,
+            held_note: None,
             history: Default::default(),
         };
         engine.start_turn();
@@ -611,6 +615,12 @@ impl Engine {
     /// The referendum under way, if any (read-only).
     pub fn referendum(&self) -> Option<&ReferendumCtx> {
         self.referendum.as_ref()
+    }
+
+    /// The current pair's strikes note while a first strike holds the
+    /// opposing strike back (between the two resolutions).
+    pub fn waiting_strikes(&self) -> Option<&crate::combat::CombatNote> {
+        self.held_note.as_ref()
     }
 
     /// The combat under way, if any (read-only).

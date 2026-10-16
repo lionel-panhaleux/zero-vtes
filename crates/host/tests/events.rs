@@ -187,6 +187,12 @@ impl Stream {
             }
             EventKind::Strikes { sides, .. } => {
                 sides.iter().for_each(|s| copy(s.minion));
+                for s in sides {
+                    assert!(
+                        s.strike_damage <= s.damage,
+                        "seed {seed}: a strike's share beyond the damage: {s:?}"
+                    );
+                }
                 assert_ne!(
                     self.in_combat,
                     Some(false),
@@ -250,6 +256,16 @@ impl Stream {
     fn view(&mut self, v: &TableView, at: &str) {
         let seed = self.seed;
         self.names.see(v);
+        // A combat's strikes in English exactly when the settings ask.
+        for s in v
+            .combat
+            .iter()
+            .flat_map(|c| &c.sides)
+            .filter_map(|s| s.strike.as_ref())
+        {
+            let want = self.text.then(|| zvtes_text::strike_declared(s));
+            assert_eq!(s.text, want, "seed {seed} {at}: a strike's text");
+        }
         let action = v.action.as_ref().map(|a| {
             let card = a.card.and_then(|c| c.id);
             (a.seat, a.acting, format!("{:?}", a.kind), card)

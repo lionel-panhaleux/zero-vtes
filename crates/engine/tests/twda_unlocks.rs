@@ -825,6 +825,101 @@ fn elimelech_strikes_first() {
     assert_eq!(blood(&e, elimelech), 6, "no strike back");
 }
 
+// A pair with a first strike is noted once (the narration's line): both
+// strikes and what each dealt, the held strike as it resolved after
+// Elimelech's; a blocker his strike sends to torpor never strikes back, the
+// pair noted all the same.
+#[test]
+fn a_first_strike_pair_is_noted_once() {
+    for blocker_blood in [4, 1] {
+        let mut e = game(2);
+        let elimelech = e.add_minion(SeatId(0), find_card("Elimelech the Twice-Damned"), 6, false);
+        e.add_minion(SeatId(0), plain("Brujah", 0), 4, false);
+        let z = e.add_minion(SeatId(1), plain("Ventrue", 0), blocker_blood, false);
+        e.add_minion(SeatId(1), plain("Ventrue", 1), 4, false);
+        e.combat_notes = Some(Vec::new());
+        pick(&mut e, bleed(elimelech));
+        pick(&mut e, block(z));
+        until(&mut e, SeatId(0), WindowLabel::MinionPhase);
+        let notes = e.combat_notes.take().expect("noted");
+        let pairs: Vec<_> = notes
+            .iter()
+            .filter_map(|n| match n {
+                zvtes::combat::CombatNote::Strikes {
+                    strikes,
+                    damage,
+                    strike_damage,
+                    ..
+                } => Some((strikes.map(|s| s.is_some()), *damage, *strike_damage)),
+                _ => None,
+            })
+            .collect();
+        let struck_back = blocker_blood > 1;
+        let back = u8::from(struck_back);
+        assert_eq!(
+            pairs,
+            vec![([true, true], [2, back], [2, back])],
+            "blocker with {blocker_blood} blood"
+        );
+    }
+}
+
+// A first-strike pair's damage over both passes: Keegan's Carrion Crows (1
+// environmental, as the pair begins) beside his hand strike held back.
+#[test]
+fn a_first_strike_pair_notes_the_damage_of_both_passes() {
+    let mut e = game(2);
+    let elimelech = e.add_minion(SeatId(0), find_card("Elimelech the Twice-Damned"), 6, false);
+    e.add_minion(SeatId(0), plain("Brujah", 0), 4, false);
+    let keegan = e.add_minion(SeatId(1), find_card("Keegan"), 5, false);
+    e.add_minion(SeatId(1), plain("Ventrue", 1), 4, false);
+    hand(&mut e, 1, &["Carrion Crows"]);
+    e.combat_notes = Some(Vec::new());
+    pick(&mut e, bleed(elimelech));
+    pick(&mut e, block(keegan));
+    pick_when(&mut e, play(0, 0, keegan));
+    until(&mut e, SeatId(0), WindowLabel::MinionPhase);
+    let notes = e.combat_notes.take().expect("noted");
+    let noted: Vec<_> = notes
+        .iter()
+        .filter_map(|n| match n {
+            zvtes::combat::CombatNote::Strikes {
+                damage,
+                strike_damage,
+                ..
+            } => Some((*damage, *strike_damage)),
+            _ => None,
+        })
+        .collect();
+    assert_eq!(noted, vec![([2, 2], [2, 1])]);
+}
+
+// Between a first strike and the strike it held back (the blocker's
+// prevention, Hidden Strength in hand), the pair's note waits: the first
+// strike's damage in it, the held strike still to resolve.
+#[test]
+fn a_first_strike_pair_waits_for_the_held_strike() {
+    let mut e = game(2);
+    let elimelech = e.add_minion(SeatId(0), find_card("Elimelech the Twice-Damned"), 6, false);
+    e.add_minion(SeatId(0), plain("Brujah", 0), 4, false);
+    let z = e.add_minion(SeatId(1), vampire_with("for", 0), 4, false);
+    e.add_minion(SeatId(1), plain("Ventrue", 1), 4, false);
+    hand(&mut e, 1, &["Hidden Strength"]);
+    e.combat_notes = Some(Vec::new());
+    pick(&mut e, bleed(elimelech));
+    pick(&mut e, block(z));
+    until(&mut e, SeatId(1), WindowLabel::CombatPrevention);
+    let held = e.combat().is_some_and(|c| c.held_strike.is_some());
+    let waiting = e.waiting_strikes().map(|n| match n {
+        zvtes::combat::CombatNote::Strikes { strike_damage, .. } => *strike_damage,
+        _ => [9, 9],
+    });
+    assert!(held, "the blocker's strike held back");
+    assert_eq!(waiting, Some([2, 0]));
+    until(&mut e, SeatId(0), WindowLabel::MinionPhase);
+    assert!(e.waiting_strikes().is_none());
+}
+
 // Reginald Moore: "+1 strength in combat with a Tremere or Tremere
 // antitribu. He cannot block vampires of those clans or take actions to
 // enter combat with them." A Tremere's bleed: he is no blocker; his Bum's

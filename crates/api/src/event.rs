@@ -164,7 +164,12 @@ pub struct StruckSide {
     pub minion: CopyId,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub strike: Option<Strike>,
+    /// The damage the side inflicts this pair, before prevention: its
+    /// strike's, its retainers' and environmental damage.
     pub damage: u8,
+    /// The strike's share of `damage`.
+    #[serde(default)]
+    pub strike_damage: u8,
 }
 
 /// What an action is: its kind, its card, what grants it.

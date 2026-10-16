@@ -847,6 +847,39 @@ fn rotschreck_needs_an_effective_aggravated_strike() {
     never_offered_until(&mut e, SeatId(0), WindowLabel::MinionPhase, rot);
 }
 
+// Rötschreck under Dawn Operation ("all damage inflicted on vampires during
+// the resulting combat is aggravated"): it answers a hand strike, not
+// Psychic Assault ("any effect which would make damage from this strike
+// aggravated leaves the damage normal instead"), aggravated at its source
+// (ANK 20200130-1).
+#[test]
+fn rotschreck_under_dawn_operation_answers_hands_not_psychic_assault() {
+    for assault in [false, true] {
+        let mut e = Engine::bare(2);
+        e.state.turn = 4;
+        let a = e.add_minion(SeatId(0), plain("", &["FOR", "aus"], 0), 4, false);
+        e.add_minion(SeatId(0), plain("Brujah", &[], 1), 4, false);
+        let z = e.add_minion(SeatId(1), plain("Ventrue", &[], 0), 4, false);
+        e.add_minion(SeatId(1), plain("Ventrue", &[], 1), 4, false);
+        let cards: &[&str] = if assault {
+            &["Dawn Operation", "Psychic Assault"]
+        } else {
+            &["Dawn Operation"]
+        };
+        hand(&mut e, 0, cards);
+        hand(&mut e, 1, &["Rötschreck"]);
+        pick(&mut e, bleed(a));
+        pick_when(&mut e, play(0, 1, a)); // Dawn Operation [FOR]
+        pick_when(&mut e, block(z));
+        if assault {
+            pick_when(&mut e, play(0, 0, a)); // Psychic Assault [aus]
+        }
+        let rot = play_at(0, 0, None, Target::Minion(z));
+        let offered = offered_before(&mut e, rot, SeatId(0), WindowLabel::MinionPhase);
+        assert_eq!(offered, !assault, "Psychic Assault: {assault}");
+    }
+}
+
 // Rötschreck after an opposing weapon strike and a Blood Fury: the weapon
 // damage is nullified only as the strikes resolve, so the aggravated
 // strike still triggers it (ANK 20170519).

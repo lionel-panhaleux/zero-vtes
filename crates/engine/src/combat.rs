@@ -27,15 +27,19 @@ pub enum CombatNote {
         minions: [MinionId; 2],
     },
     /// A pair of strikes resolved (`pair` 0: the normal pair): each side's
-    /// strike (`None`: no strike) and the damage it inflicts, before
-    /// prevention.
+    /// strike (`None`: no strike) and what it was told to inflict as it
+    /// resolved (`told`), the damage the side inflicts, before prevention
+    /// (`damage`: its retainers' and environmental damage included), and
+    /// its strike's share (`strike_damage`).
     Strikes {
         minions: [MinionId; 2],
         round: u8,
         pair: u8,
         range: Range,
         strikes: [Option<StrikeKind>; 2],
+        told: [Option<StrikeHit>; 2],
         damage: [u8; 2],
+        strike_damage: [u8; 2],
     },
     Ends {
         minions: [MinionId; 2],
@@ -81,6 +85,14 @@ pub enum Step {
     AdditionalStrikes,
     Press,
     EndOfRound,
+}
+
+/// The damage a strike inflicts on the opposing minion if it lands,
+/// before prevention (`CombatCtx::strike_hit`).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct StrikeHit {
+    pub n: u8,
+    pub aggravated: bool,
 }
 
 /// Damage waiting for prevention, by kind.
@@ -329,6 +341,10 @@ pub struct Side {
     pub prevent_each_round: u8,
     /// Of `pending`, the damage from the opposing minion's strikes.
     pub strike_damage: Damage,
+    /// This pair's damage the side inflicts on itself as it strikes
+    /// (Breath of the Dragon, Zip Gun): in its own `pending`, never the
+    /// opponent's doing.
+    pub self_damage: u8,
     /// Unpreventable damage from the opposing strike (Enhanced Coagulant):
     /// out of `pending`, so no prevention reaches it; added as the damage
     /// resolves.
@@ -727,21 +743,168 @@ impl CombatCtx {
             return false;
         }
         let close = self.range == Range::Close;
-        let all = self.all_aggravated && st.minions[self.sides[i].minion.index()].is_vampire();
-        match s.strike {
-            Some(StrikeKind::Hand { .. }) => {
-                close
-                    && (all
-                        || s.aggravated_hands
-                        || s.aggravated_strike
-                        || action.is_some_and(|a| a.aggravated_hands && a.acting == s.minion))
-            }
-            Some(StrikeKind::Melee { aggravated, .. }) => close && (aggravated || all),
-            Some(StrikeKind::Damage {
-                ranged, aggravated, ..
-            }) => (ranged || close) && (aggravated || all),
+        let in_range = match s.strike {
+            Some(StrikeKind::Hand { .. } | StrikeKind::Melee { .. }) => close,
+            Some(StrikeKind::Damage { ranged, .. }) => ranged || close,
             _ => false,
+        };
+        in_range
+            && s.strike
+                .and_then(|k| self.strike_told(st, action, 1 - i, k))
+                .is_some_and(|h| h.aggravated)
+    }
+
+    /// Side `i`'s strength this round: printed strength (Massimiliano;
+    /// Kevin Jackson's, on him and on a Brujah opposing him) added to the
+    /// strength of 1 or to a set strength (spec §4.4.1).
+    fn strength_now(
+        &self,
+        st: &GameState,
+        action: Option<&crate::actions::ActionCtx>,
+        i: usize,
+    ) -> u8 {
+        let s = &self.sides[i];
+        let ctx = crate::state::PrintedCtx {
+            opponent: Some(self.sides[1 - i].minion),
+            round: self.round,
+            ..Default::default()
+        };
+        // The acting minion's strength this action (Invigorate).
+        let action_bonus = match action {
+            Some(a) if a.acting == s.minion => a.strength_bonus as i32,
+            _ => 0,
+        };
+        // Strength from cards in play on the minion (Saulot's Avenging
+        // Fist).
+        let bearer = action.map_or(0, |a| {
+            st.bearer_mod_in(s.minion, cards::Stat::Strength, a.kind, a.card_hunt)
+        });
+        (s.strength(st.base_strength(s.minion)) as i32
+            + action_bonus
+            + s.strength_mods as i32
+            + s.frenzy_strength as i32
+            + bearer
+            + st.strength_against(s.minion, self.sides[1 - i].minion)
+            + st.lasting(s.minion).1
+            + st.printed_mod(s.minion, cards::Stat::Strength, ctx))
+        .max(0) as u8
+            + s.strength_round
+    }
+
+    /// What strike `k` by side `i` inflicts on the opposing minion if it
+    /// lands, before prevention, as the strike resolution reads it (`None`:
+    /// not a damage strike). `strength`: side `i`'s, from `strength_now`.
+    fn strike_hit(
+        &self,
+        st: &GameState,
+        action: Option<&crate::actions::ActionCtx>,
+        i: usize,
+        k: StrikeKind,
+        strength: u8,
+    ) -> Option<StrikeHit> {
+        let (s, opp) = (&self.sides[i], self.sides[1 - i].minion);
+        // "Each strike … made by the opposing minion against Nephandus …
+        // inflicts 1 less damage": before prevention, unpreventable damage
+        // included (LSJ 20100519).
+        let less = st.damage_reduction(opp, s.minion);
+        // "Damage Petra inflicts on Baali is aggravated": her strikes'.
+        let ctx = crate::state::PrintedCtx {
+            opponent: Some(opp),
+            ..Default::default()
+        };
+        let printed = st.printed_mod(s.minion, cards::Stat::AggravatedDamage, ctx) > 0;
+        Some(match k {
+            StrikeKind::Hand { bonus } => StrikeHit {
+                n: (strength + bonus + s.hand_damage_bonus).saturating_sub(less),
+                aggravated: s.aggravated_hands
+                    || printed
+                    || s.aggravated_strike
+                    || action.is_some_and(|a| a.aggravated_hands && a.acting == s.minion),
+            },
+            StrikeKind::Melee { bonus, aggravated } => {
+                // "Damage inflicted on a Kiasyd by this weapon is
+                // aggravated" (Banshee Ironwail).
+                let against = st.minions[opp.index()].clan();
+                let clan = s.strike_source.is_some_and(|w| {
+                    cards::lookup(st.cards[w.index()].card).is_some_and(|d| {
+                        d.abilities.iter().any(|m| {
+                            m.effects.iter().any(|e| {
+                                matches!(e, Effect::AggravatedAgainstClan(k)
+                                    if against == Some(*k))
+                            })
+                        })
+                    })
+                });
+                StrikeHit {
+                    n: (strength + bonus).saturating_sub(less),
+                    aggravated: aggravated || printed || clan,
+                }
+            }
+            StrikeKind::Damage {
+                n,
+                ranged,
+                aggravated,
+            } => {
+                // "+1 damage with ranged strikes (even at close range)"
+                // (Noluthando): part of the strike's damage.
+                let n = if ranged {
+                    let more = st.printed_mod(s.minion, cards::Stat::RangedStrikeDamage, ctx);
+                    (n as i32 + more).max(0) as u8
+                } else {
+                    n
+                }
+                .saturating_sub(less);
+                let gun = s
+                    .strike_source
+                    .is_some_and(|w| cards::is_gun(st.cards[w.index()].card));
+                // Joaquin Murietta: his guns at long range.
+                let n = if gun && self.range != Range::Close {
+                    let more = st.printed_mod(
+                        s.minion,
+                        cards::Stat::GunDamageAtLong,
+                        crate::state::PrintedCtx::default(),
+                    );
+                    (n as i32 + more).max(0) as u8
+                } else {
+                    n
+                };
+                StrikeHit {
+                    n,
+                    aggravated: (aggravated || printed) && !s.never_aggravated,
+                }
+            }
+            _ => return None,
+        })
+    }
+
+    /// `strike_hit` as a player is told it: the side's strength now, a
+    /// weapon strike made harmless (Blood Rage) at no damage, and Dawn
+    /// Operation's aggravated damage on vampires (`aggravate_vampires`
+    /// applies it after the strikes; Psychic Assault's stays normal).
+    pub fn strike_told(
+        &self,
+        st: &GameState,
+        action: Option<&crate::actions::ActionCtx>,
+        i: usize,
+        k: StrikeKind,
+    ) -> Option<StrikeHit> {
+        let strength = self.strength_now(st, action, i);
+        let mut h = self.strike_hit(st, action, i, k, strength)?;
+        let s = &self.sides[i];
+        if s.weapons_harmless
+            && s.strike_source
+                .is_some_and(|w| cards::is_weapon(st.cards[w.index()].card))
+        {
+            h.n = 0;
         }
+        let damage_strike = matches!(k, StrikeKind::Damage { .. });
+        if self.all_aggravated
+            && st.minions[self.sides[1 - i].minion.index()].is_vampire()
+            && !(damage_strike && self.sides[i].never_aggravated)
+        {
+            h.aggravated = true;
+        }
+        Some(h)
     }
 
     /// The end-of-round window, combat about to end (spec §4.9.1).
@@ -1114,7 +1277,12 @@ impl Engine {
     }
 
     pub(crate) fn note(&mut self, n: CombatNote) {
+        // A pair's note still waiting for a held strike: out before the end.
+        let waiting = matches!(n, CombatNote::Ends { .. })
+            .then(|| self.held_note.take())
+            .flatten();
         if let Some(notes) = self.combat_notes.as_mut() {
+            notes.extend(waiting);
             notes.push(n);
         }
     }
@@ -1754,27 +1922,7 @@ impl Engine {
             Step::ChooseStrike(0) => c.fresh_window(Step::ChooseStrike(1)),
             Step::ChooseStrike(_) => c.fresh_window(Step::BeforeResolution),
             Step::BeforeResolution => {
-                let before = self.combat_notes.as_ref().map(|_| {
-                    let c = self.combat.as_ref().expect("combat context");
-                    let pending = c.sides.each_ref().map(|s| s.pending.total());
-                    (c.sides.each_ref().map(|s| s.strike), pending)
-                });
-                self.resolve_strikes();
-                // Still in combat (an oust may have ended it).
-                if let (Some((strikes, pending)), Some(c)) = (before, self.combat.as_ref()) {
-                    // Side i inflicts what side 1 - i now has pending.
-                    let damage = [1, 0]
-                        .map(|j: usize| c.sides[j].pending.total().saturating_sub(pending[j]));
-                    let n = CombatNote::Strikes {
-                        minions: c.sides.each_ref().map(|s| s.minion),
-                        round: c.round,
-                        pair: c.pair,
-                        range: c.range,
-                        strikes,
-                        damage,
-                    };
-                    self.note(n);
-                }
+                self.resolve_strikes_noted();
                 self.after_prevention_or_next();
             }
             Step::Prevent(i) => {
@@ -1894,13 +2042,18 @@ impl Engine {
                 s.nullifies_weapons = held.nullifies_weapons;
                 s.undodgeable_strike = held.undodgeable_strike;
                 s.aggravated_strike = held.aggravated_strike;
+                s.close_self_damage = held.close_self_damage;
                 c.others_prevented = false;
                 c.held_pass = true;
-                self.resolve_strikes();
+                self.resolve_strikes_noted();
                 self.combat.as_mut().expect("combat context").held_pass = false;
                 self.after_prevention_or_next();
                 return;
             }
+        }
+        // The held strike never resolved: its pair's note as it stands.
+        if let Some(n) = self.held_note.take() {
+            self.note(n);
         }
         // "Gets an additional strike (limited) each round" (Renegade Garou):
         // after the normal pair, mandatory (PIB 20121028), the limited slot
@@ -2117,6 +2270,102 @@ impl Engine {
         self.apply_damage()
     }
 
+    /// The pair of strikes resolved, noted for a narrator when notes are on
+    /// (`CombatNote::Strikes`).
+    fn resolve_strikes_noted(&mut self) {
+        let before = self.combat_notes.as_ref().map(|_| {
+            let c = self.combat.as_ref().expect("combat context");
+            let pending = c.sides.each_ref().map(|s| s.pending.total());
+            let unpreventable = c.sides.each_ref().map(|s| s.unpreventable);
+            // Told before the strikes resolve: resolving clears their
+            // sources and riders.
+            let told: [Option<StrikeHit>; 2] = std::array::from_fn(|i| {
+                let s = &c.sides[i];
+                s.strike
+                    .filter(|_| s.strike_at.is_none())
+                    .and_then(|k| c.strike_told(&self.state, self.action.as_ref(), i, k))
+            });
+            (
+                c.sides.each_ref().map(|s| s.strike),
+                told,
+                pending,
+                unpreventable,
+            )
+        });
+        self.resolve_strikes();
+        // Still in combat (an oust may have ended it).
+        let (Some((strikes, told, pending, unpreventable)), Some(c)) =
+            (before, self.combat.as_ref())
+        else {
+            return;
+        };
+        // Side i inflicts what side 1 - i now has pending, but its own
+        // damage as it strikes, and its strike's unpreventable damage (kept
+        // out of `pending`).
+        let inflicted_unpreventable =
+            [1, 0].map(|j: usize| c.sides[j].unpreventable.saturating_sub(unpreventable[j]));
+        let damage = [1, 0].map(|j: usize| {
+            c.sides[j]
+                .pending
+                .total()
+                .saturating_sub(pending[j] + c.sides[j].self_damage)
+                + inflicted_unpreventable[1 - j]
+        });
+        let strike_damage = [1, 0]
+            .map(|j: usize| c.sides[j].strike_damage.total() + inflicted_unpreventable[1 - j]);
+        let n = CombatNote::Strikes {
+            minions: c.sides.each_ref().map(|s| s.minion),
+            round: c.round,
+            pair: c.pair,
+            range: c.range,
+            strikes,
+            told,
+            damage,
+            strike_damage,
+        };
+        let holding = c.held_strike.is_some() && !c.held_pass;
+        match (self.held_note.take(), n) {
+            // A strike held back by a first strike: the pair's note waits.
+            (None, n) if holding => self.held_note = Some(n),
+            // The held strike resolved: each side's strike as it resolved,
+            // its damage over both passes (the first pass's retainers and
+            // environment, the held pass's strike).
+            (
+                Some(CombatNote::Strikes {
+                    strikes: s0,
+                    told: t0,
+                    damage: d0,
+                    strike_damage: sd0,
+                    ..
+                }),
+                CombatNote::Strikes {
+                    minions,
+                    round,
+                    pair,
+                    range,
+                    strikes,
+                    told,
+                    damage,
+                    strike_damage,
+                },
+            ) => {
+                let now: [bool; 2] = std::array::from_fn(|i| strikes[i].is_some());
+                let pick = |i: usize| if now[i] { 1 } else { 0 };
+                self.note(CombatNote::Strikes {
+                    minions,
+                    round,
+                    pair,
+                    range,
+                    strikes: std::array::from_fn(|i| [s0[i], strikes[i]][pick(i)]),
+                    told: std::array::from_fn(|i| [t0[i], told[i]][pick(i)]),
+                    damage: std::array::from_fn(|i| d0[i] + damage[i]),
+                    strike_damage: std::array::from_fn(|i| sd0[i] + strike_damage[i]),
+                });
+            }
+            (_, n) => self.note(n),
+        }
+    }
+
     /// Strike resolution (rulebook "Resolve Strike"; spec §4.3.3, §4.7):
     /// a combat ends strike resolves first and alone; otherwise strikes
     /// resolve simultaneously, a dodge voiding the opposing strike, stolen
@@ -2298,41 +2547,8 @@ impl Engine {
                 strikes[j] = None;
             }
         }
-        // Printed strength (Massimiliano; Kevin Jackson's, on him and on a
-        // Brujah opposing him): added to the strength of 1 or to a set
-        // strength (spec §4.4.1).
-        let strength: [u8; 2] = std::array::from_fn(|i| {
-            let ctx = crate::state::PrintedCtx {
-                opponent: Some(c.sides[1 - i].minion),
-                round: c.round,
-                ..Default::default()
-            };
-            // The acting minion's strength this action (Invigorate).
-            let action_bonus = match self.action.as_ref() {
-                Some(a) if a.acting == c.sides[i].minion => a.strength_bonus as i32,
-                _ => 0,
-            };
-            // Strength from cards in play on the minion (Saulot's
-            // Avenging Fist).
-            let bearer = self.action.as_ref().map_or(0, |a| {
-                st.bearer_mod_in(
-                    c.sides[i].minion,
-                    cards::Stat::Strength,
-                    a.kind,
-                    a.card_hunt,
-                )
-            });
-            (c.sides[i].strength(st.base_strength(c.sides[i].minion)) as i32
-                + action_bonus
-                + c.sides[i].strength_mods as i32
-                + c.sides[i].frenzy_strength as i32
-                + bearer
-                + st.strength_against(c.sides[i].minion, c.sides[1 - i].minion)
-                + st.lasting(c.sides[i].minion).1
-                + st.printed_mod(c.sides[i].minion, cards::Stat::Strength, ctx))
-            .max(0) as u8
-                + c.sides[i].strength_round
-        });
+        let strength: [u8; 2] =
+            std::array::from_fn(|i| c.strength_now(st, self.action.as_ref(), i));
         let close = c.range == Range::Close;
         // Ranged strikes aimed at a retainer: (retainer, amount, steal,
         // striking side), applied once the strikes are read.
@@ -2358,12 +2574,16 @@ impl Engine {
                 c.sides[1 - i].pending.add(n, false);
             }
         }
+        for s in &mut c.sides {
+            s.self_damage = 0;
+        }
         // Breath of the Dragon: at close range, the striker takes its
         // environmental aggravated damage (LSJ 19970801).
         for (i, strike) in strikes.iter().enumerate() {
             let n = std::mem::take(&mut c.sides[i].close_self_damage);
             if strike.is_some() && n > 0 && c.range == Range::Close {
                 c.sides[i].pending.add(n, true);
+                c.sides[i].self_damage += n;
             }
         }
         // Zip Gun: its bearer takes 1 environmental damage as it strikes
@@ -2376,6 +2596,7 @@ impl Engine {
                     && !c.bearer_damaged.contains(&w)
                 {
                     c.sides[i].pending.add(1, false);
+                    c.sides[i].self_damage += 1;
                     c.bearer_damaged.push(w);
                 }
             }
@@ -2476,14 +2697,6 @@ impl Engine {
                     .strike_source
                     .is_some_and(|w| cards::is_weapon(st.cards[w.index()].card))
         });
-        // "Damage Petra inflicts on Baali is aggravated": her strikes'.
-        let printed_aggravated: [bool; 2] = std::array::from_fn(|i| {
-            let ctx = crate::state::PrintedCtx {
-                opponent: Some(c.sides[1 - i].minion),
-                ..Default::default()
-            };
-            st.printed_mod(c.sides[i].minion, cards::Stat::AggravatedDamage, ctx) > 0
-        });
         let mut steals = [0u8; 2];
         // Contagion [DAI]: the striking sides whose corruption lands.
         let mut corrupts: Vec<usize> = Vec::new();
@@ -2521,10 +2734,6 @@ impl Engine {
                 }
             }
             let dodged = dodged[i];
-            // "Each strike … made by the opposing minion against Nephandus
-            // … inflicts 1 less damage": before prevention, unpreventable
-            // damage included (LSJ 20100519).
-            let less = st.damage_reduction(c.sides[j].minion, c.sides[i].minion);
             // Aimed at a retainer: a dodge does not protect it (rulebook
             // "Dodge"); gone or moved by now, the strike has no effect.
             if let Some(r) = c.sides[i].strike_at {
@@ -2551,37 +2760,17 @@ impl Engine {
                 continue;
             }
             match k {
-                StrikeKind::Hand { bonus } => {
+                StrikeKind::Hand { .. } => {
                     if close && !dodged {
-                        let n = (strength[i] + bonus + c.sides[i].hand_damage_bonus)
-                            .saturating_sub(less);
-                        let aggravated = c.sides[i].aggravated_hands
-                            || printed_aggravated[i]
-                            || c.sides[i].aggravated_strike
-                            || self.action.as_ref().is_some_and(|a| {
-                                a.aggravated_hands && a.acting == c.sides[i].minion
-                            });
-                        c.sides[j].strike_hit(n, aggravated, false);
+                        let h = c.strike_hit(st, self.action.as_ref(), i, k, strength[i]);
+                        let h = h.expect("a damage strike");
+                        c.sides[j].strike_hit(h.n, h.aggravated, false);
                     }
                 }
-                StrikeKind::Melee { bonus, aggravated } => {
+                StrikeKind::Melee { .. } => {
                     if close && !dodged && !harmless[i] {
-                        let n = (strength[i] + bonus).saturating_sub(less);
-                        // "Damage inflicted on a Kiasyd by this weapon is
-                        // aggravated" (Banshee Ironwail).
-                        let against = st.minions[c.sides[j].minion.index()].clan();
-                        let aggravated = aggravated
-                            || printed_aggravated[i]
-                            || c.sides[i].strike_source.is_some_and(|w| {
-                                cards::lookup(st.cards[w.index()].card).is_some_and(|d| {
-                                    d.abilities.iter().any(|m| {
-                                        m.effects.iter().any(|e| {
-                                            matches!(e, Effect::AggravatedAgainstClan(k)
-                                                if against == Some(*k))
-                                        })
-                                    })
-                                })
-                            });
+                        let h = c.strike_hit(st, self.action.as_ref(), i, k, strength[i]);
+                        let StrikeHit { n, aggravated, .. } = h.expect("a damage strike");
                         c.sides[j].strike_hit(n, aggravated, false);
                         // Inflicted, prevented or not (LSJ 20100519).
                         if let Some(w) = c.sides[i].strike_source {
@@ -2591,43 +2780,13 @@ impl Engine {
                         }
                     }
                 }
-                StrikeKind::Damage {
-                    n,
-                    ranged,
-                    aggravated,
-                } => {
+                StrikeKind::Damage { ranged, .. } => {
                     if (ranged || close) && !dodged && !harmless[i] {
-                        // "+1 damage with ranged strikes (even at close
-                        // range)" (Noluthando): part of the strike's damage.
-                        let n = if ranged {
-                            let ctx = crate::state::PrintedCtx {
-                                opponent: Some(c.sides[j].minion),
-                                ..Default::default()
-                            };
-                            let more = st.printed_mod(
-                                c.sides[i].minion,
-                                cards::Stat::RangedStrikeDamage,
-                                ctx,
-                            );
-                            (n as i32 + more).max(0) as u8
-                        } else {
-                            n
-                        }
-                        .saturating_sub(less);
+                        let h = c.strike_hit(st, self.action.as_ref(), i, k, strength[i]);
+                        let StrikeHit { n, aggravated, .. } = h.expect("a damage strike");
                         let gun = c.sides[i]
                             .strike_source
                             .is_some_and(|w| cards::is_gun(st.cards[w.index()].card));
-                        // Joaquin Murietta: his guns at long range.
-                        let n = if gun && !close {
-                            let more = st.printed_mod(
-                                c.sides[i].minion,
-                                cards::Stat::GunDamageAtLong,
-                                crate::state::PrintedCtx::default(),
-                            );
-                            (n as i32 + more).max(0) as u8
-                        } else {
-                            n
-                        };
                         let black_hand = c.sides[i].unpreventable_if_black_hand
                             && st.is_black_hand(c.sides[i].minion);
                         if black_hand
@@ -2639,8 +2798,6 @@ impl Engine {
                         {
                             c.sides[j].unpreventable += n;
                         } else {
-                            let aggravated = (aggravated || printed_aggravated[i])
-                                && !c.sides[i].never_aggravated;
                             if c.sides[i].never_aggravated {
                                 c.sides[j].keep_normal += n;
                             }
@@ -2981,6 +3138,10 @@ impl Engine {
     /// the game ended, the turn passed, or the combat ended (DESIGN §10).
     pub(crate) fn combat_ousts(&mut self) -> bool {
         if self.state.living() <= 1 {
+            // The deciding pair's note, if it waited for a held strike.
+            if let Some(n) = self.held_note.take() {
+                self.note(n);
+            }
             self.combat = None;
             self.state.leave_combat();
             self.action = None;

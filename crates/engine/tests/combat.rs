@@ -5,10 +5,13 @@
 //! decision exists.
 
 use zvtes::actions::Outcome;
+use zvtes::cards::StrikeKind;
+use zvtes::combat::{CombatNote, StrikeHit};
+use zvtes::crypt::CRYPT;
 use zvtes::decision::{ActionKind, Choice, WindowLabel};
 use zvtes::game::Engine;
 use zvtes::ids::{MinionId, SeatId};
-use zvtes::state::find_card;
+use zvtes::state::{find_card, find_library, CardInPlay};
 
 mod common;
 use common::*;
@@ -536,4 +539,118 @@ fn no_reaction_cards_during_combat() {
     expect(&mut e, SeatId(1), WindowLabel::MinionPhase);
     assert!(e.state.minions[w.index()].locked);
     assert_eq!(blood(&e, x), 1);
+}
+
+// A strike is told with what it inflicts if it lands, before prevention,
+// as its resolution reads it (protocol.md "combat": a strike's `n`): Torn
+// Signpost [POT] sets a strength of 3, a hand strike for 3; the blocker's
+// Femur of Toomler ("strength+1 aggravated damage") for 2, aggravated.
+#[test]
+fn a_strike_is_told_with_the_damage_it_inflicts() {
+    let mut t = table();
+    let e = &mut t.e;
+    let z = e.add_minion(SeatId(1), find_card("Octane"), 4, false);
+    let femur = find_library("Femur of Toomler");
+    e.state
+        .cards
+        .push(CardInPlay::new(femur, SeatId(1), Some(z), 0));
+    hand(e, 0, &["Torn Signpost"]);
+    blocked_bleed(e, t.a, z);
+    pick_when(e, play(0, 1, t.a));
+    // The acting minion's hand strike declared, the blocker choosing.
+    until(e, SeatId(1), WindowLabel::CombatStrike);
+    let c = e.combat().expect("in combat");
+    let hand_strike = c.sides[0].strike.expect("declared");
+    let told = |i, k| c.strike_told(&e.state, e.action(), i, k);
+    assert_eq!(
+        told(0, hand_strike),
+        Some(StrikeHit {
+            n: 3,
+            aggravated: false
+        })
+    );
+    let weapon = StrikeKind::Melee {
+        bonus: 1,
+        aggravated: true,
+    };
+    assert_eq!(
+        told(1, weapon),
+        Some(StrikeHit {
+            n: 2,
+            aggravated: true
+        })
+    );
+}
+
+// Sculpt the Flesh [pro]: "Strike: hand strike, aggravated": told
+// aggravated before it resolves, and still as resolved (the strikes' note,
+// taken before resolving clears the strike's riders).
+#[test]
+fn an_aggravated_hand_strike_is_told_aggravated() {
+    let mut e = Engine::bare(2);
+    // A plain Tzimisce with Protean (Sculpt the Flesh's clan).
+    let tzimisce = CRYPT
+        .iter()
+        .enumerate()
+        .find(|(i, c)| {
+            c.clan == "Tzimisce"
+                && c.disciplines.contains(&"pro")
+                && zvtes::cards::vampire(*i as u16).is_none()
+        })
+        .map(|(i, _)| i as u16)
+        .expect("a Tzimisce with Protean");
+    let a = e.add_minion(SeatId(0), tzimisce, 5, false);
+    e.add_minion(SeatId(0), plain("Ventrue", 0), 5, false);
+    let b = e.add_minion(SeatId(1), plain("Brujah", 0), 5, false);
+    let femur = find_library("Femur of Toomler");
+    e.state
+        .cards
+        .push(CardInPlay::new(femur, SeatId(1), Some(b), 0));
+    hand(&mut e, 0, &["Sculpt the Flesh"]);
+    blocked_bleed(&mut e, a, b);
+    pick_when(&mut e, play(0, 0, a));
+    until(&mut e, SeatId(1), WindowLabel::CombatStrike);
+    let c = e.combat().expect("in combat");
+    let k = c.sides[0].strike.expect("declared");
+    let sculpt = Some(StrikeHit {
+        n: 1,
+        aggravated: true,
+    });
+    assert_eq!(c.strike_told(&e.state, e.action(), 0, k), sculpt);
+    e.combat_notes = Some(Vec::new());
+    until(&mut e, SeatId(0), WindowLabel::MinionPhase);
+    let notes = e.combat_notes.take().expect("noted");
+    let told = notes.iter().find_map(|n| match n {
+        CombatNote::Strikes { told, .. } => Some(told[0]),
+        _ => None,
+    });
+    assert_eq!(told, Some(sculpt));
+}
+
+// The strikes' note keeps the strike's damage apart from the rest (a
+// player tells what strike-only prevention covers): Carrion Crows' 1
+// environmental damage beside a hand strike's 1.
+#[test]
+fn the_strike_damage_is_noted_apart_from_environmental_damage() {
+    let mut t = table();
+    let e = &mut t.e;
+    let k = e.add_minion(SeatId(0), find_card("Keegan"), 5, false);
+    hand(e, 0, &["Carrion Crows"]);
+    e.combat_notes = Some(Vec::new());
+    blocked_bleed(e, k, t.x);
+    pick_when(e, play(0, 0, k));
+    until(e, SeatId(0), WindowLabel::MinionPhase);
+    let notes = e.combat_notes.take().expect("noted");
+    let strikes = notes
+        .iter()
+        .find_map(|n| match n {
+            CombatNote::Strikes {
+                damage,
+                strike_damage,
+                ..
+            } => Some((damage[0], strike_damage[0])),
+            _ => None,
+        })
+        .expect("the strikes noted");
+    assert_eq!(strikes, (2, 1));
 }

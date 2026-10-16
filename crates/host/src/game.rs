@@ -315,7 +315,12 @@ impl Game {
         let text = self.settings.text;
         let known = &mut self.known;
         match m {
-            Message::Joined(j) => known.see(&j.view),
+            Message::Joined(j) => {
+                known.see(&j.view);
+                if text {
+                    tell_strikes(&mut j.view);
+                }
+            }
             Message::Events { events, view } => {
                 for e in events {
                     known.hear(&e.kind);
@@ -358,11 +363,15 @@ impl Game {
                 }
                 if let Some(v) = view {
                     known.see(v);
+                    if text {
+                        tell_strikes(v);
+                    }
                 }
             }
             Message::Decision(d) => {
                 known.see(&d.view);
                 if text {
+                    tell_strikes(&mut d.view);
                     d.prompt = zvtes_text::prompt(d, known);
                     let offered = d.options.clone();
                     for o in &mut d.options {
@@ -868,9 +877,11 @@ impl Game {
     }
 
     /// A strike spent as it resolved, kept in the combat's view until the
-    /// next pair, with the damage it dealt.
+    /// next pair, with the damage it dealt; between a first strike and the
+    /// strike it held back, the held one as declared, not yet resolved.
     fn struck_view(&self, v: &mut TableView) {
         let e = self.session.engine();
+        let waiting = e.waiting_strikes().copied();
         let (
             Some(c),
             Some(cv),
@@ -879,23 +890,32 @@ impl Game {
                 round,
                 pair,
                 strikes,
-                damage,
+                told,
+                strike_damage,
                 ..
             }),
-        ) = (e.combat(), v.combat.as_mut(), self.session.struck())
+        ) = (
+            e.combat(),
+            v.combat.as_mut(),
+            waiting.or(self.session.struck()),
+        )
         else {
             return;
         };
         if c.round != round || c.pair != pair {
             return;
         }
+        let held = waiting
+            .and(c.held_strike.as_ref())
+            .map(|&(i, _)| c.sides[i].minion);
         for (side, view) in c.sides.iter().zip(&mut cv.sides) {
             let Some(j) = minions.iter().position(|&m| m == side.minion) else {
                 continue;
             };
             if let (true, None, Some(k)) = (side.chosen, side.strike, strikes[j]) {
-                let mut s = crate::view::strike(k, None);
-                s.resolved = Some(damage[j]);
+                // As told when it resolved: resolving cleared its riders.
+                let mut s = crate::view::told(crate::view::strike(k, None), told[j]);
+                s.resolved = (held != Some(side.minion)).then_some(strike_damage[j]);
                 view.strike = Some(s);
             }
         }
@@ -979,6 +999,15 @@ fn empty_view(viewer: Seat) -> TableView {
         combat: None,
         referendum: None,
         transfers: None,
+    }
+}
+
+/// The combat view's strikes in English (`Strike::text`).
+fn tell_strikes(v: &mut TableView) {
+    for side in v.combat.iter_mut().flat_map(|c| &mut c.sides) {
+        if let Some(s) = side.strike.as_mut() {
+            s.text = Some(zvtes_text::strike_declared(s));
+        }
     }
 }
 

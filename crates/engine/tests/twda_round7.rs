@@ -1061,6 +1061,30 @@ fn petra_inflicts_aggravated_damage_on_baali() {
     assert_eq!(blood(&e, b), 2);
 }
 
+// Rötschreck answers Petra's hand strike on a Baali: aggravated at its
+// source (ANK 20200130-1), Arishat's Methuselah may put it on her.
+#[test]
+fn rotschreck_answers_petras_strike_on_a_baali() {
+    let mut e = game(2);
+    let p = e.add_minion(SeatId(0), find_card("Petra"), 4, false);
+    e.add_minion(SeatId(0), plain("Brujah", 0), 4, false);
+    let b = e.add_minion(SeatId(1), find_card("Arishat"), 2, false);
+    hand(&mut e, 1, &["Rötschreck"]);
+    blocked_bleed(&mut e, p, b);
+    let rot = Choice::Play {
+        card: 0,
+        mode: 0,
+        actor: None,
+        target: Target::Minion(b),
+    };
+    assert!(offered_before(
+        &mut e,
+        rot,
+        SeatId(0),
+        WindowLabel::MinionPhase
+    ));
+}
+
 // Rurik Rakoczy: "Rurik gets 1 optional press each combat. While /Ludmijla
 // Rakoczy/ is ready, Rurik gets +1 bleed." One, two beside a ready
 // Ludmijla (of another Methuselah's).

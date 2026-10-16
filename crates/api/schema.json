@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "title": "zvtes protocol",
-  "version": "1.5.0",
+  "version": "1.6.0",
   "$defs": {
     "About": {
       "description": "What a choice is about (`Decision::about`): each field given where\nthe purpose (or the terms) has it (docs/protocol.md §5).",
@@ -4402,7 +4402,7 @@
           "$ref": "#/$defs/StrikeKind"
         },
         "n": {
-          "description": "Damage or blood stolen.",
+          "description": "Damage or blood stolen; in a combat, a damage strike's: what it\ninflicts now if it lands, before prevention.",
           "type": [
             "integer",
             "null"
@@ -4415,7 +4415,7 @@
           "type": "boolean"
         },
         "resolved": {
-          "description": "Resolved this pair: the damage it dealt.",
+          "description": "Resolved this pair: its damage, before prevention.",
           "type": [
             "integer",
             "null"
@@ -4476,6 +4476,7 @@
       "type": "object",
       "properties": {
         "damage": {
+          "description": "The damage the side inflicts this pair, before prevention: its\nstrike's, its retainers' and environmental damage.",
           "type": "integer",
           "format": "uint8",
           "maximum": 255,
@@ -4495,6 +4496,14 @@
               "type": "null"
             }
           ]
+        },
+        "strike_damage": {
+          "description": "The strike's share of `damage`.",
+          "type": "integer",
+          "format": "uint8",
+          "default": 0,
+          "maximum": 255,
+          "minimum": 0
         }
       },
       "required": [

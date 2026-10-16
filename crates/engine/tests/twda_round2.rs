@@ -615,6 +615,33 @@ fn psychic_assault_by_a_black_hand_vampire_is_unpreventable() {
     }
 }
 
+// The strikes' note counts unpreventable strike damage (kept out of the
+// prevention pool): Blackhorse Tanner's Psychic Assault, 1R, all of it the
+// strike's.
+#[test]
+fn an_unpreventable_strike_is_noted_with_its_damage() {
+    let mut e = game(2);
+    let omaya = e.add_minion(SeatId(0), find_card("Omaya"), 4, false);
+    e.add_minion(SeatId(0), plain("Brujah", 0), 4, false);
+    let bh = e.add_minion(SeatId(1), find_card("Blackhorse Tanner"), 4, false);
+    hand(&mut e, 1, &["Psychic Assault"]);
+    e.combat_notes = Some(Vec::new());
+    pick(&mut e, bleed(omaya));
+    pick(&mut e, block(bh));
+    pick_when(&mut e, play(0, 0, bh));
+    until(&mut e, SeatId(0), WindowLabel::MinionPhase);
+    let notes = e.combat_notes.take().expect("noted");
+    let assault = notes.iter().find_map(|n| match n {
+        zvtes::combat::CombatNote::Strikes {
+            damage,
+            strike_damage,
+            ..
+        } => Some((damage[1], strike_damage[1])),
+        _ => None,
+    });
+    assert_eq!(assault, Some((1, 1)));
+}
+
 // ---- Anneke ------------------------------------------------------------------------------
 
 // [RTR 20020501] [LSJ 20041203] Anneke: "Her ability only affects the rule

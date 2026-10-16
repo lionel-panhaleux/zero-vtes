@@ -151,11 +151,12 @@ impl Namer<'_> {
                 minion,
                 strike: kind,
                 source,
+                told,
             } => {
                 let card = source.map(|c| LIBRARY[st.cards[c.index()].card as usize].id);
                 EventKind::StrikeDeclared {
                     minion: self.minion(minion),
-                    strike: kind.map(|k| strike(k, card)),
+                    strike: kind.map(|k| crate::view::told(strike(k, card), told)),
                 }
             }
             Fact::ActionEnds {
@@ -205,7 +206,9 @@ impl Namer<'_> {
                 pair,
                 range,
                 strikes,
+                told,
                 damage,
+                strike_damage,
             }) => EventKind::Strikes {
                 round,
                 pair,
@@ -216,8 +219,9 @@ impl Namer<'_> {
                 sides: (0..2)
                     .map(|i| StruckSide {
                         minion: self.minion(minions[i]),
-                        strike: strikes[i].map(|k| strike(k, None)),
+                        strike: strikes[i].map(|k| crate::view::told(strike(k, None), told[i])),
                         damage: damage[i],
+                        strike_damage: strike_damage[i],
                     })
                     .collect(),
             },

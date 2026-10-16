@@ -15,7 +15,7 @@ use zvtes_api::ids::{CopyId, KrcgId, MinionKind, Seat};
 use zvtes_api::view::{ActionView, Card, ReferendumView, TableView};
 
 pub use effect::{label, part, parts};
-pub use event::{event, strike};
+pub use event::{event, strike, strike_declared};
 pub use option::option;
 pub use prompt::prompt;
 

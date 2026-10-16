@@ -84,11 +84,13 @@ pub enum Fact {
     BlockFails {
         minion: MinionId,
     },
-    /// A strike declared (`None`: no strike), from a card or weapon.
+    /// A strike declared (`None`: no strike), from a card or weapon, and
+    /// what it was told to inflict as declared.
     Strike {
         minion: MinionId,
         strike: Option<StrikeKind>,
         source: Option<CardId>,
+        told: Option<zvtes::combat::StrikeHit>,
     },
     ActionEnds {
         action: ActionFact,
@@ -169,11 +171,12 @@ pub(crate) struct Mark {
     strikes: Vec<(MinionId, u8, u8, Option<Declared>)>,
 }
 
-/// A strike declared: what, from which card.
+/// A strike declared: what, from which card, told as what damage.
 #[derive(Clone, Copy, Debug)]
 struct Declared {
     strike: Option<StrikeKind>,
     source: Option<CardId>,
+    told: Option<zvtes::combat::StrikeHit>,
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -254,10 +257,15 @@ impl Mark {
                 .map(|c| {
                     c.sides
                         .iter()
-                        .map(|s| {
-                            let declared = s.chosen.then_some(Declared {
+                        .enumerate()
+                        .map(|(i, s)| {
+                            let declared = s.chosen.then(|| Declared {
                                 strike: s.strike,
                                 source: s.strike_source,
+                                told: s
+                                    .strike
+                                    .filter(|_| s.strike_at.is_none())
+                                    .and_then(|k| c.strike_told(&e.state, e.action(), i, k)),
                             });
                             (s.minion, c.round, c.pair, declared)
                         })
@@ -319,6 +327,7 @@ impl Mark {
                     minion: m,
                     strike: d.strike,
                     source: d.source,
+                    told: d.told,
                 };
                 tell(out, fact, true);
             }
@@ -500,5 +509,104 @@ impl Mark {
                 _ => {}
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use zvtes::cards::Target;
+    use zvtes::combat::StrikeHit;
+    use zvtes::crypt::CRYPT;
+    use zvtes::decision::{ActionKind, Choice, DecisionRequest, WindowLabel};
+    use zvtes::game::{Engine, Step};
+    use zvtes::ids::SeatId;
+    use zvtes::state::{find_card, find_library, CardInPlay};
+
+    use super::Mark;
+
+    fn next(e: &mut Engine) -> DecisionRequest {
+        match e.run() {
+            Step::Decision(r) => r,
+            Step::Over(_) => panic!("game over"),
+        }
+    }
+
+    /// Passes (or the first option) until `done` holds of a decision.
+    fn until(e: &mut Engine, done: impl Fn(&DecisionRequest) -> Option<usize>) {
+        loop {
+            let r = next(e);
+            if let Some(i) = done(&r) {
+                e.choose(i);
+                return;
+            }
+            let pass = r.options.iter().position(|o| *o == Choice::Pass);
+            e.choose(pass.unwrap_or(0));
+        }
+    }
+
+    fn pick(e: &mut Engine, want: Choice) {
+        until(e, |r| r.options.iter().position(|o| *o == want));
+    }
+
+    // A strike declared is marked with what it inflicts as declared (the
+    // `strike_declared` event's `n`): Torn Signpost [POT] sets a strength of
+    // 3, the hand strike for 3.
+    #[test]
+    fn a_declared_strike_is_marked_with_its_damage() {
+        let pot = CRYPT
+            .iter()
+            .enumerate()
+            .find(|(i, c)| {
+                c.disciplines.contains(&"POT") && zvtes::cards::vampire(*i as u16).is_none()
+            })
+            .map(|(i, _)| i as u16)
+            .expect("a vampire with POT");
+        let mut e = Engine::bare(2);
+        let a = e.add_minion(SeatId(0), pot, 4, false);
+        e.add_minion(SeatId(0), find_card("Farah Sarroub"), 4, false);
+        e.add_minion(SeatId(1), find_card("Monica Giovanni"), 4, false);
+        let z = e.add_minion(SeatId(1), find_card("Octane"), 4, false);
+        e.state.turn = 4;
+        // The blocker's weapon: a strike to choose, so its window stays.
+        let femur = find_library("Femur of Toomler");
+        e.state
+            .cards
+            .push(CardInPlay::new(femur, SeatId(1), Some(z), 0));
+        e.state.seats[0].hand.push(find_library("Torn Signpost"));
+        pick(
+            &mut e,
+            Choice::TakeAction {
+                minion: a,
+                action: ActionKind::Bleed,
+                target: None,
+            },
+        );
+        pick(&mut e, Choice::DeclareBlock { minion: z });
+        pick(
+            &mut e,
+            Choice::Play {
+                card: 0,
+                mode: 1,
+                actor: Some(a),
+                target: Target::None,
+            },
+        );
+        // Up to the blocker's strike choice, the acting minion's declared.
+        loop {
+            let r = next(&mut e);
+            if (r.seat, r.window) == (SeatId(1), WindowLabel::CombatStrike) {
+                break;
+            }
+            let pass = r.options.iter().position(|o| *o == Choice::Pass);
+            e.choose(pass.unwrap_or(0));
+        }
+        let (_, _, _, declared) = Mark::of(&e).strikes[0];
+        assert_eq!(
+            declared.and_then(|d| d.told),
+            Some(StrikeHit {
+                n: 3,
+                aggravated: false
+            })
+        );
     }
 }

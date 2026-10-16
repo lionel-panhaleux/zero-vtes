@@ -209,14 +209,18 @@ impl Build<'_> {
                 sides: c
                     .sides
                     .iter()
-                    .map(|s| CombatSide {
+                    .enumerate()
+                    .map(|(i, s)| CombatSide {
                         minion: self.minion_ref(s.minion),
                         strike: s.chosen.then_some(s.strike).flatten().map(|k| {
-                            strike(
-                                k,
-                                s.strike_source
-                                    .map(|c| LIBRARY[e.state.cards[c.index()].card as usize].id),
-                            )
+                            let card = s
+                                .strike_source
+                                .map(|c| LIBRARY[e.state.cards[c.index()].card as usize].id);
+                            let hit = s
+                                .strike_at
+                                .is_none()
+                                .then(|| c.strike_told(&e.state, e.action(), i, k));
+                            told(strike(k, card), hit.flatten())
                         }),
                         maneuvers: s.maneuvers,
                         presses: s.presses,
@@ -626,6 +630,16 @@ pub(crate) fn strike(k: Sk, card: Option<u32>) -> Strike {
         }
         Sk::Corrupt => StrikeKind::Corrupt,
     };
+    s
+}
+
+/// A strike with the damage the engine says it inflicts now, when it is a
+/// damage strike in a live combat (`CombatCtx::strike_told`).
+pub(crate) fn told(mut s: Strike, hit: Option<zvtes::combat::StrikeHit>) -> Strike {
+    if let Some(h) = hit {
+        s.n = Some(h.n);
+        s.aggravated = h.aggravated;
+    }
     s
 }
 

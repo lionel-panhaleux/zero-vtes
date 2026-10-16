@@ -160,8 +160,14 @@ pub fn event(e: &EventKind, n: &Names) -> Option<String> {
                     return String::new();
                 };
                 let mut t = format!("{} {}", n.minion(s.minion), strike(s.strike.as_ref()));
-                if s.damage > 0 {
-                    t += &format!(" ({} damage)", s.damage);
+                // Retainers' and environmental damage apart from the
+                // strike's: strike-only prevention covers the latter only.
+                let besides = s.damage.saturating_sub(s.strike_damage);
+                match (s.strike_damage, besides) {
+                    (0, 0) => {}
+                    (n, 0) => t += &format!(" ({n} damage)"),
+                    (0, m) => t += &format!(" ({m} damage besides the strike)"),
+                    (n, m) => t += &format!(" ({n} damage, {m} more besides the strike)"),
                 }
                 t
             };
@@ -214,6 +220,19 @@ pub fn action_kind(k: ActionKind) -> &'static str {
         ActionKind::BecomeAnarch => "become Anarch",
         ActionKind::RedListHunt => "enter combat with a Red List minion",
     }
+}
+
+/// A declared strike with the damage it inflicts if it lands ("hand
+/// strike, 3 damage, aggravated").
+pub fn strike_declared(s: &Strike) -> String {
+    let mut t = strike(Some(s));
+    if let (StrikeKind::Hand | StrikeKind::Melee, Some(n)) = (s.kind, s.n) {
+        t += &format!(", {n} damage");
+    }
+    if s.aggravated {
+        t += ", aggravated";
+    }
+    t
 }
 
 /// A strike as the table sees it ("no strike" for none).
@@ -269,6 +288,62 @@ mod tests {
             crypt: false,
             nth: None,
         }
+    }
+
+    // A round's line keeps the strike's damage apart from the rest (its
+    // retainers' and environmental damage): strike-only prevention covers
+    // the strike's only.
+    #[test]
+    fn a_rounds_line_keeps_the_strike_damage_apart() {
+        use zvtes_api::event::StruckSide;
+        use zvtes_api::ids::{Range, StrikeKind};
+        use zvtes_api::view::Strike;
+        let cards = Two;
+        let mut n = Names::new(&cards);
+        n.hear(&EventKind::EntersPlay {
+            card: card(1, Some(7)),
+            seat: 0,
+            on: None,
+            minion: Some(MinionKind::Vampire),
+            effect: false,
+        });
+        let hands = Strike {
+            kind: StrikeKind::Hand,
+            n: Some(1),
+            ranged: false,
+            aggravated: false,
+            card: None,
+            resolved: None,
+            text: None,
+        };
+        let line = |damage, strike_damage| {
+            let e = EventKind::Strikes {
+                round: 1,
+                pair: 0,
+                range: Range::Close,
+                sides: vec![
+                    StruckSide {
+                        minion: 7,
+                        strike: Some(hands.clone()),
+                        damage,
+                        strike_damage,
+                    },
+                    StruckSide {
+                        minion: 7,
+                        strike: None,
+                        damage: 0,
+                        strike_damage: 0,
+                    },
+                ],
+            };
+            super::event(&e, &n).expect("told")
+        };
+        let lucian =
+            |t: &str| format!("Round 1, close range: Lucian hand strike{t} — Lucian no strike");
+        assert_eq!(line(2, 1), lucian(" (1 damage, 1 more besides the strike)"));
+        assert_eq!(line(1, 1), lucian(" (1 damage)"));
+        assert_eq!(line(1, 0), lucian(" (1 damage besides the strike)"));
+        assert_eq!(line(0, 0), lucian(""));
     }
 
     // A lasting effect whose card is in the ash heap (`effect`) is told as

@@ -18,7 +18,7 @@ is created by one request and played over one WebSocket. Every game is
 recorded, anonymously, and kept two years to train and test the engine
 (§11).
 
-Version **1.5.0**. The types: the models of the
+Version **1.6.0**. The types: the models of the
 [API reference](https://engine.krcg.org/docs), also as
 [JSON Schema](https://engine.krcg.org/schema.json) (2020-12) and
 [TypeScript](https://engine.krcg.org/protocol.ts).
@@ -233,7 +233,12 @@ the previous one, never the engine's state.
 - `combat`: `minions` (acting first), `round`, `range`, `sides[]`
   (`strike` once declared — the blocker chooses knowing the acting
   minion's — `maneuvers`, `presses`). A strike: `kind`, `n`, `ranged`,
-  `aggravated`, `card`, `resolved`.
+  `aggravated`, `card`, `resolved`, `text`. In a combat, a damage
+  strike's (`hand`, `melee`, `damage`) `n` and `aggravated` are what it
+  inflicts now if it lands, before prevention: the minion's strength and
+  its bonuses, the opposing minion's reductions, aggravated as it
+  resolves; `resolved`, once the pair resolved, the strike's damage,
+  before prevention.
 - `referendum`: `caller`, `step` (`terms`, `polling`, `shortfall`),
   `calling`, `card`, `votes_for`, `votes_against`, `terms` (`seats`,
   `cards`, `clan`, `allocated`), every `vote` cast (`seat`, `source`,
@@ -387,7 +392,7 @@ heap (a marker on its minion, §6), no copy of its own.
 | `referendum_ends` | `outcome` (`passes`, `fails`, `canceled`), `votes_for`, `votes_against`, `action`? (the political action), `hunted`? (a blood hunt's diablerist) |
 | `combat_begins` | `minions` |
 | `strike_declared` | `minion`, `strike`? (none: no strike) |
-| `strikes` | `round`, `pair`, `range`, `sides` (`minion`, `strike`?, `damage`) |
+| `strikes` | `round`, `pair`, `range`, `sides` (`minion`, `strike`?, `damage`: before prevention, its retainers' and environmental damage included; `strike_damage`: the strike's share) |
 | `combat_ends` | — |
 
 `action`: `{kind, card?, source?}` — the action's kind, its card, what

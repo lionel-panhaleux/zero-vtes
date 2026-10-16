@@ -1821,6 +1821,51 @@ fn breath_of_the_dragon_burns_both() {
     assert_eq!(blood(&e, viri), 3 - 1 - 1);
 }
 
+// The strikes' note tells the breath's damage to its striker as no one
+// else's: the blocker inflicts its hand strike's 1, Viri her breath's 1.
+#[test]
+fn breath_of_the_dragon_is_noted_as_viris_own() {
+    let mut e = game(2);
+    let viri = budapest(&mut e, 0, "Viri", 3);
+    budapest(&mut e, 0, "Dorka", 3);
+    let z = e.add_minion(SeatId(1), plain("Ventrue", 0), 4, false);
+    hand(&mut e, 0, &["Breath of the Dragon"]);
+    e.combat_notes = Some(Vec::new());
+    blocked_bleed(&mut e, viri, z);
+    let req = offering(&mut e, play(0, 0, viri));
+    e.choose(index_of(&req, play(0, 0, viri)));
+    until(&mut e, SeatId(0), WindowLabel::MinionPhase);
+    let notes = e.combat_notes.take().expect("noted");
+    let noted = notes.iter().find_map(|n| match n {
+        zvtes::combat::CombatNote::Strikes {
+            damage,
+            strike_damage,
+            ..
+        } => Some((*damage, *strike_damage)),
+        _ => None,
+    });
+    assert_eq!(noted, Some(([1, 1], [1, 1])));
+}
+
+// Held back by a first strike, the breath still burns its striker as it
+// resolves: Viri, blocking Elimelech (first strike, 2), breathes at close
+// range — 1 aggravated to herself, torpor.
+#[test]
+fn a_held_breath_of_the_dragon_still_burns_its_striker() {
+    let mut e = game(2);
+    let elimelech = e.add_minion(SeatId(0), find_card("Elimelech the Twice-Damned"), 6, false);
+    budapest(&mut e, 0, "Dorka", 3);
+    let viri = budapest(&mut e, 1, "Viri", 5);
+    hand(&mut e, 1, &["Breath of the Dragon"]);
+    blocked_bleed(&mut e, elimelech, viri);
+    pick_when(&mut e, play(0, 0, viri));
+    until(&mut e, SeatId(0), WindowLabel::MinionPhase);
+    assert!(
+        e.state.minions[viri.index()].in_torpor,
+        "her own breath's 1"
+    );
+}
+
 // Chiropteran Marauder: "[VIC] Burn 1 blood to make the damage from this
 // vampire's hand strikes aggravated this round." [ANK 20210226] "The burn
 // blood effect is not reduced by effects that reduce the cost of the card

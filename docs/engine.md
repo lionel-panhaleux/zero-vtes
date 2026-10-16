@@ -691,6 +691,14 @@ engine masks), `cards/mod.rs` (the vocabulary: `Window`, `Actor`,
   Cocktail) places it only if the strike resolved (not dodged, combat not
   ended first); `CombatCtx::placed_this_round` holds the "not this round"
   bar, `Effect::BurnAfterStrike` the weapon's burn after a resolved strike.
+  A damage strike's damage on the opposing minion before prevention
+  (strength and its bonuses, the opposing minion's reductions, the
+  aggravated sources) is one computation, `CombatCtx::strike_hit`: the
+  resolution reads it, and `strike_told` (adding a harmless weapon's
+  nothing and Dawn Operation's aggravation) serves Rötschreck
+  (`aggravated_strike_on`), the host's view of a declared strike, and
+  `CombatNote::Strikes` (`told`, taken before resolving clears the
+  strike's riders). A strike aimed at a retainer is resolved apart.
 - Damage: prevention per side, acting side first, then third parties from outside
   the combat (`Step::OthersPrevent`); the preventer picks which damage a
   prevention covers (`Step::AllocateSource`); applied at once, normal then

@@ -20,3 +20,5 @@ zvtes-text = { path = "../text" }
 
 [dev-dependencies]
 jsonschema = { version = "0.30", default-features = false }
+# Engine positions built from bare card ids, for unit tests.
+zero-vtes-engine = { path = "../engine", features = ["fixtures"] }

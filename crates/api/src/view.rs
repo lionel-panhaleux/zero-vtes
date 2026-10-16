@@ -247,7 +247,8 @@ pub struct CombatSide {
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub struct Strike {
     pub kind: StrikeKind,
-    /// Damage or blood stolen.
+    /// Damage or blood stolen; in a combat, a damage strike's: what it
+    /// inflicts now if it lands, before prevention.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub n: Option<u8>,
     #[serde(default, skip_serializing_if = "std::ops::Not::not")]
@@ -257,7 +258,7 @@ pub struct Strike {
     /// The card it comes from (a weapon, a strike card).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub card: Option<KrcgId>,
-    /// Resolved this pair: the damage it dealt.
+    /// Resolved this pair: its damage, before prevention.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub resolved: Option<u8>,
     /// English, when the seat's settings ask for text.
