@@ -33,6 +33,14 @@ pub fn event(e: &EventKind, n: &Names) -> Option<String> {
             };
             format!("{} draws {k} {cards}", n.seat(*seat))
         }
+        EventKind::Revealed { seat, card } => {
+            let from = if card.crypt { "crypt" } else { "library" };
+            format!(
+                "{} reveals {} from their {from}",
+                n.seat(*seat),
+                n.card(card)
+            )
+        }
         EventKind::Pool { seat, delta, pool } => {
             format!("{}: {} pool ({pool})", n.seat(*seat), signed(*delta))
         }

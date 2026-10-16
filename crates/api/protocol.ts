@@ -623,6 +623,11 @@ export type Event = {
         seat: number
     }
     | {
+        card: Card
+        kind: 'revealed'
+        seat: number
+    }
+    | {
         delta: number
         kind: 'pool'
         pool: number

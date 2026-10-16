@@ -108,8 +108,9 @@ impl Replay {
     /// decisions read.
     pub fn read(&self, at: usize) -> (Engine, usize) {
         let mut e = self.deal();
-        // Combats are not told here.
+        // Combats and reveals are not told here.
         e.combat_notes = None;
+        e.reveal_notes = None;
         let mut reader = self.reader();
         let mut n = 0;
         while n < at {

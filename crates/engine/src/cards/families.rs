@@ -493,7 +493,7 @@ impl Effect {
             | E::TauntCombat(..)
             | E::GainLiaison
             | E::SearchEquip
-            | E::SearchToHand(..)
+            | E::SearchToHand { .. }
             | E::RemoveAllSourceCounters
             | E::EnterCombatWithTarget
             | E::TargetYieldsTitle

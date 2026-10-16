@@ -34,7 +34,9 @@ pub enum Taken {
     Human(Knowledge),
     Passed,
     Order,
-    /// A human decision that showed it library cards (a search).
+    /// A decision that showed library or crypt cards: a human's search, or
+    /// any decision after which a card was revealed to all (no undo back
+    /// past it).
     Revealed,
 }
 
@@ -134,8 +136,9 @@ pub fn deal(seed: u64, time_limit: Option<u32>, decks: &[Resolved]) -> Engine {
     if let Some(t) = time_limit {
         engine.time_limit = t;
     }
-    // Combats told as they happen (`observe`).
+    // Combats and reveals told as they happen (`observe`).
     engine.combat_notes = Some(Vec::new());
+    engine.reveal_notes = Some(Vec::new());
     engine
 }
 
@@ -227,15 +230,36 @@ impl Session {
     /// action or a referendum ended, and (`ran`: across the engine's run,
     /// not a decision's own effect) the rest in words.
     fn observe(&mut self, ran: bool) {
-        // What combats did first: their damage is among the changes.
+        // What combats did and the cards revealed, in their order, first:
+        // their damage is among the changes. Both queues are drained (and
+        // reset, `undo`) together: `Reveal::after` counts the other.
         let notes = self
             .engine
             .combat_notes
             .as_mut()
             .map(std::mem::take)
             .unwrap_or_default();
+        let reveals = self
+            .engine
+            .reveal_notes
+            .as_mut()
+            .map(std::mem::take)
+            .unwrap_or_default();
+        let revealed = !reveals.is_empty();
+        let mut reveals = reveals.into_iter().peekable();
         let mut told = Vec::new();
-        for n in &notes {
+        for i in 0..=notes.len() {
+            while let Some(r) = reveals.next_if(|r| r.after <= i) {
+                told.push(Told {
+                    fact: Fact::Revealed {
+                        seat: r.seat,
+                        card: r.card,
+                        crypt: r.crypt,
+                    },
+                    told: true,
+                });
+            }
+            let Some(n) = notes.get(i) else { break };
             told.push(Told {
                 fact: Fact::Combat(*n),
                 told: true,
@@ -243,6 +267,14 @@ impl Session {
             if matches!(n, CombatNote::Strikes { .. }) {
                 self.struck = Some(*n);
             }
+        }
+        // A card revealed: no undo back past it (it would be known and
+        // its place restored).
+        if revealed {
+            if let Some(last) = self.history.last_mut() {
+                last.1 = Taken::Revealed;
+            }
+            self.snapshots.clear();
         }
         let now = Mark::of(&self.engine);
         if let Some(before) = &self.mark {
@@ -469,8 +501,9 @@ impl Session {
                 engine
             }
         };
-        // The combats since were told already.
+        // The combats and reveals since were told already.
         engine.combat_notes = Some(Vec::new());
+        engine.reveal_notes = Some(Vec::new());
         self.engine = engine;
         self.history.truncate(at);
         self.pending = None;
@@ -745,6 +778,117 @@ mod tests {
         let crypt = decks[0].crypt.clone();
         let s = Session::new(1, None, decks, (0..3).map(|_| None).collect());
         (s, crypt)
+    }
+
+    /// A card an effect reveals is told to every seat with its id, no copy
+    /// number (it stays in its hidden place): a crypt's top, as Mesu
+    /// Bedshet reveals it (the engine's `reveal_notes`).
+    #[test]
+    fn a_revealed_card_is_told_to_every_seat() {
+        let (mut s, _) = session();
+        s.observe(false);
+        let top = *s.engine.state.seats[0].crypt.last().expect("a crypt");
+        s.engine
+            .reveal_notes
+            .as_mut()
+            .expect("reveals noted")
+            .push(zvtes::game::Reveal {
+                seat: SeatId(0),
+                card: top,
+                crypt: true,
+                after: 0,
+            });
+        s.observe(true);
+        let fact = s
+            .told
+            .iter()
+            .map(|t| t.fact)
+            .find(|f| matches!(f, Fact::Revealed { .. }))
+            .expect("the reveal observed");
+        for seat in 0..3 {
+            let mut v = crate::view::Viewer::new(Some(SeatId(seat)));
+            let told = v.event(&s.engine, &s.dealt, fact);
+            let Some(zvtes_api::event::EventKind::Revealed { seat: from, card }) = told else {
+                panic!("seat {seat}: {told:?}");
+            };
+            assert_eq!(from, 0);
+            assert_eq!(
+                card.id,
+                Some(zvtes::crypt::CRYPT[top as usize].id),
+                "seat {seat}"
+            );
+            assert!(card.crypt && card.copy.is_none(), "seat {seat}: {card:?}");
+        }
+    }
+
+    /// The game to the next human decision a seat can take back: its
+    /// first options taken until one is undoable.
+    fn to_undoable(s: &mut Session) {
+        for _ in 0..200 {
+            match s.advance() {
+                Next::Ask { undo: true, .. } => return,
+                Next::Ask { shown, .. } => {
+                    let t = s.human();
+                    s.take(shown[0], t);
+                }
+                Next::Take { index, taken } => s.take(index, taken),
+                Next::Over => panic!("over"),
+            }
+        }
+        panic!("no undoable decision");
+    }
+
+    /// No undo past a revealed card (its place restored, the card known);
+    /// and the replay an undo deals again tells no reveal anew.
+    #[test]
+    fn a_reveal_bars_the_undo() {
+        let (mut s, _) = session();
+        to_undoable(&mut s);
+        let top = *s.engine.state.seats[0].crypt.last().expect("a crypt");
+        s.engine
+            .reveal_notes
+            .as_mut()
+            .expect("reveals noted")
+            .push(zvtes::game::Reveal {
+                seat: SeatId(0),
+                card: top,
+                crypt: true,
+                after: 0,
+            });
+        s.observe(true);
+        assert!(matches!(s.undo(), Err(Refused::NoUndo)), "barred");
+    }
+
+    /// Reveals told in their order among a combat's notes (`Reveal::after`:
+    /// the combat notes before it; both queues drained together).
+    #[test]
+    fn a_reveal_is_told_in_its_place_among_the_combat_notes() {
+        let (mut s, _) = session();
+        s.observe(false);
+        let m = [zvtes::ids::MinionId(0), zvtes::ids::MinionId(1)];
+        s.engine.combat_notes = Some(vec![
+            CombatNote::Begins { minions: m },
+            CombatNote::Ends { minions: m },
+        ]);
+        let top = *s.engine.state.seats[0].crypt.last().expect("a crypt");
+        s.engine.reveal_notes = Some(vec![zvtes::game::Reveal {
+            seat: SeatId(0),
+            card: top,
+            crypt: true,
+            after: 1,
+        }]);
+        let before = s.told.len();
+        s.observe(true);
+        let order: Vec<&str> = s.told[before..]
+            .iter()
+            .filter_map(|t| match t.fact {
+                Fact::Combat(CombatNote::Begins { .. }) => Some("begins"),
+                Fact::Revealed { .. } => Some("revealed"),
+                Fact::Combat(CombatNote::Ends { .. }) => Some("ends"),
+                _ => None,
+            })
+            .collect();
+        assert_eq!(order, vec!["begins", "revealed", "ends"]);
     }
 
     /// A legal no-op is hidden with the opportunities off, shown with them

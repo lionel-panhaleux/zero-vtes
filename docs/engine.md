@@ -1137,7 +1137,11 @@ engine masks), `cards/mod.rs` (the vocabulary: `Window`, `Actor`,
 - Searches (`Flow::LibrarySearch`, `Interrupt::DisciplineSearch`, `SearchStore`,
   `SearchToHand`) pick by card, not position, at resolution (spec §1.14.1), and
   shuffle with the engine's `Rng`; an equipment search offers only what could
-  be equipped as a play (no unpayable blood cost, rules-qa 9.3).
+  be equipped as a play (no unpayable blood cost, rules-qa 9.3). A search is
+  private unless the card says to reveal (PIB 20121028): `SearchToHand`'s
+  `shown`, and the find of Fortschritt Library, The Mithraeum, Disciple of
+  Lazarus; a revealed card (a search's find, a top card) goes to
+  `Engine::reveal_notes` (`Reveal`), which the host tells every seat.
 - Every library draw goes through `Engine::offer_redraw` (Blackhorse
   Tanner's `Interrupt::Redraw`, once each turn); `Interrupt::AllySearch`
   (Antonio d'Erlette) searches library and hand for a mage ally and puts

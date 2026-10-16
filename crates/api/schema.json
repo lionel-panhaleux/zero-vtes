@@ -1806,6 +1806,30 @@
           ]
         },
         {
+          "description": "A card an effect revealed to every Methuselah, from `seat`'s crypt\nor library (`card.crypt`): a top card, a search's find: its `id`\ntold, no copy number (it stays in a hidden place, or goes face down\nor to a hand).",
+          "type": "object",
+          "properties": {
+            "card": {
+              "$ref": "#/$defs/Card"
+            },
+            "kind": {
+              "type": "string",
+              "const": "revealed"
+            },
+            "seat": {
+              "type": "integer",
+              "format": "uint8",
+              "maximum": 255,
+              "minimum": 0
+            }
+          },
+          "required": [
+            "kind",
+            "seat",
+            "card"
+          ]
+        },
+        {
           "type": "object",
           "properties": {
             "delta": {

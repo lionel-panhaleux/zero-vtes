@@ -5068,10 +5068,10 @@ impl Engine {
                                 self.state.cards[c.index()].counters = 0;
                             }
                         }
-                        Effect::SearchToHand(filter) => {
+                        Effect::SearchToHand { filter, shown } => {
                             self.flow = Flow::LibrarySearch {
                                 minion: acting,
-                                to_hand: Some(filter),
+                                to_hand: Some((filter, shown)),
                             };
                             return;
                         }
@@ -6161,12 +6161,15 @@ impl Engine {
     pub(crate) fn search_apply(
         &mut self,
         minion: MinionId,
-        to_hand: Option<cards::CardFilter>,
+        to_hand: Option<(cards::CardFilter, bool)>,
         choice: &Choice,
     ) {
         let seat = self.acting_seat();
         match *choice {
             Choice::FindCard(card) if to_hand.is_some() => {
+                if to_hand.is_some_and(|(_, shown)| shown) {
+                    self.reveal(seat, card, false);
+                }
                 let s = &mut self.state.seats[seat.index()];
                 let k = s
                     .library

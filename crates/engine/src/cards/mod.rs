@@ -3862,7 +3862,7 @@ pub enum Effect {
     PoolToTargetBlood(u8),
     /// Move 1 counter from this card to the target as blood (Twilight Camp).
     CounterToTargetBlood,
-    /// Search the crypt for a copy of the named vampire into the
+    /// Search the crypt for a copy of the named vampire, revealed, into the
     /// uncontrolled region (The Mithraeum, London).
     CryptNamedToUncontrolled(&'static str),
     /// Unlock the acting minion (Yoruba Shrine).
@@ -3971,8 +3971,8 @@ pub enum Effect {
     /// After a two-card discard cost, the same two (the use's X is 1) shrink
     /// each other hand size by n to their next unlock (Babalawo Alafin).
     OthersHandSmallerIfSame(u8),
-    /// Search the crypt for a vampire of the clan into the uncontrolled
-    /// region, the player's pick or none (Disciple of Lazarus).
+    /// Search the crypt for a vampire of the clan, revealed, into the
+    /// uncontrolled region, the player's pick or none (Disciple of Lazarus).
     CryptClanToUncontrolled(&'static str),
     /// Move the named ally from the ash heap to the ready region, unlocked,
     /// with its starting life (Emerald Legionnaire; ANK 20180509).
@@ -3995,8 +3995,9 @@ pub enum Effect {
     /// Each other Methuselah's unlock phase: burn n pool or lose the next
     /// influence phase's transfers (Leandro; `Interrupt::PoolOrNoTransfers`).
     BurnPoolOrNoTransfers(u8),
-    /// Search the library for a card of the filter into the hand, then
-    /// discard down (Fortschritt Library; `Interrupt::LibraryToHand`).
+    /// Search the library for a card of the filter into the hand, shown
+    /// to all, then discard down (Fortschritt Library;
+    /// `Interrupt::LibraryToHand`).
     SearchLibraryToHand(CardFilter),
     /// The hands of each Methuselah with a ready vampire of the clan, open
     /// to the user until the next action ends (The Baron).
@@ -4248,8 +4249,10 @@ pub enum Effect {
     /// can equip and equip it, as normal (Magic of the Smith; spec §1.14.1).
     SearchEquip,
     /// On success, search the library for a card of this kind into the hand,
-    /// or find none (Sakhar's equipment, Dominica's master archetype).
-    SearchToHand(CardFilter),
+    /// or find none (Sakhar's equipment, Dominica's master archetype);
+    /// `shown`: the card found revealed to all (the card says so; Dan
+    /// Murdock's does not).
+    SearchToHand { filter: CardFilter, shown: bool },
     /// The host may unlock, once each turn (Baba Yaga; `Interrupt::MayUnlock`,
     /// `state::once_unlock_key`).
     MayUnlockOncePerTurn,

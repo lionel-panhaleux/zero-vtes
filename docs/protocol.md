@@ -146,7 +146,10 @@ table (minions, cards in play and stored on them, the viewer's own
 uncontrolled vampires; another seat's face down ones are backs), in face-up piles (ash heaps, removed, limbo) and in the
 viewer's own hand (another seat's while a card reveals it). A card in a
 hidden place — another seat's hand, any library or crypt — has no
-number: a card back, `{}`. A card coming into
+number: a card back, `{}`; one an effect reveals from a library or a
+crypt (a top card: Mesu Bedshet, Petra Resonance, Andrew Stuart; a
+search's find the card says to reveal: Sakhar, Disciple of Lazarus) is
+told to every seat by a `revealed` event, its `id` without a number. A card coming into
 a numbered place from a hidden one takes a fresh number, never used
 before for this viewer. So a number tells nothing the card's face does
 not. Two seats may number the same card differently; records use the
@@ -383,6 +386,7 @@ heap (a marker on its minion, §6), no copy of its own.
 | `undone` | `seat`, `to`: drop what was shown since decision `to` |
 | `turn` | `turn`, `active` |
 | `draw` | `seat`, `n`, `crypt` |
+| `revealed` | `seat`, `card` (its `id`, `crypt`; no number): a card of a crypt or library an effect revealed to all (a top card, a search's find) |
 | `pool` | `seat`, `delta`, `pool` |
 | `blood` | `minion`, `delta`, `blood` |
 | `enters_play` | `card`, `seat` (its controller), `on`?, `minion`? (its kind, for a minion), `effect`? |

@@ -3744,6 +3744,7 @@ impl Engine {
             }
             (Interrupt::CryptSearch { seat, .. }, Choice::AshVampire(card)) => {
                 self.interrupts.remove(0);
+                self.reveal(seat, card, true);
                 let st = &mut self.state.seats[seat.index()];
                 let k = st
                     .crypt
@@ -3761,6 +3762,7 @@ impl Engine {
             }
             (Interrupt::LibraryToHand { seat, .. }, Choice::FindCard(card)) => {
                 self.interrupts.remove(0);
+                self.reveal(seat, card, false);
                 let s = &mut self.state.seats[seat.index()];
                 let k = s
                     .library

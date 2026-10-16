@@ -131,8 +131,9 @@ pub(crate) enum Flow {
     /// equipment `minion` equips with, chosen at resolution (spec §1.14.1).
     LibrarySearch {
         minion: MinionId,
-        /// A card of this kind moved to hand (Sakhar), not equipped.
-        to_hand: Option<crate::cards::CardFilter>,
+        /// A card of this kind moved to hand (Sakhar), not equipped, and
+        /// whether it is revealed to all (the card says so).
+        to_hand: Option<(crate::cards::CardFilter, bool)>,
     },
     /// The cards an exchange action names as it is announced (Lenelle):
     /// the ash card, then the hand card.
@@ -214,6 +215,9 @@ pub struct Engine {
     /// What combats did, for a narrator (`CombatNote`): `None`, the
     /// default, keeps nothing; the taker drains it.
     pub combat_notes: Option<Vec<crate::combat::CombatNote>>,
+    /// The cards effects revealed to every Methuselah, for a narrator
+    /// (`Reveal`): `None`, the default, keeps nothing; the taker drains it.
+    pub reveal_notes: Option<Vec<Reveal>>,
     /// A pair's strikes note waiting for the strike a first strike held
     /// back (`CombatCtx::held_strike`): one note a pair.
     pub(crate) held_note: Option<crate::combat::CombatNote>,
@@ -299,7 +303,46 @@ pub fn public_choice(c: &Choice) -> bool {
     )
 }
 
+/// A card an effect revealed to every Methuselah, from `seat`'s crypt or
+/// library (its index in the crypt or library table): public that moment,
+/// wherever it goes after. `after`: the combat notes noted before it, so a
+/// narrator keeps the order.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct Reveal {
+    pub seat: SeatId,
+    pub card: u16,
+    pub crypt: bool,
+    pub after: usize,
+}
+
 impl Engine {
+    /// `seat`'s crypt or library top card revealed to all.
+    pub(crate) fn reveal_top(&mut self, seat: SeatId, crypt: bool) {
+        let zone = &self.state.seats[seat.index()];
+        let top = if crypt {
+            zone.crypt.last()
+        } else {
+            zone.library.last()
+        };
+        if let Some(&card) = top {
+            self.reveal(seat, card, crypt);
+        }
+    }
+
+    /// A card of `seat`'s crypt or library revealed to all, noted for a
+    /// narrator.
+    pub(crate) fn reveal(&mut self, seat: SeatId, card: u16, crypt: bool) {
+        let after = self.combat_notes.as_ref().map_or(0, Vec::len);
+        if let Some(notes) = self.reveal_notes.as_mut() {
+            notes.push(Reveal {
+                seat,
+                card,
+                crypt,
+                after,
+            });
+        }
+    }
+
     /// A new game: each seat gets a random full-size V5 precon (rulebook
     /// "Setup", as [`Engine::with_decks`]).
     pub fn new(seed: u64, n_seats: usize) -> Self {
@@ -398,6 +441,7 @@ impl Engine {
             rng,
             last_outcome: None,
             combat_notes: None,
+            reveal_notes: None,
             held_note: None,
             history: Default::default(),
         };
@@ -885,7 +929,9 @@ impl Engine {
                 pending,
                 edge_taken,
             } => self.abilities_request(window, pending, *edge_taken),
-            Flow::LibrarySearch { minion, to_hand } => Some(self.search_request(*minion, *to_hand)),
+            Flow::LibrarySearch { minion, to_hand } => {
+                Some(self.search_request(*minion, to_hand.map(|(f, _)| f)))
+            }
             Flow::Exchange { ash } => Some(self.exchange_request(*ash)),
             Flow::Action => self.action_request(),
             Flow::Combat => self.combat_request(),

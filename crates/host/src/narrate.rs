@@ -109,6 +109,12 @@ pub enum Fact {
         hunted: Option<MinionId>,
     },
     Combat(CombatNote),
+    /// A crypt's or library's card revealed to all (`Engine::reveal_notes`).
+    Revealed {
+        seat: SeatId,
+        card: u16,
+        crypt: bool,
+    },
 }
 
 /// An action as its end tells it.

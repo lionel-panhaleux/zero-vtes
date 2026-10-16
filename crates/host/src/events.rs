@@ -85,6 +85,10 @@ impl Namer<'_> {
                 n,
                 crypt,
             },
+            Fact::Revealed { seat, card, crypt } => EventKind::Revealed {
+                seat: seat.0,
+                card: self.card(CopyId::NONE, card, crypt),
+            },
             Fact::Pool { seat, delta, pool } => EventKind::Pool {
                 seat: seat.0,
                 delta,

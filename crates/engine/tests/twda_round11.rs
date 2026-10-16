@@ -404,8 +404,18 @@ fn mesu_bedshet_draws_a_follower_of_set_with_blood_if_younger() {
         (plain("Brujah", 1), false, 0),
     ] {
         let (mut e, m) = mesu(Some(top));
+        e.reveal_notes = Some(Vec::new());
         pick(&mut e, play(0, 0, m));
         until(&mut e, SeatId(0), WindowLabel::MinionPhase);
+        // Revealed to all, drawn or shuffled back.
+        let revealed = e.reveal_notes.take().unwrap();
+        assert_eq!(
+            revealed
+                .iter()
+                .map(|r| (r.seat, r.card, r.crypt))
+                .collect::<Vec<_>>(),
+            vec![(SeatId(0), top, true)]
+        );
         let s = &e.state.seats[0];
         if drawn {
             assert_eq!(s.uncontrolled.len(), 1);
@@ -769,9 +779,24 @@ fn petra_resonance_steals_for_the_highest_or_taxes_a_tie() {
             e.state.seats[s].crypt = vec![plain("Brujah", 2), cap(t)].into();
         }
         hand(&mut e, 0, &["Petra Resonance"]);
+        e.reveal_notes = Some(Vec::new());
         pick(&mut e, play(0, 0, m));
         until(&mut e, SeatId(0), WindowLabel::MinionPhase);
         assert_eq!(pool(&e), want.to_vec(), "{tops:?}");
+        // Each crypt's top revealed to all, clockwise from the player.
+        let revealed: Vec<(SeatId, u16)> = e
+            .reveal_notes
+            .take()
+            .unwrap()
+            .iter()
+            .map(|r| (r.seat, r.card))
+            .collect();
+        let want_tops: Vec<(SeatId, u16)> = tops
+            .iter()
+            .enumerate()
+            .map(|(s, &t)| (SeatId(s as u8), cap(t)))
+            .collect();
+        assert_eq!(revealed, want_tops);
         assert!(e.state.seats.iter().all(|s| s.crypt.len() == 2));
     }
     let mut e = game(2);
@@ -1133,6 +1158,7 @@ fn fortschritt_library_finds_a_gehenna_event_once_a_game() {
     hand(&mut e, 0, &["Fortschritt Library", "Fortschritt Library"]);
     fill_hand(&mut e, 0);
     let req = until(&mut e, SeatId(0), WindowLabel::MasterPhase);
+    e.reveal_notes = Some(Vec::new());
     e.choose(index_of(&req, master_play(0)));
     let req = expect(&mut e, SeatId(0), WindowLabel::ResolutionChoice);
     assert_eq!(
@@ -1142,6 +1168,12 @@ fn fortschritt_library_finds_a_gehenna_event_once_a_game() {
     e.choose(1);
     let req = request(&mut e);
     assert!(e.state.seats[0].hand.contains(&blood_weakens));
+    // "Show it to all players."
+    let shown = e.reveal_notes.take().unwrap();
+    assert_eq!(
+        shown.iter().map(|r| (r.card, r.crypt)).collect::<Vec<_>>(),
+        vec![(blood_weakens, false)]
+    );
     assert_eq!(e.state.seats[0].library.len(), 2);
     assert!(!req.options.contains(&master_play(0)), "once a game");
 }

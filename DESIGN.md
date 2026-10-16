@@ -1742,7 +1742,7 @@ Still true today; "(verify)" marks items inferred from older notes.
 - **P5 — community**: bot service, client adapter, human-ergonomics layer
   (its open items on the boards).
 
-Definitions: 802 library, 378 vampires; 2008 Rust tests, 37 Python tests
+Definitions: 802 library, 378 vampires; 2011 Rust tests, 37 Python tests
 
 ## Outlook: deck building (post-v1)
 

@@ -2639,6 +2639,9 @@ impl Engine {
                     let uses = played_disciplines(ctx.card, ctx.mode)
                         .iter()
                         .any(|t| t.eq_ignore_ascii_case(disc));
+                    if uses {
+                        self.reveal_top(ctx.seat, false);
+                    }
                     let top = self.state.seats[ctx.seat.index()].library.last().copied();
                     if uses && top.is_some_and(|c| cards::CardFilter::Discipline(disc).matches(c)) {
                         pending.canceled = true;
@@ -4065,6 +4068,7 @@ impl Engine {
             } => {
                 // Younger than the acting vampire, read now (Mesu Bedshet).
                 let than = ctx.actor.and_then(|m| self.state.capacity_of(m));
+                self.reveal_top(s, true);
                 let seat = &mut self.state.seats[s.index()];
                 if let Some((card, copy)) = seat.crypt.take_top() {
                     let c = &crate::crypt::CRYPT[card as usize];
@@ -4098,6 +4102,7 @@ impl Engine {
                 }));
             }
             Effect::DrawCryptBloodIfBlackHand(n) => {
+                self.reveal_top(s, true);
                 let seat = &mut self.state.seats[s.index()];
                 if let Some((card, copy)) = seat.crypt.take_top() {
                     let black_hand = card != crate::state::CREATED
@@ -4593,6 +4598,9 @@ impl Engine {
                         Some((t, crate::crypt::CRYPT[top as usize].capacity))
                     })
                     .collect();
+                for &(t, _) in &shown {
+                    self.reveal_top(t, true);
+                }
                 if let (Some(hi), Some(lo)) = (
                     shown.iter().map(|&(_, c)| c).max(),
                     shown.iter().map(|&(_, c)| c).min(),
@@ -7548,6 +7556,7 @@ impl Engine {
                 }
                 // The revealed card stays on top (Gathii).
                 Effect::RevealTopCard { burn, stealth } => {
+                    self.reveal_top(ctx.seat, false);
                     let top = self.state.seats[ctx.seat.index()].library.last().copied();
                     let master = top.is_some_and(|c| {
                         crate::library::LIBRARY[c as usize]
@@ -8007,6 +8016,7 @@ impl Engine {
                             counters: 0,
                             banished: None,
                         });
+                        self.reveal(ctx.seat, card, true);
                         self.state.seats[ctx.seat.index()]
                             .crypt
                             .shuffle(&mut self.rng);

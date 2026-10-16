@@ -635,7 +635,10 @@ pub static DOMINICA: VampireDef = VampireDef {
         &[
             Effect::DeclareAction(ActionKind::Ability),
             Effect::AddStealth(1),
-            Effect::SearchToHand(CardFilter::Labeled(CardType::Master, Label::Archetype)),
+            Effect::SearchToHand {
+                filter: CardFilter::Labeled(CardType::Master, Label::Archetype),
+                shown: true,
+            },
         ],
     )],
     ..VAMP
@@ -1532,7 +1535,10 @@ pub static SAKHAR: VampireDef = VampireDef {
         &[
             Effect::DeclareAction(ActionKind::Ability),
             Effect::AddStealth(1),
-            Effect::SearchToHand(CardFilter::Type(CardType::Equipment)),
+            Effect::SearchToHand {
+                filter: CardFilter::Type(CardType::Equipment),
+                shown: true,
+            },
         ],
     )],
     ..VAMP
@@ -3398,7 +3404,10 @@ pub static MISTRESS_FANCHON: VampireDef = VampireDef {
         &[
             Effect::DeclareAction(ActionKind::Ability),
             Effect::AddStealth(1),
-            Effect::SearchToHand(CardFilter::MinionCard),
+            Effect::SearchToHand {
+                filter: CardFilter::MinionCard,
+                shown: true,
+            },
         ],
     )],
     ..VAMP
@@ -4737,7 +4746,10 @@ pub static DANYLO: VampireDef = VampireDef {
             &[
                 Effect::DeclareAction(ActionKind::Ability),
                 Effect::PayPool(1),
-                Effect::SearchToHand(CardFilter::MasterLocation),
+                Effect::SearchToHand {
+                    filter: CardFilter::MasterLocation,
+                    shown: true,
+                },
             ],
         )
     }],
@@ -6475,7 +6487,10 @@ pub static DAN_MURDOCK: VampireDef = VampireDef {
         None,
         &[
             Effect::DeclareAction(ActionKind::Ability),
-            Effect::SearchToHand(CardFilter::Named("Giant's Blood")),
+            Effect::SearchToHand {
+                filter: CardFilter::Named("Giant's Blood"),
+                shown: false,
+            },
         ],
     )],
     ..VAMP

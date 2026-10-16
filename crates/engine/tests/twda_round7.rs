@@ -461,6 +461,7 @@ fn disciple_of_lazarus_feeds_or_finds_a_harbinger() {
     let ventrue = plain("Ventrue", 1);
     e.state.seats[0].crypt = vec![ventrue, young].into();
     hand(&mut e, 0, &["Disciple of Lazarus"]);
+    e.reveal_notes = Some(Vec::new());
     pick(&mut e, play_at(0, 1, h, Target::None));
     let req = offering(&mut e, Choice::AshVampire(young));
     assert!(!req.options.contains(&Choice::AshVampire(ventrue)));
@@ -468,6 +469,15 @@ fn disciple_of_lazarus_feeds_or_finds_a_harbinger() {
     request(&mut e);
     assert_eq!(e.state.seats[0].uncontrolled[0].card, young);
     assert_eq!(e.state.seats[0].crypt, vec![ventrue]);
+    // The vampire found, revealed to all.
+    let revealed = e.reveal_notes.take().unwrap();
+    assert_eq!(
+        revealed
+            .iter()
+            .map(|r| (r.card, r.crypt))
+            .collect::<Vec<_>>(),
+        vec![(young, true)]
+    );
 }
 
 fn play_at(card: u8, mode: u8, actor: MinionId, target: Target) -> Choice {

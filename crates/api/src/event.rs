@@ -50,6 +50,14 @@ pub enum EventKind {
         n: u8,
         crypt: bool,
     },
+    /// A card an effect revealed to every Methuselah, from `seat`'s crypt
+    /// or library (`card.crypt`): a top card, a search's find: its `id`
+    /// told, no copy number (it stays in a hidden place, or goes face down
+    /// or to a hand).
+    Revealed {
+        seat: Seat,
+        card: Card,
+    },
     Pool {
         seat: Seat,
         delta: i32,
