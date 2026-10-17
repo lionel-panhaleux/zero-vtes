@@ -65,25 +65,6 @@ votes included: the default politics (`zvtes::politics`, DESIGN §11.2)
 came after.
 
 Every game here reads whole on the current engine
-(`crates/host/tests/records.rs`). The games a rules fix stopped partway were
-removed (owner, 2026-10-10: "remove games that are now longer
-replayable fully because of fixes"): 17 of them, the 2026-10-03 games,
-nine of 2026-10-04 (`…T05-06-55`, `…T05-34-07`, `…T06-45-40`,
-`…T07-20-42`, `…T08-31-11`, `…T08-47-02`, `…T09-22-57`, `…T15-07-24`,
-`…T22-26-33`), three of 2026-10-09 (`…T19-28-48` and `…T19-39-10`, one
-game exported twice, and `…T20-04-50`) and two of 2026-10-10
-(`…T15-48-57`, `…T16-13-44`). They and the notes on where each stops
-are in the history at `e5f8f54`. Since, `…T21-05-23` of 2026-10-09 (the
-pre-vote rotation, `3f91c59`, stops it at decision 445); the unfinished
-games are not kept (owner, 2026-10-11: "remove unfinished replays"):
-`…T05-40-36` of 2026-10-06 is gone with them. The as-announced window
-kept for the effects printed so (rules-qa 66.1) stops eight more, at a
-pass or a use in a window that no longer opens: `…T14-37-29` of
-2026-10-04, `…T06-18-50` of 2026-10-06, `…T05-33-18` of 2026-10-07,
-`…T08-03-34` and `…T08-23-07` of 2026-10-10, `…T06-38-09` and
-`…T20-56-48` of 2026-10-11, and the game of 2026-10-12 06:29, never
-added. Strike-only prevention (Opikun covers only the opposing strike's
-damage) stops two more, where Opikun had prevented the damage beside the
-strike: `…T13-51-13` of 2026-10-04 at decision 347 (a retainer's, in the
-Deep Song combat of turn 25) and `…T09-29-38` of 2026-10-11 at decision 225
-(Carrion Crows', turn 19). A game a future fix stops goes the same way.
+(`crates/host/tests/records.rs`). A game a rules fix stops partway, or an
+unfinished one, is removed (owner, 2026-10-10, 2026-10-11); the removed
+games and where each stopped are in the history (`e5f8f54` and after).

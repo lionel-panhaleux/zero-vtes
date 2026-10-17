@@ -30,24 +30,22 @@ What it still needs:
    SC on krcg, or a platform made for the engine (platforms: Ask the owner
    whether to chase Thomas; the platforms line held until his review,
    owner 2026-10-15).
-2. **The best bot served**: p12 finished, measured and served if it beats
-   p11 (p11 served from the 1.6.0 deploy; training: p12 to its end).
+2. **The best bot served**: each run measured against the served weights
+   and served if it beats them (training: its run's line).
 3. **Games that survive the server**: a game rebuilt after a restart
    (engine: A game survives a restart).
-4. **Complete records** (engine: Records complete).
-5. **The loop on testers' games**: promotion to `data/records`
+4. **The loop on testers' games**: promotion to `data/records`
    (training: Promotion as a script).
-6. **Feedback intake**: a "report a problem" from inside the game (the
+5. **Feedback intake**: a "report a problem" from inside the game (the
    protocol's `feedback`, stored with the record at its decision;
    platforms: "Report a problem"), plus one community channel the notice
    names (platforms: The engine mode's notice checked); the `intake`
    skill triages it.
-7. **Known rough edges fixed**: the panel overflow (platforms: The
+6. **Known rough edges fixed**: the panel overflow (platforms: The
    referendum and action panels); Sniper Rifle and strike-only prevention
    (cards).
-8. **What players asked for**: the cards their refused decks named,
-   counted (engine: Demand for cards counted), to steer the next rounds
-   (cards: Round 16).
+7. **What players asked for**: the cards their refused decks named
+   (`/admin/unsupported`) steering the next rounds (cards: Round 16).
 
 Not needed for the beta but in the same order: the repository open to
 outsiders (engine), the demo video and the proposal to Thomas (platforms).

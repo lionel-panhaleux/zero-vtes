@@ -51,7 +51,7 @@ shell), `text` (the optional English renderer, over api only); data
 first, copies per viewer; a re-cut Succubus Club PR. Its settled list
 and order of work hold until the owner changes them. The Succubus Club
 fork plays on the server only (owner, 2026-10-14: the in-browser wasm
-engine is gone). P6 merged into `main` (2026-10-14): work on `main`.
+engine is gone). Work on `main`.
 
 Findings (owner, 2026-10-13, 2026-10-15): an issue met on the way (an
 engine bug, a choice offered twice, a rough edge, a stale page) or raised

@@ -89,8 +89,8 @@ Dance of the Dead, Fiorella, Freakish Conglomeration, Gifts From
 Hereafter, Glancing Blow, Gravebound Drone, Heartrender, Morbidity,
 Obedience, Putrescent Sustenance, Target Vitals, Wall Street Night.
 
-- **774 unique cards**: 261 crypt (200 V5 + 61 added), 513 library (421 V5 + 4
-  extra + 88 added).
+- **The pool's counts**: DESIGN §11's count line (definitions) and the
+  cards board's header (the pool against KRCG's).
   V5 library by type: Master 124, Combat 63, Action 59, Action Modifier 53,
   Reaction 40, Equipment 23, Event 20, Ally 19, Political Action 19, Retainer 12
   (multi-type cards counted per type).
@@ -973,7 +973,7 @@ training runs.
   the opening of 256 four/five-seat games. The critic reads `V2`.
   `.zvp` files carry `obs 2` for a `V2` network (absent: `V1`, every file
   so far): `crates/policy` encodes with the file's version, so the
-  Succubus Club bot keeps playing; a `V2` model needs the rebuilt wasm.
+  server's bot keeps playing; a `V2` model needs a server built with it.
 - Frozen-opponent league (`--opponents a.pt,b.pt`, with `--league
   true`): every non-learner seat is one of those checkpoints (net ids
   20000 + k, PFSP among them, labeled `<run>@<iteration>`), reading their
@@ -1202,8 +1202,9 @@ training runs.
   memorize); hands, the uncontrolled region and the table kept; the
   time limit at least the position's turn + 20. A start reads its game
   by choices to the log's end or a rules change since (the pool prints
-  how far, per game). `tests/starts.rs` (every decision of two whole
-  games is a position that plays on; all 15 swept once).
+  how far, per game). `train/tests/test_pool.py`
+  (`test_tables_start_from_an_owner_game`: a game replayed to a decision,
+  every seat played on from there).
   The measure of both: the pool counts the learner's minion-phase
   decisions offering each habit (its own rescue, a burn of another's
   card, a diablerie) and those taking it, logged per iteration as
@@ -1775,7 +1776,7 @@ Still true today; "(verify)" marks items inferred from older notes.
 - **P5 — community**: bot service, client adapter, human-ergonomics layer
   (its open items on the boards).
 
-Definitions: 828 library, 400 vampires; 2108 Rust tests, 37 Python tests
+Definitions: 828 library, 400 vampires; 2108 Rust tests, 38 Python tests
 
 ## Outlook: deck building (post-v1)
 
