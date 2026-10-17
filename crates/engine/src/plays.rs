@@ -6959,6 +6959,33 @@ impl Engine {
         AbilityUser { seat, host, actor }
     }
 
+    /// Who uses `choice`, an ability offered to `seat`: the Methuselah, and
+    /// the minion using it when one does — the choice's `actor` when it
+    /// names one, else its host while the user's own (not a vampire whose
+    /// text its controller's prey uses).
+    pub fn ability_used_by(
+        &self,
+        seat: SeatId,
+        choice: &Choice,
+    ) -> Option<(SeatId, Option<MinionId>)> {
+        let Choice::UseAbility {
+            source,
+            ability,
+            actor,
+            ..
+        } = *choice
+        else {
+            return None;
+        };
+        let u = self.ability_user(source, ability, seat, actor);
+        // The host, not `u.actor`: from out of the combat, Underbridge
+        // Stray's bearer presses for its controller's combatant.
+        let minion = actor
+            .or(u.host)
+            .filter(|m| self.state.minions[m.index()].owner == u.seat);
+        Some((u.seat, minion))
+    }
+
     /// Would `seat` using `choice` gain nothing, every effect (costs aside)
     /// scaling with something zero now (Powerbase: Madrid's counters,
     /// rules-qa 73.3; an abstaining vampire's votes, 73.4)? Still offered

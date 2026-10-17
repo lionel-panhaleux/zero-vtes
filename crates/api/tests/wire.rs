@@ -32,6 +32,7 @@ fn option(index: u32, key: ChoiceKey) -> OptionView {
         effects: vec![],
         abilities: None,
         apart: vec![],
+        user: None,
         text: None,
     }
 }

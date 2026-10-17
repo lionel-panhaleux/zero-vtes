@@ -27,7 +27,7 @@ pub enum EventKind {
         decision: DecisionNo,
         seat: Seat,
         window: Window,
-        choice: OptionView,
+        choice: Box<OptionView>,
     },
     /// A decision passed by itself (the seat's settings left only a pass).
     AutoPassed {

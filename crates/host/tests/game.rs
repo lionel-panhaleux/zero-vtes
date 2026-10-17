@@ -5,7 +5,7 @@
 use zvtes_api::event::EventKind;
 use zvtes_api::ids::OptionKind;
 use zvtes_api::message::{EndReason, Error};
-use zvtes_api::option::Effect;
+use zvtes_api::option::{Effect, User};
 use zvtes_api::record::Entry;
 use zvtes_api::{Command, GameSpec, In, Message, Out, Player, SeatSpec, Settings, SettingsPatch};
 use zvtes_host::{Bots, Clock, Game};
@@ -365,18 +365,9 @@ fn feedback_is_recorded_at_its_decision() {
     assert!(matches!(outs[0].message, Message::Noted { .. }));
 }
 
-/// An ability's source: its card's copy, or the vampire it is on.
-type Source = (Option<u32>, Option<u32>);
-
-/// An ability's `apart` is alike on every option of it, whatever its actor
-/// or target, so a client asking "which ability?" names each by it; two
-/// abilities of one source offered together are told apart by it (Wider
-/// View's transfer and its burn, Dreams of the Sphinx's hand size and its
-/// blood) — never by the English text (docs/protocol.md §7).
-#[test]
-fn an_ability_is_told_apart_from_its_siblings_by_data() {
-    let seeds: u32 = std::env::var("HOST_SEEDS").map_or(12, |s| s.parse().unwrap());
-    let mut apart_offered = 0;
+/// Plays `seeds` games with the text off, the human answering at random,
+/// and hands each of its decisions to `f` (its seed and the decision).
+fn each_decision(seeds: u32, mut f: impl FnMut(u32, &zvtes_api::Decision)) {
     for seed in 1..=seeds {
         let settings = Settings {
             text: false,
@@ -390,34 +381,7 @@ fn an_ability_is_told_apart_from_its_siblings_by_data() {
             let Some(d) = pending(&outs).cloned() else {
                 break;
             };
-            // Each (source, ability) offered: its `apart`.
-            let mut seen: Vec<(Source, u8, &[Effect])> = Vec::new();
-            for o in d
-                .options
-                .iter()
-                .filter(|o| o.key.kind == OptionKind::UseAbility)
-            {
-                let source = (o.key.card.as_ref().and_then(|c| c.copy), o.key.minion);
-                let ability = o.key.ability.unwrap_or(0);
-                assert!(
-                    o.apart.is_empty() || o.abilities.unwrap_or(1) > 1,
-                    "seed {seed}: a lone ability set apart: {o:?}"
-                );
-                match seen.iter().find(|(s, a, _)| *s == source && *a == ability) {
-                    Some((_, _, apart)) => {
-                        assert_eq!(*apart, &o.apart[..], "seed {seed}: one ability, two aparts")
-                    }
-                    None => seen.push((source, ability, &o.apart)),
-                }
-            }
-            for (i, (s, _, x)) in seen.iter().enumerate() {
-                for (t, _, y) in &seen[i + 1..] {
-                    if s == t && !x.is_empty() && !y.is_empty() {
-                        assert_ne!(x, y, "seed {seed}: two abilities alike");
-                        apart_offered += 1;
-                    }
-                }
-            }
+            f(seed, &d);
             let o = &d.options[rng.below(d.options.len())];
             outs = g.handle(
                 human,
@@ -428,8 +392,90 @@ fn an_ability_is_told_apart_from_its_siblings_by_data() {
             );
         }
     }
+}
+
+/// A decision's `use_ability` options.
+fn abilities(d: &zvtes_api::Decision) -> impl Iterator<Item = &zvtes_api::option::OptionView> {
+    d.options
+        .iter()
+        .filter(|o| o.key.kind == OptionKind::UseAbility)
+}
+
+/// An ability's source: its card's copy, or the vampire it is on.
+type Source = (Option<u32>, Option<u32>);
+
+/// An ability's `apart` is alike on every option of it, whatever its actor
+/// or target, so a client asking "which ability?" names each by it; two
+/// abilities of one source offered together are told apart by it (Wider
+/// View's transfer and its burn, Dreams of the Sphinx's hand size and its
+/// blood) — never by the English text (docs/protocol.md §7).
+#[test]
+fn an_ability_is_told_apart_from_its_siblings_by_data() {
+    let seeds: u32 = std::env::var("HOST_SEEDS").map_or(12, |s| s.parse().unwrap());
+    let mut apart_offered = 0;
+    each_decision(seeds, |seed, d| {
+        // Each (source, ability) offered: its `apart`.
+        let mut seen: Vec<(Source, u8, &[Effect])> = Vec::new();
+        for o in abilities(d) {
+            let source = (o.key.card.as_ref().and_then(|c| c.copy), o.key.minion);
+            let ability = o.key.ability.unwrap_or(0);
+            assert!(
+                o.apart.is_empty() || o.abilities.unwrap_or(1) > 1,
+                "seed {seed}: a lone ability set apart: {o:?}"
+            );
+            match seen.iter().find(|(s, a, _)| *s == source && *a == ability) {
+                Some((_, _, apart)) => {
+                    assert_eq!(*apart, &o.apart[..], "seed {seed}: one ability, two aparts")
+                }
+                None => seen.push((source, ability, &o.apart)),
+            }
+        }
+        for (i, (s, _, x)) in seen.iter().enumerate() {
+            for (t, _, y) in &seen[i + 1..] {
+                if s == t && !x.is_empty() && !y.is_empty() {
+                    assert_ne!(x, y, "seed {seed}: two abilities alike");
+                    apart_offered += 1;
+                }
+            }
+        }
+    });
     assert!(
         apart_offered > 0,
         "no two abilities of a source offered together"
+    );
+}
+
+/// Every ability offered says who uses it (docs/protocol.md §7): the
+/// minion declaring the action it grants (its `actor`), a minion with no
+/// `actor` (the bearer, the vampire whose text it is, War Ghoul burning a
+/// location), or the deciding seat's Methuselah (a master's, a location's)
+/// — never an absent `actor` read as the Methuselah.
+#[test]
+fn an_abilitys_user_is_said() {
+    let seeds: u32 = std::env::var("HOST_SEEDS").map_or(12, |s| s.parse().unwrap());
+    let (mut minion, mut methuselah) = (0, 0);
+    each_decision(seeds, |seed, d| {
+        for o in abilities(d) {
+            match (o.user, o.key.actor) {
+                (Some(User::Minion { copy }), Some(a)) => {
+                    assert_eq!(copy, a, "seed {seed}: the actor uses it: {o:?}")
+                }
+                (Some(User::Minion { copy }), None) => {
+                    if let Some(k) = o.key.minion {
+                        assert_eq!(copy, k, "seed {seed}: the minion it is on: {o:?}");
+                    }
+                    minion += 1;
+                }
+                (Some(User::Methuselah { seat }), None) => {
+                    assert_eq!(seat, d.seat, "seed {seed}: the deciding seat's: {o:?}");
+                    methuselah += 1;
+                }
+                _ => panic!("seed {seed}: who uses it, unsaid or not the actor: {o:?}"),
+            }
+        }
+    });
+    assert!(
+        minion > 0 && methuselah > 0,
+        "{minion} by a minion, {methuselah} by a Methuselah"
     );
 }

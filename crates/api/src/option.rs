@@ -29,9 +29,24 @@ pub struct OptionView {
     /// lone ability, or one its effects do not tell apart: then its number.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub apart: Vec<Effect>,
+    /// An ability's: who uses it, a minion or the Methuselah with none.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub user: Option<User>,
     /// The option in English, when the seat's settings ask for text.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub text: Option<String>,
+}
+
+/// Who uses an ability: a minion (the option's `actor` when it has one,
+/// else the minion the card is on, the ally it is, the vampire whose text
+/// it is), or a Methuselah with none (a master's, a location's, a
+/// vampire's text its controller's prey uses).
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
+#[serde(tag = "kind", rename_all = "snake_case")]
+pub enum User {
+    Methuselah { seat: Seat },
+    Minion { copy: CopyId },
 }
 
 /// What identifies an option: two options of one decision never share a

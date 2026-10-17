@@ -3218,6 +3218,17 @@
             "null"
           ]
         },
+        "user": {
+          "description": "An ability's: who uses it, a minion or the Methuselah with none.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/User"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
         "value": {
           "description": "A clan, a Discipline, a circle chosen: its snake_case id.",
           "type": [
@@ -4865,6 +4876,48 @@
           "description": "A value this reader does not know.",
           "type": "string",
           "const": "unknown"
+        }
+      ]
+    },
+    "User": {
+      "description": "Who uses an ability: a minion (the option's `actor` when it has one,\nelse the minion the card is on, the ally it is, the vampire whose text\nit is), or a Methuselah with none (a master's, a location's, a\nvampire's text its controller's prey uses).",
+      "oneOf": [
+        {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "type": "string",
+              "const": "methuselah"
+            },
+            "seat": {
+              "type": "integer",
+              "format": "uint8",
+              "maximum": 255,
+              "minimum": 0
+            }
+          },
+          "required": [
+            "kind",
+            "seat"
+          ]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "copy": {
+              "type": "integer",
+              "format": "uint32",
+              "minimum": 0
+            },
+            "kind": {
+              "type": "string",
+              "const": "minion"
+            }
+          },
+          "required": [
+            "kind",
+            "copy"
+          ]
         }
       ]
     },

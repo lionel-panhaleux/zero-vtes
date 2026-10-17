@@ -608,6 +608,7 @@ impl Game {
             },
             abilities: describe::abilities(e, c),
             apart: describe::ability_apart(e, c),
+            user: describe::ability_user(e, req, c, names),
             text: None,
         }
     }
@@ -778,7 +779,7 @@ impl Game {
                 decision,
                 seat,
                 window,
-                choice: option,
+                choice: Box::new(option),
             }
         };
         let steps = self.settings.views == zvtes_api::spec::Views::Steps;

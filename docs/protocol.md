@@ -333,6 +333,15 @@ seat 2; burn 2 pool to keep card 9.)
   whatever its actor or target, so a client asking which ability names
   each by it; empty for a lone ability or one its effects do not tell
   apart (then its number, `ability` + 1).
+- `user` — a `use_ability`'s: who uses it, `{"kind":"minion","copy":n}`
+  (the key's `actor` when it has one — the minion declaring the action
+  it grants, a vampire using a card it is not on —, else the minion the
+  card is on, the ally it is — War Ghoul burning a location —, the
+  vampire whose text it is) or `{"kind":"methuselah","seat":n}` (the
+  deciding seat, with no minion: a master's, a location's, a vampire's
+  text its controller's prey uses; the seat said, so a `user` reads
+  alone). An absent `actor` is not the
+  Methuselah: `user` says.
 - A pass's plain meaning follows from the window: `master_phase` … ends
   the phase, `action_block` declines to block (the defender's, while
   its minion's attempt meets the stealth — `action.blocker`,

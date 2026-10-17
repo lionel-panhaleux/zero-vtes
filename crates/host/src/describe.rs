@@ -16,7 +16,7 @@ use zvtes::library::LIBRARY;
 use zvtes::state::{CardId, MinionKind, UncontrolledSlot, CREATED};
 use zvtes_api::ids::{OptionKind, Role, Zone};
 use zvtes_api::message::About;
-use zvtes_api::option::{CardRef, ChoiceKey, Effect, EffectKind, On, ZoneRef};
+use zvtes_api::option::{CardRef, ChoiceKey, Effect, EffectKind, On, User, ZoneRef};
 use zvtes_api::view::Target;
 
 use crate::effects::{curated, Whom};
@@ -683,6 +683,25 @@ pub fn ability_apart(e: &Engine, choice: &Choice) -> Vec<Effect> {
     };
     let siblings = defs.iter().enumerate().filter(|&(j, _)| j != i);
     crate::view::apart_from(own, siblings.map(|(_, d)| d))
+}
+
+/// An ability's: who uses it (`OptionView::user`).
+pub fn ability_user(
+    e: &Engine,
+    req: &DecisionRequest,
+    choice: &Choice,
+    names: &impl Names,
+) -> Option<User> {
+    let (seat, minion) = e.ability_used_by(req.seat, choice)?;
+    let x = Ctx {
+        e,
+        seat: req.seat,
+        names,
+    };
+    Some(match minion {
+        Some(m) => User::Minion { copy: x.minion(m) },
+        None => User::Methuselah { seat: seat.0 },
+    })
 }
 
 /// The card whose terms a terms decision chooses (`Decision::source`):

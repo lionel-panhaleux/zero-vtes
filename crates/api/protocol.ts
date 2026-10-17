@@ -982,6 +982,8 @@ export type OptionView = {
     target?: Target | null
     /** The option in English, when the seat's settings ask for text. */
     text?: string | null
+    /** An ability's: who uses it, a minion or the Methuselah with none. */
+    user?: User | null
     /** A clan, a Discipline, a circle chosen: its snake_case id. */
     value?: string | null
     /** Where a card chosen by name comes from (a search). */
@@ -1344,6 +1346,20 @@ export type Trait =
     | 'sterile'
     | 'seraph'
     | 'unknown'
+
+/**
+ * Who uses an ability: a minion (the option's `actor` when it has one,
+ * else the minion the card is on, the ally it is, the vampire whose text
+ * it is), or a Methuselah with none (a master's, a location's, a
+ * vampire's text its controller's prey uses).
+ */
+export type User = {
+    kind: 'methuselah'
+    seat: number
+} | {
+    copy: number
+    kind: 'minion'
+}
 
 export type Views = 'decisions' | 'steps'
 

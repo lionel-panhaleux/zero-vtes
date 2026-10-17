@@ -127,7 +127,8 @@ requirements read by name, the card's, host's and play's evaluators).
 (combat, round, action, referendum, turn), key and allowed uses, read by
 `limit_spent` and written by `mark_limit`. `Engine::gains_nothing` tells a
 legal no-op for interfaces that hide it (rules-qa 17.4: the engine still
-offers it).
+offers it); `Engine::ability_used_by` tells interfaces who uses an
+offered ability (the seat, and the minion when it is the user's own).
 
 **Placement.** "Put this card on … / in play": `Engine::place_now(card,
 ModeLayers, one_per_vampire)` as the card resolves (the card itself enters

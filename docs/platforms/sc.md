@@ -154,8 +154,6 @@ front, about the AI involvement.
 What the fork infers today; each has its engine-board line and goes from
 here when that line lands.
 
-- An absent `actor` read as "your Methuselah" (War Ghoul): the protocol
-  should say who uses an ability.
 - A forced hunt (rules-qa 17.2) gave no reason: the fork infers it; a
   decision `reason`/prompt field would say it.
 - Markers carried `n` but no name; minions of one name read alike until the
