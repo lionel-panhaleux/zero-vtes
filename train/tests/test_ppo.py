@@ -335,6 +335,34 @@ def test_imitation_keeps_the_winners_shown_choices(tmp_path):
     assert nll.item() < 1e-4 and acc == 1.0
 
 
+def test_imitation_every_kth_minibatch(tmp_path):
+    """`bc_every` k: the imitation term on every k-th minibatch (by the
+    count of minibatches across epochs), at k times its weight."""
+    record = "data/records/zero-vtes-replay-2026-10-08T21-17-05-603Z.json"
+    small = dict(
+        games=8, steps=32, iterations=1, epochs=2, minibatch=32, d=16, layers=1, device="cpu",
+        eval_every=0, bc=record, bc_coef=0.1, bc_batch=8, critic_warmup=0,
+    )
+    seen = {}
+    for k in (1, 3):
+        trainer = Trainer(Config(**small, bc_every=k, out=str(tmp_path / f"k{k}")))
+        calls, real = [], trainer.imitation_loss
+
+        def counted(model, pairs, real=real, calls=calls):
+            calls.append(len(pairs))
+            return real(model, pairs)
+
+        trainer.imitation_loss = counted
+        samples, _ = trainer.rollout()
+        trainer.update(trainer.learner, samples[0])
+        steps = small["epochs"] * len(list(trainer.minibatches(samples[0])))
+        seen[k] = (len(calls), steps)
+    assert seen[1][0] == seen[1][1] and seen[1][1] > 3
+    assert seen[3][0] == -(-seen[3][1] // 3)
+    with pytest.raises(ValueError, match="bc-every"):
+        Trainer(Config(**small, bc_every=0, out=str(tmp_path / "zero")))
+
+
 def test_imitation_and_weak_decks(tmp_path):
     """p9 (owner, 2026-10-10): the cross-entropy on the owner's choices
     trained and logged (held-out games apart), a game exported twice read

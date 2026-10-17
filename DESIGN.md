@@ -1361,6 +1361,27 @@ training runs.
   movement an update, still inside the clip. p8 runs at 1e-4; its
   frozen evaluations decide (p7's pace, ~+0.05 a 100 iterations: flat
   or falling after ~200, back to 5e-5 from p8's best).
+  p12's configuration, profiled (2026-10-16; a quarter-size rollout from
+  p11@4340, 5 339 samples, the GPU shared with p12 — shares, not times):
+  an iteration is ~30% rollout (52 s) and ~70% update (118 s; p11's
+  pairing brought ~22k samples an iteration against p10's ~15.5k: 113 s
+  against 77). The update: backward 37%, the imitation batch 24% (256
+  human rows a minibatch: long rows, mid- and late-game; sorting them by
+  length into chunks of 64 was slower, 10.9 s against 7.4–7.8), critic
+  forward 16%, policy forward 12%, collation 7%, optimizer 4%, `.item()`
+  syncs ~0; bf16 / fp16 autocast no faster (34.4 / 34.8 s against
+  34.1). The imitation term on every 4th minibatch at 4× its weight
+  (`--bc-every 4`, the same expected imitation gradient before clipping —
+  the clip and Adam see a spike every 4th step: compare p13's `bc_nll`
+  with p12's): expected ~13–14% of an iteration (¾ of the stage's 24% of
+  a 70% update); measured 23.1 s against 34.1, an overshoot of the
+  shared GPU's noise. Kept for p13 (default 1: p12 as launched). The
+  rollout: the networks' forwards 70% (rows: the learner 35%, p10 31%,
+  p11 34% — the frozen opponents ~45% of the rollout, ~14% of an
+  iteration), the engine ~10%, the critic's values and bookkeeping the
+  rest. Left to a run's preparation, as they change the training: 2
+  epochs (~23% of an iteration), the pairing off (`--partner-rate 0`:
+  ~25–30%, the samples back to ~15.5k), one frozen opponent (≤5%).
 - **Chores: options never declined** (owner, 2026-10-08: "some things
   are only 'options' in the sense a human is allowed to forget them, but
   it's never good to do so"). The engine elides only empty and

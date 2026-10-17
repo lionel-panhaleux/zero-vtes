@@ -204,6 +204,12 @@ class Config:
     bc: str = ""
     bc_coef: float = 0.0
     bc_batch: int = 256
+    # The imitation term on every `bc_every`-th minibatch, at `bc_every` ×
+    # `bc_coef`: the same expected imitation gradient before clipping (the
+    # clip and Adam see the k× step), a quarter of its cost at 4 —
+    # human rows are long, a 256-row batch cost a quarter of p12's update
+    # (DESIGN §11.2 "Faster iterations", 2026-10-16).
+    bc_every: int = 1
     bc_holdout: int = 8
     bc_held_games: str = ""
     # Weak decks (deck indices, comma-separated; owner, 2026-10-10, the p9
@@ -641,6 +647,8 @@ class Trainer:
         self.net_obs = []
         if cfg.opponents and not cfg.league:
             raise ValueError("--opponents needs --league true")
+        if cfg.bc_every < 1:
+            raise ValueError("--bc-every is a positive count of minibatches")
         if cfg.partner_rate > 0 and not cfg.league:
             raise ValueError("--partner-rate needs --league true")
         if cfg.habit_seats > 0 and not cfg.opponents:
@@ -902,10 +910,10 @@ class Trainer:
                         kl = ((ratio - 1) - (logp - old)).mean()
                         clipped = ((ratio - 1).abs() > cfg.clip).float().mean()
                     totals += w * np.array([pg.item(), vf.item(), ent.item(), kl.item(), clipped.item()])
-                if self.bc and learner.agent == 0 and not warming:
+                if self.bc and learner.agent == 0 and not warming and len(losses) % cfg.bc_every == 0:
                     pick = self.rng.choice(len(self.bc), min(cfg.bc_batch, len(self.bc)), replace=False)
                     nll, _ = self.imitation_loss(learner.model, [self.bc[i] for i in pick])
-                    (cfg.bc_coef * nll).backward()
+                    (cfg.bc_every * cfg.bc_coef * nll).backward()
                     bc.append(nll.item())
                 torch.nn.utils.clip_grad_norm_(learner.model.parameters(), 1.0)
                 if not warming:

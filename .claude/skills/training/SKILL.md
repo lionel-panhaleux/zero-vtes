@@ -115,7 +115,9 @@ runs" (every run's command, numbers and lessons), `docs/boards/training.md`.
   turns; not with `--no-turns`, which counts those games short), as
   absolute paths,
   comma-separated: `--bc data/records,$(cat <file>)`, the same for
-  `--starts`. Imitation (`--bc`) keeps only the human who won (owner,
+  `--starts`. Imitation's cost: `--bc-every 4` puts its term on every 4th
+  minibatch at 4× the weight (~14% of an iteration, DESIGN §11.2 "Faster
+  iterations"; from p13). Imitation (`--bc`) keeps only the human who won (owner,
   2026-10-15: the bot is strong and not every human is good; only a game
   played out, last standing or the time limit: a lost, unfinished or
   abandoned one gives nothing, its leader recorded as winner or not), among the options they were shown (a
