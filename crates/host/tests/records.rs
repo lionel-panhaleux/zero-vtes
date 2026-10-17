@@ -42,7 +42,11 @@ fn every_record_reads_whole() {
             .iter()
             .filter(|e| matches!(e, zvtes_api::record::Entry::Decision { .. }))
             .count();
-        assert_eq!(read, decisions, "{path:?}");
+        // Each recorded decision read: the acting seat's pass rules-qa 82.1
+        // moved given where it is now asked, or read past where it no
+        // longer is (nothing left for it to play).
+        assert!(read <= decisions, "{path:?}");
+        assert_eq!(r.position(), decisions, "{path:?}");
         assert_eq!(
             over,
             record.result.as_ref().map(|r| r.vp_halves.clone()),

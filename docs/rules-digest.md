@@ -1570,6 +1570,9 @@ Advanced rules §3.2 (stealth and intercept), §3.3 (blocking).
   is final: later stealth removal by a third party does not let them block
   (1.3). Declines are per Methuselah, not per minion; after a Form of Mist
   continuation earlier declines stand (3.4).
+- A failed attempt's impulse is its Methuselah's: another attempt, or the
+  decline; the acting Methuselah's impulse comes only after it, never
+  between the failure and the decline (82.1).
 - Only a change of the action's target (Deflection, Telepathic
   Misdirection) reopens block opportunities; Change of Target does not
   change the target, it ends the action (1.3).

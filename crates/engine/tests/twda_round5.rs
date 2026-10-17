@@ -1157,3 +1157,25 @@ fn psyche_redraws_and_discards_again_under_raptor() {
     assert!(played);
     assert_eq!(discards, 2, "discarded again in the queued combat");
 }
+
+// The Kiss of Ra ends the action at once (RTR 20180719): the failed
+// blocker's Methuselah, its impulse after the attempt (rules-qa 82.1), is
+// offered no attempt with its other vampire.
+#[test]
+fn the_kiss_of_ra_leaves_no_other_attempt() {
+    let mut e = game(2);
+    let a = e.add_minion(SeatId(0), vampire_with("FOR", 0), 5, false);
+    e.add_minion(SeatId(0), plain("Brujah", 0), 4, false);
+    let z = e.add_minion(SeatId(1), vampire_with("aus", 0), 4, false);
+    let y = e.add_minion(SeatId(1), vampire_with("aus", 1), 4, false);
+    hand(&mut e, 0, &["Kiss of Ra, The"]);
+    blocked_bleed(&mut e, a, z);
+    pick(&mut e, play(0, 0, a));
+    never_offered_where(
+        &mut e,
+        SeatId(0),
+        WindowLabel::MinionPhase,
+        |o| matches!(o, Choice::DeclareBlock { minion } if *minion == y),
+    );
+    assert_eq!(e.last_outcome, None, "no resolution");
+}

@@ -497,7 +497,9 @@ saying why when it does not read to its end (rules fixes change the
 engine, §14).
 A record replays by index on its engine commit, and reads by key on a
 later engine (a record from before every block attempt was offered reads
-past the block windows its engine skipped). Kept two years, to train and
+past the block windows its engine skipped; one from before rules-qa 82.1
+gives the acting seat's pass after a failed block attempt where this
+engine asks it, at the open window's end). Kept two years, to train and
 test the engine; anonymous.
 
 ## 12. Open sets

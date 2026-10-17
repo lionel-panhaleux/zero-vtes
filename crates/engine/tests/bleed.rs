@@ -63,9 +63,10 @@ fn table() -> Table {
 
 // rules-qa 3.2 — stealth only when needed: Earth Control is masked with no
 // attempt pending and offered once an attempt has intercept ≥ stealth. A
-// failed attempt goes back to A (rulebook B.4); with no intercept in hand a
-// new attempt cannot reach the stealth, offered all the same (rules-qa
-// 73.8), and the seat's pass is the final decline.
+// failed attempt goes to its Methuselah (rulebook B.4, rules-qa 82.1);
+// with no intercept in hand a new attempt cannot reach the stealth,
+// offered all the same (rules-qa 73.8), and the seat's pass is the final
+// decline.
 #[test]
 fn stealth_only_when_needed() {
     let mut t = table();
@@ -200,9 +201,9 @@ fn stealth_waived_by_card_text() {
 }
 
 // rules-qa 1.3 — an attempt persists until all pass; a failed attempt
-// returns to A where the same Methuselah may attempt again (not with the
-// same minion while nothing changed, 48.6); a pass in A with no attempt is
-// the final decline.
+// gives the impulse to its Methuselah, who may attempt again (not with the
+// same minion while nothing changed, 48.6; rules-qa 82.1); its pass with
+// no attempt is the final decline.
 #[test]
 fn block_attempt_persists_until_all_pass() {
     let mut t = table();
@@ -215,8 +216,8 @@ fn block_attempt_persists_until_all_pass() {
     pick(e, play(0, 1, t.p)); // stealth 1 as announced
     pick(e, Choice::DeclareBlock { minion: t.b });
     // Seat 1 holds Eyes of Argus back. Closure at 0 < 1: the attempt fails,
-    // back to A, where seat 1 (which declared rather than passed) is offered
-    // a new attempt — with C, B's alike being futile.
+    // and seat 1 is offered a new attempt at once (rules-qa 82.1) — with C,
+    // B's alike being futile.
     pick(e, Choice::Pass);
     let req = expect(e, SeatId(1), WindowLabel::ActionBlock);
     assert!(req.options.contains(&Choice::DeclareBlock { minion: t.c }));

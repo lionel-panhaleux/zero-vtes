@@ -226,7 +226,8 @@ hosts a window.
   play voids prior passes), so third parties can still add intercept or strip
   stealth after the attempting Methuselah passes. At closure intercept ≥ stealth
   → block; otherwise the attempt fails and the loop returns to "no attempt"
-  (rulebook B.4), where the same Methuselah may attempt again. A pass **with no
+  (rulebook B.4), where the same Methuselah, its impulse first (rules-qa
+  82.1), may attempt again. A pass **with no
   ongoing attempt is a final decline**, reopened only by a change of target
   (bounces: Deflection, Telepathic Misdirection — not the card Change of Target,
   which ends the action). Hence a third-party helper needs the defender to
@@ -1776,7 +1777,7 @@ Still true today; "(verify)" marks items inferred from older notes.
 - **P5 — community**: bot service, client adapter, human-ergonomics layer
   (its open items on the boards).
 
-Definitions: 828 library, 400 vampires; 2117 Rust tests, 38 Python tests
+Definitions: 828 library, 400 vampires; 2119 Rust tests, 38 Python tests
 
 ## Outlook: deck building (post-v1)
 

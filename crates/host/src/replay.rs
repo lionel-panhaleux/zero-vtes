@@ -107,13 +107,20 @@ impl Replay {
     /// The game replayed to decision `at` (or as far as it reads), and the
     /// decisions read.
     pub fn read(&self, at: usize) -> (Engine, usize) {
+        let (e, n, _) = self.read_counting(at);
+        (e, n)
+    }
+
+    /// As `read`, with the record's decisions consumed too (the passes
+    /// rules-qa 82.1 moved read past included).
+    pub fn read_counting(&self, at: usize) -> (Engine, usize, usize) {
         let mut e = self.deal();
         // Combats, reveals and plays are not told here.
         e.combat_notes = None;
         e.reveal_notes = None;
         e.play_notes = None;
         let mut reader = self.reader();
-        let mut n = 0;
+        let (mut n, mut consumed) = (0, 0);
         while n < at {
             let game::Step::Decision(req) = e.run() else {
                 break;
@@ -127,8 +134,9 @@ impl Replay {
                 _ => break,
             }
             n += 1;
+            consumed = reader.position();
         }
-        (e, n)
+        (e, n, consumed)
     }
 
     /// The game as dealt.
@@ -151,6 +159,7 @@ impl Replay {
         Reader {
             replay: self,
             next: 0,
+            owed: None,
         }
     }
 
@@ -165,7 +174,7 @@ impl Replay {
 pub fn ended(record: &GameRecord, reason: EndReason) -> GameResult {
     let read = catch_unwind(AssertUnwindSafe(|| {
         let replay = Replay::new(record)?;
-        let (e, n) = replay.read(usize::MAX);
+        let (e, _, n) = replay.read_counting(usize::MAX);
         let all = replay.decisions.len();
         let vp: Vec<u32> = e.state.seats.iter().map(|s| s.half_vps).collect();
         Ok::<_, String>((
@@ -194,6 +203,9 @@ pub fn ended(record: &GameRecord, reason: EndReason) -> GameResult {
 pub struct Reader<'a> {
     replay: &'a Replay,
     next: usize,
+    /// The acting seat's recorded pass read past, owed when this engine
+    /// asks that seat later in the same open block window (rules-qa 82.1).
+    owed: Option<zvtes::ids::SeatId>,
 }
 
 impl Reader<'_> {
@@ -207,9 +219,49 @@ impl Reader<'_> {
     /// recorded index among several alike). `None` when the record ends;
     /// an error when no option is it (the rules changed).
     pub fn next(&mut self, e: &Engine, req: &DecisionRequest) -> Option<Result<usize, String>> {
+        // Before rules-qa 82.1, a failed attempt gave the acting seat the
+        // open window's first turn; it now comes last. Its recorded pass
+        // there is read past while another seat is asked, and owed: given
+        // when the acting seat is asked in that window, its end.
+        let open = req.window == zvtes::decision::WindowLabel::ActionBlock
+            && e.action()
+                .is_some_and(|a| a.state == zvtes::actions::ActionState::Open);
+        let acting = e.action().map(|a| a.seat);
+        if !open {
+            self.owed = None;
+        }
+        if open && self.owed == Some(req.seat) {
+            self.owed = None;
+            if let Some(i) = req
+                .options
+                .iter()
+                .position(|c| *c == zvtes::decision::Choice::Pass)
+            {
+                return Some(Ok(i));
+            }
+        }
+        if let Some(d) = self.replay.decisions.get(self.next) {
+            if open
+                && self.owed.is_none()
+                && Some(zvtes::ids::SeatId(d.seat)) == acting
+                && d.seat != req.seat.0
+                && d.choice.kind == zvtes_api::ids::OptionKind::Pass
+            {
+                self.owed = acting;
+                self.next += 1;
+            }
+        }
         let d = self.replay.decisions.get(self.next)?;
         self.next += 1;
-        Some(recorded_option(e, req, d))
+        let read = recorded_option(e, req, d);
+        // A play voids the passes before it (rules-qa 1.2), the owed one too.
+        if read
+            .as_ref()
+            .is_ok_and(|&i| req.options[i] != zvtes::decision::Choice::Pass)
+        {
+            self.owed = None;
+        }
+        Some(read)
     }
 }
 
@@ -298,6 +350,8 @@ pub enum Step {
 pub struct Replayer {
     replay: Replay,
     next: usize,
+    /// `Reader::owed`, kept between steps.
+    owed: Option<zvtes::ids::SeatId>,
     session: Session,
     viewer: Viewer,
     dealt: Decks,
@@ -317,12 +371,19 @@ impl Replayer {
         Ok(Replayer {
             replay,
             next: 0,
+            owed: None,
             session,
             viewer,
             dealt,
             known,
             pending: None,
         })
+    }
+
+    /// The record's decisions read so far, the passes read past included
+    /// (`Reader::next`).
+    pub fn position(&self) -> usize {
+        self.next
     }
 
     pub fn names(&self) -> &[String] {
@@ -432,12 +493,14 @@ impl Replayer {
         let mut reader = Reader {
             replay: &self.replay,
             next: self.next,
+            owed: self.owed,
         };
         match reader.next(e, &req) {
             None => Step::Decision(read),
             Some(Err(why)) => Step::Stopped { why, last: read },
             Some(Ok(i)) => {
                 self.next = reader.next;
+                self.owed = reader.owed;
                 self.pending = Some(i);
                 read.chosen = Some(i);
                 Step::Decision(read)

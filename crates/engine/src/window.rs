@@ -37,6 +37,18 @@ impl<K> Rotation<K> {
         }
     }
 
+    /// As `new`, the impulse with `seat` first (the acting Methuselah's
+    /// if it is not in the order).
+    pub fn starting_at(order: Vec<SeatId>, seat: SeatId) -> Self {
+        let cursor = order.iter().position(|&s| s == seat).unwrap_or(0);
+        Self {
+            order,
+            cursor,
+            quiet: 0,
+            kind: PhantomData,
+        }
+    }
+
     /// Seat currently holding the impulse; `None` once closed.
     pub fn current(&self) -> Option<SeatId> {
         if self.is_closed() {

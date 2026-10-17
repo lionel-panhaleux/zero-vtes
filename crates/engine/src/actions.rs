@@ -981,17 +981,31 @@ impl ActionCtx {
         }
     }
 
-    /// The pending block attempt fails, and its minion cannot attempt to
-    /// block this action again (Forced Confessional, Enchanting Gaze).
-    fn attempt_fails(&mut self) {
-        if let ActionState::Attempt(m) = self.state {
+    /// `m`'s block attempt failed: `barred`, it cannot attempt to block this
+    /// action again (Forced Confessional, Enchanting Gaze); else not offered
+    /// again alike (rules-qa 48.6).
+    fn record_failed(&mut self, st: &crate::state::GameState, m: MinionId, barred: bool) {
+        if barred {
             self.barred_blockers.push(m);
-            if self.lock_failed {
-                self.failed_blockers.push(m);
-            }
-            self.state = ActionState::Open;
-            self.fresh_window();
+        } else {
+            let print = self.attempt_print(st, m);
+            self.failed_attempts.push((m, print));
         }
+        if self.lock_failed {
+            self.failed_blockers.push(m);
+        }
+    }
+
+    /// The pending block attempt fails (`record_failed`); the impulse its
+    /// Methuselah's, to attempt with another or decline, the acting one's
+    /// after (rules-qa 82.1).
+    fn attempt_failed(&mut self, st: &crate::state::GameState, barred: bool) {
+        let ActionState::Attempt(m) = self.state else {
+            return;
+        };
+        self.record_failed(st, m, barred);
+        self.state = ActionState::Open;
+        self.window = OrderedWindow::starting_at(self.order.clone(), st.minions[m.index()].owner);
     }
 
     fn fresh_window(&mut self) {
@@ -1509,6 +1523,7 @@ impl Engine {
             ActionState::Attempt(x) if !switching => x == m,
             ActionState::Open | ActionState::Attempt(_) => {
                 !a.failed
+                    && !a.ended_early
                     && self.eligible_blockers(a).contains(&seat)
                     && !a.declined.contains(&seat)
                     // An unlock-and-block card needs the unlock (The
@@ -1531,6 +1546,7 @@ impl Engine {
         };
         a.state == ActionState::Open
             && !a.failed
+            && !a.ended_early
             && seat != a.seat
             && !a.declined.contains(&seat)
             && self.block_candidates_locked(a, seat, false).contains(&m)
@@ -1837,8 +1853,14 @@ impl Engine {
     /// attempt again (LSJ 20031121-2).
     pub(crate) fn resign_attempt(&mut self) {
         let a = self.action.as_mut().expect("action context");
+        let ActionState::Attempt(m) = a.state else {
+            unreachable!("an attempt resigned with none pending");
+        };
         a.state = ActionState::Open;
-        a.fresh_window();
+        // Its Methuselah's impulse, as after any failed attempt (rules-qa
+        // 82.1).
+        let owner = self.state.minions[m.index()].owner;
+        a.window = OrderedWindow::starting_at(a.order.clone(), owner);
     }
 
     /// Burn the top `n` cards of `s`'s library.
@@ -2345,6 +2367,7 @@ impl Engine {
         // blocks close).
         if a.state == ActionState::Open
             && !a.failed
+            && !a.ended_early
             && self.eligible_blockers(a).contains(&seat)
             && !a.declined.contains(&seat)
         {
@@ -2537,11 +2560,7 @@ impl Engine {
                 // way fails, as at its closure: not offered again alike
                 // (rules-qa 48.6).
                 if let ActionState::Attempt(x) = a.state {
-                    if a.lock_failed {
-                        a.failed_blockers.push(x);
-                    }
-                    let print = a.attempt_print(&self.state, x);
-                    a.failed_attempts.push((x, print));
+                    a.record_failed(&self.state, x, false);
                 }
                 a.state = ActionState::Attempt(*minion);
                 a.window.play();
@@ -2638,7 +2657,7 @@ impl Engine {
             Choice::BurnCorruptionToFail { minion } => {
                 a.corruption_fails -= 1;
                 self.state.burn_corruption(*minion, seat, 1, seat);
-                a.attempt_fails();
+                a.attempt_failed(&self.state, true);
                 self.flow = Flow::Action;
             }
             Choice::BurnCorruptionToUnlock { minion } => {
@@ -2743,15 +2762,9 @@ impl Engine {
                 if !locked_out && a.intercept_of(&self.state, blocker) >= a.stealth(&self.state) {
                     self.blocked(blocker);
                 } else {
-                    // The attempt fails: back to A, another may be made
-                    // (rulebook B.4).
-                    if a.lock_failed {
-                        a.failed_blockers.push(blocker);
-                    }
-                    let print = a.attempt_print(&self.state, blocker);
-                    a.failed_attempts.push((blocker, print));
-                    a.state = ActionState::Open;
-                    a.fresh_window();
+                    // The attempt fails: its Methuselah's to attempt again
+                    // or decline (rulebook B.4).
+                    a.attempt_failed(&self.state, false);
                     self.flow = Flow::Action;
                 }
             }
@@ -3433,7 +3446,7 @@ impl Engine {
                 }
             }
             Effect::CancelAction => {
-                a.attempt_fails();
+                a.attempt_failed(&self.state, true);
                 a.ended_early = true;
                 a.canceled = true;
             }
@@ -3511,12 +3524,12 @@ impl Engine {
                     a.intercept_given.push((m, n));
                 }
             }
-            Effect::AttemptFails => a.attempt_fails(),
+            Effect::AttemptFails => a.attempt_failed(&self.state, true),
             Effect::AttemptFailsBarSeat => {
                 if let ActionState::Attempt(m) = a.state {
                     a.barred_seats.push(self.state.minions[m.index()].owner);
                 }
-                a.attempt_fails();
+                a.attempt_failed(&self.state, true);
             }
             Effect::FailBlockForCorruption => a.corruption_fails += 1,
             Effect::UnlockForCorruption(n) => a.corruption_unlock = n,
@@ -3560,11 +3573,7 @@ impl Engine {
                 };
                 if (a.state == ActionState::Open || switch) && self.block_toll(&a, t).is_some() {
                     if let ActionState::Attempt(x) = a.state {
-                        if a.lock_failed {
-                            a.failed_blockers.push(x);
-                        }
-                        let print = a.attempt_print(&self.state, x);
-                        a.failed_attempts.push((x, print));
+                        a.record_failed(&self.state, x, false);
                     }
                     a.state = ActionState::Attempt(t);
                     self.action = Some(a);

@@ -660,6 +660,11 @@ engine masks), `cards/mod.rs` (the vocabulary: `Window`, `Actor`,
   20030519).
 - Intercept given to a minion lasts the whole action, across failed attempts
   (`ActionCtx.intercept_given`, rules-qa 15.2).
+- A failed attempt (`ActionCtx::attempt_failed`: its window closed short,
+  Enchanting Gaze's counter, a cancel; `Engine::resign_attempt`: a toll
+  unpaid, an ally's last life, Puppet Master, Dawn Operation) starts the
+  open window at its Methuselah (`OrderedWindow::starting_at`): another attempt or the decline,
+  the acting Methuselah's impulse after it (rules-qa 82.1).
 - Enter-combat actions (`Effect::EnterCombatWithTarget`): the combat begins at
   resolution (`start_combat_at_resolution`) and is part of the action; no "held
   when blocking" state; a blocked rush continued as if unblocked enters its
