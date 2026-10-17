@@ -6,6 +6,11 @@ server runs.
 `python3 scripts/schema_compat.py` lists what a schema change adds or
 removes; its `--check` fails a removal without a major version.
 
+## 1.9.0
+
+- The `resolved` (`seat`, `card`, `effects`) and `canceled` (`seat`,
+  `card`) events: how a card played finished.
+
 ## 1.8.0
 
 - A server restart resumes the games going from their records (a fresh

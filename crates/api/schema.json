@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "title": "zvtes protocol",
-  "version": "1.8.0",
+  "version": "1.9.0",
   "$defs": {
     "About": {
       "description": "What a choice is about (`Decision::about`): each field given where\nthe purpose (or the terms) has it (docs/protocol.md §5).",
@@ -1875,6 +1875,60 @@
             "kind": {
               "type": "string",
               "const": "revealed"
+            },
+            "seat": {
+              "type": "integer",
+              "format": "uint8",
+              "maximum": 255,
+              "minimum": 0
+            }
+          },
+          "required": [
+            "kind",
+            "seat",
+            "card"
+          ]
+        },
+        {
+          "description": "A card played resolved: what its mode does (the options' curated\nvocabulary, docs/protocol.md §7, `on` as it applies).",
+          "type": "object",
+          "properties": {
+            "card": {
+              "$ref": "#/$defs/Card"
+            },
+            "effects": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/Effect"
+              }
+            },
+            "kind": {
+              "type": "string",
+              "const": "resolved"
+            },
+            "seat": {
+              "type": "integer",
+              "format": "uint8",
+              "maximum": 255,
+              "minimum": 0
+            }
+          },
+          "required": [
+            "kind",
+            "seat",
+            "card"
+          ]
+        },
+        {
+          "description": "A card played canceled: still played, to the ash heap (spec §1.8.3).",
+          "type": "object",
+          "properties": {
+            "card": {
+              "$ref": "#/$defs/Card"
+            },
+            "kind": {
+              "type": "string",
+              "const": "canceled"
             },
             "seat": {
               "type": "integer",

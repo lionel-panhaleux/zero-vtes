@@ -218,6 +218,9 @@ pub struct Engine {
     /// The cards effects revealed to every Methuselah, for a narrator
     /// (`Reveal`): `None`, the default, keeps nothing; the taker drains it.
     pub reveal_notes: Option<Vec<Reveal>>,
+    /// The plays resolved or canceled, for a narrator (`PlayNote`), as
+    /// `reveal_notes`.
+    pub play_notes: Option<Vec<PlayNote>>,
     /// A pair's strikes note waiting for the strike a first strike held
     /// back (`CombatCtx::held_strike`): one note a pair.
     pub(crate) held_note: Option<crate::combat::CombatNote>,
@@ -315,7 +318,51 @@ pub struct Reveal {
     pub after: usize,
 }
 
+/// A play finished, for a narrator: resolved (its mode's effects; an
+/// action card's end is its action's), or canceled (spec §1.8.3: still
+/// played, to the ash heap). `after`: the combat notes noted before it,
+/// `reveals` the reveal notes, so a narrator keeps the order.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct PlayNote {
+    pub seat: SeatId,
+    pub card: u16,
+    pub copy: crate::copies::CopyId,
+    pub mode: u8,
+    pub actor: Option<crate::ids::MinionId>,
+    pub target: crate::cards::Target,
+    pub canceled: bool,
+    /// Its effects not applied (canceled, its payer burned paying).
+    pub no_effect: bool,
+    pub after: usize,
+    pub reveals: usize,
+}
+
 impl Engine {
+    /// A play finished, noted for a narrator.
+    pub(crate) fn note_play(
+        &mut self,
+        ctx: &crate::cards::PlayCtx,
+        canceled: bool,
+        no_effect: bool,
+    ) {
+        let after = self.combat_notes.as_ref().map_or(0, Vec::len);
+        let reveals = self.reveal_notes.as_ref().map_or(0, Vec::len);
+        if let Some(notes) = self.play_notes.as_mut() {
+            notes.push(PlayNote {
+                seat: ctx.seat,
+                card: ctx.card,
+                copy: *ctx.copy,
+                mode: ctx.mode,
+                actor: ctx.actor,
+                target: ctx.target,
+                canceled,
+                no_effect,
+                after,
+                reveals,
+            });
+        }
+    }
+
     /// `seat`'s crypt or library top card revealed to all.
     pub(crate) fn reveal_top(&mut self, seat: SeatId, crypt: bool) {
         let zone = &self.state.seats[seat.index()];
@@ -442,6 +489,7 @@ impl Engine {
             last_outcome: None,
             combat_notes: None,
             reveal_notes: None,
+            play_notes: None,
             held_note: None,
             history: Default::default(),
         };

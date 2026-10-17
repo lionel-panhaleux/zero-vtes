@@ -18,7 +18,7 @@ is created by one request and played over one WebSocket. Every game is
 recorded, anonymously, and kept two years to train and test the engine
 (§11).
 
-Version **1.8.0**. The types: the models of the
+Version **1.9.0**. The types: the models of the
 [API reference](https://engine.krcg.org/docs), also as
 [JSON Schema](https://engine.krcg.org/schema.json) (2020-12) and
 [TypeScript](https://engine.krcg.org/protocol.ts).
@@ -428,6 +428,8 @@ heap (a marker on its minion, §6), no copy of its own.
 | `turn` | `turn`, `active` |
 | `draw` | `seat`, `n`, `crypt` |
 | `revealed` | `seat`, `card` (its `id`, `crypt`; no number): a card of a crypt or library an effect revealed to all (a top card, a search's find) |
+| `resolved` | `seat`, `card`, `effects`? (the options' vocabulary, §7, `on` as it applies): a card played resolved — what its mode does (none when it takes no effect: its payer burned paying), the changes it makes told by the events after it; an action card's end is its `action_ends` |
+| `canceled` | `seat`, `card`: a card played canceled (still played: to the ash heap) |
 | `pool` | `seat`, `delta`, `pool` |
 | `blood` | `minion`, `delta`, `blood` |
 | `enters_play` | `card`, `seat` (its controller), `on`?, `minion`? (its kind, for a minion), `effect`? |

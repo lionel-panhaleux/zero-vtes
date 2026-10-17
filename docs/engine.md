@@ -537,6 +537,10 @@ engine masks), `cards/mod.rs` (the vocabulary: `Window`, `Actor`,
   canceled with it; a canceled limited bleed leaves the limit unused; cancelling
   abilities (The Vozhd of Gravesend) mark the play canceled as used
   (`as_played_apply`). Cancels by type/Discipline read the mode played.
+- A play's two ends, `resolve_play` (after its payment; an action card's
+  end is its action's) and `settle_canceled`, are noted in
+  `Engine::play_notes` (`PlayNote`), which the host tells as `resolved` and
+  `canceled`.
 - Multi-Discipline cards: the generator gives one mode per non-empty set of their
   Disciplines (`Label::MultiDiscipline`); a mode's tags are all required, as on a
   combo card. A definition may split a printed "or" into modes, mapped back by

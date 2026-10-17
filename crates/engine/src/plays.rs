@@ -3286,6 +3286,7 @@ impl Engine {
     /// (Meditative Grove) pays a non-action card's now, surcharges included
     /// (ANK 20260216).
     fn settle_canceled(&mut self, ctx: PlayCtx, cost_paid: bool) {
+        self.note_play(&ctx, true, true);
         let action_card = cards::lookup(ctx.card).is_some_and(|d| {
             d.modes[ctx.mode as usize]
                 .effects
@@ -3612,6 +3613,9 @@ impl Engine {
         // played fails the action, a strike ends the combat (ANK
         // 20180928-1).
         let payer_burned = self.pay_play_blood(&ctx, blood_off);
+        // Resolved, an action card's action declared instead (its end the
+        // action's); no effect when its payer burned paying.
+        self.note_play(&ctx, false, payer_burned);
         let mut in_play: Option<CardId> = None;
         let mut search = None;
         // A card whose delayed effect is represented in play takes its

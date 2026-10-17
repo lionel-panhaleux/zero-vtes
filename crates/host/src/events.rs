@@ -101,6 +101,35 @@ impl Namer<'_> {
                 seat: seat.0,
                 card: self.card(CopyId::NONE, card, crypt),
             },
+            Fact::Played(p) if p.canceled => EventKind::Canceled {
+                seat: p.seat.0,
+                card: self.card(p.copy, p.card, false),
+            },
+            Fact::Played(p) => {
+                let card = self.card(p.copy, p.card, false);
+                // An uncontrolled target is not named: a hidden region, its
+                // slot perhaps moved by now.
+                let target = match p.target {
+                    zvtes::cards::Target::Minion(m) => Some(self.minion(m)),
+                    zvtes::cards::Target::Card(c) => self.in_play(c).copy,
+                    _ => None,
+                };
+                let whom = crate::effects::Whom {
+                    target,
+                    host: None,
+                    actor: p.actor.map(|m| self.minion(m)),
+                    card: card.copy,
+                };
+                let effects = zvtes::cards::lookup(p.card)
+                    .and_then(|d| d.modes.get(p.mode as usize))
+                    .filter(|_| !p.no_effect)
+                    .map_or(Vec::new(), |m| crate::effects::curated(m.effects, whom));
+                EventKind::Resolved {
+                    seat: p.seat.0,
+                    card,
+                    effects,
+                }
+            }
             Fact::Pool { seat, delta, pool } => EventKind::Pool {
                 seat: seat.0,
                 delta,

@@ -136,9 +136,10 @@ pub fn deal(seed: u64, time_limit: Option<u32>, decks: &[Resolved]) -> Engine {
     if let Some(t) = time_limit {
         engine.time_limit = t;
     }
-    // Combats and reveals told as they happen (`observe`).
+    // Combats, reveals and plays told as they happen (`observe`).
     engine.combat_notes = Some(Vec::new());
     engine.reveal_notes = Some(Vec::new());
+    engine.play_notes = Some(Vec::new());
     engine
 }
 
@@ -230,9 +231,10 @@ impl Session {
     /// action or a referendum ended, and (`ran`: across the engine's run,
     /// not a decision's own effect) the rest in words.
     fn observe(&mut self, ran: bool) {
-        // What combats did and the cards revealed, in their order, first:
-        // their damage is among the changes. Both queues are drained (and
-        // reset, `undo`) together: `Reveal::after` counts the other.
+        // What combats did, the cards revealed and the plays finished, in
+        // their order, first: their damage is among the changes. The
+        // queues are drained (and reset, `undo`) together: `after` counts
+        // the combat notes before, `PlayNote::reveals` the reveals.
         let notes = self
             .engine
             .combat_notes
@@ -245,19 +247,37 @@ impl Session {
             .as_mut()
             .map(std::mem::take)
             .unwrap_or_default();
+        let plays = self
+            .engine
+            .play_notes
+            .as_mut()
+            .map(std::mem::take)
+            .unwrap_or_default();
         let revealed = !reveals.is_empty();
         let mut reveals = reveals.into_iter().peekable();
+        let mut plays = plays.into_iter().peekable();
+        let mut shown = 0;
         let mut told = Vec::new();
         for i in 0..=notes.len() {
-            while let Some(r) = reveals.next_if(|r| r.after <= i) {
-                told.push(Told {
-                    fact: Fact::Revealed {
-                        seat: r.seat,
-                        card: r.card,
-                        crypt: r.crypt,
-                    },
-                    told: true,
-                });
+            loop {
+                if let Some(p) = plays.next_if(|p| p.after <= i && p.reveals <= shown) {
+                    told.push(Told {
+                        fact: Fact::Played(p),
+                        told: true,
+                    });
+                } else if let Some(r) = reveals.next_if(|r| r.after <= i) {
+                    shown += 1;
+                    told.push(Told {
+                        fact: Fact::Revealed {
+                            seat: r.seat,
+                            card: r.card,
+                            crypt: r.crypt,
+                        },
+                        told: true,
+                    });
+                } else {
+                    break;
+                }
             }
             let Some(n) = notes.get(i) else { break };
             told.push(Told {
@@ -501,9 +521,10 @@ impl Session {
                 engine
             }
         };
-        // The combats and reveals since were told already.
+        // The combats, reveals and plays since were told already.
         engine.combat_notes = Some(Vec::new());
         engine.reveal_notes = Some(Vec::new());
+        engine.play_notes = Some(Vec::new());
         self.engine = engine;
         self.history.truncate(at);
         self.pending = None;
@@ -889,6 +910,56 @@ mod tests {
             })
             .collect();
         assert_eq!(order, vec!["begins", "revealed", "ends"]);
+    }
+
+    /// Plays finished are told in their place among the combat notes and
+    /// the reveals: one noted after a reveal follows it, one before the
+    /// next note precedes that.
+    #[test]
+    fn a_play_is_told_in_its_place_among_the_notes() {
+        let (mut s, _) = session();
+        s.observe(false);
+        let m = [zvtes::ids::MinionId(0), zvtes::ids::MinionId(1)];
+        s.engine.combat_notes = Some(vec![
+            CombatNote::Begins { minions: m },
+            CombatNote::Ends { minions: m },
+        ]);
+        let top = *s.engine.state.seats[0].crypt.last().expect("a crypt");
+        s.engine.reveal_notes = Some(vec![zvtes::game::Reveal {
+            seat: SeatId(0),
+            card: top,
+            crypt: true,
+            after: 1,
+        }]);
+        let play = |after, reveals| zvtes::game::PlayNote {
+            seat: SeatId(0),
+            card: zvtes::state::find_library("Villein"),
+            copy: CopyId::NONE,
+            mode: 0,
+            actor: None,
+            target: Target::None,
+            canceled: false,
+            no_effect: false,
+            after,
+            reveals,
+        };
+        s.engine.play_notes = Some(vec![play(1, 0), play(1, 1)]);
+        let before = s.told.len();
+        s.observe(true);
+        let order: Vec<&str> = s.told[before..]
+            .iter()
+            .filter_map(|t| match t.fact {
+                Fact::Combat(CombatNote::Begins { .. }) => Some("begins"),
+                Fact::Revealed { .. } => Some("revealed"),
+                Fact::Played(_) => Some("played"),
+                Fact::Combat(CombatNote::Ends { .. }) => Some("ends"),
+                _ => None,
+            })
+            .collect();
+        assert_eq!(
+            order,
+            vec!["begins", "played", "revealed", "played", "ends"]
+        );
     }
 
     /// A legal no-op is hidden with the opportunities off, shown with them

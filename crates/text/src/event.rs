@@ -33,6 +33,11 @@ pub fn event(e: &EventKind, n: &Names) -> Option<String> {
             };
             format!("{} draws {k} {cards}", n.seat(*seat))
         }
+        EventKind::Resolved { card, effects, .. } => match crate::effect::label(effects, n) {
+            l if l.is_empty() => format!("{} resolves", n.card(card)),
+            l => format!("{} resolves: {l}", n.card(card)),
+        },
+        EventKind::Canceled { card, .. } => format!("{} is canceled", n.card(card)),
         EventKind::Revealed { seat, card } => {
             let from = if card.crypt { "crypt" } else { "library" };
             format!(
@@ -407,6 +412,41 @@ mod tests {
                 effect: false,
             }),
             "Torn Signpost comes into play on Lucian"
+        );
+    }
+    // How a card played finished: resolved with what its mode does (none
+    // said when it does nothing the vocabulary names), or canceled.
+    #[test]
+    fn a_play_resolved_or_canceled_is_told() {
+        use zvtes_api::option::{Effect, EffectKind};
+        let cards = Two;
+        let n = Names::new(&cards);
+        let told = |e: EventKind| super::event(&e, &n).expect("told");
+        assert_eq!(
+            told(EventKind::Resolved {
+                seat: 0,
+                card: card(2, Some(9)),
+                effects: vec![Effect {
+                    n: Some(1),
+                    ..Effect::new(EffectKind::Stealth)
+                }],
+            }),
+            "Torn Signpost resolves: +1 stealth"
+        );
+        assert_eq!(
+            told(EventKind::Resolved {
+                seat: 0,
+                card: card(2, Some(9)),
+                effects: vec![],
+            }),
+            "Torn Signpost resolves"
+        );
+        assert_eq!(
+            told(EventKind::Canceled {
+                seat: 1,
+                card: card(2, Some(9)),
+            }),
+            "Torn Signpost is canceled"
         );
     }
 }

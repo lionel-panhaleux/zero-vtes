@@ -132,6 +132,8 @@ struct Stream {
     blood: HashMap<u32, u8>,
     torpor: HashMap<u32, bool>,
     told: usize,
+    /// The plays told resolved and canceled.
+    played: [usize; 2],
     texts: usize,
     names: Names<'static>,
     /// Each decision's view as first sent, and the decision an undo
@@ -192,6 +194,22 @@ impl Stream {
                 }
                 self.number(c, card.numbered, "an event");
             }
+        }
+        // A play finished: the card played numbered for the viewer, each
+        // minion or card its effects name too.
+        match &e.kind {
+            EventKind::Resolved { card, effects, .. } => {
+                assert!(card.copy.is_some(), "seed {seed}: {e:?}");
+                for c in effects.iter().filter_map(|f| f.copy) {
+                    assert_ne!(c, u32::MAX, "seed {seed}: an unnumbered copy: {e:?}");
+                }
+                self.played[0] += 1;
+            }
+            EventKind::Canceled { card, .. } => {
+                assert!(card.copy.is_some(), "seed {seed}: {e:?}");
+                self.played[1] += 1;
+            }
+            _ => {}
         }
         let copy = |c: u32| assert_ne!(c, u32::MAX, "seed {seed}: an unnumbered minion: {e:?}");
         match &e.kind {
@@ -424,6 +442,7 @@ fn cmd(command: Command) -> In {
 fn the_events_tell_what_the_views_show() {
     let seeds: u32 = std::env::var("HOST_SEEDS").map_or(40, |s| s.parse().unwrap());
     let (mut told, mut texts, mut undone, mut allocated, mut voted) = (0, 0, 0, 0, 0);
+    let mut played = [0, 0];
     let mut reasked = 0;
     let mut misses = Vec::new();
     for seed in from()..=seeds {
@@ -454,6 +473,7 @@ fn the_events_tell_what_the_views_show() {
             reasked: 0,
             unasked: Vec::new(),
             name_numbers: HashMap::new(),
+            played: [0, 0],
         };
         let mut outs = g.handle(
             human,
@@ -548,6 +568,8 @@ fn the_events_tell_what_the_views_show() {
         );
         told += s.told;
         texts += s.texts;
+        played[0] += s.played[0];
+        played[1] += s.played[1];
         misses.extend(s.misses.into_iter().map(|m| (seed, m)));
     }
     for (seed, (legacy, rendered)) in misses.iter().take(20) {
@@ -566,6 +588,8 @@ fn the_events_tell_what_the_views_show() {
         allocated > 0 && voted > 0,
         "allocations and votes at once untried"
     );
+    eprintln!("plays told: {} resolved, {} canceled", played[0], played[1]);
+    assert!(played[0] > 0 && played[1] > 0, "plays told: {played:?}");
 }
 
 /// Every option a seat is shown is told in English with the text

@@ -299,3 +299,65 @@ fn a_card_held_while_in_play_counts_against_the_hand_size() {
     );
     assert_eq!(e.state.seats[0].library.len(), 4);
 }
+
+// A narrator is told how a play finished (`Engine::play_notes`), in order:
+// Sudden Reversal resolved, then the Villein it canceled (still played,
+// to the ash heap, spec §1.8.3).
+#[test]
+fn a_play_resolved_and_one_canceled_are_noted_in_order() {
+    let mut e = table();
+    e.play_notes = Some(Vec::new());
+    let villein = find_library("Villein");
+    let reversal = find_library("Sudden Reversal");
+    e.state.seats[0].hand.push(villein);
+    e.state.seats[1].hand.push(reversal);
+    pick(&mut e, play(0, MinionId(0)));
+    pick(&mut e, Choice::SetX(5));
+    expect(&mut e, SeatId(1), WindowLabel::CardAsPlayed);
+    pick(
+        &mut e,
+        Choice::Play {
+            card: 0,
+            mode: 0,
+            actor: None,
+            target: Target::None,
+        },
+    );
+    expect(&mut e, SeatId(0), WindowLabel::MinionPhase);
+    let notes = e.play_notes.take().expect("noted");
+    assert_eq!(
+        notes
+            .iter()
+            .map(|n| (n.seat, n.card, n.canceled))
+            .collect::<Vec<_>>(),
+        [(SeatId(1), reversal, false), (SeatId(0), villein, true)]
+    );
+}
+
+// An action card resolves into its action, told by the action's end: no
+// play note for it (Computer Hacking, played and its action run).
+#[test]
+fn an_action_card_leaves_no_play_note() {
+    let mut e = table();
+    e.play_notes = Some(Vec::new());
+    let hacking = find_library("Computer Hacking");
+    e.state.seats[0].hand.push(hacking);
+    let req = until(&mut e, SeatId(0), WindowLabel::MinionPhase);
+    let i = req
+        .options
+        .iter()
+        .position(|o| {
+            matches!(
+                o,
+                Choice::Play {
+                    actor: Some(MinionId(0)),
+                    ..
+                }
+            )
+        })
+        .expect("Computer Hacking offered");
+    e.choose(i);
+    until(&mut e, SeatId(0), WindowLabel::MinionPhase);
+    assert!(e.state.seats[0].ash.contains(&hacking), "played");
+    assert_eq!(e.play_notes.take().expect("noted"), vec![]);
+}

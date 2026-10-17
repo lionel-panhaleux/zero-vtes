@@ -58,6 +58,19 @@ pub enum EventKind {
         seat: Seat,
         card: Card,
     },
+    /// A card played resolved: what its mode does (the options' curated
+    /// vocabulary, docs/protocol.md §7, `on` as it applies).
+    Resolved {
+        seat: Seat,
+        card: Card,
+        #[serde(default, skip_serializing_if = "Vec::is_empty")]
+        effects: Vec<crate::option::Effect>,
+    },
+    /// A card played canceled: still played, to the ash heap (spec §1.8.3).
+    Canceled {
+        seat: Seat,
+        card: Card,
+    },
     Pool {
         seat: Seat,
         delta: i32,

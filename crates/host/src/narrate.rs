@@ -115,6 +115,8 @@ pub enum Fact {
         card: u16,
         crypt: bool,
     },
+    /// A play resolved or canceled (`Engine::play_notes`).
+    Played(zvtes::game::PlayNote),
 }
 
 /// An action as its end tells it.

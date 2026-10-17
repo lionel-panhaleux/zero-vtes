@@ -1,6 +1,6 @@
-/* zvtes protocol 1.8.0 (docs/protocol.md): generated from
+/* zvtes protocol 1.9.0 (docs/protocol.md): generated from
  * crates/api/schema.json by scripts/gen_ts.py, do not edit. */
-export const PROTOCOL_VERSION = '1.8.0'
+export const PROTOCOL_VERSION = '1.9.0'
 
 /**
  * A command as sent: an optional client id, echoed by an `error` it
@@ -650,6 +650,17 @@ export type Event = {
     | {
         card: Card
         kind: 'revealed'
+        seat: number
+    }
+    | {
+        card: Card
+        effects?: Effect[]
+        kind: 'resolved'
+        seat: number
+    }
+    | {
+        card: Card
+        kind: 'canceled'
         seat: number
     }
     | {

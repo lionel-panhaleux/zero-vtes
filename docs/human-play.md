@@ -237,7 +237,7 @@ table move where SC has the UI for it; no imitation of a UI SC lacks
 | # | Item | Status |
 |---|---|---|
 | 4.1 | Auto-pass preferences per window / per card; "stops" | todo |
-| 4.2 | Narration events ("Bot 2 bleeds you for 2") where diffs fall short | first cut in 2.18 (events); combat told in 2.22; cards canceled, what a card did in words: todo |
+| 4.2 | Narration events ("Bot 2 bleeds you for 2") where diffs fall short | first cut in 2.18 (events); combat told in 2.22; cards resolved and canceled told as events (`resolved`, `canceled`) |
 | 4.3 | Findings-driven items | todo |
 
 ### Slice 5 — upstream (M2)
