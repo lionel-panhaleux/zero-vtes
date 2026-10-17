@@ -7920,11 +7920,6 @@ impl Engine {
                         .shuffle(&mut self.rng);
                     self.replace(ctx.seat, n, None);
                 }
-                Effect::TargetBurnsForInterceptThisAction => {
-                    if let (Some(a), Target::Minion(t)) = (self.action.as_mut(), target) {
-                        a.burn_for_intercept.push(t);
-                    }
-                }
                 Effect::PreyUncontrolledBloodToPool(n) => {
                     let of = self.state.prey(ctx.seat);
                     for _ in 0..n {

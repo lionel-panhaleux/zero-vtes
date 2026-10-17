@@ -1612,8 +1612,13 @@ fn descent_into_darkness_hides_a_vampire_and_returns_it() {
         actor: None,
         target: Target::None,
     };
+    // The blood and the return, both in the same influence phase.
     pick_when(&mut e, use_on(0));
-    pick_when(&mut e, use_on(1));
+    let turn = e.state.turn;
+    let req = request(&mut e);
+    assert_eq!(e.state.turn, turn);
+    assert!(req.options.contains(&use_on(1)), "the same influence phase");
+    pick(&mut e, use_on(1));
     request(&mut e);
     let v = &e.state.minions[a.index()];
     assert!(v.present() && v.locked);
@@ -2674,4 +2679,170 @@ fn outside_the_hourglass_and_weather_control_land_together() {
     // Alone, the Hourglass leaves it 2 (the opposing strike): the weather
     // once more, not twice.
     assert_eq!(blood(&e, a), 2 - 1, "the weather once");
+}
+
+// Maris Streck: "Maris can burn a blood to give a blocking minion +1
+// intercept." [LSJ 20020814] [ANK 20180307-2] "Can use her ability multiple
+// times each action." [ANK 20220705] "Can use her ability while locked."
+// No "during": as often as she pays (rules-qa 79.3). Locked, for her own
+// Methuselah's blocker or another's, she burns twice against a +2 stealth
+// bleed: blocked.
+#[test]
+fn maris_streck_burns_blood_for_intercept_as_often_as_she_pays_while_locked() {
+    for maris_seat in [1, 2] {
+        let mut e = game(3);
+        let a = e.add_minion(SeatId(0), vampire_with("obt", 0), 4, false);
+        superior(&mut e, a, "obt");
+        e.add_minion(SeatId(0), plain("Brujah", 0), 4, false);
+        let z = e.add_minion(SeatId(1), plain("Ventrue", 0), 4, false);
+        let m = e.add_minion(SeatId(maris_seat), find_card("Maris Streck"), 4, false);
+        e.state.minions[m.index()].locked = true;
+        hand(&mut e, 0, &["Shadow Play"]);
+        let burn = Choice::UseAbility {
+            source: AbilitySource::Vampire(m),
+            ability: 0,
+            actor: None,
+            target: Target::None,
+        };
+        pick(&mut e, bleed(a));
+        pick_when(&mut e, block(z));
+        pick_when(&mut e, play(0, 1, a)); // +2 stealth
+        pick_when(&mut e, burn);
+        pick_when(&mut e, burn);
+        until(&mut e, SeatId(0), WindowLabel::MinionPhase);
+        assert_eq!(
+            e.last_outcome,
+            Some(zvtes::actions::Outcome::Blocked),
+            "seat {maris_seat}"
+        );
+        assert_eq!(blood(&e, m), 4 - 2);
+    }
+}
+
+// Maris Streck: "She can take a +1 stealth action to allow you to look at
+// and rearrange the top 5 cards of your library." At resolution, as
+// Eulogio's; she stays locked.
+#[test]
+fn maris_streck_rearranges_the_top_five_of_her_library() {
+    let mut e = game(2);
+    let m = e.add_minion(SeatId(0), find_card("Maris Streck"), 4, false);
+    e.add_minion(SeatId(0), plain("Brujah", 0), 4, false);
+    e.add_minion(SeatId(1), plain("Ventrue", 0), 4, false);
+    let names = [
+        "Glancing Blow",
+        "Morbidity",
+        "Obedience",
+        "Heartrender",
+        "Abbot",
+        "Deflection",
+    ];
+    e.state.seats[0].library = names.iter().map(|n| find_library(n)).collect();
+    fill_hand(&mut e, 0);
+    pick(
+        &mut e,
+        Choice::UseAbility {
+            source: AbilitySource::Vampire(m),
+            ability: 1,
+            actor: Some(m),
+            target: Target::None,
+        },
+    );
+    // The top five, from the top down: Deflection is the top card.
+    pick_when(&mut e, Choice::FindCard(find_library("Morbidity")));
+    pick_when(&mut e, Choice::FindCard(find_library("Deflection")));
+    pick_when(&mut e, Choice::FindCard(find_library("Abbot")));
+    pick_when(&mut e, Choice::FindCard(find_library("Obedience")));
+    until(&mut e, SeatId(0), WindowLabel::MinionPhase);
+    let top: Vec<u16> = e.state.seats[0].library.iter().rev().copied().collect();
+    let want: Vec<u16> = [
+        "Morbidity",
+        "Deflection",
+        "Abbot",
+        "Obedience",
+        "Heartrender",
+        "Glancing Blow",
+    ]
+    .iter()
+    .map(|n| find_library(n))
+    .collect();
+    assert_eq!(top, want);
+    assert!(e.state.minions[m.index()].locked, "she acted");
+    assert_eq!(blood(&e, m), 4);
+}
+
+// The intercept reach bound (`block_can_reach`): a third party's Maris
+// Streck with blood can give the prey's blocker the +1 intercept a hunt's
+// stealth needs (rules-qa 79.3); with none, the block is out of reach.
+#[test]
+fn a_third_partys_maris_streck_keeps_a_block_in_reach() {
+    for maris_blood in [0, 2] {
+        let mut e = game(3);
+        let a = e.add_minion(SeatId(0), plain("Brujah", 0), 4, false);
+        e.add_minion(SeatId(0), plain("Brujah", 1), 4, false);
+        let z = e.add_minion(SeatId(1), plain("Ventrue", 0), 4, false);
+        e.add_minion(SeatId(2), find_card("Maris Streck"), maris_blood, false);
+        pick(&mut e, action(a, ActionKind::Hunt));
+        offering(&mut e, Choice::DeclareBlock { minion: z });
+        assert_eq!(
+            e.block_can_reach(SeatId(1), z),
+            maris_blood > 0,
+            "{maris_blood}"
+        );
+    }
+}
+
+// The reach bound: an unlocked Marciana Giovanni can still grant the
+// blocker its burn (rules-qa 79.2), and the burn granted counts until it is
+// used; a locked Marciana grants nothing.
+#[test]
+fn marcianas_grant_keeps_a_block_in_reach() {
+    for locked in [false, true] {
+        let mut e = game(2);
+        let a = e.add_minion(SeatId(0), plain("Brujah", 0), 4, false);
+        e.add_minion(SeatId(0), plain("Brujah", 1), 4, false);
+        let m = e.add_minion(
+            SeatId(1),
+            find_card("Marciana Giovanni, Investigator"),
+            2,
+            false,
+        );
+        e.state.minions[m.index()].locked = locked;
+        let z = e.add_minion(SeatId(1), plain("Ventrue", 0), 4, false);
+        pick(&mut e, action(a, ActionKind::Hunt));
+        offering(&mut e, Choice::DeclareBlock { minion: z });
+        assert_eq!(e.block_can_reach(SeatId(1), z), !locked);
+        if !locked {
+            pick(
+                &mut e,
+                Choice::UseAbility {
+                    source: AbilitySource::Vampire(m),
+                    ability: 0,
+                    actor: None,
+                    target: Target::Minion(z),
+                },
+            );
+            offering(&mut e, Choice::DeclareBlock { minion: z });
+            assert!(e.state.minions[m.index()].locked);
+            assert!(e.block_can_reach(SeatId(1), z), "the burn granted");
+        }
+    }
+}
+
+// The reach bound: a third party's unlocked The Rumor Mill can choose the
+// prey's blocker to burn for intercept (ANK 20200607), keeping a hunt's
+// block in reach; locked, it gives nothing.
+#[test]
+fn a_third_partys_rumor_mill_keeps_a_block_in_reach() {
+    for locked in [false, true] {
+        let mut e = game(3);
+        let a = e.add_minion(SeatId(0), plain("Brujah", 0), 4, false);
+        e.add_minion(SeatId(0), plain("Brujah", 1), 4, false);
+        let z = e.add_minion(SeatId(1), plain("Ventrue", 0), 4, false);
+        e.add_minion(SeatId(2), plain("Ventrue", 1), 4, false);
+        let mill = in_play(&mut e, 2, "Rumor Mill, Tabloid Newspaper, The", None);
+        e.state.cards[mill.index()].locked = locked;
+        pick(&mut e, action(a, ActionKind::Hunt));
+        offering(&mut e, Choice::DeclareBlock { minion: z });
+        assert_eq!(e.block_can_reach(SeatId(1), z), !locked);
+    }
 }

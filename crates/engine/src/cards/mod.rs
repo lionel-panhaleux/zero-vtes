@@ -3448,9 +3448,6 @@ pub enum Effect {
     /// Take control of the target until the end of the user's next turn
     /// (Ayelea, The Manipulator; `Minion::temp_skip`).
     TakeControlOfTargetUntilNextTurn,
-    /// The target may burn 1 blood for +1 intercept for the rest of the
-    /// action (Marciana Giovanni, Investigator; LSJ 20100604-2).
-    TargetBurnsForInterceptThisAction,
     /// Move 1 blood from a crypt card in the prey's uncontrolled region to
     /// one in the user's (Lázár Dobrescu).
     PreySlotToOwnSlot,
@@ -3780,9 +3777,9 @@ pub enum Effect {
     /// The acting ally removed from the game at resolution, to burn the
     /// target ally or retainer (Heartrender; rules-qa 55.4).
     RemoveActorToBurnTarget,
-    /// Look at and reorder the top n cards of the library, then unlock
-    /// (Eulogio Sánchez de los Reyes).
-    ReorderTopThenUnlock(u8),
+    /// Look at and reorder the top n cards of the library, then unlock if
+    /// so (Eulogio Sánchez de los Reyes; Maris Streck without).
+    ReorderTop { n: u8, unlock: bool },
     /// After resolution, the actor may burn n blood to unlock the acting
     /// ally (Gifts From Hereafter [DOM]/[OBL]).
     UnlockActingForActorBlood(u8),
@@ -3896,7 +3893,8 @@ pub enum Effect {
     /// burns 1 pool after resolution (WMRH Talk Radio).
     PoolIfAttemptingDoesNotBlock,
     /// The target vampire can burn 1 blood for +1 intercept during the
-    /// action, once (The Rumor Mill, Tabloid Newspaper).
+    /// action, once (The Rumor Mill, Tabloid Newspaper; Marciana Giovanni,
+    /// rules-qa 79.2).
     TargetBurnsBloodForIntercept,
     /// Remove X counters from this card (X from the ability's terms).
     RemoveCountersX,
@@ -4760,8 +4758,8 @@ pub enum Effect {
     /// The target minion unlocks, attempts to block with +n intercept for
     /// the rest of the action (Organized Resistance).
     TargetAttemptsBlock(u8),
-    /// This action, the minion can burn 1 blood for +1 intercept (Eyes of
-    /// the Wild; `Choice::BurnBloodForIntercept`).
+    /// This action, the minion can burn 1 blood for +1 intercept, once (Eyes
+    /// of the Wild; `Choice::BurnBloodForIntercept`; rules-qa 79.1).
     BurnForInterceptThisAction,
     /// Lock the minion after resolution if it did not block (Eyes of the
     /// Wild).

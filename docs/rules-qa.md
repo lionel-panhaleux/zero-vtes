@@ -46,7 +46,8 @@ by the owner. Apply them to every new card; only a ruling overrides them.
   your turn" once a turn, "during your minion phase" once in it, "during an
   action / a bleed / a referendum" once in it — never repeatable while
   payable. Read the word "during" in every ability's wording before
-  choosing its limit. (6.6, 15.2, 42.3, 58.7)
+  choosing its limit: "during" always means once; an ability without it
+  is not limited by it (Maris Streck). (6.6, 15.2, 42.3, 58.7, 79.1, 79.3)
 - **"After X, … can …" is once after X** (per copy, per vampire): "after a
   successful bleed / an action / a referendum passes" once after it
   (`Limit::PerAction`), unless a cost or condition the use spends limits it
@@ -65,11 +66,11 @@ by the owner. Apply them to every new card; only a ruling overrides them.
 ## Index
 
 - **Untimed abilities** — 7.7, 29.10, 15.2 (Kalinda)
-- **Legacy additions for TWDA decks** — 44.1–44.10, 57.1–57.10, 58.1–58.20, 59.1–59.19, 60.1–60.22, 62.2–62.31, 62.33, 63.1–63.17, 64.1–64.12, 65.1–65.3, 67.1–67.7, 68.1–68.17, 69.1–69.15, 70.1–70.22, 71.1–71.27, 74.1–74.13, 76.1–76.25, 77.1–77.35, 78.1–78.49, 78.54
+- **Legacy additions for TWDA decks** — 44.1–44.10, 57.1–57.10, 58.1–58.20, 59.1–59.19, 60.1–60.22, 62.2–62.31, 62.33, 63.1–63.17, 64.1–64.12, 65.1–65.3, 67.1–67.7, 68.1–68.17, 69.1–69.15, 70.1–70.22, 71.1–71.27, 74.1–74.13, 76.1–76.25, 77.1–77.35, 78.1–78.49, 78.54, 79.3
 - **Ousts, Life Boon's decision point** — 45.1–45.8
 - **Impulse, sequencing, windows** — 1.2, 1.3, 1.5, 2.1, 2.2, 2.3, 2.4, 3.7, 4.1, 5.3, 7.7, 7.8, 7.9, 23.3, 24.2, 26.5, 66.1
 - **Mandatory effects and their ordering** — 6.1, 6.4, 7.8, 7.9, 17.2, 27.1, 28.9, 32.10, 40.5
-- **Periodicity ("during X" = once per X, once each …)** — 6.6, 7.4, 9.6, 10.4, 11.2, 15.1, 15.2, 16.1, 36.3, 36.4, 37.1, 38.8, 42.3, 42.9
+- **Periodicity ("during X" = once per X, once each …)** — 6.6, 7.4, 9.6, 10.4, 11.2, 15.1, 15.2, 16.1, 36.3, 36.4, 37.1, 38.8, 42.3, 42.9, 79.1–79.4
 - **No-repeat-action, "same action"** — 1.4, 6.2, 16.6, 23.2, 25.4, 32.1
 - **Action outcomes: fizzle, fail, success, after resolution** — 3.6, 5.8, 5.9, 17.1, 17.3, 17.4, 23.3, 24.1, 24.4, 26.1, 26.4, 28.7, 30.2, 30.3, 34.6, 42.6, 43.1, 55.3, 55.4, 55.5, 56.1, 58.1, 58.13, 73.3, 73.4, 77.13, 78.13, 78.38, 78.50
 - **Directed / undirected, targeting, choosing** — 6.8, 17.2, 17.4, 20.1, 24.5, 26.3, 27.2, 32.5, 33.3, 34.8, 35.1, 38.2, 38.6, 39.4, 42.1, 57.10, 75.1, 77.12, 77.26, 77.27, 78.30, 78.36, 78.52
@@ -98,7 +99,7 @@ by the owner. Apply them to every new card; only a ruling overrides them.
 - **Discard phase, events** — 8.4, 15.2, 28.12, 33.8, 40.1–40.11, 54.5, 57.5, 57.6, 58.10
 - **Conditions read live; card-text defaults** — 4.3, 9.1, 13.2, 18.4, 19.3, 28.2, 28.6, 29.11, 32.4, 32.7, 39.5, 49.5, 49.7, 73.7, 77.6, 77.13
 - **Corruption counters, multi-Discipline cards** — 25.1–25.6, 34.3, 35.2, 38.4, 52.1, 77.28
-- **Printed vampire abilities** — 13.1, 13.2, 14.1, 14.2, 15.1, 15.2, 16.1–16.6, 17.1–17.4, 41.1–41.14, 49.2, 49.3, 52.4, 72.1, 72.2, 72.5, 73.5, 73.7
+- **Printed vampire abilities** — 13.1, 13.2, 14.1, 14.2, 15.1, 15.2, 16.1–16.6, 17.1–17.4, 41.1–41.14, 49.2, 49.3, 52.4, 72.1, 72.2, 72.5, 73.5, 73.7, 79.2, 79.3
 - **Game end, VP, ousting** — 6.9, 18.2, 24.1, 33.2, 53.1, 58.20
 ## Batch 1 — sequencing, impulse, windows
 
@@ -1481,7 +1482,7 @@ Slice 16w: the cards that bring the most 2025–2026 TWDA decks into the kept co
 
 **71.23** Kaymakli Fragment: "an opposing minion can strike: steal this equipment" — the strike of the minion in combat with its bearer, at close range, dodgeable, as Fast Hands' steal. (Test kaymakli_fragment_is_stolen_by_a_strike.)
 
-**71.24** Nergal (advanced): "reaction cards cost +1 blood" — any played by another minion while he acts (a dual card only as a reaction, PIB 20150924-2); his stealth burn repeatable, when needed. (Tests nergal_advanced_taxes_reactions_while_he_acts, nergal_advanced_burns_blood_for_stealth_when_needed.)
+**71.24** Nergal (advanced): "reaction cards cost +1 blood" — any played by another minion while he acts (a dual card only as a reaction, PIB 20150924-2); his stealth burn when needed, once each action (revised by 79.1). (Tests nergal_advanced_taxes_reactions_while_he_acts, nergal_advanced_burns_blood_for_stealth_when_needed.)
 
 **71.25** Perfect Clarity: "do not affect this vampire" — no reaction requiring Dominate or Presence may be played during the action (each would affect it: LSJ 20010621), except in a referendum's polling step; [THA]: the minion opposing it in any combat of the action. Owner (2026-10-14): in the polling step, a reaction card requiring Dominate or Presence played by another vampire does not affect it either — Scalpel Tongue may not choose it (another vampire who cast votes still), and Absolute Tyranny's [POT][PRE] −1 vote does not apply to it (it applies to the others); the vampire's own dual card is an action modifier, not shielded. The owner notes no scenario plays Scalpel Tongue before Perfect Clarity (the one only in the polling step, the other as the action is announced): nothing already chosen is undone. (Tests perfect_clarity_shields_a_bleed_from_deflection, perfect_clarity_superior_bars_presence_from_its_opponent, perfect_clarity_keeps_scalpel_tongue_off_its_vampire, perfect_clarity_spares_its_vampire_absolute_tyrannys_minus_one.)
 
@@ -1798,3 +1799,13 @@ Fifty-six cards, graded per the add-cards skill: seven blind second readers on t
 **78.53** Lost in Crowds and Into Thin Air exclude each other both ways: Lost in Crowds was playable after Into Thin Air. Green (found on the way). (Test into_thin_air_strips_a_younger_blockers_intercept.)
 
 **78.54** Descent into Darkness's vampire out of play — a contested vampire cannot act, so it never plays Descent contested (owner): its title's contest and its cards' left until it returns (LSJ 20080816), a rival left alone uncontested; no rival of a copy entering meanwhile (advanced rules §1.13.3), Jimmy Dunn's burn not reaching it; back, it and its cards enter their contests again, its remembered title too. Still its controller's for "controls a copy" (LSJ 20040526); not unlocked in the unlock phase, its blood not drained, its cards out of play. Amber, confirmed (owner: a copy entering meanwhile is no contest until the vampire comes back). (Test descent_into_darkness_leaves_and_reenters_its_contests.)
+
+## Batch 79 — "During" always means once: the sweep (owner, 2026-10-17, from a live game: Eyes of the Wild offered its burn more than once)
+
+**79.1** "During" in card text always means once in the span: "The card uses the 'During' wording which means only once during the time span … During always means only once" (owner). Eyes of the Wild's "during this action, this Gangrel can burn 1 blood to get +1 intercept" and Nergal (ADV)'s "during an action, he can burn 1 blood to get +1 stealth" were repeatable while payable: once each action now (supersedes 71.24's "repeatable"). The other 200 pool cards granting a "during" ability were swept and found once in their span. (Tests eyes_of_the_wild_burns_blood_for_intercept_once_and_relocks_without_a_block, nergal_advanced_burns_blood_for_stealth_once_each_action.)
+
+**79.2** Marciana Giovanni: she locks once to grant the burn, and the chosen vampire burns 1 blood for +1 intercept once (owner, correcting a reading of LSJ 20100604-2 as "any number of times": "for the duration of the action" is when, not how often). (Tests marciana_lets_a_vampire_burn_blood_for_intercept, marcianas_grant_keeps_a_block_in_reach.)
+
+**79.3** Maris Streck (added to the pool for it, owner): "Maris can burn a blood to give a blocking minion +1 intercept" has no "during": as often as she pays each action (LSJ 20020814, ANK 20180307-2, owner), while locked (ANK 20220705); any Methuselah's minion attempting to block, while it needs intercept (3.2). Her +1 stealth action looks at and rearranges the top 5 cards at resolution, as Eulogio's (55.3). (Tests maris_streck_burns_blood_for_intercept_as_often_as_she_pays_while_locked, maris_streck_rearranges_the_top_five_of_her_library, a_third_partys_maris_streck_keeps_a_block_in_reach.)
+
+**79.4** Descent into Darkness: "during your influence phase, this vampire can gain 2 blood and you can choose to burn this card to return the vampire" — the blood and the return each once, both in the same influence phase (owner); they shared one use of the phase. (Test descent_into_darkness_hides_a_vampire_and_returns_it.)

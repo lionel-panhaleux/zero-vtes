@@ -1495,29 +1495,25 @@ fn organized_resistance_unlocks_an_anarch_into_a_block_attempt() {
 // Eyes of the Wild: "This Gangrel unlocks and attempts to block. During
 // this action, this Gangrel can burn 1 blood to get +1 intercept. Lock
 // this Gangrel after action resolution if they did not block this action."
+// The burn once, though 1 more intercept would block (rules-qa 79.1).
 #[test]
-fn eyes_of_the_wild_burns_blood_for_intercept_and_relocks_without_a_block() {
-    for (burns, blocked) in [(2, true), (1, false)] {
-        let mut e = Engine::bare(3);
-        let a = e.add_minion(SeatId(0), plain("", "OBF", 0), 4, false);
-        e.add_minion(SeatId(0), plain("Brujah", "", 1), 4, false);
-        let g = e.add_minion(SeatId(1), plain("Gangrel", "", 0), 4, false);
-        e.state.minions[g.index()].locked = true;
-        hand(&mut e, 0, &["Lost in Crowds"]);
-        hand(&mut e, 1, &["Eyes of the Wild"]);
-        pick(&mut e, action(a, ActionKind::Bleed));
-        pick_when(&mut e, play(0, 0, g)); // unlock and attempt
-        pick_when(&mut e, play(0, 1, a)); // +2 stealth
-        for _ in 0..burns {
-            pick_when(&mut e, Choice::BurnBloodForIntercept { minion: g });
-        }
-        until(&mut e, SeatId(0), WindowLabel::MinionPhase);
-        assert_eq!(pool(&e, 1) == 30, blocked, "{burns} blood");
-        assert!(e.state.minions[g.index()].locked, "blocked, or relocked");
-        if !blocked {
-            assert_eq!(blood(&e, g), 4 - 1);
-        }
-    }
+fn eyes_of_the_wild_burns_blood_for_intercept_once_and_relocks_without_a_block() {
+    let mut e = Engine::bare(3);
+    let a = e.add_minion(SeatId(0), plain("", "OBF", 0), 4, false);
+    e.add_minion(SeatId(0), plain("Brujah", "", 1), 4, false);
+    let g = e.add_minion(SeatId(1), plain("Gangrel", "", 0), 4, false);
+    e.state.minions[g.index()].locked = true;
+    hand(&mut e, 0, &["Lost in Crowds"]);
+    hand(&mut e, 1, &["Eyes of the Wild"]);
+    pick(&mut e, action(a, ActionKind::Bleed));
+    pick_when(&mut e, play(0, 0, g)); // unlock and attempt
+    pick_when(&mut e, play(0, 1, a)); // +2 stealth
+    let burn = Choice::BurnBloodForIntercept { minion: g };
+    pick_when(&mut e, burn);
+    never_offered_until(&mut e, SeatId(0), WindowLabel::MinionPhase, burn);
+    assert!(pool(&e, 1) < 30, "not blocked");
+    assert!(e.state.minions[g.index()].locked, "relocked");
+    assert_eq!(blood(&e, g), 4 - 1);
 }
 
 /// The `nth` Ravnos with no printed-text definition printing both

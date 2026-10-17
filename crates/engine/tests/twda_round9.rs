@@ -677,8 +677,9 @@ fn ayelea_borrows_a_tremere_antitribu_until_the_end_of_her_next_turn() {
 // intercept." [LSJ 20100604-2] [LSJ 20100611] "The beneficiary … can
 // choose to burn a blood for intercept for the duration of the action."
 // [LSJ 20010813-2] "Her ability to give intercept can be used when she is
-// in torpor." In torpor, she lets her Methuselah's blocker burn twice for
-// +2 intercept against a +2 stealth bleed.
+// in torpor." In torpor, she lets her Methuselah's blocker burn for +1
+// intercept against a +2 stealth bleed, once (rules-qa 79.2): the bleed
+// goes through.
 #[test]
 fn marciana_lets_a_vampire_burn_blood_for_intercept() {
     let mut e = game(2);
@@ -697,10 +698,11 @@ fn marciana_lets_a_vampire_burn_blood_for_intercept() {
     pick_when(&mut e, own_use(m, 0, Target::Minion(z)));
     pick_when(&mut e, block(z));
     pick_when(&mut e, play(0, 1, a));
-    pick_when(&mut e, Choice::BurnBloodForIntercept { minion: z });
-    pick_when(&mut e, Choice::BurnBloodForIntercept { minion: z });
-    until(&mut e, SeatId(0), WindowLabel::MinionPhase);
-    assert_eq!(e.last_outcome, Some(Outcome::Blocked));
+    let burn = Choice::BurnBloodForIntercept { minion: z };
+    pick_when(&mut e, burn);
+    never_offered_until(&mut e, SeatId(0), WindowLabel::MinionPhase, burn);
+    assert_eq!(e.last_outcome, Some(Outcome::Successful));
+    assert_eq!(blood(&e, z), 5 - 1);
     assert!(e.state.minions[m.index()].locked);
 }
 

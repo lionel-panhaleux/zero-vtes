@@ -994,6 +994,11 @@ ADDED_BATCHES = [
         201528: "Bolesław Gutowski (G6)",
         201654: "Tegyrius, Vizier (G6)",
     },
+    # 2026-10-17: the contrast to "during" (owner, 2026-10-17: "you can add
+    # Maris to the pool while we're at it").
+    {
+        200935: "Maris Streck (G3)",
+    },
 ]
 ADDED_CARDS = {k: v for batch in ADDED_BATCHES for k, v in batch.items()}
 

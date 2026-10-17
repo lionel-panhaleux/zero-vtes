@@ -127,8 +127,8 @@ pub static ABADDON: VampireDef = VampireDef {
 
 /// "During an action, Abraham can discard a card requiring Blood Sorcery
 /// [tha] to get +1 intercept or +1 stealth": stealth on his action, intercept
-/// on his block attempt, each only when needed (rules-qa 3.2), as often as
-/// he can discard (advanced rules §1.5.4).
+/// on his block attempt, each only when needed (rules-qa 3.2), once each
+/// action (rules-qa 6.6).
 pub static ABRAHAM_DUSABLE: VampireDef = VampireDef {
     name: "Abraham DuSable",
     abilities: &[
@@ -996,7 +996,7 @@ pub static LADY_SCARLETT_CHURCHILL: VampireDef = VampireDef {
 
 /// "During a bleed action, Larissa can discard a card requiring Animalism
 /// [ani] to get +1 bleed": her own bleed, before resolution (ANK 20231124),
-/// as often as she can discard.
+/// once each bleed (rules-qa 6.6).
 pub static LARISSA_MOREIRA: VampireDef = VampireDef {
     name: "Larissa Moreira",
     abilities: &[ModeDef {
@@ -1776,7 +1776,7 @@ pub static PARIJAT: VampireDef = VampireDef {
     ..VAMP
 };
 
-pub static VAMPIRES: [&VampireDef; 399] = [
+pub static VAMPIRES: [&VampireDef; 400] = [
     &JOSEF_VON_BAUREN,
     &GABRIELLE_DI_RIGHETTI,
     &HAROLD_TANNER,
@@ -2176,6 +2176,7 @@ pub static VAMPIRES: [&VampireDef; 399] = [
     &FRANCISCUS,
     &BOLESLAW_GUTOWSKI,
     &HELENA_ADV,
+    &MARIS_STRECK,
 ];
 
 /// "Anarch Baron of Miami: During your influence phase, Gilbert can burn 1
@@ -2725,7 +2726,7 @@ pub static EULOGIO: VampireDef = VampireDef {
             Effect::DeclareAction(ActionKind::Ability),
             Effect::AddStealth(1),
             Effect::PayBlood(1),
-            Effect::ReorderTopThenUnlock(5),
+            Effect::ReorderTop { n: 5, unlock: true },
         ],
     )],
     ..VAMP
@@ -3453,7 +3454,7 @@ pub static BEAST: VampireDef = VampireDef {
 /// "Camarilla: Cards requiring Blood Sorcery [tha] cost Lord Tremere 1
 /// fewer blood. During your minion phase, you can lock or unlock another
 /// ready Tremere or Tremere antitribu. +2 bleed. +1 intercept." In torpor
-/// too (LSJ 20011022); any Methuselah's Tremere; as often as wished.
+/// too (LSJ 20011022); any Methuselah's Tremere.
 pub static LORD_TREMERE: VampireDef = VampireDef {
     name: "Lord Tremere",
     printed: &[
@@ -5082,8 +5083,9 @@ pub static AYELEA: VampireDef = VampireDef {
 /// "Independent: Bleed actions cost Marciana 1 additional blood. During an
 /// action, you can lock her and choose a non-Sabbat vampire to allow that
 /// vampire to burn 1 blood to get +1 intercept." Herself too, though she
-/// is locked then (LSJ 20100527); any number of times in the action (LSJ
-/// 20100604-2, LSJ 20100611); in torpor too (LSJ 20010813-2).
+/// is locked then (LSJ 20100527); the chosen vampire's burn available all
+/// the action (LSJ 20100604-2, LSJ 20100611), once (rules-qa 79.2); in
+/// torpor too (LSJ 20010813-2).
 pub static MARCIANA_GIOVANNI: VampireDef = VampireDef {
     name: "Marciana Giovanni, Investigator",
     printed: &[own(Stat::ActionCost, 1, &[R::IsBleed])],
@@ -5098,7 +5100,7 @@ pub static MARCIANA_GIOVANNI: VampireDef = VampireDef {
             &[Window::ActionDuring, Window::ReactionDuringAction],
             Actor::Host,
             &[R::HostUnlocked],
-            &[Effect::LockHost, Effect::TargetBurnsForInterceptThisAction],
+            &[Effect::LockHost, Effect::TargetBurnsBloodForIntercept],
         )
     }],
     ..VAMP
@@ -5427,7 +5429,8 @@ pub static VENERE_CARBONI: VampireDef = VampireDef {
 /// "Independent: While Nergal is acting, reaction cards cost +1 blood.
 /// During an action, he can burn 1 blood to get +1 stealth. Infernal."
 /// (Advanced.) A card of two types costs more only played as a reaction
-/// (PIB 20150924-2). The stealth when needed, as often as he burns.
+/// (PIB 20150924-2). The stealth when needed, once each action (rules-qa
+/// 6.6, 79.1).
 pub static NERGAL_ADV: VampireDef = VampireDef {
     name: "Nergal",
     adv: true,
@@ -5438,10 +5441,11 @@ pub static NERGAL_ADV: VampireDef = VampireDef {
         per: Per::One,
         requires: &[R::PlayedAsReaction, R::SourceActing],
     }],
-    abilities: &[mode_of(
+    abilities: &[ability(
         &[Window::ActionDuring],
         Actor::Host,
         &[R::HostBloodAtLeast(1), R::ActorActing, R::StealthNeeded],
+        Limit::PerAction,
         &[Effect::HostBurnBlood(1), Effect::AddStealth(1)],
     )],
     ..VAMP
@@ -7456,5 +7460,37 @@ pub static HELENA_MERGED: VampireDef = VampireDef {
     ],
     abilities: HELENA.abilities,
     levels: &["dai", "obt"],
+    ..VAMP
+};
+
+/// "Camarilla Malkavian Justicar: Maris can burn a blood to give a blocking
+/// minion +1 intercept. She can take a +1 stealth action to allow you to
+/// look at and rearrange the top 5 cards of your library." (Group 3, the
+/// contrast to "during": owner, 2026-10-17.) Any Methuselah's minion
+/// attempting to block, while it needs intercept (rules-qa 3.2); no
+/// "during": multiple times each action (LSJ 20020814, rules-qa 79.3);
+/// while locked (ANK 20220705), in torpor too (rules-digest D25). Justicar
+/// generated.
+pub static MARIS_STRECK: VampireDef = VampireDef {
+    name: "Maris Streck",
+    abilities: &[
+        mode_of(
+            &[Window::ActionStealthIntercept],
+            Actor::Host,
+            &[R::AnyAttemptNeedsIntercept, R::HostBloodAtLeast(1)],
+            &[Effect::HostBurnBlood(1), Effect::AttemptingIntercept(1)],
+        ),
+        printed_action(
+            None,
+            &[
+                Effect::DeclareAction(ActionKind::Ability),
+                Effect::AddStealth(1),
+                Effect::ReorderTop {
+                    n: 5,
+                    unlock: false,
+                },
+            ],
+        ),
+    ],
     ..VAMP
 };

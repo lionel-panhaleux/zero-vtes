@@ -25,7 +25,7 @@ readings, commit checklist): a round outlives one context window.
 Start from `python3 scripts/coverage.py <vtes.json> --twda <twda.json>
 [--demand <counts.json>]`: the pool's coverage by type (and by set with
 `--sets`), the TWDA decks in the pool and kept, and the ids players asked
-for most (the server's `/admin/unsupported` counts, from the 1.7.0 deploy
+for most (the server's `/admin/unsupported` counts, from the 1.8.0 deploy
 on: they need the admin token, so ask Z-main or the owner for the file —
 `curl -H "Authorization: Bearer $(cat ~/.config/zvtes/admin_token)"
 https://engine.krcg.org/admin/unsupported > demand.json`, run by whoever

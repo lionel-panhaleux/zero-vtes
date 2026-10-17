@@ -221,7 +221,6 @@ impl Effect {
             | E::HuntingGroundBlood(..)
             | E::HuntingGroundTwoOldest
             | E::AddInterceptX
-            | E::TargetBurnsForInterceptThisAction
             | E::RevealTopCard { .. }
             | E::RevealCryptTopForCopy { .. }
             | E::ActingControllerDiscardsAtRandom
@@ -507,7 +506,7 @@ impl Effect {
             | E::HuntAt(..)
             | E::BloodHuntIfHuntGained
             | E::RemoveActorToBurnTarget
-            | E::ReorderTopThenUnlock(..)
+            | E::ReorderTop { .. }
             | E::AllyFromAshLocked(..)
             | E::AshVampireToUncontrolled
             | E::CorruptTargetMayStealAtCapacity

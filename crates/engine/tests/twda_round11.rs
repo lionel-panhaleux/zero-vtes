@@ -365,6 +365,26 @@ fn nergal_advanced_burns_blood_for_stealth_when_needed() {
     assert_eq!(blood(&e, n), 3);
 }
 
+// Nergal (G5 ADV): "During an action, he can burn 1 blood to get +1
+// stealth": once each action (rules-qa 6.6, 79.1). Lord Tremere's +1
+// intercept still matches the 1 stealth burned for: no second burn.
+#[test]
+fn nergal_advanced_burns_blood_for_stealth_once_each_action() {
+    let mut e = game(2);
+    let adv = CRYPT
+        .iter()
+        .position(|c| c.name == "Nergal" && c.adv)
+        .expect("Nergal (ADV)") as u16;
+    let n = e.add_minion(SeatId(0), adv, 4, false);
+    e.add_minion(SeatId(0), plain("Brujah", 0), 4, false);
+    let z = e.add_minion(SeatId(1), find_card("Lord Tremere"), 4, false);
+    pick(&mut e, bleed(n));
+    pick_when(&mut e, block(z));
+    let stealth = own_use(n, 0, Target::None);
+    pick_when(&mut e, stealth);
+    never_offered_until(&mut e, SeatId(0), WindowLabel::MinionPhase, stealth);
+}
+
 // ---- Library cards ------------------------------------------------------------
 
 /// A crypt card of `clan` with capacity in `caps`, any text.

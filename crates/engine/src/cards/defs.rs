@@ -5999,7 +5999,7 @@ pub static ORGANIZED_RESISTANCE: CardDef = CardDef {
 /// "Only usable by a locked Gangrel. This Gangrel unlocks and attempts to
 /// block. During this action, this Gangrel can burn 1 blood to get +1
 /// intercept. Lock this Gangrel after action resolution if they did not
-/// block this action."
+/// block this action." The burn once (rules-qa 79.1).
 pub static EYES_OF_THE_WILD: CardDef = CardDef {
     name: "Eyes of the Wild",
     modes: &[unlock_attempt!(
@@ -26028,13 +26028,17 @@ pub static DIABOLIC_LURE: CardDef = CardDef {
 };
 
 /// Descent into Darkness's out-of-play vampire, in its controller's
-/// influence phase: 2 blood, and the return for this card.
-const DESCENT_BLOOD: ModeDef = mode_of(
-    &[Window::InfluencePhaseOwn],
-    Actor::Controller,
-    &[Requirement::HostOutOfPlay],
-    &[Effect::OutOfPlayHostGainsBlood(2)],
-);
+/// influence phase: 2 blood, and the return for this card, each its own use
+/// of the phase ("can gain 2 blood and you can choose to burn this card").
+const DESCENT_BLOOD: ModeDef = ModeDef {
+    limit: Some(Limit::PerPhaseEach),
+    ..mode_of(
+        &[Window::InfluencePhaseOwn],
+        Actor::Controller,
+        &[Requirement::HostOutOfPlay],
+        &[Effect::OutOfPlayHostGainsBlood(2)],
+    )
+};
 
 /// "+1 stealth action. [obt] Put this card on this vampire, then put this
 /// vampire and any other cards and counters on them out of play (breaking
@@ -26074,18 +26078,24 @@ pub static DESCENT_INTO_DARKNESS: CardDef = CardDef {
     ],
     abilities: &[
         DESCENT_BLOOD,
-        mode_of(
-            &[Window::InfluencePhaseOwn],
-            Actor::Controller,
-            &[Requirement::HostOutOfPlay, Requirement::CardMode(0)],
-            &[Effect::ReturnHost { unlocked: false }],
-        ),
-        mode_of(
-            &[Window::InfluencePhaseOwn],
-            Actor::Controller,
-            &[Requirement::HostOutOfPlay, Requirement::CardMode(1)],
-            &[Effect::ReturnHost { unlocked: true }],
-        ),
+        ModeDef {
+            limit: Some(Limit::PerPhaseEach),
+            ..mode_of(
+                &[Window::InfluencePhaseOwn],
+                Actor::Controller,
+                &[Requirement::HostOutOfPlay, Requirement::CardMode(0)],
+                &[Effect::ReturnHost { unlocked: false }],
+            )
+        },
+        ModeDef {
+            limit: Some(Limit::PerPhaseEach),
+            ..mode_of(
+                &[Window::InfluencePhaseOwn],
+                Actor::Controller,
+                &[Requirement::HostOutOfPlay, Requirement::CardMode(1)],
+                &[Effect::ReturnHost { unlocked: true }],
+            )
+        },
     ],
     ..CARD
 };

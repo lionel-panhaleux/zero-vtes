@@ -101,7 +101,7 @@ pub struct CryptCard {
 }
 
 #[rustfmt::skip]
-pub static CRYPT: [CryptCard; 626] = [
+pub static CRYPT: [CryptCard; 627] = [
     CryptCard {
         id: 201661,
         name: "\"Coach\" Tyrone Soros",
@@ -13861,6 +13861,28 @@ pub static CRYPT: [CryptCard; 626] = [
         disciplines: &["AUS", "CEL", "FOR", "PRE", "THA"],
         sect: Sect::Camarilla,
         title: Title::Votes(2),
+        merged_title: None,
+        adv: false,
+        path: None,
+        infernal: false,
+        black_hand: false,
+        seraph: false,
+        unique: true,
+        blood_cursed: false,
+        scarce: false,
+        sterile: false,
+        red_list: false,
+        circle: None,
+    },
+    CryptCard {
+        id: 200935,
+        name: "Maris Streck",
+        capacity: 9,
+        group: 3,
+        clan: "Malkavian",
+        disciplines: &["ani", "dem", "dom", "AUS", "OBF"],
+        sect: Sect::Camarilla,
+        title: Title::Justicar("Malkavian"),
         merged_title: None,
         adv: false,
         path: None,

@@ -120,8 +120,12 @@ Choosing a vampire as a master card is played *is* targeting (35.1, §3.5).
 **D7. "During X, … can …" is once per X** (per copy, per vampire): "during
 your turn" once a turn, "during your minion phase" once in it, "during an
 action / a bleed / a referendum" once in it — never repeatable while payable
-(6.6, 15.1, 15.2, 42.3, 42.9, 58.7, 60.6, 51.2). Read "during" in every
-ability's wording before choosing its limit. A "during" phase window is any
+(6.6, 15.1, 15.2, 42.3, 42.9, 58.7, 60.6, 51.2). "During" always means
+once (79.1: Eyes of the Wild, Nergal ADV corrected; Marciana's grant,
+79.2); the word decides: an ability without it is as often as paid (Maris
+Streck, 79.3). Two "during" clauses of one card are each once in the same
+span (Descent into Darkness's blood and return, 79.4). Read "during" in
+every ability's wording before choosing its limit. A "during" phase window is any
 time in that phase, inside actions and combats too (26.5). The advanced
 rules read no limit into "during" (advanced rules §1.2.1, §1.5.4); the
 owner's reading
@@ -1512,7 +1516,7 @@ Advanced rules §3.2 (stealth and intercept), §3.3 (blocking).
   (34.2); Monastery of Shadows' lock, by any Methuselah controlling it
   (50.4); Under My Skin's burn, in any later action (60.12); Bowl of
   Convergence (9.6); Shadow Cast's burn (24.5); Nergal (advanced)'s stealth
-  burn, repeatable (71.24); Mask of a Thousand Faces [OBF] (58.13); Mind of
+  burn, once each action (79.1); Mask of a Thousand Faces [OBF] (58.13); Mind of
   the Wilds [ANI][AUS] (64.5).
 - Exceptions by text: "even if … not yet needed" (Form of the Cobra
   [PRO], Paths in Two Worlds, Form of Mist's continuation, Creepshow
@@ -3111,7 +3115,9 @@ readings (vampires, allies, library cards) no mechanism section states.
 - Marciana Giovanni: "during an action, you can lock her" — any action, her
   Methuselah's or another's; the non-Sabbat vampire chosen any
   Methuselah's, herself included (LSJ 20100527); locking her during her own
-  attempt fails it (69.7).
+  attempt fails it (69.7); the chosen vampire burns once (79.2).
+- Maris Streck: no "during": her +1 intercept to any blocking minion as
+  often as she pays, locked too (79.3).
 - Ambrosio Luis Monçada's tax on directed actions: 69.8 (§8.3).
 - Zizi: "if /Viri/ is in your ready region"; Viri: "while /Zizi/ is in your
   ready region" — the controller's ready region; Rurik Rakoczy's "while
@@ -3708,8 +3714,9 @@ rules-qa batch.
 ### 23.3 rules-qa vs the advanced rules
 
 - **K11** "During X" is once per X (6.6, 15.2, 42.3, 58.7; the rulebook's
-  wording template "During X, do Y": one Y per X) vs advanced rules §1.2.1 (no
-  periodicity clause, no limit: Maris Streck) and §1.5.4 (abilities
+  wording template "During X, do Y": one Y per X; 79.1) vs advanced rules
+  §1.2.1 (no periodicity clause, no limit — its example, Maris Streck, has
+  no "during" and agrees, 79.3) and §1.5.4 (abilities
   repeatable within an action unless the text limits them: Corpse Minion,
   TOM 19960109, LSJ 20020814). The advanced rules lack the template; a judge
   reading them alone rules differently — **open** for the advanced rules (a

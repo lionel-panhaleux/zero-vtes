@@ -340,12 +340,10 @@ pub struct ActionCtx {
     /// Every minion whose block of this action succeeded ("if they did not
     /// block this action").
     pub blocked_by: Vec<MinionId>,
-    /// Minions that may burn blood for intercept this action (Eyes of the
-    /// Wild).
+    /// Minions that can burn 1 blood for +1 intercept this action, once
+    /// each grant ("during" is once, rules-qa 6.6, 79.1): Eyes of the Wild,
+    /// The Rumor Mill, Tabloid Newspaper, Marciana Giovanni's target.
     pub burn_for_intercept: Vec<MinionId>,
-    /// Vampires that "can burn 1 blood to get +1 intercept during that
-    /// action", once (The Rumor Mill, Tabloid Newspaper).
-    pub burn_for_intercept_once: Vec<MinionId>,
     /// Cards in play for this action only, burned as it ends (Into Thin
     /// Air).
     pub burn_at_end: Vec<CardId>,
@@ -1971,6 +1969,30 @@ impl Engine {
         // [pro]), then what it could still gain.
         let base = a.host_intercept(st, m) + a.given_intercept(m) + conditional;
         let mut total = self.printed_intercept_reach(seat, m);
+        // Burns for intercept granted, once each (rules-qa 79.1), and one a
+        // vampire ability could still grant (Marciana Giovanni).
+        let blood = st.minions[m.index()].blood;
+        let granted = a.burn_for_intercept.iter().filter(|&&x| x == m).count();
+        let grantable = st.minions[m.index()].is_vampire()
+            && st.minions.iter().enumerate().any(|(i, x)| {
+                let v = MinionId(i as u32);
+                x.present()
+                    && !x.locked
+                    && !st.seats[x.owner.index()].ousted
+                    && cards::vampire_of(x).is_some_and(|d| {
+                        d.abilities.iter().enumerate().any(|(ai, ab)| {
+                            ab.effects.contains(&Effect::TargetBurnsBloodForIntercept)
+                                && !a.abilities_used.contains(
+                                    &cards::AbilitySource::Vampire(v).action_key(ai as u8),
+                                )
+                        })
+                    })
+            });
+        total = total.saturating_add(
+            (granted + usize::from(grantable))
+                .min(blood as usize)
+                .min(u8::MAX as usize) as u8,
+        );
         for &card in &st.seats[seat.index()].hand {
             let Some(def) = cards::lookup(card) else {
                 continue;
@@ -2159,11 +2181,10 @@ impl Engine {
                         })
                         .sum::<u8>()
                 })
-                // The Rumor Mill: its controller's vampire with blood may be
-                // chosen to buy 1 intercept.
+                // The Rumor Mill: any vampire with blood may be chosen to buy
+                // 1 intercept, by a third party too (ANK 20200607).
                 .chain(def.abilities.iter().filter_map(|ab| {
                     (ab.effects.contains(&Effect::TargetBurnsBloodForIntercept)
-                        && controller == seat
                         && v.blood > 0
                         && v.is_vampire())
                     .then_some(1)
@@ -2176,22 +2197,29 @@ impl Engine {
     }
 
     /// An upper bound on the intercept `m` can get from abilities printed on
-    /// `seat`'s vampires: a use per blood burned (Oskar Anasov) or card
-    /// discarded (Abraham DuSable, on his own attempt), once per action for
-    /// "during an action" (rules-qa 15.2).
+    /// `seat`'s vampires, or any Methuselah's for "a blocking minion" (Maris
+    /// Streck): a use per blood burned or card discarded (Maris Streck, rules-qa
+    /// 79.3), once per action when so limited (rules-qa 15.2).
     fn printed_intercept_reach(&self, seat: SeatId, m: MinionId) -> u8 {
         let st = &self.state;
         let mut total = 0u8;
-        for v in st.minions_of(seat) {
+        let vampires = st
+            .minions
+            .iter()
+            .enumerate()
+            .filter(|(_, x)| x.present() && !st.seats[x.owner.index()].ousted)
+            .map(|(i, x)| (MinionId(i as u32), x.owner));
+        for (v, owner) in vampires {
             let Some(def) = cards::vampire_of(&st.minions[v.index()]) else {
                 continue;
             };
-            for (ai, ab) in def
-                .abilities
-                .iter()
-                .enumerate()
-                .filter(|(_, ab)| ab.windows.contains(&Window::ActionStealthIntercept))
-            {
+            for (ai, ab) in def.abilities.iter().enumerate().filter(|(_, ab)| {
+                ab.windows.contains(&Window::ActionStealthIntercept)
+                    && (owner == seat
+                        || ab
+                            .requires
+                            .contains(&cards::Requirement::AnyAttemptNeedsIntercept))
+            }) {
                 let per_use: u8 = ab
                     .effects
                     .iter()
@@ -2207,11 +2235,11 @@ impl Engine {
                 }
                 let uses = match ab.terms {
                     Some(cards::Terms::Discard { n, of }) => {
-                        (st.hand_picks(seat, of).len() / n.max(1) as usize).min(u8::MAX as usize)
+                        (st.hand_picks(owner, of).len() / n.max(1) as usize).min(u8::MAX as usize)
                             as u8
                     }
                     Some(cards::Terms::DiscardAny { of }) => {
-                        st.hand_picks(seat, of).len().min(u8::MAX as usize) as u8
+                        st.hand_picks(owner, of).len().min(u8::MAX as usize) as u8
                     }
                     _ if ab
                         .effects
@@ -2359,14 +2387,13 @@ impl Engine {
                 }
             }
         }
-        // Eyes of the Wild: burn 1 blood for +1 intercept, while its
-        // attempt needs intercept, as often as it pays; The Rumor Mill's
-        // chosen vampire, once.
+        // Burn 1 blood for +1 intercept while the attempt needs intercept,
+        // once each grant.
         if let ActionState::Attempt(m) = a.state {
             let v = &self.state.minions[m.index()];
             if v.owner == seat
                 && v.blood > 0
-                && (a.burn_for_intercept.contains(&m) || a.burn_for_intercept_once.contains(&m))
+                && a.burn_for_intercept.contains(&m)
                 && a.stealth(&self.state) > a.intercept_of(&self.state, m)
             {
                 options.push(Choice::BurnBloodForIntercept { minion: m });
@@ -2529,9 +2556,8 @@ impl Engine {
                 self.pay_block_toll(*minion, false);
             }
             Choice::BurnBloodForIntercept { minion } => {
-                if !a.burn_for_intercept.contains(minion) {
-                    a.burn_for_intercept_once.retain(|m| m != minion);
-                }
+                let i = a.burn_for_intercept.iter().position(|m| m == minion);
+                a.burn_for_intercept.remove(i.expect("granted"));
                 a.window.play();
                 a.intercept_given.push((*minion, 1));
                 self.state.minions[minion.index()].blood -= 1;
@@ -3540,7 +3566,7 @@ impl Engine {
             }
             Effect::TargetBurnsBloodForIntercept => {
                 if let Target::Minion(t) = play.target {
-                    a.burn_for_intercept_once.push(t);
+                    a.burn_for_intercept.push(t);
                 }
             }
             Effect::PoolIfAttemptingDoesNotBlock => {
@@ -5391,9 +5417,10 @@ impl Engine {
                                 self.remove_ally_from_game(acting);
                             }
                         }
-                        // Eulogio: the top cards reordered, then unlocked.
-                        Effect::ReorderTopThenUnlock(n) => {
-                            self.effect_unlock(acting);
+                        Effect::ReorderTop { n, unlock } => {
+                            if unlock {
+                                self.effect_unlock(acting);
+                            }
                             let total =
                                 (n as usize).min(self.state.seats[seat.index()].library.len());
                             if total > 1 {
