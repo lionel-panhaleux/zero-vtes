@@ -325,7 +325,8 @@ fn encode_as(e: &Engine, req: &DecisionRequest, v: Version, omniscient: bool) ->
         f[F_CAPACITY] = st.capacity_of(id).unwrap_or(0) as f32 / 11.0;
         f[F_LOCKED] = flag(m.locked);
         f[F_TORPOR] = flag(m.in_torpor);
-        f[F_CONTESTED] = flag(m.contested || m.title_contested);
+        // Out of play (Descent into Darkness) shares the face-down flag.
+        f[F_CONTESTED] = flag(m.contested || m.title_contested || m.out_of_play);
         f[F_TITLED] = flag(m.is_vampire() && st.title_of(id) != Title::None);
         f[F_ALLY] = flag(!m.is_vampire());
         f[F_TERM_CHOSEN] = flag(terms.is_some_and(|t| t.minions.contains(&id)));
@@ -373,7 +374,7 @@ fn encode_as(e: &Engine, req: &DecisionRequest, v: Version, omniscient: bool) ->
         f[F_REL + rel(st, viewer, st.card_controller(id)).min(SEATS - 1)] = 1.0;
         f[F_BLOOD] = c.counters as f32 / 10.0;
         f[F_LOCKED] = flag(c.locked);
-        f[F_CONTESTED] = flag(c.contested);
+        f[F_CONTESTED] = flag(c.contested || c.out_of_play);
         f[F_MODE] = c.mode as f32;
         f[F_MARKERS] = flag(c.effect_only);
         if let Some(t) = terms {

@@ -4003,7 +4003,7 @@ fuzz_tests! {
             per_seat(e, |c| has(c, "tem"), 4);
             per_seat(e, |c| has(c, "for"), 4);
         },
-        seeds: 200,
+        seeds: 300,
         ..BASE
     };
     /// Legacy cards for TWDA decks, round 14 (slice 16z): the vampires.
@@ -4104,6 +4104,156 @@ fuzz_tests! {
             }
         },
         seeds: 120,
+        ..BASE
+    };
+    /// Legacy cards for TWDA decks, round 15 (slice 16aa): the library cards.
+    random_games_with_twda_round_15a_hold_invariants_and_replay: Fixture {
+        slice: &[
+            "Arcanum Chapterhouse, Alexandria",
+            "Burnt Offerings",
+            "Corporal Reservoir",
+            "Curse of Nitocris",
+            "Derange",
+            "Descent into Darkness",
+            "Diabolic Lure",
+            "Domain of Evernight",
+            "Dual Form",
+            "Engling Fury",
+            "Eye of Hazimel",
+            "Flurry of Action",
+            "Hag's Wrinkles",
+            "Into Thin Air",
+            "Madness Network",
+            "Malkavian Dementia",
+            "Mantle of the Bestial Majesty",
+            "Mythic Form",
+            "Outside the Hourglass",
+            "Pocket Out of Time",
+            "Stunt Cycle",
+            "Taking the Skin: Minion",
+            "Tattoo Signal",
+            "Thrown Gate",
+            "Tye Cooper",
+            "Typhonic Beast",
+            // For Hag's Wrinkles' equip actions and Arcanum Chapterhouse's
+            // hunting grounds.
+            "Kevlar Vest",
+            ".44 Magnum",
+            "Flak Jacket",
+            "Base Hunting Ground",
+        ],
+        covers: &[
+            "play:Arcanum Chapterhouse, Alexandria",
+            "play:Burnt Offerings",
+            "play:Corporal Reservoir",
+            "play:Curse of Nitocris",
+            "play:Derange",
+            "play:Descent into Darkness",
+            "play:Domain of Evernight",
+            "play:Dual Form",
+            "play:Engling Fury",
+            "play:Eye of Hazimel",
+            "play:Flurry of Action",
+            "play:Hag's Wrinkles",
+            "play:Into Thin Air",
+            "play:Madness Network",
+            "play:Malkavian Dementia",
+            "play:Mantle of the Bestial Majesty",
+            "play:Mythic Form",
+            "play:Outside the Hourglass",
+            "play:Pocket Out of Time",
+            "play:Stunt Cycle",
+            "play:Tattoo Signal",
+            "play:Thrown Gate",
+            "play:Tye Cooper",
+            "play:Typhonic Beast",
+            "ability:Corporal Reservoir",
+            "ability:Descent into Darkness",
+            "ability:Eye of Hazimel",
+            "ability:Madness Network",
+            "play:Diabolic Lure",
+            "play:Taking the Skin: Minion",
+            "ability:Dual Form",
+            "ability:Derange",
+            "ability:Into Thin Air",
+            "ability:Pocket Out of Time",
+            "ability:Tattoo Signal",
+        ],
+        setup: |e, _| {
+            let has = |c: &CryptCard, d: &str| c.disciplines.iter().any(|x| x.eq_ignore_ascii_case(d));
+            per_seat(e, |c| c.clan.starts_with("Malkavian"), 4);
+            per_seat(e, |c| c.clan == "Giovanni", 4);
+            per_seat(e, |c| c.seraph || c.black_hand, 4);
+            per_seat(e, |c| c.infernal && has(c, "dai"), 4);
+            per_seat(e, |c| has(c, "obf") && has(c, "tem"), 4);
+            per_seat(e, |c| has(c, "obt") && has(c, "tem"), 4);
+            per_seat(e, |c| has(c, "pro"), 4);
+            per_seat(e, |c| has(c, "pot") && has(c, "ser"), 4);
+            per_seat(e, |c| has(c, "cel"), 4);
+            per_seat(e, |c| has(c, "aus"), 4);
+            per_seat(e, |c| has(c, "abo"), 4);
+            per_seat(e, |c| has(c, "for") || has(c, "spi"), 4);
+            per_seat(e, |c| has(c, "thn") || has(c, "obf"), 4);
+        },
+        seeds: 300,
+        ..BASE
+    };
+    /// Legacy cards for TWDA decks, round 15 (slice 16aa): the vampires.
+    random_games_with_twda_round_15b_hold_invariants_and_replay: Fixture {
+        // Dominate and Auspex cards for Edward Vignes and Katherine
+        // Stoddard, a master for Walker Grimes, a political action for
+        // Donald Cargill, Celerity for Shalmath's bar.
+        slice: &[
+            "Deflection",
+            "Eyes of Argus",
+            "Kine Resources Contested",
+            "Villein",
+            "Line Brawl",
+            "Political Ally",
+        ],
+        covers: &[
+            "ability:Abdelsobek",
+            "ability:Ghede",
+            "ability:Juniper",
+            "ability:Saul Meira",
+            "ability:Feo Ramos",
+            "ability:Shalmath",
+            "ability:Cybele",
+            "ability:Edward Vignes",
+            "ability:Iris Bennett",
+            "ability:Katherine Stoddard",
+            "ability:Bolesław Gutowski",
+        ],
+        setup: |e, _| {
+            named(
+                e,
+                &[
+                    "Abdelsobek",
+                    "Ghede",
+                    "Juniper",
+                    "Saul Meira",
+                    "Feo Ramos",
+                    "Shalmath",
+                    "Cybele",
+                    "Edward Vignes",
+                    "Iris Bennett",
+                    "Katherine Stoddard",
+                    "Bolesław Gutowski",
+                    "César Holfield",
+                    "Donald Cargill",
+                    "Lubomira Hradok",
+                    "Walker Grimes",
+                    "Skidmark",
+                    "Franciscus",
+                    "Appius Claudius Corvus",
+                    "Onaedo",
+                    "Tegyrius, Vizier",
+                ],
+            );
+            per_seat(e, |c| c.sect == zvtes::crypt::Sect::Sabbat && c.capacity >= 4, 4);
+            per_seat(e, |c| c.title != zvtes::crypt::Title::None, 4);
+        },
+        seeds: 100,
         ..BASE
     };
 }

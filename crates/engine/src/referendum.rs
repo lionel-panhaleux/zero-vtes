@@ -1965,6 +1965,7 @@ impl Engine {
                 if self.state.cards[c.index()].present()
                     && self.state.minions[m.index()].present()
                     && self.state.cards[c.index()].host != Some(m)
+                    && !self.state.pinned(c)
                     && self.state.can_hold(m, card, &[])
                 {
                     let owner = self.state.minions[m.index()].owner;
@@ -2248,9 +2249,10 @@ impl Engine {
             return;
         }
         let mut loss = vec![0i32; self.state.seats.len()];
+        let mut burns = Vec::new();
         for m in 0..self.state.minions.len() {
             let v = &self.state.minions[m];
-            if !v.ready() {
+            if !v.present() {
                 continue;
             }
             let s = v.owner;
@@ -2265,6 +2267,7 @@ impl Engine {
                         cards::Effect::PreyBurnsPool(n) => {
                             loss[self.state.prey(s).index()] += n as i32;
                         }
+                        cards::Effect::HostBurnBlood(n) => burns.push((MinionId(m as u32), n)),
                         other => unreachable!("not a referendum rider effect: {other:?}"),
                     }
                 }
@@ -2272,6 +2275,9 @@ impl Engine {
         }
         if loss.iter().any(|&n| n > 0) {
             self.burn_pool_batch(&loss);
+        }
+        for (m, n) in burns {
+            self.state.burn_blood(m, n);
         }
     }
 

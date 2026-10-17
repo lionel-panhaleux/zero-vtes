@@ -17,7 +17,7 @@ impl Engine {
             .minions
             .iter()
             .enumerate()
-            .filter(|(_, m)| m.owner == s && m.in_play)
+            .filter(|(_, m)| m.owner == s && m.in_play && !m.out_of_play)
             .flat_map(|(i, m)| {
                 let id = MinionId(i as u32);
                 let card = m.contested.then_some(Contest::Card(id));
@@ -146,7 +146,7 @@ impl Engine {
                 .map(|i| MinionId(i as u32))
                 .filter(|&o| {
                     let v = &self.state.minions[o.index()];
-                    o != m && v.in_play && v.name() == name
+                    o != m && v.in_play && !v.out_of_play && v.name() == name
                 })
                 .collect();
             for o in firsts {
@@ -165,6 +165,43 @@ impl Engine {
 
     /// A minion's card contest state; an ally's card in play follows it
     /// (face down and out of play with it: its text does not apply).
+    /// `m` put out of play with its cards (Descent into Darkness): they
+    /// leave their contests until they return (LSJ 20080816, rules-qa
+    /// 78.54); a rival left alone is uncontested.
+    pub(crate) fn leave_contests(&mut self, m: MinionId) {
+        for r in self.state.card_rivals(m) {
+            self.set_minion_contested(m, false);
+            if self.state.card_rivals(r).iter().all(|&o| o == m) {
+                self.set_minion_contested(r, false);
+                self.enter_title_contest(r);
+            }
+        }
+        if self.state.minions[m.index()].title_contested {
+            self.set_title_contested(m, false);
+            for r in self.state.title_rivals(m) {
+                if self.state.title_rivals(r).is_empty() {
+                    self.set_title_contested(r, false);
+                }
+            }
+        }
+        let on: Vec<CardId> = (0..self.state.cards.len())
+            .map(|i| CardId(i as u32))
+            .filter(|&c| self.state.cards[c.index()].out_of_play)
+            .filter(|&c| self.state.cards[c.index()].host == Some(m))
+            .collect();
+        for c in on {
+            if !self.state.cards[c.index()].contested {
+                continue;
+            }
+            self.state.cards[c.index()].contested = false;
+            for r in self.state.library_rivals(c) {
+                if self.state.library_rivals(r).is_empty() {
+                    self.state.cards[r.index()].contested = false;
+                }
+            }
+        }
+    }
+
     fn set_minion_contested(&mut self, m: MinionId, contested: bool) {
         self.state.minions[m.index()].contested = contested;
         if let Some(id) = self.state.minions[m.index()].ally_id() {

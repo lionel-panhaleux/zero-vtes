@@ -934,6 +934,66 @@ ADDED_BATCHES = [
         201456: "Vlad Tepes (G3)",
         201471: "Winterlich (G6)",
     },
+    # Round 15 (slice 16aa): the 2023-07-01 Promo set completed and the TWDA
+    # greedy's steps 1-8 (owner, 2026-10-16: "Steps 1-8 + Promo").
+    {
+        100082: "Arcanum Chapterhouse, Alexandria",
+        100272: "Burnt Offerings",
+        100425: "Corporal Reservoir",
+        100483: "Curse of Nitocris",
+        100527: "Derange",
+        100528: "Descent into Darkness",
+        100542: "Diabolic Lure",
+        100571: "Domain of Evernight",
+        100592: "Dual Form",
+        100643: "Engling Fury",
+        100678: "Eye of Hazimel",
+        100752: "Flurry of Action",
+        100877: "Hag's Wrinkles",
+        101001: "Into Thin Air",
+        101139: "Madness Network",
+        101150: "Malkavian Dementia",
+        101161: "Mantle of the Bestial Majesty",
+        101262: "Mythic Form",
+        101338: "Outside the Hourglass",
+        101405: "Pocket Out of Time",
+        101888: "Stunt Cycle",
+        101928: "Taking the Skin: Minion",
+        101946: "Tattoo Signal",
+        101982: "Thrown Gate",
+        102053: "Tye Cooper",
+        102054: "Typhonic Beast",
+        200005: "Abdelsobek (G5)",
+        200124: "Appius Claudius Corvus (G5)",
+        200208: "Bloodfeud (G4)",
+        200261: "César Holfield (G4)",
+        200305: "Cybele (G4)",
+        200336: "Denette Stensen (G4)",
+        200365: "Donald Cargill (G5)",
+        200396: "Earl (G3)",
+        200403: "Edward Vignes (G3)",
+        200462: "Feo Ramos (G3)",
+        200477: "Franciscus (G2)",
+        200480: "Frank Litzpar (G4)",
+        200512: "Ghede (G6)",
+        200587: "Helena (G3 ADV)",
+        200641: "Iris Bennett (G5)",
+        200660: "Jackson Asher (G4)",
+        200691: "Jephta Hester (G4)",
+        200738: "Juniper (G4)",
+        200764: "Katherine Stoddard (G3)",
+        200812: "Lana Butcher (G3)",
+        200865: "Lubomira Hradok (G5)",
+        201074: "Old Neddacka (G4)",
+        201082: "Onaedo (G4)",
+        201247: "Saul Meira (G5)",
+        201274: "Shalmath (G6)",
+        201295: "Skidmark (G4)",
+        201462: "Walker Grimes (G5)",
+        201525: "Bituin (G6)",
+        201528: "Bolesław Gutowski (G6)",
+        201654: "Tegyrius, Vizier (G6)",
+    },
 ]
 ADDED_CARDS = {k: v for batch in ADDED_BATCHES for k, v in batch.items()}
 
@@ -1068,6 +1128,10 @@ RIDERS = [
     r"can (also )?strike(, ranged)?:[^.]*",                          # granted strike ability
     r"(can|could) prevent \d[^.]*",                       # granted prevention
     r"can burn this card to prevent[^.]*",                # granted prevention (Wall of Filth)
+    # A strike's own prevention, resolved with it, and the opposing
+    # minion's burn against it (Stunt Cycle): no window of their own.
+    r"\band prevent \d damage from the opposing minion's strike[^.]*",
+    r"can burn \d blood to prevent all damage from this strike",
     # A card in play burned for votes (Propaganda of the Deed): no play
     # window.
     r"can burn this card during the polling step[^.]*",
@@ -1146,6 +1210,8 @@ MODIFIER_TIMING = [
     # "Only usable after a combat resulting from a block" (Shadow Boxing
     # [OBF][POT]).
     (r"after a combat resulting from a block", "ACTION_AFTER_COMBAT"),
+    # "Usable after combat" (Pocket Out of Time [TEM]).
+    (r"\busable after combat\b", "ACTION_AFTER_COMBAT"),
     (r"would be successful", "ACTION_WOULD_BE_SUCCESSFUL"),
     (r"only usable after (the )?(action )?resol", "ACTION_AFTER_RESOLUTION"),
     # "Only usable after a successful directed action" (Marked Path).
@@ -1180,6 +1246,9 @@ REACTION_TIMING = [
      "ACTION_AS_ANNOUNCED"),
     (r"polling step|during (a|the|this) referendum", "REFERENDUM"),
     (r"reduce (a|the) bleed", "REACTION_DURING_ACTION"),   # legality: a bleed against you
+    # "Only usable if a minion controlled by your predator successfully
+    # bleeds you" (Burnt Offerings [AUS]): the bleed resolved.
+    (r"successfully bleeds you", "ACTION_AFTER_RESOLUTION"),
     # "Only usable if this vampire is about to enter combat with an acting
     # … vampire" (Obedience): the block made, before its resolution; or the
     # blocks declined, before the combat the action begins (owner,
@@ -1188,7 +1257,9 @@ REACTION_TIMING = [
     (r"about to enter combat with", "ACTION_BLOCKS_DECLINED"),
     # "Only usable if this vampire blocks an ally or younger vampire,
     # before block resolution" (Mental Maze): the block made.
-    (r"if this \w+ blocks [^.]{0,40}?before block resolution", "ACTION_BLOCKED"),
+    # "Only usable if this vampire blocks, before block resolution"
+    # (Diabolic Lure [dai]).
+    (r"if this \w+ blocks\b[^.]{0,40}?before block resolution", "ACTION_BLOCKED"),
     # An out-of-turn master triggered by the opposing strike (Rötschreck).
     (r"attempts to inflict aggravated damage", "COMBAT_BEFORE_RESOLUTION"),
     # An out-of-turn master saving a Methuselah from an oust (Life Boon).
@@ -1369,6 +1440,11 @@ def modes_for(card):
             # Cover): a strike or combat effect is the combat card's.
             combat = re.search(r"\b(strike|combat|range|maneuver|press|damage)\b", mtext, re.I)
             mts = ["Combat" if combat else "Action Modifier"]
+            # "Play when this vampire burns a minion" (Taking the Skin:
+            # Minion): in combat or by the action, as Predator's
+            # Transformation [ABO] (LSJ 20090922).
+            if re.search(r"when this vampire burns a minion", mtext, re.I):
+                mts = ["Action Modifier", "Combat"]
         else:
             mts = mode_types
         # Not an in-play lock ability ("Lock this card to cancel …"); a lock
@@ -1395,7 +1471,7 @@ def modes_for(card):
         if "WAKE" in mwins:
             mwins.append("CARD_AS_PLAYED")          # rules-qa 2.4
         if "COMBAT_STRIKE_DECLARATION" in mwins and \
-                re.search(r"with \d optional maneuver", raw_text, re.I):
+                re.search(r"with (?:\d|an) optional maneuver", raw_text, re.I):
             mwins.append("COMBAT_DETERMINE_RANGE")  # maneuver rider commits the strike
             flags.append("maneuver_rider")
             # "As above, with 1 optional maneuver" after a mode without one

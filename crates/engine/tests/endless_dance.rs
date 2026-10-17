@@ -565,3 +565,20 @@ fn reinforcements_shuffles_ash_cards_back_and_leaves_the_game() {
         .contains(&find_library("Reinforcements")));
     let _ = ActionKind::Bleed;
 }
+
+// Confiscation against Eye of Hazimel ("while the bearer is ready, this
+// equipment cannot be moved or stolen", rules-qa 78.42): it passes, the Eye
+// stays.
+#[test]
+fn confiscation_cannot_take_eye_of_hazimel_off_a_ready_bearer() {
+    let (mut e, francois) = table("François Villon");
+    let z = e.add_minion(SeatId(1), plain("Brujah", 1), 4, false);
+    hand(&mut e, 0, &["Confiscation"]);
+    let eye = in_play(&mut e, 1, "Eye of Hazimel", Some(z));
+    pick(&mut e, play(0, 0, francois));
+    pick(&mut e, Choice::ChooseMinion(francois));
+    pick_when(&mut e, Choice::CastCardVote { favor: true });
+    close_polling(&mut e);
+    request(&mut e);
+    assert_eq!(e.state.cards[eye.index()].host, Some(z));
+}

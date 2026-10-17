@@ -462,6 +462,8 @@ engine masks), `cards/mod.rs` (the vocabulary: `Window`, `Actor`,
   controller's) and `settle_burn_to_prevent` (Superior Mettle's offer each
   later round, `Side::burn_to_prevent` and `burn_to_prevent_asked`,
   `Interrupt::MayPreventForBlood`).
+- A hand over size waits for no pending choice but a draw's own
+  (`Engine::discards_first`, read in `raw_request` and `apply`).
 
 ### 6.3 Turn and phases
 
@@ -511,6 +513,11 @@ engine masks), `cards/mod.rs` (the vocabulary: `Window`, `Actor`,
 - "During X, do Y" abilities are once per that phase per copy (`phase_uses`,
   rules-qa 6.6); an ability spending a resource with no "during" clause
   (`DiscardPhaseAction`, `Transfers`) is limited only by the resource.
+- A temporarily controlled minion returns through `return_temporary`: its
+  owner set back first, then removed if that Methuselah is ousted (the
+  taker's cards on it burn, `remove_minion`). Malkavian Dementia's
+  (`Minion::temp_until_unlock`) returns as its taker's unlock phase opens;
+  Puppet Master's at the turn's end.
 
 ### 6.4 Card plays
 
@@ -553,6 +560,14 @@ engine masks), `cards/mod.rs` (the vocabulary: `Window`, `Actor`,
   `play_options`. A card mode's `Requirement::ActorBloodAtLeast` (a burn
   it asks for, ANK 20210226) is read beyond the cost as it would be paid,
   surcharges included, in the offer's affordability.
+- A burned acting minion is offered as no card's actor
+  (`actor_candidates`: a blood hunt's diablerist plays nothing after
+  resolution). The burn option reads a card's printed trait requirement
+  (`cards::trait_requirements`: a Seraph, an infernal or an unmerged
+  advanced vampire). `GameState::master_surcharge_on` folds Walker Grimes's
+  `Stat::MasterTargetingCostsYou` into the haven surcharge. Skidmark's
+  `Stat::HoldsReplacementsWhileActing` (`holds_replacements_of`) holds every
+  card his controller plays during his action until it ends.
 
 ### 6.5 Actions
 
@@ -651,6 +666,15 @@ engine masks), `cards/mod.rs` (the vocabulary: `Window`, `Actor`,
   (`recruits_or_employs_riders`) follows a recruit or employ's success and
   `EmployNamed` (Baba Yaga: `Effect::MayUnlockOncePerTurn`,
   `Interrupt::MayUnlock`, `state::once_unlock_key`).
+- `ActionCtx::unlock_on_success` (Hag's Wrinkles), `burn_at_end` (Into
+  Thin Air on the vampire for the action, burned in `finish_action`) and
+  `ash_to_hand_on_name` (Tye Cooper: the named ash card on success, a Pass
+  offered). `Minion::extra_bleeds` lifts the once-a-turn bleed cap
+  (`may_bleed`, `mark_bled` at every bleed-cap site: Taking the Skin).
+  Madness Network's off-turn actions: `GameState::acts_out_of_turn`, also
+  read by Mask of a Thousand Faces. `burn_blocking_clan` lets a clan block
+  the burn of its card (Madness Network). `GameState::predator_keeping`
+  keeps an acting seat ousted mid-action as the predator it was.
 
 ### 6.6 Block loop
 
@@ -822,6 +846,17 @@ engine masks), `cards/mod.rs` (the vocabulary: `Window`, `Actor`,
   (Sanguine Entrapment). A ranged strike's bonuses (`combat::ranged_bonus`:
   `Stat::RangedStrikeDamage`, `RangedStrikeSteal`, The Dracon) are read by
   `CombatCtx::strike_hit` and the retainer arms alike.
+- Before-range damage (`Side::pre_range`, Outside the Hourglass [TEM]) is
+  staged by `stage_pre_range_damage` as range opens and by
+  `end_combat_now`, aggravated under Domain of Evernight; that round's
+  Weather Control damage joins it in the same window (`CombatCtx::
+  weather_staged`, added after prevention; `weather_round` keeps it from
+  landing twice). `Side::combat_strike` (Mythic Form's strike once each
+  round), `round_normal_prevents` (its and Typhonic Beast's prevention each
+  round), `Effect::ShieldFromOpposingStrike` (after `resolve_strikes_noted`)
+  and `Effect::OpposingCelerityMayBurnToPrevent` (Stunt Cycle, through
+  `Interrupt::MayPreventForBlood`). `Side::combat_damage` counts the damage
+  taken in the combat for `Stat::BurnedOverCombatDamage` (Franciscus).
 
 ### 6.8 Referendums
 
@@ -957,6 +992,22 @@ engine masks), `cards/mod.rs` (the vocabulary: `Window`, `Actor`,
   `ActionCtx::slave`): the slave fights the blocker, the acting vampire
   unlocked, the block riders dropped, no `held_at_block` (Sniper Rifle,
   ANK 20200115).
+- Out of play (`Minion::out_of_play`, `CardInPlay::out_of_play`, read by
+  `present()`; `in_play` stays true, so a site reading it excludes them):
+  Descent into Darkness's `Engine::descend` and `ascend` (temporary control
+  broken, the card to its permanent controller; its contests left through
+  `leave_contests` and entered again on return).
+  Dual Form's copy (`Minion::copy_of`: capacity and the 34
+  `cards::DISCIPLINE_KEYS` levels fixed at resolution; `capacity_less` on the
+  original; `dual_of` links them, `burn_dual_forms` burns the rest as one
+  leaves ready, `about_to_leave_ready`); a minion's discipline level is
+  `own_printed_level` plus `granted_level`. Derange's `Minion::deranged`
+  (clan and sect as played, read by `clan()` and `underlying_sect()`, moved
+  with the card, cleared in `card_leaves_play`). Diabolic Lure's
+  `Minion::pact` and `made_infernal` (read by `is_infernal` and
+  `unlocks_as_infernal`). `GameState::immune_non_aggravated` (Tye Cooper) in
+  `apply_damage` and `damage_out_of_combat`; `GameState::is_seraph` reads the
+  crypt's Seraph trait.
 
 ### 6.11 Cards in play
 
@@ -1020,6 +1071,9 @@ engine masks), `cards/mod.rs` (the vocabulary: `Window`, `Actor`,
   `SectHuntToCapacity`: Festivo's top-up in `successful_hunt_riders`) and
   for the controller's minions (`Modifier::OwnMinionsStat`, in
   `bearer_mods`: Esprit de Corps).
+- Curse of Nitocris passes with the Edge (`Effect::TargetSeatTakesCard`,
+  `ControllerGivesCard`, `Interrupt::GiveCardTo`). Arcanum Chapterhouse's
+  `Effect::BurnPoolPerHuntingGround` with `RiderScope::PredatorOrPrey`.
 
 ### 6.12 Printed vampire text
 
@@ -1110,6 +1164,11 @@ engine masks), `cards/mod.rs` (the vocabulary: `Window`, `Actor`,
   barred from equipment (`GameState::equipment_barred`, set with the
   combat's flags by `Side::bar_equipment`, cleared by
   `GameState::leave_combat`) loses the Disciplines its equipment gives (rules-qa 76.16).
+- `GameState::pinned` (Eye of Hazimel, not moved or stolen while its
+  bearer is ready) is read by `ActorMayHoldTarget`, equip-from,
+  `holdable_equipment` (Heidelberg Castle), Redistribution's moves and
+  Confiscation's take; its burn
+  damages the bearer (`Effect::BurnedDamagesBearer` in `burn_card_in_play`).
 
 ### 6.14 Replacement, hand size, draws, searches
 

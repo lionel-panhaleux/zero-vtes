@@ -130,8 +130,8 @@ impl Requirement {
             | R::NoAimYet
             | R::HandNotEmpty
             | R::CryptNotEmpty
-            | R::GehennaInPlay(..)
             | R::ActorBurnedPreyMinion
+            | R::ActorBurnedMinion
             | R::ControlsReadyClan(..)
             | R::OwnReadyClanWithBlood(..)
             | R::ActingVampire
@@ -188,6 +188,10 @@ impl Requirement {
             | R::ActorHoldsFewer(..)
             | R::PreyAshHasPair
             | R::ActorInfernal
+            | R::ActorSeraph
+            | R::IsEquipAction
+            | R::LastCombatantsReady
+            | R::NotPlayedThisAction(..)
             | R::UncontrolledAtLeast(..)
             | R::OwnAshNotEmpty
             | R::PreyAshNotEmpty
@@ -279,11 +283,11 @@ impl Requirement {
             | R::HostBelowStartingLife
             | R::HostBloodAtMost(..)
             | R::HostInTorpor
+            | R::HostDidNotHunt
             | R::HostControllerActive
             | R::OwnCombatantOtherCopy
             | R::HostReady
-            | R::HostVampire
-            | R::HostUnlocked => &[S::Host],
+            | R::HostVampire => &[S::Host],
             R::HostCombatOpposingVampireNotReady
             | R::HostUsedDisciplines(..)
             | R::FewerCopiesUsedThisPhase(..)
@@ -295,7 +299,7 @@ impl Requirement {
             | R::EnteredBeforeThisTurn
             | R::EnteredBeforeThisAction
             | R::HostNoCopyOfControllers
-            | R::ActionTargetsHost
+            | R::HostOutOfPlay
             | R::LifeAtLeast(..)
             | R::BoonTargetActive
             | R::FewerCopiesThanReadyOfClan(..) => &[S::Card],
@@ -431,7 +435,7 @@ impl Requirement {
             | R::OpponentSubtype(..)
             | R::ReadyNamed(..)
             | R::OwnReadyNamed(..) => &[S::Play, S::Printed],
-            R::HostLocked => &[S::Host, S::Printed],
+            R::HostLocked | R::HostUnlocked => &[S::Host, S::Printed],
             R::HostClan(..) | R::HostDiscipline(..) => &[S::Card, S::Host],
             R::CountersAtLeast(..) | R::CountersAtMost(..) | R::CardMode(..) | R::BasicVersion => {
                 &[S::Card, S::Rider]
@@ -449,11 +453,15 @@ impl Requirement {
             | R::TargetClan(..) => &[S::MinionTarget, S::UncontrolledTarget],
             // A card's host or a vampire's own (Dive into Madness, Mustafa).
             R::ActorOlderThanHost => &[S::Engine(Site::AbilityGate)],
+            R::ActingIsHost => &[
+                S::Engine(Site::AbilityGateCard),
+                S::Engine(Site::AbilityGate),
+            ],
+            R::ActionTargetsHost => &[S::Card, S::Engine(Site::AbilityGate)],
             R::ActorIsChosen
             | R::ActorOfByCircle
             | R::ActingIsBy
             | R::BleedAgainstHostController
-            | R::ActingIsHost
             | R::ActorIsHost
             | R::CardControllersTurn
             | R::YouControlThisCard
@@ -484,6 +492,10 @@ impl Requirement {
             | R::CanAttemptBlockAnyone
             | R::MayBeLocked => &[S::Engine(Site::PlayOptions)],
             R::BlockedByOlder => &[S::Engine(Site::VampireRider(Hook::HostBlocked))],
+            R::BledControlsReadyTitled => {
+                &[S::Engine(Site::VampireRider(Hook::OwnBleedSuccessful))]
+            }
+            R::GehennaInPlay(..) => &[S::Play, S::Host],
             R::PlayedActionCardAtYour(..) => &[S::Play, S::Engine(Site::AsPlayed)],
             R::CardUnlocked | R::CardLocked => &[S::Card, S::Engine(Site::AbilityGateCard)],
             R::ReferendumToBurnThisCard => &[S::Card],
@@ -518,6 +530,7 @@ pub fn implied_requirement(payer: Actor, cost: Effect) -> Option<Requirement> {
     match cost {
         Effect::LockSelf => Some(Requirement::CardUnlocked),
         Effect::LockHost => Some(Requirement::HostUnlocked),
+        Effect::BurnActorBlood(n) => Some(Requirement::ActorBloodAtLeast(n)),
         Effect::HostBurnBlood(n) | Effect::HostBurnLife(n) => Some(match payer {
             Actor::AnyReadyVampire | Actor::ActingMinion => Requirement::ActorBloodAtLeast(n),
             _ => Requirement::HostBloodAtLeast(n),
@@ -562,7 +575,8 @@ mod tests {
             | Actor::OpposingCombatant
             | Actor::ActingMinion
             | Actor::Host
-            | Actor::ForOwnCombatant => vec![Card, Host, Play],
+            | Actor::ForOwnCombatant
+            | Actor::UnlockedOutOfCombat => vec![Card, Host, Play],
             Actor::ActingCandidate => vec![Host, Play],
             _ => return None,
         };
@@ -624,8 +638,13 @@ mod tests {
         if hook == Hook::EntersPlay {
             return None;
         }
-        let reader = if hook.reads_action(true) { Play } else { Host };
-        Some(vec![reader, Engine(Site::VampireRider(hook))])
+        let mut readers = if hook.reads_action(true) {
+            vec![Play, Host]
+        } else {
+            vec![Host]
+        };
+        readers.push(Engine(Site::VampireRider(hook)));
+        Some(readers)
     }
 
     #[derive(Default)]

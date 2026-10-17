@@ -801,3 +801,29 @@ id,name,types,disciplines,in_precon,windows,flags,needs_review,review
 101924,Tabriz Assembly,Master,,no,MASTER_PHASE,in_play_action,,ok
 101935,Tangle Atropos' Hand,Action Modifier,tem/pot,no,ACTION_BLOCK_ATTEMPT,,,ok
 101944,Taste of Death,Combat,qui,no,COMBAT_STRIKE_DECLARATION,,,ok
+100082,"Arcanum Chapterhouse, Alexandria",Master,,no,MASTER_PHASE,in_play_action,,ok
+100272,Burnt Offerings,Reaction,aus,no,ACTION_STEALTH_INTERCEPT;ACTION_AFTER_RESOLUTION,,,corrected
+100425,Corporal Reservoir,Master,,no,MASTER_PHASE,trifle,,ok
+100483,Curse of Nitocris,Master,,no,MASTER_PHASE,,,ok
+100527,Derange,Action,,no,ACTION_DECLARE,in_play_action,,ok
+100528,Descent into Darkness,Action,obt,no,ACTION_DECLARE,,,ok
+100542,Diabolic Lure,Reaction,dai/aus,no,REACTION_DURING_ACTION;ACTION_BLOCKED,,,corrected
+100571,Domain of Evernight,Action Modifier,tem/obf,no,ACTION_STEALTH_INTERCEPT;ACTION_DURING;ACTION_AFTER_RESOLUTION,,yes,ok
+100592,Dual Form,Action,pro,no,ACTION_DECLARE,,,ok
+100643,Engling Fury,Action,spi/for,no,ACTION_DECLARE,,,ok
+100678,Eye of Hazimel,Equipment,,no,ACTION_DECLARE_EQUIP,in_play_action,,ok
+100752,Flurry of Action,Action,cel,no,ACTION_DECLARE,,,ok
+100877,Hag's Wrinkles,Action Modifier,thn/obf,no,ACTION_STEALTH_INTERCEPT;ACTION_DURING,,,ok
+101001,Into Thin Air,Action Modifier,obf,no,ACTION_STEALTH_INTERCEPT,delayed_replacement,,ok
+101139,Madness Network,Master,,no,MASTER_PHASE,in_play_action,,ok
+101150,Malkavian Dementia,Master,,no,MASTER_PHASE,,,ok
+101161,Mantle of the Bestial Majesty,Action,pro,no,ACTION_DECLARE,,,ok
+101262,Mythic Form,Combat,pro,no,COMBAT_BEFORE_RANGE,,,ok
+101338,Outside the Hourglass,Combat,tem/obf,no,COMBAT_STRIKE_DECLARATION;COMBAT_DETERMINE_RANGE;COMBAT_BEFORE_RANGE,maneuver_rider,yes,ok
+101405,Pocket Out of Time,Action Modifier,tem/obt,no,ACTION_STEALTH_INTERCEPT;ACTION_AFTER_COMBAT,,,corrected
+101888,Stunt Cycle,Combat,pot,no,COMBAT_STRIKE_DECLARATION,,,corrected
+101928,Taking the Skin: Minion,Action Modifier/Combat,abo,no,CARD_AS_PLAYED;ACTION_AFTER_RESOLUTION;COMBAT_END_OF_ROUND,cancel_as_played,yes,corrected
+101946,Tattoo Signal,Action,,no,ACTION_DECLARE,,,ok
+101982,Thrown Gate,Combat,pot,no,COMBAT_STRIKE_DECLARATION;COMBAT_DETERMINE_RANGE,maneuver_rider,,corrected
+102053,Tye Cooper,Ally,,no,ACTION_DECLARE_RECRUIT,in_play_action,,ok
+102054,Typhonic Beast,Combat,pot/ser,no,COMBAT_BEFORE_RANGE,,,ok

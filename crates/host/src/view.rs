@@ -460,6 +460,7 @@ impl Build<'_> {
             (MarkerKind::Hostage, m.hostage),
             (MarkerKind::Nightmare, m.nightmare),
             (MarkerKind::Torture, m.torture),
+            (MarkerKind::Pact, m.pact),
         ] {
             if n > 0 {
                 markers.push(marker(kind, n));
@@ -476,6 +477,7 @@ impl Build<'_> {
             (MarkerKind::Disease, m.disease),
             (MarkerKind::TitleContested, m.title_contested),
             (MarkerKind::Expelled, m.expelled),
+            (MarkerKind::OutOfPlay, m.out_of_play),
         ] {
             if on {
                 markers.push(Marker {
@@ -531,6 +533,7 @@ fn traits(st: &zvtes::state::GameState, m: MinionId) -> Vec<Trait> {
         (st.blood_cursed(m), Trait::BloodCursed),
         (printed(|c| c.scarce), Trait::Scarce),
         (printed(|c| c.sterile), Trait::Sterile),
+        (st.is_seraph(m), Trait::Seraph),
     ]
     .into_iter()
     .filter_map(|(has, t)| has.then_some(t))
@@ -815,13 +818,20 @@ mod tests {
                     c.blood_cursed,
                     c.scarce,
                     c.sterile,
+                    c.seraph,
                 ];
                 t(c) && all.iter().filter(|&&b| b).count() == 1
             })
         };
         e.add_minion(SeatId(0), only(|c| c.black_hand), 4, false);
         let plain = crypt(|c| {
-            !(c.black_hand || c.infernal || c.red_list || c.blood_cursed || c.scarce || c.sterile)
+            !(c.black_hand
+                || c.infernal
+                || c.red_list
+                || c.blood_cursed
+                || c.scarce
+                || c.sterile
+                || c.seraph)
         });
         let gained = e.add_minion(SeatId(0), plain, 4, false);
         e.state.minions[gained.index()].gained_black_hand = true;

@@ -1,6 +1,6 @@
-/* zvtes protocol 1.7.0 (docs/protocol.md): generated from
+/* zvtes protocol 1.8.0 (docs/protocol.md): generated from
  * crates/api/schema.json by scripts/gen_ts.py, do not edit. */
-export const PROTOCOL_VERSION = '1.7.0'
+export const PROTOCOL_VERSION = '1.8.0'
 
 /**
  * A command as sent: an optional client id, echoed by an `error` it
@@ -803,6 +803,8 @@ export type MarkerKind =
     | 'corruption'
     | 'effect'
     | 'red_list_mark'
+    | 'pact'
+    | 'out_of_play'
     | 'unknown'
 
 export type MinionKind = 'vampire' | 'ally' | 'token' | 'created' | 'unknown'
@@ -1017,6 +1019,7 @@ export type Purpose =
     | 'may_prevent_for_blood'
     | 'shortfall_picks'
     | 'may_unlock'
+    | 'give_card_to'
     | 'give_blood'
     | 'move_between'
     | 'diablerie_equipment'
@@ -1325,7 +1328,15 @@ export type Title = {
  * A minion's trait (rulebook "Traits"), printed or gained; a trait
  * with a parameter (Slave, a circle) is not one of them.
  */
-export type Trait = 'black_hand' | 'infernal' | 'red_list' | 'blood_cursed' | 'scarce' | 'sterile' | 'unknown'
+export type Trait = 
+    | 'black_hand'
+    | 'infernal'
+    | 'red_list'
+    | 'blood_cursed'
+    | 'scarce'
+    | 'sterile'
+    | 'seraph'
+    | 'unknown'
 
 export type Views = 'decisions' | 'steps'
 

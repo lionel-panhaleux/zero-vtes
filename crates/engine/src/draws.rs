@@ -30,6 +30,9 @@ pub enum Interrupt {
         seat: SeatId,
         minion: crate::ids::MinionId,
     },
+    /// Curse of Nitocris: `seat`, its controller, picks the Methuselah,
+    /// any, who takes control of `card`.
+    GiveCardTo { seat: SeatId, card: CardId },
     /// Public Vilification short of blood: `seat` picks, one blood at a
     /// time, which of the vampires allotted it receive from `from`.
     ShortfallPicks {
@@ -39,8 +42,8 @@ pub enum Interrupt {
         /// `Copy`.
         to: [Option<crate::ids::MinionId>; 8],
     },
-    /// Superior Mettle [FOR]: `minion` may burn `n` blood to prevent the
-    /// opposing initial strike's damage this round.
+    /// Superior Mettle [FOR], Stunt Cycle's opponent: `minion` may burn `n`
+    /// blood to prevent the opposing strike's damage this round.
     MayPreventForBlood {
         seat: SeatId,
         minion: crate::ids::MinionId,
@@ -540,6 +543,7 @@ impl Interrupt {
             | Interrupt::MayPreventForBlood { seat, .. }
             | Interrupt::ShortfallPicks { seat, .. }
             | Interrupt::MayUnlock { seat, .. }
+            | Interrupt::GiveCardTo { seat, .. }
             | Interrupt::StealUpTo { seat, .. }
             | Interrupt::MoveBloodUpTo { seat, .. }
             | Interrupt::PurgePick { seat, .. }
@@ -1093,6 +1097,7 @@ impl Engine {
                 Interrupt::MayUnlock { minion, .. } => {
                     present(minion) && self.state.minions[minion.index()].locked
                 }
+                Interrupt::GiveCardTo { card, .. } => self.state.cards[card.index()].present(),
                 Interrupt::MayPreventForBlood { minion, n, .. } => {
                     present(minion)
                         && self.state.minions[minion.index()].blood >= n
@@ -1749,6 +1754,7 @@ impl Engine {
                                     self.state
                                         .equipment_on(m)
                                         .into_iter()
+                                        .filter(|&c| !self.state.pinned(c))
                                         .map(|c| Choice::ChooseCard(c.0)),
                                 );
                             }
@@ -1893,6 +1899,14 @@ impl Engine {
                 WindowLabel::ResolutionChoice,
                 vec![Choice::Pass, Choice::ResolvePrinted { minion }],
             ),
+            Interrupt::GiveCardTo { .. } => (
+                WindowLabel::ResolutionChoice,
+                (0..st.seats.len())
+                    .map(|i| SeatId(i as u8))
+                    .filter(|s| !st.seats[s.index()].ousted)
+                    .map(Choice::ChooseSeat)
+                    .collect(),
+            ),
             Interrupt::BeastDisciplines { minion, .. } => {
                 let chosen = st.minions[minion.index()].beast_disciplines;
                 (
@@ -1928,9 +1942,17 @@ impl Engine {
             ),
             Interrupt::NameOwnAshCard { seat, of } => (
                 WindowLabel::ResolutionChoice,
-                crate::state::distinct(&st.seats[seat.index()].ash, |c| of.matches(c))
+                // "You can" (Tye Cooper): none too.
+                self.action
+                    .as_ref()
+                    .is_some_and(|a| a.ash_to_hand_on_name)
+                    .then_some(Choice::Pass)
                     .into_iter()
-                    .map(Choice::FindCard)
+                    .chain(
+                        crate::state::distinct(&st.seats[seat.index()].ash, |c| of.matches(c))
+                            .into_iter()
+                            .map(Choice::FindCard),
+                    )
                     .collect(),
             ),
             Interrupt::NameSlotPair { seat, of, from } => (
@@ -2280,9 +2302,42 @@ impl Engine {
         }
     }
 
+    /// Dual Form: a vampire or its copy leaving the ready region, the
+    /// others of the set are burned, whatever chain they form (LSJ
+    /// 20050117); their burning does not burn it again.
+    fn burn_dual_forms(&mut self, ms: &[crate::ids::MinionId]) {
+        for &m in ms {
+            let st = &self.state;
+            if !st.minions[m.index()].ready() || st.linked_leaving.contains(&m) {
+                continue;
+            }
+            let root = st.minions[m.index()].dual_of.unwrap_or(m);
+            let others: Vec<crate::ids::MinionId> = (0..st.minions.len())
+                .map(|i| crate::ids::MinionId(i as u32))
+                .filter(|&o| {
+                    o != m
+                        && (o == root || st.minions[o.index()].dual_of == Some(root))
+                        && st.minions[o.index()].present()
+                        && !st.linked_leaving.contains(&o)
+                })
+                .collect();
+            if others.is_empty() {
+                continue;
+            }
+            self.state.linked_leaving.push(m);
+            for o in others {
+                if self.state.minions[o.index()].present() {
+                    self.burn_minion(o);
+                }
+            }
+            self.state.linked_leaving.retain(|&x| x != m);
+        }
+    }
+
     /// Minions about to leave the ready region: the cards on them that pay
     /// for it offer their pool (Priority Contract).
     pub(crate) fn about_to_leave_ready(&mut self, ms: &[crate::ids::MinionId]) {
+        self.burn_dual_forms(ms);
         for &m in ms {
             if !self.state.minions[m.index()].ready() {
                 continue;
@@ -2395,14 +2450,16 @@ impl Engine {
     }
 
     /// The equipment on `from` that `to` could hold (LSJ 19980831: not on
-    /// a vampire barred from it).
+    /// a vampire barred from it), not pinned to it (Eye of Hazimel).
     fn holdable_equipment(&self, from: MinionId, to: MinionId) -> Vec<CardId> {
         self.state
             .equipment_on(from)
             .into_iter()
-            .filter(|c| {
-                self.state
-                    .can_hold(to, self.state.cards[c.index()].card, &[])
+            .filter(|&c| {
+                !self.state.pinned(c)
+                    && self
+                        .state
+                        .can_hold(to, self.state.cards[c.index()].card, &[])
             })
             .collect()
     }
@@ -3037,9 +3094,17 @@ impl Engine {
                 self.state.cards[on.index()].stored_owner = Some(prey);
                 self.state.taken_across += 1;
             }
-            (Interrupt::NameOwnAshCard { .. }, Choice::FindCard(card)) => {
+            (Interrupt::NameOwnAshCard { seat, .. }, Choice::FindCard(card)) => {
                 self.interrupts.remove(0);
-                self.action.as_mut().expect("action").ash_named = Some(card);
+                let a = self.action.as_mut().expect("action");
+                a.ash_named = Some(card);
+                if std::mem::take(&mut a.ash_to_hand_on_name) {
+                    self.ash_named_to_hand(seat, Some(card));
+                }
+            }
+            (Interrupt::NameOwnAshCard { .. }, Choice::Pass) => {
+                self.interrupts.remove(0);
+                self.action.as_mut().expect("action").ash_to_hand_on_name = false;
             }
             (Interrupt::NameAshVampire { .. }, Choice::AshVampire(card)) => {
                 self.interrupts.remove(0);
@@ -3628,6 +3693,10 @@ impl Engine {
             (Interrupt::MayGainPool { seat, n, .. }, Choice::ResolvePrinted { .. }) => {
                 self.interrupts.remove(0);
                 self.state.seats[seat.index()].pool += n as i32;
+            }
+            (Interrupt::GiveCardTo { card, .. }, Choice::ChooseSeat(to)) => {
+                self.interrupts.remove(0);
+                self.give_card_control(card, to);
             }
             (Interrupt::MayUnlock { minion, .. }, Choice::ResolvePrinted { .. }) => {
                 self.interrupts.remove(0);

@@ -536,6 +536,7 @@ fn asked(
         (P::CancelAttempt, K::ChooseMinion) => "Cancel the attempt".into(),
         (P::CancelAttempt, K::Pass) => "Keep the attempt".into(),
         (P::CorruptionOwner, K::ChooseSeat) => role("their counter burns")?,
+        (P::GiveCardTo, K::ChooseSeat) => role("takes control of it")?,
         (P::AvoidDamage, K::Pass) => format!("Take the {} damage", about?.m?),
         (P::AvoidDamage, K::BurnBloodToAvoid) => {
             format!("Burn {} blood to avoid the damage", about?.n?)

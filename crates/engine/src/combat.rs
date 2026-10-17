@@ -218,6 +218,17 @@ pub struct Side {
     pub aggravated_hands_combat: bool,
     /// Blood burned to damage this round (Taste of Vitae).
     pub lost_to_damage: u8,
+    /// Damage landed on it this combat, every round (Franciscus).
+    pub combat_damage: u8,
+    /// Damage the opposing minion inflicts on it before range, mended as
+    /// the before-range window closes (Outside the Hourglass [TEM]).
+    pub pre_range: u8,
+    /// Damage of the opposing strike its own strike prevents as they
+    /// resolve (Stunt Cycle).
+    pub strike_shield: u8,
+    /// It may burn n blood to prevent the opposing strike's damage this
+    /// round, if it has Celerity [cel] (Stunt Cycle's opponent).
+    pub celerity_burn_prevent: Option<u8>,
     pub pending: Damage,
     /// The prevention offer is open (closes on a pass).
     pub preventing: bool,
@@ -328,6 +339,15 @@ pub struct Side {
     pub weapons_harmless: bool,
     /// A strike this minion can choose this round (Hunger of Marduk).
     pub round_strike: Option<StrikeKind>,
+    /// `round_strike` is good for one strike this round (Mythic Form).
+    pub round_strike_once: bool,
+    /// A strike it can use once each round of this combat (Mythic Form
+    /// [PRO]): each round's `round_strike`, once.
+    pub combat_strike: Option<StrikeKind>,
+    /// Non-aggravated damage it can prevent this round, at will (Mythic
+    /// Form), and each round of the combat.
+    pub round_normal_prevents: u8,
+    pub normal_prevent_each_round: u8,
     /// Environmental damage the opposing minion takes each round, this
     /// combat (Carrion Crows); `environmental_close` at close range only
     /// (Dark Steel).
@@ -537,6 +557,7 @@ impl Side {
         *self = Self {
             strength_set: self.strength_set,
             strength_mods: self.strength_mods,
+            combat_damage: self.combat_damage,
             combat_maneuvers: self.combat_maneuvers,
             combat_presses: self.combat_presses,
             long_maneuvers: self.long_maneuvers,
@@ -569,6 +590,11 @@ impl Side {
             aggravated_hands_combat: self.aggravated_hands_combat,
             prevent_each_round: self.prevent_each_round,
             strikes_each_round: self.strikes_each_round,
+            combat_strike: self.combat_strike,
+            round_strike: self.combat_strike,
+            round_strike_once: self.combat_strike.is_some(),
+            normal_prevent_each_round: self.normal_prevent_each_round,
+            round_normal_prevents: self.normal_prevent_each_round,
             no_strike_cards_round: self.no_strike_cards_round,
             combat_prevents: self.combat_prevents,
             round_prevents: self.prevent_each_round,
@@ -634,6 +660,9 @@ pub struct CombatCtx {
     /// Damage dealt in the end-of-round window awaits prevention (Pulled
     /// Fangs): the window resumes after it.
     pub end_of_round_damage: bool,
+    /// Pre-range damage awaits prevention (Outside the Hourglass): the
+    /// before-range step then closes.
+    pub pre_range_damage: bool,
     /// A would-end replacement started a new round.
     pub continued: bool,
     /// Card names played per minion, for `Limit::PerRound` / `PerCombat`.
@@ -644,6 +673,11 @@ pub struct CombatCtx {
     /// Weather Control this combat: the round it was played and whether
     /// its damage grows each subsequent round.
     pub weather: Vec<(u8, bool)>,
+    /// The round Weather Control's damage was dealt or staged, and the
+    /// amount staged with the pre-range damage (one window, rules-qa
+    /// 78.32): applied after prevention, unpreventable.
+    pub weather_round: u8,
+    pub weather_staged: u8,
     /// "All damage inflicted on vampires during the resulting combat is
     /// aggravated" (Dawn Operation).
     pub all_aggravated: bool,
@@ -845,6 +879,10 @@ impl CombatCtx {
                 aggravated: s.aggravated_hands
                     || printed
                     || s.aggravated_strike
+                    || st.minions[s.minion.index()]
+                        .timed
+                        .iter()
+                        .any(|&(l, ..)| l == cards::Lasting::AggravatedHands)
                     || action.is_some_and(|a| a.aggravated_hands && a.acting == s.minion),
             },
             StrikeKind::Melee { bonus, aggravated } => {
@@ -1513,6 +1551,7 @@ impl Engine {
                 // The round's allowance covers this minion only, not its
                 // retainers.
                 if (side.round_prevents > 0 || side.combat_prevents > 0) && side.pending.total() > 0
+                    || side.round_normal_prevents > 0 && side.pending.normal > 0
                 {
                     options.push(Choice::UsePrevent);
                 }
@@ -1685,6 +1724,9 @@ impl Engine {
             }
             (Step::ChooseStrike(i), Choice::RoundStrike { at }) => {
                 let k = c.sides[i].round_strike;
+                if std::mem::take(&mut c.sides[i].round_strike_once) {
+                    c.sides[i].round_strike = None;
+                }
                 c.sides[i].set_strike(k);
                 c.sides[i].strike_at = *at;
                 c.sides[i].chosen = true;
@@ -1706,6 +1748,17 @@ impl Engine {
             (Step::ChooseStrike(i), Choice::Play { .. }) => Some(c.sides[i].seat),
             (Step::Prevent(i), Choice::Pass) => {
                 c.sides[i].preventing = false;
+                None
+            }
+            // The narrower allowance first (Mythic Form: non-aggravated only).
+            (Step::Prevent(i), Choice::UsePrevent)
+                if c.sides[i].round_normal_prevents > 0 && c.sides[i].pending.normal > 0 =>
+            {
+                c.sides[i].round_normal_prevents -= 1;
+                let before = c.sides[i].pending;
+                c.sides[i].pending.prevent(1, false);
+                let by = c.sides[i].seat;
+                c.settle_source(i, before, false, by, Some(i));
                 None
             }
             (Step::Prevent(i), Choice::UsePrevent) => {
@@ -1925,6 +1978,9 @@ impl Engine {
         let c = self.combat.as_mut().expect("combat context");
         match step {
             Step::BeforeRange => {
+                if self.stage_pre_range_damage() {
+                    return;
+                }
                 if self.weather_damage() {
                     return;
                 }
@@ -1949,6 +2005,15 @@ impl Engine {
             Step::ChooseStrike(_) => c.fresh_window(Step::BeforeResolution),
             Step::BeforeResolution => {
                 self.resolve_strikes_noted();
+                // Stunt Cycle: the prevention its strike carries, used up
+                // in this resolution (RTR 20041202, ANK 20200318).
+                let c = self.combat.as_mut().expect("combat context");
+                for s in &mut c.sides {
+                    let n = std::mem::take(&mut s.strike_shield);
+                    if n > 0 {
+                        s.prevent_strike(n, true);
+                    }
+                }
                 self.after_prevention_or_next();
             }
             Step::Prevent(i) => {
@@ -2011,6 +2076,39 @@ impl Engine {
         }
     }
 
+    /// The pre-range damage the combatants inflicted (Outside the Hourglass
+    /// [TEM]), all of it prevented and mended together as the before-range
+    /// effects are done (ANK 20170930): staged for prevention. True when
+    /// staged.
+    fn stage_pre_range_damage(&mut self) -> bool {
+        let c = self.combat.as_mut().expect("combat context");
+        if c.sides.iter().all(|s| s.pre_range == 0) {
+            return false;
+        }
+        for i in 0..2 {
+            let n = std::mem::take(&mut c.sides[i].pre_range);
+            let (to, from) = (c.sides[i].minion, c.sides[1 - i].minion);
+            let n = n.saturating_sub(self.state.damage_reduction(to, from));
+            if n > 0 {
+                c.sides[i].pending.normal += n;
+                c.sides[i].preventing = true;
+            }
+        }
+        c.others_prevented = false;
+        c.pre_range_damage = true;
+        // Weather Control's damage this round joins it (rules-qa 78.32).
+        let n = weather_amount(c);
+        if n > 0 && c.weather_round != c.round {
+            c.weather_round = c.round;
+            c.weather_staged = n;
+        }
+        // Dawn Operation, Domain of Evernight [tem]: aggravated (ANK
+        // 20220114).
+        self.aggravate_vampires();
+        self.after_prevention_or_next();
+        true
+    }
+
     /// After strike resolution: the acting side prevents first, then the
     /// opponent; then all damage applies at once (spec §4.5.4).
     fn after_prevention_or_next(&mut self) {
@@ -2036,6 +2134,11 @@ impl Engine {
                 return;
             }
         }
+        let staged =
+            std::mem::take(&mut self.combat.as_mut().expect("combat context").weather_staged);
+        if staged > 0 {
+            self.weather_hits(staged);
+        }
         if self.marble_clamp() {
             return;
         }
@@ -2046,6 +2149,12 @@ impl Engine {
         // Damage dealt at the end of the round (Pulled Fangs): back to it.
         if std::mem::take(&mut c.end_of_round_damage) {
             c.fresh_window(Step::EndOfRound);
+            return;
+        }
+        // Pre-range damage mended: the before-range step closes on.
+        if std::mem::take(&mut c.pre_range_damage) {
+            c.step = Step::BeforeRange;
+            self.combat_advance();
             return;
         }
         // Anesthetic Touch: its strike resolved, the combat ends; a strike
@@ -2202,6 +2311,24 @@ impl Engine {
             return;
         };
         let s = &c.sides[i];
+        // Stunt Cycle: "if the opposing minion has Celerity [cel], he or she
+        // can burn 1 blood to prevent all damage from this strike".
+        if let Some(n) = s.celerity_burn_prevent {
+            let m = s.minion;
+            if s.preventing
+                && s.strike_damage.total().min(s.pending.total()) > 0
+                && self.state.has_discipline(m, "cel")
+                && !self.state.minions[m.index()].is_ally()
+                && self.state.minions[m.index()].blood >= n
+            {
+                let seat = s.seat;
+                c.sides[i].celerity_burn_prevent = None;
+                self.interrupts
+                    .push(crate::draws::Interrupt::MayPreventForBlood { seat, minion: m, n });
+                return;
+            }
+        }
+        let s = &c.sides[i];
         let Some((from, n)) = s.burn_to_prevent else {
             return;
         };
@@ -2292,14 +2419,18 @@ impl Engine {
     /// 20190725). True when the flow moved on.
     pub(crate) fn weather_damage(&mut self) -> bool {
         let c = self.combat.as_mut().expect("combat context");
-        let n: u8 = c
-            .weather
-            .iter()
-            .map(|&(from, escalate)| 1 + if escalate { c.round - from } else { 0 })
-            .sum();
-        if n == 0 {
+        let n = weather_amount(c);
+        if n == 0 || c.weather_round == c.round {
             return false;
         }
+        c.weather_round = c.round;
+        self.weather_hits(n);
+        self.apply_damage()
+    }
+
+    /// Weather Control's `n` on each combatant and its retainers.
+    fn weather_hits(&mut self, n: u8) {
+        let c = self.combat.as_mut().expect("combat context");
         let minions = [c.sides[0].minion, c.sides[1].minion];
         for s in &mut c.sides {
             s.pending.add(n, false);
@@ -2323,7 +2454,6 @@ impl Engine {
         for r in lifeless {
             self.burn_card_in_play(r);
         }
-        self.apply_damage()
     }
 
     /// The pair of strikes resolved, noted for a narrator when notes are on
@@ -3074,6 +3204,17 @@ impl Engine {
     /// "Damage Resolution"). True when the flow moved on: a rider (Fame)
     /// ousted a Methuselah (`combat_ousts`).
     pub(crate) fn apply_damage(&mut self) -> bool {
+        // Immune to non-aggravated damage: none inflicted (Tye Cooper).
+        let c = self.combat.as_mut().expect("combat context");
+        for s in &mut c.sides {
+            if self.state.immune_non_aggravated(s.minion) {
+                s.pending.normal = 0;
+                s.pending.gun = 0;
+                s.unpreventable = 0;
+                s.strike_damage.normal = 0;
+                s.strike_damage.gun = 0;
+            }
+        }
         // Retainers burn life for the damage left on them (aggravated alike,
         // rulebook "Damage Resolution"); gone or moved by now, no effect.
         let c = self.combat.as_mut().expect("combat context");
@@ -3136,12 +3277,23 @@ impl Engine {
             let from_strikes = d.min(c.sides[i].strike_damage.total()) + c.sides[i].unpreventable;
             let d = d + std::mem::take(&mut c.sides[i].unpreventable);
             c.sides[i].damaged_round |= d > 0;
+            c.sides[i].combat_damage = c.sides[i].combat_damage.saturating_add(d);
             c.sides[i].strike_damage = Damage::default();
             c.sides[1 - i].inflicted_round += from_strikes;
         }
         let mut wounded = Vec::new();
         let mut burned = Vec::new();
-        for (s, r) in c.sides.iter_mut().zip(results) {
+        // "Burned (without going into torpor) if he takes more than n damage
+        // during a single combat" (Franciscus).
+        let over = c.sides.each_ref().map(|s| {
+            let cap = self.state.printed_mod(
+                s.minion,
+                cards::Stat::BurnedOverCombatDamage,
+                crate::state::PrintedCtx::default(),
+            );
+            cap > 0 && s.combat_damage as i32 > cap
+        });
+        for ((s, r), over) in c.sides.iter_mut().zip(results).zip(over) {
             let m = &mut self.state.minions[s.minion.index()];
             m.blood -= r.blood_burned;
             s.lost_to_damage += r.blood_burned;
@@ -3150,7 +3302,7 @@ impl Engine {
             // Sent to torpor by the strike (Touch of Oblivion [OBL]): a
             // vampire wounded, an ally burned.
             let sent = std::mem::take(&mut s.sent_to_torpor);
-            if r.burned || (sent && m.is_ally()) {
+            if r.burned || over || (sent && m.is_ally()) {
                 burned.push(s.minion);
             } else if r.wounded || sent {
                 wounded.push(s.minion);
@@ -3264,14 +3416,20 @@ impl Engine {
     /// no strike resolves nor prevention, the end-of-round window still
     /// opens (advanced rules §4.7.2, §4.9).
     pub(crate) fn end_combat_now(&mut self) {
-        // Ended before range is determined: Weather Control's damage still
-        // lands (LSJ 19971110, ANK 20190725).
-        if self
+        let before_range = self
             .combat
             .as_ref()
-            .is_some_and(|c| c.step == Step::BeforeRange)
-            && self.weather_damage()
-        {
+            .is_some_and(|c| c.step == Step::BeforeRange);
+        let pre_range = before_range
+            && self
+                .combat
+                .as_ref()
+                .is_some_and(|c| c.sides.iter().any(|s| s.pre_range > 0));
+        // Ended before range is determined: Weather Control's damage still
+        // lands (LSJ 19971110, ANK 20190725), and the combatants' (Outside
+        // the Hourglass; ANK 20180104), the weather then with the
+        // before-range step's close.
+        if before_range && !pre_range && self.weather_damage() {
             return;
         }
         self.discard_held(false);
@@ -3283,6 +3441,10 @@ impl Engine {
             s.committed = None;
             s.additional = 0;
         }
+        if pre_range && self.stage_pre_range_damage() {
+            return;
+        }
+        let c = self.combat.as_mut().expect("combat context");
         c.fresh_window(Step::EndOfRound);
     }
 
@@ -3875,6 +4037,11 @@ impl Engine {
                 s.marble = Some(aggravated || s.marble == Some(true));
             }
             Effect::WeatherDamage { escalate } => c.weather.push((c.round, escalate)),
+            Effect::PreRangeDamage(n) => c.sides[1 - i].pre_range += n,
+            Effect::ShieldFromOpposingStrike(n) => c.sides[i].strike_shield += n,
+            Effect::OpposingCelerityMayBurnToPrevent(n) => {
+                c.sides[1 - i].celerity_burn_prevent = Some(n)
+            }
             // Pulled Fangs: not strike damage, offered to prevention before
             // it lands, the end of the round then resumed (rules-qa 74.1);
             // on a vampire sent to torpor this round too (74.13); one
@@ -3955,6 +4122,17 @@ impl Engine {
             Effect::EnvironmentalDamage { n, close: false } => c.sides[i].environmental += n,
             Effect::EnvironmentalDamage { n, close: true } => c.sides[i].environmental_close += n,
             Effect::RoundStrike(k) => c.sides[i].round_strike = Some(k),
+            Effect::StrikeOnceEachRound(k) => {
+                let s = &mut c.sides[i];
+                s.combat_strike = Some(k);
+                s.round_strike = Some(k);
+                s.round_strike_once = true;
+            }
+            Effect::PreventNonAggravatedEachRound(n) => {
+                let s = &mut c.sides[i];
+                s.normal_prevent_each_round += n;
+                s.round_normal_prevents += n;
+            }
             Effect::SetRange(r) => {
                 if !c.range_set {
                     c.range = r;
@@ -4254,6 +4432,15 @@ fn weapon_strike(st: &GameState, c: &mut CombatCtx, i: usize, w: CardId, n: u8) 
         c.abilities_used.push(key);
         c.sides[i].continue_presses += 1;
     }
+}
+
+/// Weather Control's damage this round: 1 a copy, growing each round after
+/// it for [THA].
+fn weather_amount(c: &CombatCtx) -> u8 {
+    c.weather
+        .iter()
+        .map(|&(from, escalate)| 1 + if escalate { c.round - from } else { 0 })
+        .sum()
 }
 
 #[cfg(test)]

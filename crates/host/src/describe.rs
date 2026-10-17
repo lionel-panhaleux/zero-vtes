@@ -1093,6 +1093,10 @@ pub fn about(e: &Engine, req: &DecisionRequest, names: &impl Names) -> Option<Ab
                 minion: m(minion),
                 ..a()
             },
+            I::GiveCardTo { card: c, .. } => About {
+                card: card(c),
+                ..a()
+            },
         });
     }
     match req.window {

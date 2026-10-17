@@ -156,6 +156,9 @@ def generate(cards):
     out.append("    pub infernal: bool,")
     out.append("    /// \"Black Hand.\" (Elimelech): a trait cards read.")
     out.append("    pub black_hand: bool,")
+    out.append("    /// \"Seraph.\" (Appius Claudius Corvus): a Black Hand trait, not a")
+    out.append("    /// title (KRCG gives none); Tattoo Signal requires one.")
+    out.append("    pub seraph: bool,")
     out.append("    /// Unique, unless printed \"Non-unique.\" (Valkyrie) or \"Tupdogs are not")
     out.append("    /// unique.\" (Tupdog): copies of a")
     out.append("    /// non-unique vampire do not contest.")
@@ -201,6 +204,7 @@ def generate(cards):
         flag = lambda b: "true" if b else "false"
         out.append(f"        infernal: {flag(re.search(r'(^|[.:] )Infernal\.', text))},")
         out.append(f"        black_hand: {flag(re.search(r'(^|[.:] )Black Hand[.:]', text))},")
+        out.append(f"        seraph: {flag(re.search(r'(^|[.:] )Seraph[.:]', text))},")
         # "Non-unique." (Valkyrie) or "Tupdogs are not unique." (Tupdog).
         out.append(f"        unique: {flag(not re.search(r'(^|[.:] )(Non-unique|[A-Z]\w*s are not unique)\.', text))},")
         out.append(f"        blood_cursed: {flag(re.search(r'(^|[.:] )Blood cursed\.', text, re.I))},")

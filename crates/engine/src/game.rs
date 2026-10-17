@@ -876,12 +876,16 @@ impl Engine {
     fn raw_request(&self) -> Option<DecisionRequest> {
         let st = &self.state;
         // Draws first: a hand is discarded down once its draws are done
-        // (Heart of Nizchetus: "without discarding").
-        if let Some(req) = self.interrupt_request() {
-            return Some(req);
-        }
-        if let Some(req) = self.ousting_request() {
-            return Some(req);
+        // (Heart of Nizchetus: "without discarding"); any other choice
+        // pending waits for the discard, at once (rulebook "Drawing Cards":
+        // Flurry of Action's draw before Curse of Nitocris's pick).
+        if !self.discards_first() {
+            if let Some(req) = self.interrupt_request() {
+                return Some(req);
+            }
+            if let Some(req) = self.ousting_request() {
+                return Some(req);
+            }
         }
         if let Some(s) = self.discard_down_seat() {
             return Some(DecisionRequest {
@@ -961,12 +965,24 @@ impl Engine {
         }
     }
 
+    /// A hand over size waits for no pending choice but a draw's own.
+    fn discards_first(&self) -> bool {
+        self.discard_down_seat().is_some()
+            && self.interrupt_request().is_some_and(|r| {
+                !matches!(
+                    r.window,
+                    WindowLabel::Draw | WindowLabel::BottomCards | WindowLabel::DiscardDown
+                )
+            })
+    }
+
     fn apply(&mut self, choice: &Choice) {
-        if !self.interrupts.is_empty() {
+        let discards_first = self.discards_first();
+        if !self.interrupts.is_empty() && !discards_first {
             self.interrupt_apply(choice);
             return;
         }
-        if self.ousting.as_ref().is_some_and(|o| !o.playing) {
+        if self.ousting.as_ref().is_some_and(|o| !o.playing) && !discards_first {
             self.ousting_apply(choice);
             return;
         }
@@ -1597,7 +1613,23 @@ impl Engine {
                 return;
             }
         }
+        // Eye of Hazimel: unpreventable environmental damage on the bearer.
+        let c = &self.state.cards[id.index()];
+        let hit = c.host.zip(cards::lookup(c.card).and_then(|d| {
+            d.modes
+                .iter()
+                .flat_map(|md| md.effects)
+                .find_map(|e| match e {
+                    cards::Effect::BurnedDamagesBearer(n) => Some(*n),
+                    _ => None,
+                })
+        }));
         self.card_leaves_play(id, false);
+        if let Some((h, n)) = hit {
+            if self.state.minions[h.index()].present() {
+                self.damage_out_of_combat(h, n, false);
+            }
+        }
     }
 
     /// Remove a (non-minion) card in play from the game (Ashur Tablets):
@@ -1658,6 +1690,13 @@ impl Engine {
         if !c.in_play {
             return;
         }
+        // Derange gone: back to the underlying clan and sect (RTR 20201130).
+        for m in &mut self.state.minions {
+            if m.deranged.is_some_and(|(.., d)| d == id) {
+                m.deranged = None;
+            }
+        }
+        let c = &mut self.state.cards[id.index()];
         c.in_play = false;
         let removed = removed || c.removed_when_burned;
         let (owner, card, copy) = (c.owner, c.card, *c.copy);
@@ -1935,6 +1974,7 @@ impl Engine {
                                 });
                             }
                         }
+                        cards::Effect::HostBurnBlood(n) => self.state.burn_blood(m, n),
                         other => unreachable!("not a minion-phase-end rider effect: {other:?}"),
                     }
                 }
@@ -2070,16 +2110,14 @@ impl Engine {
             let Some(back) = m.temp_from.filter(|_| m.owner == s && m.in_play) else {
                 continue;
             };
+            if m.temp_until_unlock {
+                continue;
+            }
             if m.temp_skip > 0 {
                 self.state.minions[i].temp_skip -= 1;
                 continue;
             }
-            self.state.minions[i].temp_from = None;
-            if self.state.seats[back.index()].ousted {
-                self.remove_minion(MinionId(i as u32));
-            } else {
-                self.state.minions[i].owner = back;
-            }
+            self.return_temporary(i, back);
         }
         // Dreams of the Sphinx's hand size (LSJ 20100812).
         self.state.seats[s.index()].timed.expire(Expiry::EndOfTurn);
@@ -2090,6 +2128,67 @@ impl Engine {
             }
         }
         self.next_turn();
+    }
+
+    /// Descent into Darkness: `m`, its cards but `card` and its counters out
+    /// of play, temporary control broken — it and `card` to its permanent
+    /// controller (LSJ 20040526).
+    pub(crate) fn descend(&mut self, m: MinionId, card: CardId) {
+        if let Some(back) = self.state.minions[m.index()].temp_from {
+            let v = &mut self.state.minions[m.index()];
+            v.temp_from = None;
+            v.temp_until_unlock = false;
+            v.temp_skip = 0;
+            v.owner = back;
+        }
+        let owner = self.state.minions[m.index()].owner;
+        self.state.cards[card.index()].controller = owner;
+        self.about_to_leave_ready(&[m]);
+        self.state.minions[m.index()].out_of_play = true;
+        for (i, c) in self.state.cards.iter_mut().enumerate() {
+            if c.in_play && c.host == Some(m) && i != card.index() {
+                c.out_of_play = true;
+            }
+        }
+        self.leave_contests(m);
+    }
+
+    /// Back from Descent into Darkness: `m` and its cards in play, the
+    /// cards unlocked (LSJ 20060908), `m` unlocked or locked, `card`
+    /// burned.
+    pub(crate) fn ascend(&mut self, m: MinionId, card: CardId, unlocked: bool) {
+        let v = &mut self.state.minions[m.index()];
+        v.out_of_play = false;
+        v.locked = !unlocked;
+        let mut back = Vec::new();
+        for (i, c) in self.state.cards.iter_mut().enumerate() {
+            if c.host == Some(m) && c.out_of_play {
+                c.out_of_play = false;
+                c.locked = false;
+                back.push(CardId(i as u32));
+            }
+        }
+        self.burn_card_in_play(card);
+        // Back in its contests, its titles' too (rules-qa 78.54).
+        self.enter_card_contest(m);
+        self.enter_title_contest(m);
+        for c in back {
+            self.enter_library_contest(c);
+        }
+    }
+
+    /// Minion `i` under temporary control goes back to `back`: removed from
+    /// the game if `back` was ousted meanwhile (ANK 20181110).
+    fn return_temporary(&mut self, i: usize, back: SeatId) {
+        let m = &mut self.state.minions[i];
+        m.temp_from = None;
+        m.temp_until_unlock = false;
+        m.owner = back;
+        // Back first: the temporary controller's cards on it burn, the
+        // ousted Methuselah's are removed (remove_minion reads the owner).
+        if self.state.seats[back.index()].ousted {
+            self.remove_minion(MinionId(i as u32));
+        }
     }
 
     /// Pool reached 0 on the seat's own turn: ousted, and the turn passes.
@@ -2331,6 +2430,14 @@ impl Engine {
             seat.auto_pass_next = false;
             seat.sabbat_referendum_called = false;
         }
+        // Malkavian Dementia: back as this unlock phase begins, before any
+        // unlock or contest (ANK 20200629-2), as it is (LSJ 20010119).
+        for i in 0..self.state.minions.len() {
+            let m = &self.state.minions[i];
+            if let Some(back) = m.temp_from.filter(|_| m.temp_until_unlock && m.owner == s) {
+                self.return_temporary(i, back);
+            }
+        }
         // Juliet Parr's and Babalawo Alafin's hand sizes, Sunset Strip's
         // hunt stealth last until this unlock phase.
         self.state.seats[s.index()]
@@ -2362,6 +2469,7 @@ impl Engine {
         }
         for m in &mut self.state.minions {
             m.bled_this_turn = false;
+            m.extra_bleeds = 0;
             m.referendum_passed_turn = false;
             m.political_this_turn = false;
             m.expelled = false;
@@ -2379,7 +2487,7 @@ impl Engine {
         for i in 0..self.state.minions.len() {
             let id = MinionId(i as u32);
             let m = &self.state.minions[i];
-            if m.owner != s || !m.in_play {
+            if m.owner != s || !m.in_play || m.out_of_play {
                 continue;
             }
             // Stolen Police Cruiser: "does not unlock as normal".
@@ -2411,9 +2519,18 @@ impl Engine {
                 }
             }
         }
-        // … and the cards they control.
+        // … and the cards they control, but "this card doesn't unlock as
+        // normal" (Corporal Reservoir).
         for ci in 0..self.state.cards.len() {
-            if self.state.cards[ci].in_play && self.state.card_controller(CardId(ci as u32)) == s {
+            let id = CardId(ci as u32);
+            if self.state.cards[ci].in_play
+                && self.state.card_controller(id) == s
+                && !self.state.layers.iter().any(|l| {
+                    l.source == id
+                        && l.modifier == crate::cards::Modifier::CardDoesNotUnlock
+                        && self.state.layer_active(l)
+                })
+            {
                 self.state.cards[ci].locked = false;
             }
         }
@@ -2555,7 +2672,7 @@ mod tests {
     #[test]
     fn crypt_data_is_complete() {
         // The 200 V5 vampires, then the owner's legacy additions.
-        assert_eq!(CRYPT.len(), 596);
+        assert_eq!(CRYPT.len(), 626);
         assert_eq!(PRECONS.len(), 14);
         for (name, list) in PRECONS.iter() {
             let n: u32 = list.iter().map(|&(_, k)| k as u32).sum();

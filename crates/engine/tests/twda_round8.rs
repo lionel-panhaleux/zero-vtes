@@ -1738,6 +1738,30 @@ fn redistribution_moves_blood_and_equipment() {
     assert_eq!(e.state.cards[monocle.index()].host, Some(dorka));
 }
 
+// Redistribution never moves Eye of Hazimel off a ready bearer ("cannot be
+// moved or stolen", rules-qa 78.42): the Monocle offered, not the Eye.
+#[test]
+fn redistribution_leaves_eye_of_hazimel_on_its_ready_bearer() {
+    let mut e = game(2);
+    let viri = budapest(&mut e, 0, "Viri", 2);
+    let zizi = budapest(&mut e, 0, "Zizi", 1);
+    budapest(&mut e, 0, "Dorka", 2);
+    e.add_minion(SeatId(1), plain("Ventrue", 0), 4, false);
+    let put = |e: &mut Engine, name: &str| {
+        let card = find_library(name);
+        e.state
+            .cards
+            .push(CardInPlay::new(card, SeatId(0), Some(zizi), 0));
+        CardId(e.state.cards.len() as u32 - 1)
+    };
+    let monocle = put(&mut e, "Monocle of Clarity");
+    let eye = put(&mut e, "Eye of Hazimel");
+    hand(&mut e, 0, &["Redistribution"]);
+    pick(&mut e, play(0, 0, viri));
+    let req = offering(&mut e, Choice::ChooseCard(monocle.0));
+    assert!(!req.options.contains(&Choice::ChooseCard(eye.0)), "pinned");
+}
+
 // Robert Carter: "Unique ghoul with 1 life. During your unlock phase,
 // Carter's employer burns 1 blood, or Carter is burned. The vampire with
 // this retainer gets +2 bleed." Employed by Viri; her bleed is 3; at the

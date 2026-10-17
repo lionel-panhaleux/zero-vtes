@@ -366,6 +366,7 @@ pub fn table(seed: u64, slice: &[&str], extra: &[&str]) -> Engine {
             by: None,
             in_play: true,
             contested: false,
+            out_of_play: false,
             locked: false,
             counters: 2,
             stored: Default::default(),

@@ -18,7 +18,7 @@ is created by one request and played over one WebSocket. Every game is
 recorded, anonymously, and kept two years to train and test the engine
 (§11).
 
-Version **1.7.0**. The types: the models of the
+Version **1.8.0**. The types: the models of the
 [API reference](https://engine.krcg.org/docs), also as
 [JSON Schema](https://engine.krcg.org/schema.json) (2020-12) and
 [TypeScript](https://engine.krcg.org/protocol.ts).
@@ -192,7 +192,7 @@ A JSON object with `seq`, `reply_to`? and a `type`:
 … 41: the schema's `Window`). `source` is the card whose terms or effect
 the decision chooses, when it is one (a play's or an action's terms, a
 referendum's): the options' `effects` say what each choice gets.
-`purpose` is what an effect asks the choice for, when one does (81 ids,
+`purpose` is what an effect asks the choice for, when one does (82 ids,
 the schema's `Purpose`: `pay_or_burn`, `store_search`…, one per kind
 of effect choice the engine asks). The purpose says the verb
 (`remove_uncontrolled`: the slot chosen is removed); where it has
@@ -229,9 +229,10 @@ the previous one, never the engine's state.
   `blood`, `capacity`, `locked`, `contested`, `title` (id), `owner`,
   `cards[]` (in play on it), `markers[]` (`kind`, `seat`, `n`, `card`),
   `traits[]` (`black_hand`, `infernal`, `red_list`, `blood_cursed`,
-  `scarce`, `sterile`: as they stand, Black Hand gained included; a Red
-  List minion marked this turn carries a `red_list_mark` marker, its
-  `seat` the marking Methuselah).
+  `scarce`, `sterile`, `seraph`: as they stand, Black Hand gained and
+  infernal made included; a Red List minion marked this turn carries a
+  `red_list_mark` marker, its `seat` the marking Methuselah; a minion out
+  of play with its cards, an `out_of_play` one).
 - `action`: `seat`, `acting`, `kind` (`bleed`, `hunt`, …, `card`), `step`
   (`announced`, `open`, `attempt`, `declined`, `would_succeed`,
   `blocked`, `after_combat`, `resolved`), the `card` and its `mode` and

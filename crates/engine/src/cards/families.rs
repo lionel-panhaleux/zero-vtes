@@ -64,6 +64,10 @@ impl Effect {
             | E::RotschreckEndsCombat
             | E::BecomesVampire { .. }
             | E::PutOnTarget
+            | E::TargetSeatTakesCard
+            | E::DualFormCopy
+            | E::DescendActor
+            | E::DerangeTarget
             | E::PutInPlay
             | E::EnterWithCounters(..)
             | E::UnlockActorIfClanCapacity { .. }
@@ -123,12 +127,12 @@ impl Effect {
             | E::DiscardFromTargetHand
             | E::StealPoolFromTarget(..)
             | E::TargetControllerBurnsPool(..)
+            | E::ActingControllerBurnsPool(..)
             | E::RemovePreyAshToBurnPool { .. }
             | E::LockPlayedCard
             | E::ActorTakesAggravated { .. }
             | E::PutOnActor
             | E::PutOnActorRemembering
-            | E::BurnActorBlood(..)
             | E::If { .. }
             | E::GameOfMalkav
             | E::DrawCryptBloodIfBlackHand(..)
@@ -144,6 +148,11 @@ impl Effect {
             | E::BloodToTargetToStart(..)
             | E::TargetBurnsBlood(..)
             | E::UnlockActor
+            | E::UnlockActorAtDiscard
+            | E::TakeControlOfTargetUntilUnlock
+            | E::MayBleedAgainThisTurn
+            | E::BurnActorBlood(..)
+            | E::DrawThenDiscardDown(..)
             | E::UnlockTarget
             | E::LockTarget
             | E::BurnTargetMinion
@@ -189,6 +198,7 @@ impl Effect {
             | E::HandSizeBonusUntilEndOfTurn(..)
             | E::MoveBetweenVampires
             | E::PeekHand
+            | E::PeekHostControllersHand
             | E::PredatorTakesControl
             | E::BurnSelf
             | E::LockHost
@@ -213,6 +223,7 @@ impl Effect {
             | E::AddInterceptX
             | E::TargetBurnsForInterceptThisAction
             | E::RevealTopCard { .. }
+            | E::RevealCryptTopForCopy { .. }
             | E::ActingControllerDiscardsAtRandom
             | E::TargetSeatDiscardsAtRandom(..)
             | E::TargetToUncontrolled
@@ -231,7 +242,6 @@ impl Effect {
             | E::PayPoolX
             | E::MethuselahVotesX { .. }
             | E::ContinuePressForOwnCombatant
-            | E::DrawThenDiscardDown(..)
             | E::RemoveCountersX
             | E::AddVotesX
             | E::TargetBloodToPool(..)
@@ -280,6 +290,9 @@ impl Effect {
             | E::RemoveOwnAshCards(..)
             | E::UnlockHost
             | E::ActionCardToLibraryShuffled
+            | E::ReturnHost { .. }
+            | E::OutOfPlayHostGainsBlood(..)
+            | E::ActorTakesAnyAction
             | E::HostSuperiorChosenUntilMaster => (Family::Ability, false),
             E::TakeOverAction
             | E::AnimalBoostIfSuccessful { .. }
@@ -344,7 +357,10 @@ impl Effect {
             | E::UnlockBlocker
             | E::Unblockable
             | E::NoMoreModifiers
+            | E::PactCountersOnActing(..)
+            | E::QueueCombatWithLast
             | E::PoolIfSuccessful(..)
+            | E::UnlockActorIfSuccessful
             | E::AttemptFailsBarSeat
             | E::GainBloodPerMargin
             | E::DistributeMargin { .. }
@@ -408,6 +424,9 @@ impl Effect {
             | E::AimExtraDamage(..)
             | E::OpponentToTorpor
             | E::DamageOpponentNow(..)
+            | E::PreRangeDamage(..)
+            | E::ShieldFromOpposingStrike(..)
+            | E::OpposingCelerityMayBurnToPrevent(..)
             | E::AdditionalStrikeOnly { .. }
             | E::AdditionalStrikesX { .. }
             | E::ActorBurnsBloodX
@@ -420,6 +439,8 @@ impl Effect {
             | E::ContinuePressThisRound
             | E::CloseSelfDamage(..)
             | E::CoordinateAttack { .. }
+            | E::StrikeOnceEachRound(..)
+            | E::PreventNonAggravatedEachRound(..)
             | E::RoundStrike(..)
             | E::OnlyHandStrikes
             | E::NextRoundClose
@@ -498,6 +519,7 @@ impl Effect {
             | E::EnterCombatWithTarget
             | E::TargetYieldsTitle
             | E::AshCardToHandNamed
+            | E::AshCardToHandOnSuccess(..)
             | E::AshCardOfToHand(..)
             | E::RemoveUncontrolledForBlood(..)
             | E::MoveSourceToTarget
@@ -517,7 +539,6 @@ impl Effect {
             | E::UnlockRecruiterOnFirst
             | E::Version(..)
             | E::EntryBurnAllyOrRetainer
-            | E::UnlockActorAtDiscard
             | E::EntryRemoveFromAshOrBurn => (Family::Entry, false),
             E::HostageOnTorpor(..)
             | E::ControllerGainsPoolIfPrey(..)
@@ -542,6 +563,7 @@ impl Effect {
             | E::MayGainPool(..)
             | E::HandSizeUntilDiscard(..)
             | E::DamageBledAnarchs(..)
+            | E::BurnPoolPerHuntingGround
             | E::PreyBurnsPoolPerTorpor
             | E::MayAddCounter
             | E::MayMakeAnarchForCounter
@@ -628,11 +650,17 @@ impl Effect {
             | E::OpposingBurnsPoolIfOneReadyAfterCombat(..)
             | E::PutOnActorIfOpposingNotReadyAfterCombat
             | E::TargetLocksReadyUnlocked
+            | E::PinnedWhileBearerReady
+            | E::BurnedDamagesBearer(..)
+            | E::ControllerGivesCard
+            | E::ClanBlocksItsBurn(..)
+            | E::ImmuneNonAggravated
             | E::Frenzy => (Family::Marker, false),
             // Read when the strike resolves (`resolve_strikes`), with
             // `PutOnActorNow` (Inner Essence).
             E::AggravatedAgainstClan(..)
             | E::BurnAtCombatEnd
+            | E::BurnAtActionEnd
             | E::BearerDamageOncePerCombat
             | E::BurnAfterStrike
             | E::CountersPerDamage
@@ -791,6 +819,7 @@ mod tests {
                     | W::ActionWouldBeSuccessful
                     | W::ReactionDuringAction
                     | W::ReactionUnlockAttempt
+                    | W::ActionAfterCombat
             )
         };
         let abilities = DEFS

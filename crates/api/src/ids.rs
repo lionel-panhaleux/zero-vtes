@@ -166,6 +166,8 @@ ids!(
         Scarce,
         /// Sterile: it cannot act to put new vampires in play.
         Sterile,
+        /// Seraph: a Black Hand trait (Tattoo Signal requires one).
+        Seraph,
     }
 );
 
@@ -345,6 +347,9 @@ ids!(
         ShortfallPicks,
         /// Baba Yaga: `minion` may unlock (`resolve_printed`, or pass).
         MayUnlock,
+        /// Curse of Nitocris: `seat` picks the Methuselah who takes control
+        /// of `card`.
+        GiveCardTo,
         /// Blood Trade: 1 blood from `from` to a vampire of another
         /// Methuselah's, the player's choice.
         GiveBlood,
@@ -656,5 +661,10 @@ ids!(
         /// A Red List minion marked this turn (`seat`: by whom), who may
         /// enter combat with it.
         RedListMark,
+        /// Pact counters (`n`; Diabolic Lure).
+        Pact,
+        /// Out of play with its cards, its effects remembered (Descent into
+        /// Darkness).
+        OutOfPlay,
     }
 );

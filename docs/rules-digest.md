@@ -173,7 +173,8 @@ block attempt that cannot reach the stealth (4.3, 17.4, 25.5, 57.10, 63.15,
 forbids is barred: prevention with no damage to prevent, stealth or
 intercept not needed (3.2, advanced rules §1.6.5, §3.2.1, §4.5.1), a card
 naming an object there is none of (advanced rules §1.6.5: Lenelle with an
-empty ash heap, 17.1; The Sargon Fragment, 60.17), card limits — and an
+empty ash heap, 17.1; The Sargon Fragment, 60.17; Bolesław Gutowski with an
+empty crypt, 78.20), card limits — and an
 action sure to aim at an illegal target (17.4). An ability or granted
 action with nothing to act on is still a legal no-op (73.3, 73.4). An engine
 exception, not a rule: an ability whose only effect unlocks its own unlocked
@@ -322,7 +323,9 @@ below rely on these and do not repeat them.
   unpayable at resolution, a requirement lapsed (3.6, 17.3, 17.4, 28.7, 42.6,
   43.1, advanced rules §3.4.1). After-resolution cards keyed to success
   apply (Freak Drive, 3.6; Aline Gädeke, 16.4; Hedonism's queued combat,
-  56.1; Infernal Servitor, 70.19; I am Legion's pool, 60.15).
+  56.1; Infernal Servitor, 70.19; I am Legion's pool, 60.15), and so does
+  the action's own "if successful" clause beside the lost effect (Tye
+  Cooper's ash card, 78.38).
 - **Failed**: ended unsuccessfully by an effect at or before resolution
   (Archon Investigation, Spying Mission [OBF], Obedience, Yawp Court's
   combat; 56.1, 56.2, 54.1). A political action whose referendum fails is
@@ -403,7 +406,9 @@ below rely on these and do not repeat them.
 - Unleash Hell's Fury is a minion only for its block attempt (a 9-capacity
   infernal vampire, 60.21).
 - A vampire in an uncontrolled region is out of play and no minion (69.6,
-  28.3, §14.6).
+  28.3, §14.6); so is one Descent into Darkness puts out of play, with its
+  cards (78.46). Dual Form's card is a created non-unique vampire, its
+  Disciplines fixed as it resolves, no title or trait copied (78.47).
 - "Werewolves you control" are allies of the Werewolf subtype (64.1);
   "animals (allies and retainers)" are those whose type line makes them
   animals (41.13); a "mage" or "demon" ally by its type line (41.8, 62.30,
@@ -420,7 +425,9 @@ below rely on these and do not repeat them.
   not employed (22.2).
 - Moving equipment (a steal, the equip-from-another-minion action, a
   locquipment move) is not equipping: no requirement checked, nothing stored
-  (17.4, 12.2, 38.7, 70.11).
+  (17.4, 12.2, 38.7, 70.11); nor "an equip action" for Hag's Wrinkles,
+  which an equip from hand, Vast Wealth's or an action card equipping from
+  the library (Magic of the Smith) is (78.28).
 - "Comes into play under your control" from the uncontrolled region =
   influenced out (58.12, 34.7, 57.9).
 - "Entered play since …", "entered your ready region during …": a move out
@@ -473,7 +480,8 @@ below rely on these and do not repeat them.
 - "Your ready region" is the controller's (73.7).
 - A combatant no longer ready (burned, going to torpor) plays end-of-round
   combat cards only, unless the card excludes it (Taste of Vitae, Disarm)
-  (4.5).
+  (4.5); an acting minion burned (a blood hunt's diablerist) plays nothing
+  more (78.50).
 
 ### 3.11 "You", "your", unaddressed text
 
@@ -540,7 +548,7 @@ one), 26.8 (younger than the acting vampire), 60.11, 60.13, 71.1.
 - "Non-Anarch titles" (Fee Stake) are every title but baron (32.9).
 - Black Hand is a trait, not a title nor a sect: printed, or gained in play
   (Mateusz Kazimirski), kept through a sect change (LSJ 20070322, ANK
-  20180807).
+  20180807). Seraph is one too, not a title (78.1).
 - A contract is any card whose type line says so (Priority Contract,
   Clandestine Contract): The Black Throne pays for each (74.12).
 - A justicar requirement met by Karl Schrekt makes him a titled Camarilla

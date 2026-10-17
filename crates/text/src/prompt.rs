@@ -397,6 +397,7 @@ impl Prompt<'_> {
                 self.minion()?
             ),
             P::MayUnlock => format!("{} can unlock", self.minion()?),
+            P::GiveCardTo => format!("Choose who takes control of {}", self.card()?),
             P::MoveOffBurnedBearer => format!(
                 "{} is about to be burned: put {} on another minion?",
                 self.minion()?,
