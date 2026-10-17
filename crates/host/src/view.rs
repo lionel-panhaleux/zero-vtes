@@ -720,10 +720,19 @@ fn apart(card: u16, mode: usize) -> Vec<zvtes_api::option::Effect> {
         return Vec::new();
     };
     let printed = zvtes::cards::library_mode(card, mode);
-    let siblings: Vec<_> = (0..def.modes.len())
+    let siblings = (0..def.modes.len())
         .filter(|&i| i != mode && zvtes::cards::library_mode(card, i) == printed)
-        .map(|i| &def.modes[i])
-        .collect();
+        .map(|i| &def.modes[i]);
+    apart_from(own, siblings)
+}
+
+/// `own`'s effects that not all of `siblings` have, curated for no one in
+/// particular (alike on every option of `own`); none without siblings.
+pub(crate) fn apart_from<'a>(
+    own: &zvtes::cards::ModeDef,
+    siblings: impl Iterator<Item = &'a zvtes::cards::ModeDef>,
+) -> Vec<zvtes_api::option::Effect> {
+    let siblings: Vec<_> = siblings.collect();
     if siblings.is_empty() {
         return Vec::new();
     }

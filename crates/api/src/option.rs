@@ -23,6 +23,12 @@ pub struct OptionView {
     /// An ability's: how many its source has (`key.ability` says which).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub abilities: Option<u8>,
+    /// An ability's: what sets it apart from its source's other abilities,
+    /// offered or not (its effects not all of them have, alike on every
+    /// option of the ability, whatever its actor or target). Empty for a
+    /// lone ability, or one its effects do not tell apart: then its number.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub apart: Vec<Effect>,
     /// The option in English, when the seat's settings ask for text.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub text: Option<String>,

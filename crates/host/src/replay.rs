@@ -378,6 +378,7 @@ impl Replayer {
                     key: describe::key(e, &req, c, names),
                     effects: describe::effects(e, &req, c, names),
                     abilities: describe::abilities(e, c),
+                    apart: describe::ability_apart(e, c),
                     text: None,
                 }
             })

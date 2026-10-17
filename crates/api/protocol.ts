@@ -947,6 +947,13 @@ export type OptionView = {
     actor?: number | null
     /** An amount: blood, pool, votes, X, points. */
     amount?: number | null
+    /**
+     * An ability's: what sets it apart from its source's other abilities,
+     * offered or not (its effects not all of them have, alike on every
+     * option of the ability, whatever its actor or target). Empty for a
+     * lone ability, or one its effects do not tell apart: then its number.
+     */
+    apart?: Effect[]
     /** The blood an ability moves onto (+) or off (−) the vampire it is on. */
     blood?: number | null
     /** The card played, used, taken, discarded or named. */

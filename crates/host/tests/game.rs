@@ -3,7 +3,9 @@
 //! checked against the contract's lifecycle.
 
 use zvtes_api::event::EventKind;
+use zvtes_api::ids::OptionKind;
 use zvtes_api::message::{EndReason, Error};
+use zvtes_api::option::Effect;
 use zvtes_api::record::Entry;
 use zvtes_api::{Command, GameSpec, In, Message, Out, Player, SeatSpec, Settings, SettingsPatch};
 use zvtes_host::{Bots, Clock, Game};
@@ -361,4 +363,73 @@ fn feedback_is_recorded_at_its_decision() {
     g.handle(human, cmd(Command::Leave));
     let outs = g.handle(human, feedback("it ended"));
     assert!(matches!(outs[0].message, Message::Noted { .. }));
+}
+
+/// An ability's source: its card's copy, or the vampire it is on.
+type Source = (Option<u32>, Option<u32>);
+
+/// An ability's `apart` is alike on every option of it, whatever its actor
+/// or target, so a client asking "which ability?" names each by it; two
+/// abilities of one source offered together are told apart by it (Wider
+/// View's transfer and its burn, Dreams of the Sphinx's hand size and its
+/// blood) — never by the English text (docs/protocol.md §7).
+#[test]
+fn an_ability_is_told_apart_from_its_siblings_by_data() {
+    let seeds: u32 = std::env::var("HOST_SEEDS").map_or(12, |s| s.parse().unwrap());
+    let mut apart_offered = 0;
+    for seed in 1..=seeds {
+        let settings = Settings {
+            text: false,
+            ..Settings::default()
+        };
+        let mut g = game(seed, settings);
+        let human = g.human();
+        let mut rng = Rng(seed as u64 * 7 + 1);
+        let mut outs = g.handle(human, join());
+        while !g.is_over() {
+            let Some(d) = pending(&outs).cloned() else {
+                break;
+            };
+            // Each (source, ability) offered: its `apart`.
+            let mut seen: Vec<(Source, u8, &[Effect])> = Vec::new();
+            for o in d
+                .options
+                .iter()
+                .filter(|o| o.key.kind == OptionKind::UseAbility)
+            {
+                let source = (o.key.card.as_ref().and_then(|c| c.copy), o.key.minion);
+                let ability = o.key.ability.unwrap_or(0);
+                assert!(
+                    o.apart.is_empty() || o.abilities.unwrap_or(1) > 1,
+                    "seed {seed}: a lone ability set apart: {o:?}"
+                );
+                match seen.iter().find(|(s, a, _)| *s == source && *a == ability) {
+                    Some((_, _, apart)) => {
+                        assert_eq!(*apart, &o.apart[..], "seed {seed}: one ability, two aparts")
+                    }
+                    None => seen.push((source, ability, &o.apart)),
+                }
+            }
+            for (i, (s, _, x)) in seen.iter().enumerate() {
+                for (t, _, y) in &seen[i + 1..] {
+                    if s == t && !x.is_empty() && !y.is_empty() {
+                        assert_ne!(x, y, "seed {seed}: two abilities alike");
+                        apart_offered += 1;
+                    }
+                }
+            }
+            let o = &d.options[rng.below(d.options.len())];
+            outs = g.handle(
+                human,
+                cmd(Command::Answer {
+                    decision: d.decision,
+                    option: o.index,
+                }),
+            );
+        }
+    }
+    assert!(
+        apart_offered > 0,
+        "no two abilities of a source offered together"
+    );
 }

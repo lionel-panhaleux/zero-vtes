@@ -327,7 +327,12 @@ seat 2; burn 2 pool to keep card 9.)
     `counters` (a cost reduced), `draw`, `discard` (and the rest in
     `pool`); burning pool for votes: `pool` (`cost`) and `votes`.
 - `abilities` — a `use_ability`'s: how many its source has (`ability`
-  in the key says which).
+  in the key says which); `apart` — what sets it apart from its
+  source's other abilities, offered or not: its effects not all of them
+  have (as a mode's `apart`), alike on every option of the ability
+  whatever its actor or target, so a client asking which ability names
+  each by it; empty for a lone ability or one its effects do not tell
+  apart (then its number, `ability` + 1).
 - A pass's plain meaning follows from the window: `master_phase` … ends
   the phase, `action_block` declines to block (the defender's, while
   its minion's attempt meets the stealth — `action.blocker`,

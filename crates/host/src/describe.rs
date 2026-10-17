@@ -5,7 +5,7 @@
 //! One derivation, two namings: a viewer's wire copies (the options a
 //! seat is shown) or the engine's own (the record's keys).
 
-use zvtes::cards::{AbilitySource, Target as T};
+use zvtes::cards::{AbilitySource, ModeDef, Target as T};
 use zvtes::copies::CopyId;
 use zvtes::crypt::CRYPT;
 use zvtes::decision::{Choice, DecisionRequest, Zone as Z};
@@ -384,7 +384,7 @@ fn referendum_terms(x: &Ctx<impl Names>, choice: &Choice) -> Vec<Effect> {
 
 /// The second vampire a play chooses, of its clan (Toreador Grand Ball):
 /// what it becomes.
-fn second_chosen(m: &zvtes::cards::ModeDef) -> Option<Effect> {
+fn second_chosen(m: &ModeDef) -> Option<Effect> {
     use zvtes::cards::{Effect as E, Modifier, Terms};
     let Some(Terms::OwnOfClan { clan, .. }) = m.terms else {
         return None;
@@ -647,21 +647,42 @@ fn amount(x: &Ctx<impl Names>, req: &DecisionRequest, n: u8) -> Vec<Effect> {
     }
 }
 
-/// An ability's: how many its source has.
-pub fn abilities(e: &Engine, choice: &Choice) -> Option<u8> {
-    let Choice::UseAbility { source, .. } = *choice else {
+/// An ability's source's abilities, and which of them it is.
+fn ability_defs(e: &Engine, choice: &Choice) -> Option<(&'static [ModeDef], usize)> {
+    let Choice::UseAbility {
+        source, ability, ..
+    } = *choice
+    else {
         return None;
     };
     let st = &e.state;
-    let n = match source {
+    let defs = match source {
         AbilitySource::Card(c) => {
-            zvtes::cards::lookup(st.cards[c.index()].card).map_or(0, |d| d.abilities.len())
+            zvtes::cards::lookup(st.cards[c.index()].card).map_or(&[][..], |d| d.abilities)
         }
         AbilitySource::Vampire(m) => {
-            zvtes::cards::vampire_of(&st.minions[m.index()]).map_or(0, |d| d.abilities.len())
+            zvtes::cards::vampire_of(&st.minions[m.index()]).map_or(&[][..], |d| d.abilities)
         }
     };
-    Some(n as u8)
+    Some((defs, ability as usize))
+}
+
+/// An ability's: how many its source has.
+pub fn abilities(e: &Engine, choice: &Choice) -> Option<u8> {
+    ability_defs(e, choice).map(|(defs, _)| defs.len() as u8)
+}
+
+/// An ability's: what sets it apart from its source's other abilities,
+/// offered or not (`OptionView::apart`).
+pub fn ability_apart(e: &Engine, choice: &Choice) -> Vec<Effect> {
+    let Some((defs, i)) = ability_defs(e, choice) else {
+        return Vec::new();
+    };
+    let Some(own) = defs.get(i) else {
+        return Vec::new();
+    };
+    let siblings = defs.iter().enumerate().filter(|&(j, _)| j != i);
+    crate::view::apart_from(own, siblings.map(|(_, d)| d))
 }
 
 /// The card whose terms a terms decision chooses (`Decision::source`):

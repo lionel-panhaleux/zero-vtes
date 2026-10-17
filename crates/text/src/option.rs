@@ -4,10 +4,10 @@
 
 use zvtes_api::ids::{ActionKind, OptionKind as K, Purpose, Role, Window, Zone};
 use zvtes_api::message::About;
-use zvtes_api::option::{EffectKind, Mode, On, OptionView};
+use zvtes_api::option::{Effect, EffectKind, Mode, On, OptionView};
 use zvtes_api::view::Target;
 
-use crate::effect::{label, parts};
+use crate::effect::label;
 use crate::event::{action_kind, strike};
 use crate::Names;
 
@@ -786,7 +786,7 @@ fn apart(m: &Mode, n: &Names) -> String {
 
 /// What an ability does, after who and on what: blood moved to or from
 /// the pool; which of the source's abilities (what sets it apart from
-/// the others offered); a lone ability's action.
+/// the others, `OptionView::apart`); a lone ability's action.
 fn ability_what(o: &OptionView, offered: &[OptionView], n: &Names) -> Option<String> {
     let moved = o.effects.iter().find(|e| {
         e.kind == EffectKind::Blood
@@ -807,12 +807,12 @@ fn ability_what(o: &OptionView, offered: &[OptionView], n: &Names) -> Option<Str
             && s.key.card.as_ref().map(|c| c.copy) == o.key.card.as_ref().map(|c| c.copy)
             && s.key.minion == o.key.minion
     };
-    // Each ability of the source offered: its parts.
-    let mut abilities: Vec<(u8, Vec<String>)> = Vec::new();
+    // Each ability of the source offered: what sets it apart.
+    let mut abilities: Vec<(u8, &[Effect])> = Vec::new();
     for s in offered.iter().filter(|s| same(s)) {
         let i = s.key.ability.unwrap_or(0);
         if !abilities.iter().any(|(j, _)| *j == i) {
-            abilities.push((i, parts(&s.effects, n)));
+            abilities.push((i, &s.apart));
         }
     }
     let several = o.abilities.unwrap_or(1) > 1;
@@ -825,25 +825,10 @@ fn ability_what(o: &OptionView, offered: &[OptionView], n: &Names) -> Option<Str
                 false => format!(": {l}"),
             });
         }
-        let told = |own: &Vec<String>| {
-            let apart: Vec<&String> = own
-                .iter()
-                .filter(|p| !abilities.iter().all(|(_, o)| o.contains(p)))
-                .collect();
-            match apart.is_empty() {
-                true => own.join(", "),
-                false => apart
-                    .iter()
-                    .map(|s| s.as_str())
-                    .collect::<Vec<_>>()
-                    .join(", "),
-            }
-        };
-        let own = abilities.iter().find(|(i, _)| *i == ability)?.1.clone();
-        let l = told(&own);
+        let l = label(&o.apart, n);
         let clash = abilities
             .iter()
-            .any(|(i, p)| *i != ability && *p != own && told(p) == l);
+            .any(|(i, a)| *i != ability && label(a, n) == l);
         return Some(if l.is_empty() || clash {
             format!(" (ability {})", ability + 1)
         } else {

@@ -154,8 +154,6 @@ front, about the AI involvement.
 What the fork infers today; each has its engine-board line and goes from
 here when that line lands.
 
-- Ability labels read from the English option text's tail (null with `text`
-  off): options should carry a data label.
 - An absent `actor` read as "your Methuselah" (War Ghoul): the protocol
   should say who uses an ability.
 - A forced hunt (rules-qa 17.2) gave no reason: the fork infers it; a
