@@ -129,7 +129,8 @@ front, about the AI involvement.
   for the tab in `sessionStorage`, `host.ts` `resume`, but the log
   before the reload is lost; a dropped socket alone is joined again,
   `host.ts` `rejoin`, for a minute, or until the server answers 404: the
-  game gone). Work in a worktree under the job's tmp; fast-forward the
+  game gone; a server restart, a deploy, resumes the game, so the rejoin
+  finds it, a fresh `joined`). Work in a worktree under the job's tmp; fast-forward the
   checkout only when the admin API shows no live game (or the owner says
   so).
 - A refresh joins with a plain `join` (no `after`): the server answers

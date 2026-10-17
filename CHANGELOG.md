@@ -8,6 +8,9 @@ removes; its `--check` fails a removal without a major version.
 
 ## 1.8.0
 
+- A server restart resumes the games going from their records (a fresh
+  `joined` for the seat's next join); it ends only those it cannot resume,
+  `server_restart`. No schema change.
 - `OptionView.apart`: what sets an ability apart from its source's other
   abilities, alike on every option of it (the "which ability?" step).
 - `OptionView.user`: who uses an ability, `{kind: minion, copy}` or

@@ -107,6 +107,18 @@ pub struct Game {
     /// The names the human seat's client knows, from the messages it was
     /// sent: what the English renderer reads.
     known: zvtes_text::Names<'static>,
+    /// A record played back into the game (`Game::resume`): its entries,
+    /// the next one, what stopped it.
+    resuming: Option<Resuming>,
+    /// Resumed, not yet joined: the first join is a fresh start (the
+    /// client's numbering is the lost process's).
+    resumed: bool,
+}
+
+struct Resuming {
+    entries: Vec<Entry>,
+    next: usize,
+    failed: Option<String>,
 }
 
 impl Game {
@@ -220,7 +232,245 @@ impl Game {
             },
             clock,
             t0,
+            resuming: None,
+            resumed: false,
         })
+    }
+
+    /// A game rebuilt from the record of one left going (a server
+    /// restarted): dealt again from its spec, its decisions taken again as
+    /// recorded, by key (bots' and passes' as the game takes them, the
+    /// human's answers, settings, undos and feedback as commands), then
+    /// live. Its bots must be made as recorded (the same weights, the same
+    /// nudges); its entries stay the record's. An error when it cannot be
+    /// (a rules change, a bot no longer served): the game is ended instead.
+    pub fn resume(
+        id: String,
+        record: &GameRecord,
+        bots: &dyn Bots,
+        clock: Box<dyn Clock>,
+    ) -> Result<Game, String> {
+        if record.result.is_some() {
+            return Err("the game is over".into());
+        }
+        if record.spec.seed.is_none() {
+            return Err("a record without its seed".into());
+        }
+        let mut g =
+            Game::new(id, record.spec.clone(), bots, clock).map_err(|e| format!("{e:?}"))?;
+        if g.record.bots != record.bots {
+            return Err("its bots are no longer made as recorded".into());
+        }
+        g.resuming = Some(Resuming {
+            entries: record.entries.clone(),
+            next: 0,
+            failed: None,
+        });
+        let human = g.human;
+        let send = |g: &mut Game, command: Command| {
+            g.handle(human, In { id: None, command });
+        };
+        send(
+            &mut g,
+            Command::Join {
+                token: None,
+                after: None,
+            },
+        );
+        loop {
+            let r = g.resuming.as_ref().expect("resuming");
+            if let Some(e) = &r.failed {
+                return Err(e.clone());
+            }
+            let Some(entry) = r.entries.get(r.next).cloned() else {
+                break;
+            };
+            g.resuming.as_mut().expect("resuming").next += 1;
+            match entry {
+                Entry::Decision {
+                    decision,
+                    seat,
+                    option,
+                    choice,
+                    by,
+                    ..
+                } => {
+                    let Some(req) = g.session.request().cloned() else {
+                        return Err(format!("decision {decision}: the game is over"));
+                    };
+                    let favor = choice.favor;
+                    let d = crate::replay::Recorded {
+                        decision,
+                        seat,
+                        option,
+                        choice,
+                        by,
+                    };
+                    let i = crate::replay::recorded_option(g.session.engine(), &req, &d)?;
+                    let decision = g.session.decision();
+                    // An allocation answered whole: its steps taken as
+                    // `Command::Allocate` takes them (the undo depth reads
+                    // them so).
+                    if by == By::Order && g.session.allocation(&req).is_some() {
+                        let m = g.replay_allocation(i)?;
+                        g.emit(human, None, m);
+                        continue;
+                    }
+                    // A vote order: its first cast; the rest taken as the
+                    // order casts them (`recorded_take`).
+                    if by == By::Order
+                        && matches!(
+                            d.choice.kind,
+                            OptionKind::CastVotes | OptionKind::CastCardVote
+                        )
+                    {
+                        let Some(favor) = favor else {
+                            return Err(format!("decision {decision}: a vote with no side"));
+                        };
+                        if g.session.casts(&req, favor).first().map(|&(c, _)| c) != Some(i) {
+                            return Err(format!(
+                                "decision {decision}: a vote order cast otherwise"
+                            ));
+                        }
+                        send(&mut g, Command::VoteAll { decision, favor });
+                        continue;
+                    }
+                    send(
+                        &mut g,
+                        Command::Answer {
+                            decision,
+                            option: i as u32,
+                        },
+                    );
+                }
+                Entry::Undo { to, .. } => {
+                    let decision = g.session.decision();
+                    send(&mut g, Command::Undo { decision });
+                    if g.session.decision() != to {
+                        return Err(format!("an undo to decision {to} went elsewhere"));
+                    }
+                }
+                Entry::Settings { settings, .. } => send(
+                    &mut g,
+                    Command::Settings(zvtes_api::SettingsPatch {
+                        opportunities: Some(settings.opportunities),
+                        views: Some(settings.views),
+                        text: Some(settings.text),
+                    }),
+                ),
+                Entry::Feedback { text, .. } => send(&mut g, Command::Feedback { text }),
+                Entry::Refused { .. } | Entry::Unknown => {}
+            }
+        }
+        g.resuming = None;
+        // The record as it was, its times its own (an end the replay
+        // reached kept).
+        g.record = GameRecord {
+            entries: record.entries.clone(),
+            ended: g.record.ended,
+            result: g.record.result.clone(),
+            ..record.clone()
+        };
+        g.t0 = record.started;
+        g.sent.clear();
+        g.resumed = true;
+        Ok(g)
+    }
+
+    /// While resuming, an allocation answered whole: its first step `i`
+    /// the human's, each next recorded step of it an order's, as
+    /// `Command::Allocate` takes them; then the game advances.
+    fn replay_allocation(&mut self, i: usize) -> Result<Vec<Message>, String> {
+        let left = |g: &Game| g.session.engine().allocation().map(|a| a.recipients.len());
+        let mut before = left(self);
+        let taken = self.session.human();
+        let mut m = self.take(i, taken, By::Order);
+        loop {
+            self.session.ready();
+            // The same allocation while its recipients still to allocate
+            // shrink (a next one starts from them all).
+            let now = left(self);
+            if !now.is_some_and(|n| before.is_some_and(|b| n < b)) {
+                break;
+            }
+            before = now;
+            let Some(req) = self.session.request().cloned() else {
+                break;
+            };
+            let r = self.resuming.as_ref().expect("resuming");
+            let step = match r.entries.get(r.next) {
+                Some(Entry::Decision {
+                    decision,
+                    seat,
+                    option,
+                    choice,
+                    by: By::Order,
+                    ..
+                }) if *seat == self.human
+                    && req.seat.0 == self.human
+                    && matches!(
+                        choice.kind,
+                        OptionKind::AllocateTo | OptionKind::AllocateToCard
+                    ) =>
+                {
+                    crate::replay::Recorded {
+                        decision: *decision,
+                        seat: *seat,
+                        option: *option,
+                        choice: choice.clone(),
+                        by: By::Order,
+                    }
+                }
+                _ => break,
+            };
+            self.resuming.as_mut().expect("resuming").next += 1;
+            let i = crate::replay::recorded_option(self.session.engine(), &req, &step)?;
+            m.extend(self.take(i, Taken::Order, By::Order));
+        }
+        m.extend(self.advance());
+        Ok(m)
+    }
+
+    /// While resuming, the recorded option of a decision the game takes
+    /// without asking (a bot's, a pass, an order's), in place of `index`.
+    fn recorded_take(&mut self, index: usize) -> usize {
+        let Some(r) = self.resuming.as_mut() else {
+            return index;
+        };
+        if r.failed.is_some() {
+            return index;
+        }
+        let Some(Entry::Decision {
+            decision,
+            seat,
+            option,
+            choice,
+            by,
+            ..
+        }) = r.entries.get(r.next).cloned()
+        else {
+            r.failed = Some(format!(
+                "entry {}: a decision taken the record does not hold",
+                r.next
+            ));
+            return index;
+        };
+        r.next += 1;
+        let req = self.session.request().expect("a decision").clone();
+        let d = crate::replay::Recorded {
+            decision,
+            seat,
+            option,
+            choice,
+            by,
+        };
+        match crate::replay::recorded_option(self.session.engine(), &req, &d) {
+            Ok(i) => i,
+            Err(e) => {
+                self.resuming.as_mut().expect("resuming").failed = Some(e);
+                index
+            }
+        }
     }
 
     pub fn id(&self) -> &str {
@@ -261,7 +511,7 @@ impl Game {
             after: Some(after), ..
         } = input.command
         {
-            if seat == self.human {
+            if seat == self.human && !self.resumed {
                 if let Some(rest) = self.resend(after) {
                     return rest;
                 }
@@ -415,6 +665,7 @@ impl Game {
 
     fn command(&mut self, c: Command) -> Vec<Message> {
         if let Command::Join { .. } = c {
+            self.resumed = false;
             return self.join();
         }
         if let Command::Feedback { text } = c {
@@ -659,6 +910,7 @@ impl Game {
                     return m;
                 }
                 Next::Take { index, taken } => {
+                    let index = self.recorded_take(index);
                     let by = match taken {
                         Taken::Bot => By::Bot,
                         Taken::Passed => By::Auto,

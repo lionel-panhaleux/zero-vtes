@@ -160,15 +160,22 @@ async fn main() {
         .route("/admin/feedback", get(admin_feedback))
         .route("/admin/unsupported", get(admin_unsupported))
         .layer(cors(&app.config.origins))
-        .with_state(app);
+        .with_state(app.clone());
     let listener = tokio::net::TcpListener::bind(&listen)
         .await
         .expect("the address");
     // After the bind: a second process on the same store dies on the
-    // address before it ends the live server's games.
-    let (ended, failed) = lost.end_lost().await;
-    if ended > 0 {
-        eprintln!("restart: {ended} games left going, ended");
+    // address before it resumes or ends the live server's games.
+    let (resumed, ended, failed) = games::restore(
+        &app.games,
+        &lost,
+        app.policy.clone(),
+        app.store.clone(),
+        app.config.idle,
+    )
+    .await;
+    if resumed + ended > 0 {
+        eprintln!("restart: {resumed} games left going resumed, {ended} ended");
     }
     for e in failed {
         eprintln!("restart: {e}");
@@ -352,7 +359,7 @@ async fn record(State(app): State<Shared>, Path(id): Path<String>, headers: Head
         None => StatusCode::CONFLICT.into_response(),
     };
     if let Some(h) = app.games.get(&id) {
-        if bearer != h.token {
+        if store::hash(bearer) != h.token_hash {
             return StatusCode::UNAUTHORIZED.into_response();
         }
         let (tx, rx) = oneshot::channel();
@@ -578,7 +585,7 @@ async fn serve(app: Shared, id: String, mut ws: WebSocket) {
             Some(holding) if holding.taken() => return taken(ws).await,
             Some(_) => {}
             None => match &input.command {
-                Command::Join { token: Some(t), .. } if *t == h.token => {
+                Command::Join { token: Some(t), .. } if store::hash(t) == h.token_hash => {
                     let mut mine = 0;
                     h.joins.send_modify(|n| {
                         *n += 1;

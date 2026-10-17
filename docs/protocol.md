@@ -82,9 +82,14 @@ client                                  host
   answering at once, with no user in the loop, meets it.
 - The game ends when one Methuselah is left, at the time limit, when the
   human is ousted (the bots do not play on), when the human leaves, or
-  after the idle timeout (`joined.idle_timeout`). A server restart ends
-  the games going (recorded `server_restart`, §11): joining one again
-  finds no game (its socket's URL answers 404, §10).
+  after the idle timeout (`joined.idle_timeout`). A server restart
+  resumes the games going, rebuilt from their records: the seat joining
+  again (its token as before) gets a fresh start, `joined` and the
+  pending decision, the human's seat named `human` (a record keeps no
+  name). One the restart cannot resume (its idle time run out, a rules
+  change its record no longer replays on, a bot no longer served as
+  recorded) is ended, `server_restart` (§11): joining it then finds no
+  game (its socket's URL answers 404, §10).
 
 ### A minimal client
 
@@ -459,7 +464,7 @@ ended; the last `pool`, `blood` and `torpor` told are the next view's.
 | `GET /version` | protocol, engine commit, bot profiles offered, limits (seats, time limit, idle timeout) |
 | `GET /catalog` | the precon decklists the engine plays |
 | `POST /games` | body: a `GameSpec` (one human seat); `{game, seat, token}`, or a `SpecError` (400). The deal's seed is the server's: a spec's `seed` is kept only with the admin token (a playtest's fixed deal) |
-| `GET /games/{game}/ws` | WebSocket: one JSON command or message per text frame; the first command is `join` with the token. 404 to any request once the game has left the server (the idle timeout passed, after its end or with no command, or the server restarted), so a client whose socket will not reopen can `fetch` it to tell |
+| `GET /games/{game}/ws` | WebSocket: one JSON command or message per text frame; the first command is `join` with the token. 404 to any request once the game has left the server (the idle timeout passed, after its end or with no command, or a server restart ended it), so a client whose socket will not reopen can `fetch` it to tell |
 | `GET /games/{game}/record` | the game's record (§11), `Authorization: Bearer <token>`, once the game is over (409 before: the record replayed would show the hidden cards) |
 | `GET /admin/games?since=&engine=&limit=` | the games recorded, oldest first: `id`, `engine`, `client`, `started`, `ended` (absent: going on the server now), `result`, `entries` (the operator's: `Authorization: Bearer <admin token>`) |
 | `GET /admin/games/{game}/record` | any game's record, as far as it went (the operator's) |
@@ -482,10 +487,12 @@ repeat from `to`: a reader drops what they take back), settings
 changes, refused commands, the players' feedback (at its decision), the
 result (with the turn the game ended on, `turns`; for a game a restart
 ended, the turn its record reads to) and any engine failure. A game
-going when its server restarts is ended at the restart,
-`server_restart`: its victory points where its
-record reads to on the restarted server's engine, `failure` saying why
-when it does not read to its end (rules fixes change the engine, §14).
+going when its server restarts is resumed from its record, its entries
+kept (the record names the engine it started on); one the restart cannot
+resume is ended at the restart, `server_restart`: its victory points
+where its record reads to on the restarted server's engine, `failure`
+saying why when it does not read to its end (rules fixes change the
+engine, §14).
 A record replays by index on its engine commit, and reads by key on a
 later engine (a record from before every block attempt was offered reads
 past the block windows its engine skipped). Kept two years, to train and

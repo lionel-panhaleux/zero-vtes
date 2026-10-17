@@ -470,71 +470,84 @@ impl Store {
         Ok(out)
     }
 
-    /// The games still going, ended `server_restart`: run at startup,
-    /// before any game is live, so a going game is one a previous process
-    /// lost. How many it ended, and why it could not end the others.
-    pub async fn end_lost(&self) -> (usize, Vec<String>) {
-        let going: Vec<(String, i32)> = match self {
-            Store::Postgres(pool) => match sqlx::query_as(
+    /// The games still going: run at startup, before any game is live,
+    /// so a going game is one a previous process lost. Each with the seats
+    /// its spec names (Postgres; 0 on files).
+    pub async fn going(&self) -> Result<Vec<(String, i32)>, String> {
+        match self {
+            Store::Postgres(pool) => sqlx::query_as(
                 "select id, case when jsonb_typeof(spec->'seats') = 'array'
                      then jsonb_array_length(spec->'seats') else 0 end
                  from games where ended is null",
             )
             .fetch_all(pool)
             .await
-            {
-                Ok(rows) => rows,
-                Err(e) => return (0, vec![e.to_string()]),
-            },
+            .map_err(|e| e.to_string()),
             // A file whose record does not read is not listed either.
-            Store::Files(_) => match self.list(None, None, i64::MAX).await {
-                Ok(games) => games
-                    .into_iter()
-                    .filter(|g| g.ended.is_none())
-                    .map(|g| (g.id, 0))
-                    .collect(),
-                Err(e) => return (0, vec![e]),
-            },
-        };
+            Store::Files(_) => Ok(self
+                .list(None, None, i64::MAX)
+                .await?
+                .into_iter()
+                .filter(|g| g.ended.is_none())
+                .map(|g| (g.id, 0))
+                .collect()),
+        }
+    }
+
+    /// A game's seat token hash.
+    pub async fn token_hash(&self, game: &str) -> Option<String> {
+        match self {
+            Store::Postgres(pool) => {
+                sqlx::query_as::<_, (String,)>("select token_hash from games where id = $1")
+                    .bind(game)
+                    .fetch_optional(pool)
+                    .await
+                    .ok()?
+                    .map(|(h,)| h)
+            }
+            Store::Files(dir) => {
+                let text = std::fs::read_to_string(dir.join(format!("{game}.jsonl"))).ok()?;
+                let start: (String, String, serde_json::Value) =
+                    serde_json::from_str(text.lines().next()?).ok()?;
+                (start.0 == "start").then_some(start.1)
+            }
+        }
+    }
+
+    /// A game left going ended `server_restart` (`seats`: its spec's, for
+    /// a row that no longer reads as a record).
+    pub async fn end_lost_game(&self, game: &str, seats: i32) -> Result<(), String> {
         let now = std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
             .expect("after 1970")
             .as_millis() as u64;
-        let (mut ended, mut failed) = (0, Vec::new());
-        for (game, seats) in going {
-            let done = match (self.record(&game, None).await, self) {
-                (Some(record), _) => {
-                    let result = zvtes_host::replay::ended(&record, EndReason::ServerRestart);
-                    self.write(Put::End {
-                        game: game.clone(),
-                        record: GameRecord {
-                            entries: vec![],
-                            ended: Some(now),
-                            result: Some(result),
-                            ..record
-                        },
-                    })
-                    .await
-                }
-                // A row that no longer reads as a record (an older api).
-                (None, Store::Postgres(pool)) => {
-                    let result = GameResult {
-                        vp_halves: vec![0; seats.max(0) as usize],
-                        winner: None,
-                        reason: EndReason::ServerRestart,
-                        failure: Some("the record does not read".into()),
-                        turns: None,
-                    };
-                    end_row(pool, &game, now, value(&result)).await
-                }
-                (None, Store::Files(_)) => Err("the record does not read".into()),
-            };
-            match done {
-                Ok(()) => ended += 1,
-                Err(e) => failed.push(format!("{game}: {e}")),
+        match (self.record(game, None).await, self) {
+            (Some(record), _) => {
+                let result = zvtes_host::replay::ended(&record, EndReason::ServerRestart);
+                self.write(Put::End {
+                    game: game.into(),
+                    record: GameRecord {
+                        entries: vec![],
+                        ended: Some(now),
+                        result: Some(result),
+                        ..record
+                    },
+                })
+                .await
             }
+            // A row that no longer reads as a record (an older api).
+            (None, Store::Postgres(pool)) => {
+                let result = GameResult {
+                    vp_halves: vec![0; seats.max(0) as usize],
+                    winner: None,
+                    reason: EndReason::ServerRestart,
+                    failure: Some("the record does not read".into()),
+                    turns: None,
+                };
+                end_row(pool, game, now, value(&result)).await
+            }
+            (None, Store::Files(_)) => Err("the record does not read".into()),
         }
-        (ended, failed)
     }
 
     /// Games started before `days` ago, deleted (the 2-year retention).
@@ -618,6 +631,24 @@ mod tests {
             .unwrap();
     }
 
+    /// Every game still going ended `server_restart`, as a restart that
+    /// resumes none: how many it ended, and why it could not end the
+    /// others.
+    async fn end_lost(store: &Store) -> (usize, Vec<String>) {
+        let going = match store.going().await {
+            Ok(g) => g,
+            Err(e) => return (0, vec![e]),
+        };
+        let (mut ended, mut failed) = (0, Vec::new());
+        for (game, seats) in going {
+            match store.end_lost_game(&game, seats).await {
+                Ok(()) => ended += 1,
+                Err(e) => failed.push(format!("{game}: {e}")),
+            }
+        }
+        (ended, failed)
+    }
+
     fn result(r: Option<GameRecord>) -> GameResult {
         r.expect("the record").result.expect("a result")
     }
@@ -657,7 +688,7 @@ mod tests {
             .await
             .unwrap();
 
-        assert_eq!(store.end_lost().await, (n, vec![]));
+        assert_eq!(end_lost(store).await, (n, vec![]));
         let listed = store.list(None, None, 1000).await.unwrap();
         assert!(listed.iter().all(|g| g.ended.is_some()));
         let going = result(store.record(&id("going"), None).await);
@@ -684,7 +715,7 @@ mod tests {
         let finished = result(store.record(&id("finished"), None).await);
         assert_eq!(finished.reason, played.reason);
         // Nothing is left going: a second restart ends none.
-        assert_eq!(store.end_lost().await, (0, vec![]));
+        assert_eq!(end_lost(store).await, (0, vec![]));
     }
 
     /// Feedback stored with its game's entries is listed with the game, its

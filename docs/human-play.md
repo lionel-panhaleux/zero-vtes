@@ -300,7 +300,8 @@ for history.
   `crates/host/tests/records.rs` reads the corpus whole.
 - `cargo clippy -p zvtes-server --all-targets --profile ci -- -D
   warnings` and `cargo test -p zvtes-server --profile ci` (not a default
-  member: a restart ending the games left going, on the file store, and
+  member: a restart resuming a game left going and ending a stale one, the
+  games left going ended when they cannot be, on the file store, and
   on Postgres with `ZVTES_TEST_DATABASE_URL` naming a scratch database);
   `scripts/check_ts.sh` (a game typed against `protocol.ts`); with a
   server running (Node 22 or later, for its `WebSocket`), `node

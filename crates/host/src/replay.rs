@@ -208,45 +208,57 @@ impl Reader<'_> {
     pub fn next(&mut self, e: &Engine, req: &DecisionRequest) -> Option<Result<usize, String>> {
         let d = self.replay.decisions.get(self.next)?;
         self.next += 1;
-        // A record by index alone (its keys unknown): the index.
-        if d.choice.kind == zvtes_api::ids::OptionKind::Unknown {
-            let i = d.option as usize;
-            return Some(if i < req.options.len() {
-                Ok(i)
-            } else {
-                Err(format!(
-                    "decision {}: option {i} of {} is refused",
-                    d.decision,
-                    req.options.len()
-                ))
-            });
-        }
-        // A keyed record names its seat.
-        if d.seat != req.seat.0 {
-            return Some(Err(format!(
-                "decision {}: seat {} asked, the record's is seat {}'s",
-                d.decision, req.seat.0, d.seat
-            )));
-        }
-        let alike: Vec<usize> = (0..req.options.len())
-            .filter(|&i| describe::key(e, req, &req.options[i], &EngineNames) == d.choice)
-            .collect();
+        Some(recorded_option(e, req, d))
+    }
+}
+
+/// The option `d` takes at the decision `req` asks (on `e`, as it stands
+/// then): the option whose key is the recorded one (its recorded index
+/// among several alike); an error when no option is it (the rules
+/// changed).
+pub(crate) fn recorded_option(
+    e: &Engine,
+    req: &DecisionRequest,
+    d: &Recorded,
+) -> Result<usize, String> {
+    // A record by index alone (its keys unknown): the index.
+    if d.choice.kind == zvtes_api::ids::OptionKind::Unknown {
         let i = d.option as usize;
-        Some(match alike.as_slice() {
-            // No key alike (a key written by an earlier engine, its fields
-            // since grown): the recorded index, if it is that kind of choice.
-            [] if i < req.options.len()
-                && describe::key(e, req, &req.options[i], &EngineNames).kind == d.choice.kind =>
-            {
-                Ok(i)
-            }
-            [] => Err(format!(
-                "decision {}: seat {}'s {:?} is not offered",
-                d.decision, d.seat, d.choice.kind
-            )),
-            many if many.contains(&i) => Ok(i),
-            [first, ..] => Ok(*first),
-        })
+        return if i < req.options.len() {
+            Ok(i)
+        } else {
+            Err(format!(
+                "decision {}: option {i} of {} is refused",
+                d.decision,
+                req.options.len()
+            ))
+        };
+    }
+    // A keyed record names its seat.
+    if d.seat != req.seat.0 {
+        return Err(format!(
+            "decision {}: seat {} asked, the record's is seat {}'s",
+            d.decision, req.seat.0, d.seat
+        ));
+    }
+    let alike: Vec<usize> = (0..req.options.len())
+        .filter(|&i| describe::key(e, req, &req.options[i], &EngineNames) == d.choice)
+        .collect();
+    let i = d.option as usize;
+    match alike.as_slice() {
+        // No key alike (a key written by an earlier engine, its fields
+        // since grown): the recorded index, if it is that kind of choice.
+        [] if i < req.options.len()
+            && describe::key(e, req, &req.options[i], &EngineNames).kind == d.choice.kind =>
+        {
+            Ok(i)
+        }
+        [] => Err(format!(
+            "decision {}: seat {}'s {:?} is not offered",
+            d.decision, d.seat, d.choice.kind
+        )),
+        many if many.contains(&i) => Ok(i),
+        [first, ..] => Ok(*first),
     }
 }
 

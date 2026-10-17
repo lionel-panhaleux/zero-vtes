@@ -579,3 +579,337 @@ fn minions_of_one_name_are_told_apart_and_markers_named() {
         "no second minion of a name met ({markers} markers)"
     );
 }
+
+/// An allocation's amounts, each within its recipient's cap, the least
+/// recipients given some first (as the events sweep gives them).
+fn amounts(a: &zvtes_api::option::Allocation, rng: &mut Rng) -> Option<Vec<u8>> {
+    let n = a.recipients.len();
+    let cap = |i: usize| a.recipients[i].cap.unwrap_or(a.points);
+    let mut out = vec![0u8; n];
+    let mut left = a.points;
+    for (i, o) in out.iter_mut().enumerate().take(a.min_nonzero as usize) {
+        if left > 0 && cap(i) > 0 {
+            *o = 1;
+            left -= 1;
+        }
+    }
+    while left > 0 {
+        let open: Vec<usize> = (0..n).filter(|&i| out[i] < cap(i)).collect();
+        if open.is_empty() {
+            return None;
+        }
+        out[open[rng.below(open.len())]] += 1;
+        left -= 1;
+    }
+    Some(out)
+}
+
+/// A game left going is rebuilt from its record (a server restarted):
+/// at the same decision, the same options, and from there it plays on as
+/// the original does, answer for answer (its bots' moves taken as
+/// recorded, their agents then as they were); undos, settings changes,
+/// allocations answered whole and vote orders on the way replayed too,
+/// the undo depth as they left it.
+#[test]
+fn a_game_resumed_from_its_record_plays_on_as_it_was() {
+    let seeds: u32 = std::env::var("HOST_SEEDS").map_or(8, |s| s.parse().unwrap());
+    let (mut undone, mut resumed, mut allocated, mut voted) = (0, 0, 0, 0);
+    for seed in 1..=seeds {
+        let settings = Settings {
+            opportunities: seed % 2 == 0,
+            ..Settings::default()
+        };
+        let mut g = game(seed, settings);
+        let human = g.human();
+        let mut rng = Rng(seed as u64 * 13 + 5);
+        let mut outs = g.handle(human, join());
+        let cut = 20 + rng.below(60);
+        let mut answered = 0;
+        // Play to the cut, an undo or a settings change now and then.
+        while !g.is_over() && answered < cut {
+            let d = pending(&outs).cloned().expect("a decision");
+            let whole = d.allocation.as_ref().and_then(|a| amounts(a, &mut rng));
+            let c = if let Some(amounts) = whole.filter(|_| rng.below(2) == 0) {
+                allocated += 1;
+                Command::Allocate {
+                    decision: d.decision,
+                    amounts,
+                }
+            } else if let Some(v) = d
+                .votes
+                .filter(|v| v.favor + v.against > 0 && rng.below(2) == 0)
+            {
+                voted += 1;
+                Command::VoteAll {
+                    decision: d.decision,
+                    favor: v.favor > 0,
+                }
+            } else if d.undo && rng.below(8) == 0 {
+                undone += 1;
+                Command::Undo {
+                    decision: d.decision,
+                }
+            } else if rng.below(15) == 0 {
+                Command::Settings(SettingsPatch {
+                    opportunities: Some(rng.below(2) == 0),
+                    ..SettingsPatch::default()
+                })
+            } else {
+                answered += 1;
+                Command::Answer {
+                    decision: d.decision,
+                    option: d.options[rng.below(d.options.len())].index,
+                }
+            };
+            outs = g.handle(human, cmd(c));
+            if pending(&outs).is_none() && !g.is_over() {
+                outs = g.handle(human, join());
+            }
+        }
+        if g.is_over() {
+            continue;
+        }
+        let record = g.record().clone();
+        let mut r = Game::resume(
+            format!("g{seed}"),
+            &record,
+            &NoBots,
+            Box::new(Ticks(Default::default())),
+        )
+        .unwrap_or_else(|e| panic!("seed {seed}: {e}"));
+        resumed += 1;
+        assert_eq!(
+            r.record().entries,
+            record.entries,
+            "seed {seed}: the record kept"
+        );
+        let mut routs = r.handle(human, join());
+        // Answer for answer, both games alike.
+        for step in 0..40 {
+            let (Some(a), Some(b)) = (pending(&outs).cloned(), pending(&routs).cloned()) else {
+                assert_eq!(g.is_over(), r.is_over(), "seed {seed} step {step}");
+                break;
+            };
+            assert_eq!(a.decision, b.decision, "seed {seed} step {step}");
+            let keys = |d: &zvtes_api::Decision| -> Vec<_> {
+                d.options.iter().map(|o| (o.index, o.key.clone())).collect()
+            };
+            assert_eq!(keys(&a), keys(&b), "seed {seed} step {step}: the options");
+            let option = a.options[rng.below(a.options.len())].index;
+            let answer = |decision| cmd(Command::Answer { decision, option });
+            outs = g.handle(human, answer(a.decision));
+            routs = r.handle(human, answer(b.decision));
+        }
+        let decisions = |g: &Game| -> Vec<_> {
+            g.record()
+                .entries
+                .iter()
+                .filter_map(|e| match e {
+                    Entry::Decision {
+                        decision, choice, ..
+                    } => Some((*decision, choice.clone())),
+                    _ => None,
+                })
+                .collect()
+        };
+        assert_eq!(
+            decisions(&g),
+            decisions(&r),
+            "seed {seed}: the records alike"
+        );
+    }
+    assert!(
+        resumed > 0 && undone > 0,
+        "{resumed} resumed, {undone} undos, {allocated} allocations, {voted} vote orders"
+    );
+}
+
+/// A vote order (`vote_all`) and an allocation answered whole
+/// (`allocate`) resume as they were taken: the resumed game at the same
+/// decision, its undo where the original's is, and on as the original
+/// plays (each game found where it first offers one).
+#[test]
+fn a_resumed_game_keeps_its_vote_orders_and_allocations() {
+    let (mut voted, mut allocated) = (0, 0);
+    for seed in 1..=80 {
+        if voted > 0 && allocated > 0 {
+            break;
+        }
+        let mut g = game(seed, Settings::default());
+        let human = g.human();
+        let mut rng = Rng(seed as u64 * 17 + 3);
+        let mut outs = g.handle(human, join());
+        let mut taken = None;
+        // To the first vote order or whole allocation, taken; resumed just
+        // after it, where the undo depth and the order's casts tell.
+        while !g.is_over() && taken.is_none() {
+            let Some(d) = pending(&outs).cloned() else {
+                break;
+            };
+            let c = match (d.votes, d.allocation.as_ref()) {
+                (Some(v), _) if voted == 0 && v.favor + v.against > 0 => {
+                    taken = Some("vote");
+                    Command::VoteAll {
+                        decision: d.decision,
+                        favor: v.favor > 0,
+                    }
+                }
+                (_, Some(a)) if allocated == 0 && amounts(a, &mut Rng(1)).is_some() => {
+                    taken = Some("allocation");
+                    Command::Allocate {
+                        decision: d.decision,
+                        amounts: amounts(a, &mut rng).expect("amounts"),
+                    }
+                }
+                _ => Command::Answer {
+                    decision: d.decision,
+                    option: d.options[rng.below(d.options.len())].index,
+                },
+            };
+            outs = g.handle(human, cmd(c));
+        }
+        let (Some(kind), false) = (taken, g.is_over()) else {
+            continue;
+        };
+        let before = pending(&outs).cloned().expect("a decision");
+        let mut r = Game::resume(
+            format!("g{seed}"),
+            g.record(),
+            &NoBots,
+            Box::new(Ticks(Default::default())),
+        )
+        .unwrap_or_else(|e| panic!("seed {seed} ({kind}): {e}"));
+        let mut routs = r.handle(human, join());
+        let now = pending(&routs).cloned().expect("a decision");
+        assert_eq!(
+            (now.decision, now.undo),
+            (before.decision, before.undo),
+            "seed {seed} ({kind})"
+        );
+        // The undo, in both: to the same decision.
+        if before.undo {
+            outs = g.handle(
+                human,
+                cmd(Command::Undo {
+                    decision: before.decision,
+                }),
+            );
+            routs = r.handle(
+                human,
+                cmd(Command::Undo {
+                    decision: now.decision,
+                }),
+            );
+            assert_eq!(
+                pending(&outs).map(|d| d.decision),
+                pending(&routs).map(|d| d.decision),
+                "seed {seed} ({kind}): the undo"
+            );
+        }
+        // On, answer for answer: an order's casts as it cast them.
+        for step in 0..15 {
+            let (Some(a), Some(b)) = (pending(&outs).cloned(), pending(&routs).cloned()) else {
+                break;
+            };
+            assert_eq!(a.decision, b.decision, "seed {seed} ({kind}) step {step}");
+            let option = a.options[rng.below(a.options.len())].index;
+            let answer = |decision| cmd(Command::Answer { decision, option });
+            outs = g.handle(human, answer(a.decision));
+            routs = r.handle(human, answer(b.decision));
+        }
+        match kind {
+            "vote" => voted += 1,
+            _ => allocated += 1,
+        }
+    }
+    assert!(
+        voted > 0 && allocated > 0,
+        "{voted} vote orders, {allocated} allocations"
+    );
+}
+
+/// A bot that plays otherwise each time it is made (as a changed engine
+/// or new weights would), recorded alike: a resumed game reaches its
+/// decision only by taking the bots' moves as recorded.
+struct Fickle(std::cell::Cell<u64>);
+
+impl Bots for Fickle {
+    fn profiles(&self) -> Vec<String> {
+        vec!["fickle".into()]
+    }
+    fn make(
+        &self,
+        profile: &str,
+        seed: u32,
+    ) -> Option<(Box<dyn zvtes::agent::Agent>, zvtes_api::record::BotRecord)> {
+        (profile == "fickle").then(|| {
+            self.0.set(self.0.get() + 1);
+            let agent = zvtes::agent::RandomLegal::new(seed as u64 * 1000 + self.0.get());
+            let r = zvtes_api::record::BotRecord {
+                seat: 0,
+                profile: "fickle".into(),
+                kind: "random".into(),
+                weights: None,
+                temperature: None,
+                seed,
+                nudges: Default::default(),
+            };
+            (Box::new(agent) as Box<dyn zvtes::agent::Agent>, r)
+        })
+    }
+}
+
+#[test]
+fn a_resumed_games_bots_take_their_recorded_moves() {
+    let bots = Fickle(Default::default());
+    let mut checked = 0;
+    for seed in 1..=6 {
+        let mut s = spec(seed, 0, Settings::default());
+        for seat in &mut s.seats[1..] {
+            seat.player = Player::Bot {
+                profile: "fickle".into(),
+            };
+        }
+        let mut g = Game::new(
+            format!("f{seed}"),
+            s,
+            &bots,
+            Box::new(Ticks(Default::default())),
+        )
+        .unwrap();
+        let mut rng = Rng(seed as u64 * 3 + 1);
+        let mut outs = g.handle(0, join());
+        for _ in 0..40 {
+            let Some(d) = pending(&outs).cloned() else {
+                break;
+            };
+            let option = d.options[rng.below(d.options.len())].index;
+            outs = g.handle(
+                0,
+                cmd(Command::Answer {
+                    decision: d.decision,
+                    option,
+                }),
+            );
+        }
+        let Some(before) = pending(&outs).cloned() else {
+            continue;
+        };
+        let mut r = Game::resume(
+            format!("f{seed}"),
+            g.record(),
+            &bots,
+            Box::new(Ticks(Default::default())),
+        )
+        .unwrap_or_else(|e| panic!("seed {seed}: {e}"));
+        let after = pending(&r.handle(0, join())).cloned().expect("a decision");
+        assert_eq!(before.decision, after.decision, "seed {seed}");
+        assert_eq!(
+            before.options.iter().map(|o| &o.key).collect::<Vec<_>>(),
+            after.options.iter().map(|o| &o.key).collect::<Vec<_>>(),
+            "seed {seed}"
+        );
+        checked += 1;
+    }
+    assert!(checked > 0);
+}
