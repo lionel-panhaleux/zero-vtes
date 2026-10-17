@@ -76,5 +76,8 @@ players' feedback (`GET https://engine.krcg.org/admin/feedback?since=`
 with the admin token from `~/.config/zvtes/admin_token`, never printed:
 each report's game, engine and decision, its record replayed with
 `--example replay` at that decision); the egress reviewer's out-of-scope
-notes; the upkeep's lint and ratchet proposals. Each goes through the
+notes; the upkeep's lint and ratchet proposals; GitHub issues and pull
+requests (`gh issue list`, `gh pr list`: Z-main reads them, as
+CONTRIBUTING.md promises outsiders; an outside pull request gets the
+`egress-reviewer` before the owner merges it). Each goes through the
 steps above; a source's raw notes are not kept once triaged.

@@ -47,8 +47,9 @@ What it still needs:
 7. **What players asked for**: the cards their refused decks named
    (`/admin/unsupported`) steering the next rounds (cards: Round 16).
 
-Not needed for the beta but in the same order: the repository open to
-outsiders (engine), the demo video and the proposal to Thomas (platforms).
+Not needed for the beta but in the same order: the first release tagged
+(engine, an ask to the owner), the demo video and the proposal to Thomas
+(platforms).
 
 ## Objectives
 
