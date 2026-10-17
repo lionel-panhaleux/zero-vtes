@@ -306,6 +306,14 @@ export type Card = {
      * visible copy holds, given as it comes into sight. With `id` only.
      */
     nth?: number | null
+    /**
+     * A minion's number among the minions of its name the viewer has
+     * met this game, from the second on ("War Ghoul (2)", whatever its
+     * deck), kept once given (an undo takes back those given since); none
+     * for the first, nor a ghoul token. On a minion in the view and on
+     * its entering or leaving play.
+     */
+    numbered?: number | null
 }
 
 /**

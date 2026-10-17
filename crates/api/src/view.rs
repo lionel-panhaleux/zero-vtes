@@ -50,6 +50,13 @@ pub struct Card {
     /// visible copy holds, given as it comes into sight. With `id` only.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub nth: Option<u8>,
+    /// A minion's number among the minions of its name the viewer has
+    /// met this game, from the second on ("War Ghoul (2)", whatever its
+    /// deck), kept once given (an undo takes back those given since); none
+    /// for the first, nor a ghoul token. On a minion in the view and on
+    /// its entering or leaving play.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub numbered: Option<u8>,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]

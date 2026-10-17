@@ -40,8 +40,9 @@ branches, PRs, recipes, traps) and update it as you learn.
    `push.default=upstream` is set globally.
 6. **The platform stays agnostic of the engine's internals**: the fork reads
    the protocol (`docs/protocol.md`), never engine code. When it has to
-   infer something the protocol could say, record the leak in sc.md's
-   boundary list and on the engine board, rather than hard-code it.
+   infer something the protocol could say, send the leak to Z-main
+   for an engine-board line (CLAUDE.md "Between lines"), rather than
+   hard-code it.
 7. **Guidance, not advantage** (protocol §8 and the owner's policy there):
    the platform may hide what `opportunities` hides and help a player act,
    never remind them of what the engine leaves to the player. Explaining

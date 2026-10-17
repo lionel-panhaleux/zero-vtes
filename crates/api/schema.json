@@ -561,6 +561,16 @@
           "format": "uint8",
           "maximum": 255,
           "minimum": 0
+        },
+        "numbered": {
+          "description": "A minion's number among the minions of its name the viewer has\nmet this game, from the second on (\"War Ghoul (2)\", whatever its\ndeck), kept once given (an undo takes back those given since); none\nfor the first, nor a ghoul token. On a minion in the view and on\nits entering or leaving play.",
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint8",
+          "maximum": 255,
+          "minimum": 0
         }
       }
     },

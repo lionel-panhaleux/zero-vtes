@@ -95,9 +95,10 @@ pub struct Game {
     /// What happened since the messages last told it, named as the view
     /// that took it in numbered it; the decisions taken among it marked.
     backlog: VecDeque<Told>,
-    /// The viewer's numbering at each decision it was asked, by number:
-    /// an undo restores it, the view asked again the view first sent.
-    numberings: BTreeMap<u64, crate::numbering::Numbering>,
+    /// The viewer's numbering and minions' names at each decision it was
+    /// asked, by number: an undo restores both, the view asked again the
+    /// view first sent.
+    numberings: BTreeMap<u64, (crate::numbering::Numbering, crate::numbering::MinionNames)>,
     /// The decisions taken and not told yet, by number (`text` only).
     asked: HashMap<u64, Asked>,
     record: GameRecord,
@@ -479,8 +480,9 @@ impl Game {
                         self.asked.clear();
                         let at = self.session.decision();
                         let _ = self.numberings.split_off(&(at + 1));
-                        if let Some(n) = self.numberings.get(&at) {
+                        if let Some((n, names)) = self.numberings.get(&at) {
                             self.viewer.numbering = n.clone();
+                            self.viewer.names = names.clone();
                         }
                         let mut m = self.advance();
                         let to = self.pending.as_ref().map_or(pending, |d| d.decision);
@@ -644,8 +646,10 @@ impl Game {
                         view: view.clone(),
                     };
                     self.last_view = Some(view);
-                    self.numberings
-                        .insert(decision, self.viewer.numbering.clone());
+                    self.numberings.insert(
+                        decision,
+                        (self.viewer.numbering.clone(), self.viewer.names.clone()),
+                    );
                     if self.numberings.len() > 256 {
                         self.numberings.pop_first();
                     }

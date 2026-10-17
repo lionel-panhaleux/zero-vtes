@@ -8,7 +8,7 @@
 use std::collections::HashMap;
 
 use zvtes_api::event::{Event, EventKind};
-use zvtes_api::ids::OptionKind;
+use zvtes_api::ids::{MinionKind, OptionKind};
 use zvtes_api::spec::Views;
 use zvtes_api::view::{Card, TableView};
 use zvtes_api::{Command, GameSpec, In, Message, Out, Player, SeatSpec, Settings};
@@ -143,6 +143,9 @@ struct Stream {
     unasked: Vec<u64>,
     /// The legacy lines the renderer told otherwise: (legacy, rendered).
     misses: Vec<(String, String)>,
+    /// Each minion's `numbered`, as the views and its entering or leaving
+    /// play told it (forgotten at an undo: wire copies are given again).
+    name_numbers: HashMap<u32, Option<u8>>,
 }
 
 fn numbered(c: &Card) -> bool {
@@ -170,6 +173,26 @@ impl Stream {
                 self.misses.push((t.clone(), rendered));
             }
         }
+        // A minion entering or leaving play: its name's number as the
+        // views give it (docs/protocol.md §3), a ghoul token's none.
+        if let EventKind::EntersPlay {
+            card,
+            minion: Some(kind),
+            ..
+        }
+        | EventKind::LeavesPlay {
+            card,
+            minion: Some(kind),
+            ..
+        } = &e.kind
+        {
+            if let Some(c) = card.copy {
+                if *kind == MinionKind::Token {
+                    assert_eq!(card.numbered, None, "seed {seed}: a token numbered");
+                }
+                self.number(c, card.numbered, "an event");
+            }
+        }
         let copy = |c: u32| assert_ne!(c, u32::MAX, "seed {seed}: an unnumbered minion: {e:?}");
         match &e.kind {
             EventKind::Undone { to, .. } => {
@@ -179,6 +202,7 @@ impl Stream {
                 self.pools.clear();
                 self.blood.clear();
                 self.torpor.clear();
+                self.name_numbers.clear();
             }
             EventKind::CombatBegins { minions } => {
                 minions.iter().for_each(|&m| copy(m));
@@ -253,9 +277,30 @@ impl Stream {
         }
     }
 
+    /// `c`'s name number, `n`, as one message tells it: the same as every
+    /// other told it since the last undo.
+    fn number(&mut self, c: u32, n: Option<u8>, what: &str) {
+        let seed = self.seed;
+        let was = *self.name_numbers.entry(c).or_insert(n);
+        assert_eq!(was, n, "seed {seed}: {c}'s number in {what}");
+    }
+
     fn view(&mut self, v: &TableView, at: &str) {
         let seed = self.seed;
         self.names.see(v);
+        // Minions of one name told apart, each as told before.
+        let mut names: Vec<(&str, Option<u8>)> = Vec::new();
+        for m in v.seats.iter().flat_map(|s| s.ready.iter().chain(&s.torpor)) {
+            if let Some(c) = m.card.copy {
+                self.number(c, m.card.numbered, at);
+            }
+            if m.kind == MinionKind::Token {
+                continue;
+            }
+            let n = (m.name.as_str(), m.card.numbered);
+            assert!(!names.contains(&n), "seed {seed} {at}: two {n:?}");
+            names.push(n);
+        }
         // A combat's strikes in English exactly when the settings ask.
         for s in v
             .combat
@@ -408,6 +453,7 @@ fn the_events_tell_what_the_views_show() {
             again: None,
             reasked: 0,
             unasked: Vec::new(),
+            name_numbers: HashMap::new(),
         };
         let mut outs = g.handle(
             human,

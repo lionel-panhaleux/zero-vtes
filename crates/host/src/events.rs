@@ -18,7 +18,7 @@ use zvtes_api::ids::{MinionKind, Range, Zone};
 use zvtes_api::view::Card;
 
 use crate::numbering::Decks;
-use crate::view::{action_kind, minion_face, strike, Viewer};
+use crate::view::{action_kind, minion_base, minion_face, strike, Viewer};
 
 struct Namer<'a> {
     e: &'a Engine,
@@ -39,7 +39,19 @@ impl Namer<'_> {
             id: Some(id),
             crypt,
             nth: named.map(|(_, n)| n),
+            numbered: None,
         }
+    }
+
+    /// A minion entering or leaving play: its card, numbered by its name.
+    fn minion_named(&mut self, m: MinionId) -> Card {
+        let mut c = self.minion_card(m);
+        let v = &self.e.state.minions[m.index()];
+        if let Some(w) = c.copy {
+            let token = self.minion_kind(m) == MinionKind::Token;
+            c.numbered = self.viewer.names.label(w, &minion_base(v), token);
+        }
+        c
     }
 
     fn minion_card(&mut self, m: MinionId) -> Card {
@@ -99,7 +111,7 @@ impl Namer<'_> {
                 seat: seat.map(|s| s.0),
             },
             Fact::MinionEnters { minion } => EventKind::EntersPlay {
-                card: self.minion_card(minion),
+                card: self.minion_named(minion),
                 seat: st.minions[minion.index()].owner.0,
                 on: None,
                 minion: Some(self.minion_kind(minion)),
@@ -110,7 +122,7 @@ impl Namer<'_> {
                 contested,
                 to,
             } => EventKind::LeavesPlay {
-                card: self.minion_card(minion),
+                card: self.minion_named(minion),
                 to: to.and_then(zone),
                 minion: Some(self.minion_kind(minion)),
                 contested,

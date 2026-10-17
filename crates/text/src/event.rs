@@ -295,6 +295,7 @@ mod tests {
             id: Some(id),
             crypt: false,
             nth: None,
+            numbered: None,
         }
     }
 

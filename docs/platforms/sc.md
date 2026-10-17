@@ -148,14 +148,3 @@ front, about the AI involvement.
   newer one the same way: the newest join wins.
 - After a vite restart the owner's tab can ask for long-deleted modules
   (EnginePassButton.vue, deleted 3 days earlier): a refresh fixes it.
-
-## Where the engine/platform boundary leaked (to fix on the engine side)
-
-What the fork infers today; each has its engine-board line and goes from
-here when that line lands.
-
-- Markers carried `n` but no name; minions of one name read alike until the
-  text crate numbered them: the client needs data to tell them apart.
-
-Fixed in the fork, not engine-side: a lone option taken at once, wrong for a
-card's lone use.

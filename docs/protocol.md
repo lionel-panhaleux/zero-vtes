@@ -158,6 +158,10 @@ engine's own numbers.
 **Labels.** A card whose face the viewer sees carries `nth`: its label
 among the copies of that card from the same deck ("Embrace #2"), the
 lowest number no other visible copy holds, given as it comes into sight.
+A minion, in the view and as it enters or leaves play, also carries
+`numbered` from the second minion of its name the viewer meets in the
+game, whatever its deck ("War Ghoul (2)"), kept once given (an undo
+takes back those given since); never a ghoul token.
 
 ## 4. Commands (client → host)
 
@@ -226,7 +230,7 @@ the previous one, never the engine's state.
 - `turn`, `active`, `phase` (`unlock`, `master`, `minion`, `influence`,
   `discard`, `over`), `decision` (the next one's number).
 - `seats[]`: `name`, `pool`, `vp_halves`, `ousted`, `edge`, `prey`,
-  `predator`; zones as cards `{copy?, id?, crypt?, nth?}` — `crypt`,
+  `predator`; zones as cards `{copy?, id?, crypt?, nth?, numbered?}` — `crypt`,
   `library` (top last), `hand`, `ash_heap`, `removed`, `limbo` (cards
   being played); `uncontrolled[]` (`card`, `counters`, `banished`,
   `cards`); `ready[]` and `torpor[]` minions; `in_play[]` (cards on no

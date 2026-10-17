@@ -28,13 +28,14 @@ use zvtes_api::view::{
     ReferendumView, SeatView, SlotView, Strike, TableView, Target, Terms, Title, Vote,
 };
 
-use crate::numbering::{Decks, Numbering, Seen};
+use crate::numbering::{Decks, MinionNames, Numbering, Seen};
 
 /// One viewer's view of the game: its numbering kept across views.
 #[derive(Clone, Debug, Default)]
 pub struct Viewer {
     pub seat: Option<SeatId>,
     pub numbering: Numbering,
+    pub names: MinionNames,
 }
 
 impl Viewer {
@@ -42,6 +43,7 @@ impl Viewer {
         Viewer {
             seat,
             numbering: Numbering::default(),
+            names: MinionNames::default(),
         }
     }
 
@@ -61,14 +63,17 @@ impl Viewer {
         probe.table();
         let seen = probe.seen.into_inner();
         self.numbering.update(decks, &seen);
-        Build {
+        let minion_names = RefCell::new(std::mem::take(&mut self.names));
+        let v = Build {
             e,
             st: &st,
             names,
-            numbering: Some(&self.numbering),
+            numbering: Some((&self.numbering, &minion_names)),
             seen: RefCell::new(Vec::new()),
         }
-        .table()
+        .table();
+        self.names = minion_names.into_inner();
+        v
     }
 
     /// A minion's or a card in play's wire copy (options and events name
@@ -90,8 +95,9 @@ struct Build<'a> {
     e: &'a Engine,
     st: &'a GameState,
     names: &'a [String],
-    /// `None`: the first pass, collecting.
-    numbering: Option<&'a Numbering>,
+    /// `None`: the first pass, collecting; then the numbering, and the
+    /// minions' names numbered in table order.
+    numbering: Option<(&'a Numbering, &'a RefCell<MinionNames>)>,
     seen: RefCell<Vec<Seen>>,
 }
 
@@ -106,7 +112,7 @@ impl Build<'_> {
             }
         });
         let (copy, nth) = match (id, copy == CopyId::NONE) {
-            (Some(id), false) => match self.numbering {
+            (Some(id), false) => match self.numbering.map(|(n, _)| n) {
                 None => {
                     self.seen.borrow_mut().push((copy, id, crypt));
                     (None, None)
@@ -123,6 +129,7 @@ impl Build<'_> {
             id,
             crypt,
             nth,
+            numbered: None,
         }
     }
 
@@ -140,6 +147,7 @@ impl Build<'_> {
                 id: None,
                 crypt,
                 nth: None,
+                numbered: None,
             })
             .collect()
     }
@@ -154,7 +162,7 @@ impl Build<'_> {
 
     fn wire(&self, c: CopyId) -> u32 {
         self.numbering
-            .and_then(|n| n.get(c))
+            .and_then(|(n, _)| n.get(c))
             .map_or(u32::MAX, |(w, _)| w)
     }
 
@@ -435,6 +443,24 @@ impl Build<'_> {
         }
     }
 
+    /// A minion's card, numbered by its name in the second pass.
+    fn minion_card(
+        &self,
+        m: &zvtes::state::Minion,
+        copy: CopyId,
+        card: u16,
+        crypt: bool,
+        kind: MinionKind,
+    ) -> Card {
+        let mut c = self.card(copy, card, crypt);
+        if let (Some((_, names)), Some(w)) = (self.numbering, c.copy) {
+            c.numbered = names
+                .borrow_mut()
+                .label(w, &minion_base(m), kind == MinionKind::Token);
+        }
+        c
+    }
+
     fn minion(&self, i: usize) -> MinionView {
         let st = self.st;
         let m = &st.minions[i];
@@ -499,7 +525,7 @@ impl Build<'_> {
             });
         }
         MinionView {
-            card: self.card(minion_copy(st, i), card, crypt),
+            card: self.minion_card(m, minion_copy(st, i), card, crypt, kind),
             kind,
             name: crate::cards::printed(m.name()),
             blood: m.blood,
@@ -672,6 +698,15 @@ pub(crate) fn told(mut s: Strike, hit: Option<zvtes::combat::StrikeHit>) -> Stri
     s
 }
 
+/// A minion's name as numbering reads it: its printed name, every ghoul
+/// token alike.
+pub(crate) fn minion_base(m: &zvtes::state::Minion) -> String {
+    match minion_kind(m) {
+        MinionKind::Token => "ghoul token".into(),
+        _ => crate::cards::printed(m.name()),
+    }
+}
+
 /// The card types a mode's tags may name (a multi-type card's line).
 const CARD_TYPES: [(&str, &str); 6] = [
     ("ACTION", "action"),
@@ -809,6 +844,56 @@ mod tests {
             .position(f)
             .map(|i| i as u16)
             .expect("a vampire")
+    }
+
+    // Minions of one name told apart (docs/protocol.md §3): the second and
+    // third of a name numbered in table order, whatever their seat, kept in
+    // a later view. Markers are data: a hostage's count, a lasting effect's
+    // card.
+    #[test]
+    fn minions_of_one_name_are_numbered_in_the_view() {
+        let mut e = Engine::bare(2);
+        let plain = crypt(|c| !c.unique);
+        let first = e.add_minion(SeatId(0), plain, 4, false);
+        e.add_minion(SeatId(1), plain, 4, false);
+        e.add_minion(SeatId(1), plain, 4, false);
+        for (i, m) in e.state.minions.iter_mut().enumerate() {
+            m.copy = zvtes::copies::Untracked(zvtes::copies::CopyId(i as u16));
+        }
+        e.state.minions[first.index()].hostage = 2;
+        let fame = zvtes::state::find_library("Fame");
+        let mut effect = zvtes::state::CardInPlay::new(fame, SeatId(1), Some(first), 0);
+        effect.effect_only = true;
+        e.state.cards.push(effect);
+        let names = vec!["a".to_string(), "b".to_string()];
+        let decks = Decks::dealt(&e);
+        let mut viewer = Viewer::new(Some(SeatId(1)));
+        let numbered = |v: &zvtes_api::view::TableView| -> Vec<Option<u8>> {
+            v.seats
+                .iter()
+                .flat_map(|s| s.ready.iter().map(|m| m.card.numbered))
+                .collect()
+        };
+        let v = viewer.view(&e, &decks, &names);
+        assert!(v.seats[0].ready[0].card.copy.is_some(), "numbered copies");
+        assert_eq!(numbered(&v), [None, Some(2), Some(3)]);
+        assert_eq!(
+            v.seats[0].ready[0]
+                .markers
+                .iter()
+                .map(|k| (k.kind, k.n, k.card))
+                .collect::<Vec<_>>(),
+            [
+                (zvtes_api::ids::MarkerKind::Hostage, Some(2), None),
+                (
+                    zvtes_api::ids::MarkerKind::Effect,
+                    None,
+                    Some(zvtes::library::LIBRARY[fame as usize].id)
+                )
+            ]
+        );
+        let v = viewer.view(&e, &decks, &names);
+        assert_eq!(numbered(&v), [None, Some(2), Some(3)], "kept");
     }
 
     // A minion's traits in every viewer's view, read live: a printed Black

@@ -207,6 +207,7 @@ fn events_are_tagged_by_kind() {
                 id: Some(200_001),
                 crypt: true,
                 nth: Some(1),
+                numbered: None,
             },
             seat: 2,
             on: None,
@@ -260,6 +261,7 @@ fn a_card_back_is_empty() {
         id: None,
         crypt: false,
         nth: None,
+        numbered: None,
     };
     assert_eq!(serde_json::to_value(back).unwrap(), json!({}));
 }

@@ -33,6 +33,37 @@ impl Decks {
     }
 }
 
+/// Minions' names as one viewer meets them: a minion whose name another
+/// minion of the game had first is numbered (`Card::numbered`), by wire
+/// copy, kept once given.
+#[derive(Clone, Debug, Default)]
+pub struct MinionNames {
+    named: HashMap<u32, (String, Option<u8>)>,
+}
+
+impl MinionNames {
+    /// The number of the minion `wire`, named `base` (a ghoul token never
+    /// numbered): its own while its name holds, else the lowest no other
+    /// minion of the name holds (the first unnumbered, 1).
+    pub fn label(&mut self, wire: u32, base: &str, token: bool) -> Option<u8> {
+        if let Some((b, n)) = self.named.get(&wire) {
+            if b == base {
+                return *n;
+            }
+        }
+        let held: BTreeSet<u8> = self
+            .named
+            .iter()
+            .filter(|(&o, (b, _))| o != wire && b == base)
+            .map(|(_, (_, n))| n.unwrap_or(1))
+            .collect();
+        let k = (1..=u8::MAX).find(|k| !held.contains(k)).unwrap_or(u8::MAX);
+        let n = (k > 1 && !token).then_some(k);
+        self.named.insert(wire, (base.into(), n));
+        n
+    }
+}
+
 /// A visible card: its engine copy and face (KRCG id, crypt).
 pub type Seen = (CopyId, u32, bool);
 

@@ -528,3 +528,54 @@ fn a_minion_phase_without_a_pass_says_why() {
     });
     assert!(hunts > 0, "no forced hunt met");
 }
+
+/// Minions of one name are told apart in the view (docs/protocol.md §3):
+/// a second minion of a name, from any deck, carries `numbered`, distinct
+/// from the others' and kept for the game; ghoul tokens never. Markers
+/// are data too: a kind the protocol names, its count, an effect's card.
+/// The first second of a name the human sees is seed 18 or so; a fixed
+/// table: `view.rs`'s `minions_of_one_name_are_numbered_in_the_view`.
+#[test]
+fn minions_of_one_name_are_told_apart_and_markers_named() {
+    use std::collections::HashMap;
+    use zvtes_api::ids::{MarkerKind, MinionKind};
+    let seeds: u32 = std::env::var("HOST_SEEDS").map_or(40, |s| s.parse().unwrap());
+    let (mut seconds, mut markers) = (0, 0);
+    let mut kept: HashMap<(u32, u32), Option<u8>> = HashMap::new();
+    each_decision(seeds, |seed, d| {
+        let mut names: Vec<(&str, Option<u8>)> = Vec::new();
+        for s in &d.view.seats {
+            for m in s.ready.iter().chain(&s.torpor) {
+                let copy = m.card.copy.expect("a minion in sight is numbered");
+                let was = kept.entry((seed, copy)).or_insert(m.card.numbered);
+                assert_eq!(
+                    *was, m.card.numbered,
+                    "seed {seed}: {copy}'s number changed"
+                );
+                if m.kind == MinionKind::Token {
+                    assert_eq!(m.card.numbered, None, "seed {seed}: a token numbered");
+                    continue;
+                }
+                assert!(
+                    !names.contains(&(m.name.as_str(), m.card.numbered)),
+                    "seed {seed}: two {} alike ({:?})",
+                    m.name,
+                    m.card.numbered
+                );
+                names.push((&m.name, m.card.numbered));
+                seconds += usize::from(m.card.numbered == Some(2));
+                for k in &m.markers {
+                    assert_ne!(k.kind, MarkerKind::Unknown, "seed {seed}: {k:?}");
+                    if k.kind == MarkerKind::Effect {
+                        assert!(k.card.is_some(), "seed {seed}: an effect unnamed: {k:?}");
+                    }
+                    markers += 1;
+                }
+            }
+        }
+    });
+    assert!(
+        seconds > 0,
+        "no second minion of a name met ({markers} markers)"
+    );
+}

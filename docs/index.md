@@ -36,7 +36,7 @@ reasoning journeys live in a task and die with it, git keeping them.
 ## Platforms
 
 - [`platforms/sc.md`](platforms/sc.md): Succubus Club: Thomas's style,
-  branches, PRs and his reactions, recipes, traps, the boundary leaks.
+  branches, PRs and his reactions, recipes, traps.
 
 ## The work
 
