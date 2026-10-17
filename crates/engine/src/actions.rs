@@ -1969,6 +1969,29 @@ impl Engine {
             })
     }
 
+    /// Is it `seat`'s moment to block the action under way: its own
+    /// minion attempting, or it may attempt now and every would-be blocker
+    /// before it in the order declined (the prey's before the predator's)?
+    /// For an interface showing a wake only then (the owner, 2026-10-17).
+    pub fn block_moment(&self, seat: SeatId) -> bool {
+        let Some(a) = self.action.as_ref() else {
+            return false;
+        };
+        match a.state {
+            ActionState::Attempt(x) if self.state.minions[x.index()].owner == seat => true,
+            ActionState::Open | ActionState::Attempt(_) => {
+                let eligible = self.eligible_blockers(a);
+                eligible.contains(&seat)
+                    && !a.declined.contains(&seat)
+                    && a.order
+                        .iter()
+                        .take_while(|&&s| s != seat)
+                        .all(|s| !eligible.contains(s) || a.declined.contains(s))
+            }
+            _ => false,
+        }
+    }
+
     /// An upper bound on the intercept `m`'s attempt could reach (rules-qa
     /// 48.5). `action_advance`'s closure comparison is the rule.
     fn intercept_reachable(&self, a: &ActionCtx, seat: SeatId, m: MinionId) -> i32 {

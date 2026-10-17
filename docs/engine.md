@@ -707,6 +707,9 @@ engine masks), `cards/mod.rs` (the vocabulary: `Window`, `Actor`,
   toll lands pays or resigns (`Interrupt::BlockToll`). A forced attempt
   (`can_attempt_block[_anyone]`, `AttemptBlock`, `TargetAttemptsBlock`) needs
   the toll payable (rules-qa 42.8).
+- **The block moment** is a query too, `Engine::block_moment(seat)`: its own
+  minion attempting, or every would-be blocker before it declined; the
+  host's opportunities filter shows a wake only then while blocks are open.
 - **Every legal attempt offered** (rules-qa 73.8): one that cannot reach the
   stealth too. **Reachability** is a query, `Engine::block_can_reach(seat, m)`
   (`intercept_reachable`), read by the host's opportunities filter (it hides a

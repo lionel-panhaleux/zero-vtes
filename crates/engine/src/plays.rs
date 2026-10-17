@@ -7029,6 +7029,17 @@ impl Engine {
                 Effect::RemoveAllSourceCounters if no_counters => nil = true,
                 Effect::AddVotes(_) | Effect::AddVotesX if voter(user()) => nil = true,
                 Effect::TargetVotesPerCounter if voter(target_minion) => nil = true,
+                // Its stealth applied only if needed (ANK 20231031): early,
+                // the reveal gains nothing (Gathii).
+                Effect::RevealTopCard { stealth, .. }
+                    if *stealth > 0
+                        && self
+                            .ability_user(source, ability, seat, actor)
+                            .host
+                            .is_some_and(|m| !self.stealth_needed(seat, m)) =>
+                {
+                    nil = true
+                }
                 _ => return false,
             }
         }

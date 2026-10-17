@@ -540,6 +540,8 @@ impl Session {
     fn opportunity(&self, req: &DecisionRequest, c: &Choice) -> Option<Opportunity> {
         let e = &self.engine;
         let st = &e.state;
+        // A legal no-op (Gathii's reveal before stealth is needed, owner
+        // 2026-10-17: "really an uninteresting cornercase").
         if e.gains_nothing(req.seat, c) {
             return Some(Opportunity::Nothing);
         }
@@ -556,12 +558,21 @@ impl Session {
                 // undirected one of its prey or predator — never one
                 // directed at another seat (owner, 2026-10-11), nor as a
                 // card is played (owner, 2026-10-12: "more noise than
-                // usefulness").
+                // usefulness") — and while blocks are open, only the seat's
+                // own block moment, not before the would-be blockers ahead
+                // of it declined nor after its own decline (owner,
+                // 2026-10-17: "really misleading, even though technically
+                // correct"); a wake to react once blocks are declined
+                // stays.
+                let blocking = e.action().is_some_and(|a| {
+                    matches!(a.state, ActionState::Open | ActionState::Attempt(_))
+                });
                 let moment = req.window != WindowLabel::CardAsPlayed
                     && e.action().is_some_and(|a| match a.directed_seat(st) {
                         Some(target) => target == req.seat,
                         None => a.seat == st.prey(req.seat) || a.seat == st.predator(req.seat),
-                    });
+                    })
+                    && (!blocking || e.block_moment(req.seat));
                 if wakes {
                     return Some(Opportunity::Wake(moment));
                 }
@@ -1057,5 +1068,207 @@ mod tests {
         s.engine.state.seats[1].hand.put(senses, CopyId::NONE);
         s.engine.state.seats[1].library.put(senses, CopyId::NONE);
         assert!(s.shown(&req).contains(&i), "it may reach: shown");
+    }
+    /// Shown with the opportunities on, hidden with them off.
+    fn hidden_off(s: &mut Session, req: &DecisionRequest, want: Choice) {
+        let i = req
+            .options
+            .iter()
+            .position(|o| *o == want)
+            .unwrap_or_else(|| panic!("{want:?} offered in {:?}", req.options));
+        s.set_opportunities(true);
+        assert!(s.shown(req).contains(&i), "shown with the opportunities on");
+        s.set_opportunities(false);
+        assert!(!s.shown(req).contains(&i), "hidden with them off");
+        s.set_opportunities(true);
+    }
+
+    /// Stealth no attempt needs is hidden with the opportunities off
+    /// (owner, 2026-10-17): Gathii's ability during his bleed, no block
+    /// attempt under way.
+    #[test]
+    fn stealth_no_attempt_needs_is_hidden_with_the_opportunities_off() {
+        let (mut s, _) = session();
+        let mut e = Engine::bare(3);
+        let g = e.add_minion(SeatId(0), find_card("Gathii"), 4, false);
+        e.add_minion(SeatId(0), find_card("Madison"), 4, false);
+        e.add_minion(SeatId(1), find_card("Donny Kowalczyk"), 4, false);
+        s.engine = e;
+        let Step::Decision(req) = s.engine.run() else {
+            panic!("a decision");
+        };
+        let bleed = Choice::TakeAction {
+            minion: g,
+            action: ActionKind::Bleed,
+            target: None,
+        };
+        let i = req.options.iter().position(|o| *o == bleed).expect("bleed");
+        s.engine.choose(i);
+        let Step::Decision(req) = s.engine.run() else {
+            panic!("a decision");
+        };
+        assert_eq!(
+            (req.seat, req.window),
+            (SeatId(0), WindowLabel::ActionBlock)
+        );
+        let reveal = Choice::UseAbility {
+            source: AbilitySource::Vampire(g),
+            ability: 0,
+            actor: None,
+            target: Target::None,
+        };
+        hidden_off(&mut s, &req, reveal);
+    }
+
+    /// A wake is shown in the seat's own block moment only (owner,
+    /// 2026-10-17): On the Qui Vive for the predator's locked vampire is
+    /// hidden while the prey's attempt is under way, the predator's turn to
+    /// block not come.
+    #[test]
+    fn a_wake_waits_for_the_seats_own_block_moment() {
+        let (mut s, _) = session();
+        let mut e = Engine::bare(3);
+        let h = e.add_minion(SeatId(0), find_card("Madison"), 4, false);
+        e.add_minion(SeatId(0), find_card("Crystal Lynn"), 4, false);
+        let z = e.add_minion(SeatId(1), find_card("Donny Kowalczyk"), 4, false);
+        let w = e.add_minion(SeatId(2), find_card("Malachi"), 4, false);
+        e.state.minions[w.index()].locked = true;
+        e.state.seats[2]
+            .hand
+            .put(find_library("On the Qui Vive"), CopyId::NONE);
+        s.engine = e;
+        let Step::Decision(req) = s.engine.run() else {
+            panic!("a decision");
+        };
+        let hunt = Choice::TakeAction {
+            minion: h,
+            action: ActionKind::Hunt,
+            target: None,
+        };
+        let i = req.options.iter().position(|o| *o == hunt).expect("hunt");
+        s.engine.choose(i);
+        // The prey attempts; the impulse goes round the table.
+        let mut asked = 0;
+        let req = loop {
+            asked += 1;
+            assert!(asked < 40, "seat 2 never asked");
+            let Step::Decision(req) = s.engine.run() else {
+                panic!("a decision");
+            };
+            if let Some(i) = req
+                .options
+                .iter()
+                .position(|o| *o == Choice::DeclareBlock { minion: z })
+            {
+                s.engine.choose(i);
+                continue;
+            }
+            if req.seat == SeatId(2) {
+                break req;
+            }
+            let pass = req
+                .options
+                .iter()
+                .position(|o| *o == Choice::Pass)
+                .expect("pass");
+            s.engine.choose(pass);
+        };
+        assert!(s.engine.block_moment(SeatId(1)));
+        assert!(!s.engine.block_moment(SeatId(2)));
+        let wake = req
+            .options
+            .iter()
+            .copied()
+            .find(|o| matches!(o, Choice::Play { actor: Some(a), .. } if *a == w))
+            .expect("On the Qui Vive offered");
+        hidden_off(&mut s, &req, wake);
+        // The prey's attempt fails, the prey declines: the predator's
+        // moment, its wake shown with the opportunities off.
+        let pass = |req: &DecisionRequest| {
+            req.options
+                .iter()
+                .position(|o| *o == Choice::Pass)
+                .expect("pass")
+        };
+        s.engine.choose(pass(&req));
+        let mut asked = 0;
+        let req = loop {
+            asked += 1;
+            assert!(asked < 40, "seat 2's moment never came");
+            let Step::Decision(req) = s.engine.run() else {
+                panic!("a decision");
+            };
+            if req.seat == SeatId(2) && s.engine.block_moment(SeatId(2)) {
+                break req;
+            }
+            s.engine.choose(pass(&req));
+        };
+        let i = req
+            .options
+            .iter()
+            .position(|o| *o == wake)
+            .expect("the wake again");
+        s.set_opportunities(false);
+        assert!(s.shown(&req).contains(&i), "shown in its moment");
+    }
+
+    /// Once blocks are declined, a wake to react stays shown with the
+    /// opportunities off (a locked vampire waking to play a reaction): the
+    /// block moment filters only while blocks are open.
+    #[test]
+    fn a_wake_after_blocks_are_declined_is_shown() {
+        let (mut s, _) = session();
+        let mut e = Engine::bare(3);
+        let p = e.add_minion(SeatId(0), find_card("Madison"), 4, false);
+        e.add_minion(SeatId(0), find_card("Crystal Lynn"), 4, false);
+        let z = e.add_minion(SeatId(1), find_card("Donny Kowalczyk"), 4, false);
+        e.state.minions[z.index()].locked = true;
+        e.state.seats[1]
+            .hand
+            .put(find_library("On the Qui Vive"), CopyId::NONE);
+        s.engine = e;
+        let Step::Decision(req) = s.engine.run() else {
+            panic!("a decision");
+        };
+        let bleed = Choice::TakeAction {
+            minion: p,
+            action: ActionKind::Bleed,
+            target: None,
+        };
+        let i = req.options.iter().position(|o| *o == bleed).expect("bleed");
+        s.engine.choose(i);
+        s.set_opportunities(false);
+        let wake = |req: &DecisionRequest| {
+            req.options
+                .iter()
+                .position(|o| matches!(o, Choice::Play { actor: Some(a), .. } if *a == z))
+        };
+        let (mut open, mut declined) = (false, false);
+        for _ in 0..40 {
+            let Step::Decision(req) = s.engine.run() else {
+                break;
+            };
+            if req.seat == SeatId(1) {
+                if let Some(i) = wake(&req) {
+                    let state = s.engine.action().map(|a| a.state);
+                    match state {
+                        Some(ActionState::Open) => open |= s.shown(&req).contains(&i),
+                        Some(ActionState::Declined) => declined |= s.shown(&req).contains(&i),
+                        _ => {}
+                    }
+                }
+            }
+            if declined || req.window == WindowLabel::MinionPhase {
+                break;
+            }
+            let pass = req
+                .options
+                .iter()
+                .position(|o| *o == Choice::Pass)
+                .expect("pass");
+            s.engine.choose(pass);
+        }
+        assert!(open, "shown in its block moment");
+        assert!(declined, "shown once blocks are declined");
     }
 }

@@ -388,12 +388,16 @@ their default) and changed by `settings`:
 
 - `opportunities` (default `true`): `false` hides the options that
   interrupt play out of their moment — a wake outside an action that
-  concerns the seat or as a card is played, a block denial short of the
-  action's stealth, an any-time ability where nothing else is on offer,
-  an ability that would gain nothing now (legal all the same: burning the
-  counters of a card that has none, votes for a vampire that cannot
-  vote), a block attempt that cannot reach the action's stealth (every
-  legal attempt is offered: with no intercept to gain, it fails). A
+  concerns the seat, as a card is played, or, while blocks are open,
+  outside the seat's own block moment (before the would-be blockers ahead
+  of it declined, after its own decline), a block denial short of the
+  action's stealth, an any-time
+  ability where nothing else is on offer, an ability that would gain
+  nothing now (legal all the same: burning the counters of a card that
+  has none, votes for a vampire that cannot vote, Gathii's reveal before
+  stealth is needed), a block attempt that cannot reach the action's
+  stealth (every legal attempt is offered: with no intercept to gain, it
+  fails). A
   decision left with a pass alone passes by itself (`auto_passed`).
 - `views` (default `decisions`): `steps` adds the view to every `events`
   message — a client animating each move. Larger: compression
