@@ -4,7 +4,7 @@
 Wajs's online VTES table. The fork (`../succubus-club`, remote `fork` =
 lionel-panhaleux/succubus-club) plays engine games against
 `engine.krcg.org`. This file is the log the `sc-change` skill reads and
-updates: how Thomas works, the state of every PR, what we learned. Add to it
+updates: how Thomas works, the open PRs' state, what we learned. Add to it
 whenever something reaches us from Thomas or a PR moves.
 
 ## Thomas's working style (what we know)
@@ -35,8 +35,16 @@ whenever something reaches us from Thomas or a PR moves.
   `orangeCounter`; per-mutation log lines through `History.addGameMutation`.
 - **Told up front**: the owner warned Thomas in person about the AI
   involvement in #282–#285 (2026-10-14).
-- **Unknown yet**: how he reviews, what he thinks of the engine game type.
-  Record his first reactions to #282–#285 here.
+- **PRs go against `dev`** (Thomas, 2026-10-16): `master` is what he
+  ships; every branch is cut from and targets `origin/dev`.
+- **How he reviews** (#282–#284, 2026-10-16): merges what fixes a bug as
+  is; closes with one line when he would fix it otherwise, and fixes it
+  himself the wider way (#283: "Fix was too narrow", his 2fbede9 re-imports
+  every stored deck); refuses what moves SC's fixed layout, made to fit
+  any window size (#284). He tries a PR by running it: #285 against
+  `engine.krcg.org` from his own build (a CORS refusal, fixed the same day:
+  the server allows every origin).
+- **Unknown yet**: what he thinks of the engine game type (#285).
 
 ## The integration's shape (online-plan §C, the owner's)
 
@@ -76,28 +84,25 @@ checkout's `zero-vtes-engine` against `engine.krcg.org` (no
 | Branch | Where | What |
 |---|---|---|
 | `zero-vtes-engine` | local only | the owner's play branch, served by vite on :5188; every fix lands here first |
-| `engine-game` | fork, PR #285 | the upstream re-cut: 6 commits on `origin/master` (game type + flags; server client; projection/driver; central box; table interaction; controls + menu) |
-| `fix-textures`, `fix-precon-update`, `layout-hand-bottom` | fork, PRs #282–#284 | small carve-outs |
+| `engine-game` | fork, PR #285 | the upstream re-cut: 6 commits on `origin/dev` (game type + flags; server client; projection/driver; central box; table interaction; controls + menu) |
 
-Tags (local): `engine-game-pre-recut`, `recut-flat`. `zero-vtes-engine` and
+Tags (local): `engine-game-pre-recut`, `recut-flat`, `engine-game-pre-dev`
+(the tip on `master` before the move to `dev`). `zero-vtes-engine` and
 `engine-game` diverge by design: every later fork fix is re-cut again (a
 translation into the re-cut's structure, not a rebase). `engine-game`
 tracks `fork/engine-game`.
 
 ## PRs
 
+The open ones; what the closed taught is in "How he reviews".
+
 | # | Branch | State | Asked of Thomas | Reactions |
 |---|---|---|---|---|
-| 282 | fix-textures | open (2026-10-14); the owner saw it work in play (Oblivion, 47th Street Royals, 2026-10-16) | | none yet (Vercel deploy needs his authorization) |
-| 283 | fix-precon-update | open (2026-10-14) | | none yet |
-| 284 | layout-hand-bottom | open (2026-10-14) | affects every game mode: free-table screenshots | none yet |
-| 285 | engine-game | open (2026-10-14) | the counted-marker chips live inside `CardGO.vue` (~140 lines behind `isEngine`): keep, or a component of their own? | none yet |
+| 285 | engine-game | open, on `dev` | the counted-marker chips live inside `CardGO.vue` (~140 lines behind `isEngine`): keep, or a component of their own? | tried it (a CORS refusal, fixed: the server allows every origin); no review yet |
 
-All 9 upstream commits carry `Co-Authored-By: Claude` trailers. #282–#284's
-bodies are 12–36 words, unmarked; #285's is ~300 words ending "Generated
-with Claude Code". The owner's decision (2026-10-14): all four stay as
-they are, waiting for Thomas's take; the owner told Thomas in person, up
-front, about the AI involvement.
+#285's 6 commits carry `Co-Authored-By: Claude` trailers; its body is
+~300 words ending "Generated with Claude Code". The owner's decision: it
+stays as it is, waiting for Thomas's take.
 
 ## Recipes
 
@@ -120,8 +125,8 @@ front, about the AI involvement.
 
 ## Traps
 
-- `push.default=upstream` is set globally: a branch tracking `origin/master`
-  pushed with `git push fork <branch>` lands on the fork's `master`. Push
+- `push.default=upstream` is set globally: a branch tracking `origin/dev`
+  pushed with `git push fork <branch>` lands on the fork's `dev`. Push
   with an explicit refspec (`git push fork <b>:refs/heads/<b>`) and check
   `git config branch.<b>.merge` first.
 - The owner may be mid-game on :5188: never edit the served checkout

@@ -13,15 +13,16 @@ A shrinking list (CLAUDE.md "Harness"): one line an ask, its done-condition
 and the docs it changes; done is deleted; order is priority; the only
 state is `[doing: <session>]`; waiting on a person is a dated follow-up.
 Order: held by the owner (2026-10-15) until Thomas gives his blessing
-(his review of #282–#285): no platforms line is shipped meanwhile. Then
+(his review of #285): no platforms line is shipped meanwhile. Then
 what the community beta needs from Succubus Club first, then
 Thomas's PRs and the proposal, then the fork's remaining interface items,
 then other platforms.
 
-- **Ask the owner whether to chase Thomas, 2026-10-21**: #282 (textures), #283 (precon update), #284 (layout) and #285 (the engine game, with its question whether the chips stay in `CardGO.vue`) wait on his review; the beta's way in waits on #285 (owner, 2026-10-14: if he does not move swiftly enough, our own SC on krcg, or a platform made for the engine, always engine games). Done when the owner has answered and sc.md logs his reaction, or the owner picked the other way in. Docs: sc.md (PRs), the roadmap's milestone.
+- **Ask the owner whether to chase Thomas, 2026-10-21**: #285 (the engine game, on `dev` since 2026-10-17, with its question whether the chips stay in `CardGO.vue`) waits on his review; the beta's way in waits on #285 (owner, 2026-10-14: if he does not move swiftly enough, our own SC on krcg, or a platform made for the engine, always engine games). Done when the owner has answered and sc.md logs his reaction, or the owner picked the other way in. Docs: sc.md (PRs), the roadmap's milestone.
 - **The engine mode's notice checked**: in #285 and the fork, it says games are recorded two years, anonymous (as `docs/protocol.md` says), and where to send feedback. Done when both say all three. Docs: sc.md.
 - **The referendum and action panels inside the seat's board**: vote totals and "Played during the action" are cut off today. Done when both show whole at the fork's smallest supported size. Docs: none.
 - **"Report a problem" in engine games**: the `feedback {text}` command (protocol 1.2.0, live), its text tied to the game and the decision, and the community channel the notice names. Done when a report sent from the fork shows in `/admin/feedback`. Docs: sc.md.
+- **Export Replay before the game's end**: from protocol 1.7.0, `GET /games/{id}/record` answers 409 until `over`, and `host.ts` `replay()` returns `res.text()` unchecked. Done when the fork's Export Replay says the record comes at the game's end before it, and saves it after. Docs: none.
 - **The re-cut caught up**: the fork fixes after `a7515b1` translated into `engine-game` (sc.md recipe), on the owner's go. Done when `engine-game` holds each and sc.md's branch table says so. Docs: sc.md (branches).
 - **The demo video**: a storyboard and a fast-track seed (deck pick, glows and staging, an action with a block and a combat, a referendum with all votes one way, the bots' narration, Opportunities, undo, the record), for the owner to record on `engine.krcg.org`. Done when the owner has the storyboard and the seed. Docs: none.
 - **The proposal to Thomas**, after the demo video and the engine board's "The repository open to outsiders": the protocol doc, the PR and the video (the PRs are open; the owner told him in person about the AI involvement, 2026-10-14). Done when the owner has the text to send. Docs: sc.md.

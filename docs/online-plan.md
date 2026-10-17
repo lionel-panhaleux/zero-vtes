@@ -256,7 +256,8 @@ replaying it once (`--no-turns` skips that), cached in
 
 ## C. Succubus Club
 
-Fresh branch off upstream `master`, re-cut (not rebased) from the fork.
+Fresh branch off upstream `dev` (every PR targets `dev`, Thomas's ask),
+re-cut (not rebased) from the fork.
 
 - Engine code in `src/client/engine/` and `central/Engine*.vue`; SC files
   get hooks only, through `useUIFeatures` flags (TrainBot's pattern), one
@@ -267,11 +268,9 @@ Fresh branch off upstream `master`, re-cut (not rebased) from the fork.
   eslint / vue-tsc, upstream's commit style (short imperative subjects).
 - Engine mode's notice: games recorded for 2 years to improve the engine.
 
-Separate small PRs first: card textures (retry a failed load; reset the
-cache per Phaser game), a stored precon follows the shipped list; precon
-list fixes go to VDB's `precon_decks.json`. The layout constants and the
-CentralBox scroll: gated to engine games, or proposed apart with
-free-table screenshots.
+Precon list fixes go to VDB's `precon_decks.json`. SC's layout is fixed,
+made to fit any window size: the engine's panels fit inside it, never a
+change to its constants (Thomas refused one).
 
 Engine PR (~7 commits): mode + UI flags + generic bits; the client
 (types, `RemoteEngineHost`); projection, driver, setup, menu entry,

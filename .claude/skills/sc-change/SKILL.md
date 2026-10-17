@@ -64,6 +64,8 @@ branches, PRs, recipes, traps) and update it as you learn.
    corpus).
 3. Fast-forward `zero-vtes-engine` (rule 4); tell the owner what to look at.
 4. Upstream: fold into the `engine-game` re-cut (sc.md recipe) or a
-   carve-out branch from `origin/master`; vue-tsc at every commit; show the
-   owner the diff and the PR text before anything leaves the machine.
-5. Log every PR's state and every reaction from Thomas in sc.md's PR table.
+   carve-out branch from `origin/dev` (every PR targets `dev`); vue-tsc
+   at every commit; show the owner the diff and the PR text before
+   anything leaves the machine.
+5. Keep sc.md's PR table at the open PRs' current state; what a reaction
+   from Thomas teaches goes into its "How he reviews".
