@@ -776,8 +776,13 @@ training runs.
   logits and parameters), and minibatches are bucketed by token count
   (chunks of 8 minibatches sorted, then shuffled: every sample once an
   epoch). Measured A/B under the same load: 1.4–1.5× faster; minibatch
-  1024 is the fastest (512 and 2048 slower, 4096 exhausts GPU memory). Not built:
-  evaluation against humans (needs the protocol server, §8).
+  1024 is the fastest (512 and 2048 slower, 4096 exhausts GPU memory).
+- Evaluation against humans: the harvest report's human win rate by weights (`scripts/games_report.py`),
+  and the positions where a human beat the bot (`examples/humanset.rs`:
+  games a human won, played out and never trained on; per network the
+  agreement with the human's choices, and from a quarter, half and three
+  quarters of each game the network in the human's seat against the
+  served bots, its wins).
 - First run (2026-09-27, defaults, 140 iterations ≈ 2.3M decisions, ~1 h on
   the M3): against three random seats 0.71 VP a game at iteration 10 (random
   level: 0.73), 1.86 at 40, 2.7 at 50, then ~2.9–3.1 VPs and 72–77% game wins
@@ -1628,7 +1633,13 @@ training runs.
   0.99 VP a seat on average. Exported `runs/p11/best.zvp` (sha256
   `b9035931a527`); to be served on engine.krcg.org at the 1.6.0 deploy
   (owner, 2026-10-16), the previous `runs/served-prev-2026-10-16-p10at3840.zvp`
-  (`7aaa9528fbf8`). Humans against p10 (the harvest, 14 games): 11 won
+  (`7aaa9528fbf8`). The positions where the owner beat the bot
+  (`humanset`, the five held-out games, the bots p10 as served, 20 games a
+  position): p10 / p11 agree with 46.1% / 45.3% of the owner's 1,309
+  choices; won from a quarter in 33% / 43%, halfway 52% / 54%, three
+  quarters in 91% / 83% (±10 at 100 games); from …T15-45-47's first two
+  positions neither ever wins (0 of 40), where the owner came back.
+  Humans against p10 (the harvest, 14 games): 11 won
   (79%), 2.79 VP a seat, the bots 0.33 — p11's bar.
 - **p12** (`runs/p12`, `../zero-vtes-p12` at `cb3b4a6`, round 13's cards,
   E25 with the futile-block mask; launched 2026-10-16, 4341 → 4900). From

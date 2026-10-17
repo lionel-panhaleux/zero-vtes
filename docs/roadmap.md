@@ -35,10 +35,8 @@ What it still needs:
 3. **Games that survive the server**: a game rebuilt after a restart
    (engine: A game survives a restart).
 4. **Complete records** (engine: Records complete).
-5. **The loop on testers' games**: promotion to `data/records` and an
-   evaluation set of the positions where a human beat the bot (training:
-   Promotion as a script; An evaluation set of positions where a human
-   beat the bot).
+5. **The loop on testers' games**: promotion to `data/records`
+   (training: Promotion as a script).
 6. **Feedback intake**: a "report a problem" from inside the game (the
    protocol's `feedback`, stored with the record at its decision;
    platforms: "Report a problem"), plus one community channel the notice
