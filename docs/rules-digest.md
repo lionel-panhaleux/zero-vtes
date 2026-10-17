@@ -897,7 +897,8 @@ simultaneous effects, §2.5 duration). The engine's window primitives are in
   Vigilance [for]) are after-combat plays, after all combats of the action
   (2.1). §12.12.
 - **After a diablerie, before its blood hunt**: Slake the Thirst is offered
-  there (68.2, ANK 20201228).
+  there (68.2, ANK 20201228); an older victim's master Discipline is
+  asked before that window (81.1, open).
 - A card played during polling is a commitment of the rotation: it reopens
   a response opportunity for every other Methuselah before the tally
   (5.3). §13.3.
@@ -3905,6 +3906,8 @@ read, for the owner to confirm or correct:
 - 76.1–76.23, 76.25 graded green or amber (76.24 answered by the owner).
 - 77.1–77.27, 77.29–77.35 graded green, amber or corrected (77.28 answered
   by the owner: the counters you burned).
+- 81.1 (the diablerie's master Discipline asked as the victim burns,
+  before the cards played on the diablerie).
 - The "Question (implemented reading)" tails: 48.2 (a card granting several
   strikes bars further cards until all are made), 48.3 (the switch of
   blocker takes effect at once, no impulse left to others), 48.8 (a rescue

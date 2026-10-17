@@ -92,7 +92,7 @@ by the owner. Apply them to every new card; only a ruling overrides them.
 - **Allies, retainers, ghouls** — 22.2, 28.10, 29.2, 32.4, 32.11, 32.12, 32.13, 37.1, 40.10, 42.2, 42.9, 49.3, 50.6, 73.5, 73.6, 76.7, 76.8, 77.29
 - **Locations, hunting grounds, locquipment** — 6.5, 7.2, 7.4, 17.4, 28.2, 28.6, 31.4, 34.7, 39.4, 49.5, 50.4, 51.4, 52.7, 54.1, 57.7, 73.3, 73.6, 77.16
 - **Blood, capacity, uncontrolled region, banishment** — 5.7, 7.6, 25.1, 27.7, 28.1, 28.3, 28.4, 32.6, 40.7, 73.5
-- **Torpor, rescue, diablerie, blood hunt** — 3.1, 3.6, 5.2, 5.8, 6.4, 16.2, 28.7, 38.2, 48.8
+- **Torpor, rescue, diablerie, blood hunt** — 3.1, 3.6, 5.2, 5.8, 6.4, 16.2, 28.7, 38.2, 48.8, 81.1
 - **Hunting** — 6.5, 7.7, 17.3, 28.1, 28.8, 32.13, 40.2, 53.8, 72.1–72.5, 77.30
 - **Master phase, master cards, out-of-turn** — 1.5, 3.3, 6.6, 7.5, 28.10, 32.3, 33.1, 33.8, 36.4, 49.6, 49.7, 50.1–50.3, 53.7, 57.8, 77.11, 77.27, 78.10, 78.48, 78.49
 - **Unlock phase, locking, stun** — 3.7, 6.1, 7.8, 16.5, 21.2, 25.5, 26.5, 31.1, 48.7, 54.2, 54.5, 58.4, 58.9, 59.3, 59.4, 60.6
@@ -1809,3 +1809,7 @@ Fifty-six cards, graded per the add-cards skill: seven blind second readers on t
 **79.3** Maris Streck (added to the pool for it, owner): "Maris can burn a blood to give a blocking minion +1 intercept" has no "during": as often as she pays each action (LSJ 20020814, ANK 20180307-2, owner), while locked (ANK 20220705); any Methuselah's minion attempting to block, while it needs intercept (3.2). Her +1 stealth action looks at and rearranges the top 5 cards at resolution, as Eulogio's (55.3). (Tests maris_streck_burns_blood_for_intercept_as_often_as_she_pays_while_locked, maris_streck_rearranges_the_top_five_of_her_library, a_third_partys_maris_streck_keeps_a_block_in_reach.)
 
 **79.4** Descent into Darkness: "during your influence phase, this vampire can gain 2 blood and you can choose to burn this card to return the vampire" — the blood and the return each once, both in the same influence phase (owner); they shared one use of the phase. (Test descent_into_darkness_hides_a_vampire_and_returns_it.)
+
+## Batch 81 — Diablerie of an older vampire, the master Discipline (Z-main, 2026-10-17)
+
+**81.1** _open_ Diablerie of an older vampire (advanced rules 4): the diablerist's controller may search library, hand and ash heap for a master Discipline card (not one of a Discipline the diablerist has at superior; its other requirements ignored, LSJ 20051116-2) and put it on the diablerist, not played; the library is shuffled after the search, a card taken from the hand is replaced at once, and the blood the diablerie gave has drained before the card raises the capacity. Engine reading: the search is asked as the victim burns, before the window of the cards played on the diablerie (Slake the Thirst, Draught of the Soul); advanced rules §2.1.4 lets such a card come before or after the Discipline card is taken. Is asking it first enough, or must a card played on the diablerie be allowed before it? (Test a_diablerist_of_an_older_vampire_takes_a_master_discipline.)

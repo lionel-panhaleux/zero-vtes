@@ -455,7 +455,8 @@ ids!(
         RemoveFromAsh,
         /// "You can search your library (shuffle afterward), hand and/or ash
         /// heap for a Discipline master card and put it on this new vampire"
-        /// (Childe of the Revolution): put on, not played.
+        /// (Childe of the Revolution), or on the diablerist of an older
+        /// vampire (advanced rules 4): put on, not played.
         DisciplineSearch,
         /// Learjet: `seat` may draw an additional card (`DrawLibrary`), the
         /// hand then discarded down; or pass.

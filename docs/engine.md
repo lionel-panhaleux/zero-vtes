@@ -639,7 +639,12 @@ engine masks), `cards/mod.rs` (the vocabulary: `Window`, `Actor`,
   them (rulebook "Diablerie"); step 2, the victim's equipment the
   diablerist could hold, is `Interrupt::DiablerieEquipment` (a card at a
   time, `ResolutionChoice`), and steps 1 and 3 (`diablerie_burns`: the
-  blood, the burn) follow as it ends; with nothing to take, at once.
+  blood, the burn) follow as it ends; with nothing to take, at once. An
+  older victim (advanced rules 4) then gives a Discipline:
+  `Interrupt::DisciplineSearch` (Childe of the Revolution's) on the
+  diablerist, not one of a Discipline it has at superior, the card's
+  requirements ignored (LSJ 20051116-2), asked before the window of the
+  cards played on the diablerie (rules-qa 81.1).
 - **Diablerie's blood hunt** (`end_action_into_blood_hunt`): part of the
   action (spec §3.7.8.1), which ends after it through its after-resolution
   window (rules-qa 5.8); the referendum's rotation starts at the

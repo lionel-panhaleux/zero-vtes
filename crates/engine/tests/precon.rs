@@ -7,7 +7,7 @@
 
 use zvtes::cards::{self, AbilitySource, Effect, Layer, Scope, Stat, Target};
 use zvtes::crypt::{Title, CRYPT};
-use zvtes::decision::{ActionKind, Choice, DecisionRequest, WindowLabel};
+use zvtes::decision::{ActionKind, Choice, DecisionRequest, WindowLabel, Zone};
 use zvtes::game::Engine;
 use zvtes::ids::{MinionId, SeatId};
 use zvtes::state::{find_library, CardId, CardInPlay, Release, UncontrolledSlot};
@@ -5720,7 +5720,6 @@ fn childe_of_the_revolution_becomes_a_vampire_that_must_hunt() {
     let before = e.state.minions.len();
     pick(&mut e, play(0, 0, b));
     let req = until(&mut e, SeatId(0), WindowLabel::LibrarySearch);
-    use zvtes::decision::Zone;
     let take = |zone, name| Choice::TakeFrom {
         zone,
         card: find_library(name),
@@ -7041,6 +7040,153 @@ fn a_diablerist_takes_the_victims_equipment() {
     );
     assert!(!e.state.minions[victim.index()].in_play, "burned");
     assert_eq!(blood(&e, a), 4 + 2);
+}
+
+/// A diablerist of capacity 3 or 4, its Celerity basic or none
+/// (`superior`: at superior), a second minion of seat 0, a vampire of seat
+/// 1 in torpor with 2 blood (`older`: capacity 5 or more, else 2 or less),
+/// another of seat 1; seat 0's `master` in `zone`.
+fn older_diablerie(
+    superior: bool,
+    older: bool,
+    master: &str,
+    zone: Zone,
+) -> (Engine, MinionId, MinionId) {
+    let mut e = Engine::bare(3);
+    let a = e.add_minion(
+        SeatId(0),
+        vampire(
+            |c| {
+                (3..=4).contains(&c.capacity)
+                    && c.title == Title::None
+                    && c.disciplines.contains(&"CEL") == superior
+            },
+            0,
+        ),
+        4,
+        false,
+    );
+    e.add_minion(SeatId(0), plain("", "", 1), 4, false);
+    let v = e.add_minion(
+        SeatId(1),
+        vampire(
+            |c| c.title == Title::None && (c.capacity >= 5) == older && (c.capacity <= 2) != older,
+            0,
+        ),
+        2,
+        true,
+    );
+    e.add_minion(SeatId(1), plain("", "", 3), 4, false);
+    let master = find_library(master);
+    fill_hand(&mut e, 0);
+    let seat = &mut e.state.seats[0];
+    match zone {
+        Zone::Library => seat.library.push(master),
+        Zone::Hand => {
+            seat.hand.take(0);
+            seat.hand.push(master);
+        }
+        Zone::AshHeap => seat.ash.push(master),
+    }
+    for _ in 0..3 {
+        seat.library.push(find_library("Form of Mist"));
+    }
+    pick(
+        &mut e,
+        Choice::TakeAction {
+            minion: a,
+            action: ActionKind::Diablerie,
+            target: Some(v),
+        },
+    );
+    (e, a, v)
+}
+
+// Advanced rules 4: "If the victim was older (had a higher capacity) than
+// the diablerist, the diablerist can be given a Discipline: their
+// controller may go through their library, ash heap, and hand to get a
+// master Discipline card to put on the diablerist and then shuffle their
+// library or draw back up to their hand size as necessary. If the
+// Discipline card increases the diablerist's capacity, the diablerie does
+// not give 1 blood to fill that new capacity." From each place: the card
+// on the diablerist (in play, not in the zone), the hand drawn back up,
+// the capacity up by one with the blood as drained. A younger victim gives
+// none; a diablerist with superior Celerity is not offered it.
+#[test]
+fn a_diablerist_of_an_older_vampire_takes_a_master_discipline() {
+    let celerity = find_library("Celerity");
+    for zone in [Zone::Library, Zone::Hand, Zone::AshHeap] {
+        let (mut e, a, v) = older_diablerie(false, true, "Celerity", zone);
+        let take = Choice::TakeFrom {
+            zone,
+            card: celerity,
+        };
+        // The search is seat 0's first decision after the diablerie
+        // (rules-qa 81.1); nothing here can be played on the diablerie,
+        // so its window elides and this does not pin the order.
+        let req = loop {
+            let req = request(&mut e);
+            if req.seat == SeatId(0) {
+                break req;
+            }
+            e.choose(index_of(&req, Choice::Pass));
+        };
+        assert_eq!(req.window, WindowLabel::LibrarySearch, "{zone:?}");
+        assert_eq!(req.options, vec![Choice::Pass, take], "{zone:?}");
+        assert!(!e.state.minions[v.index()].in_play, "burned first");
+        let hand = e.state.seats[0].hand.len();
+        let capacity = e.state.capacity_of(a).unwrap();
+        assert_eq!(blood(&e, a), capacity, "the blood drained at capacity");
+        e.choose(index_of(&req, take));
+        let on = e
+            .state
+            .cards
+            .iter()
+            .find(|c| c.card == celerity && c.in_play)
+            .expect("Celerity in play");
+        assert_eq!(on.host, Some(a), "{zone:?}");
+        assert!(!on.effect_only);
+        assert_eq!(e.state.capacity_of(a), Some(capacity + 1));
+        assert_eq!(blood(&e, a), capacity, "no blood for the new capacity");
+        let seat = &e.state.seats[0];
+        let left = match zone {
+            Zone::Library => seat.library.contains(&celerity),
+            Zone::Hand => seat.hand.contains(&celerity),
+            Zone::AshHeap => seat.ash.contains(&celerity),
+        };
+        assert!(!left, "{zone:?}: taken out");
+        if zone == Zone::Hand {
+            assert_eq!(seat.hand.len(), hand, "drawn back up");
+        }
+    }
+    // A younger victim: no Discipline.
+    let (mut e, _, _) = older_diablerie(false, false, "Celerity", Zone::Library);
+    never_offered_where(
+        &mut e,
+        SeatId(1),
+        WindowLabel::MinionPhase,
+        |o| matches!(o, Choice::TakeFrom { card, .. } if *card == celerity),
+    );
+    // A master's requirements ignored as it is put on (LSJ 20051116-2):
+    // Abombwe for a diablerist neither Laibon nor Protean.
+    let (mut e, a, _) = older_diablerie(false, true, "Abombwe", Zone::AshHeap);
+    assert!(e.state.sect_of(a) != Some(zvtes::crypt::Sect::Laibon));
+    assert_eq!(e.state.discipline_level(a, "pro"), 0);
+    offering(
+        &mut e,
+        Choice::TakeFrom {
+            zone: Zone::AshHeap,
+            card: find_library("Abombwe"),
+        },
+    );
+    // Celerity at superior already: not offered, nothing to search.
+    let (mut e, _, _) = older_diablerie(true, true, "Celerity", Zone::Library);
+    never_offered_where(
+        &mut e,
+        SeatId(1),
+        WindowLabel::MinionPhase,
+        |o| matches!(o, Choice::TakeFrom { card, .. } if *card == celerity),
+    );
 }
 
 // Soul Gem of Etrius: "If bearer is diablerized, the diablerizing vampire

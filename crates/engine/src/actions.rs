@@ -3217,6 +3217,17 @@ impl Engine {
         // "Has committed diablerie since your last turn" (Carlton Van Wyk).
         self.state.minions[diablerist.index()].diablerie_turn = Some(self.state.turn);
         self.release_held(Release::Diablerie);
+        // Advanced rules 4: an older victim gives a Discipline, its blood
+        // already drained (a capacity the card adds brings none); asked
+        // before the cards played on the diablerie (rules-qa 81.1).
+        if older {
+            let seat = self.state.minions[diablerist.index()].owner;
+            self.interrupts
+                .push(crate::draws::Interrupt::DisciplineSearch {
+                    seat,
+                    minion: diablerist,
+                });
+        }
     }
 
     /// The diablerie made: a window for the cards played on its blood

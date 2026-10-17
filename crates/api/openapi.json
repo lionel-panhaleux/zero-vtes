@@ -3717,7 +3717,7 @@
           },
           {
             "const": "discipline_search",
-            "description": "\"You can search your library (shuffle afterward), hand and/or ash\nheap for a Discipline master card and put it on this new vampire\"\n(Childe of the Revolution): put on, not played.",
+            "description": "\"You can search your library (shuffle afterward), hand and/or ash\nheap for a Discipline master card and put it on this new vampire\"\n(Childe of the Revolution), or on the diablerist of an older\nvampire (advanced rules 4): put on, not played.",
             "type": "string"
           },
           {

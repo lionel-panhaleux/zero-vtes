@@ -3132,7 +3132,7 @@ fuzz_tests! {
                 ],
             );
         },
-        seeds: 90,
+        seeds: 190,
         ..BASE
     };
     /// Legacy cards for TWDA decks, round 8 (slice 16t), steps 1–5: Blood

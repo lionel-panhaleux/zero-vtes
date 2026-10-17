@@ -229,8 +229,9 @@ pub enum Interrupt {
         left: u8,
         pool: u8,
     },
-    /// Childe of the Revolution: a Discipline master from library, hand or
-    /// ash heap put on the new vampire, not played.
+    /// A Discipline master from library, hand or ash heap put on `minion`,
+    /// not played: Childe of the Revolution's new vampire, a diablerist of
+    /// an older vampire (advanced rules 4).
     DisciplineSearch {
         seat: SeatId,
         minion: crate::ids::MinionId,
@@ -1039,7 +1040,7 @@ impl Engine {
                     continue;
                 }
                 Interrupt::DisciplineSearch { minion, .. } => {
-                    if present(minion) && !self.discipline_masters(s).is_empty() {
+                    if present(minion) && !self.discipline_masters(s, minion).is_empty() {
                         return;
                     }
                     self.interrupts.remove(0);
@@ -1552,9 +1553,9 @@ impl Engine {
                     .map(|i| Choice::Slot(i as u8))
                     .collect(),
             ),
-            Interrupt::DisciplineSearch { .. } => {
+            Interrupt::DisciplineSearch { minion, .. } => {
                 let mut options = vec![Choice::Pass];
-                options.extend(self.discipline_masters(s));
+                options.extend(self.discipline_masters(s, minion));
                 (WindowLabel::LibrarySearch, options)
             }
             Interrupt::MayDrawExtra { .. } => {
@@ -2565,10 +2566,24 @@ impl Engine {
         }
     }
 
-    /// The Discipline master cards `s` could take, by zone and card: the
-    /// library's by card (its order hidden), the hand's and ash heap's.
-    fn discipline_masters(&self, s: SeatId) -> Vec<Choice> {
-        let seat = &self.state.seats[s.index()];
+    /// The Discipline master cards `s` could take for `minion`, by zone and
+    /// card: the library's by card (its order hidden), the hand's and ash
+    /// heap's; not one of a Discipline `minion` has at superior.
+    fn discipline_masters(&self, s: SeatId, minion: crate::ids::MinionId) -> Vec<Choice> {
+        let st = &self.state;
+        let seat = &st.seats[s.index()];
+        // Put on, not played: the card's requirements ignored (LSJ
+        // 20051116-2: "eg. diablerie"), the level it adds still capped.
+        let fits = |c: u16| {
+            cards::lookup(c).is_some_and(|d| {
+                d.modes[0].target.is_none_or(|t| {
+                    t.filter
+                        .iter()
+                        .filter(|r| matches!(r, cards::Requirement::TargetNotSuperior(_)))
+                        .all(|&r| cards::holds_for_minion(r, st, s, None, None, minion, None))
+                })
+            })
+        };
         let mut out = Vec::new();
         let zones = [
             (Zone::Library, &seat.library),
@@ -2578,7 +2593,7 @@ impl Engine {
         for (zone, cards) in zones {
             out.extend(
                 distinct(cards, |c| {
-                    CardFilter::HasLabel(Label::Discipline).matches(c)
+                    CardFilter::HasLabel(Label::Discipline).matches(c) && fits(c)
                 })
                 .into_iter()
                 .map(|card| Choice::TakeFrom { zone, card }),
