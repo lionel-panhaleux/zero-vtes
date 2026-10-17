@@ -2437,6 +2437,55 @@ fn taking_the_skin_is_not_played_by_a_diablerist_the_hunt_burned() {
     );
 }
 
+// Forced March after a diablerie whose blood hunt burned the diablerist
+// (the owner's game, 2026-10-16: Mkhokeli still offered it): the acting
+// minion gone, no card after resolution.
+#[test]
+fn forced_march_is_not_played_by_a_diablerist_the_hunt_burned() {
+    let mut e = game(2);
+    let d = e.add_minion(SeatId(0), plain("Brujah", 0), 4, false);
+    superior(&mut e, d, "cel");
+    e.add_minion(SeatId(0), plain("Brujah", 1), 4, false);
+    let victim = e.add_minion(SeatId(1), plain("Brujah", 2), 2, true);
+    let prince = e.add_minion(
+        SeatId(1),
+        textless(
+            |c| matches!(c.title, Title::Prince(_)) && c.sect == Sect::Camarilla,
+            0,
+        ),
+        4,
+        false,
+    );
+    hand(&mut e, 0, &["Forced March"]);
+    pick(
+        &mut e,
+        Choice::TakeAction {
+            minion: d,
+            action: ActionKind::Diablerie,
+            target: Some(victim),
+        },
+    );
+    until(&mut e, SeatId(1), WindowLabel::BloodHuntPolling);
+    pick(
+        &mut e,
+        Choice::CastVotes {
+            minion: prince,
+            favor: true,
+        },
+    );
+    assert!(!offered_before(
+        &mut e.clone(),
+        play(0, 0, d),
+        SeatId(0),
+        WindowLabel::MinionPhase
+    ));
+    never_offered_until(&mut e, SeatId(0), WindowLabel::MinionPhase, play(0, 1, d));
+    assert!(
+        !e.state.minions[d.index()].in_play,
+        "burned by the blood hunt"
+    );
+}
+
 // Malkavian Dementia returning its Malkavian to an ousted Methuselah: the
 // minion is removed [ANK 20181110], the taker's own card on it burned
 // (owner, 2026-09-06), not removed with it.
