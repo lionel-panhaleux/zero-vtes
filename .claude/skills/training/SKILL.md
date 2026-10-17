@@ -62,8 +62,9 @@ runs" (every run's command, numbers and lessons), `docs/boards/training.md`.
 5. **Serve** (the owner's call): Z-main redeploys engine.krcg.org with
    `ZVTES_WEIGHTS` explicit (CLAUDE.md "Sessions": only Z-main deploys); name the served weights by their sha prefix in
    the DESIGN note (the server records the weights' SHA-256 per game); keep
-   the previous weights as `runs/served-prev-<date>-<run>.zvp`; bot nudges
-   live in `crates/server/src/games.rs`.
+   the previous weights as `runs/served-prev-<date>-<run>.zvp`; the served
+   profile (temperature, nudges) lives in `crates/policy/src/profiles.rs`
+   (`NETWORK`), which the server and `examples/humanset.rs` read.
 
 ## Taking a new engine
 

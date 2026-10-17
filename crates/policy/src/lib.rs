@@ -19,6 +19,7 @@
 use std::collections::HashMap;
 
 pub mod chores;
+pub mod profiles;
 
 use zvtes::agent::Agent;
 use zvtes::cards::Stat;
@@ -760,14 +761,14 @@ impl Agent for NetAgent {
 }
 
 #[cfg(test)]
-mod tests {
+pub(crate) mod tests {
     use super::*;
     use zvtes::decks::Deck;
     use zvtes::game::Step;
 
     /// A network of zeros (no layer): every option scores alike, so the
     /// agent draws uniformly among those its masks leave.
-    fn uniform_net() -> Net {
+    pub(crate) fn uniform_net() -> Net {
         let d = 4;
         let shapes: [(&str, &[usize]); 20] = [
             ("tok_f.weight", &[d, obs::TOK_F]),

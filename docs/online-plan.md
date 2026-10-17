@@ -93,13 +93,16 @@ engine ← host   text (api + card names: the English renderer)
 policy ───┴─ server (axum, tokio, sqlx: api + host + text + policy)
    ↑
    py (training: engine + policy + host's replayer)
+
+policy: engine + host + api (its profiles implement host's Bots)
 ```
 
 - **`engine`** — the rules, no dependencies. `Agent: Send`. Card copy
   ids (A9), behaviour-neutral.
 - **`policy`** — inference (`Arc<Net>`, one copy of the weights for every
-  game) and the **bot profiles** (style, weights, temperature, nudges, by
-  name), implementing `host`'s `Bots` trait; the scripted styles too.
+  game) and the network **bot profiles** (weights, temperature, nudges, by
+  name: `profiles`), implementing `host`'s `Bots` trait (so it depends on
+  `host` and `api` too); the scripted styles stay in `host` (`BUILT_IN`).
 - **`api`** — the contract as types: `In`/`Command`, `Out`/`Message`,
   `GameSpec`, `Settings`, `TableView`, `OptionView` (`ChoiceKey` +
   `effects`), typed `Event`, `GameRecord`, errors, `PROTOCOL_VERSION`.
@@ -185,7 +188,7 @@ undo), events translated as they happen.
 | A9 | Engine copy ids, behaviour-neutral (above) — in parallel with A1b — done (2026-10-13): `crates/engine/src/copies.rs` (`CopyId`, `Pile`, `Untracked`, `census`), dealt by `CopyCounter` in seating then decklist order; the fixture-only API behind the `fixtures` feature; fuzz checks conservation at every decision; goldens, perft and 1,000 random games' hashes unchanged; `Agent: Send` |
 | A2 | `host` whole: per-seat state, per-viewer copies and `nth`, undo by snapshots, settings, allocations, vote orders, `seq` buffer, step budget, injected clock. First test: two options of one decision never share a `ChoiceKey` |
 | A3 | Data first: option keys and `effects`, decision `source`, typed events, `Role` and `MarkerKind` completed — what `purpose.rs` and `narrate.rs` say in words |
-| A4 | `Bots` trait in `host`; profiles in `policy`; `Agent: Send`, `Arc<Net>` — `Arc<Net>` done; `Bots` trait in `host` (implemented by the shells for now) |
+| A4 | `Bots` trait in `host`; profiles in `policy`; `Agent: Send`, `Arc<Net>` — done (2026-10-17): `Arc<Net>`; `Bots` in `host`, implemented by `zvtes_policy::profiles::Profiles` (the served `NETWORK` profile: temperature and nudges), which the server names and `examples/humanset.rs` reads |
 | A5 | Records + `Replayer`; corpus converter; `assess.py` and the replay example on records; `py` on `host` — done (2026-10-14): `host/src/replay.rs` (`Replay`: a record's deal and decisions, undos dropped, read by key, by index where a key is unknown; `Replayer`: told for a seat seeing all), `start.rs` (training starts from records); the 30 corpus games converted to `data/records` (read whole by the legacy reader, keyed by the engine's copies; `tests/records.rs` reads them all whole with their results); `zvtes_py.replay_decisions`, `train/assess.py`, `train/ppo.py` (`--bc`, `--starts`), `policy`'s waste example and `examples/replay.rs` on records |
 | A6 | Panics caught per command (`catch_unwind`; a panic hook for the backtrace, and for wasm where unwinding aborts) and a step budget (an engine loop): the game ends as `engine_error`, recorded |
 | A7 | `text` crate: the renderer over `api`; `tests/prompts.rs` as its oracle |

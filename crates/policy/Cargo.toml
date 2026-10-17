@@ -5,7 +5,8 @@ edition = "2021"
 license = "MIT"
 
 # The trained policy's inference, by hand (docs/human-play.md slice 3): no
-# dependency, so the bot runs wherever the engine does (a server).
+# third-party dependency, so the bot runs wherever the engine does (a
+# server); the profiles a host offers beside it.
 # Mirrors `train/model.py`'s `Policy.forward` — keep them in step
 # (`train/tests/test_export.py` compares the two).
 [lib]
@@ -13,10 +14,10 @@ name = "zvtes_policy"
 
 [dependencies]
 zero-vtes-engine = { path = "../engine" }
+# The profiles a host offers (`profiles`: `zvtes_host::Bots`, its records).
+zvtes-api = { path = "../api" }
+zvtes-host = { path = "../host" }
 
 [dev-dependencies]
 zero-vtes-engine = { path = "../engine", features = ["fixtures"] }
-# Examples reading the owner's games (`examples/waste.rs`).
-zvtes-api = { path = "../api" }
-zvtes-host = { path = "../host" }
 serde_json = "1"

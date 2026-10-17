@@ -42,7 +42,7 @@ use zvtes_api::record::GameRecord;
 use zvtes_api::{Command, GameSpec, In, Message, Out, Player};
 use zvtes_host::Bots;
 
-use crate::games::{Games, Job, Policy, ServerBots};
+use crate::games::{Games, Job};
 use crate::store::{Put, Store};
 
 struct Config {
@@ -61,7 +61,7 @@ struct Config {
 struct App {
     config: Config,
     games: Games,
-    policy: Option<Arc<Policy>>,
+    policy: Option<Arc<zvtes_policy::profiles::Served>>,
     store: mpsc::UnboundedSender<Put>,
     /// Records of games no longer live.
     records: Store,
@@ -87,7 +87,7 @@ async fn main() {
         let hash = format!("{:x}", Sha256::digest(&bytes));
         let net = zvtes_policy::Net::load(&bytes).expect("a policy");
         eprintln!("policy {path}: sha256 {hash}");
-        Arc::new(Policy {
+        Arc::new(zvtes_policy::profiles::Served {
             net: Arc::new(net),
             hash,
         })
@@ -216,7 +216,7 @@ fn cors(origins: &Option<Vec<String>>) -> CorsLayer {
 
 async fn version(State(app): State<Shared>) -> Json<serde_json::Value> {
     let mut profiles: Vec<String> = zvtes_host::BUILT_IN.iter().map(|s| s.to_string()).collect();
-    profiles.extend(ServerBots(app.policy.clone()).profiles());
+    profiles.extend(zvtes_policy::profiles::Profiles(app.policy.clone()).profiles());
     Json(json!({
         "protocol": zvtes_api::PROTOCOL_VERSION,
         "engine": zvtes_host::ENGINE,

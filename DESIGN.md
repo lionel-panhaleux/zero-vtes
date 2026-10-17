@@ -1234,7 +1234,7 @@ training runs.
   games 0 of 36.
   (2) A decisive network bot: `NetAgent::temperature` divides the
   logits before sampling; the human-play bots play at 0.5 with the
-  rescue bonus (then `crates/wasm`, now the server's `games.rs`). Measured (512 games each, against the
+  rescue bonus (now `zvtes_policy::profiles::NETWORK`). Measured (512 games each, against the
   network sampling as trained): 0.7 1.06 / 0.92, 0.5 1.16 / 0.82, 0.3
   1.18 / 0.80, 0.5 with +6 1.17 / 0.81. Training still samples at 1.
   (3) Waste (`crates/policy/examples/waste.rs`: the owner's games,
@@ -1775,7 +1775,7 @@ Still true today; "(verify)" marks items inferred from older notes.
 - **P5 — community**: bot service, client adapter, human-ergonomics layer
   (its open items on the boards).
 
-Definitions: 828 library, 399 vampires; 2095 Rust tests, 37 Python tests
+Definitions: 828 library, 399 vampires; 2096 Rust tests, 37 Python tests
 
 ## Outlook: deck building (post-v1)
 

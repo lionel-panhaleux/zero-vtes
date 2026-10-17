@@ -297,8 +297,8 @@ def report(title, games, args, listing):
         + "".join(f"; {n} {s}" for s, n in sorted(apart.items()))
         + f". `*`: fewer than {SMALL} in the sample. Turns: as recorded (protocol 1.7.0 on), else "
         "replayed on this checkout's engine, `≥` where it stops partway. Nudges: each network "
-        "bot's in its record from 1.7.0 (before, those its server served, "
-        "`crates/server/src/games.rs`)."
+        "bot's in its record from 1.7.0 (before, those its server served: "
+        "`zvtes_policy::profiles::NETWORK`, its history in git)."
     )
     out.append("")
 

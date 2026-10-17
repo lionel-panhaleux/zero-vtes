@@ -320,7 +320,7 @@ for history.
 
 The fork plays on `https://engine.krcg.org` (the server's network bots:
 temperature 0.5 and the nudges their weights trained with,
-`crates/server/src/games.rs`):
+`zvtes_policy::profiles::NETWORK`):
 
 ```
 cd ../succubus-club && npm install                # once

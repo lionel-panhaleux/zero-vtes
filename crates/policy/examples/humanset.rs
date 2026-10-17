@@ -10,7 +10,7 @@
 //! - the outcome replayed: from the position at a quarter, half and three
 //!   quarters of the decisions the engine reads, the network takes the
 //!   human's seat and the bots the others, every seat as the server plays
-//!   them (temperature 0.5, its nudges), libraries and crypts shuffled
+//!   them (`zvtes_policy::profiles::NETWORK`), libraries and crypts shuffled
 //!   anew each game (`zvtes_host::start`); the network's game wins and
 //!   VPs from where the human won.
 //!
@@ -25,30 +25,14 @@ use zvtes_api::message::EndReason;
 use zvtes_api::record::GameRecord;
 use zvtes_host::replay::Replay;
 use zvtes_host::start::Start;
-use zvtes_policy::{Net, NetAgent, Nudges};
+use zvtes_policy::profiles::NETWORK;
+use zvtes_policy::{Net, NetAgent};
 
 const POINTS: [(f64, &str); 3] = [
     (0.25, "a quarter in"),
     (0.5, "halfway"),
     (0.75, "three quarters in"),
 ];
-
-/// A seat as engine.krcg.org plays its network bots: a copy of the
-/// server's profile (`PROFILES`) and `nudges()` in
-/// `crates/server/src/games.rs` — keep them in step.
-fn served(net: &Arc<Net>, seed: u64) -> NetAgent {
-    NetAgent::new(net.clone(), seed)
-        .temperature(0.5)
-        .nudges(Nudges {
-            rescue: 6.0,
-            bleed: 4.0,
-            idle: 3.0,
-            draw: 7.0,
-            stuck: 6.0,
-            nightmare: 6.0,
-            ..Nudges::default()
-        })
-}
 
 /// A human's win to start from.
 struct Won {
@@ -119,10 +103,8 @@ fn replayed(nets: [&Arc<Net>; 2], w: &Won, at: usize, seed: u64) -> (u32, bool) 
     let mut e = w.start.position(at, seed, 75);
     let mut agents: Vec<NetAgent> = (0..w.start.seats())
         .map(|s| {
-            served(
-                if s == w.seat { nets[0] } else { nets[1] },
-                seed * 10 + s as u64,
-            )
+            let net = if s == w.seat { nets[0] } else { nets[1] };
+            NETWORK.agent(net.clone(), seed * 10 + s as u64)
         })
         .collect();
     let cap = e.decisions + 30_000;
