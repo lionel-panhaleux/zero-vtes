@@ -59,6 +59,7 @@ cargo clippy --all-targets --profile ci -- -D warnings
 cargo test --profile ci -q
 cargo test -p zvtes-api --features schema --profile ci
 python3 scripts/gen_ts.py --check crates/api/protocol.ts
+python3 scripts/schema_compat.py --check
 python3 scripts/rulings_v5.py --check data/rulings-v5.csv
 python3 scripts/window_matrix.py --check data/window-matrix-reviewed.csv
 ```

@@ -314,7 +314,8 @@ for history.
   once,
   `node crates/server/tests/rejoin.mjs <url>` a seat joining again (after
   its last `seq`, after an older one, afresh, on a second socket taking
-  the seat from the first).
+  the seat from the first). `uv run --script scripts/minimal_client.py <url>` plays
+  protocol §2's Python client against it.
 
 ## Running the fork
 

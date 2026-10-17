@@ -89,16 +89,26 @@ client                                  host
 ### A minimal client
 
 Python, with the `websockets` package: it plays the first option of
-every decision against three scripted bots.
+every decision against three scripted bots. It is
+`scripts/minimal_client.py` (the api crate's tests keep the two alike):
+`uv run --script scripts/minimal_client.py [server]`, the server's base
+URL (`https://engine.krcg.org` by default, `http://127.0.0.1:8040` for a
+local one).
 
 ```python
-import asyncio, json, urllib.request
+# /// script
+# dependencies = ["websockets"]
+# ///
+"""Plays the first option of every decision against three scripted bots:
+`uv run --script scripts/minimal_client.py [https://engine.krcg.org]`."""
+
+import asyncio, json, sys, urllib.request
 import websockets
 
-SERVER = "engine.krcg.org"
+SERVER = sys.argv[1] if len(sys.argv) > 1 else "https://engine.krcg.org"
 
 def get(path):
-    return json.load(urllib.request.urlopen(f"https://{SERVER}{path}"))
+    return json.load(urllib.request.urlopen(f"{SERVER}{path}"))
 
 async def main():
     decks = dict(get("/catalog"))
@@ -109,10 +119,11 @@ async def main():
     ]
     body = json.dumps({"seats": seats, "client": "my-client 0.1"}).encode()
     request = urllib.request.Request(
-        f"https://{SERVER}/games", body, {"Content-Type": "application/json"}
+        f"{SERVER}/games", body, {"Content-Type": "application/json"}
     )
     game = json.load(urllib.request.urlopen(request))
-    async with websockets.connect(f"wss://{SERVER}/games/{game['game']}/ws") as ws:
+    socket = SERVER.replace("http", "ws", 1)
+    async with websockets.connect(f"{socket}/games/{game['game']}/ws") as ws:
         await ws.send(json.dumps({"type": "join", "token": game["token"]}))
         answer = None
         async for frame in ws:
@@ -516,4 +527,6 @@ end reason, an error or a value of a §12 closed set (a decision's `by`
 among them) they do not know as `unknown` (never sent); any other new
 value still fails the read, and a reader built before 1.3.0 needs
 records no newer than its engine. `engine` is the commit: rules
-fixes ship without a protocol change.
+fixes ship without a protocol change. `CHANGELOG.md` lists every version;
+`scripts/schema_compat.py --check` fails a schema change that removes or
+renames a field or an id unless the major moves.

@@ -10,7 +10,9 @@ deep-RL agent for the V5 card pool.
 - **Build a client**: [`docs/protocol.md`](docs/protocol.md) is the contract
   (JSON over HTTP and WebSocket, semver), with its JSON Schema
   (`crates/api/schema.json`), OpenAPI (`crates/api/openapi.json`) and
-  TypeScript types (`crates/api/protocol.ts`).
+  TypeScript types (`crates/api/protocol.ts`); every version in
+  [`CHANGELOG.md`](CHANGELOG.md), and a client in a page of Python
+  (`uv run --script scripts/minimal_client.py`).
 - **The engine**: every V5 card and a growing set of legacy cards, every
   ruling tracked in a ledger, most as tests
   ([`data/rulings-v5.csv`](data/rulings-v5.csv)); the owner's

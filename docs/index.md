@@ -10,7 +10,7 @@ reasoning journeys live in a task and die with it, git keeping them.
 
 - [`../README.md`](../README.md) and [`../CONTRIBUTING.md`](../CONTRIBUTING.md):
   the way in for outsiders: what is here, a quick start, how a change is
-  made.
+  made; [`../CHANGELOG.md`](../CHANGELOG.md): every protocol version.
 - [`../DESIGN.md`](../DESIGN.md): what the engine and the agent are: scope
   (§3), the engine's architecture (§4), the RL surface (§5), the window
   census (§6), testing (§7), the community surface (§8), performance
