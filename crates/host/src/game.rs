@@ -632,6 +632,7 @@ impl Game {
                         source: describe::source(e, &req, names),
                         purpose: e.interrupt().map(|i| crate::ids::purpose(&i)),
                         about: describe::about(e, &req, names),
+                        due: describe::dues(e, &req, names),
                         options: shown.iter().map(|&i| self.option(&req, i)).collect(),
                         undo,
                         allocation: self.allocation(&req),

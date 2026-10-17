@@ -3,9 +3,9 @@
 //! checked against the contract's lifecycle.
 
 use zvtes_api::event::EventKind;
-use zvtes_api::ids::OptionKind;
+use zvtes_api::ids::{ActionKind, DueKind, OptionKind};
 use zvtes_api::message::{EndReason, Error};
-use zvtes_api::option::{Effect, User};
+use zvtes_api::option::{Effect, EffectKind, User};
 use zvtes_api::record::Entry;
 use zvtes_api::{Command, GameSpec, In, Message, Out, Player, SeatSpec, Settings, SettingsPatch};
 use zvtes_host::{Bots, Clock, Game};
@@ -478,4 +478,53 @@ fn an_abilitys_user_is_said() {
         minion > 0 && methuselah > 0,
         "{minion} by a minion, {methuselah} by a Methuselah"
     );
+}
+
+/// A minion phase offering no `pass` says why (docs/protocol.md §5): its
+/// `due`, each naming a minion or card its options act on — a vampire
+/// that must hunt first, with a hunt on offer (rules-qa 17.2) — and one
+/// offering `pass` none; never inferred from the missing pass. The first
+/// forced hunt the human meets is seed 34 or so (a lone hunt elides).
+#[test]
+fn a_minion_phase_without_a_pass_says_why() {
+    let seeds: u32 = std::env::var("HOST_SEEDS").map_or(70, |s| s.parse().unwrap());
+    let mut hunts = 0;
+    each_decision(seeds, |seed, d| {
+        if d.window != zvtes_api::ids::Window::MinionPhase {
+            assert!(d.due.is_empty(), "seed {seed}: due outside a minion phase");
+            return;
+        }
+        let pass = d.options.iter().any(|o| o.key.kind == OptionKind::Pass);
+        assert_eq!(
+            pass,
+            d.due.is_empty(),
+            "seed {seed}: {:?} {:?}",
+            d.due,
+            d.options
+        );
+        for due in &d.due {
+            let acts = |o: &&zvtes_api::option::OptionView| {
+                [
+                    o.key.actor,
+                    o.key.minion,
+                    o.key.card.as_ref().and_then(|c| c.copy),
+                ]
+                .contains(&Some(due.copy))
+            };
+            assert!(
+                d.options.iter().any(|o| acts(&o)),
+                "seed {seed}: {due:?} acts on nothing"
+            );
+            if due.kind == DueKind::Hunt {
+                assert!(
+                    d.options.iter().any(|o| o.key.actor == Some(due.copy)
+                        && (o.key.action == Some(ActionKind::Hunt)
+                            || o.effects.iter().any(|e| e.kind == EffectKind::Hunt))),
+                    "seed {seed}: {due:?} has no hunt"
+                );
+                hunts += 1;
+            }
+        }
+    });
+    assert!(hunts > 0, "no forced hunt met");
 }

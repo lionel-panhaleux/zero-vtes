@@ -13,6 +13,17 @@ use crate::referendum::RefKind;
 use crate::state::{ActionId, CardId, CardInPlay, Release, TimedStat};
 use crate::window::OrderedWindow;
 
+/// What a minion phase waits for before it may end (`Engine::dues`).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Due {
+    /// A vampire that must hunt first (rules-qa 17.2).
+    Hunt(MinionId),
+    /// A vampire's printed mandatory action (Elen Kamjian).
+    Action(MinionId),
+    /// A card taking control of its host this phase (Puppet Master).
+    TakeControl(CardId),
+}
+
 /// Does the card's first mode carry requirement `r`?
 fn lib_requires(card: u16, r: cards::Requirement) -> bool {
     cards::lookup(card).is_some_and(|d| d.modes.first().is_some_and(|m| m.requires.contains(&r)))
@@ -6476,18 +6487,80 @@ impl Engine {
             .collect()
     }
 
-    fn seat_action_options(&self, s: SeatId, only: Option<MinionId>) -> Vec<Choice> {
+    /// The ready unlocked vampires of `s` that must hunt before any other
+    /// action (rulebook "Minion Phase": no blood; a card's `must_hunt`), an
+    /// ally never; with `only`, that one alone.
+    fn starving(&self, s: SeatId, only: Option<MinionId>) -> Vec<MinionId> {
         let st = &self.state;
-        let mut ready = st.ready_unlocked(s);
-        ready.retain(|&m| only.is_none_or(|o| o == m));
-        let starving: Vec<MinionId> = ready
-            .iter()
-            .copied()
+        st.ready_unlocked(s)
+            .into_iter()
+            .filter(|&m| only.is_none_or(|o| o == m))
             .filter(|m| {
                 let v = &st.minions[m.index()];
                 (v.blood == 0 || v.must_hunt) && !v.is_ally()
             })
+            .collect()
+    }
+
+    /// What a minion phase decision withholding its end (`req` offering
+    /// no Pass) waits for: the hunts due (rules-qa 17.2), the printed
+    /// mandatory actions (Elen Kamjian), a card taking control of its host
+    /// (Puppet Master); for interfaces telling what the phase must do
+    /// before it ends.
+    pub fn dues(&self, req: &DecisionRequest) -> Vec<Due> {
+        if req.window != WindowLabel::MinionPhase || req.options.contains(&Choice::Pass) {
+            return Vec::new();
+        }
+        let hunts = |o: &Choice, m: MinionId| {
+            self.option_action(req.seat, o)
+                .is_some_and(|(a, k, card_hunt)| a == m && (k == ActionKind::Hunt || card_hunt))
+        };
+        let mut out: Vec<Due> = self
+            .starving(req.seat, None)
+            .into_iter()
+            .filter(|&m| req.options.iter().any(|o| hunts(o, m)))
+            .map(Due::Hunt)
             .collect();
+        for o in self.mandatory_split(req.seat, &req.options).0 {
+            if let Choice::UseAbility {
+                source: cards::AbilitySource::Vampire(v),
+                ..
+            } = o
+            {
+                if !out.contains(&Due::Action(v)) {
+                    out.push(Due::Action(v));
+                }
+            }
+        }
+        for c in req.options.iter().filter_map(|o| self.takes_control(o)) {
+            if !out.contains(&Due::TakeControl(c)) {
+                out.push(Due::TakeControl(c));
+            }
+        }
+        out
+    }
+
+    /// The card `o` uses to take control of its host (Puppet Master), if
+    /// it does: due this minion phase.
+    fn takes_control(&self, o: &Choice) -> Option<CardId> {
+        match *o {
+            Choice::UseAbility {
+                source: cards::AbilitySource::Card(c),
+                ability,
+                ..
+            } => cards::AbilitySource::Card(c)
+                .mode(&self.state, ability)
+                .effects
+                .contains(&Effect::TakeControlOfHost)
+                .then_some(c),
+            _ => None,
+        }
+    }
+
+    // A path here withholding Pass says why in `dues`.
+    fn seat_action_options(&self, s: SeatId, only: Option<MinionId>) -> Vec<Choice> {
+        let st = &self.state;
+        let starving = self.starving(s, only);
         // A vampire that does not hunt as normal must take the hunt it can
         // (Week of Nightmares), else takes no action (rules-qa 28.8); so
         // does one a card forbade the hunt (Change of Target, LSJ 19980112).
@@ -6722,17 +6795,7 @@ impl Engine {
         // "During your next minion phase, burn this card to … take control"
         // (Puppet Master [DOM]): at any point of it (LSJ 20001201), but the
         // phase cannot end before.
-        let due = options.iter().any(|o| match *o {
-            Choice::UseAbility {
-                source: cards::AbilitySource::Card(c),
-                ability,
-                ..
-            } => cards::AbilitySource::Card(c)
-                .mode(st, ability)
-                .effects
-                .contains(&Effect::TakeControlOfHost),
-            _ => false,
-        });
+        let due = options.iter().any(|o| self.takes_control(o).is_some());
         if due {
             options.retain(|o| *o != Choice::Pass);
         }

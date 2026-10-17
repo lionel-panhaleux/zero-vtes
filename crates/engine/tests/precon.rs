@@ -5467,9 +5467,11 @@ fn puppet_master_next_turn() -> (Engine, MinionId, MinionId, MinionId, CardId) {
 #[test]
 fn puppet_master_superior_takes_a_vampire_for_the_next_turn() {
     let (mut e, a, _, z, pm) = puppet_master_next_turn();
-    // Due: the minion phase cannot end, but other actions come first.
+    // Due: the minion phase cannot end, but other actions come first; an
+    // interface is told what it waits for (`Engine::dues`).
     let req = request(&mut e);
     assert!(!req.options.contains(&Choice::Pass));
+    assert_eq!(e.dues(&req), [zvtes::actions::Due::TakeControl(pm)]);
     pick(&mut e, action(a, ActionKind::Hunt));
     until(&mut e, SeatId(0), WindowLabel::MinionPhase);
     pick(&mut e, ability(pm));

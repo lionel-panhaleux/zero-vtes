@@ -183,7 +183,7 @@ A JSON object with `seq`, `reply_to`? and a `type`:
 |---|---|
 | `joined` | `protocol`, `engine` (commit), `game`, `seat`, `seats` (`name`, `bot` profile), `settings`, `idle_timeout`, `view` |
 | `events` | `events`: one step — a decision taken and what it did until the next — or the engine's run before a decision or the end (§9); `view` after a step when `views` is `steps` |
-| `decision` | `decision`, `seat`, `window`, `source`?, `purpose`?, `about`?, `options`, `undo`, `allocation`?, `votes`?, `view`; `prompt` with `text` |
+| `decision` | `decision`, `seat`, `window`, `source`?, `purpose`?, `about`?, `due`?, `options`, `undo`, `allocation`?, `votes`?, `view`; `prompt` with `text` |
 | `over` | `vp_halves` (per seat), `winner`? (the most VPs, at least 2, alone), `reason` (`{"type": …}`: `last_standing`, `time_limit`, `humans_ousted`, `abandoned` + `seat`, `engine_error`; in a record only, `server_restart`), `view` |
 | `noted` | `decision`: the seat's `feedback` recorded, at that decision (`reply_to` its `id`) |
 | `error` | `error`: `stale` (+ `expected`), `not_your_turn`, `option` (+ `index`), `no_undo`, `allocation` (+ `reason`: `none`, `length`, `total`, `cap`, `min_nonzero`), `no_votes`, `over`, `not_joined`, `malformed` (+ `reason`), `rate_limited`, `seat_taken` |
@@ -210,7 +210,13 @@ circle), and `detail`, what sets it apart within its purpose (`minion_of`:
 `lock`, `lock_vampires`, `corrupt`…; a terms window: `blood_range`,
 `x_blood`, `discard`, `cost_reductions`, `burn_allocated`, `gains_pool`…).
 A client tells its prompt from these alone, as the server's English
-rendering (the `text` setting) does.
+rendering (the `text` setting) does. `due` says why a minion phase
+offers no `pass`: what it must do before it ends,
+each `{kind, copy}` — `hunt` (a vampire with no blood, or one a card
+says must hunt, hunts before any other action: rules-qa 17.2; other
+minions' actions wait), `action` (a vampire's printed mandatory action,
+Elen Kamjian's bleed), `take_control` (the card taking control of its
+host this phase, Puppet Master); empty whenever `pass` is offered.
 
 ## 6. The view
 

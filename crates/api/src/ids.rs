@@ -150,6 +150,19 @@ ids!(
 );
 
 ids!(
+    /// What a minion phase waits for before it may end (`Decision::due`).
+    DueKind {
+        /// A vampire that must hunt first: no blood, or a card says so
+        /// (rules-qa 17.2).
+        Hunt,
+        /// A vampire's printed mandatory action (Elen Kamjian).
+        Action,
+        /// A card taking control of its host this phase (Puppet Master).
+        TakeControl,
+    }
+);
+
+ids!(
     /// A minion's trait (rulebook "Traits"), printed or gained; a trait
     /// with a parameter (Slave, a circle) is not one of them.
     Trait {

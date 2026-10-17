@@ -1864,6 +1864,39 @@ fn elen_kamjian_must_bleed_while_you_control_a_locked_minion() {
     assert!(req.options.contains(&action(elen, ActionKind::Hunt)));
 }
 
+// A minion phase withholding its end says what it waits for
+// (`Engine::dues`, for interfaces): Elen Kamjian's mandatory bleed beside
+// an untimed ability (Dreams of the Sphinx), so the window does not elide;
+// a vampire with no blood that must hunt first (rules-qa 17.2), beside it
+// too; nothing once the phase may end.
+#[test]
+fn a_minion_phase_says_what_it_waits_for() {
+    use zvtes::actions::Due;
+    let mut e = bare();
+    let elen = add(&mut e, 0, "Elen Kamjian");
+    let other = e.add_minion(SeatId(0), plain("Brujah", 0), 4, false);
+    e.state.minions[other.index()].locked = true;
+    e.add_minion(SeatId(1), plain("Ventrue", 0), 4, false);
+    in_play(&mut e, "Dreams of the Sphinx", 0, None);
+    let req = request(&mut e);
+    assert!(!req.options.contains(&Choice::Pass), "{:?}", req.options);
+    assert!(req.options.contains(&printed_action(elen, 0, Target::None)));
+    assert_eq!(e.dues(&req), [Due::Action(elen)]);
+
+    let mut e = bare();
+    let starving = e.add_minion(SeatId(0), plain("Brujah", 0), 0, false);
+    e.add_minion(SeatId(0), plain("Ventrue", 1), 4, false);
+    e.add_minion(SeatId(1), plain("Ventrue", 0), 4, false);
+    in_play(&mut e, "Dreams of the Sphinx", 0, None);
+    let req = request(&mut e);
+    assert!(!req.options.contains(&Choice::Pass), "{:?}", req.options);
+    assert_eq!(e.dues(&req), [Due::Hunt(starving)]);
+    pick(&mut e, action(starving, ActionKind::Hunt));
+    let req = until(&mut e, SeatId(0), WindowLabel::MinionPhase);
+    assert!(req.options.contains(&Choice::Pass));
+    assert!(e.dues(&req).is_empty());
+}
+
 // Having bled before the obligation attaches, Elen is stuck: she takes no
 // action at all, while the others act freely.
 // Rulings: [ANK 20211009-2].

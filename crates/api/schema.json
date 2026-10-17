@@ -834,6 +834,13 @@
           "format": "uint64",
           "minimum": 0
         },
+        "due": {
+          "description": "Why a minion phase offers no `pass`: what it must do before it ends\n(other minions' actions may wait too). Empty otherwise.",
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Due"
+          }
+        },
         "options": {
           "description": "The options shown (the seat's settings may hide some: indices keep\nthe engine's numbering).",
           "type": "array",
@@ -920,6 +927,49 @@
       "required": [
         "discipline",
         "superior"
+      ]
+    },
+    "Due": {
+      "description": "What a minion phase waits for (`Decision::due`): the minion that must\nhunt or take its mandatory action, the card taking control of its host.",
+      "type": "object",
+      "properties": {
+        "copy": {
+          "type": "integer",
+          "format": "uint32",
+          "minimum": 0
+        },
+        "kind": {
+          "$ref": "#/$defs/DueKind"
+        }
+      },
+      "required": [
+        "kind",
+        "copy"
+      ]
+    },
+    "DueKind": {
+      "description": "What a minion phase waits for before it may end (`Decision::due`).",
+      "oneOf": [
+        {
+          "description": "A vampire that must hunt first: no blood, or a card says so\n(rules-qa 17.2).",
+          "type": "string",
+          "const": "hunt"
+        },
+        {
+          "description": "A vampire's printed mandatory action (Elen Kamjian).",
+          "type": "string",
+          "const": "action"
+        },
+        {
+          "description": "A card taking control of its host this phase (Puppet Master).",
+          "type": "string",
+          "const": "take_control"
+        },
+        {
+          "description": "A value this reader does not know.",
+          "type": "string",
+          "const": "unknown"
+        }
       ]
     },
     "Effect": {

@@ -14,8 +14,8 @@ use zvtes::game::{Contest, Engine};
 use zvtes::ids::{MinionId, SeatId};
 use zvtes::library::LIBRARY;
 use zvtes::state::{CardId, MinionKind, UncontrolledSlot, CREATED};
-use zvtes_api::ids::{OptionKind, Role, Zone};
-use zvtes_api::message::About;
+use zvtes_api::ids::{DueKind, OptionKind, Role, Zone};
+use zvtes_api::message::{About, Due};
 use zvtes_api::option::{CardRef, ChoiceKey, Effect, EffectKind, On, User, ZoneRef};
 use zvtes_api::view::Target;
 
@@ -683,6 +683,33 @@ pub fn ability_apart(e: &Engine, choice: &Choice) -> Vec<Effect> {
     };
     let siblings = defs.iter().enumerate().filter(|&(j, _)| j != i);
     crate::view::apart_from(own, siblings.map(|(_, d)| d))
+}
+
+/// What a minion phase waits for before it may end (`Decision::due`).
+pub fn dues(e: &Engine, req: &DecisionRequest, names: &impl Names) -> Vec<Due> {
+    use zvtes::actions::Due as D;
+    let x = Ctx {
+        e,
+        seat: req.seat,
+        names,
+    };
+    e.dues(req)
+        .into_iter()
+        .map(|d| match d {
+            D::Hunt(m) => Due {
+                kind: DueKind::Hunt,
+                copy: x.minion(m),
+            },
+            D::Action(m) => Due {
+                kind: DueKind::Action,
+                copy: x.minion(m),
+            },
+            D::TakeControl(c) => Due {
+                kind: DueKind::TakeControl,
+                copy: x.card(c),
+            },
+        })
+        .collect()
 }
 
 /// An ability's: who uses it (`OptionView::user`).

@@ -165,6 +165,7 @@ fn a_decision_reads_flat() {
             source: None,
             purpose: None,
             about: None,
+            due: vec![],
             options: vec![option(0, key(OptionKind::Pass)), shown, keep],
             undo: false,
             allocation: None,

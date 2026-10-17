@@ -385,6 +385,11 @@ export type Decision = {
     allocation?: Allocation | null
     decision: number
     /**
+     * Why a minion phase offers no `pass`: what it must do before it ends
+     * (other minions' actions may wait too). Empty otherwise.
+     */
+    due?: Due[]
+    /**
      * The options shown (the seat's settings may hide some: indices keep
      * the engine's numbering).
      */
@@ -415,6 +420,18 @@ export type DisciplineLevel = {
     discipline: string
     superior: boolean
 }
+
+/**
+ * What a minion phase waits for (`Decision::due`): the minion that must
+ * hunt or take its mandatory action, the card taking control of its host.
+ */
+export type Due = {
+    copy: number
+    kind: DueKind
+}
+
+/** What a minion phase waits for before it may end (`Decision::due`). */
+export type DueKind = 'hunt' | 'action' | 'take_control' | 'unknown'
 
 /**
  * One thing an option does, to whom (docs/protocol.md §7): a curated

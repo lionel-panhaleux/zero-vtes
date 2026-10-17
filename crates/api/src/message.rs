@@ -3,7 +3,7 @@
 use serde::{Deserialize, Serialize};
 
 use crate::event::Event;
-use crate::ids::{CopyId, DecisionNo, Purpose, Seat, Window};
+use crate::ids::{CopyId, DecisionNo, DueKind, Purpose, Seat, Window};
 use crate::option::{Allocation, CardRef, OptionView, VoteTotals};
 use crate::spec::Settings;
 use crate::view::TableView;
@@ -92,6 +92,10 @@ pub struct Decision {
     /// source and options: how many, whose, which minion or card.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub about: Option<About>,
+    /// Why a minion phase offers no `pass`: what it must do before it ends
+    /// (other minions' actions may wait too). Empty otherwise.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub due: Vec<Due>,
     /// The options shown (the seat's settings may hide some: indices keep
     /// the engine's numbering).
     pub options: Vec<OptionView>,
@@ -106,6 +110,15 @@ pub struct Decision {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub prompt: Option<String>,
     pub view: TableView,
+}
+
+/// What a minion phase waits for (`Decision::due`): the minion that must
+/// hunt or take its mandatory action, the card taking control of its host.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
+pub struct Due {
+    pub kind: DueKind,
+    pub copy: CopyId,
 }
 
 /// What a choice is about (`Decision::about`): each field given where
