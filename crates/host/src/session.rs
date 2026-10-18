@@ -8,8 +8,8 @@ use std::collections::HashMap;
 
 use zvtes::actions::ActionState;
 use zvtes::agent::Agent;
-use zvtes::cards::{Effect, Window};
-use zvtes::combat::CombatNote;
+use zvtes::cards::{Effect, ModeDef, Window};
+use zvtes::combat::{CombatNote, Step as CombatStep};
 use zvtes::decision::{Choice, DecisionRequest, WindowLabel, Zone};
 use zvtes::game::{Engine, Step};
 use zvtes::ids::SeatId;
@@ -82,6 +82,9 @@ enum Opportunity {
     /// under way is short of the stealth: the blocker's to answer and the
     /// table's to help (rules-qa 82.1).
     Unmatched,
+    /// A strike's damage made aggravated (Claws of the Dead, Bone Spur), in
+    /// its moment or not: the strikes chosen, before they resolve.
+    Aggravation(bool),
 }
 
 /// Why an answer is refused.
@@ -544,7 +547,8 @@ impl Session {
     /// Whether `c` is an opportunity: a wake (in its moment or not), an
     /// ability usable at any time (The Louvre, Paris), a block denial, a
     /// legal no-op, a futile block attempt, the acting seat's option against
-    /// a short attempt.
+    /// a short attempt, a strike's damage made aggravated (in its moment or
+    /// not).
     fn opportunity(&self, req: &DecisionRequest, c: &Choice) -> Option<Opportunity> {
         let e = &self.engine;
         let st = &e.state;
@@ -595,7 +599,7 @@ impl Session {
                 if wakes {
                     return Some(Opportunity::Wake(moment));
                 }
-                mode.and_then(|m| self.denial(m.effects))
+                mode.and_then(|m| self.aggravation(m).or_else(|| self.denial(m.effects)))
             }
             Choice::UseAbility {
                 source, ability, ..
@@ -604,7 +608,7 @@ impl Session {
                 if mode.windows.contains(&Window::AnyImpulse) {
                     return Some(Opportunity::AnyTime);
                 }
-                self.denial(mode.effects)
+                self.aggravation(mode).or_else(|| self.denial(mode.effects))
             }
             Choice::DeclareBlock { minion } if !e.block_can_reach(req.seat, minion) => {
                 Some(Opportunity::Futile)
@@ -631,11 +635,35 @@ impl Session {
         denies.then(|| Opportunity::Denial(a.intercept_of(st, x) >= a.stealth(st)))
     }
 
+    /// `mode` makes a strike's damage aggravated and is usable once the
+    /// strikes are chosen: offered only then, before they resolve, not at
+    /// every untimed step (owner, 2026-10-18: "offer to make damage
+    /// aggravated only after choosing strike ... right now it's offered at
+    /// many different points during combat (which is correct and legal but
+    /// noisy)"). A mode not usable then (Raking Talons, before range) keeps
+    /// its moments.
+    fn aggravation(&self, mode: &ModeDef) -> Option<Opportunity> {
+        let aggravates = mode.effects.iter().any(|f| {
+            matches!(
+                f,
+                Effect::AggravatedHands | Effect::AggravatedHandsThisCombat
+            )
+        });
+        let then = mode
+            .windows
+            .iter()
+            .any(|w| matches!(w, Window::CombatUntimed | Window::CombatBeforeResolution));
+        let c = self.engine.combat()?;
+        (aggravates && then).then_some(Opportunity::Aggravation(
+            c.step == CombatStep::BeforeResolution,
+        ))
+    }
+
     /// The options a human seat is shown: all, unless it passes on its
     /// opportunities. Then no wake out of its moment, no denial short of
     /// the stealth, no legal no-op, no block attempt short of it, none of the
     /// acting seat's options but the pass while the attempt under way is
-    /// short of it, and the
+    /// short of it, no aggravation before the strikes are chosen, and the
     /// abilities usable at any time only where the decision pauses anyway;
     /// all if none is left.
     pub(crate) fn shown(&self, req: &DecisionRequest) -> Vec<usize> {
@@ -657,6 +685,7 @@ impl Session {
                     && kinds[i] != Some(Opportunity::Nothing)
                     && kinds[i] != Some(Opportunity::Futile)
                     && kinds[i] != Some(Opportunity::Unmatched)
+                    && kinds[i] != Some(Opportunity::Aggravation(false))
             })
             .collect();
         let pause = shown
@@ -1236,6 +1265,83 @@ mod tests {
             .find(|o| matches!(o, Choice::Play { .. }))
             .expect("Revelation of the Serpent offered");
         hidden_off(&mut s, &req, revelation);
+    }
+
+    /// With the opportunities off, `aggravates` (an option of seat 0's
+    /// `vampire`, holding `card`) is hidden from before range on and shown
+    /// once the strikes are chosen (owner, 2026-10-18).
+    fn aggravation_waits_for_the_strikes(
+        vampire: &str,
+        card: Option<&str>,
+        aggravates: fn(zvtes::ids::MinionId, &Choice) -> bool,
+    ) {
+        let (mut s, _) = session();
+        let mut e = Engine::bare(3);
+        let p = e.add_minion(SeatId(0), find_card(vampire), 4, false);
+        e.add_minion(SeatId(0), find_card("Madison"), 4, false);
+        let z = e.add_minion(SeatId(1), find_card("Donny Kowalczyk"), 4, false);
+        if let Some(c) = card {
+            e.state.seats[0].hand.put(find_library(c), CopyId::NONE);
+        }
+        s.engine = e;
+        let bleed = Choice::TakeAction {
+            minion: p,
+            action: ActionKind::Bleed,
+            target: None,
+        };
+        let block = Choice::DeclareBlock { minion: z };
+        let mut steps = Vec::new();
+        for _ in 0..40 {
+            let Step::Decision(r) = s.engine.run() else {
+                panic!("a decision");
+            };
+            if let Some(&want) = r.options.iter().find(|o| aggravates(p, o)) {
+                assert_eq!(r.seat, SeatId(0));
+                let step = s.engine.combat().expect("in combat").step;
+                steps.push(step);
+                if step == CombatStep::BeforeResolution {
+                    s.set_opportunities(false);
+                    let i = r.options.iter().position(|o| *o == want).unwrap();
+                    assert!(
+                        s.shown(&r).contains(&i),
+                        "shown once the strikes are chosen"
+                    );
+                    s.set_opportunities(true);
+                    break;
+                }
+                hidden_off(&mut s, &r, want);
+            }
+            let i = [bleed, block, Choice::Pass]
+                .iter()
+                .find_map(|w| r.options.iter().position(|o| o == w))
+                .unwrap_or(0);
+            s.engine.choose(i);
+        }
+        assert_eq!(
+            steps.first().zip(steps.last()),
+            Some((&CombatStep::BeforeRange, &CombatStep::BeforeResolution)),
+            "{steps:?}"
+        );
+    }
+
+    /// A card: Claws of the Dead, untimed.
+    #[test]
+    fn an_aggravating_card_waits_for_the_strikes_chosen() {
+        aggravation_waits_for_the_strikes(
+            "Adrino Manauara",
+            Some("Claws of the Dead"),
+            |p, o| matches!(o, Choice::Play { card: 0, mode: 0, actor: Some(a), .. } if *a == p),
+        );
+    }
+
+    /// A vampire's ability: Crossbreaker's burn for aggravated hand strikes.
+    #[test]
+    fn an_aggravating_ability_waits_for_the_strikes_chosen() {
+        aggravation_waits_for_the_strikes(
+            "Crossbreaker",
+            None,
+            |p, o| matches!(o, Choice::UseAbility { source: AbilitySource::Vampire(v), .. } if *v == p),
+        );
     }
 
     /// A wake is shown in the seat's own block moment only (owner,

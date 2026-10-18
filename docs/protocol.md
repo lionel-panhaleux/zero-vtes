@@ -396,8 +396,10 @@ their default) and changed by `settings`:
   of it declined, after its own decline), a block denial short of the
   action's stealth, the acting seat's options other than the pass while the
   attempt under way is short of it (the round is the blocker's and the
-  table's), an any-time
-  ability where nothing else is on offer, an ability that would gain
+  table's), a card or ability making a strike's damage aggravated (Claws
+  of the Dead, Crossbreaker) before the strikes are chosen when it is
+  usable once they are, an
+  any-time ability where nothing else is on offer, an ability that would gain
   nothing now (legal all the same: burning the counters of a card that
   has none, votes for a vampire that cannot vote, Gathii's reveal before
   stealth is needed), a block attempt that cannot reach the action's
