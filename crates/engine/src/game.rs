@@ -223,6 +223,8 @@ pub struct Engine {
     /// The plays resolved or canceled, for a narrator (`PlayNote`), as
     /// `reveal_notes`.
     pub play_notes: Option<Vec<PlayNote>>,
+    /// The hands looked at, for a narrator (`Look`), as `reveal_notes`.
+    pub look_notes: Option<Vec<Look>>,
     /// Each block attempt failed short of the stealth, its blocker's
     /// decline (rules-qa 82.1): the seats an engine before it asked again
     /// (`Reasked`), for a record reader. `None`, the default, keeps
@@ -325,6 +327,18 @@ pub struct Reveal {
     pub after: usize,
 }
 
+/// A Methuselah's hand looked at by another (SchreckNET, Vaticination):
+/// its cards as they stood (LIBRARY indices), for the viewer alone; the
+/// look itself ends with the action (`GameState::peeks`). No `after`, as
+/// `Reveal`'s: a run's looks are told after its other notes (no peek
+/// happens within a combat).
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct Look {
+    pub viewer: SeatId,
+    pub seat: SeatId,
+    pub cards: Vec<u16>,
+}
+
 /// A seat an engine before rules-qa 82.1 asked again after a block attempt
 /// failed short of the stealth, as it reopened the block window at the
 /// acting Methuselah (`Engine::short_declines`).
@@ -391,6 +405,19 @@ impl Engine {
         };
         if let Some(&card) = top {
             self.reveal(seat, card, crypt);
+        }
+    }
+
+    /// `viewer` sees `seat`'s hand until the action ends
+    /// (`hand_visible_to`), the look noted for a narrator.
+    pub(crate) fn peek(&mut self, viewer: SeatId, seat: SeatId) {
+        self.state.peeks.push((viewer, seat));
+        if let Some(notes) = self.look_notes.as_mut() {
+            notes.push(Look {
+                viewer,
+                seat,
+                cards: self.state.seats[seat.index()].hand.to_vec(),
+            });
         }
     }
 
@@ -507,6 +534,7 @@ impl Engine {
             last_outcome: None,
             combat_notes: None,
             reveal_notes: None,
+            look_notes: None,
             play_notes: None,
             short_declines: None,
             held_note: None,

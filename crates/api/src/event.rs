@@ -58,6 +58,14 @@ pub enum EventKind {
         seat: Seat,
         card: Card,
     },
+    /// `seat`'s hand looked at, told to the looking Methuselah only
+    /// (SchreckNET, Vaticination): its cards as they stood, each `id`
+    /// told, no copy number. The look lasts while the action does; a view
+    /// after it hides the hand again.
+    Looked {
+        seat: Seat,
+        cards: Vec<Card>,
+    },
     /// A card played resolved: what its mode does (the options' curated
     /// vocabulary, docs/protocol.md §7, `on` as it applies).
     Resolved {

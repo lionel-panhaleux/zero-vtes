@@ -1750,6 +1750,7 @@ fn schrecknet_unlocks_a_big_nosferatu_and_peeks_after_a_referendum() {
         })
         .expect("a big Nosferatu") as u16;
     let mut e = game(2);
+    e.look_notes = Some(Vec::new());
     let n = e.add_minion(SeatId(0), nosferatu, 4, false);
     let caller = e.add_minion(SeatId(0), find_card("Tara"), 4, false);
     e.add_minion(SeatId(1), plain("Ventrue", 0), 4, false);
@@ -1763,6 +1764,16 @@ fn schrecknet_unlocks_a_big_nosferatu_and_peeks_after_a_referendum() {
     pick_when(&mut e, votes(caller, true));
     pick_when(&mut e, use_at(net, 0, None, Target::Seat(SeatId(1))));
     assert!(e.state.hand_visible_to(SeatId(1), SeatId(0)));
+    // The look noted with the hand as it stood, for a narrator to tell
+    // the viewer once the look has ended.
+    assert_eq!(
+        e.look_notes.take(),
+        Some(vec![zvtes::game::Look {
+            viewer: SeatId(0),
+            seat: SeatId(1),
+            cards: e.state.seats[1].hand.to_vec(),
+        }])
+    );
     to_minion_phase(&mut e, SeatId(0));
     assert!(!e.state.hand_visible_to(SeatId(1), SeatId(0)));
     assert!(e.state.cards[net.index()].locked);

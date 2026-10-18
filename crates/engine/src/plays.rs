@@ -5029,7 +5029,7 @@ impl Engine {
                 for i in 0..self.state.seats.len() {
                     let t = SeatId(i as u8);
                     if t != s && !self.state.seats[i].ousted {
-                        self.state.peeks.push((s, t));
+                        self.peek(s, t);
                     }
                 }
                 self.interrupts
@@ -6950,7 +6950,7 @@ impl Engine {
                 .contains(&Effect::ActingControllerDiscardsAtRandom)
             {
                 let viewer = self.state.minions[m.index()].owner;
-                self.state.peeks.push((viewer, a.seat));
+                self.peek(viewer, a.seat);
             }
         }
         // Terms announced with the use (the master cards to discard, a
@@ -8082,7 +8082,7 @@ impl Engine {
                             v.ready() && v.clan() == Some(clan)
                         });
                         if t != ctx.seat && has && !self.state.seats[i].ousted {
-                            self.state.peeks.push((ctx.seat, t));
+                            self.peek(ctx.seat, t);
                         }
                     }
                 }
@@ -8463,12 +8463,12 @@ impl Engine {
                 }
                 Effect::PeekHand => {
                     if let Target::Seat(t) = target {
-                        self.state.peeks.push((ctx.seat, t));
+                        self.peek(ctx.seat, t);
                     }
                 }
                 Effect::PeekHostControllersHand => {
                     let t = self.state.minions[host.expect("host").index()].owner;
-                    self.state.peeks.push((ctx.seat, t));
+                    self.peek(ctx.seat, t);
                 }
                 Effect::MoveBetweenVampires => {
                     if let Target::Minion(from) = target {

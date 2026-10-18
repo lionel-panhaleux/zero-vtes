@@ -18,7 +18,7 @@ is created by one request and played over one WebSocket. Every game is
 recorded, anonymously, and kept two years to train and test the engine
 (§11).
 
-Version **2.1.0**. The types: the models of the
+Version **2.2.0**. The types: the models of the
 [API reference](https://engine.krcg.org/docs), also as
 [JSON Schema](https://engine.krcg.org/schema.json) (2020-12) and
 [TypeScript](https://engine.krcg.org/protocol.ts).
@@ -165,7 +165,11 @@ hidden place — another seat's hand, any library or crypt — has no
 number: a card back, `{}`; one an effect reveals from a library or a
 crypt (a top card: Mesu Bedshet, Petra Resonance, Andrew Stuart; a
 search's find the card says to reveal: Sakhar, Disciple of Lazarus) is
-told to every seat by a `revealed` event, its `id` without a number. A card coming into
+told to every seat by a `revealed` event, its `id` without a number;
+another seat's hand an effect lets the seat look at (SchreckNET,
+Vaticination) is told to that seat alone by a `looked` event, the cards
+as they stood, ids without numbers (the look lasts while the action
+does). A card coming into
 a numbered place from a hidden one takes a fresh number, never used
 before for this viewer. So a number tells nothing the card's face does
 not. Two seats may number the same card differently; records use the
@@ -439,6 +443,7 @@ heap (a marker on its minion, §6), no copy of its own.
 | `turn` | `turn`, `active` |
 | `draw` | `seat`, `n`, `crypt` |
 | `revealed` | `seat`, `card` (its `id`, `crypt`; no number): a card of a crypt or library an effect revealed to all (a top card, a search's find) |
+| `looked` | `seat`, `cards` (their `id`s; no number): `seat`'s hand as it stood when an effect let this seat look at it (SchreckNET, Vaticination), told to the looking seat only; no undo goes back past it |
 | `resolved` | `seat`, `card`, `effects`? (the options' vocabulary, §7, `on` as it applies): a card played resolved — what its mode does (none when it takes no effect: its payer burned paying), the changes it makes told by the events after it; an action card's end is its `action_ends` |
 | `canceled` | `seat`, `card`: a card played canceled (still played: to the ash heap) |
 | `pool` | `seat`, `delta`, `pool` |

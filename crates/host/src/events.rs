@@ -102,6 +102,19 @@ impl Namer<'_> {
                 seat: seat.0,
                 card: self.card(CopyId::NONE, card, crypt),
             },
+            Fact::Looked(l) => {
+                if self.viewer.seat != Some(l.viewer) {
+                    return None;
+                }
+                EventKind::Looked {
+                    seat: l.seat.0,
+                    cards: l
+                        .cards
+                        .iter()
+                        .map(|&c| self.card(CopyId::NONE, c, false))
+                        .collect(),
+                }
+            }
             Fact::Played(p) if p.canceled => EventKind::Canceled {
                 seat: p.seat.0,
                 card: self.card(p.copy, p.card, false),
@@ -299,6 +312,6 @@ impl Viewer {
             viewer: self,
             faces: &t.faces,
         }
-        .event(t.fact)
+        .event(t.fact.clone())
     }
 }

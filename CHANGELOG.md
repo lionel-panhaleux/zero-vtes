@@ -6,6 +6,14 @@ server runs.
 `python3 scripts/schema_compat.py` lists what a schema change adds or
 removes; its `--check` fails a removal without a major version.
 
+## 2.2.0
+
+- The `looked` event (`seat`, `cards`): another seat's hand as it stood
+  when an effect let this seat look at it (SchreckNET, Vaticination),
+  told to the looking seat only. The look lasts while the action does, so
+  the next view hides the hand again (the owner's playtest: "schrecknet
+  does not reveal the target's hand"). No undo goes back past it.
+
 ## 2.1.0
 
 - `Purpose`: `may_store_aim` — "you can move any aim card the bearer uses

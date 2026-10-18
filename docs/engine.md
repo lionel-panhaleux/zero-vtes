@@ -1260,7 +1260,11 @@ engine masks), `cards/mod.rs` (the vocabulary: `Window`, `Actor`,
   private unless the card says to reveal (PIB 20121028): `SearchToHand`'s
   `shown`, and the find of Fortschritt Library, The Mithraeum, Disciple of
   Lazarus; a revealed card (a search's find, a top card) goes to
-  `Engine::reveal_notes` (`Reveal`), which the host tells every seat.
+  `Engine::reveal_notes` (`Reveal`), which the host tells every seat. A
+  look at another seat's hand goes through `Engine::peek`: the hand
+  visible to the viewer until the action ends (`GameState::peeks`), and
+  the hand as it stood to `Engine::look_notes` (`Look`), which the host
+  tells the viewer alone (the next view no longer shows it).
 - Every library draw goes through `Engine::offer_redraw` (Blackhorse
   Tanner's `Interrupt::Redraw`, once each turn); `Interrupt::AllySearch`
   (Antonio d'Erlette) searches library and hand for a mage ally and puts

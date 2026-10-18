@@ -121,9 +121,10 @@ impl Replay {
     /// rules-qa 82.1 moved read past included).
     pub fn read_counting(&self, at: usize) -> (Engine, usize, usize) {
         let mut e = self.deal();
-        // Combats, reveals and plays are not told here.
+        // Combats, reveals, looks and plays are not told here.
         e.combat_notes = None;
         e.reveal_notes = None;
+        e.look_notes = None;
         e.play_notes = None;
         let mut reader = self.reader();
         let (mut n, mut consumed) = (0, 0);

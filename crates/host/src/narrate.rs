@@ -26,7 +26,7 @@ use zvtes::referendum::RefKind;
 use zvtes::state::CardId;
 
 /// What happened, in the engine's ids.
-#[derive(Clone, Copy, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq)]
 pub enum Fact {
     /// A decision taken here (the host tells it from its answer).
     Decided(u64),
@@ -117,6 +117,8 @@ pub enum Fact {
     },
     /// A play resolved or canceled (`Engine::play_notes`).
     Played(zvtes::game::PlayNote),
+    /// A hand looked at, for its viewer only (`Engine::look_notes`).
+    Looked(zvtes::game::Look),
 }
 
 /// An action as its end tells it.

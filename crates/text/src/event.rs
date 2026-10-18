@@ -46,6 +46,13 @@ pub fn event(e: &EventKind, n: &Names) -> Option<String> {
                 n.card(card)
             )
         }
+        EventKind::Looked { seat, cards } => {
+            let names: Vec<String> = cards.iter().map(|c| n.card(c)).collect();
+            match names.is_empty() {
+                true => format!("You look at {}'s hand: empty", n.seat(*seat)),
+                false => format!("You look at {}'s hand: {}", n.seat(*seat), names.join(", ")),
+            }
+        }
         EventKind::Pool { seat, delta, pool } => {
             format!("{}: {} pool ({pool})", n.seat(*seat), signed(*delta))
         }

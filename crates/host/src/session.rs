@@ -143,9 +143,10 @@ pub fn deal(seed: u64, time_limit: Option<u32>, decks: &[Resolved]) -> Engine {
     if let Some(t) = time_limit {
         engine.time_limit = t;
     }
-    // Combats, reveals and plays told as they happen (`observe`).
+    // Combats, reveals, looks and plays told as they happen (`observe`).
     engine.combat_notes = Some(Vec::new());
     engine.reveal_notes = Some(Vec::new());
+    engine.look_notes = Some(Vec::new());
     engine.play_notes = Some(Vec::new());
     engine
 }
@@ -245,9 +246,10 @@ impl Session {
     /// not a decision's own effect) the rest in words.
     fn observe(&mut self, ran: bool) {
         // What combats did, the cards revealed and the plays finished, in
-        // their order, first: their damage is among the changes. The
-        // queues are drained (and reset, `undo`) together: `after` counts
-        // the combat notes before, `PlayNote::reveals` the reveals.
+        // their order, first: their damage is among the changes; the hands
+        // looked at after them. The queues are drained (and reset, `undo`)
+        // together: `after` counts the combat notes before,
+        // `PlayNote::reveals` the reveals.
         let notes = self
             .engine
             .combat_notes
@@ -266,7 +268,13 @@ impl Session {
             .as_mut()
             .map(std::mem::take)
             .unwrap_or_default();
-        let revealed = !reveals.is_empty();
+        let looks = self
+            .engine
+            .look_notes
+            .as_mut()
+            .map(std::mem::take)
+            .unwrap_or_default();
+        let revealed = !reveals.is_empty() || !looks.is_empty();
         let mut reveals = reveals.into_iter().peekable();
         let mut plays = plays.into_iter().peekable();
         let mut shown = 0;
@@ -295,8 +303,9 @@ impl Session {
                 self.struck = Some(*n);
             }
         }
-        // A card revealed: no undo back past it (it would be known and
-        // its place restored).
+        told.extend(looks.into_iter().map(|l| Told::new(Fact::Looked(l), true)));
+        // A card revealed or a hand looked at: no undo back past it (it
+        // would be known and its place restored).
         if revealed {
             if let Some(last) = self.history.last_mut() {
                 last.1 = Taken::Revealed;
@@ -531,9 +540,10 @@ impl Session {
                 engine
             }
         };
-        // The combats, reveals and plays since were told already.
+        // The combats, reveals, looks and plays since were told already.
         engine.combat_notes = Some(Vec::new());
         engine.reveal_notes = Some(Vec::new());
+        engine.look_notes = Some(Vec::new());
         engine.play_notes = Some(Vec::new());
         self.engine = engine;
         self.history.truncate(at);
@@ -979,6 +989,126 @@ mod tests {
             )),
             "{told:?}"
         );
+    }
+
+    /// A hand looked at is told to its viewer alone, its cards as they
+    /// stood: SchreckNET locked after a passed referendum (the look ends
+    /// with the action, a view after it hides the hand again).
+    #[test]
+    fn a_look_at_a_hand_is_told_to_its_viewer_alone() {
+        let (mut s, _) = session();
+        let mut e = Engine::bare(3);
+        for seat in &mut e.state.seats {
+            seat.pool = 10;
+        }
+        e.state.turn = 4;
+        let caller = e.add_minion(SeatId(0), find_card("Tara"), 4, false);
+        e.add_minion(SeatId(0), find_card("Crystal Lynn"), 4, false);
+        e.add_minion(SeatId(1), find_card("Donny Kowalczyk"), 4, false);
+        e.add_minion(SeatId(2), find_card("Madison"), 4, false);
+        let net = find_library("SchreckNET");
+        e.state
+            .cards
+            .push(CardInPlay::entering(net, CopyId::NONE, SeatId(0), None, 0));
+        let net = CardId(e.state.cards.len() as u32 - 1);
+        e.state.seats[0]
+            .hand
+            .push(find_library("Kine Resources Contested"));
+        e.state.seats[1].hand.push(find_library("Minion Tap"));
+        e.look_notes = Some(Vec::new());
+        s.engine = e;
+        s.observe(false);
+        let kine = Choice::Play {
+            card: 0,
+            mode: 0,
+            actor: Some(caller),
+            target: Target::None,
+        };
+        let look = Choice::UseAbility {
+            source: AbilitySource::Card(net),
+            ability: 0,
+            actor: None,
+            target: Target::Seat(SeatId(1)),
+        };
+        let wanted = [
+            kine,
+            Choice::AllocateTo {
+                seat: SeatId(0),
+                n: 3,
+            },
+            Choice::CastVotes {
+                minion: caller,
+                favor: true,
+            },
+            look,
+        ];
+        let mut looked = false;
+        for _ in 0..200 {
+            let Step::Decision(req) = s.engine.run() else {
+                panic!("a decision");
+            };
+            let i = wanted
+                .iter()
+                .find_map(|w| req.options.iter().position(|o| o == w))
+                .or_else(|| {
+                    req.options
+                        .iter()
+                        .position(|o| matches!(o, Choice::Pass | Choice::HandStrike))
+                })
+                .unwrap_or(0);
+            looked = req.options[i] == look;
+            s.engine.choose(i);
+            if looked {
+                break;
+            }
+        }
+        assert!(looked, "SchreckNET used");
+        let cards = s.engine.state.seats[1].hand.to_vec();
+        assert!(!cards.is_empty());
+        s.observe(true);
+        let fact = s
+            .told
+            .iter()
+            .find(|t| matches!(t.fact, Fact::Looked(_)))
+            .expect("the look observed")
+            .clone();
+        for seat in [Some(0), Some(1), Some(2), None] {
+            let mut v = crate::view::Viewer::new(seat.map(SeatId));
+            let told = v.event(&s.engine, &s.dealt, &fact);
+            match told {
+                Some(zvtes_api::event::EventKind::Looked { seat: of, cards: c }) => {
+                    assert_eq!((seat, of), (Some(0), 1));
+                    let ids: Vec<_> = cards
+                        .iter()
+                        .map(|&k| Some(zvtes::library::LIBRARY[k as usize].id))
+                        .collect();
+                    assert_eq!(c.iter().map(|c| c.id).collect::<Vec<_>>(), ids);
+                    assert!(c.iter().all(|c| c.copy.is_none() && !c.crypt));
+                }
+                None => assert_ne!(seat, Some(0), "told to its viewer"),
+                other => panic!("seat {seat:?}: {other:?}"),
+            }
+        }
+    }
+
+    /// A hand looked at bars the undo, as a reveal does: undone, the look
+    /// would be known.
+    #[test]
+    fn a_look_bars_the_undo() {
+        let (mut s, _) = session();
+        to_undoable(&mut s);
+        let cards = s.engine.state.seats[1].hand.to_vec();
+        s.engine
+            .look_notes
+            .as_mut()
+            .expect("looks noted")
+            .push(zvtes::game::Look {
+                viewer: SeatId(0),
+                seat: SeatId(1),
+                cards,
+            });
+        s.observe(true);
+        assert!(matches!(s.undo(), Err(Refused::NoUndo)), "barred");
     }
 
     /// Reveals told in their order among a combat's notes (`Reveal::after`:
