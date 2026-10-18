@@ -1386,7 +1386,7 @@ training runs.
   iteration), the engine ~10%, the critic's values and bookkeeping the
   rest. Left to a run's preparation, as they change the training: 2
   epochs (~23% of an iteration), the pairing off (`--partner-rate 0`:
-  ~25–30%, the samples back to ~15.5k), one frozen opponent (≤5%).
+  ~25–30%, the samples back to ~15.5k; settled off for p13, see p12), one frozen opponent (≤5%).
 - **Chores: options never declined** (owner, 2026-10-08: "some things
   are only 'options' in the sense a human is allowed to forget them, but
   it's never good to do so"). The engine elides only empty and
@@ -1657,8 +1657,8 @@ training runs.
   Salubri 0.56 / 0.77, Path of Cathari 0.58 / 0.23, Gangrel 0.64 / 0.62,
   Nosferatu 0.65 / 0.57, Path of Death 0.69 / 1.13; against three p10
   0.99 VP a seat on average. Exported `runs/p11/best.zvp` (sha256
-  `b9035931a527`); to be served on engine.krcg.org at the 1.6.0 deploy
-  (owner, 2026-10-16), the previous `runs/served-prev-2026-10-16-p10at3840.zvp`
+  `b9035931a527`); served on engine.krcg.org since the 1.6.0 deploy
+  (owner, 2026-10-16), kept at 1.8.0 over p12, the previous `runs/served-prev-2026-10-16-p10at3840.zvp`
   (`7aaa9528fbf8`). The positions where the owner beat the bot
   (`humanset`, the five held-out games, the bots p10 as served, 20 games a
   position): p10 / p11 agree with 46.1% / 45.3% of the owner's 1,309
@@ -1666,14 +1666,38 @@ training runs.
   quarters in 91% / 83% (±10 at 100 games); from …T15-45-47's first two
   positions neither ever wins (0 of 40), where the owner came back.
   Humans against p10 (the harvest, 14 games): 11 won
-  (79%), 2.79 VP a seat, the bots 0.33 — p11's bar.
+  (79%), 2.79 VP a seat, the bots 0.33 — p11's bar; against p11 on its first served day (2026-10-17, 7
+  games) 4 seats of 7 (57%), 1.86 VP a seat, the bots 0.43 (a small
+  sample).
 - **p12** (`runs/p12`, `../zero-vtes-p12` at `cb3b4a6`, round 13's cards,
-  E25 with the futile-block mask; launched 2026-10-16, 4341 → 4900). From
+  E25 with the futile-block mask; launched 2026-10-16, 4341 → 4842 of a planned 4900). From
   p11@4340, opponents p10@3840 and p11@4340 frozen; imitation winners
   only (owner, 2026-10-15) over `data/records` and the 15 harvested games
   played out (8,381 choices, 3,058 harvested; the same five held out),
   the same games as starts; the rest as p11 (`--partner-rate 0.5`, the
-  nudges, no weak decks).
+  nudges, no weak decks). Stopped at 4842 (2026-10-17, killed by memory
+  pressure under a parallel release build: no traceback; the owner chose
+  to evaluate the best rather than resume). Scores (re-measured bests,
+  against p10 and p11): 1.84 at 4360, 2.06, 2.16, 2.19, 2.40, **2.51 at
+  4800** (4 seats 1.19 VP a seat, 0.29 game wins; 5 seats 1.21, 0.25);
+  win share against p11 only 0.48 → 0.50. Held-out imitation 0.54 at 4360, 0.51 at 4800
+  (p11's 0.44 at its end: the winners-only imitation holds the owner's
+  style). **Not
+  served**: it does not beat p11 (owner's rule). Measured against p11 on
+  `cb3b4a6`: at one seat against three p11 (`decks.rs`, 600 games) 0.88
+  VP a seat (~2 standard errors under even; Malkavian 1.80, Path of Power
+  1.50 …; Banu Haqim and The Endless Dance 0.27, Nosferatu 0.33);
+  `humanset` (the five held-out games, bots p11 as served): agreement
+  50.2% against p11's 45.3%, won from the owner's positions 162 / 300
+  against 166 (a quarter in 35% / 34%, halfway 41% / 53%, three quarters
+  86% / 79%); Wider View regressed — taken at 27–30% of the offers on the
+  precons (p11 16%), 20% on TWDA decks (13%), under 4 crypt cards 15–21%
+  (7–12%); cross-table minions sent to torpor at 4 seats 23% (p11 13%;
+  adjacent 11% / 9%), the pool a bleed takes from a cross-table seat
+  0.15 (0.18). Exported `runs/p12/best.zvp` (`2dbb922666c9`), kept. Settled for p13
+  (owner, 2026-10-17): the pairing off (two runs, no cross-table
+  restraint, ~25–30% of an iteration); from p11@4340, not p12; Wider
+  View still without a nudge (from p11, which had learned it).
 - **Futile blocks on the E25 engine** (owner, 2026-10-15: before any
   redeploy). E25 (`97c4880`) offers every legal block attempt, those
   that cannot reach the stealth too (`Engine::block_can_reach`); no
