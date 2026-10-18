@@ -330,9 +330,9 @@ fn random_bytes<const N: usize>() -> [u8; N] {
     b
 }
 
-/// A deal's seed from the system's randomness.
-pub fn random_seed() -> u32 {
-    u32::from_le_bytes(random_bytes())
+/// A deal's seed from the system's randomness, 53 bits (`SEED_MAX`).
+pub fn random_seed() -> u64 {
+    u64::from_le_bytes(random_bytes()) & zvtes_api::SEED_MAX
 }
 
 fn random_hex<const N: usize>() -> String {
@@ -348,6 +348,15 @@ mod tests {
     use zvtes_api::{Player, SeatSpec, Settings};
 
     use super::*;
+
+    /// The server's seeds are 53 bits (protocol 2.0.0): none past
+    /// `SEED_MAX`, and past 32 bits all but always.
+    #[test]
+    fn a_seed_is_drawn_from_53_bits() {
+        let seeds: Vec<u64> = (0..64).map(|_| random_seed()).collect();
+        assert!(seeds.iter().all(|&s| s <= zvtes_api::SEED_MAX));
+        assert!(seeds.iter().any(|&s| s > u32::MAX as u64));
+    }
 
     fn spec() -> GameSpec {
         let (_, deck) = zvtes_host::catalog().remove(0);

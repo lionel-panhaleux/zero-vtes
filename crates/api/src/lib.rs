@@ -34,7 +34,10 @@ pub use view::TableView;
 
 /// The protocol's version (semver): a client checks the major in
 /// [`Joined::protocol`].
-pub const PROTOCOL_VERSION: &str = "1.9.0";
+pub const PROTOCOL_VERSION: &str = "2.0.0";
+
+/// The largest seed, 2^53 − 1: the most a JSON number holds exactly.
+pub const SEED_MAX: u64 = (1 << 53) - 1;
 
 /// The contract as one JSON Schema document: commands, messages, the
 /// game spec and the game record.

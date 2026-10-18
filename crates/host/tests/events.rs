@@ -29,7 +29,7 @@ impl Bots for NoBots {
     fn make(
         &self,
         _: &str,
-        _: u32,
+        _: u64,
     ) -> Option<(Box<dyn zvtes::agent::Agent>, zvtes_api::record::BotRecord)> {
         None
     }
@@ -74,7 +74,7 @@ fn political(decks: &[(String, zvtes_api::DeckList)]) -> usize {
         .unwrap()
 }
 
-fn game(seed: u32, settings: Settings) -> Game {
+fn game(seed: u64, settings: Settings) -> Game {
     let decks = zvtes_host::catalog();
     let styles = ["aggro_bleed", "wall", "random"];
     let human = seed as usize % 4;
@@ -451,7 +451,7 @@ fn the_events_tell_what_the_views_show() {
             views: Views::Steps,
             text: seed.is_multiple_of(2),
         };
-        let mut g = game(seed, settings);
+        let mut g = game(seed.into(), settings);
         let human = g.human();
         let mut rng = Rng(seed as u64 * 7 + 1);
         let mut s = Stream {
@@ -607,7 +607,7 @@ fn every_option_and_choice_is_told() {
             views: Views::Decisions,
             text: true,
         };
-        let mut g = game(seed, settings);
+        let mut g = game(seed.into(), settings);
         let human = g.human();
         let mut rng = Rng(seed as u64 * 11 + 3);
         let mut outs = g.handle(

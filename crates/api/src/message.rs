@@ -292,4 +292,9 @@ pub enum SpecError {
     TimeLimit {
         max: u32,
     },
+    /// A seed over `SEED_MAX` (2^53 − 1).
+    Seed {
+        #[cfg_attr(feature = "schema", schemars(range(max = crate::SEED_MAX)))]
+        max: u64,
+    },
 }

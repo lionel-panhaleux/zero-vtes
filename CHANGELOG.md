@@ -6,6 +6,19 @@ server runs.
 `python3 scripts/schema_compat.py` lists what a schema change adds or
 removes; its `--check` fails a removal without a major version.
 
+## 2.0.0
+
+- Seeds of 53 bits: `GameSpec.seed` and `BotRecord.seed` are at most
+  `SEED_MAX` (2^53 − 1, exact as a JSON number in every language), the
+  server's drawn from 53 random bits; a reader keeping them in 32 bits
+  fails, hence the major. A 32-bit seed could be found from the opening
+  hand in a minute, and the deal replayed. `SpecError` `seed` (`max`):
+  a spec's seed past it. Records before 2.0.0 hold 32-bit seeds and read
+  as before.
+- Events name a minion by the copy it had when they happened: a merge
+  between two views (the bots' turns) no longer names it in the earlier
+  events by its merged copy, one the viewer had not seen. No schema change.
+
 ## 1.9.0
 
 - The `resolved` (`seat`, `card`, `effects`) and `canceled` (`seat`,

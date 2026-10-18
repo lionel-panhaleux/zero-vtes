@@ -58,7 +58,7 @@ impl Profile {
 
     /// How a record names it: the weights' hash, its temperature and its
     /// nudges not zero.
-    pub fn record(&self, weights: &str, seed: u32) -> BotRecord {
+    pub fn record(&self, weights: &str, seed: u64) -> BotRecord {
         BotRecord {
             seat: 0,
             profile: self.name.into(),
@@ -96,11 +96,11 @@ impl zvtes_host::Bots for Profiles {
         }
     }
 
-    fn make(&self, profile: &str, seed: u32) -> Option<(Box<dyn Agent>, BotRecord)> {
+    fn make(&self, profile: &str, seed: u64) -> Option<(Box<dyn Agent>, BotRecord)> {
         let served = self.0.as_ref()?;
         let p = PROFILES.iter().find(|p| p.name == profile)?;
         Some((
-            Box::new(p.agent(served.net.clone(), seed as u64)),
+            Box::new(p.agent(served.net.clone(), seed)),
             p.record(&served.hash, seed),
         ))
     }

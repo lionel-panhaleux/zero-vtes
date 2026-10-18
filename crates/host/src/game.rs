@@ -74,7 +74,7 @@ pub trait Bots {
     fn profiles(&self) -> Vec<String>;
     /// The agent for `profile` at `seed`, and how to record it; `None`: no
     /// such profile.
-    fn make(&self, profile: &str, seed: u32) -> Option<(Box<dyn Agent>, BotRecord)>;
+    fn make(&self, profile: &str, seed: u64) -> Option<(Box<dyn Agent>, BotRecord)>;
 }
 
 pub struct Game {
@@ -142,8 +142,13 @@ impl Game {
             });
         }
         let human = humans[0] as Seat;
+        if spec.seed.is_some_and(|s| s > zvtes_api::SEED_MAX) {
+            return Err(SpecError::Seed {
+                max: zvtes_api::SEED_MAX,
+            });
+        }
         let t0 = clock.now();
-        let seed = *spec.seed.get_or_insert(t0 as u32 ^ (t0 >> 32) as u32);
+        let seed = *spec.seed.get_or_insert(t0 & zvtes_api::SEED_MAX);
         let settings = match &spec.seats[human as usize].player {
             Player::Human { settings } => *settings,
             Player::Bot { .. } => unreachable!(),
@@ -155,15 +160,19 @@ impl Game {
                 agents.push(None);
                 continue;
             };
-            let bot_seed = seed.wrapping_mul(0x9e37_79b9).wrapping_add(seat as u32);
+            // Each bot's own: the formula before 2.0.0 on the low 32 bits,
+            // the seed's high bits kept, so a seed under 2^32 keeps its
+            // bots (`resume` compares them with the record's).
+            let low = (seed as u32)
+                .wrapping_mul(0x9e37_79b9)
+                .wrapping_add(seat as u32);
+            let bot_seed = seed & !0xffff_ffff | low as u64;
             let (agent, mut r): (Box<dyn Agent>, BotRecord) = match profile.as_str() {
                 "aggro_bleed" | "wall" | "random" => (
                     match profile.as_str() {
-                        "aggro_bleed" => {
-                            Box::new(Scripted::new(Style::AggroBleed, bot_seed as u64))
-                        }
-                        "wall" => Box::new(Scripted::new(Style::Wall, bot_seed as u64)),
-                        _ => Box::new(RandomLegal::new(bot_seed as u64)),
+                        "aggro_bleed" => Box::new(Scripted::new(Style::AggroBleed, bot_seed)),
+                        "wall" => Box::new(Scripted::new(Style::Wall, bot_seed)),
+                        _ => Box::new(RandomLegal::new(bot_seed)),
                     },
                     BotRecord {
                         seat: 0,
@@ -193,7 +202,7 @@ impl Game {
             .map(|(seat, s)| crate::deck::resolve(seat as Seat, &s.deck))
             .collect::<Result<Vec<_>, _>>()?;
         let names = spec.seats.iter().map(|s| s.name.clone()).collect();
-        let mut session = Session::new(seed as u64, spec.time_limit, decks, agents);
+        let mut session = Session::new(seed, spec.time_limit, decks, agents);
         session.set_opportunities(settings.opportunities);
         let mut recorded = spec.clone();
         for (i, s) in recorded.seats.iter_mut().enumerate() {
@@ -1100,7 +1109,7 @@ impl Game {
         let told = self.session.take_told();
         let e = self.session.engine();
         for t in told {
-            let told = match self.viewer.event(e, &self.decks, t.fact) {
+            let told = match self.viewer.event(e, &self.decks, &t) {
                 Some(kind) => Told::Event(Box::new(Event {
                     kind,
                     // Filled by `tell` where a log tells it.
@@ -1315,12 +1324,12 @@ mod tests {
         fn profiles(&self) -> Vec<String> {
             vec![]
         }
-        fn make(&self, _: &str, _: u32) -> Option<(Box<dyn Agent>, BotRecord)> {
+        fn make(&self, _: &str, _: u64) -> Option<(Box<dyn Agent>, BotRecord)> {
             None
         }
     }
 
-    fn game(seed: u32) -> Game {
+    fn game(seed: u64) -> Game {
         let decks = crate::catalog();
         let styles = ["aggro_bleed", "wall", "random"];
         let spec = GameSpec {
@@ -1386,7 +1395,7 @@ mod tests {
     fn the_views_keep_the_copy_rules() {
         let seeds: u32 = std::env::var("HOST_SEEDS").map_or(16, |s| s.parse().unwrap());
         for seed in 1..=seeds {
-            let mut g = game(seed);
+            let mut g = game(seed.into());
             let human = g.human();
             let mut outs = g.handle(
                 human,
@@ -1473,7 +1482,8 @@ mod tests {
         use crate::describe::{key, EngineNames};
         use zvtes::game::Step;
         let mut futile = 0;
-        for seed in 1..=24u32 {
+        // A seed past 32 bits too (protocol 2.0.0): the largest.
+        for seed in (1..=24u64).chain([zvtes_api::SEED_MAX]) {
             let mut g = game(seed);
             let human = g.human();
             let dealt = g.session.engine().clone();
@@ -1542,8 +1552,52 @@ mod tests {
             // windows as recorded (rules-qa 73.8).
             let replay = crate::replay::Replay::new(g.record()).unwrap();
             assert_eq!(replay.read(usize::MAX).1, n, "seed {seed}");
+            assert_eq!(g.record().spec.seed, Some(seed));
+            assert!(g
+                .record()
+                .bots
+                .iter()
+                .all(|b| b.seed <= zvtes_api::SEED_MAX));
         }
         assert!(futile > 0, "no futile block window met");
+    }
+
+    /// A seed past `SEED_MAX` is refused (protocol 2.0.0): a JSON number
+    /// would not hold it exactly.
+    #[test]
+    fn a_seed_past_53_bits_is_refused() {
+        let mut spec = game(1).record().spec.clone();
+        spec.seed = Some(zvtes_api::SEED_MAX + 1);
+        let refused = Game::new("t".into(), spec, &NoBots, Box::new(SystemClock)).err();
+        assert_eq!(
+            refused,
+            Some(SpecError::Seed {
+                max: zvtes_api::SEED_MAX
+            })
+        );
+    }
+
+    /// A seed's bits past 32 reach the deal (protocol 2.0.0): the same
+    /// spec dealt with the largest seed and with its low 32 bits.
+    #[test]
+    fn a_seeds_high_bits_change_the_deal() {
+        let spec = game(1).record().spec.clone();
+        let libraries = |seed: u64| {
+            let spec = GameSpec {
+                seed: Some(seed),
+                ..spec.clone()
+            };
+            let g = Game::new("t".into(), spec, &NoBots, Box::new(SystemClock)).unwrap();
+            g.session
+                .engine()
+                .state
+                .seats
+                .iter()
+                .map(|s| s.library.clone())
+                .collect::<Vec<_>>()
+        };
+        let max = zvtes_api::SEED_MAX;
+        assert_ne!(libraries(max), libraries(max & 0xffff_ffff));
     }
 
     /// Opportunities turned off while a decision is shown: it stays the
@@ -1555,7 +1609,7 @@ mod tests {
         use zvtes_api::spec::SettingsPatch;
         let mut kept = 0;
         for seed in 1..=24u32 {
-            let mut g = game(seed);
+            let mut g = game(seed.into());
             let human = g.human();
             let cmd = |command| In { id: None, command };
             let mut outs = g.handle(

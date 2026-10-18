@@ -92,7 +92,7 @@ impl Replay {
             }
         }
         let mut replay = Replay {
-            seed: seed as u64,
+            seed,
             time_limit: spec.time_limit,
             decks,
             decisions,
@@ -408,7 +408,7 @@ impl Replayer {
         let v = self.viewer.view(e, &self.dealt, &self.replay.names);
         let mut before = Vec::new();
         for t in told {
-            let Some(kind) = self.viewer.event(e, &self.dealt, t.fact) else {
+            let Some(kind) = self.viewer.event(e, &self.dealt, &t) else {
                 continue;
             };
             self.known.hear(&kind);

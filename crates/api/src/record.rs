@@ -45,9 +45,10 @@ pub struct BotRecord {
     pub weights: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub temperature: Option<f32>,
-    /// Its sampling seed: replaying uses the recorded options, the seed
-    /// re-simulates the bot.
-    pub seed: u32,
+    /// Its sampling seed (at most 2^53 − 1, `SEED_MAX`):
+    /// replaying uses the recorded options, the seed re-simulates the bot.
+    #[cfg_attr(feature = "schema", schemars(range(max = crate::SEED_MAX)))]
+    pub seed: u64,
     /// A network's nudges by name, those not zero (records before 1.7.0
     /// have none).
     #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]

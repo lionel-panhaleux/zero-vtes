@@ -3,11 +3,11 @@
 //! fact is public; a card it names is shown, numbered as the viewer last
 //! saw it (`Numbering::name`).
 
-use crate::narrate::{ActionFact, Fact};
+use crate::narrate::{ActionFact, Fact, Told};
 use zvtes::actions::Outcome;
 use zvtes::cards::AbilitySource;
 use zvtes::combat::{CombatNote, Range as R};
-use zvtes::copies::{minion_copy, CopyId, Place};
+use zvtes::copies::{CopyId, Place};
 use zvtes::crypt::CRYPT;
 use zvtes::game::Engine;
 use zvtes::ids::MinionId;
@@ -18,12 +18,14 @@ use zvtes_api::ids::{MinionKind, Range, Zone};
 use zvtes_api::view::Card;
 
 use crate::numbering::Decks;
-use crate::view::{action_kind, minion_base, minion_face, strike, Viewer};
+use crate::view::{action_kind, minion_base, strike, Viewer};
 
 struct Namer<'a> {
     e: &'a Engine,
     decks: &'a Decks,
     viewer: &'a mut Viewer,
+    /// The minions as the fact found them (`Told::faces`).
+    faces: &'a [(CopyId, u16, bool)],
 }
 
 impl Namer<'_> {
@@ -55,9 +57,8 @@ impl Namer<'_> {
     }
 
     fn minion_card(&mut self, m: MinionId) -> Card {
-        let st = &self.e.state;
-        let (card, crypt) = minion_face(&st.minions[m.index()]);
-        self.card(minion_copy(st, m.index()), card, crypt)
+        let (copy, card, crypt) = self.faces[m.index()];
+        self.card(copy, card, crypt)
     }
 
     fn minion_kind(&self, m: MinionId) -> MinionKind {
@@ -291,12 +292,13 @@ fn zone(p: Place) -> Option<Zone> {
 impl Viewer {
     /// A fact as this viewer is told it (`None`: a decision taken, told
     /// from its answer), named after the view that took in its change.
-    pub fn event(&mut self, e: &Engine, decks: &Decks, fact: Fact) -> Option<EventKind> {
+    pub fn event(&mut self, e: &Engine, decks: &Decks, t: &Told) -> Option<EventKind> {
         Namer {
             e,
             decks,
             viewer: self,
+            faces: &t.faces,
         }
-        .event(fact)
+        .event(t.fact)
     }
 }

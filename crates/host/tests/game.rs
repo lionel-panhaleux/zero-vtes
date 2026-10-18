@@ -19,7 +19,7 @@ impl Bots for NoBots {
     fn make(
         &self,
         _: &str,
-        _: u32,
+        _: u64,
     ) -> Option<(Box<dyn zvtes::agent::Agent>, zvtes_api::record::BotRecord)> {
         None
     }
@@ -35,7 +35,7 @@ impl Clock for Ticks {
     }
 }
 
-fn spec(seed: u32, human: usize, settings: Settings) -> GameSpec {
+fn spec(seed: u64, human: usize, settings: Settings) -> GameSpec {
     let decks = zvtes_host::catalog();
     let styles = ["aggro_bleed", "wall", "random"];
     GameSpec {
@@ -65,7 +65,7 @@ fn game(seed: u32, settings: Settings) -> Game {
     let human = seed as usize % 4;
     Game::new(
         format!("g{seed}"),
-        spec(seed, human, settings),
+        spec(seed.into(), human, settings),
         &NoBots,
         Box::new(Ticks(Default::default())),
     )
@@ -840,11 +840,11 @@ impl Bots for Fickle {
     fn make(
         &self,
         profile: &str,
-        seed: u32,
+        seed: u64,
     ) -> Option<(Box<dyn zvtes::agent::Agent>, zvtes_api::record::BotRecord)> {
         (profile == "fickle").then(|| {
             self.0.set(self.0.get() + 1);
-            let agent = zvtes::agent::RandomLegal::new(seed as u64 * 1000 + self.0.get());
+            let agent = zvtes::agent::RandomLegal::new(seed.wrapping_mul(1000) + self.0.get());
             let r = zvtes_api::record::BotRecord {
                 seat: 0,
                 profile: "fickle".into(),
@@ -877,7 +877,7 @@ fn a_resumed_games_bots_take_their_recorded_moves() {
             Box::new(Ticks(Default::default())),
         )
         .unwrap();
-        let mut rng = Rng(seed as u64 * 3 + 1);
+        let mut rng = Rng(seed * 3 + 1);
         let mut outs = g.handle(0, join());
         for _ in 0..40 {
             let Some(d) = pending(&outs).cloned() else {

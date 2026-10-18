@@ -136,7 +136,8 @@ and human clients.
 a product space. This matches the auto-regressive policy head and the tournament
 declaration protocol (play procedures §X.1).
 
-**Determinism & replay**: a game is `(seed, [answers])`; all randomness (shuffles,
+**Determinism & replay**: a game is `(seed, [answers])`, the seed 53 bits (the
+server's: too many to search from a known opening hand); all randomness (shuffles,
 random discards, coin flips) comes from the engine's own `Rng`. The decision log
 (`Engine.log`, real decisions only) is the replay format and a future imitation
 corpus. Rewind = truncate + resimulate (the mechanism behind human shortcut
@@ -1804,7 +1805,7 @@ Still true today; "(verify)" marks items inferred from older notes.
 - **P5 — community**: bot service, client adapter, human-ergonomics layer
   (its open items on the boards).
 
-Definitions: 828 library, 400 vampires; 2127 Rust tests, 38 Python tests
+Definitions: 828 library, 400 vampires; 2130 Rust tests, 38 Python tests
 
 ## Outlook: deck building (post-v1)
 

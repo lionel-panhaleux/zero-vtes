@@ -13,10 +13,12 @@ pub struct GameSpec {
     /// The deal's seed; the host picks one when absent (and records it).
     /// The server always draws its own, unless the request carries the
     /// admin token (a fixed deal for a playtest): a seed a player chose
-    /// or guessed would let them replay the deal. 32 bits: exact as a
+    /// or guessed would let them replay the deal. At most
+    /// `SEED_MAX` (2^53 − 1), 53 bits: too many to try, exact as a
     /// JSON number in every language.
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub seed: Option<u32>,
+    #[cfg_attr(feature = "schema", schemars(range(max = crate::SEED_MAX)))]
+    pub seed: Option<u64>,
     /// In player turns; the engine's default when absent.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub time_limit: Option<u32>,

@@ -143,15 +143,43 @@ impl ActionFact {
     }
 }
 
-/// A fact, and whether a log tells it in words.
-#[derive(Clone, Copy, Debug, PartialEq)]
+/// A fact, whether a log tells it in words, and the minions as it found
+/// them.
+#[derive(Clone, Debug, PartialEq)]
 pub struct Told {
     pub fact: Fact,
     pub told: bool,
+    pub faces: Faces,
+}
+
+impl Told {
+    /// Its minions' faces set by `Session::observe`, for the batch.
+    pub(crate) fn new(fact: Fact, told: bool) -> Told {
+        Told {
+            fact,
+            told,
+            faces: Faces::default(),
+        }
+    }
+}
+
+/// Each minion's copy and face (card, crypt) by `MinionId`, when a fact
+/// was told: facts are named at the next view, and a merge before it
+/// changes both (an event naming the merged copy would name a minion the
+/// viewer never saw).
+pub type Faces = std::sync::Arc<[(CopyId, u16, bool)]>;
+
+pub(crate) fn faces(e: &Engine) -> Faces {
+    (0..e.state.minions.len())
+        .map(|i| {
+            let (card, crypt) = crate::view::minion_face(&e.state.minions[i]);
+            (minion_copy(&e.state, i), card, crypt)
+        })
+        .collect()
 }
 
 fn tell(out: &mut Vec<Told>, fact: Fact, told: bool) {
-    out.push(Told { fact, told });
+    out.push(Told::new(fact, told));
 }
 
 /// The table at a decision, as far as events tell it.

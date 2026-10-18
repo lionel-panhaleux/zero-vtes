@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "title": "zvtes protocol",
-  "version": "1.9.0",
+  "version": "2.0.0",
   "$defs": {
     "About": {
       "description": "What a choice is about (`Decision::about`): each field given where\nthe purpose (or the terms) has it (docs/protocol.md §5).",
@@ -478,9 +478,10 @@
           "minimum": 0
         },
         "seed": {
-          "description": "Its sampling seed: replaying uses the recorded options, the seed\nre-simulates the bot.",
+          "description": "Its sampling seed (at most 2^53 − 1, `SEED_MAX`):\nreplaying uses the recorded options, the seed re-simulates the bot.",
           "type": "integer",
-          "format": "uint32",
+          "format": "uint64",
+          "maximum": 9007199254740991,
           "minimum": 0
         },
         "temperature": {
@@ -2527,12 +2528,13 @@
           }
         },
         "seed": {
-          "description": "The deal's seed; the host picks one when absent (and records it).\nThe server always draws its own, unless the request carries the\nadmin token (a fixed deal for a playtest): a seed a player chose\nor guessed would let them replay the deal. 32 bits: exact as a\nJSON number in every language.",
+          "description": "The deal's seed; the host picks one when absent (and records it).\nThe server always draws its own, unless the request carries the\nadmin token (a fixed deal for a playtest): a seed a player chose\nor guessed would let them replay the deal. At most\n`SEED_MAX` (2^53 − 1), 53 bits: too many to try, exact as a\nJSON number in every language.",
           "type": [
             "integer",
             "null"
           ],
-          "format": "uint32",
+          "format": "uint64",
+          "maximum": 9007199254740991,
           "minimum": 0
         },
         "time_limit": {
@@ -4607,6 +4609,26 @@
             "max": {
               "type": "integer",
               "format": "uint32",
+              "minimum": 0
+            }
+          },
+          "required": [
+            "error",
+            "max"
+          ]
+        },
+        {
+          "description": "A seed over `SEED_MAX` (2^53 − 1).",
+          "type": "object",
+          "properties": {
+            "error": {
+              "type": "string",
+              "const": "seed"
+            },
+            "max": {
+              "type": "integer",
+              "format": "uint64",
+              "maximum": 9007199254740991,
               "minimum": 0
             }
           },

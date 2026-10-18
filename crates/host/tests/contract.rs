@@ -18,7 +18,7 @@ impl Bots for NoBots {
     fn make(
         &self,
         _: &str,
-        _: u32,
+        _: u64,
     ) -> Option<(Box<dyn zvtes::agent::Agent>, zvtes_api::record::BotRecord)> {
         None
     }
@@ -59,7 +59,7 @@ fn game(seed: u32) -> Game {
         text: seed % 4 < 2,
     };
     let spec = GameSpec {
-        seed: Some(seed),
+        seed: Some(seed.into()),
         time_limit: Some(40),
         client: Some("tests".into()),
         seats: (0..4)
@@ -278,7 +278,7 @@ fn another_seats_secret_number_is_not_told() {
     let (mut hidden, mut own) = (0, 0);
     for seed in 1..=12u32 {
         let spec = GameSpec {
-            seed: Some(seed),
+            seed: Some(seed.into()),
             time_limit: Some(12),
             client: Some("tests".into()),
             seats: (0..3)

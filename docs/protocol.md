@@ -18,7 +18,7 @@ is created by one request and played over one WebSocket. Every game is
 recorded, anonymously, and kept two years to train and test the engine
 (§11).
 
-Version **1.9.0**. The types: the models of the
+Version **2.0.0**. The types: the models of the
 [API reference](https://engine.krcg.org/docs), also as
 [JSON Schema](https://engine.krcg.org/schema.json) (2020-12) and
 [TypeScript](https://engine.krcg.org/protocol.ts).
@@ -26,7 +26,7 @@ Version **1.9.0**. The types: the models of the
 ## 1. Model
 
 - A **game** has 2 to 6 seats in seating order (0, 1, …), each a human
-  or a bot. Version 1 hosts one human per game.
+  or a bot. The server hosts one human per game.
 - The engine asks one **decision** at a time, of one seat: a list of
   **options**, every legal move, each a whole move (card, mode, actor,
   target). The seat answers with an option's `index`. Nothing else
@@ -474,7 +474,7 @@ ended; the last `pool`, `blood` and `torpor` told are the next view's.
 | `GET /openapi.json`, `/schema.json`, `/protocol.ts` | the API reference's document, and the types as JSON Schema and TypeScript |
 | `GET /version` | protocol, engine commit, bot profiles offered, limits (seats, time limit, idle timeout) |
 | `GET /catalog` | the precon decklists the engine plays |
-| `POST /games` | body: a `GameSpec` (one human seat); `{game, seat, token}`, or a `SpecError` (400). The deal's seed is the server's: a spec's `seed` is kept only with the admin token (a playtest's fixed deal) |
+| `POST /games` | body: a `GameSpec` (one human seat); `{game, seat, token}`, or a `SpecError` (400). The deal's seed is the server's, 53 random bits (too many to try from a known opening hand): a spec's `seed` is kept only with the admin token (a playtest's fixed deal), at most `SEED_MAX` (2^53 − 1, exact as a JSON number), else `SpecError` `seed` (its `max`) |
 | `GET /games/{game}/ws` | WebSocket: one JSON command or message per text frame; the first command is `join` with the token. 404 to any request once the game has left the server (the idle timeout passed, after its end or with no command, or a server restart ended it), so a client whose socket will not reopen can `fetch` it to tell |
 | `GET /games/{game}/record` | the game's record (§11), `Authorization: Bearer <token>`, once the game is over (409 before: the record replayed would show the hidden cards) |
 | `GET /admin/games?since=&engine=&limit=` | the games recorded, oldest first: `id`, `engine`, `client`, `started`, `ended` (absent: going on the server now), `result`, `entries` (the operator's: `Authorization: Bearer <admin token>`) |
@@ -489,9 +489,9 @@ token is the gate, no cookie or credential rides a request.
 ## 11. Records
 
 Every game served is recorded (`GameRecord`), and served to its seat
-once the game is over (§10): the spec with its seed
-(human names replaced), the bot profiles (weights' hash, temperature,
-seed, a network's nudges by name), each decision answered — seat, time, option index, its key with
+once the game is over (§10): the spec with its seed (53 bits from 2.0.0,
+32 before; human names replaced), the bot profiles (weights' hash, temperature,
+seed, also at most `SEED_MAX`, a network's nudges by name), each decision answered — seat, time, option index, its key with
 the engine's copy numbers, by whom (`human`, `bot`, `order`, `auto`),
 the options shown when settings hid some — undos (decision numbers then
 repeat from `to`: a reader drops what they take back), settings
@@ -543,7 +543,8 @@ the protocol: the engine's internal state, card images, layout.
 version (readers ignore what they do not know), and so is a route's
 new refusal by a status its clients already handle, or a request field
 the server now decides itself (`POST /games`'s seed); a removed or
-renamed field or a changed meaning, a major one. The api crate's own readers,
+renamed field or a changed meaning, a major one (2.0.0: the seeds'
+range widened past 32 bits). The api crate's own readers,
 1.3.0 on, read past a record entry type they do not know, and read an
 end reason, an error or a value of a §12 closed set (a decision's `by`
 among them) they do not know as `unknown` (never sent); any other new

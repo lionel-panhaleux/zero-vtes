@@ -271,29 +271,23 @@ impl Session {
         for i in 0..=notes.len() {
             loop {
                 if let Some(p) = plays.next_if(|p| p.after <= i && p.reveals <= shown) {
-                    told.push(Told {
-                        fact: Fact::Played(p),
-                        told: true,
-                    });
+                    told.push(Told::new(Fact::Played(p), true));
                 } else if let Some(r) = reveals.next_if(|r| r.after <= i) {
                     shown += 1;
-                    told.push(Told {
-                        fact: Fact::Revealed {
+                    told.push(Told::new(
+                        Fact::Revealed {
                             seat: r.seat,
                             card: r.card,
                             crypt: r.crypt,
                         },
-                        told: true,
-                    });
+                        true,
+                    ));
                 } else {
                     break;
                 }
             }
             let Some(n) = notes.get(i) else { break };
-            told.push(Told {
-                fact: Fact::Combat(*n),
-                told: true,
-            });
+            told.push(Told::new(Fact::Combat(*n), true));
             if matches!(n, CombatNote::Strikes { .. }) {
                 self.struck = Some(*n);
             }
@@ -314,6 +308,12 @@ impl Session {
             before.strikes(&now, &mut told);
             before.endings(e, &now, &mut told);
             before.changes(e, &now, ran, &mut told);
+        }
+        if !told.is_empty() {
+            let faces = crate::narrate::faces(&self.engine);
+            for t in &mut told {
+                t.faces = faces.clone();
+            }
         }
         self.told.extend(told);
         self.mark = Some(now);
@@ -421,10 +421,7 @@ impl Session {
         let req = self.pending.take().expect("a decision pending");
         self.asked = None;
         let decision = self.decision();
-        self.told.push(Told {
-            fact: Fact::Decided(decision),
-            told: false,
-        });
+        self.told.push(Told::new(Fact::Decided(decision), false));
         let said = !untold_effects(&req.options[index]);
         match taken {
             Taken::Bot => self.snapshots.clear(),
@@ -859,12 +856,12 @@ mod tests {
         let fact = s
             .told
             .iter()
-            .map(|t| t.fact)
-            .find(|f| matches!(f, Fact::Revealed { .. }))
-            .expect("the reveal observed");
+            .find(|t| matches!(t.fact, Fact::Revealed { .. }))
+            .expect("the reveal observed")
+            .clone();
         for seat in 0..3 {
             let mut v = crate::view::Viewer::new(Some(SeatId(seat)));
-            let told = v.event(&s.engine, &s.dealt, fact);
+            let told = v.event(&s.engine, &s.dealt, &fact);
             let Some(zvtes_api::event::EventKind::Revealed { seat: from, card }) = told else {
                 panic!("seat {seat}: {told:?}");
             };
@@ -914,6 +911,45 @@ mod tests {
             });
         s.observe(true);
         assert!(matches!(s.undo(), Err(Refused::NoUndo)), "barred");
+    }
+
+    /// A fact names its minion by the copy it had when told: a merge
+    /// before the next view (the bots' turns between two of the human's)
+    /// gives the minion the advanced card's copy, one the viewer never
+    /// saw before.
+    #[test]
+    fn a_fact_names_its_minion_as_it_was_when_told() {
+        use zvtes::copies::Untracked;
+        use zvtes::state::{Minion, MinionKind};
+        let (mut s, crypt) = session();
+        s.observe(false);
+        let names = vec![String::new(); 3];
+        let mut v = crate::view::Viewer::new(Some(SeatId(1)));
+        let mut m = Minion::new(SeatId(0), MinionKind::Vampire(crypt[0].0), 3);
+        m.copy = Untracked(CopyId(500));
+        s.engine.state.minions.push(m);
+        let i = s.engine.state.minions.len() - 1;
+        s.observe(true);
+        v.view(&s.engine, &s.dealt, &names);
+        let seen = v.numbering.get(CopyId(500)).expect("in sight").0;
+        s.take_told();
+        s.engine.state.minions[i].blood = 2;
+        s.observe(true);
+        s.engine.state.minions[i].merged_copy = Untracked(CopyId(500));
+        s.engine.state.minions[i].copy = Untracked(CopyId(501));
+        v.view(&s.engine, &s.dealt, &names);
+        let told: Vec<_> = s
+            .take_told()
+            .iter()
+            .filter_map(|t| v.event(&s.engine, &s.dealt, t))
+            .collect();
+        assert!(
+            told.iter().any(|k| matches!(
+                k,
+                zvtes_api::event::EventKind::Blood { minion, delta: -1, .. } if *minion == seen
+            )),
+            "{told:?}"
+        );
     }
 
     /// Reveals told in their order among a combat's notes (`Reveal::after`:
