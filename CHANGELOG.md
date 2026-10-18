@@ -15,6 +15,9 @@ removes; its `--check` fails a removal without a major version.
   `about.seat` and `choose_seat` options (Vaticination: which other
   Methuselah's hand), then with `about.seat` and `find_card` options as
   before.
+- A game never joined ends at its idle timeout, `abandoned`, as one
+  joined does; one whose reply failed to render ends `engine_error`:
+  both records were left going. No schema change.
 
 ## 2.0.0
 

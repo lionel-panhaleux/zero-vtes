@@ -11,7 +11,7 @@ use std::time::Duration;
 use tokio::sync::{mpsc::UnboundedSender, oneshot, watch};
 use zvtes_api::message::SpecError;
 use zvtes_api::record::{Entry, GameRecord};
-use zvtes_api::{Command, GameSpec, In, Out, Seat};
+use zvtes_api::{GameSpec, In, Out, Seat};
 use zvtes_host::{Game, SystemClock};
 use zvtes_policy::profiles::{Profiles, Served};
 
@@ -279,16 +279,7 @@ fn run(
                 let _ = reply.send(game.record().clone());
             }
             Err(RecvTimeoutError::Timeout) | Err(RecvTimeoutError::Disconnected) => {
-                if !game.is_over() {
-                    let human = game.human();
-                    game.handle(
-                        human,
-                        In {
-                            id: None,
-                            command: Command::Leave,
-                        },
-                    );
-                }
+                game.abandon();
                 flush(game, store, &mut flushed, &mut ended);
                 return;
             }
@@ -345,7 +336,7 @@ fn random_hex<const N: usize>() -> String {
 #[cfg(test)]
 mod tests {
     use zvtes_api::message::{Decision, EndReason, Message};
-    use zvtes_api::{Player, SeatSpec, Settings};
+    use zvtes_api::{Command, Player, SeatSpec, Settings};
 
     use super::*;
 
@@ -399,6 +390,38 @@ mod tests {
             Message::Decision(d) => Some(d.clone()),
             _ => None,
         })
+    }
+
+    // A game never joined ends at its idle timeout too (docs/protocol.md
+    // §2), recorded abandoned: its seat's leave would be refused, not
+    // joined, and the record left going.
+    #[tokio::test]
+    async fn a_game_never_joined_ends_at_its_idle_timeout() {
+        let dir = std::env::temp_dir().join(format!("zvtes-unjoined-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        let store = Store::open(None, dir.clone()).await;
+        let (put, rx) = tokio::sync::mpsc::unbounded_channel();
+        tokio::spawn(store.clone().run(rx));
+        let games = Games::default();
+        let (id, seat, _) = start(&games, spec(), None, put, Duration::from_millis(50))
+            .await
+            .unwrap();
+        let mut ended = None;
+        for _ in 0..300 {
+            ended = store.record(&id, None).await.filter(|r| r.ended.is_some());
+            if ended.is_some() {
+                break;
+            }
+            tokio::time::sleep(Duration::from_millis(10)).await;
+        }
+        let r = ended.expect("recorded ended");
+        assert_eq!(
+            r.result.map(|g| g.reason),
+            Some(EndReason::Abandoned { seat })
+        );
+        assert!(r.entries.is_empty(), "nothing refused: {:?}", r.entries);
+        assert!(!store.going().await.unwrap().iter().any(|(g, _)| *g == id));
+        let _ = std::fs::remove_dir_all(&dir);
     }
 
     // A server restart resumes a game left going (docs/protocol.md §2): the

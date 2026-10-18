@@ -113,6 +113,9 @@ pub struct Game {
     /// Resumed, not yet joined: the first join is a fresh start (the
     /// client's numbering is the lost process's).
     resumed: bool,
+    /// Rendering panics (a test's way into `handle`'s guard).
+    #[cfg(test)]
+    render_panics: bool,
 }
 
 struct Resuming {
@@ -243,6 +246,8 @@ impl Game {
             t0,
             resuming: None,
             resumed: false,
+            #[cfg(test)]
+            render_panics: false,
         })
     }
 
@@ -322,7 +327,7 @@ impl Game {
                     // them so).
                     if by == By::Order && g.session.allocation(&req).is_some() {
                         let m = g.replay_allocation(i)?;
-                        g.emit(human, None, m);
+                        g.emit(human, None, m, true);
                         continue;
                     }
                     // A vote order: its first cast; the rest taken as the
@@ -509,13 +514,32 @@ impl Game {
                 vec![Message::Error(Error::Malformed {
                     reason: e.to_string(),
                 })],
+                true,
             ),
         };
         serde_json::to_string(&outs).expect("messages serialize")
     }
 
-    /// The seat's command, answered: the messages for it, in order.
+    /// The seat's command, answered: the messages for it, in order. A
+    /// panic past the engine's own guard (`command`), rendering the reply
+    /// or a resend, ends the game `engine_error`, its end sent unrendered:
+    /// never a game left going.
     pub fn handle(&mut self, seat: Seat, input: In) -> Vec<Out> {
+        let id = input.id;
+        match catch_unwind(AssertUnwindSafe(|| self.serve(seat, input))) {
+            Ok(outs) => outs,
+            Err(panic) => {
+                if self.over.is_none() {
+                    self.fail(panic_text(&panic));
+                }
+                // The end alone: events would carry their text unfilled.
+                let over = self.over.clone().map(Message::Over).into_iter().collect();
+                self.emit(seat, id, over, false)
+            }
+        }
+    }
+
+    fn serve(&mut self, seat: Seat, input: In) -> Vec<Out> {
         if let Command::Join {
             after: Some(after), ..
         } = input.command
@@ -534,15 +558,24 @@ impl Game {
                 Err(panic) => self.fail(panic_text(&panic)),
             }
         };
-        self.emit(seat, input.id, messages)
+        self.emit(seat, input.id, messages, true)
     }
 
-    /// Messages numbered, kept for a rejoin; refusals recorded.
-    fn emit(&mut self, seat: Seat, id: Option<u64>, messages: Vec<Message>) -> Vec<Out> {
+    /// Messages numbered (`render`: their names and English told), kept
+    /// for a rejoin; refusals recorded.
+    fn emit(
+        &mut self,
+        seat: Seat,
+        id: Option<u64>,
+        messages: Vec<Message>,
+        render: bool,
+    ) -> Vec<Out> {
         let at = self.at();
         let mut out = Vec::with_capacity(messages.len());
         for mut m in messages {
-            self.tell(&mut m);
+            if render {
+                self.tell(&mut m);
+            }
             let reply_to = match &m {
                 Message::Error(e) => {
                     self.record.entries.push(Entry::Refused {
@@ -573,6 +606,10 @@ impl Game {
     /// The client's names brought up to date with a message, and its
     /// English told from the data where the text setting asks it.
     fn tell(&mut self, m: &mut Message) {
+        #[cfg(test)]
+        if self.render_panics {
+            panic!("render");
+        }
         let text = self.settings.text;
         let known = &mut self.known;
         match m {
@@ -1221,6 +1258,15 @@ impl Game {
         told.into_iter().chain([Message::Over(over)]).collect()
     }
 
+    /// The idle timeout (docs/protocol.md §2): the game ends abandoned by
+    /// its human, joined or not (the seat's `leave` is refused before its
+    /// join).
+    pub fn abandon(&mut self) {
+        if self.over.is_none() {
+            self.end(EndReason::Abandoned { seat: self.human }, None);
+        }
+    }
+
     fn fail(&mut self, why: String) -> Vec<Message> {
         self.end(EndReason::EngineError, Some(why))
     }
@@ -1560,6 +1606,38 @@ mod tests {
                 .all(|b| b.seed <= zvtes_api::SEED_MAX));
         }
         assert!(futile > 0, "no futile block window met");
+    }
+
+    /// A panic rendering a reply ends the game `engine_error`, recorded
+    /// with its text, its `over` sent unrendered; a command after it gets
+    /// that end again, the record's first kept.
+    #[test]
+    fn a_panic_rendering_a_reply_ends_the_game() {
+        let mut g = game(1);
+        let human = g.human();
+        g.render_panics = true;
+        let join = || In {
+            id: None,
+            command: Command::Join {
+                token: None,
+                after: None,
+            },
+        };
+        let over = |outs: &[Out]| match outs.last().map(|o| &o.message) {
+            Some(Message::Over(o)) => o.reason,
+            m => panic!("not over: {m:?}"),
+        };
+        let outs = g.handle(human, join());
+        assert_eq!(outs.len(), 1, "the end alone: {outs:?}");
+        assert_eq!(over(&outs), EndReason::EngineError);
+        let failure = |g: &Game| g.record().result.clone().expect("ended").failure;
+        assert_eq!(failure(&g), Some("render".into()));
+        let ended = g.record().ended;
+        assert_eq!(over(&g.handle(human, join())), EndReason::EngineError);
+        assert_eq!(
+            (failure(&g), g.record().ended),
+            (Some("render".into()), ended)
+        );
     }
 
     /// A seed past `SEED_MAX` is refused (protocol 2.0.0): a JSON number
