@@ -242,8 +242,10 @@ its skill and its task notes.
   `python3 scripts/schema_compat.py --check` (a field or id removed or
   renamed since the branch left `main` fails unless the major moves; a
   protocol bump adds its `CHANGELOG.md` entry); the ledger,
-  window-matrix and generator `--check`s; the count line at the end of DESIGN
-  §11. Online play (`crates/host`, `crates/text`, `crates/server`):
+  window-matrix and generator `--check`s; `python3 scripts/digest_index.py
+  --check` (rules-digest §25, the index of rules-qa items to the digest's
+  sections: regenerate after a rules-qa or digest change); the count line
+  at the end of DESIGN §11. Online play (`crates/host`, `crates/text`, `crates/server`):
   `docs/human-play.md` "Checks" (the server is not a default member).
 - Python side (`crates/py`, `train/`): `uv sync` builds the extension (it
   rebuilds when Rust sources change); `uv run pytest -q`; `PYO3_PYTHON=$PWD/.venv/bin/python
@@ -285,3 +287,7 @@ its skill and its task notes.
   cap decisions in any exploratory driver or scratch run.
 - zsh: never write `"$VAR:x"` in shell arguments (history modifiers eat
   `:t`/`:e`/`:r`/`:s`).
+- A training run shares this machine (`pgrep -f train.ppo`): no release
+  build, deep fuzz sweep or deploy build while one runs (a release build's
+  memory pressure killed p12, 2026-10-17); the `ci`-profile checks are
+  fine.

@@ -926,7 +926,7 @@ simultaneous effects, §2.5 duration). The engine's window primitives are in
   (2.1). §12.12.
 - **After a diablerie, before its blood hunt**: Slake the Thirst is offered
   there (68.2, ANK 20201228); an older victim's master Discipline is
-  asked before that window (81.1, open).
+  asked before that window (81.1).
 - A card played during polling is a commitment of the rotation: it reopens
   a response opportunity for every other Methuselah before the tally
   (5.3). §13.3.
@@ -1673,7 +1673,7 @@ Advanced rules §3.2 (stealth and intercept), §3.3 (blocking).
   Gaze, a cancel) returns the impulse to the acting Methuselah, and an
   ended action (The Kiss of Ra) takes no further attempt (82.1); one with
   no play (a lock at the closure, a toll unpaid) reads as an effect's,
-  open (82.2).
+  not a decline (82.2).
 - Only a change of the action's target (Deflection, Telepathic
   Misdirection) reopens block opportunities; Change of Target does not
   change the target, it ends the action (1.3).
@@ -4289,8 +4289,6 @@ read, for the owner to confirm or correct:
 - 76.1–76.23, 76.25 graded green or amber (76.24 answered by the owner).
 - 77.1–77.27, 77.29–77.35 graded green, amber or corrected (77.28 answered
   by the owner: the counters you burned).
-- 81.1 (the diablerie's master Discipline asked as the victim burns,
-  before the cards played on the diablerie).
 - The "Question (implemented reading)" tails: 48.2 (a card granting several
   strikes bars further cards until all are made), 48.3 (the switch of
   blocker takes effect at once, no impulse left to others), 48.8 (a rescue
@@ -4686,5 +4684,5 @@ index or an item cited nowhere.
   78.45 §14.11; 78.46 §3.6; 78.47 §3.6; 78.48 §6.3; 78.49 §21.3; 78.50
   §3.10; 78.51 §19.3; 78.52 §3.5; 78.53 §9.3; 78.54 §18.2
 - **79** — 79.1 §2,§9.2,§23.3; 79.2 §2,§15.2; 79.3 §2,§15.2,§23.3; 79.4 §2
-- **81** — 81.1 §5.2,§24.1
+- **81** — 81.1 §5.2
 - **82** — 82.1 §9.4; 82.2 §9.4

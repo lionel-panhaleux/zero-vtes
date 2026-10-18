@@ -230,7 +230,7 @@ hosts a window.
   back to the acting one, whose impulse there is only the window's first
   and the one after a play (rules-qa 82.1). Failed otherwise (an effect,
   a lock, a toll unpaid), the loop returns to "no attempt" (rulebook B.4),
-  where the same Methuselah may attempt again (82.2, open). A pass **with no
+  where the same Methuselah may attempt again (82.2). A pass **with no
   ongoing attempt is a final decline**, reopened only by a change of target
   (bounces: Deflection, Telepathic Misdirection — not the card Change of Target,
   which ends the action). Hence a third-party helper needs the defender to

@@ -675,8 +675,7 @@ engine masks), `cards/mod.rs` (the vocabulary: `Window`, `Actor`,
   (`ActionCtx::attempt_failed`: locked or gone at the closure, Enchanting
   Gaze's counter, Forced Confessional, a cancel; `Engine::resign_attempt`:
   a toll unpaid, an ally's last life, Puppet Master, Dawn Operation)
-  starts it anew at the acting Methuselah, as after a play (1.2; 82.2
-  open). An action ended early (The Kiss of Ra) offers no further attempt.
+  starts it anew at the acting Methuselah, as after a play (1.2; 82.2). An action ended early (The Kiss of Ra) offers no further attempt.
   `Engine::short_declines`, kept for the record reader only (`None`
   otherwise), notes each short decline with the seats an engine before
   82.1 asked again (`Reasked`).
