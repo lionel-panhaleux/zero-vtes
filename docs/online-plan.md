@@ -259,7 +259,8 @@ replaying it once (`--no-turns` skips that), cached in
 Fresh branch off upstream `dev` (every PR targets `dev`, Thomas's ask),
 re-cut (not rebased) from the fork.
 
-- Engine code in `src/client/engine/` and `central/Engine*.vue`; SC files
+- Engine code in `src/client/engine/` and `Engine*.vue` components (in
+  `central/` or beside the SC components they belong with); SC files
   get hooks only, through `useUIFeatures` flags (TrainBot's pattern), one
   `useEngineMode()`, one `<EngineCentral/>`.
 - Client types generated from the schema; `RemoteEngineHost` (wss, the

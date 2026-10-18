@@ -28,8 +28,11 @@ branches, PRs, recipes, traps) and update it as you learn.
    added lines for `GameType.`, `!.`, `!)`, `any`, `border-radius`,
    `box-shadow`, `!important` (avoided), emoji, semicolons.
 3. **Hooks only in SC files**: engine code in `src/client/engine/` and
-   `central/Engine*.vue`, gated by `useEngineMode()` / `useUIFeatures`;
-   engine display state in the engine store, never on SC's synced `Card`.
+   `Engine*.vue` components, in `central/` or beside the SC components they
+   belong with (sc.md "The integration's shape"); gated by
+   `useEngineMode()` / `useUIFeatures` in the re-cut (the fork tests
+   `GameType.Engine` inline); engine display state in the engine store,
+   never on SC's synced `Card`.
 4. **Never edit the served checkout while the owner may be playing** (vite
    reloads, and a reload loses the fork's game, sc.md traps): work in a
    worktree under the job's tmp (`git worktree add`, `node_modules`

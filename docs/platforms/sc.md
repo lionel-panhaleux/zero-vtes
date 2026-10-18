@@ -48,12 +48,18 @@ whenever something reaches us from Thomas or a PR moves.
 
 ## The integration's shape (online-plan §C, the owner's)
 
-SC files get hooks only: one `useEngineMode()` (`src/client/engine/mode.ts`),
-`useUIFeatures` flags (`manualControlsEnabled`, `automaticCostPaymentEnabled`),
-one `<EngineCentral/>`; engine code in `src/client/engine/` and
-`central/Engine*.vue`. Never `gameState.gameType == GameType.Engine` inline in
-SC files. Engine-only display state lives in the engine store (`chips`,
-`limbo`), not on SC's synced `Card`.
+Both branches: engine code in `src/client/engine/` and `Engine*.vue`
+components, in `central/` or beside the SC components they belong with
+(`ui/ingame/EngineText.vue`; the fork's log, `rightColumn/EngineLog.vue`;
+the re-cut's `ui/components/EngineNotice.vue`). Engine-only display state
+lives in the engine store (`chips`, `limbo`), not on SC's synced `Card`.
+
+The re-cut (`engine-game`) gives SC files hooks only: one `useEngineMode()`
+(`src/client/engine/mode.ts`), `useUIFeatures` flags
+(`manualControlsEnabled`, `automaticCostPaymentEnabled`), one
+`<EngineCentral/>`; never `gameState.gameType == GameType.Engine` inline in
+SC files. The fork (`zero-vtes-engine`) tests `GameType.Engine` inline
+(about 25 places); a re-cut translates those tests into the hooks.
 
 ## The dev server
 

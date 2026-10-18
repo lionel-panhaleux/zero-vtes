@@ -341,10 +341,13 @@ The fork's own checks: `npx vue-tsc --noEmit`, `npx eslint .`,
 `npx prettier --check .`.
 
 What the fork changes in SC: `src/client/engine/` (new: `host.ts` the
-server client, `api.ts` copied from `crates/api/protocol.ts`),
-`store/engine.ts`, `central/Engine*.vue`, and hooks in `types/state.ts`
-(`GameType`), `state/gameMutations.ts` (the gate), `state/setup.ts` (stop
-on reset), `gateway/savedGames.ts`, the table's objects, `MainMenu.vue`.
+server client, `api.ts` copied from `crates/api/protocol.ts`, `log.ts` the
+log), `store/engine.ts`, `Engine*.vue` components (`central/`,
+`ui/ingame/EngineText.vue`, `rightColumn/EngineLog*.vue`; sc.md "The
+integration's shape"), and hooks in `types/state.ts` (`GameType`),
+`state/gameMutations.ts` (the gate), `state/setup.ts` (stop on reset),
+`gateway/savedGames.ts`, the table's objects, `MainMenu.vue`: inline
+`GameType.Engine` tests (the re-cut's are `useEngineMode()`).
 
 ## Open questions (owner)
 
