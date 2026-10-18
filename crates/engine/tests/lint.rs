@@ -183,3 +183,155 @@ fn no_todo_in_code() {
         found.join("\n")
     );
 }
+
+/// Definitions whose quoted text grants a "during" ability with no ability
+/// of theirs `limited` (or none: the grant a rider of a played card), each
+/// with how it is once all the same. An entry no longer flagged fails as
+/// stale.
+const DURING_ONCE_ELSEWHERE: &[(&str, &str)] = &[
+    ("BEAST_MELD", "a prevention allowance counted down"),
+    (
+        "BUSINESS_PRESSURE",
+        "votes bought in the card's own resolution",
+    ),
+    ("COAGULATED_ENTITY", "a prevention allowance counted down"),
+    (
+        "EYES_OF_THE_WILD",
+        "its burn grant removed as it is used (rules-qa 79.1)",
+    ),
+    (
+        "FIENDISH_TONGUE",
+        "a one-shot discard-phase hook, taken as used",
+    ),
+    ("MONOCLE_OF_CLARITY", "no engine effect (rules-qa 68.11)"),
+    (
+        "MUSTAFA",
+        "each older Toreador once (a forced-yet requirement)",
+    ),
+    ("ONE_WITH_THE_LAND", "a no-strike flag set once"),
+    ("ORLANDO_ORIUNDUS", "passive vote doubling, no choice"),
+    ("PAULO_DE_CASTILLE", "a one-shot as he enters play"),
+    (
+        "PRECOGNITION",
+        "a per-round prevention granted by the block",
+    ),
+    ("SHOW_OF_FORCE", "its strength option taken once"),
+    (
+        "SPECTRAL_SERVITOR",
+        "one burn-unless-pool choice each unlock phase",
+    ),
+    ("TRAP", "automatic presses, no choice"),
+    ("UNLEASH_HELLS_FURY", "a status for the action, no choice"),
+];
+
+/// Whether an ability is once in its span: a `Limit`, phase windows only
+/// (once per phase by default, `Window::is_phase`), or a cost spending the
+/// card or its host's unlock.
+fn limited(ab: &zvtes::cards::ModeDef) -> bool {
+    use zvtes::cards::Effect as E;
+    ab.limit.is_some()
+        || (!ab.windows.is_empty() && ab.windows.iter().all(|w| w.is_phase()))
+        || ab
+            .effects
+            .iter()
+            .any(|e| matches!(e, E::LockSelf | E::LockHost | E::BurnSelf | E::BurnSource))
+}
+
+/// "During X, … can …" is once per X (rules-digest D7, rules-qa 79.1): a
+/// definition whose quoted text grants a "during" ability has an ability
+/// of its own `limited`, or says how it is once in `DURING_ONCE_ELSEWHERE`.
+/// It reads the `pub static` definitions (the macro families carry no
+/// quoted text); it cannot tell which ability the text's sentence is, nor
+/// read what an effect grants (a rider's once-ness is its exception's reason and its
+/// test's, add-cards §4).
+#[test]
+fn during_abilities_are_once() {
+    use zvtes::cards::{defs::DEFS, vampires::VAMPIRES};
+    let root = concat!(env!("CARGO_MANIFEST_DIR"), "/src/cards/");
+    // (const, name, adv, group) of each definition granting a "during"
+    // ability.
+    let mut granting = Vec::new();
+    for file in ["defs.rs", "vampires.rs"] {
+        let src = std::fs::read_to_string(format!("{root}{file}")).unwrap();
+        let lines: Vec<&str> = src.lines().collect();
+        let mut doc = String::new();
+        for (i, line) in lines.iter().enumerate() {
+            if let Some(d) = line.strip_prefix("///") {
+                doc.push(' ');
+                doc.push_str(d.trim());
+                continue;
+            }
+            if line.starts_with("#[") {
+                continue;
+            }
+            let def = line
+                .strip_prefix("pub static ")
+                .filter(|l| l.contains(": CardDef = ") || l.contains(": VampireDef = "));
+            let text = std::mem::take(&mut doc);
+            let Some(def) = def else { continue };
+            let quoted = text.split('"').nth(1).unwrap_or("");
+            let grants = quoted.split(['.', ':']).any(|s| {
+                let s = s.to_lowercase();
+                let words: Vec<&str> = s.split(|c: char| !c.is_alphanumeric()).collect();
+                words.contains(&"during")
+                    && (words.contains(&"can") || words.contains(&"may"))
+                    && !s.contains("only usable during")
+            });
+            if !grants {
+                continue;
+            }
+            let body: Vec<&str> = lines[i..]
+                .iter()
+                .take_while(|l| **l != "};")
+                .copied()
+                .collect();
+            let field = |key: &str| {
+                body.iter()
+                    .find_map(|l| l.trim().strip_prefix(key))
+                    .map(|v| v.trim_end_matches(',').to_string())
+            };
+            let name = field("name: ").map(|n| n.trim_matches('"').replace("\\\"", "\""));
+            granting.push((
+                def.split(':').next().unwrap().to_string(),
+                name.expect("a name"),
+                field("adv: ").as_deref() == Some("true"),
+                field("group: Some(").map(|g| g.trim_end_matches(')').to_string()),
+            ));
+        }
+    }
+    let mut flagged = Vec::new();
+    for (konst, name, adv, group) in &granting {
+        let abilities = DEFS
+            .iter()
+            .find(|d| d.name == name)
+            .map(|d| d.abilities)
+            .or_else(|| {
+                VAMPIRES
+                    .iter()
+                    .find(|v| {
+                        v.name == name && v.adv == *adv && v.group.map(|g| g.to_string()) == *group
+                    })
+                    .map(|v| v.abilities)
+            });
+        let abilities =
+            abilities.unwrap_or_else(|| panic!("{konst}: in neither DEFS nor VAMPIRES"));
+        if !abilities.iter().any(limited) {
+            flagged.push(konst.clone());
+        }
+    }
+    let unexplained: Vec<_> = flagged
+        .iter()
+        .filter(|n| !DURING_ONCE_ELSEWHERE.iter().any(|(e, _)| e == n))
+        .collect();
+    let stale: Vec<_> = DURING_ONCE_ELSEWHERE
+        .iter()
+        .filter(|(e, _)| !flagged.iter().any(|n| n == e))
+        .map(|(e, _)| e)
+        .collect();
+    assert!(
+        unexplained.is_empty(),
+        "\"during\" abilities with no limit (rules-digest D7: once per span; \
+         or say how it is once in DURING_ONCE_ELSEWHERE): {unexplained:?}"
+    );
+    assert!(stale.is_empty(), "stale entries: {stale:?}");
+}

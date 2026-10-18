@@ -9,11 +9,11 @@ Docs: `docs/engine.md` (§2–5, the reference by mechanism),
 and the ledger; a rulebook mechanism no card carries is on the engine board.
 
 Pool (`scripts/coverage.py`, KRCG `vtes.json` of 2026-06-30; 2 crypt and
-18 library cards banned, out of scope, owner 2026-10-14): crypt 626 of
-1,783 (35.1%), library 828 of 2,346 (35.3%); the Imbued, Powers and
+18 library cards banned, out of scope, owner 2026-10-14): crypt 627 of
+1,783 (35.2%), library 828 of 2,346 (35.3%); the Imbued, Powers and
 Convictions 0; 49 of 109 sets complete. TWDA decks in the pool 542 of
 4,538, kept 145; recent (2025+) 265 of 476 in the pool, kept 94. Demand:
-none counted yet (counting starts with the 1.8.0 deploy; the file from
+none counted yet (counting since the 1.8.0 deploy, 2026-10-17; the file from
 Z-main or the owner, add-cards §1).
 
 A shrinking list (CLAUDE.md "Harness"): one line an ask, its done-condition

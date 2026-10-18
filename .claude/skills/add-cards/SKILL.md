@@ -80,8 +80,10 @@ CRLF: the csv module with `lineterminator="\r\n"`, or byte-wise.
   wrong).
 - New interrupts, purposes, choice kinds or window labels: api ids, host
   ids/describe, text prompt/option, regenerate schema/openapi/protocol.ts,
-  and tell the training session before merging (the observation encoder's
-  fixed id tables).
+  a `CHANGELOG.md` line under the coming protocol version
+  (`scripts/schema_compat.py` lists what the schema adds), and tell the
+  training session before merging (the observation encoder's fixed id
+  tables).
 - Vampires end with ALL their text; text-only traits (blood cursed, Black
   Hand, scarce, titles, votes) are generated crypt data and need only a
   comment. A `VampireDef` with `group: None` binds every group of the name:
@@ -116,7 +118,11 @@ For each card, two independent reads:
   8. Combinations: two copies, a dual-type card, the effect played by
      another card, the card on an ally or a non-vampire.
 
-Diff the two reads yourself, item by item, then grade each reading:
+Diff the two reads yourself, item by item, then grade each reading. A
+"during" ability defined repeatable fails `during_abilities_are_once`
+(`tests/lint.rs`): limit it, or say in its exception list how it is once
+(a rider the engine spends, a one-shot) — never list one as repeatable
+(rules-digest D7).
 
 - **Green**: settled by a KRCG ruling, a rules-qa item, or a default
   reading alone. Recorded, not asked.
@@ -151,7 +157,9 @@ hashes (a trajectory change there is a behaviour change to explain).
 ## 6. Finish
 
 All CLAUDE.md checks green (including `cargo test -p zvtes-policy`, the
-py side, generators, window matrix, ledger, DESIGN count line); the
+py side, generators, window matrix, ledger, DESIGN count line) and
+`python3 scripts/digest_index.py --check` (every rules-qa item cited in
+the digest, its line in the section stating it, and §25 rewritten); the
 `engine-review` skill on the round's diff (the `ship` skill's egress);
 anything found fixed in the round, only what is clearly outside it taken
 through `intake`; the round's line deleted from the

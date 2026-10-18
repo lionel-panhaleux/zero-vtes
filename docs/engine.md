@@ -221,6 +221,11 @@ tables; `limit_slot` matches every `Limit`.
 - `no_card_name_in_engine_code` (`tests/lint.rs`): no card name as a string
   in hand-written engine code outside the definitions; each exception in
   `CARD_NAMES_ALLOWED` carries its reason, a stale one fails.
+- `during_abilities_are_once` (`tests/lint.rs`): a definition whose quoted
+  text grants a "during" ability has an ability of its own once in its span
+  (a `Limit`, phase windows only, a cost spending the card or its host's
+  unlock) or says in `DURING_ONCE_ELSEWHERE` how it is once, a rider of a
+  played card included (rules-digest D7); a stale entry fails.
 
 **Enforced by play.** The fuzz fixtures (`tests/fuzz.rs`: invariants,
 conservation of copies, replay of every 4th seed, each fixture's `covers`
