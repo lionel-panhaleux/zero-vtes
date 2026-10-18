@@ -26,10 +26,10 @@ combat depth 7: 1459 leaves
   CombatStrike 55 nodes 165 options
   DiscardPhase 127 nodes 455 options
   MinionPhase 191 nodes 878 options
-referendum depth 6: 1032 leaves
-  ActionBlock 12 nodes 25 options
-  ReferendumPolling 240 nodes 1104 options
-  ReferendumTerms 70 nodes 224 options
+referendum depth 6: 1272 leaves
+  ActionBlock 8 nodes 17 options
+  ReferendumPolling 288 nodes 1440 options
+  ReferendumTerms 50 nodes 160 options
 masters depth 6: 4675 leaves
   ActionAsAnnounced 5 nodes 10 options
   ActionBlock 1148 nodes 2320 options

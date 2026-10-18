@@ -37,18 +37,6 @@ impl<K> Rotation<K> {
         }
     }
 
-    /// As `new`, the impulse with `seat` first (the acting Methuselah's
-    /// if it is not in the order).
-    pub fn starting_at(order: Vec<SeatId>, seat: SeatId) -> Self {
-        let cursor = order.iter().position(|&s| s == seat).unwrap_or(0);
-        Self {
-            order,
-            cursor,
-            quiet: 0,
-            kind: PhantomData,
-        }
-    }
-
     /// Seat currently holding the impulse; `None` once closed.
     pub fn current(&self) -> Option<SeatId> {
         if self.is_closed() {
@@ -94,6 +82,32 @@ impl OrderedWindow {
         self.quiet = 0;
         self.cursor = 0;
     }
+
+    /// Continued after `seat`, the passes from the acting Methuselah
+    /// through it counted: the next seat's impulse, the window closing as
+    /// the passes come round to the acting Methuselah again.
+    pub fn after(order: Vec<SeatId>, seat: SeatId) -> Self {
+        let i = order
+            .iter()
+            .position(|&s| s == seat)
+            .expect("a seat in the order");
+        let n = order.len();
+        Self {
+            order,
+            cursor: (i + 1) % n,
+            quiet: i + 1,
+            kind: PhantomData,
+        }
+    }
+
+    /// Whether `seat` passed since the last play.
+    pub fn passed(&self, seat: SeatId) -> bool {
+        let n = self.order.len();
+        self.order
+            .iter()
+            .position(|&s| s == seat)
+            .is_some_and(|i| self.is_closed() || (self.cursor + n - i - 1) % n < self.quiet)
+    }
 }
 
 impl PollingWindow {
@@ -123,6 +137,27 @@ mod tests {
         w.pass();
         assert!(w.is_closed());
         assert_eq!(w.current(), None);
+    }
+
+    #[test]
+    fn ordered_after_a_seat_stops_at_the_head() {
+        // After seat 1: seats 2 and 3, then closed before seat 0.
+        let mut w = OrderedWindow::after(seats(4), SeatId(1));
+        assert!(w.passed(SeatId(1)) && !w.passed(SeatId(2)));
+        assert_eq!(w.current(), Some(SeatId(2)));
+        w.pass();
+        assert_eq!(w.current(), Some(SeatId(3)));
+        w.pass();
+        assert!(w.is_closed());
+        // After the last seat: closed at once.
+        assert!(OrderedWindow::after(seats(4), SeatId(3)).is_closed());
+        // A play gives the head its turn, passes voided.
+        let mut w = OrderedWindow::after(seats(3), SeatId(1));
+        w.play();
+        assert_eq!(w.current(), Some(SeatId(0)));
+        assert!(!w.passed(SeatId(1)));
+        w.pass();
+        assert!(w.passed(SeatId(0)) && !w.is_closed());
     }
 
     #[test]

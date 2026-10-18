@@ -1241,8 +1241,8 @@ fn form_of_the_bat_fails_a_zero_intercept_block_of_a_zero_stealth_action() {
     pick(&mut e, action(a, ActionKind::Bleed));
     pick(&mut e, Choice::DeclareBlock { minion: z });
     pick_when(&mut e, play(0, 0, a));
-    // The attempt fails at -1 against 0; the same attempt is not offered
-    // again (rules-qa 48.6): the rest of the action elides.
+    // The attempt fails at -1 against 0, its Methuselah's lone pass the
+    // decline (rules-qa 82.1): the rest of the action elides.
     until(&mut e, SeatId(0), WindowLabel::MinionPhase);
     assert_eq!(pool(&e, 1), 29, "not blocked: the bleed for 1 succeeds");
     assert_eq!(blood(&e, a), 5, "no combat");
@@ -1279,31 +1279,36 @@ fn a_block_is_offered_on_the_chance_of_drawing_more_intercept() {
     }
 }
 
-// No identical re-attempt (rules-qa 48.6): X's attempt fails with nothing
-// played; in the same situation it is not offered again — another minion
-// still is.
+// rules-qa 82.2 (open): an attempt failed with no play at that moment —
+// Where the Veil Thins' toll left unpaid, the attempt resigned — opens the
+// block window anew at the acting Methuselah (The Louvre, Paris usable
+// then, on a third party's Toreador), the blocker's Methuselah after it,
+// which may attempt again (LSJ 20031121-2).
 #[test]
-fn a_failed_attempt_is_not_offered_again_in_the_same_situation() {
+fn a_resigned_block_attempt_goes_back_to_the_acting_one() {
     let mut e = Engine::bare(3);
-    let a = e.add_minion(SeatId(0), plain("", "", 0), 4, false);
+    let a = e.add_minion(SeatId(0), plain("", "OBL", 0), 4, false);
     e.add_minion(SeatId(0), plain("Brujah", "", 1), 4, false);
-    let x = e.add_minion(SeatId(1), plain("", "aus", 1), 4, false);
-    let y = e.add_minion(SeatId(1), plain("", "aus", 2), 4, false);
-    equip(&mut e, "Unlicensed Taxicab", a);
+    let z = e.add_minion(SeatId(1), plain("", "aus", 0), 4, false);
+    e.add_minion(SeatId(2), plain("Toreador", "", 0), 4, false);
+    let louvre = location(&mut e, 0, "Louvre, Paris, The");
+    hand(&mut e, 0, &["Where the Veil Thins"]);
     hand(&mut e, 1, &["Enhanced Senses"]);
-    e.state.seats[1].library = vec![find_library("Enhanced Senses")].into();
-    pick(&mut e, action(a, ActionKind::Hunt)); // 2 stealth
-    pick(&mut e, Choice::DeclareBlock { minion: x });
-    pick(&mut e, Choice::Pass); // nothing played: the attempt fails
+    let lock = |req: &DecisionRequest| {
+        req.options.iter().any(|o| {
+            matches!(o, Choice::UseAbility { source: AbilitySource::Card(c), .. } if *c == louvre)
+        })
+    };
+    pick(&mut e, action(a, ActionKind::Bleed));
+    pick_when(&mut e, Choice::DeclareBlock { minion: z });
+    pick(&mut e, play(0, 1, a)); // Where the Veil Thins [OBL]
+    let req = expect(&mut e, SeatId(1), WindowLabel::BlockToll);
+    e.choose(index_of(&req, Choice::Pass)); // resigned
+    let req = expect(&mut e, SeatId(0), WindowLabel::ActionBlock);
+    assert!(lock(&req), "{:?}", req.options);
+    pick(&mut e, Choice::Pass);
     let req = expect(&mut e, SeatId(1), WindowLabel::ActionBlock);
-    assert!(
-        !req.options.contains(&Choice::DeclareBlock { minion: x }),
-        "{req:?}"
-    );
-    assert!(
-        req.options.contains(&Choice::DeclareBlock { minion: y }),
-        "{req:?}"
-    );
+    assert!(req.options.contains(&Choice::DeclareBlock { minion: z }));
 }
 
 // A change of blocker fails the attempt under way like its closure does
@@ -15372,54 +15377,99 @@ fn priority_contract_pays_when_its_minion_falls_in_anothers_combat() {
     assert!(!e.state.cards[pc.index()].in_play);
 }
 
-// The owner's ruling (rules-qa 82.1): a failed block attempt gives the
-// impulse to its Methuselah, who attempts with another minion or declines,
-// never to the acting one in between — though the acting Methuselah holds
-// a card it could play then (Revelation of the Serpent's +1 bleed). The
-// acting one's next impulse comes after that decline. Failed by its
-// closure (the table passes short of the stealth), or by Enchanting
-// Gaze's counter burned.
+// The owner's ruling (rules-qa 82.1): a blocker short of the stealth
+// attempts with another minion or passes, and that pass is its decline once
+// the table had its round on the attempt still under way (KRCG News Radio,
+// seat 2's). Then the impulse goes on from the next seat (seat 2's Eagle's
+// Sight, in the open window), not back to the acting Methuselah, whose
+// impulse is the blocks-declined window's. Help reaching the stealth gives
+// the acting Methuselah the impulse (Revelation of the Serpent's stealth);
+// a play voids the decline (1.2), the blocker asked again.
 #[test]
-fn a_failed_block_attempt_goes_to_its_methuselah_not_the_acting_one() {
-    for burned in [false, true] {
+fn a_short_block_attempts_pass_is_its_decline_after_the_tables_round() {
+    for helped in [false, true] {
         let mut e = Engine::bare(3);
         let a = e.add_minion(SeatId(0), with(&["PRE", "PRO"], 0), 5, false);
         e.add_minion(SeatId(0), plain("Brujah", "", 1), 4, false);
         let z = e.add_minion(SeatId(1), plain("Ventrue", "", 0), 5, false);
         let y = e.add_minion(SeatId(1), plain("Ventrue", "", 1), 5, false);
-        e.state.minions[z.index()].add_corruption(SeatId(0), 1);
+        let w = e.add_minion(SeatId(2), with(&["AUS"], 0), 5, false);
+        let radio = location(&mut e, 2, "KRCG News Radio");
         hand(&mut e, 0, &["Enchanting Gaze", "Revelation of the Serpent"]);
+        hand(&mut e, 2, &["Eagle's Sight"]);
         pick(&mut e, action(a, ActionKind::Bleed));
         pick_when(&mut e, Choice::DeclareBlock { minion: z });
-        pick_when(&mut e, play(0, 1, a)); // Enchanting Gaze: +1 stealth, 1 against 0
-        if burned {
-            pick_when(&mut e, Choice::BurnCorruptionToFail { minion: z });
-        }
-        // The table passes round the attempt, short of the stealth.
-        let mut req = request(&mut e);
-        while matches!(
-            e.action().unwrap().state,
-            zvtes::actions::ActionState::Attempt(_)
-        ) {
-            e.choose(index_of(&req, Choice::Pass));
-            req = request(&mut e);
-        }
-        // The attempt failed: its Methuselah's turn, another minion offered.
-        assert_eq!(
-            (req.seat, req.window),
-            (SeatId(1), WindowLabel::ActionBlock),
-            "burned {burned}: {:?}",
-            req.options
-        );
-        assert!(req.options.contains(&Choice::DeclareBlock { minion: y }));
-        assert!(!req.options.contains(&Choice::DeclareBlock { minion: z }));
+        // Enchanting Gaze: +1 stealth, 1 against 0; then the acting
+        // Methuselah's impulse after its play.
+        pick_when(&mut e, play(0, 1, a));
         pick(&mut e, Choice::Pass);
-        // The acting Methuselah's next impulse: after the decline.
-        let req = until(&mut e, SeatId(0), WindowLabel::ActionBlock);
+        // Short: another minion, or the pass that declines.
+        let req = expect(&mut e, SeatId(1), WindowLabel::ActionBlock);
+        assert!(req.options.contains(&Choice::DeclareBlock { minion: y }));
+        assert!(!e.action().unwrap().declining(&e.state));
+        pick(&mut e, Choice::Pass);
+        // The table's round, the attempt still under way.
+        let help = use_on(radio, 1, None, Target::None);
+        let req = expect(&mut e, SeatId(2), WindowLabel::ActionBlock);
+        assert!(req.options.contains(&help));
+        assert!(e.action().unwrap().declining(&e.state));
+        if helped {
+            pick(&mut e, help); // 1 against 1
+            let req = expect(&mut e, SeatId(0), WindowLabel::ActionBlock);
+            assert!(!e.action().unwrap().declining(&e.state));
+            assert!(req.options.contains(&play(0, 1, a)));
+            // Revelation's stealth: 1 against 2
+            pick(&mut e, play(0, 1, a));
+            // Short again (the acting Methuselah's impulse after its play
+            // elided: nothing left to play): the decline voided by the
+            // plays, asked again.
+            expect(&mut e, SeatId(1), WindowLabel::ActionBlock);
+            assert!(!e.action().unwrap().declining(&e.state));
+            pick(&mut e, Choice::Pass);
+        } else {
+            pick(&mut e, Choice::Pass);
+        }
+        // Declined: the impulse goes on from seat 2, in the open window.
+        let req = expect(&mut e, SeatId(2), WindowLabel::ActionBlock);
         assert!(e.action().unwrap().declined.contains(&SeatId(1)));
-        assert!(req
-            .options
-            .iter()
-            .any(|o| matches!(o, Choice::Play { card: 0, .. })));
+        assert!(req.options.contains(&play(0, 1, w)), "{:?}", req.options);
+        pick(&mut e, Choice::Pass);
+        // Its pass comes round to the acting Methuselah: blocks declined,
+        // its impulse the next window's (with Revelation still in hand).
+        if !helped {
+            expect(&mut e, SeatId(0), WindowLabel::ActionBlocksDeclined);
+        }
+        until(&mut e, SeatId(0), WindowLabel::MinionPhase);
+        assert_eq!(e.last_outcome, Some(zvtes::actions::Outcome::Successful));
     }
+}
+
+// rules-qa 82.1: an attempt failed by an effect (Enchanting Gaze's counter
+// burned) is not the blocker's decline: the impulse goes back to the acting
+// Methuselah, as after a play (1.2), and the blocker's Methuselah may
+// attempt with another minion in its turn after.
+#[test]
+fn a_block_attempt_failed_by_an_effect_goes_back_to_the_acting_one() {
+    let mut e = Engine::bare(3);
+    let a = e.add_minion(SeatId(0), with(&["PRE", "PRO"], 0), 5, false);
+    e.add_minion(SeatId(0), plain("Brujah", "", 1), 4, false);
+    let z = e.add_minion(SeatId(1), plain("Ventrue", "", 0), 5, false);
+    let y = e.add_minion(SeatId(1), plain("Ventrue", "", 1), 5, false);
+    e.state.minions[z.index()].add_corruption(SeatId(0), 1);
+    hand(&mut e, 0, &["Enchanting Gaze", "Revelation of the Serpent"]);
+    pick(&mut e, action(a, ActionKind::Bleed));
+    pick_when(&mut e, Choice::DeclareBlock { minion: z });
+    pick_when(&mut e, play(0, 1, a)); // Enchanting Gaze
+    pick_when(&mut e, Choice::BurnCorruptionToFail { minion: z });
+    let req = expect(&mut e, SeatId(0), WindowLabel::ActionBlock);
+    assert!(req
+        .options
+        .iter()
+        .any(|o| matches!(o, Choice::Play { card: 0, .. })));
+    pick(&mut e, Choice::Pass);
+    let req = expect(&mut e, SeatId(1), WindowLabel::ActionBlock);
+    assert!(req.options.contains(&Choice::DeclareBlock { minion: y }));
+    assert!(!req.options.contains(&Choice::DeclareBlock { minion: z }));
+    pick(&mut e, Choice::Pass);
+    assert!(e.action().unwrap().declined.contains(&SeatId(1)));
 }

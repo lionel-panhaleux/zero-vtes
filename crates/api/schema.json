@@ -294,6 +294,10 @@
             "minimum": 0
           }
         },
+        "declining": {
+          "description": "The attempt under way is short of the stealth and its Methuselah\npassed: blocks are not declined yet, and it declines unless the\ntable helps the attempt before the round ends.",
+          "type": "boolean"
+        },
         "intercept": {
           "type": [
             "integer",

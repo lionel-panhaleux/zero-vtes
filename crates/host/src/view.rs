@@ -202,6 +202,7 @@ impl Build<'_> {
                     blocker: blocker.map(|m| self.minion_ref(m)),
                     intercept: blocker.map(|m| a.intercept_of(&e.state, m)),
                     declined: a.declined.iter().map(|s| s.0).collect(),
+                    declining: a.declining(&e.state),
                 }
             }),
             combat: e.combat().map(|c| CombatView {

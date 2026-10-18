@@ -221,6 +221,11 @@ pub struct Engine {
     /// The plays resolved or canceled, for a narrator (`PlayNote`), as
     /// `reveal_notes`.
     pub play_notes: Option<Vec<PlayNote>>,
+    /// Each block attempt failed short of the stealth, its blocker's
+    /// decline (rules-qa 82.1): the seats an engine before it asked again
+    /// (`Reasked`), for a record reader. `None`, the default, keeps
+    /// nothing.
+    pub short_declines: Option<Vec<Vec<Reasked>>>,
     /// A pair's strikes note waiting for the strike a first strike held
     /// back (`CombatCtx::held_strike`): one note a pair.
     pub(crate) held_note: Option<crate::combat::CombatNote>,
@@ -316,6 +321,17 @@ pub struct Reveal {
     pub card: u16,
     pub crypt: bool,
     pub after: usize,
+}
+
+/// A seat an engine before rules-qa 82.1 asked again after a block attempt
+/// failed short of the stealth, as it reopened the block window at the
+/// acting Methuselah (`Engine::short_declines`).
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct Reasked {
+    pub seat: SeatId,
+    /// Offered only attempts that cannot reach the stealth: not asked
+    /// before rules-qa 73.8 either.
+    pub futile: bool,
 }
 
 /// A play finished, for a narrator: resolved (its mode's effects; an
@@ -490,6 +506,7 @@ impl Engine {
             combat_notes: None,
             reveal_notes: None,
             play_notes: None,
+            short_declines: None,
             held_note: None,
             history: Default::default(),
         };

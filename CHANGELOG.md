@@ -10,6 +10,12 @@ removes; its `--check` fails a removal without a major version.
 
 - The `resolved` (`seat`, `card`, `effects`) and `canceled` (`seat`,
   `card`) events: how a card played finished.
+- `ActionView.declining`: a blocker short of the stealth passed, its
+  decline standing unless the table helps the attempt (rules-qa 82.1).
+  The block loop it belongs to: that pass is the decline, and the impulse
+  goes on from the next seat, never the acting one's until blocks are
+  declined. With `opportunities` off, the acting seat's options other
+  than the pass against a short attempt are hidden.
 
 ## 1.8.0
 

@@ -233,6 +233,12 @@ export type ActionView = {
     card?: Card | null
     /** The Methuselahs who declined to block. */
     declined?: number[]
+    /**
+     * The attempt under way is short of the stealth and its Methuselah
+     * passed: blocks are not declined yet, and it declines unless the
+     * table helps the attempt before the round ends.
+     */
+    declining?: boolean
     intercept?: number | null
     kind: ActionKind
     /** Its mode (Disciplines, level) and X. */

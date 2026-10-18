@@ -48,6 +48,11 @@ pub struct Replay {
     /// windows offering only attempts that cannot reach the stealth: read
     /// past them (`Replay::elided`), as the record reads further so.
     elides: bool,
+    /// Played on an engine before rules-qa 82.1 (protocol 1.9.0), which
+    /// reopened the block window at the acting Methuselah after an attempt
+    /// failed short of the stealth: its recorded passes there are read past
+    /// (`Reader::next`).
+    reopens: bool,
 }
 
 impl Replay {
@@ -97,6 +102,7 @@ impl Replay {
                 .map(|i| i as Seat)
                 .collect(),
             elides: false,
+            reopens: before(&record.protocol, (1, 9)),
         };
         let plain = replay.read(usize::MAX).1;
         replay.elides = true;
@@ -136,12 +142,18 @@ impl Replay {
             n += 1;
             consumed = reader.position();
         }
+        // The game goes on from here as any other (`Start::position`).
+        e.short_declines = None;
         (e, n, consumed)
     }
 
     /// The game as dealt.
     pub fn deal(&self) -> Engine {
-        deal(self.seed, self.time_limit, &self.decks)
+        let mut e = deal(self.seed, self.time_limit, &self.decks);
+        if self.reopens {
+            e.short_declines = Some(Vec::new());
+        }
+        e
     }
 
     /// The Pass of a block window offering only attempts that cannot reach
@@ -159,7 +171,7 @@ impl Replay {
         Reader {
             replay: self,
             next: 0,
-            owed: None,
+            declines: 0,
         }
     }
 
@@ -203,9 +215,9 @@ pub fn ended(record: &GameRecord, reason: EndReason) -> GameResult {
 pub struct Reader<'a> {
     replay: &'a Replay,
     next: usize,
-    /// The acting seat's recorded pass read past, owed when this engine
-    /// asks that seat later in the same open block window (rules-qa 82.1).
-    owed: Option<zvtes::ids::SeatId>,
+    /// The engine's short declines read past so far
+    /// (`Engine::short_declines`).
+    declines: usize,
 }
 
 impl Reader<'_> {
@@ -219,48 +231,31 @@ impl Reader<'_> {
     /// recorded index among several alike). `None` when the record ends;
     /// an error when no option is it (the rules changed).
     pub fn next(&mut self, e: &Engine, req: &DecisionRequest) -> Option<Result<usize, String>> {
-        // Before rules-qa 82.1, a failed attempt gave the acting seat the
-        // open window's first turn; it now comes last. Its recorded pass
-        // there is read past while another seat is asked, and owed: given
-        // when the acting seat is asked in that window, its end.
-        let open = req.window == zvtes::decision::WindowLabel::ActionBlock
-            && e.action()
-                .is_some_and(|a| a.state == zvtes::actions::ActionState::Open);
-        let acting = e.action().map(|a| a.seat);
-        if !open {
-            self.owed = None;
-        }
-        if open && self.owed == Some(req.seat) {
-            self.owed = None;
-            if let Some(i) = req
-                .options
-                .iter()
-                .position(|c| *c == zvtes::decision::Choice::Pass)
-            {
-                return Some(Ok(i));
+        // Before rules-qa 82.1, an attempt failed short of the stealth
+        // reopened the block window at the acting Methuselah, the seats
+        // through the blocker asked again (the blocker's pass its decline):
+        // their recorded passes there, right after it, are read past; a
+        // play there instead stops the record (the rules changed).
+        let notes = e.short_declines.as_deref().unwrap_or_default();
+        for asked in &notes[self.declines.min(notes.len())..] {
+            // A seat offered only futile attempts was not asked before
+            // rules-qa 73.8 either (`Replay::elided`).
+            for r in asked.iter().filter(|r| !(r.futile && self.replay.elides)) {
+                match self.replay.decisions.get(self.next) {
+                    Some(d)
+                        if d.seat == r.seat.0
+                            && d.choice.kind == zvtes_api::ids::OptionKind::Pass =>
+                    {
+                        self.next += 1;
+                    }
+                    _ => break,
+                }
             }
         }
-        if let Some(d) = self.replay.decisions.get(self.next) {
-            if open
-                && self.owed.is_none()
-                && Some(zvtes::ids::SeatId(d.seat)) == acting
-                && d.seat != req.seat.0
-                && d.choice.kind == zvtes_api::ids::OptionKind::Pass
-            {
-                self.owed = acting;
-                self.next += 1;
-            }
-        }
+        self.declines = notes.len();
         let d = self.replay.decisions.get(self.next)?;
         self.next += 1;
         let read = recorded_option(e, req, d);
-        // A play voids the passes before it (rules-qa 1.2), the owed one too.
-        if read
-            .as_ref()
-            .is_ok_and(|&i| req.options[i] != zvtes::decision::Choice::Pass)
-        {
-            self.owed = None;
-        }
         Some(read)
     }
 }
@@ -350,8 +345,8 @@ pub enum Step {
 pub struct Replayer {
     replay: Replay,
     next: usize,
-    /// `Reader::owed`, kept between steps.
-    owed: Option<zvtes::ids::SeatId>,
+    /// `Reader::declines`, kept between steps.
+    declines: usize,
     session: Session,
     viewer: Viewer,
     dealt: Decks,
@@ -363,7 +358,11 @@ impl Replayer {
     pub fn new(record: &GameRecord) -> Result<Replayer, String> {
         let replay = Replay::new(record)?;
         let agents = (0..replay.seats()).map(|_| None).collect();
-        let session = Session::new(replay.seed, replay.time_limit, replay.decks.clone(), agents);
+        let mut session =
+            Session::new(replay.seed, replay.time_limit, replay.decks.clone(), agents);
+        if replay.reopens {
+            session.keep_short_declines();
+        }
         let dealt = Decks::dealt(session.engine());
         let mut viewer = Viewer::new(None);
         let mut known = zvtes_text::Names::new(crate::cards::cards());
@@ -371,7 +370,7 @@ impl Replayer {
         Ok(Replayer {
             replay,
             next: 0,
-            owed: None,
+            declines: 0,
             session,
             viewer,
             dealt,
@@ -493,14 +492,14 @@ impl Replayer {
         let mut reader = Reader {
             replay: &self.replay,
             next: self.next,
-            owed: self.owed,
+            declines: self.declines,
         };
         match reader.next(e, &req) {
             None => Step::Decision(read),
             Some(Err(why)) => Step::Stopped { why, last: read },
             Some(Ok(i)) => {
                 self.next = reader.next;
-                self.owed = reader.owed;
+                self.declines = reader.declines;
                 self.pending = Some(i);
                 read.chosen = Some(i);
                 Step::Decision(read)
@@ -514,4 +513,11 @@ impl Replayer {
             self.session.take(i, Taken::Bot);
         }
     }
+}
+
+/// Whether the protocol version `v` ("1.8.0") is before `major.minor`.
+fn before(v: &str, (major, minor): (u32, u32)) -> bool {
+    let mut parts = v.split('.').map(|p| p.parse::<u32>().unwrap_or(0));
+    let (a, b) = (parts.next().unwrap_or(0), parts.next().unwrap_or(0));
+    (a, b) < (major, minor)
 }

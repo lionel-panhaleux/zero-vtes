@@ -78,6 +78,10 @@ enum Opportunity {
     /// A block attempt that cannot reach the action's stealth
     /// (`Engine::block_can_reach`; rules-qa 48.5, 66.2, 73.8).
     Futile,
+    /// The acting Methuselah's options other than the pass while the attempt
+    /// under way is short of the stealth: the blocker's to answer and the
+    /// table's to help (rules-qa 82.1).
+    Unmatched,
 }
 
 /// Why an answer is refused.
@@ -171,6 +175,12 @@ impl Session {
             snapshots: Vec::new(),
             dealt,
         }
+    }
+
+    /// Keep the engine's short declines (`Engine::short_declines`), for a
+    /// record from before rules-qa 82.1.
+    pub(crate) fn keep_short_declines(&mut self) {
+        self.engine.short_declines = Some(Vec::new());
     }
 
     pub fn engine(&self) -> &Engine {
@@ -536,7 +546,8 @@ impl Session {
 
     /// Whether `c` is an opportunity: a wake (in its moment or not), an
     /// ability usable at any time (The Louvre, Paris), a block denial, a
-    /// legal no-op, a futile block attempt.
+    /// legal no-op, a futile block attempt, the acting seat's option against
+    /// a short attempt.
     fn opportunity(&self, req: &DecisionRequest, c: &Choice) -> Option<Opportunity> {
         let e = &self.engine;
         let st = &e.state;
@@ -544,6 +555,17 @@ impl Session {
         // 2026-10-17: "really an uninteresting cornercase").
         if e.gains_nothing(req.seat, c) {
             return Some(Opportunity::Nothing);
+        }
+        if let Some(a) = e.action() {
+            if let ActionState::Attempt(x) = a.state {
+                if req.seat == a.seat
+                    && req.window == WindowLabel::ActionBlock
+                    && *c != Choice::Pass
+                    && a.intercept_of(st, x) < a.stealth(st)
+                {
+                    return Some(Opportunity::Unmatched);
+                }
+            }
         }
         match *c {
             Choice::Play { card, mode, .. } => {
@@ -614,7 +636,9 @@ impl Session {
 
     /// The options a human seat is shown: all, unless it passes on its
     /// opportunities. Then no wake out of its moment, no denial short of
-    /// the stealth, no legal no-op, no block attempt short of it, and the
+    /// the stealth, no legal no-op, no block attempt short of it, none of the
+    /// acting seat's options but the pass while the attempt under way is
+    /// short of it, and the
     /// abilities usable at any time only where the decision pauses anyway;
     /// all if none is left.
     pub(crate) fn shown(&self, req: &DecisionRequest) -> Vec<usize> {
@@ -635,6 +659,7 @@ impl Session {
                     && kinds[i] != Some(Opportunity::Denial(false))
                     && kinds[i] != Some(Opportunity::Nothing)
                     && kinds[i] != Some(Opportunity::Futile)
+                    && kinds[i] != Some(Opportunity::Unmatched)
             })
             .collect();
         let pause = shown
@@ -1118,6 +1143,63 @@ mod tests {
             target: Target::None,
         };
         hidden_off(&mut s, &req, reveal);
+    }
+
+    /// The acting Methuselah's play while the block attempt under way is
+    /// short of the stealth is hidden with the opportunities off (rules-qa
+    /// 82.1): Revelation of the Serpent's bleed during Donny's attempt
+    /// against Form of the Cobra's stealth.
+    #[test]
+    fn an_acting_play_against_a_short_attempt_is_hidden_with_the_opportunities_off() {
+        let (mut s, _) = session();
+        let mut e = Engine::bare(3);
+        let p = e.add_minion(SeatId(0), find_card("Crystal Lynn"), 4, false);
+        e.add_minion(SeatId(0), find_card("Madison"), 4, false);
+        let z = e.add_minion(SeatId(1), find_card("Donny Kowalczyk"), 4, false);
+        for c in ["Form of the Cobra", "Revelation of the Serpent"] {
+            e.state.seats[0].hand.put(find_library(c), CopyId::NONE);
+        }
+        s.engine = e;
+        let bleed = Choice::TakeAction {
+            minion: p,
+            action: ActionKind::Bleed,
+            target: None,
+        };
+        let cobra = Choice::Play {
+            card: 0,
+            mode: 1,
+            actor: Some(p),
+            target: Target::None,
+        };
+        let block = Choice::DeclareBlock { minion: z };
+        let mut req = None;
+        for _ in 0..20 {
+            let Step::Decision(r) = s.engine.run() else {
+                panic!("a decision");
+            };
+            let attempt = s
+                .engine
+                .action()
+                .is_some_and(|a| matches!(a.state, ActionState::Attempt(_)));
+            if attempt && r.seat == SeatId(0) {
+                req = Some(r);
+                break;
+            }
+            let i = [bleed, cobra, block]
+                .iter()
+                .find_map(|w| r.options.iter().position(|o| o == w))
+                .unwrap_or(0);
+            s.engine.choose(i);
+        }
+        let req = req.expect("the acting seat asked during the attempt");
+        let a = s.engine.action().unwrap();
+        assert!(a.intercept_of(&s.engine.state, z) < a.stealth(&s.engine.state));
+        let revelation = *req
+            .options
+            .iter()
+            .find(|o| matches!(o, Choice::Play { .. }))
+            .expect("Revelation of the Serpent offered");
+        hidden_off(&mut s, &req, revelation);
     }
 
     /// A wake is shown in the seat's own block moment only (owner,

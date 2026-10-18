@@ -263,7 +263,10 @@ the previous one, never the engine's state.
   (`announced`, `open`, `attempt`, `declined`, `would_succeed`,
   `blocked`, `after_combat`, `resolved`), the `card` and its `mode` and
   `x`, `source`, `target`, `bleed_target`, `bleed`, `stealth`, `blocker`,
-  `intercept`, `declined`.
+  `intercept`, `declined`, `declining` (the attempt under way is short of
+  the stealth and its Methuselah passed: blocks are not declined yet, and
+  it declines unless the table helps the attempt before the round ends,
+  rules-qa 82.1).
 - `combat`: `minions` (acting first), `round`, `range`, `sides[]`
   (`strike` once declared — the blocker chooses knowing the acting
   minion's — `maneuvers`, `presses`). A strike: `kind`, `n`, `ranged`,
@@ -391,7 +394,9 @@ their default) and changed by `settings`:
   concerns the seat, as a card is played, or, while blocks are open,
   outside the seat's own block moment (before the would-be blockers ahead
   of it declined, after its own decline), a block denial short of the
-  action's stealth, an any-time
+  action's stealth, the acting seat's options other than the pass while the
+  attempt under way is short of it (the round is the blocker's and the
+  table's), an any-time
   ability where nothing else is on offer, an ability that would gain
   nothing now (legal all the same: burning the counters of a card that
   has none, votes for a vampire that cannot vote, Gathii's reveal before
@@ -501,9 +506,11 @@ saying why when it does not read to its end (rules fixes change the
 engine, §14).
 A record replays by index on its engine commit, and reads by key on a
 later engine (a record from before every block attempt was offered reads
-past the block windows its engine skipped; one from before rules-qa 82.1
-gives the acting seat's pass after a failed block attempt where this
-engine asks it, at the open window's end). Kept two years, to train and
+past the block windows its engine skipped; one from before rules-qa 82.1 (protocol
+before 1.9.0), whose engine reopened the block window at the acting
+Methuselah after an attempt failed short of the stealth, reads past the
+passes it recorded there; the engines from 22cf131 to it, never
+deployed, left no record read). Kept two years, to train and
 test the engine; anonymous.
 
 ## 12. Open sets

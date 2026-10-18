@@ -225,9 +225,12 @@ hosts a window.
   checkpoint. A declared attempt stays pending until all pass consecutively (any
   play voids prior passes), so third parties can still add intercept or strip
   stealth after the attempting Methuselah passes. At closure intercept ≥ stealth
-  → block; otherwise the attempt fails and the loop returns to "no attempt"
-  (rulebook B.4), where the same Methuselah, its impulse first (rules-qa
-  82.1), may attempt again. A pass **with no
+  → block; short of it, the attempting Methuselah's pass in that round was
+  its decline, and the open window goes on from the seat after it, never
+  back to the acting one, whose impulse there is only the window's first
+  and the one after a play (rules-qa 82.1). Failed otherwise (an effect,
+  a lock, a toll unpaid), the loop returns to "no attempt" (rulebook B.4),
+  where the same Methuselah may attempt again (82.2, open). A pass **with no
   ongoing attempt is a final decline**, reopened only by a change of target
   (bounces: Deflection, Telepathic Misdirection — not the card Change of Target,
   which ends the action). Hence a third-party helper needs the defender to
@@ -1777,7 +1780,7 @@ Still true today; "(verify)" marks items inferred from older notes.
 - **P5 — community**: bot service, client adapter, human-ergonomics layer
   (its open items on the boards).
 
-Definitions: 828 library, 400 vampires; 2123 Rust tests, 38 Python tests
+Definitions: 828 library, 400 vampires; 2127 Rust tests, 38 Python tests
 
 ## Outlook: deck building (post-v1)
 

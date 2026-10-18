@@ -996,20 +996,31 @@ impl ActionCtx {
         }
     }
 
-    /// The pending block attempt fails (`record_failed`); the impulse its
-    /// Methuselah's, to attempt with another or decline, the acting one's
-    /// after (rules-qa 82.1).
+    /// The pending block attempt fails (`record_failed`) by an effect or a
+    /// lock, not short of the stealth: the impulse back to the acting
+    /// Methuselah, as after a play (rules-qa 1.2).
     fn attempt_failed(&mut self, st: &crate::state::GameState, barred: bool) {
         let ActionState::Attempt(m) = self.state else {
             return;
         };
         self.record_failed(st, m, barred);
         self.state = ActionState::Open;
-        self.window = OrderedWindow::starting_at(self.order.clone(), st.minions[m.index()].owner);
+        self.fresh_window();
     }
 
     fn fresh_window(&mut self) {
         self.window = OrderedWindow::new(self.order.clone());
+    }
+
+    /// The attempt under way is short of the stealth and its Methuselah
+    /// passed since the last play: it declines unless the table helps it
+    /// before the round ends (rules-qa 82.1).
+    pub fn declining(&self, st: &crate::state::GameState) -> bool {
+        let ActionState::Attempt(m) = self.state else {
+            return false;
+        };
+        self.intercept_of(st, m) < self.stealth(st)
+            && self.window.passed(st.minions[m.index()].owner)
     }
 }
 
@@ -1849,18 +1860,50 @@ impl Engine {
         (either, blood, counters)
     }
 
+    /// Note an attempt failed short of the stealth, `owner`'s decline, when
+    /// `Engine::short_declines` keeps them: the seats from the acting
+    /// Methuselah through `owner` with more than one option in the block
+    /// window an engine before rules-qa 82.1 reopened.
+    fn note_short_decline(&mut self, owner: SeatId) {
+        if self.short_declines.is_none() {
+            return;
+        }
+        let real = self.action.clone().expect("action context");
+        let mut old = real.clone();
+        old.state = ActionState::Open;
+        old.declined.retain(|&s| s != owner);
+        old.window = OrderedWindow::new(old.order.clone());
+        let through = old
+            .order
+            .iter()
+            .position(|&s| s == owner)
+            .expect("the blocker's Methuselah in the order")
+            + 1;
+        self.action = Some(old);
+        let mut asked = Vec::new();
+        for _ in 0..through {
+            if let Some(req) = self.action_request() {
+                if req.options.len() > 1 {
+                    asked.push(crate::game::Reasked {
+                        seat: req.seat,
+                        futile: self.futile_blocks(&req),
+                    });
+                }
+            }
+            self.action.as_mut().expect("action context").window.pass();
+        }
+        self.action = Some(real);
+        if let Some(notes) = self.short_declines.as_mut() {
+            notes.push(asked);
+        }
+    }
+
     /// The attempting minion resigns its attempt: back to A, where it may
     /// attempt again (LSJ 20031121-2).
     pub(crate) fn resign_attempt(&mut self) {
         let a = self.action.as_mut().expect("action context");
-        let ActionState::Attempt(m) = a.state else {
-            unreachable!("an attempt resigned with none pending");
-        };
         a.state = ActionState::Open;
-        // Its Methuselah's impulse, as after any failed attempt (rules-qa
-        // 82.1).
-        let owner = self.state.minions[m.index()].owner;
-        a.window = OrderedWindow::starting_at(a.order.clone(), owner);
+        a.fresh_window();
     }
 
     /// Burn the top `n` cards of `s`'s library.
@@ -2782,12 +2825,24 @@ impl Engine {
                 // Street Royals), a minion fails it.
                 let locked_out = !self.state.minions[blocker.index()].present()
                     || self.state.minions[blocker.index()].locked && !a.woken.contains(&blocker);
-                if !locked_out && a.intercept_of(&self.state, blocker) >= a.stealth(&self.state) {
+                if locked_out {
+                    a.attempt_failed(&self.state, false);
+                    self.flow = Flow::Action;
+                } else if a.intercept_of(&self.state, blocker) >= a.stealth(&self.state) {
                     self.blocked(blocker);
                 } else {
-                    // The attempt fails: its Methuselah's to attempt again
-                    // or decline (rulebook B.4).
-                    a.attempt_failed(&self.state, false);
+                    // Short of the stealth after the table's round: its
+                    // Methuselah's pass in it, short, was the decline, and
+                    // the impulse goes on from the next seat (rules-qa 82.1).
+                    let owner = self.state.minions[blocker.index()].owner;
+                    a.record_failed(&self.state, blocker, false);
+                    if !a.declined.contains(&owner) {
+                        a.declined.push(owner);
+                    }
+                    self.note_short_decline(owner);
+                    let a = self.action.as_mut().expect("action context");
+                    a.state = ActionState::Open;
+                    a.window = OrderedWindow::after(a.order.clone(), owner);
                     self.flow = Flow::Action;
                 }
             }

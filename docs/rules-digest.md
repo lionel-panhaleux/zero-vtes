@@ -1663,9 +1663,17 @@ Advanced rules §3.2 (stealth and intercept), §3.3 (blocking).
   is final: later stealth removal by a third party does not let them block
   (1.3). Declines are per Methuselah, not per minion; after a Form of Mist
   continuation earlier declines stand (3.4).
-- A failed attempt's impulse is its Methuselah's: another attempt, or the
-  decline; the acting Methuselah's impulse comes only after it, never
-  between the failure and the decline (82.1).
+- A blocker short of the stealth attempts with another minion or passes:
+  that pass is its decline once the table passed on the attempt still
+  under way (KRCG, Night Terrors may still help it; a play voids the
+  decline, 1.2); then the impulse goes on from the next Methuselah after
+  it, the acting one's coming once blocks are declined, and the acting
+  Methuselah's impulse in the open window is only its first and the one
+  after a play (82.1). Only that failure: one by an effect (Enchanting
+  Gaze, a cancel) returns the impulse to the acting Methuselah, and an
+  ended action (The Kiss of Ra) takes no further attempt (82.1); one with
+  no play (a lock at the closure, a toll unpaid) reads as an effect's,
+  open (82.2).
 - Only a change of the action's target (Deflection, Telepathic
   Misdirection) reopens block opportunities; Change of Target does not
   change the target, it ends the action (1.3).
@@ -4402,14 +4410,14 @@ an owner ruling:
 Every rules-qa item, by batch, with the digest sections citing it: the
 section stating it and those cross-referring to it (§2 the default
 readings, §22 engine modeling, §23 the contradictions, §24 the open
-readings). 731 items, Batches 1–82 (44.11 was removed, replaced by Batch
+readings). 732 items, Batches 1–82 (44.11 was removed, replaced by Batch
 45). The index is derived from the citations: a bare `N.M` cites rules-qa
 item N.M in the section it appears in. A new rules-qa item gets its line in
 the section stating it, then its entry here: `python3
 scripts/digest_index.py` writes the entries, `--check` fails on a stale
 index or an item cited nowhere.
 
-- **1** — 1.1 §13,§13.2,§21.3,§23.3; 1.2 §3.21,§5.1,§12.1; 1.3
+- **1** — 1.1 §13,§13.2,§21.3,§23.3; 1.2 §3.21,§5.1,§9.4,§12.1; 1.3
   §2,§3.8,§9.2,§9.4,§11.1,§23.3; 1.4
   §3.2,§3.16,§6.2,§8.5,§10.3,§11.1,§11.3,§14.1,§14.3; 1.5 §6.2; 1.6 §9.2
 - **2** — 2.1 §5.2,§12.12; 2.2 §5.1; 2.3 §5.2,§22; 2.4 §5.2,§9.1,§9.2,§14.1;
@@ -4679,4 +4687,4 @@ index or an item cited nowhere.
   §3.10; 78.51 §19.3; 78.52 §3.5; 78.53 §9.3; 78.54 §18.2
 - **79** — 79.1 §2,§9.2,§23.3; 79.2 §2,§15.2; 79.3 §2,§15.2,§23.3; 79.4 §2
 - **81** — 81.1 §5.2,§24.1
-- **82** — 82.1 §9.4
+- **82** — 82.1 §9.4; 82.2 §9.4

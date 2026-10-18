@@ -229,6 +229,11 @@ pub struct ActionView {
     /// The Methuselahs who declined to block.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub declined: Vec<Seat>,
+    /// The attempt under way is short of the stealth and its Methuselah
+    /// passed: blocks are not declined yet, and it declines unless the
+    /// table helps the attempt before the round ends.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub declining: bool,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]

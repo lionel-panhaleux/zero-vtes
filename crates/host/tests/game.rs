@@ -484,10 +484,10 @@ fn an_abilitys_user_is_said() {
 /// `due`, each naming a minion or card its options act on — a vampire
 /// that must hunt first, with a hunt on offer (rules-qa 17.2) — and one
 /// offering `pass` none; never inferred from the missing pass. The first
-/// forced hunt the human meets is seed 34 or so (a lone hunt elides).
+/// forced hunt the human meets is seed 115 or so (a lone hunt elides).
 #[test]
 fn a_minion_phase_without_a_pass_says_why() {
-    let seeds: u32 = std::env::var("HOST_SEEDS").map_or(70, |s| s.parse().unwrap());
+    let seeds: u32 = std::env::var("HOST_SEEDS").map_or(230, |s| s.parse().unwrap());
     let mut hunts = 0;
     each_decision(seeds, |seed, d| {
         if d.window != zvtes_api::ids::Window::MinionPhase {

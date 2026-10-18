@@ -42,9 +42,8 @@ fn every_record_reads_whole() {
             .iter()
             .filter(|e| matches!(e, zvtes_api::record::Entry::Decision { .. }))
             .count();
-        // Each recorded decision read: the acting seat's pass rules-qa 82.1
-        // moved given where it is now asked, or read past where it no
-        // longer is (nothing left for it to play).
+        // Each recorded decision read: taken, or a pass the block window an
+        // engine before rules-qa 82.1 reopened recorded, read past.
         assert!(read <= decisions, "{path:?}");
         assert_eq!(r.position(), decisions, "{path:?}");
         assert_eq!(
@@ -121,8 +120,10 @@ fn a_later_hosts_record_reads() {
         .iter()
         .filter(|e| matches!(e, zvtes_api::record::Entry::Decision { .. }))
         .count();
+    // Consumed: the passes a reopened block window recorded (before
+    // rules-qa 82.1) are read past, not taken.
     assert_eq!(
-        replay.read(usize::MAX).1,
+        replay.read_counting(usize::MAX).2,
         decisions,
         "read past the unknown"
     );

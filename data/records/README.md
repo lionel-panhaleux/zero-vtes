@@ -68,5 +68,7 @@ Every game here reads whole on the current engine
 (`crates/host/tests/records.rs`). A game a rules fix stops partway, or an
 unfinished one, is removed (owner, 2026-10-10, 2026-10-11); the removed
 games and where each stopped are in the history (`e5f8f54` and after). A
-record from before rules-qa 82.1 reads the acting seat's pass after a failed
-block attempt where this engine asks it, at the open window's end.
+record from before rules-qa 82.1 (protocol before 1.9.0) reads past the
+passes its engine recorded in the block window it reopened after an attempt
+failed short of the stealth; the engines from 22cf131 (the first 1.9.0) to
+this change, never deployed, left no record here.

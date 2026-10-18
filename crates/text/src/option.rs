@@ -69,7 +69,7 @@ fn base(
         _ => target(),
     };
     Some(match k.kind {
-        K::Pass if window == Window::ActionBlock => block_pass(seat, n).into(),
+        K::Pass if window == Window::ActionBlock => block_pass(seat, n),
         // A cost's terms: the pass reduces nothing.
         K::Pass
             if window == Window::PlayTerms
@@ -687,23 +687,26 @@ fn amount(o: &OptionView, n: &Names) -> Option<String> {
 }
 
 /// A pass in the block window, short and explicit: the defender's pass
-/// blocks only while its minion's attempt meets the stealth; anyone
-/// else's is plain.
-fn block_pass(seat: u8, n: &Names) -> &'static str {
+/// blocks while its minion's attempt meets the stealth, and declines while
+/// it is short, once the table passed too; a third party's then completes
+/// that decline, and the acting Methuselah's leaves blocks open.
+fn block_pass(seat: u8, n: &Names) -> String {
     use zvtes_api::ids::ActionStep;
-    match n.action() {
-        Some(a) if a.seat != seat => match (a.step, a.blocker) {
-            (ActionStep::Attempt, Some(b)) if n.controller(b) == Some(seat) => {
-                if a.intercept.unwrap_or(0) >= a.stealth {
-                    "Pass (blocking)"
-                } else {
-                    "Pass (no block)"
-                }
-            }
-            (ActionStep::Attempt, _) => "Pass",
-            _ => "Pass (no block)",
+    let Some(a) = n.action() else {
+        return "Pass".into();
+    };
+    let short = a.intercept.is_some_and(|i| i < a.stealth);
+    let defender = a.blocker.and_then(|b| n.controller(b));
+    match a.step {
+        ActionStep::Attempt if defender == Some(seat) && short => "Decline to block".into(),
+        ActionStep::Attempt if defender == Some(seat) => "Pass (blocking)".into(),
+        ActionStep::Attempt if a.seat == seat && short => "Pass (blocks not declined yet)".into(),
+        ActionStep::Attempt => match defender {
+            Some(d) if a.declining => format!("Pass ({} declines to block)", n.seat(d)),
+            _ => "Pass".into(),
         },
-        _ => "Pass",
+        _ if a.seat == seat => "Pass".into(),
+        _ => "Pass (no block)".into(),
     }
 }
 
@@ -842,4 +845,57 @@ fn ability_what(o: &OptionView, offered: &[OptionView], n: &Names) -> Option<Str
     } else {
         format!(": {l}")
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use zvtes_api::ids::{ActionKind, ActionStep, KrcgId};
+    use zvtes_api::view::ActionView;
+
+    use crate::{Cards, Names};
+
+    struct NoCards;
+
+    impl Cards for NoCards {
+        fn name(&self, _: KrcgId) -> Option<&str> {
+            None
+        }
+    }
+
+    // The block window's passes (rules-qa 82.1): the defender's short of the
+    // stealth declines; the table's then completes that decline; the
+    // acting Methuselah's leaves blocks open.
+    #[test]
+    fn a_pass_against_a_short_attempt_says_who_declines() {
+        let mut n = Names::new(&NoCards);
+        n.seats = vec!["Ana".into(), "Ben".into(), "Cal".into()];
+        n.controllers.insert(7, 1);
+        let action = |intercept, declining| ActionView {
+            seat: 0,
+            acting: 3,
+            kind: ActionKind::Bleed,
+            step: ActionStep::Attempt,
+            card: None,
+            mode: None,
+            x: None,
+            source: None,
+            target: None,
+            bleed_target: Some(1),
+            bleed: Some(1),
+            stealth: 1,
+            blocker: Some(7),
+            intercept: Some(intercept),
+            declined: vec![],
+            declining,
+        };
+        n.action = Some(action(0, false));
+        assert_eq!(super::block_pass(1, &n), "Decline to block");
+        assert_eq!(super::block_pass(0, &n), "Pass (blocks not declined yet)");
+        assert_eq!(super::block_pass(2, &n), "Pass");
+        n.action = Some(action(0, true));
+        assert_eq!(super::block_pass(2, &n), "Pass (Ben declines to block)");
+        n.action = Some(action(1, false));
+        assert_eq!(super::block_pass(1, &n), "Pass (blocking)");
+        assert_eq!(super::block_pass(0, &n), "Pass");
+    }
 }

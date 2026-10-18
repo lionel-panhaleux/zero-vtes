@@ -225,14 +225,16 @@ def test_tables_start_from_an_owner_game():
     opening), every seat played from there; episodes say which."""
     text = open(OWNER_GAME).read()
     pool = zvtes_py.GamePool(4, ["policy"] * 4, seed=9, replays=[text])
-    assert pool.starts == [369]
+    # 368 of its 369 decisions taken: one pass of a block window its engine
+    # reopened (before rules-qa 82.1) is read past.
+    assert pool.starts == [368]
     pool.queue([{"seats": ["aggro", "net:0", "wall", "aggro"], "start": 0}] * 8)
     rng = np.random.default_rng(9)
     done = []
     while len(done) < 8:
         done += pool.act(random_actions(pool.observe(), rng))
     started = [ep for ep in done if "start" in ep]
-    assert started and all(ep["start"][0] == 0 and 369 // 5 <= ep["start"][1] < 369 for ep in started)
+    assert started and all(ep["start"][0] == 0 and 368 // 5 <= ep["start"][1] < 368 for ep in started)
     assert all(ep["decks"] == [] for ep in started)
     with pytest.raises(ValueError):
         pool.queue([{"seats": ["net:0"] * 5, "start": 0}])

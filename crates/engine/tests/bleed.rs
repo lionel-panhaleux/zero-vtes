@@ -62,8 +62,8 @@ fn table() -> Table {
 }
 
 // rules-qa 3.2 — stealth only when needed: Earth Control is masked with no
-// attempt pending and offered once an attempt has intercept ≥ stealth. A
-// failed attempt goes to its Methuselah (rulebook B.4, rules-qa 82.1);
+// attempt pending and offered once an attempt has intercept ≥ stealth. An
+// attempt short of it goes to its Methuselah (rulebook B.4, rules-qa 82.1);
 // with no intercept in hand a new attempt cannot reach the stealth,
 // offered all the same (rules-qa 73.8), and the seat's pass is the final
 // decline.
@@ -87,9 +87,9 @@ fn stealth_only_when_needed() {
     // Impulse back to seat 0: 0 intercept ≥ 0 stealth, stealth is needed.
     let req = expect(e, SeatId(0), WindowLabel::ActionBlock);
     assert_eq!(plays(&req), vec![play(0, 0, t.p), play(0, 1, t.p)]);
-    // +2 stealth, 1 blood. The attempt fails at closure, back to A: C's
-    // attempt cannot reach 2 intercept, B's is not offered again (rules-qa
-    // 48.6).
+    // +2 stealth, 1 blood. B's attempt is short: seat 1 is offered C's
+    // instead, futile at 2 (rules-qa 73.8), or the pass that declines
+    // (82.1).
     pick(e, play(0, 1, t.p));
     let req = expect(e, SeatId(1), WindowLabel::ActionBlock);
     assert_eq!(
@@ -107,8 +107,8 @@ fn stealth_only_when_needed() {
 // rules-qa 73.8 — every legal block attempt is offered, a futile one
 // included: against a hunt (+1 stealth), a 0-intercept vampire whose
 // Methuselah holds no card. Its attempt cannot reach the stealth, is made,
-// fails as every Methuselah passes, is not offered again (48.6), and the
-// hunt succeeds.
+// fails as every Methuselah passes, its Methuselah's pass the decline
+// (82.1), and the hunt succeeds.
 #[test]
 fn a_futile_block_attempt_is_offered_and_fails() {
     let mut e = Engine::bare(3);
@@ -125,8 +125,8 @@ fn a_futile_block_attempt_is_offered_and_fails() {
     assert_eq!(e.action().unwrap().stealth(&e.state), 1);
     assert!(!e.block_can_reach(SeatId(1), z));
     e.choose(1);
-    // Nobody can add intercept: the attempt fails at closure, the hunt
-    // goes on and nothing else is asked.
+    // Nobody can add intercept: the pass is the decline, the hunt goes on
+    // and nothing else is asked (rules-qa 82.1).
     let req = request(&mut e);
     assert_eq!(
         (req.seat, req.window),
@@ -200,10 +200,9 @@ fn stealth_waived_by_card_text() {
     assert_eq!(e.state.seats[1].pool, 30);
 }
 
-// rules-qa 1.3 — an attempt persists until all pass; a failed attempt
-// gives the impulse to its Methuselah, who may attempt again (not with the
-// same minion while nothing changed, 48.6; rules-qa 82.1); its pass with
-// no attempt is the final decline.
+// rules-qa 1.3 — an attempt persists until all pass; its Methuselah's
+// pass with it short of the stealth is the decline once the table passed
+// too, and no other attempt is offered (rules-qa 82.1).
 #[test]
 fn block_attempt_persists_until_all_pass() {
     let mut t = table();
@@ -215,23 +214,22 @@ fn block_attempt_persists_until_all_pass() {
     pick(e, bleed(t.p));
     pick(e, play(0, 1, t.p)); // stealth 1 as announced
     pick(e, Choice::DeclareBlock { minion: t.b });
-    // Seat 1 holds Eyes of Argus back. Closure at 0 < 1: the attempt fails,
-    // and seat 1 is offered a new attempt at once (rules-qa 82.1) — with C,
-    // B's alike being futile.
-    pick(e, Choice::Pass);
+    // Seat 1 holds Eyes of Argus back and passes at 0 < 1, C offered
+    // instead: its decline once the table passes.
     let req = expect(e, SeatId(1), WindowLabel::ActionBlock);
     assert!(req.options.contains(&Choice::DeclareBlock { minion: t.c }));
-    assert!(!req.options.contains(&Choice::DeclareBlock { minion: t.b }));
-    pick(e, Choice::Pass); // final decline
+    pick(e, Choice::Pass);
     expect(e, SeatId(0), WindowLabel::MinionPhase);
+    assert!(e.last_outcome.is_some());
     assert_eq!(e.state.seats[1].pool, 29);
 }
 
 // rules-qa 15.2 — intercept gained during a failed attempt stays for the
 // rest of the action: B's Enhanced Senses [aus] (+1) falls short of P's
-// Earth Control [PRO] (+2), and B's new attempt reaches 2 with Spirit's
-// Touch [aus] (+1) only because the first card's +1 is kept. Two cards: a
-// minion plays the same reaction once in an action (rules-qa 46.1).
+// Earth Control [PRO] (+2); its Methuselah attempts with C instead (48.3),
+// then with B again, which reaches 2 with Spirit's Touch [aus] (+1) only
+// because the first card's +1 is kept. Two cards: a minion plays the same
+// reaction once in an action (rules-qa 46.1).
 #[test]
 fn intercept_from_a_failed_attempt_carries_into_a_new_one() {
     let mut t = table();
@@ -244,20 +242,21 @@ fn intercept_from_a_failed_attempt_carries_into_a_new_one() {
     e.state.seats[1].library = vec![find_library("Soak"); 10].into();
     pick(e, bleed(t.p));
     pick(e, Choice::DeclareBlock { minion: t.b });
-    pick(e, play(0, 1, t.p)); // stealth 2
-    pick(e, play(0, 0, t.b)); // +1 intercept
-                              // Seat 1 holds Spirit's Touch back: the attempt fails, and B alike is
-                              // not offered again (rules-qa 48.6). Then something changes (a card
-                              // into seat 1's library): B may attempt again, its kept +1 and the card
-                              // in hand reaching 2.
-    pick(e, Choice::Pass);
+    // Stealth 2, then +1 intercept.
+    pick(e, play(0, 1, t.p));
+    pick(e, play(0, 0, t.b));
+    // Seat 1 holds Spirit's Touch back and attempts with C instead: B's
+    // attempt fails, and B alike is not offered back (rules-qa 48.6). Then
+    // something changes (a card into seat 1's library): B may attempt
+    // again, its kept +1 and the card in hand reaching 2.
+    pick_when(e, Choice::DeclareBlock { minion: t.c });
     let req = expect(e, SeatId(1), WindowLabel::ActionBlock);
     assert!(!req.options.contains(&Choice::DeclareBlock { minion: t.b }));
     e.state.seats[1].library.push(find_library("Soak"));
     let req = expect(e, SeatId(1), WindowLabel::ActionBlock);
     assert!(req.options.contains(&Choice::DeclareBlock { minion: t.b }));
     pick(e, Choice::DeclareBlock { minion: t.b });
-    pick(e, play(0, 0, t.b));
+    pick_when(e, play(0, 0, t.b));
     expect(e, SeatId(0), WindowLabel::MinionPhase);
     assert_eq!(e.state.seats[1].pool, 30);
     assert!(e.state.minions[t.b.index()].locked);

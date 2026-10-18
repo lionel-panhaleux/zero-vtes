@@ -665,11 +665,21 @@ engine masks), `cards/mod.rs` (the vocabulary: `Window`, `Actor`,
   20030519).
 - Intercept given to a minion lasts the whole action, across failed attempts
   (`ActionCtx.intercept_given`, rules-qa 15.2).
-- A failed attempt (`ActionCtx::attempt_failed`: its window closed short,
-  Enchanting Gaze's counter, a cancel; `Engine::resign_attempt`: a toll
-  unpaid, an ally's last life, Puppet Master, Dawn Operation) starts the
-  open window at its Methuselah (`OrderedWindow::starting_at`): another attempt or the decline,
-  the acting Methuselah's impulse after it (rules-qa 82.1).
+- An attempt whose window closed short of the stealth: its Methuselah's
+  pass in that round, short, was its decline (`ActionCtx::declining` while
+  the table's round runs, the view's `declining`); it is marked declined
+  and the open window continues after it (`OrderedWindow::after`, the
+  attempt round's passes through it counted): it closes as the passes
+  come round to the acting Methuselah, whose turn there is the window's
+  first and the one after a play (rules-qa 82.1). An attempt failed otherwise
+  (`ActionCtx::attempt_failed`: locked or gone at the closure, Enchanting
+  Gaze's counter, Forced Confessional, a cancel; `Engine::resign_attempt`:
+  a toll unpaid, an ally's last life, Puppet Master, Dawn Operation)
+  starts it anew at the acting Methuselah, as after a play (1.2; 82.2
+  open). An action ended early (The Kiss of Ra) offers no further attempt.
+  `Engine::short_declines`, kept for the record reader only (`None`
+  otherwise), notes each short decline with the seats an engine before
+  82.1 asked again (`Reasked`).
 - Enter-combat actions (`Effect::EnterCombatWithTarget`): the combat begins at
   resolution (`start_combat_at_resolution`) and is part of the action; no "held
   when blocking" state; a blocked rush continued as if unblocked enters its

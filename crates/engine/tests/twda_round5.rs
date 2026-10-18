@@ -1159,8 +1159,8 @@ fn psyche_redraws_and_discards_again_under_raptor() {
 }
 
 // The Kiss of Ra ends the action at once (RTR 20180719): the failed
-// blocker's Methuselah, its impulse after the attempt (rules-qa 82.1), is
-// offered no attempt with its other vampire.
+// blocker's Methuselah, its impulse coming after the acting one's, is
+// offered no attempt with its other vampire (rules-qa 82.1).
 #[test]
 fn the_kiss_of_ra_leaves_no_other_attempt() {
     let mut e = game(2);
