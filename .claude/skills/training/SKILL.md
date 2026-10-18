@@ -56,7 +56,7 @@ runs" (every run's command, numbers and lessons), `docs/boards/training.md`.
    runs/pN/best.zvp`; `waste` against the baseline; `decks.rs` per deck and
    pN against three pPREV; `humanset` (`cargo run -p zvtes-policy --profile
    ci --example humanset -- <pN.zvp> <served bots.zvp> 20 <records>`) on the
-   human wins no network trained on — today the five `--bc-held-games`;
+   human wins no network trained on — the run's `--bc-held-games`;
    hold out new harvested wins the same way to grow the set — for pN and
    pPREV alike. A "pN run" note in DESIGN §11.2 with the numbers.
 5. **Serve** (the owner's call): Z-main redeploys engine.krcg.org with
@@ -69,9 +69,15 @@ runs" (every run's command, numbers and lessons), `docs/boards/training.md`.
 ## Taking a new engine
 
 - Card rounds: no retraining; `remap_vocab` maps the grown card vocabulary
-  on resume and for frozen opponents. Check that the run starts and that
-  the `bc`/`starts` counts read every record (a record that stops replaying
-  shrinks the imitation set silently).
+  on resume and for frozen opponents. Check that the run starts.
+- A record the pinned engine stops reading partway (a rules fix since it
+  was played: rules-qa 82.1 left six harvested games unreadable,
+  2026-10-18) gives imitation nothing, held out or not: the run's first
+  line names it (`bc_stopped`), and a held-out one shrinks the evaluation
+  set, so read that line before letting the run go on. Before the launch,
+  in its worktree, `cargo run -p zvtes-policy --profile ci --example waste
+  -- - 0 <records>` prints `read to its decision N: why` for each; its
+  prefix still serves as a start.
 - Observation changes (a new `Choice` kind, window label, interrupt,
   purpose or token type) touch `obs`'s fixed id tables: a new
   `obs::Version` or a slot shown unused; the engine side tells this line

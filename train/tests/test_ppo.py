@@ -267,13 +267,34 @@ def test_imitation_holds_out_named_games():
     a = "data/records/zero-vtes-replay-2026-10-08T21-17-05-603Z.json"
     b = "data/records/zero-vtes-replay-2026-10-09T21-51-54-561Z.json"
     replays = load_replays(",".join([a, b]))
-    train, held, names = imitation(replays, 3, 8, ["2026-10-09T21-51"])
+    train, held, names, _ = imitation(replays, 3, 8, ["2026-10-09T21-51"])
     assert names == ["zero-vtes-replay-2026-10-09T21-51-54-561Z.json"]
     assert train and held
-    alone, _, _ = imitation(replays[:1], 3, 8)
+    alone, _, _, _ = imitation(replays[:1], 3, 8)
     assert len(train) == len(alone)
     with pytest.raises(ValueError, match="no replay"):
         imitation(replays, 3, 8, ["1999-01-01"])
+
+
+def test_imitation_leaves_out_a_game_read_partway(tmp_path):
+    """A game the engine stops reading partway (a rules change since it was
+    played) gives no choice, held out or not, and is named: imitation
+    would otherwise train on its prefix and shrink the held-out set unseen."""
+    path = "data/records/zero-vtes-replay-2026-10-08T21-17-05-603Z.json"
+    game = json.loads(open(path).read())
+    entries = made(game)
+    entries[len(entries) // 2]["seat"] = (entries[len(entries) // 2]["seat"] + 1) % 4
+    cut = tmp_path / "cut.json"
+    cut.write_text(json.dumps(game))
+    assert "stopped" in zvtes_py.replay_decisions(cut.read_text(), 3)
+    # Loaded apart: the same game twice is read once.
+    replays = load_replays(path) + load_replays(str(cut))
+    whole, _, _, none = imitation(replays[:1], 3, 0)
+    train, held, names, stopped = imitation(replays, 3, 0, ["cut"])
+    assert none == [] and stopped == ["cut.json"]
+    assert len(train) == len(whole) and held == [] and names == []
+    train, _, _, stopped = imitation(replays, 3, 0)
+    assert stopped == ["cut.json"] and len(train) == len(whole)
 
 
 def test_imitation_keeps_the_winners_shown_choices(tmp_path):
@@ -287,7 +308,7 @@ def test_imitation_keeps_the_winners_shown_choices(tmp_path):
     game = json.loads(open(path).read())
     human = game["result"]["winner"]
     assert human not in {b["seat"] for b in game["bots"]}
-    won, _, _ = imitation(load_replays(path), 3, 0)
+    won, _, _, _ = imitation(load_replays(path), 3, 0)
     assert won
     for name, result in (
         ("lost", {**game["result"], "winner": (human + 1) % 4}),

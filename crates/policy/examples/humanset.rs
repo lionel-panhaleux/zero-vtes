@@ -1,7 +1,7 @@
 //! The positions where a human beat the bot (the training board's
 //! evaluation set): games a human won, played out (last standing or the
-//! time limit), never trained on — the five `--bc-held-games` of
-//! `data/records`, and harvested wins a run holds out. Two scores for a
+//! time limit), read whole by this engine, never trained on — a run's
+//! `--bc-held-games`, in `data/records` and harvested. Two scores for a
 //! network:
 //! - agreement: at each of the winner's decisions with an alternative, the
 //!   network's favourite (its plain logits, no nudge or mask, as imitation
@@ -56,6 +56,21 @@ fn won(path: &str) -> Result<Won, String> {
     let seat = result.winner.ok_or("no winner")? as usize;
     if !replay.humans.contains(&(seat as u8)) {
         return Err("a bot won".into());
+    }
+    // A game this engine stops reading (a rules change since) would be
+    // scored on its prefix: out whole, as imitation leaves it.
+    let mut e: Engine = replay.deal();
+    let mut reader = replay.reader();
+    while let Step::Decision(req) = e.run() {
+        let i = match replay.elided(&e, &req) {
+            Some(i) => i,
+            None => match reader.next(&e, &req) {
+                Some(Ok(i)) => i,
+                Some(Err(why)) => return Err(format!("read partway: {why}")),
+                None => break,
+            },
+        };
+        e.choose(i);
     }
     let name = std::path::Path::new(path)
         .file_stem()

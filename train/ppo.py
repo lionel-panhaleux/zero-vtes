@@ -527,13 +527,20 @@ def imitation(replays, obs, holdout, games=()):
     others, hidden by their settings, get the bias `HIDDEN`, else 0) — rows
     as the rollout's, and the option chosen: (trained, held out), every
     `holdout`-th game held out — or, with `games` (parts of file names),
-    those games (and their names)."""
+    those games (and their names); and the games the engine stops reading
+    partway (a rules change since they were played), left out whole: their
+    choices up to the stop would train on a game cut short, and a held-out
+    one would shrink the evaluation set unseen (2026-10-18: rules-qa 82.1
+    stopped six harvested games)."""
     for part in games:
         if not any(part in path.name for path, _, _ in replays):
             raise ValueError(f"no replay named like {part!r} to hold out")
-    train, held, names = [], [], []
+    train, held, names, stopped = [], [], [], []
     for g, (path, text, _) in enumerate(replays):
         game = zvtes_py.replay_decisions(text, obs)
+        if "stopped" in game:
+            stopped.append(path.name)
+            continue
         if games:
             out = held if any(part in path.name for part in games) else train
         else:
@@ -565,7 +572,7 @@ def imitation(replays, obs, holdout, games=()):
                 bias[shown] = 0
             if (bias == 0).sum() > 1:
                 out.append((tuple(d[k] for k in ROW_KEYS) + (bias,), d["chosen"]))
-    return train, held, names
+    return train, held, names, stopped
 
 
 class Learner:
@@ -694,7 +701,7 @@ class Trainer:
         self.weak = [int(d) for d in cfg.weak_decks.split(",") if d.strip()]
         self.bc, self.bc_held = [], []
         if cfg.bc_coef > 0:
-            self.bc, self.bc_held, held = imitation(
+            self.bc, self.bc_held, held, stopped = imitation(
                 load_replays(cfg.bc),
                 cfg.obs,
                 cfg.bc_holdout,
@@ -702,7 +709,10 @@ class Trainer:
             )
             if not self.bc:
                 raise ValueError("--bc-coef needs --bc replays with human choices")
-            print(json.dumps({"bc": len(self.bc), "bc_held": len(self.bc_held), "held_out": held}), flush=True)
+            print(
+                json.dumps({"bc": len(self.bc), "bc_held": len(self.bc_held), "held_out": held, "bc_stopped": stopped}),
+                flush=True,
+            )
         if cfg.start_tables > 0 and not self.starts:
             raise ValueError("--start-tables needs --starts")
         self.pool = zvtes_py.GamePool(
