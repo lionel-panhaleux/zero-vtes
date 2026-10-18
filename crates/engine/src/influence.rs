@@ -278,6 +278,7 @@ impl Engine {
     /// effects, then any contest (influenced out, or put in play: Summon
     /// History); `forced`: another copy already controlled.
     pub(crate) fn vampire_entered(&mut self, s: SeatId, m: MinionId, card: u16, forced: bool) {
+        self.entered_play_riders(m);
         // An Anarch entering play: counted first, the Convert's
         // ability next (Hackerspace, ANK 20210410).
         if self.state.sect_of(m) == Some(crate::crypt::Sect::Anarch) {
@@ -309,6 +310,16 @@ impl Engine {
                     counters: 0,
                     banished: None,
                 });
+            }
+        }
+        // Dr. Solomon Grey: before any contest (LSJ 20080526); the last
+        // pool ousts, and nothing more of his entry follows.
+        if let Some(n) = entry_pool(card) {
+            let mut loss = vec![0; self.state.seats.len()];
+            loss[s.index()] = n as i32;
+            self.burn_pool_batch(&loss);
+            if self.state.seats[s.index()].ousted {
+                return;
             }
         }
         // Anarch Convert: his entry ability before any contest.
@@ -415,6 +426,22 @@ fn entry_burn(card: u16) -> Option<u8> {
         .flat_map(|r| r.effects)
         .find_map(|e| match *e {
             crate::cards::Effect::BurnsBloodOrIsBurnedOnEntry(n) => Some(n),
+            _ => None,
+        })
+}
+
+/// A vampire's "burn n pool as he enters play" (Dr. Solomon Grey).
+fn entry_pool(card: u16) -> Option<u8> {
+    if card == crate::state::CREATED {
+        return None;
+    }
+    crate::cards::vampire(card)?
+        .riders
+        .iter()
+        .filter(|r| r.hook == crate::cards::Hook::EntersPlay)
+        .flat_map(|r| r.effects)
+        .find_map(|e| match *e {
+            crate::cards::Effect::BurnPool(n) => Some(n),
             _ => None,
         })
 }

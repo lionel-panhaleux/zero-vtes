@@ -181,6 +181,7 @@ pub fn purpose(i: &Interrupt) -> Purpose {
         I::NameAshPair { .. } => Purpose::NameAshPair,
         I::MayPutOn { .. } => Purpose::MayPutOn,
         I::MayAddCounter { .. } => Purpose::MayAddCounter,
+        I::MayStoreAim { .. } => Purpose::MayStoreAim,
         I::MayTorture { .. } => Purpose::MayTorture,
         I::MayGainPool { .. } => Purpose::MayGainPool,
         I::MoveForBlood { .. } => Purpose::MoveForBlood,

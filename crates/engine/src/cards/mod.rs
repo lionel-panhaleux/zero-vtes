@@ -57,6 +57,9 @@ pub enum Window {
     CombatStrikeDeclaration,
     CombatAdditionalStrike,
     CombatDamagePrevention,
+    /// After the preventions, damage about to send the opposing vampire to
+    /// torpor (Decapitate [POT]).
+    CombatGoingToTorpor,
     CombatPress,
     CombatEndOfRound,
     CombatWouldEnd,
@@ -160,6 +163,7 @@ impl Window {
             "COMBAT_STRIKE_DECLARATION" => CombatStrikeDeclaration,
             "COMBAT_ADDITIONAL_STRIKE" => CombatAdditionalStrike,
             "COMBAT_DAMAGE_PREVENTION" => CombatDamagePrevention,
+            "COMBAT_GOING_TO_TORPOR" => CombatGoingToTorpor,
             "COMBAT_PRESS" => CombatPress,
             "COMBAT_END_OF_ROUND" => CombatEndOfRound,
             "COMBAT_WOULD_END" => CombatWouldEnd,
@@ -288,6 +292,9 @@ pub struct AsVampire {
     pub capacity: u8,
     /// Only non-action cards (Spectral Servitor).
     pub non_action: bool,
+    /// The sect it plays them as: Independent (rulebook "Allies"), or the
+    /// printed one ("as an Anarch vampire", Vivienne Géroux).
+    pub sect: Sect,
 }
 
 /// The trait printed text names the bearer by ("this Ravnos"), read on the
@@ -325,6 +332,10 @@ pub enum CardFilter {
     /// An equipment bearing none of these labels, a locquipment not one
     /// (only a location once in play, spec §1.3.1).
     EquipmentWithout(&'static [crate::library::Label]),
+    /// An equipment card bearing none of these labels, a locquipment
+    /// included: read as played, for its cost (Marie Faucigny; LSJ
+    /// 20080114, 20080109).
+    EquipmentCardWithout(&'static [crate::library::Label]),
     /// A card requiring a Discipline, any one (Aniel).
     RequiresDiscipline,
     /// An ally or retainer card.
@@ -337,6 +348,8 @@ pub enum CardFilter {
     MeleeWeapon,
     /// A non-unique equipment card.
     NonUniqueEquipment,
+    /// A card costing at most n pool (a blood or no cost: 0 pool).
+    PoolCostAtMost(u8),
     /// Any card bearing this label (a ghoul ally or retainer).
     HasLabel(crate::library::Label),
     /// A card requiring this clan ("an ally requiring Hecata").
@@ -367,6 +380,14 @@ impl CardFilter {
                 c.types.contains(&CardType::Equipment)
                     && !c.labels.contains(&crate::library::Label::Location)
                     && !ls.iter().any(|l| c.labels.contains(l))
+            }
+            CardFilter::PoolCostAtMost(n) => match c.pool_cost {
+                crate::library::Cost::Fixed(k) => k <= n,
+                crate::library::Cost::None => true,
+                crate::library::Cost::X => false,
+            },
+            CardFilter::EquipmentCardWithout(ls) => {
+                c.types.contains(&CardType::Equipment) && !ls.iter().any(|l| c.labels.contains(l))
             }
             CardFilter::RequiresDiscipline => !c.disciplines.is_empty(),
             CardFilter::AllyOrRetainer => {
@@ -507,6 +528,17 @@ pub enum Stat {
     AlliesCannotBlock,
     /// Vampires with capacity n or less cannot block it (Rexton: 3).
     SmallVampiresCannotBlock,
+    /// Any positive total, read with the minion attempting to block as the
+    /// opponent, bars its attempt (Aisling Sturbridge: younger Tremere).
+    CannotBeBlockedBy,
+    /// Votes it casts in a blood hunt referendum, either side (Karsh).
+    VotesInBloodHunt,
+    /// Votes its controller gets more for burning the Edge for a vote
+    /// (Fiorenza Savona).
+    EdgeVoteBonus,
+    /// Votes its controller gets more for burning a political action card
+    /// for a vote (Fiorenza Savona).
+    BurnVoteBonus,
     /// The retainers of a minion opposing it in combat lose their text for
     /// that combat (Stanislava; rules-qa 49.3): any positive total.
     OpposingRetainersLoseText,
@@ -749,6 +781,19 @@ pub enum Requirement {
     /// The action's blocker is an Anarch the player controls (The Status
     /// Perfectus).
     BlockerOwnAnarch,
+    /// The blocker is the player's, and the combat just ended was between
+    /// it and the acting minion (Fast Reaction: not after the combat it
+    /// queued).
+    BlockerOwn,
+    /// The opposing vampire's pending damage, as it stands, sends it to
+    /// torpor (Decapitate [POT]).
+    OpponentGoingToTorpor,
+    /// The actor is not being burned or going to torpor by the damage
+    /// pending on it (Decapitate [POT]).
+    ActorNotGoingDown,
+    /// The actor is not the blocker (Fast Reaction: "other than this
+    /// vampire").
+    ActorNotBlocker,
     /// Target minion is controlled by the player.
     Controlled,
     /// Target minion has at least this much blood.
@@ -1006,6 +1051,9 @@ pub enum Requirement {
     /// The target card is controlled by the user's prey (Conquest of
     /// Humanity).
     CardControlledByPrey,
+    /// Card target: controlled by the player's predator or prey (Smash and
+    /// Grab [pot]: a location).
+    CardControlledByPredatorOrPrey,
     /// The user controls n ready vampires of the clan.
     ControlsReadyClan(&'static str, u8),
     /// The user controls a ready vampire of the clan with blood (Chantry).
@@ -1487,6 +1535,9 @@ pub enum Requirement {
     DirectedAtYourMinion,
     /// As `DirectedAtYourMinion`, an ally (Screamer).
     DirectedAtYourAlly,
+    /// The current action is directed at a card in play the player controls
+    /// matching one of these (General Perfidio Díos: a location).
+    DirectedAtYourCard(&'static [CardFilter]),
     /// The acting minion is controlled by the player's predator or prey
     /// (Screamer).
     ActingByPredatorOrPrey,
@@ -1831,6 +1882,10 @@ pub enum BlockRider {
     ManeuverToLong,
     /// 1 optional press in that combat, only to continue (Harass).
     ContinuePress,
+    /// Its minion's controller's hand size +n in that combat (Rumble).
+    HandSize(u8),
+    /// Its minion cannot strike in the first round (Fast Reaction).
+    NoStrikeFirstRound,
 }
 
 /// How a card in play reduces its controller's costs.
@@ -2002,6 +2057,9 @@ pub enum RefEffect {
     /// requirements ignored, for half its cost rounded down (Alastor;
     /// `Interrupt::SearchEquipFor`).
     PutOnChosen { equipment: bool },
+    /// The political action card put on the vampire who called it, still in
+    /// play (Praxis Seizure: York).
+    PutOnCaller,
     /// The political action card is put in play, its caller's (Raising the
     /// Portcullis).
     PutInPlay,
@@ -2552,12 +2610,13 @@ pub enum Terms {
     /// An ally in any ash heap, the ash heap then the ally, named as played
     /// (Psychophagia; rules-qa 32.12).
     AnyAshAlly,
-    /// A `label` retainer from hand to employ, card and version named as
-    /// played (Pack Alpha [ani]; LSJ 20100130).
-    EmployFromHand(crate::library::Label),
+    /// A retainer from hand matching the filter to employ, card and version
+    /// named as played (Pack Alpha [ani]: an animal; LSJ 20100130; Nosferatu
+    /// Bestial: one requiring Animalism).
+    EmployFromHand(CardFilter),
     /// As `EmployFromHand`, requirements ignored, the basic version always
     /// (Biothaumaturgic Experiment [tha]; LSJ 20080803).
-    EmployFromHandIgnoring(crate::library::Label),
+    EmployFromHandIgnoring(CardFilter),
     /// An ally or retainer from hand to recruit or employ, named as played
     /// (Piper).
     RecruitOrEmployFromHand,
@@ -2681,8 +2740,15 @@ pub enum Modifier {
         titled: Option<bool>,
         during: &'static [ActionKind],
     },
-    /// The card's controller's minions get n of `stat` (Esprit de Corps).
-    OwnMinionsStat { stat: Stat, n: i8 },
+    /// The card's controller's minions get n of `stat` (Esprit de Corps),
+    /// `vampires` only (Vivienne Géroux), during their actions of these
+    /// kinds (any, if empty).
+    OwnMinionsStat {
+        stat: Stat,
+        n: i8,
+        vampires: bool,
+        during: &'static [ActionKind],
+    },
     /// Every Methuselah's vampires of the sect get n of `stat` during
     /// `during` (any action, if empty) (Festivo dello Estinto).
     SectStat {
@@ -2730,6 +2796,20 @@ pub enum Modifier {
     /// The bearer vampire gets +1 level of the Discipline, no capacity,
     /// nothing on an ally (Ritual Goblet).
     BearerDisciplineLevel(&'static str),
+    /// The bearer vampire gets a level of the Discipline its counters reach
+    /// in this order, one each, no capacity (Seal of Veddartha: dom, dom,
+    /// for, for; LSJ 20070320-2).
+    BearerCounterLevels(&'static [&'static str]),
+    /// Every vampire of the clan gets n stealth on its actions requiring the
+    /// Discipline (Tremere Convocation: Tremere, Blood Sorcery).
+    ClanStealthOnActionsRequiring {
+        clan: &'static str,
+        discipline: &'static str,
+        n: i8,
+    },
+    /// Vampires with the Discipline at basic play combat cards requiring it
+    /// as if superior (Tremere Convocation: Blood Sorcery).
+    BasicPlaysSuperiorCombat(&'static str),
     /// The bearer vampire has the Discipline at superior, nothing on an ally
     /// (The Sargon Fragment).
     BearerSuperiorDiscipline(&'static str),
@@ -2837,6 +2917,16 @@ pub enum Modifier {
     /// The minion this card is cannot have or use equipment (Gravebound
     /// Drone).
     NoEquipmentHeld,
+    /// A minion the card's controller's predator or prey puts in play out
+    /// of the unlock phase enters locked; a vampire younger than the card's
+    /// bearer burns 1 blood (Gran Madre di Dio, Italy).
+    LocksEnteringFromNeighbours,
+    /// The minion this card is casts no votes or ballots (Nosferatu
+    /// Bestial).
+    CastsNoVotes,
+    /// The minion this card is performs only these actions: none ("cannot
+    /// act", Ponticulus), hunts (Nosferatu Bestial).
+    OnlyActions(&'static [crate::decision::ActionKind]),
     /// The host cannot have or use a weapon with a ranged strike (LSJ
     /// 20060825) but the named one (Anachronism).
     NoRangedWeaponsExcept(&'static str),
@@ -3113,9 +3203,13 @@ pub enum Effect {
     BecomesVampire {
         sect: Option<Sect>,
         master_search: bool,
-        /// Must hunt this turn (Childe of the Revolution); else cannot act
-        /// this turn (Third Tradition: Progeny).
+        /// Must hunt this turn (Childe of the Revolution).
         must_hunt: bool,
+        /// Cannot perform actions this turn (Third Tradition: Progeny).
+        idle: bool,
+        /// Its capacity and Disciplines (1, none: `NEWBORN`; or the
+        /// card's own, written in its definition: Nosferatu Bestial).
+        born: &'static crate::state::Born,
     },
     /// Put this card on the target minion.
     PutOnTarget,
@@ -3393,6 +3487,32 @@ pub enum Effect {
     ReduceActionCost(u8),
     /// The target minion burns n blood (Bone Shambler [OBL]).
     TargetBurnsBlood(u8),
+    /// The acting minion enters combat with the actor once the after-combat
+    /// window closes, unable to strike in its first round; `press`: one for
+    /// the actor in it (Fast Reaction).
+    QueueCombatWithActing { press: bool },
+    /// Look at each Methuselah's hand and discard a card from among them,
+    /// one's own included; its owner replaces it (Vaticination).
+    DiscardFromAllHands,
+    /// If this referendum passes, the next one a vampire of the player's
+    /// calls passes automatically, no "this turn" (Malkavian Rider Clause).
+    NextReferendumPassesIfPasses,
+    /// The opposing vampire is burned instead of going to torpor by the
+    /// damage about to land (Decapitate [POT]).
+    BurnOpponentInsteadOfTorpor,
+    /// Marker: the bearer's aim cards go on this card once used, canceled
+    /// too, and only the bearer plays them from it as if from hand, then
+    /// removed from the game (Light Intensifying Goggles).
+    BearerAimStore,
+    /// Marker: the card's counters are removed if it goes to another minion
+    /// (Seal of Veddartha; `GameState::set_host`).
+    CountersClearOnNewBearer,
+    /// Granted action: the target Methuselah takes control of the ally whose
+    /// card grants it (Vivienne Géroux).
+    TargetSeatTakesSourceAlly,
+    /// The target retainer card burns n life, burned with none left (Smash
+    /// and Grab [ani]).
+    TargetRetainerBurnsLife(u8),
     /// An ally version's own type line (Underbridge Stray [ANI]).
     Version(crate::library::Body),
     /// After this ally enters play, the controller picks an ally or retainer
@@ -3777,6 +3897,12 @@ pub enum Effect {
     /// The acting ally removed from the game at resolution, to burn the
     /// target ally or retainer (Heartrender; rules-qa 55.4).
     RemoveActorToBurnTarget,
+    /// The pool this action's bleed burns, at most n; the bleed amount
+    /// untouched (Night Moves: "ignore the excess"). Read from the card.
+    BleedPoolCap(u8),
+    /// The acting minion's controller burns n pool if it is not ready at the
+    /// end of the action, blocked or not (Rumble). Read from the card.
+    BurnPoolAtEndIfNotReady(u8),
     /// Look at and reorder the top n cards of the library, then unlock if
     /// so (Eulogio Sánchez de los Reyes; Maris Streck without).
     ReorderTop { n: u8, unlock: bool },
@@ -3800,8 +3926,8 @@ pub enum Effect {
     /// The host ally burns n life as its own text's cost, not a blood cost
     /// (Gravebound Drone; advanced rules 5.5.1); paid as `HostBurnBlood`.
     HostBurnLife(u8),
-    /// The target minion burns n blood or life, an ally its last too
-    /// (Gravebound Drone [OBL]).
+    /// The target minion burns n blood or life, an ally left with none
+    /// burned (Gravebound Drone [OBL]; Smash and Grab [ani], rules-qa 73.5).
     TargetBurnLife(u8),
     /// As `EndBlockedAction`, the acting minion left locked (Obedience
     /// [DOM]).
@@ -4318,8 +4444,9 @@ pub enum Effect {
     /// dodged or unresolved (rules-qa 10.4).
     ContinuePressEachCombat,
     /// On success, search the library for an equipment the acting vampire
-    /// can equip and equip it, as normal (Magic of the Smith; spec §1.14.1).
-    SearchEquip,
+    /// can equip and equip it, as normal (Magic of the Smith; spec §1.14.1),
+    /// matching all these (Dark Web Procurer: non-unique, 1 pool or less).
+    SearchEquip(&'static [CardFilter]),
     /// On success, search the library for a card of this kind into the hand,
     /// or find none (Sakhar's equipment, Dominica's master archetype);
     /// `shown`: the card found revealed to all (the card says so; Dan
@@ -5688,9 +5815,15 @@ pub fn has_disciplines(st: &GameState, m: MinionId, card: u16, mi: usize) -> boo
     if tags.is_empty() {
         return true;
     }
+    // Tremere Convocation: a combat card's superior at basic.
+    let combat = LIBRARY[card as usize].types.contains(&CardType::Combat);
     let has = |t: &str| {
         if vampire {
             st.has_discipline(m, t)
+                || combat
+                    && t.chars().all(|c| c.is_ascii_uppercase())
+                    && st.basic_plays_superior_combat(t)
+                    && st.has_discipline(m, &t.to_ascii_lowercase())
         } else if t.chars().all(|c| c.is_ascii_uppercase()) {
             disc.contains(&t)
         } else {
@@ -5756,7 +5889,8 @@ pub fn holds(
         | Requirement::TargetCorrupted
         | Requirement::TargetOnOpposingCombatant
         | Requirement::TargetAllyCard(_)
-        | Requirement::CardControlledByPrey => true, // target or card predicates
+        | Requirement::CardControlledByPrey
+        | Requirement::CardControlledByPredatorOrPrey => true, // target or card predicates
         Requirement::PlayedCardIsMaster => {
             played.is_some_and(|p| LIBRARY[p.card as usize].types.contains(&CardType::Master))
         }
@@ -6133,16 +6267,7 @@ pub fn holds(
         // An equip from hand, Vast Wealth's, or an action card equipping
         // from the library (Magic of the Smith: owner, 2026-10-17); not a
         // move from another minion (rules-digest §3.7).
-        Requirement::IsEquipAction => action.is_some_and(|a| {
-            matches!(a.kind, ActionKind::Equip | ActionKind::EquipFound)
-                || a.card.is_some_and(|p| {
-                    lookup(p.card).is_some_and(|d| {
-                        d.modes[p.mode as usize]
-                            .effects
-                            .contains(&Effect::SearchEquip)
-                    })
-                })
-        }),
+        Requirement::IsEquipAction => action.is_some_and(|a| a.is_equip_action(st)),
         Requirement::LastCombatantsReady => action
             .and_then(|a| a.last_combat)
             .is_some_and(|pair| pair.iter().all(|m| st.minions[m.index()].ready())),
@@ -6187,6 +6312,12 @@ pub fn holds(
         // The prevention half of a card needs damage to prevent; a mode
         // with another window (Indomitability [FOR]'s press) is unaffected
         // outside the prevention step.
+        Requirement::OpponentGoingToTorpor => combat
+            .zip(side)
+            .is_some_and(|(c, i)| crate::combat::going_to_torpor(st, c, 1 - i)),
+        Requirement::ActorNotGoingDown => combat
+            .zip(side)
+            .is_some_and(|(c, i)| !crate::combat::going_down(st, c, i)),
         Requirement::DamagePending => combat.zip(side).is_some_and(|(c, i)| match c.step {
             Step::Prevent(p) => p == i && c.sides[i].pending.total() > 0,
             _ => true,
@@ -6517,6 +6648,11 @@ pub fn holds(
                     .chain(a.second_target())
                     .any(|m| st.minions[m.index()].owner == seat)
         }),
+        Requirement::DirectedAtYourCard(filters) => action.is_some_and(|a| {
+            matches!(a.target, Target::Card(c)
+                if st.card_controller(c) == seat
+                    && filters.iter().any(|f| f.matches(st.cards[c.index()].card)))
+        }),
         Requirement::DirectedAtYourAlly => action.is_some_and(|a| {
             a.directed_seat(st) == Some(seat)
                 && a.target_minion().is_some_and(|m| {
@@ -6768,6 +6904,16 @@ pub fn holds(
         Requirement::ControlsLockedMinion => {
             st.minions_of(seat).any(|m| st.minions[m.index()].locked)
         }
+        Requirement::BlockerOwn => action.is_some_and(|a| {
+            a.blocker.is_some_and(|b| {
+                st.minions[b.index()].owner == seat
+                    && a.last_combat
+                        .is_some_and(|c| c.contains(&b) && c.contains(&a.acting))
+            })
+        }),
+        Requirement::ActorNotBlocker => action
+            .and_then(|a| a.blocker)
+            .is_none_or(|b| actor != Some(b)),
         Requirement::BlockerOwnAnarch => action.and_then(|a| a.blocker).is_some_and(|b| {
             st.minions[b.index()].owner == seat && st.sect_of(b) == Some(Sect::Anarch)
         }),
@@ -7048,6 +7194,10 @@ pub fn holds_for_card_target(
             .host
             .is_some_and(|h| st.minions[h.index()].owner == st.prey(seat)),
         Requirement::CardControlledByPrey => st.card_controller(id) == st.prey(seat),
+        Requirement::CardControlledByPredatorOrPrey => {
+            let c = st.card_controller(id);
+            c == st.prey(seat) || c == st.predator(seat)
+        }
         Requirement::ActorMayHoldTarget => {
             actor.is_some_and(|m| st.can_hold(m, c.card, &[])) && !st.pinned(id)
         }

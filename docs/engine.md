@@ -62,7 +62,10 @@ as-played window, a nested cancel stack) → `resolve_play`, which runs the
 mode's effects one by one through `apply_card_effect`. An action card
 declares its action (`Effect::DeclareAction`); its effects resolve as the
 action succeeds (`actions.rs` `succeed`). An ability: `use_ability(seat,
-…)` → `Flow::AbilityTerms` → `resolve_ability`.
+…)` → `Flow::AbilityTerms` → `resolve_ability` (`resolve_ability_with`
+when the terms named a hand card: Nosferatu Bestial's employ, through
+`ability_employ_apply`; `ability_gate` masks the ability with none to
+name).
 
 **Effect families** (`cards/families.rs`). `Effect::family` is exhaustive
 (no `_` arm): a new variant does not compile until classified. Each family
@@ -156,7 +159,7 @@ over the seats).
 **Timed seat modifiers.** `Seat::timed` (`state::Timed`): an amount per
 `TimedStat` (`HandSize`, `HuntStealth`, `ExtraDraws`) until each `Expiry`
 (`EndOfTurn`, `DiscardPhase`, `UnlockPhase`, `MasterPhase`, `Combat`,
-`Never`), each
+`Round`, `Never`), each
 swept at one line (`Timed::expire`): `DiscardPhase` in `end_influence`
 after the held discard-phase replacements, `EndOfTurn` in `end_turn` after
 temporary control ends, `UnlockPhase` in `start_turn` before the held
@@ -171,7 +174,10 @@ entries — `Lasting::{Stealth, Strength, Superior(discipline)}` — read by
 beside `Seat::timed`: `EndOfTurn` in `next_turn`, `UnlockPhase` in
 `start_turn` and `MasterPhase` in `start_master_phase` for the seat
 recorded (the controller's, "until your unlock phase", Camarilla Vitae
-Slave's "until their next master phase"). Not `Timed` (a numeric table,
+Slave's "until their next master phase"); `Round` in `new_round` (Patagia's
+flight, a superior Discipline for the round), `Round` and `Combat` for
+every minion in `GameState::leave_combat`, which every combat end passes
+through (a Psyche! or Coordinate Attacks combat next included). Not `Timed` (a numeric table,
 and a Discipline is not a number) nor a layer (`Scope` has no turn
 scope). Dive into Madness [dem], Gear Up. Folding `bleed_bonus_turn` and
 `unlock_end_of_turn` into it is an engine board line.
@@ -637,7 +643,11 @@ engine masks), `cards/mod.rs` (the vocabulary: `Window`, `Actor`,
   begun after the effects, its end goes on to the after-resolution window
   (`queued_at_resolution`). Both minions must still be ready (advanced rules
   4.9.3); an action failing or ending first loses it (LSJ 20090826).
-  Psyche!'s queue is the combat's (§6.7).
+  Psyche!'s queue is the combat's (§6.7). Fast Reaction queues from the
+  after-combat window (`QueueCombatWithActing`, its riders in
+  `ActionCtx::queued_riders`), dropping the block combat's continuation
+  as Psyche! does; `Requirement::BlockerOwn` reads `last_combat`, so it
+  follows the block's combat only, never its own.
 - **Forward Momentum** (`ActionCtx::momentum`, `bleed_ends_riders`,
   `finish_action`): +1 counter after a successful bleed, −1 otherwise (a
   blocked bleed included), pending in the after-resolution window beside
@@ -807,6 +817,15 @@ engine masks), `cards/mod.rs` (the vocabulary: `Window`, `Actor`,
   midway (PIB 20121031): an untimed lock ability (The Coven) is offered in
   the prevention window, before damage lands. Anathema's "blood reduced to 0
   in combat" is read as each step settles (`Engine::settle_anathema`).
+- Going to torpor: after the preventions, a vampire the damage as it stands
+  sends to torpor opens `Step::GoingToTorpor(i)` once per side
+  (`Side::torpor_offered`; `Window::CombatGoingToTorpor`, label
+  `CombatPrevention`), opened for and offering only the plays and
+  abilities of that window (an any-impulse ability is not: the prevention
+  window just offered it; an ability used there asks the step again):
+  Decapitate [POT] there sets
+  `Side::burn_instead_of_torpor`; `going_to_torpor` / `going_down` read
+  the pending damage (`OpponentGoingToTorpor`, `ActorNotGoingDown`).
 - Combat ends: `Effect::EndCombat` goes to the end-of-round window; no new round
   once a combatant left the ready region; mid-combat ousts DESIGN §10.8.
 - "Put this card on …" in combat: a card that says so as it resolves goes
@@ -1048,6 +1067,9 @@ engine masks), `cards/mod.rs` (the vocabulary: `Window`, `Actor`,
 
 `state.rs` `CardInPlay`; `cards/mod.rs`.
 
+- Host: `GameState::set_host` is the one way a card changes minion (every
+  move, steal and transfer); a card marked `CountersClearOnNewBearer`
+  (Seal of Veddartha) loses its counters there.
 - Control: `CardInPlay.controller` is state; `GameState::card_controller`
   routes a minion card to its host's controller, a master card stays its
   player's (rules-qa 7.5), `Effect::StillYours` keeps a card its player's on
@@ -1191,6 +1213,9 @@ engine masks), `cards/mod.rs` (the vocabulary: `Window`, `Actor`,
   added, moves what is still there at resolution. One vehicle etc. via
   `GameState::can_hold`. `Engine::put_equipment` is shared by equip, searches
   and Vast Wealth; "only one played or equipped in a game" is recorded there.
+- "An equip action" (Hag's Wrinkles, NRA PAC): `ActionCtx::is_equip_action`,
+  an equip from hand or a search equipping (`SearchEquip`), never the
+  equip-from-another-minion move (rules-qa 78.28, digest §3.7).
 - Bearer effects are read live on the current bearer (`Modifier::Bearer`), with
   the named trait (a non-Ravnos holding Treasured Samadji gets nothing,
   rules-qa 9.1).

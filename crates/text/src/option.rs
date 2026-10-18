@@ -519,6 +519,10 @@ fn asked(
         (P::EntryBurn, K::ChooseMinion) => role("burned")?,
         (P::MayPutOn, K::Pass) => format!("Leave {} in the ash heap", named()?),
         (P::MayAddCounter, K::Pass) => "Add no counter".into(),
+        (P::MayStoreAim, K::Pass) => format!("Leave {} in the ash heap", named()?),
+        (P::MayStoreAim, K::ResolveRider) => {
+            format!("Move {} onto Light Intensifying Goggles", named()?)
+        }
         (P::MayAddCounter, K::ResolveRider) => format!("Add 1 counter to {}", named()?),
         (P::MayTorture, K::Pass) => "No torture counter".into(),
         (P::MayTorture, K::ResolveRider) => "Lock The Path of Lilith: a torture counter".into(),

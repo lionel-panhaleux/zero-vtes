@@ -149,6 +149,8 @@ impl Requirement {
             | R::BothCombatantsReady
             | R::CombatWouldEnd
             | R::DamagePending
+            | R::OpponentGoingToTorpor
+            | R::ActorNotGoingDown
             | R::NonAggravatedDamagePending
             | R::GunStrikeDamagePending
             | R::NonGunDamagePending
@@ -215,6 +217,8 @@ impl Requirement {
             | R::NoReactionPlayed
             | R::BlockerTitleIn(..)
             | R::BlockerOwnAnarch
+            | R::BlockerOwn
+            | R::ActorNotBlocker
             | R::SameCircleAsActing
             | R::SameCircleAsOwnCombatant
             | R::OwnCombatantsOpponentReady
@@ -229,6 +233,7 @@ impl Requirement {
             | R::ControlsLockedMinion
             | R::DirectedAtYourMinion
             | R::DirectedAtYourAlly
+            | R::DirectedAtYourCard(_)
             | R::ActingByPredatorOrPrey
             | R::ActorUnmergedAdvanced
             | R::ActorPassedReferendumThisTurn
@@ -362,6 +367,7 @@ impl Requirement {
             | R::TargetAshAtLeast(..)
             | R::PredatorsPredator => &[S::SeatTarget],
             R::CardControlledByPrey
+            | R::CardControlledByPredatorOrPrey
             | R::TargetOnPreyMinion
             | R::TargetOnActor
             | R::TargetCard(..)

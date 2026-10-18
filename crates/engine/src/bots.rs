@@ -146,6 +146,7 @@ impl Scripted {
                     Some(
                         Interrupt::MayPutOn { .. }
                             | Interrupt::MayAddCounter { .. }
+                            | Interrupt::MayStoreAim { .. }
                             | Interrupt::MayGainPool { .. }
                             | Interrupt::DiablerieEquipment { .. }
                     )

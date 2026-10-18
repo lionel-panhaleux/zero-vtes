@@ -208,6 +208,10 @@ const DURING_ONCE_ELSEWHERE: &[(&str, &str)] = &[
         "MUSTAFA",
         "each older Toreador once (a forced-yet requirement)",
     ),
+    (
+        "NEFERTITI_ADV",
+        "the [MERGED] unlock, inert without the base card",
+    ),
     ("ONE_WITH_THE_LAND", "a no-strike flag set once"),
     ("ORLANDO_ORIUNDUS", "passive vote doubling, no choice"),
     ("PAULO_DE_CASTILLE", "a one-shot as he enters play"),

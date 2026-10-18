@@ -437,7 +437,10 @@ ids!(
         /// aggravated damage, or takes it (Rutor's Hand [THA]).
         AvoidDamage,
         /// `seat` looks at `of`'s hand and discards a card of their choice
-        /// from it, which `of` replaces (Revelations [aus]).
+        /// from it, which `of` replaces (Revelations [aus]). Asked first
+        /// with no `of` and `choose_seat` options where several hands may
+        /// be the one (Vaticination: each other Methuselah's), then with
+        /// `of` and `find_card` options.
         DiscardFromHandOf,
         /// `seat` discards `left` more cards of their choice from hand (Shroud
         /// of Decay [obl]); all `done` are replaced once every discard is made
@@ -623,6 +626,10 @@ ids!(
         /// "You can add 1 counter to this location" (Cursed Abattoir):
         /// `ResolveRider` it, or pass — never worse to add (rules-qa 55.6).
         MayAddCounter,
+        /// "You can move any aim card the bearer uses to this card" (Light
+        /// Intensifying Goggles): the card just used, from the ash heap onto
+        /// it (`ResolveRider`), or pass.
+        MayStoreAim,
         /// The Path of Lilith: `seat` may lock `card` to put a torture counter
         /// on `minion` (`ResolveRider`), or pass.
         MayTorture,

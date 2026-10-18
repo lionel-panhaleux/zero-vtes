@@ -195,7 +195,9 @@ pub enum MinionKind {
     Created {
         card: u16,
         id: CardId,
-        clan: &'static str,
+        /// Its clan; none, a clanless one's copy (Dual Form on the Great
+        /// Beast).
+        clan: Option<&'static str>,
         sect: Sect,
         born: &'static Born,
     },
@@ -607,7 +609,7 @@ impl Minion {
         }
         match self.kind {
             MinionKind::Vampire(c) => Some(CRYPT[c as usize].clan),
-            MinionKind::Created { clan, .. } => Some(clan),
+            MinionKind::Created { clan, .. } => clan,
             // Clanless.
             MinionKind::Ally { .. }
             | MinionKind::Token { .. }
@@ -964,6 +966,8 @@ pub enum Expiry {
     MasterPhase,
     /// The end of the combat under way.
     Combat,
+    /// The end of the combat round under way (Patagia's flight).
+    Round,
     /// The rest of the game.
     Never,
 }
@@ -1045,6 +1049,9 @@ pub struct Seat {
     /// Cryptic Rider: the next referendum a vampire of theirs calls this
     /// turn passes automatically.
     pub auto_pass_next: bool,
+    /// Malkavian Rider Clause: the next referendum a vampire of theirs calls
+    /// passes automatically, whenever it comes.
+    pub auto_pass_lasting: bool,
     /// A Sabbat vampire of theirs called a referendum this turn.
     pub sabbat_referendum_called: bool,
     /// A burn-option card discarded this unlock phase (rulebook, advanced:
@@ -1476,7 +1483,28 @@ impl GameState {
                 .filter(|g| g.eq_ignore_ascii_case(d))
                 .count()
         }) as u8;
-        let granted = granted + equipped + levels;
+        // Seal of Veddartha: a level a counter, in order.
+        let counted = self
+            .layers
+            .iter()
+            .map(|l| match l.modifier {
+                Modifier::BearerCounterLevels(order)
+                    if !barred
+                        && self.layer_active(l)
+                        && self.cards[l.source.index()].host == Some(m)
+                        && self.minions[m.index()].is_vampire() =>
+                {
+                    let n = self.cards[l.source.index()].counters as usize;
+                    order
+                        .iter()
+                        .take(n)
+                        .filter(|g| g.eq_ignore_ascii_case(d))
+                        .count() as u8
+                }
+                _ => 0,
+            })
+            .sum::<u8>();
+        let granted = granted + equipped + levels + counted;
         (printed + granted).min(2)
     }
 
@@ -1725,6 +1753,12 @@ impl GameState {
     pub(crate) fn leave_combat(&mut self) {
         self.combatants = None;
         self.equipment_barred.clear();
+        // Every combat end, a Psyche! or Coordinate Attacks combat next
+        // included: a round's or a combat's bonus is not carried into it.
+        for m in &mut self.minions {
+            m.timed
+                .retain(|&(_, until, _)| !matches!(until, Expiry::Round | Expiry::Combat));
+        }
     }
 
     /// `m` cannot perform political actions (Bela's printed bar).
@@ -2799,6 +2833,34 @@ impl GameState {
             .sum()
     }
 
+    /// "Vampires with basic <d> can play combat cards requiring <d> as if
+    /// they had superior" in play (Tremere Convocation).
+    pub fn basic_plays_superior_combat(&self, d: &str) -> bool {
+        self.in_play_layers().any(|l| {
+            matches!(l.modifier, Modifier::BasicPlaysSuperiorCombat(g) if g.eq_ignore_ascii_case(d))
+        })
+    }
+
+    /// Stealth vampire `m` gets on an action requiring Discipline `req`
+    /// (Tremere Convocation: Tremere, Blood Sorcery).
+    pub fn discipline_action_stealth(&self, m: MinionId, req: impl Fn(&str) -> bool) -> i32 {
+        self.in_play_layers()
+            .map(|l| match l.modifier {
+                Modifier::ClanStealthOnActionsRequiring {
+                    clan,
+                    discipline,
+                    n,
+                } if self.minions[m.index()].is_vampire()
+                    && self.minions[m.index()].clan() == Some(clan)
+                    && req(discipline) =>
+                {
+                    n as i32
+                }
+                _ => 0,
+            })
+            .sum()
+    }
+
     /// An Anarch Manifesto on Anarch `m`: its stealth on an action that
     /// requires an Anarch.
     pub fn anarch_action_stealth(&self, m: MinionId) -> i32 {
@@ -2858,8 +2920,15 @@ impl GameState {
             {
                 Some((self.cards[l.source.index()].card, n as i32))
             }
-            Modifier::OwnMinionsStat { stat: s, n }
-                if s == stat && self.minions[m.index()].owner == self.card_controller(l.source) =>
+            Modifier::OwnMinionsStat {
+                stat: s,
+                n,
+                vampires,
+                during,
+            } if s == stat
+                && self.minions[m.index()].owner == self.card_controller(l.source)
+                && (!vampires || self.minions[m.index()].is_vampire())
+                && during_reads(during) =>
             {
                 Some((self.cards[l.source.index()].card, n as i32))
             }
@@ -3064,6 +3133,32 @@ impl GameState {
         })
     }
 
+    /// Card `id` goes on minion `m`; the counters of one that says so are
+    /// removed if it changes minion (Seal of Veddartha: "if another minion
+    /// gains control of it").
+    pub fn set_host(&mut self, id: CardId, m: MinionId) {
+        let c = &mut self.cards[id.index()];
+        let clears = cards::lookup(c.card).is_some_and(|d| {
+            d.modes.get(c.mode as usize).is_some_and(|md| {
+                md.effects
+                    .contains(&cards::Effect::CountersClearOnNewBearer)
+            })
+        });
+        if clears && c.host.is_some_and(|h| h != m) {
+            c.counters = 0;
+        }
+        c.host = Some(m);
+    }
+
+    /// The only actions `m` may perform, if barred from the others
+    /// (Ponticulus, Nosferatu Bestial).
+    pub fn only_actions(&self, m: MinionId) -> Option<&'static [ActionKind]> {
+        self.borne(m).find_map(|l| match l.modifier {
+            Modifier::OnlyActions(kinds) => Some(kinds),
+            _ => None,
+        })
+    }
+
     /// What `m` — an ally — may play "as a vampire", if anything.
     pub fn plays_as_vampire(&self, m: MinionId) -> Option<cards::AsVampire> {
         self.borne(m).find_map(|l| match l.modifier {
@@ -3247,14 +3342,28 @@ impl GameState {
         v.is_vampire() && (v.blood == 0 || v.must_hunt)
     }
 
-    /// `m` cannot block (Pentex™ Subversion): a card on it.
+    /// A printed stat summed over `seat`'s minions, in torpor too (rules-digest
+    /// D25): what "you get" from its vampires (Fiorenza Savona).
+    pub fn seat_printed(&self, seat: SeatId, stat: Stat) -> i32 {
+        self.minions_of(seat)
+            .map(|m| self.printed_mod(m, stat, PrintedCtx::default()))
+            .sum()
+    }
+
+    /// `m` cannot block (Pentex™ Subversion): a card on it, its own text,
+    /// or the acting minion's (Aisling Sturbridge).
     pub fn cannot_block(&self, m: MinionId, acting: MinionId) -> bool {
         let ctx = PrintedCtx {
             opponent: Some(acting),
             ..PrintedCtx::default()
         };
+        let against = PrintedCtx {
+            opponent: Some(m),
+            ..PrintedCtx::default()
+        };
         self.hosts(m, Modifier::HostCannotBlock)
             || self.printed_mod(m, cards::Stat::CannotBlock, ctx) > 0
+            || self.printed_mod(acting, cards::Stat::CannotBeBlockedBy, against) > 0
     }
 
     /// `m`'s non-bleed actions cannot be blocked (Toreador Grand Ball), still

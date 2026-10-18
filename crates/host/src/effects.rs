@@ -241,7 +241,7 @@ fn add(e: &E, w: Whom, when: Option<When>, out: &mut Vec<Effect>) {
         E::SpendMasterPhaseAction => push(cost(detail(n(K::Action, -1), "master_phase"))),
         E::HuntAction => push(of(K::Hunt)),
         E::HandSizeBonusUntilEndOfTurn(v) => push(n(K::HandSize, i(v))),
-        E::SearchEquip => push(detail(of(K::Search), "equipment")),
+        E::SearchEquip(_) => push(detail(of(K::Search), "equipment")),
         E::DrawThenBottom => push(detail(of(K::Draw), "then_bottom")),
         E::DrawCryptThenRemove => push(detail(of(K::Draw), "crypt_then_remove")),
         E::DrawCryptBloodIfBlackHand(v) => push(detail(n(K::Draw, i(v)), "crypt_black_hand")),

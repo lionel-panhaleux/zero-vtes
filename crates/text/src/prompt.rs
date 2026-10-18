@@ -125,6 +125,10 @@ impl Prompt<'_> {
             ),
             P::MayPutOn => format!("You can put {} on {}", self.card()?, self.minion()?),
             P::MayAddCounter => format!("You can add 1 counter to {}", self.card()?),
+            P::MayStoreAim => format!(
+                "You can move {} onto Light Intensifying Goggles",
+                self.card()?
+            ),
             P::MayGainPool => format!("{}: you can gain {} pool", self.minion()?, a.n?),
             P::EntryRemoveOrBurn => format!(
                 "{} burns unless you remove an ally or vampire in your ash heap from the game",
@@ -177,10 +181,10 @@ impl Prompt<'_> {
                 a.m?,
                 a.n?
             ),
-            P::DiscardFromHandOf => format!(
-                "Discard a card from {}'s hand (they replace it)",
-                self.seat()?
-            ),
+            P::DiscardFromHandOf => match self.seat() {
+                Some(s) => format!("Discard a card from {s}'s hand (they replace it)"),
+                None => "Choose the hand to discard a card from (they replace it)".to_string(),
+            },
             P::DiscardChosen => match self.detail() {
                 Some("combat") => format!("Discard {} combat card(s) of your choice", a.n?),
                 _ => format!("Discard {} card(s) of your choice", a.n?),

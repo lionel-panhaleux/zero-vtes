@@ -2835,7 +2835,7 @@ fn the_guardian_is_not_freed_by_a_created_older_nosferatu() {
         MinionKind::Created {
             card: find_library("Childe of the Revolution"),
             id: CardId(childe as u32),
-            clan: "Nosferatu",
+            clan: Some("Nosferatu"),
             sect: zvtes::crypt::Sect::Anarch,
             born: &zvtes::state::NEWBORN,
         },

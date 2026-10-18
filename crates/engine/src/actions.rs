@@ -297,6 +297,8 @@ pub struct ActionCtx {
     /// minion), begun after block resolution or the action's effects, lost
     /// if the action ends first (advanced rules 4.9.3; rules-qa 53.3).
     pub queued_combat: Option<(MinionId, MinionId)>,
+    /// Riders on the queued combat's combatants (Fast Reaction).
+    pub queued_riders: Vec<(MinionId, cards::BlockRider)>,
     /// Forward Momentum's counter after the bleed (+1 successful, -1 not),
     /// pending in the after-resolution window beside its unlock, in the
     /// controller's order (rules-qa 53.6); applied as the action ends.
@@ -553,6 +555,7 @@ impl ActionCtx {
             } else {
                 0
             }
+            + st.discipline_action_stealth(self.acting, |d| self.requires_discipline(d))
             + st.printed_mod(self.acting, Stat::Stealth, self.printed_ctx(st, None))
             + st.lasting(self.acting).0
             - self.stealth_reduce as i32
@@ -815,6 +818,46 @@ impl ActionCtx {
         }
     }
 
+    /// An action at every Methuselah's hand (Vaticination).
+    fn at_every_hand(&self) -> bool {
+        self.card_effects().contains(&Effect::DiscardFromAllHands)
+    }
+
+    /// Does the action card's mode require Discipline `d`, at any level?
+    pub fn requires_discipline(&self, d: &str) -> bool {
+        self.card.as_ref().is_some_and(|p| {
+            LIBRARY[p.card as usize].modes[cards::library_mode(p.card, p.mode as usize)]
+                .tags
+                .iter()
+                .any(|t| t.eq_ignore_ascii_case(d))
+        })
+    }
+
+    /// An equip action (rules-digest §3.7, rules-qa 78.28): an equip from
+    /// hand or of an equipment found (Vast Wealth), or an action whose card
+    /// or granted ability searches the library and equips (Magic of the
+    /// Smith; Michael Harris, Dark Web Procurer: TOM 19960130); not a move
+    /// from another minion.
+    pub fn is_equip_action(&self, st: &crate::state::GameState) -> bool {
+        let effects = match (&self.card, self.source, self.ability) {
+            (Some(p), _, _) => {
+                cards::lookup(p.card).map_or(&[][..], |d| d.modes[p.mode as usize].effects)
+            }
+            (None, Some(src), Some(ab)) => src.mode(st, ab).effects,
+            _ => &[][..],
+        };
+        matches!(self.kind, ActionKind::Equip | ActionKind::EquipFound)
+            || effects.iter().any(|e| matches!(e, Effect::SearchEquip(_)))
+    }
+
+    /// The action card's mode effects, for those read where they bite
+    /// (Night Moves' pool cap, Rumble's end).
+    pub fn card_effects(&self) -> &'static [Effect] {
+        self.card.as_ref().map_or(&[][..], |p| {
+            cards::lookup(p.card).map_or(&[][..], |d| d.modes[p.mode as usize].effects)
+        })
+    }
+
     /// The minion the action's resolution begins a combat with ("enter
     /// combat with a minion", a card's or a granted action's), if any.
     pub fn combat_target(&self, st: &crate::state::GameState) -> Option<MinionId> {
@@ -837,6 +880,12 @@ impl ActionCtx {
 
     /// The Methuselah a directed action is directed at, if any.
     pub fn directed_seat(&self, st: &crate::state::GameState) -> Option<SeatId> {
+        // Vaticination: directed; the prey stands for the Methuselahs it is
+        // at (`directed_seats`).
+        if self.at_every_hand() {
+            let prey = st.prey(self.seat);
+            return (prey != self.seat).then_some(prey);
+        }
         match self.kind {
             ActionKind::Bleed => self.bleed_target,
             ActionKind::Rescue | ActionKind::Diablerie | ActionKind::RedListHunt => {
@@ -875,6 +924,14 @@ impl ActionCtx {
     /// The Methuselahs the action is directed at: one, or two for an
     /// action with a second target (Taunt the Caged Beast [ANI]).
     pub fn directed_seats(&self, st: &crate::state::GameState) -> crate::ids::SeatSet {
+        // Vaticination: at every other Methuselah, each hand its target
+        // (rules-qa 17.2, 80.35).
+        if self.at_every_hand() {
+            return (0..st.seats.len())
+                .map(|i| SeatId(i as u8))
+                .filter(|&s| s != self.seat && !st.seats[s.index()].ousted)
+                .fold(crate::ids::SeatSet::EMPTY, crate::ids::SeatSet::with);
+        }
         let set = self
             .directed_seat(st)
             .map_or(crate::ids::SeatSet::EMPTY, crate::ids::SeatSet::single);
@@ -1406,9 +1463,19 @@ impl Engine {
     /// target of a directed action; prey and predator of an undirected one.
     fn normal_blockers(&self, a: &ActionCtx) -> Vec<SeatId> {
         match self.directed_target(a) {
-            Some(t) => std::iter::once(t)
-                .chain(a.second_directed_seat(&self.state))
-                .collect(),
+            // Every Methuselah it is directed at, clockwise from the acting
+            // one (Vaticination: all of them, rules-qa 80.35).
+            Some(t) => {
+                let at = a.directed_seats(&self.state);
+                let mut v: Vec<SeatId> = self
+                    .state
+                    .clockwise_from(a.seat)
+                    .into_iter()
+                    .filter(|&s| s != t && at.contains(s))
+                    .collect();
+                v.insert(0, t);
+                v
+            }
             None => {
                 let mut v = vec![self.state.prey(a.seat), self.state.predator(a.seat)];
                 v.dedup();
@@ -2995,6 +3062,10 @@ impl Engine {
                     barred.push(c.sides[1 - i].minion);
                 }
                 cards::BlockRider::Press => c.sides[i].combat_presses += 1,
+                cards::BlockRider::NoStrikeFirstRound => c.sides[i].no_strike_round = Some(1),
+                cards::BlockRider::HandSize(n) => self.state.seats[c.sides[i].seat.index()]
+                    .timed
+                    .add(TimedStat::HandSize, crate::state::Expiry::Combat, n as i8),
                 cards::BlockRider::ManeuverOrPress => c.sides[i].maneuver_or_press += 1,
                 cards::BlockRider::OpponentNoManeuver => c.sides[1 - i].no_maneuver = true,
                 cards::BlockRider::PreventFirstRound(n) => c.sides[i].round_prevents += n,
@@ -3115,6 +3186,8 @@ impl Engine {
         }
         self.start_combat(x, y);
         self.combat.as_mut().expect("combat").queued = true;
+        let riders = std::mem::take(&mut self.action.as_mut().expect("action").queued_riders);
+        self.combat_riders(&riders);
         true
     }
 
@@ -3263,7 +3336,7 @@ impl Engine {
                     });
                 if moves {
                     let id = CardId(ci as u32);
-                    self.state.cards[ci].host = Some(diablerist);
+                    self.state.set_host(CardId(ci as u32), diablerist);
                     if let Some(t) = cards::card_title(self.state.cards[ci].card) {
                         self.gain_title(diablerist, t, Some(id));
                     }
@@ -3533,6 +3606,20 @@ impl Engine {
             Effect::StealthOnNextAction(n) => {
                 let m = play.actor.expect("the acting vampire");
                 self.state.minions[m.index()].next_action_stealth += n;
+            }
+            // Fast Reaction: the acting minion in combat with this vampire
+            // once the after-combat window closes, unable to strike in its
+            // first round; [AUS] a press for this vampire. The block's
+            // combat's continuation lost, as Psyche!'s (RTR 20020501).
+            Effect::QueueCombatWithActing { press } => {
+                let m = play.actor.expect("actor");
+                a.continue_free = false;
+                a.continued = false;
+                a.queued_combat = Some((a.acting, m));
+                a.queued_riders = vec![(a.acting, cards::BlockRider::NoStrikeFirstRound)];
+                if press {
+                    a.queued_riders.push((m, cards::BlockRider::Press));
+                }
             }
             Effect::QueueCombatWithAttempting => {
                 if let ActionState::Attempt(m) = a.state {
@@ -4366,10 +4453,16 @@ impl Engine {
                 }
                 // Protected Resources: the pool burned capped, the bleed
                 // amount untouched (LSJ 20030211).
+                let card_cap = a.card_effects().iter().find_map(|e| match e {
+                    Effect::BleedPoolCap(n) => Some(*n),
+                    _ => None,
+                });
                 let burned = self
                     .state
                     .bleed_burn_cap(payer)
-                    .map_or(amount, |cap| amount.min(cap));
+                    .into_iter()
+                    .chain(card_cap)
+                    .fold(amount, u8::min);
                 let lost = burned.min(self.state.seats[payer.index()].pool.max(0) as u8);
                 self.state.seats[payer.index()].pool -= burned as i32;
                 // The context is out of `self.action` here: Věnceslava's
@@ -4801,7 +4894,7 @@ impl Engine {
                         && self.state.can_hold(acting, c.card, &[])
                         && !self.state.pinned(id)
                     {
-                        self.state.cards[id.index()].host = Some(acting);
+                        self.state.set_host(id, acting);
                     }
                 }
             }
@@ -4838,13 +4931,18 @@ impl Engine {
                     }
                     a = self.action.take().expect("action");
                 }
-                if mode.effects.contains(&Effect::SearchEquip) {
+                if let Some(&Effect::SearchEquip(equip)) = mode
+                    .effects
+                    .iter()
+                    .find(|e| matches!(e, Effect::SearchEquip(_)))
+                {
                     // Magic of the Smith: the equipment is chosen now that
                     // the action succeeded (spec §1.14.1, §3.4).
                     let acting = a.acting;
                     self.action = Some(a);
                     self.flow = Flow::LibrarySearch {
                         minion: acting,
+                        equip,
                         to_hand: None,
                     };
                     return;
@@ -4917,6 +5015,8 @@ impl Engine {
                                 | Effect::BloodHuntIfHuntGained
                                 | Effect::CoagulateFromPicks { .. }
                                 | Effect::UnlockAtEndIfReady
+                                | Effect::BleedPoolCap(_)
+                                | Effect::BurnPoolAtEndIfNotReady(_)
                                 | Effect::TauntCombat(_)
                                 | Effect::AshCardOfToHand(_)
                         )
@@ -5292,6 +5392,7 @@ impl Engine {
                         Effect::SearchToHand { filter, shown } => {
                             self.flow = Flow::LibrarySearch {
                                 minion: acting,
+                                equip: &[],
                                 to_hand: Some((filter, shown)),
                             };
                             return;
@@ -5358,7 +5459,7 @@ impl Engine {
                         // Still one it could hold (re-checked above).
                         Effect::StealTargetCard => {
                             let c = target.card();
-                            self.state.cards[c.index()].host = Some(acting);
+                            self.state.set_host(c, acting);
                         }
                         // Still contested (re-checked above).
                         Effect::TargetYieldsTitle => {
@@ -5380,7 +5481,7 @@ impl Engine {
                                         self.state.minions[to.index()].deranged = d;
                                     }
                                 }
-                                self.state.cards[c.index()].host = Some(to);
+                                self.state.set_host(c, to);
                             }
                         }
                         // Rise of the Nephtali: no contest with a younger
@@ -5531,9 +5632,10 @@ impl Engine {
                         }
                         // Michael Harris: the equipment is chosen now that
                         // the action succeeded (as Magic of the Smith).
-                        Effect::SearchEquip => {
+                        Effect::SearchEquip(equip) => {
                             self.flow = Flow::LibrarySearch {
                                 minion: acting,
+                                equip,
                                 to_hand: None,
                             };
                             return;
@@ -5661,6 +5763,17 @@ impl Engine {
                         | Effect::StealPoolFromTarget(_)
                         | Effect::DiscardFromTargetHand) => {
                             self.apply_card_effect(e, &ctx, &mut None)
+                        }
+                        Effect::CryptNamedToUncontrolled(name) => {
+                            self.crypt_named_to_uncontrolled(seat, name)
+                        }
+                        Effect::TargetSeatTakesSourceAlly => {
+                            if let (Target::Seat(to), cards::AbilitySource::Card(c)) = (target, src)
+                            {
+                                if self.state.cards[c.index()].present() {
+                                    self.give_card_control(c, to);
+                                }
+                            }
                         }
                         other => unreachable!("not a granted action's effect: {other:?}"),
                     }
@@ -5821,10 +5934,8 @@ impl Engine {
         self.state.lent_disciplines.clear();
         // NRA PAC: a successful equip action, the event in play.
         let a = self.action.as_ref().expect("action context");
-        if matches!(
-            a.kind,
-            ActionKind::Equip | ActionKind::EquipFrom | ActionKind::EquipFound
-        ) && a.outcome == Some(Outcome::Successful)
+        if a.is_equip_action(&self.state)
+            && a.outcome == Some(Outcome::Successful)
             && self
                 .state
                 .global(cards::Modifier::EquipUnlocksEndOfTurn)
@@ -6014,6 +6125,18 @@ impl Engine {
                 self.state.unlock(m);
             }
         }
+        // Rumble: blocked or not, the acting vampire not ready at the end.
+        if let Some(a) = self.action.as_ref() {
+            let n = a.card_effects().iter().find_map(|e| match e {
+                Effect::BurnPoolAtEndIfNotReady(n) => Some(*n),
+                _ => None,
+            });
+            if let Some(n) = n.filter(|_| !self.state.minions[a.acting.index()].ready()) {
+                let mut loss = vec![0; self.state.seats.len()];
+                loss[a.seat.index()] = n as i32;
+                self.burn_pool_batch(&loss);
+            }
+        }
         // Infernal Servitor: "after it performs a successful action" (a
         // fizzled action is successful, rules-qa 56.1).
         if let Some(a) = self.action.as_ref() {
@@ -6169,7 +6292,39 @@ impl Engine {
         let ctx = PlayCtx::new(seat, card, mode, Some(m), Target::Minion(m), 0);
         self.apply_entry_effects(&ctx, id, false);
         self.enter_card_contest(m);
+        self.entered_play_riders(m);
         m
+    }
+
+    /// Minion `m` just put in play: a Gran Madre di Dio of its controller's
+    /// predator or prey locks it, out of the unlock phase, and a vampire
+    /// younger than its bearer burns 1 blood (each such card).
+    pub(crate) fn entered_play_riders(&mut self, m: MinionId) {
+        if self.phase() == crate::game::Phase::Unlock {
+            return;
+        }
+        let st = &self.state;
+        let owner = st.minions[m.index()].owner;
+        let bearers: Vec<Option<MinionId>> = st
+            .in_play_layers()
+            .filter(|l| l.modifier == cards::Modifier::LocksEnteringFromNeighbours)
+            .filter(|l| {
+                let c = st.card_controller(l.source);
+                c != owner && (st.prey(c) == owner || st.predator(c) == owner)
+            })
+            .map(|l| st.cards[l.source.index()].bearer())
+            .collect();
+        if bearers.is_empty() {
+            return;
+        }
+        self.state.minions[m.index()].locked = true;
+        for b in bearers {
+            let younger = self.state.minions[m.index()].is_vampire()
+                && b.is_some_and(|b| self.state.younger_than(m, b));
+            if younger {
+                self.state.burn_blood(m, 1);
+            }
+        }
     }
 
     /// Put the master card `card` on `m` without playing it (no cost, no
@@ -6382,6 +6537,7 @@ impl Engine {
     pub(crate) fn search_request(
         &self,
         minion: MinionId,
+        equip: &[cards::CardFilter],
         to_hand: Option<cards::CardFilter>,
     ) -> DecisionRequest {
         let st = &self.state;
@@ -6393,7 +6549,8 @@ impl Engine {
             }
             // Payable with the reductions it could take once chosen
             // (rules-qa 38.5).
-            self.equip_requirements_met(minion, c)
+            equip.iter().all(|f| f.matches(c))
+                && self.equip_requirements_met(minion, c)
                 && self.payable_with_potential(
                     &found_play(seat, minion, c, crate::copies::CopyId::NONE),
                     false,
@@ -6950,6 +7107,13 @@ impl Engine {
                     .is_some_and(|m| barred.contains(&m))
             });
         }
+        // "Cannot act" (Ponticulus), "cannot perform non-hunt actions"
+        // (Nosferatu Bestial).
+        options.retain(|o| {
+            !self.option_action(s, o).is_some_and(|(m, kind, _)| {
+                st.only_actions(m).is_some_and(|only| !only.contains(&kind))
+            })
+        });
         // "Cannot perform political actions" (Bela).
         options.retain(|o| {
             !self.option_action(s, o).is_some_and(|(m, kind, _)| {

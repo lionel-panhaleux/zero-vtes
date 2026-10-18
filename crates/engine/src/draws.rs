@@ -205,8 +205,9 @@ pub enum Interrupt {
         damage: u8,
     },
     /// Revelations [aus]: `seat` discards a card from `of`'s hand, which `of`
-    /// replaces.
-    DiscardFromHandOf { seat: SeatId, of: SeatId },
+    /// replaces; `of` none: the hand chosen first, among every hand looked
+    /// at (Vaticination).
+    DiscardFromHandOf { seat: SeatId, of: Option<SeatId> },
     /// Eulogio Sánchez de los Reyes: the top `total` library cards
     /// reordered, `placed` chosen so far from the top down.
     Reorder { seat: SeatId, total: u8, placed: u8 },
@@ -446,6 +447,14 @@ pub enum Interrupt {
     /// "You can add 1 counter to this location" (Cursed Abattoir):
     /// `ResolveRider` it, or pass — never worse to add (rules-qa 55.6).
     MayAddCounter { seat: SeatId, card: CardId },
+    /// Light Intensifying Goggles: `seat` may move `card`, its bearer's aim
+    /// card just used (canceled too), from their ash heap onto `store`
+    /// (`ResolveRider`), or pass (owner, 2026-10-18: asked each time).
+    MayStoreAim {
+        seat: SeatId,
+        store: CardId,
+        card: u16,
+    },
     /// The Path of Lilith: `seat` may lock `card` to put a torture counter
     /// on `minion` (`ResolveRider`), or pass.
     MayTorture {
@@ -586,6 +595,7 @@ impl Interrupt {
             | Interrupt::MayRecycleCanceled { seat, .. }
             | Interrupt::MayPutOn { seat, .. }
             | Interrupt::MayAddCounter { seat, .. }
+            | Interrupt::MayStoreAim { seat, .. }
             | Interrupt::MayTorture { seat, .. }
             | Interrupt::MayGainPool { seat, .. }
             | Interrupt::MoveForBlood { seat, .. }
@@ -859,8 +869,14 @@ impl Engine {
                     continue;
                 }
                 Interrupt::DiscardFromHandOf { of, .. } => {
-                    !self.state.seats[of.index()].ousted
-                        && !self.state.seats[of.index()].hand.is_empty()
+                    let open = |s: SeatId| {
+                        !self.state.seats[s.index()].ousted
+                            && !self.state.seats[s.index()].hand.is_empty()
+                    };
+                    match of {
+                        Some(of) => open(of),
+                        None => (0..self.state.seats.len()).any(|i| open(SeatId(i as u8))),
+                    }
                 }
                 Interrupt::AvoidDamage { minion, .. } => present(minion),
                 // One card or one kind left to place: no choice.
@@ -1090,6 +1106,10 @@ impl Engine {
                 }
                 Interrupt::MayPutOn { held, .. } => self.may_put_held(held),
                 Interrupt::MayAddCounter { card, .. } => self.state.cards[card.index()].present(),
+                Interrupt::MayStoreAim { seat, store, card } => {
+                    self.state.cards[store.index()].present()
+                        && self.state.seats[seat.index()].ash.contains(&card)
+                }
                 Interrupt::MayTorture { card, minion, .. } => {
                     let c = &self.state.cards[card.index()];
                     c.present() && !c.locked && present(minion)
@@ -1440,11 +1460,20 @@ impl Engine {
                 (WindowLabel::ResolutionChoice, options)
             }
             // The look: every card, one choice per card name.
-            Interrupt::DiscardFromHandOf { of, .. } => (
+            Interrupt::DiscardFromHandOf { of: Some(of), .. } => (
                 WindowLabel::ResolutionChoice,
                 distinct(&st.seats[of.index()].hand, |_| true)
                     .into_iter()
                     .map(Choice::FindCard)
+                    .collect(),
+            ),
+            // Vaticination: whose hand, each looked at (`peeks`).
+            Interrupt::DiscardFromHandOf { of: None, .. } => (
+                WindowLabel::ResolutionChoice,
+                (0..st.seats.len())
+                    .map(|i| SeatId(i as u8))
+                    .filter(|s| !st.seats[s.index()].ousted && !st.seats[s.index()].hand.is_empty())
+                    .map(Choice::ChooseSeat)
                     .collect(),
             ),
             Interrupt::AvoidDamage { .. } => (
@@ -1869,7 +1898,9 @@ impl Engine {
                 WindowLabel::ResolutionChoice,
                 vec![Choice::Pass, Choice::ChooseMinion(held.minion)],
             ),
-            Interrupt::MayAddCounter { card, .. } | Interrupt::MayTorture { card, .. } => (
+            Interrupt::MayAddCounter { card, .. }
+            | Interrupt::MayTorture { card, .. }
+            | Interrupt::MayStoreAim { store: card, .. } => (
                 WindowLabel::ResolutionChoice,
                 vec![Choice::Pass, Choice::ResolveRider { card: card.0 }],
             ),
@@ -2514,6 +2545,12 @@ impl Engine {
     /// change of control has its new controller choose (The Rack).
     pub(crate) fn give_card_control(&mut self, card: CardId, seat: SeatId) {
         self.state.cards[card.index()].controller = seat;
+        // An ally's card: the ally changes hands (Vivienne Géroux), and
+        // enters any contest of its name.
+        if let Some(m) = self.state.cards[card.index()].body {
+            self.state.minions[m.index()].owner = seat;
+            self.enter_card_contest(m);
+        }
         let def = cards::lookup(self.state.cards[card.index()].card);
         // The choice its ability made was the old controller's (Powerbase:
         // Luanda, rules-qa 77.16).
@@ -2724,7 +2761,7 @@ impl Engine {
 
     /// A title card moved to `m`: its title `m`'s, contested as gained.
     fn move_title_card(&mut self, card: CardId, m: MinionId) {
-        self.state.cards[card.index()].host = Some(m);
+        self.state.set_host(card, m);
         if let Some(t) = cards::card_title(self.state.cards[card.index()].card) {
             self.gain_title(m, t, Some(card));
         }
@@ -3139,11 +3176,11 @@ impl Engine {
             }
             (Interrupt::MoveCardToTitled { card, .. }, Choice::ChooseMinion(m)) => {
                 self.interrupts.remove(0);
-                self.state.cards[card.index()].host = Some(m);
+                self.state.set_host(card, m);
             }
             (Interrupt::MoveOffBurnedBearer { card, .. }, Choice::ChooseMinion(m)) => {
                 self.interrupts.remove(0);
-                self.state.cards[card.index()].host = Some(m);
+                self.state.set_host(card, m);
             }
             (Interrupt::SearchEquipFor { seat, minion }, Choice::FindCard(card)) => {
                 self.interrupts.remove(0);
@@ -3487,7 +3524,10 @@ impl Engine {
                     clan,
                 };
             }
-            (Interrupt::DiscardFromHandOf { of, .. }, Choice::FindCard(card)) => {
+            (Interrupt::DiscardFromHandOf { seat, of: None }, Choice::ChooseSeat(of)) => {
+                self.interrupts[0] = Interrupt::DiscardFromHandOf { seat, of: Some(of) };
+            }
+            (Interrupt::DiscardFromHandOf { of: Some(of), .. }, Choice::FindCard(card)) => {
                 self.interrupts.remove(0);
                 let st = &mut self.state.seats[of.index()];
                 let i = st.hand.iter().position(|&c| c == card).expect("in hand");
@@ -3595,7 +3635,7 @@ impl Engine {
                     MinionPurpose::Lock
                     | MinionPurpose::LockVampire
                     | MinionPurpose::LockOldest(_) => v.locked = true,
-                    MinionPurpose::HostCard(c) => self.state.cards[c.index()].host = Some(m),
+                    MinionPurpose::HostCard(c) => self.state.set_host(c, m),
                     MinionPurpose::Damage(n) => self.damage_out_of_combat(m, n, false),
                     // A vampire fed by another hunting ground this turn
                     // still counts as one of the two.
@@ -3659,7 +3699,7 @@ impl Engine {
                 };
             }
             (Interrupt::DiablerieEquipment { diablerist, .. }, Choice::ChooseCard(c)) => {
-                self.state.cards[c as usize].host = Some(diablerist);
+                self.state.set_host(CardId(c), diablerist);
             }
             (
                 Interrupt::DiablerieEquipment {
@@ -3671,7 +3711,7 @@ impl Engine {
                 self.diablerie_burns(diablerist, victim);
             }
             (Interrupt::MoveBetween { to: Some(to), .. }, Choice::ChooseCard(c)) => {
-                self.state.cards[c as usize].host = Some(to);
+                self.state.set_host(CardId(c), to);
             }
             (Interrupt::MoveBetween { .. }, Choice::Pass) => {
                 self.interrupts.remove(0);
@@ -3732,6 +3772,7 @@ impl Engine {
             (
                 Interrupt::MayPutOn { .. }
                 | Interrupt::MayAddCounter { .. }
+                | Interrupt::MayStoreAim { .. }
                 | Interrupt::MayTorture { .. }
                 | Interrupt::MayGainPool { .. }
                 | Interrupt::MayPreventForBlood { .. }
@@ -3743,6 +3784,17 @@ impl Engine {
             (Interrupt::MayPutOn { held, .. }, Choice::ChooseMinion(_)) => {
                 self.interrupts.remove(0);
                 self.place_held(held, held.minion);
+            }
+            (Interrupt::MayStoreAim { seat, store, card }, Choice::ResolveRider { .. }) => {
+                self.interrupts.remove(0);
+                let ash = &mut self.state.seats[seat.index()].ash;
+                // The one just used: the latest copy on the heap.
+                let i = ash
+                    .iter()
+                    .rposition(|&c| c == card)
+                    .expect("in the ash heap");
+                let (_, copy) = ash.take(i);
+                self.state.cards[store.index()].stored.put(card, copy);
             }
             (Interrupt::MayAddCounter { card, .. }, Choice::ResolveRider { .. }) => {
                 self.interrupts.remove(0);
@@ -3916,7 +3968,7 @@ impl Engine {
                     (None, None) => self.interrupts[0] = next(Some(m), None),
                     (Some(f), _) => self.interrupts[0] = next(Some(f), Some(m)),
                     (None, Some(c)) => {
-                        self.state.cards[c.index()].host = Some(m);
+                        self.state.set_host(c, m);
                         self.interrupts[0] = next(None, None);
                     }
                 }

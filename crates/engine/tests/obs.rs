@@ -296,7 +296,7 @@ fn a_banished_created_vampire_is_its_card() {
     let kind = MinionKind::Created {
         card: childe,
         id: CardId(0),
-        clan: "Brujah",
+        clan: Some("Brujah"),
         sect: Sect::Anarch,
         born: &zvtes::state::NEWBORN,
     };

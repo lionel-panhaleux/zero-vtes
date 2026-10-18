@@ -200,6 +200,9 @@ pub struct ReferendumCtx {
     pub pre_vote: bool,
     /// Made to fail (Yoruba Shrine): no tally.
     pub forced_fail: bool,
+    /// Malkavian Rider Clause: the players whose next referendum passes
+    /// automatically if this one passes.
+    pub rider_clauses: Vec<SeatId>,
     /// Scorn of Adonis: pool burned at the tally by each Methuselah who
     /// cast against (one per Scorn).
     pub scorn: u8,
@@ -305,6 +308,7 @@ impl ReferendumCtx {
         v.ready()
             && !v.expelled
             && !self.abstaining.contains(&m)
+            && !st.bears(m, crate::cards::Modifier::CastsNoVotes)
             && st.sect_of(m).is_some_and(|s| {
                 self.only_sect.is_none_or(|o| s == o) && self.barred_sect != Some(s)
             })
@@ -316,15 +320,15 @@ impl ReferendumCtx {
         if !self.may_vote(st, m) || !favor && self.barred_against(st, m) {
             return 0;
         }
-        let side = if !favor && matches!(self.kind, RefKind::BloodHunt { .. }) {
-            st.printed_mod(
-                m,
-                crate::cards::Stat::VotesAgainstBloodHunt,
-                crate::state::PrintedCtx::default(),
-            )
-        } else {
-            0
-        };
+        let blood_hunt = matches!(self.kind, RefKind::BloodHunt { .. });
+        let read = |stat| st.printed_mod(m, stat, crate::state::PrintedCtx::default());
+        let mut side = 0;
+        if blood_hunt {
+            side += read(crate::cards::Stat::VotesInBloodHunt);
+            if !favor {
+                side += read(crate::cards::Stat::VotesAgainstBloodHunt);
+            }
+        }
         (self.votes_of(st, m) as i32 + side).max(0) as u8
     }
 
@@ -514,6 +518,7 @@ impl Engine {
             auto_pass: false,
             pre_vote: kind == RefKind::Political,
             forced_fail: false,
+            rider_clauses: Vec::new(),
             scorn: 0,
             poison: Vec::new(),
             terms: TermsState::default(),
@@ -555,8 +560,16 @@ impl Engine {
         // Cryptic Rider: the next referendum a vampire of theirs calls.
         if let Some(m) = ctx.calling {
             let seat = &mut self.state.seats[caller.index()];
-            if seat.auto_pass_next && self.state.minions[m.index()].is_vampire() {
-                seat.auto_pass_next = false;
+            if (seat.auto_pass_next || seat.auto_pass_lasting)
+                && self.state.minions[m.index()].is_vampire()
+            {
+                // The turn's (Cryptic Rider) used first: the lasting one
+                // keeps for a later referendum.
+                if seat.auto_pass_next {
+                    seat.auto_pass_next = false;
+                } else {
+                    seat.auto_pass_lasting = false;
+                }
                 ctx.auto_pass = true;
                 ctx.window = PollingWindow::new(Vec::new());
             }
@@ -1308,8 +1321,11 @@ impl Engine {
             // "Burning the Edge is worth 1 additional vote" (Eat the Rich).
             Choice::CastEdge { favor } => {
                 self.state.seats[seat.index()].has_edge = false;
-                let bonus = ctx.def.map_or(0, |d| d.edge_bonus);
-                (Source::Edge(seat), *favor, 1 + bonus)
+                let bonus = ctx.def.map_or(0, |d| d.edge_bonus) as i32
+                    + self
+                        .state
+                        .seat_printed(seat, crate::cards::Stat::EdgeVoteBonus);
+                (Source::Edge(seat), *favor, (1 + bonus).max(0) as u8)
             }
             Choice::CastCardVote { favor } => {
                 ctx.card_voted.push(seat);
@@ -1321,7 +1337,10 @@ impl Engine {
                 s.ash.put(c, copy);
                 self.replace(seat, 1, None);
                 ctx.card_voted.push(seat);
-                (Source::Card(seat), *favor, 1)
+                let bonus = self
+                    .state
+                    .seat_printed(seat, crate::cards::Stat::BurnVoteBonus);
+                (Source::Card(seat), *favor, (1 + bonus).max(0) as u8)
             }
             Choice::Play {
                 card,
@@ -1419,6 +1438,12 @@ impl Engine {
         debug_assert!(ctx.step == RefStep::Polling && ctx.window.is_closed());
         let (favor, against) = ctx.tally(&self.state);
         let passed = (favor > against || ctx.auto_pass) && !ctx.forced_fail;
+        // Malkavian Rider Clause: no "this turn" — until it is used.
+        if passed {
+            for &s in &ctx.rider_clauses {
+                self.state.seats[s.index()].auto_pass_lasting = true;
+            }
+        }
         // "The attached vampire burns 1 blood after a referendum passes"
         // (Condemnation: Mute [DAI]): any referendum.
         if passed {
@@ -1781,6 +1806,7 @@ impl Engine {
                 | RefEffect::BurnAlliesUnlessKept
                 | RefEffect::BurnBloodPerPick
                 | RefEffect::PutOnChosen { .. }
+                | RefEffect::PutOnCaller
                 | RefEffect::PutInPlay
                 | RefEffect::ChosenTakesChosenCard
                 | RefEffect::RemoveChosen
@@ -1969,9 +1995,8 @@ impl Engine {
                     && self.state.can_hold(m, card, &[])
                 {
                     let owner = self.state.minions[m.index()].owner;
-                    let moved = &mut self.state.cards[c.index()];
-                    moved.host = Some(m);
-                    moved.controller = owner;
+                    self.state.set_host(c, m);
+                    self.state.cards[c.index()].controller = owner;
                 }
             }
             RefEffect::ChosenBurnsPoolCardBurned(_) => {
@@ -1998,9 +2023,12 @@ impl Engine {
                     self.remove_ally_from_game(m);
                 }
             }
-            RefEffect::PutOnChosen { .. } => {
-                let m = ctx.terms.minions[0];
+            RefEffect::PutOnChosen { .. } | RefEffect::PutOnCaller => {
                 let a = self.action.as_ref().expect("political action");
+                let m = match effect {
+                    RefEffect::PutOnCaller => a.acting,
+                    _ => ctx.terms.minions[0],
+                };
                 let (seat, play) = (a.seat, a.card.expect("a political action card"));
                 if self.state.minions[m.index()].present() {
                     self.action
@@ -2455,6 +2483,7 @@ impl Engine {
             }
             cards::Effect::TallyPenaltyAgainst(n) => ctx.scorn += n,
             cards::Effect::BarNonCamarillaVotes => ctx.only_sect = Some(Sect::Camarilla),
+            cards::Effect::NextReferendumPassesIfPasses => ctx.rider_clauses.push(play.seat),
             cards::Effect::BarNonSectVotes(sect) => ctx.only_sect = Some(sect),
             cards::Effect::PoolForVotesRound { per, own } => {
                 let order = self.state.clockwise_from(play.seat);

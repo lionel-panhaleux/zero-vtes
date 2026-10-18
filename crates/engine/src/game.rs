@@ -131,6 +131,8 @@ pub(crate) enum Flow {
     /// equipment `minion` equips with, chosen at resolution (spec §1.14.1).
     LibrarySearch {
         minion: MinionId,
+        /// Filters an equipment found must match (Dark Web Procurer).
+        equip: &'static [crate::cards::CardFilter],
         /// A card of this kind moved to hand (Sakhar), not equipped, and
         /// whether it is revealed to all (the card says so).
         to_hand: Option<(crate::cards::CardFilter, bool)>,
@@ -998,9 +1000,11 @@ impl Engine {
                 pending,
                 edge_taken,
             } => self.abilities_request(window, pending, *edge_taken),
-            Flow::LibrarySearch { minion, to_hand } => {
-                Some(self.search_request(*minion, to_hand.map(|(f, _)| f)))
-            }
+            Flow::LibrarySearch {
+                minion,
+                equip,
+                to_hand,
+            } => Some(self.search_request(*minion, equip, to_hand.map(|(f, _)| f))),
             Flow::Exchange { ash } => Some(self.exchange_request(*ash)),
             Flow::Action => self.action_request(),
             Flow::Combat => self.combat_request(),
@@ -1252,6 +1256,26 @@ impl Engine {
                 },
                 Choice::ChooseMinion(m),
             ) => self.ability_minion_apply(source, ability, target, seat, user, *resume, *m),
+            (
+                Flow::AbilityTerms {
+                    source,
+                    ability,
+                    target,
+                    seat,
+                    user,
+                    resume,
+                    ..
+                },
+                Choice::EmployFromHand { card, mode },
+            ) => self.ability_employ_apply(
+                source,
+                ability,
+                target,
+                seat,
+                user,
+                *resume,
+                (*card, *mode),
+            ),
             (Flow::RiderTerms { card, left, resume }, c) => {
                 self.rider_terms_apply(card, left, resume, c)
             }
@@ -1266,7 +1290,12 @@ impl Engine {
                 },
                 c,
             ) => self.abilities_apply(window, pending, edge_taken, c),
-            (Flow::LibrarySearch { minion, to_hand }, c) => self.search_apply(minion, to_hand, c),
+            (
+                Flow::LibrarySearch {
+                    minion, to_hand, ..
+                },
+                c,
+            ) => self.search_apply(minion, to_hand, c),
             (Flow::Exchange { ash }, c) => self.exchange_apply(ash, c),
             (Flow::Action, c) => self.action_apply(c),
             (Flow::Combat, c) => self.combat_apply(c),
@@ -1591,11 +1620,10 @@ impl Engine {
                 let capacity = crate::crypt::CRYPT[card as usize].capacity;
                 let v = self.add_minion(seat, card, capacity, false);
                 self.state.minions[v.index()].copy = Untracked(copy);
-                self.state.cards[g.index()].host = Some(v);
-                if self.state.sect_of(v) == Some(crate::crypt::Sect::Anarch) {
-                    self.anarch_arrives(seat);
-                }
-                self.stage_contests(v);
+                self.state.set_host(g, v);
+                // Put in play: its entry effects as any (Gran Madre di Dio,
+                // Dr. Solomon Grey), the Anarch count, the contest.
+                self.vampire_entered(seat, v, card, false);
             }
             other => {
                 if let Some((card, copy)) = other {
@@ -2737,7 +2765,7 @@ mod tests {
     #[test]
     fn crypt_data_is_complete() {
         // The 200 V5 vampires, then the owner's legacy additions.
-        assert_eq!(CRYPT.len(), 627);
+        assert_eq!(CRYPT.len(), 651);
         assert_eq!(PRECONS.len(), 14);
         for (name, list) in PRECONS.iter() {
             let n: u32 = list.iter().map(|&(_, k)| k as u32).sum();

@@ -827,3 +827,30 @@ id,name,types,disciplines,in_precon,windows,flags,needs_review,review
 101982,Thrown Gate,Combat,pot,no,COMBAT_STRIKE_DECLARATION;COMBAT_DETERMINE_RANGE,maneuver_rider,,corrected
 102053,Tye Cooper,Ally,,no,ACTION_DECLARE_RECRUIT,in_play_action,,ok
 102054,Typhonic Beast,Combat,pot/ser,no,COMBAT_BEFORE_RANGE,,,ok
+100428,Corpse Minion,Retainer,,no,ACTION_DECLARE_EMPLOY,,,ok
+100510,Death Seeker,Combat,,no,CARD_AS_PLAYED,cancel_as_played,,ok
+100511,Decapitate,Combat,pot,no,COMBAT_STRIKE_DECLARATION;COMBAT_GOING_TO_TORPOR,,,corrected
+100705,Fast Reaction,Reaction,aus,no,ACTION_AFTER_COMBAT,,,corrected
+100716,Fee Stake: Perth,Action,,no,ACTION_DECLARE,in_play_action,,ok
+100847,"Gran Madre di Dio, Italy",Equipment,,no,ACTION_DECLARE_EQUIP,,,ok
+100996,Institution Hunting Ground,Master,,no,MASTER_PHASE,,,ok
+101007,IR Goggles,Equipment,,no,ACTION_DECLARE_EQUIP,,,ok
+101050,Kindred Intelligence,Action,,no,ACTION_DECLARE,,,ok
+101106,Light Intensifying Goggles,Equipment,,no,ACTION_DECLARE_EQUIP,,,ok
+101156,Malkavian Rider Clause,Reaction,,no,REFERENDUM,,,ok
+101283,Night Moves,Action,obf,no,ACTION_DECLARE,,,ok
+101297,Nosferatu Bestial,Action,,no,ACTION_DECLARE,token_entity,,ok
+101300,Nosferatu Kingdom,Master,,no,MASTER_PHASE,,,ok
+101357,Patagia: Flaps Allowing Limited Flight,Action,,no,ACTION_DECLARE,,,ok
+101419,Ponticulus,Ally,,no,ACTION_DECLARE_RECRUIT,,,ok
+101635,Righteous Aura,Combat,,no,COMBAT_END_OF_ROUND,,,ok
+101661,Rumble,Action,,no,ACTION_DECLARE,,,ok
+101703,Seal of Veddartha,Equipment,,no,ACTION_DECLARE_EQUIP,in_play_action,,ok
+101716,Sense Death,Action,val/ani,no,ACTION_DECLARE,,,ok
+101809,Smash and Grab,Action,ani/dem/pot,no,ACTION_DECLARE,,,ok
+102020,Tremere Convocation,Master,,no,MASTER_PHASE,in_play_action,,ok
+102093,Vaticination,Action,,no,ACTION_DECLARE,,,ok
+102128,Vivienne Géroux,Ally,,no,ACTION_DECLARE_RECRUIT,in_play_action,,ok
+102197,Wrong and Crosswise,Reaction,dem,no,REACTION_DURING_ACTION;REFERENDUM,,,ok
+102235,Dark Web Procurer,Ally,,no,ACTION_DECLARE_RECRUIT,in_play_action,,ok
+102307,Praxis Seizure: York,Political Action,,no,ACTION_DECLARE_POLITICAL,,,ok

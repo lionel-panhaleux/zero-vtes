@@ -32,7 +32,11 @@ pub fn is_chore(e: &Engine, req: &DecisionRequest, o: &Choice) -> bool {
     if req.window == WindowLabel::ResolutionChoice
         && matches!(
             e.interrupt(),
-            Some(Interrupt::MayPutOn { .. } | Interrupt::MayAddCounter { .. })
+            Some(
+                Interrupt::MayPutOn { .. }
+                    | Interrupt::MayAddCounter { .. }
+                    | Interrupt::MayStoreAim { .. }
+            )
         )
     {
         return *o != Choice::Pass;

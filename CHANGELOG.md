@@ -6,6 +6,16 @@ server runs.
 `python3 scripts/schema_compat.py` lists what a schema change adds or
 removes; its `--check` fails a removal without a major version.
 
+## 2.1.0
+
+- `Purpose`: `may_store_aim` — "you can move any aim card the bearer uses
+  to this card" (Light Intensifying Goggles): `resolve_rider` moves the aim
+  card just used from the ash heap onto it, `pass` leaves it.
+- `Purpose`: `discard_from_hand_of` may first be asked with no
+  `about.seat` and `choose_seat` options (Vaticination: which other
+  Methuselah's hand), then with `about.seat` and `find_card` options as
+  before.
+
 ## 2.0.0
 
 - Seeds of 53 bits: `GameSpec.seed` and `BotRecord.seed` are at most

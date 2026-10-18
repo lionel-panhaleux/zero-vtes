@@ -846,7 +846,7 @@ fn le_dinh_tho_is_scarce() {
     e.state.minions[n.index()].kind = zvtes::state::MinionKind::Created {
         card: childe,
         id: CardId(e.state.cards.len() as u32 - 1),
-        clan: "Nagaraja",
+        clan: Some("Nagaraja"),
         sect: Sect::Independent,
         born: &zvtes::state::NEWBORN,
     };

@@ -1,6 +1,6 @@
-/* zvtes protocol 2.0.0 (docs/protocol.md): generated from
+/* zvtes protocol 2.1.0 (docs/protocol.md): generated from
  * crates/api/schema.json by scripts/gen_ts.py, do not edit. */
-export const PROTOCOL_VERSION = '2.0.0'
+export const PROTOCOL_VERSION = '2.1.0'
 
 /**
  * A command as sent: an optional client id, echoed by an `error` it
@@ -1142,6 +1142,7 @@ export type Purpose =
     | 'name_ash_pair'
     | 'may_put_on'
     | 'may_add_counter'
+    | 'may_store_aim'
     | 'may_torture'
     | 'may_gain_pool'
     | 'move_for_blood'

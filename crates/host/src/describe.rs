@@ -950,9 +950,11 @@ pub fn about(e: &Engine, req: &DecisionRequest, names: &impl Names) -> Option<Ab
                 m: Some(damage),
                 ..a()
             },
-            I::DiscardFromHandOf { of, .. }
-            | I::PreySlotToPool { of, .. }
-            | I::NameAshPair { of, .. } => About {
+            I::DiscardFromHandOf { of, .. } => About {
+                seat: of.map(|s| s.0),
+                ..a()
+            },
+            I::PreySlotToPool { of, .. } | I::NameAshPair { of, .. } => About {
                 seat: Some(of.0),
                 ..a()
             },
@@ -1098,6 +1100,10 @@ pub fn about(e: &Engine, req: &DecisionRequest, names: &impl Names) -> Option<Ab
             I::MayPutOn { held, .. } => About {
                 card: named(held.card),
                 minion: m(held.minion),
+                ..a()
+            },
+            I::MayStoreAim { card: k, .. } => About {
+                card: named(k),
                 ..a()
             },
             I::MayAddCounter { card: c, .. }

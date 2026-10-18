@@ -4256,4 +4256,178 @@ fuzz_tests! {
         seeds: 100,
         ..BASE
     };
+    /// Legacy cards for TWDA decks, round 16 (slice 16ab): the library cards.
+    random_games_with_twda_round_16a_hold_invariants_and_replay: Fixture {
+        slice: &[
+            "Corpse Minion",
+            "Dark Web Procurer",
+            "Death Seeker",
+            "Decapitate",
+            "Fast Reaction",
+            "Fee Stake: Perth",
+            "Gran Madre di Dio, Italy",
+            "Institution Hunting Ground",
+            "IR Goggles",
+            "Kindred Intelligence",
+            "Light Intensifying Goggles",
+            "Malkavian Rider Clause",
+            "Night Moves",
+            "Nosferatu Bestial",
+            "Nosferatu Kingdom",
+            "Patagia: Flaps Allowing Limited Flight",
+            "Ponticulus",
+            "Praxis Seizure: York",
+            "Righteous Aura",
+            "Rumble",
+            "Seal of Veddartha",
+            "Sense Death",
+            "Smash and Grab",
+            "Tremere Convocation",
+            "Vaticination",
+            "Vivienne Géroux",
+            "Wrong and Crosswise",
+            // An aim card for the Goggles' store, an Animalism retainer for
+            // the Bestial, a political action for the Rider Clause and
+            // Wrong and Crosswise.
+            "Target Vitals",
+            "Raven Spy",
+            "Kine Resources Contested",
+        ],
+        covers: &[
+            "play:Corpse Minion",
+            "play:Dark Web Procurer",
+            "play:Death Seeker",
+            "play:Decapitate",
+            "play:Fast Reaction",
+            "play:Fee Stake: Perth",
+            "play:Gran Madre di Dio, Italy",
+            "play:Institution Hunting Ground",
+            "play:IR Goggles",
+            "play:Kindred Intelligence",
+            "play:Light Intensifying Goggles",
+            "play:Malkavian Rider Clause",
+            "play:Night Moves",
+            "play:Nosferatu Bestial",
+            "play:Nosferatu Kingdom",
+            "play:Patagia: Flaps Allowing Limited Flight",
+            "play:Ponticulus",
+            "play:Praxis Seizure: York",
+            "play:Righteous Aura",
+            "play:Rumble",
+            "play:Seal of Veddartha",
+            "play:Sense Death",
+            "play:Smash and Grab",
+            "play:Tremere Convocation",
+            "play:Vaticination",
+            "play:Vivienne Géroux",
+            "play:Wrong and Crosswise",
+            "ability:Corpse Minion",
+            "ability:Fee Stake: Perth",
+            "ability:Institution Hunting Ground",
+            "ability:IR Goggles",
+            "ability:Light Intensifying Goggles",
+            "ability:Nosferatu Bestial",
+            "ability:Nosferatu Kingdom",
+            "ability:Patagia: Flaps Allowing Limited Flight",
+            "ability:Ponticulus",
+            "ability:Seal of Veddartha",
+            "ability:Tremere Convocation",
+            "ability:Vivienne Géroux",
+        ],
+        setup: |e, _| {
+            let has = |c: &CryptCard, d: &str| c.disciplines.iter().any(|x| x.eq_ignore_ascii_case(d));
+            use zvtes::crypt::Sect;
+            per_seat(e, |c| c.clan == "Tremere", 4);
+            per_seat(e, |c| c.clan == "Salubri antitribu", 4);
+            per_seat(e, |c| c.clan == "Nosferatu", 4);
+            per_seat(e, |c| c.clan == "Nosferatu antitribu", 4);
+            per_seat(e, |c| c.clan == "Malkavian antitribu", 4);
+            per_seat(e, |c| c.clan == "Malkavian", 4);
+            per_seat(e, |c| c.clan == "Banu Haqim", 4);
+            per_seat(e, |c| c.clan == "True Brujah", 4);
+            per_seat(e, |c| c.sect == Sect::Anarch && c.capacity >= 5, 4);
+            per_seat(e, |c| c.sect == Sect::Camarilla && c.capacity >= 6, 4);
+            per_seat(e, |c| c.sect == Sect::Sabbat, 4);
+            per_seat(e, |c| has(c, "aus") && has(c, "dem"), 4);
+            per_seat(e, |c| has(c, "obf"), 4);
+            per_seat(e, |c| has(c, "pot"), 4);
+            per_seat(e, |c| has(c, "ani"), 4);
+            // A Nosferatu antitribu to influence, for Nosferatu Kingdom.
+            let antitribu: Vec<u16> = CRYPT
+                .iter()
+                .enumerate()
+                .filter(|(i, c)| c.clan == "Nosferatu antitribu" && absent(e, *i as u16))
+                .map(|(i, _)| i as u16)
+                .take(4)
+                .collect();
+            for (s, card) in antitribu.into_iter().enumerate() {
+                e.state.seats[s].uncontrolled.push(zvtes::state::UncontrolledSlot {
+                    card,
+                    copy: Default::default(),
+                    counters: 0,
+                    banished: None,
+                });
+            }
+        },
+        seeds: 60,
+        ..BASE
+    };
+    /// Legacy cards for TWDA decks, round 16 (slice 16ab): the vampires.
+    random_games_with_twda_round_16b_hold_invariants_and_replay: Fixture {
+        // Equipment for Marie Faucigny, a location for General Perfidio
+        // Díos to guard, a political action for Fiorenza Savona.
+        slice: &[
+            "Laptop Computer",
+            ".44 Magnum",
+            "Conceal",
+            "Kine Resources Contested",
+            "Villein",
+        ],
+        covers: &[
+            "ability:Qawiyya el-Ghaduba",
+            "ability:Okulos",
+            "ability:General Perfidio Díos",
+            "ability:Nefertiti",
+        ],
+        setup: |e, _| {
+            named(
+                e,
+                &[
+                    "Aisling Sturbridge",
+                    "Blythe Candeleria",
+                    "Dr. Solomon Grey",
+                    "General Perfidio Díos",
+                    "Kite",
+                    "Marie Faucigny",
+                    "Qawiyya el-Ghaduba",
+                    "Richard Tauber, Ayelea's Puppet",
+                    "Rodolfo",
+                    "Fiorenza Savona",
+                    "Okulos",
+                    "Len Konopka",
+                ],
+            );
+            per_seat(
+                e,
+                |c| c.adv && ["Karsh", "Menele", "Yazid Tamari", "Nefertiti"].contains(&c.name),
+                4,
+            );
+            per_seat(e, |c| c.clan == "Tremere", 4);
+            per_seat(e, |c| c.disciplines.iter().any(|d| d.eq_ignore_ascii_case("obf")), 4);
+            // General Perfidio Díos locked, with a location to guard.
+            let g = find_card("General Perfidio Díos");
+            if let Some(i) = e.state.minions.iter().position(|m| m.crypt_card() == Some(g)) {
+                e.state.minions[i].locked = true;
+                let owner = e.state.minions[i].owner;
+                e.state.cards.push(zvtes::state::CardInPlay::new(
+                    zvtes::state::find_library("Palatial Estate"),
+                    owner,
+                    None,
+                    0,
+                ));
+            }
+        },
+        seeds: 10,
+        ..BASE
+    };
 }

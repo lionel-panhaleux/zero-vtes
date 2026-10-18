@@ -80,6 +80,7 @@ impl Effect {
             | E::EquipNamed
             | E::CountersFromTargetCapacity
             | E::RetainerToStartingLife
+            | E::DiscardFromAllHands
             | E::PutOnActorNowStacking
             | E::PutOnOpponent
             | E::BurnLibraryTop(..)
@@ -107,7 +108,6 @@ impl Effect {
             | E::TakeBleedForTarget
             | E::CryptTopToUncontrolled
             | E::BurnRangedWeaponsOnTarget { .. }
-            | E::EmployNamed
             | E::FourthCycle(..)
             | E::AutoPassFirstSabbatReferendum
             | E::BloodToEachUncontrolledOfSect(..)
@@ -147,6 +147,8 @@ impl Effect {
             | E::EndCombat
             | E::BloodToTargetToStart(..)
             | E::TargetBurnsBlood(..)
+            | E::TargetBurnLife(..)
+            | E::TargetRetainerBurnsLife(..)
             | E::UnlockActor
             | E::UnlockActorAtDiscard
             | E::TakeControlOfTargetUntilUnlock
@@ -167,7 +169,8 @@ impl Effect {
             | E::BurnEdge
             | E::TargetBecomesBlackHand
             | E::RemoveCryptTop
-            | E::StealTargetVampire => (Family::Shared, false),
+            | E::StealTargetVampire
+            | E::EmployNamed => (Family::Shared, false),
             E::CounterToTarget(..)
             | E::BloodPerHostage
             | E::BurnTargetHostages
@@ -234,7 +237,7 @@ impl Effect {
             | E::YawpCourtCombat
             | E::HuntingGroundLife(..)
             | E::HostBurnLife(..)
-            | E::TargetBurnLife(..)
+            | E::TargetSeatTakesSourceAlly
             | E::RaiseAllyWhenEmpty(..)
             | E::AtCountersBurnAndGain { .. }
             | E::GainMasterPhaseAction
@@ -327,6 +330,7 @@ impl Effect {
             | E::BlockTollBlood(..)
             | E::LockAttempting
             | E::QueueCombatWithAttempting
+            | E::QueueCombatWithActing { .. }
             | E::PutOnActorIfBleedSuccessful
             | E::HuntBonusThisAction(..)
             | E::StrikeTollIfBlocks(..)
@@ -398,6 +402,7 @@ impl Effect {
             | E::UndodgeableStrike
             | E::AggravatedStrike
             | E::FirstStrike
+            | E::BurnOpponentInsteadOfTorpor
             | E::PutOnOpponentOnHit { .. }
             | E::PutOnSelfAsStrikeResolves
             | E::BurnOpposingAllyOnHit
@@ -493,8 +498,11 @@ impl Effect {
             | E::AddVotesAgainst(..)
             | E::TallyPenaltyAgainst(..)
             | E::BarNonCamarillaVotes
+            | E::NextReferendumPassesIfPasses
             | E::CancelReferendum { .. } => (Family::Vote, false),
             E::UnlockAtEndIfReady
+            | E::BleedPoolCap(..)
+            | E::BurnPoolAtEndIfNotReady(..)
             | E::BurnSource
             | E::StealTargetTitle
             | E::PayLife(..)
@@ -512,7 +520,7 @@ impl Effect {
             | E::CorruptTargetMayStealAtCapacity
             | E::TauntCombat(..)
             | E::GainLiaison
-            | E::SearchEquip
+            | E::SearchEquip(..)
             | E::SearchToHand { .. }
             | E::RemoveAllSourceCounters
             | E::EnterCombatWithTarget
@@ -639,7 +647,9 @@ impl Effect {
             | E::MovesToSabbatDiablerist
             | E::NotTakenByDiablerie
             | E::RemovedAfterSuccessOrWithoutInfernal
-            | E::StillYours => (Family::Marker, false),
+            | E::StillYours
+            | E::CountersClearOnNewBearer
+            | E::BearerAimStore => (Family::Marker, false),
             // Read as the combat begins (Abuse of Power, Pillars Fall), as the
             // action is declared (Fiendish Tongue), as the bleed lands
             // (Enthrall), by `frenzy_on`, and as the action succeeds.

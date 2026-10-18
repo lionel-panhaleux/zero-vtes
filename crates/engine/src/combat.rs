@@ -82,6 +82,9 @@ pub enum Step {
     /// Prevention by minions out of the combat, each Methuselah from the
     /// acting one (Martyr's Resilience; ANK 20181101).
     OthersPrevent,
+    /// The damage about to land sends side `1 - i`'s vampire to torpor:
+    /// side `i` may replace it (Decapitate [POT]).
+    GoingToTorpor(usize),
     AdditionalStrikes,
     Press,
     EndOfRound,
@@ -232,6 +235,10 @@ pub struct Side {
     pub pending: Damage,
     /// The prevention offer is open (closes on a pass).
     pub preventing: bool,
+    /// The going-to-torpor step offered to this side, this damage.
+    pub torpor_offered: bool,
+    /// Burned instead of going to torpor by this damage (Decapitate [POT]).
+    pub burn_instead_of_torpor: bool,
     /// "Gets a strength of n this combat" (spec §4.4.1: replaces the base).
     pub strength_set: Option<u8>,
     pub next_round_maneuvers: u8,
@@ -996,6 +1003,7 @@ impl CombatCtx {
             | Step::OthersPrevent => {
                 vec![Window::CombatDamagePrevention]
             }
+            Step::GoingToTorpor(_) => vec![Window::CombatGoingToTorpor],
             Step::AdditionalStrikes => vec![Window::CombatAdditionalStrike, Window::CombatUntimed],
             Step::Press => vec![Window::CombatPress],
             Step::EndOfRound => {
@@ -1015,7 +1023,9 @@ impl CombatCtx {
             Step::BeforeStrikes => WindowLabel::CombatBeforeStrikes,
             Step::ChooseStrike(_) => WindowLabel::CombatStrike,
             Step::BeforeResolution => WindowLabel::CombatBeforeResolution,
-            Step::Prevent(_) | Step::OthersPrevent => WindowLabel::CombatPrevention,
+            Step::Prevent(_) | Step::OthersPrevent | Step::GoingToTorpor(_) => {
+                WindowLabel::CombatPrevention
+            }
             Step::Allocate { .. } | Step::AllocateSource { .. } => {
                 WindowLabel::CombatPreventionAllocation
             }
@@ -1194,6 +1204,36 @@ pub(crate) struct Resolved {
     pub blood_burned: u8,
     pub wounded: bool,
     pub burned: bool,
+}
+
+/// Side `i`'s vampire, by the damage pending on it as it stands, would go
+/// to torpor, not be burned (Decapitate [POT]: "going into torpor").
+pub(crate) fn going_to_torpor(st: &crate::state::GameState, c: &CombatCtx, i: usize) -> bool {
+    let s = &c.sides[i];
+    let m = &st.minions[s.minion.index()];
+    if m.is_ally() || m.in_torpor {
+        return false;
+    }
+    let mut d = s.pending;
+    d.normal += s.unpreventable;
+    let r = resolve_damage(m.blood, d, false);
+    (r.wounded || s.sent_to_torpor) && !r.burned
+}
+
+/// Side `i`'s minion, by the damage pending on it, is being burned or going
+/// to torpor (Decapitate [POT]: "not usable by a vampire being burned or
+/// going into torpor").
+pub(crate) fn going_down(st: &crate::state::GameState, c: &CombatCtx, i: usize) -> bool {
+    let s = &c.sides[i];
+    let m = &st.minions[s.minion.index()];
+    let mut d = s.pending;
+    d.normal += s.unpreventable;
+    let r = if m.is_ally() {
+        resolve_life_damage(m.blood, d)
+    } else {
+        resolve_damage(m.blood, d, m.in_torpor)
+    };
+    r.wounded || r.burned || s.sent_to_torpor
 }
 
 /// Normal damage first: 1 blood per point mends it, unmended points wound.
@@ -1568,6 +1608,23 @@ impl Engine {
                     options,
                 ))
             }
+            Step::GoingToTorpor(i) => {
+                let side = &c.sides[i];
+                if side.torpor_offered {
+                    return None;
+                }
+                // What this moment offers only, as it opened (an
+                // any-impulse ability had the prevention window).
+                let w = Window::CombatGoingToTorpor;
+                let mut options = vec![Choice::Pass];
+                options.extend(self.play_options(side.seat, &[w], None));
+                options.extend(self.ability_options(side.seat, w));
+                Some(DecisionRequest::new(
+                    side.seat,
+                    WindowLabel::CombatPrevention,
+                    options,
+                ))
+            }
             // Prevention by minions out of the combat, any Methuselah's.
             Step::OthersPrevent => {
                 let seat = c.window.current()?;
@@ -1750,6 +1807,14 @@ impl Engine {
                 c.sides[i].preventing = false;
                 None
             }
+            (Step::GoingToTorpor(i), Choice::Pass) => {
+                c.sides[i].torpor_offered = true;
+                None
+            }
+            (Step::GoingToTorpor(i), Choice::Play { .. }) => {
+                c.sides[i].torpor_offered = true;
+                Some(c.sides[i].seat)
+            }
             // The narrower allowance first (Mythic Form: non-aggravated only).
             (Step::Prevent(i), Choice::UsePrevent)
                 if c.sides[i].round_normal_prevents > 0 && c.sides[i].pending.normal > 0 =>
@@ -1804,9 +1869,10 @@ impl Engine {
             }
             (Step::Prevent(i), Choice::Play { .. }) => Some(c.sides[i].seat),
             // An ability is not a card play: no as-played window.
-            (Step::Prevent(i) | Step::ChooseStrike(i), Choice::UseAbility { .. }) => {
-                Some(c.sides[i].seat)
-            }
+            (
+                Step::Prevent(i) | Step::ChooseStrike(i) | Step::GoingToTorpor(i),
+                Choice::UseAbility { .. },
+            ) => Some(c.sides[i].seat),
             (_, Choice::UseAbility { .. }) => {
                 let seat = c.window.current().expect("impulse holder");
                 c.window.play();
@@ -2024,6 +2090,10 @@ impl Engine {
                 unreachable!("allocation always offers a choice")
             }
             Step::OthersPrevent => self.after_prevention_or_next(),
+            Step::GoingToTorpor(i) => {
+                c.sides[i].torpor_offered = true;
+                self.after_prevention_or_next();
+            }
             Step::AdditionalStrikes => {
                 if c.sides.iter().any(|s| s.additional > 0) {
                     c.begin_pair();
@@ -2140,6 +2210,27 @@ impl Engine {
             self.weather_hits(staged);
         }
         if self.marble_clamp() {
+            return;
+        }
+        // Decapitate [POT]: the damage as it stands sends a vampire to
+        // torpor; its opponent's player may replace that (RTR 20010711:
+        // sequenced after the preventions).
+        for i in 0..2 {
+            let c = self.combat.as_ref().expect("combat context");
+            if c.sides[i].torpor_offered || !going_to_torpor(&self.state, c, 1 - i) {
+                continue;
+            }
+            let seat = c.sides[i].seat;
+            // Opened for what this moment offers only: an any-impulse
+            // ability had the prevention window just closed (a recorded
+            // game read through one, data/records).
+            let w = [Window::CombatGoingToTorpor];
+            if self.play_options(seat, &w, None).is_empty()
+                && self.ability_options(seat, w[0]).is_empty()
+            {
+                continue;
+            }
+            self.combat.as_mut().expect("combat context").step = Step::GoingToTorpor(i);
             return;
         }
         if self.apply_damage() {
@@ -2395,7 +2486,7 @@ impl Engine {
     fn steal_weapon(&mut self, w: CardId, to: MinionId) {
         let card = self.state.cards[w.index()].card;
         if self.state.minions[to.index()].present() && self.state.can_hold(to, card, &[]) {
-            self.state.cards[w.index()].host = Some(to);
+            self.state.set_host(w, to);
         }
     }
 
@@ -3139,9 +3230,8 @@ impl Engine {
             return;
         };
         self.state.layers.retain(|l| l.source != w);
-        let c = &mut self.state.cards[w.index()];
-        c.host = Some(on);
-        c.mode = mi as u8;
+        self.state.set_host(w, on);
+        self.state.cards[w.index()].mode = mi as u8;
         self.push_mode_layers(w);
     }
 
@@ -3302,7 +3392,10 @@ impl Engine {
             // Sent to torpor by the strike (Touch of Oblivion [OBL]): a
             // vampire wounded, an ally burned.
             let sent = std::mem::take(&mut s.sent_to_torpor);
-            if r.burned || over || (sent && m.is_ally()) {
+            // Decapitate [POT]: burned instead of going to torpor.
+            let instead = std::mem::take(&mut s.burn_instead_of_torpor);
+            s.torpor_offered = false;
+            if r.burned || over || (sent && m.is_ally()) || (instead && (r.wounded || sent)) {
                 burned.push(s.minion);
             } else if r.wounded || sent {
                 wounded.push(s.minion);
@@ -3382,6 +3475,9 @@ impl Engine {
         // The combat continues: after-combat effects are lost (RTR
         // 20020501).
         self.discard_held(true);
+        for m in &mut self.state.minions {
+            m.timed.retain(|&(_, until, _)| until != Expiry::Round);
+        }
         let c = self.combat.as_mut().expect("combat context");
         c.round += 1;
         c.pair = 0;
@@ -4073,6 +4169,7 @@ impl Engine {
             Effect::NeverAggravatedStrike => c.sides[i].never_aggravated = true,
             Effect::UnpreventableIfBlackHand => c.sides[i].unpreventable_if_black_hand = true,
             Effect::FirstStrike => c.sides[i].first_strike = true,
+            Effect::BurnOpponentInsteadOfTorpor => c.sides[1 - i].burn_instead_of_torpor = true,
             // At once: the flow may move on (an oust).
             Effect::OpposingControllerBurnsPool(n) => {
                 let seat = self.state.minions[c.sides[1 - i].minion.index()].owner;

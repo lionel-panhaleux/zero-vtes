@@ -29,8 +29,9 @@ LABELS = [
     ("Unique", r"^unique\b|\bunique (location|\w+ with)|\. unique\."),
     # The type line only ("Burn a location." is an action's text).
     # A locquipment too ("This equipment card represents a location",
-    # Ruins of Ceoris).
-    ("Location", r"(^|\. )(unique )?location\.|represents a location"),
+    # Ruins of Ceoris; "In play, this is a unique location", Gran Madre di
+    # Dio).
+    ("Location", r"(^|\. )(unique )?location\.|represents a location|in play, this is a (unique )?location"),
     ("HuntingGround", r"(^|\. )hunting ground\."),
     ("Weapon", r"^(unique )?(melee )?weapon\b"),
     ("Gun", r"^weapon: gun"),

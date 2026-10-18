@@ -999,6 +999,61 @@ ADDED_BATCHES = [
     {
         200935: "Maris Streck (G3)",
     },
+    # Round 16 (slice 16ab): the TWDA greedy's steps 1-6 and five promo sets
+    # completed (owner, 2026-10-18: "Steps 1-6 + 5 promo sets").
+    {
+        100428: "Corpse Minion",
+        100510: "Death Seeker",
+        100511: "Decapitate",
+        100705: "Fast Reaction",
+        100716: "Fee Stake: Perth",
+        100847: "Gran Madre di Dio, Italy",
+        100996: "Institution Hunting Ground",
+        101007: "IR Goggles",
+        101050: "Kindred Intelligence",
+        101106: "Light Intensifying Goggles",
+        101156: "Malkavian Rider Clause",
+        101283: "Night Moves",
+        101297: "Nosferatu Bestial",
+        101300: "Nosferatu Kingdom",
+        101357: "Patagia: Flaps Allowing Limited Flight",
+        101419: "Ponticulus",
+        101635: "Righteous Aura",
+        101661: "Rumble",
+        101703: "Seal of Veddartha",
+        101716: "Sense Death",
+        101809: "Smash and Grab",
+        102020: "Tremere Convocation",
+        102093: "Vaticination",
+        102128: "Vivienne Géroux",
+        102197: "Wrong and Crosswise",
+        102235: "Dark Web Procurer",
+        102307: "Praxis Seizure: York",
+        200002: "Aaron Bathurst (G4)",
+        200031: "Aisling Sturbridge (G2)",
+        200058: "Almiro Suarez (G3)",
+        200207: "Blister (G4)",
+        200210: "Blythe Candeleria (G2)",
+        200355: "Dolphin Black (G2)",
+        200383: "Dr. Solomon Grey (G5)",
+        200500: "General Perfidio Díos (G3)",
+        200567: "Hannigan (G2)",
+        200758: "Karsh (G3 ADV)",
+        200786: "Kite (G2)",
+        200791: "Korah (G2)",
+        200927: "Marie Faucigny (G3)",
+        200952: "Masika St. John (G3)",
+        200976: "Menele (G3 ADV)",
+        201003: "Monica Chang (G5)",
+        201138: "Qawiyya el-Ghaduba (G5)",
+        201186: "Richard Tauber, Ayelea's Puppet (G2)",
+        201196: "Rodolfo (G3)",
+        201486: "Yazid Tamari (G3 ADV)",
+        201520: "Nefertiti (G2 ADV)",
+        201616: "Fiorenza Savona (G6)",
+        201618: "Okulos (G7)",
+        201622: "Len Konopka (G3)",
+    },
 ]
 ADDED_CARDS = {k: v for batch in ADDED_BATCHES for k, v in batch.items()}
 
@@ -1179,6 +1234,9 @@ COMBAT_TIMING = [
     # "Only usable if the opposing ally is being burned" (Orgy of Blood):
     # the round's damage done, the ally burning.
     (r"opposing ally is being burned", "COMBAT_END_OF_ROUND"),
+    # "Only usable when the opposing vampire is going into torpor"
+    # (Decapitate [POT]): after the preventions, the damage about to land.
+    (r"opposing vampire is going into torpor", "COMBAT_GOING_TO_TORPOR"),
 ]
 COMBAT_DEFAULT = "COMBAT_UNTIMED"   # rules-qa 2.2: no printed step
 
@@ -1241,6 +1299,9 @@ REACTION_TIMING = [
     (r"unlocks?( and| to)? attempts? to block|unlock[^.]*; that \w+ attempts to block",
      "REACTION_UNLOCK_ATTEMPT"),
     (r"only usable[^.]*after block resolution", "ACTION_AFTER_COMBAT"),  # rules-qa 2.1
+    # "Only usable after a combat between a blocking minion you control …"
+    # (Fast Reaction).
+    (r"only usable after a combat between", "ACTION_AFTER_COMBAT"),
     (r"attempts? to block the current action", "ACTION_STEALTH_INTERCEPT"),  # block-loop play
     # A ready minion made to attempt (Guardian Vigil): until the block
     # succeeds (ANK 20180926).

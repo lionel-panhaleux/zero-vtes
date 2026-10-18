@@ -731,7 +731,9 @@ fn a_game_resumed_from_its_record_plays_on_as_it_was() {
 #[test]
 fn a_resumed_game_keeps_its_vote_orders_and_allocations() {
     let (mut voted, mut allocated) = (0, 0);
-    for seed in 1..=80 {
+    // About twice the seed of the first allocation (171 over the catalog
+    // of 153 kept decks): the catalog's size deals every seed's decks.
+    for seed in 1..=400 {
         if voted > 0 && allocated > 0 {
             break;
         }

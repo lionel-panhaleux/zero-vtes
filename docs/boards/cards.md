@@ -9,12 +9,12 @@ Docs: `docs/engine.md` (§2–5, the reference by mechanism),
 and the ledger; a rulebook mechanism no card carries is on the engine board.
 
 Pool (`scripts/coverage.py`, KRCG `vtes.json` of 2026-06-30; 2 crypt and
-18 library cards banned, out of scope, owner 2026-10-14): crypt 627 of
-1,783 (35.2%), library 828 of 2,346 (35.3%); the Imbued, Powers and
-Convictions 0; 49 of 109 sets complete. TWDA decks in the pool 542 of
-4,538, kept 145; recent (2025+) 265 of 476 in the pool, kept 94. Demand:
-none counted yet (counting since the 1.8.0 deploy, 2026-10-17; the file from
-Z-main or the owner, add-cards §1).
+18 library cards banned, out of scope, owner 2026-10-14): crypt 651 of
+1,783 (36.5%), library 855 of 2,346 (36.4%); the Imbued, Powers and
+Convictions 0; 55 of 109 sets complete. TWDA decks in the pool 579 of
+4,538, kept 153; recent (2025+) 279 of 476 in the pool, kept 100. Demand
+(the server's counts to 2026-10-18): one id asked once, 299999, no card
+(a client's placeholder).
 
 A shrinking list (CLAUDE.md "Harness"): one line an ask, its done-condition
 and the docs it changes; done is deleted; order is priority; the only
@@ -27,7 +27,6 @@ stops paying (owner, 2026-10-15: "fine with switching to a set-by-set mode
 when you feel it's best").
 
 - **Owner-review backlog 1/5, Batch 62** (26 readings: 62.2, 62.3, 62.6–62.12, 62.14–62.20, 62.22–62.29, 62.31, 62.32): graded per add-cards §4 (a blind second reader), green and amber recorded, red asked as scenarios. Done when each reading is stated settled in rules-qa or asked. Docs: rules-qa, rules-digest §24.1.
-- **Round 16**: the owner's cut from add-cards §1 (`scripts/round_choice.py`: the sets left closest to complete, and the TWDA greedy's next steps from recent kept 94), then §2–§6. Done when the round is on `main`. Docs: as a round (DESIGN slice row and count line, engine.md, rules-digest, a rules-qa batch, the ledger, the window matrix, the board header).
 - **The Imbued** (owner, 2026-10-14: in "every card"): the 20 Imbued and their library (14 Powers, 3 Convictions), a round with the mechanism (conviction, the Imbued's actions). Done when the round is on `main`. Docs: engine.md (a new mechanism), as a round.
 - **Hard cards** (owner): a sterile baron to close a test loop (Outside the Hourglass and Shalmath in since round 15, Rewind Time since round 14). Done when they are in a round on `main`. Docs: as a round.
 - **Owner-review backlog 2/5, Batches 64, 65, 67** (16: 64.1–64.6, 64.9–64.11, 65.1–65.3, 67.2, 67.3, 67.5, 67.7), as 1/5. Done and docs as 1/5.
