@@ -2754,7 +2754,7 @@ round (rulebook "Combat").
   in its first round (nor a strike's maneuver, LSJ 20001126); not with a
   combat queued (RTR 20020501); the block combat's continuation lost, as
   Psyche!'s (65.1) (80.36); not after the combat a Fast Reaction queued
-  (Claude's reading, asked) (80.37).
+  (the owner) (80.37).
 
 ### 12.13 Weapons and equipment in combat
 
@@ -4402,8 +4402,8 @@ read, for the owner to confirm or correct:
 - 77.1–77.27, 77.29–77.35 graded green, amber or corrected (77.28 answered
   by the owner: the counters you burned).
 - 80.1–80.3, 80.5–80.34, 80.36, 80.39, 80.40, 80.44, 80.45 graded green,
-  amber or corrected (80.9; 80.37 red, asked: Fast Reaction after a Fast
-  Reaction; 80.4, 80.35, 80.38, 80.41–80.43 answered by the owner).
+  amber or corrected (80.9; 80.4, 80.35, 80.37, 80.38, 80.41–80.43
+  answered by the owner).
 - The "Question (implemented reading)" tails: 48.2 (a card granting several
   strikes bars further cards until all are made), 48.3 (the switch of
   blocker takes effect at once, no impulse left to others), 48.8 (a rescue
