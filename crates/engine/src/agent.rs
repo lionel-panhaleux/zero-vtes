@@ -12,6 +12,10 @@ use crate::rng::Rng;
 /// state.
 pub trait Agent: Send {
     fn decide(&mut self, engine: &Engine, req: &DecisionRequest) -> usize;
+
+    /// A copy of the agent as it stands (its randomness and memory), for
+    /// an undo against bots to put back with the engine.
+    fn fork(&self) -> Box<dyn Agent>;
 }
 
 /// Picks uniformly among the offered options (the fuzzing driver).
@@ -35,6 +39,10 @@ impl RandomLegal {
 impl Agent for RandomLegal {
     fn decide(&mut self, _: &Engine, req: &DecisionRequest) -> usize {
         self.choose(req)
+    }
+
+    fn fork(&self) -> Box<dyn Agent> {
+        Box::new(self.clone())
     }
 }
 

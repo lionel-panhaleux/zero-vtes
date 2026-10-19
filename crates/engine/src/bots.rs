@@ -65,6 +65,10 @@ impl Agent for Scripted {
         }
         i
     }
+
+    fn fork(&self) -> Box<dyn Agent> {
+        Box::new(self.clone())
+    }
 }
 
 /// What a card's mode does, as far as the heuristics care.

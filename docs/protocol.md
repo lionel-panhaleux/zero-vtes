@@ -194,7 +194,7 @@ an `error`).
 | `answer` | `decision`, `option` | take an option |
 | `allocate` | `decision`, `amounts` | an allocation of points answered whole (one amount per `allocation.recipients`) |
 | `vote_all` | `decision`, `favor` | all the votes `votes` counts, one way; holds for the rest of the polling |
-| `undo` | `decision` | take back the seat's previous decision, from the pending `decision` (when `undo` is true); sent twice, undoes once |
+| `undo` | `decision` | take back the seat's previous decision, from the pending `decision` (when `undo` is true); sent twice, undoes once. With every bot decision, vote order (`vote_all`'s, taken back with its decision) and pass since, whatever was revealed or drawn since; one decision of its own back at each undo, as far as 64 of them; the bots answer again as they did (a game has one human seat) |
 | `settings` | `opportunities`?, `views`?, `text`? | change some settings (§8); the pending decision is sent again |
 | `leave` | — | end the game, recorded as abandoned |
 | `feedback` | `text` (1 to 4,000 characters, trimmed) | a problem or a remark, kept in the record at the pending decision (else the last one), also once the game is over; answered `noted` |
@@ -462,7 +462,7 @@ heap (a marker on its minion, §6), no copy of its own.
 | `turn` | `turn`, `active` |
 | `draw` | `seat`, `n`, `crypt` |
 | `revealed` | `seat`, `card` (its `id`, `crypt`; no number): a card of a crypt or library an effect revealed to all (a top card, a search's find) |
-| `looked` | `seat`, `cards` (their `id`s; no number): `seat`'s hand as it stood when an effect let this seat look at it (SchreckNET, Vaticination), told to the looking seat only; no undo goes back past it |
+| `looked` | `seat`, `cards` (their `id`s; no number): `seat`'s hand as it stood when an effect let this seat look at it (SchreckNET, Vaticination), told to the looking seat only |
 | `resolved` | `seat`, `card`, `effects`? (the options' vocabulary, §7, `on` as it applies): a card played resolved — what its mode does (none when it takes no effect: its payer burned paying), the changes it makes told by the events after it; an action card's end is its `action_ends` |
 | `canceled` | `seat`, `card`: a card played canceled (still played: to the ash heap) |
 | `pool` | `seat`, `delta`, `pool` |

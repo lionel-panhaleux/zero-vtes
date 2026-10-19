@@ -2716,7 +2716,7 @@
           ]
         },
         {
-          "description": "Take back the seat's last decision, from the pending `decision`\n(whose `undo` says it can: nothing decided since, nothing hidden\nrevealed). Named so a command sent twice undoes once.",
+          "description": "Take back the seat's last decision, from the pending `decision`\n(whose `undo` says it can), with whatever the bots decided or was\nrevealed since (docs/protocol.md, `undo`). Named so a command sent\ntwice undoes once.",
           "type": "object",
           "properties": {
             "decision": {

@@ -657,6 +657,7 @@ pub fn cycling(e: &Engine, req: &DecisionRequest) -> bool {
 /// distribution, as training does (`train/ppo.py` `act`), with the nudges
 /// training plays with (`nudges`), sharpened by a temperature under 1
 /// (`temperature`: the human-play bot).
+#[derive(Clone)]
 pub struct NetAgent {
     net: std::sync::Arc<Net>,
     rng: Rng,
@@ -757,6 +758,10 @@ impl Agent for NetAgent {
             .rev()
             .find(|&i| weights[i] > 0.0)
             .unwrap_or(0)
+    }
+
+    fn fork(&self) -> Box<dyn Agent> {
+        Box::new(self.clone())
     }
 }
 

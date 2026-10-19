@@ -6,6 +6,17 @@ server runs.
 `python3 scripts/schema_compat.py` lists what a schema change adds or
 removes; its `--check` fails a removal without a major version.
 
+## Next
+
+No field or id yet (the next version's entry takes these).
+
+- `undo` against bots (one human seat: every server game) is open at
+  every decision after the seat's first, one human decision back each
+  time, across the bots' decisions, vote orders (`vote_all`, the order
+  taken back with its decision), passes, reveals, looks and searches, as
+  far as 64 of the seat's own decisions; the bots answer again as they
+  did.
+
 ## 2.4.0
 
 - A record's `decision` entry: `window`, the window it was asked in, and

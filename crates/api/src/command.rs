@@ -43,8 +43,9 @@ pub enum Command {
     /// to cast is answered by it).
     VoteAll { decision: DecisionNo, favor: bool },
     /// Take back the seat's last decision, from the pending `decision`
-    /// (whose `undo` says it can: nothing decided since, nothing hidden
-    /// revealed). Named so a command sent twice undoes once.
+    /// (whose `undo` says it can), with whatever the bots decided or was
+    /// revealed since (docs/protocol.md, `undo`). Named so a command sent
+    /// twice undoes once.
     Undo { decision: DecisionNo },
     /// Change some of the seat's settings; the pending decision is sent
     /// again under them.

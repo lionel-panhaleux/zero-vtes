@@ -611,6 +611,8 @@ training runs.
   `seat`, `acting`, `kind`, `bleed_target`, `directed_seats`, the referendum's
   `caller`; never `ActionCtx::card`/`exchange`, which name a card from hand and
   are not redacted).
+- `Agent::fork`: a copy of the agent as it stands, for an undo against bots
+  (the host's `Session::solo`) to put back with the engine.
 - The bots score the options of the windows that define a style; everything
   else scores 0 and ties are broken by a seeded random draw ("random with a
   spine": the difference from `RandomLegal` is exactly these rules).
@@ -1807,7 +1809,7 @@ Still true today; "(verify)" marks items inferred from older notes.
 - **P5 — community**: bot service, client adapter, human-ergonomics layer
   (its open items on the boards).
 
-Definitions: 900 library, 447 vampires; 2319 Rust tests, 38 Python tests
+Definitions: 900 library, 447 vampires; 2321 Rust tests, 38 Python tests
 
 ## Outlook: deck building (post-v1)
 

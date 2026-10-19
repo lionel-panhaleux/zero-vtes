@@ -1218,3 +1218,236 @@ fn the_digest_of_a_built_position_is_pinned() {
         .put(crypt("Elisha Tucker"), CopyId::NONE);
     assert_eq!(zvtes_host::digest::digest(&e), "10d41669a03aeac7");
 }
+
+/// Against bots, undo takes back the human's previous decision whatever
+/// the bots decided or was revealed since, one human decision at each
+/// undo, and the bots answer again as they did (owner, 2026-10-18:
+/// "cancel anything anytime"); the record still reads whole.
+#[test]
+fn undo_against_bots_walks_back_across_their_decisions_and_reveals() {
+    let keys = |d: &zvtes_api::Decision| -> Vec<_> {
+        d.options.iter().map(|o| (o.index, o.key.clone())).collect()
+    };
+    let (mut crossed, mut revealed, mut checked) = (0, 0, 0);
+    for seed in 1..=24 {
+        let mut g = game(seed, Settings::default());
+        let human = g.human();
+        let mut rng = Rng(seed as u64 * 11 + 1);
+        let mut outs = g.handle(human, join());
+        // The human's decisions as asked, the option answered, and whether
+        // a card was revealed since the one before.
+        let mut asked: Vec<(zvtes_api::Decision, u32, bool)> = Vec::new();
+        let mut shown = false;
+        for _ in 0..40 {
+            let Some(d) = pending(&outs).cloned() else {
+                break;
+            };
+            assert_eq!(d.undo, !asked.is_empty(), "seed {seed}: undo once decided");
+            let option = d.options[rng.below(d.options.len())].index;
+            asked.push((d.clone(), option, shown));
+            outs = g.handle(
+                human,
+                cmd(Command::Answer {
+                    decision: d.decision,
+                    option,
+                }),
+            );
+            if pending(&outs).is_none() && !g.is_over() {
+                outs.extend(g.handle(human, join()));
+            }
+            shown = outs.iter().any(|o| match &o.message {
+                Message::Events { events, .. } => events
+                    .iter()
+                    .any(|e| matches!(e.kind, EventKind::Revealed { .. })),
+                _ => false,
+            });
+            // Undone right after a reveal, when one comes.
+            if shown && asked.len() >= 2 && pending(&outs).is_some() {
+                break;
+            }
+        }
+        if g.is_over() || asked.len() < 2 {
+            continue;
+        }
+        let now = pending(&outs).cloned().expect("a decision");
+        let (last, _, r) = asked[asked.len() - 1].clone();
+        let (before, option, _) = asked[asked.len() - 2].clone();
+        crossed += usize::from(now.decision > last.decision + 1);
+        revealed += usize::from(r || shown);
+        // Twice back: each undo one human decision.
+        outs = g.handle(
+            human,
+            cmd(Command::Undo {
+                decision: now.decision,
+            }),
+        );
+        let d = pending(&outs).cloned().expect("undone");
+        assert_eq!(
+            (d.decision, keys(&d)),
+            (last.decision, keys(&last)),
+            "seed {seed}"
+        );
+        outs = g.handle(
+            human,
+            cmd(Command::Undo {
+                decision: d.decision,
+            }),
+        );
+        let d = pending(&outs).cloned().expect("undone twice");
+        assert_eq!(
+            (d.decision, keys(&d)),
+            (before.decision, keys(&before)),
+            "seed {seed}"
+        );
+        // Answered again as before: the bots answer as they did.
+        outs = g.handle(
+            human,
+            cmd(Command::Answer {
+                decision: d.decision,
+                option,
+            }),
+        );
+        let d = pending(&outs).cloned().expect("asked again");
+        assert_eq!(
+            (d.decision, keys(&d)),
+            (last.decision, keys(&last)),
+            "seed {seed}: the bots alike"
+        );
+        let (_, stop, resumed) = reads(g.record());
+        assert_eq!(
+            (stop, resumed),
+            (None, None),
+            "seed {seed}: the record reads whole and resumes"
+        );
+        checked += 1;
+    }
+    assert!(
+        checked > 0 && crossed > 0 && revealed > 0,
+        "{checked} checked, {crossed} across bots, {revealed} past a reveal"
+    );
+}
+
+/// Against bots, a vote order (`vote_all`) is undone too: a decision
+/// asked later in its polling can be taken back to the order's decision,
+/// the order gone, and given again it goes as it went.
+#[test]
+fn undo_against_bots_takes_back_a_vote_order() {
+    let keys = |d: &zvtes_api::Decision| -> Vec<_> {
+        d.options.iter().map(|o| (o.index, o.key.clone())).collect()
+    };
+    let polling = |d: &zvtes_api::Decision| {
+        d.view
+            .referendum
+            .as_ref()
+            .is_some_and(|r| r.step == zvtes_api::ids::ReferendumStep::Polling)
+    };
+    // The human plays the precon with the most political actions.
+    use zvtes::library::{CardType, LIBRARY};
+    let decks = zvtes_host::catalog();
+    let politics = |list: &zvtes_api::DeckList| -> u32 {
+        list.iter()
+            .filter(|(id, _)| {
+                LIBRARY.iter().any(|c| {
+                    c.id.to_string() == **id && c.types.contains(&CardType::PoliticalAction)
+                })
+            })
+            .map(|(_, &n)| n)
+            .sum()
+    };
+    let political = &decks.iter().max_by_key(|d| politics(&d.1)).unwrap().1;
+    let mut checked = 0;
+    for seed in 1..=300u64 {
+        if checked == 3 {
+            break;
+        }
+        let seat = seed as usize % 4;
+        let mut s = spec(seed, seat, Settings::default());
+        s.seats[seat].deck = political.clone();
+        let mut g = Game::new(
+            format!("v{seed}"),
+            s,
+            &NoBots,
+            Box::new(Ticks(Default::default())),
+        )
+        .unwrap();
+        let human = g.human();
+        let mut rng = Rng(seed * 7 + 3);
+        let mut outs = g.handle(human, join());
+        // The decision the order was given at, and its way.
+        let mut ordered: Option<(zvtes_api::Decision, bool)> = None;
+        for _ in 0..3000 {
+            let Some(d) = pending(&outs).cloned() else {
+                break;
+            };
+            if let Some((at, favor)) = ordered.clone().filter(|_| polling(&d)) {
+                assert!(d.undo, "seed {seed}: undo under a vote order");
+                outs = g.handle(
+                    human,
+                    cmd(Command::Undo {
+                        decision: d.decision,
+                    }),
+                );
+                let back = pending(&outs).cloned().expect("undone");
+                assert_eq!(
+                    (back.decision, keys(&back)),
+                    (at.decision, keys(&at)),
+                    "seed {seed}: back to the order's decision"
+                );
+                outs = g.handle(
+                    human,
+                    cmd(Command::VoteAll {
+                        decision: back.decision,
+                        favor,
+                    }),
+                );
+                let again = pending(&outs).cloned().expect("asked again");
+                assert_eq!(
+                    (again.decision, keys(&again)),
+                    (d.decision, keys(&d)),
+                    "seed {seed}: the order goes as it went"
+                );
+                let (_, stop, resumed) = reads(g.record());
+                assert_eq!(
+                    (stop, resumed),
+                    (None, None),
+                    "seed {seed}: the record reads whole and resumes"
+                );
+                checked += 1;
+                break;
+            }
+            if !polling(&d) {
+                ordered = None;
+            }
+            let c = match d.votes.filter(|v| v.favor + v.against > 0) {
+                Some(v) if ordered.is_none() => {
+                    ordered = Some((d.clone(), v.favor > 0));
+                    Command::VoteAll {
+                        decision: d.decision,
+                        favor: v.favor > 0,
+                    }
+                }
+                _ => {
+                    // Cards played half the time: political actions.
+                    let plays: Vec<_> = d
+                        .options
+                        .iter()
+                        .filter(|o| o.key.kind == OptionKind::Play)
+                        .collect();
+                    let o = match plays.is_empty() || rng.below(2) == 0 {
+                        true => &d.options[rng.below(d.options.len())],
+                        false => plays[rng.below(plays.len())],
+                    };
+                    Command::Answer {
+                        decision: d.decision,
+                        option: o.index,
+                    }
+                }
+            };
+            outs = g.handle(human, cmd(c));
+            if pending(&outs).is_none() && !g.is_over() {
+                outs.extend(g.handle(human, join()));
+            }
+        }
+    }
+    assert_eq!(checked, 3, "decisions asked under a vote order");
+}

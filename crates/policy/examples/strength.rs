@@ -81,6 +81,7 @@ impl Variant {
 
 /// The network sampling its option, within the futile-block mask, the
 /// politics and the habits.
+#[derive(Clone)]
 struct Player {
     net: Arc<Net>,
     rng: Rng,
@@ -132,6 +133,10 @@ impl Agent for Player {
             .rev()
             .find(|&i| w[i] > 0.0)
             .expect("an allowed option")
+    }
+
+    fn fork(&self) -> Box<dyn Agent> {
+        Box::new(self.clone())
     }
 }
 

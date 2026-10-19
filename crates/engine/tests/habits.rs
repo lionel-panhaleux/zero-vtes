@@ -27,6 +27,7 @@ struct Seen {
 
 /// Random play within the habits: their choice when they have one, else a
 /// random option among those they leave.
+#[derive(Clone)]
 struct Habits(RandomLegal);
 
 impl Agent for Habits {
@@ -39,6 +40,10 @@ impl Agent for Habits {
         };
         let left: Vec<usize> = (0..mask.len()).filter(|&i| mask[i]).collect();
         left[self.0.rng.below(left.len())]
+    }
+
+    fn fork(&self) -> Box<dyn Agent> {
+        Box::new(self.clone())
     }
 }
 

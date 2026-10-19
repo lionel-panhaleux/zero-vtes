@@ -20,8 +20,9 @@ use crate::narrate::{Fact, Mark, Told};
 use crate::numbering::Decks;
 use crate::view::Viewer;
 
-/// Engines kept for undo: past this many decisions in a row, the oldest
-/// is dealt again and replayed instead.
+/// Engines kept for undo: past this many human decisions, the oldest is
+/// dealt again and replayed instead, or, against bots, no longer undone
+/// (a replay would not have the bots answer as they did).
 const SNAPSHOTS: usize = 64;
 
 /// How a decision was taken: by a bot, by a human seat (what it knew of
@@ -36,8 +37,17 @@ pub enum Taken {
     Order,
     /// A decision that showed library or crypt cards: a human's search, or
     /// any decision after which a card was revealed to all (no undo back
-    /// past it).
+    /// past it). Never against bots (`Session::solo`).
     Revealed,
+}
+
+/// The game before a human decision, for undo: the history's length
+/// then, the engine, the vote orders and (`Session::solo`) each bot's copy.
+struct Snapshot {
+    at: usize,
+    engine: Engine,
+    standing: Vec<(SeatId, bool)>,
+    bots: Vec<Option<Box<dyn Agent>>>,
 }
 
 /// The cards a seat can see, by (crypt, KRCG id): what undo must not
@@ -111,6 +121,9 @@ pub struct Session {
     /// Seats casting all their votes one way (`vote_all`), for the rest of
     /// the referendum's polling.
     standing: Vec<(SeatId, bool)>,
+    /// The order `vote_all` gives, standing once its decision is taken
+    /// (after the snapshot: an undo there must not bring it back).
+    ordered: Option<(SeatId, bool)>,
     /// Human seats passing on their opportunities (`set_opportunities`).
     quiet: Vec<SeatId>,
     /// The decision a human seat was asked, and the options it was shown:
@@ -126,9 +139,14 @@ pub struct Session {
     /// Who took each decision, and how (`undo`).
     history: Vec<(SeatId, Taken)>,
     /// The engine before each human decision undo may take back, by the
-    /// history's length then: restored, not replayed. Cleared when a bot
-    /// decides; the oldest dropped past `SNAPSHOTS`.
-    snapshots: Vec<(usize, Engine)>,
+    /// history's length then: restored, not replayed; with the bots as they
+    /// stood then in a game against bots (`solo`). Cleared when a bot
+    /// decides (but in such a game); the oldest dropped past `SNAPSHOTS`.
+    snapshots: Vec<Snapshot>,
+    /// One human seat (the bots copied by `Agent::fork`): undo takes back
+    /// the human's previous decision whatever was decided or revealed
+    /// since (owner, 2026-10-18: "cancel anything anytime").
+    solo: bool,
     /// The copies dealt (for a seat's knowledge, `undo`).
     dealt: Decks,
 }
@@ -161,6 +179,7 @@ impl Session {
     ) -> Session {
         let engine = deal(seed, time_limit, &decks);
         let dealt = Decks::dealt(&engine);
+        let solo = agents.iter().filter(|a| a.is_none()).count() == 1;
         Session {
             seed,
             time_limit,
@@ -170,6 +189,7 @@ impl Session {
             pending: None,
             over: None,
             standing: Vec::new(),
+            ordered: None,
             quiet: Vec::new(),
             asked: None,
             struck: None,
@@ -177,6 +197,7 @@ impl Session {
             told: Vec::new(),
             history: Vec::new(),
             snapshots: Vec::new(),
+            solo,
             dealt,
         }
     }
@@ -305,8 +326,8 @@ impl Session {
         }
         told.extend(looks.into_iter().map(|l| Told::new(Fact::Looked(l), true)));
         // A card revealed or a hand looked at: no undo back past it (it
-        // would be known and its place restored).
-        if revealed {
+        // would be known and its place restored), but against bots.
+        if revealed && !self.solo {
             if let Some(last) = self.history.last_mut() {
                 last.1 = Taken::Revealed;
             }
@@ -418,10 +439,13 @@ impl Session {
     }
 
     /// The human taking option `index` of the pending decision: what it
-    /// knew then, for undo.
+    /// knew then, for undo (nothing against bots: an undo there does not
+    /// ask).
     pub fn human(&self) -> Taken {
         let req = self.pending.as_ref().expect("a decision pending");
-        if searched(req).is_empty() {
+        if self.solo {
+            Taken::Human(Knowledge::new())
+        } else if searched(req).is_empty() {
             Taken::Human(self.knowledge(req.seat))
         } else {
             Taken::Revealed
@@ -436,15 +460,33 @@ impl Session {
         self.told.push(Told::new(Fact::Decided(decision), false));
         let said = !untold_effects(&req.options[index]);
         match taken {
-            Taken::Bot => self.snapshots.clear(),
-            Taken::Revealed => self.snapshots.clear(),
-            _ => {
+            Taken::Bot if self.solo => {}
+            Taken::Bot | Taken::Revealed => self.snapshots.clear(),
+            // Where an undo can land: a human's decision of its own.
+            Taken::Human(_) => {
                 if self.snapshots.len() == SNAPSHOTS {
                     self.snapshots.remove(0);
                 }
-                self.snapshots
-                    .push((self.history.len(), self.engine.clone()));
+                let bots = match self.solo {
+                    true => self
+                        .agents
+                        .iter()
+                        .map(|a| a.as_ref().map(|a| a.fork()))
+                        .collect(),
+                    false => Vec::new(),
+                };
+                self.snapshots.push(Snapshot {
+                    at: self.history.len(),
+                    engine: self.engine.clone(),
+                    standing: self.standing.clone(),
+                    bots,
+                });
             }
+            Taken::Passed | Taken::Order => {}
+        }
+        if let Some((seat, favor)) = self.ordered.take() {
+            self.standing.retain(|&(s, _)| s != seat);
+            self.standing.push((seat, favor));
         }
         self.engine.choose(index);
         self.history.push((req.seat, taken));
@@ -483,13 +525,25 @@ impl Session {
     /// How many decisions undoing takes back: the pending decision is the
     /// seat's again, right after its previous one, nothing decided since
     /// (by a bot, or a standing order; the opportunities it passed on by
-    /// itself go back with it) and nothing hidden revealed to it.
+    /// itself go back with it) and nothing hidden revealed to it; against
+    /// bots (`solo`), back to its previous one whatever came since.
     fn undo_depth(&self) -> Option<usize> {
         let req = self.pending.as_ref()?;
         if self.agents[req.seat.index()].is_some()
-            || self.standing.iter().any(|&(s, _)| s == req.seat)
+            || (!self.solo && self.standing.iter().any(|&(s, _)| s == req.seat))
         {
             return None;
+        }
+        // Against bots: back to the seat's previous decision of its own,
+        // the bots', the passes and the orders since with it, while its
+        // snapshot is kept (the bots answering again as they did).
+        if self.solo {
+            let k =
+                1 + self.history.iter().rev().position(|(seat, taken)| {
+                    *seat == req.seat && matches!(taken, Taken::Human(_))
+                })?;
+            let at = self.history.len() - k;
+            return self.snapshots.iter().any(|s| s.at == at).then_some(k);
         }
         for (k, (seat, taken)) in self.history.iter().rev().enumerate() {
             if *seat != req.seat {
@@ -512,7 +566,8 @@ impl Session {
 
     /// Take back the seat's previous decision: the engine as it was
     /// before it (kept; dealt again and replayed when a long run of
-    /// decisions dropped it). The number of decisions taken back.
+    /// decisions dropped it, but against bots: then no undo). The number of
+    /// decisions taken back.
     pub fn undo(&mut self) -> Result<usize, Refused> {
         self.step();
         let Some(k) = self.undo_depth() else {
@@ -520,12 +575,18 @@ impl Session {
         };
         self.asked = None;
         let at = self.history.len() - k;
-        let kept = self.snapshots.iter().position(|(n, _)| *n == at);
+        let kept = self.snapshots.iter().position(|s| s.at == at);
         let mut engine = match kept {
             Some(i) => {
-                let (_, e) = self.snapshots.swap_remove(i);
+                let s = self.snapshots.swap_remove(i);
                 self.snapshots.truncate(i);
-                e
+                self.standing = s.standing;
+                for (seat, bot) in s.bots.into_iter().enumerate() {
+                    if bot.is_some() {
+                        self.agents[seat] = bot;
+                    }
+                }
+                s.engine
             }
             None => {
                 self.snapshots.clear();
@@ -750,17 +811,16 @@ impl Session {
     }
 
     /// Cast every vote of the seat's `favor`'s way, now and as its turn
-    /// comes in this polling: the first cast's option (`take` it as
-    /// `Taken::Order`… the first is the seat's own answer).
+    /// comes in this polling: the first cast's option, to `take` as the
+    /// seat's own answer (`human()`); the order stands from then on, its
+    /// later casts `Taken::Order`.
     pub fn vote_all(&mut self, decision: u64, favor: bool) -> Result<usize, Refused> {
         self.check(decision, 0)?;
         let req = self.pending.as_ref().expect("checked");
         let Some(&(i, _)) = self.casts(req, favor).first() else {
             return Err(Refused::NoVotes);
         };
-        let seat = req.seat;
-        self.standing.retain(|&(s, _)| s != seat);
-        self.standing.push((seat, favor));
+        self.ordered = Some((req.seat, favor));
         Ok(i)
     }
 

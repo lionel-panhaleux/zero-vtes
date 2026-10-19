@@ -51,8 +51,8 @@ struct Config {
     per_hour: usize,
     idle: Duration,
     time_limit: u32,
-    /// Commands a second per connection, at most (an undo replays the
-    /// game from the deal).
+    /// Commands a second per connection, at most (a command runs the
+    /// bots' decisions up to the human's next one).
     rate: usize,
     /// The admin token's SHA-256.
     admin: Option<String>,
