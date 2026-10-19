@@ -176,6 +176,14 @@ struct Stream {
     closed: Option<Closed>,
     /// Pool and blood events, each with its cause.
     caused: usize,
+    /// The source and purpose each decision asked was told with.
+    sources: HashMap<
+        u64,
+        (
+            Option<zvtes_api::option::CardRef>,
+            Option<zvtes_api::ids::Purpose>,
+        ),
+    >,
 }
 
 /// The action ended last: its seat, acting minion and card's copy.
@@ -184,6 +192,48 @@ struct Closed {
     seat: u8,
     acting: u32,
     card: Option<u32>,
+}
+
+/// An option names no copy the viewer has not seen (`u32::MAX`), in its
+/// key, effects or user: an uncontrolled vampire by its `slot`, its copy
+/// only to who sees it.
+fn sees_its_copies(o: &zvtes_api::option::OptionView) -> bool {
+    use zvtes_api::option::User;
+    use zvtes_api::view::Target;
+    let k = &o.key;
+    let copies = [
+        k.actor,
+        k.minion,
+        k.card.as_ref().and_then(|c| c.copy),
+        k.card.as_ref().and_then(|c| c.from),
+        match k.target {
+            Some(Target::Card { copy }) => Some(copy),
+            _ => None,
+        },
+        match o.user {
+            Some(User::Minion { copy }) => Some(copy),
+            _ => None,
+        },
+    ];
+    copies
+        .into_iter()
+        .chain(o.effects.iter().map(|e| e.copy))
+        .all(|c| c != Some(u32::MAX))
+}
+
+/// A slot the view shows as a back: the option names no card or copy of
+/// it.
+fn keeps_backs(o: &zvtes_api::option::OptionView, v: &TableView) -> bool {
+    let Some(r) = o.key.slot else {
+        return true;
+    };
+    let back = v
+        .seats
+        .iter()
+        .find(|s| s.seat == r.seat)
+        .and_then(|s| s.uncontrolled.get(r.slot as usize))
+        .is_none_or(|u| u.card.id.is_none());
+    !back || (o.key.card.is_none() && o.key.target.is_none())
 }
 
 fn numbered(c: &Card) -> bool {
@@ -249,8 +299,42 @@ impl Stream {
 
     fn event(&mut self, e: &Event) {
         let seed = self.seed;
-        if let EventKind::Decided { seat, .. } = e.kind {
-            self.decided = Some(seat);
+        if let EventKind::Decided {
+            seat,
+            choice,
+            source,
+            purpose,
+            decision,
+            ..
+        } = &e.kind
+        {
+            self.decided = Some(*seat);
+            assert!(sees_its_copies(choice), "seed {seed}: {e:?}");
+            assert!(
+                source.as_ref().and_then(|c| c.copy) != Some(u32::MAX),
+                "seed {seed}: {e:?}"
+            );
+            // An uncontrolled vampire named only as the viewer has seen
+            // it (a transfer's target, a slot choice's card, a play's).
+            if choice.key.slot.is_some() {
+                use zvtes_api::view::Target;
+                let named = match choice.key.target {
+                    Some(Target::Card { copy }) => Some(copy),
+                    _ => None,
+                };
+                let card = (choice.key.kind == OptionKind::Slot)
+                    .then_some(choice.key.card.as_ref())
+                    .flatten();
+                assert!(
+                    named.is_none_or(|c| self.names.knows(c))
+                        && card.is_none_or(|c| c.copy.is_some_and(|c| self.names.knows(c))),
+                    "seed {seed}: a face down vampire named: {e:?}"
+                );
+            }
+            // As the decision told its seat.
+            if let Some(told) = self.sources.remove(decision) {
+                assert_eq!(told, (*source, *purpose), "seed {seed}: {e:?}");
+            }
         }
         let decided = self.decided;
         self.told += 1;
@@ -345,6 +429,7 @@ impl Stream {
                 self.again = Some(*to);
                 // Back in another turn, perhaps: the next view tells it.
                 self.active = None;
+                self.sources.clear();
                 self.open = None;
                 self.last = None;
                 self.in_combat = None;
@@ -596,6 +681,11 @@ impl Stream {
                 }
                 Message::Decision(d) => {
                     self.active = Some(d.view.active);
+                    for o in &d.options {
+                        assert!(sees_its_copies(o), "seed {}: {o:?}", self.seed);
+                        assert!(keeps_backs(o, &d.view), "seed {}: {o:?}", self.seed);
+                    }
+                    self.sources.insert(d.decision, (d.source, d.purpose));
                     if let Some(to) = self.again.take() {
                         assert_eq!(d.decision, to, "seed {}: asked again", self.seed);
                         let first = self.asked.get(&to);
@@ -690,6 +780,7 @@ fn the_events_tell_what_the_views_show() {
             active: None,
             closed: None,
             caused: 0,
+            sources: HashMap::new(),
         };
         let mut outs = g.handle(
             human,
@@ -827,6 +918,7 @@ fn every_option_and_choice_is_told() {
     let seeds = seeds();
     let (mut options, mut decided, mut prompts) = (0, 0, 0);
     let mut unnamed: std::collections::BTreeMap<String, (usize, String)> = Default::default();
+    let decks = zvtes_host::catalog();
     for &seed in &seeds {
         let settings = Settings {
             opportunities: seed % 3 != 0,
@@ -844,6 +936,15 @@ fn every_option_and_choice_is_told() {
             }),
         );
         let mut check = |what: String, text: &str| {
+            // A gap the words leave (a name of nothing); the decks' own
+            // names aside.
+            let words = decks.iter().fold(text.to_string(), |t, (name, _)| {
+                t.replace(name.as_str(), "Deck")
+            });
+            assert!(
+                words == words.trim() && !words.contains("  "),
+                "seed {seed}: {what}: a gap in {text:?}"
+            );
             // What the table may not know (another seat's library search,
             // a card put under the library or drawn from a store) and
             // words that name no card ("equip from a minion").
@@ -915,6 +1016,18 @@ fn every_option_and_choice_is_told() {
                 );
                 options += 1;
                 check(format!("{:?} in {:?}", o.key.kind, d.window), t.unwrap());
+            }
+            // The options of one decision read apart, unless they do the
+            // same (a card's line split into modes alike in effect).
+            for (i, a) in d.options.iter().enumerate() {
+                for b in &d.options[i + 1..] {
+                    assert!(
+                        a.text != b.text || a.text.is_none() || a.effects == b.effects,
+                        "seed {seed}: two options read {:?} in {:?}",
+                        a.text,
+                        d.window
+                    );
+                }
             }
             let plays: Vec<_> = d
                 .options

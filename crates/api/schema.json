@@ -813,6 +813,17 @@
             }
           ]
         },
+        "slot": {
+          "description": "An uncontrolled vampire the option names, by its place (its card\nface down to the others: `target` names its copy only to who\nsees it).",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/SlotRef"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
         "target": {
           "anyOf": [
             {
@@ -1867,11 +1878,33 @@
               "type": "string",
               "const": "decided"
             },
+            "purpose": {
+              "description": "What an effect asked the choice for, as its `decision` told it.",
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/Purpose"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
             "seat": {
               "type": "integer",
               "format": "uint8",
               "maximum": 255,
               "minimum": 0
+            },
+            "source": {
+              "description": "The card (or minion, by its card) whose terms or effect it\nchose, as its `decision` told it.",
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/CardRef"
+                },
+                {
+                  "type": "null"
+                }
+              ]
             },
             "window": {
               "$ref": "#/$defs/Window"
@@ -3559,6 +3592,17 @@
             }
           ]
         },
+        "slot": {
+          "description": "An uncontrolled vampire the option names, by its place (its card\nface down to the others: `target` names its copy only to who\nsees it).",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/SlotRef"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
         "target": {
           "anyOf": [
             {
@@ -4690,6 +4734,28 @@
           ]
         }
       }
+    },
+    "SlotRef": {
+      "description": "A vampire of `seat`'s uncontrolled region, by its position in the\nview's `uncontrolled`.",
+      "type": "object",
+      "properties": {
+        "seat": {
+          "type": "integer",
+          "format": "uint8",
+          "maximum": 255,
+          "minimum": 0
+        },
+        "slot": {
+          "type": "integer",
+          "format": "uint8",
+          "maximum": 255,
+          "minimum": 0
+        }
+      },
+      "required": [
+        "seat",
+        "slot"
+      ]
     },
     "SlotView": {
       "type": "object",

@@ -128,3 +128,39 @@ fn a_later_hosts_record_reads() {
         "read past the unknown"
     );
 }
+
+/// A key written before its kind's fields grew (docs/protocol.md §11: a
+/// bleed's before it named its seat, a transfer's before its `slot`, a
+/// strike's before its `actor`) reads by the fields it has: a record from
+/// before 2.5.0, its indices made useless, replays whole by its keys.
+#[test]
+fn an_older_key_reads_by_the_fields_it_has() {
+    let path = concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/../../data/records/zero-vtes-replay-2026-10-04T12-09-51-567Z.json"
+    );
+    let mut v: serde_json::Value =
+        serde_json::from_str(&std::fs::read_to_string(path).unwrap()).unwrap();
+    let mut bleeds = 0;
+    for e in v["entries"].as_array_mut().unwrap() {
+        if e["type"] == "decision" {
+            e["option"] = serde_json::json!(9999);
+            bleeds += usize::from(e["choice"]["action"] == "bleed");
+        }
+    }
+    assert!(bleeds > 0, "no bleed recorded");
+    let record: GameRecord = serde_json::from_value(v).unwrap();
+    let mut r = Replayer::new(&record).unwrap();
+    let mut read = 0;
+    loop {
+        match r.step() {
+            Step::Decision(d) if d.chosen.is_some() => {
+                read += 1;
+                r.take();
+            }
+            Step::Decision(_) | Step::Over { .. } => break,
+            Step::Stopped { why, .. } => panic!("stops after {read}: {why}"),
+        }
+    }
+    assert!(read > 100, "{read} read");
+}

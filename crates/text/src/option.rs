@@ -45,12 +45,20 @@ fn base(
             .map_or_else(|| "a card".into(), |c| n.card_id(c.id))
     };
     let minion = |c: Option<u32>| n.minion_bare(c.unwrap_or(u32::MAX));
+    // A face down uncontrolled vampire: by its place.
+    let back = || {
+        let r = k.slot?;
+        Some(match r.seat == seat {
+            true => format!("uncontrolled vampire #{}", r.slot + 1),
+            false => format!("{}'s uncontrolled vampire #{}", n.seat(r.seat), r.slot + 1),
+        })
+    };
     let target = || match k.target {
         Some(Target::Seat { seat }) => n.seat(seat),
         // A copy never shown: another seat's face down vampire.
         Some(Target::Card { copy }) if !n.knows(copy) => "an uncontrolled vampire".into(),
         Some(Target::Card { copy }) => n.copy_bare(copy),
-        None => String::new(),
+        None => back().unwrap_or_default(),
     };
     let votes = |f: Option<bool>| if f == Some(true) { "for" } else { "against" };
     // A card in play: as the table names it (`own`: without the minion
@@ -62,11 +70,6 @@ fn base(
             Some(copy) if n.knows(copy) => n.copy_bare(copy),
             _ => n.card_id(c.id),
         })
-    };
-    // An uncontrolled vampire: another seat's face down is a back, unnamed.
-    let slot = || match k.target {
-        Some(Target::Card { copy }) if !n.knows(copy) => "an uncontrolled vampire".to_string(),
-        _ => target(),
     };
     Some(match k.kind {
         K::Pass if window == Window::ActionBlock => block_pass(seat, n),
@@ -150,10 +153,10 @@ fn base(
             }
         }
         K::BurnInPlay => format!("Burn {}", in_play(false)?),
-        K::Transfer => format!("Transfer 1 pool to {}", slot()),
-        K::Withdraw => format!("Move 1 blood from {} back to pool", slot()),
-        K::InfluenceOut => format!("Influence out {}", slot()),
-        K::Merge => format!("Merge {} (4 transfers and 1 pool)", slot()),
+        K::Transfer => format!("Transfer 1 pool to {}", target()),
+        K::Withdraw => format!("Move 1 blood from {} back to pool", target()),
+        K::InfluenceOut => format!("Influence out {}", target()),
+        K::Merge => format!("Merge {} (4 transfers and 1 pool)", target()),
         K::DrawCrypt => match (window, n.action()) {
             (Window::InfluenceTransfers, _) => "Draw a crypt card (4 transfers)".into(),
             // In an action: Enthrall's "burn 1 blood to draw 1 card from
@@ -304,14 +307,14 @@ fn base(
         }
         K::ChooseCircle => format!("Choose the {} Circle", n.value(k.value.as_deref()?)),
         // The Great Beast's Discipline.
-        K::Slot if k.card.is_none() => format!("Choose [{}] at superior", k.value.as_deref()?),
+        K::Slot if k.value.is_some() => format!("Choose [{}] at superior", k.value.as_deref()?),
+        // Another seat's face down: by its place.
+        K::Slot if k.card.is_none() => format!("Choose {}", back()?),
         K::Slot => {
             let c = k.card.as_ref()?;
             let name = match (c.copy, c.id) {
                 (Some(copy), _) if n.knows(copy) => n.copy_bare(copy),
-                (_, Some(id)) => n.card_id(Some(id)),
-                // Another seat's face down: a back.
-                _ => "an uncontrolled vampire".into(),
+                _ => n.card_id(c.id),
             };
             format!("Choose {name}")
         }

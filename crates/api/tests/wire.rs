@@ -22,6 +22,7 @@ fn key(kind: OptionKind) -> ChoiceKey {
         zone: None,
         value: None,
         ability: None,
+        slot: None,
     }
 }
 

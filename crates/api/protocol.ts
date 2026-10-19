@@ -393,6 +393,12 @@ export type ChoiceKey = {
     minion?: number | null
     /** The mode a card is played in (`play`). */
     mode?: Mode | null
+    /**
+     * An uncontrolled vampire the option names, by its place (its card
+     * face down to the others: `target` names its copy only to who
+     * sees it).
+     */
+    slot?: SlotRef | null
     target?: Target | null
     /** A clan, a Discipline, a circle chosen: its snake_case id. */
     value?: string | null
@@ -665,7 +671,14 @@ export type Event = {
         choice: OptionView
         decision: number
         kind: 'decided'
+        /** What an effect asked the choice for, as its `decision` told it. */
+        purpose?: Purpose | null
         seat: number
+        /**
+         * The card (or minion, by its card) whose terms or effect it
+         * chose, as its `decision` told it.
+         */
+        source?: CardRef | null
         window: Window
     }
     | {
@@ -1079,6 +1092,12 @@ export type OptionView = {
     minion?: number | null
     /** The mode a card is played in (`play`). */
     mode?: Mode | null
+    /**
+     * An uncontrolled vampire the option names, by its place (its card
+     * face down to the others: `target` names its copy only to who
+     * sees it).
+     */
+    slot?: SlotRef | null
     target?: Target | null
     /** The option in English, when the seat's settings ask for text. */
     text?: string | null
@@ -1319,6 +1338,15 @@ export type SettingsPatch = {
     opportunities?: boolean | null
     text?: boolean | null
     views?: Views | null
+}
+
+/**
+ * A vampire of `seat`'s uncontrolled region, by its position in the
+ * view's `uncontrolled`.
+ */
+export type SlotRef = {
+    seat: number
+    slot: number
 }
 
 export type SlotView = {

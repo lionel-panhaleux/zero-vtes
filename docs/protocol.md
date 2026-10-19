@@ -318,8 +318,34 @@ seat 2; burn 2 pool to keep card 9.)
   splits into, offered or not),
   `amount`, `favor`, `blood`, `zone` (where a search takes from, or
   where a card is played from: the ash heap, Spiritual Guidance), `value`
-  (a clan, Discipline or circle id), `ability`. Two options of a
-  decision never share a key (copies alike in hand are one option).
+  (a clan, Discipline or circle id), `ability`, `slot` (`{seat, slot}`:
+  an uncontrolled vampire by its place in the view's `uncontrolled`, its
+  card face down to the others — an option's `target` or `card` names
+  it only to who sees it). Two options of a
+  decision never share a key (copies alike in hand are one option). Each
+  key names what its kind is about, so a log reads it without its
+  English (`crates/host/tests/keys.rs` holds the list): a `play` its
+  `card` and `mode`, a `use_ability` its `card` or `minion` and
+  `ability`, a `take_action` its `actor`, `action` and, a bleed, the
+  seat bled (`target`: the prey); a choice among minions its `minion`
+  (`declare_block`, `cast_votes`, `choose_minion`, `resolve_printed`,
+  `burn_blood_from`, …); `transfer`, `withdraw`, `influence_out`,
+  `merge` and `slot` their `slot` (the Great Beast's Discipline slot its
+  `value`); a combatant's choice (`hand_strike`, `round_strike`,
+  `use_maneuver`, `use_press`, `use_prevent`, `strike_combat_ends`,
+  `committed_strike`, `gain_strength`) and the acting minion's own
+  (`continue_action`, `take_damage_after_resolution`) its `actor`;
+  `diablerise` the blocker diablerising as `actor`, the acting vampire
+  as `minion`; a card chosen (`discard`, `bottom`, `find_card`,
+  `take_from`, `resolve_rider`, `burn_in_play`, `burn_for_vote`, …) its
+  `card`; `set_x` and `pay_rescue` their `amount`; `allocate_to` and
+  `allocate_to_card` their `target` and `amount`; `choose_seat` its
+  `target`; `choose_clan`, `choose_circle`, `choose_discipline` their
+  `value`; `cast_edge`, `cast_card_vote` their `favor`; a contest's its
+  `minion` or `card`. The rest (`pass`, `edge_pool`, `burn_pool`,
+  `draw_library`, `draw_crypt`, `pay_block_toll`, `pay_to_cancel`,
+  `burn_blood_to_avoid`) read from their `effects` and the decision's
+  `source` and `purpose`, which `decided` repeats.
 - **`effects`** — what taking it does: an ability's effects, a play's
   mode's, a cost, what a chosen Methuselah or minion gets. A curated
   vocabulary, not the engine's own effects: each
@@ -463,7 +489,7 @@ heap (a marker on its minion, §6), no copy of its own.
 
 | `kind` | Fields |
 |---|---|
-| `decided` | `decision`, `seat`, `window`, `choice` (an option, as the recipient may know it) |
+| `decided` | `decision`, `seat`, `window`, `source`?, `purpose`? (as the decision tells them to its seat: the card whose terms or effect it chose, what an effect asked for), `choice` (an option, as the recipient may know it) |
 | `auto_passed` | `decision`, `seat`, `window` |
 | `undone` | `seat`, `to`: drop what was shown since decision `to` |
 | `turn` | `turn`, `active` |
@@ -580,7 +606,9 @@ instead, `server_restart`, as its decision numbers would no longer be
 the session's. The digest is strict: a fixed cost or gain stops the
 records it touches too.
 A record replays by index on its engine commit, and reads by key on a
-later engine (a record from before every block attempt was offered reads
+later engine (a key written before its kind's fields grew matches the
+option whose fields it has, alike: a bleed's before it named its seat; a
+record from before every block attempt was offered reads
 past the block windows its engine skipped; one from before rules-qa 82.1 (protocol
 before 1.9.0), whose engine reopened the block window at the acting
 Methuselah after an attempt failed short of the stealth, reads past the

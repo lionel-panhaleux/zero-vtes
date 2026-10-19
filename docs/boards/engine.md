@@ -19,7 +19,6 @@ then the protocol leaks the Succubus Club fork works around, then the API
 for outside platforms and contributors, then the training layer split,
 the remaining mechanisms, the review leftovers, the harness.
 
-- **Compact data where a log reads English**: Z-play (2026-10-18), the same log: a bleed of the prey has no `target` on its `take_action` key; a transfer to another seat's uncontrolled vampire carries no copy (4294967295: "4 pool to uncontrolled"); terms choices (`allocate_to`, `choose_seat`, `choose_minion`, `set_x`) and most choice kinds have only their English text. Done when each is a field in the schema (or protocol.md says why not) and the key sweep finds every option's key complete. Docs: protocol.md §5–7, CHANGELOG.
 - **Renderer left**: markers' and strikes' text from data (an oracle each first); the purposes no sweep reaches (`text/src/option.rs` `asked`, declined) rendered; a minion phase's `due` told in its prompt ("X must hunt first"). Done when they read data and a test renders every purpose and every due kind. Docs: none (the text crate).
 - **Events as a complete delta stream**: view N plus its events is view N+1; views on decisions only. Done when a host test applies the events to each view over the key sweep's games and gets the next. Docs: protocol.md (events, views).
 - **`zvtes-env`, step 1**: `bots::does` out of `bots.rs` into a neutral engine module (`politics.rs` uses it). Done when `bots.rs` holds no rules helper `politics.rs` reads. Docs: engine.md (layout).

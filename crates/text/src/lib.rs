@@ -83,7 +83,17 @@ impl<'a> Names<'a> {
                 };
                 for c in &m.cards {
                     if let Some(copy) = c.card.copy {
-                        let card = self.card(&c.card);
+                        // Two copies of one card on it: each by its number.
+                        let twin = m
+                            .cards
+                            .iter()
+                            .filter(|o| o.card.id.is_some() && o.card.id == c.card.id)
+                            .count()
+                            > 1;
+                        let card = match c.card.nth {
+                            Some(k) if twin => format!("{} ({k})", self.card(&c.card)),
+                            _ => self.card(&c.card),
+                        };
                         let owner = match m.kind {
                             MinionKind::Token => "ghoul token".to_string(),
                             _ => name.clone(),
@@ -101,16 +111,38 @@ impl<'a> Names<'a> {
             }
             for c in &s.in_play {
                 if let Some(copy) = c.card.copy {
-                    let card = self.card(&c.card);
+                    // Two copies of one card on the table: each by its
+                    // number among its Methuselah's, or by its Methuselah.
+                    let alike = |cards: &[zvtes_api::view::InPlayView]| {
+                        cards
+                            .iter()
+                            .filter(|o| o.card.id.is_some() && o.card.id == c.card.id)
+                            .count()
+                    };
+                    let mine = alike(&s.in_play);
+                    let all: usize = v.seats.iter().map(|o| alike(&o.in_play)).sum();
+                    let card = match c.card.nth {
+                        Some(k) if mine > 1 => format!("{} ({k})", self.card(&c.card)),
+                        _ if all > 1 => format!("{}'s {}", s.name, self.card(&c.card)),
+                        _ => self.card(&c.card),
+                    };
                     self.own.insert(copy, card.clone());
                     self.table.insert(copy, card);
                 }
             }
             for (i, u) in s.uncontrolled.iter().enumerate() {
                 if let Some(copy) = u.card.copy {
-                    let name = match u.card.id {
-                        Some(_) => self.card(&u.card),
-                        None => format!("uncontrolled vampire #{}", i + 1),
+                    // Two copies of one vampire there: each by its number.
+                    let twin = s
+                        .uncontrolled
+                        .iter()
+                        .filter(|o| o.card.id.is_some() && o.card.id == u.card.id)
+                        .count()
+                        > 1;
+                    let name = match (u.card.id, u.card.nth) {
+                        (Some(_), Some(k)) if twin => format!("{} ({k})", self.card(&u.card)),
+                        (Some(_), _) => self.card(&u.card),
+                        (None, _) => format!("uncontrolled vampire #{}", i + 1),
                     };
                     self.table.insert(copy, name);
                 }

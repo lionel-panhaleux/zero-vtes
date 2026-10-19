@@ -357,9 +357,19 @@ pub(crate) fn recorded_option(
             d.decision, req.seat.0, d.seat
         ));
     }
-    let alike: Vec<usize> = (0..req.options.len())
-        .filter(|&i| describe::key(e, req, &req.options[i], &EngineNames) == d.choice)
+    let keys: Vec<ChoiceKey> = req
+        .options
+        .iter()
+        .map(|c| describe::key(e, req, c, &EngineNames))
         .collect();
+    let mut alike: Vec<usize> = (0..keys.len()).filter(|&i| keys[i] == d.choice).collect();
+    // A key written before its kind's fields grew (2.5.0: a bleed's
+    // target, a slot, an actor): every field it has, alike.
+    if alike.is_empty() {
+        alike = (0..keys.len())
+            .filter(|&i| covers(&d.choice, &keys[i]))
+            .collect();
+    }
     let i = d.option as usize;
     match alike.as_slice() {
         // No key alike (a key written by an earlier engine, its fields
@@ -376,6 +386,28 @@ pub(crate) fn recorded_option(
         many if many.contains(&i) => Ok(i),
         [first, ..] => Ok(*first),
     }
+}
+
+/// Every field `recorded` sets, `now` sets alike.
+fn covers(recorded: &ChoiceKey, now: &ChoiceKey) -> bool {
+    fn same<T: PartialEq>(r: &Option<T>, n: &Option<T>) -> bool {
+        r.is_none() || r == n
+    }
+    let (r, n) = (recorded, now);
+    r.kind == n.kind
+        && same(&r.card, &n.card)
+        && same(&r.actor, &n.actor)
+        && same(&r.minion, &n.minion)
+        && same(&r.target, &n.target)
+        && same(&r.action, &n.action)
+        && same(&r.mode, &n.mode)
+        && same(&r.amount, &n.amount)
+        && same(&r.favor, &n.favor)
+        && same(&r.blood, &n.blood)
+        && same(&r.zone, &n.zone)
+        && same(&r.value, &n.value)
+        && same(&r.ability, &n.ability)
+        && same(&r.slot, &n.slot)
 }
 
 /// A decision read back: what was offered and chosen, told.
@@ -593,4 +625,43 @@ fn before(v: &str, (major, minor): (u32, u32)) -> bool {
     let mut parts = v.split('.').map(|p| p.parse::<u32>().unwrap_or(0));
     let (a, b) = (parts.next().unwrap_or(0), parts.next().unwrap_or(0));
     (a, b) < (major, minor)
+}
+
+#[cfg(test)]
+mod covering {
+    use zvtes_api::ids::{ActionKind, OptionKind};
+    use zvtes_api::option::ChoiceKey;
+    use zvtes_api::view::Target;
+
+    fn bleed(actor: u32, target: Option<Target>) -> ChoiceKey {
+        ChoiceKey {
+            kind: OptionKind::TakeAction,
+            card: None,
+            actor: Some(actor),
+            minion: None,
+            target,
+            action: Some(ActionKind::Bleed),
+            mode: None,
+            amount: None,
+            favor: None,
+            blood: None,
+            zone: None,
+            value: None,
+            ability: None,
+            slot: None,
+        }
+    }
+
+    /// A key recorded before a bleed named its seat reads as the bleed
+    /// it was, not as another minion's.
+    #[test]
+    fn a_key_recorded_with_fewer_fields_covers_the_option_now() {
+        let now = bleed(7, Some(Target::Seat { seat: 1 }));
+        assert!(super::covers(&bleed(7, None), &now));
+        assert!(!super::covers(&bleed(8, None), &now));
+        assert!(!super::covers(
+            &bleed(7, Some(Target::Seat { seat: 2 })),
+            &now
+        ));
+    }
 }

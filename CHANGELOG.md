@@ -9,7 +9,8 @@ removes; its `--check` fails a removal without a major version.
 ## 2.5.0
 
 Round 18's cards (rules-qa Batch 85), the events `action_starts` and
-`acting_changes` and the `cause` of `pool` and `blood`, additions only;
+`acting_changes`, the `cause` of `pool` and `blood`, option keys
+complete and `decided`'s `source` and `purpose`, additions only;
 `action_ends` now told for every action (one within a message too),
 every event in the order it happened, `resolved` without what its events
 tell, and undo against bots, behaviours with no field or id.
@@ -34,6 +35,20 @@ tell, and undo against bots, behaviours with no field or id.
 - `resolved`: its `pool`, `blood` and `life` effects at once no longer
   among `effects` (they repeated the events after it, which name the card
   as their cause); one that comes later (`when`) stays.
+- Option keys complete (§7, each kind's fields listed): `slot`
+  (`{seat, slot}`), an uncontrolled vampire by its place, on
+  `transfer`, `withdraw`, `influence_out`, `merge`, `slot` and
+  uncontrolled targets (a face-down one had named a copy 4294967295, and
+  a `slot` choice the id of another seat's face-down vampire); a bleed's
+  `target`, the seat bled; the combatant's `actor` on `hand_strike`,
+  `round_strike`, `use_maneuver`, `use_press`, `use_prevent`,
+  `strike_combat_ends`, `committed_strike`, `gain_strength`, the acting
+  minion on `continue_action`, `take_damage_after_resolution`;
+  `diablerise` the blocker as `actor`, the acting vampire as `minion`; a
+  card come into play since the last view numbered in a told option's
+  key and `source`, as the events number it. A record's older key reads
+  by the fields it has (§11).
+- `decided`: `source` and `purpose`, as the decision told them.
 - Event `acting_changes` (`seat`, `acting`, `minion`): another minion
   now acting in the action under way (Mask of a Thousand Faces); its
   `action_ends` names them (it had ended an action no event announced).

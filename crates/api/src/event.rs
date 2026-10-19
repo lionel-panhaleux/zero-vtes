@@ -27,6 +27,13 @@ pub enum EventKind {
         decision: DecisionNo,
         seat: Seat,
         window: Window,
+        /// The card (or minion, by its card) whose terms or effect it
+        /// chose, as its `decision` told it.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        source: Option<crate::option::CardRef>,
+        /// What an effect asked the choice for, as its `decision` told it.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        purpose: Option<crate::ids::Purpose>,
         choice: Box<OptionView>,
     },
     /// A decision passed by itself (the seat's settings left only a pass).

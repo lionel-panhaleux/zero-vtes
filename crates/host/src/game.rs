@@ -875,36 +875,13 @@ impl Game {
     /// Option `i` of `req` as the viewer knows it (its copies), what it
     /// does; a decision of another seat's told as the table may know it.
     fn option(&self, req: &DecisionRequest, i: usize) -> OptionView {
-        let e = self.session.engine();
-        let c = &req.options[i];
-        let names = &self.viewer.numbering;
-        let mut key = describe::key(e, req, c, names);
-        // Game of Malkav: another seat chose a number, not which — no
-        // amount, and the index (the number less one) told as 0.
-        let secret = req.seat.0 != self.human
-            && matches!(
-                e.interrupt(),
-                Some(zvtes::draws::Interrupt::SecretNumber { .. })
-            );
-        if req.seat.0 != self.human {
-            narrated(&mut key, c, req.window);
-        }
-        if secret {
-            key.amount = None;
-        }
-        OptionView {
-            index: if secret { 0 } else { i as u32 },
-            key,
-            effects: if secret {
-                Vec::new()
-            } else {
-                describe::effects(e, req, c, names)
-            },
-            abilities: describe::abilities(e, c),
-            apart: describe::ability_apart(e, c),
-            user: describe::ability_user(e, req, c, names),
-            text: None,
-        }
+        option_view(
+            self.session.engine(),
+            req,
+            i,
+            &self.viewer.numbering,
+            self.human,
+        )
     }
 
     /// Runs the game to the human's next decision or the end.
@@ -1024,7 +1001,42 @@ impl Game {
         let seat = req.seat.0;
         let window = crate::ids::window(req.window);
         let digest = crate::digest::digest(self.session.engine());
-        let option = self.option(&req, index);
+        // What it chose for, as its decision tells it to its seat.
+        let purpose = self
+            .session
+            .engine()
+            .interrupt()
+            .map(|i| crate::ids::purpose(&i));
+        let text = self.settings.text && by != By::Auto;
+        // As the events tell it: a card come into play since the last view
+        // numbered fresh. Its English (the decision's particulars and
+        // options) numbered on a copy: the text setting leaves the numbers
+        // as they are.
+        let e = self.session.engine();
+        let human = self.human;
+        let (option, source) = {
+            let telling = describe::Telling {
+                numbering: std::cell::RefCell::new(&mut self.viewer.numbering),
+                decks: &self.decks,
+                e,
+            };
+            (
+                option_view(e, &req, index, &telling, human),
+                describe::source(e, &req, &telling),
+            )
+        };
+        let mut scratch = text.then(|| self.viewer.numbering.clone());
+        let asked = scratch.as_mut().map(|n| {
+            let telling = describe::Telling {
+                numbering: std::cell::RefCell::new(n),
+                decks: &self.decks,
+                e,
+            };
+            let offered = (0..req.options.len())
+                .map(|i| option_view(e, &req, i, &telling, human))
+                .collect::<Vec<_>>();
+            (describe::about(e, &req, &telling), offered)
+        });
         let key = describe::key(
             self.session.engine(),
             &req,
@@ -1039,18 +1051,15 @@ impl Game {
                 by != By::Bot && d.decision == decision && d.options.len() < req.options.len()
             })
             .map(|d| d.options.iter().map(|o| o.index).collect());
-        if self.settings.text && by != By::Auto {
-            let e = self.session.engine();
+        if let Some((about, offered)) = asked {
             self.asked.insert(
                 decision,
                 Asked {
                     window,
-                    purpose: e.interrupt().map(|i| crate::ids::purpose(&i)),
-                    about: describe::about(e, &req, &self.viewer.numbering),
+                    purpose,
+                    about,
                     seat,
-                    offered: (0..req.options.len())
-                        .map(|i| self.option(&req, i))
-                        .collect(),
+                    offered,
                 },
             );
         }
@@ -1080,6 +1089,8 @@ impl Game {
                 decision,
                 seat,
                 window,
+                source,
+                purpose,
                 choice: Box::new(option),
             }
         };
@@ -1275,6 +1286,44 @@ pub(crate) fn winner(vp_halves: &[u32]) -> Option<Seat> {
     let best = vp_halves.iter().copied().max().unwrap_or(0);
     (best >= 4 && vp_halves.iter().filter(|&&v| v == best).count() == 1)
         .then(|| vp_halves.iter().position(|&v| v == best).unwrap() as Seat)
+}
+
+/// An option as `names` tells it (`human`: the viewer's seat).
+fn option_view(
+    e: &zvtes::game::Engine,
+    req: &DecisionRequest,
+    i: usize,
+    names: &impl describe::Names,
+    human: Seat,
+) -> OptionView {
+    let c = &req.options[i];
+    let mut key = describe::key(e, req, c, names);
+    // Game of Malkav: another seat chose a number, not which — no
+    // amount, and the index (the number less one) told as 0.
+    let secret = req.seat.0 != human
+        && matches!(
+            e.interrupt(),
+            Some(zvtes::draws::Interrupt::SecretNumber { .. })
+        );
+    if req.seat.0 != human {
+        narrated(&mut key, c, req.window);
+    }
+    if secret {
+        key.amount = None;
+    }
+    OptionView {
+        index: if secret { 0 } else { i as u32 },
+        key,
+        effects: if secret {
+            Vec::new()
+        } else {
+            describe::effects(e, req, c, names)
+        },
+        abilities: describe::abilities(e, c),
+        apart: describe::ability_apart(e, c),
+        user: describe::ability_user(e, req, c, names),
+        text: None,
+    }
 }
 
 /// Another seat's choice as the table may know it: the card a library

@@ -70,3 +70,110 @@ fn two_options_of_a_decision_never_share_a_key() {
     assert!(decisions > 10_000, "{decisions} decisions");
     eprintln!("{decisions} decisions, {} option kinds", by_kind.len());
 }
+
+/// Every option's key names what its kind is about (docs/protocol.md §7),
+/// so a log reads it without its English: a play its card and mode, an
+/// action its minion, kind and (a bleed) the seat bled, a choice among
+/// minions its minion, an uncontrolled vampire its slot, a combatant's
+/// choice its minion, an amount its amount. The few with nothing of their
+/// own (a pass, the Edge's pool, a toll paid) read from the decision's
+/// `source` and `purpose`.
+#[test]
+fn every_option_s_key_names_what_it_is_about() {
+    use zvtes::decision::{ActionKind, Choice as C};
+    let seeds: u64 = std::env::var("HOST_SEEDS").map_or(60, |s| s.parse().unwrap());
+    let mut checked = 0usize;
+    for seed in 1..=seeds {
+        let mut e = engine(seed);
+        let mut agent = RandomLegal::new(seed);
+        for _ in 0..20_000 {
+            match e.run() {
+                Step::Over(_) => break,
+                Step::Decision(req) => {
+                    for c in &req.options {
+                        let k = key(&e, &req, c, &EngineNames);
+                        let complete = match *c {
+                            C::Play { .. } => k.card.is_some() && k.mode.is_some(),
+                            C::UseAbility { .. } => {
+                                (k.card.is_some() || k.minion.is_some()) && k.ability.is_some()
+                            }
+                            C::TakeAction { action, .. } => {
+                                k.actor.is_some()
+                                    && k.action.is_some()
+                                    && (action != ActionKind::Bleed || k.target.is_some())
+                            }
+                            C::ResolvePrinted { .. }
+                            | C::BurnBloodFrom { .. }
+                            | C::DeclareBlock { .. }
+                            | C::ChooseMinion(_)
+                            | C::BurnBloodForIntercept { .. }
+                            | C::UnlockForBlood { .. }
+                            | C::UnlockInfernal { .. }
+                            | C::BurnCorruptionToFail { .. }
+                            | C::BurnCorruptionToUnlock { .. }
+                            | C::CastVotes { .. } => k.minion.is_some(),
+                            C::Transfer { .. }
+                            | C::Withdraw { .. }
+                            | C::InfluenceOut { .. }
+                            | C::Merge { .. } => k.slot.is_some(),
+                            C::Slot(_) => k.slot.is_some() || k.value.is_some(),
+                            C::HandStrike
+                            | C::UseManeuver
+                            | C::UsePress
+                            | C::UsePrevent
+                            | C::StrikeCombatEnds
+                            | C::CommittedStrike
+                            | C::GainStrength
+                            | C::RoundStrike { .. }
+                            | C::ContinueAction
+                            | C::TakeDamageAfterResolution => k.actor.is_some(),
+                            C::Diablerise => k.actor.is_some() && k.minion.is_some(),
+                            C::Discard(_)
+                            | C::Bottom(_)
+                            | C::BurnForVote { .. }
+                            | C::FindCard(_)
+                            | C::TakeFrom { .. }
+                            | C::ResolveRider { .. }
+                            | C::BurnInPlay { .. }
+                            | C::TakeEquipment { .. }
+                            | C::ChooseCard(_)
+                            | C::BurnWeaponStrike { .. }
+                            | C::DrawStored { .. }
+                            | C::AshVampire(_)
+                            | C::EmployFromHand { .. } => k.card.is_some(),
+                            C::SetX(_) | C::PayRescue { .. } => k.amount.is_some(),
+                            C::AllocateTo { .. } | C::AllocateToCard { .. } => {
+                                k.target.is_some() && k.amount.is_some()
+                            }
+                            C::ChooseSeat(_) => k.target.is_some(),
+                            C::ChooseClan(_) | C::ChooseCircle(_) | C::ChooseDiscipline(_) => {
+                                k.value.is_some()
+                            }
+                            C::CastEdge { .. } | C::CastCardVote { .. } => k.favor.is_some(),
+                            C::PayContest(_) | C::YieldContest(_) => {
+                                k.minion.is_some() || k.card.is_some()
+                            }
+                            C::Pass
+                            | C::BurnEdge
+                            | C::BurnPool
+                            | C::DrawLibrary
+                            | C::DrawCrypt
+                            | C::PayBlockToll
+                            | C::PayToCancel
+                            | C::BurnBloodToAvoid => true,
+                        };
+                        assert!(
+                            complete,
+                            "seed {seed}, {:?}: {c:?} keyed as {k:?}",
+                            req.window
+                        );
+                        checked += 1;
+                    }
+                    let pick = agent.choose(&req);
+                    e.choose(pick);
+                }
+            }
+        }
+    }
+    assert!(checked > 10_000, "{checked} options");
+}

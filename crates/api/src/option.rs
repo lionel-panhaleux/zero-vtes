@@ -93,6 +93,20 @@ pub struct ChoiceKey {
     /// Which of a card's abilities, when it has several.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub ability: Option<u8>,
+    /// An uncontrolled vampire the option names, by its place (its card
+    /// face down to the others: `target` names its copy only to who
+    /// sees it).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub slot: Option<SlotRef>,
+}
+
+/// A vampire of `seat`'s uncontrolled region, by its position in the
+/// view's `uncontrolled`.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
+pub struct SlotRef {
+    pub seat: Seat,
+    pub slot: u8,
 }
 
 /// One thing an option does, to whom (docs/protocol.md §7): a curated

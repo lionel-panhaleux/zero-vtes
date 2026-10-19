@@ -16,7 +16,7 @@ use zvtes::library::LIBRARY;
 use zvtes::state::{CardId, MinionKind, UncontrolledSlot, CREATED};
 use zvtes_api::ids::{DueKind, OptionKind, Role, Zone};
 use zvtes_api::message::{About, Due};
-use zvtes_api::option::{CardRef, ChoiceKey, Effect, EffectKind, On, User, ZoneRef};
+use zvtes_api::option::{CardRef, ChoiceKey, Effect, EffectKind, On, SlotRef, User, ZoneRef};
 use zvtes_api::view::Target;
 
 use crate::effects::{curated, Whom};
@@ -25,6 +25,48 @@ use crate::view::{action_kind, minion_copy, mode, snake};
 /// How copies are named: a viewer's numbers, or the engine's.
 pub trait Names {
     fn copy(&self, c: CopyId) -> Option<u32>;
+    /// A card's or minion's in play (`Ctx::card`, `Ctx::minion`; never an
+    /// uncontrolled vampire's): as `copy`, or numbered fresh for the
+    /// telling (`Telling`).
+    fn public(&self, c: CopyId) -> Option<u32> {
+        self.copy(c)
+    }
+}
+
+/// The viewer's numbers for an option told in an event: a card or minion
+/// the viewer has not numbered yet (it came into play since the last
+/// view, or came and went) numbered fresh, as the events name one
+/// (`Numbering::name`); an uncontrolled vampire never (face down).
+pub struct Telling<'a> {
+    pub numbering: std::cell::RefCell<&'a mut crate::numbering::Numbering>,
+    pub decks: &'a crate::numbering::Decks,
+    pub e: &'a Engine,
+}
+
+impl Names for Telling<'_> {
+    fn copy(&self, c: CopyId) -> Option<u32> {
+        self.numbering.borrow().get(c).map(|(w, _)| w)
+    }
+
+    fn public(&self, c: CopyId) -> Option<u32> {
+        self.copy(c).or_else(|| {
+            let st = &self.e.state;
+            let (id, crypt) = match st.cards.iter().find(|k| *k.copy == c) {
+                Some(k) => (LIBRARY[k.card as usize].id, false),
+                None => {
+                    let i = (0..st.minions.len()).find(|&i| minion_copy(st, i) == c)?;
+                    let (card, crypt) = crate::view::minion_face(&st.minions[i]);
+                    let id = match crypt {
+                        true => CRYPT[card as usize].id,
+                        false => LIBRARY[card as usize].id,
+                    };
+                    (id, crypt)
+                }
+            };
+            let mut n = self.numbering.borrow_mut();
+            n.name(self.decks, c, id, crypt).map(|(w, _)| w)
+        })
+    }
 }
 
 /// The engine's own numbers (records).
@@ -55,13 +97,13 @@ struct Ctx<'a, N: Names> {
 impl<N: Names> Ctx<'_, N> {
     fn minion(&self, m: MinionId) -> u32 {
         self.names
-            .copy(minion_copy(&self.e.state, m.index()))
+            .public(minion_copy(&self.e.state, m.index()))
             .unwrap_or(UNSEEN)
     }
 
     fn card(&self, c: CardId) -> u32 {
         self.names
-            .copy(*self.e.state.cards[c.index()].copy)
+            .public(*self.e.state.cards[c.index()].copy)
             .unwrap_or(UNSEEN)
     }
 
@@ -91,14 +133,24 @@ impl<N: Names> Ctx<'_, N> {
         }
     }
 
-    /// An uncontrolled vampire, by its slot: its card and copy.
+    /// An uncontrolled vampire: its card and copy to a viewer who has seen
+    /// it (face down to the others).
     fn slot(&self, i: u8) -> CardRef {
         let region = &self.e.state.seats[self.region().index()].uncontrolled;
         let u: &UncontrolledSlot = &region[i as usize];
+        let copy = self.names.copy(*u.copy);
         CardRef {
-            id: Some(slot_id(self.e, u)),
-            copy: Some(self.names.copy(*u.copy).unwrap_or(UNSEEN)),
+            id: copy.map(|_| slot_id(self.e, u)),
+            copy,
             from: None,
+        }
+    }
+
+    /// An uncontrolled vampire by its place.
+    fn slot_ref(&self, i: u8) -> SlotRef {
+        SlotRef {
+            seat: self.region().0,
+            slot: i,
         }
     }
 
@@ -110,8 +162,9 @@ impl<N: Names> Ctx<'_, N> {
                 copy: self.minion(m),
             },
             T::Card(c) => Target::Card { copy: self.card(c) },
+            // Its place told apart (`key`'s `slot`).
             T::Uncontrolled(i) => Target::Card {
-                copy: self.slot(i).copy.unwrap_or(UNSEEN),
+                copy: self.slot(i).copy?,
             },
         })
     }
@@ -1606,26 +1659,40 @@ pub fn key(e: &Engine, req: &DecisionRequest, choice: &Choice, names: &impl Name
         zone: None,
         value: None,
         ability: None,
+        slot: None,
     };
+    // The deciding seat's minion in the combat, the action's acting one.
+    let combatant = || {
+        let c = e.combat()?;
+        let i = match c.step {
+            zvtes::combat::Step::ChooseStrike(i) => i,
+            _ => c.side_of(req.seat)?,
+        };
+        Some(x.minion(c.sides[i].minion))
+    };
+    let acting = || e.action().map(|a| x.minion(a.acting));
     match *choice {
         Choice::Pass
         | Choice::BurnEdge
         | Choice::BurnPool
         | Choice::DrawLibrary
         | Choice::DrawCrypt
-        | Choice::HandStrike
+        | Choice::PayBlockToll
+        | Choice::PayToCancel
+        | Choice::BurnBloodToAvoid => {}
+        Choice::HandStrike
         | Choice::UseManeuver
         | Choice::UsePress
         | Choice::UsePrevent
-        | Choice::PayBlockToll
-        | Choice::PayToCancel
         | Choice::StrikeCombatEnds
-        | Choice::TakeDamageAfterResolution
         | Choice::CommittedStrike
-        | Choice::ContinueAction
-        | Choice::GainStrength
-        | Choice::BurnBloodToAvoid
-        | Choice::Diablerise => {}
+        | Choice::GainStrength => k.actor = combatant(),
+        Choice::TakeDamageAfterResolution | Choice::ContinueAction => k.actor = acting(),
+        // The torpid acting vampire, by the vampire that blocked it.
+        Choice::Diablerise => {
+            k.actor = e.action().and_then(|a| a.blocker).map(|m| x.minion(m));
+            k.minion = acting();
+        }
         Choice::PayContest(c) | Choice::YieldContest(c) => match c {
             Contest::Card(m) => k.minion = Some(x.minion(m)),
             Contest::Title(m) => {
@@ -1653,6 +1720,9 @@ pub fn key(e: &Engine, req: &DecisionRequest, choice: &Choice, names: &impl Name
             }
             k.actor = actor.map(|a| x.minion(a));
             k.target = x.target(target);
+            if let zvtes::cards::Target::Uncontrolled(i) = target {
+                k.slot = Some(x.slot_ref(i));
+            }
         }
         Choice::UseAbility {
             source,
@@ -1672,13 +1742,19 @@ pub fn key(e: &Engine, req: &DecisionRequest, choice: &Choice, names: &impl Name
             k.ability = Some(ability);
             k.actor = actor.map(|a| x.minion(a));
             k.target = x.target(target);
+            if let zvtes::cards::Target::Uncontrolled(i) = target {
+                k.slot = Some(x.slot_ref(i));
+            }
         }
         Choice::ResolveRider { card }
         | Choice::BurnInPlay { card }
         | Choice::TakeEquipment { card }
         | Choice::ChooseCard(card)
         | Choice::BurnWeaponStrike { weapon: card } => k.card = Some(x.in_play(CardId(card))),
-        Choice::RoundStrike { at } => k.card = at.map(|c| x.in_play(c)),
+        Choice::RoundStrike { at } => {
+            k.card = at.map(|c| x.in_play(c));
+            k.actor = combatant();
+        }
         Choice::ResolvePrinted { minion }
         | Choice::BurnBloodFrom { minion }
         | Choice::DeclareBlock { minion }
@@ -1706,21 +1782,22 @@ pub fn key(e: &Engine, req: &DecisionRequest, choice: &Choice, names: &impl Name
                 },
             });
         }
-        // The Great Beast's Disciplines: a slot of the Discipline list.
         // The Great Beast's Disciplines: the one this slot of the list is.
         Choice::Slot(i) if matches!(e.interrupt(), Some(Interrupt::BeastDisciplines { .. })) => {
             k.value = zvtes::cards::GREAT_BEAST_DISCIPLINES
                 .get(i as usize)
                 .map(|d| d.to_lowercase())
         }
-        Choice::Slot(i) => k.card = Some(x.slot(i)),
+        Choice::Slot(i) => {
+            k.card = Some(x.slot(i)).filter(|c| c.copy.is_some());
+            k.slot = Some(x.slot_ref(i));
+        }
         Choice::Transfer { slot }
         | Choice::Withdraw { slot }
         | Choice::InfluenceOut { slot }
         | Choice::Merge { slot } => {
-            k.target = Some(Target::Card {
-                copy: x.slot(slot).copy.unwrap_or(UNSEEN),
-            });
+            k.target = x.slot(slot).copy.map(|copy| Target::Card { copy });
+            k.slot = Some(x.slot_ref(slot));
         }
         Choice::AshVampire(c) => {
             k.card = Some(CardRef {
@@ -1755,7 +1832,14 @@ pub fn key(e: &Engine, req: &DecisionRequest, choice: &Choice, names: &impl Name
         } => {
             k.actor = Some(x.minion(minion));
             k.action = Some(action_kind(action));
-            k.target = target.map(|t| Target::Card { copy: x.minion(t) });
+            k.target = match (target, action) {
+                (Some(t), _) => Some(Target::Card { copy: x.minion(t) }),
+                // A bleed with no target bleeds the prey.
+                (None, zvtes::decision::ActionKind::Bleed) => Some(Target::Seat {
+                    seat: e.state.prey(req.seat).0,
+                }),
+                (None, _) => None,
+            };
         }
         Choice::PayRescue { from_acting } => k.amount = Some(from_acting),
         Choice::CastVotes { minion, favor } => {
