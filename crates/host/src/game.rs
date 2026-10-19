@@ -292,34 +292,23 @@ impl Game {
             },
         );
         loop {
-            let r = g.resuming.as_ref().expect("resuming");
-            if let Some(e) = &r.failed {
+            if let Some(e) = &g.resuming.as_ref().expect("resuming").failed {
                 return Err(e.clone());
             }
+            g.resume_check()?;
+            let r = g.resuming.as_ref().expect("resuming");
             let Some(entry) = r.entries.get(r.next).cloned() else {
                 break;
             };
             g.resuming.as_mut().expect("resuming").next += 1;
             match entry {
-                Entry::Decision {
-                    decision,
-                    seat,
-                    option,
-                    choice,
-                    by,
-                    ..
-                } => {
+                Entry::Decision { decision, by, .. } => {
                     let Some(req) = g.session.request().cloned() else {
                         return Err(format!("decision {decision}: the game is over"));
                     };
-                    let favor = choice.favor;
-                    let d = crate::replay::Recorded {
-                        decision,
-                        seat,
-                        option,
-                        choice,
-                        by,
-                    };
+                    let at = g.resuming.as_ref().expect("resuming").next - 1;
+                    let d = crate::replay::Recorded::of(at, &entry).expect("a decision");
+                    let favor = d.choice.favor;
                     let i = crate::replay::recorded_option(g.session.engine(), &req, &d)?;
                     let decision = g.session.decision();
                     // An allocation answered whole: its steps taken as
@@ -411,29 +400,23 @@ impl Game {
             let Some(req) = self.session.request().cloned() else {
                 break;
             };
+            self.resume_check()?;
             let r = self.resuming.as_ref().expect("resuming");
-            let step = match r.entries.get(r.next) {
-                Some(Entry::Decision {
-                    decision,
-                    seat,
-                    option,
-                    choice,
-                    by: By::Order,
-                    ..
-                }) if *seat == self.human
-                    && req.seat.0 == self.human
-                    && matches!(
-                        choice.kind,
-                        OptionKind::AllocateTo | OptionKind::AllocateToCard
-                    ) =>
+            let step = match r
+                .entries
+                .get(r.next)
+                .and_then(|e| crate::replay::Recorded::of(r.next, e))
+            {
+                Some(d)
+                    if d.by == By::Order
+                        && d.seat == self.human
+                        && req.seat.0 == self.human
+                        && matches!(
+                            d.choice.kind,
+                            OptionKind::AllocateTo | OptionKind::AllocateToCard
+                        ) =>
                 {
-                    crate::replay::Recorded {
-                        decision: *decision,
-                        seat: *seat,
-                        option: *option,
-                        choice: choice.clone(),
-                        by: By::Order,
-                    }
+                    d
                 }
                 _ => break,
             };
@@ -448,20 +431,18 @@ impl Game {
     /// While resuming, the recorded option of a decision the game takes
     /// without asking (a bot's, a pass, an order's), in place of `index`.
     fn recorded_take(&mut self, index: usize) -> usize {
-        let Some(r) = self.resuming.as_mut() else {
-            return index;
-        };
-        if r.failed.is_some() {
+        if self.resuming.as_ref().is_none_or(|r| r.failed.is_some()) {
             return index;
         }
-        let Some(Entry::Decision {
-            decision,
-            seat,
-            option,
-            choice,
-            by,
-            ..
-        }) = r.entries.get(r.next).cloned()
+        if let Err(e) = self.resume_check() {
+            self.resuming.as_mut().expect("resuming").failed = Some(e);
+            return index;
+        }
+        let r = self.resuming.as_mut().expect("resuming");
+        let Some(d) = r
+            .entries
+            .get(r.next)
+            .and_then(|e| crate::replay::Recorded::of(r.next, e))
         else {
             r.failed = Some(format!(
                 "entry {}: a decision taken the record does not hold",
@@ -471,13 +452,6 @@ impl Game {
         };
         r.next += 1;
         let req = self.session.request().expect("a decision").clone();
-        let d = crate::replay::Recorded {
-            decision,
-            seat,
-            option,
-            choice,
-            by,
-        };
         match crate::replay::recorded_option(self.session.engine(), &req, &d) {
             Ok(i) => i,
             Err(e) => {
@@ -485,6 +459,27 @@ impl Game {
                 index
             }
         }
+    }
+
+    /// While resuming, the record's next decision checked against the
+    /// decision asked (`replay::past`): an error where the game is no
+    /// longer the game recorded. Never read past, unlike a replay: the
+    /// record's decision numbers would no longer be the session's (an
+    /// undo's `to`, the entries kept), so a Pass in a window gone ends the
+    /// game at the restart too.
+    fn resume_check(&self) -> Result<(), String> {
+        let (Some(r), Some(req)) = (self.resuming.as_ref(), self.session.request()) else {
+            return Ok(());
+        };
+        let Some(d) = r
+            .entries
+            .get(r.next)
+            .and_then(|e| crate::replay::Recorded::of(r.next, e))
+        else {
+            return Ok(());
+        };
+        // Alone, the decision is never read past: a window gone errs.
+        crate::replay::past(self.session.engine(), req, std::slice::from_ref(&d)).map(|_| ())
     }
 
     pub fn id(&self) -> &str {
@@ -1028,6 +1023,7 @@ impl Game {
         let decision = self.session.decision();
         let seat = req.seat.0;
         let window = crate::ids::window(req.window);
+        let digest = crate::digest::digest(self.session.engine());
         let option = self.option(&req, index);
         let key = describe::key(
             self.session.engine(),
@@ -1070,6 +1066,8 @@ impl Game {
             by,
             forced: false,
             shown,
+            window: Some(window),
+            digest: Some(digest),
         });
         let event = if by == By::Auto {
             EventKind::AutoPassed {

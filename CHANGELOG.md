@@ -6,6 +6,16 @@ server runs.
 `python3 scripts/schema_compat.py` lists what a schema change adds or
 removes; its `--check` fails a removal without a major version.
 
+## 2.4.0
+
+- A record's `decision` entry: `window`, the window it was asked in, and
+  `digest`, the position it was taken on (§11), so a record read on a
+  later engine stops where its game is no longer the one played (a rules
+  change shuffling a library with no decision read on silently before);
+  a replay reads past the Passes of a window the engine no longer asks, a
+  resumed game ends there. Records before 2.4.0 have neither and read as
+  before.
+
 ## 2.3.0
 
 Round 17's cards (rules-qa Batch 84); additions only.

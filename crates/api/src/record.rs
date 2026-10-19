@@ -7,7 +7,7 @@ use std::collections::BTreeMap;
 
 use serde::{Deserialize, Serialize};
 
-use crate::ids::{DecisionNo, Seat};
+use crate::ids::{DecisionNo, Seat, Window};
 use crate::message::{EndReason, Error};
 use crate::option::ChoiceKey;
 use crate::spec::{GameSpec, Settings};
@@ -76,6 +76,13 @@ pub enum Entry {
         /// The options the seat was shown, when its settings hid some.
         #[serde(default, skip_serializing_if = "Option::is_none")]
         shown: Option<Vec<u32>>,
+        /// The window it was asked in (records before 2.4.0 have none).
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        window: Option<Window>,
+        /// The position it was taken on, 16 hex digits (§11; records
+        /// before 2.4.0 have none).
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        digest: Option<String>,
     },
     /// The seat took back its decisions from `to` on: the game continues
     /// from `to`, decision numbers repeat from there, and a reader drops

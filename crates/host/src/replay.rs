@@ -3,10 +3,12 @@
 //! engine's copies), so a record keeps reading when the engine changes the
 //! options it offers or their order; it stops where the rules changed (the
 //! engine asks a decision the game never had, or no longer offers what was
-//! chosen) — but for the block windows an earlier engine elided
-//! (`Replay::elided`). `Replay` reads at the engine's level (training
-//! starts, tools); `Replayer` tells it too, as a seat seeing everything
-//! would read it (human games as data: `zvtes_py`).
+//! chosen, or, from 2.4.0, the position differs from the one recorded:
+//! `past`) — but for the block windows an earlier engine elided
+//! (`Replay::elided`) and the Passes of a window no longer asked. `Replay`
+//! reads at the engine's level (training starts, tools); `Replayer` tells
+//! it too, as a seat seeing everything would read it (human games as
+//! data: `zvtes_py`).
 
 use std::panic::{catch_unwind, AssertUnwindSafe};
 
@@ -24,7 +26,8 @@ use crate::numbering::Decks;
 use crate::session::{deal, Next, Session, Taken};
 use crate::view::Viewer;
 
-/// A decision as recorded: its number, seat, option and key.
+/// A decision as recorded: its number, seat, option and key, the window
+/// and the position's digest (records from 2.4.0).
 #[derive(Clone, Debug)]
 pub struct Recorded {
     pub decision: u64,
@@ -32,6 +35,38 @@ pub struct Recorded {
     pub option: u32,
     pub choice: ChoiceKey,
     pub by: By,
+    pub window: Option<Window>,
+    pub digest: Option<String>,
+    /// Its index in the record's `entries`.
+    pub entry: usize,
+}
+
+impl Recorded {
+    /// The decision the record's entry `i` records, if it is one.
+    pub fn of(i: usize, entry: &Entry) -> Option<Recorded> {
+        match entry {
+            Entry::Decision {
+                decision,
+                seat,
+                option,
+                choice,
+                by,
+                window,
+                digest,
+                ..
+            } => Some(Recorded {
+                decision: *decision,
+                seat: *seat,
+                option: *option,
+                choice: choice.clone(),
+                by: *by,
+                window: *window,
+                digest: digest.clone(),
+                entry: i,
+            }),
+            _ => None,
+        }
+    }
 }
 
 /// A record's game: its deal and its decisions, the ones an undo took
@@ -67,22 +102,9 @@ impl Replay {
             .map_err(|e| format!("{e:?}"))?;
         let seed = spec.seed.ok_or("a record without its seed")?;
         let mut decisions: Vec<Recorded> = Vec::new();
-        for entry in &record.entries {
+        for (i, entry) in record.entries.iter().enumerate() {
             match entry {
-                Entry::Decision {
-                    decision,
-                    seat,
-                    option,
-                    choice,
-                    by,
-                    ..
-                } => decisions.push(Recorded {
-                    decision: *decision,
-                    seat: *seat,
-                    option: *option,
-                    choice: choice.clone(),
-                    by: *by,
-                }),
+                Entry::Decision { .. } => decisions.extend(Recorded::of(i, entry)),
                 // The game went on from `to`: what followed is taken back.
                 Entry::Undo { to, .. } => decisions.retain(|d| d.decision < *to),
                 Entry::Settings { .. }
@@ -254,10 +276,58 @@ impl Reader<'_> {
             }
         }
         self.declines = notes.len();
+        let rest = self.replay.decisions.get(self.next..).unwrap_or_default();
+        match past(e, req, rest) {
+            Ok(n) => self.next += n,
+            Err(why) => return Some(Err(why)),
+        }
         let d = self.replay.decisions.get(self.next)?;
         self.next += 1;
-        let read = recorded_option(e, req, d);
-        Some(read)
+        Some(recorded_option(e, req, d))
+    }
+}
+
+/// How many of the record's decisions `rest` (the next first) are read
+/// past at the decision `req` asks (on `e`, as it stands then): the Passes
+/// of a window the engine no longer asks, the decision after them the one
+/// asked, in its window and on its position. An error when the next was
+/// taken in another window (one newly asked: a rules change) or on another
+/// position (a rules change moving hidden state with no decision: the game
+/// read is no longer the game played). A record before 2.4.0 holds neither
+/// and is read as before.
+pub(crate) fn past(e: &Engine, req: &DecisionRequest, rest: &[Recorded]) -> Result<usize, String> {
+    let Some(d) = rest.first() else {
+        return Ok(0);
+    };
+    let window = crate::ids::window(req.window);
+    let digest = || crate::digest::digest(e);
+    if let Some(w) = d.window.filter(|&w| w != window) {
+        let gone = rest
+            .iter()
+            .take_while(|r| {
+                r.window == Some(w) && r.choice.kind == zvtes_api::ids::OptionKind::Pass
+            })
+            .count();
+        let asked = rest.get(gone).is_some_and(|n| {
+            n.seat == req.seat.0
+                && n.window == Some(window)
+                && n.digest.as_ref().is_none_or(|x| *x == digest())
+        });
+        return if gone > 0 && asked {
+            Ok(gone)
+        } else {
+            Err(format!(
+                "decision {}: seat {} asked in {window:?}, the record's in {w:?}",
+                d.decision, req.seat.0
+            ))
+        };
+    }
+    match &d.digest {
+        Some(x) if *x != digest() => Err(format!(
+            "decision {}: the position differs from the record's",
+            d.decision
+        )),
+        _ => Ok(0),
     }
 }
 
@@ -325,6 +395,9 @@ pub struct Read {
     pub before: Vec<String>,
     /// The record's option (`None` where the record ends or stops).
     pub chosen: Option<usize>,
+    /// The record's entry it took (its index in `entries`): not the n-th
+    /// decision entry, Passes read past and undos taken back between.
+    pub entry: Option<usize>,
 }
 
 /// What reading a record comes to next.
@@ -489,6 +562,7 @@ impl Replayer {
             cards,
             before,
             chosen: None,
+            entry: None,
         };
         let mut reader = Reader {
             replay: &self.replay,
@@ -503,6 +577,7 @@ impl Replayer {
                 self.declines = reader.declines;
                 self.pending = Some(i);
                 read.chosen = Some(i);
+                read.entry = Some(self.replay.decisions[reader.next - 1].entry);
                 Step::Decision(read)
             }
         }

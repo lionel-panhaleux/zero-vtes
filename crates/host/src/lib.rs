@@ -6,6 +6,7 @@
 pub mod cards;
 pub mod deck;
 pub mod describe;
+pub mod digest;
 mod effects;
 mod events;
 mod game;

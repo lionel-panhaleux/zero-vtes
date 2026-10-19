@@ -915,3 +915,306 @@ fn a_resumed_games_bots_take_their_recorded_moves() {
     }
     assert!(checked > 0);
 }
+
+/// The record of the first game from `seed` on still going after
+/// `answers` of the human's answers.
+fn midgame(seed: u32, answers: usize) -> zvtes_api::record::GameRecord {
+    played(seed, answers, |seed| game(seed, Settings::default()))
+}
+
+/// As `midgame`, the seats playing four precons named, so its deal reads
+/// no catalog index (the catalog grows with each cards round).
+fn precon_midgame(seed: u32, answers: usize) -> zvtes_api::record::GameRecord {
+    const DECKS: [&str; 4] = [
+        "Hecata (Fifth Edition)",
+        "Lasombra (Fifth Edition)",
+        "Malkavian (Fifth Edition)",
+        "Nosferatu (Fifth Edition)",
+    ];
+    let catalog = zvtes_host::catalog();
+    played(seed, answers, |seed| {
+        let mut s = spec(seed.into(), seed as usize % 4, Settings::default());
+        for (seat, name) in s.seats.iter_mut().zip(DECKS) {
+            seat.deck = catalog
+                .iter()
+                .find(|(n, _)| n == name)
+                .expect(name)
+                .1
+                .clone();
+        }
+        Game::new(
+            format!("p{seed}"),
+            s,
+            &NoBots,
+            Box::new(Ticks(Default::default())),
+        )
+        .unwrap()
+    })
+}
+
+fn played(
+    seed: u32,
+    answers: usize,
+    mut make: impl FnMut(u32) -> Game,
+) -> zvtes_api::record::GameRecord {
+    for seed in seed.. {
+        let mut g = make(seed);
+        let human = g.human();
+        let mut rng = Rng(seed as u64 * 7 + 3);
+        let mut outs = g.handle(human, join());
+        for _ in 0..answers {
+            let Some(d) = pending(&outs).cloned() else {
+                break;
+            };
+            let option = d.options[rng.below(d.options.len())].index;
+            outs = g.handle(
+                human,
+                cmd(Command::Answer {
+                    decision: d.decision,
+                    option,
+                }),
+            );
+        }
+        if !g.is_over() {
+            return g.record().clone();
+        }
+    }
+    unreachable!()
+}
+
+/// The decision entries' positions in `entries`.
+fn decision_entries(record: &zvtes_api::record::GameRecord) -> Vec<usize> {
+    (0..record.entries.len())
+        .filter(|&i| matches!(record.entries[i], Entry::Decision { .. }))
+        .collect()
+}
+
+/// How far a record reads: its replay's decisions, the reason it stops,
+/// and its resumed game's error.
+fn reads(record: &zvtes_api::record::GameRecord) -> (usize, Option<String>, Option<String>) {
+    let replay = zvtes_host::replay::Replay::new(record).unwrap();
+    let read = replay.read(usize::MAX).1;
+    let mut r = zvtes_host::replay::Replayer::new(record).unwrap();
+    let why = loop {
+        match r.step() {
+            zvtes_host::replay::Step::Decision(d) if d.chosen.is_some() => r.take(),
+            zvtes_host::replay::Step::Stopped { why, .. } => break Some(why),
+            _ => break None,
+        }
+    };
+    let resumed = Game::resume(
+        "r".into(),
+        record,
+        &NoBots,
+        Box::new(Ticks(Default::default())),
+    )
+    .err();
+    (read, why, resumed)
+}
+
+/// A rules change moving hidden state with no decision (docs/protocol.md
+/// §11): a record from 2.4.0 stops at the first decision whose position
+/// differs from the one recorded, replayed and resumed alike, though its
+/// choice is still offered.
+#[test]
+fn a_record_stops_where_its_position_differs() {
+    let record = midgame(1, 30);
+    let at = decision_entries(&record);
+    assert_eq!(
+        reads(&record),
+        (at.len(), None, None),
+        "the record reads whole"
+    );
+    let k = at.len() / 2;
+    let mut moved = record.clone();
+    let Entry::Decision {
+        digest, decision, ..
+    } = &mut moved.entries[at[k]]
+    else {
+        unreachable!()
+    };
+    *digest = Some("0123456789abcdef".into());
+    let why = format!("decision {decision}: the position differs from the record's");
+    assert_eq!(reads(&moved), (k, Some(why.clone()), Some(why)));
+}
+
+/// The Passes recorded in a window a later engine no longer asks are read
+/// past when the next decision is the one asked, in its window and
+/// position (a replay; a resumed game ends there); a window newly asked
+/// stops the record.
+#[test]
+fn a_pass_in_a_window_gone_is_read_past_and_a_window_newly_asked_stops() {
+    let record = midgame(2, 30);
+    let at = decision_entries(&record);
+    let pass = at
+        .iter()
+        .find_map(|&i| match &record.entries[i] {
+            Entry::Decision { choice, .. } if choice.kind == OptionKind::Pass => {
+                Some(choice.clone())
+            }
+            _ => None,
+        })
+        .expect("a pass");
+    let k = at.len() / 2;
+    let Entry::Decision {
+        decision,
+        seat,
+        window: Some(window),
+        digest,
+        ..
+    } = record.entries[at[k]].clone()
+    else {
+        unreachable!()
+    };
+    let gone = if window == zvtes_api::ids::Window::ActionAfterResolution {
+        zvtes_api::ids::Window::MinionPhase
+    } else {
+        zvtes_api::ids::Window::ActionAfterResolution
+    };
+    // The window gone, as an older engine recorded it: two seats' Passes
+    // there before the decision asked, every number after them two up.
+    let mut older = record.clone();
+    for e in &mut older.entries[at[k]..] {
+        match e {
+            Entry::Decision { decision: n, .. } => *n += 2,
+            Entry::Undo { to, .. } => *to += 2,
+            _ => {}
+        }
+    }
+    for (i, s) in [seat, (seat + 1) % 4].into_iter().enumerate() {
+        older.entries.insert(
+            at[k] + i,
+            Entry::Decision {
+                decision: decision + i as u64,
+                seat: s,
+                at: 0,
+                option: 0,
+                choice: pass.clone(),
+                by: zvtes_api::record::By::Bot,
+                forced: false,
+                shown: None,
+                window: Some(gone),
+                digest: digest.clone(),
+            },
+        );
+    }
+    // Replayed, read past; resumed, the game ends there (its numbers would
+    // no longer be the session's).
+    let why =
+        format!("decision {decision}: seat {seat} asked in {window:?}, the record's in {gone:?}");
+    assert_eq!(
+        reads(&older),
+        (at.len(), None, Some(why.clone())),
+        "read past the window gone"
+    );
+    // Each decision read names the entry it took, the Passes skipped.
+    let mut taken = vec![];
+    let mut r = zvtes_host::replay::Replayer::new(&older).unwrap();
+    while let zvtes_host::replay::Step::Decision(d) = r.step() {
+        let Some(entry) = d.entry else { break };
+        taken.push(entry);
+        r.take();
+    }
+    let kept: Vec<usize> = decision_entries(&older)
+        .into_iter()
+        .filter(|&i| i != at[k] && i != at[k] + 1)
+        .collect();
+    assert_eq!(taken, kept, "the entries taken");
+    // The window newly asked: the record's decision taken in another one.
+    let mut newer = record.clone();
+    let Entry::Decision { window: w, .. } = &mut newer.entries[at[k]] else {
+        unreachable!()
+    };
+    *w = Some(gone);
+    assert_eq!(reads(&newer), (k, Some(why.clone()), Some(why)));
+}
+
+/// The digest is stable (docs/protocol.md §11): a fixed deal's first
+/// decisions, pinned. It moves only when the position does (the four
+/// precons' lists, the dealing, the first turns' rules); its definition is
+/// frozen (a new one read by the record's `protocol`).
+#[test]
+fn the_position_digests_of_a_fixed_deal_are_pinned() {
+    let record = precon_midgame(3, 4);
+    let digests: Vec<String> = record
+        .entries
+        .iter()
+        .filter_map(|e| match e {
+            Entry::Decision { digest, .. } => digest.clone(),
+            _ => None,
+        })
+        .take(4)
+        .collect();
+    assert_eq!(
+        digests,
+        [
+            "20b6371c3bbc3b7d",
+            "cec658129cbe7f4b",
+            "8b757eb4b61ac97d",
+            "401e8bb61595b17f"
+        ]
+    );
+}
+
+/// The digest's whole definition pinned on a position built by hand: a
+/// ready minion with a card on it, a locked one, one in torpor, a card on
+/// the table, an uncontrolled vampire with counters, a burned vampire.
+#[test]
+fn the_digest_of_a_built_position_is_pinned() {
+    use zvtes::copies::{CopyId, Untracked};
+    use zvtes::ids::{MinionId, SeatId};
+    use zvtes::state::{CardInPlay, Minion, MinionKind, UncontrolledSlot};
+    let crypt = |n: &str| {
+        zvtes::crypt::CRYPT
+            .iter()
+            .position(|c| c.name == n)
+            .unwrap() as u16
+    };
+    let library = |n: &str| {
+        zvtes::library::LIBRARY
+            .iter()
+            .position(|c| c.name == n)
+            .unwrap() as u16
+    };
+    let record = precon_midgame(3, 4);
+    let mut e = zvtes_host::replay::Replay::new(&record).unwrap().deal();
+    let st = &mut e.state;
+    let first = st.minions.len() as u32;
+    st.minions.push(Minion::new(
+        SeatId(0),
+        MinionKind::Vampire(crypt("Martina Srnankova")),
+        3,
+    ));
+    st.minions.push(Minion {
+        locked: true,
+        ..Minion::new(SeatId(0), MinionKind::Vampire(crypt("Joaquín de Cádiz")), 1)
+    });
+    st.minions.push(Minion {
+        in_torpor: true,
+        ..Minion::new(SeatId(1), MinionKind::Vampire(crypt("Jean-François")), 0)
+    });
+    st.cards.push(CardInPlay::entering(
+        library("Laptop Computer"),
+        CopyId::NONE,
+        SeatId(0),
+        Some(MinionId(first)),
+        0,
+    ));
+    st.cards.push(CardInPlay::entering(
+        library("Baltimore Purge"),
+        CopyId::NONE,
+        SeatId(1),
+        None,
+        0,
+    ));
+    st.seats[2].uncontrolled.push(UncontrolledSlot {
+        card: crypt("Tabitha Fisk"),
+        copy: Untracked(CopyId::NONE),
+        counters: 2,
+        banished: None,
+    });
+    st.seats[3]
+        .ash_crypt
+        .put(crypt("Elisha Tucker"), CopyId::NONE);
+    assert_eq!(zvtes_host::digest::digest(&e), "10d41669a03aeac7");
+}

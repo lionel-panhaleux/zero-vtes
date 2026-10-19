@@ -18,7 +18,7 @@ is created by one request and played over one WebSocket. Every game is
 recorded, anonymously, and kept two years to train and test the engine
 (§11).
 
-Version **2.3.0**. The types: the models of the
+Version **2.4.0**. The types: the models of the
 [API reference](https://engine.krcg.org/docs), also as
 [JSON Schema](https://engine.krcg.org/schema.json) (2020-12) and
 [TypeScript](https://engine.krcg.org/protocol.ts).
@@ -502,7 +502,8 @@ once the game is over (§10): the spec with its seed (53 bits from 2.0.0,
 32 before; human names replaced), the bot profiles (weights' hash, temperature,
 seed, also at most `SEED_MAX`, a network's nudges by name), each decision answered — seat, time, option index, its key with
 the engine's copy numbers, by whom (`human`, `bot`, `order`, `auto`),
-the options shown when settings hid some — undos (decision numbers then
+the options shown when settings hid some, from 2.4.0 its window and the
+digest of the position it was taken on — undos (decision numbers then
 repeat from `to`: a reader drops what they take back), settings
 changes, refused commands, the players' feedback (at its decision), the
 result (with the turn the game ended on, `turns`; for a game a restart
@@ -513,6 +514,26 @@ resume is ended at the restart, `server_restart`: its victory points
 where its record reads to on the restarted server's engine, `failure`
 saying why when it does not read to its end (rules fixes change the
 engine, §14).
+A decision's `digest` is 16 hex digits of FNV-1a 64 over the position as
+KRCG ids, the same on every engine while the position is: for each seat
+in table order its pool, hand, library ash heap and crypt ash heap
+(sorted), library and crypt (bottom first), uncontrolled region (sorted,
+with counters), cards in play on no minion (sorted), and its minions in
+play (sorted, each with its blood, lock, torpor and the cards on it,
+sorted; contested and out-of-play ones included). An opaque hash: the
+record holds no hidden card in plain while the game runs. Its definition
+is frozen: changed, it would stop every record written since 2.4.0, so
+a new one is read by the record's `protocol`. A record read on a later
+engine stops at the first decision whose position differs (a rules
+change that moved hidden state with no decision, as a shuffle: the game
+read is no longer the game played, though its choices are still
+offered), or that was taken in a window other than the one asked (a
+window newly asked). A replay reads past the Passes recorded in a
+window the engine no longer asks when the decision after them is the
+one asked, in its window and position; a resumed game ends there
+instead, `server_restart`, as its decision numbers would no longer be
+the session's. The digest is strict: a fixed cost or gain stops the
+records it touches too.
 A record replays by index on its engine commit, and reads by key on a
 later engine (a record from before every block attempt was offered reads
 past the block windows its engine skipped; one from before rules-qa 82.1 (protocol

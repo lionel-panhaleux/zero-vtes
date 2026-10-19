@@ -1,6 +1,6 @@
-/* zvtes protocol 2.3.0 (docs/protocol.md): generated from
+/* zvtes protocol 2.4.0 (docs/protocol.md): generated from
  * crates/api/schema.json by scripts/gen_ts.py, do not edit. */
-export const PROTOCOL_VERSION = '2.3.0'
+export const PROTOCOL_VERSION = '2.4.0'
 
 /**
  * A command as sent: an optional client id, echoed by an `error` it
@@ -562,6 +562,11 @@ export type Entry = {
     by: By
     choice: ChoiceKey
     decision: number
+    /**
+     * The position it was taken on, 16 hex digits (§11; records
+     * before 2.4.0 have none).
+     */
+    digest?: string | null
     /** Every option offered was this choice. */
     forced?: boolean
     option: number
@@ -569,6 +574,8 @@ export type Entry = {
     /** The options the seat was shown, when its settings hid some. */
     shown?: number[] | null
     type: 'decision'
+    /** The window it was asked in (records before 2.4.0 have none). */
+    window?: Window | null
 } | {
     at: number
     seat: number
