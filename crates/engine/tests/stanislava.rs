@@ -1049,7 +1049,7 @@ fn enkil_cog_holder_ousted_during_its_action_leaves_the_turn_going_on() {
 #[test]
 fn enkil_cog_holder_ousted_paying_its_action_leaves_the_turn_going_on() {
     let (mut e, stan, cog) = cog_table();
-    e.action_notes = Some(Vec::new());
+    e.notes = Some(Vec::new());
     e.state.seats[0].pool = 1;
     hand(&mut e, 0, &["Flak Jacket"]);
     let other = e.add_minion(SeatId(1), plain("Ventrue", 1), 4, false);
@@ -1082,7 +1082,7 @@ fn enkil_cog_holder_ousted_paying_its_action_leaves_the_turn_going_on() {
         e.state.minions[other.index()].timed.is_empty(),
         "gone with the action"
     );
-    let notes = e.action_notes.take().expect("noted");
+    let notes = noted_actions(&mut e);
     let told: Vec<_> = notes.iter().map(|n| (n.ended, n.ousted)).collect();
     assert_eq!(told, [(false, false), (true, true)]);
 }

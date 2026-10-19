@@ -363,7 +363,7 @@ fn dan_murdock_finds_giants_blood() {
     let gb = find_library("Giant's Blood");
     e.state.seats[0].library = vec![find_library("Blood Doll"), gb].into();
     fill_hand(&mut e, 0);
-    e.reveal_notes = Some(Vec::new());
+    e.notes = Some(Vec::new());
     pick(&mut e, printed(d, 0, Target::None));
     let a = e.action().expect("action");
     assert_eq!((a.kind, a.stealth(&e.state)), (ActionKind::Ability, 0));
@@ -372,7 +372,7 @@ fn dan_murdock_finds_giants_blood() {
     pick(&mut e, Choice::FindCard(gb));
     assert!(e.state.seats[0].hand.contains(&gb));
     // His text says no reveal: the search stays his.
-    assert_eq!(e.reveal_notes.take(), Some(Vec::new()));
+    assert_eq!(noted_reveals(&mut e), Vec::new());
 }
 
 // De Sade: "Vampires must burn 1 blood to cast votes and ballots against
@@ -1167,7 +1167,7 @@ fn andrew_stuart_gambles_his_blood_sorcery() {
         e.state.seats[0].hand.push(tha_action);
         fill_hand(&mut e, 0);
         e.state.seats[0].library = vec![find_library("Blood Doll"), top].into();
-        e.reveal_notes = Some(Vec::new());
+        e.notes = Some(Vec::new());
         let req = request(&mut e);
         let p = req
             .options
@@ -1177,7 +1177,7 @@ fn andrew_stuart_gambles_his_blood_sorcery() {
             .expect("the [tha] action offered");
         pick(&mut e, p);
         // The top card revealed to all, canceling or not.
-        let revealed = e.reveal_notes.take().unwrap();
+        let revealed = noted_reveals(&mut e);
         assert_eq!(
             revealed
                 .iter()
@@ -1354,7 +1354,7 @@ fn recruitment_exercise_draws_and_feeds_the_black_hand() {
         e.add_minion(SeatId(1), plain("Ventrue", 0), 4, true);
         e.state.seats[0].crypt = vec![drawn].into();
         hand(&mut e, 0, &["Recruitment Exercise"]);
-        e.reveal_notes = Some(Vec::new());
+        e.notes = Some(Vec::new());
         let req = request(&mut e);
         assert!(!req.options.contains(&play(0, 0, other)), "not Black Hand");
         pick(&mut e, play(0, 0, bh));
@@ -1362,7 +1362,7 @@ fn recruitment_exercise_draws_and_feeds_the_black_hand() {
         let slot = e.state.seats[0].uncontrolled.last().expect("drawn");
         assert_eq!((slot.card, slot.counters), (drawn, blood));
         // Drawn revealed: told to all.
-        let revealed = e.reveal_notes.take().unwrap();
+        let revealed = noted_reveals(&mut e);
         assert_eq!(
             revealed
                 .iter()

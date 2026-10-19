@@ -424,11 +424,11 @@ fn mesu_bedshet_draws_a_follower_of_set_with_blood_if_younger() {
         (plain("Brujah", 1), false, 0),
     ] {
         let (mut e, m) = mesu(Some(top));
-        e.reveal_notes = Some(Vec::new());
+        e.notes = Some(Vec::new());
         pick(&mut e, play(0, 0, m));
         until(&mut e, SeatId(0), WindowLabel::MinionPhase);
         // Revealed to all, drawn or shuffled back.
-        let revealed = e.reveal_notes.take().unwrap();
+        let revealed = noted_reveals(&mut e);
         assert_eq!(
             revealed
                 .iter()
@@ -799,15 +799,12 @@ fn petra_resonance_steals_for_the_highest_or_taxes_a_tie() {
             e.state.seats[s].crypt = vec![plain("Brujah", 2), cap(t)].into();
         }
         hand(&mut e, 0, &["Petra Resonance"]);
-        e.reveal_notes = Some(Vec::new());
+        e.notes = Some(Vec::new());
         pick(&mut e, play(0, 0, m));
         until(&mut e, SeatId(0), WindowLabel::MinionPhase);
         assert_eq!(pool(&e), want.to_vec(), "{tops:?}");
         // Each crypt's top revealed to all, clockwise from the player.
-        let revealed: Vec<(SeatId, u16)> = e
-            .reveal_notes
-            .take()
-            .unwrap()
+        let revealed: Vec<(SeatId, u16)> = noted_reveals(&mut e)
             .iter()
             .map(|r| (r.seat, r.card))
             .collect();
@@ -1178,7 +1175,7 @@ fn fortschritt_library_finds_a_gehenna_event_once_a_game() {
     hand(&mut e, 0, &["Fortschritt Library", "Fortschritt Library"]);
     fill_hand(&mut e, 0);
     let req = until(&mut e, SeatId(0), WindowLabel::MasterPhase);
-    e.reveal_notes = Some(Vec::new());
+    e.notes = Some(Vec::new());
     e.choose(index_of(&req, master_play(0)));
     let req = expect(&mut e, SeatId(0), WindowLabel::ResolutionChoice);
     assert_eq!(
@@ -1189,7 +1186,7 @@ fn fortschritt_library_finds_a_gehenna_event_once_a_game() {
     let req = request(&mut e);
     assert!(e.state.seats[0].hand.contains(&blood_weakens));
     // "Show it to all players."
-    let shown = e.reveal_notes.take().unwrap();
+    let shown = noted_reveals(&mut e);
     assert_eq!(
         shown.iter().map(|r| (r.card, r.crypt)).collect::<Vec<_>>(),
         vec![(blood_weakens, false)]

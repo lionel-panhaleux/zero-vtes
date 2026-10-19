@@ -7,6 +7,7 @@ use crate::decision::{Choice, DecisionRequest, WindowLabel};
 use crate::game::{Engine, Flow};
 use crate::ids::{MinionId, SeatId};
 use crate::library::{Label, LIBRARY};
+use crate::notes::{Cause, Rule, Source};
 use crate::plays::ModeLayers;
 use crate::state::{CardId, Expiry, GameState, Release, TimedStat};
 use crate::window::OrderedWindow;
@@ -18,7 +19,7 @@ pub enum Range {
     Long,
 }
 
-/// What a combat did, kept for a narrator when `Engine::combat_notes` is
+/// What a combat did, kept for a narrator when `Engine::notes` is
 /// on: a combat whose windows all elide leaves no decision to tell it.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum CombatNote {
@@ -694,6 +695,8 @@ pub struct CombatCtx {
     /// FBI Special Affairs Division: damage due to the acting vampire as
     /// the combat ends (an ally burned in it).
     pub fbi_damage: u8,
+    /// The card inflicting it.
+    pub fbi_card: Option<CardId>,
     pub next_round_close: bool,
     pub only_hand_strikes: bool,
     /// "Neither combatant can strike" this round (One With the Land
@@ -778,12 +781,12 @@ pub struct CombatCtx {
     pub after_combat: Vec<Held>,
     /// Damage inflicted after combat ends, by a combatant on the other
     /// (Catatonic Fear [PRE]): unpreventable; not if the combat continues.
-    pub after_combat_damage: Vec<(MinionId, u8)>,
+    pub after_combat_damage: Vec<(MinionId, u8, MinionId)>,
     /// Kiss of Cathari [OBF]/[PRE]: the minions stunned after combat ends.
     pub after_combat_stun: Vec<MinionId>,
     /// Oubliette [OBT]: blood or life burned after combat ends, not damage
     /// (LSJ 20080226).
-    pub after_combat_burn: Vec<(MinionId, u8)>,
+    pub after_combat_burn: Vec<(MinionId, u8, MinionId)>,
     /// A combat the action queued (Hedonism): the action's step resumes
     /// after it.
     pub queued: bool,
@@ -796,7 +799,7 @@ pub struct CombatCtx {
     pub coordinate: Option<(MinionId, usize, bool)>,
     /// Abuse of Power: at the end of the combat, if only one combatant is
     /// ready, the controller of the other burns n pool.
-    pub one_ready_burn: Option<u8>,
+    pub one_ready_burn: Option<(u8, Source)>,
     /// Taunt the Caged Beast [ANI]: at the end of the combat, if only one
     /// combatant is ready, it gains n blood.
     pub one_ready_gains: Option<u8>,
@@ -1514,10 +1517,26 @@ impl Engine {
         let waiting = matches!(n, CombatNote::Ends { .. })
             .then(|| self.held_note.take())
             .flatten();
-        if let Some(notes) = self.combat_notes.as_mut() {
-            notes.extend(waiting);
-            notes.push(n);
+        for n in waiting.into_iter().chain([n]) {
+            self.push_note(crate::notes::Note::Combat(n));
         }
+    }
+
+    /// `n` noted at `at`, before the notes since, if none was drained
+    /// since (a decision between a first strike's two passes).
+    fn insert_note(&mut self, at: Option<(usize, u64)>, n: CombatNote) {
+        let drained = self.notes_drained;
+        match (self.notes.as_mut(), at) {
+            (Some(notes), Some((at, d))) if d == drained && at <= notes.len() => {
+                notes.insert(at, crate::notes::Note::Combat(n))
+            }
+            _ => self.note(n),
+        }
+    }
+
+    /// Where the next note goes, while the notes are not drained.
+    fn note_at(&self) -> Option<(usize, u64)> {
+        self.notes.as_ref().map(|n| (n.len(), self.notes_drained))
     }
 
     /// The aims `seat` may play on the strike its minion just chose (Target
@@ -1890,6 +1909,8 @@ impl Engine {
             return;
         }
         let c = self.combat.as_mut().expect("combat context");
+        // A maneuver's blood, paid after the borrow ends.
+        let mut maneuver_paid = None;
         // The seat playing a card through the as-played stack or using an
         // ability (announced or used after the borrow ends).
         let acting = match (c.step, choice) {
@@ -2065,8 +2086,7 @@ impl Engine {
                 {
                     // Dance with the Devil: the blood paid as it is used.
                     let n = std::mem::take(&mut c.sides[i].close_maneuver_blood);
-                    let m = c.sides[i].minion;
-                    self.state.minions[m.index()].blood -= n;
+                    maneuver_paid = Some((c.sides[i].minion, n));
                 } else if c.sides[i].maneuvers > 0 {
                     c.sides[i].maneuvers -= 1;
                 } else if c.sides[i].combat_maneuvers > 0 {
@@ -2076,8 +2096,7 @@ impl Engine {
                 } else {
                     // Quick Meld [PRO]: its blood as it is used.
                     let n = std::mem::take(&mut c.sides[i].maneuver_blood);
-                    let m = c.sides[i].minion;
-                    self.state.minions[m.index()].blood -= n;
+                    maneuver_paid = Some((c.sides[i].minion, n));
                 }
                 c.window.play();
                 c.maneuver(i);
@@ -2126,6 +2145,10 @@ impl Engine {
             }
             (step, other) => unreachable!("illegal combat choice {other:?} at {step:?}"),
         };
+        if let Some((m, n)) = maneuver_paid {
+            let paid = Cause::Cost(Source::Minion(m));
+            self.caused(paid, |e| e.state.minions[m.index()].blood -= n);
+        }
         if let (
             Some(seat),
             Choice::Play {
@@ -2295,6 +2318,7 @@ impl Engine {
             Step::EndOfRound => {
                 // Ossian: a life for each blood the opposing vampire lost to
                 // damage this round.
+                let mut gains = Vec::new();
                 for i in 0..2 {
                     let foe = c.sides[1 - i].minion;
                     let n = c.sides[1 - i].lost_to_damage;
@@ -2307,8 +2331,12 @@ impl Engine {
                             .borne(m)
                             .any(|l| l.modifier == cards::Modifier::LifePerFoeBloodLost)
                     {
-                        self.state.gain_blood(m, n);
+                        gains.push((m, n));
                     }
+                }
+                for (m, n) in gains {
+                    let own = Cause::Effect(Source::Minion(m));
+                    self.caused(own, |e| e.state.gain_blood(m, n));
                 }
                 let c = self.combat.as_mut().expect("combat context");
                 if (c.continued || c.press_continue) && c.both_ready(&self.state) {
@@ -2734,7 +2762,7 @@ impl Engine {
     /// The pair of strikes resolved, noted for a narrator when notes are on
     /// (`CombatNote::Strikes`).
     fn resolve_strikes_noted(&mut self) {
-        let before = self.combat_notes.as_ref().map(|_| {
+        let before = self.notes.as_ref().map(|_| {
             let c = self.combat.as_ref().expect("combat context");
             let pending = c.sides.each_ref().map(|s| s.pending.total());
             let unpreventable = c.sides.each_ref().map(|s| s.unpreventable);
@@ -2753,7 +2781,11 @@ impl Engine {
                 unpreventable,
             )
         });
-        self.resolve_strikes();
+        // The pair's note goes before the damage it tells.
+        self.checkpoint();
+        let at = self.note_at();
+        let strikes = Cause::Effect(Source::Rule(Rule::Strikes));
+        self.caused(strikes, Self::resolve_strikes);
         // Still in combat (an oust may have ended it).
         let (Some((strikes, told, pending, unpreventable)), Some(c)) =
             (before, self.combat.as_ref())
@@ -2787,7 +2819,10 @@ impl Engine {
         let holding = c.held_strike.is_some() && !c.held_pass;
         match (self.held_note.take(), n) {
             // A strike held back by a first strike: the pair's note waits.
-            (None, n) if holding => self.held_note = Some(n),
+            (None, n) if holding => {
+                self.held_note = Some(n);
+                self.held_at = at;
+            }
             // The held strike resolved: each side's strike as it resolved,
             // its damage over both passes (the first pass's retainers and
             // environment, the held pass's strike).
@@ -2812,18 +2847,24 @@ impl Engine {
             ) => {
                 let now: [bool; 2] = std::array::from_fn(|i| strikes[i].is_some());
                 let pick = |i: usize| if now[i] { 1 } else { 0 };
-                self.note(CombatNote::Strikes {
-                    minions,
-                    round,
-                    pair,
-                    range,
-                    strikes: std::array::from_fn(|i| [s0[i], strikes[i]][pick(i)]),
-                    told: std::array::from_fn(|i| [t0[i], told[i]][pick(i)]),
-                    damage: std::array::from_fn(|i| d0[i] + damage[i]),
-                    strike_damage: std::array::from_fn(|i| sd0[i] + strike_damage[i]),
-                });
+                // Before the first pass's damage too.
+                let drained = self.notes_drained;
+                let at = self.held_at.take().filter(|&(_, d)| d == drained).or(at);
+                self.insert_note(
+                    at,
+                    CombatNote::Strikes {
+                        minions,
+                        round,
+                        pair,
+                        range,
+                        strikes: std::array::from_fn(|i| [s0[i], strikes[i]][pick(i)]),
+                        told: std::array::from_fn(|i| [t0[i], told[i]][pick(i)]),
+                        damage: std::array::from_fn(|i| d0[i] + damage[i]),
+                        strike_damage: std::array::from_fn(|i| sd0[i] + strike_damage[i]),
+                    },
+                );
             }
-            (_, n) => self.note(n),
+            (_, n) => self.insert_note(at, n),
         }
     }
 
@@ -2870,7 +2911,7 @@ impl Engine {
                         let from = c.sides[i].minion;
                         let n = (n + c.sides[1 - i].more_damage_taken)
                             .saturating_sub(self.state.damage_reduction(target, from));
-                        c.after_combat_damage.push((target, n));
+                        c.after_combat_damage.push((target, n, from));
                     }
                 }
                 // Kiss of Cathari [OBF]/[PRE] likewise (LSJ 20070124).
@@ -2884,7 +2925,8 @@ impl Engine {
                 // 19980526).
                 if let Some(n) = c.sides[i].after_burn_rider.take() {
                     if !matches!(strikes[1 - i], Some(StrikeKind::Dodge)) {
-                        c.after_combat_burn.push((c.sides[1 - i].minion, n));
+                        let from = c.sides[i].minion;
+                        c.after_combat_burn.push((c.sides[1 - i].minion, n, from));
                     }
                 }
                 if std::mem::take(&mut c.sides[i].continue_free)
@@ -3542,6 +3584,11 @@ impl Engine {
     /// "Damage Resolution"). True when the flow moved on: a rider (Fame)
     /// ousted a Methuselah (`combat_ousts`).
     pub(crate) fn apply_damage(&mut self) -> bool {
+        let strikes = Cause::Effect(Source::Rule(Rule::Strikes));
+        self.caused(strikes, Self::apply_damage_now)
+    }
+
+    fn apply_damage_now(&mut self) -> bool {
         // Immune to non-aggravated damage: none inflicted (Tye Cooper).
         let c = self.combat.as_mut().expect("combat context");
         for s in &mut c.sides {
@@ -3879,7 +3926,13 @@ impl Engine {
         if fbi > 0 {
             if let Some(acting) = self.action.as_ref().map(|a| a.acting) {
                 if self.state.minions[acting.index()].present() {
-                    self.damage_out_of_combat(acting, fbi, false);
+                    let by = match ended.as_ref().and_then(|c| c.fbi_card) {
+                        Some(f) => Source::Card(f),
+                        None => Source::Rule(Rule::Strikes),
+                    };
+                    self.caused(Cause::Effect(by), |e| {
+                        e.damage_out_of_combat(acting, fbi, false)
+                    });
                 }
             }
             if let Some((f, _, burn_at)) = self.state.ally_burned_in_combat() {
@@ -3908,17 +3961,19 @@ impl Engine {
         }
         // Catatonic Fear [PRE]: the vampire's damage, after combat, so no
         // combat card prevents it (LSJ 20010205; RTR 19970630).
-        for (m, n) in ended.iter().flat_map(|c| c.after_combat_damage.clone()) {
+        for (m, n, from) in ended.iter().flat_map(|c| c.after_combat_damage.clone()) {
             if self.state.minions[m.index()].present() {
-                self.damage_out_of_combat(m, n, false);
+                let strike = Cause::Effect(Source::Minion(from));
+                self.caused(strike, |e| e.damage_out_of_combat(m, n, false));
             }
         }
         // Kiss of Cathari [OBF]/[PRE]: locked again if it unlocked during
         // the combat (LSJ 20040601), and it does not unlock next time.
         // Oubliette [OBT]: an ally with no life left is burned.
-        for (m, n) in ended.iter().flat_map(|c| c.after_combat_burn.clone()) {
+        for (m, n, from) in ended.iter().flat_map(|c| c.after_combat_burn.clone()) {
             if self.state.minions[m.index()].present() {
-                self.state.burn_blood(m, n);
+                let strike = Cause::Effect(Source::Minion(from));
+                self.caused(strike, |e| e.state.burn_blood(m, n));
                 let v = &self.state.minions[m.index()];
                 if v.is_ally() && v.blood == 0 {
                     self.burn_minion(m);
@@ -3970,14 +4025,14 @@ impl Engine {
         // minion's own if it is the one down (owner, 2026-10-08: rules-qa
         // 54.7).
         if let Some(c) = &ended {
-            if let Some(n) = c.one_ready_burn {
+            if let Some((n, card)) = c.one_ready_burn {
                 let ready = |m: MinionId| self.state.minions[m.index()].ready();
                 let [a, b] = [c.sides[0].minion, c.sides[1].minion];
                 if ready(a) != ready(b) {
                     let down = if ready(a) { b } else { a };
                     let mut loss = vec![0; self.state.seats.len()];
                     loss[self.state.minions[down.index()].owner.index()] = n as i32;
-                    self.burn_pool_batch(&loss);
+                    self.caused(Cause::Effect(card), |e| e.burn_pool_batch(&loss));
                 }
             }
             if let Some(n) = c.one_ready_gains {
@@ -4073,7 +4128,8 @@ impl Engine {
             }
         }
         for (m, n) in due {
-            if self.state.burn_blood_or_life(m, n) {
+            let toll = Cause::Cost(Source::Minion(m));
+            if self.caused(toll, |e| e.state.burn_blood_or_life(m, n)) {
                 self.burn_minion(m);
             }
         }

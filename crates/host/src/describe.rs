@@ -123,24 +123,38 @@ impl<N: Names> Ctx<'_, N> {
         CardRef {
             id: Some(LIBRARY[c as usize].id),
             copy: None,
-            from: stored.map(|s| self.card(s)),
+            // From a card in play; from the ash heap, no card (the key's
+            // `zone` says it).
+            from: stored
+                .filter(|&s| s != zvtes::state::ASH_PLAY)
+                .map(|s| self.card(s)),
         }
     }
 }
 
-/// A vampire's card in a slot: its crypt card, or a banished created
-/// vampire's library card.
-fn slot_id(e: &Engine, u: &UncontrolledSlot) -> u32 {
+/// A vampire's card in a slot, and whether a crypt card: its crypt card,
+/// or a banished created vampire's library card (`HIDDEN`, not found).
+pub(crate) fn slot_face(e: &Engine, u: &UncontrolledSlot) -> (u16, bool) {
     if u.card != CREATED {
-        return CRYPT[u.card as usize].id;
+        return (u.card, true);
     }
-    u.banished
+    let card = u
+        .banished
         .as_ref()
         .and_then(|b| match e.state.minions[b.minion.index()].kind {
-            MinionKind::Created { card, .. } => Some(LIBRARY[card as usize].id),
+            MinionKind::Created { card, .. } => Some(card),
             _ => None,
-        })
-        .unwrap_or(0)
+        });
+    (card.unwrap_or(zvtes::state::HIDDEN), false)
+}
+
+/// A slot's card, by KRCG id (0: not found).
+pub(crate) fn slot_id(e: &Engine, u: &UncontrolledSlot) -> u32 {
+    match slot_face(e, u) {
+        (zvtes::state::HIDDEN, _) => 0,
+        (c, true) => CRYPT[c as usize].id,
+        (c, false) => LIBRARY[c as usize].id,
+    }
 }
 
 fn library(c: u16) -> CardRef {
@@ -775,7 +789,10 @@ fn amount(x: &Ctx<impl Names>, req: &DecisionRequest, n: u8) -> Vec<Effect> {
             ],
             None => Vec::new(),
         },
-        _ => Vec::new(),
+        // An interrupt's number (Victor Pelletier's price).
+        _ => e
+            .interrupt()
+            .map_or_else(Vec::new, |i| asked(x, i, &Choice::SetX(n as u8))),
     }
 }
 
@@ -1625,7 +1642,15 @@ pub fn key(e: &Engine, req: &DecisionRequest, choice: &Choice, names: &impl Name
         } => {
             let r = x.hand(card);
             k.card = Some(r);
-            k.mode = Some(mode(e.virtual_hand(req.seat)[card as usize].0, m));
+            let (played, from) = e.virtual_hand(req.seat)[card as usize];
+            k.mode = Some(mode(played, m));
+            // Spiritual Guidance: played from the ash heap as if from hand.
+            if from == Some(zvtes::state::ASH_PLAY) {
+                k.zone = Some(ZoneRef {
+                    seat: req.seat.0,
+                    zone: Zone::AshHeap,
+                });
+            }
             k.actor = actor.map(|a| x.minion(a));
             k.target = x.target(target);
         }

@@ -483,6 +483,31 @@ engine masks), `cards/mod.rs` (the vocabulary: `Window`, `Actor`,
   `Interrupt::MayPreventForBlood`).
 - A hand over size waits for no pending choice but a draw's own
   (`Engine::discards_first`, read in `raw_request` and `apply`).
+- The notes (`notes.rs`; `Engine::notes`, `None` by default: training,
+  fuzz and replays keep nothing): what happened, in order, for a
+  narrator — actions, plays, reveals, looks, combats — and before each
+  note and at each cause's bounds the table as it stood
+  (`Note::Ledger`: pools, ousts, the Edge, minions' presence, torpor and
+  blood, cards in play, the census, a referendum under way) with what
+  changed it (`Cause`: a cost or an effect, of a card played or in play,
+  a minion, or a rule). The host diffs two ledgers in a row, so a change
+  is told in its place and with its cause. A pool or blood change runs
+  inside a cause: `caused` (a closure, early returns safe), or
+  `begin_cause`/`end_cause` around a stretch with none; `paying` turns
+  the effect under way into its cost; a cause nested inside another
+  names its own source (a cost inside an action's effect, a card's
+  rider inside combat damage). An interrupt keeps the cause it was
+  queued under (`interrupt_causes`, tagged at each cause's bounds), its
+  answer and its settling noted as that cause's; one that is its card's
+  own effect or cost names it in its arm. The host sweep
+  (`crates/host/tests/events.rs`) fails a `pool` or `blood` event with
+  no cause, a cost gained, or a rule moving what it cannot (a transfer
+  off the active seat's pool). A strike pair's note is inserted before
+  its own damage (`insert_note`); a failed block attempt is a ledger
+  diff (`Ledger::attempting`).
+- `caused` borrows the whole engine: a cost met while `self.combat` or
+  `self.action` is borrowed is collected and paid after the borrow
+  (`combat_apply`'s maneuver blood, Ossian's lives).
 
 ### 6.3 Turn and phases
 
@@ -553,9 +578,10 @@ engine masks), `cards/mod.rs` (the vocabulary: `Window`, `Actor`,
   abilities (The Vozhd of Gravesend) mark the play canceled as used
   (`as_played_apply`). Cancels by type/Discipline read the mode played.
 - A play's two ends, `resolve_play` (after its payment; an action card's
-  end is its action's) and `settle_canceled`, are noted in
-  `Engine::play_notes` (`PlayNote`), which the host tells as `resolved` and
-  `canceled`.
+  end is its action's) and `settle_canceled`, are noted
+  (`Note::Play`, `PlayNote`), which the host tells as `resolved` and
+  `canceled`; its payment runs as the card's cost, its effects as its
+  effect (§6.2, the notes).
 - Multi-Discipline cards: the generator gives one mode per non-empty set of their
   Disciplines (`Label::MultiDiscipline`); a mode's tags are all required, as on a
   combo card. A definition may split a printed "or" into modes, mapped back by
@@ -598,11 +624,14 @@ engine masks), `cards/mod.rs` (the vocabulary: `Window`, `Actor`,
 
 - An action's two ends, `declare_action` and `drop_action` (resolved, or
   cut short by an oust, the turn's end or the game's: `run` drops it
-  before `Step::Over`), are noted in
-  `Engine::action_notes` (`ActionNote`: the context then, and the combat,
-  play and reveal notes before it), which the host tells as
-  `action_starts` and `action_ends`. An action ends only through
-  `drop_action`; a `self.action.take()` that puts it back is no end.
+  before `Step::Over`), are noted (`Note::Action`, `ActionNote`: the
+  context then), which the host tells as `action_starts` and
+  `action_ends`; Mask of a Thousand Faces' takeover as `Note::Acting`
+  (`acting_changes`). An action ends only through `drop_action`; a
+  `self.action.take()` that puts it back is no end. Its resolution
+  (`succeed`) and its window's choices (`action_apply`) run as its
+  effect (`ActionCtx::cause_source`), its costs inside as costs
+  (`paying`).
 - Kinds: rulebook (bleed, hunt, leave torpor, rescue, diablerie, political),
   `Card`, `Equip`/`EquipFrom`/`EquipFound`, `Recruit`/`Employ`, `BurnCard`,
   `StealCard`, `Ability` (granted by a card in play or printed on a vampire;
@@ -1352,10 +1381,10 @@ engine masks), `cards/mod.rs` (the vocabulary: `Window`, `Actor`,
   private unless the card says to reveal (PIB 20121028): `SearchToHand`'s
   `shown`, and the find of Fortschritt Library, The Mithraeum, Disciple of
   Lazarus; a revealed card (a search's find, a top card) goes to
-  `Engine::reveal_notes` (`Reveal`), which the host tells every seat. A
+  `Note::Reveal` (`Reveal`), which the host tells every seat. A
   look at another seat's hand goes through `Engine::peek`: the hand
   visible to the viewer until the action ends (`GameState::peeks`), and
-  the hand as it stood to `Engine::look_notes` (`Look`), which the host
+  the hand as it stood to `Note::Look` (`Look`), which the host
   tells the viewer alone (the next view no longer shows it).
 - Every library draw goes through `Engine::offer_redraw` (Blackhorse
   Tanner's `Interrupt::Redraw`, once each turn); `Interrupt::AllySearch`

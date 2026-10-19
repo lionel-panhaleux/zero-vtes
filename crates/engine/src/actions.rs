@@ -8,6 +8,7 @@ use crate::decision::{ActionKind, Choice, DecisionRequest, WindowLabel};
 use crate::game::{Engine, Flow};
 use crate::ids::{MinionId, SeatId};
 use crate::library::LIBRARY;
+use crate::notes::Cause;
 use crate::plays::{By, HookAt};
 use crate::referendum::RefKind;
 use crate::state::{ActionId, CardId, CardInPlay, Release, TimedStat};
@@ -106,9 +107,8 @@ pub struct Conditional {
     pub limited: bool,
 }
 
-/// An action declared or ended, for a narrator (`Engine::action_notes`):
-/// its context then, and how many combat, play and reveal notes came
-/// before it.
+/// An action declared or ended, for a narrator (`Engine::notes`): its
+/// context then.
 #[derive(Clone, Debug)]
 pub struct ActionNote {
     pub action: Box<ActionCtx>,
@@ -117,9 +117,6 @@ pub struct ActionNote {
     pub ended: bool,
     /// Its Methuselah was ousted (as it ended).
     pub ousted: bool,
-    pub after: usize,
-    pub plays: usize,
-    pub reveals: usize,
 }
 
 #[derive(Clone, Debug, Default)]
@@ -450,7 +447,7 @@ pub struct ActionCtx {
     /// Blood burned before resolution by minions that did not block after
     /// the card (Forced Awakening): the minion, the blocks already made,
     /// the blood.
-    pub burn_if_no_block: Vec<(MinionId, usize, u8)>,
+    pub burn_if_no_block: Vec<(MinionId, usize, u8, crate::notes::Source)>,
     /// Bonuses whose condition is read live (`Effect::If`).
     pub conditional: Vec<Conditional>,
     /// The ash card and the hand card an exchange action named (Lenelle).
@@ -1181,8 +1178,11 @@ impl Engine {
                 if self.state.minions[d.index()].present()
                     && self.state.minions[minion.index()].blood > 0
                 {
-                    self.state.minions[minion.index()].blood -= 1;
-                    self.state.gain_blood(d, 1);
+                    let mark = Cause::Effect(crate::notes::Source::Minion(d));
+                    self.caused(mark, |e| {
+                        e.state.minions[minion.index()].blood -= 1;
+                        e.state.gain_blood(d, 1);
+                    });
                 }
             }
         }
@@ -1466,23 +1466,17 @@ impl Engine {
 
     /// The action under way, declared or ending, noted for a narrator.
     fn note_action(&mut self, ended: bool) {
-        let len = |n: Option<usize>| n.unwrap_or(0);
-        let after = len(self.combat_notes.as_ref().map(Vec::len));
-        let plays = len(self.play_notes.as_ref().map(Vec::len));
-        let reveals = len(self.reveal_notes.as_ref().map(Vec::len));
         let ousted = self
             .action
             .as_ref()
             .is_some_and(|a| self.state.seats[a.seat.index()].ousted);
-        if let (Some(notes), Some(a)) = (self.action_notes.as_mut(), self.action.as_ref()) {
-            notes.push(ActionNote {
-                action: Box::new(a.clone()),
+        if let (Some(_), Some(a)) = (self.notes.as_ref(), self.action.as_ref()) {
+            let action = Box::new(a.clone());
+            self.push_note(crate::notes::Note::Action(ActionNote {
+                action,
                 ended,
                 ousted,
-                after,
-                plays,
-                reveals,
-            });
+            }));
         }
     }
 
@@ -2784,6 +2778,11 @@ impl Engine {
     }
 
     pub(crate) fn action_apply(&mut self, choice: &Choice) {
+        let source = self.action.as_ref().expect("action context").cause_source();
+        self.caused(Cause::Effect(source), |e| e.action_apply_now(choice))
+    }
+
+    fn action_apply_now(&mut self, choice: &Choice) {
         let eligible = {
             let a = self.action.as_ref().expect("action context");
             self.eligible_blockers(a)
@@ -2877,7 +2876,7 @@ impl Engine {
                 a.unlock_paid_by.clear();
                 a.window.play();
                 let barred = a.no_unlock;
-                self.state.minions[payer.index()].blood -= n;
+                self.paying(|e| e.state.minions[payer.index()].blood -= n);
                 if !barred {
                     self.state.unlock(*minion);
                 }
@@ -2923,7 +2922,9 @@ impl Engine {
                 a.stealth_mods += stealth;
                 a.continued = true;
                 a.window.play();
-                self.state.minions[a.acting.index()].blood -= blood;
+                let cost = Cause::Cost(a.cause_source());
+                let acting = a.acting;
+                self.caused(cost, |e| e.state.minions[acting.index()].blood -= blood);
                 self.flow = Flow::Action;
             }
             Choice::Play {
@@ -3065,7 +3066,8 @@ impl Engine {
                     self.mark_resolved(acting, kind);
                     self.after_resolution();
                 } else {
-                    self.succeed();
+                    let source = self.action.as_ref().expect("action").cause_source();
+                    self.caused(Cause::Effect(source), Self::succeed);
                 }
             }
             ActionState::AfterCombat => {
@@ -3348,10 +3350,11 @@ impl Engine {
         let cost = self.card_blood(a.acting, play, play.x);
         let (_, cost, used) = self.reduced_cost_with(a, 0, cost);
         let acting = a.acting;
+        let paid = Cause::Cost(a.cause_source());
         if self.state.minions[acting.index()].blood < cost {
             return false;
         }
-        self.state.minions[acting.index()].blood -= cost;
+        self.caused(paid, |e| e.state.minions[acting.index()].blood -= cost);
         self.spend_counters(&used);
         self.action
             .as_mut()
@@ -3575,6 +3578,8 @@ impl Engine {
                 self.state.unlock(a.acting);
                 self.state.minions[new.index()].locked = true;
                 a.acting = new;
+                let (seat, minion) = (a.seat, new);
+                self.push_note(crate::notes::Note::Acting { seat, minion });
             }
             Effect::AddStealth(n) => a.stealth_mods += n,
             // Its capacity, or an ally's printed cost, pool or blood (a
@@ -3924,8 +3929,12 @@ impl Engine {
             }
             Effect::BurnIfNoBlock(n) => {
                 let since = a.blocked_by.len();
+                let card = crate::notes::Source::Played {
+                    card: play.card,
+                    copy: *play.copy,
+                };
                 a.burn_if_no_block
-                    .push((play.actor.expect("actor"), since, n));
+                    .push((play.actor.expect("actor"), since, n, card));
             }
             Effect::ContinueAfterResolution => a.continued = true,
             Effect::UnlockForBloodIfSuccessful(n) => {
@@ -4097,15 +4106,14 @@ impl Engine {
     fn awakening_burns(&mut self, blocker: Option<MinionId>) {
         let a = self.action.as_mut().expect("action context");
         let entries = std::mem::take(&mut a.burn_if_no_block);
-        let burns: Vec<(MinionId, u8)> = entries
+        let burns: Vec<_> = entries
             .iter()
-            .filter(|&&(m, since, _)| !a.blocked_by[since..].contains(&m) && blocker != Some(m))
-            .map(|&(m, _, n)| (m, n))
+            .filter(|&&(m, since, ..)| !a.blocked_by[since..].contains(&m) && blocker != Some(m))
+            .map(|&(m, _, n, card)| (m, n, card))
             .collect();
-        for (m, n) in burns {
-            let v = &mut self.state.minions[m.index()];
-            if v.present() {
-                v.blood -= n.min(v.blood);
+        for (m, n, card) in burns {
+            if self.state.minions[m.index()].present() {
+                self.caused(Cause::Effect(card), |e| e.state.burn_blood(m, n));
             }
         }
     }
@@ -4207,10 +4215,11 @@ impl Engine {
     fn host_blocked_riders(&mut self, acting: MinionId, blocker: MinionId) {
         let seat = self.state.minions[acting.index()].owner;
         let mut burns = Vec::new();
-        let mut bleeds: Vec<u8> = Vec::new();
+        let mut bleeds: Vec<(u8, CardId)> = Vec::new();
         // "The blocking minion's controller burns n pool" (Terrifying
         // Visage, Aelswith).
         let mut toll = 0;
+        let mut toll_by = crate::notes::Source::Minion(acting);
         // Its version read on the card (Phantasmagoria [PRE]).
         let on = |c: &CardInPlay| c.host == Some(acting);
         let at = HookAt {
@@ -4223,9 +4232,10 @@ impl Engine {
                     Effect::BurnSelf => burns.push(id),
                     // "They burn 1 blood or life before block
                     // resolution" (Phantasmagoria [PRE]).
-                    Effect::HostBurnBlood(n) => bleeds.push(n),
+                    Effect::HostBurnBlood(n) => bleeds.push((n, id)),
                     Effect::BlockerControllerBurnsPool(n) => {
                         toll += n;
+                        toll_by = crate::notes::Source::Card(id);
                         if let Some(a) = self.action.as_mut() {
                             a.host_card_applied = true;
                         }
@@ -4254,8 +4264,9 @@ impl Engine {
         if burn_acting && self.state.minions[acting.index()].in_play {
             self.burn_minion(acting);
         }
-        for n in bleeds {
-            if self.state.burn_blood_or_life(acting, n) {
+        for (n, id) in bleeds {
+            let card = Cause::Effect(crate::notes::Source::Card(id));
+            if self.caused(card, |e| e.state.burn_blood_or_life(acting, n)) {
                 self.burn_minion(acting);
             }
         }
@@ -4270,16 +4281,22 @@ impl Engine {
             for e in r.effects {
                 match *e {
                     Effect::HostBurnBlood(n) => {
-                        if self.state.burn_blood_or_life(acting, n) {
+                        let own = Cause::Effect(crate::notes::Source::Minion(acting));
+                        if self.caused(own, |e| e.state.burn_blood_or_life(acting, n)) {
                             self.burn_minion(acting);
                         }
                     }
-                    Effect::BlockerControllerBurnsPool(n) => toll += n,
+                    Effect::BlockerControllerBurnsPool(n) => {
+                        toll += n;
+                        toll_by = crate::notes::Source::Minion(acting);
+                    }
                     other => unreachable!("not a host-blocked rider effect: {other:?}"),
                 }
             }
         }
-        self.blocker_controller_burns(blocker, toll);
+        self.caused(Cause::Effect(toll_by), |e| {
+            e.blocker_controller_burns(blocker, toll)
+        });
     }
 
     /// The pool burned by the blocker's controller as the action is blocked
@@ -4532,7 +4549,7 @@ impl Engine {
                 self.mark_resolved(a.acting, a.kind);
                 return self.fizzle(a);
             }
-            self.state.minions[a.acting.index()].blood -= toll;
+            self.paying(|e| e.state.minions[a.acting.index()].blood -= toll);
         }
         // Ambrosio Luis Monçada: paid with the cost; his own Methuselah's
         // action is not directed (LSJ 20030214-2).
@@ -4544,7 +4561,7 @@ impl Engine {
                     crate::state::PrintedCtx::default(),
                 );
                 if n > 0 {
-                    self.state.seats[seat.index()].pool -= n;
+                    self.paying(|e| e.state.seats[seat.index()].pool -= n);
                     self.note_pool_burned(seat);
                     self.action = Some(a);
                     if self.state.seats[seat.index()].pool <= 0 && self.acting_pool_out(seat) {
@@ -4580,7 +4597,7 @@ impl Engine {
                     if !attached || self.state.minions[a.acting.index()].blood < cost {
                         return self.fizzle(a);
                     }
-                    self.state.minions[a.acting.index()].blood -= cost;
+                    self.paying(|e| e.state.minions[a.acting.index()].blood -= cost);
                 }
                 // A bleed action card's cost (Slaughtering the Herd [dom]):
                 // paid now, unpayable by then the action fizzles (spec
@@ -4592,7 +4609,7 @@ impl Engine {
                         return self.fizzle(a);
                     }
                     self.spend_counters(&used);
-                    self.state.minions[a.acting.index()].blood -= blood;
+                    self.paying(|e| e.state.minions[a.acting.index()].blood -= blood);
                 }
                 // About to bleed for 1 pool or more: the cards remembering
                 // this prey burn for their bonus (Spying Mission [OBF]).
@@ -4774,7 +4791,7 @@ impl Engine {
                 if self.state.minions[acting.index()].blood < 1 {
                     return self.fizzle(a);
                 }
-                self.state.minions[acting.index()].blood -= 1;
+                self.paying(|e| e.state.minions[acting.index()].blood -= 1);
                 if let Some(t) = a.torpor_target {
                     if self.state.minions[t.index()].ready()
                         && self.state.minions[acting.index()].ready()
@@ -4795,7 +4812,7 @@ impl Engine {
                 {
                     a.outcome = Some(Outcome::Fizzled);
                 } else {
-                    self.state.minions[acting.index()].blood -= cost;
+                    self.paying(|e| e.state.minions[acting.index()].blood -= cost);
                     self.make_anarch(acting);
                 }
             }
@@ -4804,14 +4821,14 @@ impl Engine {
                 let acting = a.acting;
                 // Torpid Blood: +1.
                 let cost = 2 + self.state.torpid_surcharge(None, acting);
-                let m = &mut self.state.minions[acting.index()];
+                let m = &self.state.minions[acting.index()];
                 if !m.in_torpor {
                     // Out of torpor already (Warsaw Station): it fizzles,
                     // its cost paid (ANK 20220218).
-                    m.blood -= m.blood.min(cost);
+                    self.paying(|e| e.state.burn_blood(acting, cost));
                     a.outcome = Some(Outcome::Fizzled);
                 } else if m.blood >= cost {
-                    m.blood -= cost;
+                    self.paying(|e| e.state.minions[acting.index()].blood -= cost);
                     self.leave_torpor(acting);
                 } else {
                     a.outcome = Some(Outcome::Fizzled);
@@ -4824,8 +4841,8 @@ impl Engine {
                 // The target gone: paid as far as it goes, it fizzles (ANK
                 // 20220218; rules-qa 28.7); out of torpor, `rescue_apply`.
                 if !self.state.minions[target.index()].present() {
-                    let v = &mut self.state.minions[a.acting.index()];
-                    v.blood -= v.blood.min(2);
+                    let rescuer = a.acting;
+                    self.paying(|e| e.state.burn_blood(rescuer, 2));
                     return self.fizzle(a);
                 }
                 let t = self.state.minions[target.index()].blood;
@@ -4904,8 +4921,10 @@ impl Engine {
                 // 20091021-2).
                 self.spend_once_cost_off(&play, once);
                 self.spend_counters(&used);
-                self.state.seats[seat.index()].pool -= pool;
-                self.state.minions[acting.index()].blood -= blood;
+                self.paying(|e| {
+                    e.state.seats[seat.index()].pool -= pool;
+                    e.state.minions[acting.index()].blood -= blood;
+                });
                 match a.kind {
                     ActionKind::Recruit => {
                         let ally = self.recruit_ally(seat, play.card, *play.copy, play.mode);
@@ -4993,11 +5012,13 @@ impl Engine {
                         self.spend_reducer(&play);
                     }
                     self.spend_counters(&used);
-                    if let Some(r) = paid_by {
-                        self.state.minions[r.index()].blood -= 1;
-                    }
-                    self.state.seats[seat.index()].pool -= pool;
-                    self.state.minions[acting.index()].blood -= blood;
+                    self.paying(|e| {
+                        if let Some(r) = paid_by {
+                            e.state.minions[r.index()].blood -= 1;
+                        }
+                        e.state.seats[seat.index()].pool -= pool;
+                        e.state.minions[acting.index()].blood -= blood;
+                    });
                     self.put_equipment(seat, acting, play);
                     a.card_entered_play = true;
                     if pool > 0 && self.state.seats[seat.index()].pool == 0 {
@@ -5123,9 +5144,12 @@ impl Engine {
                 }
                 self.spend_once_cost_off(&play, once);
                 self.spend_counters(&used);
-                self.state.minions[a.acting.index()].blood -= cost;
                 // Its pool cost too (Biothaumaturgic Experiment).
-                self.state.seats[seat.index()].pool -= pool;
+                let acting = a.acting;
+                self.paying(|e| {
+                    e.state.minions[acting.index()].blood -= cost;
+                    e.state.seats[seat.index()].pool -= pool;
+                });
                 if pool > 0 && self.state.seats[seat.index()].pool == 0 {
                     self.action = Some(a);
                     if self.acting_pool_out(seat) {
@@ -5354,7 +5378,11 @@ impl Engine {
                         for e in mode.effects {
                             match *e {
                                 Effect::OpposingBurnsPoolIfOneReadyAfterCombat(n) => {
-                                    c.one_ready_burn = Some(n);
+                                    let card = crate::notes::Source::Played {
+                                        card: ctx.card,
+                                        copy: *ctx.copy,
+                                    };
+                                    c.one_ready_burn = Some((n, card));
                                 }
                                 Effect::PutOnActorIfOpposingNotReadyAfterCombat => {
                                     c.put_if_opposing_down =
@@ -5403,8 +5431,11 @@ impl Engine {
                 {
                     a.outcome = Some(Outcome::Fizzled);
                 } else {
-                    self.state.minions[a.acting.index()].blood -= blood;
-                    self.state.seats[seat.index()].pool -= cost as i32;
+                    let acting = a.acting;
+                    self.paying(|e| {
+                        e.state.minions[acting.index()].blood -= blood;
+                        e.state.seats[seat.index()].pool -= cost as i32;
+                    });
                     let host = self.state.cards[src.index()].host;
                     let effects = self.granted_effects(&a);
                     // Pulled Fangs: burned by the second such action,
@@ -5487,7 +5518,7 @@ impl Engine {
                 {
                     return self.fizzle(a);
                 }
-                self.state.minions[acting.index()].blood -= blood;
+                self.paying(|e| e.state.minions[acting.index()].blood -= blood);
                 // An ally paying its last life burns: the action still
                 // resolves, a combat it would enter ends at once (LSJ
                 // 20080512).
@@ -5497,7 +5528,7 @@ impl Engine {
                 {
                     self.burn_minion(acting);
                 }
-                self.state.seats[seat.index()].pool -= pool as i32;
+                self.paying(|e| e.state.seats[seat.index()].pool -= pool as i32);
                 if pool > 0 && self.state.seats[seat.index()].pool == 0 {
                     self.action = Some(a);
                     if self.acting_pool_out(seat) {
@@ -6036,15 +6067,15 @@ impl Engine {
                     (None, None) => unreachable!("political action without a source"),
                 };
                 let (_, cost, used) = self.reduced_cost_with(&a, 0, cost);
-                let m = &mut self.state.minions[a.acting.index()];
-                m.political_this_turn = true;
+                let acting = a.acting;
+                self.state.minions[acting.index()].political_this_turn = true;
                 if !a.cost_paid_early {
-                    if m.blood < cost {
+                    if self.state.minions[acting.index()].blood < cost {
                         // Unpayable by resolution: fizzles (rules-qa 3.6),
                         // no referendum.
                         return self.fizzle(a);
                     }
-                    m.blood -= cost;
+                    self.paying(|e| e.state.minions[acting.index()].blood -= cost);
                     self.spend_counters(&used);
                 }
                 let referendum = mode
@@ -6481,8 +6512,11 @@ impl Engine {
         let a = self.action.as_ref().expect("action context");
         let (acting, target) = (a.acting, a.torpor_target.expect("target"));
         let (cost, gain) = (a.rescue_cost, a.rescue_gain);
-        self.state.minions[acting.index()].blood -= from_acting;
-        self.state.minions[target.index()].blood -= cost - from_acting;
+        let paid = Cause::Cost(a.cause_source());
+        self.caused(paid, |e| {
+            e.state.minions[acting.index()].blood -= from_acting;
+            e.state.minions[target.index()].blood -= cost - from_acting;
+        });
         if self.state.minions[target.index()].in_torpor {
             // Rescued: to the ready region, lock state untouched.
             self.leave_torpor(target);
@@ -7030,7 +7064,8 @@ impl Engine {
             let (card, copy) = library.take(k);
             let pool = cards::pool_cost(&self.state, seat, card, Target::Minion(minion))
                 + self.archetype_copies(seat, card);
-            self.state.seats[seat.index()].pool -= pool;
+            let found = Cause::Cost(crate::notes::Source::Played { card, copy });
+            self.caused(found, |e| e.state.seats[seat.index()].pool -= pool);
             let c = crate::state::CardInPlay::entering(card, copy, seat, Some(minion), 0);
             self.place_now(c, crate::plays::ModeLayers::Push, false);
             self.state.seats[seat.index()]
@@ -7050,6 +7085,14 @@ impl Engine {
     /// A searched or found equipment (Magic of the Smith, Michael Harris,
     /// Vast Wealth) paid, British Museum's reduction first, and equipped.
     pub(crate) fn equip_found(&mut self, ctx: PlayCtx) {
+        let found = crate::notes::Source::Played {
+            card: ctx.card,
+            copy: *ctx.copy,
+        };
+        self.caused(Cause::Cost(found), |e| e.equip_found_now(ctx))
+    }
+
+    fn equip_found_now(&mut self, ctx: PlayCtx) {
         let (seat, card) = (ctx.seat, ctx.card);
         let minion = ctx.actor.expect("equipping minion");
         let mut pool = cards::pool_cost(&self.state, seat, card, Target::Minion(minion));

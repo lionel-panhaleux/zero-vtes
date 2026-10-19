@@ -411,3 +411,87 @@ pub fn fill_hand(e: &mut Engine, seat: u8) {
         e.state.seats[seat as usize].hand.push(filler);
     }
 }
+
+/// The notes of one kind noted since (`Engine::notes`, on), drained.
+fn noted<T>(e: &mut Engine, f: impl Fn(zvtes::notes::Note) -> Option<T>) -> Vec<T> {
+    e.take_notes()
+        .expect("noting")
+        .into_iter()
+        .filter_map(f)
+        .collect()
+}
+
+pub fn noted_combats(e: &mut Engine) -> Vec<zvtes::combat::CombatNote> {
+    use zvtes::notes::Note;
+    noted(e, |n| {
+        if let Note::Combat(c) = n {
+            Some(c)
+        } else {
+            None
+        }
+    })
+}
+
+pub fn noted_reveals(e: &mut Engine) -> Vec<zvtes::game::Reveal> {
+    use zvtes::notes::Note;
+    noted(e, |n| {
+        if let Note::Reveal(r) = n {
+            Some(r)
+        } else {
+            None
+        }
+    })
+}
+
+pub fn noted_plays(e: &mut Engine) -> Vec<zvtes::game::PlayNote> {
+    use zvtes::notes::Note;
+    noted(e, |n| if let Note::Play(p) = n { Some(p) } else { None })
+}
+
+pub fn noted_looks(e: &mut Engine) -> Vec<zvtes::game::Look> {
+    use zvtes::notes::Note;
+    noted(e, |n| if let Note::Look(l) = n { Some(l) } else { None })
+}
+
+pub fn noted_actions(e: &mut Engine) -> Vec<zvtes::actions::ActionNote> {
+    use zvtes::notes::Note;
+    noted(e, |n| {
+        if let Note::Action(a) = n {
+            Some(a)
+        } else {
+            None
+        }
+    })
+}
+
+/// The pool and blood changes noted since `before` (`Engine::notes`, on),
+/// drained: each with its cause, the seat (pool) or minion (blood), the
+/// delta.
+pub fn noted_changes(
+    e: &mut Engine,
+    before: zvtes::notes::Ledger,
+) -> Vec<(Option<zvtes::notes::Cause>, Result<SeatId, MinionId>, i32)> {
+    let mut was = before;
+    let mut out = Vec::new();
+    for n in e.take_notes().expect("noting") {
+        let zvtes::notes::Note::Ledger { ledger, cause } = n else {
+            continue;
+        };
+        for (s, (a, b)) in was.pools.iter().zip(&ledger.pools).enumerate() {
+            if a != b {
+                out.push((cause, Ok(SeatId(s as u8)), b - a));
+            }
+        }
+        for (m, (a, b)) in was.minions.iter().zip(&ledger.minions).enumerate() {
+            if a.2 != b.2 {
+                out.push((
+                    cause,
+                    Err(MinionId(m as u32)),
+                    i32::from(b.2) - i32::from(a.2),
+                ));
+            }
+        }
+        was = *ledger;
+    }
+    out
+}

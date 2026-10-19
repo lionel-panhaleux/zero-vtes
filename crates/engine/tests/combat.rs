@@ -617,9 +617,9 @@ fn an_aggravated_hand_strike_is_told_aggravated() {
         aggravated: true,
     });
     assert_eq!(c.strike_told(&e.state, e.action(), 0, k), sculpt);
-    e.combat_notes = Some(Vec::new());
+    e.notes = Some(Vec::new());
     until(&mut e, SeatId(0), WindowLabel::MinionPhase);
-    let notes = e.combat_notes.take().expect("noted");
+    let notes = noted_combats(&mut e);
     let told = notes.iter().find_map(|n| match n {
         CombatNote::Strikes { told, .. } => Some(told[0]),
         _ => None,
@@ -636,11 +636,11 @@ fn the_strike_damage_is_noted_apart_from_environmental_damage() {
     let e = &mut t.e;
     let k = e.add_minion(SeatId(0), find_card("Keegan"), 5, false);
     hand(e, 0, &["Carrion Crows"]);
-    e.combat_notes = Some(Vec::new());
+    e.notes = Some(Vec::new());
     blocked_bleed(e, k, t.x);
     pick_when(e, play(0, 0, k));
     until(e, SeatId(0), WindowLabel::MinionPhase);
-    let notes = e.combat_notes.take().expect("noted");
+    let notes = noted_combats(e);
     let strikes = notes
         .iter()
         .find_map(|n| match n {

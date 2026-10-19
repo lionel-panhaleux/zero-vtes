@@ -30,7 +30,7 @@ pub fn digest(e: &Engine) -> String {
         let mut uncontrolled: Vec<[u32; 2]> = seat
             .uncontrolled
             .iter()
-            .map(|u| [crypt(u.card), u.counters as u32])
+            .map(|u| [crate::describe::slot_id(e, u), u.counters as u32])
             .collect();
         uncontrolled.sort_unstable();
         h.list(uncontrolled.into_iter().flatten());

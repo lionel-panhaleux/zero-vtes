@@ -1854,12 +1854,12 @@ fn breath_of_the_dragon_is_noted_as_viris_own() {
     budapest(&mut e, 0, "Dorka", 3);
     let z = e.add_minion(SeatId(1), plain("Ventrue", 0), 4, false);
     hand(&mut e, 0, &["Breath of the Dragon"]);
-    e.combat_notes = Some(Vec::new());
+    e.notes = Some(Vec::new());
     blocked_bleed(&mut e, viri, z);
     let req = offering(&mut e, play(0, 0, viri));
     e.choose(index_of(&req, play(0, 0, viri)));
     until(&mut e, SeatId(0), WindowLabel::MinionPhase);
-    let notes = e.combat_notes.take().expect("noted");
+    let notes = noted_combats(&mut e);
     let noted = notes.iter().find_map(|n| match n {
         zvtes::combat::CombatNote::Strikes {
             damage,

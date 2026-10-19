@@ -31,6 +31,7 @@ pub mod habits;
 pub mod ids;
 pub mod influence;
 pub mod library;
+pub mod notes;
 pub mod obs;
 pub mod ousting;
 pub mod plays;

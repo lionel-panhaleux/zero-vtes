@@ -144,11 +144,7 @@ impl Replay {
     pub fn read_counting(&self, at: usize) -> (Engine, usize, usize) {
         let mut e = self.deal();
         // Combats, reveals, looks, plays and actions are not told here.
-        e.combat_notes = None;
-        e.reveal_notes = None;
-        e.look_notes = None;
-        e.play_notes = None;
-        e.action_notes = None;
+        e.notes = None;
         let mut reader = self.reader();
         let (mut n, mut consumed) = (0, 0);
         while n < at {

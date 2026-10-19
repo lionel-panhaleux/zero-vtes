@@ -135,6 +135,11 @@ impl<'a> Names<'a> {
             acting: card,
             minion: kind,
             ..
+        }
+        | EventKind::ActingChanges {
+            acting: card,
+            minion: kind,
+            ..
         } = e
         {
             if let Some(c) = card.copy {

@@ -625,12 +625,12 @@ fn an_unpreventable_strike_is_noted_with_its_damage() {
     e.add_minion(SeatId(0), plain("Brujah", 0), 4, false);
     let bh = e.add_minion(SeatId(1), find_card("Blackhorse Tanner"), 4, false);
     hand(&mut e, 1, &["Psychic Assault"]);
-    e.combat_notes = Some(Vec::new());
+    e.notes = Some(Vec::new());
     pick(&mut e, bleed(omaya));
     pick(&mut e, block(bh));
     pick_when(&mut e, play(0, 0, bh));
     until(&mut e, SeatId(0), WindowLabel::MinionPhase);
-    let notes = e.combat_notes.take().expect("noted");
+    let notes = noted_combats(&mut e);
     let assault = notes.iter().find_map(|n| match n {
         zvtes::combat::CombatNote::Strikes {
             damage,

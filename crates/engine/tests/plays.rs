@@ -307,13 +307,13 @@ fn a_card_held_while_in_play_counts_against_the_hand_size() {
     assert_eq!(e.state.seats[0].library.len(), 4);
 }
 
-// A narrator is told how a play finished (`Engine::play_notes`), in order:
+// A narrator is told how a play finished (`Note::Play`), in order:
 // Sudden Reversal resolved, then the Villein it canceled (still played,
 // to the ash heap, spec §1.8.3).
 #[test]
 fn a_play_resolved_and_one_canceled_are_noted_in_order() {
     let mut e = table();
-    e.play_notes = Some(Vec::new());
+    e.notes = Some(Vec::new());
     let villein = find_library("Villein");
     let reversal = find_library("Sudden Reversal");
     e.state.seats[0].hand.push(villein);
@@ -331,7 +331,7 @@ fn a_play_resolved_and_one_canceled_are_noted_in_order() {
         },
     );
     expect(&mut e, SeatId(0), WindowLabel::MinionPhase);
-    let notes = e.play_notes.take().expect("noted");
+    let notes = noted_plays(&mut e);
     assert_eq!(
         notes
             .iter()
@@ -341,12 +341,56 @@ fn a_play_resolved_and_one_canceled_are_noted_in_order() {
     );
 }
 
+// Every change is noted with its cause (protocol §9's `cause`): Govern
+// the Unaligned's blood, paid as its bleed resolves, is its cost, the
+// prey's pool its effect.
+#[test]
+fn a_change_is_noted_as_its_card_s_cost_or_effect() {
+    use zvtes::notes::{Cause, Source};
+    let mut e = Engine::bare(3);
+    let v = e.add_minion(SeatId(0), vampire_with("dom", 0), 5, false);
+    e.add_minion(SeatId(1), find_card("Abaddon"), 5, false);
+    e.add_minion(SeatId(2), find_card("Abraham Mellon"), 5, false);
+    for seat in &mut e.state.seats {
+        seat.pool = 20;
+    }
+    e.state.turn = 4;
+    e.at_master_phase();
+    hand(&mut e, 0, &["Govern the Unaligned"]);
+    let govern = find_library("Govern the Unaligned");
+    e.notes = Some(Vec::new());
+    let before = e.table();
+    let req = until(&mut e, SeatId(0), WindowLabel::MinionPhase);
+    let i = req
+        .options
+        .iter()
+        .position(|o| matches!(o, Choice::Play { card: 0, actor: Some(a), .. } if *a == v))
+        .expect("Govern the Unaligned offered");
+    e.choose(i);
+    until(&mut e, SeatId(0), WindowLabel::MinionPhase);
+    let changes = noted_changes(&mut e, before);
+    let by = |c: Option<Cause>| match c {
+        Some(Cause::Cost(Source::Played { card, .. })) => Some((true, card)),
+        Some(Cause::Effect(Source::Played { card, .. })) => Some((false, card)),
+        _ => None,
+    };
+    let seen: Vec<_> = changes.iter().map(|&(c, at, d)| (by(c), at, d)).collect();
+    assert!(
+        seen.contains(&(Some((true, govern)), Err(v), -1)),
+        "{changes:?}"
+    );
+    assert!(
+        seen.contains(&(Some((false, govern)), Ok(SeatId(1)), -3)),
+        "{changes:?}"
+    );
+}
+
 // An action card resolves into its action, told by the action's end: no
 // play note for it (Computer Hacking, played and its action run).
 #[test]
 fn an_action_card_leaves_no_play_note() {
     let mut e = table();
-    e.play_notes = Some(Vec::new());
+    e.notes = Some(Vec::new());
     let hacking = find_library("Computer Hacking");
     e.state.seats[0].hand.push(hacking);
     let req = until(&mut e, SeatId(0), WindowLabel::MinionPhase);
@@ -366,5 +410,5 @@ fn an_action_card_leaves_no_play_note() {
     e.choose(i);
     until(&mut e, SeatId(0), WindowLabel::MinionPhase);
     assert!(e.state.seats[0].ash.contains(&hacking), "played");
-    assert_eq!(e.play_notes.take().expect("noted"), vec![]);
+    assert_eq!(noted_plays(&mut e), vec![]);
 }

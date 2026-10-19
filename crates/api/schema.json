@@ -610,6 +610,114 @@
         }
       }
     },
+    "Cause": {
+      "description": "What made a `pool` or `blood` change: a cost paid or an effect, of a\ncard or of the rules.",
+      "type": "object",
+      "properties": {
+        "card": {
+          "description": "A card played or in play, or a minion (its action, its ability).",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Card"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "kind": {
+          "$ref": "#/$defs/CauseKind"
+        },
+        "rule": {
+          "description": "A rule of the game, with no card.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/CauseRule"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "kind"
+      ]
+    },
+    "CauseKind": {
+      "oneOf": [
+        {
+          "description": "Paid for it.",
+          "type": "string",
+          "const": "cost"
+        },
+        {
+          "description": "Done by it.",
+          "type": "string",
+          "const": "effect"
+        },
+        {
+          "description": "A value this reader does not know.",
+          "type": "string",
+          "const": "unknown"
+        }
+      ]
+    },
+    "CauseRule": {
+      "oneOf": [
+        {
+          "type": "string",
+          "enum": [
+            "diablerie"
+          ]
+        },
+        {
+          "description": "Combat blood: damage, a strike stealing it (its `strikes` event\nbefore).",
+          "type": "string",
+          "const": "strikes"
+        },
+        {
+          "description": "A transfer in the influence phase: 1 pool to or from an\nuncontrolled vampire.",
+          "type": "string",
+          "const": "transfer"
+        },
+        {
+          "description": "An oust: the predator's 6 pool, the ousted Methuselah's pool gone.",
+          "type": "string",
+          "const": "oust"
+        },
+        {
+          "description": "The Edge burned for its pool.",
+          "type": "string",
+          "const": "edge"
+        },
+        {
+          "description": "A contested card or title paid for.",
+          "type": "string",
+          "const": "contest"
+        },
+        {
+          "description": "A disease counter's blood, as its vampire unlocks.",
+          "type": "string",
+          "const": "disease"
+        },
+        {
+          "description": "Blood above a vampire's capacity draining.",
+          "type": "string",
+          "const": "capacity"
+        },
+        {
+          "description": "Pool burned for votes (Business Pressure's round).",
+          "type": "string",
+          "const": "vote"
+        },
+        {
+          "description": "A value this reader does not know.",
+          "type": "string",
+          "const": "unknown"
+        }
+      ]
+    },
     "ChoiceKey": {
       "description": "What identifies an option: two options of one decision never share a\nkey (copies alike in hand are one option). A record keeps each answer\nby its key, with the engine's copy numbers: a later engine finds the\nsame option whatever its index or however it describes it.",
       "type": "object",
@@ -1996,6 +2104,16 @@
         {
           "type": "object",
           "properties": {
+            "cause": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/Cause"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
             "delta": {
               "type": "integer",
               "format": "int32"
@@ -2030,6 +2148,16 @@
               "format": "uint8",
               "maximum": 255,
               "minimum": 0
+            },
+            "cause": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/Cause"
+                },
+                {
+                  "type": "null"
+                }
+              ]
             },
             "delta": {
               "type": "integer",
@@ -2285,6 +2413,34 @@
             "acting",
             "minion",
             "action"
+          ]
+        },
+        {
+          "description": "Another minion of the action's Methuselah now acting in it (Mask of\na Thousand Faces): the action goes on as theirs, its `action_ends`\nnaming them. `acting` and `minion` as `action_starts` tells them.",
+          "type": "object",
+          "properties": {
+            "acting": {
+              "$ref": "#/$defs/Card"
+            },
+            "kind": {
+              "type": "string",
+              "const": "acting_changes"
+            },
+            "minion": {
+              "$ref": "#/$defs/MinionKind"
+            },
+            "seat": {
+              "type": "integer",
+              "format": "uint8",
+              "maximum": 255,
+              "minimum": 0
+            }
+          },
+          "required": [
+            "kind",
+            "seat",
+            "acting",
+            "minion"
           ]
         },
         {

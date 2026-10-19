@@ -8,6 +8,7 @@ use crate::decision::{Choice, DecisionRequest, WindowLabel, Zone};
 use crate::game::Engine;
 use crate::ids::{MinionId, SeatId};
 use crate::library::Label;
+use crate::notes::{Cause, Source};
 use crate::plays::HookAt;
 use crate::state::{distinct, CardId, CardInPlay, Release};
 
@@ -790,7 +791,14 @@ impl Engine {
     /// are dropped; with no draw alternative left, draws and replacements
     /// happen as usual.
     pub(crate) fn settle_interrupts(&mut self) {
+        let outer = self.cause;
+        self.settle_interrupts_now(outer);
+        self.end_cause(outer);
+    }
+
+    fn settle_interrupts_now(&mut self, outer: Option<Cause>) {
         while let Some(&front) = self.interrupts.first() {
+            self.cause_front(outer);
             let s = front.seat();
             if self.state.seats[s.index()].ousted {
                 self.interrupts.remove(0);
@@ -3057,6 +3065,13 @@ impl Engine {
     }
 
     pub(crate) fn interrupt_apply(&mut self, choice: &Choice) {
+        match self.interrupt_cause().flatten() {
+            Some(cause) => self.caused(cause, |e| e.interrupt_apply_now(choice)),
+            None => self.interrupt_apply_now(choice),
+        }
+    }
+
+    fn interrupt_apply_now(&mut self, choice: &Choice) {
         let front = self.interrupts[0];
         let s = front.seat();
         match (front, *choice) {
@@ -3121,14 +3136,16 @@ impl Engine {
             (Interrupt::LockForPool { card, n, .. }, Choice::ResolveRider { .. }) => {
                 self.interrupts.remove(0);
                 self.state.cards[card.index()].locked = true;
-                self.state.seats[s.index()].pool += n as i32;
+                let throne = Cause::Effect(Source::Card(card));
+                self.caused(throne, |e| e.state.seats[s.index()].pool += n as i32);
             }
             // Burned with its minion or not (PIB 20150512): the pool all
             // the same.
             (Interrupt::PoolForCard { card, n, .. }, Choice::ResolveRider { .. }) => {
                 self.interrupts.remove(0);
                 self.burn_card_in_play(card);
-                self.state.seats[s.index()].pool += n as i32;
+                let gain = Cause::Effect(Source::Card(card));
+                self.caused(gain, |e| e.state.seats[s.index()].pool += n as i32);
             }
             (Interrupt::ExchangeAnarch { ash: None, .. }, Choice::FindCard(card)) => {
                 self.interrupts[0] = Interrupt::ExchangeAnarch {
@@ -3225,9 +3242,10 @@ impl Engine {
                     chosen: Some(m),
                 };
             }
-            (Interrupt::AnarchConvert { seat, .. }, Choice::Pass) => {
+            (Interrupt::AnarchConvert { seat, convert, .. }, Choice::Pass) => {
                 self.interrupts.remove(0);
-                self.state.seats[seat.index()].pool += 1;
+                let anarch = Cause::Effect(Source::Minion(convert));
+                self.caused(anarch, |e| e.state.seats[seat.index()].pool += 1);
             }
             // From an empty crypt, nothing (LSJ 20060620).
             (Interrupt::AnarchConvert { seat, .. }, Choice::DrawCrypt) => {
@@ -3966,9 +3984,10 @@ impl Engine {
             (Interrupt::Redraw { .. }, Choice::Pass) => {
                 self.interrupts.remove(0);
             }
-            (Interrupt::MayGainPool { seat, n, .. }, Choice::ResolvePrinted { .. }) => {
+            (Interrupt::MayGainPool { seat, n, minion }, Choice::ResolvePrinted { .. }) => {
                 self.interrupts.remove(0);
-                self.state.seats[seat.index()].pool += n as i32;
+                let own = Cause::Effect(Source::Minion(minion));
+                self.caused(own, |e| e.state.seats[seat.index()].pool += n as i32);
             }
             (Interrupt::MayGainHandSize { seat, minion, n }, Choice::ResolvePrinted { .. }) => {
                 self.interrupts.remove(0);
@@ -4044,9 +4063,10 @@ impl Engine {
                 self.interrupts.remove(0);
                 self.burn_card_in_play(card);
             }
-            (Interrupt::PayOrBurn { seat, pool, .. }, Choice::PayToCancel) => {
+            (Interrupt::PayOrBurn { seat, pool, card }, Choice::PayToCancel) => {
                 self.interrupts.remove(0);
-                self.pay_pool_for_ability(seat, pool as i32);
+                let upkeep = Cause::Cost(Source::Card(card));
+                self.caused(upkeep, |e| e.pay_pool_for_ability(seat, pool as i32));
             }
             (Interrupt::BloodOrCamarilla { minion, .. }, Choice::BurnBloodToAvoid) => {
                 self.interrupts.remove(0);
@@ -4065,9 +4085,15 @@ impl Engine {
                     None => self.burn_minion(minion),
                 }
             }
-            (Interrupt::BloodOrBurned { minion, n, .. }, Choice::BurnBloodToAvoid) => {
+            (
+                Interrupt::BloodOrBurned {
+                    minion, n, card, ..
+                },
+                Choice::BurnBloodToAvoid,
+            ) => {
                 self.interrupts.remove(0);
-                self.state.burn_blood(minion, n);
+                let kept = Cause::Cost(card.map_or(Source::Minion(minion), Source::Card));
+                self.caused(kept, |e| e.state.burn_blood(minion, n));
             }
             // Karen is not locked (LSJ 20081120-2).
             (Interrupt::LockOrDiscard { minion, .. }, Choice::Pass) => {
@@ -4087,9 +4113,10 @@ impl Engine {
                 self.interrupts.remove(0);
                 self.state.cards[card.index()].locked = true;
             }
-            (Interrupt::LockOrPay { seat, pool, .. }, Choice::BurnPool) => {
+            (Interrupt::LockOrPay { seat, pool, card }, Choice::BurnPool) => {
                 self.interrupts.remove(0);
-                self.pay_pool_for_ability(seat, pool as i32);
+                let kept = Cause::Cost(Source::Card(card));
+                self.caused(kept, |e| e.pay_pool_for_ability(seat, pool as i32));
             }
             (Interrupt::PoolOrNoTransfers { seat, pool }, Choice::BurnPool) => {
                 self.interrupts.remove(0);
@@ -4101,9 +4128,15 @@ impl Engine {
                 self.interrupts.remove(0);
                 self.state.seats[seat.index()].no_transfers_next = true;
             }
-            (Interrupt::PoolOrVampire { seat, pool, .. }, Choice::BurnPool) => {
+            (
+                Interrupt::PoolOrVampire {
+                    seat, pool, card, ..
+                },
+                Choice::BurnPool,
+            ) => {
                 self.interrupts.remove(0);
-                self.pay_pool_for_ability(seat, pool as i32);
+                let kept = Cause::Cost(Source::Card(card));
+                self.caused(kept, |e| e.pay_pool_for_ability(seat, pool as i32));
             }
             (Interrupt::PoolOrVampire { card, .. }, Choice::ChooseMinion(m)) => {
                 self.interrupts.remove(0);
@@ -4168,8 +4201,11 @@ impl Engine {
                 },
                 Choice::Slot(i),
             ) => {
-                self.state.minions[from.index()].blood -= 1;
-                self.state.add_uncontrolled_blood(seat, i as usize, 1);
+                let own = Cause::Effect(Source::Minion(from));
+                self.caused(own, |e| {
+                    e.state.minions[from.index()].blood -= 1;
+                    e.state.add_uncontrolled_blood(seat, i as usize, 1);
+                });
                 self.interrupts[0] = Interrupt::DistributeFrom {
                     seat,
                     from,
@@ -4368,7 +4404,8 @@ impl Engine {
                     .expect("an offered price");
                 let mut loss = vec![0i32; self.state.seats.len()];
                 loss[seat.index()] = n as i32;
-                self.burn_pool_batch(&loss);
+                let price = Cause::Cost(Source::Minion(minion));
+                self.caused(price, |e| e.burn_pool_batch(&loss));
                 if !self.state.seats[seat.index()].ousted {
                     self.gain_title(minion, title, None);
                     self.stage_contests(minion);

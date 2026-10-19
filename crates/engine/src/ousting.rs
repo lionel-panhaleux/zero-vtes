@@ -6,6 +6,7 @@ use crate::decision::{Choice, DecisionRequest, WindowLabel};
 use crate::game::{Engine, Flow};
 use crate::ids::SeatId;
 use crate::library::LIBRARY;
+use crate::notes::{Cause, Source};
 use crate::state::CardId;
 
 /// Methuselahs about to be ousted, and the Methuselahs who may save them.
@@ -190,10 +191,11 @@ impl Engine {
         if !self.state.seats[target.index()].oust_pending {
             return;
         }
-        self.state.seats[seat.index()].pool -= x as i32;
-        let t = &mut self.state.seats[target.index()];
-        t.pool += x as i32;
-        t.oust_pending = false;
+        self.caused(Cause::Effect(Source::Card(card)), |e| {
+            e.state.seats[seat.index()].pool -= x as i32;
+            e.state.seats[target.index()].pool += x as i32;
+        });
+        self.state.seats[target.index()].oust_pending = false;
         self.state.cards[card.index()].against = crate::ids::SeatSet::single(target);
     }
 

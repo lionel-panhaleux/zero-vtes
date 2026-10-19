@@ -83,11 +83,15 @@ pub enum EventKind {
         seat: Seat,
         delta: i32,
         pool: i32,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        cause: Option<Cause>,
     },
     Blood {
         minion: CopyId,
         delta: i32,
         blood: u8,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        cause: Option<Cause>,
     },
     /// A minion or a card comes into play (on a minion, or not).
     EntersPlay {
@@ -157,6 +161,14 @@ pub enum EventKind {
         minion: MinionKind,
         action: ActionRef,
     },
+    /// Another minion of the action's Methuselah now acting in it (Mask of
+    /// a Thousand Faces): the action goes on as theirs, its `action_ends`
+    /// naming them. `acting` and `minion` as `action_starts` tells them.
+    ActingChanges {
+        seat: Seat,
+        acting: Card,
+        minion: MinionKind,
+    },
     ActionEnds {
         seat: Seat,
         acting: CopyId,
@@ -224,6 +236,49 @@ pub struct ActionRef {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub source: Option<Card>,
 }
+
+/// What made a `pool` or `blood` change: a cost paid or an effect, of a
+/// card or of the rules.
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
+pub struct Cause {
+    pub kind: CauseKind,
+    /// A card played or in play, or a minion (its action, its ability).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub card: Option<Card>,
+    /// A rule of the game, with no card.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub rule: Option<CauseRule>,
+}
+
+crate::ids::ids!(CauseKind {
+    /// Paid for it.
+    Cost,
+    /// Done by it.
+    Effect,
+});
+
+crate::ids::ids!(CauseRule {
+    /// Combat blood: damage, a strike stealing it (its `strikes` event
+    /// before).
+    Strikes,
+    /// A transfer in the influence phase: 1 pool to or from an
+    /// uncontrolled vampire.
+    Transfer,
+    /// An oust: the predator's 6 pool, the ousted Methuselah's pool gone.
+    Oust,
+    /// The Edge burned for its pool.
+    Edge,
+    /// A contested card or title paid for.
+    Contest,
+    /// A disease counter's blood, as its vampire unlocks.
+    Disease,
+    Diablerie,
+    /// Blood above a vampire's capacity draining.
+    Capacity,
+    /// Pool burned for votes (Business Pressure's round).
+    Vote,
+});
 
 crate::ids::ids!(ActionOutcome {
     Succeeds,

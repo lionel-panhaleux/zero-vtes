@@ -11,6 +11,7 @@ use crate::decision::{Choice, DecisionRequest, WindowLabel};
 use crate::game::{Engine, Flow};
 use crate::ids::{MinionId, SeatId};
 use crate::library::{CardType, LIBRARY};
+use crate::notes::{self, Cause, Rule};
 use crate::plays::{HookAt, ModeLayers};
 use crate::state::{title_votes, ActionId, Expiry, TimedStat, UncontrolledSlot};
 use crate::window::PollingWindow;
@@ -1019,7 +1020,8 @@ impl Engine {
             });
             loss[s.index()] += n as i32;
         }
-        self.burn_pool_batch(&loss);
+        let votes = Cause::Cost(notes::Source::Rule(Rule::Vote));
+        self.caused(votes, |e| e.burn_pool_batch(&loss));
         for (i, seat) in self.state.seats.iter().enumerate() {
             if seat.ousted {
                 ctx.window.remove(SeatId(i as u8));
@@ -1146,6 +1148,13 @@ impl Engine {
     }
 
     pub(crate) fn referendum_apply(&mut self, choice: &Choice) {
+        match self.action.as_ref().map(|a| a.cause_source()) {
+            Some(source) => self.caused(Cause::Effect(source), |e| e.referendum_apply_now(choice)),
+            None => self.referendum_apply_now(choice),
+        }
+    }
+
+    fn referendum_apply_now(&mut self, choice: &Choice) {
         let mut ctx = self.referendum.take().expect("referendum context");
         match ctx.step {
             RefStep::Terms => self.terms_step_apply(&mut ctx, choice),
@@ -1413,6 +1422,14 @@ impl Engine {
     /// The polling window closed (or the referendum was canceled): tally
     /// and resolve.
     pub(crate) fn referendum_advance(&mut self) {
+        let source = match self.action.as_ref() {
+            Some(a) => a.cause_source(),
+            None => notes::Source::Rule(Rule::Diablerie),
+        };
+        self.caused(Cause::Effect(source), Self::referendum_advance_now)
+    }
+
+    fn referendum_advance_now(&mut self) {
         let mut ctx = self.referendum.take().expect("referendum context");
         // The pre-vote rotation over: the polling proper, from the caller.
         if ctx.pre_vote && !ctx.fizzled && !ctx.canceled {

@@ -316,7 +316,8 @@ seat 2; burn 2 pool to keep card 9.)
   `disciplines` with levels, `card_type` for a multi-type card, `apart`:
   the effects setting it apart from the other modes its printed line
   splits into, offered or not),
-  `amount`, `favor`, `blood`, `zone` (where a search takes from), `value`
+  `amount`, `favor`, `blood`, `zone` (where a search takes from, or
+  where a card is played from: the ash heap, Spiritual Guidance), `value`
   (a clan, Discipline or circle id), `ability`. Two options of a
   decision never share a key (copies alike in hand are one option).
 - **`effects`** — what taking it does: an ability's effects, a play's
@@ -448,8 +449,12 @@ a step (`decided`, `auto_passed` or `undone` first, then what the
 decision did, up to the next decision), or the engine's run before a
 decision or the game's end is sent (no decision event: the turn, draws,
 an action resolving through windows no one could act in). Every change
-is told, a decision's own included; `text` is set on the events the
-English log tells (it leaves out what a decision's own text says).
+is told, a decision's own included, in the order it happened: an
+action's events between its `action_starts` and its `action_ends` (an
+ousting bleed's `pool` and `ousted` before its end), a minion's
+`enters_play` before the actions it takes, a turn's `turn` before the
+events of that turn. `text` is set on the events the English log tells
+(it leaves out what a decision's own text says).
 
 Events are public: a card they name is shown (`id`), numbered as the
 recipient knows it (§3), a card that came and went between two views
@@ -465,10 +470,10 @@ heap (a marker on its minion, §6), no copy of its own.
 | `draw` | `seat`, `n`, `crypt` |
 | `revealed` | `seat`, `card` (its `id`, `crypt`; no number): a card of a crypt or library an effect revealed to all (a top card, a search's find) |
 | `looked` | `seat`, `cards` (their `id`s; no number): `seat`'s hand as it stood when an effect let this seat look at it (SchreckNET, Vaticination), told to the looking seat only |
-| `resolved` | `seat`, `card`, `effects`? (the options' vocabulary, §7, `on` as it applies): a card played resolved — what its mode does (none when it takes no effect: its payer burned paying), the changes it makes told by the events after it; an action card's end is its `action_ends` |
+| `resolved` | `seat`, `card`, `effects`? (the options' vocabulary, §7, `on` as it applies): a card played resolved — what its mode does (none when it takes no effect: its payer burned paying), the changes it makes told by the events after it, so its `pool`, `blood` and `life` effects at once are not among `effects` (their events follow, the card their `cause`; one that comes later, its `when` set, stays); an action card's end is its `action_ends` |
 | `canceled` | `seat`, `card`: a card played canceled (still played: to the ash heap) |
-| `pool` | `seat`, `delta`, `pool` |
-| `blood` | `minion`, `delta`, `blood` |
+| `pool` | `seat`, `delta`, `pool`, `cause`? |
+| `blood` | `minion`, `delta`, `blood` (an ally's life), `cause`? |
 | `enters_play` | `card`, `seat` (its controller), `on`?, `minion`? (its kind, for a minion), `effect`? |
 | `moves` | `card`, `on`?, `effect`? |
 | `leaves_play` | `card`, `to`? (the zone it went to), `minion`? (its kind), `contested`? (into a contest: a vampire, a unique card, or the cards on a contested minion with it, each told `enters_play` again as the contest resolves in its favor; with no `to` and not contested, out of play with its minion: Descent into Darkness, its `out_of_play` marker, `enters_play` again on return), `effect`? |
@@ -477,6 +482,7 @@ heap (a marker on its minion, §6), no copy of its own.
 | `edge` | `seat`? (who holds the Edge now; absent: burned) |
 | `block_fails` | `minion` (its block attempt ended, the action goes on) |
 | `action_starts` | `seat`, `acting` (the minion's card, numbered by its name, as `enters_play` tells one: it may have come into play in the same run), `minion` (its kind), `action`: an action announced, by a decision or by the engine itself (a forced action: a hunt, Elen Kamjian's bleed); its `action_ends` follows, however short the action, before the next is announced |
+| `acting_changes` | `seat`, `acting`, `minion` (as `action_starts` tells them): another minion of the action's Methuselah now acting in it (Mask of a Thousand Faces); the action goes on as theirs, its `action_ends` naming them |
 | `action_ends` | `seat`, `acting`, `action`, `outcome` (`succeeds`, `blocked`, `fails`, `fizzles`, `ousted`, `ends`), `blocker`? |
 | `referendum_ends` | `outcome` (`passes`, `fails`, `canceled`), `votes_for`, `votes_against`, `action`? (the political action), `hunted`? (a blood hunt's diablerist) |
 | `combat_begins` | `minions` |
@@ -486,6 +492,23 @@ heap (a marker on its minion, §6), no copy of its own.
 
 `action`: `{kind, card?, source?}` — the action's kind, its card, what
 grants it (a card in play, another vampire).
+
+`cause`: `{kind, card?, rule?}` — what made a `pool` or `blood` change
+(always sent; absent only from a host before 2.5.0). `kind`: `cost`
+(paid for it) or `effect` (done by it). `card`: a card played or in
+play, or a minion (its own action — a bleed, a hunt — its ability, its
+rider, its strike's damage after combat, its own cost: a maneuver, an
+infernal unlocking); an action's own effects name its card, or its
+acting minion. `rule`, with no card: `strikes` (combat blood: damage, a
+strike stealing it; the `strikes` event before it), `transfer` (the
+influence phase: 1 pool to or from an uncontrolled vampire, or for a
+crypt card drawn), `oust` (the
+predator's 6 pool, the ousted Methuselah's pool gone), `edge` (the Edge
+burned for pool), `contest` (a contested card or title paid for),
+`diablerie`, `capacity` (blood above capacity draining), `vote` (pool
+burned for votes: Business Pressure's round), `disease` (a disease
+counter's blood as its vampire unlocks). Pool burned by several cards at
+once (their ousts simultaneous) names the first of them.
 
 Events tell what happened; the view says what is. A client animating
 from events resyncs on the next view. The host's tests hold the two
@@ -539,7 +562,8 @@ A decision's `digest` is 16 hex digits of FNV-1a 64 over the position as
 KRCG ids, the same on every engine while the position is: for each seat
 in table order its pool, hand, library ash heap and crypt ash heap
 (sorted), library and crypt (bottom first), uncontrolled region (sorted,
-with counters), cards in play on no minion (sorted), and its minions in
+with counters; a banished created vampire by its library card), cards in
+play on no minion (sorted), and its minions in
 play (sorted, each with its blood, lock, torpor and the cards on it,
 sorted; contested and out-of-play ones included). An opaque hash: the
 record holds no hidden card in plain while the game runs. Its definition

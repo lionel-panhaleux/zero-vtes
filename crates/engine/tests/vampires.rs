@@ -1547,7 +1547,7 @@ fn gathii_reveals_the_top_card_for_blood_or_stealth() {
     };
     // A master card on top: 1 blood, whatever the block attempt.
     let (mut e, gathii, blocker) = setup("Dreams of the Sphinx");
-    e.reveal_notes = Some(Vec::new());
+    e.notes = Some(Vec::new());
     pick(&mut e, action(gathii, ActionKind::Bleed));
     // (Gathii's reveal is offered before any attempt: seat 0's window
     // does not elide.)
@@ -1565,7 +1565,7 @@ fn gathii_reveals_the_top_card_for_blood_or_stealth() {
     assert_eq!(blood(&e, gathii), 4 - 1 - 1); // the reveal, then the combat
     assert_eq!(e.state.seats[0].library.len(), 1);
     // Revealed to all, left on top.
-    let revealed = e.reveal_notes.take().unwrap();
+    let revealed = noted_reveals(&mut e);
     assert_eq!(
         revealed
             .iter()
@@ -1733,7 +1733,7 @@ fn sakhar_searches_his_library_for_an_equipment_card() {
     fill_hand(&mut e, 0);
     let magnum = find_library(".44 Magnum");
     let kevlar = find_library("Kevlar Vest");
-    e.reveal_notes = Some(Vec::new());
+    e.notes = Some(Vec::new());
     pick(&mut e, printed_action(sakhar, 0, Target::None));
     let a = e.action().expect("action");
     assert_eq!((a.kind, a.stealth(&e.state)), (ActionKind::Ability, 1));
@@ -1748,7 +1748,7 @@ fn sakhar_searches_his_library_for_an_equipment_card() {
     assert!(e.state.seats[0].hand.contains(&kevlar));
     assert_eq!(e.state.seats[0].library.len(), 3);
     // "Reveal it": the card found told to all.
-    let revealed = e.reveal_notes.take().unwrap();
+    let revealed = noted_reveals(&mut e);
     assert_eq!(
         revealed
             .iter()

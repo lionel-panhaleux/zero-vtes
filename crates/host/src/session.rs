@@ -13,10 +13,11 @@ use zvtes::combat::{CombatNote, Step as CombatStep};
 use zvtes::decision::{ActionKind, Choice, DecisionRequest, WindowLabel, Zone};
 use zvtes::game::{Engine, Step};
 use zvtes::ids::SeatId;
+use zvtes::notes::Note;
 use zvtes::referendum::{Recipient, RefStep};
 
 use crate::deck::Resolved;
-use crate::narrate::{ActionFact, Fact, Mark, Told};
+use crate::narrate::{changes, ActionFact, Fact, Mark, Told};
 use crate::numbering::Decks;
 use crate::view::Viewer;
 
@@ -42,12 +43,15 @@ pub enum Taken {
 }
 
 /// The game before a human decision, for undo: the history's length
-/// then, the engine, the vote orders and (`Session::solo`) each bot's copy.
+/// then, the engine, the vote orders, (`Session::solo`) each bot's copy
+/// and the strikes the view shows resolved.
 struct Snapshot {
     at: usize,
     engine: Engine,
     standing: Vec<(SeatId, bool)>,
     bots: Vec<Option<Box<dyn Agent>>>,
+    /// The last pair of strikes resolved then (`Session::struck`).
+    struck: Option<CombatNote>,
 }
 
 /// The cards a seat can see, by (crypt, KRCG id): what undo must not
@@ -161,12 +165,8 @@ pub fn deal(seed: u64, time_limit: Option<u32>, decks: &[Resolved]) -> Engine {
     if let Some(t) = time_limit {
         engine.time_limit = t;
     }
-    // Combats, reveals, looks, plays and actions told as they happen (`observe`).
-    engine.combat_notes = Some(Vec::new());
-    engine.reveal_notes = Some(Vec::new());
-    engine.look_notes = Some(Vec::new());
-    engine.play_notes = Some(Vec::new());
-    engine.action_notes = Some(Vec::new());
+    // What happens told as it happens (`observe`).
+    engine.notes = Some(Vec::new());
     engine
 }
 
@@ -264,72 +264,31 @@ impl Session {
     }
 
     /// Mark the table, telling what happened since the last mark: the
-    /// engine's notes, then what the marks tell (a referendum's end, and,
-    /// `ran`: across the engine's run, not a decision's own effect, the
-    /// rest in words).
+    /// engine's notes in their order, each change to the table told by
+    /// the ledger after it, with its cause (`ran`: across the engine's
+    /// run, not a decision's own effect, in words), then the strikes
+    /// declared in the combat still under way.
     fn observe(&mut self, ran: bool) {
-        // The actions announced and ended, what combats did, the cards
-        // revealed and the plays finished, in their order, first: their
-        // damage is among the changes; the hands looked at after them. The
-        // queues are drained (and reset, `undo`) together: `after` counts
-        // the combat notes before, `PlayNote::reveals` the reveals, and an
-        // `ActionNote` waits on its `plays` and `reveals` too, going before
-        // a play it does not wait on.
-        let notes = self
-            .engine
-            .combat_notes
-            .as_mut()
-            .map(std::mem::take)
-            .unwrap_or_default();
-        let reveals = self
-            .engine
-            .reveal_notes
-            .as_mut()
-            .map(std::mem::take)
-            .unwrap_or_default();
-        let plays = self
-            .engine
-            .play_notes
-            .as_mut()
-            .map(std::mem::take)
-            .unwrap_or_default();
-        let looks = self
-            .engine
-            .look_notes
-            .as_mut()
-            .map(std::mem::take)
-            .unwrap_or_default();
-        let actions = self
-            .engine
-            .action_notes
-            .as_mut()
-            .map(std::mem::take)
-            .unwrap_or_default();
-        let revealed = !reveals.is_empty() || !looks.is_empty();
-        let mut reveals = reveals.into_iter().peekable();
-        let mut plays = plays.into_iter().peekable();
-        let mut actions = actions.into_iter().peekable();
-        let (mut shown, mut played) = (0, 0);
-        let mut told = Vec::new();
+        let notes = self.engine.take_notes().unwrap_or_default();
         let now = Mark::of(&self.engine);
-        // The action seen at the last mark ends: what the marks tell of it
-        // goes first (`Mark::within`).
-        let mut within = false;
-        for i in 0..=notes.len() {
-            loop {
-                if let Some(a) =
-                    actions.next_if(|a| a.after <= i && a.plays <= played && a.reveals <= shown)
-                {
-                    let action = ActionFact::of(&a.action);
-                    if let Some(before) = self
-                        .mark
-                        .as_ref()
-                        .filter(|b| a.ended && !within && b.acts(&action))
-                    {
-                        before.within(&self.engine, &now, &mut told);
-                        within = true;
+        let mut told = Vec::new();
+        let mut revealed = false;
+        let mut table = self.mark.as_ref().map(|m| &m.ledger);
+        let mut open = self.mark.as_ref().and_then(|m| m.action);
+        for n in &notes {
+            let fact = match n {
+                Note::Ledger { ledger, cause } => {
+                    if let Some(was) = table {
+                        let e = &self.engine;
+                        changes(e, (was, ledger), *cause, ran, open, &mut told);
                     }
-                    let fact = match a.ended {
+                    table = Some(ledger);
+                    continue;
+                }
+                Note::Action(a) => {
+                    let action = ActionFact::of(&a.action);
+                    open = (!a.ended).then_some(action);
+                    match a.ended {
                         false => Fact::ActionStarts(action),
                         true => {
                             let outcome = a.action.outcome.filter(|_| !a.ousted);
@@ -343,32 +302,43 @@ impl Session {
                                     .filter(|_| outcome == Some(Outcome::Blocked)),
                             }
                         }
-                    };
-                    told.push(Told::new(fact, true));
-                } else if let Some(p) = plays.next_if(|p| p.after <= i && p.reveals <= shown) {
-                    played += 1;
-                    told.push(Told::new(Fact::Played(p), true));
-                } else if let Some(r) = reveals.next_if(|r| r.after <= i) {
-                    shown += 1;
-                    told.push(Told::new(
-                        Fact::Revealed {
-                            seat: r.seat,
-                            card: r.card,
-                            crypt: r.crypt,
-                        },
-                        true,
-                    ));
-                } else {
-                    break;
+                    }
                 }
-            }
-            let Some(n) = notes.get(i) else { break };
-            told.push(Told::new(Fact::Combat(*n), true));
-            if matches!(n, CombatNote::Strikes { .. }) {
-                self.struck = Some(*n);
-            }
+                Note::Acting { seat, minion } => {
+                    if let Some(a) = open.as_mut() {
+                        a.acting = *minion;
+                    }
+                    Fact::ActingChanges {
+                        seat: *seat,
+                        minion: *minion,
+                    }
+                }
+                Note::Play(p) => Fact::Played(*p),
+                Note::Reveal(r) => {
+                    revealed = true;
+                    Fact::Revealed {
+                        seat: r.seat,
+                        card: r.card,
+                        crypt: r.crypt,
+                    }
+                }
+                Note::Look(l) => {
+                    revealed = true;
+                    Fact::Looked(l.clone())
+                }
+                Note::Combat(c) => {
+                    if matches!(c, CombatNote::Strikes { .. }) {
+                        self.struck = Some(*c);
+                    }
+                    Fact::Combat(*c)
+                }
+            };
+            told.push(Told::new(fact, true));
         }
-        told.extend(looks.into_iter().map(|l| Told::new(Fact::Looked(l), true)));
+        // The strikes declared in the combat still under way.
+        if let Some(before) = &self.mark {
+            before.strikes(&now, &mut told);
+        }
         // A card revealed or a hand looked at: no undo back past it (it
         // would be known and its place restored), but against bots.
         if revealed && !self.solo {
@@ -376,14 +346,6 @@ impl Session {
                 last.1 = Taken::Revealed;
             }
             self.snapshots.clear();
-        }
-        if let Some(before) = &self.mark {
-            let e = &self.engine;
-            before.turn(&now, &mut told);
-            if !within {
-                before.within(e, &now, &mut told);
-            }
-            before.changes(e, &now, ran, &mut told);
         }
         if !told.is_empty() {
             let faces = crate::narrate::faces(&self.engine);
@@ -523,6 +485,7 @@ impl Session {
                     engine: self.engine.clone(),
                     standing: self.standing.clone(),
                     bots,
+                    struck: self.struck,
                 });
             }
             Taken::Passed | Taken::Order => {}
@@ -624,6 +587,7 @@ impl Session {
                 let s = self.snapshots.swap_remove(i);
                 self.snapshots.truncate(i);
                 self.standing = s.standing;
+                self.struck = s.struck;
                 for (seat, bot) in s.bots.into_iter().enumerate() {
                     if bot.is_some() {
                         self.agents[seat] = bot;
@@ -641,15 +605,21 @@ impl Session {
                         Step::Over(_) => unreachable!("the log replays"),
                     }
                 }
+                // The strikes the view shows resolved, as replayed.
+                self.struck = engine
+                    .take_notes()
+                    .unwrap_or_default()
+                    .into_iter()
+                    .rev()
+                    .find_map(|n| match n {
+                        Note::Combat(c @ CombatNote::Strikes { .. }) => Some(c),
+                        _ => None,
+                    });
                 engine
             }
         };
         // The combats, reveals, looks, plays and actions since were told already.
-        engine.combat_notes = Some(Vec::new());
-        engine.reveal_notes = Some(Vec::new());
-        engine.look_notes = Some(Vec::new());
-        engine.play_notes = Some(Vec::new());
-        engine.action_notes = Some(Vec::new());
+        engine.notes = Some(Vec::new());
         self.engine = engine;
         self.history.truncate(at);
         self.pending = None;
@@ -986,22 +956,21 @@ mod tests {
 
     /// A card an effect reveals is told to every seat with its id, no copy
     /// number (it stays in its hidden place): a crypt's top, as Mesu
-    /// Bedshet reveals it (the engine's `reveal_notes`).
+    /// Bedshet reveals it (the engine's `Note::Reveal`).
     #[test]
     fn a_revealed_card_is_told_to_every_seat() {
         let (mut s, _) = session();
         s.observe(false);
         let top = *s.engine.state.seats[0].crypt.last().expect("a crypt");
         s.engine
-            .reveal_notes
+            .notes
             .as_mut()
-            .expect("reveals noted")
-            .push(zvtes::game::Reveal {
+            .expect("noting")
+            .push(Note::Reveal(zvtes::game::Reveal {
                 seat: SeatId(0),
                 card: top,
                 crypt: true,
-                after: 0,
-            });
+            }));
         s.observe(true);
         let fact = s
             .told
@@ -1050,15 +1019,14 @@ mod tests {
         to_undoable(&mut s);
         let top = *s.engine.state.seats[0].crypt.last().expect("a crypt");
         s.engine
-            .reveal_notes
+            .notes
             .as_mut()
-            .expect("reveals noted")
-            .push(zvtes::game::Reveal {
+            .expect("noting")
+            .push(Note::Reveal(zvtes::game::Reveal {
                 seat: SeatId(0),
                 card: top,
                 crypt: true,
-                after: 0,
-            });
+            }));
         s.observe(true);
         assert!(matches!(s.undo(), Err(Refused::NoUndo)), "barred");
     }
@@ -1126,7 +1094,7 @@ mod tests {
             .hand
             .push(find_library("Kine Resources Contested"));
         e.state.seats[1].hand.push(find_library("Minion Tap"));
-        e.look_notes = Some(Vec::new());
+        e.notes = Some(Vec::new());
         s.engine = e;
         s.observe(false);
         let kine = Choice::Play {
@@ -1210,82 +1178,58 @@ mod tests {
         to_undoable(&mut s);
         let cards = s.engine.state.seats[1].hand.to_vec();
         s.engine
-            .look_notes
+            .notes
             .as_mut()
-            .expect("looks noted")
-            .push(zvtes::game::Look {
+            .expect("noting")
+            .push(Note::Look(zvtes::game::Look {
                 viewer: SeatId(0),
                 seat: SeatId(1),
                 cards,
-            });
+            }));
         s.observe(true);
         assert!(matches!(s.undo(), Err(Refused::NoUndo)), "barred");
     }
 
-    /// Reveals told in their order among a combat's notes (`Reveal::after`:
-    /// the combat notes before it; both queues drained together).
+    /// The notes told in their order, a change to the table in its
+    /// place among them, with its cause (`Note::Ledger`).
     #[test]
-    fn a_reveal_is_told_in_its_place_among_the_combat_notes() {
+    fn the_notes_and_the_table_s_changes_are_told_in_their_order() {
+        use zvtes::notes::{Cause, Source};
         let (mut s, _) = session();
         s.observe(false);
         let m = [zvtes::ids::MinionId(0), zvtes::ids::MinionId(1)];
-        s.engine.combat_notes = Some(vec![
-            CombatNote::Begins { minions: m },
-            CombatNote::Ends { minions: m },
-        ]);
         let top = *s.engine.state.seats[0].crypt.last().expect("a crypt");
-        s.engine.reveal_notes = Some(vec![zvtes::game::Reveal {
+        let villein = zvtes::state::find_library("Villein");
+        let play = zvtes::game::PlayNote {
             seat: SeatId(0),
-            card: top,
-            crypt: true,
-            after: 1,
-        }]);
-        let before = s.told.len();
-        s.observe(true);
-        let order: Vec<&str> = s.told[before..]
-            .iter()
-            .filter_map(|t| match t.fact {
-                Fact::Combat(CombatNote::Begins { .. }) => Some("begins"),
-                Fact::Revealed { .. } => Some("revealed"),
-                Fact::Combat(CombatNote::Ends { .. }) => Some("ends"),
-                _ => None,
-            })
-            .collect();
-        assert_eq!(order, vec!["begins", "revealed", "ends"]);
-    }
-
-    /// Plays finished are told in their place among the combat notes and
-    /// the reveals: one noted after a reveal follows it, one before the
-    /// next note precedes that.
-    #[test]
-    fn a_play_is_told_in_its_place_among_the_notes() {
-        let (mut s, _) = session();
-        s.observe(false);
-        let m = [zvtes::ids::MinionId(0), zvtes::ids::MinionId(1)];
-        s.engine.combat_notes = Some(vec![
-            CombatNote::Begins { minions: m },
-            CombatNote::Ends { minions: m },
-        ]);
-        let top = *s.engine.state.seats[0].crypt.last().expect("a crypt");
-        s.engine.reveal_notes = Some(vec![zvtes::game::Reveal {
-            seat: SeatId(0),
-            card: top,
-            crypt: true,
-            after: 1,
-        }]);
-        let play = |after, reveals| zvtes::game::PlayNote {
-            seat: SeatId(0),
-            card: zvtes::state::find_library("Villein"),
+            card: villein,
             copy: CopyId::NONE,
             mode: 0,
             actor: None,
             target: Target::None,
             canceled: false,
             no_effect: false,
-            after,
-            reveals,
         };
-        s.engine.play_notes = Some(vec![play(1, 0), play(1, 1)]);
+        let mut paid = s.engine.table();
+        paid.pools[0] -= 1;
+        let cost = Cause::Cost(Source::Played {
+            card: villein,
+            copy: CopyId::NONE,
+        });
+        s.engine.notes = Some(vec![
+            Note::Combat(CombatNote::Begins { minions: m }),
+            Note::Play(play),
+            Note::Reveal(zvtes::game::Reveal {
+                seat: SeatId(0),
+                card: top,
+                crypt: true,
+            }),
+            Note::Ledger {
+                ledger: Box::new(paid),
+                cause: Some(cost),
+            },
+            Note::Combat(CombatNote::Ends { minions: m }),
+        ]);
         let before = s.told.len();
         s.observe(true);
         let order: Vec<&str> = s.told[before..]
@@ -1294,14 +1238,16 @@ mod tests {
                 Fact::Combat(CombatNote::Begins { .. }) => Some("begins"),
                 Fact::Revealed { .. } => Some("revealed"),
                 Fact::Played(_) => Some("played"),
+                Fact::Pool {
+                    delta: -1,
+                    cause: Some(c),
+                    ..
+                } if c == cost => Some("paid"),
                 Fact::Combat(CombatNote::Ends { .. }) => Some("ends"),
                 _ => None,
             })
             .collect();
-        assert_eq!(
-            order,
-            vec!["begins", "played", "revealed", "played", "ends"]
-        );
+        assert_eq!(order, vec!["begins", "played", "revealed", "paid", "ends"]);
     }
 
     /// A legal no-op is hidden with the opportunities off, shown with them
@@ -1323,6 +1269,7 @@ mod tests {
             0,
         ));
         let id = CardId(e.state.cards.len() as u32 - 1);
+        e.notes = Some(Vec::new());
         s.engine = e;
         let Step::Decision(req) = s.engine.run() else {
             panic!("a decision");
@@ -1362,6 +1309,7 @@ mod tests {
         let h = e.add_minion(SeatId(0), find_card("Madison"), 4, false);
         e.add_minion(SeatId(0), find_card("Crystal Lynn"), 4, false);
         let z = e.add_minion(SeatId(1), find_card("Donny Kowalczyk"), 4, false);
+        e.notes = Some(Vec::new());
         s.engine = e;
         let Step::Decision(req) = s.engine.run() else {
             panic!("a decision");
@@ -1424,6 +1372,7 @@ mod tests {
         let g = e.add_minion(SeatId(0), find_card("Gathii"), 4, false);
         e.add_minion(SeatId(0), find_card("Madison"), 4, false);
         e.add_minion(SeatId(1), find_card("Donny Kowalczyk"), 4, false);
+        e.notes = Some(Vec::new());
         s.engine = e;
         let Step::Decision(req) = s.engine.run() else {
             panic!("a decision");
@@ -1465,6 +1414,7 @@ mod tests {
         for c in ["Form of the Cobra", "Revelation of the Serpent"] {
             e.state.seats[0].hand.put(find_library(c), CopyId::NONE);
         }
+        e.notes = Some(Vec::new());
         s.engine = e;
         let bleed = Choice::TakeAction {
             minion: p,
@@ -1524,6 +1474,7 @@ mod tests {
         if let Some(c) = card {
             e.state.seats[0].hand.put(find_library(c), CopyId::NONE);
         }
+        e.notes = Some(Vec::new());
         s.engine = e;
         let bleed = Choice::TakeAction {
             minion: p,
@@ -1601,6 +1552,7 @@ mod tests {
         e.state.seats[2]
             .hand
             .put(find_library("On the Qui Vive"), CopyId::NONE);
+        e.notes = Some(Vec::new());
         s.engine = e;
         let Step::Decision(req) = s.engine.run() else {
             panic!("a decision");
@@ -1706,6 +1658,7 @@ mod tests {
         e.state.seats[0]
             .hand
             .put(find_library("Kine Resources Contested"), CopyId::NONE);
+        e.notes = Some(Vec::new());
         s.engine = e;
         s.set_opportunities(on);
         let wanted = [
@@ -1780,6 +1733,7 @@ mod tests {
         e.state.seats[1]
             .hand
             .put(find_library("On the Qui Vive"), CopyId::NONE);
+        e.notes = Some(Vec::new());
         s.engine = e;
         let Step::Decision(req) = s.engine.run() else {
             panic!("a decision");

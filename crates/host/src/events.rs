@@ -69,6 +69,35 @@ impl Namer<'_> {
         self.minion_card(m).copy.unwrap_or(u32::MAX)
     }
 
+    fn cause(&mut self, c: zvtes::notes::Cause) -> zvtes_api::event::Cause {
+        use zvtes::notes::{Cause as C, Rule, Source};
+        let (kind, source) = match c {
+            C::Cost(s) => (zvtes_api::event::CauseKind::Cost, s),
+            C::Effect(s) => (zvtes_api::event::CauseKind::Effect, s),
+        };
+        let (card, rule) = match source {
+            Source::Played { card, copy } => (Some(self.card(copy, card, false)), None),
+            Source::Card(c) => (Some(self.in_play(c)), None),
+            Source::Minion(m) => (Some(self.minion_named(m)), None),
+            Source::Rule(r) => {
+                use zvtes_api::event::CauseRule as R;
+                let r = match r {
+                    Rule::Strikes => R::Strikes,
+                    Rule::Transfer => R::Transfer,
+                    Rule::Oust => R::Oust,
+                    Rule::Edge => R::Edge,
+                    Rule::Contest => R::Contest,
+                    Rule::Disease => R::Disease,
+                    Rule::Diablerie => R::Diablerie,
+                    Rule::Capacity => R::Capacity,
+                    Rule::Vote => R::Vote,
+                };
+                (None, Some(r))
+            }
+        };
+        zvtes_api::event::Cause { kind, card, rule }
+    }
+
     fn in_play(&mut self, c: CardId) -> Card {
         let card = &self.e.state.cards[c.index()];
         self.card(*card.copy, card.card, false)
@@ -134,20 +163,31 @@ impl Namer<'_> {
                     actor: p.actor.map(|m| self.minion(m)),
                     card: card.copy,
                 };
+                // Pool and blood (life) it moves at once: told by their
+                // events, the card their cause.
                 let effects = zvtes::cards::lookup(p.card)
                     .and_then(|d| d.modes.get(p.mode as usize))
                     .filter(|_| !p.no_effect)
-                    .map_or(Vec::new(), |m| crate::effects::curated(m.effects, whom));
+                    .map_or(Vec::new(), |m| crate::effects::curated(m.effects, whom))
+                    .into_iter()
+                    .filter(|e| !(e.when.is_none() && told_by_events(e.kind)))
+                    .collect();
                 EventKind::Resolved {
                     seat: p.seat.0,
                     card,
                     effects,
                 }
             }
-            Fact::Pool { seat, delta, pool } => EventKind::Pool {
+            Fact::Pool {
+                seat,
+                delta,
+                pool,
+                cause,
+            } => EventKind::Pool {
                 seat: seat.0,
                 delta,
                 pool,
+                cause: cause.map(|c| self.cause(c)),
             },
             Fact::Ousted { seat } => EventKind::Ousted { seat: seat.0 },
             Fact::Edge { seat } => EventKind::Edge {
@@ -179,10 +219,12 @@ impl Namer<'_> {
                 minion,
                 delta,
                 blood,
+                cause,
             } => EventKind::Blood {
                 minion: self.minion(minion),
                 delta,
                 blood,
+                cause: cause.map(|c| self.cause(c)),
             },
             Fact::CardEnters { card, on } => EventKind::EntersPlay {
                 card: self.in_play(card),
@@ -227,6 +269,11 @@ impl Namer<'_> {
                 acting: self.minion_named(action.acting),
                 minion: self.minion_kind(action.acting),
                 action: self.action(action),
+            },
+            Fact::ActingChanges { seat, minion } => EventKind::ActingChanges {
+                seat: seat.0,
+                acting: self.minion_named(minion),
+                minion: self.minion_kind(minion),
             },
             Fact::ActionEnds {
                 action,
@@ -324,4 +371,10 @@ impl Viewer {
         }
         .event(t.fact.clone())
     }
+}
+
+/// An effect's kind whose change an event tells (`pool`, `blood`).
+fn told_by_events(k: zvtes_api::option::EffectKind) -> bool {
+    use zvtes_api::option::EffectKind as K;
+    matches!(k, K::Pool | K::Blood | K::Life)
 }

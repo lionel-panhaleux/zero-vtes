@@ -1219,6 +1219,51 @@ fn the_digest_of_a_built_position_is_pinned() {
     assert_eq!(zvtes_host::digest::digest(&e), "10d41669a03aeac7");
 }
 
+/// A created vampire banished to an uncontrolled region (its slot has no
+/// crypt card: Childe of the Revolution, banished) digests and is viewed
+/// by its library card.
+#[test]
+fn a_banished_created_vampire_digests_by_its_card() {
+    use zvtes::copies::{CopyId, Untracked};
+    use zvtes::ids::{MinionId, SeatId};
+    use zvtes::state::{Banished, CardId, Minion, MinionKind, UncontrolledSlot, CREATED, NEWBORN};
+    let embrace = zvtes::state::find_library("Childe of the Revolution");
+    let record = precon_midgame(3, 4);
+    let mut e = zvtes_host::replay::Replay::new(&record).unwrap().deal();
+    let m = MinionId(e.state.minions.len() as u32);
+    let created = MinionKind::Created {
+        card: embrace,
+        id: CardId(0),
+        clan: Some("Brujah"),
+        sect: zvtes::crypt::Sect::Camarilla,
+        born: &NEWBORN,
+    };
+    e.state.minions.push(Minion {
+        in_play: false,
+        ..Minion::new(SeatId(1), created, 0)
+    });
+    let before = zvtes_host::digest::digest(&e);
+    e.state.seats[2].uncontrolled.push(UncontrolledSlot {
+        card: CREATED,
+        copy: Untracked(CopyId::NONE),
+        counters: 2,
+        banished: Some(Banished {
+            minion: m,
+            cards: Vec::new(),
+        }),
+    });
+    assert_ne!(zvtes_host::digest::digest(&e), before);
+    // Viewed by its library card, by every seat.
+    let decks = zvtes_host::numbering::Decks::dealt(&e);
+    let names = vec![String::new(); e.state.seats.len()];
+    for s in 0..e.state.seats.len() {
+        let mut v = zvtes_host::view::Viewer::new(Some(SeatId(s as u8)));
+        let view = v.view(&e, &decks, &names);
+        let slot = view.seats[2].uncontrolled.last().expect("the slot");
+        assert!(slot.banished && !slot.card.crypt, "seat {s}: {slot:?}");
+    }
+}
+
 /// Against bots, undo takes back the human's previous decision whatever
 /// the bots decided or was revealed since, one human decision at each
 /// undo, and the bots answer again as they did (owner, 2026-10-18:

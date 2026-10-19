@@ -11406,9 +11406,9 @@ fn the_mithraeum_finds_mithras_and_feeds_his_cult() {
     assert!(e.state.mithraic_member(c));
     assert_eq!(e.state.host_votes(c), 0, "no Mithras controlled");
     // Influence phase: Mithras moves to the uncontrolled region, revealed.
-    e.reveal_notes = Some(Vec::new());
+    e.notes = Some(Vec::new());
     pick_when(&mut e, use_on(m, 0, None, Target::None));
-    let revealed = e.reveal_notes.take().unwrap();
+    let revealed = noted_reveals(&mut e);
     assert_eq!(
         revealed
             .iter()

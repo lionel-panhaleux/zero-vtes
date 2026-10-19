@@ -20,6 +20,20 @@ fn from() -> u32 {
     std::env::var("HOST_SEED_FROM").map_or(1, |s| s.parse().unwrap())
 }
 
+/// Seeds past the default a deeper sweep failed on (`HOST_SEEDS=400`),
+/// kept: a banished created vampire (70), Mask of a Thousand Faces (132),
+/// Victor Pelletier's price (172), the strikes shown after an undo (219),
+/// Spiritual Guidance's play from the ash heap (346).
+const KEPT: [u32; 5] = [70, 132, 172, 219, 346];
+
+/// The sweep's seeds: `HOST_SEED_FROM` to `HOST_SEEDS` (40), the kept
+/// ones past it.
+fn seeds() -> Vec<u32> {
+    let to: u32 = std::env::var("HOST_SEEDS").map_or(40, |s| s.parse().unwrap());
+    let kept = KEPT.into_iter().filter(|&s| s > to && from() == 1);
+    (from()..=to).chain(kept).collect()
+}
+
 struct NoBots;
 
 impl Bots for NoBots {
@@ -147,13 +161,29 @@ struct Stream {
     /// The action told announced and not yet ended (seat, acting), by the
     /// events alone; unknown after an undo, until a view shows the table.
     open: Option<Option<(u8, u32)>>,
-    /// The seat of the event before, when it was a decision.
+    /// The seat of the last decision, until the action it announced or
+    /// the next turn.
     decided: Option<u8>,
     /// Actions announced and ended within one message, and announced with
     /// no decision before (a forced action).
     within: usize,
     undecided: usize,
     started: bool,
+    /// The turn's active seat, as its `turn` told it.
+    active: Option<u8>,
+    /// The acting minion of the action ended last, until the next one,
+    /// decision or turn: none of its effects told after its end.
+    closed: Option<Closed>,
+    /// Pool and blood events, each with its cause.
+    caused: usize,
+}
+
+/// The action ended last: its seat, acting minion and card's copy.
+#[derive(Clone, Copy)]
+struct Closed {
+    seat: u8,
+    acting: u32,
+    card: Option<u32>,
 }
 
 fn numbered(c: &Card) -> bool {
@@ -161,16 +191,77 @@ fn numbered(c: &Card) -> bool {
 }
 
 impl Stream {
+    /// A pool or blood event's cause: there; and another seat's pool or
+    /// another minion's blood the action ended just before moved (a
+    /// bleed's, by its acting minion or its card) is told within it, not
+    /// after (the acting minion's own riders may follow on itself: César
+    /// Holfield's minion phase end).
+    fn cause(&mut self, cause: Option<&zvtes_api::event::Cause>, e: &Event) {
+        let seed = self.seed;
+        let c = cause.unwrap_or_else(|| panic!("seed {seed}: no cause: {e:?}"));
+        use zvtes_api::event::{CauseKind, CauseRule as R};
+        let (pool, delta) = match e.kind {
+            EventKind::Pool { delta, .. } => (true, delta),
+            EventKind::Blood { delta, .. } => (false, delta),
+            _ => unreachable!("a pool or blood event"),
+        };
+        // A cost is paid, never gained.
+        assert!(
+            !(c.kind == CauseKind::Cost && delta > 0),
+            "seed {seed}: a cost gained: {e:?}"
+        );
+        // A rule moves what it can: a transfer 1 of the active seat's pool
+        // (to an uncontrolled vampire, or back), combat blood (damage, a
+        // strike stealing it), a disease or capacity blood lost, the Edge's
+        // pool gained, a vote's price pool.
+        let fits = match c.rule {
+            None => c.card.is_some(),
+            Some(R::Transfer) => {
+                let active = |s: u8| self.active.is_none_or(|a| a == s);
+                pool && delta.abs() == 1
+                    && matches!(e.kind, EventKind::Pool { seat, .. } if active(seat))
+            }
+            Some(R::Strikes) => !pool,
+            Some(R::Disease | R::Capacity) => !pool && delta < 0,
+            Some(R::Edge) => pool && delta > 0,
+            Some(R::Vote) => pool && delta < 0,
+            Some(R::Oust) => pool,
+            Some(R::Contest) => delta < 0,
+            Some(R::Diablerie) => true,
+            Some(R::Unknown) => false,
+        };
+        assert!(fits, "seed {seed}: a cause that cannot be: {e:?}");
+        if let Some(a) = self.closed {
+            let by = c.card.as_ref().and_then(|c| c.copy);
+            let of_action = by.is_some() && (by == Some(a.acting) || by == a.card);
+            let other = match e.kind {
+                EventKind::Pool { seat, .. } => seat != a.seat,
+                EventKind::Blood { minion, .. } => minion != a.acting,
+                _ => false,
+            };
+            assert!(
+                !(c.kind == CauseKind::Effect && of_action && other),
+                "seed {seed}: told after its action: {e:?}"
+            );
+        }
+        self.caused += 1;
+    }
+
     fn event(&mut self, e: &Event) {
         let seed = self.seed;
-        let decided = std::mem::replace(
-            &mut self.decided,
-            match e.kind {
-                EventKind::Decided { seat, .. } => Some(seat),
-                _ => None,
-            },
-        );
+        if let EventKind::Decided { seat, .. } = e.kind {
+            self.decided = Some(seat);
+        }
+        let decided = self.decided;
         self.told += 1;
+        // An acting minion named before it acts: in a view, or entering
+        // play first (a vampire created and hunting in one run).
+        if let EventKind::ActionStarts { acting, .. } = &e.kind {
+            assert!(
+                self.names.is_minion(acting),
+                "seed {seed}: acting before entering play: {e:?}"
+            );
+        }
         self.names.hear(&e.kind);
         if std::env::var_os("HOST_TRACE").is_some() {
             eprintln!("event {:?} {:?}", e.kind, e.text);
@@ -204,6 +295,11 @@ impl Stream {
             acting: card,
             minion: kind,
             ..
+        }
+        | EventKind::ActingChanges {
+            acting: card,
+            minion: kind,
+            ..
         } = &e.kind
         {
             if let Some(c) = card.copy {
@@ -218,6 +314,14 @@ impl Stream {
         match &e.kind {
             EventKind::Resolved { card, effects, .. } => {
                 assert!(card.copy.is_some(), "seed {seed}: {e:?}");
+                // What it moves at once told by its events, not twice.
+                use zvtes_api::option::EffectKind as K;
+                assert!(
+                    !effects
+                        .iter()
+                        .any(|f| f.when.is_none() && matches!(f.kind, K::Pool | K::Blood | K::Life)),
+                    "seed {seed}: told twice: {e:?}"
+                );
                 for c in effects.iter().filter_map(|f| f.copy) {
                     assert_ne!(c, u32::MAX, "seed {seed}: an unnumbered copy: {e:?}");
                 }
@@ -231,8 +335,16 @@ impl Stream {
         }
         let copy = |c: u32| assert_ne!(c, u32::MAX, "seed {seed}: an unnumbered minion: {e:?}");
         match &e.kind {
+            EventKind::Turn { active, .. } => {
+                self.active = Some(*active);
+                self.closed = None;
+                self.decided = None;
+            }
+            EventKind::Decided { .. } => self.closed = None,
             EventKind::Undone { to, .. } => {
                 self.again = Some(*to);
+                // Back in another turn, perhaps: the next view tells it.
+                self.active = None;
                 self.open = None;
                 self.last = None;
                 self.in_combat = None;
@@ -279,17 +391,39 @@ impl Stream {
             EventKind::ActionStarts { seat, acting, .. } => {
                 let acting = &acting.copy.expect("the acting minion's copy");
                 copy(*acting);
+                // A forced action (no decision of its seat before it: a
+                // hunt) is the active Methuselah's: told after its turn's
+                // `turn`. One decided may be another's (a minion phase a
+                // card grants).
+                if let (Some(active), true) = (self.active, decided != Some(*seat)) {
+                    assert_eq!(active, *seat, "seed {seed}: forced before its turn: {e:?}");
+                }
+                self.closed = None;
                 if let Some(open) = self.open {
                     assert_eq!(open, None, "seed {seed}: announced while one is open");
                 }
                 self.open = Some(Some((*seat, *acting)));
                 self.undecided += usize::from(decided != Some(*seat));
+                self.decided = None;
                 self.started = true;
+            }
+            // Another minion now acting: within an action of its seat.
+            EventKind::ActingChanges { seat, acting, .. } => {
+                let acting = acting.copy.expect("the acting minion's copy");
+                copy(acting);
+                if let Some(open) = self.open {
+                    let Some((s, _)) = open else {
+                        panic!("seed {seed}: acting changes with no action");
+                    };
+                    assert_eq!(s, *seat, "seed {seed}: another seat's action");
+                    self.open = Some(Some((s, acting)));
+                }
             }
             EventKind::ActionEnds {
                 seat,
                 acting,
                 blocker,
+                action,
                 ..
             } => {
                 copy(*acting);
@@ -302,6 +436,11 @@ impl Stream {
                     );
                 }
                 self.open = Some(None);
+                self.closed = Some(Closed {
+                    seat: *seat,
+                    acting: *acting,
+                    card: action.card.as_ref().and_then(|c| c.copy),
+                });
                 self.within += usize::from(self.started);
             }
             EventKind::ReferendumEnds { action, .. } => {
@@ -314,11 +453,20 @@ impl Stream {
                 }
                 self.referendum_ended = true;
             }
-            EventKind::Pool { seat, pool, .. } => {
+            EventKind::Pool {
+                seat, pool, cause, ..
+            } => {
+                self.cause(cause.as_ref(), e);
                 self.pools.insert(*seat, *pool);
             }
-            EventKind::Blood { minion, blood, .. } => {
+            EventKind::Blood {
+                minion,
+                blood,
+                cause,
+                ..
+            } => {
                 copy(*minion);
+                self.cause(cause.as_ref(), e);
                 self.blood.insert(*minion, *blood);
             }
             EventKind::Torpor { minion, enters } => {
@@ -442,10 +590,12 @@ impl Stream {
                     events.iter().for_each(|e| self.event(e));
                     if let Some(v) = view {
                         self.names.see(v);
+                        self.active = Some(v.active);
                         self.shows(v, "a step");
                     }
                 }
                 Message::Decision(d) => {
+                    self.active = Some(d.view.active);
                     if let Some(to) = self.again.take() {
                         assert_eq!(d.decision, to, "seed {}: asked again", self.seed);
                         let first = self.asked.get(&to);
@@ -498,13 +648,13 @@ fn cmd(command: Command) -> In {
 
 #[test]
 fn the_events_tell_what_the_views_show() {
-    let seeds: u32 = std::env::var("HOST_SEEDS").map_or(40, |s| s.parse().unwrap());
+    let seeds = seeds();
     let (mut told, mut texts, mut undone, mut allocated, mut voted) = (0, 0, 0, 0, 0);
     let mut played = [0, 0];
-    let (mut within, mut undecided) = (0, 0);
+    let (mut within, mut undecided, mut caused) = (0, 0, 0);
     let mut reasked = 0;
     let mut misses = Vec::new();
-    for seed in from()..=seeds {
+    for &seed in &seeds {
         let settings = Settings {
             opportunities: seed % 3 != 0,
             views: Views::Steps,
@@ -537,6 +687,9 @@ fn the_events_tell_what_the_views_show() {
             within: 0,
             undecided: 0,
             started: false,
+            active: None,
+            closed: None,
+            caused: 0,
         };
         let mut outs = g.handle(
             human,
@@ -633,6 +786,7 @@ fn the_events_tell_what_the_views_show() {
         texts += s.texts;
         within += s.within;
         undecided += s.undecided;
+        caused += s.caused;
         played[0] += s.played[0];
         played[1] += s.played[1];
         misses.extend(s.misses.into_iter().map(|m| (seed, m)));
@@ -646,8 +800,9 @@ fn the_events_tell_what_the_views_show() {
         misses.len()
     );
     eprintln!(
-        "{seeds} games: {told} events ({texts} with text), {undone} undos, \
-         {allocated} allocations, {voted} votes cast at once, {reasked} views asked again alike"
+        "{} games: {told} events ({texts} with text), {undone} undos, \
+         {allocated} allocations, {voted} votes cast at once, {reasked} views asked again alike",
+        seeds.len()
     );
     assert!(
         allocated > 0 && voted > 0,
@@ -659,6 +814,8 @@ fn the_events_tell_what_the_views_show() {
     // engine announces itself, followed all the same.
     eprintln!("actions: {within} announced and ended in one message, {undecided} with no decision");
     assert!(within > 0 && undecided > 0, "actions untried");
+    eprintln!("{caused} pool and blood events, each with its cause");
+    assert!(caused > 0, "no pool or blood told");
 }
 
 /// Every option a seat is shown is told in English with the text
@@ -667,10 +824,10 @@ fn the_events_tell_what_the_views_show() {
 /// was never shown is a field missing.
 #[test]
 fn every_option_and_choice_is_told() {
-    let seeds: u32 = std::env::var("HOST_SEEDS").map_or(40, |s| s.parse().unwrap());
+    let seeds = seeds();
     let (mut options, mut decided, mut prompts) = (0, 0, 0);
     let mut unnamed: std::collections::BTreeMap<String, (usize, String)> = Default::default();
-    for seed in from()..=seeds {
+    for &seed in &seeds {
         let settings = Settings {
             opportunities: seed % 3 != 0,
             views: Views::Decisions,
@@ -700,6 +857,7 @@ fn every_option_and_choice_is_told() {
                 .replace("with a card in your hand", "")
                 .replace("a minion of", "")
                 .replace("bottom a card", "")
+                .replace("a card in your library", "")
                 .replace("Discard a card from", "");
             for bare in ["a card", "a minion"] {
                 if text.contains(bare) {
@@ -782,7 +940,10 @@ fn every_option_and_choice_is_told() {
     for (what, (n, eg)) in &unnamed {
         eprintln!("unnamed: {n:6} {what} (e.g. {eg:?})");
     }
-    eprintln!("{seeds} games: {options} options, {decided} decisions, {prompts} prompts told");
+    eprintln!(
+        "{} games: {options} options, {decided} decisions, {prompts} prompts told",
+        seeds.len()
+    );
     assert!(
         unnamed.is_empty(),
         "{} kinds of lines name nothing",

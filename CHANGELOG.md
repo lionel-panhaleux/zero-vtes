@@ -8,9 +8,11 @@ removes; its `--check` fails a removal without a major version.
 
 ## 2.5.0
 
-Round 18's cards (rules-qa Batch 85) and the event `action_starts`,
-additions only; `action_ends` now told for every action (one within a
-message too), and undo against bots, behaviours with no field or id.
+Round 18's cards (rules-qa Batch 85), the events `action_starts` and
+`acting_changes` and the `cause` of `pool` and `blood`, additions only;
+`action_ends` now told for every action (one within a message too),
+every event in the order it happened, `resolved` without what its events
+tell, and undo against bots, behaviours with no field or id.
 
 - `Purpose`: `store_own_hand` — Storage Annex as it is played: the card of
   the hand put face down on `card` (`find_card`), replaced.
@@ -21,6 +23,23 @@ message too), and undo against bots, behaviours with no field or id.
   within one message too (a bot's employ had none). The `action` effect
   without its `action` field documented (§7: `master_phase`,
   `discard_phase`).
+- Events in the order they happened (§9): an action's between its
+  `action_starts` and `action_ends` (an ousting bleed's `pool` and
+  `ousted` had come after its end), a minion's `enters_play` before the
+  actions it takes (a vampire created and hunting in one run), a turn's
+  `turn` before the turn's events (a forced hunt had come before it).
+- `pool` and `blood`: `cause` (`kind`: `cost` or `effect`; `card`, or
+  `rule`: `strikes`, `transfer`, `oust`, `edge`, `contest`, `diablerie`,
+  `capacity`, `vote`, `disease`), what made the change.
+- `resolved`: its `pool`, `blood` and `life` effects at once no longer
+  among `effects` (they repeated the events after it, which name the card
+  as their cause); one that comes later (`when`) stays.
+- Event `acting_changes` (`seat`, `acting`, `minion`): another minion
+  now acting in the action under way (Mask of a Thousand Faces); its
+  `action_ends` names them (it had ended an action no event announced).
+- A banished created vampire's uncontrolled slot: viewed and digested by
+  its library card (the view and the digest had failed on it, §11's
+  definition otherwise unchanged).
 - `undo` against bots (one human seat: every server game) is open at
   every decision after the seat's first, one human decision back each
   time, across the bots' decisions, vote orders (`vote_all`, the order

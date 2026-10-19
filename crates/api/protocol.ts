@@ -339,6 +339,32 @@ export type CardRef = {
 }
 
 /**
+ * What made a `pool` or `blood` change: a cost paid or an effect, of a
+ * card or of the rules.
+ */
+export type Cause = {
+    /** A card played or in play, or a minion (its action, its ability). */
+    card?: Card | null
+    kind: CauseKind
+    /** A rule of the game, with no card. */
+    rule?: CauseRule | null
+}
+
+export type CauseKind = 'cost' | 'effect' | 'unknown'
+
+export type CauseRule = 
+    | 'diablerie'
+    | 'strikes'
+    | 'transfer'
+    | 'oust'
+    | 'edge'
+    | 'contest'
+    | 'disease'
+    | 'capacity'
+    | 'vote'
+    | 'unknown'
+
+/**
  * What identifies an option: two options of one decision never share a
  * key (copies alike in hand are one option). A record keeps each answer
  * by its key, with the engine's copy numbers: a later engine finds the
@@ -686,6 +712,7 @@ export type Event = {
         seat: number
     }
     | {
+        cause?: Cause | null
         delta: number
         kind: 'pool'
         pool: number
@@ -693,6 +720,7 @@ export type Event = {
     }
     | {
         blood: number
+        cause?: Cause | null
         delta: number
         kind: 'blood'
         minion: number
@@ -755,6 +783,12 @@ export type Event = {
         acting: Card
         action: ActionRef
         kind: 'action_starts'
+        minion: MinionKind
+        seat: number
+    }
+    | {
+        acting: Card
+        kind: 'acting_changes'
         minion: MinionKind
         seat: number
     }

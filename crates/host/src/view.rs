@@ -102,6 +102,13 @@ struct Build<'a> {
 }
 
 impl Build<'_> {
+    /// An uncontrolled vampire's card: its crypt card, or a banished
+    /// created vampire's library card.
+    fn slot_card(&self, u: &zvtes::state::UncontrolledSlot) -> Card {
+        let (card, crypt) = crate::describe::slot_face(self.e, u);
+        self.card(*u.copy, card, crypt)
+    }
+
     /// A card: its face if the viewer sees it, its copy if numbered.
     fn card(&self, copy: CopyId, card: u16, crypt: bool) -> Card {
         let id = (card != HIDDEN).then(|| {
@@ -376,7 +383,7 @@ impl Build<'_> {
                 .uncontrolled
                 .iter()
                 .map(|u| SlotView {
-                    card: self.card(*u.copy, u.card, true),
+                    card: self.slot_card(u),
                     counters: u.counters,
                     banished: u.banished.is_some(),
                     cards: u.banished.as_ref().map_or_else(Vec::new, |b| {

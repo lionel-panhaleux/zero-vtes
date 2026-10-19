@@ -7,6 +7,7 @@ use crate::crypt::CRYPT;
 use crate::decision::{Choice, DecisionRequest, WindowLabel};
 use crate::game::{Engine, Flow};
 use crate::ids::{MinionId, SeatId};
+use crate::notes::{Cause, Source};
 use crate::state::UncontrolledSlot;
 
 /// Transfers granted at the start of an influence phase: 1/2/3 on the first
@@ -256,7 +257,8 @@ impl Engine {
                         })
                         .count() as i32;
                     if k > 0 {
-                        self.state.seats[s.index()].pool -= 3 * k;
+                        let scarce = Cause::Effect(Source::Minion(m));
+                        self.caused(scarce, |e| e.state.seats[s.index()].pool -= 3 * k);
                         if self.state.seats[s.index()].pool <= 0 {
                             self.oust_and_pass(s);
                         }
@@ -265,7 +267,8 @@ impl Engine {
             }
             Choice::ResolveRider { card } => {
                 self.flow = Flow::Influence { left };
-                self.influence_burn(crate::state::CardId(*card));
+                let id = crate::state::CardId(*card);
+                self.caused(Cause::Effect(Source::Card(id)), |e| e.influence_burn(id));
             }
             // The counters on the card coming from the uncontrolled region
             // burn; not entering play (advanced rules 5.1.2).
@@ -278,7 +281,8 @@ impl Engine {
                     .remove(*slot as usize);
                 self.merge(m, slot.card, *slot.copy);
                 self.flow = Flow::Influence { left: left - 4 };
-                self.state.seats[s.index()].pool -= 1;
+                let merged = Cause::Cost(Source::Minion(m));
+                self.caused(merged, |e| e.state.seats[s.index()].pool -= 1);
                 if self.state.seats[s.index()].pool == 0 {
                     self.oust_and_pass(s);
                 }
@@ -333,7 +337,9 @@ impl Engine {
         if let Some(n) = entry_pool(card) {
             let mut loss = vec![0; self.state.seats.len()];
             loss[s.index()] = n as i32;
-            self.burn_pool_batch(&loss);
+            self.caused(Cause::Effect(Source::Minion(m)), |e| {
+                e.burn_pool_batch(&loss)
+            });
             if self.state.seats[s.index()].ousted {
                 return;
             }

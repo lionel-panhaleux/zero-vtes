@@ -595,7 +595,7 @@ titles; `git log` has the detail.
 | P5 · 17c | 09-30 | The policy outside Python (`docs/human-play.md` slice 3): `crates/policy` (`Policy.forward` by hand, `NetAgent`), `train/export.py` (`.zvp` weights, vocabulary re-keyed on load), parity with PyTorch (`train/tests/test_export.py`), `Game.withPolicy` in the wasm module, network bots in the fork |
 | P5 · 17d | 09-30 | The owner's first game (rules-qa Batch 46): a minion plays the same action modifier or reaction once in an action (every card, not only those printing a limit); the calling Methuselah burns no other political card for a vote; vote locations are their controller's; Pass Through Shadow [OBL] goes on its vampire as itself (46.4, `Held::card_on`); fuzz goldens re-blessed. Protocol: undo within a multi-step choice, the level and target in option texts, lingering effects shown as their card, allocation and distribution texts. Fork: moves on the table read as decisions (`gestures.ts`), the console on the table |
 | P5 · 17e | 10-02 | Human play from the owner's games (`docs/human-play.md` 2.10–2.20): every protocol message tells what happened since the last, the elided run included (`narrate.rs`, `Engine::last_outcome`: how an action ended, a referendum's tally, pool and blood moved, minions and cards in and out of play, ousts); option texts name targets, terms' cards and what an ability moves; allocations and vote orders answered at once; `examples/replay.rs`. Engine: the Edge's unlock-phase pool keeps the Edge; "put this card on …" moves the card itself out of the ash heap (rules-qa 47.1); goldens re-blessed |
-| P5 · 17f | 10-02 | Additional strike cards only after the first strike pair, both combatants still ready (rules-qa 47.2 overriding 4.4; Chun Hei likewise); combats told (`Engine::combat_notes`: start, each strike pair, end; 2.22); goldens re-blessed |
+| P5 · 17f | 10-02 | Additional strike cards only after the first strike pair, both combatants still ready (rules-qa 47.2 overriding 4.4; Chun Hei likewise); combats told (`Note::Combat`: start, each strike pair, end; 2.22); goldens re-blessed |
 
 ### 11.2 Policy surface and training runs
 
@@ -1810,7 +1810,7 @@ Still true today; "(verify)" marks items inferred from older notes.
 - **P5 — community**: bot service, client adapter, human-ergonomics layer
   (its open items on the boards).
 
-Definitions: 920 library, 456 vampires; 2367 Rust tests, 38 Python tests
+Definitions: 920 library, 456 vampires; 2368 Rust tests, 38 Python tests
 
 ## Outlook: deck building (post-v1)
 

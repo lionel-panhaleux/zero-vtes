@@ -558,7 +558,7 @@ fn recorded_games(paths: &[String], counts: &mut BTreeMap<String, Counts>) {
             }
         };
         let mut e = replay.deal();
-        e.combat_notes = None;
+        e.notes = None;
         let human: Vec<bool> = (0..replay.seats())
             .map(|s| replay.humans.contains(&(s as u8)))
             .collect();

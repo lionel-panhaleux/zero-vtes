@@ -837,11 +837,11 @@ fn a_first_strike_pair_is_noted_once() {
         e.add_minion(SeatId(0), plain("Brujah", 0), 4, false);
         let z = e.add_minion(SeatId(1), plain("Ventrue", 0), blocker_blood, false);
         e.add_minion(SeatId(1), plain("Ventrue", 1), 4, false);
-        e.combat_notes = Some(Vec::new());
+        e.notes = Some(Vec::new());
         pick(&mut e, bleed(elimelech));
         pick(&mut e, block(z));
         until(&mut e, SeatId(0), WindowLabel::MinionPhase);
-        let notes = e.combat_notes.take().expect("noted");
+        let notes = noted_combats(&mut e);
         let pairs: Vec<_> = notes
             .iter()
             .filter_map(|n| match n {
@@ -874,12 +874,12 @@ fn a_first_strike_pair_notes_the_damage_of_both_passes() {
     let keegan = e.add_minion(SeatId(1), find_card("Keegan"), 5, false);
     e.add_minion(SeatId(1), plain("Ventrue", 1), 4, false);
     hand(&mut e, 1, &["Carrion Crows"]);
-    e.combat_notes = Some(Vec::new());
+    e.notes = Some(Vec::new());
     pick(&mut e, bleed(elimelech));
     pick(&mut e, block(keegan));
     pick_when(&mut e, play(0, 0, keegan));
     until(&mut e, SeatId(0), WindowLabel::MinionPhase);
-    let notes = e.combat_notes.take().expect("noted");
+    let notes = noted_combats(&mut e);
     let noted: Vec<_> = notes
         .iter()
         .filter_map(|n| match n {
@@ -905,7 +905,7 @@ fn a_first_strike_pair_waits_for_the_held_strike() {
     let z = e.add_minion(SeatId(1), vampire_with("for", 0), 4, false);
     e.add_minion(SeatId(1), plain("Ventrue", 1), 4, false);
     hand(&mut e, 1, &["Hidden Strength"]);
-    e.combat_notes = Some(Vec::new());
+    e.notes = Some(Vec::new());
     pick(&mut e, bleed(elimelech));
     pick(&mut e, block(z));
     until(&mut e, SeatId(1), WindowLabel::CombatPrevention);
@@ -1750,7 +1750,7 @@ fn schrecknet_unlocks_a_big_nosferatu_and_peeks_after_a_referendum() {
         })
         .expect("a big Nosferatu") as u16;
     let mut e = game(2);
-    e.look_notes = Some(Vec::new());
+    e.notes = Some(Vec::new());
     let n = e.add_minion(SeatId(0), nosferatu, 4, false);
     let caller = e.add_minion(SeatId(0), find_card("Tara"), 4, false);
     e.add_minion(SeatId(1), plain("Ventrue", 0), 4, false);
@@ -1767,12 +1767,12 @@ fn schrecknet_unlocks_a_big_nosferatu_and_peeks_after_a_referendum() {
     // The look noted with the hand as it stood, for a narrator to tell
     // the viewer once the look has ended.
     assert_eq!(
-        e.look_notes.take(),
-        Some(vec![zvtes::game::Look {
+        noted_looks(&mut e),
+        vec![zvtes::game::Look {
             viewer: SeatId(0),
             seat: SeatId(1),
             cards: e.state.seats[1].hand.to_vec(),
-        }])
+        }]
     );
     to_minion_phase(&mut e, SeatId(0));
     assert!(!e.state.hand_visible_to(SeatId(1), SeatId(0)));

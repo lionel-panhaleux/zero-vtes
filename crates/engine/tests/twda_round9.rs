@@ -481,12 +481,12 @@ fn ambrosio_taxes_directed_actions_and_cannot_block() {
 }
 
 /// Ambrosio's toll ousting the acting Methuselah ends the action, noted
-/// (`Engine::action_notes`): the turn passes with it, or the game ends.
+/// (`Engine::notes`): the turn passes with it, or the game ends.
 #[test]
 fn ambrosio_s_toll_ousting_its_payer_ends_the_action() {
     for seats in [3, 2] {
         let mut e = game(seats);
-        e.action_notes = Some(Vec::new());
+        e.notes = Some(Vec::new());
         let anka = e.add_minion(SeatId(0), find_card("Anka, Priestess of Thorns"), 4, false);
         e.add_minion(SeatId(0), plain("Brujah", 0), 4, false);
         let amb = e.add_minion(
@@ -507,7 +507,7 @@ fn ambrosio_s_toll_ousting_its_payer_ends_the_action() {
         assert!(e.state.seats[0].ousted, "{seats} seats");
         assert_eq!(over, seats == 2);
         assert!(e.action().is_none(), "{seats} seats: the action ended");
-        let notes = e.action_notes.take().expect("noted");
+        let notes = noted_actions(&mut e);
         let told: Vec<_> = notes.iter().map(|n| (n.ended, n.ousted)).collect();
         assert_eq!(told, [(false, false), (true, true)], "{seats} seats");
     }

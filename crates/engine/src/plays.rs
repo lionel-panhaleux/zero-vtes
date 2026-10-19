@@ -13,6 +13,7 @@ use crate::draws::Interrupt;
 use crate::game::{Engine, Flow, Pending};
 use crate::ids::{MinionId, SeatId};
 use crate::library::{CardType, Label, LIBRARY};
+use crate::notes::{Cause, Rule, Source};
 use crate::state::{distinct, ActionId, CardId, CardInPlay, Expiry, OutOfTurn, Release, TimedStat};
 use crate::window::OrderedWindow;
 
@@ -392,7 +393,8 @@ impl Engine {
             }
         }
         // Wormwood's ceiling, as it enters or its counters go down.
-        self.state.drain_all_excess();
+        let capacity = Cause::Effect(Source::Rule(Rule::Capacity));
+        self.caused(capacity, |e| e.state.drain_all_excess());
     }
 
     /// A vampire moves from torpor to the ready region (a leave torpor
@@ -1565,6 +1567,7 @@ impl Engine {
                 self.state.seats[s.index()].master_resolved.push(id);
                 self.flow = Flow::MasterPhase;
                 let def = cards::lookup(self.state.cards[id.index()].card).expect("definition");
+                let outer = self.begin_cause(Cause::Effect(Source::Card(id)));
                 for r in def
                     .riders
                     .iter()
@@ -1589,6 +1592,7 @@ impl Engine {
                         }
                     }
                 }
+                self.end_cause(outer);
             }
             other => unreachable!("illegal master phase choice {other:?}"),
         }
@@ -3282,7 +3286,11 @@ impl Engine {
                         Some(crate::actions::ActionState::Attempt(m)) => m,
                         _ => unreachable!("a blocking minion"),
                     };
-                    self.state.burn_blood(m, n);
+                    let canceled = Cause::Cost(Source::Played {
+                        card: top.ctx.card,
+                        copy: *top.ctx.copy,
+                    });
+                    self.caused(canceled, |e| e.state.burn_blood(m, n));
                     let v = &self.state.minions[m.index()];
                     if v.is_ally() && v.blood == 0 {
                         self.burn_minion(m);
@@ -3305,7 +3313,11 @@ impl Engine {
                 let seat = top.window.current().expect("as-played impulse holder");
                 top.window.play();
                 top.canceled = true;
-                self.state.seats[seat.index()].pool -= n as i32;
+                let canceled = Cause::Cost(Source::Played {
+                    card: top.ctx.card,
+                    copy: *top.ctx.copy,
+                });
+                self.caused(canceled, |e| e.state.seats[seat.index()].pool -= n as i32);
                 self.flow = Flow::AsPlayed { stack, resume };
             }
             other => unreachable!("illegal as-played choice {other:?}"),
@@ -3508,8 +3520,14 @@ impl Engine {
                 blood_off += once;
                 self.spend_once_cost_off(&ctx, once);
             }
-            self.state.seats[ctx.seat.index()].pool -= pool.max(0);
-            self.pay_play_blood(&ctx, blood_off);
+            let canceled = Cause::Cost(Source::Played {
+                card: ctx.card,
+                copy: *ctx.copy,
+            });
+            self.caused(canceled, |e| {
+                e.state.seats[ctx.seat.index()].pool -= pool.max(0);
+                e.pay_play_blood(&ctx, blood_off);
+            });
         }
         // "Remove this card from the game, even if … canceled"
         // (Reinforcements).
@@ -3741,6 +3759,11 @@ impl Engine {
             self.declare_action(actor, *kind, None, Some(ctx), None);
             return true;
         }
+        let played = Source::Played {
+            card: ctx.card,
+            copy: *ctx.copy,
+        };
+        let outer = self.begin_cause(Cause::Cost(played));
         let mut pool = cards::pool_cost(&self.state, s, ctx.card, ctx.target);
         // Choosing is targeting (Secure Haven; LSJ 20031010): a master card
         // choosing a vampire as it is played, or played for one (Piper),
@@ -3842,6 +3865,7 @@ impl Engine {
         // played fails the action, a strike ends the combat (ANK
         // 20180928-1).
         let payer_burned = self.pay_play_blood(&ctx, blood_off);
+        self.end_cause(outer);
         // Resolved, an action card's action declared instead (its end the
         // action's); no effect when its payer burned paying.
         self.note_play(&ctx, false, payer_burned);
@@ -3855,6 +3879,7 @@ impl Engine {
                 Effect::PutOnOpponentOnHit { .. } | Effect::PutOnActorAfterCombat
             )
         });
+        let outer = self.begin_cause(Cause::Effect(played));
         for effect in mode.effects.iter().filter(|_| !payer_burned) {
             match *effect {
                 Effect::Layer(_) if held => {}
@@ -3922,6 +3947,7 @@ impl Engine {
                 e => self.apply_card_effect(e, &ctx, &mut in_play),
             }
         }
+        self.end_cause(outer);
         match in_play {
             // Its search puts its cards on it first: the search's end
             // enters the contest (Black Market Cache).
@@ -5981,7 +6007,8 @@ impl Engine {
                             v.is_vampire() && v.in_torpor
                         })
                         .count() as i32;
-                    self.state.seats[s.index()].pool -= n;
+                    let dragon = Cause::Effect(Source::Card(c));
+                    self.caused(dragon, |e| e.state.seats[s.index()].pool -= n);
                     if self.state.seats[s.index()].pool <= 0 {
                         self.oust_and_pass(s);
                     }
@@ -8082,6 +8109,22 @@ impl Engine {
         seat: SeatId,
         user: Option<MinionId>,
     ) -> bool {
+        self.caused(Cause::Effect(source.into()), |e| {
+            e.resolve_ability_now(source, ability, target, x, named, seat, user)
+        })
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    fn resolve_ability_now(
+        &mut self,
+        source: AbilitySource,
+        ability: u8,
+        target: Target,
+        x: u8,
+        named: Option<(u16, u8)>,
+        seat: SeatId,
+        user: Option<MinionId>,
+    ) -> bool {
         let mode = self.ability_mode(source, ability);
         let AbilityUser { seat, host, actor } = self.ability_user(source, ability, seat, user);
         // A vampire's own text has no library card (`u16::MAX`: no effect
@@ -9109,7 +9152,7 @@ impl Engine {
     /// An ability's pool cost, paid down to 0: its user is ousted — on
     /// their turn the turn passes, else it goes on without them.
     pub(crate) fn pay_pool_for_ability(&mut self, seat: SeatId, n: i32) {
-        self.state.seats[seat.index()].pool -= n;
+        self.paying(|e| e.state.seats[seat.index()].pool -= n);
         if n > 0 {
             self.note_pool_burned(seat);
         }
@@ -9261,14 +9304,16 @@ impl Engine {
             // The Edge's pool (the Edge is kept).
             Choice::BurnEdge => {
                 let s = self.state.active;
-                self.state.seats[s.index()].pool += 1;
+                let edge = Cause::Effect(Source::Rule(Rule::Edge));
+                self.caused(edge, |e| e.state.seats[s.index()].pool += 1);
                 edge_taken = true;
                 window.play();
             }
             // Infernal: 1 pool, a last one included (a cost may oust).
             Choice::UnlockInfernal { minion } => {
                 let s = self.state.active;
-                self.state.seats[s.index()].pool -= 1;
+                let infernal = Cause::Cost(Source::Minion(*minion));
+                self.caused(infernal, |e| e.state.seats[s.index()].pool -= 1);
                 self.state.unlock(*minion);
                 if self.state.seats[s.index()].pool <= 0 && self.oust_and_pass(s) {
                     return;
@@ -9306,6 +9351,7 @@ impl Engine {
                 pending.retain(|p| *p != Pending::Printed(*minion));
                 window.play();
                 // Its requirements read again as it resolves.
+                let outer = self.begin_cause(Cause::Effect(Source::Minion(*minion)));
                 for r in self.printed_unlock_riders(*minion) {
                     for e in r.effects {
                         match *e {
@@ -9357,6 +9403,7 @@ impl Engine {
                         }
                     }
                 }
+                self.end_cause(outer);
             }
             Choice::ResolveRider { card } => {
                 pending.retain(|p| *p != Pending::Rider(CardId(*card)));
@@ -9461,6 +9508,12 @@ impl Engine {
     /// rider needs (Smiling Jack's payments), or the next turn if the
     /// active Methuselah is ousted (or the game over).
     fn resolve_unlock_rider(&mut self, id: CardId, resume: Flow) {
+        self.caused(Cause::Effect(Source::Card(id)), |e| {
+            e.resolve_unlock_rider_now(id, resume)
+        })
+    }
+
+    fn resolve_unlock_rider_now(&mut self, id: CardId, resume: Flow) {
         let s = self.state.active;
         let c = &self.state.cards[id.index()];
         if !c.present() {
@@ -9916,6 +9969,12 @@ impl Engine {
         resume: Box<Flow>,
         choice: &Choice,
     ) {
+        self.caused(Cause::Effect(Source::Card(card)), |e| {
+            e.rider_terms_now(card, left, resume, choice)
+        })
+    }
+
+    fn rider_terms_now(&mut self, card: CardId, left: u8, resume: Box<Flow>, choice: &Choice) {
         let s = self.state.active;
         match choice {
             Choice::SetX(k) if self.rider_effect(card, Effect::PoolOrAshCardsPerCounter) => {
@@ -10162,6 +10221,9 @@ impl Engine {
             }
         }
         let mut loss = vec![0i32; self.state.seats.len()];
+        // The source of the burns, paid in one batch (simultaneous ousts):
+        // the first's.
+        let mut by = None;
         for &subject in subjects {
             let controller = self.state.minions[subject.index()].owner;
             let on = |c: &CardInPlay| hook != Hook::HostToTorpor || c.host == Some(subject);
@@ -10174,6 +10236,7 @@ impl Engine {
                     match e {
                         Effect::TheirControllerBurnsPool(n) => {
                             loss[controller.index()] += n as i32;
+                            by = by.or(Some(Source::Card(id)));
                         }
                         // A vampire of capacity n or less gone to torpor,
                         // not burned (Carver's Meat Packing and Storage).
@@ -10190,10 +10253,13 @@ impl Engine {
                         Effect::ControllerGainsPoolIfPrey(n) => {
                             let me = self.state.card_controller(id);
                             if controller == self.state.prey(me) && me != controller {
-                                self.state.seats[me.index()].pool += n as i32;
+                                let gain = Cause::Effect(Source::Card(id));
+                                self.caused(gain, |e| e.state.seats[me.index()].pool += n as i32);
                             }
                         }
-                        other => self.apply_rider_effect(id, other, hook),
+                        other => self.caused(Cause::Effect(Source::Card(id)), |e| {
+                            e.apply_rider_effect(id, other, hook)
+                        }),
                     }
                 }
             }
@@ -10205,6 +10271,7 @@ impl Engine {
                         match *e {
                             Effect::TheirControllerBurnsPool(n) => {
                                 loss[controller.index()] += n as i32;
+                                by = by.or(Some(Source::Minion(subject)));
                             }
                             other => unreachable!("not a torpor rider effect: {other:?}"),
                         }
@@ -10227,6 +10294,7 @@ impl Engine {
                         match *e {
                             Effect::TheirControllerBurnsPool(n) => {
                                 loss[controller.index()] += n as i32;
+                                by = by.or(opponent.map(Source::Minion));
                             }
                             Effect::MayGainPool(n) => {
                                 let o = opponent.expect("the vampire in combat");
@@ -10262,7 +10330,10 @@ impl Engine {
             }
         }
         if loss.iter().any(|&n| n > 0) {
-            self.burn_pool_batch(&loss);
+            match by {
+                Some(by) => self.caused(Cause::Effect(by), |e| e.burn_pool_batch(&loss)),
+                None => self.burn_pool_batch(&loss),
+            }
         }
     }
 

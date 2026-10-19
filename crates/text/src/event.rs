@@ -1,10 +1,45 @@
 //! Events in English (docs/protocol.md §9).
 
-use zvtes_api::event::{ActionOutcome, ActionRef, EventKind, ReferendumOutcome};
+use zvtes_api::event::{
+    ActionOutcome, ActionRef, Cause, CauseKind, CauseRule, EventKind, ReferendumOutcome,
+};
 use zvtes_api::ids::{ActionKind, Range, StrikeKind};
 use zvtes_api::view::Strike;
 
 use crate::Names;
+
+/// What made a change, after it: ", paid for X", ", by X".
+fn why(cause: &Option<Cause>, n: &Names) -> String {
+    let Some(c) = cause else {
+        return String::new();
+    };
+    let what = match (&c.card, c.rule) {
+        (Some(card), _) => match card.copy {
+            Some(m) if n.is_minion(card) => n.minion(m),
+            _ => n.card(card),
+        },
+        (None, Some(r)) => {
+            return match r {
+                CauseRule::Strikes => ", by the strikes",
+                CauseRule::Transfer => ", by a transfer",
+                CauseRule::Oust => ", by the oust",
+                CauseRule::Edge => ", by the Edge",
+                CauseRule::Contest => ", paid for the contest",
+                CauseRule::Disease => ", by disease",
+                CauseRule::Diablerie => ", by diablerie",
+                CauseRule::Capacity => ", above capacity",
+                CauseRule::Vote => ", paid for votes",
+                CauseRule::Unknown => "",
+            }
+            .into()
+        }
+        (None, None) => return String::new(),
+    };
+    match c.kind {
+        CauseKind::Cost => format!(", paid for {what}"),
+        _ => format!(", by {what}"),
+    }
+}
 
 /// An event told; `None` for a decision taken (its option tells it).
 pub fn event(e: &EventKind, n: &Names) -> Option<String> {
@@ -53,14 +88,28 @@ pub fn event(e: &EventKind, n: &Names) -> Option<String> {
                 false => format!("You look at {}'s hand: {}", n.seat(*seat), names.join(", ")),
             }
         }
-        EventKind::Pool { seat, delta, pool } => {
-            format!("{}: {} pool ({pool})", n.seat(*seat), signed(*delta))
-        }
+        EventKind::Pool {
+            seat,
+            delta,
+            pool,
+            cause,
+        } => format!(
+            "{}: {} pool ({pool}){}",
+            n.seat(*seat),
+            signed(*delta),
+            why(cause, n)
+        ),
         EventKind::Blood {
             minion,
             delta,
             blood,
-        } => format!("{}: {} blood ({blood})", n.minion(*minion), signed(*delta)),
+            cause,
+        } => format!(
+            "{}: {} blood ({blood}){}",
+            n.minion(*minion),
+            signed(*delta),
+            why(cause, n)
+        ),
         // A lasting effect whose card is in the ash heap: told as the
         // card's effect, never as the card in play.
         EventKind::EntersPlay {
@@ -114,6 +163,10 @@ pub fn event(e: &EventKind, n: &Names) -> Option<String> {
         EventKind::Edge { seat: Some(s) } => format!("{} gains the Edge", n.seat(*s)),
         EventKind::Edge { seat: None } => "The Edge is burned".into(),
         EventKind::BlockFails { minion } => format!("{} fails to block", n.minion(*minion)),
+        EventKind::ActingChanges { acting, .. } => {
+            let acting = n.minion(acting.copy.unwrap_or(u32::MAX));
+            format!("{acting} takes over the action")
+        }
         EventKind::ActionStarts { acting, action, .. } => {
             let acting = n.minion(acting.copy.unwrap_or(u32::MAX));
             format!("{acting}'s {} is announced", thing(action, n, true))

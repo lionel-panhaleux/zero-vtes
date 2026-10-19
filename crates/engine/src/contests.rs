@@ -6,6 +6,7 @@ use crate::decision::Choice;
 use crate::game::{Contest, Engine};
 use crate::ids::MinionId;
 use crate::library::{Label, LIBRARY};
+use crate::notes::{Cause, Rule, Source};
 use crate::state::CardId;
 
 impl Engine {
@@ -105,11 +106,13 @@ impl Engine {
         let s = self.state.active;
         match (item, pay) {
             (Contest::Card(_) | Contest::Library(_), true) => {
-                self.state.seats[s.index()].pool -= 1;
+                let contest = Cause::Cost(Source::Rule(Rule::Contest));
+                self.caused(contest, |e| e.state.seats[s.index()].pool -= 1);
             }
             (Contest::Title(m), true) => {
                 let cost = self.state.title_contest_cost(m);
-                self.state.minions[m.index()].blood -= cost;
+                let contest = Cause::Cost(Source::Rule(Rule::Contest));
+                self.caused(contest, |e| e.state.minions[m.index()].blood -= cost);
             }
             // Yielded: burned with everything on it (not ready: no "ready
             // minion burned" rider).

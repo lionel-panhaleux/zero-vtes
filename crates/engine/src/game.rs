@@ -13,6 +13,7 @@ use crate::decks::{expand, CardList, Deck};
 use crate::draws::Interrupt;
 use crate::ids::{MinionId, SeatId};
 use crate::influence::transfers_for_turn;
+use crate::notes::{Cause, Rule, Source};
 use crate::plays::{HookAt, PendingPlay};
 use crate::referendum::ReferendumCtx;
 use crate::rng::Rng;
@@ -218,20 +219,15 @@ pub struct Engine {
     pub(crate) secret_numbers: Vec<(SeatId, u8)>,
     /// How the most recent action ended (tests).
     pub last_outcome: Option<crate::actions::Outcome>,
-    /// What combats did, for a narrator (`CombatNote`): `None`, the
-    /// default, keeps nothing; the taker drains it.
-    pub combat_notes: Option<Vec<crate::combat::CombatNote>>,
-    /// The cards effects revealed to every Methuselah, for a narrator
-    /// (`Reveal`): `None`, the default, keeps nothing; the taker drains it.
-    pub reveal_notes: Option<Vec<Reveal>>,
-    /// The plays resolved or canceled, for a narrator (`PlayNote`), as
-    /// `reveal_notes`.
-    pub play_notes: Option<Vec<PlayNote>>,
-    /// The hands looked at, for a narrator (`Look`), as `reveal_notes`.
-    pub look_notes: Option<Vec<Look>>,
-    /// The actions declared and ended, for a narrator (`ActionNote`), as
-    /// `reveal_notes`.
-    pub action_notes: Option<Vec<crate::actions::ActionNote>>,
+    /// What happened, in order, for a narrator (`notes::Note`): `None`,
+    /// the default, keeps nothing; the taker drains it (`take_notes`).
+    pub notes: Option<Vec<crate::notes::Note>>,
+    /// The last table noted (`notes::Ledger`).
+    pub(crate) noted: Option<Box<crate::notes::Ledger>>,
+    /// What the table's changes are noted as made by (`caused`).
+    pub(crate) cause: Option<crate::notes::Cause>,
+    /// The interrupts queued under a cause, with it (`notes`).
+    pub(crate) interrupt_causes: Vec<(Interrupt, Option<crate::notes::Cause>)>,
     /// Each block attempt failed short of the stealth, its blocker's
     /// decline (rules-qa 82.1): the seats an engine before it asked again
     /// (`Reasked`), for a record reader. `None`, the default, keeps
@@ -240,6 +236,10 @@ pub struct Engine {
     /// A pair's strikes note waiting for the strike a first strike held
     /// back (`CombatCtx::held_strike`): one note a pair.
     pub(crate) held_note: Option<crate::combat::CombatNote>,
+    /// Where `held_note` goes among the notes (`insert_note`).
+    pub(crate) held_at: Option<(usize, u64)>,
+    /// How many times the notes were drained (`take_notes`).
+    pub(crate) notes_drained: u64,
     /// The game's random source after setup (random discards): replay is
     /// the seed plus the decision log.
     pub(crate) rng: Rng,
@@ -324,21 +324,17 @@ pub fn public_choice(c: &Choice) -> bool {
 
 /// A card an effect revealed to every Methuselah, from `seat`'s crypt or
 /// library (its index in the crypt or library table): public that moment,
-/// wherever it goes after. `after`: the combat notes noted before it, so a
-/// narrator keeps the order.
+/// wherever it goes after.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Reveal {
     pub seat: SeatId,
     pub card: u16,
     pub crypt: bool,
-    pub after: usize,
 }
 
 /// A Methuselah's hand looked at by another (SchreckNET, Vaticination):
 /// its cards as they stood (LIBRARY indices), for the viewer alone; the
-/// look itself ends with the action (`GameState::peeks`). No `after`, as
-/// `Reveal`'s: a run's looks are told after its other notes (no peek
-/// happens within a combat).
+/// look itself ends with the action (`GameState::peeks`).
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Look {
     pub viewer: SeatId,
@@ -359,8 +355,7 @@ pub struct Reasked {
 
 /// A play finished, for a narrator: resolved (its mode's effects; an
 /// action card's end is its action's), or canceled (spec §1.8.3: still
-/// played, to the ash heap). `after`: the combat notes noted before it,
-/// `reveals` the reveal notes, so a narrator keeps the order.
+/// played, to the ash heap).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct PlayNote {
     pub seat: SeatId,
@@ -372,8 +367,6 @@ pub struct PlayNote {
     pub canceled: bool,
     /// Its effects not applied (canceled, its payer burned paying).
     pub no_effect: bool,
-    pub after: usize,
-    pub reveals: usize,
 }
 
 impl Engine {
@@ -384,22 +377,16 @@ impl Engine {
         canceled: bool,
         no_effect: bool,
     ) {
-        let after = self.combat_notes.as_ref().map_or(0, Vec::len);
-        let reveals = self.reveal_notes.as_ref().map_or(0, Vec::len);
-        if let Some(notes) = self.play_notes.as_mut() {
-            notes.push(PlayNote {
-                seat: ctx.seat,
-                card: ctx.card,
-                copy: *ctx.copy,
-                mode: ctx.mode,
-                actor: ctx.actor,
-                target: ctx.target,
-                canceled,
-                no_effect,
-                after,
-                reveals,
-            });
-        }
+        self.push_note(crate::notes::Note::Play(PlayNote {
+            seat: ctx.seat,
+            card: ctx.card,
+            copy: *ctx.copy,
+            mode: ctx.mode,
+            actor: ctx.actor,
+            target: ctx.target,
+            canceled,
+            no_effect,
+        }));
     }
 
     /// `seat`'s crypt or library top card revealed to all.
@@ -419,27 +406,20 @@ impl Engine {
     /// (`hand_visible_to`), the look noted for a narrator.
     pub(crate) fn peek(&mut self, viewer: SeatId, seat: SeatId) {
         self.state.peeks.push((viewer, seat));
-        if let Some(notes) = self.look_notes.as_mut() {
-            notes.push(Look {
+        if self.notes.is_some() {
+            let cards = self.state.seats[seat.index()].hand.to_vec();
+            self.push_note(crate::notes::Note::Look(Look {
                 viewer,
                 seat,
-                cards: self.state.seats[seat.index()].hand.to_vec(),
-            });
+                cards,
+            }));
         }
     }
 
     /// A card of `seat`'s crypt or library revealed to all, noted for a
     /// narrator.
     pub(crate) fn reveal(&mut self, seat: SeatId, card: u16, crypt: bool) {
-        let after = self.combat_notes.as_ref().map_or(0, Vec::len);
-        if let Some(notes) = self.reveal_notes.as_mut() {
-            notes.push(Reveal {
-                seat,
-                card,
-                crypt,
-                after,
-            });
-        }
+        self.push_note(crate::notes::Note::Reveal(Reveal { seat, card, crypt }));
     }
 
     /// A new game: each seat gets a random full-size V5 precon (rulebook
@@ -539,13 +519,14 @@ impl Engine {
             secret_numbers: Vec::new(),
             rng,
             last_outcome: None,
-            combat_notes: None,
-            reveal_notes: None,
-            look_notes: None,
-            action_notes: None,
-            play_notes: None,
+            notes: None,
+            noted: None,
+            cause: None,
+            interrupt_causes: Vec::new(),
             short_declines: None,
             held_note: None,
+            held_at: None,
+            notes_drained: 0,
             history: Default::default(),
         };
         engine.start_turn();
@@ -804,7 +785,8 @@ impl Engine {
             if self.settle_draw_up() {
                 continue;
             }
-            self.state.drain_all_excess();
+            let capacity = Cause::Effect(Source::Rule(Rule::Capacity));
+            self.caused(capacity, |e| e.state.drain_all_excess());
             self.state.release_hostages();
             self.state.release_torture();
             if matches!(self.flow, Flow::GameOver) {
@@ -1369,6 +1351,13 @@ impl Engine {
                 self.rescue_declare(*from_acting)
             }
             (Flow::Referendum, c) => self.referendum_apply(c),
+            (
+                Flow::Influence { left },
+                c @ (Choice::Transfer { .. } | Choice::Withdraw { .. } | Choice::DrawCrypt),
+            ) => {
+                let transfer = Cause::Effect(Source::Rule(Rule::Transfer));
+                self.caused(transfer, |e| e.influence_apply(left, c))
+            }
             (Flow::Influence { left }, c) => self.influence_apply(left, c),
             (flow, choice) => unreachable!("illegal choice {choice:?} in {flow:?}"),
         }
@@ -1485,6 +1474,7 @@ impl Engine {
                     && self.state.minions[a.index()].is_vampire()
                 {
                     c.fbi_damage += damage;
+                    c.fbi_card = Some(f);
                     self.state.cards[f.index()].counters += 1;
                 }
             }
@@ -2151,7 +2141,10 @@ impl Engine {
                                 });
                             }
                         }
-                        cards::Effect::HostBurnBlood(n) => self.state.burn_blood(m, n),
+                        cards::Effect::HostBurnBlood(n) => {
+                            let own = Cause::Effect(Source::Minion(m));
+                            self.caused(own, |e| e.state.burn_blood(m, n));
+                        }
                         cards::Effect::LockHost => self.state.minions[m.index()].locked = true,
                         other => unreachable!("not a minion-phase-end rider effect: {other:?}"),
                     }
@@ -2390,8 +2383,9 @@ impl Engine {
     pub(crate) fn oust_now(&mut self, seats: &[SeatId]) {
         let preds: Vec<(SeatId, SeatId)> =
             seats.iter().map(|&s| (s, self.state.predator(s))).collect();
+        let oust = Cause::Effect(Source::Rule(Rule::Oust));
         for &s in seats {
-            self.remove_seat(s);
+            self.caused(oust, |e| e.remove_seat(s));
         }
         // "Do not replace until a Methuselah is ousted" (Absimiliard's Army).
         self.release_held(Release::MethuselahOusted);
@@ -2402,20 +2396,25 @@ impl Engine {
         for (_, pred) in &preds {
             self.gain_half_vps(*pred, 2);
             if !seats.contains(pred) {
-                self.state.seats[pred.index()].pool += 6;
+                let oust = Cause::Effect(Source::Rule(Rule::Oust));
+                self.caused(oust, |e| e.state.seats[pred.index()].pool += 6);
                 // "If your prey is ousted, you gain 4 additional pool"
                 // (Khabar: Glory), per copy.
-                let extra: i32 = self
+                let extra: Vec<(CardId, i32)> = self
                     .fired_riders(Hook::PreyOusted, &HookAt::of(*pred))
                     .into_iter()
-                    .flat_map(|(_, r)| r.effects.iter())
-                    .map(|e| match *e {
-                        cards::Effect::GainPool(n) => n as i32,
-                        cards::Effect::BurnSelf => 0,
+                    .flat_map(|(id, r)| r.effects.iter().map(move |e| (id, e)))
+                    .map(|(id, e)| match *e {
+                        cards::Effect::GainPool(n) => (id, n as i32),
+                        cards::Effect::BurnSelf => (id, 0),
                         other => unreachable!("not a prey-ousted rider effect: {other:?}"),
                     })
-                    .sum();
-                self.state.seats[pred.index()].pool += extra;
+                    .filter(|&(_, n)| n > 0)
+                    .collect();
+                for (id, n) in extra {
+                    let glory = Cause::Effect(Source::Card(id));
+                    self.caused(glory, |e| e.state.seats[pred.index()].pool += n);
+                }
                 // "After your prey is ousted, burn this card" (War of Ages).
                 let burned: Vec<CardId> = self
                     .fired_riders(Hook::PreyOusted, &HookAt::of(*pred))
@@ -2576,6 +2575,8 @@ impl Engine {
         self.state
             .layers
             .retain(|l| l.scope != crate::cards::Scope::Action);
+        // The turn's end noted apart from the next turn's start.
+        self.checkpoint();
         self.state.active = self.state.prey(self.state.active);
         self.start_turn();
     }
@@ -2678,7 +2679,8 @@ impl Engine {
             // minion (advanced rules §5.2.2).
             let substitutes = self.state.counter_instead_of_unlock(id);
             if substitutes.is_empty() {
-                self.state.unlock(id);
+                let disease = Cause::Effect(Source::Rule(Rule::Disease));
+                self.caused(disease, |e| e.state.unlock(id));
                 continue;
             }
             for c in substitutes {
