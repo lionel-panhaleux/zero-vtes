@@ -147,6 +147,16 @@ pub enum EventKind {
     BlockFails {
         minion: CopyId,
     },
+    /// An action announced, decided or forced (taken by the engine itself:
+    /// a hunt, Elen Kamjian's bleed); its `action_ends` follows. `acting`:
+    /// the minion's card, numbered by its name, and `minion` its kind (it
+    /// may have come into play in the same run).
+    ActionStarts {
+        seat: Seat,
+        acting: Card,
+        minion: MinionKind,
+        action: ActionRef,
+    },
     ActionEnds {
         seat: Seat,
         acting: CopyId,

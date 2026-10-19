@@ -2243,8 +2243,9 @@ impl Engine {
 
     /// The acting Methuselah was ousted during their action: on their turn
     /// the turn passes, else (Enkil Cog) the active one's phase goes on.
-    fn acting_seat_ousted(&mut self) {
-        let seat = self.action.take().expect("action").seat;
+    pub(crate) fn acting_seat_ousted(&mut self) {
+        let seat = self.drop_action().expect("action").seat;
+        self.release_action_scope();
         self.referendum = None;
         if self.state.living() <= 1 {
             self.flow = Flow::GameOver;
@@ -2259,13 +2260,13 @@ impl Engine {
     /// (`riders`: the failed-or-canceled riders apply, not if fizzled).
     fn after_referendum(&mut self, riders: bool) {
         if self.state.living() <= 1 {
-            self.action = None;
+            self.drop_action();
             self.flow = Flow::GameOver;
             return;
         }
         self.political_passed_riders();
         if self.state.living() <= 1 {
-            self.action = None;
+            self.drop_action();
             self.flow = Flow::GameOver;
             return;
         }

@@ -222,6 +222,12 @@ impl Namer<'_> {
                     strike: kind.map(|k| crate::view::told(strike(k, card), told)),
                 }
             }
+            Fact::ActionStarts(action) => EventKind::ActionStarts {
+                seat: action.seat.0,
+                acting: self.minion_named(action.acting),
+                minion: self.minion_kind(action.acting),
+                action: self.action(action),
+            },
             Fact::ActionEnds {
                 action,
                 outcome,

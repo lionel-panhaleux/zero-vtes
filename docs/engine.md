@@ -596,6 +596,13 @@ engine masks), `cards/mod.rs` (the vocabulary: `Window`, `Actor`,
 
 `actions.rs`: `ActionCtx`, `ActionState`; `ActionKind`, `ActionId`.
 
+- An action's two ends, `declare_action` and `drop_action` (resolved, or
+  cut short by an oust, the turn's end or the game's: `run` drops it
+  before `Step::Over`), are noted in
+  `Engine::action_notes` (`ActionNote`: the context then, and the combat,
+  play and reveal notes before it), which the host tells as
+  `action_starts` and `action_ends`. An action ends only through
+  `drop_action`; a `self.action.take()` that puts it back is no end.
 - Kinds: rulebook (bleed, hunt, leave torpor, rescue, diablerie, political),
   `Card`, `Equip`/`EquipFrom`/`EquipFound`, `Recruit`/`Employ`, `BurnCard`,
   `StealCard`, `Ability` (granted by a card in play or printed on a vampire;
@@ -1441,6 +1448,10 @@ engine masks), `cards/mod.rs` (the vocabulary: `Window`, `Actor`,
   eligible hand the oust applies at once, as before.
 - `oust_and_pass` returns whether the oust applied: its callers return (the
   turn passed) only then, else go on as if the pool had not run out.
+  A cost the acting Methuselah pays for their action goes through
+  `acting_pool_out` instead: off their turn (Enkil Cog, Madness Network)
+  the action ends with them and the active Methuselah's phase goes on
+  (rules-qa 49.6, 78.48).
 - Victory points go through `Engine::gain_half_vps` (prey ousts, last
   standing, the time limit's half point): a Life Boon in play remembering the
   Methuselah (`CardInPlay::against`) takes them, oldest first, its counters

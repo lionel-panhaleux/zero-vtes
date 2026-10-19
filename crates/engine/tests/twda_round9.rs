@@ -480,6 +480,39 @@ fn ambrosio_taxes_directed_actions_and_cannot_block() {
     assert_eq!(pool(&e)[1], p);
 }
 
+/// Ambrosio's toll ousting the acting Methuselah ends the action, noted
+/// (`Engine::action_notes`): the turn passes with it, or the game ends.
+#[test]
+fn ambrosio_s_toll_ousting_its_payer_ends_the_action() {
+    for seats in [3, 2] {
+        let mut e = game(seats);
+        e.action_notes = Some(Vec::new());
+        let anka = e.add_minion(SeatId(0), find_card("Anka, Priestess of Thorns"), 4, false);
+        e.add_minion(SeatId(0), plain("Brujah", 0), 4, false);
+        let amb = e.add_minion(
+            SeatId(1),
+            find_card("Ambrosio Luis Monçada, Plenipotentiary"),
+            4,
+            false,
+        );
+        e.state.seats[0].pool = 1;
+        pick(&mut e, printed(anka, 0, Target::Minion(amb)));
+        let over = loop {
+            match e.run() {
+                zvtes::game::Step::Over(_) => break true,
+                zvtes::game::Step::Decision(_) if e.state.seats[0].ousted => break false,
+                zvtes::game::Step::Decision(req) => e.choose(fallback(&req)),
+            }
+        };
+        assert!(e.state.seats[0].ousted, "{seats} seats");
+        assert_eq!(over, seats == 2);
+        assert!(e.action().is_none(), "{seats} seats: the action ended");
+        let notes = e.action_notes.take().expect("noted");
+        let told: Vec<_> = notes.iter().map(|n| (n.ended, n.ousted)).collect();
+        assert_eq!(told, [(false, false), (true, true)], "{seats} seats");
+    }
+}
+
 // Ambrosio: "If he is ready during your discard phase, you can unlock
 // another ready Lasombra."
 #[test]

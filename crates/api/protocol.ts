@@ -752,6 +752,13 @@ export type Event = {
         minion: number
     }
     | {
+        acting: Card
+        action: ActionRef
+        kind: 'action_starts'
+        minion: MinionKind
+        seat: number
+    }
+    | {
         acting: number
         action: ActionRef
         /** The minion that blocked it. */

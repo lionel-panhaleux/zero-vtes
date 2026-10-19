@@ -1041,3 +1041,48 @@ fn enkil_cog_holder_ousted_during_its_action_leaves_the_turn_going_on() {
     assert!(e.action().is_none());
     let _ = req;
 }
+
+// The Cog's action paying its Methuselah's last pool (Flak Jacket, 1
+// pool), as the active Methuselah ends their minion phase: ousted, the
+// action ends with them, noted ended, what lasted for it with it, and the
+// active Methuselah's phase goes on (rules-qa 49.6).
+#[test]
+fn enkil_cog_holder_ousted_paying_its_action_leaves_the_turn_going_on() {
+    let (mut e, stan, cog) = cog_table();
+    e.action_notes = Some(Vec::new());
+    e.state.seats[0].pool = 1;
+    hand(&mut e, 0, &["Flak Jacket"]);
+    let other = e.add_minion(SeatId(1), plain("Ventrue", 1), 4, false);
+    let turn = e.state.turn;
+    pick(&mut e, Choice::Pass);
+    pick(&mut e, use_at(cog, 0, None, Target::None));
+    // Something lasting for the action, on another's minion.
+    e.state.minions[other.index()].timed.push((
+        zvtes::cards::Lasting::Strength(1),
+        zvtes::state::Expiry::Action,
+        SeatId(0),
+    ));
+    pick(&mut e, play(0, 0, stan));
+    // No block: on to the action's end.
+    let req = loop {
+        let req = request(&mut e);
+        if e.action().is_none() {
+            break req;
+        }
+        e.choose(fallback(&req));
+    };
+    assert!(e.state.seats[0].ousted, "the jacket's pool");
+    assert_eq!(
+        (e.state.turn, req.seat, req.window),
+        (turn, SeatId(1), WindowLabel::MinionPhase),
+        "the active Methuselah's phase goes on"
+    );
+    assert!(e.action().is_none());
+    assert!(
+        e.state.minions[other.index()].timed.is_empty(),
+        "gone with the action"
+    );
+    let notes = e.action_notes.take().expect("noted");
+    let told: Vec<_> = notes.iter().map(|n| (n.ended, n.ousted)).collect();
+    assert_eq!(told, [(false, false), (true, true)]);
+}

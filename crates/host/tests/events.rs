@@ -115,16 +115,12 @@ fn game(seed: u64, settings: Settings) -> Game {
     .unwrap()
 }
 
-/// An action or a referendum under way, as a view shows it.
-type Under = (u8, u32, String, Option<u32>);
-
 /// What the events told since the last view.
 struct Stream {
     seed: u32,
     text: bool,
-    /// The action and referendum at the last view (none after an undo).
-    last: Option<(Option<Under>, bool)>,
-    action_ended: bool,
+    /// A referendum under way at the last view (none after an undo).
+    last: Option<bool>,
     referendum_ended: bool,
     /// A combat told begun, not yet told ended; unknown after an undo.
     in_combat: Option<bool>,
@@ -148,6 +144,16 @@ struct Stream {
     /// Each minion's `numbered`, as the views and its entering or leaving
     /// play told it (forgotten at an undo: wire copies are given again).
     name_numbers: HashMap<u32, Option<u8>>,
+    /// The action told announced and not yet ended (seat, acting), by the
+    /// events alone; unknown after an undo, until a view shows the table.
+    open: Option<Option<(u8, u32)>>,
+    /// The seat of the event before, when it was a decision.
+    decided: Option<u8>,
+    /// Actions announced and ended within one message, and announced with
+    /// no decision before (a forced action).
+    within: usize,
+    undecided: usize,
+    started: bool,
 }
 
 fn numbered(c: &Card) -> bool {
@@ -157,6 +163,13 @@ fn numbered(c: &Card) -> bool {
 impl Stream {
     fn event(&mut self, e: &Event) {
         let seed = self.seed;
+        let decided = std::mem::replace(
+            &mut self.decided,
+            match e.kind {
+                EventKind::Decided { seat, .. } => Some(seat),
+                _ => None,
+            },
+        );
         self.told += 1;
         self.names.hear(&e.kind);
         if std::env::var_os("HOST_TRACE").is_some() {
@@ -175,8 +188,8 @@ impl Stream {
                 self.misses.push((t.clone(), rendered));
             }
         }
-        // A minion entering or leaving play: its name's number as the
-        // views give it (docs/protocol.md §3), a ghoul token's none.
+        // A minion entering or leaving play, or acting: its name's number
+        // as the views give it (docs/protocol.md §3), a ghoul token's none.
         if let EventKind::EntersPlay {
             card,
             minion: Some(kind),
@@ -185,6 +198,11 @@ impl Stream {
         | EventKind::LeavesPlay {
             card,
             minion: Some(kind),
+            ..
+        }
+        | EventKind::ActionStarts {
+            acting: card,
+            minion: kind,
             ..
         } = &e.kind
         {
@@ -215,6 +233,7 @@ impl Stream {
         match &e.kind {
             EventKind::Undone { to, .. } => {
                 self.again = Some(*to);
+                self.open = None;
                 self.last = None;
                 self.in_combat = None;
                 self.pools.clear();
@@ -257,14 +276,44 @@ impl Stream {
                 );
                 self.in_combat = Some(false);
             }
+            EventKind::ActionStarts { seat, acting, .. } => {
+                let acting = &acting.copy.expect("the acting minion's copy");
+                copy(*acting);
+                if let Some(open) = self.open {
+                    assert_eq!(open, None, "seed {seed}: announced while one is open");
+                }
+                self.open = Some(Some((*seat, *acting)));
+                self.undecided += usize::from(decided != Some(*seat));
+                self.started = true;
+            }
             EventKind::ActionEnds {
-                acting, blocker, ..
+                seat,
+                acting,
+                blocker,
+                ..
             } => {
                 copy(*acting);
                 blocker.iter().for_each(|&m| copy(m));
-                self.action_ended = true;
+                if let Some(open) = self.open {
+                    assert_eq!(
+                        open,
+                        Some((*seat, *acting)),
+                        "seed {seed}: ended unannounced"
+                    );
+                }
+                self.open = Some(None);
+                self.within += usize::from(self.started);
             }
-            EventKind::ReferendumEnds { .. } => self.referendum_ended = true,
+            EventKind::ReferendumEnds { action, .. } => {
+                // A political action's referendum ends within it.
+                if let (Some(open), Some(_)) = (self.open, action) {
+                    assert!(
+                        open.is_some(),
+                        "seed {seed}: a referendum ended after its action"
+                    );
+                }
+                self.referendum_ended = true;
+            }
             EventKind::Pool { seat, pool, .. } => {
                 self.pools.insert(*seat, *pool);
             }
@@ -290,7 +339,15 @@ impl Stream {
                     self.torpor.remove(&c);
                 }
             }
-            EventKind::BlockFails { minion } => copy(*minion),
+            EventKind::BlockFails { minion } => {
+                copy(*minion);
+                if let Some(open) = self.open {
+                    assert!(
+                        open.is_some(),
+                        "seed {seed}: a block failed after its action"
+                    );
+                }
+            }
             _ => {}
         }
     }
@@ -329,19 +386,10 @@ impl Stream {
             let want = self.text.then(|| zvtes_text::strike_declared(s));
             assert_eq!(s.text, want, "seed {seed} {at}: a strike's text");
         }
-        let action = v.action.as_ref().map(|a| {
-            let card = a.card.and_then(|c| c.id);
-            (a.seat, a.acting, format!("{:?}", a.kind), card)
-        });
         let referendum = v.referendum.is_some();
-        if let Some((had, had_referendum)) = &self.last {
-            if had.is_some() && *had != action {
-                assert!(
-                    self.action_ended,
-                    "seed {seed} {at}: an action's end untold: {had:?}"
-                );
-            }
-            if *had_referendum && !referendum {
+        self.shows(v, at);
+        if let Some(had_referendum) = self.last {
+            if had_referendum && !referendum {
                 assert!(
                     self.referendum_ended,
                     "seed {seed} {at}: a referendum's end untold"
@@ -370,13 +418,22 @@ impl Stream {
         self.pools.clear();
         self.blood.clear();
         self.torpor.clear();
-        self.action_ended = false;
         self.referendum_ended = false;
-        self.last = Some((action, referendum));
+        self.last = Some(referendum);
+    }
+
+    /// The view shows the action the events told under way, if any.
+    fn shows(&mut self, v: &TableView, at: &str) {
+        let action = v.action.as_ref().map(|a| (a.seat, a.acting));
+        if let Some(open) = self.open {
+            assert_eq!(open, action, "seed {} {at}: the action told", self.seed);
+        }
+        self.open = Some(action);
     }
 
     fn see(&mut self, outs: &[Out]) {
         for o in outs {
+            self.started = false;
             match &o.message {
                 // A step's view is the table after the step, or after the
                 // whole allocation an `allocate` answered: checked where
@@ -385,6 +442,7 @@ impl Stream {
                     events.iter().for_each(|e| self.event(e));
                     if let Some(v) = view {
                         self.names.see(v);
+                        self.shows(v, "a step");
                     }
                 }
                 Message::Decision(d) => {
@@ -443,6 +501,7 @@ fn the_events_tell_what_the_views_show() {
     let seeds: u32 = std::env::var("HOST_SEEDS").map_or(40, |s| s.parse().unwrap());
     let (mut told, mut texts, mut undone, mut allocated, mut voted) = (0, 0, 0, 0, 0);
     let mut played = [0, 0];
+    let (mut within, mut undecided) = (0, 0);
     let mut reasked = 0;
     let mut misses = Vec::new();
     for seed in from()..=seeds {
@@ -458,7 +517,6 @@ fn the_events_tell_what_the_views_show() {
             seed,
             text: settings.text,
             last: None,
-            action_ended: false,
             referendum_ended: false,
             in_combat: Some(false),
             pools: HashMap::new(),
@@ -474,6 +532,11 @@ fn the_events_tell_what_the_views_show() {
             unasked: Vec::new(),
             name_numbers: HashMap::new(),
             played: [0, 0],
+            open: Some(None),
+            decided: None,
+            within: 0,
+            undecided: 0,
+            started: false,
         };
         let mut outs = g.handle(
             human,
@@ -568,6 +631,8 @@ fn the_events_tell_what_the_views_show() {
         );
         told += s.told;
         texts += s.texts;
+        within += s.within;
+        undecided += s.undecided;
         played[0] += s.played[0];
         played[1] += s.played[1];
         misses.extend(s.misses.into_iter().map(|m| (seed, m)));
@@ -590,6 +655,10 @@ fn the_events_tell_what_the_views_show() {
     );
     eprintln!("plays told: {} resolved, {} canceled", played[0], played[1]);
     assert!(played[0] > 0 && played[1] > 0, "plays told: {played:?}");
+    // The actions no view between two messages shows, and those the
+    // engine announces itself, followed all the same.
+    eprintln!("actions: {within} announced and ended in one message, {undecided} with no decision");
+    assert!(within > 0 && undecided > 0, "actions untried");
 }
 
 /// Every option a seat is shown is told in English with the text

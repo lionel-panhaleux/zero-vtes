@@ -2256,6 +2256,38 @@
           ]
         },
         {
+          "description": "An action announced, decided or forced (taken by the engine itself:\na hunt, Elen Kamjian's bleed); its `action_ends` follows. `acting`:\nthe minion's card, numbered by its name, and `minion` its kind (it\nmay have come into play in the same run).",
+          "type": "object",
+          "properties": {
+            "acting": {
+              "$ref": "#/$defs/Card"
+            },
+            "action": {
+              "$ref": "#/$defs/ActionRef"
+            },
+            "kind": {
+              "type": "string",
+              "const": "action_starts"
+            },
+            "minion": {
+              "$ref": "#/$defs/MinionKind"
+            },
+            "seat": {
+              "type": "integer",
+              "format": "uint8",
+              "maximum": 255,
+              "minimum": 0
+            }
+          },
+          "required": [
+            "kind",
+            "seat",
+            "acting",
+            "minion",
+            "action"
+          ]
+        },
+        {
           "type": "object",
           "properties": {
             "acting": {

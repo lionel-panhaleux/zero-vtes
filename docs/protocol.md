@@ -330,8 +330,10 @@ seat 2; burn 2 pool to keep card 9.)
     `end_combat`, `enter_combat`, `immune`, `burn`, `lock`, `unlock`,
     `move`, `steal`, `draw`, `discard`, `search`, `votes`,
     `referendum` (called), `fails`, `cancel`, `action` (declared:
-    `action`), `hunt`, `hand_size`, `cost` (reduced), `corruption`,
-    `keep`, `role` (§12).
+    `action`; without it, a phase's action: `detail` `master_phase`, the
+    master phase action spent as a cost, or `discard_phase`, a discard
+    phase action gained), `hunt`, `hand_size`, `cost` (reduced),
+    `corruption`, `keep`, `role` (§12).
   - `n` signed (+ gained, − lost or spent), per X with `x`; `cost`: paid
     to take the option; `when`: `successful`, `bleed_successful`.
   - `on`: whom, from the option — `target`, `host` (the minion the card
@@ -474,6 +476,7 @@ heap (a marker on its minion, §6), no copy of its own.
 | `ousted` | `seat` |
 | `edge` | `seat`? (who holds the Edge now; absent: burned) |
 | `block_fails` | `minion` (its block attempt ended, the action goes on) |
+| `action_starts` | `seat`, `acting` (the minion's card, numbered by its name, as `enters_play` tells one: it may have come into play in the same run), `minion` (its kind), `action`: an action announced, by a decision or by the engine itself (a forced action: a hunt, Elen Kamjian's bleed); its `action_ends` follows, however short the action, before the next is announced |
 | `action_ends` | `seat`, `acting`, `action`, `outcome` (`succeeds`, `blocked`, `fails`, `fizzles`, `ousted`, `ends`), `blocker`? |
 | `referendum_ends` | `outcome` (`passes`, `fails`, `canceled`), `votes_for`, `votes_against`, `action`? (the political action), `hunted`? (a blood hunt's diablerist) |
 | `combat_begins` | `minions` |
@@ -486,7 +489,8 @@ grants it (a card in play, another vampire).
 
 Events tell what happened; the view says what is. A client animating
 from events resyncs on the next view. The host's tests hold the two
-together: an action or referendum a view shows and the next does not
+together: an action is told announced before a view shows it, and
+ended once none does; a referendum a view shows and the next does not
 is told ended in between; a combat is told begun, its strikes, then
 ended; the last `pool`, `blood` and `torpor` told are the next view's.
 

@@ -106,6 +106,22 @@ pub struct Conditional {
     pub limited: bool,
 }
 
+/// An action declared or ended, for a narrator (`Engine::action_notes`):
+/// its context then, and how many combat, play and reveal notes came
+/// before it.
+#[derive(Clone, Debug)]
+pub struct ActionNote {
+    pub action: Box<ActionCtx>,
+    /// Ended: resolved (its `outcome` set), or cut short by an oust or
+    /// the turn's end (`None`).
+    pub ended: bool,
+    /// Its Methuselah was ousted (as it ended).
+    pub ousted: bool,
+    pub after: usize,
+    pub plays: usize,
+    pub reveals: usize,
+}
+
 #[derive(Clone, Debug, Default)]
 pub struct ActionCtx {
     pub seat: SeatId,
@@ -1365,6 +1381,7 @@ impl Engine {
                 .collect(),
             ..Default::default()
         });
+        self.note_action(false);
         // The reductions announced with the card: a lock is made now —
         // once the card is no longer cancelable as played (The Line: not
         // locked if the card is canceled, ANK 20230620).
@@ -1404,6 +1421,68 @@ impl Engine {
         // it resolves (rules-qa 48.8, 3.6).
         if kind == ActionKind::Rescue {
             self.flow = Flow::RescueCost;
+        }
+    }
+
+    /// The acting Methuselah's pool paid for the action (`self.action`
+    /// set), its last ousting them: the action ends with them, the turn
+    /// passing on their turn, else (Enkil Cog's action) the active
+    /// Methuselah's phase going on (rules-qa 49.6). Whether it ended (not
+    /// for an oust a Life Boon defers).
+    pub(crate) fn acting_pool_out(&mut self, seat: SeatId) -> bool {
+        if seat == self.state.active {
+            self.oust_and_pass(seat);
+        } else {
+            self.oust(seat);
+        }
+        if !self.state.seats[seat.index()].ousted {
+            return false;
+        }
+        if self.action.is_some() {
+            self.acting_seat_ousted();
+        }
+        true
+    }
+
+    /// What lasts for the action goes with it, at its end, resolved or cut
+    /// short: its layers, the cards held back until its end, its timed
+    /// effects.
+    pub(crate) fn release_action_scope(&mut self) {
+        self.state.layers.retain(|l| l.scope != Scope::Action);
+        self.release_action_holds();
+        for m in &mut self.state.minions {
+            m.timed
+                .retain(|&(_, until, _)| until != crate::state::Expiry::Action);
+        }
+    }
+
+    /// The action under way ended for good (resolved, or cut short by an
+    /// oust or the turn's end), noted for a narrator.
+    pub(crate) fn drop_action(&mut self) -> Option<ActionCtx> {
+        self.action.as_ref()?;
+        self.note_action(true);
+        self.action.take()
+    }
+
+    /// The action under way, declared or ending, noted for a narrator.
+    fn note_action(&mut self, ended: bool) {
+        let len = |n: Option<usize>| n.unwrap_or(0);
+        let after = len(self.combat_notes.as_ref().map(Vec::len));
+        let plays = len(self.play_notes.as_ref().map(Vec::len));
+        let reveals = len(self.reveal_notes.as_ref().map(Vec::len));
+        let ousted = self
+            .action
+            .as_ref()
+            .is_some_and(|a| self.state.seats[a.seat.index()].ousted);
+        if let (Some(notes), Some(a)) = (self.action_notes.as_mut(), self.action.as_ref()) {
+            notes.push(ActionNote {
+                action: Box::new(a.clone()),
+                ended,
+                ousted,
+                after,
+                plays,
+                reveals,
+            });
         }
     }
 
@@ -4465,10 +4544,13 @@ impl Engine {
                     crate::state::PrintedCtx::default(),
                 );
                 if n > 0 {
-                    self.pay_pool_for_ability(seat, n);
-                    if self.state.seats[seat.index()].ousted {
+                    self.state.seats[seat.index()].pool -= n;
+                    self.note_pool_burned(seat);
+                    self.action = Some(a);
+                    if self.state.seats[seat.index()].pool <= 0 && self.acting_pool_out(seat) {
                         return;
                     }
+                    a = self.action.take().expect("action");
                 }
             }
         }
@@ -4871,7 +4953,7 @@ impl Engine {
                 self.recruits_or_employs_riders(acting);
                 if pool > 0 && self.state.seats[seat.index()].pool == 0 {
                     self.action = Some(a);
-                    if self.oust_and_pass(seat) {
+                    if self.acting_pool_out(seat) {
                         return;
                     }
                     a = self.action.take().expect("action");
@@ -4920,7 +5002,7 @@ impl Engine {
                     a.card_entered_play = true;
                     if pool > 0 && self.state.seats[seat.index()].pool == 0 {
                         self.action = Some(a);
-                        if self.oust_and_pass(seat) {
+                        if self.acting_pool_out(seat) {
                             return;
                         }
                         a = self.action.take().expect("action");
@@ -5046,7 +5128,7 @@ impl Engine {
                 self.state.seats[seat.index()].pool -= pool;
                 if pool > 0 && self.state.seats[seat.index()].pool == 0 {
                     self.action = Some(a);
-                    if self.oust_and_pass(seat) {
+                    if self.acting_pool_out(seat) {
                         return;
                     }
                     a = self.action.take().expect("action");
@@ -5209,12 +5291,10 @@ impl Engine {
                     }
                 }
                 // The effects ousted the acting Methuselah (Rewilding on
-                // their own location): the turn passes with the action.
+                // their own location): the action ends with them.
                 if self.state.seats[seat.index()].ousted {
                     self.action = Some(a);
-                    if self.state.living() > 1 {
-                        self.next_turn();
-                    }
+                    self.acting_seat_ousted();
                     return;
                 }
                 // Taunt the Caged Beast [ANI]: the chosen vampires, both
@@ -5373,7 +5453,7 @@ impl Engine {
                     }
                     if self.state.seats[seat.index()].pool == 0 {
                         self.action = Some(a);
-                        if self.oust_and_pass(seat) {
+                        if self.acting_pool_out(seat) {
                             return;
                         }
                         a = self.action.take().expect("action");
@@ -5420,7 +5500,7 @@ impl Engine {
                 self.state.seats[seat.index()].pool -= pool as i32;
                 if pool > 0 && self.state.seats[seat.index()].pool == 0 {
                     self.action = Some(a);
-                    if self.oust_and_pass(seat) {
+                    if self.acting_pool_out(seat) {
                         return;
                     }
                     a = self.action.take().expect("action");
@@ -6241,8 +6321,7 @@ impl Engine {
                 }
             }
         }
-        self.state.layers.retain(|l| l.scope != Scope::Action);
-        self.release_action_holds();
+        self.release_action_scope();
     }
 
     /// Unpreventable damage outside combat (Daring the Dawn): blood burned,
@@ -6310,11 +6389,7 @@ impl Engine {
             }
         }
         self.last_outcome = self.action.as_ref().and_then(|a| a.outcome);
-        for m in &mut self.state.minions {
-            m.timed
-                .retain(|&(_, until, _)| until != crate::state::Expiry::Action);
-        }
-        self.action = None;
+        self.drop_action();
         // Back to the acting seat's minion phase, unless the action ended the
         // game (an oust that left one Methuselah).
         if self.state.living() > 1 {
@@ -6961,7 +7036,7 @@ impl Engine {
             self.state.seats[seat.index()]
                 .library
                 .shuffle(&mut self.rng);
-            if pool > 0 && self.state.seats[seat.index()].pool <= 0 && self.oust_and_pass(seat) {
+            if pool > 0 && self.state.seats[seat.index()].pool <= 0 && self.acting_pool_out(seat) {
                 return;
             }
         } else {
@@ -7010,7 +7085,7 @@ impl Engine {
         s.pool = (s.pool - pool).max(0);
         self.state.burn_blood(minion, blood);
         self.put_equipment(seat, minion, ctx);
-        if !(pool > 0 && self.state.seats[seat.index()].pool == 0 && self.oust_and_pass(seat)) {
+        if !(pool > 0 && self.state.seats[seat.index()].pool == 0 && self.acting_pool_out(seat)) {
             self.after_resolution();
         }
     }

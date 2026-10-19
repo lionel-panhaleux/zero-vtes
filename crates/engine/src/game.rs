@@ -229,6 +229,9 @@ pub struct Engine {
     pub play_notes: Option<Vec<PlayNote>>,
     /// The hands looked at, for a narrator (`Look`), as `reveal_notes`.
     pub look_notes: Option<Vec<Look>>,
+    /// The actions declared and ended, for a narrator (`ActionNote`), as
+    /// `reveal_notes`.
+    pub action_notes: Option<Vec<crate::actions::ActionNote>>,
     /// Each block attempt failed short of the stealth, its blocker's
     /// decline (rules-qa 82.1): the seats an engine before it asked again
     /// (`Reasked`), for a record reader. `None`, the default, keeps
@@ -539,6 +542,7 @@ impl Engine {
             combat_notes: None,
             reveal_notes: None,
             look_notes: None,
+            action_notes: None,
             play_notes: None,
             short_declines: None,
             held_note: None,
@@ -804,6 +808,8 @@ impl Engine {
             self.state.release_hostages();
             self.state.release_torture();
             if matches!(self.flow, Flow::GameOver) {
+                // An action the game's end cut short ends with it.
+                self.drop_action();
                 return Step::Over(self.state.seats.iter().map(|s| s.half_vps).collect());
             }
             self.note_blood_gains();
@@ -2555,8 +2561,8 @@ impl Engine {
         }
         // An action cannot outlive the turn (the acting Methuselah ousted
         // by its own referendum or a cost): its scoped state goes with it.
-        if self.action.take().is_some() {
-            self.release_action_holds();
+        if self.drop_action().is_some() {
+            self.release_action_scope();
         }
         // A combat cut short with the turn (its Methuselah ousted) ends
         // too, as told.

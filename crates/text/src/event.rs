@@ -114,6 +114,10 @@ pub fn event(e: &EventKind, n: &Names) -> Option<String> {
         EventKind::Edge { seat: Some(s) } => format!("{} gains the Edge", n.seat(*s)),
         EventKind::Edge { seat: None } => "The Edge is burned".into(),
         EventKind::BlockFails { minion } => format!("{} fails to block", n.minion(*minion)),
+        EventKind::ActionStarts { acting, action, .. } => {
+            let acting = n.minion(acting.copy.unwrap_or(u32::MAX));
+            format!("{acting}'s {} is announced", thing(action, n, true))
+        }
         EventKind::ActionEnds {
             seat,
             acting,

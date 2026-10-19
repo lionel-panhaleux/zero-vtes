@@ -6,7 +6,7 @@
 
 use std::collections::HashMap;
 
-use zvtes::actions::ActionState;
+use zvtes::actions::{ActionState, Outcome};
 use zvtes::agent::Agent;
 use zvtes::cards::{Effect, ModeDef, Window};
 use zvtes::combat::{CombatNote, Step as CombatStep};
@@ -16,7 +16,7 @@ use zvtes::ids::SeatId;
 use zvtes::referendum::{Recipient, RefStep};
 
 use crate::deck::Resolved;
-use crate::narrate::{Fact, Mark, Told};
+use crate::narrate::{ActionFact, Fact, Mark, Told};
 use crate::numbering::Decks;
 use crate::view::Viewer;
 
@@ -161,11 +161,12 @@ pub fn deal(seed: u64, time_limit: Option<u32>, decks: &[Resolved]) -> Engine {
     if let Some(t) = time_limit {
         engine.time_limit = t;
     }
-    // Combats, reveals, looks and plays told as they happen (`observe`).
+    // Combats, reveals, looks, plays and actions told as they happen (`observe`).
     engine.combat_notes = Some(Vec::new());
     engine.reveal_notes = Some(Vec::new());
     engine.look_notes = Some(Vec::new());
     engine.play_notes = Some(Vec::new());
+    engine.action_notes = Some(Vec::new());
     engine
 }
 
@@ -262,15 +263,18 @@ impl Session {
         }
     }
 
-    /// Mark the table, telling what changed since the last mark: how an
-    /// action or a referendum ended, and (`ran`: across the engine's run,
-    /// not a decision's own effect) the rest in words.
+    /// Mark the table, telling what happened since the last mark: the
+    /// engine's notes, then what the marks tell (a referendum's end, and,
+    /// `ran`: across the engine's run, not a decision's own effect, the
+    /// rest in words).
     fn observe(&mut self, ran: bool) {
-        // What combats did, the cards revealed and the plays finished, in
-        // their order, first: their damage is among the changes; the hands
-        // looked at after them. The queues are drained (and reset, `undo`)
-        // together: `after` counts the combat notes before,
-        // `PlayNote::reveals` the reveals.
+        // The actions announced and ended, what combats did, the cards
+        // revealed and the plays finished, in their order, first: their
+        // damage is among the changes; the hands looked at after them. The
+        // queues are drained (and reset, `undo`) together: `after` counts
+        // the combat notes before, `PlayNote::reveals` the reveals, and an
+        // `ActionNote` waits on its `plays` and `reveals` too, going before
+        // a play it does not wait on.
         let notes = self
             .engine
             .combat_notes
@@ -295,14 +299,54 @@ impl Session {
             .as_mut()
             .map(std::mem::take)
             .unwrap_or_default();
+        let actions = self
+            .engine
+            .action_notes
+            .as_mut()
+            .map(std::mem::take)
+            .unwrap_or_default();
         let revealed = !reveals.is_empty() || !looks.is_empty();
         let mut reveals = reveals.into_iter().peekable();
         let mut plays = plays.into_iter().peekable();
-        let mut shown = 0;
+        let mut actions = actions.into_iter().peekable();
+        let (mut shown, mut played) = (0, 0);
         let mut told = Vec::new();
+        let now = Mark::of(&self.engine);
+        // The action seen at the last mark ends: what the marks tell of it
+        // goes first (`Mark::within`).
+        let mut within = false;
         for i in 0..=notes.len() {
             loop {
-                if let Some(p) = plays.next_if(|p| p.after <= i && p.reveals <= shown) {
+                if let Some(a) =
+                    actions.next_if(|a| a.after <= i && a.plays <= played && a.reveals <= shown)
+                {
+                    let action = ActionFact::of(&a.action);
+                    if let Some(before) = self
+                        .mark
+                        .as_ref()
+                        .filter(|b| a.ended && !within && b.acts(&action))
+                    {
+                        before.within(&self.engine, &now, &mut told);
+                        within = true;
+                    }
+                    let fact = match a.ended {
+                        false => Fact::ActionStarts(action),
+                        true => {
+                            let outcome = a.action.outcome.filter(|_| !a.ousted);
+                            Fact::ActionEnds {
+                                action,
+                                outcome,
+                                ousted: a.ousted,
+                                blocker: a
+                                    .action
+                                    .blocker
+                                    .filter(|_| outcome == Some(Outcome::Blocked)),
+                            }
+                        }
+                    };
+                    told.push(Told::new(fact, true));
+                } else if let Some(p) = plays.next_if(|p| p.after <= i && p.reveals <= shown) {
+                    played += 1;
                     told.push(Told::new(Fact::Played(p), true));
                 } else if let Some(r) = reveals.next_if(|r| r.after <= i) {
                     shown += 1;
@@ -333,13 +377,12 @@ impl Session {
             }
             self.snapshots.clear();
         }
-        let now = Mark::of(&self.engine);
         if let Some(before) = &self.mark {
             let e = &self.engine;
-            before.draws(&now, &mut told);
-            before.attempts(e, &now, &mut told);
-            before.strikes(&now, &mut told);
-            before.endings(e, &now, &mut told);
+            before.turn(&now, &mut told);
+            if !within {
+                before.within(e, &now, &mut told);
+            }
             before.changes(e, &now, ran, &mut told);
         }
         if !told.is_empty() {
@@ -601,11 +644,12 @@ impl Session {
                 engine
             }
         };
-        // The combats, reveals, looks and plays since were told already.
+        // The combats, reveals, looks, plays and actions since were told already.
         engine.combat_notes = Some(Vec::new());
         engine.reveal_notes = Some(Vec::new());
         engine.look_notes = Some(Vec::new());
         engine.play_notes = Some(Vec::new());
+        engine.action_notes = Some(Vec::new());
         self.engine = engine;
         self.history.truncate(at);
         self.pending = None;

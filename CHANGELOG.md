@@ -8,11 +8,19 @@ removes; its `--check` fails a removal without a major version.
 
 ## 2.5.0
 
-Round 18's cards (rules-qa Batch 85), additions only; and undo against
-bots, a behaviour with no field or id.
+Round 18's cards (rules-qa Batch 85) and the event `action_starts`,
+additions only; `action_ends` now told for every action (one within a
+message too), and undo against bots, behaviours with no field or id.
 
 - `Purpose`: `store_own_hand` — Storage Annex as it is played: the card of
   the hand put face down on `card` (`find_card`), replaced.
+- Event `action_starts` (`seat`, `acting`: the minion's numbered card,
+  `minion`: its kind, `action`): every action announced, a forced action
+  the engine takes by itself included (a hunt, Elen Kamjian's bleed);
+  each is followed by its `action_ends`, an action announced and resolved
+  within one message too (a bot's employ had none). The `action` effect
+  without its `action` field documented (§7: `master_phase`,
+  `discard_phase`).
 - `undo` against bots (one human seat: every server game) is open at
   every decision after the seat's first, one human decision back each
   time, across the bots' decisions, vote orders (`vote_all`, the order

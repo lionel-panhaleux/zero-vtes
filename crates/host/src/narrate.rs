@@ -95,6 +95,8 @@ pub enum Fact {
         source: Option<CardId>,
         told: Option<zvtes::combat::StrikeHit>,
     },
+    /// An action announced (`Engine::action_notes`).
+    ActionStarts(ActionFact),
     ActionEnds {
         action: ActionFact,
         /// `None`: ended otherwise (its acting minion gone).
@@ -137,7 +139,12 @@ pub struct ActionFact {
 }
 
 impl ActionFact {
-    fn of(a: &ActionCtx) -> ActionFact {
+    /// What tells one action from another across marks.
+    fn key(&self) -> (SeatId, MinionId, ActionKind, Option<u16>) {
+        (self.seat, self.acting, self.kind, self.card.map(|c| c.0))
+    }
+
+    pub(crate) fn of(a: &ActionCtx) -> ActionFact {
         ActionFact {
             seat: a.seat,
             acting: a.acting,
@@ -331,8 +338,7 @@ impl Mark {
 
     /// The same action, still under way.
     fn same_action(a: &ActionMark, b: &ActionMark) -> bool {
-        let key = |f: &ActionFact| (f.seat, f.acting, f.kind, f.card.map(|c| c.0));
-        key(&a.fact) == key(&b.fact)
+        a.fact.key() == b.fact.key()
     }
 
     /// A block attempt that ended with no block (short of the stealth,
@@ -375,8 +381,9 @@ impl Mark {
         }
     }
 
-    /// How the action and referendum seen at `self` ended by `now`.
-    pub(crate) fn endings(&self, e: &Engine, now: &Mark, out: &mut Vec<Told>) {
+    /// How the referendum seen at `self` ended by `now` (an action's end
+    /// is the engine's note: `Engine::action_notes`).
+    pub(crate) fn endings(&self, now: &Mark, out: &mut Vec<Told>) {
         if let Some(r) = &self.referendum {
             if now.referendum.is_none() {
                 let (f, a) = r.votes;
@@ -396,25 +403,10 @@ impl Mark {
                 tell(out, fact, true);
             }
         }
-        if let Some(a) = &self.action {
-            if now.action.as_ref().is_some_and(|b| Self::same_action(a, b)) {
-                return;
-            }
-            let ousted = e.state.seats[a.fact.seat.index()].ousted;
-            let outcome = e.last_outcome;
-            let fact = Fact::ActionEnds {
-                action: a.fact,
-                outcome: outcome.filter(|_| !ousted),
-                ousted,
-                blocker: a.blocker.filter(|_| outcome == Some(Outcome::Blocked)),
-            };
-            tell(out, fact, true);
-        }
     }
 
-    /// A new turn, and the cards drawn from `self` to `now` (told whatever
-    /// drew them: a decision's own draws too).
-    pub(crate) fn draws(&self, now: &Mark, out: &mut Vec<Told>) {
+    /// A new turn from `self` to `now`.
+    pub(crate) fn turn(&self, now: &Mark, out: &mut Vec<Told>) {
         if now.turn.0 != self.turn.0 {
             let fact = Fact::Turn {
                 turn: now.turn.0,
@@ -422,6 +414,28 @@ impl Mark {
             };
             tell(out, fact, true);
         }
+    }
+
+    /// Whether `a` is the action under way at `self`.
+    pub(crate) fn acts(&self, a: &ActionFact) -> bool {
+        self.action
+            .as_ref()
+            .is_some_and(|m| m.fact.key() == a.key())
+    }
+
+    /// What `self` to `now` tells of the action under way at `self`, told
+    /// before its end: the cards drawn, the block attempts that failed,
+    /// the strikes declared, its referendum's end.
+    pub(crate) fn within(&self, e: &Engine, now: &Mark, out: &mut Vec<Told>) {
+        self.draws(now, out);
+        self.attempts(e, now, out);
+        self.strikes(now, out);
+        self.endings(now, out);
+    }
+
+    /// The cards drawn from `self` to `now` (told whatever drew them: a
+    /// decision's own draws too).
+    pub(crate) fn draws(&self, now: &Mark, out: &mut Vec<Told>) {
         let drawn = |from: &[HashSet<CopyId>], to: &[HashSet<CopyId>], s: usize| match (
             from.get(s),
             to.get(s),
