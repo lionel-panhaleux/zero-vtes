@@ -10,7 +10,7 @@ use zvtes::actions::ActionState;
 use zvtes::agent::Agent;
 use zvtes::cards::{Effect, ModeDef, Window};
 use zvtes::combat::{CombatNote, Step as CombatStep};
-use zvtes::decision::{Choice, DecisionRequest, WindowLabel, Zone};
+use zvtes::decision::{ActionKind, Choice, DecisionRequest, WindowLabel, Zone};
 use zvtes::game::{Engine, Step};
 use zvtes::ids::SeatId;
 use zvtes::referendum::{Recipient, RefStep};
@@ -595,17 +595,23 @@ impl Session {
                 // own block moment, not before the would-be blockers ahead
                 // of it declined nor after its own decline (owner,
                 // 2026-10-17: "really misleading, even though technically
-                // correct"); a wake to react once blocks are declined
-                // stays.
+                // correct"); once blocks are declined, only on a bleed at
+                // the seat, to wake and bounce it (owner, 2026-10-19:
+                // "otherwise it's noise").
                 let blocking = e.action().is_some_and(|a| {
                     matches!(a.state, ActionState::Open | ActionState::Attempt(_))
                 });
+                let declined = e.action().is_some_and(|a| a.state == ActionState::Declined);
                 let moment = req.window != WindowLabel::CardAsPlayed
                     && e.action().is_some_and(|a| match a.directed_seat(st) {
                         Some(target) => target == req.seat,
                         None => a.seat == st.prey(req.seat) || a.seat == st.predator(req.seat),
                     })
-                    && (!blocking || e.block_moment(req.seat));
+                    && (!blocking || e.block_moment(req.seat))
+                    && (!declined
+                        || e.action().is_some_and(|a| {
+                            a.kind == ActionKind::Bleed && a.directed_seat(st) == Some(req.seat)
+                        }));
                 if wakes {
                     return Some(Opportunity::Wake(moment));
                 }
@@ -851,7 +857,6 @@ fn untold_effects(c: &Choice) -> bool {
 mod tests {
     use zvtes::cards::{AbilitySource, Target};
     use zvtes::copies::CopyId;
-    use zvtes::decision::ActionKind;
     use zvtes::decks::Deck;
     use zvtes::state::{find_card, find_library, CardId, CardInPlay};
 
@@ -1566,11 +1571,86 @@ mod tests {
         assert!(s.shown(&req).contains(&i), "shown in its moment");
     }
 
-    /// Once blocks are declined, a wake to react stays shown with the
-    /// opportunities off (a locked vampire waking to play a reaction): the
-    /// block moment filters only while blocks are open.
+    /// Once blocks are declined, a wake is shown with the opportunities off
+    /// only on a bleed at the seat, to wake and bounce it (owner,
+    /// 2026-10-19): an undirected hunt of its predator's hides it then;
+    /// both show it in the seat's block moment.
     #[test]
-    fn a_wake_after_blocks_are_declined_is_shown() {
+    fn a_wake_after_blocks_are_declined_is_shown_on_a_bleed_at_the_seat() {
+        assert_eq!(wake_shown(ActionKind::Bleed), (true, true));
+        assert_eq!(wake_shown(ActionKind::Hunt), (true, false));
+    }
+
+    /// A referendum of the seat's predator is not "after blocks": its wake
+    /// stays shown with the opportunities off (a locked primogen waking to
+    /// play Protected District).
+    #[test]
+    fn a_wake_in_a_referendum_of_the_predator_is_shown() {
+        let (mut s, _) = session();
+        let mut e = Engine::bare(3);
+        for seat in &mut e.state.seats {
+            seat.pool = 10;
+        }
+        e.state.turn = 4;
+        let caller = e.add_minion(SeatId(0), find_card("Tara"), 4, false);
+        e.add_minion(SeatId(0), find_card("Crystal Lynn"), 4, false);
+        let z = e.add_minion(SeatId(1), find_card("Donny Kowalczyk"), 4, false);
+        e.state.minions[z.index()].locked = true;
+        e.state.seats[1]
+            .hand
+            .put(find_library("On the Qui Vive"), CopyId::NONE);
+        e.state.seats[0]
+            .hand
+            .put(find_library("Kine Resources Contested"), CopyId::NONE);
+        s.engine = e;
+        s.set_opportunities(false);
+        let wanted = [
+            Choice::Play {
+                card: 0,
+                mode: 0,
+                actor: Some(caller),
+                target: Target::None,
+            },
+            Choice::AllocateTo {
+                seat: SeatId(0),
+                n: 3,
+            },
+        ];
+        let mut shown = false;
+        for _ in 0..60 {
+            let Step::Decision(req) = s.engine.run() else {
+                break;
+            };
+            if req.seat == SeatId(1) && s.engine.referendum().is_some() {
+                if let Some(i) = req
+                    .options
+                    .iter()
+                    .position(|o| matches!(o, Choice::Play { actor: Some(a), .. } if *a == z))
+                {
+                    shown = s.shown(&req).contains(&i);
+                    break;
+                }
+            }
+            if req.window == WindowLabel::MinionPhase
+                && s.engine.referendum().is_none()
+                && req.seat != SeatId(0)
+            {
+                break;
+            }
+            let i = wanted
+                .iter()
+                .find_map(|w| req.options.iter().position(|o| o == w))
+                .or_else(|| req.options.iter().position(|o| *o == Choice::Pass))
+                .unwrap_or(0);
+            s.engine.choose(i);
+        }
+        assert!(shown, "the wake shown in the referendum");
+    }
+
+    /// Seat 0's `action` (a bleed is at seat 1) against seat 1's locked
+    /// vampire holding a wake: whether the wake is shown, opportunities
+    /// off, in seat 1's block moment and once blocks are declined.
+    fn wake_shown(action: ActionKind) -> (bool, bool) {
         let (mut s, _) = session();
         let mut e = Engine::bare(3);
         let p = e.add_minion(SeatId(0), find_card("Madison"), 4, false);
@@ -1584,12 +1664,16 @@ mod tests {
         let Step::Decision(req) = s.engine.run() else {
             panic!("a decision");
         };
-        let bleed = Choice::TakeAction {
+        let act = Choice::TakeAction {
             minion: p,
-            action: ActionKind::Bleed,
+            action,
             target: None,
         };
-        let i = req.options.iter().position(|o| *o == bleed).expect("bleed");
+        let i = req
+            .options
+            .iter()
+            .position(|o| *o == act)
+            .expect("the action");
         s.engine.choose(i);
         s.set_opportunities(false);
         let wake = |req: &DecisionRequest| {
@@ -1597,7 +1681,7 @@ mod tests {
                 .iter()
                 .position(|o| matches!(o, Choice::Play { actor: Some(a), .. } if *a == z))
         };
-        let (mut open, mut declined) = (false, false);
+        let (mut open, mut declined, mut offered) = (false, false, false);
         for _ in 0..40 {
             let Step::Decision(req) = s.engine.run() else {
                 break;
@@ -1607,7 +1691,10 @@ mod tests {
                     let state = s.engine.action().map(|a| a.state);
                     match state {
                         Some(ActionState::Open) => open |= s.shown(&req).contains(&i),
-                        Some(ActionState::Declined) => declined |= s.shown(&req).contains(&i),
+                        Some(ActionState::Declined) => {
+                            offered = true;
+                            declined |= s.shown(&req).contains(&i);
+                        }
                         _ => {}
                     }
                 }
@@ -1622,7 +1709,7 @@ mod tests {
                 .expect("pass");
             s.engine.choose(pass);
         }
-        assert!(open, "shown in its block moment");
-        assert!(declined, "shown once blocks are declined");
+        assert!(offered, "offered once blocks are declined");
+        (open, declined)
     }
 }

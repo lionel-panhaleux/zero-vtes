@@ -397,7 +397,9 @@ their default) and changed by `settings`:
   interrupt play out of their moment — a wake outside an action that
   concerns the seat, as a card is played, or, while blocks are open,
   outside the seat's own block moment (before the would-be blockers ahead
-  of it declined, after its own decline), a block denial short of the
+  of it declined, after its own decline), or, in the blocks-declined
+  window, on anything but a bleed at the seat (Shadow Sentinel: to wake
+  and bounce it; a referendum keeps its wakes), a block denial short of the
   action's stealth, the acting seat's options other than the pass while the
   attempt under way is short of it (the round is the blocker's and the
   table's), a card or ability making a strike's damage aggravated (Claws
