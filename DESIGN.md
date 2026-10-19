@@ -1048,9 +1048,9 @@ training runs.
   with each game's engine commit: a rule change can stop an old log
   replaying). Replays by meaning (owner, 2026-10-04: "so the replays I do
   are not useless"): beside its indices a replay logs each decision as
-  its choice (`zvtes_protocol::logged`: the engine's `Choice` with hand
-  and uncontrolled positions and card-table indices replaced by KRCG
-  ids), and a reader takes the option that is that choice, whatever its
+  its choice (a decision entry's `choice`, its option key: the engine's
+  `Choice` with hand and uncontrolled positions and card-table indices
+  replaced by KRCG ids), and a reader takes the option that is that choice, whatever its
   index; a decision the replay's engine asked between copies alike
   (`forced`) is passed over where a later engine asks nothing. An option
   change no longer stops a game; a rule change the game met still does.
@@ -1787,7 +1787,6 @@ Still true today; "(verify)" marks items inferred from older notes.
   Rötschreck range check (a strike ineffective at the range), Powerbase:
   Savannah with Deep Song's acting target, Saatet-ta's stealth and intercept
   locks, Carlton's strike and dodge.
-- **P2 deliverable not started**: the protocol server (§8).
 - Owner suggestions: hard legacy cards to stress the engine (Rötschreck, Outside
   the Hourglass, Rewind Time) and legacy cards closing test loops (a sterile
   baron); more `EXTRA_CARDS` / `ADDED_CARDS` at the owner's call (§3); the
