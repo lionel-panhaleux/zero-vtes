@@ -82,11 +82,13 @@ pub enum Interrupt {
     },
     /// Diablerie step 2 (rulebook "Diablerie"): the diablerist may take
     /// any equipment on the victim it can hold, a card at a time; as it
-    /// ends, step 3 (the victim burns, its blood to the diablerist).
+    /// ends, step 3 (the victim burns, its blood to the diablerist). Not
+    /// `diablerie`: Sacrificial Lamb's burn, blood as the victim's capacity.
     DiablerieEquipment {
         seat: SeatId,
         diablerist: MinionId,
         victim: MinionId,
+        diablerie: bool,
     },
     /// Heidelberg Castle: `to` first, then blood (excess to the bank, ANK
     /// 20170804), then equipment and retainers `to` can hold (LSJ 19980831).
@@ -95,6 +97,7 @@ pub enum Interrupt {
         from: MinionId,
         to: Option<MinionId>,
         blood_done: bool,
+        how: crate::cards::Moves,
     },
     /// "Burned unless its controller burns n pool" (Conquest of Humanity):
     /// `seat` pays or lets `card` burn.
@@ -108,6 +111,9 @@ pub enum Interrupt {
     LockOrDiscard { seat: SeatId, minion: MinionId },
     /// Maabara: a library card of `seat`'s ash heap moved onto `card`.
     StoreOwnAsh { seat: SeatId, card: CardId },
+    /// Storage Annex as it is played: a card of `seat`'s hand put face down
+    /// on `card`, replaced.
+    StoreOwnHand { seat: SeatId, card: CardId },
     /// Maabara: a card on `card` moved to the top of `seat`'s library.
     StoredToLibraryTop { seat: SeatId, card: CardId },
     /// Waiting Game: an anarch burns 1 blood (`BurnBloodToAvoid`) or
@@ -618,6 +624,7 @@ impl Interrupt {
             | Interrupt::NameAshVampire { seat }
             | Interrupt::StorePreyAsh { seat, .. }
             | Interrupt::StoreOwnAsh { seat, .. }
+            | Interrupt::StoreOwnHand { seat, .. }
             | Interrupt::StoredToLibraryTop { seat, .. }
             | Interrupt::BeastDisciplines { seat, .. }
             | Interrupt::MayRecycleCanceled { seat, .. }
@@ -796,10 +803,13 @@ impl Engine {
                 }
                 // The diablerie goes on without its choice.
                 if let Interrupt::DiablerieEquipment {
-                    diablerist, victim, ..
+                    diablerist,
+                    victim,
+                    diablerie,
+                    ..
                 } = front
                 {
-                    self.diablerie_burns(diablerist, victim);
+                    self.taken_from_burns(diablerist, victim, diablerie);
                 }
                 continue;
             }
@@ -1115,6 +1125,10 @@ impl Engine {
                     self.state.cards[card.index()].present()
                         && !self.state.seats[seat.index()].ash.is_empty()
                 }
+                Interrupt::StoreOwnHand { seat, card } => {
+                    self.state.cards[card.index()].present()
+                        && !self.state.seats[seat.index()].hand.is_empty()
+                }
                 Interrupt::StoredToLibraryTop { card, .. } => {
                     self.state.cards[card.index()].present()
                         && !self.state.cards[card.index()].stored.is_empty()
@@ -1333,11 +1347,14 @@ impl Engine {
                         && !self.blood_recipients(seat, from, anarchs).is_empty()
                 }
                 Interrupt::DiablerieEquipment {
-                    diablerist, victim, ..
+                    diablerist,
+                    victim,
+                    diablerie,
+                    ..
                 } => {
                     if self.diablerie_equipment(diablerist, victim).is_empty() {
                         self.interrupts.remove(0);
-                        self.diablerie_burns(diablerist, victim);
+                        self.taken_from_burns(diablerist, victim, diablerie);
                         continue;
                     }
                     true
@@ -1347,9 +1364,10 @@ impl Engine {
                     from,
                     to,
                     blood_done,
+                    how,
                 } => match to {
                     _ if !self.state.minions[from.index()].ready() => false,
-                    None => !self.move_recipients(seat, from).is_empty(),
+                    None => !self.move_recipients(seat, from, how).is_empty(),
                     Some(to) if !self.state.minions[to.index()].ready() => false,
                     // No blood to move: on to the cards.
                     Some(_) if !blood_done && self.state.minions[from.index()].blood == 0 => {
@@ -1358,11 +1376,12 @@ impl Engine {
                             from,
                             to,
                             blood_done: true,
+                            how,
                         };
                         continue;
                     }
                     Some(_) if !blood_done => true,
-                    Some(to) => !self.movable_cards(from, to).is_empty(),
+                    Some(to) => !self.movable_cards(from, to, how).is_empty(),
                 },
                 Interrupt::PayOrBurn { card, .. } => self.state.cards[card.index()].present(),
                 Interrupt::BloodOrBurned {
@@ -1465,11 +1484,12 @@ impl Engine {
                 from,
                 to,
                 blood_done,
+                how,
             } => (
                 WindowLabel::ResolutionChoice,
                 match to {
                     None => self
-                        .move_recipients(seat, from)
+                        .move_recipients(seat, from, how)
                         .into_iter()
                         .map(Choice::ChooseMinion)
                         .collect(),
@@ -1479,7 +1499,7 @@ impl Engine {
                     Some(to) => {
                         let mut options = vec![Choice::Pass];
                         options.extend(
-                            self.movable_cards(from, to)
+                            self.movable_cards(from, to, how)
                                 .into_iter()
                                 .map(|c| Choice::ChooseCard(c.0)),
                         );
@@ -2074,6 +2094,13 @@ impl Engine {
                     .map(Choice::FindCard)
                     .collect(),
             ),
+            Interrupt::StoreOwnHand { seat, .. } => (
+                WindowLabel::ResolutionChoice,
+                crate::state::distinct(&st.seats[seat.index()].hand, |_| true)
+                    .into_iter()
+                    .map(Choice::FindCard)
+                    .collect(),
+            ),
             Interrupt::StoredToLibraryTop { card, .. } => (
                 WindowLabel::ResolutionChoice,
                 crate::state::distinct(&st.cards[card.index()].stored, |_| true)
@@ -2614,12 +2641,20 @@ impl Engine {
 
     /// The other ready vampires of `seat`'s Heidelberg Castle moves to
     /// from `from`.
-    fn move_recipients(&self, seat: SeatId, from: MinionId) -> Vec<MinionId> {
+    fn move_recipients(
+        &self,
+        seat: SeatId,
+        from: MinionId,
+        how: crate::cards::Moves,
+    ) -> Vec<MinionId> {
         self.state
             .minions_of(seat)
             .filter(|&m| {
                 let v = &self.state.minions[m.index()];
-                m != from && v.ready() && v.is_vampire()
+                m != from
+                    && v.ready()
+                    && v.is_vampire()
+                    && how.sect.is_none_or(|s| self.state.sect_of(m) == Some(s))
             })
             .collect()
     }
@@ -2660,12 +2695,12 @@ impl Engine {
     }
 
     /// The equipment and retainers on `from` that `to` could have.
-    fn movable_cards(&self, from: MinionId, to: MinionId) -> Vec<CardId> {
+    fn movable_cards(&self, from: MinionId, to: MinionId, how: crate::cards::Moves) -> Vec<CardId> {
         if self.state.no_equipment_or_retainers(to) {
             return Vec::new();
         }
         let mut out = self.holdable_equipment(from, to);
-        if self.state.no_retainers(to) {
+        if !how.retainers || self.state.no_retainers(to) {
             return out;
         }
         out.extend(
@@ -3289,6 +3324,15 @@ impl Engine {
                 let (_, copy) = ash.take(i);
                 self.state.cards[on.index()].stored.put(card, copy);
             }
+            (Interrupt::StoreOwnHand { seat, card: on }, Choice::FindCard(card)) => {
+                self.interrupts.remove(0);
+                let hand = &mut self.state.seats[seat.index()].hand;
+                let i = hand.iter().rposition(|&c| c == card).expect("in hand");
+                let (_, copy) = hand.take(i);
+                self.state.cards[on.index()].stored.put(card, copy);
+                self.state.cards[on.index()].stored_owner = Some(seat);
+                self.replace(seat, 1, None);
+            }
             (Interrupt::StoredToLibraryTop { seat, card: on }, Choice::FindCard(card)) => {
                 self.interrupts.remove(0);
                 let stored = &mut self.state.cards[on.index()].stored;
@@ -3837,12 +3881,18 @@ impl Engine {
                     }
                 }
             }
-            (Interrupt::MoveBetween { seat, from, .. }, Choice::ChooseMinion(to)) => {
+            (
+                Interrupt::MoveBetween {
+                    seat, from, how, ..
+                },
+                Choice::ChooseMinion(to),
+            ) => {
                 self.interrupts[0] = Interrupt::MoveBetween {
                     seat,
                     from,
                     to: Some(to),
                     blood_done: false,
+                    how,
                 };
             }
             // The excess over what `to` can hold goes to the bank.
@@ -3851,6 +3901,7 @@ impl Engine {
                     seat,
                     from,
                     to: Some(to),
+                    how,
                     ..
                 },
                 Choice::SetX(n),
@@ -3862,6 +3913,7 @@ impl Engine {
                     from,
                     to: Some(to),
                     blood_done: true,
+                    how,
                 };
             }
             (Interrupt::DiablerieEquipment { diablerist, .. }, Choice::ChooseCard(c)) => {
@@ -3869,12 +3921,15 @@ impl Engine {
             }
             (
                 Interrupt::DiablerieEquipment {
-                    diablerist, victim, ..
+                    diablerist,
+                    victim,
+                    diablerie,
+                    ..
                 },
                 Choice::Pass,
             ) => {
                 self.interrupts.remove(0);
-                self.diablerie_burns(diablerist, victim);
+                self.taken_from_burns(diablerist, victim, diablerie);
             }
             (Interrupt::MoveBetween { to: Some(to), .. }, Choice::ChooseCard(c)) => {
                 self.state.set_host(CardId(c), to);

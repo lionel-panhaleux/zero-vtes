@@ -1,6 +1,6 @@
-/* zvtes protocol 2.4.0 (docs/protocol.md): generated from
+/* zvtes protocol 2.5.0 (docs/protocol.md): generated from
  * crates/api/schema.json by scripts/gen_ts.py, do not edit. */
-export const PROTOCOL_VERSION = '2.4.0'
+export const PROTOCOL_VERSION = '2.5.0'
 
 /**
  * A command as sent: an optional client id, echoed by an `error` it
@@ -1162,6 +1162,7 @@ export type Purpose =
     | 'ready_titled_left'
     | 'name_master_discipline'
     | 'name_ash_equipment'
+    | 'store_own_hand'
     | 'buy_title'
     | 'move_for_blood'
     | 'redraw'

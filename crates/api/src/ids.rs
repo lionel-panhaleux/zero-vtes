@@ -377,6 +377,8 @@ ids!(
         /// Diablerie: `seat`'s diablerist (`to`) takes the victim's
         /// (`minion`) equipment, one card at a time, each one it could
         /// hold, until done; the victim then burns (rulebook "Diablerie").
+        /// Also Sacrificial Lamb's burn of a vampire in torpor, not a
+        /// diablerie.
         DiablerieEquipment,
         /// "Burned unless its controller burns n pool" (Conquest of Humanity):
         /// `seat` pays or lets `card` burn.
@@ -655,6 +657,9 @@ ids!(
         /// then the card (`find_card`; `seat`: that heap, `detail`:
         /// `named`).
         NameAshEquipment,
+        /// Storage Annex as it is played: the card of the hand put face
+        /// down on `card` (`find_card`), replaced.
+        StoreOwnHand,
         /// "When it enters play, you may pay n pool to make it <title>"
         /// (Victor Pelletier, `minion`): `SetX(n)` pays n pool for the title
         /// its option's effect names (`role`, `detail`: `primogen`,

@@ -1777,7 +1777,7 @@ pub static PARIJAT: VampireDef = VampireDef {
     ..VAMP
 };
 
-pub static VAMPIRES: [&VampireDef; 447] = [
+pub static VAMPIRES: [&VampireDef; 456] = [
     &JOSEF_VON_BAUREN,
     &GABRIELLE_DI_RIGHETTI,
     &HAROLD_TANNER,
@@ -2225,6 +2225,15 @@ pub static VAMPIRES: [&VampireDef; 447] = [
     &ALAN_SOVEREIGN_ADV,
     &BARBARO_LUCCHESE,
     &ANGELO,
+    &ANTOINETTE_DUCHAMP,
+    &CHANDLER_HUNGERFORD,
+    &CHRISTINE_BOSCACCI,
+    &EURAYLE_GELASIA_MYLONAS,
+    &FERGUS_ALEXANDER,
+    &GREENSLEEVES,
+    &JULIUS,
+    &NAVAR_MCCLAREN,
+    &SMUDGE_THE_IGNORED,
 ];
 
 /// "Anarch Baron of Miami: During your influence phase, Gilbert can burn 1
@@ -8427,5 +8436,103 @@ pub static ANGELO: VampireDef = VampireDef {
             Effect::BurnTargetCard,
         ],
     )],
+    ..VAMP
+};
+
+/// "Camarilla: Action cards and strike cards that require Celerity [cel]
+/// cost Antoinette an additional blood." Action cards of every type
+/// (rules-qa 60.4); a strike card is one played in a strike mode, a dodge
+/// included (42.2), requiring [cel] in the mode played (38.4).
+pub static ANTOINETTE_DUCHAMP: VampireDef = VampireDef {
+    name: "Antoinette DuChamp",
+    printed: &[own(
+        Stat::BloodCostMore,
+        1,
+        &[
+            R::PlayedRequiresDiscipline("cel"),
+            R::AnyOf(&[
+                &[R::PlayedCard(CardFilter::ActionCard)],
+                &[R::PlayedInStrikeMode],
+            ]),
+        ],
+    )],
+    ..VAMP
+};
+
+/// "Camarilla: Chandler gets +1 intercept when attempting to block other
+/// Gangrel."
+pub static CHANDLER_HUNGERFORD: VampireDef = VampireDef {
+    name: "Chandler Hungerford",
+    printed: &[own(Stat::Intercept, 1, &[R::OpponentClan("Gangrel")])],
+    ..VAMP
+};
+
+/// "Sabbat: Christine gets -1 intercept during bleed actions."
+pub static CHRISTINE_BOSCACCI: VampireDef = VampireDef {
+    name: "Christine Boscacci",
+    printed: &[own(Stat::Intercept, -1, &[R::IsBleed])],
+    ..VAMP
+};
+
+/// "Independent: Eurayle can unlock a minion as an action; that action gets
+/// +2 stealth if you control the minion. Scarce." Any minion, herself
+/// included; directed at the minion's controller otherwise (PIB 20121210);
+/// scarce generated.
+pub static EURAYLE_GELASIA_MYLONAS: VampireDef = VampireDef {
+    name: "Eurayle Gelasia Mylonas",
+    abilities: &[printed_action(
+        target(TargetKind::Minion, &[]),
+        &[
+            Effect::DeclareAction(ActionKind::Ability),
+            Effect::StealthIfOwnTarget(2),
+            Effect::UnlockTarget,
+        ],
+    )],
+    ..VAMP
+};
+
+/// "Camarilla: Fergus can enter combat with a locked Sabbat vampire as a Ⓓ
+/// action." A target unlocked by resolution: successful, no effect (ANK
+/// 20210124); a ready one, as Nathaniel Bordruff's.
+pub static FERGUS_ALEXANDER: VampireDef = VampireDef {
+    name: "Fergus Alexander",
+    abilities: &[enter_combat(&[
+        R::NotControlled,
+        R::ActorReady,
+        R::TargetVampire,
+        R::TargetLocked,
+        R::ActorSectIn(&[Sect::Sabbat]),
+    ])],
+    ..VAMP
+};
+
+/// "Sabbat priscus: If you also control Humo, Greensleeves may burn a blood
+/// to give Humo +1 bleed during a bleed action." Humo is not in the pool:
+/// the text is inert (Alan Sovereign's precedent).
+pub static GREENSLEEVES: VampireDef = VampireDef {
+    name: "Greensleeves",
+    ..VAMP
+};
+
+/// "Camarilla: If Julius goes into torpor, burn him." Once in torpor, its
+/// riders fired.
+pub static JULIUS: VampireDef = VampireDef {
+    name: "Julius",
+    printed: &[own(Stat::BurnedAfterTorpor, 1, &[])],
+    ..VAMP
+};
+
+/// "Camarilla: Navar cannot block older vampires."
+pub static NAVAR_MCCLAREN: VampireDef = VampireDef {
+    name: "Navar McClaren",
+    printed: &[own(Stat::CannotBlock, 1, &[R::OpponentOlder])],
+    ..VAMP
+};
+
+/// "Camarilla: After Smudge diablerizes an older vampire for the first
+/// time, he gets +1 strength." Once, for good.
+pub static SMUDGE_THE_IGNORED: VampireDef = VampireDef {
+    name: "Smudge the Ignored",
+    printed: &[own(Stat::Strength, 1, &[R::DiablerizedOlder])],
     ..VAMP
 };

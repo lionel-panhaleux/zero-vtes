@@ -380,6 +380,8 @@ pub struct Minion {
     /// "Unlock this vampire during the next discard phase" (Feral Hound
     /// [ani]): cleared by that phase.
     pub unlock_at_discard: bool,
+    /// As `unlock_at_discard`, if then of this clan (Crusade: Istanbul).
+    pub unlock_at_discard_if: Option<&'static str>,
     /// Bleed added until the end of the turn (Andre LeRoux).
     pub bleed_bonus_turn: u8,
     /// Became Black Hand in play (Mateusz Kazimirski).
@@ -412,6 +414,8 @@ pub struct Minion {
     pub made_red_list: bool,
     /// The game turn of its last diablerie (Carlton Van Wyk).
     pub diablerie_turn: Option<u32>,
+    /// Has diablerized an older vampire (Smudge the Ignored).
+    pub diablerized_older: bool,
     /// Took a hunt action this turn (Thirst: "who did not hunt during that
     /// minion phase").
     pub hunted: bool,
@@ -580,6 +584,7 @@ impl Minion {
             recruits_this_turn: 0,
             played_since_unlock: Vec::new(),
             unlock_at_discard: false,
+            unlock_at_discard_if: None,
             bleed_bonus_turn: 0,
             gained_black_hand: false,
             timed: Vec::new(),
@@ -591,6 +596,7 @@ impl Minion {
             grafts: 0,
             diablerie_shield: false,
             diablerie_turn: None,
+            diablerized_older: false,
             bleeds: Vec::new(),
             made_red_list: false,
             hunted: false,
@@ -1183,6 +1189,9 @@ pub struct Seat {
     /// Veil the Legions [OBF]: the next actions of this Methuselah's
     /// minions this turn that get +1 stealth.
     pub veil_left: u8,
+    /// One of its minions announced an action this turn, whatever became
+    /// of it (NSA Trio).
+    pub acted_this_turn: bool,
     /// Discard phase actions left in the current discard phase.
     pub dpa: u8,
     /// Of `dpa`, those granted by Powerbase: Los Angeles and not used yet.
@@ -1305,6 +1314,9 @@ pub struct GameState {
     pub active: SeatId,
     /// Game turn counter, 1-based once the first turn starts.
     pub turn: u32,
+    /// The turn of the last combat between an acting vampire and the
+    /// vampire that blocked it (NSA Trio: "the first … each turn").
+    pub vampire_block_combat_turn: Option<u32>,
     /// The minions in the combat under way, if any (the acting side
     /// first): "while the employer is in combat" (Raptor [ANI]).
     pub combatants: Option<[MinionId; 2]>,
@@ -2208,6 +2220,10 @@ impl GameState {
                             .and_then(|d| d.modes.get(mode as usize))
                             .is_some_and(|m| m.windows.iter().all(|w| w.is_combat())))
             }),
+            R::PlayedInStrikeMode => ctx
+                .card
+                .is_some_and(|(c, mode)| crate::plays::is_strike_mode(c, mode)),
+            R::DiablerizedOlder => src.diablerized_older,
             R::ActionDirected => ctx.directed == Some(true),
             R::ActionUndirected => ctx.directed == Some(false),
             R::IsBleed => ctx.kind == Some(ActionKind::Bleed),
@@ -3220,9 +3236,12 @@ impl GameState {
         for (i, c) in v.cards.iter_mut().enumerate() {
             let face_down = cards::lookup(c.card).is_some_and(|d| {
                 d.modes.iter().chain(d.abilities).any(|m| {
-                    m.effects
-                        .iter()
-                        .any(|e| matches!(e, cards::Effect::StoreTopCards(_)))
+                    m.effects.iter().any(|e| {
+                        matches!(
+                            e,
+                            cards::Effect::StoreTopCards(_) | cards::Effect::StoreFromOwnHand
+                        )
+                    })
                 })
             });
             if face_down && self.card_controller(CardId(i as u32)) != viewer {

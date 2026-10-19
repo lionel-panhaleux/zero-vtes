@@ -211,6 +211,7 @@ const DURING_ONCE_ELSEWHERE: &[(&str, &str)] = &[
         "FIENDISH_TONGUE",
         "a one-shot discard-phase hook, taken as used",
     ),
+    ("GREENSLEEVES", "inert: Humo is not in the pool"),
     (
         "JOE_BOOT_HILL",
         "the maneuver his own action's combat grants, no ability",

@@ -112,6 +112,7 @@ impl Requirement {
             | R::LockedActor
             | R::ControlsReadyTitled(..)
             | R::ControlsReadySect(..)
+            | R::ControlsReadyOfSect(..)
             | R::MasterPhaseActionLeft
             | R::HandHas(..)
             | R::PreyBurnedPool
@@ -183,6 +184,8 @@ impl Requirement {
             | R::OwnTurn
             | R::ActorMustHunt
             | R::DiscardPhaseActionLeft
+            | R::NoOwnClaimOf(..)
+            | R::NoActionAnnouncedThisTurn
             | R::MasterCardPlayed
             | R::AshNotEmpty
             | R::ActionRequiresAnarch
@@ -224,6 +227,7 @@ impl Requirement {
             | R::BlockerTitleIn(..)
             | R::BlockerOwnAnarch
             | R::BlockerOwn
+            | R::BlockerReadyAfterItsCombat
             | R::ActorNotBlocker
             | R::SameCircleAsActing
             | R::SameCircleAsOwnCombatant { .. }
@@ -416,6 +420,8 @@ impl Requirement {
             | R::SourceActing
             | R::ActorClaimsTitleIn(..)
             | R::PlayedAsReaction
+            | R::PlayedInStrikeMode
+            | R::DiablerizedOlder
             | R::PlayedAsCombat
             | R::NoReadyNamed(..)
             | R::ActorSubtype(..)

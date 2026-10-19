@@ -152,6 +152,7 @@ pub fn purpose(i: &Interrupt) -> Purpose {
         I::PoolOrNoTransfers { .. } => Purpose::PoolOrNoTransfers,
         I::BloodOrCamarilla { .. } => Purpose::BloodOrCamarilla,
         I::StoreOwnAsh { .. } => Purpose::StoreOwnAsh,
+        I::StoreOwnHand { .. } => Purpose::StoreOwnHand,
         I::StoredToLibraryTop { .. } => Purpose::StoredToLibraryTop,
         I::LibraryToHand { .. } => Purpose::LibraryToHand,
         I::CryptSearch { .. } => Purpose::CryptSearch,

@@ -1731,6 +1731,18 @@ impl Engine {
         }
         self.leave_riders(Hook::HostToTorpor, ms);
         self.leave_riders(Hook::ReadyMinionBurnedOrTorpor, ms);
+        for &m in ms {
+            let v = &self.state.minions[m.index()];
+            if v.in_play
+                && v.in_torpor
+                && self
+                    .state
+                    .printed_mod(m, cards::Stat::BurnedAfterTorpor, Default::default())
+                    > 0
+            {
+                self.burn_minion(m);
+            }
+        }
     }
 
     /// Unlock minion `m` by an effect — not during an action that forbids
@@ -2243,7 +2255,10 @@ impl Engine {
             .expire(Expiry::DiscardPhase);
         // "Unlock this vampire during the next discard phase" (Feral Hound).
         for i in 0..self.state.minions.len() {
-            if std::mem::take(&mut self.state.minions[i].unlock_at_discard) {
+            let v = &mut self.state.minions[i];
+            let clan = v.unlock_at_discard_if.take();
+            if std::mem::take(&mut v.unlock_at_discard) | clan.is_some_and(|c| v.clan() == Some(c))
+            {
                 self.state.unlock(MinionId(i as u32));
             }
         }
@@ -2612,6 +2627,7 @@ impl Engine {
         // Veil the Legions lasts the turn.
         for seat in &mut self.state.seats {
             seat.veil_left = 0;
+            seat.acted_this_turn = false;
         }
         self.state.titled_left.clear();
         for m in &mut self.state.minions {
@@ -2820,7 +2836,7 @@ mod tests {
     #[test]
     fn crypt_data_is_complete() {
         // The 200 V5 vampires, then the owner's legacy additions.
-        assert_eq!(CRYPT.len(), 687);
+        assert_eq!(CRYPT.len(), 701);
         assert_eq!(PRECONS.len(), 14);
         for (name, list) in PRECONS.iter() {
             let n: u32 = list.iter().map(|&(_, k)| k as u32).sum();

@@ -626,7 +626,8 @@ engine masks), `cards/mod.rs` (the vocabulary: `Window`, `Actor`,
   (card actions) or successful with no effect (granted actions, spec §3.4.1). An
   action whose acting minion left play fails. A bleed target ousted before
   resolution: fizzled, no pool, no Edge. A **successful bleed** is one of 1+;
-  only it takes the Edge (`ActionCtx.bleed_successful`); a bleed at 0 is still a
+  only it takes the Edge (`ActionCtx.bleed_successful`), burned instead under
+  Leverage (`ActionCtx::no_edge`); a bleed at 0 is still a
   successful action. A hunt succeeds only if it gains blood.
 - Canceled before resolution (The Kiss of Ra, `Effect::CancelAction`):
   `ActionCtx::canceled` ends the action from the declined state with no
@@ -648,7 +649,7 @@ engine masks), `cards/mod.rs` (the vocabulary: `Window`, `Actor`,
   (`queued_at_resolution`). Both minions must still be ready (advanced rules
   4.9.3); an action failing or ending first loses it (LSJ 20090826).
   Psyche!'s queue is the combat's (§6.7). Fast Reaction queues from the
-  after-combat window (`QueueCombatWithActing`, its riders in
+  after-combat window (`QueueCombatAfterBlock`, its riders in
   `ActionCtx::queued_riders`), dropping the block combat's continuation
   as Psyche! does; `Requirement::BlockerOwn` reads `last_combat`, so it
   follows the block's combat only, never its own.
@@ -663,6 +664,10 @@ engine masks), `cards/mod.rs` (the vocabulary: `Window`, `Actor`,
   diablerist could hold, is `Interrupt::DiablerieEquipment` (a card at a
   time, `ResolutionChoice`), and steps 1 and 3 (`diablerie_burns`: the
   blood, the burn) follow as it ends; with nothing to take, at once. An
+  Sacrificial Lamb's burn of a vampire in torpor shares step 2
+  (`Interrupt::DiablerieEquipment { diablerie: false }`), then
+  `taken_from_burns`: the target's capacity in blood, read before, if it
+  burned; no diablerie. An
   older victim (advanced rules 4) then gives a Discipline:
   `Interrupt::DisciplineSearch` (Childe of the Revolution's) on the
   diablerist, not one of a Discipline it has at superior, the card's
@@ -915,6 +920,17 @@ engine masks), `cards/mod.rs` (the vocabulary: `Window`, `Actor`,
   and `Effect::OpposingCelerityMayBurnToPrevent` (Stunt Cycle, through
   `Interrupt::MayPreventForBlood`). `Side::combat_damage` counts the damage
   taken in the combat for `Stat::BurnedOverCombatDamage` (Franciscus).
+- Improvised Flamethrower (`Modifier::BackfiresAtLong`, `combat::backfire`):
+  each copy on a minion struck at long range (`Side::strike_damage`,
+  prevented or not) or hit by pre-range damage with the range set long
+  (`CombatCtx::range_set`) adds its aggravated damage to its bearer's own
+  (`Side::self_damage`) and burns.
+- NSA Trio (`Modifier::NoCombatEndsFirstBlockCombat`): `begin_combat` marks
+  the turn's first combat of an acting vampire and its vampire blocker
+  (`GameState::vampire_block_combat_turn`, in play or not), barring both
+  sides' combat ends in round 1 (`Side::no_combat_ends_round`). Hidden
+  Lurker queues its combat with the blocker as Fast Reaction's with the
+  acting minion (`QueueCombatAfterBlock { with_blocker }`).
 
 - Dam the Heart's River: `Side::more_damage_taken` is added where each
   kind of damage to that minion is counted — `Side::strike_hit` (a
@@ -982,7 +998,10 @@ engine masks), `cards/mod.rs` (the vocabulary: `Window`, `Actor`,
   on a contested minion go out of play with it (`set_minion_contested`, through
   `Engine::cards_out_with` / `cards_back_with`, as Descent's; rules-qa 83.1).
 - Self-contest is masked (rules-qa 7.1; `controls_unique_copy` also for
-  searches); a forced one burns the incoming copy (The Coven).
+  searches); a forced one burns the incoming copy (The Coven,
+  `Engine::take_card_control`). A title card put on its caller is not
+  called while its player claims the title (`Requirement::NoOwnClaimOf`,
+  rules-qa 85.32).
 - Titles are read live (`GameState::title_of`): **claimed** (`claimed_title`: a
   title card on the vampire, else `Minion.granted_title`, else printed unless
   lost) vs **effective** (none while contested, out of play, off-sect, or its
@@ -1056,7 +1075,9 @@ engine masks), `cards/mod.rs` (the vocabulary: `Window`, `Actor`,
   unlock phase while any of their vampires has one; released once no such
   card is in play, `GameState::release_torture`), `nightmare`,
   `diablerie_shield`, `must_hunt`, `played_since_unlock` (wake limits),
-  `unlock_at_discard`.
+  `unlock_at_discard`, `unlock_at_discard_if` (a clan read at that discard
+  phase: Crusade: Istanbul's `RefEffect::PutOnCaller { unlocks_if }`),
+  `diablerized_older` (Smudge's `Requirement::DiablerizedOlder`).
 - Black Hand: printed (`CryptCard::black_hand`) or gained
   (`Minion::gained_black_hand`, Mateusz), read by `GameState::is_black_hand`.
   Pulled Fangs' "if they must hunt, torpor instead": `Engine::run`'s
@@ -1124,13 +1145,20 @@ engine masks), `cards/mod.rs` (the vocabulary: `Window`, `Actor`,
   player's (rules-qa 7.5), `Effect::StillYours` keeps a card its player's on
   another's minion. `Engine::give_card_control` / `give_location` (a location on
   a minion moves onto a ready minion of the new controller that can hold it, else
-  burns).
+  burns). The Admonitions passes in its controller's discard phase, a due
+  (`Effect::PassesToSect`: counter-clockwise, its controller last, else
+  burned).
 - **Oust**: cards the Methuselah *controlled* are removed (not burned, nothing
   triggers, spec §1.10); other players' cards on their removed minions burn to
   their owners' ash heaps.
 - Fields: `mode` (the version it entered with), `by` (the minion that played it),
   `against` (remembered Methuselahs, `SeatSet`), `chosen`, `stored` (library
-  cards held on it, burned with it), `counters`, `entered`, `effect_only`.
+  cards held on it, burned with it to `stored_owner`'s ash heap if set:
+  The Erciyes Fragments' prey, Storage Annex's last storer), `counters`,
+  `entered`, `effect_only`. Storage Annex stores a hand card as it is played
+  (`Interrupt::StoreOwnHand`) and swaps one in its master phase
+  (`Effect::SwapPickedWithStored`, in `ability_discards_done`, no
+  replacement).
 - Riders (`Rider { hook, scope, requires, effects }`, `RiderScope::{Every,
   Controller, Others, Prey}`): requirements read at collection and at
   resolution (`rider_fires` again as a chosen rider resolves; an unmet rider
@@ -1246,7 +1274,11 @@ engine masks), `cards/mod.rs` (the vocabulary: `Window`, `Actor`,
   `ReferendumCtx::barred_against`), `InterceptAgainst` (Rutor),
   `NoRetainerDamage` (Carolina), `TitleContestToll` (Vasily,
   `GameState::title_contest_cost`); a printed rider on its own torpor
-  (Thomas De Lutrius, `leave_riders`).
+  (Thomas De Lutrius, `leave_riders`); `Stat::BurnedAfterTorpor` (Julius:
+  burned once in torpor, after the torpor riders, `minions_to_torpor`).
+  Printed surcharges read the card played (`PrintedCtx::card`):
+  `Requirement::PlayedInStrikeMode` (Antoinette DuChamp, a dodge
+  included).
 - An ability's Discipline term (`Terms::InferiorDiscipline`, Camarilla
   Vitae Slave: `ability_discipline_apply`, gated on one at inferior);
   `Effect::ActionCardToLibraryShuffled` sends the action's own card to the
@@ -1278,6 +1310,10 @@ engine masks), `cards/mod.rs` (the vocabulary: `Window`, `Actor`,
   `holdable_equipment` (Heidelberg Castle), Redistribution's moves and
   Confiscation's take; its burn
   damages the bearer (`Effect::BurnedDamagesBearer` in `burn_card_in_play`).
+- `Effect::EntersLocked` (Helicopter): the card locked by its equip mode,
+  however equipped (`put_equipment`; a take from another minion in
+  `ActionKind::EquipFrom`); a card put on (Alastor's `SearchEquipFor`) runs
+  no mode effect.
 
 ### 6.14 Replacement, hand size, draws, searches
 
@@ -1526,7 +1562,8 @@ are in DESIGN §11.2.
     blood, counters, `held` (a count); a banished vampire's uncontrolled
     slot (it left play in view of all), every slot's counters; face-up
     stored cards (Black Market Cache, Fleshforge Chamber), Shilmulo Tarot's
-    face-down ones (`Effect::StoreTopCards`) to its controller only. The
+    and Storage Annex's face-down ones (`Effect::StoreTopCards`,
+    `StoreFromOwnHand`) to its controller only. The
     RNG is not in the state.
   - The action, combat and referendum contexts and the as-played stack are
     public, except a card named from hand (`PlayCtx::named`, Pack Alpha;

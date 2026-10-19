@@ -413,6 +413,8 @@ pub struct ActionCtx {
     /// Concoction of Vitality: the acting vampire plays no card requiring a
     /// Discipline until the action is complete.
     pub no_discipline_cards: bool,
+    /// Leverage: its player gains no Edge this action, burned instead.
+    pub no_edge: bool,
     /// Shell Game: the Blood Brothers it locked, and how many of them its
     /// player may still unlock after a successful action.
     pub pick_unlocks: (Vec<MinionId>, u8),
@@ -536,9 +538,14 @@ impl ActionCtx {
                     {
                         n as i32
                     }
-                    // Rampage: the location its own Methuselah's.
-                    Effect::StealthIfOwnTargetCard(n)
-                        if matches!(self.target, Target::Card(c) if st.card_controller(c) == self.seat) =>
+                    // Rampage: the location its own Methuselah's; Eurayle
+                    // Gelasia Mylonas: the minion.
+                    Effect::StealthIfOwnTarget(n)
+                        if match self.target {
+                            Target::Card(c) => st.card_controller(c) == self.seat,
+                            Target::Minion(m) => st.minions[m.index()].owner == self.seat,
+                            _ => false,
+                        } =>
                     {
                         n as i32
                     }
@@ -1142,6 +1149,7 @@ impl Engine {
         // The acting minion's controller: the active Methuselah, or another
         // one's vampire taking an action in their phase (Enkil Cog).
         let seat = self.state.minions[minion.index()].owner;
+        self.state.seats[seat.index()].acted_this_turn = true;
         let own_target = torpor_target.map(|t| self.state.minions[t.index()].owner == seat);
         // Donatello Giovanni: the chosen vampire attempting to bleed moves
         // 1 blood to him, each attempt (rules-qa 67.3).
@@ -3382,7 +3390,24 @@ impl Engine {
                 seat,
                 diablerist,
                 victim,
+                diablerie: true,
             });
+    }
+
+    /// The victim's equipment taken: a diablerie's step 3, or Sacrificial
+    /// Lamb's burn, blood equal to its capacity read before (ignore excess
+    /// blood), if it burned.
+    pub(crate) fn taken_from_burns(&mut self, taker: MinionId, victim: MinionId, diablerie: bool) {
+        if diablerie {
+            self.diablerie_burns(taker, victim);
+            return;
+        }
+        let capacity = self.state.capacity_of(victim).unwrap_or(0);
+        self.burn_minion(victim);
+        if !self.state.minions[victim.index()].in_play && self.state.minions[taker.index()].in_play
+        {
+            self.state.gain_blood(taker, capacity);
+        }
     }
 
     /// Rulebook "Diablerie" steps 1 and 3: blood to the diablerist, victim
@@ -3395,6 +3420,7 @@ impl Engine {
         self.burn_minion(victim);
         self.state.gain_blood(diablerist, taken);
         if older {
+            self.state.minions[diablerist.index()].diablerized_older = true;
             let n = self.state.printed_mod(
                 diablerist,
                 cards::Stat::BloodAfterOlderDiablerie,
@@ -3640,12 +3666,20 @@ impl Engine {
             // once the after-combat window closes, unable to strike in its
             // first round; [AUS] a press for this vampire. The block's
             // combat's continuation lost, as Psyche!'s (RTR 20020501).
-            Effect::QueueCombatWithActing { press } => {
+            Effect::QueueCombatAfterBlock {
+                with_blocker,
+                press,
+            } => {
                 let m = play.actor.expect("actor");
+                let opponent = if with_blocker {
+                    a.blocker.expect("blocker")
+                } else {
+                    a.acting
+                };
                 a.continue_free = false;
                 a.continued = false;
-                a.queued_combat = Some((a.acting, m));
-                a.queued_riders = vec![(a.acting, cards::BlockRider::NoStrikeFirstRound)];
+                a.queued_combat = Some((opponent, m));
+                a.queued_riders = vec![(opponent, cards::BlockRider::NoStrikeFirstRound)];
                 if press {
                     a.queued_riders.push((m, cards::BlockRider::Press));
                 }
@@ -3827,6 +3861,7 @@ impl Engine {
                 }
             }
             Effect::NoDisciplineCardsThisAction => a.no_discipline_cards = true,
+            Effect::NoEdgeThisAction => a.no_edge = true,
             Effect::PerfectClarity { superior } => {
                 a.clarity = Some((play.actor.expect("the acting vampire"), superior));
             }
@@ -4522,11 +4557,12 @@ impl Engine {
                     self.state.minions[a.acting.index()]
                         .bleeds
                         .push((turn, prey, amount));
-                    let anew = !self.state.seats[seat.index()].has_edge;
+                    let anew = !self.state.seats[seat.index()].has_edge && !a.no_edge;
                     for s in &mut self.state.seats {
                         s.has_edge = false;
                     }
-                    self.state.seats[seat.index()].has_edge = true;
+                    // Leverage: the Edge it would get burned instead.
+                    self.state.seats[seat.index()].has_edge = !a.no_edge;
                     // "If your prey gets the Edge anew, you can add 1
                     // counter to this card" (Form of Corruption).
                     if anew {
@@ -4968,7 +5004,17 @@ impl Engine {
                         && self.state.can_hold(acting, c.card, &[])
                         && !self.state.pinned(id)
                     {
+                        let (card, mode) = (c.card, c.mode);
                         self.state.set_host(id, acting);
+                        // Equipped, it comes locked (Helicopter; LSJ
+                        // 20100119).
+                        if cards::lookup(card).is_some_and(|d| {
+                            d.modes[mode as usize]
+                                .effects
+                                .contains(&Effect::EntersLocked)
+                        }) {
+                            self.state.cards[id.index()].locked = true;
+                        }
                     }
                 }
             }
@@ -5075,7 +5121,7 @@ impl Engine {
                             Effect::DeclareAction(_)
                                 | Effect::AddStealth(_)
                                 | Effect::StealthForClan { .. }
-                                | Effect::StealthIfOwnTargetCard(_)
+                                | Effect::StealthIfOwnTarget(_)
                                 | Effect::StealthForTitled(_)
                                 | Effect::IfBlocks(_)
                                 | Effect::PoolIfSuccessful(_)
@@ -5445,6 +5491,7 @@ impl Engine {
                     match *e {
                         Effect::DeclareAction(_)
                         | Effect::AddStealth(_)
+                        | Effect::StealthIfOwnTarget(_)
                         | Effect::BurnSourceOnDeclare
                         | Effect::MandatoryAction
                         | Effect::PayBlood(_)

@@ -3589,6 +3589,20 @@ readings (vampires, allies, library cards) no mechanism section states.
   (84.34); Tremere slaves (84.35); inert and text-only (84.36); Hesha's
   groups (84.38); Coordinate Attacks' filter (84.39); found while testing
   (84.40).
+- Round 18's cards, each read in its rules-qa item: Helicopter locked
+  however equipped, taken from another minion too (85.1); Julius burned once
+  in torpor, its triggers fired (85.2); Antoinette DuChamp (85.3); Chandler,
+  Christine, Navar (85.4); Eurayle (85.5); Fergus (85.6); Greensleeves inert
+  (85.7); Smudge (85.8); text-only (85.9); The Admonitions' control passing
+  (85.10); Communal Haven: Cathedral (85.11); Conflagration (85.12);
+  Creation Rites (85.13); the Crusades (85.14); Dodge (85.15); Eternal
+  Vigilance (85.16); Hatch the Viper (85.17); Helicopter's unlock (85.18);
+  Hidden Lurker (85.19); Improvised Flamethrower's backfire (85.20);
+  Leverage (85.21); Nosferatu Justicar (85.22); NSA Trio (85.23);
+  Sacrificial Lamb (85.24); The Secret Library of Alexandria (85.25); Shanty
+  Town Hunting Ground (85.26); Storage Annex (85.27); directed at another's
+  minion (85.28); "your next discard phase" (85.29); Hatch put in play
+  (85.30); found while testing (85.31, 85.33, 85.34).
 
 ## 16. Cards in play
 
@@ -3648,6 +3662,9 @@ cards), §1.10 (burn and removal), §6.3 (control of a card in play).
 ### 16.3 Equipment
 
 - Bearer's traits read on the current bearer (D31; 9.1, 12.5).
+- "When a minion equips with it, lock it" (Helicopter): the card comes
+  locked however it is equipped, a search or a take from another minion
+  included; put on rather than equipped (Alastor), not (85.1).
 - Shilmulo Tarot: on equip it takes the top 2 cards (fewer if fewer there);
   its unlock-phase move is once per unlock phase per Tarot, whoever bears
   it; unique (11.2); stores its 2 cards when equipped from hand or by a
@@ -3854,7 +3871,9 @@ Advanced rules §1.13 (contests), §5.8 (titles).
 - No self-contest: a unique card cannot be played while a copy is in play
   under the same Methuselah — including while that copy is contested (out of
   play, but still contesting incoming copies). It also bars a search from
-  placing such a unique (7.1, 11.2, 12.3). Anarch Convert moved out beside a
+  placing such a unique (7.1, 11.2, 12.3). A title card put on its caller
+  (Praxis Seizure: York, the Crusades) is not called while its player
+  claims that title (85.32). Anarch Convert moved out beside a
   copy in play must use his ability (no voluntary self-contest, 57.9).
 - Unique cards on record: Shilmulo Tarot (11.2), Ravnos Cache (36.3),
   Camarilla Conclave (51.2), Enkil Cog (50.1), Zaire River Ferry (70.20). Not
@@ -4121,6 +4140,8 @@ Advanced rules §6.5 (pool, the Edge and ousting).
   Methuselah saved by a Boon still scores for a prey ousted by the same
   effect (the VP to the Boon player, LSJ 20021029) and gains the 6 pool
   (45.7).
+- "If you would get the Edge, it is burned instead" (Leverage): a
+  successful bleed then leaves no one the Edge (85.21).
 - "Your prey" after an oust is the new prey (32.4, 62.6); "a bleed against
   your prey" that ousted them still was (61.2).
 - Lutz von Hohenzollern (62.6), Life Boon's steal (45.6).
@@ -4441,6 +4462,7 @@ read, for the owner to confirm or correct:
   answered by the owner).
 - 84.5–84.40 graded green or amber (84.1–84.4 answered by the owner;
   84.5's active Angelo a gap: his own circle of one).
+- 85.3–85.34 graded green or amber (85.1 and 85.2 confirmed by the owner).
 - The "Question (implemented reading)" tails: 48.2 (a card granting several
   strikes bars further cards until all are made), 48.3 (the switch of
   blocker takes effect at once, no impulse left to others), 48.8 (a rescue
@@ -4560,7 +4582,7 @@ an owner ruling:
 Every rules-qa item, by batch, with the digest sections citing it: the
 section stating it and those cross-referring to it (§2 the default
 readings, §22 engine modeling, §23 the contradictions, §24 the open
-readings). 819 items, Batches 1–86 (44.11 was removed, replaced by Batch
+readings). 853 items, Batches 1–86 (44.11 was removed, replaced by Batch
 45). The index is derived from the citations: a bare `N.M` cites rules-qa
 item N.M in the section it appears in. A new rules-qa item gets its line in
 the section stating it, then its entry here: `python3
@@ -4857,4 +4879,11 @@ index or an item cited nowhere.
   84.27 §15.2; 84.28 §15.2; 84.29 §15.2; 84.30 §15.2; 84.31 §15.2; 84.32
   §15.2; 84.33 §15.2; 84.34 §15.2; 84.35 §15.2; 84.36 §15.2; 84.37
   §14.10,§15.2,§16.5,§22; 84.38 §15.2; 84.39 §15.2; 84.40 §15.2,§24.1
+- **85** — 85.1 §15.2,§16.3,§24.1; 85.2 §15.2,§24.1; 85.3 §15.2,§24.1; 85.4
+  §15.2; 85.5 §15.2; 85.6 §15.2; 85.7 §15.2; 85.8 §15.2; 85.9 §15.2; 85.10
+  §15.2; 85.11 §15.2; 85.12 §15.2; 85.13 §15.2; 85.14 §15.2; 85.15 §15.2;
+  85.16 §15.2; 85.17 §15.2; 85.18 §15.2; 85.19 §15.2; 85.20 §15.2; 85.21
+  §15.2,§21.2; 85.22 §15.2; 85.23 §15.2; 85.24 §15.2; 85.25 §15.2; 85.26
+  §15.2; 85.27 §15.2; 85.28 §15.2; 85.29 §15.2; 85.30 §15.2; 85.31 §15.2;
+  85.32 §18.1; 85.33 §15.2; 85.34 §15.2,§24.1
 - **86** — 86.1 §5.2

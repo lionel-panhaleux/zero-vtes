@@ -1816,7 +1816,7 @@ impl Engine {
                 | RefEffect::BurnAlliesUnlessKept
                 | RefEffect::BurnBloodPerPick
                 | RefEffect::PutOnChosen { .. }
-                | RefEffect::PutOnCaller
+                | RefEffect::PutOnCaller { .. }
                 | RefEffect::PutInPlay
                 | RefEffect::ChosenTakesChosenCard
                 | RefEffect::RemoveChosen
@@ -2033,10 +2033,10 @@ impl Engine {
                     self.remove_ally_from_game(m);
                 }
             }
-            RefEffect::PutOnChosen { .. } | RefEffect::PutOnCaller => {
+            RefEffect::PutOnChosen { .. } | RefEffect::PutOnCaller { .. } => {
                 let a = self.action.as_ref().expect("political action");
                 let m = match effect {
-                    RefEffect::PutOnCaller => a.acting,
+                    RefEffect::PutOnCaller { .. } => a.acting,
                     _ => ctx.terms.minions[0],
                 };
                 let (seat, play) = (a.seat, a.card.expect("a political action card"));
@@ -2061,6 +2061,12 @@ impl Engine {
                     if effect == (RefEffect::PutOnChosen { equipment: true }) {
                         self.interrupts
                             .push(crate::draws::Interrupt::SearchEquipFor { seat, minion: m });
+                    }
+                    if let RefEffect::PutOnCaller {
+                        unlocks_if: Some(clan),
+                    } = effect
+                    {
+                        self.state.minions[m.index()].unlock_at_discard_if = Some(clan);
                     }
                 }
             }

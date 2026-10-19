@@ -9,12 +9,12 @@ Docs: `docs/engine.md` (§2–5, the reference by mechanism),
 and the ledger; a rulebook mechanism no card carries is on the engine board.
 
 Pool (`scripts/coverage.py`, KRCG `vtes.json` of 2026-06-30; 2 crypt and
-18 library cards banned, out of scope, owner 2026-10-14): crypt 687 of
-1,783 (38.5%), library 900 of 2,346 (38.4%); the Imbued, Powers and
-Convictions 0; 75 of 109 sets complete. TWDA decks in the pool 597 of
-4,538, kept 161; recent (2025+) 287 of 476 in the pool, kept 106. Demand
-(the server's counts to 2026-10-18): one id asked once, 299999, no card
-(a client's placeholder).
+18 library cards banned, out of scope, owner 2026-10-14): crypt 701 of
+1,783 (39.3%), library 920 of 2,346 (39.2%); the Imbued, Powers and
+Convictions 0; 75 of 109 sets complete. TWDA decks in the pool 618 of
+4,538, kept 164; recent (2025+) 299 of 476 in the pool, kept 106. Demand
+(the server's counts to 2026-10-19): the 14 cards asked for, all added in
+round 18; 299999 (asked 5 times) is a client's placeholder, no card.
 
 A shrinking list (CLAUDE.md "Harness"): one line an ask, its done-condition
 and the docs it changes; done is deleted; order is priority; the only
@@ -37,7 +37,7 @@ when you feel it's best").
 - **Open contradictions, the rest**, as the above: K14 (Anathema's master card stays), K30 (the prisci block rows' `n/a`), K31 (vote floors), K35 (stealing from oneself), K37 (the burn option's clauses), K44 (the Edge stolen after its holder burns it; the owner leans "no effect"), K25 (Dawn Operation's wording, unverified), K41 (withdrawal's VP, with the engine board's "Tournament withdrawal"), K42 (the allies box: aggravated damage, torpor burns), K43 (a merge burns the incoming copy's cards). Done and docs as the above.
 - **Ledger questions with no reading yet**: the Fury's block against later plays (Change of Target, Mirror Walk, Elder Impersonation, Faceless Night, Elder Intervention, KRCG News Radio, Tension in the Ranks, Crypt's Sons), The Erciyes Fragments (a political card played from them, Delaying Tactics), Nergal at a redirected bleed, I am Legion's cancels, a banished Great Beast, Ferraille's two modes each limited. Done when each has a reading, graded, in a rules-qa batch. Docs: rules-qa, rules-digest §24.2.
 - **Ledger `blocked:untested` rows to tests** (96: Unleash Hell's Fury 9, The Erciyes Fragments 8, I am Legion 4, Psyche!, Telepathic Tracking, Nergal 3 each, Govern the Unaligned, Disarm and 9 more 2 each, 54 cards 1 each — 44 of them the `n/a` rows whose card has since entered the pool, Ambush's nine among them; Taking the Skin: Minion's waiting on K15); Vivian VI's row with no status checked. Done when `grep -c 'blocked:untested' data/rulings-v5.csv` is 0. Docs: the ledger.
-- **Ledger `blocked:` gap rows** (16), each its mechanism: an active Angelo or New Blood choosing a circle of one (rules-qa 84.5), Dual Form's choice of the copy kept when both go to torpor at once, Lucian, the Perfect's printed text (.44 Magnum), a Fury's block ending the action (Change of Target, Unleash Hell's Fury), Nergal's reduction at resolution (60.7), a banished or crypt-bound Great Beast, Touch of Clarity's wake before the action is declared, the card on The Erciyes Fragments hidden from others. Done when no ledger row is `blocked:`. Docs: the ledger, engine.md per mechanism.
+- **Ledger `blocked:` gap rows** (17), each its mechanism: a hand card's owner (another's card taken from a stolen Storage Annex, rules-qa 85.27), an active Angelo or New Blood choosing a circle of one (rules-qa 84.5), Dual Form's choice of the copy kept when both go to torpor at once, Lucian, the Perfect's printed text (.44 Magnum), a Fury's block ending the action (Change of Target, Unleash Hell's Fury), Nergal's reduction at resolution (60.7), a banished or crypt-bound Great Beast, Touch of Clarity's wake before the action is declared, the card on The Erciyes Fragments hidden from others. Done when no ledger row is `blocked:`. Docs: the ledger, engine.md per mechanism.
 - **Reachable edges, verified first**: `Terms::XBlood` past a surcharge (Terror Frenzy on Lightning Reflexes, one X too many); a title card's terms choosing another Methuselah's vampire while that Methuselah claims the title (the incoming card burned?), and Valerius stealing Prince of a city whose baron his Methuselah controls (the caller's own choice is masked since rules-qa 76.2). Done when each is a test, fixed if wrong, and gone from DESIGN §11.3. Docs: DESIGN §11.3.
 - **Reachable edges, mid-play ousts and costs**: Disarm's torpor ousting the active Methuselah inside the play; True Love's Face's pay-to-cancel for a last pool; Life Boon's deferred oust still listed in windows; Meditative Grove's canceled cost missing Regina Blake's announced blood (`settle_canceled`). Done as the above. Docs: DESIGN §11.3.
 - **The cheap latent edges fixed now**: `ImmuneToDirectedActions` in `ability_targets`; `Effect::PoolToHostBlood` ousting a non-active seat; a cancelling ability's mark after its terms; directed actions naming several Methuselahs (`ActionCtx::directed_seats`, Shadow Cast). Done when each is fixed with a test or stays in DESIGN §11.3 as waiting for a pool card. Docs: DESIGN §11.3.

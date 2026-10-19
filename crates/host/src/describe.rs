@@ -1247,6 +1247,7 @@ pub fn about(e: &Engine, req: &DecisionRequest, names: &impl Names) -> Option<Ab
             I::MayAddCounter { card: c, .. }
             | I::StorePreyAsh { card: c, .. }
             | I::StoreOwnAsh { card: c, .. }
+            | I::StoreOwnHand { card: c, .. }
             | I::StoredToLibraryTop { card: c, .. } => About {
                 card: card(c),
                 ..a()

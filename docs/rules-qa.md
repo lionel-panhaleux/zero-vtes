@@ -66,7 +66,7 @@ by the owner. Apply them to every new card; only a ruling overrides them.
 ## Index
 
 - **Untimed abilities** — 7.7, 29.10, 15.2 (Kalinda)
-- **Legacy additions for TWDA decks** — 44.1–44.10, 57.1–57.10, 58.1–58.20, 59.1–59.19, 60.1–60.22, 62.2–62.31, 62.33, 63.1–63.17, 64.1–64.12, 65.1–65.3, 67.1–67.7, 68.1–68.17, 69.1–69.15, 70.1–70.22, 71.1–71.27, 74.1–74.13, 76.1–76.25, 77.1–77.35, 78.1–78.49, 78.54, 79.3, 80.1–80.45, 84.1–84.40
+- **Legacy additions for TWDA decks** — 44.1–44.10, 57.1–57.10, 58.1–58.20, 59.1–59.19, 60.1–60.22, 62.2–62.31, 62.33, 63.1–63.17, 64.1–64.12, 65.1–65.3, 67.1–67.7, 68.1–68.17, 69.1–69.15, 70.1–70.22, 71.1–71.27, 74.1–74.13, 76.1–76.25, 77.1–77.35, 78.1–78.49, 78.54, 79.3, 80.1–80.45, 84.1–84.40, 85.1–85.34
 - **Ousts, Life Boon's decision point** — 45.1–45.8
 - **Impulse, sequencing, windows** — 1.2, 1.3, 1.5, 2.1, 2.2, 2.3, 2.4, 3.7, 4.1, 5.3, 7.7, 7.8, 7.9, 23.3, 24.2, 26.5, 66.1
 - **Mandatory effects and their ordering** — 6.1, 6.4, 7.8, 7.9, 17.2, 27.1, 28.9, 32.10, 40.5
@@ -83,7 +83,7 @@ by the owner. Apply them to every new card; only a ruling overrides them.
 - **Rushes (entering combat as an action)** — 17.3, 26.1, 27.2, 27.5, 38.6, 52.6, 54.3, 54.4, 54.7, 55.7, 56.2, 58.6
 - **Referendums, votes, political actions** — 1.1, 3.5, 5.1–5.9, 6.2, 6.3, 15.2, 16.5, 19.3, 19.4, 32.9, 33.2, 35.4, 38.6, 39.1–39.4, 42.4, 49.1, 49.2, 50.5, 50.6, 51.1, 51.2, 51.5, 51.6, 51.8, 52.2, 52.3, 52.5, 52.7, 52.9, 52.10, 54.1, 58.8, 58.14, 58.15, 58.16, 59.7, 59.9, 59.18, 59.19, 60.2, 60.14, 60.16, 71.25, 73.4, 76.5, 76.6, 76.14, 76.15, 77.5, 77.14, 77.15, 77.25, 77.26
 - **Titles** — 3.1, 13.2, 19.1, 19.2, 19.6, 32.9, 49.4, 52.5, 52.6, 52.9, 58.3, 58.11, 59.13, 59.14, 60.1, 76.1–76.4, 77.1, 77.2, 78.1, 78.7, 78.16
-- **Contests, uniqueness** — 3.1, 7.1, 7.3, 7.5, 8.2, 11.2, 12.3, 19.1, 36.3, 38.7, 39.4, 40.1, 57.9, 58.5, 58.19, 59.13, 60.1, 60.9, 60.20, 76.2, 76.3
+- **Contests, uniqueness** — 3.1, 7.1, 7.3, 7.5, 8.2, 11.2, 12.3, 19.1, 36.3, 38.7, 39.4, 40.1, 57.9, 58.5, 58.19, 59.13, 60.1, 60.9, 60.20, 76.2, 76.3, 85.32
 - **Control, steals, ousts, removal from game** — 6.9, 7.5, 17.4, 25.1, 27.3, 27.4, 27.7, 28.13, 31.4, 31.5, 31.6, 33.5, 33.7, 38.4, 39.4, 42.7, 55.4, 55.6
 - **Costs and reductions** — 3.6, 5.9, 9.3, 18.1, 18.2, 23.4, 29.6, 27.6, 36.1–36.5, 38.5, 42.1, 42.2, 42.5, 42.6, 54.1, 58.12, 59.5, 60.5, 60.7, 77.24, 78.3, 78.17, 78.21
 - **Replacement, draws, stored and held cards** — 5.5, 7.10, 8.2, 8.3, 8.4, 9.4, 9.5, 11.1–11.3, 12.1–12.5, 22.2, 37.1, 40.4, 53.4, 53.5, 73.1, 73.2, 77.35, 78.18, 78.26, 78.51
@@ -2000,6 +2000,78 @@ Eighty-one cards (45 library, 36 crypt: 31 defined, 5 text-only), graded per the
 **84.39** Coordinate Attacks' strike-card filter missed a strike card played at the maneuver (a committed strike); Thoughts Betrayed [DOM] reads the same filter (found in the round). Green. (Test thoughts_betrayed_bars_strike_cards_for_the_combat.)
 
 **84.40** Found while testing, fixed: a vampire's own strike read a card definition that does not exist (a panic in combat); a New Blood mini-starter recognized by its decklist names, not "New Blood" in a deck's event name (a TWDA deck from "Badalona New Blood 2025"). Green.
+
+## Batch 85 — Round 18 (the cards players asked for, the TWDA's steps 1–3): readings graded (Claude, 2026-10-19; owner, 2026-10-19: 85.1 and 85.2 confirmed)
+
+Thirty-four cards (20 library, 14 crypt: 9 defined, 5 text-only), the first fourteen asked for through the server's unsupported counts (owner, via Z-main), graded per the add-cards skill. Four blind second readers read the cards' text; their reads were diffed against the code. Results: defects found and fixed in the round (85.31, 85.32, 85.33, 85.34); two red, confirmed by the owner (85.1, 85.2).
+
+**85.1** Helicopter: "when a minion equips with the Helicopter, lock it" — the Helicopter, not the minion (the ruling's "it comes locked"); locked however it is equipped, from hand, a search (Magic of the Smith, LSJ 20100119); put on rather than equipped (Alastor, LSJ 20090415), it is not. Taken from another minion as an equip action (`ActionKind::EquipFrom`), the engine locks it: that is equipping. The reader read moving equipment as no equip, so unlocked. Red; the owner confirmed: "yes" (2026-10-19). (Tests helicopter_comes_locked_however_equipped, alastor_puts_a_helicopter_on_unlocked, helicopter_locks_as_equipped_and_unlocks_its_bearer.)
+
+**85.2** Julius: "If Julius goes into torpor, burn him" — he goes to torpor, every trigger of that firing (his own and the cards' "after … goes to torpor" riders: Thomas De Lutrius', Fame's), then burns (`Stat::BurnedAfterTorpor`, after `minions_to_torpor`'s riders). The reader agreed on the order of the event but would burn him before the other simultaneous triggers resolve. No ruling, no precedent. Red; the owner confirmed: "yes" (2026-10-19). (Test julius_burns_once_in_torpor.)
+
+**85.3** Antoinette DuChamp: action cards of every type (action, political, ally, equipment, retainer: 60.4) and strike cards, a dodge included (42.2), requiring Celerity in the mode played (38.4), cost her 1 more blood; Side Strike's dodge yes, its additional strike no. Green. (Test antoinette_pays_more_for_celerity_actions_and_strikes.)
+
+**85.4** Chandler Hungerford +1 intercept blocking a Gangrel; Christine Boscacci −1 intercept during bleed actions; Navar McClaren cannot block an older vampire, read live as he attempts. Green. (Test chandler_christine_and_navar_printed_blocks.)
+
+**85.5** Eurayle Gelasia Mylonas: her action unlocks any minion, herself included (D28); +2 stealth if its Methuselah controls the minion, read live; directed at the controller of another's minion (PIB 20121210); no stealth of its own. `Effect::StealthIfOwnTarget` (Rampage's, now for a minion too). Scarce generated. Green. (Tests eurayle_unlocks_a_minion_with_stealth_for_her_own, le_dinh_tho_is_scarce.)
+
+**85.6** Fergus Alexander: enters combat with a ready locked Sabbat vampire controlled by another Methuselah (Nathaniel Bordruff's filter); a target unlocked by resolution: successful, no effect (ANK 20210124). Amber (Nathaniel's "ready"; the reader agreed a torpid vampire is no combat target). (Tests fergus_enters_combat_with_a_locked_sabbat_vampire, fergus_fizzles_on_an_unlocked_target.)
+
+**85.7** Greensleeves: "If you also control Humo …": Humo is not in the pool, the text inert (Alan Sovereign's precedent, `DURING_ONCE_ELSEWHERE`). Green. (Test greensleeves_offers_nothing_without_humo.)
+
+**85.8** Smudge the Ignored: +1 strength for good after he first diablerizes an older vampire (capacity compared live as it happens, D30; `Minion::diablerized_older`, set by `diablerie_burns`); a younger victim does not count. Green. (Test smudge_gets_strength_after_an_older_diablerie.)
+
+**85.9** Bobby Lemon, Lukas (his title generated), Mirembe Kabbada, Ohanna, Samson: text-only, nothing to define. Green.
+
+**85.10** The Admonitions: put in play, unique; untimed lock abilities of its controller — discard a card (replaced) with a ready Sabbat vampire, draw two with a ready Black Hand one, as far as the library holds (LSJ 20060620), the hand then over its size discarded down — not in a card's as-played window (RTR 20040501, The Barrens'). In its controller's discard phase (a due, as The Uncoiling's), control passes counter-clockwise (to the predator first) to the first Methuselah controlling a ready Sabbat vampire, back to its controller at most; none: burned (`Effect::PassesToSect`). The only such Methuselah keeps it (LSJ 20031121); it stays locked as it passes. Green. (Tests the_admonitions_passes_to_the_next_sabbat_methuselah, the_admonitions_locks_need_sabbat_and_black_hand, the_admonitions_not_as_played_and_draws_what_there_is.)
+
+**85.11** Communal Haven: Cathedral: in its controller's master phase, lock to move blood and equipment from one ready Sabbat vampire of theirs to another, as Heidelberg Castle's (57.7: one direction each use, any blood, the excess to the bank); no retainers; a location, not a haven. Amber (57.7; the reader allowed both directions in one use). `Moves { retainers, sect }`. (Test communal_haven_moves_between_sabbat_vampires.)
+
+**85.12** Conflagration: [pot] 2R, [dai] 1R aggravated, [DAI] 2R aggravated, fixed damage; played, it requires the Discipline used (LSJ 20011204-3, PIB 20130704). Green. (Test conflagration_strikes_by_discipline.)
+
+**85.13** Creation Rites: Third Tradition: Progeny's, Sabbat: by a ready non-sterile archbishop, priscus, cardinal or regent; a 1-capacity Sabbat vampire of the actor's clan as it resolves (78.47), idle this turn, a master Discipline searched; up to 1 blood moved, decided as it resolves (PIB 20150418). Green. (Tests creation_rites_makes_a_sabbat_vampire_of_the_actors_clan, a_burned_childe_is_a_library_card_in_the_ash_heap, a_banished_childe_can_be_influenced_again, kaymakli_nightmares_reshuffles_every_uncontrolled_crypt_card.)
+
+**85.14** Crusade: Chicago, Istanbul, London: by a Sabbat vampire; passed, the card on its caller, if still in play, as that archbishop's title (Praxis Seizure: York's); Istanbul's Tzimisce and London's Nosferatu antitribu unlock in the next discard phase, the clan read then (`RefEffect::PutOnCaller { unlocks_if }`, `Minion::unlock_at_discard_if`). Not called while its player claims that title (85.32). Green. (Tests crusade_chicago_titles_its_sabbat_caller, crusades_unlock_their_clan_at_the_discard_phase.)
+
+**85.15** Dodge: strike: dodge; not replaced until after combat. Green. (Test dodge_is_replaced_after_combat.)
+
+**85.16** Eternal Vigilance: by a ready archbishop, priscus, cardinal or regent, put on the acting vampire itself (not a stand-in); during an action, once (D7), the Sabbat bearer burns 1 blood to unlock and attempt to block — Under Siege's: one already attempting too (ANK 20181122-2), not one that cannot attempt (LSJ 20010714-2), the prey, predator and target restrictions kept (ANK 20180623), the attempt standing if the unlock leaves no target (LSJ 20090514); burned as its vampire goes to torpor. Green. (Tests eternal_vigilance_goes_on_its_titled_actor, eternal_vigilance_unlocks_to_block_and_burns_in_torpor, eternal_vigilance_keeps_the_block_restrictions, ambush_target_unlocking_to_block_still_blocks, forced_attempts_keep_the_blocking_restrictions_and_an_ongoing_attempt, black_sunrise_unlocks_a_locked_vampire_to_block.)
+
+**85.17** Hatch the Viper: the version as employed, fixed (RTR 19941109, ANK 20180612); 1 ([PRO][SER] 2) environmental damage at close range each round with the normal strikes, the retainer its source (ANK 20180612, ANK 20211127), through a dodge, not after a combat ends strike (RTR 19941109), not repeated by additional strikes; the employer prevents 1 damage each combat, any damage. Green. (Tests hatch_the_viper_damages_at_close_range_and_prevents, hatch_the_viper_superior_bites_through_a_dodge, murder_of_crows_does_not_repeat_on_additional_strikes.)
+
+**85.18** Helicopter's unlock: after a successful action of its bearer, it may lock the Helicopter to unlock; a vehicle, one only. Green. (Test helicopter_locks_as_equipped_and_unlocks_its_bearer.)
+
+**85.19** Hidden Lurker: Fast Reaction's mirror — by the acting minion's controller only (LSJ 19990425), another ready unlocked vampire of theirs locks and enters combat with the blocker after the block's combat, the blocker unable to strike in its first round, no strike's maneuver either (LSJ 20001126, LSJ 20021028), extra strikes still gained (LSJ 19970814-2); [OBF] a press for the Lurker, any round; not with a combat queued (RTR 20020501), nor against a blocker gone to torpor (LSJ 20100604-1); the block's combat's end effects lost but an unlock (LSJ 19980109). `QueueCombatAfterBlock { with_blocker }`, `Requirement::BlockerReadyAfterItsCombat`. Green. (Tests hidden_lurker_sends_another_vampire_at_the_blocker, hidden_lurker_only_for_the_acting_methuselah_and_one_queued_combat, fast_reaction_loses_the_first_combats_continuation_and_follows_only_the_blocks_combat, status_perfectus_sends_a_second_anarch_the_acting_minion_cannot_strike.)
+
+**85.20** Improvised Flamethrower: 2R aggravated, once each combat per copy (ANK 20230316); any damage the opposing minion inflicts on its bearer at long range, prevented or not (LSJ 20040802) — its strikes, and its pre-range damage with the range set long before (Outside the Hourglass after Cold Aura, as Neutral Guard or Sniper Rifle would: LSJ 20100709) — burns each copy, its bearer taking 2 aggravated damage, preventable, its own; a dodge or no damage: nothing. No other long-range damage of an opposing minion is in the pool (Pulled Fangs at close range). Amber (the reader's "any damage": the pool's only kinds). `Modifier::BackfiresAtLong`. (Tests improvised_flamethrower_backfires_at_long_range, improvised_flamethrower_backfires_through_a_prevention_not_at_close_range, outside_the_hourglass_triggers_the_flamethrower_at_long_range, sawed_off_shotgun_strikes_once_each_combat_per_copy.)
+
+**85.21** Leverage: during a bleed, with the Edge: the Edge burned as it resolves, +1 bleed outside the limit, before or after a limited one (LSJ 20100218, RTR 20180511-2); no Edge gained this action, one it would get burned — no one holds it (`Effect::NoEdgeThisAction`). Canceled as played, the Edge stays. Green. (Tests leverage_burns_the_edge_for_a_bleed, leverage_goes_with_a_limited_bleed.)
+
+**85.22** Nosferatu Justicar: a ready Camarilla Nosferatu chosen (LSJ 20041026), none and it is not played (LSJ 20100129), never one of its caller's while the caller claims the title (76.2); each Nosferatu +1 vote. Green. (Test nosferatu_justicar_titles_a_camarilla_nosferatu.)
+
+**85.23** NSA Trio: the turn's first combat between an acting vampire and the vampire that blocked it — counted whether the event is in play or not, once each turn (LSJ 20050215; `GameState::vampire_block_combat_turn`) — bars both from ending combat as a strike in round 1 (the strike not offered); an ally, a queued combat (Hidden Lurker's) not eligible. A discard phase action burns it for a Methuselah none of whose minions announced an action this turn (`Seat::acted_this_turn`), whatever became of the action. Green. (Tests nsa_trio_bars_combat_ends_in_the_first_block_combat, nsa_trio_burns_for_a_methuselah_who_did_not_act.)
+
+**85.24** Sacrificial Lamb: [obf] a vampire in its player's torpor, [OBF] Ⓓ one in another's (the superior replaces the target; directed); the actor may take its equipment first, one card at a time as a diablerie's step 2 (a Soul Gem of Etrius not taken, its effect applying: LSJ 19970516), then it burns and the actor gains blood equal to its capacity, read before, the excess ignored; not diablerie; out of torpor by resolution, it fizzles (ANK 20210124). Byzar is not in the pool (LSJ 20100423 read as no burn, nothing gained). `Effect::SacrificeTarget`, `Interrupt::DiablerieEquipment { diablerie: false }`. Amber (the equipment before the burn: diablerie's order; equal with no card keeping the vampire from burning). (Tests sacrificial_lamb_burns_a_torpid_vampire_for_its_capacity, sacrificial_lamb_superior_reaches_another_torpor_region, sacrificial_lamb_leaves_a_soul_gem_and_fizzles_off_torpor.)
+
+**85.25** The Secret Library of Alexandria: may draw a card after a successful bleed of the prey by a minion of its controller, once each action, then discard down (Gostoso's moment). Green. (Test secret_library_draws_on_a_successful_bleed.)
+
+**85.26** Shanty Town Hunting Ground: a hunting ground (its clan, as every clan card's); 1 blood to a ready vampire in the unlock phase, a vampire at capacity a legal pick. Green. (Test shanty_town_feeds_a_ready_vampire.)
+
+**85.27** Storage Annex: not played as the only card in hand (LSJ 20100527); as it is played, a card of the hand put face down on it (`Interrupt::StoreOwnHand`, the `store_own_hand` purpose, protocol 2.5.0), replaced as Fleshforge Chamber's (37.1), seen by its controller, hidden from the others; once each master phase (D7), a hand card exchanged with it, neither replaced, to the controller's hand (PIB 20150224); stolen, the card goes with it and its new controller may take it in hand (LSJ 20001031, PIB 20121220) — a gap: the card then in that hand keeps no owner, so it goes to its taker's ash heap, not its owner's (a hand card's owner is not modeled); left on the Annex, it burns to the ash heap of the one who put it there (LSJ 20021128). Green, the gap on the ledger. (Tests storage_annex_stores_a_card_and_exchanges_it, storage_annex_goes_with_its_card_and_burns_it.)
+
+**85.28** Fergus, Eurayle, Sacrificial Lamb [OBF]: an action at another Methuselah's minion is directed at its controller (20.1, the Ⓓ indicative). Green.
+
+**85.29** Crusade: Istanbul / London's "your next discard phase": the caller's turn's own (a political action is taken in one's turn), swept with Feral Hound's "unlock during the next discard phase". Green.
+
+**85.30** Hatch the Viper put in play by a card rather than employed: its basic version (no level used). Green.
+
+**85.31** Found by the tests: Eurayle's action panicked as it resolved — a granted action's stealth effect not skipped at resolution (`StealthIfOwnTarget`). Green.
+
+**85.32** Found by the diff: Praxis Seizure: York (and now the Crusades) could be called while its player claimed that title, a contest with oneself (advanced rules §1.13.1; 76.2) — `Requirement::NoOwnClaimOf`. Green. (Test crusade_chicago_titles_its_sabbat_caller.)
+
+**85.33** Found while designing: Fleshforge Chamber's stored card was documented "not replaced" while it is (37.1): the doc corrected. Green.
+
+**85.34** Found while designing: a stolen card storing another's card returned that card to the storing card's owner on a burn; Storage Annex records who put it there. Green.
 
 ## Batch 86 — The master Discipline search found empty or declined (Z-main, 2026-10-19, tracing harvested records; owner, 2026-10-19: 86.1 confirmed)
 

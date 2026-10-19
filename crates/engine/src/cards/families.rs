@@ -71,6 +71,8 @@ impl Effect {
             | E::DerangeTarget
             | E::PutInPlay
             | E::EnterWithCounters(..)
+            | E::EntersLocked
+            | E::StoreFromOwnHand
             | E::UnlockActorIfClanCapacity { .. }
             | E::MoveBloodTargetToPoolX
             | E::Layer(..)
@@ -160,6 +162,7 @@ impl Effect {
             | E::UnlockTarget
             | E::LockTarget
             | E::BurnTargetMinion
+            | E::SacrificeTarget
             | E::CircleBloodMoves { .. }
             | E::BurnTargetCard
             | E::StoreTopCards(..)
@@ -210,7 +213,7 @@ impl Effect {
             | E::RemoveCounter(..)
             | E::BurnSelfWithoutCounters
             | E::HandSizeBonusUntilEndOfTurn(..)
-            | E::MoveBetweenVampires
+            | E::MoveBetweenVampires(..)
             | E::PeekHand
             | E::RevealOwnHandToAll
             | E::PeekHostControllersHand
@@ -341,7 +344,7 @@ impl Effect {
             | E::BlockTollBlood(..)
             | E::LockAttempting
             | E::QueueCombatWithAttempting
-            | E::QueueCombatWithActing { .. }
+            | E::QueueCombatAfterBlock { .. }
             | E::PutOnActorIfBleedSuccessful
             | E::HuntBonusThisAction(..)
             | E::StrikeTollIfBlocks(..)
@@ -363,6 +366,7 @@ impl Effect {
             | E::BleedPerPick
             | E::CircleIntercept { .. }
             | E::NoDisciplineCardsThisAction
+            | E::NoEdgeThisAction
             | E::PerfectClarity { .. }
             | E::TargetGainsActorGain
             | E::BlockToll(..)
@@ -636,7 +640,8 @@ impl Effect {
             | E::MayUnlockOncePerTurn
             | E::MayHandSizeOncePerTurn(..)
             | E::BuyTitleOnEntry(..)
-            | E::CryptSearchOnEntry(..) => (Family::Rider, false),
+            | E::CryptSearchOnEntry(..)
+            | E::PassesToSect(..) => (Family::Rider, false),
             // Read where the action is declared or offered: its kind, its
             // cost, its stealth, its bleed (`declare_action`, `stealth`,
             // `bleed_amount`).
@@ -649,7 +654,7 @@ impl Effect {
             | E::BleedIfTargetHasNoReadyUnlocked(..)
             | E::BurnSourceOnDeclare
             | E::TitledCannotBlock
-            | E::StealthIfOwnTargetCard(..)
+            | E::StealthIfOwnTarget(..)
             | E::TakeAnyAction
             | E::MandatoryAction
             | E::CallReferendum(..)
@@ -721,7 +726,9 @@ impl Effect {
             | E::BecomesOnOpponent => (Family::Marker, false),
             // Done as the ability's terms were chosen (`ability_ash_apply`,
             // `ability_discards_done`).
-            E::AshCardToLibraryBottom | E::StorePickedFromHand => (Family::Marker, false),
+            E::AshCardToLibraryBottom | E::StorePickedFromHand | E::SwapPickedWithStored => {
+                (Family::Marker, false)
+            }
         }
     }
 }

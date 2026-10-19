@@ -4901,6 +4901,17 @@ impl Engine {
                 let id = in_play.expect("counters on a card that entered play");
                 self.state.cards[id.index()].counters = n;
             }
+            Effect::EntersLocked => {
+                let id = in_play.expect("a card that entered play");
+                self.state.cards[id.index()].locked = true;
+            }
+            Effect::StoreFromOwnHand => {
+                let card = in_play.expect("a card that entered play");
+                self.interrupts.push(Interrupt::StoreOwnHand {
+                    seat: ctx.seat,
+                    card,
+                });
+            }
             Effect::UnlockActorIfClanCapacity { clan, n } => {
                 if let Some(m) = ctx.actor {
                     if self.state.minions[m.index()].clan() == Some(clan)
@@ -5700,6 +5711,19 @@ impl Engine {
                         if *k == 0 {
                             self.burn_card_in_play(c);
                         }
+                    }
+                }
+            }
+            Effect::SacrificeTarget => {
+                if let (Target::Minion(t), Some(actor)) = (ctx.target, ctx.actor) {
+                    let v = &self.state.minions[t.index()];
+                    if v.in_play && v.in_torpor {
+                        self.interrupts.push(Interrupt::DiablerieEquipment {
+                            seat: ctx.seat,
+                            diablerist: actor,
+                            victim: t,
+                            diablerie: false,
+                        });
                     }
                 }
             }
@@ -7836,10 +7860,25 @@ impl Engine {
         let same = picked
             .windows(2)
             .all(|w| hand[w[0] as usize] == hand[w[1] as usize]);
-        let store = self
-            .ability_mode(source, ability)
-            .effects
-            .contains(&Effect::StorePickedFromHand);
+        let effects = self.ability_mode(source, ability).effects;
+        let store = effects.contains(&Effect::StorePickedFromHand);
+        // Storage Annex: the card on it to the hand first, the picked one
+        // on it, neither replaced (PIB 20150224: to the controller's hand).
+        if effects.contains(&Effect::SwapPickedWithStored) {
+            let on = source.card();
+            let i = picked[0] as usize;
+            let (c, copy) = self.state.seats[seat.index()].hand.take(i);
+            for (k, kc) in self.state.cards[on.index()].stored.take_all() {
+                self.state.seats[seat.index()].hand.put(k, kc);
+            }
+            self.state.cards[on.index()].stored.put(c, copy);
+            // Stolen, its new controller's card returns to them (LSJ
+            // 20001031, PIB 20121220).
+            self.state.cards[on.index()].stored_owner = Some(seat);
+            self.flow = *resume;
+            self.resolve_ability(source, ability, target, 0, seat, user);
+            return;
+        }
         for i in picked {
             let s = &mut self.state.seats[seat.index()];
             let (c, copy) = s.hand.take(i as usize);
@@ -8972,13 +9011,14 @@ impl Engine {
                     let t = self.state.minions[host.expect("host").index()].owner;
                     self.peek(ctx.seat, t);
                 }
-                Effect::MoveBetweenVampires => {
+                Effect::MoveBetweenVampires(how) => {
                     if let Target::Minion(from) = target {
                         self.interrupts.push(Interrupt::MoveBetween {
                             seat: ctx.seat,
                             from,
                             to: None,
                             blood_done: false,
+                            how,
                         });
                     }
                 }
@@ -9967,7 +10007,31 @@ impl Engine {
         for e in effects {
             match e {
                 Effect::PredatorTakesControl => self.predator_takes_control(id, controller),
+                Effect::PassesToSect(sect) => self.passes_to_sect(id, controller, sect),
                 other => self.apply_rider_effect(id, other, Hook::DiscardPhase),
+            }
+        }
+    }
+
+    /// Card `id` passes counter-clockwise from `controller` to the first
+    /// Methuselah controlling a ready vampire of `sect`, `controller`
+    /// last; burned if none (The Admonitions; LSJ 20031121).
+    fn passes_to_sect(&mut self, id: CardId, controller: SeatId, sect: crate::crypt::Sect) {
+        let mut s = controller;
+        loop {
+            s = self.state.predator(s);
+            let ready = self.state.minions_of(s).any(|m| {
+                self.state.minions[m.index()].ready() && self.state.sect_of(m) == Some(sect)
+            });
+            if ready {
+                if s != controller {
+                    self.take_card_control(id, s);
+                }
+                return;
+            }
+            if s == controller {
+                self.burn_card_in_play(id);
+                return;
             }
         }
     }
@@ -9975,21 +10039,26 @@ impl Engine {
     /// `controller`'s predator takes control of card `id` (The Coven,
     /// Scourge of the Enochians).
     pub(crate) fn predator_takes_control(&mut self, id: CardId, controller: SeatId) {
-        let ci = id.index();
         let predator = self.state.predator(controller);
-        // A forced contest with a copy the predator already controls burns
+        self.take_card_control(id, predator);
+    }
+
+    /// `to` takes control of card `id`.
+    fn take_card_control(&mut self, id: CardId, to: SeatId) {
+        let ci = id.index();
+        // A forced contest with a copy the receiver already controls burns
         // the incoming copy (spec §1.13.1).
         let name = LIBRARY[self.state.cards[ci].card as usize].name;
         let held = self.state.cards.iter().enumerate().any(|(j, o)| {
             j != ci
                 && o.present()
                 && LIBRARY[o.card as usize].name == name
-                && self.state.card_controller(CardId(j as u32)) == predator
+                && self.state.card_controller(CardId(j as u32)) == to
         });
         if held {
             self.burn_card_in_play(id);
         } else {
-            self.state.cards[ci].controller = predator;
+            self.state.cards[ci].controller = to;
         }
     }
 

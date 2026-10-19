@@ -1139,6 +1139,46 @@ ADDED_BATCHES = [
         201477: "Xaviar (G3)",
         201488: "Yong-Sun, Harmonist (G2)",
     },
+    # Round 18 (slice 16ad): the cards players asked for (/admin/unsupported,
+    # owner via Z-main 2026-10-19: "make them your priority") and the TWDA
+    # greedy's steps 1-3 from them, bundles of 12 (owner, 2026-10-19:
+    # "Asked + steps 1-3").
+    {
+        100023: "The Admonitions",
+        100385: "Communal Haven: Cathedral",
+        100403: "Conflagration",
+        100441: "Creation Rites",
+        100457: "Crusade: Chicago",
+        100463: "Crusade: Istanbul",
+        100464: "Crusade: London",
+        100567: "Dodge",
+        100666: "Eternal Vigilance",
+        100891: "Hatch the Viper",
+        100909: "Helicopter",
+        100916: "Hidden Lurker",
+        100964: "Improvised Flamethrower",
+        101098: "Leverage",
+        101299: "Nosferatu Justicar",
+        101306: "NSA Trio",
+        101672: "Sacrificial Lamb",
+        101708: "The Secret Library of Alexandria",
+        101753: "Shanty Town Hunting Ground",
+        101877: "Storage Annex",
+        200112: "Antoinette DuChamp (G2)",
+        200211: "Bobby Lemon (G3)",
+        200265: "Chandler Hungerford (G2)",
+        200273: "Christine Boscacci (G2)",
+        200443: "Eurayle Gelasia Mylonas (G4)",
+        200463: "Fergus Alexander (G5)",
+        200536: "Greensleeves (G4)",
+        200737: "Julius (G2)",
+        200880: "Lukas (G4)",
+        200994: "Mirembe Kabbada (G2)",
+        201039: "Navar McClaren (G1)",
+        201073: "Ohanna (G2)",
+        201231: "Samson (G2)",
+        201301: "Smudge the Ignored (G1)",
+    },
 ]
 ADDED_CARDS = {k: v for batch in ADDED_BATCHES for k, v in batch.items()}
 
@@ -1359,6 +1399,9 @@ MODIFIER_TIMING = [
     # [OBF][POT]).
     (r"after a combat resulting from a block", "ACTION_AFTER_COMBAT"),
     (r"only usable after a combat involving", "ACTION_AFTER_COMBAT"),
+    # "Only usable after a combat between the acting minion you control and
+    # a blocking minion" (Hidden Lurker).
+    (r"only usable after a combat between", "ACTION_AFTER_COMBAT"),
     # "Usable after combat" (Pocket Out of Time [TEM]).
     (r"\busable after combat\b", "ACTION_AFTER_COMBAT"),
     (r"would be successful", "ACTION_WOULD_BE_SUCCESSFUL"),

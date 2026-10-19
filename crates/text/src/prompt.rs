@@ -374,6 +374,10 @@ impl Prompt<'_> {
                 "Choose the library card of your ash heap to move onto {}",
                 self.card()?
             ),
+            P::StoreOwnHand => format!(
+                "Choose the card of your hand to put face down on {}",
+                self.card()?
+            ),
             P::StoredToLibraryTop => format!(
                 "Choose the card on {} to put on top of your library",
                 self.card()?

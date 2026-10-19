@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "title": "zvtes protocol",
-  "version": "2.4.0",
+  "version": "2.5.0",
   "$defs": {
     "About": {
       "description": "What a choice is about (`Decision::about`): each field given where\nthe purpose (or the terms) has it (docs/protocol.md §5).",
@@ -3717,7 +3717,7 @@
           "const": "move_between"
         },
         {
-          "description": "Diablerie: `seat`'s diablerist (`to`) takes the victim's\n(`minion`) equipment, one card at a time, each one it could\nhold, until done; the victim then burns (rulebook \"Diablerie\").",
+          "description": "Diablerie: `seat`'s diablerist (`to`) takes the victim's\n(`minion`) equipment, one card at a time, each one it could\nhold, until done; the victim then burns (rulebook \"Diablerie\").\nAlso Sacrificial Lamb's burn of a vampire in torpor, not a\ndiablerie.",
           "type": "string",
           "const": "diablerie_equipment"
         },
@@ -4080,6 +4080,11 @@
           "description": "Filchware's Pawn Shop's equip action announced: `minion`'s\nequipment named in an ash heap, the heap first (`choose_seat`),\nthen the card (`find_card`; `seat`: that heap, `detail`:\n`named`).",
           "type": "string",
           "const": "name_ash_equipment"
+        },
+        {
+          "description": "Storage Annex as it is played: the card of the hand put face\ndown on `card` (`find_card`), replaced.",
+          "type": "string",
+          "const": "store_own_hand"
         },
         {
           "description": "\"When it enters play, you may pay n pool to make it <title>\"\n(Victor Pelletier, `minion`): `SetX(n)` pays n pool for the title\nits option's effect names (`role`, `detail`: `primogen`,\n`prince_of_paris`…), or pass.",

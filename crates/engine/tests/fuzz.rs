@@ -4668,4 +4668,118 @@ fuzz_tests! {
         seeds: 150,
         ..BASE
     };
+    /// Legacy cards, round 18 (slice 16ad): the library cards.
+    random_games_with_twda_round_18a_hold_invariants_and_replay: Fixture {
+        slice: &[
+            "Admonitions, The",
+            "Communal Haven: Cathedral",
+            "Conflagration",
+            "Creation Rites",
+            "Crusade: Chicago",
+            "Crusade: Istanbul",
+            "Crusade: London",
+            "Dodge",
+            "Eternal Vigilance",
+            "Hatch the Viper",
+            "Helicopter",
+            "Hidden Lurker",
+            "Improvised Flamethrower",
+            "Leverage",
+            "Nosferatu Justicar",
+            "NSA Trio",
+            "Sacrificial Lamb",
+            "Secret Library of Alexandria, The",
+            "Shanty Town Hunting Ground",
+            "Storage Annex",
+            // A gun striking at long range, a Master: Discipline card for
+            // Creation Rites' search.
+            ".44 Magnum",
+            "Abombwe",
+        ],
+        covers: &[
+            "play:Admonitions, The",
+            "play:Communal Haven: Cathedral",
+            "play:Conflagration",
+            "play:Creation Rites",
+            "play:Crusade: Chicago",
+            "play:Crusade: Istanbul",
+            "play:Crusade: London",
+            "play:Dodge",
+            "play:Eternal Vigilance",
+            "play:Hatch the Viper",
+            "play:Helicopter",
+            "play:Hidden Lurker",
+            "play:Improvised Flamethrower",
+            "play:Leverage",
+            "play:Nosferatu Justicar",
+            "play:NSA Trio",
+            "play:Sacrificial Lamb",
+            "play:Secret Library of Alexandria, The",
+            "play:Shanty Town Hunting Ground",
+            "play:Storage Annex",
+            "ability:Admonitions, The",
+            "ability:Communal Haven: Cathedral",
+            "ability:Eternal Vigilance",
+            "ability:Hatch the Viper",
+            "ability:Helicopter",
+            "ability:Improvised Flamethrower",
+            "ability:Secret Library of Alexandria, The",
+            "ability:Shanty Town Hunting Ground",
+            "ability:Storage Annex",
+        ],
+        setup: |e, _| {
+            use zvtes::crypt::{Sect, Title};
+            let has = |c: &CryptCard, d: &str| c.disciplines.iter().any(|x| x.eq_ignore_ascii_case(d));
+            per_seat(
+                e,
+                |c| c.sect == Sect::Sabbat
+                    && matches!(c.title, Title::Archbishop(_) | Title::Priscus | Title::Cardinal | Title::Regent),
+                4,
+            );
+            per_seat(e, |c| c.black_hand, 4);
+            per_seat(e, |c| c.sect == Sect::Sabbat, 4);
+            per_seat(e, |c| c.clan == "Nosferatu" && c.sect == Sect::Camarilla, 4);
+            per_seat(e, |c| c.clan == "Nosferatu antitribu", 4);
+            per_seat(e, |c| has(c, "obf"), 4);
+            per_seat(e, |c| has(c, "pro") && has(c, "ser"), 4);
+            per_seat(e, |c| has(c, "pot") || has(c, "dai"), 4);
+        },
+        seeds: 10,
+        ..BASE
+    };
+    /// Legacy cards, round 18 (slice 16ad): the vampires.
+    random_games_with_twda_round_18b_hold_invariants_and_replay: Fixture {
+        // Cards with Celerity for Antoinette's surcharge, a weapon for the
+        // combats.
+        slice: &[".44 Magnum", "Side Strike", "Dodge"],
+        covers: &[
+            "ability:Eurayle Gelasia Mylonas",
+            "ability:Fergus Alexander",
+        ],
+        setup: |e, _| {
+            named(
+                e,
+                &[
+                    "Antoinette DuChamp",
+                    "Bobby Lemon",
+                    "Chandler Hungerford",
+                    "Christine Boscacci",
+                    "Eurayle Gelasia Mylonas",
+                    "Fergus Alexander",
+                    "Greensleeves",
+                    "Julius",
+                    "Lukas",
+                    "Mirembe Kabbada",
+                    "Navar McClaren",
+                    "Ohanna",
+                    "Samson",
+                    "Smudge the Ignored",
+                ],
+            );
+            per_seat(e, |c| c.sect == zvtes::crypt::Sect::Sabbat, 4);
+            per_seat(e, |c| c.clan == "Gangrel", 4);
+        },
+        seeds: 8,
+        ..BASE
+    };
 }

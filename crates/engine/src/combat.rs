@@ -422,8 +422,8 @@ pub struct Side {
     /// Of `pending`, the damage from the opposing minion's strikes.
     pub strike_damage: Damage,
     /// This pair's damage the side inflicts on itself as it strikes
-    /// (Breath of the Dragon, Zip Gun): in its own `pending`, never the
-    /// opponent's doing.
+    /// (Breath of the Dragon, Zip Gun, Improvised Flamethrower): in its own
+    /// `pending`, never the opponent's doing.
     pub self_damage: u8,
     /// Unpreventable damage from the opposing strike (Enhanced Coagulant):
     /// out of `pending`, so no prevention reaches it; added as the damage
@@ -1425,6 +1425,27 @@ impl Engine {
                 .as_ref()
                 .is_some_and(|a| a.no_combat_ends.contains(&s.minion));
         }
+        // NSA Trio: the turn's first combat of an acting vampire and the
+        // vampire that blocked it, counted whether the event is in play or
+        // not (LSJ 20050215).
+        let block_combat = !at_resolution
+            && self
+                .action
+                .as_ref()
+                .is_some_and(|a| a.acting == acting && a.blocker == Some(opposing))
+            && st.minions[acting.index()].is_vampire()
+            && st.minions[opposing.index()].is_vampire();
+        if block_combat && st.vampire_block_combat_turn != Some(st.turn) {
+            if st
+                .global(crate::cards::Modifier::NoCombatEndsFirstBlockCombat)
+                .is_some()
+            {
+                for s in &mut sides {
+                    s.no_combat_ends_round = Some(1);
+                }
+            }
+            self.state.vampire_block_combat_turn = Some(self.state.turn);
+        }
         let order = vec![sides[0].seat, sides[1].seat];
         self.state.combatants = Some([acting, opposing]);
         let st = &self.state;
@@ -2308,14 +2329,21 @@ impl Engine {
         if c.sides.iter().all(|s| s.pre_range == 0) {
             return false;
         }
+        let mut backfired = Vec::new();
         for i in 0..2 {
             let n = std::mem::take(&mut c.sides[i].pre_range);
+            // The range set long before it (Neutral Guard, Sniper Rifle):
+            // the Flamethrower too (LSJ 20100709).
+            if n > 0 && c.range_set && c.range == Range::Long {
+                backfired.extend(backfire(&self.state, c, i));
+            }
             let (to, from) = (c.sides[i].minion, c.sides[1 - i].minion);
             let n = n.saturating_sub(self.state.damage_reduction(to, from));
             if n > 0 {
                 c.sides[i].pending.normal += n;
-                c.sides[i].preventing = true;
             }
+            // A backfire too, its hit ignored or not (LSJ 20040802).
+            c.sides[i].preventing |= c.sides[i].pending.total() > 0;
         }
         c.others_prevented = false;
         c.pre_range_damage = true;
@@ -2328,6 +2356,9 @@ impl Engine {
         // Dawn Operation, Domain of Evernight [tem]: aggravated (ANK
         // 20220114).
         self.aggravate_vampires();
+        for w in backfired {
+            self.burn_card_in_play(w);
+        }
         self.after_prevention_or_next();
         true
     }
@@ -3390,6 +3421,16 @@ impl Engine {
                 lifeless.push(r);
             }
         }
+        // Improvised Flamethrower: a bearer struck at long range, the
+        // damage prevented or not (LSJ 20040802).
+        let mut backfired = Vec::new();
+        if c.range == Range::Long {
+            for i in 0..2 {
+                if c.sides[i].strike_damage.total() > 0 {
+                    backfired.extend(backfire(&self.state, c, i));
+                }
+            }
+        }
         for s in &mut c.sides {
             s.resolved_with = s.strike_source;
             s.set_strike(None);
@@ -3404,7 +3445,7 @@ impl Engine {
         for r in lifeless {
             self.burn_card_in_play(r);
         }
-        for w in burn_weapons {
+        for w in burn_weapons.into_iter().chain(backfired) {
             self.burn_card_in_play(w);
         }
         for (w, to) in steal_weapons {
@@ -4866,6 +4907,21 @@ fn weather_amount(c: &CombatCtx) -> u8 {
 fn add_this_round(slot: &mut Option<(u8, u8)>, n: u8, round: u8) {
     let k = slot.filter(|&(_, r)| r == round).map_or(0, |(k, _)| k);
     *slot = Some((k + n, round));
+}
+
+/// Improvised Flamethrower: each copy on side `i`'s minion burns, its
+/// bearer taking n aggravated damage, its own (a second copy its own too,
+/// ANK 20230316).
+fn backfire(st: &GameState, c: &mut CombatCtx, i: usize) -> Vec<CardId> {
+    let mut out = Vec::new();
+    for l in st.borne(c.sides[i].minion) {
+        if let cards::Modifier::BackfiresAtLong(n) = l.modifier {
+            c.sides[i].pending.add(n, true);
+            c.sides[i].self_damage += n;
+            out.push(l.source);
+        }
+    }
+    out
 }
 
 #[cfg(test)]

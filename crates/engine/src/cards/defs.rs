@@ -9,9 +9,9 @@ use super::vampires::{
 use super::CostSource;
 use super::{
     bleed, mode_of, target, Actor, Among, AsVampire, Bearer, BlockRider, CardDef, CardFilter,
-    CirclePick, Effect, Holding, Hook, Lasting, Limit, ModeDef, Modifier, On, Points, RefEffect,
-    ReferendumDef, Requirement, Rider, RiderScope, SeatFilter, Stat, StrikeKind, TargetKind,
-    TargetSpec, Term, Terms, TitleClass, Until, VoteGrant, Voters, Window, CARD,
+    CirclePick, Effect, Holding, Hook, Lasting, Limit, ModeDef, Modifier, Moves, On, Points,
+    RefEffect, ReferendumDef, Requirement, Rider, RiderScope, SeatFilter, Stat, StrikeKind,
+    TargetKind, TargetSpec, Term, Terms, TitleClass, Until, VoteGrant, Voters, Window, CARD,
 };
 use crate::combat::Range;
 use crate::crypt::Sect;
@@ -2627,7 +2627,7 @@ pub static VOTER_CAPTIVATION: CardDef = CardDef {
     ..CARD
 };
 
-pub static DEFS: [&CardDef; 900] = [
+pub static DEFS: [&CardDef; 920] = [
     &TAUNT_THE_CAGED_BEAST,
     &PETRA_RESONANCE,
     &WAITING_GAME,
@@ -3528,6 +3528,26 @@ pub static DEFS: [&CardDef; 900] = [
     &LEGION,
     &RAW_RECRUIT,
     &LEADERSHIP_VACUUM,
+    &THE_ADMONITIONS,
+    &COMMUNAL_HAVEN_CATHEDRAL,
+    &CONFLAGRATION,
+    &CREATION_RITES,
+    &CRUSADE_CHICAGO,
+    &CRUSADE_ISTANBUL,
+    &CRUSADE_LONDON,
+    &DODGE,
+    &ETERNAL_VIGILANCE,
+    &HATCH_THE_VIPER,
+    &HELICOPTER,
+    &LEVERAGE,
+    &NOSFERATU_JUSTICAR,
+    &SECRET_LIBRARY_OF_ALEXANDRIA,
+    &SHANTY_TOWN_HUNTING_GROUND,
+    &HIDDEN_LURKER,
+    &IMPROVISED_FLAMETHROWER,
+    &NSA_TRIO,
+    &SACRIFICIAL_LAMB,
+    &STORAGE_ANNEX,
 ];
 
 // ---- Cards in play with riders and granted actions -------------------------
@@ -16790,7 +16810,13 @@ pub static HEIDELBERG_CASTLE: CardDef = CardDef {
                 Requirement::NoActionUnderway,
                 Requirement::ControlsReadyVampires(2),
             ],
-            &[Effect::LockSelf, Effect::MoveBetweenVampires],
+            &[
+                Effect::LockSelf,
+                Effect::MoveBetweenVampires(Moves {
+                    retainers: true,
+                    sect: None,
+                }),
+            ],
         )
     }],
     ..CARD
@@ -20789,7 +20815,7 @@ pub static RAMPAGE: CardDef = CardDef {
         ),
         &[
             Effect::DeclareAction(ActionKind::Card),
-            Effect::StealthIfOwnTargetCard(1),
+            Effect::StealthIfOwnTarget(1),
             Effect::BurnTargetCard,
         ],
     )],
@@ -26638,7 +26664,7 @@ pub static PONTICULUS: CardDef = CardDef {
 
 static PRAXIS_SEIZURE_YORK_REFERENDUM: ReferendumDef = ReferendumDef {
     terms: &[],
-    effect: RefEffect::PutOnCaller,
+    effect: RefEffect::PutOnCaller { unlocks_if: None },
     grants: &[],
     non_anarch_titles_minus: false,
     titled_minus: false,
@@ -26648,13 +26674,18 @@ static PRAXIS_SEIZURE_YORK_REFERENDUM: ReferendumDef = ReferendumDef {
 
 /// "Title. Requires a Camarilla vampire. Successful referendum means this
 /// card is put on this vampire to represent the unique Camarilla title of
-/// Prince of York." On the vampire who called it, if still in play.
+/// Prince of York." On the vampire who called it, if still in play; not
+/// while its player claims that title (no contest with oneself, rules-qa
+/// 76.2).
 pub static PRAXIS_SEIZURE_YORK: CardDef = CardDef {
     name: "Praxis Seizure: York",
     modes: &[mode_of(
         &[Window::ActionDeclarePolitical],
         Actor::ActingCandidate,
-        &[Requirement::ActorSectIn(&[Sect::Camarilla])],
+        &[
+            Requirement::ActorSectIn(&[Sect::Camarilla]),
+            Requirement::NoOwnClaimOf(crate::crypt::Title::Prince("York")),
+        ],
         &[
             Effect::DeclareAction(ActionKind::Political),
             Effect::CallReferendum(&PRAXIS_SEIZURE_YORK_REFERENDUM),
@@ -26943,7 +26974,10 @@ pub static FAST_REACTION: CardDef = CardDef {
             FAST_REACTION_REQUIRES,
             &[
                 Effect::LockActor,
-                Effect::QueueCombatWithActing { press: false },
+                Effect::QueueCombatAfterBlock {
+                    with_blocker: false,
+                    press: false,
+                },
             ],
         ),
         mode_of(
@@ -26952,7 +26986,10 @@ pub static FAST_REACTION: CardDef = CardDef {
             FAST_REACTION_REQUIRES,
             &[
                 Effect::LockActor,
-                Effect::QueueCombatWithActing { press: true },
+                Effect::QueueCombatAfterBlock {
+                    with_blocker: false,
+                    press: true,
+                },
             ],
         ),
     ],
@@ -28446,6 +28483,646 @@ pub static LEADERSHIP_VACUUM: CardDef = CardDef {
             Effect::BurnSelfIfActiveControlsReadyCapacityOrTitled(8),
             Effect::ActiveBurnsPoolFixedX,
         ],
+    }],
+    ..CARD
+};
+
+// ---- Round 18: the cards players asked for, the TWDA greedy's steps 1-3 ----
+
+/// "Requires a ready archbishop, priscus, cardinal or regent."
+const SABBAT_HIGH_TITLE: Requirement = Requirement::ActorTitleIn(&[
+    TitleClass::Archbishop,
+    TitleClass::Priscus,
+    TitleClass::Cardinal,
+    TitleClass::Regent,
+]);
+
+/// "Unique master. Put this card in play. Lock to discard one card if you
+/// control a ready Sabbat vampire. Lock to draw two cards if you control a
+/// ready Black Hand vampire. During your discard phase, control of The
+/// Admonitions passes counter-clockwise until it is controlled by a
+/// Methuselah who controls a ready Sabbat vampire (or is burned if there
+/// are none)." Untimed lock abilities, not as a card is played (RTR
+/// 20040501, The Barrens'); drawn as far as the library holds (LSJ
+/// 20060620), the hand then over its size discarded down; the only
+/// Methuselah with a Sabbat vampire keeps it (LSJ 20031121).
+pub static THE_ADMONITIONS: CardDef = CardDef {
+    name: "Admonitions, The",
+    modes: &[master_in_play(&[], &[Effect::PutInPlay])],
+    abilities: &[
+        ModeDef {
+            terms: Some(Terms::Discard {
+                n: 1,
+                of: CardFilter::Any,
+            }),
+            ..mode_of(
+                &[Window::AnyImpulse],
+                Actor::Controller,
+                &[
+                    Requirement::CardUnlocked,
+                    Requirement::HandNotEmpty,
+                    Requirement::ControlsReadySect(&[Sect::Sabbat]),
+                ],
+                &[Effect::LockSelf],
+            )
+        },
+        mode_of(
+            &[Window::AnyImpulse],
+            Actor::Controller,
+            &[
+                Requirement::CardUnlocked,
+                Requirement::ControlsReadyBlackHand,
+            ],
+            &[Effect::LockSelf, Effect::DrawThenDiscardDown(2)],
+        ),
+    ],
+    riders: &[Rider {
+        hook: Hook::DiscardPhase,
+        scope: RiderScope::Controller,
+        requires: &[],
+        effects: &[Effect::PassesToSect(Sect::Sabbat)],
+    }],
+    ..CARD
+};
+
+/// "Master: location. You may lock this card during your master phase to
+/// transfer equipment and/or move blood between any two ready Sabbat
+/// vampires you control." (1 pool.) From one to the other each use, as
+/// Heidelberg Castle's; more blood than the receiver holds to the bank.
+pub static COMMUNAL_HAVEN_CATHEDRAL: CardDef = CardDef {
+    name: "Communal Haven: Cathedral",
+    modes: &[LOCATION],
+    abilities: &[ModeDef {
+        target: target(
+            TargetKind::Minion,
+            &[
+                Requirement::Controlled,
+                Requirement::TargetVampire,
+                Requirement::ActorReady,
+                Requirement::ActorSectIn(&[Sect::Sabbat]),
+            ],
+        ),
+        ..mode_of(
+            &[Window::MasterPhase],
+            Actor::Controller,
+            &[
+                Requirement::CardUnlocked,
+                Requirement::ControlsReadyOfSect(Sect::Sabbat, 2),
+            ],
+            &[
+                Effect::LockSelf,
+                Effect::MoveBetweenVampires(Moves {
+                    retainers: false,
+                    sect: Some(Sect::Sabbat),
+                }),
+            ],
+        )
+    }],
+    ..CARD
+};
+
+/// "[pot] Strike: 2R damage. [dai] Strike: 1R aggravated damage. [DAI]
+/// Strike: 2R aggravated damage." (1 blood.) Played, it requires the
+/// Discipline used (LSJ 20011204-3, PIB 20130704).
+pub static CONFLAGRATION: CardDef = CardDef {
+    name: "Conflagration",
+    modes: &[
+        combat(
+            &[Window::CombatStrikeDeclaration],
+            &[],
+            &[Effect::Strike(StrikeKind::Damage {
+                n: 2,
+                ranged: true,
+                aggravated: false,
+            })],
+        ),
+        combat(
+            &[Window::CombatStrikeDeclaration],
+            &[],
+            &[Effect::Strike(StrikeKind::Damage {
+                n: 1,
+                ranged: true,
+                aggravated: true,
+            })],
+        ),
+        combat(
+            &[Window::CombatStrikeDeclaration],
+            &[],
+            &[Effect::Strike(StrikeKind::Damage {
+                n: 2,
+                ranged: true,
+                aggravated: true,
+            })],
+        ),
+    ],
+    ..CARD
+};
+
+/// "+1 stealth action. Requires a ready non-sterile archbishop, priscus,
+/// cardinal or regent. Put this card in play. It becomes a 1-capacity
+/// (non-unique) Sabbat vampire of the same clan as the acting vampire, and
+/// cannot perform actions this turn. You can search your library (shuffle
+/// afterward), hand, and/or ash heap for a master Discipline card and put
+/// it on this new vampire. Move up to 1 blood from the acting vampire to
+/// this new vampire." (1 blood.) Third Tradition: Progeny's: the blood
+/// decided as it resolves (PIB 20150418); no vampire in the ash heap (LSJ
+/// 20020115); moved to the uncontrolled region, it stays a vampire (RTR
+/// 19990712); going to the crypt, it burns (LSJ 20041201-2).
+pub static CREATION_RITES: CardDef = CardDef {
+    name: "Creation Rites",
+    modes: &[action_at(
+        &[SABBAT_HIGH_TITLE, Requirement::ActorNotSterile],
+        None,
+        &[
+            Effect::DeclareAction(ActionKind::Card),
+            Effect::AddStealth(1),
+            Effect::PutInPlay,
+            Effect::BecomesVampire {
+                sect: Some(Sect::Sabbat),
+                master_search: true,
+                must_hunt: false,
+                idle: true,
+                born: &crate::state::NEWBORN,
+            },
+            Effect::ActingBloodToNewUpTo(1),
+        ],
+    )],
+    ..CARD
+};
+
+static CRUSADE_CHICAGO_REFERENDUM: ReferendumDef = ReferendumDef {
+    terms: &[],
+    effect: RefEffect::PutOnCaller { unlocks_if: None },
+    grants: &[],
+    non_anarch_titles_minus: false,
+    titled_minus: false,
+    edge_bonus: 0,
+    only_sect: None,
+};
+
+/// "Requires a Sabbat vampire. Title. If this referendum passes, put this
+/// card on the acting vampire to represent the unique Sabbat title of
+/// Archbishop of Chicago. This could lead to a contested title." As
+/// Praxis Seizure: York's; never a contest with oneself (rules-qa 76.2).
+pub static CRUSADE_CHICAGO: CardDef = CardDef {
+    name: "Crusade: Chicago",
+    modes: &[political(
+        &[
+            Requirement::ActorSectIn(&[Sect::Sabbat]),
+            Requirement::NoOwnClaimOf(crate::crypt::Title::Archbishop("Chicago")),
+        ],
+        &[
+            Effect::DeclareAction(ActionKind::Political),
+            Effect::CallReferendum(&CRUSADE_CHICAGO_REFERENDUM),
+            Effect::RepresentsTitle(crate::crypt::Title::Archbishop("Chicago")),
+        ],
+    )],
+    ..CARD
+};
+
+static CRUSADE_ISTANBUL_REFERENDUM: ReferendumDef = ReferendumDef {
+    terms: &[],
+    effect: RefEffect::PutOnCaller {
+        unlocks_if: Some("Tzimisce"),
+    },
+    grants: &[],
+    non_anarch_titles_minus: false,
+    titled_minus: false,
+    edge_bonus: 0,
+    only_sect: None,
+};
+
+/// "Title. Requires a Sabbat vampire. Successful referendum means this card
+/// is put on this vampire to represent the unique Sabbat title of
+/// Archbishop of Istanbul. If this vampire is Tzimisce, they unlock during
+/// your next discard phase." The clan read then.
+pub static CRUSADE_ISTANBUL: CardDef = CardDef {
+    name: "Crusade: Istanbul",
+    modes: &[political(
+        &[
+            Requirement::ActorSectIn(&[Sect::Sabbat]),
+            Requirement::NoOwnClaimOf(crate::crypt::Title::Archbishop("Istanbul")),
+        ],
+        &[
+            Effect::DeclareAction(ActionKind::Political),
+            Effect::CallReferendum(&CRUSADE_ISTANBUL_REFERENDUM),
+            Effect::RepresentsTitle(crate::crypt::Title::Archbishop("Istanbul")),
+        ],
+    )],
+    ..CARD
+};
+
+static CRUSADE_LONDON_REFERENDUM: ReferendumDef = ReferendumDef {
+    terms: &[],
+    effect: RefEffect::PutOnCaller {
+        unlocks_if: Some("Nosferatu antitribu"),
+    },
+    grants: &[],
+    non_anarch_titles_minus: false,
+    titled_minus: false,
+    edge_bonus: 0,
+    only_sect: None,
+};
+
+/// "Requires a Sabbat vampire. Title. If this referendum passes, put this
+/// card on the acting vampire to represent the unique Sabbat title of
+/// Archbishop of London. This could lead to a contested title. If this
+/// vampire is Nosferatu antitribu, he or she unlocks during your next
+/// discard phase." The clan read then.
+pub static CRUSADE_LONDON: CardDef = CardDef {
+    name: "Crusade: London",
+    modes: &[political(
+        &[
+            Requirement::ActorSectIn(&[Sect::Sabbat]),
+            Requirement::NoOwnClaimOf(crate::crypt::Title::Archbishop("London")),
+        ],
+        &[
+            Effect::DeclareAction(ActionKind::Political),
+            Effect::CallReferendum(&CRUSADE_LONDON_REFERENDUM),
+            Effect::RepresentsTitle(crate::crypt::Title::Archbishop("London")),
+        ],
+    )],
+    ..CARD
+};
+
+/// "Do not replace until after combat. Strike: dodge."
+pub static DODGE: CardDef = CardDef {
+    name: "Dodge",
+    delayed_replacement: Some(Until::AfterCombat),
+    modes: &[combat(
+        &[Window::CombatStrikeDeclaration],
+        &[],
+        &[Effect::Strike(StrikeKind::Dodge)],
+    )],
+    ..CARD
+};
+
+/// "+1 stealth action. Requires a ready archbishop, priscus, cardinal or
+/// regent. Put this card on the acting vampire. During an action, this
+/// Sabbat vampire can burn 1 blood to unlock and attempt to block. Burn
+/// this card if this vampire goes to torpor." (1 blood.) Under Siege's
+/// unlock and block: once each action (D7), one already attempting
+/// included (ANK 20181122-2), not one that cannot attempt to block the
+/// action (LSJ 20010714-2), the prey, predator and target restrictions
+/// kept (ANK 20180623), the attempt standing if the unlock leaves the
+/// action without a target (LSJ 20090514).
+pub static ETERNAL_VIGILANCE: CardDef = CardDef {
+    name: "Eternal Vigilance",
+    modes: &[action_at(
+        &[SABBAT_HIGH_TITLE],
+        None,
+        &[
+            Effect::DeclareAction(ActionKind::Card),
+            Effect::AddStealth(1),
+            Effect::PutOnActor,
+        ],
+    )],
+    abilities: &[ModeDef {
+        waives_needed: true,
+        limit: Some(Limit::PerAction),
+        ..mode_of(
+            &[Window::ReactionUnlockAttempt],
+            Actor::Host,
+            &[
+                Requirement::ActorSectIn(&[Sect::Sabbat]),
+                Requirement::HostBloodAtLeast(1),
+                Requirement::CanAttemptBlock,
+            ],
+            &[
+                Effect::HostBurnBlood(1),
+                Effect::UnlockHost,
+                Effect::AttemptBlock,
+            ],
+        )
+    }],
+    riders: &[Rider {
+        hook: Hook::HostToTorpor,
+        scope: RiderScope::Controller,
+        requires: &[],
+        effects: &[Effect::BurnSelf],
+    }],
+    ..CARD
+};
+
+/// "Retainer with 1 life. [pro][ser] The employer can prevent 1 damage each
+/// combat. Hatch the Viper inflicts 1 damage on the opposing minion each
+/// round of combat during normal strike resolution at close range.
+/// [PRO][SER] As above, but it inflicts 2 damage." (1 blood.) Environmental,
+/// the retainer its source (ANK 20180612, ANK 20211127); against a dodge,
+/// not after a combat ends strike (RTR 19941109); the version as employed
+/// (RTR 19941109, ANK 20180612); no strikes of its own to gain.
+pub static HATCH_THE_VIPER: CardDef = CardDef {
+    name: "Hatch the Viper",
+    modes: &[
+        employ(&[
+            Effect::DeclareAction(ActionKind::Employ),
+            Effect::EmployRetainer { life: 1 },
+            Effect::Layer(Modifier::RetainerDamageClose(1)),
+        ]),
+        employ(&[
+            Effect::DeclareAction(ActionKind::Employ),
+            Effect::EmployRetainer { life: 1 },
+            Effect::Layer(Modifier::RetainerDamageClose(2)),
+        ]),
+    ],
+    abilities: &[ModeDef {
+        limit: Some(Limit::PerCombat),
+        ..mode_of(
+            &[Window::CombatDamagePrevention],
+            Actor::Host,
+            &[Requirement::DamagePending],
+            &[Effect::Prevent(1)],
+        )
+    }],
+    ..CARD
+};
+
+/// "Vehicle. When a minion equips with the Helicopter, lock it. After
+/// resolving a successful action, this minion may lock the Helicopter to
+/// unlock. A minion may have only one vehicle." (3 pool.) The Helicopter
+/// locked, equipped however (LSJ 20100119), not put on by another effect
+/// (LSJ 20090415).
+pub static HELICOPTER: CardDef = CardDef {
+    name: "Helicopter",
+    modes: &[mode_of(
+        &[Window::ActionDeclareEquip],
+        Actor::ActingCandidate,
+        ONE_VEHICLE,
+        &[
+            Effect::DeclareAction(ActionKind::Equip),
+            Effect::EntersLocked,
+        ],
+    )],
+    abilities: &[mode_of(
+        &[Window::ActionAfterResolution],
+        Actor::Host,
+        &[
+            Requirement::CardUnlocked,
+            Requirement::ActingIsHost,
+            Requirement::ActionSuccessful,
+        ],
+        &[Effect::LockSelf, Effect::UnlockHost],
+    )],
+    ..CARD
+};
+
+/// "Only usable during a bleed action. Burn the Edge to get +1 bleed that
+/// does not count against the limit. You cannot gain the Edge this action.
+/// If you would get the Edge, it is burned instead." Before or after a
+/// limited bleed modifier (LSJ 20100218, RTR 20180511-2).
+pub static LEVERAGE: CardDef = CardDef {
+    name: "Leverage",
+    modes: &[modifier(
+        &[Requirement::IsBleed, Requirement::HasEdge],
+        &[Effect::BurnEdge, bleed(1, false), Effect::NoEdgeThisAction],
+    )],
+    ..CARD
+};
+
+static NOSFERATU_JUSTICAR_REFERENDUM: ReferendumDef = ReferendumDef {
+    terms: &[Term::ChooseMinions {
+        filter: &[
+            Requirement::ActorReady,
+            Requirement::TargetClan("Nosferatu"),
+            Requirement::ActorSectIn(&[Sect::Camarilla]),
+            Requirement::NoSelfContest(crate::crypt::Title::Justicar("Nosferatu")),
+        ],
+        min: 1,
+        max: 1,
+    }],
+    effect: RefEffect::PutOnChosen { equipment: false },
+    grants: &[VoteGrant {
+        voters: Voters::Clan("Nosferatu"),
+        n: 1,
+    }],
+    non_anarch_titles_minus: false,
+    titled_minus: false,
+    edge_bonus: 0,
+    only_sect: None,
+};
+
+/// "Title. Choose a ready Nosferatu. If this referendum is successful, put
+/// this card on the chosen Nosferatu to represent the unique Camarilla
+/// title of Nosferatu Justicar. In this referendum, each Nosferatu gets 1
+/// extra vote." A Camarilla Nosferatu, none and it is not played (LSJ
+/// 20041026, LSJ 20100129), as Malkavian Justicar's.
+pub static NOSFERATU_JUSTICAR: CardDef = CardDef {
+    name: "Nosferatu Justicar",
+    modes: &[political(
+        &[],
+        &[
+            Effect::DeclareAction(ActionKind::Political),
+            Effect::CallReferendum(&NOSFERATU_JUSTICAR_REFERENDUM),
+            Effect::RepresentsTitle(crate::crypt::Title::Justicar("Nosferatu")),
+        ],
+    )],
+    ..CARD
+};
+
+/// "Master: unique location. You may draw a card each time you successfully
+/// bleed your prey. Discard to your hand size afterward." (Nosferatu, 1
+/// pool.) Your minion's bleed of your prey, as Gostoso's.
+pub static SECRET_LIBRARY_OF_ALEXANDRIA: CardDef = CardDef {
+    name: "Secret Library of Alexandria, The",
+    modes: &[LOCATION],
+    abilities: &[ModeDef {
+        limit: Some(Limit::PerAction),
+        ..mode_of(
+            &[Window::ActionAfterResolution],
+            Actor::Controller,
+            &[
+                Requirement::OwnActing,
+                Requirement::BleedAgainstPrey,
+                Requirement::BleedSuccessful,
+            ],
+            &[Effect::DrawThenDiscardDown(1)],
+        )
+    }],
+    ..CARD
+};
+
+hunting_ground!(SHANTY_TOWN_HUNTING_GROUND, "Shanty Town Hunting Ground");
+
+const HIDDEN_LURKER_REQUIRES: &[Requirement] = &[
+    Requirement::ActorVampire,
+    Requirement::ActorUnlocked,
+    Requirement::CombatFromBlock,
+    Requirement::BlockerReadyAfterItsCombat,
+    Requirement::NoCombatQueued,
+];
+
+/// "Only usable by a ready unlocked vampire other than the acting minion.
+/// Only usable after a combat between the acting minion you control and a
+/// blocking minion. [obf] Lock this vampire. This vampire enters combat
+/// with the blocking minion. The first round of this new combat, the
+/// blocking minion cannot strike. [OBF] As above, with an optional press."
+/// Fast Reaction's mirror: by the acting minion's controller only (LSJ
+/// 19990425); not with a combat queued (RTR 20020501), nor against a
+/// blocker on its way to torpor (LSJ 20100604-1); the block's combat's
+/// end effects lost but an unlock (LSJ 19980109); unable to strike, no
+/// strike's maneuver (LSJ 20001126), extra strikes gained (LSJ
+/// 19970814-2).
+pub static HIDDEN_LURKER: CardDef = CardDef {
+    name: "Hidden Lurker",
+    modes: &[
+        mode_of(
+            &[Window::ActionAfterCombat],
+            Actor::OtherOwnMinion,
+            HIDDEN_LURKER_REQUIRES,
+            &[
+                Effect::LockActor,
+                Effect::QueueCombatAfterBlock {
+                    with_blocker: true,
+                    press: false,
+                },
+            ],
+        ),
+        mode_of(
+            &[Window::ActionAfterCombat],
+            Actor::OtherOwnMinion,
+            HIDDEN_LURKER_REQUIRES,
+            &[
+                Effect::LockActor,
+                Effect::QueueCombatAfterBlock {
+                    with_blocker: true,
+                    press: true,
+                },
+            ],
+        ),
+    ],
+    ..CARD
+};
+
+/// "Weapon. Strike: 2R aggravated damage, only usable once per combat. If
+/// the opposing minion inflicts any damage on this minion at long range
+/// (even if it is prevented), this weapon is burned and the bearer takes 2
+/// aggravated (non-strike) damage." (2 pool.) Any strike damage at long
+/// range, prevented or ignored (LSJ 20040802), the range set long by a
+/// card included (LSJ 20100709); a second copy, a second use (ANK
+/// 20230316).
+pub static IMPROVISED_FLAMETHROWER: CardDef = CardDef {
+    name: "Improvised Flamethrower",
+    modes: &[mode_of(
+        &[Window::ActionDeclareEquip],
+        Actor::ActingCandidate,
+        &[],
+        &[
+            Effect::DeclareAction(ActionKind::Equip),
+            Effect::Layer(Modifier::BackfiresAtLong(2)),
+        ],
+    )],
+    abilities: &[ModeDef {
+        limit: Some(Limit::PerCombat),
+        ..weapon_strike(
+            &[],
+            &[Effect::Strike(StrikeKind::Damage {
+                n: 2,
+                ranged: true,
+                aggravated: true,
+            })],
+        )
+    }],
+    ..CARD
+};
+
+/// "Government. During the first combat between an acting vampire and a
+/// blocking vampire each turn, neither combatant may end combat as a strike
+/// in the first round. A Methuselah may use a discard phase action to burn
+/// this card if his or her minions attempted no actions in the current
+/// turn." Once each turn, the first such combat (LSJ 20050215); an action
+/// announced counts, whatever became of it.
+pub static NSA_TRIO: CardDef = CardDef {
+    name: "NSA Trio",
+    modes: &[event(
+        &[],
+        &[
+            Effect::PutInPlay,
+            Effect::Layer(Modifier::NoCombatEndsFirstBlockCombat),
+        ],
+    )],
+    abilities: &[mode_of(
+        &[Window::DiscardPhaseAction],
+        Actor::Methuselah,
+        &[
+            Requirement::DiscardPhaseActionLeft,
+            Requirement::NoActionAnnouncedThisTurn,
+        ],
+        &[Effect::SpendDiscardPhaseAction, Effect::BurnSelf],
+    )],
+    ..CARD
+};
+
+/// "[obf] Burn a vampire in torpor that you control. The acting vampire
+/// gains blood equal to the burned vampire's capacity (ignore excess
+/// blood). You may also transfer equipment from the burned vampire to this
+/// one. This action is not considered diablerie. [OBF] Ⓓ As above, but
+/// burn a vampire in another Methuselah's torpor region." (3 blood.) The
+/// equipment taken before it burns, as a diablerie's: a Soul Gem of Etrius
+/// not taken, its effect applying (LSJ 19970516); out of torpor by
+/// resolution, it fizzles (ANK 20210124).
+pub static SACRIFICIAL_LAMB: CardDef = CardDef {
+    name: "Sacrificial Lamb",
+    modes: &[
+        action_at(
+            &[],
+            target(
+                TargetKind::Minion,
+                &[
+                    Requirement::TargetVampire,
+                    Requirement::TargetInTorpor,
+                    Requirement::Controlled,
+                ],
+            ),
+            &[
+                Effect::DeclareAction(ActionKind::Card),
+                Effect::SacrificeTarget,
+            ],
+        ),
+        action_at(
+            &[],
+            target(
+                TargetKind::Minion,
+                &[
+                    Requirement::TargetVampire,
+                    Requirement::TargetInTorpor,
+                    Requirement::NotControlled,
+                ],
+            ),
+            &[
+                Effect::DeclareAction(ActionKind::Card),
+                Effect::SacrificeTarget,
+            ],
+        ),
+    ],
+    ..CARD
+};
+
+/// "Master: location. Put a card from your hand face down (out of play) on
+/// this card when you play it. You may look at the card at any time. During
+/// your master phase, you may exchange a card in your hand for the card on
+/// this Storage Annex." Not the only card in hand (LSJ 20100527); the card
+/// put on it replaced, as Fleshforge Chamber's (rules-qa 37.1); the
+/// exchange once each master phase (D7), the card going to the
+/// controller's hand (PIB 20150224); stolen, the card goes with it (LSJ
+/// 20001031, PIB 20121220); leaving play, the card burns (LSJ 20021128).
+pub static STORAGE_ANNEX: CardDef = CardDef {
+    name: "Storage Annex",
+    modes: &[master_in_play(
+        &[Requirement::HandHas(CardFilter::Any, 2)],
+        &[Effect::PutInPlay, Effect::StoreFromOwnHand],
+    )],
+    abilities: &[ModeDef {
+        terms: Some(Terms::Discard {
+            n: 1,
+            of: CardFilter::Any,
+        }),
+        limit: Some(Limit::PerPhaseEach),
+        ..mode_of(
+            &[Window::MasterPhase],
+            Actor::Controller,
+            &[Requirement::StoreNotEmpty, Requirement::HandNotEmpty],
+            &[Effect::SwapPickedWithStored],
+        )
     }],
     ..CARD
 };
