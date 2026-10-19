@@ -597,12 +597,14 @@ impl Session {
                 // 2026-10-17: "really misleading, even though technically
                 // correct"); once blocks are declined, only on a bleed at
                 // the seat, to wake and bounce it (owner, 2026-10-19:
-                // "otherwise it's noise").
+                // "otherwise it's noise"); never in a referendum (owner,
+                // 2026-10-19: "many times during a referendum. Shouldn't").
                 let blocking = e.action().is_some_and(|a| {
                     matches!(a.state, ActionState::Open | ActionState::Attempt(_))
                 });
                 let declined = e.action().is_some_and(|a| a.state == ActionState::Declined);
                 let moment = req.window != WindowLabel::CardAsPlayed
+                    && e.referendum().is_none()
                     && e.action().is_some_and(|a| match a.directed_seat(st) {
                         Some(target) => target == req.seat,
                         None => a.seat == st.prey(req.seat) || a.seat == st.predator(req.seat),
@@ -1581,11 +1583,9 @@ mod tests {
         assert_eq!(wake_shown(ActionKind::Hunt), (true, false));
     }
 
-    /// A referendum of the seat's predator is not "after blocks": its wake
-    /// stays shown with the opportunities off (a locked primogen waking to
-    /// play Protected District).
-    #[test]
-    fn a_wake_in_a_referendum_of_the_predator_is_shown() {
+    /// Whether the seat's locked vampire's wake is shown in its predator's
+    /// referendum, the opportunities `on` or off (`None`: never offered).
+    fn referendum_wake_shown(on: bool) -> Option<bool> {
         let (mut s, _) = session();
         let mut e = Engine::bare(3);
         for seat in &mut e.state.seats {
@@ -1603,7 +1603,7 @@ mod tests {
             .hand
             .put(find_library("Kine Resources Contested"), CopyId::NONE);
         s.engine = e;
-        s.set_opportunities(false);
+        s.set_opportunities(on);
         let wanted = [
             Choice::Play {
                 card: 0,
@@ -1616,7 +1616,7 @@ mod tests {
                 n: 3,
             },
         ];
-        let mut shown = false;
+        let mut shown = None;
         for _ in 0..60 {
             let Step::Decision(req) = s.engine.run() else {
                 break;
@@ -1627,7 +1627,7 @@ mod tests {
                     .iter()
                     .position(|o| matches!(o, Choice::Play { actor: Some(a), .. } if *a == z))
                 {
-                    shown = s.shown(&req).contains(&i);
+                    shown = Some(s.shown(&req).contains(&i));
                     break;
                 }
             }
@@ -1644,7 +1644,23 @@ mod tests {
                 .unwrap_or(0);
             s.engine.choose(i);
         }
-        assert!(shown, "the wake shown in the referendum");
+        shown
+    }
+
+    /// A wake is never shown in a referendum with the opportunities off
+    /// (owner, 2026-10-19): only with them on.
+    #[test]
+    fn a_wake_in_a_referendum_is_hidden_with_the_opportunities_off() {
+        assert_eq!(
+            referendum_wake_shown(true),
+            Some(true),
+            "shown with them on"
+        );
+        assert_eq!(
+            referendum_wake_shown(false),
+            Some(false),
+            "offered, hidden off"
+        );
     }
 
     /// Seat 0's `action` (a bleed is at seat 1) against seat 1's locked
