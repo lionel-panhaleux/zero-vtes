@@ -184,6 +184,8 @@ struct Stream {
             Option<zvtes_api::ids::Purpose>,
         ),
     >,
+    /// Markers the views showed.
+    markers: usize,
 }
 
 /// The action ended last: its seat, acting minion and card's copy.
@@ -616,8 +618,21 @@ impl Stream {
             .flat_map(|c| &c.sides)
             .filter_map(|s| s.strike.as_ref())
         {
-            let want = self.text.then(|| zvtes_text::strike_declared(s));
+            let want = self
+                .text
+                .then(|| zvtes_text::strike_declared(s, &self.names));
             assert_eq!(s.text, want, "seed {seed} {at}: a strike's text");
+        }
+        // Markers in English likewise, from their data.
+        for k in v
+            .seats
+            .iter()
+            .flat_map(|s| s.ready.iter().chain(&s.torpor))
+            .flat_map(|m| &m.markers)
+        {
+            let want = self.text.then(|| zvtes_text::marker(k, &self.names));
+            assert_eq!(k.text, want, "seed {seed} {at}: a marker's text");
+            self.markers += 1;
         }
         let referendum = v.referendum.is_some();
         self.shows(v, at);
@@ -741,7 +756,7 @@ fn the_events_tell_what_the_views_show() {
     let seeds = seeds();
     let (mut told, mut texts, mut undone, mut allocated, mut voted) = (0, 0, 0, 0, 0);
     let mut played = [0, 0];
-    let (mut within, mut undecided, mut caused) = (0, 0, 0);
+    let (mut within, mut undecided, mut caused, mut markers) = (0, 0, 0, 0);
     let mut reasked = 0;
     let mut misses = Vec::new();
     for &seed in &seeds {
@@ -781,6 +796,7 @@ fn the_events_tell_what_the_views_show() {
             closed: None,
             caused: 0,
             sources: HashMap::new(),
+            markers: 0,
         };
         let mut outs = g.handle(
             human,
@@ -878,6 +894,7 @@ fn the_events_tell_what_the_views_show() {
         within += s.within;
         undecided += s.undecided;
         caused += s.caused;
+        markers += s.markers;
         played[0] += s.played[0];
         played[1] += s.played[1];
         misses.extend(s.misses.into_iter().map(|m| (seed, m)));
@@ -905,8 +922,9 @@ fn the_events_tell_what_the_views_show() {
     // engine announces itself, followed all the same.
     eprintln!("actions: {within} announced and ended in one message, {undecided} with no decision");
     assert!(within > 0 && undecided > 0, "actions untried");
-    eprintln!("{caused} pool and blood events, each with its cause");
+    eprintln!("{caused} pool and blood events, each with its cause; {markers} markers told");
     assert!(caused > 0, "no pool or blood told");
+    assert!(markers > 0, "no marker seen");
 }
 
 /// Every option a seat is shown is told in English with the text

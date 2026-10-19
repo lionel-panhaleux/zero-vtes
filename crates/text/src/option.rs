@@ -454,7 +454,7 @@ fn asked(
         (P::MinionOf, K::Pass) => match any(EffectKind::Lock).or(any(EffectKind::Unlock)) {
             Some(e) if e.kind == EffectKind::Lock && e.detail.is_none() => "Lock no more".into(),
             Some(e) if e.kind == EffectKind::Unlock => "Unlock none".into(),
-            _ => "Pass".into(),
+            _ => "Choose none".into(),
         },
         // Ashur Tablets: to the hand first, then into the library.
         (P::AshurPicks, K::FindCard) => match has(EffectKind::Move)?.to? {
@@ -609,6 +609,18 @@ fn asked(
             role(&format!("gets {}", named()?))?
         }
         (P::MoveOffBurnedBearer, K::Pass) => "Let it burn".into(),
+        // What declining does, where a bare pass would not say.
+        (P::CircleBlood, K::Pass) => "Move nothing more".into(),
+        (P::PoolToVampires, K::Pass) => "Move no more pool".into(),
+        (P::MayRecycleCanceled, K::Pass) => match named() {
+            Some(c) => format!("Leave {c} in your ash heap"),
+            None => "Leave it in your ash heap".into(),
+        },
+        (P::NameOwnAshCard, K::Pass) => "Name none".into(),
+        (P::PutInPlaySearch, K::Pass) => "Put nothing in play".into(),
+        (P::ReadyTitledLeft, K::Pass) => "Play no card for it".into(),
+        (P::SearchEquipFor, K::Pass) => "Find no equipment".into(),
+        (P::UncontrolledBlood, K::Pass) => "Add no blood".into(),
         // The rest reads as anywhere.
         _ => base?,
     })
@@ -958,5 +970,131 @@ mod tests {
         n.action = Some(action(1, false));
         assert_eq!(super::block_pass(1, &n), "Pass (blocking)");
         assert_eq!(super::block_pass(0, &n), "Pass");
+    }
+
+    /// The purposes whose choice offers a pass (the engine's
+    /// `interrupt_request`): each pass says what declining does, not
+    /// "Pass".
+    #[test]
+    fn every_declined_purpose_says_what_declining_does() {
+        use zvtes_api::ids::{OptionKind, Purpose as P, Window};
+        use zvtes_api::message::About;
+        use zvtes_api::option::{CardRef, ChoiceKey, OptionView};
+        let n = Names::new(&NoCards);
+        let about = About {
+            n: Some(2),
+            m: Some(1),
+            cap: Some(3),
+            seat: Some(1),
+            minion: Some(7),
+            to: Some(8),
+            card: Some(CardRef {
+                id: Some(100001),
+                copy: Some(9),
+                from: None,
+            }),
+            clan: Some("brujah".into()),
+            detail: None,
+        };
+        let pass = OptionView {
+            index: 0,
+            key: ChoiceKey {
+                kind: OptionKind::Pass,
+                card: None,
+                actor: None,
+                minion: None,
+                target: None,
+                action: None,
+                mode: None,
+                amount: None,
+                favor: None,
+                blood: None,
+                zone: None,
+                value: None,
+                ability: None,
+                slot: None,
+            },
+            effects: Vec::new(),
+            abilities: None,
+            apart: Vec::new(),
+            user: None,
+            text: None,
+        };
+        let declined = [
+            P::AllySearch,
+            P::AnarchConvert,
+            P::AshurPicks,
+            P::AvoidDamage,
+            P::BaseSearch,
+            P::BlockToll,
+            P::CancelAttempt,
+            P::MoveForBlood,
+            P::LockForPool,
+            P::PoolForCard,
+            P::MayStoreAim,
+            P::MayTorture,
+            P::MayGainHandSize,
+            P::MayPreventForBlood,
+            P::MayUnlock,
+            P::BloodOrBurned,
+            P::BloodOrCamarilla,
+            P::BuyTitle,
+            P::ChooseCircle,
+            P::CircleBlood,
+            P::CryptSearch,
+            P::DiablerieEquipment,
+            P::DisciplineSearch,
+            P::DistributeFrom,
+            P::EntryRemoveOrBurn,
+            P::LibraryToHand,
+            P::LockOrDiscard,
+            P::MakeAnarch,
+            P::MarginBlood,
+            P::MayAddCounter,
+            P::MayDrawExtra,
+            P::MayGainPool,
+            P::MayPutOn,
+            P::MayRecycleCanceled,
+            P::MinionOf,
+            P::MoveBetween,
+            P::MoveOffBurnedBearer,
+            P::NameOwnAshCard,
+            P::PayOrBurn,
+            P::PoolOrNoTransfers,
+            P::PoolToVampires,
+            P::PutInPlaySearch,
+            P::ReadyTitledLeft,
+            P::Redraw,
+            P::SearchEquipFor,
+            P::StealForCorruption,
+            P::StoreSearch,
+            P::UncontrolledBlood,
+        ];
+        let mut generic = Vec::new();
+        for p in declined {
+            // What burns, as the host tells a pass that lets it.
+            let mut pass = pass.clone();
+            if matches!(p, P::BloodOrBurned | P::PayOrBurn) {
+                pass.effects.push(zvtes_api::option::Effect {
+                    copy: Some(9),
+                    ..zvtes_api::option::Effect::new(zvtes_api::option::EffectKind::Burn)
+                });
+            }
+            // A distribution's pass skips the recipient its choice names.
+            let (window, offered) = match p {
+                P::MarginBlood => {
+                    let mut to = pass.clone();
+                    to.key.kind = OptionKind::ChooseMinion;
+                    to.key.minion = Some(7);
+                    (Window::Distribution, vec![to, pass.clone()])
+                }
+                _ => (Window::ResolutionChoice, Vec::new()),
+            };
+            let t = super::option(&pass, window, Some(p), Some(&about), 0, &offered, &n);
+            if t.as_deref().is_none_or(|t| t == "Pass") {
+                generic.push((p, t));
+            }
+        }
+        assert!(generic.is_empty(), "declined as a bare pass: {generic:?}");
     }
 }

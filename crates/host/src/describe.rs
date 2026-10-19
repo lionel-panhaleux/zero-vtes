@@ -1350,12 +1350,22 @@ pub fn about(e: &Engine, req: &DecisionRequest, names: &impl Names) -> Option<Ab
                 n: Some(n),
                 ..a()
             },
+            I::Draws { left: n, .. } | I::Bottom { left: n, .. } => About { n: Some(n), ..a() },
+            I::MarginPool {
+                left, cap, clan, ..
+            } => About {
+                n: Some(left),
+                cap: Some(cap),
+                clan: Some(snake(clan)),
+                ..a()
+            },
+            I::MarginBlood { left, clan, .. } => About {
+                n: Some(left),
+                clan: Some(snake(clan)),
+                ..a()
+            },
             I::Replacement { .. }
             | I::DrawUp { .. }
-            | I::Draws { .. }
-            | I::Bottom { .. }
-            | I::MarginPool { .. }
-            | I::MarginBlood { .. }
             | I::RemoveUncontrolled { .. }
             | I::BecomesAnarch { .. }
             | I::AllyFromAsh { .. }

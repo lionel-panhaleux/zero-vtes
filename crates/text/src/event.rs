@@ -3,8 +3,8 @@
 use zvtes_api::event::{
     ActionOutcome, ActionRef, Cause, CauseKind, CauseRule, EventKind, ReferendumOutcome,
 };
-use zvtes_api::ids::{ActionKind, Range, StrikeKind};
-use zvtes_api::view::Strike;
+use zvtes_api::ids::{ActionKind, MarkerKind, Range, StrikeKind};
+use zvtes_api::view::{Marker, Strike};
 
 use crate::Names;
 
@@ -217,14 +217,11 @@ pub fn event(e: &EventKind, n: &Names) -> Option<String> {
             format!("Combat: {} vs {}", n.minion(*a), n.minion(*b))
         }
         EventKind::StrikeDeclared { minion, strike: s } => {
-            let what = match s {
-                Some(s) => match s.card {
-                    Some(c) => format!("{}: {}", n.card_id(Some(c)), strike(Some(s))),
-                    None => strike(Some(s)),
-                },
-                None => strike(None),
-            };
-            format!("{} strikes: {what}", n.minion(*minion))
+            format!(
+                "{} strikes: {}",
+                n.minion(*minion),
+                strike_named(s.as_ref(), n)
+            )
         }
         EventKind::Strikes {
             round,
@@ -236,7 +233,11 @@ pub fn event(e: &EventKind, n: &Names) -> Option<String> {
                 let Some(s) = sides.get(i) else {
                     return String::new();
                 };
-                let mut t = format!("{} {}", n.minion(s.minion), strike(s.strike.as_ref()));
+                let mut t = format!(
+                    "{} {}",
+                    n.minion(s.minion),
+                    strike_named(s.strike.as_ref(), n)
+                );
                 // Retainers' and environmental damage apart from the
                 // strike's: strike-only prevention covers the latter only.
                 let besides = s.damage.saturating_sub(s.strike_damage);
@@ -301,8 +302,8 @@ pub fn action_kind(k: ActionKind) -> &'static str {
 
 /// A declared strike with the damage it inflicts if it lands ("hand
 /// strike, 3 damage, aggravated").
-pub fn strike_declared(s: &Strike) -> String {
-    let mut t = strike(Some(s));
+pub fn strike_declared(s: &Strike, n: &Names) -> String {
+    let mut t = strike_named(Some(s), n);
     if let (StrikeKind::Hand | StrikeKind::Melee, Some(n)) = (s.kind, s.n) {
         t += &format!(", {n} damage");
     }
@@ -310,6 +311,47 @@ pub fn strike_declared(s: &Strike) -> String {
         t += ", aggravated";
     }
     t
+}
+
+/// A strike, its card named ("Torn Signpost: weapon strike").
+fn strike_named(s: Option<&Strike>, n: &Names) -> String {
+    match s.and_then(|s| s.card) {
+        Some(c) => format!("{}: {}", n.card_id(Some(c)), strike(s)),
+        None => strike(s),
+    }
+}
+
+/// A marker on a minion, as its data says ("2 corruption counters
+/// (Ana)", "Red List mark (Ben)", "Bonding's effect, 1 counter").
+pub fn marker(m: &Marker, n: &Names) -> String {
+    let k = m.n.unwrap_or(0);
+    let counters = |what: &str| match k {
+        1 => format!("1 {what} counter"),
+        k => format!("{k} {what} counters"),
+    };
+    let of = |s: Option<u8>| s.map(|s| format!(" ({})", n.seat(s))).unwrap_or_default();
+    match m.kind {
+        MarkerKind::Corruption => format!("{}{}", counters("corruption"), of(m.seat)),
+        MarkerKind::Hostage => counters("hostage"),
+        MarkerKind::Nightmare => counters("nightmare"),
+        MarkerKind::Torture => counters("torture"),
+        MarkerKind::Pact => counters("pact"),
+        MarkerKind::Taint => counters("taint"),
+        MarkerKind::Disease => "a disease counter".into(),
+        MarkerKind::TitleContested => "its title contested".into(),
+        MarkerKind::Expelled => "expelled".into(),
+        MarkerKind::RedListMark => format!("Red List mark{}", of(m.seat)),
+        MarkerKind::OutOfPlay => "out of play".into(),
+        MarkerKind::Effect => {
+            let card = n.card_id(m.card);
+            match m.n {
+                Some(1) => format!("{card}'s effect, 1 counter"),
+                Some(k) => format!("{card}'s effect, {k} counters"),
+                None => format!("{card}'s effect"),
+            }
+        }
+        MarkerKind::Unknown => "a marker".into(),
+    }
 }
 
 /// A strike as the table sees it ("no strike" for none).
@@ -512,6 +554,109 @@ mod tests {
                 card: card(2, Some(9)),
             }),
             "Torn Signpost is canceled"
+        );
+    }
+
+    /// The oracle of markers: each kind's English, every kind listed (a
+    /// new one fails to compile here until it is).
+    #[test]
+    fn every_marker_reads_as_its_data_says() {
+        use zvtes_api::ids::MarkerKind as K;
+        use zvtes_api::view::Marker;
+        let cards = Two;
+        let mut n = Names::new(&cards);
+        n.seats = vec!["Ana".into(), "Ben".into()];
+        let m = |kind, seat, k, card| Marker {
+            kind,
+            seat,
+            n: k,
+            card,
+            text: None,
+        };
+        let told = |k: K| -> (Marker, &str) {
+            match k {
+                K::Corruption => (m(k, Some(1), Some(2), None), "2 corruption counters (Ben)"),
+                K::Hostage => (m(k, None, Some(1), None), "1 hostage counter"),
+                K::Nightmare => (m(k, None, Some(2), None), "2 nightmare counters"),
+                K::Torture => (m(k, None, Some(3), None), "3 torture counters"),
+                K::Pact => (m(k, None, Some(1), None), "1 pact counter"),
+                K::Taint => (m(k, None, Some(2), None), "2 taint counters"),
+                K::Disease => (m(k, None, None, None), "a disease counter"),
+                K::TitleContested => (m(k, None, None, None), "its title contested"),
+                K::Expelled => (m(k, None, None, None), "expelled"),
+                K::RedListMark => (m(k, Some(0), None, None), "Red List mark (Ana)"),
+                K::OutOfPlay => (m(k, None, None, None), "out of play"),
+                K::Effect => (
+                    m(k, None, Some(1), Some(2)),
+                    "Torn Signpost's effect, 1 counter",
+                ),
+                K::Unknown => (m(k, None, None, None), "a marker"),
+            }
+        };
+        // Every kind told: the list's match is exhaustive, so a new kind
+        // fails to compile here until it is listed.
+        macro_rules! every {
+            ($($k:ident),* $(,)?) => {{
+                fn listed(k: K) -> bool {
+                    match k {
+                        $(K::$k)|* => true,
+                    }
+                }
+                [$(K::$k),*].map(|k| {
+                    assert!(listed(k));
+                    k
+                })
+            }};
+        }
+        let kinds = every!(
+            Corruption,
+            Hostage,
+            Nightmare,
+            Torture,
+            Pact,
+            Taint,
+            Disease,
+            TitleContested,
+            Expelled,
+            RedListMark,
+            OutOfPlay,
+            Effect,
+            Unknown,
+        );
+        for k in kinds {
+            let (marker, want) = told(k);
+            assert_eq!(crate::marker(&marker, &n), want);
+        }
+    }
+
+    /// The oracle of strikes: a card's strike named by its card, a hand
+    /// strike's damage told.
+    #[test]
+    fn a_strike_reads_with_its_card() {
+        use zvtes_api::ids::StrikeKind as K;
+        use zvtes_api::view::Strike;
+        let cards = Two;
+        let n = Names::new(&cards);
+        let s = |kind, n_, card| Strike {
+            kind,
+            n: n_,
+            ranged: false,
+            aggravated: false,
+            card,
+            resolved: None,
+            text: None,
+        };
+        assert_eq!(
+            crate::strike_declared(&s(K::Melee, Some(2), Some(2)), &n),
+            "Torn Signpost: weapon strike, 2 damage"
+        );
+        assert_eq!(
+            crate::strike_declared(&s(K::Hand, Some(1), None), &n),
+            "hand strike, 1 damage"
+        );
+        assert_eq!(
+            crate::strike_declared(&s(K::CardEffect, None, Some(2)), &n),
+            "Torn Signpost: strike"
         );
     }
 }

@@ -462,8 +462,9 @@ their default) and changed by `settings`:
   message — a client animating each move. Larger: compression
   (permessage-deflate) is on at the server.
 - `text` (default `false`): English renderings beside the data — `text`
-  on options, events and strikes, a decision's `prompt` — for a client
-  that does not compose its own. Options and events are told from the
+  on options, events, strikes and markers, a decision's `prompt` (a
+  minion phase's: what it owes first, its `due`) — for a client that
+  does not compose its own. Options and events are told from the
 data sent alone, the names the client was shown, as a client could
 tell them itself.
 

@@ -611,7 +611,7 @@ impl Game {
             Message::Joined(j) => {
                 known.see(&j.view);
                 if text {
-                    tell_strikes(&mut j.view);
+                    tell_view(&mut j.view, known);
                 }
             }
             Message::Events { events, view } => {
@@ -657,14 +657,14 @@ impl Game {
                 if let Some(v) = view {
                     known.see(v);
                     if text {
-                        tell_strikes(v);
+                        tell_view(v, known);
                     }
                 }
             }
             Message::Decision(d) => {
                 known.see(&d.view);
                 if text {
-                    tell_strikes(&mut d.view);
+                    tell_view(&mut d.view, known);
                     d.prompt = zvtes_text::prompt(d, known);
                     let offered = d.options.clone();
                     for o in &mut d.options {
@@ -680,7 +680,12 @@ impl Game {
                     }
                 }
             }
-            Message::Over(o) => known.see(&o.view),
+            Message::Over(o) => {
+                known.see(&o.view);
+                if text {
+                    tell_view(&mut o.view, known);
+                }
+            }
             Message::Error(_) | Message::Noted { .. } => {}
         }
     }
@@ -1366,11 +1371,19 @@ fn empty_view(viewer: Seat) -> TableView {
     }
 }
 
-/// The combat view's strikes in English (`Strike::text`).
-fn tell_strikes(v: &mut TableView) {
+/// The view's strikes and markers in English (`Strike::text`,
+/// `Marker::text`), from their data.
+fn tell_view(v: &mut TableView, known: &zvtes_text::Names) {
     for side in v.combat.iter_mut().flat_map(|c| &mut c.sides) {
         if let Some(s) = side.strike.as_mut() {
-            s.text = Some(zvtes_text::strike_declared(s));
+            s.text = Some(zvtes_text::strike_declared(s, known));
+        }
+    }
+    for s in &mut v.seats {
+        for m in s.ready.iter_mut().chain(&mut s.torpor) {
+            for k in &mut m.markers {
+                k.text = Some(zvtes_text::marker(k, known));
+            }
         }
     }
 }

@@ -19,7 +19,6 @@ then the protocol leaks the Succubus Club fork works around, then the API
 for outside platforms and contributors, then the training layer split,
 the remaining mechanisms, the review leftovers, the harness.
 
-- **Renderer left**: markers' and strikes' text from data (an oracle each first); the purposes no sweep reaches (`text/src/option.rs` `asked`, declined) rendered; a minion phase's `due` told in its prompt ("X must hunt first"). Done when they read data and a test renders every purpose and every due kind. Docs: none (the text crate).
 - **Events as a complete delta stream**: view N plus its events is view N+1; views on decisions only. Done when a host test applies the events to each view over the key sweep's games and gets the next. Docs: protocol.md (events, views).
 - **`zvtes-env`, step 1**: `bots::does` out of `bots.rs` into a neutral engine module (`politics.rs` uses it). Done when `bots.rs` holds no rules helper `politics.rs` reads. Docs: engine.md (layout).
 - **`zvtes-env`, step 2**: `obs.rs` (with `encode_critic`), `habits.rs` and `bots.rs` into `crates/env` over `engine`; `policy` and `py` on it, `host` for the scripted bots; `agent.rs` and elision stay; the training line told before it merges. Done when the engine crate holds none of them and every check is green. Docs: engine.md, DESIGN §5, the training skill.

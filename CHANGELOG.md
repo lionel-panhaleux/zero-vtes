@@ -49,6 +49,12 @@ tell, and undo against bots, behaviours with no field or id.
   key and `source`, as the events number it. A record's older key reads
   by the fields it has (§11).
 - `decided`: `source` and `purpose`, as the decision told them.
+- `text`: markers told (`Marker::text`, from their data); a strike from a
+  card named by it in the combat view and the `strike_declared` and
+  `strikes` events; every purpose prompted (a draw alternative, a
+  margin, Heart of Nizchetus's draws and bottom among those that had
+  none) and its pass told by what declining does; a minion phase's
+  prompt tells what its minions owe first (`due`). Behaviour, no field.
 - Event `acting_changes` (`seat`, `acting`, `minion`): another minion
   now acting in the action under way (Mask of a Thousand Faces); its
   `action_ends` names them (it had ended an action no event announced).

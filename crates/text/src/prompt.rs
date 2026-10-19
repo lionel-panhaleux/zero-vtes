@@ -4,7 +4,7 @@
 //! decision's `purpose`, `source` and `about`; `None` where none of them
 //! says more than the options.
 
-use zvtes_api::ids::{Purpose, Window};
+use zvtes_api::ids::{DueKind, Purpose, Window};
 use zvtes_api::message::{About, Decision};
 use zvtes_api::option::CardRef;
 
@@ -17,6 +17,7 @@ pub fn prompt(d: &Decision, n: &Names) -> Option<String> {
     let p = Prompt { d, a, n };
     match d.purpose {
         Some(purpose) => p.asked(purpose),
+        None if !d.due.is_empty() => Some(p.dues()),
         None => p.terms(),
     }
 }
@@ -428,8 +429,57 @@ impl Prompt<'_> {
                 self.minion()?,
                 self.card()?
             ),
+            // A rider replacing (Visit from the Capuchin), beside a draw
+            // alternative.
+            P::Replacement => {
+                "Replace a card: burn a counter from a card instead, or draw from a card's store"
+                    .into()
+            }
+            P::DrawUp => "Draw up to your hand size: choose where each card comes from".into(),
+            P::Draws => format!(
+                "Draw {} more card(s); then as many as you drew go to the bottom of your library",
+                a.n?
+            ),
+            P::Bottom => format!(
+                "Put {} more card(s) from your hand on the bottom of your library",
+                a.n?
+            ),
+            P::MarginPool => format!(
+                "Of {} blood, choose how much goes to your pool (at most {}); the rest to your \
+                 ready {}",
+                a.n?,
+                a.cap?,
+                self.clan()?
+            ),
+            P::MarginBlood => format!(
+                "{} blood to your ready {} below capacity: choose who gets the next",
+                a.n?,
+                self.clan()?
+            ),
             _ => return None,
         })
+    }
+
+    /// What a minion phase owes before it ends (`Decision::due`).
+    fn dues(&self) -> String {
+        let owed: Vec<String> = self
+            .d
+            .due
+            .iter()
+            .map(|d| {
+                let m = || self.n.minion_bare(d.copy);
+                match d.kind {
+                    DueKind::Hunt => format!("{} must hunt first", m()),
+                    DueKind::Action => format!("{} must take its action first", m()),
+                    // The card in play taking control of its host.
+                    DueKind::TakeControl => {
+                        format!("{} must take control of its host first", self.n.own(d.copy))
+                    }
+                    DueKind::Unknown => format!("{} must act first", m()),
+                }
+            })
+            .collect();
+        format!("Before this phase ends: {}", owed.join("; "))
     }
 
     /// The prompt of a play's, a cost's, an ability's, a rider's or a
@@ -568,4 +618,240 @@ fn capitalize(s: &str) -> String {
     c.next()
         .map(|f| f.to_uppercase().chain(c).collect())
         .unwrap_or_default()
+}
+
+#[cfg(test)]
+mod tests {
+    use zvtes_api::ids::{DueKind, KrcgId, Phase, Purpose, Window};
+    use zvtes_api::message::{About, Decision, Due};
+    use zvtes_api::option::CardRef;
+    use zvtes_api::view::TableView;
+
+    use crate::{Cards, Names};
+
+    struct Named;
+
+    impl Cards for Named {
+        fn name(&self, _: KrcgId) -> Option<&str> {
+            Some("Card")
+        }
+    }
+
+    /// The details a purpose's prompt reads (`About::detail`), each told.
+    fn details(p: Purpose) -> &'static [Option<&'static str>] {
+        match p {
+            Purpose::MinionOf => &[
+                Some("lock"),
+                Some("corrupt"),
+                Some("lock_vampires"),
+                Some("unlock_anarch"),
+                Some("burn_blood"),
+                Some("host_card"),
+                Some("lock_oldest"),
+                Some("oldest_gain_blood"),
+                Some("burn_crowded_clan"),
+                Some("damage"),
+            ],
+            Purpose::ChooseForCard => &[
+                Some("unblockable_non_bleed"),
+                Some("does_not_unlock"),
+                Some("chosen"),
+            ],
+            _ => &[None],
+        }
+    }
+
+    fn decision(window: Window, purpose: Option<Purpose>, due: Vec<Due>) -> Decision {
+        Decision {
+            decision: 1,
+            seat: 0,
+            window,
+            source: None,
+            purpose,
+            about: Some(About {
+                n: Some(2),
+                m: Some(1),
+                cap: Some(3),
+                seat: Some(1),
+                minion: Some(7),
+                to: Some(8),
+                card: Some(CardRef {
+                    id: Some(100001),
+                    copy: Some(9),
+                    from: None,
+                }),
+                clan: Some("brujah".into()),
+                detail: None,
+            }),
+            due,
+            options: Vec::new(),
+            undo: false,
+            allocation: None,
+            votes: None,
+            prompt: None,
+            view: TableView {
+                viewer: Some(0),
+                decision: 1,
+                turn: 1,
+                active: 0,
+                phase: Phase::Minion,
+                seats: Vec::new(),
+                action: None,
+                combat: None,
+                referendum: None,
+                transfers: None,
+            },
+        }
+    }
+
+    /// Every purpose, listed once: a new one fails to compile here until
+    /// it is (`listed`'s match).
+    macro_rules! purposes {
+        ($($p:ident),* $(,)?) => {
+            const ALL: &[Purpose] = &[$(Purpose::$p),*];
+            fn listed(p: Purpose) -> bool {
+                match p {
+                    $(Purpose::$p)|* => true,
+                    Purpose::Unknown => false,
+                }
+            }
+        };
+    }
+
+    purposes!(
+        MoveCardToTitled,
+        MoveOffBurnedBearer,
+        SecretNumber,
+        SearchEquipFor,
+        PutInPlaySearch,
+        MoveCardToOldest,
+        MayPreventForBlood,
+        ShortfallPicks,
+        MayUnlock,
+        GiveCardTo,
+        GiveBlood,
+        MoveBetween,
+        DiablerieEquipment,
+        PayOrBurn,
+        LockOrDiscard,
+        BloodOrBurned,
+        Replacement,
+        DrawUp,
+        Draws,
+        Bottom,
+        StoreSearch,
+        EntryBurn,
+        EntryRemoveOrBurn,
+        BlockToll,
+        CancelAttempt,
+        MarginPool,
+        MarginBlood,
+        MinionOf,
+        CorruptionOwner,
+        AvoidDamage,
+        DiscardFromHandOf,
+        Reorder,
+        DiscardChosen,
+        RemoveFromAsh,
+        DisciplineSearch,
+        MayDrawExtra,
+        PursuitDraw,
+        PursuitDiscard,
+        PurgePick,
+        StealUpTo,
+        MoveBloodUpTo,
+        AllySearch,
+        RemoveUncontrolled,
+        ChooseForCard,
+        ExchangeAnarch,
+        PoolForCard,
+        LockForPool,
+        StealForCorruption,
+        MakeAnarch,
+        AshurPicks,
+        BecomesAnarch,
+        AnarchConvert,
+        UncontrolledBlood,
+        LockOrPay,
+        PoolOrVampire,
+        PoolOrNoTransfers,
+        BloodOrCamarilla,
+        StoreOwnAsh,
+        StoredToLibraryTop,
+        LibraryToHand,
+        CryptSearch,
+        PreySlotToPool,
+        DistributeFrom,
+        CircleBlood,
+        PoolToVampires,
+        BaseSearch,
+        ChooseCircle,
+        AllyFromAsh,
+        MayRecycleCanceled,
+        NameUncontrolled,
+        NameSlotPair,
+        BeastDisciplines,
+        StorePreyAsh,
+        NameOwnAshCard,
+        NameAshVampire,
+        NameAshPair,
+        MayPutOn,
+        MayAddCounter,
+        MayStoreAim,
+        MayTorture,
+        MayGainPool,
+        MayGainHandSize,
+        ReadyTitledLeft,
+        NameMasterDiscipline,
+        NameAshEquipment,
+        StoreOwnHand,
+        BuyTitle,
+        MoveForBlood,
+        Redraw,
+    );
+
+    /// Every purpose prompted, the sweeps' games reaching it or not.
+    #[test]
+    fn every_purpose_is_prompted() {
+        let cards = Named;
+        let n = Names::new(&cards);
+        let mut untold = Vec::new();
+        for &p in ALL {
+            assert!(listed(p));
+            for &detail in details(p) {
+                let mut d = decision(Window::ResolutionChoice, Some(p), Vec::new());
+                if let Some(a) = d.about.as_mut() {
+                    a.detail = detail.map(str::to_string);
+                }
+                if !super::prompt(&d, &n).is_some_and(|t| !t.is_empty()) {
+                    untold.push((p, detail));
+                }
+            }
+        }
+        assert!(untold.is_empty(), "untold: {untold:?}");
+    }
+
+    /// A minion phase with a minion owing its action first tells it, for
+    /// every kind of due.
+    #[test]
+    fn every_due_is_told_in_the_minion_phase_prompt() {
+        let cards = Named;
+        let mut n = Names::new(&cards);
+        n.minions.insert(7, "Lucian".into());
+        n.own.insert(9, "Puppet Master".into());
+        for (kind, copy, want) in [
+            (DueKind::Hunt, 7, "Lucian must hunt first"),
+            (DueKind::Action, 7, "Lucian must take its action first"),
+            // The card in play taking control of its host.
+            (
+                DueKind::TakeControl,
+                9,
+                "Puppet Master must take control of its host first",
+            ),
+        ] {
+            let d = decision(Window::MinionPhase, None, vec![Due { kind, copy }]);
+            let t = super::prompt(&d, &n).unwrap_or_default();
+            assert_eq!(t, format!("Before this phase ends: {want}"), "{kind:?}");
+        }
+    }
 }
