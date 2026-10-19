@@ -73,9 +73,12 @@ pub enum Fact {
         card: CardId,
         on: Option<MinionId>,
     },
+    /// To `to`, or contested: in its own contest, or out of play with
+    /// its contested minion (rules-qa 83.1).
     CardLeaves {
         card: CardId,
         to: Option<Place>,
+        contested: bool,
     },
     CardMoves {
         card: CardId,
@@ -535,9 +538,15 @@ impl Mark {
                     tell(out, Fact::CardEnters { card: c, on: host }, told);
                 }
                 (Some(_), None) => {
+                    let card = &e.state.cards[i];
                     let fact = Fact::CardLeaves {
                         card: c,
-                        to: place(*e.state.cards[i].copy),
+                        to: place(*card.copy),
+                        contested: card.in_play
+                            && (card.contested
+                                || card
+                                    .host
+                                    .is_some_and(|m| e.state.minions[m.index()].contested)),
                     };
                     tell(out, fact, told);
                 }
@@ -589,6 +598,35 @@ mod tests {
     // A strike declared is marked with what it inflicts as declared (the
     // `strike_declared` event's `n`): Torn Signpost [POT] sets a strength of
     // 3, the hand strike for 3.
+    /// The cards on a minion going into a contest are told leaving
+    /// contested with it (rules-qa 83.1).
+    #[test]
+    fn a_card_on_a_contested_minion_is_told_leaving_contested() {
+        let mut e = Engine::bare(2);
+        let m = e.add_minion(SeatId(0), find_card("Farah Sarroub"), 4, false);
+        e.add_minion(SeatId(1), find_card("Monica Giovanni"), 4, false);
+        let laptop = find_library("Laptop Computer");
+        e.state
+            .cards
+            .push(CardInPlay::new(laptop, SeatId(0), Some(m), 0));
+        let card = e.state.cards.len() - 1;
+        let before = Mark::of(&e);
+        e.state.minions[m.index()].contested = true;
+        e.state.cards[card].out_of_play = true;
+        let mut out = Vec::new();
+        before.changes(&e, &Mark::of(&e), true, &mut out);
+        assert!(
+            out.iter().any(|t| matches!(
+                t.fact,
+                super::Fact::CardLeaves {
+                    contested: true,
+                    ..
+                }
+            )),
+            "{out:?}"
+        );
+    }
+
     #[test]
     fn a_declared_strike_is_marked_with_its_damage() {
         let pot = CRYPT

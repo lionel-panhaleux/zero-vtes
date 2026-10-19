@@ -191,11 +191,15 @@ impl Namer<'_> {
                 minion: None,
                 effect: st.cards[card.index()].effect_only,
             },
-            Fact::CardLeaves { card, to } => EventKind::LeavesPlay {
+            Fact::CardLeaves {
+                card,
+                to,
+                contested,
+            } => EventKind::LeavesPlay {
                 card: self.in_play(card),
                 to: to.and_then(zone),
                 minion: None,
-                contested: false,
+                contested,
                 effect: st.cards[card.index()].effect_only,
             },
             Fact::CardMoves { card, on } => EventKind::Moves {

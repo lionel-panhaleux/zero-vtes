@@ -35,9 +35,7 @@ impl Engine {
                 .filter(|(i, c)| {
                     c.in_play
                         && c.contested
-                        && c.body.is_none()
-                        && (crate::cards::card_title(c.card).is_none()
-                            || LIBRARY[c.card as usize].labels.contains(&Label::Unique))
+                        && contests_as_card(c)
                         && self.state.card_controller(CardId(*i as u32)) == s
                 })
                 .map(|(i, _)| Contest::Library(CardId(i as u32))),
@@ -163,10 +161,8 @@ impl Engine {
         }
     }
 
-    /// A minion's card contest state; an ally's card in play follows it
-    /// (face down and out of play with it: its text does not apply).
-    /// `m` put out of play with its cards (Descent into Darkness): they
-    /// leave their contests until they return (LSJ 20080816, rules-qa
+    /// `m` put out of play with its cards (Descent into Darkness): it
+    /// leaves its contests until it returns (LSJ 20080816, rules-qa
     /// 78.54); a rival left alone is uncontested.
     pub(crate) fn leave_contests(&mut self, m: MinionId) {
         for r in self.state.card_rivals(m) {
@@ -184,13 +180,45 @@ impl Engine {
                 }
             }
         }
+    }
+
+    /// A minion's card contest state; an ally's card in play follows it
+    /// (face down and out of play with it: its text does not apply), and
+    /// so do the cards on it, unless it is out of play already (rules-qa
+    /// 83.1).
+    fn set_minion_contested(&mut self, m: MinionId, contested: bool) {
+        self.state.minions[m.index()].contested = contested;
+        if let Some(id) = self.state.minions[m.index()].ally_id() {
+            self.state.cards[id.index()].contested = contested;
+        }
+        if !self.state.minions[m.index()].out_of_play {
+            if contested {
+                self.cards_out_with(m, None);
+            } else {
+                self.cards_back_with(m);
+            }
+        }
+    }
+
+    /// The cards on `m` but `except` out of play with it (Descent into
+    /// Darkness, a contest): each leaves its own contest until it returns,
+    /// a rival left alone uncontested (advanced rules §1.13.3, rules-qa
+    /// 83.1).
+    pub(crate) fn cards_out_with(&mut self, m: MinionId, except: Option<CardId>) {
         let on: Vec<CardId> = (0..self.state.cards.len())
             .map(|i| CardId(i as u32))
-            .filter(|&c| self.state.cards[c.index()].out_of_play)
-            .filter(|&c| self.state.cards[c.index()].host == Some(m))
+            .filter(|&c| Some(c) != except)
+            .filter(|&c| {
+                let card = &self.state.cards[c.index()];
+                card.in_play && card.host == Some(m)
+            })
             .collect();
+        for &c in &on {
+            self.state.cards[c.index()].out_of_play = true;
+        }
         for c in on {
-            if !self.state.cards[c.index()].contested {
+            let card = &self.state.cards[c.index()];
+            if !card.contested || !contests_as_card(card) {
                 continue;
             }
             self.state.cards[c.index()].contested = false;
@@ -202,10 +230,23 @@ impl Engine {
         }
     }
 
-    fn set_minion_contested(&mut self, m: MinionId, contested: bool) {
-        self.state.minions[m.index()].contested = contested;
-        if let Some(id) = self.state.minions[m.index()].ally_id() {
-            self.state.cards[id.index()].contested = contested;
+    /// The cards out of play with `m` back in play, unlocked (LSJ
+    /// 20060908; advanced rules §6.4.1), each in its contests again.
+    pub(crate) fn cards_back_with(&mut self, m: MinionId) {
+        let back: Vec<CardId> = (0..self.state.cards.len())
+            .map(|i| CardId(i as u32))
+            .filter(|&c| {
+                let card = &self.state.cards[c.index()];
+                card.in_play && card.host == Some(m) && card.out_of_play
+            })
+            .collect();
+        for &c in &back {
+            let card = &mut self.state.cards[c.index()];
+            card.out_of_play = false;
+            card.locked = false;
+        }
+        for c in back {
+            self.enter_library_contest(c);
         }
     }
 
@@ -309,4 +350,13 @@ impl Engine {
         v.granted_title = if card.is_some() { None } else { Some(title) };
         self.enter_title_contest(m);
     }
+}
+
+/// A card in play whose `contested` is its own library contest: not an
+/// ally's card (contested as its minion) nor a non-unique title card
+/// (contested as its vampire's title, rules-qa 19.1).
+fn contests_as_card(c: &crate::state::CardInPlay) -> bool {
+    c.body.is_none()
+        && (crate::cards::card_title(c.card).is_none()
+            || LIBRARY[c.card as usize].labels.contains(&Label::Unique))
 }

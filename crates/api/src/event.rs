@@ -116,7 +116,8 @@ pub enum EventKind {
     },
     /// A minion or a card leaves play: to `to` when it went to a seat's
     /// zone (a burned minion to its ash heap), contested (a vampire set
-    /// aside while its Methuselahs contest it).
+    /// aside while its Methuselahs contest it, a unique card in its own
+    /// contest, the cards on a contested minion with it).
     LeavesPlay {
         card: Card,
         #[serde(default, skip_serializing_if = "Option::is_none")]

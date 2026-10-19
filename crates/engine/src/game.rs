@@ -2266,11 +2266,7 @@ impl Engine {
         self.state.cards[card.index()].controller = owner;
         self.about_to_leave_ready(&[m]);
         self.state.minions[m.index()].out_of_play = true;
-        for (i, c) in self.state.cards.iter_mut().enumerate() {
-            if c.in_play && c.host == Some(m) && i != card.index() {
-                c.out_of_play = true;
-            }
-        }
+        self.cards_out_with(m, Some(card));
         self.leave_contests(m);
     }
 
@@ -2281,21 +2277,11 @@ impl Engine {
         let v = &mut self.state.minions[m.index()];
         v.out_of_play = false;
         v.locked = !unlocked;
-        let mut back = Vec::new();
-        for (i, c) in self.state.cards.iter_mut().enumerate() {
-            if c.host == Some(m) && c.out_of_play {
-                c.out_of_play = false;
-                c.locked = false;
-                back.push(CardId(i as u32));
-            }
-        }
+        self.cards_back_with(m);
         self.burn_card_in_play(card);
         // Back in its contests, its titles' too (rules-qa 78.54).
         self.enter_card_contest(m);
         self.enter_title_contest(m);
-        for c in back {
-            self.enter_library_contest(c);
-        }
     }
 
     /// Minion `i` under temporary control goes back to `back`: removed from

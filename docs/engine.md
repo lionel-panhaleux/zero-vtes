@@ -958,7 +958,9 @@ engine masks), `cards/mod.rs` (the vocabulary: `Window`, `Actor`,
 - `Contest::{Card, Title, Library}`. A contested card is out of play:
   `CardInPlay::present()` false, its layers suspended (`GameState::layer_active`),
   skipped by abilities, riders, copy counts and "a card named X". A library card
-  enters contest only after its own effects resolve (spec §1.13.2).
+  enters contest only after its own effects resolve (spec §1.13.2). The cards
+  on a contested minion go out of play with it (`set_minion_contested`, through
+  `Engine::cards_out_with` / `cards_back_with`, as Descent's; rules-qa 83.1).
 - Self-contest is masked (rules-qa 7.1; `controls_unique_copy` also for
   searches); a forced one burns the incoming copy (The Coven).
 - Titles are read live (`GameState::title_of`): **claimed** (`claimed_title`: a
@@ -1050,7 +1052,9 @@ engine masks), `cards/mod.rs` (the vocabulary: `Window`, `Actor`,
   `present()`; `in_play` stays true, so a site reading it excludes them):
   Descent into Darkness's `Engine::descend` and `ascend` (temporary control
   broken, the card to its permanent controller; its contests left through
-  `leave_contests` and entered again on return).
+  `leave_contests` and entered again on return), and a contested minion's
+  cards; both through `Engine::cards_out_with` (the cards leave their own
+  contests) and `cards_back_with` (back unlocked, in their contests again).
   Dual Form's copy (`Minion::copy_of`: capacity and the 34
   `cards::DISCIPLINE_KEYS` levels fixed at resolution; `capacity_less` on the
   original; `dual_of` links them, `burn_dual_forms` burns the rest as one

@@ -285,3 +285,145 @@ fn carfax_abbey_second_pick_needs_a_baron_and_another_anarch() {
     let req = to_window(&mut e, SeatId(0), WindowLabel::UnlockAbilities);
     assert_eq!(abilities(&req), vec![feed(carfax, 0, anita)]);
 }
+
+// The cards on a contested vampire are out of play with it (rulebook
+// "Contested Cards", advanced rules §1.13.3, §6.4.1; rules-qa 7.3, 83.1):
+// Baltimore Purge's unlock rider is not offered and Laptop Computer's +1
+// bleed is off while it is contested; its rival yielded, it returns at its
+// next unlock phase with them, the Purge resolving (its vampire to
+// torpor).
+#[test]
+fn the_cards_on_a_contested_vampire_are_out_of_play_with_it() {
+    let mut e = Engine::bare(3);
+    for s in &mut e.state.seats {
+        s.pool = 10;
+    }
+    e.state.turn = 4;
+    let v = plain("Ventrue", 0);
+    let m = e.add_minion(SeatId(0), v, 4, false);
+    e.add_minion(SeatId(0), plain("Brujah", 0), 4, false);
+    e.add_minion(SeatId(1), plain("Brujah", 1), 4, false);
+    e.add_minion(SeatId(2), plain("Toreador", 0), 4, false);
+    let on = |e: &mut Engine, name: &str| {
+        let card = find_library(name);
+        e.state
+            .cards
+            .push(CardInPlay::new(card, SeatId(0), Some(m), 0));
+        let id = CardId(e.state.cards.len() as u32 - 1);
+        for effect in zvtes::cards::lookup(card).expect("defined").modes[0].effects {
+            if let zvtes::cards::Effect::Layer(modifier) = effect {
+                e.state.layers.push(zvtes::cards::Layer {
+                    scope: zvtes::cards::Scope::InPlay,
+                    modifier: *modifier,
+                    source: id,
+                });
+            }
+        }
+        id
+    };
+    let purge = on(&mut e, "Baltimore Purge");
+    let laptop = on(&mut e, "Laptop Computer");
+    let rider = Choice::ResolveRider { card: purge.0 };
+    let bleed = e.state.current_bleed(m);
+    e.state.seats[1].uncontrolled = vec![zvtes::state::UncontrolledSlot {
+        card: v,
+        copy: Default::default(),
+        counters: 10,
+        banished: None,
+    }];
+    to_window(&mut e, SeatId(1), WindowLabel::InfluenceTransfers);
+    pick(&mut e, Choice::InfluenceOut { slot: 0 });
+    request(&mut e);
+    let rival = MinionId(
+        e.state
+            .minions
+            .iter()
+            .position(|o| o.owner == SeatId(1) && o.crypt_card() == Some(v))
+            .expect("the rival") as u32,
+    );
+    assert!(e.state.minions[m.index()].contested);
+    assert!(e.state.cards[laptop.index()].out_of_play);
+    assert_eq!(
+        e.state.current_bleed(m),
+        bleed - 1,
+        "the Laptop's bleed off"
+    );
+    // Seat 0's unlock phase: its contest's upkeep, no Purge.
+    never_offered_where(&mut e, SeatId(0), WindowLabel::UnlockAbilities, |o| {
+        *o == rider
+    });
+    pick(&mut e, Choice::PayContest(Contest::Card(m)));
+    never_offered_until(&mut e, SeatId(0), WindowLabel::MinionPhase, rider);
+    assert!(!e.state.minions[m.index()].in_torpor);
+    to_window(&mut e, SeatId(1), WindowLabel::UnlockAbilities);
+    pick(&mut e, Choice::YieldContest(Contest::Card(rival)));
+    // Seat 0's next unlock phase: back with its cards, the Purge resolving.
+    for _ in 0..300 {
+        let req = request(&mut e);
+        if (req.seat, req.window) == (SeatId(0), WindowLabel::MinionPhase) {
+            break;
+        }
+        let i = req
+            .options
+            .iter()
+            .position(|o| *o == rider)
+            .unwrap_or_else(|| fallback(&req));
+        e.choose(i);
+    }
+    assert!(!e.state.minions[m.index()].contested);
+    assert!(!e.state.cards[laptop.index()].out_of_play);
+    assert_eq!(e.state.current_bleed(m), bleed, "the Laptop's bleed back");
+    assert!(e.state.minions[m.index()].in_torpor, "the Purge resolved");
+}
+
+// A non-unique title card's contest is its vampire's title's (rules-qa
+// 19.1), not a library contest: a rival claimant's vampire becoming
+// contested, its Fee Stake out of play with it (83.1), leaves the other's
+// Fee Stake contested with its title.
+#[test]
+fn a_rival_contested_with_its_title_card_leaves_the_title_contest_alone() {
+    let mut e = Engine::bare(3);
+    for s in &mut e.state.seats {
+        s.pool = 10;
+    }
+    e.state.turn = 4;
+    let a = e.add_minion(SeatId(0), plain("Brujah", 0), 6, false);
+    e.add_minion(SeatId(0), plain("Brujah", 1), 4, false);
+    let bv = plain("Ventrue", 0);
+    let b = e.add_minion(SeatId(1), bv, 6, false);
+    e.add_minion(SeatId(2), plain("Toreador", 0), 4, false);
+    let stake = find_library("Fee Stake: Boston");
+    let mut on = |owner: u8, host: MinionId| {
+        e.state
+            .cards
+            .push(CardInPlay::new(stake, SeatId(owner), Some(host), 0));
+        CardId(e.state.cards.len() as u32 - 1)
+    };
+    let mine = on(0, a);
+    let theirs = on(1, b);
+    for (m, c) in [(a, mine), (b, theirs)] {
+        e.state.minions[m.index()].title_contested = true;
+        e.state.cards[c.index()].contested = true;
+    }
+    e.state.seats[2].uncontrolled = vec![zvtes::state::UncontrolledSlot {
+        card: bv,
+        copy: Default::default(),
+        counters: 10,
+        banished: None,
+    }];
+    for _ in 0..300 {
+        let req = request(&mut e);
+        if (req.seat, req.window) == (SeatId(2), WindowLabel::InfluenceTransfers) {
+            break;
+        }
+        let i = fallback(&req);
+        e.choose(i);
+    }
+    // Asserted before seat 0's turn: alone in its contest, its title
+    // returns then.
+    pick(&mut e, Choice::InfluenceOut { slot: 0 });
+    assert!(e.state.minions[b.index()].contested);
+    assert!(e.state.cards[theirs.index()].out_of_play);
+    assert!(e.state.minions[a.index()].title_contested);
+    assert!(e.state.cards[mine.index()].contested, "still its title's");
+}

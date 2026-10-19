@@ -719,7 +719,8 @@ pub struct CardInPlay {
     /// Contested: out of play, its layers suspended (rulebook "Contested
     /// Cards"; spec §1.13.3).
     pub contested: bool,
-    /// Out of play with the minion it is on (Descent into Darkness).
+    /// Out of play with the minion it is on (Descent into Darkness, a
+    /// contest: `Engine::cards_out_with`).
     pub out_of_play: bool,
     pub locked: bool,
     pub counters: u8,

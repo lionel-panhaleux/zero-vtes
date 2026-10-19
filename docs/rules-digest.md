@@ -3845,6 +3845,12 @@ Advanced rules §1.13 (contests), §5.8 (titles).
   not apply (13.2, 58.1); a contested torpid vampire stays in torpor (3.1). A
   contested location is out of play and cannot be chosen (39.4). A
   contested Elder Library's hand size ends (8.2).
+- The cards on a contested vampire are out of play with it, as a set-aside
+  vampire's (advanced rules §1.13.3, §6.4.1): no rider, layer or ability of
+  theirs applies (Baltimore Purge, Laptop Computer); a unique one among them
+  leaves its own contest until they return, unlocked, with the vampire;
+  yielded, it burns with them, none of their burn riders firing (Soul Gem
+  of Etrius) (83.1).
 - Contest upkeep in the unlock phase is mandatory, ordered freely (7.8).
 - Descent into Darkness's vampire out of play: a contested vampire cannot
   act, so never plays it contested (owner); its title's contest and its
@@ -4523,7 +4529,7 @@ an owner ruling:
 Every rules-qa item, by batch, with the digest sections citing it: the
 section stating it and those cross-referring to it (§2 the default
 readings, §22 engine modeling, §23 the contradictions, §24 the open
-readings). 777 items, Batches 1–82 (44.11 was removed, replaced by Batch
+readings). 778 items, Batches 1–83 (44.11 was removed, replaced by Batch
 45). The index is derived from the citations: a bare `N.M` cites rules-qa
 item N.M in the section it appears in. A new rules-qa item gets its line in
 the section stating it, then its entry here: `python3
@@ -4812,3 +4818,4 @@ index or an item cited nowhere.
   80.43 §14.2,§24.1; 80.44 §3.7,§24.1; 80.45 §14.7,§24.1
 - **81** — 81.1 §5.2
 - **82** — 82.1 §9.4; 82.2 §9.4
+- **83** — 83.1 §18.2

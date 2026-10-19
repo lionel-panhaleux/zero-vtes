@@ -450,7 +450,7 @@ heap (a marker on its minion, §6), no copy of its own.
 | `blood` | `minion`, `delta`, `blood` |
 | `enters_play` | `card`, `seat` (its controller), `on`?, `minion`? (its kind, for a minion), `effect`? |
 | `moves` | `card`, `on`?, `effect`? |
-| `leaves_play` | `card`, `to`? (the zone it went to), `minion`? (its kind), `contested`?, `effect`? |
+| `leaves_play` | `card`, `to`? (the zone it went to), `minion`? (its kind), `contested`? (into a contest: a vampire, a unique card, or the cards on a contested minion with it, each told `enters_play` again as the contest resolves in its favor; with no `to` and not contested, out of play with its minion: Descent into Darkness, its `out_of_play` marker, `enters_play` again on return), `effect`? |
 | `torpor` | `minion`, `enters` |
 | `ousted` | `seat` |
 | `edge` | `seat`? (who holds the Edge now; absent: burned) |

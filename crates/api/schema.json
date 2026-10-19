@@ -2112,7 +2112,7 @@
           ]
         },
         {
-          "description": "A minion or a card leaves play: to `to` when it went to a seat's\nzone (a burned minion to its ash heap), contested (a vampire set\naside while its Methuselahs contest it).",
+          "description": "A minion or a card leaves play: to `to` when it went to a seat's\nzone (a burned minion to its ash heap), contested (a vampire set\naside while its Methuselahs contest it, a unique card in its own\ncontest, the cards on a contested minion with it).",
           "type": "object",
           "properties": {
             "card": {
