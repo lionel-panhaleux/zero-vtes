@@ -162,7 +162,9 @@ fn add(e: &E, w: Whom, when: Option<When>, out: &mut Vec<Effect>) {
             push(detail(n(K::Damage, i(v)), "weapon_strike"))
         }
         E::DamageTarget(v) => push(on(n(K::Damage, i(v)), On::Target)),
-        E::EnvironmentalDamage { n: v, .. } => push(detail(n(K::Damage, i(v)), "environmental")),
+        E::EnvironmentalDamage { n: v, .. } | E::EnvironmentalDamageThisRound(v) => {
+            push(detail(n(K::Damage, i(v)), "environmental"))
+        }
         E::StrengthThisRound(v) => push(detail(n(K::Strength, i(v)), "this_round")),
         E::StrengthThisCombat(v) => push(n(K::Strength, i(v))),
         E::Prevent(v) => push(n(K::Prevent, i(v))),
@@ -241,7 +243,7 @@ fn add(e: &E, w: Whom, when: Option<When>, out: &mut Vec<Effect>) {
         E::SpendMasterPhaseAction => push(cost(detail(n(K::Action, -1), "master_phase"))),
         E::HuntAction => push(of(K::Hunt)),
         E::HandSizeBonusUntilEndOfTurn(v) => push(n(K::HandSize, i(v))),
-        E::SearchEquip(_) => push(detail(of(K::Search), "equipment")),
+        E::SearchEquip(_) | E::SearchEquipFree(_) => push(detail(of(K::Search), "equipment")),
         E::DrawThenBottom => push(detail(of(K::Draw), "then_bottom")),
         E::DrawCryptThenRemove => push(detail(of(K::Draw), "crypt_then_remove")),
         E::DrawCryptBloodIfBlackHand(v) => push(detail(n(K::Draw, i(v)), "crypt_black_hand")),

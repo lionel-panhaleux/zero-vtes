@@ -41,6 +41,18 @@ pub fn once_unlock_key(m: MinionId) -> (crate::cards::AbilitySource, u8) {
     (crate::cards::AbilitySource::Vampire(m), u8::MAX - 3)
 }
 
+/// The `turn_uses` key of a seat-wide once-each-turn cost reduction
+/// (Baldesar Rossellini), apart from Nergal's.
+pub fn once_seat_cost_off_key(m: MinionId) -> (crate::cards::AbilitySource, u8) {
+    (crate::cards::AbilitySource::Vampire(m), u8::MAX - 5)
+}
+
+/// The `turn_uses` key of a once-each-turn printed hand size (Sascha
+/// Vykos).
+pub fn once_hand_size_key(m: MinionId) -> (crate::cards::AbilitySource, u8) {
+    (crate::cards::AbilitySource::Vampire(m), u8::MAX - 4)
+}
+
 /// The cards of `cards` that `keep` keeps, one of each (copies are alike),
 /// in card order.
 pub fn distinct(cards: &[u16], keep: impl Fn(u16) -> bool) -> Vec<u16> {
@@ -116,6 +128,10 @@ pub struct PrintedCtx {
     /// The Methuselah the action is directed at ("+1 bleed against a
     /// Methuselah controlling …", Osvaldo Kühnemann).
     pub target: Option<SeatId>,
+    /// Every Methuselah the action is directed at, `target` among them
+    /// (Vaticination, Taunt the Caged Beast's second target: Kestrelle
+    /// Hayes, PIB 20150526).
+    pub targets: crate::ids::SeatSet,
     /// Not the acting minion: an "Action Modifier/Reaction" card is played
     /// as a reaction (PIB 20150924-2).
     pub reacting: bool,
@@ -229,6 +245,57 @@ pub const NEWBORN: Born = Born {
     blood_cursed: false,
 };
 
+/// The distinct master Discipline cards of a pile (Legion).
+pub fn master_disciplines(pile: &[u16]) -> Vec<u16> {
+    distinct(pile, |c| {
+        let l = &LIBRARY[c as usize];
+        l.types.contains(&CardType::Master) && l.labels.contains(&Label::Discipline)
+    })
+}
+
+/// Raw Recruit's Gargoyles: Fortitude, Potence, Visceratika and flight, by
+/// capacity (index capacity - 1).
+pub static RECRUITED_GARGOYLES: [Born; 11] = {
+    let mut out = [NEWBORN; 11];
+    let mut i = 0;
+    while i < 11 {
+        out[i] = Born {
+            capacity: i as u8 + 1,
+            disciplines: &["for", "pot", "vis", "FLIGHT"],
+            blood_cursed: false,
+        };
+        i += 1;
+    }
+    out
+};
+
+/// Legion's fledglings: a 1-capacity vampire with 1 level of a
+/// Discipline, by `cards::DISCIPLINE_KEYS` index.
+pub static FLEDGLINGS: [Born; 34] = {
+    let mut out = [NEWBORN; 34];
+    let mut i = 0;
+    while i < 34 {
+        out[i] = Born {
+            capacity: 1,
+            disciplines: std::slice::from_ref(&FLEDGLING_KEYS[i]),
+            blood_cursed: false,
+        };
+        i += 1;
+    }
+    out
+};
+
+/// `cards::DISCIPLINE_KEYS` as a static, for `FLEDGLINGS` to borrow from.
+static FLEDGLING_KEYS: [&str; 34] = crate::cards::DISCIPLINE_KEYS;
+
+/// The fledgling with 1 level of Discipline `tag`; none known, none.
+pub fn fledgling(tag: &str) -> &'static Born {
+    crate::cards::DISCIPLINE_KEYS
+        .iter()
+        .position(|k| k.eq_ignore_ascii_case(tag))
+        .map_or(&NEWBORN, |i| &FLEDGLINGS[i])
+}
+
 impl MinionKind {
     /// The ally's LIBRARY index; `None` for a vampire.
     pub fn ally_card(self) -> Option<u16> {
@@ -338,11 +405,25 @@ pub struct Minion {
     /// Committed diablerie: ignores Blood Weakens and The Slow Withering
     /// until a Gehenna event is played.
     pub diablerie_shield: bool,
+    /// Its successful bleeds: (turn, the Methuselah bled, the bleed
+    /// amount) (Public Enemy, Retribution: "since your last turn").
+    pub bleeds: Vec<(u32, SeatId, u8)>,
+    /// Made Red List by a card (Public Enemy), for good.
+    pub made_red_list: bool,
     /// The game turn of its last diablerie (Carlton Van Wyk).
     pub diablerie_turn: Option<u32>,
     /// Took a hunt action this turn (Thirst: "who did not hunt during that
     /// minion phase").
     pub hunted: bool,
+    /// It announced an action this turn, whatever became of it (Tori
+    /// Longwood; "performed" as rules-qa 32.10 reads it).
+    pub announced_action: bool,
+    /// It cannot act, block or play cards while this vampire is not ready
+    /// (Legion's fledgling).
+    pub tethered_to: Option<MinionId>,
+    /// The clan a created vampire is enslaved to (Raw Recruit's Gargoyle);
+    /// a crypt vampire's is `CryptCard::slave`.
+    pub slave_of: Option<&'static str>,
     /// Held on temporary control: the Methuselah it returns to at the end
     /// of its controller's turn (Puppet Master [DOM]).
     pub temp_from: Option<SeatId>,
@@ -361,6 +442,12 @@ pub struct Minion {
     /// stays on it (Derange): over the underlying clan and sect (LSJ
     /// 20100811), set as played, moving with the card (LSJ 20070707).
     pub deranged: Option<(&'static str, Sect, CardId)>,
+    /// Taint counters (Barbaro Lucchese): at 2, burned and it becomes
+    /// infernal.
+    pub taint: u8,
+    /// The clan it changed to (Barbaro Lucchese), for good; Derange still
+    /// overrides it while on it (advanced rules §5.9).
+    pub clan_change: Option<&'static str>,
     /// Pact counters on it (Diabolic Lure).
     pub pact: u8,
     /// Capacity lost for the rest of the game (Dual Form [PRO]; never below
@@ -504,7 +591,12 @@ impl Minion {
             grafts: 0,
             diablerie_shield: false,
             diablerie_turn: None,
+            bleeds: Vec::new(),
+            made_red_list: false,
             hunted: false,
+            announced_action: false,
+            tethered_to: None,
+            slave_of: None,
             temp_from: None,
             temp_until_unlock: false,
             temp_skip: 0,
@@ -514,6 +606,8 @@ impl Minion {
             dual_of: None,
             pact: 0,
             made_infernal: false,
+            taint: 0,
+            clan_change: None,
             deranged: None,
             sect_override: None,
             merged: None,
@@ -607,6 +701,9 @@ impl Minion {
         if let Some((clan, ..)) = self.deranged.filter(|_| !self.is_ally()) {
             return Some(clan);
         }
+        if let Some(clan) = self.clan_change.filter(|_| !self.is_ally()) {
+            return Some(clan);
+        }
         match self.kind {
             MinionKind::Vampire(c) => Some(CRYPT[c as usize].clan),
             MinionKind::Created { clan, .. } => clan,
@@ -644,11 +741,20 @@ impl Minion {
         }
     }
 
-    /// A vampire's printed Disciplines (lower case inferior, upper case
-    /// superior); none for an ally or a created vampire.
+    /// A minion's printed Disciplines (lower case inferior, upper case
+    /// superior): a crypt vampire's, a created vampire's born ones, an
+    /// ally's printed flight (`Label::Flight`); none for other allies.
     pub fn printed_disciplines(&self) -> &'static [&'static str] {
         match self.kind {
             MinionKind::Created { born, .. } => born.disciplines,
+            // An ally's printed flight (Herald of Topheth).
+            MinionKind::Ally { card, .. }
+                if LIBRARY[card as usize]
+                    .labels
+                    .contains(&crate::library::Label::Flight) =>
+            {
+                &["FLIGHT"]
+            }
             _ => self.vampire().map_or(&[], |v| v.disciplines),
         }
     }
@@ -746,6 +852,12 @@ pub struct CardInPlay {
     /// The owner of the card stored on it, if not its controller's (The
     /// Erciyes Fragments: the prey's card).
     pub stored_owner: Option<SeatId>,
+    /// A vampire held on it, face up and out of play, with its owner (Raw
+    /// Recruit).
+    pub held_vampire: Option<(u16, Untracked<CopyId>, SeatId)>,
+    /// A number the card wrote as it was played, fixed (Leadership
+    /// Vacuum's X; advanced rules §2.5.3).
+    pub fixed_x: u8,
     /// The Discipline it was played for (Sanguine Instruction:
     /// `Modifier::ChosenDisciplineLevel`).
     pub discipline: Option<&'static str>,
@@ -794,6 +906,8 @@ impl CardInPlay {
             entered_action: 0,
             removed_when_burned: false,
             stored_owner: None,
+            held_vampire: None,
+            fixed_x: 0,
             discipline: None,
             chosen: Vec::new(),
             training: false,
@@ -969,6 +1083,9 @@ pub enum Expiry {
     Combat,
     /// The end of the combat round under way (Patagia's flight).
     Round,
+    /// The end of the action under way, its combats included (Alvusia's
+    /// strength).
+    Action,
     /// The rest of the game.
     Never,
 }
@@ -1156,6 +1273,12 @@ pub struct GameState {
     /// Cards played this game that "can be played only once in a game"
     /// (Week of Nightmares), by LIBRARY index.
     pub once_played: Vec<u16>,
+    /// The Methuselahs whose ready titled vampire left the ready region,
+    /// with its votes then (Leadership Vacuum's play and X), this turn.
+    pub titled_left: Vec<(SeatId, u8)>,
+    /// Cards each Methuselah played that one can play only once in a game
+    /// (Retribution).
+    pub once_played_by: Vec<(SeatId, u16)>,
     /// Cards played this turn that "can be played only once each turn"
     /// (Ashur Tablets), by LIBRARY index; cleared as each turn begins.
     pub turn_played: Vec<u16>,
@@ -1724,6 +1847,7 @@ impl GameState {
         let v = &self.minions[m.index()];
         v.made_infernal
             || v.vampire().is_some_and(|c| c.infernal)
+            || self.bears(m, Modifier::BearerInfernal)
             || v.kind.ally_card().is_some_and(|c| {
                 crate::library::LIBRARY[c as usize]
                     .labels
@@ -1791,6 +1915,7 @@ impl GameState {
             MinionKind::GreatBeast { .. } | MinionKind::Fury { .. }
         ) || v.vampire().is_some_and(|v| v.infernal)
             || v.made_infernal
+            || self.bears(m, Modifier::BearerInfernal)
     }
 
     /// Unlock a locked `m`; a disease counter burns 1 blood, else itself
@@ -2009,9 +2134,26 @@ impl GameState {
         } else {
             0
         };
+        // The Path of Bone: the played mode requiring Necromancy, on a
+        // Giovanni (rules-qa 38.4).
+        let tags = lib.modes.get(mode as usize).map_or(&[][..], |md| md.tags);
+        let clan = self.minions[m.index()].clan();
+        let path_off: u8 = self
+            .in_play_layers()
+            .map(|l| match l.modifier {
+                Modifier::ClanDisciplineBloodOff {
+                    clan: c,
+                    discipline,
+                    n,
+                } if clan == Some(c) && tags.iter().any(|t| t.eq_ignore_ascii_case(discipline)) => {
+                    n
+                }
+                _ => 0,
+            })
+            .sum();
         CostOff {
             pool: n(Stat::PoolCostOff),
-            blood: n(Stat::BloodCostOff) + half + clan_off + equip_off,
+            blood: n(Stat::BloodCostOff) + half + clan_off + equip_off + path_off,
             either: n(Stat::CostOff),
             blood_extra: (-self.printed_mod(m, Stat::BloodCostOff, ctx)).max(0) as u8,
         }
@@ -2117,6 +2259,16 @@ impl GameState {
                     v.ready() && v.is_vampire() && (self.sect_of(m) == Some(sect)) != not
                 })
             }),
+            // Any of the Methuselahs it is directed at (PIB 20150526).
+            R::TargetSeatControlsNoReadySect(sect) => (0..self.seats.len())
+                .map(|i| SeatId(i as u8))
+                .filter(|&s| ctx.targets.contains(s) || ctx.target == Some(s))
+                .any(|s| {
+                    !self.minions_of(s).any(|m| {
+                        let v = &self.minions[m.index()];
+                        v.ready() && v.is_vampire() && self.sect_of(m) == Some(sect)
+                    })
+                }),
             R::SourceTitleIn(classes) => {
                 let t = self.title_of(source);
                 classes.iter().any(|c| c.matches(t))
@@ -2141,6 +2293,7 @@ impl GameState {
             R::OwnReadyNamed(name) => self.ready_named(name, Some(src.owner)),
             R::IsPolitical => ctx.kind == Some(ActionKind::Political),
             R::OpponentClan(c) => opp.and_then(|o| o.clan()) == Some(c),
+            R::OpponentRedList => ctx.opponent.is_some_and(|o| self.is_red_list(o)),
             // "In combat with a werewolf" (Mark Decker): an ally of the
             // subtype.
             R::OpponentSubtype(l) => opp
@@ -2169,12 +2322,10 @@ impl GameState {
             R::ActorUntitled => self.title_of(actor) == crate::crypt::Title::None,
             R::PoolAtMost(n) => self.seats[src.owner.index()].pool <= n as i32,
             R::ControlsLocation | R::ControlsNoLocation => {
-                let any = self.cards.iter().enumerate().any(|(i, c)| {
-                    c.present()
-                        && self.card_controller(CardId(i as u32)) == src.owner
-                        && LIBRARY[c.card as usize].labels.contains(&Label::Location)
-                });
-                any == (r == R::ControlsLocation)
+                (self.locations_controlled(src.owner) > 0) == (r == R::ControlsLocation)
+            }
+            R::TargetSeatControlsLocation => {
+                ctx.target.is_some_and(|s| self.locations_controlled(s) > 0)
             }
             // The card played, in the mode played ("requiring" = played
             // using, rules-qa 38.4).
@@ -2238,6 +2389,9 @@ impl GameState {
     fn printed_count(&self, per: cards::Per, source: MinionId, ctx: PrintedCtx) -> i32 {
         match per {
             cards::Per::One => 1,
+            cards::Per::LocationsControlled => {
+                self.locations_controlled(self.minions[source.index()].owner) as i32
+            }
             cards::Per::UniqueEquipmentOn => self
                 .cards
                 .iter()
@@ -2365,11 +2519,7 @@ impl GameState {
             .iter()
             .enumerate()
             .filter(|(_, v)| v.owner == s && v.present())
-            .filter_map(|(i, v)| {
-                v.crypt_card()
-                    .and_then(cards::vampire)
-                    .map(|d| (MinionId(i as u32), d))
-            })
+            .filter_map(|(i, v)| cards::vampire_of(v).map(|d| (MinionId(i as u32), d)))
             .flat_map(|(m, d)| {
                 d.printed
                     .iter()
@@ -2381,7 +2531,7 @@ impl GameState {
                     .iter()
                     .all(|&r| self.printed_holds(r, *m, *m, PrintedCtx::default()))
             })
-            .map(|(_, p)| p.n as i32)
+            .map(|(m, p)| p.n as i32 * self.printed_count(p.per, m, PrintedCtx::default()))
             .sum();
         let seat = &self.seats[s.index()];
         let mut size = HAND_SIZE as i32 + seat.timed.total(TimedStat::HandSize) + printed;
@@ -2493,6 +2643,7 @@ impl GameState {
             Requirement::BasicVersion => c.mode == 0,
             Requirement::CardMode(n) => c.mode == n,
             Requirement::OneCopyPerTurn => true,
+            Requirement::ActiveIsAgainst => c.against.contains(self.active),
             Requirement::ActiveControlsNonSect(sect) => self
                 .minions_of(self.active)
                 .any(|m| self.minions[m.index()].is_vampire() && self.sect_of(m) != Some(sect)),
@@ -2608,11 +2759,23 @@ impl GameState {
 
     /// British Museum: what `m`'s equip with `card` costs less.
     pub fn equip_discount(&self, m: MinionId, card: u16) -> u8 {
-        if !cards::plain_equipment(card) {
-            return 0;
-        }
         let owner = self.minions[m.index()].owner;
-        sum_n!(self.controlled_layers(owner), Modifier::PlainEquipDiscount)
+        // Therbold Realty: an equipment that is a location (LSJ 20080107).
+        let location = if LIBRARY[card as usize].labels.contains(&Label::Location) {
+            self.location_discount(owner)
+        } else {
+            0
+        };
+        if !cards::plain_equipment(card) {
+            return location;
+        }
+        let plain: u8 = sum_n!(self.controlled_layers(owner), Modifier::PlainEquipDiscount);
+        location + plain
+    }
+
+    /// The blood or pool locations cost `s` less (Therbold Realty).
+    pub fn location_discount(&self, s: SeatId) -> u8 {
+        sum_n!(self.controlled_layers(s), Modifier::LocationDiscount)
     }
 
     /// A Mithraic Mysteries member: a Mithraic Cultist on it.
@@ -3105,6 +3268,12 @@ impl GameState {
             || self.printed_mod(m, Stat::NoEquipmentOrRetainers, PrintedCtx::default()) > 0
     }
 
+    /// `m` cannot have or use retainers: Bone Shambler, Angelo.
+    pub fn no_retainers(&self, m: MinionId) -> bool {
+        self.no_equipment_or_retainers(m)
+            || self.printed_mod(m, Stat::NoRetainers, PrintedCtx::default()) > 0
+    }
+
     /// `m` cannot have or use equipment: Bone Shambler, Gravebound Drone.
     pub fn no_equipment(&self, m: MinionId) -> bool {
         self.no_equipment_or_retainers(m)
@@ -3332,9 +3501,10 @@ impl GameState {
 
     /// Is `m` on the Red List (its card's trait)?
     pub fn is_red_list(&self, m: MinionId) -> bool {
-        self.minions[m.index()]
-            .vampire()
-            .is_some_and(|c| c.red_list)
+        self.minions[m.index()].made_red_list
+            || self.minions[m.index()]
+                .vampire()
+                .is_some_and(|c| c.red_list)
     }
 
     /// Must `m` hunt: a vampire with no blood, or made to?
@@ -3439,6 +3609,35 @@ impl GameState {
             .count()
     }
 
+    /// The clan `m` is enslaved to: a created vampire's (Raw Recruit), else
+    /// its crypt card's.
+    pub fn slave_clan(&self, m: MinionId) -> Option<&'static str> {
+        let v = &self.minions[m.index()];
+        v.slave_of.or_else(|| v.vampire().and_then(|c| c.slave))
+    }
+
+    /// `m` may act, block and play cards by its tether: none, or its vampire
+    /// ready (Legion).
+    pub fn tether_holds(&self, m: MinionId) -> bool {
+        self.minions[m.index()]
+            .tethered_to
+            .is_none_or(|t| self.minions[t.index()].ready())
+    }
+
+    /// The locations `s` controls, uncontested (a contested card is not
+    /// present), locations on its minions included.
+    pub fn locations_controlled(&self, s: SeatId) -> usize {
+        self.cards
+            .iter()
+            .enumerate()
+            .filter(|(i, c)| {
+                c.present()
+                    && self.card_controller(CardId(*i as u32)) == s
+                    && LIBRARY[c.card as usize].labels.contains(&Label::Location)
+            })
+            .count()
+    }
+
     /// Gehenna events in play (uncontested, not a lingering effect).
     pub fn gehenna_in_play(&self) -> usize {
         self.cards
@@ -3521,6 +3720,18 @@ impl GameState {
             && y.clan() == Some("Blood Brother")
             && x.circle().is_some()
             && x.circle() == y.circle()
+    }
+
+    /// As `same_circle`, for a card requiring Sanguinus `actor` plays and
+    /// the effects it has (not from being in play): `other` printing "as if
+    /// it were a member of any circle" (Angelo) is of `actor`'s (LSJ
+    /// 20101013).
+    pub fn same_circle_for_play(&self, actor: MinionId, other: MinionId) -> bool {
+        self.same_circle(actor, other)
+            || (actor != other
+                && self.minions[actor.index()].clan() == Some("Blood Brother")
+                && self.minions[other.index()].clan() == Some("Blood Brother")
+                && self.printed_mod(other, Stat::AnyCircleForSanguinus, PrintedCtx::default()) > 0)
     }
 
     /// `m`'s sect: its own, unless fallen (Fall of the Camarilla, Fall of the

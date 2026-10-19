@@ -125,6 +125,11 @@ impl Requirement {
             | R::ActingAllyOf(..)
             | R::BlockingYoungerActing
             | R::FoughtByYoungerActing
+            | R::BlockingActingOfSect(..)
+            | R::FoughtByActingOfSect(..)
+            | R::TargetOfActingOfSect(..)
+            | R::TermsChoseActor
+            | R::BlockedByVampireOfSect(..)
             | R::ActorAllyOf(..)
             | R::AttemptingAllyOf(..)
             | R::NoAimYet
@@ -169,6 +174,7 @@ impl Requirement {
             | R::OtherActingControlled
             | R::OwnActing
             | R::NoActionUnderway
+            | R::ActionUnderway
             | R::ControlsReadyVampires(..)
             | R::ActingSectIn(..)
             | R::DirectedHandNotEmpty
@@ -220,7 +226,7 @@ impl Requirement {
             | R::BlockerOwn
             | R::ActorNotBlocker
             | R::SameCircleAsActing
-            | R::SameCircleAsOwnCombatant
+            | R::SameCircleAsOwnCombatant { .. }
             | R::OwnCombatantsOpponentReady
             | R::BoonableBleed
             | R::BleedAtYouUnboonedForOne
@@ -230,6 +236,7 @@ impl Requirement {
             | R::NoSlaveInstead
             | R::MaskCapable
             | R::NoReadyBlackHand
+            | R::BlackHandVampireInPlay
             | R::ControlsLockedMinion
             | R::DirectedAtYourMinion
             | R::DirectedAtYourAlly
@@ -252,6 +259,7 @@ impl Requirement {
             | R::RecruitingTzimisceGhoul
             | R::NoBlockAttempt
             | R::OpponentVampire
+            | R::OpponentLacksDiscipline(..)
             | R::OpponentVampireNotOlder
             | R::OpponentNotReady
             | R::OpponentPresent
@@ -273,6 +281,7 @@ impl Requirement {
             | R::ActionNotFailed
             | R::PlayedNotOutOfTurn
             | R::BlockerNotReady
+            | R::NoCombatEndsStrike
             | R::CombatFromBlock
             | R::NoSlaveTookCombat
             | R::OthersHuntingGroundsAtLeast(..)
@@ -289,6 +298,7 @@ impl Requirement {
             | R::HostBloodAtMost(..)
             | R::HostInTorpor
             | R::HostDidNotHunt
+            | R::HostAnnouncedNoAction
             | R::HostControllerActive
             | R::OwnCombatantOtherCopy
             | R::HostReady
@@ -322,6 +332,7 @@ impl Requirement {
             | R::TargetOtherCopyControlled
             | R::TargetInTorpor
             | R::TargetRedList
+            | R::TargetNotBlackHand
             | R::TargetNotRedList
             | R::TargetNotBlocker
             | R::TargetNotActing
@@ -353,6 +364,9 @@ impl Requirement {
             | R::TargetCombatant
             | R::BloodAtMost(..)
             | R::TargetDiablerieSinceYourLastTurn
+            | R::TargetBledSinceYourLastTurn { .. }
+            | R::TargetUntitled
+            | R::TargetInfernal
             | R::TargetSubtypeIn(..)
             | R::TargetNotOfPredator
             | R::NoSelfContest(..) => &[S::MinionTarget],
@@ -361,6 +375,7 @@ impl Requirement {
             | R::NotSelf
             | R::TargetPoolMoreThanYours
             | R::TargetSeatOusting
+            | R::TargetSeatLostTitled
             | R::CanSaveTarget
             | R::TargetPrey
             | R::TargetPredatorOrPrey
@@ -410,11 +425,14 @@ impl Requirement {
             | R::TargetSeatControlsReadyClan { .. }
             | R::TargetSeatControlsReadySect { .. }
             | R::OpponentInfernal
+            | R::OpponentRedList
+            | R::TargetSeatControlsNoReadySect(..)
+            | R::TargetSeatControlsLocation
             | R::PreyControlsReadyTitled(..)
             | R::DirectedAtCard(..)
             | R::SourceCalledReferendum
             | R::SourceTitleIn(..) => &[S::Printed],
-            R::ActiveControlsNonSect(..) => &[S::Rider],
+            R::ActiveControlsNonSect(..) | R::ActiveIsAgainst => &[S::Rider],
             R::ActorReady | R::BleedTargetPoolAtMost(..) => &[S::Play, S::MinionTarget],
             R::AnyOf(..) => &[S::Play, S::MinionTarget, S::CardTarget, S::Printed],
             R::ActorTitleIn(..) | R::ActorClan(..) => &[S::Play, S::MinionTarget, S::Printed],
@@ -436,8 +454,13 @@ impl Requirement {
             | R::IsPolitical
             | R::ActionDirected
             | R::PlayedRequiresDiscipline(..)
+            | R::PlayedRequiresAnyDiscipline
             | R::PlayedCard(..)
             | R::ActorUntitled
+            | R::ActorFollowsNoPath
+            | R::ActorNotRedList
+            | R::ActorSlave
+            | R::ActorFoughtItsContractsMinion
             | R::OpponentSubtype(..)
             | R::ReadyNamed(..)
             | R::OwnReadyNamed(..) => &[S::Play, S::Printed],
@@ -455,10 +478,11 @@ impl Requirement {
             | R::Younger
             | R::TargetTitleIn(..)
             | R::TargetTitle(..)
-            | R::TargetSameCircle
+            | R::TargetSameCircle { .. }
             | R::TargetClan(..) => &[S::MinionTarget, S::UncontrolledTarget],
             // A card's host or a vampire's own (Dive into Madness, Mustafa).
             R::ActorOlderThanHost => &[S::Engine(Site::AbilityGate)],
+            R::ActingOfHostsMasterClan => &[S::Engine(Site::AbilityGate)],
             R::ActingIsHost => &[
                 S::Engine(Site::AbilityGateCard),
                 S::Engine(Site::AbilityGate),
@@ -466,6 +490,7 @@ impl Requirement {
             R::ActionTargetsHost => &[S::Card, S::Engine(Site::AbilityGate)],
             R::ActorIsChosen
             | R::ActorOfByCircle
+            | R::ActorIsBysMaster
             | R::ActingIsBy
             | R::BleedAgainstHostController
             | R::ActorIsHost
@@ -489,10 +514,12 @@ impl Requirement {
             R::OneCopyPerTurn => &[S::Engine(Site::CardRider(Hook::UnlockPhase))],
             R::TargetOnOpposingCombatant => &[S::Engine(Site::CardTargetQualifies)],
             R::NotPlayedThisGame
+            | R::NotPlayedThisGameBySeat
             | R::NotPlayedThisTurn
             | R::OnePerMethuselah
             | R::PlayedFrenzyOnActor
             | R::PlayedStrikeOrGrappleByOpponent
+            | R::PlayedByOpposingMinion
             | R::PlayedRestrictsStrikesByOpponent
             | R::PlayedAimFrenzyGrappleByOpponent
             | R::CanAttemptBlockAnyone
@@ -501,7 +528,7 @@ impl Requirement {
             R::BledControlsReadyTitled => {
                 &[S::Engine(Site::VampireRider(Hook::OwnBleedSuccessful))]
             }
-            R::GehennaInPlay(..) => &[S::Play, S::Host],
+            R::GehennaInPlay(..) | R::NoGehennaInPlay => &[S::Play, S::Host],
             R::PlayedActionCardAtYour(..) => &[S::Play, S::Engine(Site::AsPlayed)],
             R::CardUnlocked | R::CardLocked => &[S::Card, S::Engine(Site::AbilityGateCard)],
             R::ReferendumToBurnThisCard => &[S::Card],

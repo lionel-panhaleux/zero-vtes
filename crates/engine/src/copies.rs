@@ -45,6 +45,9 @@ pub fn number_unnumbered(e: &mut Engine) {
             fresh(&mut c.copy.0);
         }
         c.stored.copies.iter_mut().for_each(&mut fresh);
+        if let Some((_, copy, _)) = c.held_vampire.as_mut() {
+            fresh(&mut copy.0);
+        }
     }
     for m in &mut st.minions {
         if matches!(m.kind, MinionKind::Vampire(_) | MinionKind::Token { .. }) {
@@ -120,6 +123,9 @@ pub fn census(e: &Engine) -> Vec<(CopyId, u16, Place)> {
         }
         for (card, copy) in c.stored.pairs() {
             add(copy, card, Place::Card { id, stored: true });
+        }
+        if let Some((card, copy, _)) = c.held_vampire {
+            add(copy.0, card, Place::Card { id, stored: true });
         }
     }
     for (id, m) in st.minions.iter().enumerate() {

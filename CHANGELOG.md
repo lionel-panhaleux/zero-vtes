@@ -6,6 +6,29 @@ server runs.
 `python3 scripts/schema_compat.py` lists what a schema change adds or
 removes; its `--check` fails a removal without a major version.
 
+## 2.3.0
+
+Round 17's cards (rules-qa Batch 84); additions only.
+
+- `Purpose`: `may_gain_hand_size` — "you can get +n hand size until the
+  end of the turn" printed on `minion` (Sascha Vykos): `resolve_printed`,
+  or `pass`.
+- `Purpose`: `ready_titled_left` — a ready titled vampire of `seat`'s was
+  burned or sent to torpor: the out-of-turn card played for it
+  (Leadership Vacuum), or `pass`.
+- `Purpose`: `name_master_discipline` — Legion's action announced: the
+  Master: Discipline card named (`find_card`), from hand or ash heap.
+- `Purpose`: `name_ash_equipment` — Filchware's Pawn Shop's action
+  announced: the ash heap (`choose_seat`), then the equipment in it
+  (`find_card`).
+- `Purpose`: `buy_title` — Victor Pelletier entering play: `set_x` pays
+  n pool for the title its option's effect names, or `pass`.
+- `MarkerKind`: `taint` (`n`; Barbaro Lucchese).
+- `StrikeKind`: `burn_life` — life burned from the opposing ally, not
+  damage (Argent Baton).
+- `discard_chosen`'s `detail` may be `animal` (Call the Wild Hunt's X
+  animals) beside `combat`.
+
 ## 2.2.0
 
 - The `looked` event (`seat`, `cards`): another seat's hand as it stood

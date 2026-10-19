@@ -136,6 +136,10 @@ pub(crate) enum Flow {
         /// A card of this kind moved to hand (Sakhar), not equipped, and
         /// whether it is revealed to all (the card says so).
         to_hand: Option<(crate::cards::CardFilter, bool)>,
+        /// Equipped at no cost (Lambach).
+        free: bool,
+        /// A master archetype put on `minion` (Guide and Mentor).
+        archetype: bool,
     },
     /// The cards an exchange action names as it is announced (Lenelle):
     /// the ash card, then the hand card.
@@ -1032,7 +1036,14 @@ impl Engine {
                 minion,
                 equip,
                 to_hand,
-            } => Some(self.search_request(*minion, equip, to_hand.map(|(f, _)| f))),
+                free,
+                archetype: false,
+            } => Some(self.search_request(*minion, equip, to_hand.map(|(f, _)| f), *free)),
+            Flow::LibrarySearch {
+                minion,
+                archetype: true,
+                ..
+            } => Some(self.archetype_search_request(*minion)),
             Flow::Exchange { ash } => Some(self.exchange_request(*ash)),
             Flow::Action => self.action_request(),
             Flow::Combat => self.combat_request(),
@@ -1320,10 +1331,21 @@ impl Engine {
             ) => self.abilities_apply(window, pending, edge_taken, c),
             (
                 Flow::LibrarySearch {
-                    minion, to_hand, ..
+                    minion,
+                    archetype: true,
+                    ..
                 },
                 c,
-            ) => self.search_apply(minion, to_hand, c),
+            ) => self.archetype_search_apply(minion, c),
+            (
+                Flow::LibrarySearch {
+                    minion,
+                    to_hand,
+                    free,
+                    ..
+                },
+                c,
+            ) => self.search_apply(minion, to_hand, free, c),
             (Flow::Exchange { ash }, c) => self.exchange_apply(ash, c),
             (Flow::Action, c) => self.action_apply(c),
             (Flow::Combat, c) => self.combat_apply(c),
@@ -1515,6 +1537,7 @@ impl Engine {
                     from: m,
                 });
         }
+        self.titled_leaving(&[m]);
         self.about_to_leave_ready(&[m]);
         {
             let v = &mut self.state.minions[m.index()];
@@ -1692,6 +1715,7 @@ impl Engine {
             self.burn_minion(m);
         }
         let ms = &ms[..];
+        self.titled_leaving(ms);
         self.about_to_leave_ready(ms);
         for &m in ms {
             self.state.minions[m.index()].in_torpor = true;
@@ -1822,6 +1846,11 @@ impl Engine {
         let removed = removed || c.removed_when_burned;
         let (owner, card, copy) = (c.owner, c.card, *c.copy);
         let stored = std::mem::take(&mut c.stored);
+        // Raw Recruit: its vampire burned with it (LSJ 20021128).
+        if let Some((v, vcopy, vowner)) = c.held_vampire.take() {
+            self.state.seats[vowner.index()].ash_crypt.put(v, vcopy.0);
+        }
+        let c = &mut self.state.cards[id.index()];
         // The Erciyes Fragments: the card on it burns to its owner's.
         let stored_to = c.stored_owner.unwrap_or(owner);
         self.remove_ghouls_of(id);
@@ -2096,6 +2125,7 @@ impl Engine {
                             }
                         }
                         cards::Effect::HostBurnBlood(n) => self.state.burn_blood(m, n),
+                        cards::Effect::LockHost => self.state.minions[m.index()].locked = true,
                         other => unreachable!("not a minion-phase-end rider effect: {other:?}"),
                     }
                 }
@@ -2574,6 +2604,7 @@ impl Engine {
         for seat in &mut self.state.seats {
             seat.veil_left = 0;
         }
+        self.state.titled_left.clear();
         for m in &mut self.state.minions {
             m.bled_this_turn = false;
             m.extra_bleeds = 0;
@@ -2582,6 +2613,7 @@ impl Engine {
             m.expelled = false;
             m.hunting_ground_fed = false;
             m.hunted = false;
+            m.announced_action = false;
             m.acted.clear();
             m.recruited = false;
             m.recruits_this_turn = 0;
@@ -2779,7 +2811,7 @@ mod tests {
     #[test]
     fn crypt_data_is_complete() {
         // The 200 V5 vampires, then the owner's legacy additions.
-        assert_eq!(CRYPT.len(), 651);
+        assert_eq!(CRYPT.len(), 687);
         assert_eq!(PRECONS.len(), 14);
         for (name, list) in PRECONS.iter() {
             let n: u32 = list.iter().map(|&(_, k)| k as u32).sum();

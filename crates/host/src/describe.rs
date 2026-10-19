@@ -519,6 +519,20 @@ fn asked(x: &Ctx<impl Names>, i: Interrupt, choice: &Choice) -> Vec<Effect> {
                 ..Effect::new(EffectKind::Keep)
             },
         ],
+        // Victor Pelletier: the price paid, the title it buys.
+        (Interrupt::BuyTitle { offers, .. }, Choice::SetX(p)) => {
+            let title = offers.iter().find(|&&(n, _)| n == p).map(|&(_, t)| t);
+            vec![
+                Effect {
+                    cost: true,
+                    ..n(-(p as i32), Effect::new(EffectKind::Pool))
+                },
+                Effect {
+                    detail: title.map(crate::view::title_detail),
+                    ..chosen(EffectKind::Role)
+                },
+            ]
+        }
         (Interrupt::DistributeFrom { .. }, Choice::Slot(_)) => {
             vec![n(1, chosen(EffectKind::Blood))]
         }
@@ -963,11 +977,17 @@ pub fn about(e: &Engine, req: &DecisionRequest, names: &impl Names) -> Option<Ab
                 detail: from.map(|_| "named".to_string()),
                 ..a()
             },
-            I::DiscardChosen {
-                left, combat_only, ..
-            } => About {
+            I::DiscardChosen { left, of, .. } => About {
                 n: Some(left),
-                detail: combat_only.then(|| "combat".to_string()),
+                detail: match of {
+                    Some(zvtes::cards::CardFilter::Type(zvtes::library::CardType::Combat)) => {
+                        Some("combat".to_string())
+                    }
+                    Some(zvtes::cards::CardFilter::HasLabel(zvtes::library::Label::Animal)) => {
+                        Some("animal".to_string())
+                    }
+                    _ => None,
+                },
                 ..a()
             },
             I::RemoveFromAsh { of, left, .. } => About {
@@ -1113,7 +1133,22 @@ pub fn about(e: &Engine, req: &DecisionRequest, names: &impl Names) -> Option<Ab
                 card: card(c),
                 ..a()
             },
-            I::MayGainPool { minion, n, .. } => About {
+            I::NameMasterDiscipline { .. } => a(),
+            I::ReadyTitledLeft { of, .. } => About {
+                seat: Some(of.0),
+                ..a()
+            },
+            I::NameAshEquipment { minion, from, .. } => About {
+                minion: m(minion),
+                seat: from.map(|s| s.0),
+                detail: from.map(|_| "named".to_string()),
+                ..a()
+            },
+            I::BuyTitle { minion, .. } => About {
+                minion: m(minion),
+                ..a()
+            },
+            I::MayGainPool { minion, n, .. } | I::MayGainHandSize { minion, n, .. } => About {
                 minion: m(minion),
                 n: Some(n),
                 ..a()

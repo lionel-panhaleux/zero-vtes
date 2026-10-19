@@ -1466,7 +1466,17 @@ impl Engine {
         match ctx.kind {
             RefKind::BloodHunt { diablerist } => {
                 if passed {
-                    self.burn_minion(diablerist);
+                    // Genina: to torpor instead of burned.
+                    let torpor = self.state.printed_mod(
+                        diablerist,
+                        cards::Stat::TorporInsteadOfBloodHuntBurn,
+                        crate::state::PrintedCtx::default(),
+                    ) > 0;
+                    if torpor {
+                        self.minions_to_torpor(&[diablerist]);
+                    } else {
+                        self.burn_minion(diablerist);
+                    }
                 }
                 // Part of the action (spec §3.7.8.1): the after-resolution
                 // window follows it (rules-qa 5.8).

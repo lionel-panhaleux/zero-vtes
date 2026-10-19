@@ -1054,6 +1054,91 @@ ADDED_BATCHES = [
         201618: "Okulos (G7)",
         201622: "Len Konopka (G3)",
     },
+    # Round 17 (slice 16ac): twenty promo sets completed and the TWDA greedy's
+    # steps 1-6, bundles of 12 (owner, 2026-10-18: "Promos + steps 1-6").
+    {
+        100041: "Alvusia",
+        100086: "Argent Baton",
+        100102: "As the Crow",
+        100171: "Black Sunrise",
+        100241: "Botched Move",
+        100282: "Call the Wild Hunt",
+        100315: "Centralized Background Check",
+        100376: "Cold Aura",
+        100381: "Command of the Beast",
+        100445: "Crematorium",
+        100489: "Dam the Heart's River",
+        100548: "Dis Pater",
+        100561: "Dive Bomb",
+        100604: "Earthshock",
+        100649: "Ensemble",
+        100728: "Filchware's Pawn Shop",
+        100823: "Gianna di Canneto",
+        100832: "Giulia Giovanni Abruzzina",
+        100869: "Guide and Mentor",
+        100880: "Hand Contract",
+        100971: "Increased Strength",
+        100975: "Infamous Insurgent",
+        101072: "Lapse",
+        101078: "Leadership Vacuum",
+        101092: "Legion",
+        101243: "Morgue Hunting Ground",
+        101359: "The Path of Bone",
+        101371: "The Path of the Scorched Heart",
+        101420: "Port Authority",
+        101494: "Promise of 1528",
+        101497: "Prophecies of Gehenna",
+        101503: "Provision of the Silsila",
+        101512: "Public Enemy",
+        101554: "Raw Recruit",
+        101619: "Retribution",
+        101646: "Rockheart",
+        101660: "Ruins of Villers Abbey, Belgium",
+        101748: "Shakar",
+        101852: "Spiritual Intervention",
+        101855: "Spontaneous Power",
+        101876: "Stonestrength",
+        101968: "Therbold Realty",
+        101970: "Thin Blood",
+        101976: "Thoughts Betrayed",
+        102162: "Waxen Poetica",
+        200020: "Agatha (G2)",
+        200041: "Alan Sovereign (G3 ADV)",
+        200094: "Angelo (G3)",
+        200119: "Anu Diptinatpa (G6)",
+        200164: "Baldesar Rossellini (G4)",
+        200166: "Barbaro Lucchese (G3)",
+        200278: "Claudio Severino (G5)",
+        200348: "Djuhah, The Bronze Bow (G5)",
+        200382: "Dr. Oliver Genet (G6)",
+        200399: "Echo (G4)",
+        200459: "Fatima al-Faqadi (G2)",
+        200504: "Genina, The Red Poet (G3)",
+        200545: "Guillaume Giovanni (G4)",
+        200566: "Hannibal (G2 ADV)",
+        200594: "Hesha Ruhadze (G2)",
+        200700: "Jessica (G2 ADV)",
+        200710: "Joe \"Boot\" Hill (G4)",
+        200775: "Kestrelle Hayes (G5)",
+        200785: "Kisha Bhimji (G3)",
+        200811: "Lambach (G2 ADV)",
+        200874: "Lucita (G2)",
+        200924: "Mariana Gilbert (G1)",
+        200944: "Martino della Passaglia (G6)",
+        201000: "Mitchell, The Headhunter (G2)",
+        201067: "Nu, The Pillar (G2)",
+        201130: "Porphyry (G6)",
+        201180: "Reverend Adams (G4)",
+        201185: "Reza Fatir, The Dark Angel (G4)",
+        201227: "Salvatore Giovanni (G6)",
+        201244: "Sascha Vykos, The Angel of Caine (G2)",
+        201383: "Tori Longwood (G2)",
+        201436: "Verbruch (G5)",
+        201440: "Victor Pelletier (G4)",
+        201467: "White Lily (G4)",
+        201477: "Xaviar (G3)",
+        201488: "Yong-Sun, Harmonist (G2)",
+    },
 ]
 ADDED_CARDS = {k: v for batch in ADDED_BATCHES for k, v in batch.items()}
 
@@ -1273,6 +1358,7 @@ MODIFIER_TIMING = [
     # "Only usable after a combat resulting from a block" (Shadow Boxing
     # [OBF][POT]).
     (r"after a combat resulting from a block", "ACTION_AFTER_COMBAT"),
+    (r"only usable after a combat involving", "ACTION_AFTER_COMBAT"),
     # "Usable after combat" (Pocket Out of Time [TEM]).
     (r"\busable after combat\b", "ACTION_AFTER_COMBAT"),
     (r"would be successful", "ACTION_WOULD_BE_SUCCESSFUL"),
@@ -1302,6 +1388,15 @@ REACTION_TIMING = [
     # "Only usable after a combat between a blocking minion you control …"
     # (Fast Reaction).
     (r"only usable after a combat between", "ACTION_AFTER_COMBAT"),
+    # "Only usable after a combat involving this Assamite and a minion with
+    # a contract" (Provision of the Silsila).
+    (r"only usable after a combat involving", "ACTION_AFTER_COMBAT"),
+    # "… or is the target of a Camarilla vampire's directed action" (Promise
+    # of 1528): any time in that action.
+    (r"is the target of an? [^.]{0,40}?directed action", "REACTION_DURING_ACTION"),
+    # An out-of-turn master as a ready titled vampire is burned or sent to
+    # torpor (Leadership Vacuum).
+    (r"when a ready titled vampire [^.]*is burned or sent to torpor", "READY_TITLED_LEFT"),
     (r"attempts? to block the current action", "ACTION_STEALTH_INTERCEPT"),  # block-loop play
     # A ready minion made to attempt (Guardian Vigil): until the block
     # succeeds (ANK 20180926).
@@ -1342,7 +1437,10 @@ REACTION_DEFAULT = "REACTION_DURING_ACTION"
 # "Cancel a combat card played by the opposing minion that would restrict
 # this anarch's choice of strikes this round as it is played"
 # (Groundfighting): the clause runs long.
-CANCEL_AS_PLAYED = r"cancel (?!this card)[^.]{0,160}?as it is (being )?played"
+# "Only usable as the opposing minion plays a card … the played card is
+# canceled" (Botched Move): the as-played window too.
+CANCEL_AS_PLAYED = (r"cancel (?!this card)[^.]{0,160}?as it is (being )?played"
+                    r"|as the opposing minion plays a card[\s\S]{0,300}?the played card is canceled")
 
 FLAGS = [
     (r"do not replace", "delayed_replacement"),
@@ -1352,9 +1450,13 @@ FLAGS = [
     (r"has cast (a )?(votes?|ballots?)", "refers_votes_cast"),
     (r"as if (the action were |it were )?unblocked|continue the action", "continues_action"),
     (r"at random", "randomness"),
-    (r"becomes an? \d-capacity|becomes an? [^.]{0,30}?\bally\b|ally[^.]*to (your|the) ready region",
+    # "To represent a fledgling" (Legion), "to turn this card into a
+    # Gargoyle" (Raw Recruit).
+    (r"becomes an? \d-capacity|becomes an? [^.]{0,30}?\bally\b|ally[^.]*to (your|the) ready region"
+     r"|to represent a fledgling|to turn this card into an? \w+",
      "token_entity"),
-    (r"cancel [^.]{0,160}?as it is (being )?played", "cancel_as_played"),
+    (r"cancel [^.]{0,160}?as it is (being )?played"
+     r"|as the opposing minion plays a card[\s\S]{0,300}?the played card is canceled", "cancel_as_played"),
     (r"change the target of the bleed", "bounce"),
     (r"would (draw|replace) a card[^.]*instead", "draw_replacement"),
     (r"play cards from this (location|card) as if from (your )?hand", "alt_hand_source"),
@@ -1362,7 +1464,10 @@ FLAGS = [
 # Card in play grants a minion action (Ⓓ actions, referendum-to-burn, granted
 # hunt/equip variants); MPA/DPA-consuming abilities excluded; "as an action …
 # is announced" timing clauses are not grants.
-IN_PLAY_ACTION = r"\bas an? [^.;]{0,40}?\baction\b(?! to )(?! modifier)(?![^.]* is announced)"
+IN_PLAY_ACTION = (r"\bas an? [^.;]{0,40}?\baction\b(?! to )(?! modifier)(?![^.]* is announced)"
+                  # "… as a +1 stealth action to turn this card into a
+                  # Gargoyle" (Raw Recruit).
+                  r"|\baction to turn this card into\b")
 
 # "[cel] or [for]" (the Sabbat V5 layout): either Discipline, one mode
 # (rules-qa 52.1); side by side, a combo (rules-qa 25.2).

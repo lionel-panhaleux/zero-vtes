@@ -209,7 +209,7 @@ mod tests {
             assert!(crypt.iter().all(|&c| (c as usize) < CRYPT.len()));
             assert!(library.iter().all(|&c| (c as usize) < LIBRARY.len()));
             let (crypt_sizes, sizes) = match deck.name {
-                n if n.contains("New Blood") => (6..=6, 48..=49),
+                n if MINI_PRECONS.iter().any(|p| p.0 == n) => (6..=6, 48..=49),
                 n if PRECONS.iter().any(|p| p.0 == n) => (12..=12, 77..=77),
                 n if ANNIVERSARY_PRECONS.iter().any(|p| p.0 == n) => (12..=12, 88..=88),
                 n if SABBAT_PRECONS.iter().any(|p| p.0 == n) => (12..=12, 77..=77),

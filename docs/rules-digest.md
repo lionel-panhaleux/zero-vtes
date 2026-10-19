@@ -2510,6 +2510,11 @@ round (rulebook "Combat").
 
 ### 12.7 Damage
 
+- "+1 damage from each strike or damaging effect against" a minion (Dam the
+  Heart's River) reaches every damage it takes in that combat: a strike's,
+  a retainer's, environmental, an effect's in combat, and after-combat
+  damage played in it; never a non-damaging strike; the extra of the base
+  damage's kind (84.6). Two plays of an uncapped extra add up (84.8).
 - Mixed normal and aggravated damage: when a prevention covers only part,
   the preventer chooses which points go unprevented (one may want torpor
   with no blood lost); non-aggravated-only prevention (Soak) never touches
@@ -3415,7 +3420,9 @@ retainers, traits, titles, trait changes).
   superseding 67.6).
 - Infernal: §14.1. Blood cursed: 63.1. Slave: 62.14. Black Hand read on the
   striker (62.26). Red List: 67.5, 71.22; "Red List" on Ossian a bare trait
-  (64.6). Flight: a bare trait in the pool (16.6, 62.14).
+  (64.6). Flight: generated crypt data and a Discipline level, read
+  wherever gained — As the Crow, Dive Bomb, Earthshock (84.37, superseding
+  16.6, 62.14). A slave a card creates carries the slave's text (84.9).
 - Clans with their V5 names (§1).
 - Text naming a trait of the current bearer: D31.
 - Derange: either clan plays it (ANK 20190203); on a younger vampire, torpid
@@ -3478,8 +3485,8 @@ readings (vampires, allies, library cards) no mechanism section states.
 
 ### 15.2 Card readings not stated elsewhere
 
-- Alabástrom: once per turn, any other ready Gargoyle; Flight a bare trait
-  (16.6).
+- Alabástrom: once per turn, any other ready Gargoyle (16.6); Flight read
+  since 84.37.
 - Valkyrie: "unless /Brunhilde/ is ready" — any ready Brunhilde in play, any
   Methuselah's; "Non-unique." — copies neither contest nor self-contest
   (several may be influenced) (58.5).
@@ -3560,6 +3567,27 @@ readings (vampires, allies, library cards) no mechanism section states.
   Tamari (ADV: a standing bonus, not 79.1's once); Round 16's text-only
   vampires (80.2). Okulos: once in each Methuselah's turn, on any impulse,
   in torpor too (80.11).
+- Round 17's cards, each read in its rules-qa item: Cold Aura not offered
+  once the range is set (84.1); Waxen Poetica burned when dodged, kept when
+  combat ends first (84.2); Botched Move against any played card (84.3);
+  Alvusia's strength to any slave Gargoyle in any action, its bleed to one
+  bleeding (84.4); Angelo's circle for the
+  Blood Brother playing (84.5); Gianna (84.7); Raw Recruit, its Gargoyle a
+  slave, its second action read live (84.9); Victor Pelletier (84.10);
+  Filchware's Pawn Shop (84.11); Baldesar (84.12); Public Enemy and
+  Retribution, "since your last turn" (84.13); Kestrelle Hayes, any target
+  (84.14); Leadership Vacuum (84.15); Legion's fledgling (84.16);
+  Spontaneous Power (84.17); Call the Wild Hunt (84.18); Increased Strength
+  (84.19); Promise of 1528 (84.20); Provision of the Silsila (84.21); Hand
+  Contract and Shakar (84.22); Guide and Mentor (84.23); Port Authority and
+  Prophecies of Gehenna (84.24); the two Paths (84.25); Ruins of Villers
+  Abbey (84.26); the combat cards (84.27); locations and costs (84.28);
+  bleed modifiers (84.29); Black Sunrise, As the Crow, Dive Bomb (84.30);
+  Crematorium, Morgue Hunting Ground, Giulia, Infamous Insurgent (84.31);
+  printed vampire stats (84.32), unlocks (84.33), combat and actions
+  (84.34); Tremere slaves (84.35); inert and text-only (84.36); Hesha's
+  groups (84.38); Coordinate Attacks' filter (84.39); found while testing
+  (84.40).
 
 ## 16. Cards in play
 
@@ -3699,7 +3727,7 @@ cards), §1.10 (burn and removal), §6.3 (control of a card in play).
   (21.1, as revised: only action cards wait in limbo until successful or
   blocked).
 - Patagia: on the acting Nosferatu, one each; a maneuver each combat; flight
-  once each combat, its own vampire's (ANK 20221021), a legal no-op for now
+  once each combat, its own vampire's (ANK 20221021), read since 84.37
   (80.24). Praxis Seizure: York: on the calling vampire if still in play
   (80.26).
 
@@ -4138,7 +4166,7 @@ mixed item is stated in its section.
 - Scoping: Lilith's Blessing banned and removed (57.8); Monocle of Clarity's
   question changes no state (68.11); New Blood's circle first left unmodeled
   (67.6, superseded by 68.1); bare traits with no card reading them yet
-  (Flight, 16.6, 62.14; Red List on Ossian, 64.6; trophies, 67.5); "no tenant"
+  (Red List on Ossian, 64.6; trophies, 67.5; Flight until 84.37); "no tenant"
   clauses (Abraham Mellon's minion clause, 41.1; Elysium, 44.7; a justicar
   requirement in play, 59.14; no mage ally, 41.8, superseded by 62.31; no
   demon or zombie retainer, 62.30, 55.6; no ammo card, 64.10; the G2 advanced
@@ -4410,6 +4438,8 @@ read, for the owner to confirm or correct:
 - 80.1–80.3, 80.5–80.34, 80.36, 80.39, 80.40, 80.44, 80.45 graded green,
   amber or corrected (80.9; 80.4, 80.35, 80.37, 80.38, 80.41–80.43
   answered by the owner).
+- 84.5–84.40 graded green or amber (84.1–84.4 answered by the owner;
+  84.5's active Angelo a gap: his own circle of one).
 - The "Question (implemented reading)" tails: 48.2 (a card granting several
   strikes bars further cards until all are made), 48.3 (the switch of
   blocker takes effect at once, no impulse left to others), 48.8 (a rescue
@@ -4529,7 +4559,7 @@ an owner ruling:
 Every rules-qa item, by batch, with the digest sections citing it: the
 section stating it and those cross-referring to it (§2 the default
 readings, §22 engine modeling, §23 the contradictions, §24 the open
-readings). 778 items, Batches 1–83 (44.11 was removed, replaced by Batch
+readings). 818 items, Batches 1–84 (44.11 was removed, replaced by Batch
 45). The index is derived from the citations: a bare `N.M` cites rules-qa
 item N.M in the section it appears in. A new rules-qa item gets its line in
 the section stating it, then its entry here: `python3
@@ -4573,7 +4603,7 @@ index or an item cited nowhere.
   §2,§3.12,§4.2,§5.1,§5.5,§6.2,§6.5,§9.2,§9.3,§11.1,§11.7,§12.1,§13.3,§14.2,§15.1,§23.3
 - **16** — 16.1 §2,§4.2,§14.1; 16.2 §9.6,§11.7; 16.3 §4.2,§11.1,§19.1; 16.4
   §2,§3.2,§3.4,§4.2,§10.4,§11.6,§11.7; 16.5
-  §3.10,§6.5,§9.6,§10.4,§12.1,§13.4,§13.5; 16.6 §4.2,§8.5,§14.10,§15.2,§22
+  §3.10,§6.5,§9.6,§10.4,§12.1,§13.4,§13.5; 16.6 §4.2,§8.5,§14.10,§15.2
 - **17** — 17.1 §2,§6.3,§8.1,§8.7,§14.4,§15.1,§19.4,§23.3; 17.2
   §2,§3.4,§5.3,§6.3,§8.7; 17.3
   §3.1,§3.2,§3.4,§3.15,§9.1,§10.2,§10.5,§11.2,§11.8,§15.1; 17.4
@@ -4715,12 +4745,11 @@ index or an item cited nowhere.
   §2,§4.2,§9.1,§14.1,§24.1; 62.4 §2,§11.5,§14.4,§14.9,§23.2; 62.5 §6.2; 62.6
   §13.5,§21.2,§24.1; 62.7 §3.14,§7.3,§8.3; 62.8 §18.3; 62.9 §9.1; 62.10
   §4.2,§6.1,§21.3; 62.11 §4.2,§6.1; 62.12 §4.2,§19.2,§24.1; 62.13
-  §2,§6.4,§19.4; 62.14 §6.3,§8.2,§8.8,§11.8,§14.6,§14.10,§22,§23.4,§24.1;
-  62.15 §6.5,§19.3; 62.16 §7.3,§11.1,§12.4; 62.17
-  §4.2,§9.3,§11.5,§12.8,§14.1; 62.18 §12.4; 62.19
-  §2,§4.2,§5.3,§12.4,§14.11,§16.4,§16.5; 62.20 §16.2,§24.1; 62.21
-  §3.12,§11.9,§23.1; 62.22 §19.1,§24.1; 62.23 §4.5,§12.6; 62.24
-  §3.20,§4.2,§12.4,§12.7,§12.11,§14.5; 62.25 §4.2,§16.1,§16.7; 62.26
+  §2,§6.4,§19.4; 62.14 §6.3,§8.2,§8.8,§11.8,§14.6,§14.10,§23.4,§24.1; 62.15
+  §6.5,§19.3; 62.16 §7.3,§11.1,§12.4; 62.17 §4.2,§9.3,§11.5,§12.8,§14.1;
+  62.18 §12.4; 62.19 §2,§4.2,§5.3,§12.4,§14.11,§16.4,§16.5; 62.20
+  §16.2,§24.1; 62.21 §3.12,§11.9,§23.1; 62.22 §19.1,§24.1; 62.23 §4.5,§12.6;
+  62.24 §3.20,§4.2,§12.4,§12.7,§12.11,§14.5; 62.25 §4.2,§16.1,§16.7; 62.26
   §12.7,§14.10,§23.3; 62.27 §4.2,§12.3,§12.11; 62.28 §9.3; 62.29
   §9.3,§19.1,§24.1; 62.30 §3.6,§8.2,§15.2,§16.8,§22; 62.31
   §3.6,§14.5,§22,§23.2,§24.1; 62.32 §2,§22,§24.1,§24.2; 62.33
@@ -4819,3 +4848,11 @@ index or an item cited nowhere.
 - **81** — 81.1 §5.2
 - **82** — 82.1 §9.4; 82.2 §9.4
 - **83** — 83.1 §18.2
+- **84** — 84.1 §15.2,§24.1; 84.2 §15.2; 84.3 §15.2; 84.4 §15.2,§24.1; 84.5
+  §15.2,§24.1; 84.6 §12.7; 84.7 §15.2; 84.8 §12.7; 84.9 §14.10,§15.2; 84.10
+  §15.2; 84.11 §15.2; 84.12 §15.2; 84.13 §15.2; 84.14 §15.2; 84.15 §15.2;
+  84.16 §15.2; 84.17 §15.2; 84.18 §15.2; 84.19 §15.2; 84.20 §15.2; 84.21
+  §15.2; 84.22 §15.2; 84.23 §15.2; 84.24 §15.2; 84.25 §15.2; 84.26 §15.2;
+  84.27 §15.2; 84.28 §15.2; 84.29 §15.2; 84.30 §15.2; 84.31 §15.2; 84.32
+  §15.2; 84.33 §15.2; 84.34 §15.2; 84.35 §15.2; 84.36 §15.2; 84.37
+  §14.10,§15.2,§16.5,§22; 84.38 §15.2; 84.39 §15.2; 84.40 §15.2,§24.1

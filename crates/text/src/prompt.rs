@@ -130,6 +130,23 @@ impl Prompt<'_> {
                 self.card()?
             ),
             P::MayGainPool => format!("{}: you can gain {} pool", self.minion()?, a.n?),
+            P::BuyTitle => format!("{}: you may pay pool for a title", self.minion()?),
+            P::ReadyTitledLeft => format!(
+                "A titled vampire of {} left the ready region: you may play a card",
+                self.seat()?
+            ),
+            P::NameMasterDiscipline => {
+                "Choose the master Discipline card to become the fledgling".into()
+            }
+            P::NameAshEquipment => match self.detail() {
+                Some(_) => format!("Choose the equipment in {}'s ash heap", self.seat()?),
+                None => format!("{}: choose the ash heap to equip from", self.minion()?),
+            },
+            P::MayGainHandSize => format!(
+                "{}: you can get +{} hand size until the end of the turn",
+                self.minion()?,
+                a.n?
+            ),
             P::EntryRemoveOrBurn => format!(
                 "{} burns unless you remove an ally or vampire in your ash heap from the game",
                 self.minion()?

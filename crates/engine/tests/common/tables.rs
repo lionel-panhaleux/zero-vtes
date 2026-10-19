@@ -376,6 +376,8 @@ pub fn table(seed: u64, slice: &[&str], extra: &[&str]) -> Engine {
             entered_action: 0,
             removed_when_burned: false,
             stored_owner: None,
+            held_vampire: None,
+            fixed_x: 0,
             discipline: None,
             training: false,
             chosen: Vec::new(),

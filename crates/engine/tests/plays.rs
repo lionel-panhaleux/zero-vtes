@@ -39,8 +39,15 @@ fn table() -> Engine {
 /// without printed text has none).
 #[test]
 fn every_card_is_defined_and_its_modes_match_the_reviewed_windows() {
+    // By name, advanced or not, and group: an advanced-only definition
+    // (Jessica) has a plain base card of its name.
     for def in VAMPIRES {
-        let card = find_card(def.name);
+        let card = zvtes::crypt::CRYPT
+            .iter()
+            .position(|c| {
+                c.name == def.name && c.adv == def.adv && def.group.is_none_or(|g| g == c.group)
+            })
+            .unwrap_or_else(|| panic!("no crypt card for {}", def.name)) as u16;
         assert_eq!(cards::vampire(card).map(|d| d.name), Some(def.name));
     }
     assert!(cards::vampire(find_card("Alice Chen")).is_none());

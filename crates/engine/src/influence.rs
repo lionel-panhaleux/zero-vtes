@@ -226,6 +226,22 @@ impl Engine {
                         }
                     }
                 }
+                // Alvusia: a Tremere or Gargoyle entering in its
+                // controller's influence phase, 1 counter.
+                let hook = crate::cards::Hook::OwnVampireEntersInInfluence;
+                let entering = self.state.minions[m.index()].clan();
+                for (id, r) in self.fired_riders(hook, &crate::plays::HookAt::of(s)) {
+                    for e in r.effects {
+                        match *e {
+                            crate::cards::Effect::AddCounterForEnteringClan(clans) => {
+                                if entering.is_some_and(|c| clans.contains(&c)) {
+                                    self.state.cards[id.index()].counters += 1;
+                                }
+                            }
+                            other => unreachable!("not an influence rider effect: {other:?}"),
+                        }
+                    }
+                }
                 // Scarce: 3 pool for each vampire of its clan already
                 // controlled — the apparent clan (LSJ 20011015).
                 if out.card != crate::state::CREATED && CRYPT[out.card as usize].scarce {
@@ -322,6 +338,12 @@ impl Engine {
                 return;
             }
         }
+        // Verbruch: "as he enters play, you can search your crypt", before
+        // any contest (LSJ 20080526); the search reads nothing of him.
+        if let Some(clan) = entry_crypt_search(card) {
+            self.interrupts
+                .push(crate::draws::Interrupt::CryptSearch { seat: s, clan });
+        }
         // Anarch Convert: his entry ability before any contest.
         if is_anarch_convert(card) {
             self.interrupts
@@ -331,6 +353,14 @@ impl Engine {
                     forced,
                     chosen: None,
                 });
+        } else if let Some(offers) = entry_title_offers(card) {
+            // Victor Pelletier: the title bought before any contest (LSJ
+            // 20080526, LSJ 20100902).
+            self.interrupts.push(crate::draws::Interrupt::BuyTitle {
+                seat: s,
+                minion: m,
+                offers,
+            });
         } else if let Some((n, clan)) = entry_distribution(card) {
             // Erlik: before any contest (LSJ 20080526).
             self.interrupts
@@ -396,62 +426,63 @@ fn is_anarch_convert(card: u16) -> bool {
     card != crate::state::CREATED && CRYPT[card as usize].name == "Anarch Convert"
 }
 
+/// The effects of a crypt card's entry riders (none for a created
+/// vampire).
+fn entry_effects(card: u16) -> impl Iterator<Item = &'static crate::cards::Effect> {
+    (card != crate::state::CREATED)
+        .then(|| crate::cards::vampire(card))
+        .flatten()
+        .into_iter()
+        .flat_map(|d| d.riders)
+        .filter(|r| r.hook == crate::cards::Hook::EntersPlay)
+        .flat_map(|r| r.effects)
+}
+
 /// A vampire's "as he enters play, you can distribute up to n blood from
 /// him to your uncontrolled <clan>" (Erlik): its entry rider.
 fn entry_distribution(card: u16) -> Option<(u8, &'static str)> {
-    if card == crate::state::CREATED {
-        return None;
-    }
-    crate::cards::vampire(card)?
-        .riders
-        .iter()
-        .filter(|r| r.hook == crate::cards::Hook::EntersPlay)
-        .flat_map(|r| r.effects)
-        .find_map(|e| match *e {
-            crate::cards::Effect::DistributeToUncontrolled { n, clan } => Some((n, clan)),
-            _ => None,
-        })
+    entry_effects(card).find_map(|e| match *e {
+        crate::cards::Effect::DistributeToUncontrolled { n, clan } => Some((n, clan)),
+        _ => None,
+    })
 }
 
 /// A vampire's "when moved to the ready region in your influence phase,
 /// this vampire burns n blood or is burned" (Hermana Hambrienta).
 fn entry_burn(card: u16) -> Option<u8> {
-    if card == crate::state::CREATED {
-        return None;
-    }
-    crate::cards::vampire(card)?
-        .riders
-        .iter()
-        .filter(|r| r.hook == crate::cards::Hook::EntersPlay)
-        .flat_map(|r| r.effects)
-        .find_map(|e| match *e {
-            crate::cards::Effect::BurnsBloodOrIsBurnedOnEntry(n) => Some(n),
-            _ => None,
-        })
+    entry_effects(card).find_map(|e| match *e {
+        crate::cards::Effect::BurnsBloodOrIsBurnedOnEntry(n) => Some(n),
+        _ => None,
+    })
 }
 
 /// A vampire's "burn n pool as he enters play" (Dr. Solomon Grey).
 fn entry_pool(card: u16) -> Option<u8> {
-    if card == crate::state::CREATED {
-        return None;
-    }
-    crate::cards::vampire(card)?
-        .riders
-        .iter()
-        .filter(|r| r.hook == crate::cards::Hook::EntersPlay)
-        .flat_map(|r| r.effects)
-        .find_map(|e| match *e {
-            crate::cards::Effect::BurnPool(n) => Some(n),
-            _ => None,
-        })
+    entry_effects(card).find_map(|e| match *e {
+        crate::cards::Effect::BurnPool(n) => Some(n),
+        _ => None,
+    })
+}
+
+/// A vampire's "when he enters play, you may pay n pool to make him
+/// <title>" (Victor Pelletier): its entry rider's offers.
+fn entry_title_offers(card: u16) -> Option<&'static [(u8, crate::crypt::Title)]> {
+    entry_effects(card).find_map(|e| match *e {
+        crate::cards::Effect::BuyTitleOnEntry(offers) => Some(offers),
+        _ => None,
+    })
+}
+
+/// A vampire's "as he enters play, you can search your crypt for a <clan>
+/// and move it to your uncontrolled region" (Verbruch): its entry rider.
+fn entry_crypt_search(card: u16) -> Option<&'static str> {
+    entry_effects(card).find_map(|e| match *e {
+        crate::cards::Effect::CryptSearchOnEntry(clan) => Some(clan),
+        _ => None,
+    })
 }
 
 /// Does `effect` figure among the vampire's entry riders (New Blood)?
 fn entry_has(card: u16, effect: crate::cards::Effect) -> bool {
-    card != crate::state::CREATED
-        && crate::cards::vampire(card).is_some_and(|d| {
-            d.riders
-                .iter()
-                .any(|r| r.hook == crate::cards::Hook::EntersPlay && r.effects.contains(&effect))
-        })
+    entry_effects(card).any(|e| *e == effect)
 }

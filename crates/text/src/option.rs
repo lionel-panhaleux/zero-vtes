@@ -528,6 +528,14 @@ fn asked(
         (P::MayTorture, K::ResolveRider) => "Lock The Path of Lilith: a torture counter".into(),
         (P::MayGainPool, K::Pass) => "Gain no pool".into(),
         (P::MayGainPool, K::ResolvePrinted) => format!("Gain {} pool", about?.n?),
+        (P::BuyTitle, K::Pass) => "Buy no title".into(),
+        (P::BuyTitle, K::SetX) => {
+            let pool = o.effects.iter().find(|e| e.cost)?.n?.unsigned_abs();
+            let title = o.effects.iter().find_map(|e| e.detail.as_deref())?;
+            format!("Pay {pool} pool: {}", title.replace('_', " "))
+        }
+        (P::MayGainHandSize, K::Pass) => "Keep your hand size".into(),
+        (P::MayGainHandSize, K::ResolvePrinted) => format!("Get +{} hand size", about?.n?),
         (P::MayPreventForBlood, K::Pass) => "Burn no blood".into(),
         (P::MayPreventForBlood, K::ResolvePrinted) => {
             format!("Burn {} blood to prevent the damage", about?.n?)

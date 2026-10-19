@@ -63,6 +63,9 @@ LABELS = [
     # An infernal ally (Herald of Topheth): "… flight [FLIGHT]. Infernal."
     # on its type line.
     ("Infernal", r"^(unique )?\w+ with [^\n]*\. infernal\."),
+    # An ally's flight on its type line ("… 1 bleed, flight [FLIGHT].":
+    # Herald of Topheth), its printed level (rules-qa 84.37).
+    ("Flight", r"^(unique )?\w+ with [^\n]*\bbleed, flight \[flight\]\."),
     # "More than one Discipline can be used to play this card": one mode per
     # non-empty set of its Disciplines, each set required in full (LSJ
     # 20011204-3: played, it requires the Disciplines used).
@@ -86,7 +89,7 @@ LABELS = [
 # An ally's or retainer's type line: "Unique mortal with 2 life. 1 strength,
 # 0 bleed." (a retainer prints its life only).
 # "… 3 strength, 1 bleed, flight [FLIGHT]." (Herald of Topheth): flight is
-# a bare trait (rules-qa 16.6).
+# its `Flight` label.
 BODY = re.compile(
     r"^(?:unique )?[\w ]+? with (\d+) life\.(?: (\d+) strength, (\d+) bleed(?:, flight \[FLIGHT\])?\.)?",
     re.I,

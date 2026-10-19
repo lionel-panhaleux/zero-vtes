@@ -232,6 +232,10 @@ tables; `limit_slot` matches every `Limit`.
   (a `Limit`, phase windows only, a cost spending the card or its host's
   unlock) or says in `DURING_ONCE_ELSEWHERE` how it is once, a rider of a
   played card included (rules-digest D7); a stale entry fails.
+- `circle_requirements_read_angelo_only_on_sanguinus_cards`
+  (`tests/twda_round17.rs`): a circle requirement's `sanguinus` flag is
+  the card's Sanguinus requirement, never on a vampire, and the circle
+  readers without the flag sit on Sanguinus cards only (rules-qa 84.5).
 
 **Enforced by play.** The fuzz fixtures (`tests/fuzz.rs`: invariants,
 conservation of copies, replay of every 4th seed, each fixture's `covers`
@@ -912,6 +916,22 @@ engine masks), `cards/mod.rs` (the vocabulary: `Window`, `Actor`,
   `Interrupt::MayPreventForBlood`). `Side::combat_damage` counts the damage
   taken in the combat for `Stat::BurnedOverCombatDamage` (Franciscus).
 
+- Dam the Heart's River: `Side::more_damage_taken` is added where each
+  kind of damage to that minion is counted — `Side::strike_hit` (a
+  damaging strike only), the retainer, environmental and resolution
+  damage in `resolve_strikes`, the after-combat damage queued there
+  (Catatonic Fear), and `damage_out_of_combat` for a combatant (Botched
+  Move): a new damage site reads it too. Its strike toll: `strike_toll`
+  (a card's in its cost, `strike_card_toll`), `toll_due` on the strike
+  choices and `pay_strike_tolls` before resolution; a toll the minion
+  cannot pay leaves `strike_request` only `Pass` and strike cards.
+  Strike bars for a combat or a round (Lapse's
+  `OpposingNoManeuverThisRound`/`NoInitialStrikeThisRound`, Thoughts
+  Betrayed's `OpposingNoStrikeCardsThisCombat`), the strike's card and mode
+  (`Side::strike_play`: Increased Strength's Potence strikes), Rockheart's
+  `halve_strikes`; per-round extra damage adds up (`environmental_round`,
+  `resolution_damage`).
+
 ### 6.8 Referendums
 
 `referendum.rs`: `ReferendumCtx`, `RefKind`, `RefStep`, `Source`,
@@ -980,6 +1000,11 @@ engine masks), `cards/mod.rs` (the vocabulary: `Window`, `Actor`,
   the host's title id `laibon`); Osebo Kholo moves as §6.2 says, gaining
   through `gain_title`.
 
+- A title bought as a vampire enters (Victor Pelletier:
+  `Interrupt::BuyTitle`, before any contest, not a title its Methuselah
+  holds) and a yield instead of a contest (`Stat::YieldsTitleInsteadOfContest`
+  in `enter_title_contest`: the title lost).
+
 ### 6.10 Minions
 
 `state.rs`: `Minion`, `MinionKind::{Vampire, Ally, Created, Token}`.
@@ -1047,7 +1072,11 @@ engine masks), `cards/mod.rs` (the vocabulary: `Window`, `Actor`,
   the slave's ability in the blocked window (`Effect::SlaveTakesCombat`,
   `ActionCtx::slave`): the slave fights the blocker, the acting vampire
   unlocked, the block riders dropped, no `held_at_block` (Sniper Rifle,
-  ANK 20200115).
+  ANK 20200115). The slave clan is generated (`CryptCard::slave`); a slave
+  a card creates (Raw Recruit's Gargoyle) carries it in `Minion::slave_of`
+  (`GameState::slave_clan` reads both) and the slave's ability through
+  `vampires::RECRUITED_SLAVE`, which `cards::vampire_of` returns for it
+  (`Requirement::ActingOfHostsMasterClan`).
 - Out of play (`Minion::out_of_play`, `CardInPlay::out_of_play`, read by
   `present()`; `in_play` stays true, so a site reading it excludes them):
   Descent into Darkness's `Engine::descend` and `ascend` (temporary control
@@ -1066,6 +1095,22 @@ engine masks), `cards/mod.rs` (the vocabulary: `Window`, `Actor`,
   `unlocks_as_infernal`). `GameState::immune_non_aggravated` (Tye Cooper) in
   `apply_damage` and `damage_out_of_combat`; `GameState::is_seraph` reads the
   crypt's Seraph trait.
+
+- A ready titled vampire about to be burned or sent to torpor
+  (`titled_leaving`, from `burn_minion` and `minions_to_torpor` only) is
+  recorded in `GameState::titled_left` (votes read then; cleared each turn)
+  and offers `Interrupt::ReadyTitledLeft` (`Window::ReadyTitledLeft`:
+  Leadership Vacuum) to the other Methuselahs holding such a card. A
+  fledgling tethered to its vampire (`Minion::tethered_to`, Legion) acts,
+  blocks and plays cards only while that vampire is ready
+  (`GameState::tether_holds`, read at the action, block and play offers).
+- Blood Brother circles: `GameState::same_circle` (printed or chosen,
+  rules-qa 68.1); `same_circle_for_play` adds Angelo's any circle
+  (`Stat::AnyCircleForSanguinus`) and is read only for a card requiring
+  Sanguinus: by the `sanguinus` flag of `TargetSameCircle` and
+  `SameCircleAsOwnCombatant`, always by the other circle readers, which only
+  Sanguinus cards carry (§3's `circle_requirements_read_angelo_only_on_
+  sanguinus_cards`).
 
 ### 6.11 Cards in play
 
@@ -1290,6 +1335,12 @@ engine masks), `cards/mod.rs` (the vocabulary: `Window`, `Actor`,
   with influence-out). `Effect::HandToBottomX` (Nehemiah) moves the picked
   count to the library's bottom (`Interrupt::Bottom`).
 
+- "You can get +n hand size until the end of the turn" (Sascha Vykos:
+  `Interrupt::MayGainHandSize`, once each turn); Port Authority's delayed
+  replacement (`Modifier::DiscardActionReplacesAtUnlock`: the discard phase
+  action's card held to the Methuselah's next unlock phase, drawn before
+  anything unlocks).
+
 ### 6.15 Costs and reductions
 
 `plays.rs`.
@@ -1299,7 +1350,11 @@ engine masks), `cards/mod.rs` (the vocabulary: `Window`, `Actor`,
   locked at declaration (not if canceled as played) or at resolution for
   non-action cards; paid through `reduced_cost_with` / `spend_counters` (counters
   spent only as a cost is paid). Found or named cards take their reductions once
-  chosen (`CostThen`, `pay_named_discounts`, `payable_with_potential`).
+  chosen (`CostThen`, `pay_named_discounts`, `payable_with_potential`). A
+  seat-wide once-a-turn reducer (Baldesar: `Stat::SeatCostOffOncePerTurn`)
+  is announced as `PlayCtx::reducer` (`seat_reducers`, reading a named card
+  too) and spent where the cost is paid (`reducer_off`, `spend_reducer`):
+  the play, an equip from hand by a card, a found equipment.
 - Surcharges: `card_surcharge` (Discipline and event surcharges),
   `discipline_surcharge` (Libertas), `combat_card_surcharge` (Terror Frenzy,
   Djeneba), `torpid_surcharge`, Haven's +1 on masters targeting its minion;
@@ -1374,7 +1429,10 @@ engine masks), `cards/mod.rs` (the vocabulary: `Window`, `Actor`,
   clan beside the justicar, 4 votes); the Sabbat's bishop (1 vote),
   cardinal (3), priscus (none of its own, a ballot in the prisci block's 3
   votes: `VoteRecord::prisci`) and regent (4, the only unique one), each
-  only while Sabbat. Paths: `CryptCard::path`, `LibraryCard::path` (a path
+  only while Sabbat. "Flight [FLIGHT]" in a vampire's text is its `FLIGHT`
+  Discipline, an ally's on its type line its `Label::Flight` (Herald of
+  Topheth, read by `Minion::printed_disciplines`), read as a level
+  (`discipline_level(m, "flight")`, Patagia's lasting one too). Paths: `CryptCard::path`, `LibraryCard::path` (a path
   icon, a play requirement: rules-qa 49.7), `Minion::path()` read live,
   `GameState::follows` (present, Sabbat, on the path). A mode line "[pot]
   or [pre]" is either Discipline (rules-qa 52.1). `CryptCard::adv` marks an advanced
@@ -1499,7 +1557,9 @@ are in DESIGN §11.2.
   create takes the next number (`GameState::copy_counter`,
   `CopyCounter::deal`; none yet: a ghoul token is a library card).
 - Copies serve clients (a card followed across the table) and records; they
-  never take part in the game's identity: `Pile` compares and hashes as its
+  never take part in the game's identity (a `CopyId` stored in a new field
+  goes in `Untracked`, as `CardInPlay::held_vampire`'s: a bare one is
+  hashed, and the fuzz's replay check fails on it): `Pile` compares and hashes as its
   card ids alone, `Untracked` fields not at all, so the state hash,
   observations and options do not see them.
 - `census` lists every card with its copy and place; the fuzz tests check

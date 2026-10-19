@@ -4369,7 +4369,7 @@ fuzz_tests! {
                 });
             }
         },
-        seeds: 60,
+        seeds: 120,
         ..BASE
     };
     /// Legacy cards for TWDA decks, round 16 (slice 16ab): the vampires.
@@ -4428,6 +4428,244 @@ fuzz_tests! {
             }
         },
         seeds: 10,
+        ..BASE
+    };
+    /// Legacy cards for TWDA decks, round 17 (slice 16ac): the library cards.
+    random_games_with_twda_round_17a_hold_invariants_and_replay: Fixture {
+        slice: &[
+            "Alvusia",
+            "Argent Baton",
+            "As the Crow",
+            "Black Sunrise",
+            "Botched Move",
+            "Call the Wild Hunt",
+            "Centralized Background Check",
+            "Cold Aura",
+            "Command of the Beast",
+            "Crematorium",
+            "Dam the Heart's River",
+            "Dis Pater",
+            "Dive Bomb",
+            "Earthshock",
+            "Ensemble",
+            "Filchware's Pawn Shop",
+            "Gianna di Canneto",
+            "Giulia Giovanni Abruzzina",
+            "Guide and Mentor",
+            "Hand Contract",
+            "Increased Strength",
+            "Infamous Insurgent",
+            "Lapse",
+            "Leadership Vacuum",
+            "Legion",
+            "Morgue Hunting Ground",
+            "Path of Bone, The",
+            "Path of the Scorched Heart, The",
+            "Port Authority",
+            "Promise of 1528",
+            "Prophecies of Gehenna",
+            "Provision of the Silsila",
+            "Public Enemy",
+            "Raw Recruit",
+            "Retribution",
+            "Rockheart",
+            "Ruins of Villers Abbey, Belgium",
+            "Shakar",
+            "Spiritual Intervention",
+            "Spontaneous Power",
+            "Stonestrength",
+            "Therbold Realty",
+            "Thin Blood",
+            "Thoughts Betrayed",
+            "Waxen Poetica",
+            // A Master: Discipline for Legion, an archetype for Guide and
+            // Mentor, an animal for Call the Wild Hunt, equipment for
+            // Gianna, Filchware's and the Background Check.
+            "Abombwe",
+            "Monster",
+            "Dog Pack",
+            ".44 Magnum",
+            // A contract for Provision of the Silsila (its chain too rare
+            // for a key: its tests cover it).
+            "Priority Contract",
+        ],
+        covers: &[
+            "play:Alvusia",
+            "play:Argent Baton",
+            "play:As the Crow",
+            "play:Black Sunrise",
+            "play:Botched Move",
+            "play:Call the Wild Hunt",
+            "play:Centralized Background Check",
+            "play:Cold Aura",
+            "play:Command of the Beast",
+            "play:Crematorium",
+            "play:Dam the Heart's River",
+            "play:Dis Pater",
+            "play:Dive Bomb",
+            "play:Earthshock",
+            "play:Ensemble",
+            "play:Filchware's Pawn Shop",
+            "play:Gianna di Canneto",
+            "play:Giulia Giovanni Abruzzina",
+            "play:Guide and Mentor",
+            "play:Hand Contract",
+            "play:Increased Strength",
+            "play:Infamous Insurgent",
+            "play:Lapse",
+            "play:Leadership Vacuum",
+            "play:Legion",
+            "play:Morgue Hunting Ground",
+            "play:Path of Bone, The",
+            "play:Path of the Scorched Heart, The",
+            "play:Port Authority",
+            "play:Promise of 1528",
+            "play:Prophecies of Gehenna",
+            "play:Public Enemy",
+            "play:Raw Recruit",
+            "play:Retribution",
+            "play:Rockheart",
+            "play:Ruins of Villers Abbey, Belgium",
+            "play:Shakar",
+            "play:Spiritual Intervention",
+            "play:Spontaneous Power",
+            "play:Stonestrength",
+            "play:Therbold Realty",
+            "play:Thin Blood",
+            "play:Thoughts Betrayed",
+            "play:Waxen Poetica",
+            "ability:Alvusia",
+            "ability:Argent Baton",
+            "ability:Crematorium",
+            "ability:Dis Pater",
+            "ability:Filchware's Pawn Shop",
+            "ability:Gianna di Canneto",
+            "ability:Giulia Giovanni Abruzzina",
+            "ability:Guide and Mentor",
+            "ability:Hand Contract",
+            "ability:Infamous Insurgent",
+            "ability:Legion",
+            "ability:Morgue Hunting Ground",
+            "ability:Path of Bone, The",
+            "ability:Prophecies of Gehenna",
+            "ability:Raw Recruit",
+            "ability:Ruins of Villers Abbey, Belgium",
+            "ability:Shakar",
+            "ability:Waxen Poetica",
+        ],
+        setup: |e, _| {
+            let has = |c: &CryptCard, d: &str| c.disciplines.iter().any(|x| x.eq_ignore_ascii_case(d));
+            use zvtes::crypt::Sect;
+            per_seat(e, |c| c.clan == "Tremere", 4);
+            per_seat(e, |c| c.clan == "Gargoyle", 4);
+            per_seat(e, |c| c.clan == "Giovanni", 4);
+            per_seat(e, |c| c.clan == "Banu Haqim", 4);
+            per_seat(e, |c| c.clan == "Daughter of Cacophony", 4);
+            per_seat(e, |c| c.clan == "Harbinger of Skulls", 4);
+            per_seat(e, |c| c.clan == "True Brujah", 4);
+            per_seat(e, |c| c.black_hand, 4);
+            per_seat(e, |c| c.sect == Sect::Camarilla && c.capacity >= 6, 4);
+            per_seat(e, |c| c.sect == Sect::Anarch, 4);
+            per_seat(e, |c| c.title != zvtes::crypt::Title::None, 4);
+            per_seat(e, |c| c.capacity >= 8, 4);
+            per_seat(e, |c| has(c, "ani") && has(c, "pro"), 4);
+            // Giulia beside seat 0's Giovanni: her lock needs one in combat.
+            e.add_ally(SeatId(0), zvtes::state::find_library("Giulia Giovanni Abruzzina"));
+            // Dis Pater in play there, seven ash heap cards to remove.
+            e.state.cards.push(zvtes::state::CardInPlay::new(
+                zvtes::state::find_library("Dis Pater"),
+                SeatId(0),
+                None,
+                0,
+            ));
+            for _ in 0..7 {
+                e.state.seats[0].ash.push(zvtes::state::find_library("Conceal"));
+            }
+        },
+        seeds: 150,
+        ..BASE
+    };
+    /// Legacy cards for TWDA decks, round 17 (slice 16ac): the vampires.
+    random_games_with_twda_round_17b_hold_invariants_and_replay: Fixture {
+        // Equipment for Martino, Baldesar, Fatima and White Lily, the Eye
+        // for Lambach, a location for Guillaume and Porphyry, a political
+        // action for Jessica and Reverend Adams, a werewolf for Joe, a
+        // Blood Sorcery card for Claudio's discard.
+        slice: &[
+            ".44 Magnum",
+            "Laptop Computer",
+            "Eye of Hazimel",
+            "Palatial Estate",
+            "Kine Resources Contested",
+            "Conceal",
+            "Renegade Garou",
+            "Apportation",
+        ],
+        covers: &[
+            "ability:Angelo",
+            "ability:Anu Diptinatpa",
+            "ability:Barbaro Lucchese",
+            "ability:Claudio Severino",
+            "ability:Fatima al-Faqadi",
+            "ability:Hannibal",
+            "ability:Joe \"Boot\" Hill",
+            "ability:Lambach",
+            "ability:Nu, The Pillar",
+            "ability:Porphyry",
+            "ability:Verbruch",
+            "ability:White Lily",
+            "ability:Xaviar",
+            "ability:Yong-Sun, Harmonist",
+        ],
+        setup: |e, _| {
+            named(
+                e,
+                &[
+                    "Angelo",
+                    "Anu Diptinatpa",
+                    "Baldesar Rossellini",
+                    "Barbaro Lucchese",
+                    "Claudio Severino",
+                    "Dr. Oliver Genet",
+                    "Echo",
+                    "Fatima al-Faqadi",
+                    "Genina, The Red Poet",
+                    "Guillaume Giovanni",
+                    "Joe \"Boot\" Hill",
+                    "Kestrelle Hayes",
+                    "Kisha Bhimji",
+                    "Lucita",
+                    "Martino della Passaglia",
+                    "Mitchell, The Headhunter",
+                    "Nu, The Pillar",
+                    "Porphyry",
+                    "Reverend Adams",
+                    "Sascha Vykos, The Angel of Caine",
+                    "Tori Longwood",
+                    "Verbruch",
+                    "Victor Pelletier",
+                    "White Lily",
+                    "Yong-Sun, Harmonist",
+                ],
+            );
+            per_seat(e, |c| c.name == "Xaviar" && !c.adv, 4);
+            // A werewolf at every seat, for Joe "Boot" Hill's rush.
+            for s in 0..4 {
+                e.add_ally(SeatId(s), zvtes::state::find_library("Renegade Garou"));
+            }
+            per_seat(
+                e,
+                |c| c.adv && ["Alan Sovereign", "Hannibal", "Jessica", "Lambach"].contains(&c.name),
+                4,
+            );
+            // Hesha's groups are one vampire: G2 only if no Hesha is dealt.
+            if !e.state.minions.iter().any(|m| m.name() == "Hesha Ruhadze") {
+                per_seat(e, |c| c.name == "Hesha Ruhadze" && c.group == 2, 4);
+            }
+            per_seat(e, |c| c.clan == "Tremere", 4);
+            per_seat(e, |c| c.clan == "Werewolf" || c.clan == "Gargoyle", 4);
+        },
+        seeds: 150,
         ..BASE
     };
 }

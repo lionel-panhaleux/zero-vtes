@@ -488,6 +488,7 @@ impl Build<'_> {
             (MarkerKind::Nightmare, m.nightmare),
             (MarkerKind::Torture, m.torture),
             (MarkerKind::Pact, m.pact),
+            (MarkerKind::Taint, m.taint),
         ] {
             if n > 0 {
                 markers.push(marker(kind, n));
@@ -611,6 +612,18 @@ pub fn snake(s: &str) -> String {
         .replace([' ', '-'], "_")
 }
 
+/// A title as a snake_case id for an option's `detail`: `primogen`,
+/// `prince_of_paris`, `justicar_of_ventrue`.
+pub(crate) fn title_detail(t: Ti) -> String {
+    match title(t) {
+        Some(Title {
+            id, of: Some(of), ..
+        }) => format!("{id}_of_{}", snake(&of)),
+        Some(Title { id, .. }) => id,
+        None => "none".into(),
+    }
+}
+
 fn title(t: Ti) -> Option<Title> {
     let make = |id: &str, of: Option<&str>, votes: Option<u8>| {
         Some(Title {
@@ -685,6 +698,16 @@ pub(crate) fn strike(k: Sk, card: Option<u32>) -> Strike {
             StrikeKind::RangedBurnEquipment
         }
         Sk::Corrupt => StrikeKind::Corrupt,
+        // Earthshock: a ranged damage strike, its amount told live.
+        Sk::RangedStrength { .. } => {
+            s.ranged = true;
+            StrikeKind::Damage
+        }
+        Sk::BurnLife { n } => {
+            s.n = Some(n);
+            s.ranged = true;
+            StrikeKind::BurnLife
+        }
     };
     s
 }

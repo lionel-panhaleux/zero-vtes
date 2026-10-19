@@ -184,6 +184,11 @@ pub fn purpose(i: &Interrupt) -> Purpose {
         I::MayStoreAim { .. } => Purpose::MayStoreAim,
         I::MayTorture { .. } => Purpose::MayTorture,
         I::MayGainPool { .. } => Purpose::MayGainPool,
+        I::MayGainHandSize { .. } => Purpose::MayGainHandSize,
+        I::BuyTitle { .. } => Purpose::BuyTitle,
+        I::NameAshEquipment { .. } => Purpose::NameAshEquipment,
+        I::NameMasterDiscipline { .. } => Purpose::NameMasterDiscipline,
+        I::ReadyTitledLeft { .. } => Purpose::ReadyTitledLeft,
         I::MoveForBlood { .. } => Purpose::MoveForBlood,
         I::Redraw { .. } => Purpose::Redraw,
     }

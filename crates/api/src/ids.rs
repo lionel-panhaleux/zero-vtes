@@ -229,6 +229,8 @@ ids!(StrikeKind {
     BurnEquipment,
     RangedBurnEquipment,
     Corrupt,
+    /// Life burned from the opposing ally (`n`), not damage (Argent Baton).
+    BurnLife,
 });
 
 ids!(ReferendumStep {
@@ -449,6 +451,9 @@ ids!(
         /// chosen so far, from the top down; the rest still in their old order
         /// below them.
         Reorder,
+        /// `seat` discards `n` more cards of their choice from hand; `detail`
+        /// `combat` (combat cards only) or `animal` (animals only: Call the
+        /// Wild Hunt's X).
         DiscardChosen,
         /// `seat` removes `left` more cards of their choice from `of`'s ash
         /// heap from the game; then `of` burns `pool` pool (Shroud of Decay
@@ -636,6 +641,25 @@ ids!(
         /// "You can gain n pool" printed on `minion` (Matasuntha): Pass, or
         /// `ResolvePrinted` to gain it — optional, never worse.
         MayGainPool,
+        /// "You can get +n hand size until the end of the turn" printed on
+        /// `minion` (Sascha Vykos), once each turn: Pass, or `ResolvePrinted`.
+        MayGainHandSize,
+        /// A ready titled vampire of `seat`'s was burned or sent to torpor:
+        /// the out-of-turn card played for it (Leadership Vacuum), or pass.
+        ReadyTitledLeft,
+        /// Legion's action announced: the master Discipline card named, from
+        /// hand or ash heap (`find_card`).
+        NameMasterDiscipline,
+        /// Filchware's Pawn Shop's equip action announced: `minion`'s
+        /// equipment named in an ash heap, the heap first (`choose_seat`),
+        /// then the card (`find_card`; `seat`: that heap, `detail`:
+        /// `named`).
+        NameAshEquipment,
+        /// "When it enters play, you may pay n pool to make it <title>"
+        /// (Victor Pelletier, `minion`): `SetX(n)` pays n pool for the title
+        /// its option's effect names (`role`, `detail`: `primogen`,
+        /// `prince_of_paris`…), or pass.
+        BuyTitle,
         /// "This acting vampire can burn n blood to move the stolen vampire to
         /// your ready region" (Graverobbing [DOM]): `ChooseMinion` it, or
         /// pass.
@@ -684,6 +708,8 @@ ids!(
         RedListMark,
         /// Pact counters (`n`; Diabolic Lure).
         Pact,
+        /// Taint counters (`n`; Barbaro Lucchese).
+        Taint,
         /// Out of play with its cards, its effects remembered (Descent into
         /// Darkness).
         OutOfPlay,

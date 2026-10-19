@@ -34,8 +34,10 @@ MINI_PRECON_SETS = ["New Blood", "New Blood II", "New Blood III"]
 # "Assamite Justicar" is the Banu Haqim Justicar's title).
 V5_CLAN = {"Assamite": "Banu Haqim"}
 
+# Some advanced printings open with "Advanced, " (Alan Sovereign, Jessica):
+# the crypt's `adv` flag already says so.
 TITLE = re.compile(
-    r"^(Camarilla|Anarch|Independent|Sabbat|Laibon)"
+    r"^(?:Advanced, )?(Camarilla|Anarch|Independent|Sabbat|Laibon)"
     r"(?: (Prince|Baron|Archbishop) of ((?:[^:.]|\.(?=\w))+)| (primogen)| (\w+) Justicar"
     r"| (\w+) Inner Circle| (bishop|cardinal|priscus|regent|magaji))?[:.]"
 )
@@ -179,6 +181,9 @@ def generate(cards):
     out.append("    /// circle.\"); `None`: a circle of one (LSJ 20020609), New Blood's")
     out.append("    /// chosen as he enters play.")
     out.append("    pub circle: Option<&'static str>,")
+    out.append("    /// \"Tremere slave\" (Porphyry, Tupdog): the clan it is enslaved to")
+    out.append("    /// (rulebook \"Slave\").")
+    out.append("    pub slave: Option<&'static str>,")
     out.append("}")
     out.append("")
     out.append("#[rustfmt::skip]")
@@ -191,7 +196,10 @@ def generate(cards):
         out.append(f"        capacity: {c['capacity']},")
         out.append(f"        group: {0 if c['group'] == 'ANY' else int(c['group'])},")
         out.append(f"        clan: {rust_str(c['clans'][0])},")
-        disc = ", ".join(rust_str(d) for d in c.get("disciplines", []))
+        # Flight is printed in the text, not KRCG's disciplines (Tupdog,
+        # Verbruch): a superior Discipline the cards requiring [FLIGHT] read.
+        flight = ["FLIGHT"] if "Flight [FLIGHT]" in c["card_text"] else []
+        disc = ", ".join(rust_str(d) for d in c.get("disciplines", []) + flight)
         out.append(f"        disciplines: &[{disc}],")
         out.append(f"        sect: Sect::{sect},")
         out.append(f"        title: {title},")
@@ -213,6 +221,8 @@ def generate(cards):
         out.append(f"        red_list: {flag(re.search(r'(^|[.:] )Red List[.:]', text))},")
         circle = "Blood Brother" in c["clans"] and re.search(r"(?:^|[.:] )([A-Z][a-z]+(?: City)?) [Cc]ircle[.:]", text)
         out.append(f"        circle: {f'Some({rust_str(circle.group(1))})' if circle else 'None'},")
+        slave = re.search(r"(?:^|[.:] )([A-Z]\w+(?: antitribu)?) slave[.:]", text)
+        out.append(f"        slave: {f'Some({rust_str(slave.group(1))})' if slave else 'None'},")
         out.append("    },")
     out.append("];")
     out.append("")

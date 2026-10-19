@@ -1,6 +1,6 @@
-/* zvtes protocol 2.2.0 (docs/protocol.md): generated from
+/* zvtes protocol 2.3.0 (docs/protocol.md): generated from
  * crates/api/schema.json by scripts/gen_ts.py, do not edit. */
-export const PROTOCOL_VERSION = '2.2.0'
+export const PROTOCOL_VERSION = '2.3.0'
 
 /**
  * A command as sent: an optional client id, echoed by an `error` it
@@ -855,6 +855,7 @@ export type MarkerKind =
     | 'effect'
     | 'red_list_mark'
     | 'pact'
+    | 'taint'
     | 'out_of_play'
     | 'unknown'
 
@@ -1069,7 +1070,6 @@ export type Player = {
  * `source`, what the decision chooses. Open: a later engine adds more.
  */
 export type Purpose = 
-    | 'discard_chosen'
     | 'move_card_to_titled'
     | 'move_off_burned_bearer'
     | 'secret_number'
@@ -1102,6 +1102,7 @@ export type Purpose =
     | 'avoid_damage'
     | 'discard_from_hand_of'
     | 'reorder'
+    | 'discard_chosen'
     | 'remove_from_ash'
     | 'discipline_search'
     | 'may_draw_extra'
@@ -1150,6 +1151,11 @@ export type Purpose =
     | 'may_store_aim'
     | 'may_torture'
     | 'may_gain_pool'
+    | 'may_gain_hand_size'
+    | 'ready_titled_left'
+    | 'name_master_discipline'
+    | 'name_ash_equipment'
+    | 'buy_title'
     | 'move_for_blood'
     | 'redraw'
     | 'unknown'
@@ -1307,6 +1313,7 @@ export type StrikeKind =
     | 'corrupt'
     | 'card_effect'
     | 'steal_weapon'
+    | 'burn_life'
     | 'unknown'
 
 export type StruckSide = {

@@ -278,6 +278,7 @@ pub fn strike(s: Option<&Strike>) -> String {
         StrikeKind::BurnEquipment => "burn equipment".into(),
         StrikeKind::RangedBurnEquipment => "burn equipment, ranged".into(),
         StrikeKind::Corrupt => "corruption counter".into(),
+        StrikeKind::BurnLife => format!("burn {n} life, ranged"),
     }
 }
 

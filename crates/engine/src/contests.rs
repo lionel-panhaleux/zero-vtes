@@ -278,6 +278,32 @@ impl Engine {
             return;
         }
         let rivals = self.state.title_rivals(m);
+        if rivals.is_empty() {
+            return;
+        }
+        // Victor Pelletier: "if his title would be contested, he
+        // immediately yields instead of contesting".
+        let yields = |e: &Self, v: MinionId| {
+            e.state.printed_mod(
+                v,
+                crate::cards::Stat::YieldsTitleInsteadOfContest,
+                crate::state::PrintedCtx::default(),
+            ) > 0
+        };
+        if yields(self, m) {
+            self.lose_title(m);
+            return;
+        }
+        let rivals: Vec<MinionId> = rivals
+            .into_iter()
+            .filter(|&r| {
+                let y = yields(self, r);
+                if y {
+                    self.lose_title(r);
+                }
+                !y
+            })
+            .collect();
         if !rivals.is_empty() {
             self.set_title_contested(m, true);
             for r in rivals {

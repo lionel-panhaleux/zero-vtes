@@ -98,10 +98,13 @@ pub struct CryptCard {
     /// circle."); `None`: a circle of one (LSJ 20020609), New Blood's
     /// chosen as he enters play.
     pub circle: Option<&'static str>,
+    /// "Tremere slave" (Porphyry, Tupdog): the clan it is enslaved to
+    /// (rulebook "Slave").
+    pub slave: Option<&'static str>,
 }
 
 #[rustfmt::skip]
-pub static CRYPT: [CryptCard; 651] = [
+pub static CRYPT: [CryptCard; 687] = [
     CryptCard {
         id: 201661,
         name: "\"Coach\" Tyrone Soros",
@@ -123,6 +126,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 201725,
@@ -145,6 +149,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 201663,
@@ -167,6 +172,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 201623,
@@ -189,6 +195,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 201634,
@@ -211,6 +218,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 201635,
@@ -233,6 +241,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 201636,
@@ -255,6 +264,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 201664,
@@ -277,6 +287,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 201708,
@@ -299,6 +310,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 200030,
@@ -321,6 +333,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 200039,
@@ -328,7 +341,7 @@ pub static CRYPT: [CryptCard; 651] = [
         capacity: 7,
         group: 6,
         clan: "Gargoyle",
-        disciplines: &["aus", "cel", "for", "POT", "VIS"],
+        disciplines: &["aus", "cel", "for", "POT", "VIS", "FLIGHT"],
         sect: Sect::Anarch,
         title: Title::None,
         merged_title: None,
@@ -343,6 +356,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 201717,
@@ -365,6 +379,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 201529,
@@ -387,6 +402,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 201530,
@@ -409,6 +425,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 201531,
@@ -431,6 +448,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 201575,
@@ -453,6 +471,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 201576,
@@ -475,6 +494,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 201577,
@@ -497,6 +517,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 201624,
@@ -519,6 +540,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 201532,
@@ -541,6 +563,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 200081,
@@ -563,6 +586,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 201666,
@@ -585,6 +609,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 201657,
@@ -607,6 +632,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 200105,
@@ -629,6 +655,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 200123,
@@ -651,6 +678,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 201709,
@@ -673,6 +701,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 200132,
@@ -695,6 +724,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 201655,
@@ -717,6 +747,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 201533,
@@ -739,6 +770,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 201578,
@@ -761,6 +793,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 201579,
@@ -783,6 +816,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 201534,
@@ -805,6 +839,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 201535,
@@ -827,6 +862,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 201637,
@@ -849,6 +885,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 201710,
@@ -871,6 +908,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 201536,
@@ -893,6 +931,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 201781,
@@ -915,6 +954,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 201537,
@@ -937,6 +977,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 201580,
@@ -959,6 +1000,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 201711,
@@ -981,6 +1023,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 201581,
@@ -1003,6 +1046,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 201667,
@@ -1025,6 +1069,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 201538,
@@ -1047,6 +1092,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 201539,
@@ -1069,6 +1115,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 201625,
@@ -1091,6 +1138,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 201521,
@@ -1113,6 +1161,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 201668,
@@ -1135,6 +1184,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 201540,
@@ -1157,6 +1207,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 201626,
@@ -1179,6 +1230,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 201541,
@@ -1201,6 +1253,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 201542,
@@ -1223,6 +1276,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 201638,
@@ -1245,6 +1299,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 201669,
@@ -1267,6 +1322,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 201543,
@@ -1289,6 +1345,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 200303,
@@ -1311,6 +1368,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 201582,
@@ -1333,6 +1391,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 201729,
@@ -1355,6 +1414,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 201639,
@@ -1377,6 +1437,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 201583,
@@ -1399,6 +1460,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 201640,
@@ -1421,6 +1483,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 201782,
@@ -1443,6 +1506,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 201670,
@@ -1465,6 +1529,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 201584,
@@ -1487,6 +1552,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 201671,
@@ -1509,6 +1575,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 201544,
@@ -1531,6 +1598,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 201545,
@@ -1553,6 +1621,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 201546,
@@ -1575,6 +1644,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 201730,
@@ -1597,6 +1667,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 201585,
@@ -1619,6 +1690,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 201586,
@@ -1641,6 +1713,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 201627,
@@ -1663,6 +1736,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 201587,
@@ -1685,6 +1759,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 201588,
@@ -1707,6 +1782,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 201547,
@@ -1729,6 +1805,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 201672,
@@ -1751,6 +1828,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 201718,
@@ -1773,6 +1851,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 201548,
@@ -1795,6 +1874,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 201712,
@@ -1817,6 +1897,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 201589,
@@ -1839,6 +1920,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 201641,
@@ -1861,6 +1943,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 201642,
@@ -1883,6 +1966,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 201783,
@@ -1905,6 +1989,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 200562,
@@ -1927,6 +2012,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 201590,
@@ -1949,6 +2035,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 201731,
@@ -1971,6 +2058,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 201591,
@@ -1993,6 +2081,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 201719,
@@ -2015,6 +2104,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 201720,
@@ -2037,6 +2127,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 201549,
@@ -2059,6 +2150,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 201550,
@@ -2081,6 +2173,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 201673,
@@ -2103,6 +2196,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 201592,
@@ -2125,6 +2219,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 201551,
@@ -2147,6 +2242,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 201628,
@@ -2169,6 +2265,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 201674,
@@ -2191,6 +2288,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 201593,
@@ -2213,6 +2311,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 201595,
@@ -2235,6 +2334,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 200723,
@@ -2257,6 +2357,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 201596,
@@ -2279,6 +2380,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 201713,
@@ -2301,6 +2403,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 201597,
@@ -2323,6 +2426,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 201598,
@@ -2345,6 +2449,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 201604,
@@ -2367,6 +2472,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 201552,
@@ -2389,6 +2495,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 201659,
@@ -2411,6 +2518,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 201629,
@@ -2433,6 +2541,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 201599,
@@ -2455,6 +2564,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 201574,
@@ -2477,6 +2587,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 201643,
@@ -2499,6 +2610,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 201553,
@@ -2521,6 +2633,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 200816,
@@ -2543,6 +2656,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 201554,
@@ -2565,6 +2679,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 201721,
@@ -2587,6 +2702,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 201555,
@@ -2609,6 +2725,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 201526,
@@ -2631,6 +2748,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 201556,
@@ -2653,6 +2771,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 201675,
@@ -2675,6 +2794,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 201557,
@@ -2697,6 +2817,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 201676,
@@ -2719,6 +2840,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 201600,
@@ -2741,6 +2863,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 201722,
@@ -2763,6 +2886,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 201677,
@@ -2785,6 +2909,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 201601,
@@ -2807,6 +2932,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 201714,
@@ -2829,6 +2955,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 201630,
@@ -2851,6 +2978,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 201602,
@@ -2873,6 +3001,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 201558,
@@ -2895,6 +3024,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 201631,
@@ -2917,6 +3047,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 201559,
@@ -2939,6 +3070,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 201603,
@@ -2961,6 +3093,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 201644,
@@ -2983,6 +3116,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 201605,
@@ -3005,6 +3139,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 201560,
@@ -3027,6 +3162,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 201645,
@@ -3049,6 +3185,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 201561,
@@ -3071,6 +3208,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 201723,
@@ -3093,6 +3231,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 201724,
@@ -3115,6 +3254,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 201784,
@@ -3137,6 +3277,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 201562,
@@ -3159,6 +3300,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 201563,
@@ -3181,6 +3323,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 201606,
@@ -3203,6 +3346,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 201632,
@@ -3225,6 +3369,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 201607,
@@ -3247,6 +3392,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 201678,
@@ -3269,6 +3415,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 201564,
@@ -3291,6 +3438,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 201785,
@@ -3313,6 +3461,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 201608,
@@ -3335,6 +3484,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 201609,
@@ -3357,6 +3507,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 201679,
@@ -3379,6 +3530,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 201656,
@@ -3401,6 +3553,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 201680,
@@ -3423,6 +3576,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 201565,
@@ -3445,6 +3599,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 201646,
@@ -3467,6 +3622,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 201726,
@@ -3489,6 +3645,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 201566,
@@ -3511,6 +3668,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 201727,
@@ -3533,6 +3691,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 201681,
@@ -3555,6 +3714,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 201682,
@@ -3577,6 +3737,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 201647,
@@ -3599,6 +3760,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 201660,
@@ -3621,6 +3783,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 201610,
@@ -3643,6 +3806,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 201648,
@@ -3665,6 +3829,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 201649,
@@ -3687,6 +3852,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 201715,
@@ -3709,6 +3875,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 201683,
@@ -3731,6 +3898,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 201732,
@@ -3753,6 +3921,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 201567,
@@ -3775,6 +3944,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 201650,
@@ -3797,6 +3967,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 201651,
@@ -3819,6 +3990,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 201684,
@@ -3841,6 +4013,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 201611,
@@ -3863,6 +4036,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 201568,
@@ -3885,6 +4059,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 201786,
@@ -3907,6 +4082,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 201685,
@@ -3929,6 +4105,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 201658,
@@ -3951,6 +4128,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 201686,
@@ -3973,6 +4151,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 201662,
@@ -3995,6 +4174,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 201612,
@@ -4017,6 +4197,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 201687,
@@ -4039,6 +4220,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 201652,
@@ -4061,6 +4243,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 201321,
@@ -4083,6 +4266,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 201569,
@@ -4105,6 +4289,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 201688,
@@ -4127,6 +4312,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 201570,
@@ -4149,6 +4335,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 201571,
@@ -4171,6 +4358,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 201613,
@@ -4193,6 +4381,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 201728,
@@ -4215,6 +4404,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 201572,
@@ -4237,6 +4427,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 201689,
@@ -4259,6 +4450,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 201653,
@@ -4281,6 +4473,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 201614,
@@ -4303,6 +4496,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 201615,
@@ -4325,6 +4519,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 201594,
@@ -4347,6 +4542,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 201573,
@@ -4369,6 +4565,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 201465,
@@ -4391,6 +4588,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 201690,
@@ -4413,6 +4611,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 201691,
@@ -4435,6 +4634,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 201716,
@@ -4457,6 +4657,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 201692,
@@ -4479,6 +4680,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 201665,
@@ -4501,6 +4703,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 201617,
@@ -4523,6 +4726,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 200575,
@@ -4545,6 +4749,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 200634,
@@ -4567,6 +4772,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 200937,
@@ -4589,6 +4795,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 201312,
@@ -4611,6 +4818,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 201478,
@@ -4633,6 +4841,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 201694,
@@ -4655,6 +4864,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 201696,
@@ -4677,6 +4887,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 201699,
@@ -4699,6 +4910,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 201702,
@@ -4721,6 +4933,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 201703,
@@ -4743,6 +4956,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 201706,
@@ -4765,6 +4979,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 201707,
@@ -4787,6 +5002,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 201733,
@@ -4809,6 +5025,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 201744,
@@ -4831,6 +5048,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 201747,
@@ -4853,6 +5071,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 201760,
@@ -4875,6 +5094,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 201762,
@@ -4897,6 +5117,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 201764,
@@ -4919,6 +5140,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 201766,
@@ -4941,6 +5163,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 201769,
@@ -4963,6 +5186,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 201770,
@@ -4985,6 +5209,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 201774,
@@ -5007,6 +5232,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 201775,
@@ -5029,6 +5255,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 201776,
@@ -5051,6 +5278,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 201735,
@@ -5073,6 +5301,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 201736,
@@ -5095,6 +5324,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 201743,
@@ -5117,6 +5347,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 201746,
@@ -5139,6 +5370,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 201748,
@@ -5161,6 +5393,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 201751,
@@ -5183,6 +5416,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 201753,
@@ -5205,6 +5439,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 201754,
@@ -5227,6 +5462,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 201758,
@@ -5249,6 +5485,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 201767,
@@ -5271,6 +5508,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 201777,
@@ -5293,6 +5531,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 201778,
@@ -5315,6 +5554,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 201738,
@@ -5337,6 +5577,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 201739,
@@ -5359,6 +5600,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 201742,
@@ -5381,6 +5623,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 201745,
@@ -5403,6 +5646,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 201755,
@@ -5425,6 +5669,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 201756,
@@ -5447,6 +5692,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 201759,
@@ -5469,6 +5715,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 201761,
@@ -5491,6 +5738,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 201763,
@@ -5513,6 +5761,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 201768,
@@ -5535,6 +5784,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 201772,
@@ -5557,6 +5807,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 201773,
@@ -5579,6 +5830,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 201734,
@@ -5601,6 +5853,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 201737,
@@ -5623,6 +5876,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 201740,
@@ -5645,6 +5899,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 201741,
@@ -5667,6 +5922,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 201749,
@@ -5689,6 +5945,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 201750,
@@ -5711,6 +5968,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 201752,
@@ -5733,6 +5991,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 201757,
@@ -5755,6 +6014,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 201765,
@@ -5777,6 +6037,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 201771,
@@ -5799,6 +6060,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 201779,
@@ -5821,6 +6083,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 201780,
@@ -5843,6 +6106,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 200060,
@@ -5865,6 +6129,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 200076,
@@ -5887,6 +6152,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 201527,
@@ -5909,6 +6175,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 201633,
@@ -5931,6 +6198,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 200136,
@@ -5953,6 +6221,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 200190,
@@ -5975,6 +6244,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 200224,
@@ -5997,6 +6267,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 200317,
@@ -6019,6 +6290,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 200349,
@@ -6041,6 +6313,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 200410,
@@ -6063,6 +6336,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 200753,
@@ -6085,6 +6359,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 200968,
@@ -6107,6 +6382,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 201176,
@@ -6129,6 +6405,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 201253,
@@ -6151,6 +6428,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 201341,
@@ -6173,6 +6451,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 201423,
@@ -6195,6 +6474,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 201523,
@@ -6217,6 +6497,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 201524,
@@ -6239,6 +6520,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 200034,
@@ -6261,6 +6543,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 200373,
@@ -6283,6 +6566,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 200455,
@@ -6305,6 +6589,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 200508,
@@ -6327,6 +6612,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 200521,
@@ -6349,6 +6635,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 200533,
@@ -6371,6 +6658,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 200638,
@@ -6393,6 +6681,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 200848,
@@ -6415,6 +6704,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 200946,
@@ -6437,6 +6727,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 200956,
@@ -6459,6 +6750,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 201029,
@@ -6481,6 +6773,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 201160,
@@ -6503,6 +6796,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 201334,
@@ -6525,6 +6819,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 201438,
@@ -6547,6 +6842,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 201621,
@@ -6569,6 +6865,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 200179,
@@ -6591,6 +6888,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 200242,
@@ -6613,6 +6911,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 200705,
@@ -6635,6 +6934,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 200856,
@@ -6657,6 +6957,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 200905,
@@ -6679,6 +6980,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 200999,
@@ -6701,6 +7003,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 201048,
@@ -6723,6 +7026,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 201362,
@@ -6745,6 +7049,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 201698,
@@ -6767,6 +7072,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 200011,
@@ -6789,6 +7095,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 200049,
@@ -6811,6 +7118,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 200106,
@@ -6833,6 +7141,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 200107,
@@ -6855,6 +7164,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 200116,
@@ -6877,6 +7187,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 200204,
@@ -6899,6 +7210,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 200339,
@@ -6921,6 +7233,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 200418,
@@ -6943,6 +7256,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 200478,
@@ -6965,6 +7279,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 200528,
@@ -6987,6 +7302,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 200686,
@@ -7009,6 +7325,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 200767,
@@ -7031,6 +7348,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 200890,
@@ -7053,6 +7371,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 200910,
@@ -7075,6 +7394,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 201046,
@@ -7097,6 +7417,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 201079,
@@ -7119,6 +7440,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 201087,
@@ -7141,6 +7463,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 201151,
@@ -7163,6 +7486,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 201222,
@@ -7185,6 +7509,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 201393,
@@ -7192,7 +7517,7 @@ pub static CRYPT: [CryptCard; 651] = [
         capacity: 1,
         group: 3,
         clan: "Gargoyle",
-        disciplines: &["POT", "VIS"],
+        disciplines: &["POT", "VIS", "FLIGHT"],
         sect: Sect::Sabbat,
         title: Title::None,
         merged_title: None,
@@ -7207,6 +7532,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: Some("Tremere antitribu"),
     },
     CryptCard {
         id: 201410,
@@ -7229,6 +7555,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 201411,
@@ -7251,6 +7578,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 201444,
@@ -7273,6 +7601,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 200062,
@@ -7295,6 +7624,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 200239,
@@ -7317,6 +7647,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 200595,
@@ -7339,6 +7670,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 200842,
@@ -7361,6 +7693,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 201472,
@@ -7383,6 +7716,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 200131,
@@ -7405,6 +7739,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 200547,
@@ -7427,6 +7762,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 200663,
@@ -7449,6 +7785,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 200836,
@@ -7471,6 +7808,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 201192,
@@ -7493,6 +7831,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 200330,
@@ -7515,6 +7854,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 200642,
@@ -7537,6 +7877,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 201335,
@@ -7559,6 +7900,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 201347,
@@ -7581,6 +7923,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 200008,
@@ -7603,6 +7946,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 200010,
@@ -7625,6 +7969,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 200014,
@@ -7647,6 +7992,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 200059,
@@ -7669,6 +8015,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 200080,
@@ -7691,6 +8038,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 200122,
@@ -7713,6 +8061,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 200135,
@@ -7735,6 +8084,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 200158,
@@ -7757,6 +8107,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 200167,
@@ -7779,6 +8130,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 200185,
@@ -7801,6 +8153,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 200200,
@@ -7823,6 +8176,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 200254,
@@ -7845,6 +8199,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 200256,
@@ -7867,6 +8222,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 200259,
@@ -7889,6 +8245,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 200262,
@@ -7911,6 +8268,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 200291,
@@ -7933,6 +8291,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 200344,
@@ -7955,6 +8314,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 200363,
@@ -7977,6 +8337,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 200366,
@@ -7999,6 +8360,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 200400,
@@ -8021,6 +8383,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 200404,
@@ -8043,6 +8406,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: true,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 200424,
@@ -8065,6 +8429,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: true,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 200428,
@@ -8087,6 +8452,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 200430,
@@ -8109,6 +8475,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 200434,
@@ -8131,6 +8498,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 200441,
@@ -8153,6 +8521,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 200468,
@@ -8175,6 +8544,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 200515,
@@ -8197,6 +8567,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 200586,
@@ -8219,6 +8590,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 200600,
@@ -8241,6 +8613,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 200639,
@@ -8263,6 +8636,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 200658,
@@ -8285,6 +8659,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 200708,
@@ -8307,6 +8682,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 200779,
@@ -8329,6 +8705,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 200824,
@@ -8351,6 +8728,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 200873,
@@ -8373,6 +8751,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 200879,
@@ -8395,6 +8774,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 200915,
@@ -8417,6 +8797,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 200941,
@@ -8439,6 +8820,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 200954,
@@ -8461,6 +8843,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 200985,
@@ -8483,6 +8866,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 200992,
@@ -8505,6 +8889,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 201010,
@@ -8527,6 +8912,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 201052,
@@ -8549,6 +8935,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: true,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 201057,
@@ -8571,6 +8958,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 201068,
@@ -8593,6 +8981,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 201085,
@@ -8615,6 +9004,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 201089,
@@ -8637,6 +9027,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 201110,
@@ -8659,6 +9050,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 201111,
@@ -8681,6 +9073,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 201116,
@@ -8703,6 +9096,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 201134,
@@ -8725,6 +9119,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 201139,
@@ -8747,6 +9142,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 201146,
@@ -8769,6 +9165,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 201165,
@@ -8791,6 +9188,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 201220,
@@ -8813,6 +9211,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: true,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 201280,
@@ -8835,6 +9234,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 201305,
@@ -8857,6 +9257,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 201318,
@@ -8879,6 +9280,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 201349,
@@ -8901,6 +9303,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 201369,
@@ -8923,6 +9326,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 201408,
@@ -8945,6 +9349,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 201419,
@@ -8967,6 +9372,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 201494,
@@ -8989,6 +9395,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 201496,
@@ -9011,6 +9418,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 201519,
@@ -9033,6 +9441,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 200021,
@@ -9055,6 +9464,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: true,
         red_list: false,
         circle: Some("Budapest"),
+        slave: None,
     },
     CryptCard {
         id: 200170,
@@ -9077,6 +9487,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: true,
         red_list: false,
         circle: Some("Chicago"),
+        slave: None,
     },
     CryptCard {
         id: 200319,
@@ -9099,6 +9510,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: true,
         red_list: false,
         circle: Some("Kiev"),
+        slave: None,
     },
     CryptCard {
         id: 200370,
@@ -9121,6 +9533,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: true,
         red_list: false,
         circle: Some("Budapest"),
+        slave: None,
     },
     CryptCard {
         id: 200487,
@@ -9143,6 +9556,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: true,
         red_list: false,
         circle: Some("Budapest"),
+        slave: None,
     },
     CryptCard {
         id: 200497,
@@ -9165,6 +9579,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: true,
         red_list: false,
         circle: Some("Kiev"),
+        slave: None,
     },
     CryptCard {
         id: 200592,
@@ -9187,6 +9602,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: Some("Mexico City"),
+        slave: None,
     },
     CryptCard {
         id: 200593,
@@ -9209,6 +9625,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: Some("Mexico City"),
+        slave: None,
     },
     CryptCard {
         id: 200628,
@@ -9231,6 +9648,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: true,
         red_list: false,
         circle: Some("Torrance"),
+        slave: None,
     },
     CryptCard {
         id: 200652,
@@ -9253,6 +9671,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: true,
         red_list: false,
         circle: Some("Torrance"),
+        slave: None,
     },
     CryptCard {
         id: 200697,
@@ -9275,6 +9694,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: true,
         red_list: false,
         circle: Some("Chicago"),
+        slave: None,
     },
     CryptCard {
         id: 200755,
@@ -9297,6 +9717,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: true,
         red_list: false,
         circle: Some("Torrance"),
+        slave: None,
     },
     CryptCard {
         id: 200799,
@@ -9319,6 +9740,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: true,
         red_list: false,
         circle: Some("Kiev"),
+        slave: None,
     },
     CryptCard {
         id: 200814,
@@ -9341,6 +9763,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: true,
         red_list: false,
         circle: Some("Chicago"),
+        slave: None,
     },
     CryptCard {
         id: 200936,
@@ -9363,6 +9786,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: true,
         red_list: false,
         circle: Some("Torrance"),
+        slave: None,
     },
     CryptCard {
         id: 201105,
@@ -9385,6 +9809,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: true,
         red_list: false,
         circle: Some("Kiev"),
+        slave: None,
     },
     CryptCard {
         id: 201359,
@@ -9407,6 +9832,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: true,
         red_list: false,
         circle: Some("Chicago"),
+        slave: None,
     },
     CryptCard {
         id: 201378,
@@ -9429,6 +9855,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: true,
         red_list: false,
         circle: Some("Chicago"),
+        slave: None,
     },
     CryptCard {
         id: 201389,
@@ -9451,6 +9878,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: true,
         red_list: false,
         circle: Some("Torrance"),
+        slave: None,
     },
     CryptCard {
         id: 201453,
@@ -9473,6 +9901,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: true,
         red_list: false,
         circle: Some("Budapest"),
+        slave: None,
     },
     CryptCard {
         id: 201459,
@@ -9495,6 +9924,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: true,
         red_list: false,
         circle: Some("Kiev"),
+        slave: None,
     },
     CryptCard {
         id: 201508,
@@ -9517,6 +9947,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: true,
         red_list: false,
         circle: Some("Budapest"),
+        slave: None,
     },
     CryptCard {
         id: 200063,
@@ -9539,6 +9970,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 200070,
@@ -9561,6 +9993,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 200084,
@@ -9583,6 +10016,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 200092,
@@ -9605,6 +10039,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 200098,
@@ -9627,6 +10062,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 200117,
@@ -9649,6 +10085,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 200125,
@@ -9671,6 +10108,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 200126,
@@ -9693,6 +10131,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 200152,
@@ -9715,6 +10154,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 200251,
@@ -9737,6 +10177,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 200476,
@@ -9759,6 +10200,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 200513,
@@ -9781,6 +10223,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 200534,
@@ -9803,6 +10246,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 200622,
@@ -9825,6 +10269,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 200727,
@@ -9847,6 +10292,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 200778,
@@ -9869,6 +10315,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 200819,
@@ -9891,6 +10338,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 200849,
@@ -9913,6 +10361,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 200913,
@@ -9935,6 +10384,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 200978,
@@ -9957,6 +10407,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 201006,
@@ -9979,6 +10430,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 201027,
@@ -10001,6 +10453,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 201055,
@@ -10023,6 +10476,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 201157,
@@ -10045,6 +10499,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 201178,
@@ -10067,6 +10522,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 201187,
@@ -10089,6 +10545,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 201208,
@@ -10111,6 +10568,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 201224,
@@ -10133,6 +10591,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 201246,
@@ -10155,6 +10614,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 201264,
@@ -10177,6 +10637,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 201311,
@@ -10199,6 +10660,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 201432,
@@ -10221,6 +10683,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 201507,
@@ -10243,6 +10706,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 201509,
@@ -10265,6 +10729,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 201620,
@@ -10287,6 +10752,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 200321,
@@ -10309,6 +10775,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 200389,
@@ -10331,6 +10798,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 200501,
@@ -10353,6 +10821,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 200568,
@@ -10375,6 +10844,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 200900,
@@ -10397,6 +10867,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 201313,
@@ -10419,6 +10890,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 201619,
@@ -10441,6 +10913,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 201693,
@@ -10463,6 +10936,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 201697,
@@ -10485,6 +10959,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 200489,
@@ -10507,6 +10982,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 200520,
@@ -10529,6 +11005,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 200549,
@@ -10551,6 +11028,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 200571,
@@ -10573,6 +11051,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 200699,
@@ -10595,6 +11074,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 200720,
@@ -10617,6 +11097,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 200802,
@@ -10639,6 +11120,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 200826,
@@ -10661,6 +11143,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 201049,
@@ -10683,6 +11166,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 201054,
@@ -10705,6 +11189,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 201435,
@@ -10727,6 +11212,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 200013,
@@ -10749,6 +11235,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 200046,
@@ -10771,6 +11258,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 200145,
@@ -10793,6 +11281,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 200435,
@@ -10815,6 +11304,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 200807,
@@ -10837,6 +11327,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 200829,
@@ -10859,6 +11350,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 200866,
@@ -10881,6 +11373,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 200959,
@@ -10903,6 +11396,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 201080,
@@ -10925,6 +11419,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 201104,
@@ -10947,6 +11442,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 201248,
@@ -10969,6 +11465,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 201370,
@@ -10991,6 +11488,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 201398,
@@ -11013,6 +11511,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 201482,
@@ -11035,6 +11534,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 201700,
@@ -11057,6 +11557,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 200025,
@@ -11079,6 +11580,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 200114,
@@ -11101,6 +11603,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 200144,
@@ -11123,6 +11626,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 200186,
@@ -11145,6 +11649,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 200235,
@@ -11167,6 +11672,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 200249,
@@ -11189,6 +11695,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 200280,
@@ -11211,6 +11718,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 200381,
@@ -11233,6 +11741,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 200391,
@@ -11255,6 +11764,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 200421,
@@ -11277,6 +11787,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 200427,
@@ -11299,6 +11810,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 200485,
@@ -11321,6 +11833,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 200498,
@@ -11343,6 +11856,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 200555,
@@ -11365,6 +11879,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 200627,
@@ -11387,6 +11902,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 200674,
@@ -11409,6 +11925,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 200696,
@@ -11431,6 +11948,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 200707,
@@ -11453,6 +11971,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 200717,
@@ -11475,6 +11994,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 200740,
@@ -11497,6 +12017,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 200763,
@@ -11519,6 +12040,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 200787,
@@ -11541,6 +12063,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 200800,
@@ -11563,6 +12086,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 200827,
@@ -11585,6 +12109,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 200851,
@@ -11607,6 +12132,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 200867,
@@ -11629,6 +12155,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 201005,
@@ -11651,6 +12178,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 201013,
@@ -11673,6 +12201,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 201020,
@@ -11695,6 +12224,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 201022,
@@ -11717,6 +12247,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 201026,
@@ -11739,6 +12270,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 201060,
@@ -11761,6 +12293,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 201213,
@@ -11783,6 +12316,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 201262,
@@ -11805,6 +12339,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 201281,
@@ -11827,6 +12362,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 201366,
@@ -11849,6 +12385,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 201388,
@@ -11871,6 +12408,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 201407,
@@ -11893,6 +12431,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 201430,
@@ -11915,6 +12454,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 201501,
@@ -11937,6 +12477,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 201512,
@@ -11959,6 +12500,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 201513,
@@ -11981,6 +12523,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 201514,
@@ -12003,6 +12546,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 201515,
@@ -12025,6 +12569,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 201516,
@@ -12047,6 +12592,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 201517,
@@ -12069,6 +12615,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 201518,
@@ -12091,6 +12638,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 201522,
@@ -12113,6 +12661,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 201695,
@@ -12135,6 +12684,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 201704,
@@ -12157,6 +12707,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 201705,
@@ -12179,6 +12730,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 200027,
@@ -12201,6 +12753,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 200047,
@@ -12223,6 +12776,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 200067,
@@ -12245,6 +12799,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 200086,
@@ -12267,6 +12822,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 200157,
@@ -12289,6 +12845,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 200160,
@@ -12311,6 +12868,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 200222,
@@ -12333,6 +12891,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 200227,
@@ -12355,6 +12914,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 200248,
@@ -12377,6 +12937,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 200277,
@@ -12399,6 +12960,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 200279,
@@ -12421,6 +12983,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 200312,
@@ -12443,6 +13006,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 200327,
@@ -12465,6 +13029,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 200346,
@@ -12487,6 +13052,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 200378,
@@ -12509,6 +13075,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 200385,
@@ -12516,7 +13083,7 @@ pub static CRYPT: [CryptCard; 651] = [
         capacity: 11,
         group: 5,
         clan: "Tzimisce",
-        disciplines: &["ANI", "AUS", "POT", "THA", "VIC"],
+        disciplines: &["ANI", "AUS", "POT", "THA", "VIC", "FLIGHT"],
         sect: Sect::Independent,
         title: Title::None,
         merged_title: None,
@@ -12531,6 +13098,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 200442,
@@ -12553,6 +13121,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 200507,
@@ -12575,6 +13144,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 200527,
@@ -12597,6 +13167,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 200621,
@@ -12619,6 +13190,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 200714,
@@ -12641,6 +13213,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 200754,
@@ -12663,6 +13236,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 200797,
@@ -12685,6 +13259,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 200803,
@@ -12707,6 +13282,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 200823,
@@ -12729,6 +13305,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 200904,
@@ -12751,6 +13328,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 200943,
@@ -12773,6 +13351,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 200951,
@@ -12795,6 +13374,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 200974,
@@ -12817,6 +13397,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 200991,
@@ -12839,6 +13420,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 201001,
@@ -12861,6 +13443,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 201044,
@@ -12883,6 +13466,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 201084,
@@ -12905,6 +13489,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 201100,
@@ -12927,6 +13512,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 201106,
@@ -12949,6 +13535,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 201128,
@@ -12971,6 +13558,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 201140,
@@ -12993,6 +13581,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 201191,
@@ -13015,6 +13604,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 201261,
@@ -13037,6 +13627,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 201297,
@@ -13059,6 +13650,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 201320,
@@ -13081,6 +13673,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 201322,
@@ -13103,6 +13696,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 201332,
@@ -13125,6 +13719,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 201373,
@@ -13147,6 +13742,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 201424,
@@ -13169,6 +13765,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 201456,
@@ -13191,6 +13788,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 201471,
@@ -13213,6 +13811,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 200005,
@@ -13235,6 +13834,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 200124,
@@ -13257,6 +13857,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 200208,
@@ -13279,6 +13880,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 200261,
@@ -13301,6 +13903,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 200305,
@@ -13323,6 +13926,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 200336,
@@ -13345,6 +13949,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 200365,
@@ -13367,6 +13972,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 200396,
@@ -13389,6 +13995,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 200403,
@@ -13411,6 +14018,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 200462,
@@ -13433,6 +14041,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 200477,
@@ -13455,6 +14064,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 200480,
@@ -13477,6 +14087,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 200512,
@@ -13499,6 +14110,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 200587,
@@ -13521,6 +14133,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 200641,
@@ -13543,6 +14156,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 200660,
@@ -13565,6 +14179,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 200691,
@@ -13587,6 +14202,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 200738,
@@ -13609,6 +14225,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 200764,
@@ -13631,6 +14248,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 200812,
@@ -13653,6 +14271,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 200865,
@@ -13675,6 +14294,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 201074,
@@ -13697,6 +14317,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 201082,
@@ -13719,6 +14340,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 201247,
@@ -13741,6 +14363,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 201274,
@@ -13763,6 +14386,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 201295,
@@ -13785,6 +14409,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 201462,
@@ -13807,6 +14432,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 201525,
@@ -13829,6 +14455,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 201528,
@@ -13851,6 +14478,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 201654,
@@ -13873,6 +14501,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 200935,
@@ -13895,6 +14524,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 200002,
@@ -13917,6 +14547,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 200031,
@@ -13939,6 +14570,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 200058,
@@ -13961,6 +14593,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 200207,
@@ -13983,6 +14616,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 200210,
@@ -14005,6 +14639,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 200355,
@@ -14027,6 +14662,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 200383,
@@ -14049,6 +14685,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 200500,
@@ -14071,6 +14708,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 200567,
@@ -14093,6 +14731,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 200758,
@@ -14115,6 +14754,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 200786,
@@ -14137,6 +14777,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 200791,
@@ -14159,6 +14800,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 200927,
@@ -14181,6 +14823,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 200952,
@@ -14203,6 +14846,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 200976,
@@ -14225,6 +14869,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 201003,
@@ -14247,6 +14892,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 201138,
@@ -14269,6 +14915,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: true,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 201186,
@@ -14291,6 +14938,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 201196,
@@ -14313,6 +14961,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 201486,
@@ -14335,6 +14984,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 201520,
@@ -14357,6 +15007,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 201616,
@@ -14379,6 +15030,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 201618,
@@ -14401,6 +15053,7 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
     },
     CryptCard {
         id: 201622,
@@ -14423,6 +15076,835 @@ pub static CRYPT: [CryptCard; 651] = [
         sterile: false,
         red_list: false,
         circle: None,
+        slave: None,
+    },
+    CryptCard {
+        id: 200020,
+        name: "Agatha",
+        capacity: 4,
+        group: 2,
+        clan: "Nosferatu antitribu",
+        disciplines: &["obf", "POT"],
+        sect: Sect::Sabbat,
+        title: Title::None,
+        merged_title: None,
+        adv: false,
+        path: None,
+        infernal: false,
+        black_hand: false,
+        seraph: false,
+        unique: true,
+        blood_cursed: false,
+        scarce: false,
+        sterile: false,
+        red_list: false,
+        circle: None,
+        slave: None,
+    },
+    CryptCard {
+        id: 200041,
+        name: "Alan Sovereign",
+        capacity: 6,
+        group: 3,
+        clan: "Ventrue",
+        disciplines: &["for", "pre", "AUS", "DOM"],
+        sect: Sect::Camarilla,
+        title: Title::None,
+        merged_title: None,
+        adv: true,
+        path: None,
+        infernal: false,
+        black_hand: false,
+        seraph: false,
+        unique: true,
+        blood_cursed: false,
+        scarce: false,
+        sterile: false,
+        red_list: false,
+        circle: None,
+        slave: None,
+    },
+    CryptCard {
+        id: 200094,
+        name: "Angelo",
+        capacity: 7,
+        group: 3,
+        clan: "Blood Brother",
+        disciplines: &["pot", "vic", "CEL", "FOR", "SAN"],
+        sect: Sect::Independent,
+        title: Title::None,
+        merged_title: None,
+        adv: false,
+        path: None,
+        infernal: false,
+        black_hand: false,
+        seraph: false,
+        unique: true,
+        blood_cursed: false,
+        scarce: false,
+        sterile: true,
+        red_list: true,
+        circle: None,
+        slave: None,
+    },
+    CryptCard {
+        id: 200119,
+        name: "Anu Diptinatpa",
+        capacity: 7,
+        group: 6,
+        clan: "Nagaraja",
+        disciplines: &["aus", "vic", "DOM", "NEC"],
+        sect: Sect::Independent,
+        title: Title::None,
+        merged_title: None,
+        adv: false,
+        path: None,
+        infernal: false,
+        black_hand: false,
+        seraph: false,
+        unique: true,
+        blood_cursed: false,
+        scarce: true,
+        sterile: false,
+        red_list: false,
+        circle: None,
+        slave: None,
+    },
+    CryptCard {
+        id: 200164,
+        name: "Baldesar Rossellini",
+        capacity: 8,
+        group: 4,
+        clan: "Giovanni",
+        disciplines: &["aus", "for", "nec", "DOM", "POT"],
+        sect: Sect::Independent,
+        title: Title::None,
+        merged_title: None,
+        adv: false,
+        path: None,
+        infernal: false,
+        black_hand: false,
+        seraph: false,
+        unique: true,
+        blood_cursed: false,
+        scarce: false,
+        sterile: false,
+        red_list: false,
+        circle: None,
+        slave: None,
+    },
+    CryptCard {
+        id: 200166,
+        name: "Barbaro Lucchese",
+        capacity: 5,
+        group: 3,
+        clan: "Baali",
+        disciplines: &["dai", "obf", "pre", "tha"],
+        sect: Sect::Independent,
+        title: Title::None,
+        merged_title: None,
+        adv: false,
+        path: None,
+        infernal: true,
+        black_hand: false,
+        seraph: false,
+        unique: true,
+        blood_cursed: false,
+        scarce: false,
+        sterile: false,
+        red_list: false,
+        circle: None,
+        slave: None,
+    },
+    CryptCard {
+        id: 200278,
+        name: "Claudio Severino",
+        capacity: 9,
+        group: 5,
+        clan: "Tremere",
+        disciplines: &["cel", "obf", "AUS", "DOM", "THA"],
+        sect: Sect::Camarilla,
+        title: Title::None,
+        merged_title: None,
+        adv: false,
+        path: None,
+        infernal: false,
+        black_hand: false,
+        seraph: false,
+        unique: true,
+        blood_cursed: false,
+        scarce: false,
+        sterile: false,
+        red_list: false,
+        circle: None,
+        slave: None,
+    },
+    CryptCard {
+        id: 200348,
+        name: "Djuhah, The Bronze Bow",
+        capacity: 7,
+        group: 5,
+        clan: "Banu Haqim",
+        disciplines: &["aus", "cel", "pre", "OBF", "QUI"],
+        sect: Sect::Sabbat,
+        title: Title::None,
+        merged_title: None,
+        adv: false,
+        path: None,
+        infernal: false,
+        black_hand: true,
+        seraph: true,
+        unique: true,
+        blood_cursed: false,
+        scarce: false,
+        sterile: false,
+        red_list: false,
+        circle: None,
+        slave: None,
+    },
+    CryptCard {
+        id: 200382,
+        name: "Dr. Oliver Genet",
+        capacity: 6,
+        group: 6,
+        clan: "Giovanni",
+        disciplines: &["pot", "DOM", "NEC"],
+        sect: Sect::Independent,
+        title: Title::None,
+        merged_title: None,
+        adv: false,
+        path: None,
+        infernal: false,
+        black_hand: false,
+        seraph: false,
+        unique: true,
+        blood_cursed: false,
+        scarce: false,
+        sterile: false,
+        red_list: false,
+        circle: None,
+        slave: None,
+    },
+    CryptCard {
+        id: 200399,
+        name: "Echo",
+        capacity: 7,
+        group: 4,
+        clan: "Nosferatu",
+        disciplines: &["aus", "dom", "CEL", "OBF", "POT"],
+        sect: Sect::Camarilla,
+        title: Title::None,
+        merged_title: None,
+        adv: false,
+        path: None,
+        infernal: false,
+        black_hand: false,
+        seraph: false,
+        unique: true,
+        blood_cursed: false,
+        scarce: false,
+        sterile: false,
+        red_list: false,
+        circle: None,
+        slave: None,
+    },
+    CryptCard {
+        id: 200459,
+        name: "Fatima al-Faqadi",
+        capacity: 8,
+        group: 2,
+        clan: "Banu Haqim",
+        disciplines: &["aus", "for", "CEL", "OBF", "QUI"],
+        sect: Sect::Independent,
+        title: Title::None,
+        merged_title: None,
+        adv: false,
+        path: None,
+        infernal: false,
+        black_hand: false,
+        seraph: false,
+        unique: true,
+        blood_cursed: true,
+        scarce: false,
+        sterile: false,
+        red_list: false,
+        circle: None,
+        slave: None,
+    },
+    CryptCard {
+        id: 200504,
+        name: "Genina, The Red Poet",
+        capacity: 8,
+        group: 3,
+        clan: "Samedi",
+        disciplines: &["aus", "cel", "for", "CHI", "OBF", "THN"],
+        sect: Sect::Independent,
+        title: Title::None,
+        merged_title: None,
+        adv: false,
+        path: None,
+        infernal: false,
+        black_hand: false,
+        seraph: false,
+        unique: true,
+        blood_cursed: false,
+        scarce: false,
+        sterile: false,
+        red_list: true,
+        circle: None,
+        slave: None,
+    },
+    CryptCard {
+        id: 200545,
+        name: "Guillaume Giovanni",
+        capacity: 9,
+        group: 4,
+        clan: "Giovanni",
+        disciplines: &["obt", "CEL", "DOM", "NEC", "POT"],
+        sect: Sect::Independent,
+        title: Title::None,
+        merged_title: None,
+        adv: false,
+        path: None,
+        infernal: false,
+        black_hand: false,
+        seraph: false,
+        unique: true,
+        blood_cursed: false,
+        scarce: false,
+        sterile: false,
+        red_list: false,
+        circle: None,
+        slave: None,
+    },
+    CryptCard {
+        id: 200566,
+        name: "Hannibal",
+        capacity: 10,
+        group: 2,
+        clan: "Malkavian antitribu",
+        disciplines: &["cel", "dom", "AUS", "DEM", "OBF"],
+        sect: Sect::Sabbat,
+        title: Title::Cardinal,
+        merged_title: None,
+        adv: true,
+        path: None,
+        infernal: false,
+        black_hand: false,
+        seraph: false,
+        unique: true,
+        blood_cursed: false,
+        scarce: false,
+        sterile: false,
+        red_list: false,
+        circle: None,
+        slave: None,
+    },
+    CryptCard {
+        id: 200594,
+        name: "Hesha Ruhadze",
+        capacity: 6,
+        group: 2,
+        clan: "Ministry",
+        disciplines: &["ani", "obf", "pre", "SER"],
+        sect: Sect::Independent,
+        title: Title::None,
+        merged_title: None,
+        adv: false,
+        path: None,
+        infernal: false,
+        black_hand: false,
+        seraph: false,
+        unique: true,
+        blood_cursed: false,
+        scarce: false,
+        sterile: false,
+        red_list: false,
+        circle: None,
+        slave: None,
+    },
+    CryptCard {
+        id: 200700,
+        name: "Jessica",
+        capacity: 8,
+        group: 2,
+        clan: "Toreador antitribu",
+        disciplines: &["AUS", "CEL", "OBT", "PRE"],
+        sect: Sect::Sabbat,
+        title: Title::Bishop,
+        merged_title: Some(Title::Archbishop("Brussels")),
+        adv: true,
+        path: None,
+        infernal: false,
+        black_hand: false,
+        seraph: false,
+        unique: true,
+        blood_cursed: false,
+        scarce: false,
+        sterile: false,
+        red_list: false,
+        circle: None,
+        slave: None,
+    },
+    CryptCard {
+        id: 200710,
+        name: "Joe \"Boot\" Hill",
+        capacity: 7,
+        group: 4,
+        clan: "Banu Haqim",
+        disciplines: &["for", "obf", "CEL", "QUI"],
+        sect: Sect::Sabbat,
+        title: Title::None,
+        merged_title: None,
+        adv: false,
+        path: None,
+        infernal: false,
+        black_hand: true,
+        seraph: false,
+        unique: true,
+        blood_cursed: false,
+        scarce: false,
+        sterile: false,
+        red_list: false,
+        circle: None,
+        slave: None,
+    },
+    CryptCard {
+        id: 200775,
+        name: "Kestrelle Hayes",
+        capacity: 6,
+        group: 5,
+        clan: "Ventrue antitribu",
+        disciplines: &["dom", "for", "obt", "AUS"],
+        sect: Sect::Sabbat,
+        title: Title::None,
+        merged_title: None,
+        adv: false,
+        path: None,
+        infernal: false,
+        black_hand: true,
+        seraph: false,
+        unique: true,
+        blood_cursed: false,
+        scarce: false,
+        sterile: false,
+        red_list: false,
+        circle: None,
+        slave: None,
+    },
+    CryptCard {
+        id: 200785,
+        name: "Kisha Bhimji",
+        capacity: 5,
+        group: 3,
+        clan: "Osebo",
+        disciplines: &["cel", "obf", "pot", "AUS"],
+        sect: Sect::Laibon,
+        title: Title::Magaji,
+        merged_title: None,
+        adv: false,
+        path: None,
+        infernal: false,
+        black_hand: false,
+        seraph: false,
+        unique: true,
+        blood_cursed: false,
+        scarce: false,
+        sterile: false,
+        red_list: false,
+        circle: None,
+        slave: None,
+    },
+    CryptCard {
+        id: 200811,
+        name: "Lambach",
+        capacity: 10,
+        group: 2,
+        clan: "Tzimisce",
+        disciplines: &["pre", "ANI", "AUS", "DOM", "VIC"],
+        sect: Sect::Independent,
+        title: Title::Votes(2),
+        merged_title: None,
+        adv: true,
+        path: None,
+        infernal: false,
+        black_hand: false,
+        seraph: false,
+        unique: true,
+        blood_cursed: false,
+        scarce: false,
+        sterile: false,
+        red_list: false,
+        circle: None,
+        slave: None,
+    },
+    CryptCard {
+        id: 200874,
+        name: "Lucita",
+        capacity: 8,
+        group: 2,
+        clan: "Lasombra",
+        disciplines: &["cel", "pot", "DOM", "FOR", "OBT"],
+        sect: Sect::Independent,
+        title: Title::None,
+        merged_title: None,
+        adv: false,
+        path: None,
+        infernal: false,
+        black_hand: false,
+        seraph: false,
+        unique: true,
+        blood_cursed: false,
+        scarce: false,
+        sterile: false,
+        red_list: false,
+        circle: None,
+        slave: None,
+    },
+    CryptCard {
+        id: 200924,
+        name: "Mariana Gilbert",
+        capacity: 4,
+        group: 1,
+        clan: "Toreador",
+        disciplines: &["cel", "PRE"],
+        sect: Sect::Camarilla,
+        title: Title::None,
+        merged_title: None,
+        adv: false,
+        path: None,
+        infernal: false,
+        black_hand: false,
+        seraph: false,
+        unique: true,
+        blood_cursed: false,
+        scarce: false,
+        sterile: false,
+        red_list: false,
+        circle: None,
+        slave: None,
+    },
+    CryptCard {
+        id: 200944,
+        name: "Martino della Passaglia",
+        capacity: 7,
+        group: 6,
+        clan: "Giovanni",
+        disciplines: &["obf", "DOM", "NEC", "POT"],
+        sect: Sect::Independent,
+        title: Title::None,
+        merged_title: None,
+        adv: false,
+        path: None,
+        infernal: false,
+        black_hand: false,
+        seraph: false,
+        unique: true,
+        blood_cursed: false,
+        scarce: false,
+        sterile: false,
+        red_list: false,
+        circle: None,
+        slave: None,
+    },
+    CryptCard {
+        id: 201000,
+        name: "Mitchell, The Headhunter",
+        capacity: 2,
+        group: 2,
+        clan: "Pander",
+        disciplines: &["obt", "pot"],
+        sect: Sect::Sabbat,
+        title: Title::None,
+        merged_title: None,
+        adv: false,
+        path: None,
+        infernal: false,
+        black_hand: false,
+        seraph: false,
+        unique: true,
+        blood_cursed: false,
+        scarce: false,
+        sterile: false,
+        red_list: false,
+        circle: None,
+        slave: None,
+    },
+    CryptCard {
+        id: 201067,
+        name: "Nu, The Pillar",
+        capacity: 9,
+        group: 2,
+        clan: "True Brujah",
+        disciplines: &["ani", "aus", "pro", "POT", "PRE", "TEM"],
+        sect: Sect::Independent,
+        title: Title::None,
+        merged_title: None,
+        adv: false,
+        path: None,
+        infernal: false,
+        black_hand: false,
+        seraph: false,
+        unique: true,
+        blood_cursed: false,
+        scarce: true,
+        sterile: false,
+        red_list: false,
+        circle: None,
+        slave: None,
+    },
+    CryptCard {
+        id: 201130,
+        name: "Porphyry",
+        capacity: 4,
+        group: 6,
+        clan: "Gargoyle",
+        disciplines: &["vis", "POT", "FLIGHT"],
+        sect: Sect::Camarilla,
+        title: Title::None,
+        merged_title: None,
+        adv: false,
+        path: None,
+        infernal: false,
+        black_hand: false,
+        seraph: false,
+        unique: true,
+        blood_cursed: false,
+        scarce: false,
+        sterile: false,
+        red_list: false,
+        circle: None,
+        slave: Some("Tremere"),
+    },
+    CryptCard {
+        id: 201180,
+        name: "Reverend Adams",
+        capacity: 3,
+        group: 4,
+        clan: "Caitiff",
+        disciplines: &["aus", "PRE"],
+        sect: Sect::Independent,
+        title: Title::None,
+        merged_title: None,
+        adv: false,
+        path: None,
+        infernal: false,
+        black_hand: false,
+        seraph: false,
+        unique: true,
+        blood_cursed: false,
+        scarce: false,
+        sterile: false,
+        red_list: false,
+        circle: None,
+        slave: None,
+    },
+    CryptCard {
+        id: 201185,
+        name: "Reza Fatir, The Dark Angel",
+        capacity: 6,
+        group: 4,
+        clan: "Banu Haqim",
+        disciplines: &["obf", "pro", "CEL", "QUI"],
+        sect: Sect::Sabbat,
+        title: Title::None,
+        merged_title: None,
+        adv: false,
+        path: None,
+        infernal: false,
+        black_hand: true,
+        seraph: false,
+        unique: true,
+        blood_cursed: false,
+        scarce: false,
+        sterile: false,
+        red_list: false,
+        circle: None,
+        slave: None,
+    },
+    CryptCard {
+        id: 201227,
+        name: "Salvatore Giovanni",
+        capacity: 5,
+        group: 6,
+        clan: "Giovanni",
+        disciplines: &["dom", "NEC", "POT"],
+        sect: Sect::Independent,
+        title: Title::None,
+        merged_title: None,
+        adv: false,
+        path: None,
+        infernal: false,
+        black_hand: false,
+        seraph: false,
+        unique: true,
+        blood_cursed: false,
+        scarce: false,
+        sterile: false,
+        red_list: false,
+        circle: None,
+        slave: None,
+    },
+    CryptCard {
+        id: 201244,
+        name: "Sascha Vykos, The Angel of Caine",
+        capacity: 8,
+        group: 2,
+        clan: "Tzimisce",
+        disciplines: &["ani", "dom", "AUS", "THA", "VIC"],
+        sect: Sect::Sabbat,
+        title: Title::Priscus,
+        merged_title: None,
+        adv: false,
+        path: None,
+        infernal: false,
+        black_hand: false,
+        seraph: false,
+        unique: true,
+        blood_cursed: false,
+        scarce: false,
+        sterile: false,
+        red_list: false,
+        circle: None,
+        slave: None,
+    },
+    CryptCard {
+        id: 201383,
+        name: "Tori Longwood",
+        capacity: 4,
+        group: 2,
+        clan: "Caitiff",
+        disciplines: &["cel", "pot", "pre", "pro"],
+        sect: Sect::Anarch,
+        title: Title::None,
+        merged_title: None,
+        adv: false,
+        path: None,
+        infernal: false,
+        black_hand: false,
+        seraph: false,
+        unique: true,
+        blood_cursed: false,
+        scarce: false,
+        sterile: false,
+        red_list: false,
+        circle: None,
+        slave: None,
+    },
+    CryptCard {
+        id: 201436,
+        name: "Verbruch",
+        capacity: 5,
+        group: 5,
+        clan: "Gargoyle",
+        disciplines: &["for", "POT", "VIS", "FLIGHT"],
+        sect: Sect::Camarilla,
+        title: Title::None,
+        merged_title: None,
+        adv: false,
+        path: None,
+        infernal: false,
+        black_hand: false,
+        seraph: false,
+        unique: true,
+        blood_cursed: false,
+        scarce: false,
+        sterile: false,
+        red_list: false,
+        circle: None,
+        slave: Some("Tremere"),
+    },
+    CryptCard {
+        id: 201440,
+        name: "Victor Pelletier",
+        capacity: 5,
+        group: 4,
+        clan: "Ventrue",
+        disciplines: &["cel", "dom", "for", "PRE"],
+        sect: Sect::Camarilla,
+        title: Title::None,
+        merged_title: None,
+        adv: false,
+        path: None,
+        infernal: false,
+        black_hand: false,
+        seraph: false,
+        unique: true,
+        blood_cursed: false,
+        scarce: false,
+        sterile: false,
+        red_list: false,
+        circle: None,
+        slave: None,
+    },
+    CryptCard {
+        id: 201467,
+        name: "White Lily",
+        capacity: 8,
+        group: 4,
+        clan: "Malkavian antitribu",
+        disciplines: &["cel", "dom", "for", "DEM", "OBF"],
+        sect: Sect::Sabbat,
+        title: Title::None,
+        merged_title: None,
+        adv: false,
+        path: None,
+        infernal: false,
+        black_hand: true,
+        seraph: false,
+        unique: true,
+        blood_cursed: false,
+        scarce: false,
+        sterile: false,
+        red_list: false,
+        circle: None,
+        slave: None,
+    },
+    CryptCard {
+        id: 201477,
+        name: "Xaviar",
+        capacity: 10,
+        group: 3,
+        clan: "Gangrel",
+        disciplines: &["aus", "cel", "pot", "ANI", "FOR", "PRO"],
+        sect: Sect::Independent,
+        title: Title::Votes(2),
+        merged_title: None,
+        adv: false,
+        path: None,
+        infernal: false,
+        black_hand: false,
+        seraph: false,
+        unique: true,
+        blood_cursed: false,
+        scarce: false,
+        sterile: false,
+        red_list: false,
+        circle: None,
+        slave: None,
+    },
+    CryptCard {
+        id: 201488,
+        name: "Yong-Sun, Harmonist",
+        capacity: 10,
+        group: 2,
+        clan: "Nosferatu antitribu",
+        disciplines: &["aus", "ANI", "OBF", "POT", "THA"],
+        sect: Sect::Sabbat,
+        title: Title::Cardinal,
+        merged_title: None,
+        adv: false,
+        path: None,
+        infernal: false,
+        black_hand: false,
+        seraph: false,
+        unique: true,
+        blood_cursed: false,
+        scarce: false,
+        sterile: false,
+        red_list: false,
+        circle: None,
+        slave: None,
     },
 ];
 

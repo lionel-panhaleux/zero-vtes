@@ -189,10 +189,18 @@ fn no_todo_in_code() {
 /// with how it is once all the same. An entry no longer flagged fails as
 /// stale.
 const DURING_ONCE_ELSEWHERE: &[(&str, &str)] = &[
+    (
+        "ALAN_SOVEREIGN_ADV",
+        "inert: no investment card in the pool, his base card absent",
+    ),
     ("BEAST_MELD", "a prevention allowance counted down"),
     (
         "BUSINESS_PRESSURE",
         "votes bought in the card's own resolution",
+    ),
+    (
+        "CALL_THE_WILD_HUNT",
+        "the card's own damage, X set as it is played",
     ),
     ("COAGULATED_ENTITY", "a prevention allowance counted down"),
     (
@@ -202,6 +210,10 @@ const DURING_ONCE_ELSEWHERE: &[(&str, &str)] = &[
     (
         "FIENDISH_TONGUE",
         "a one-shot discard-phase hook, taken as used",
+    ),
+    (
+        "JOE_BOOT_HILL",
+        "the maneuver his own action's combat grants, no ability",
     ),
     ("MONOCLE_OF_CLARITY", "no engine effect (rules-qa 68.11)"),
     (

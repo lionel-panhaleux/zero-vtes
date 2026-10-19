@@ -217,9 +217,9 @@ pub enum Interrupt {
         seat: SeatId,
         left: u8,
         done: u8,
-        /// Combat cards only (Target Vitals' cancel: "discard two combat
-        /// cards").
-        combat_only: bool,
+        /// Of this kind only: combat cards (Target Vitals' cancel: "discard
+        /// two combat cards"), animals (Call the Wild Hunt).
+        of: Option<crate::cards::CardFilter>,
     },
     /// `left` more cards removed from `of`'s ash heap, then `of` burns `pool`
     /// (Shroud of Decay [OBL], LSJ 20090710: no order to the ash heap;
@@ -468,6 +468,34 @@ pub enum Interrupt {
         minion: crate::ids::MinionId,
         n: u8,
     },
+    /// A ready titled vampire of `of`'s left the ready region: `seat` may
+    /// play a card for it (Leadership Vacuum), or pass.
+    ReadyTitledLeft { seat: SeatId, of: SeatId },
+    /// Legion's action announced: the master Discipline card named, from
+    /// hand or ash heap (`FindCard`).
+    NameMasterDiscipline { seat: SeatId },
+    /// Filchware's Pawn Shop's action announced: `minion`'s equipment named
+    /// in an ash heap, the heap first (`ChooseSeat`), then the card
+    /// (`FindCard`).
+    NameAshEquipment {
+        seat: SeatId,
+        minion: crate::ids::MinionId,
+        from: Option<SeatId>,
+    },
+    /// Victor Pelletier entering play: `SetX(n)` pays n pool for the title
+    /// offered at that price, or Pass; his contests staged after.
+    BuyTitle {
+        seat: SeatId,
+        minion: crate::ids::MinionId,
+        offers: &'static [(u8, crate::crypt::Title)],
+    },
+    /// Sascha Vykos's optional "+n hand size until the end of the turn",
+    /// once each turn: `ResolvePrinted` or Pass (a pass spends nothing).
+    MayGainHandSize {
+        seat: SeatId,
+        minion: crate::ids::MinionId,
+        n: u8,
+    },
     /// Graverobbing [DOM]: `payer` burns `n` blood to ready the stolen
     /// vampire (`ChooseMinion`), or pass.
     MoveForBlood {
@@ -598,6 +626,11 @@ impl Interrupt {
             | Interrupt::MayStoreAim { seat, .. }
             | Interrupt::MayTorture { seat, .. }
             | Interrupt::MayGainPool { seat, .. }
+            | Interrupt::MayGainHandSize { seat, .. }
+            | Interrupt::BuyTitle { seat, .. }
+            | Interrupt::NameAshEquipment { seat, .. }
+            | Interrupt::NameMasterDiscipline { seat }
+            | Interrupt::ReadyTitledLeft { seat, .. }
             | Interrupt::MoveForBlood { seat, .. }
             | Interrupt::MoveCardToTitled { seat, .. }
             | Interrupt::MoveOffBurnedBearer { seat, .. }
@@ -899,14 +932,9 @@ impl Engine {
                     seat,
                     left,
                     done,
-                    combat_only,
+                    of,
                 } => {
-                    let fits = |c: u16| {
-                        !combat_only
-                            || crate::library::LIBRARY[c as usize]
-                                .types
-                                .contains(&crate::library::CardType::Combat)
-                    };
+                    let fits = |c: u16| of.is_none_or(|f| f.matches(c));
                     let held = self.state.seats[seat.index()]
                         .hand
                         .iter()
@@ -1098,6 +1126,8 @@ impl Engine {
                             .is_empty()
                 }
                 Interrupt::NameAshPair { .. }
+                | Interrupt::NameAshEquipment { .. }
+                | Interrupt::NameMasterDiscipline { .. }
                 | Interrupt::NameUncontrolled { .. }
                 | Interrupt::NameSlotPair { .. }
                 | Interrupt::NameOwnAshCard { .. } => self.action.is_some(),
@@ -1115,6 +1145,36 @@ impl Engine {
                     c.present() && !c.locked && present(minion)
                 }
                 Interrupt::MayGainPool { seat, .. } => !self.state.seats[seat.index()].ousted,
+                Interrupt::ReadyTitledLeft { seat, of } => {
+                    if !self.state.seats[seat.index()].ousted
+                        && !self.titled_left_plays(seat, of).is_empty()
+                    {
+                        true
+                    } else {
+                        self.interrupts.remove(0);
+                        continue;
+                    }
+                }
+                Interrupt::BuyTitle { seat, minion, .. } => {
+                    if self.state.minions[minion.index()].present()
+                        && !self.state.seats[seat.index()].ousted
+                    {
+                        true
+                    } else {
+                        self.interrupts.remove(0);
+                        if self.state.minions[minion.index()].present() {
+                            self.stage_contests(minion);
+                        }
+                        continue;
+                    }
+                }
+                Interrupt::MayGainHandSize { seat, minion, .. } => {
+                    !self.state.seats[seat.index()].ousted
+                        && !self
+                            .state
+                            .turn_uses
+                            .contains(&crate::state::once_hand_size_key(minion))
+                }
                 Interrupt::MayUnlock { minion, .. } => {
                     present(minion) && self.state.minions[minion.index()].locked
                 }
@@ -1491,16 +1551,11 @@ impl Engine {
                         .collect(),
                 )
             }
-            Interrupt::DiscardChosen { combat_only, .. } => (
+            Interrupt::DiscardChosen { of, .. } => (
                 WindowLabel::ResolutionChoice,
                 (0..st.seats[s.index()].hand.len())
                     .filter(|&i| crate::state::first_copy(&st.seats[s.index()].hand, i))
-                    .filter(|&i| {
-                        !combat_only
-                            || crate::library::LIBRARY[st.seats[s.index()].hand[i] as usize]
-                                .types
-                                .contains(&crate::library::CardType::Combat)
-                    })
+                    .filter(|&i| of.is_none_or(|f| f.matches(st.seats[s.index()].hand[i])))
                     .map(|i| Choice::Discard(i as u8))
                     .collect(),
             ),
@@ -1871,6 +1926,66 @@ impl Engine {
                     )
                     .collect(),
             ),
+            Interrupt::ReadyTitledLeft { seat, of } => (
+                WindowLabel::ResolutionChoice,
+                std::iter::once(Choice::Pass)
+                    .chain(self.titled_left_plays(seat, of))
+                    .collect(),
+            ),
+            Interrupt::NameMasterDiscipline { seat } => {
+                let z = &st.seats[seat.index()];
+                let mut cards: Vec<u16> = crate::state::master_disciplines(&z.hand);
+                cards.extend(crate::state::master_disciplines(&z.ash));
+                cards.sort_unstable();
+                cards.dedup();
+                (
+                    WindowLabel::ResolutionChoice,
+                    cards.into_iter().map(Choice::FindCard).collect(),
+                )
+            }
+            Interrupt::NameAshEquipment { minion, from, .. } => {
+                let found = self.ash_equipment_for(minion);
+                (
+                    WindowLabel::ResolutionChoice,
+                    match from {
+                        None => {
+                            let mut seats: Vec<SeatId> = found.iter().map(|&(s, _)| s).collect();
+                            seats.dedup();
+                            seats.into_iter().map(Choice::ChooseSeat).collect()
+                        }
+                        Some(s) => found
+                            .into_iter()
+                            .filter(|&(f, _)| f == s)
+                            .map(|(_, c)| Choice::FindCard(c))
+                            .collect(),
+                    },
+                )
+            }
+            // Each price, payable down to 0 pool (a cost, Default readings);
+            // not a title its Methuselah already holds: no contest with
+            // oneself (rules-qa 76.2).
+            Interrupt::BuyTitle {
+                seat,
+                minion,
+                offers,
+            } => (
+                WindowLabel::EntryEffect,
+                std::iter::once(Choice::Pass)
+                    .chain(
+                        offers
+                            .iter()
+                            .filter(|&&(_, t)| {
+                                let key = crate::state::title_key(t);
+                                !self.state.minions_of(seat).any(|o| {
+                                    o != minion
+                                        && crate::state::title_key(self.state.claimed_title(o))
+                                            == key
+                                })
+                            })
+                            .map(|&(n, _)| Choice::SetX(n)),
+                    )
+                    .collect(),
+            ),
             Interrupt::DistributeFrom { seat, clan, .. } => (
                 WindowLabel::EntryEffect,
                 std::iter::once(Choice::Pass)
@@ -1905,6 +2020,7 @@ impl Engine {
                 vec![Choice::Pass, Choice::ResolveRider { card: card.0 }],
             ),
             Interrupt::MayGainPool { minion, .. }
+            | Interrupt::MayGainHandSize { minion, .. }
             | Interrupt::MayPreventForBlood { minion, .. }
             | Interrupt::MayUnlock { minion, .. } => (
                 WindowLabel::ResolutionChoice,
@@ -2366,6 +2482,53 @@ impl Engine {
         }
     }
 
+    /// Does `seat` hold a card with a mode for `window` (cheap, before the
+    /// options are built)?
+    fn holds_card_for(&self, seat: SeatId, window: crate::cards::Window) -> bool {
+        self.state.seats[seat.index()].hand.iter().any(|&c| {
+            crate::cards::lookup(c)
+                .is_some_and(|d| d.modes.iter().any(|m| m.windows.contains(&window)))
+        })
+    }
+
+    /// The plays `seat` may make for `of`'s vampire just gone (Leadership
+    /// Vacuum): at `of` only.
+    pub(crate) fn titled_left_plays(&self, seat: SeatId, of: SeatId) -> Vec<Choice> {
+        self.play_options(seat, &[crate::cards::Window::ReadyTitledLeft], None)
+            .into_iter()
+            .filter(|o| matches!(o, Choice::Play { target: crate::cards::Target::Seat(t), .. } if *t == of))
+            .collect()
+    }
+
+    /// Leadership Vacuum: ready titled vampires about to be burned or sent
+    /// to torpor (never banished, removed or descended), their votes read
+    /// now (ANK 20211009), offered to each other Methuselah holding the
+    /// card.
+    pub(crate) fn titled_leaving(&mut self, ms: &[crate::ids::MinionId]) {
+        for &m in ms {
+            let v = &self.state.minions[m.index()];
+            if !(v.ready() && v.is_vampire()) || self.state.title_of(m) == crate::crypt::Title::None
+            {
+                continue;
+            }
+            let (of, votes) = (v.owner, self.state.votes_held(m));
+            self.state.titled_left.push((of, votes));
+            // Clockwise from the active Methuselah, the vampire's aside
+            // ("usable during your turn").
+            let n = self.state.seats.len();
+            for k in 0..n {
+                let seat = SeatId(((self.state.active.0 as usize + k) % n) as u8);
+                if seat != of
+                    && !self.state.seats[seat.index()].ousted
+                    && self.holds_card_for(seat, crate::cards::Window::ReadyTitledLeft)
+                {
+                    self.interrupts
+                        .push(Interrupt::ReadyTitledLeft { seat, of });
+                }
+            }
+        }
+    }
+
     /// Minions about to leave the ready region: the cards on them that pay
     /// for it offer their pool (Priority Contract).
     pub(crate) fn about_to_leave_ready(&mut self, ms: &[crate::ids::MinionId]) {
@@ -2502,6 +2665,9 @@ impl Engine {
             return Vec::new();
         }
         let mut out = self.holdable_equipment(from, to);
+        if self.state.no_retainers(to) {
+            return out;
+        }
         out.extend(
             self.state
                 .cards
@@ -3572,7 +3738,7 @@ impl Engine {
                     seat,
                     left,
                     done,
-                    combat_only,
+                    of,
                 },
                 Choice::Discard(i),
             ) => {
@@ -3583,7 +3749,7 @@ impl Engine {
                     seat,
                     left: left - 1,
                     done: done + 1,
-                    combat_only,
+                    of,
                 };
             }
             (
@@ -3749,6 +3915,18 @@ impl Engine {
                 self.interrupts.remove(0);
                 self.state.seats[seat.index()].pool += n as i32;
             }
+            (Interrupt::MayGainHandSize { seat, minion, n }, Choice::ResolvePrinted { .. }) => {
+                self.interrupts.remove(0);
+                self.state
+                    .turn_uses
+                    .push(crate::state::once_hand_size_key(minion));
+                self.state.seats[seat.index()].timed.add(
+                    crate::state::TimedStat::HandSize,
+                    crate::state::Expiry::EndOfTurn,
+                    n as i8,
+                );
+                self.draw_up(seat);
+            }
             (Interrupt::GiveCardTo { card, .. }, Choice::ChooseSeat(to)) => {
                 self.interrupts.remove(0);
                 self.give_card_control(card, to);
@@ -3775,6 +3953,7 @@ impl Engine {
                 | Interrupt::MayStoreAim { .. }
                 | Interrupt::MayTorture { .. }
                 | Interrupt::MayGainPool { .. }
+                | Interrupt::MayGainHandSize { .. }
                 | Interrupt::MayPreventForBlood { .. }
                 | Interrupt::MayUnlock { .. },
                 Choice::Pass,
@@ -4071,6 +4250,74 @@ impl Engine {
             (Interrupt::ChooseCircle { minion, .. }, Choice::ChooseCircle(c)) => {
                 self.interrupts.remove(0);
                 self.state.minions[minion.index()].chosen_circle = Some(c);
+            }
+            (Interrupt::ReadyTitledLeft { .. }, Choice::Pass) => {
+                self.interrupts.remove(0);
+            }
+            (
+                Interrupt::ReadyTitledLeft { seat, .. },
+                Choice::Play {
+                    card,
+                    mode,
+                    actor,
+                    target,
+                },
+            ) => {
+                self.interrupts.remove(0);
+                let resume = self.flow.clone();
+                self.announce_play(seat, card, mode, actor, target, resume);
+            }
+            (Interrupt::NameMasterDiscipline { .. }, Choice::FindCard(card)) => {
+                self.interrupts.remove(0);
+                if let Some(a) = self.action.as_mut() {
+                    a.named_master = Some(card);
+                }
+            }
+            (
+                Interrupt::NameAshEquipment {
+                    seat,
+                    minion,
+                    from: None,
+                },
+                Choice::ChooseSeat(s),
+            ) => {
+                self.interrupts[0] = Interrupt::NameAshEquipment {
+                    seat,
+                    minion,
+                    from: Some(s),
+                };
+            }
+            (Interrupt::NameAshEquipment { from: Some(s), .. }, Choice::FindCard(card)) => {
+                self.interrupts.remove(0);
+                if let Some(a) = self.action.as_mut() {
+                    a.ash_pick = Some((s, card));
+                }
+            }
+            (Interrupt::BuyTitle { minion, .. }, Choice::Pass) => {
+                self.interrupts.remove(0);
+                self.stage_contests(minion);
+            }
+            (
+                Interrupt::BuyTitle {
+                    seat,
+                    minion,
+                    offers,
+                },
+                Choice::SetX(n),
+            ) => {
+                self.interrupts.remove(0);
+                let title = offers
+                    .iter()
+                    .find(|&&(p, _)| p == n)
+                    .map(|&(_, t)| t)
+                    .expect("an offered price");
+                let mut loss = vec![0i32; self.state.seats.len()];
+                loss[seat.index()] = n as i32;
+                self.burn_pool_batch(&loss);
+                if !self.state.seats[seat.index()].ousted {
+                    self.gain_title(minion, title, None);
+                    self.stage_contests(minion);
+                }
             }
             (Interrupt::DistributeFrom { from, .. }, Choice::Pass) => {
                 self.interrupts.remove(0);

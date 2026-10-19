@@ -55,6 +55,7 @@ impl Effect {
         match self {
             E::ChooseSecondOfClan(..)
             | E::ChooseOwnOfClan(..)
+            | E::ChooseTermsMinion
             | E::ChooseTarget
             | E::ChooseActor
             | E::RevealCryptTop { .. }
@@ -77,7 +78,6 @@ impl Effect {
             | E::TrainInUncontrolled { .. }
             | E::PoolToVampires
             | E::BurnChosenInPlay
-            | E::EquipNamed
             | E::CountersFromTargetCapacity
             | E::RetainerToStartingLife
             | E::DiscardFromAllHands
@@ -95,6 +95,8 @@ impl Effect {
             | E::EatAshAlly { .. }
             | E::BloodToTargetFull
             | E::MoveBloodXToUncontrolledTarget
+            | E::HoldTargetVampire
+            | E::RememberTargetSeatsVotes
             | E::EnterWithCountersPerOwnClan(..)
             | E::EnterWithCountersPerOwnAnarch
             | E::CryptClanToUncontrolled(..)
@@ -169,8 +171,17 @@ impl Effect {
             | E::BurnEdge
             | E::TargetBecomesBlackHand
             | E::RemoveCryptTop
+            | E::BurnTargetCryptTop
+            | E::ActorBecomesClan(..)
+            | E::TargetBecomesRedList
+            | E::ActorBloodToCapacity
+            | E::BurnRememberedContract
+            | E::DamageTarget(..)
+            | E::LockOwnReadyOfClan(..)
+            | E::TaintTarget
             | E::StealTargetVampire
-            | E::EmployNamed => (Family::Shared, false),
+            | E::EmployNamed
+            | E::EquipNamed => (Family::Shared, false),
             E::CounterToTarget(..)
             | E::BloodPerHostage
             | E::BurnTargetHostages
@@ -201,6 +212,7 @@ impl Effect {
             | E::HandSizeBonusUntilEndOfTurn(..)
             | E::MoveBetweenVampires
             | E::PeekHand
+            | E::RevealOwnHandToAll
             | E::PeekHostControllersHand
             | E::PredatorTakesControl
             | E::BurnSelf
@@ -276,7 +288,6 @@ impl Effect {
             | E::GiveBloodToOthers
             | E::GiveBloodToOwnAnarch
             | E::BurnUnlessControllerPays(..)
-            | E::DamageTarget(..)
             | E::PayPoolPerOtherEvent
             | E::DiscardAtRandom(..)
             | E::ContinuePressEachCombat
@@ -441,6 +452,22 @@ impl Effect {
             | E::PlayCombatFromAsh
             | E::AdditionalStrikesEachRound(..)
             | E::ContinuePressThisRound
+            | E::EndPressThisRound
+            | E::OpposingBurnsBlood(..)
+            | E::OpposingNoManeuverThisRound
+            | E::OpposingNoInitialStrikeThisRound
+            | E::OpposingNoStrikeCardsThisCombat
+            | E::EnvironmentalDamageThisRound(..)
+            | E::PreventHalfStrike
+            | E::HalveOpposingStrikesThisCombat
+            | E::CombatManeuver
+            | E::FrenzyImmuneThisCombat
+            | E::OpposingTakesMoreThisCombat(..)
+            | E::OpposingStrikeTollThisCombat(..)
+            | E::ResolutionDamageThisRound(..)
+            | E::DiscardChosenX(..)
+            | E::EnvironmentalDamageThisRoundX
+            | E::DisciplineStrikeDamageThisCombat { .. }
             | E::CloseSelfDamage(..)
             | E::CoordinateAttack { .. }
             | E::StrikeOnceEachRound(..)
@@ -508,6 +535,7 @@ impl Effect {
             | E::PayLife(..)
             | E::PayBlood(..)
             | E::LockHostSkipNextUnlock(..)
+            | E::ActingVampireTakesDamage(..)
             | E::TakeControlOfTargetUntilNextTurn
             | E::PreySlotToOwnSlot
             | E::PreyAshPairHunt(..)
@@ -521,6 +549,10 @@ impl Effect {
             | E::TauntCombat(..)
             | E::GainLiaison
             | E::SearchEquip(..)
+            | E::SearchEquipFree(..)
+            | E::SearchArchetypeOntoActor
+            | E::FledglingFromNamedMaster
+            | E::HeldVampireBecomesGargoyle
             | E::SearchToHand { .. }
             | E::RemoveAllSourceCounters
             | E::EnterCombatWithTarget
@@ -574,6 +606,9 @@ impl Effect {
             | E::PreyBurnsPoolPerTorpor
             | E::MayAddCounter
             | E::MayMakeAnarchForCounter
+            | E::AddCounterForEnteringClan(..)
+            | E::ActiveBurnsPoolFixedX
+            | E::BurnSelfIfActiveControlsReadyCapacityOrTitled(..)
             | E::AnarchControllerMayBloodToUncontrolled(..)
             | E::MayLockForTorture
             | E::HostBurnsBloodOrBurnedThenMoves(..)
@@ -598,7 +633,10 @@ impl Effect {
             | E::SkipNextUnlock
             | E::BurnSelfWithoutStored
             | E::RevealTopCancels { .. }
-            | E::MayUnlockOncePerTurn => (Family::Rider, false),
+            | E::MayUnlockOncePerTurn
+            | E::MayHandSizeOncePerTurn(..)
+            | E::BuyTitleOnEntry(..)
+            | E::CryptSearchOnEntry(..) => (Family::Rider, false),
             // Read where the action is declared or offered: its kind, its
             // cost, its stealth, its bleed (`declare_action`, `stealth`,
             // `bleed_amount`).
@@ -620,6 +658,7 @@ impl Effect {
             // where it is played from (`as_played_request`, `resolve_play`,
             // `cancel_shield`, `virtual_hand`).
             E::CancelPlayed { .. }
+            | E::RevealTopForCopy { .. }
             | E::CancelableByDiscardingCombat(..)
             | E::CancelableForPoolByTargetController(..)
             | E::PlayableFromStore(..)
@@ -633,7 +672,11 @@ impl Effect {
             | E::CancelableForPool(..)
             | E::MovesToOldestUntitled { .. } => (Family::Marker, false),
             // What the card is (`card_title`, `becomes_weapon`, `is_gun`).
-            E::RepresentsTitle(..) | E::BecomesWeapon | E::BecomesGun => (Family::Marker, false),
+            E::RepresentsTitle(..)
+            | E::BecomesWeapon
+            | E::BecomesGun
+            | E::NotAgainstFlight
+            | E::EquipFromAnyAsh => (Family::Marker, false),
             // Read by `give_card_control`, `about_to_leave_ready`,
             // `start_influence`, `influence_apply`, the diablerie (Regent),
             // `card_controller` (Melange [AUS]), `settle_servitors`, and
