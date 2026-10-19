@@ -934,7 +934,8 @@ simultaneous effects, §2.5 duration). The engine's window primitives are in
   (2.1). §12.12.
 - **After a diablerie, before its blood hunt**: Slake the Thirst is offered
   there (68.2, ANK 20201228); an older victim's master Discipline is
-  asked before that window (81.1).
+  asked before that window (81.1), the library shuffled even when it
+  takes nothing or is declined (86.1).
 - A card played during polling is a commitment of the rotation: it reopens
   a response opportunity for every other Methuselah before the tally
   (5.3). §13.3.
@@ -4559,7 +4560,7 @@ an owner ruling:
 Every rules-qa item, by batch, with the digest sections citing it: the
 section stating it and those cross-referring to it (§2 the default
 readings, §22 engine modeling, §23 the contradictions, §24 the open
-readings). 818 items, Batches 1–84 (44.11 was removed, replaced by Batch
+readings). 819 items, Batches 1–86 (44.11 was removed, replaced by Batch
 45). The index is derived from the citations: a bare `N.M` cites rules-qa
 item N.M in the section it appears in. A new rules-qa item gets its line in
 the section stating it, then its entry here: `python3
@@ -4856,3 +4857,4 @@ index or an item cited nowhere.
   84.27 §15.2; 84.28 §15.2; 84.29 §15.2; 84.30 §15.2; 84.31 §15.2; 84.32
   §15.2; 84.33 §15.2; 84.34 §15.2; 84.35 §15.2; 84.36 §15.2; 84.37
   §14.10,§15.2,§16.5,§22; 84.38 §15.2; 84.39 §15.2; 84.40 §15.2,§24.1
+- **86** — 86.1 §5.2

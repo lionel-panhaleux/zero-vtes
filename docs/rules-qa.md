@@ -92,7 +92,7 @@ by the owner. Apply them to every new card; only a ruling overrides them.
 - **Allies, retainers, ghouls** — 22.2, 28.10, 29.2, 32.4, 32.11, 32.12, 32.13, 37.1, 40.10, 42.2, 42.9, 49.3, 50.6, 73.5, 73.6, 76.7, 76.8, 77.29
 - **Locations, hunting grounds, locquipment** — 6.5, 7.2, 7.4, 17.4, 28.2, 28.6, 31.4, 34.7, 39.4, 49.5, 50.4, 51.4, 52.7, 54.1, 57.7, 73.3, 73.6, 77.16
 - **Blood, capacity, uncontrolled region, banishment** — 5.7, 7.6, 25.1, 27.7, 28.1, 28.3, 28.4, 32.6, 40.7, 73.5
-- **Torpor, rescue, diablerie, blood hunt** — 3.1, 3.6, 5.2, 5.8, 6.4, 16.2, 28.7, 38.2, 48.8, 81.1
+- **Torpor, rescue, diablerie, blood hunt** — 3.1, 3.6, 5.2, 5.8, 6.4, 16.2, 28.7, 38.2, 48.8, 81.1, 86.1
 - **Hunting** — 6.5, 7.7, 17.3, 28.1, 28.8, 32.13, 40.2, 53.8, 72.1–72.5, 77.30
 - **Master phase, master cards, out-of-turn** — 1.5, 3.3, 6.6, 7.5, 28.10, 32.3, 33.1, 33.8, 36.4, 49.6, 49.7, 50.1–50.3, 53.7, 57.8, 77.11, 77.27, 78.10, 78.48, 78.49
 - **Unlock phase, locking, stun** — 3.7, 6.1, 7.8, 16.5, 21.2, 25.5, 26.5, 31.1, 48.7, 54.2, 54.5, 58.4, 58.9, 59.3, 59.4, 60.6
@@ -2000,3 +2000,7 @@ Eighty-one cards (45 library, 36 crypt: 31 defined, 5 text-only), graded per the
 **84.39** Coordinate Attacks' strike-card filter missed a strike card played at the maneuver (a committed strike); Thoughts Betrayed [DOM] reads the same filter (found in the round). Green. (Test thoughts_betrayed_bars_strike_cards_for_the_combat.)
 
 **84.40** Found while testing, fixed: a vampire's own strike read a card definition that does not exist (a panic in combat); a New Blood mini-starter recognized by its decklist names, not "New Blood" in a deck's event name (a TWDA deck from "Badalona New Blood 2025"). Green.
+
+## Batch 86 — The master Discipline search found empty or declined (Z-main, 2026-10-19, tracing harvested records; owner, 2026-10-19: 86.1 confirmed)
+
+**86.1** 81.1's search taking nothing (no master Discipline card the diablerist could take in library, hand or ash heap) or declined (its Pass): the library is shuffled all the same: the controller goes through the library either way (advanced rules 4: "may go through … and then shuffle"); a seat with no card to take is not asked, its library shuffled. Confirmed (owner, 2026-10-19). Found tracing two harvested records whose games diverge at that shuffle (05d1a4123dfe22af, 81e9bf16b18eb65c; 7d7d339). (Test a_diablerist_of_an_older_vampire_takes_a_master_discipline, the younger victim's case aside.)
