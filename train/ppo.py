@@ -453,10 +453,8 @@ def nudges(cfg, it):
 
 def made(record):
     """A record's decision entries the game went on with: an undo takes
-    back those from its `to` on (`zvtes_host`'s reader, `Replay::new`).
-    The replay pairs them with its decisions by position — not by their
-    numbers, which a replay on a later engine shifts (a window an earlier
-    engine elided)."""
+    back those from its `to` on (`zvtes_host`'s reader, `Replay::new`) —
+    `load_replays`' log, to tell the same game kept twice."""
     out = []
     for e in record["entries"]:
         if e.get("type") == "undo":
@@ -550,10 +548,13 @@ def imitation(replays, obs, holdout, games=()):
         record = json.loads(text)
         result = record.get("result") or {}
         winner = result.get("winner") if (result.get("reason") or {}).get("type") in PLAYED_OUT else None
-        answered = [d for d in game["decisions"] if d["chosen"] is not None]
-        for d, entry in zip(answered, made(record)):
-            if d["seat"] != winner or d["seat"] not in game["humans"]:
+        for d in game["decisions"]:
+            if d["chosen"] is None or d["seat"] != winner or d["seat"] not in game["humans"]:
                 continue
+            # The entry the read took, never the n-th: a pass the reader
+            # reads past (rules-qa 82.1's short declines, a window no longer
+            # asked) leaves its entry unpaired.
+            entry = record["entries"][d["entry"]]
             bias = np.zeros(len(d["options"]), np.float32)
             # `shown` indexes the recorded options, which a later engine may
             # move (the record keeps no option count): read only when the

@@ -1664,7 +1664,8 @@ training runs.
   Nosferatu 0.65 / 0.57, Path of Death 0.69 / 1.13; against three p10
   0.99 VP a seat on average. Exported `runs/p11/best.zvp` (sha256
   `b9035931a527`); served on engine.krcg.org since the 1.6.0 deploy
-  (owner, 2026-10-16), kept at 1.8.0 over p12, the previous `runs/served-prev-2026-10-16-p10at3840.zvp`
+  (owner, 2026-10-16), kept at 1.8.0 over p12, replaced by p13
+  (2026-10-19); the previous `runs/served-prev-2026-10-16-p10at3840.zvp`
   (`7aaa9528fbf8`). The positions where the owner beat the bot
   (`humanset`, the five held-out games, the bots p10 as served, 20 games a
   position): p10 / p11 agree with 46.1% / 45.3% of the owner's 1,309
@@ -1704,6 +1705,36 @@ training runs.
   (owner, 2026-10-17): the pairing off (two runs, no cross-table
   restraint, ~25–30% of an iteration); from p11@4340, not p12; Wider
   View still without a nudge (from p11, which had learned it).
+- **p13** (`runs/p13`, `../zero-vtes-p13` at `331ce66`, rules-qa 82.1's
+  block loop; launched 2026-10-18, 4341 → 4900). From p11@4340 (owner,
+  2026-10-17), opponents p11@4340 and p12@4800 frozen; no pairing;
+  `--bc-every 4`; imitation winners only over `data/records` and 17
+  harvested games (7,052 choices; held out 1,349 in five games: four of
+  `data/records`, `e33fab34fee8ca4b`), the 20 harvested games as starts;
+  nudges, lr and entropy as p12. Nine harvested games left out of
+  imitation and the held-out set, six since 82.1 (a block window the old
+  engines reopened) and three drifted earlier (a second intercept burn
+  under one grant, rules-qa 79.1; diableries of an older vampire whose
+  master search shuffles, 7d7d339, rules-qa 86.1); four of them kept as
+  starts (their readable prefixes), five dropped; ~105–115 s an iteration.
+  Scores (bests, against p11 and p12): 1.80 at 4360, 1.81, 1.89, 1.95,
+  2.00, 2.09, **2.30 at 4740** (4 seats 1.25 VP a seat, 0.27 game wins; 5
+  seats 1.19, 0.23), then 2.11–2.20; held-out imitation 0.52 → 0.54 at
+  4440, 0.47 at 4740. Seventeen games hit a Dual Form panic on a clanless
+  vampire (seven in training, dropped; ten in evaluations; fixed in round
+  16). Measured on `331ce66`: at one seat against three p11 (600 games)
+  0.97 VP a seat (self-play 0.99: even within a standard error; Lasombra
+  1.60, Reign of Stanislava 1.53 …; Nosferatu 0.20, Path of Cathari 0.30);
+  `humanset` (the five, bots p11 as served): agreement 47.1% against p11's
+  44.8%, won 139 / 300 against 125 (a quarter in 40% / 25%, halfway 33% /
+  39%, three quarters 66% / 61%); Wider View back to 11–15% (p11 15–16%),
+  wakes with no block after 80–86% (p11 79–86%); influence phases with no
+  ready minion and no transfer or crypt draw on the precons 59–75% (p11
+  85–93%), on TWDA decks 67% (58%); at the served settings transfers onto
+  a duplicate unique 60% (68%) and bleeds for nothing 6.6% (3.9%).
+  **Served** (owner, 2026-10-19: even with p11 head to head, better from
+  the owner's positions), `runs/p13/best.zvp` (`df66d54badf3`), the
+  previous `runs/served-prev-2026-10-19-p11at4340.zvp` (`b9035931a527`).
 - **Futile blocks on the E25 engine** (owner, 2026-10-15: before any
   redeploy). E25 (`97c4880`) offers every legal block attempt, those
   that cannot reach the stealth too (`Engine::block_can_reach`); no
@@ -1809,7 +1840,7 @@ Still true today; "(verify)" marks items inferred from older notes.
 - **P5 — community**: bot service, client adapter, human-ergonomics layer
   (its open items on the boards).
 
-Definitions: 920 library, 456 vampires; 2377 Rust tests, 38 Python tests
+Definitions: 920 library, 456 vampires; 2377 Rust tests, 39 Python tests
 
 ## Outlook: deck building (post-v1)
 

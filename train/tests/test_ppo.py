@@ -301,9 +301,9 @@ def test_imitation_keeps_the_winners_shown_choices(tmp_path):
     """Owner, 2026-10-15: only the human who won a game played out is
     imitated (a lost, unfinished or abandoned game gives nothing, its
     leader recorded as winner or not), and an option the human's settings
-    hid (the record's `shown`) gets no probability in the target. The
-    replay's decisions pair with the record's entries by position: a later
-    engine shifts their numbers."""
+    hid (the record's `shown`) gets no probability in the target, read from
+    the entry each decision took (`replay_decisions`' `entry`): never by
+    position, which a pass read past shifts."""
     path = "data/records/zero-vtes-replay-2026-10-08T21-17-05-603Z.json"
     game = json.loads(open(path).read())
     human = game["result"]["winner"]
@@ -318,16 +318,19 @@ def test_imitation_keeps_the_winners_shown_choices(tmp_path):
         p = tmp_path / f"{name}.json"
         p.write_text(json.dumps({**game, "result": result}))
         assert imitation(load_replays(str(p)), 3, 0)[0] == [], name
-    # The human's last decision with three options or more, where the
-    # replay's numbers have moved off the record's: one option hidden.
+    # The human's last decision with three options or more, after a pass
+    # the reader reads past (the record's block window before rules-qa
+    # 82.1): its entry is not the n-th decision entry, so pairing by
+    # position would put its `shown` elsewhere. One option hidden.
     told = [d for d in zvtes_py.replay_decisions(open(path).read(), 3)["decisions"] if d["chosen"] is not None]
     entries = made(game)
     k = max(
         i for i, d in enumerate(told)
-        if d["seat"] == human and len(d["options"]) >= 3 and entries[i]["option"] == d["chosen"]
+        if d["seat"] == human and len(d["options"]) >= 3
+        and entries.index(game["entries"][d["entry"]]) != i
     )
-    d, entry = told[k], entries[k]
-    assert d["decision"] != entry["decision"]
+    d = told[k]
+    entry = game["entries"][d["entry"]]
     n, chosen = len(d["options"]), d["chosen"]
     entry["shown"] = [i for i in range(n) if i != (chosen + 1) % n]
     hid = tmp_path / "hid.json"
@@ -336,6 +339,9 @@ def test_imitation_keeps_the_winners_shown_choices(tmp_path):
     assert len(biased) == 1 and biased[0][1] == chosen
     row = biased[0][0]
     assert (row[-1] == 0).sum() == n - 1 and row[-1][(chosen + 1) % n] == HIDDEN
+    # The row is that decision's.
+    assert row[0].shape == told[k]["tok_ids"].shape and (row[0] == told[k]["tok_ids"]).all()
+    assert (row[2] == told[k]["opt_ids"]).all()
     # A `shown` that would hide the choice or name an option past the end
     # (the replay's options moved), or one an undo took back: never read.
     for stale in ([(chosen + 1) % n], [chosen, n]):

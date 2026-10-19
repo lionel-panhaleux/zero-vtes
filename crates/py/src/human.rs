@@ -62,7 +62,8 @@ fn put(py: Python<'_>, d: &Bound<'_, PyDict>, prefix: &str, o: Obs, options: boo
 /// one dict per decision, in order — `decision`, `seat`, `turn`,
 /// `window` (its id), `options` (told), `cards` (the KRCG id each option
 /// names, else None), `chosen` (None for the decision the record ends on),
-/// `choice` (its text), `before` (what happened since the previous
+/// `choice` (its text), `entry` (with `chosen`: the index in the record's
+/// `entries` of the decision entry it took), `before` (what happened since the previous
 /// decision), the deciding seat's policy encoding (`tok_ids`, `tok_f`,
 /// `opt_ids`, `opt_f`) and critic encoding (`critic_tok_ids`,
 /// `critic_tok_f`), both in observation version `obs`. The dict `over`
@@ -110,6 +111,7 @@ pub fn replay_decisions<'py>(
                     }
                     Some(i) => {
                         x.set_item("chosen", i)?;
+                        x.set_item("entry", d.entry)?;
                         x.set_item("choice", d.options.get(i).cloned())?;
                         samples.push(x);
                         r.take();

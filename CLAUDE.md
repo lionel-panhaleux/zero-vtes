@@ -156,8 +156,8 @@ ranking between lines and the owner's deferrals). Lines come in through
 Between lines:
 - Card work never waits on training; training takes the engine at the start
   of a run. A change to the observation's id tables (a new `Choice` kind,
-  window label, interrupt, purpose) is told to the training line before it
-  merges.
+  `WindowLabel`, `ActionKind` or token type; interrupts and purposes are
+  not encoded) is told to the training line before it merges.
 - Platforms read the protocol only, never engine code; a platform inferring
   what the protocol could say is an engine-board line.
 - Merges to `main` from a worktree branch; never stage another session's

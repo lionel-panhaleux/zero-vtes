@@ -71,17 +71,36 @@ runs" (every run's command, numbers and lessons), `docs/boards/training.md`.
 - Card rounds: no retraining; `remap_vocab` maps the grown card vocabulary
   on resume and for frozen opponents. Check that the run starts.
 - A record the pinned engine stops reading partway (a rules fix since it
-  was played: rules-qa 82.1 left six harvested games unreadable,
-  2026-10-18) gives imitation nothing, held out or not: the run's first
+  was played) gives imitation nothing, held out or not: the run's first
   line names it (`bc_stopped`), and a held-out one shrinks the evaluation
   set, so read that line before letting the run go on. Before the launch,
   in its worktree, `cargo run -p zvtes-policy --profile ci --example waste
-  -- - 0 <records>` prints `read to its decision N: why` for each; its
-  prefix still serves as a start.
-- Observation changes (a new `Choice` kind, window label, interrupt,
-  purpose or token type) touch `obs`'s fixed id tables: a new
-  `obs::Version` or a slot shown unused; the engine side tells this line
-  before merging (`add-cards` §3).
+  -- - 0 <records>` prints `read to its decision N: why` for each. N is
+  only an upper bound: a rules change that reorders hidden cards with no
+  decision (7d7d339: a diablerie of an older vampire shuffles the library)
+  drifts the replay silently from that point, its hands no longer the
+  human's, and the stop comes later, or never. A record from protocol
+  2.4.0 on carries a position digest in each decision entry and stops at
+  the first divergence. An older record, for `--bc` or as a start, is cut
+  at the last such change before its stop. Scan the `--bc` records from
+  before 7d7d339 for one before the winner's choices: replayed on the
+  pinned engine, the diablerie of an older vampire opens
+  `Interrupt::DisciplineSearch` (`draws.rs`), told in `replay_decisions`'
+  `before` as the diablerie succeeding.
+- Observation changes (a new `Choice` kind, `WindowLabel`, `ActionKind` or
+  token type) touch `obs`'s fixed id tables: a new `obs::Version` or a
+  slot shown unused; the engine side tells this line before merging
+  (`add-cards` §3).
+  A `WindowLabel` after the last one (`N_WINDOWS` ends at
+  `CombatEndOfRound`) would take the first clan's id; a new `ActionKind`
+  after `Ability` needs its `action_slot` arm (folded into `Ability`'s
+  slot, as Become Anarch's), else its one-hot lands in `F_LONG`. Interrupts,
+  purposes, a new marker kind and the api's wire ids are not encoded (the
+  hostage, nightmare, torture and disease counts are, summed in
+  `F_MARKERS`): `git diff <pin> <main> -- crates/engine/src/obs.rs
+  crates/engine/src/decision.rs` says whether a table the networks read
+  moved; a change to how an encoded state is counted (`state.rs`, a
+  marker's count, `F_CONTESTED`'s inputs) moves a value, not a table.
 - After an engine update the first evaluation is a new bar: scores compare
   within a run only.
 
@@ -128,7 +147,9 @@ runs" (every run's command, numbers and lessons), `docs/boards/training.md`.
   2026-10-15: the bot is strong and not every human is good; only a game
   played out, last standing or the time limit: a lost, unfinished or
   abandoned one gives nothing, its leader recorded as winner or not), among the options they were shown (a
-  record's `shown`: those their settings hid get no probability, so
+  record's `shown`, read from the entry each decision took,
+  `replay_decisions`' `entry`, never by position: a pass the reader reads
+  past shifts it; those their settings hid get no probability, so
   Opportunities off is fine); held-out games named with
   `--bc-held-games` (it matches parts of file names: game ids for harvested
   files, timestamps in `data/records`), never every Nth. Starts from

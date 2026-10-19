@@ -81,9 +81,10 @@ CRLF: the csv module with `lineterminator="\r\n"`, or byte-wise.
 - New interrupts, purposes, choice kinds or window labels: api ids, host
   ids/describe, text prompt/option, regenerate schema/openapi/protocol.ts,
   a `CHANGELOG.md` line under the coming protocol version
-  (`scripts/schema_compat.py` lists what the schema adds), and tell the
-  training session before merging (the observation encoder's fixed id
-  tables).
+  (`scripts/schema_compat.py` lists what the schema adds); a new choice
+  kind, window label or action kind also moves the observation encoder's fixed id
+  tables: tell the training session before merging (interrupts and
+  purposes are not encoded).
 - Vampires end with ALL their text; text-only traits (blood cursed, Black
   Hand, scarce, titles, votes) are generated crypt data and need only a
   comment. A `VampireDef` with `group: None` binds every group of the name:
