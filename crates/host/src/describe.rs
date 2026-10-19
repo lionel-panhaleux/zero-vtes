@@ -235,6 +235,23 @@ pub fn effects(
             curated(a.effects, whom)
         }
         Choice::SetX(n) => amount(&x, req, n),
+        // Fleshforge Chamber: the card picked put on it, not discarded.
+        Choice::Discard(_)
+            if e.ability_terms().is_some_and(|(_, m, _)| {
+                m.effects
+                    .contains(&zvtes::cards::Effect::StorePickedFromHand)
+            }) =>
+        {
+            let c = e.ability_terms().expect("ability terms").0.card();
+            vec![Effect {
+                on: Some(On::Card),
+                copy: x.in_play(c).copy,
+                card: Some(LIBRARY[st.cards[c.index()].card as usize].id),
+                to: Some(Zone::InPlay),
+                detail: Some("on_source".into()),
+                ..Effect::new(EffectKind::Move)
+            }]
+        }
         // The strike a card granted for the round (Hunger of Marduk).
         Choice::RoundStrike { at: None } => match e.combat().map(|c| (c, c.step)) {
             Some((c, zvtes::combat::Step::ChooseStrike(i))) => c.sides[i]
@@ -556,6 +573,56 @@ fn asked(x: &Ctx<impl Names>, i: Interrupt, choice: &Choice) -> Vec<Effect> {
     }
 }
 
+/// What an ability's count (`Terms::Count`) is of: the effect counting it.
+pub(crate) fn count_of(mode: &zvtes::cards::ModeDef) -> Option<zvtes::cards::Effect> {
+    use zvtes::cards::Effect as E;
+    mode.effects.iter().copied().find(|f| {
+        matches!(
+            f,
+            E::DrawThenBottom
+                | E::BloodToTargetX
+                | E::HandToBottomX
+                | E::ActingControllerDiscardsAtRandom
+        )
+    })
+}
+
+/// How a rider is paid unit by unit (`Flow::RiderTerms`): its card's rider
+/// effect.
+pub(crate) fn rider_payment(e: &Engine, card: CardId) -> Option<zvtes::cards::Effect> {
+    use zvtes::cards::Effect as E;
+    let def = zvtes::cards::lookup(e.state.cards[card.index()].card)?;
+    def.riders
+        .iter()
+        .flat_map(|r| r.effects)
+        .copied()
+        .find(|f| {
+            matches!(
+                f,
+                E::PoolOrBloodPerCounter
+                    | E::PoolOrRandomCardsPerCounter
+                    | E::PoolOrAshCardsPerCounter
+                    | E::BurnSelfUnlessPool(_)
+            )
+        })
+}
+
+/// The vampire a play's blood range moves blood from: Villein's target
+/// (to its Methuselah's pool), Grooming the Protégé's actor (to the
+/// uncontrolled target).
+fn blood_from(p: &zvtes::cards::PlayCtx) -> Option<MinionId> {
+    use zvtes::cards::Effect as E;
+    let mode = zvtes::cards::lookup(p.card)?.modes.get(p.mode as usize)?;
+    if mode.effects.contains(&E::MoveBloodXToUncontrolledTarget) {
+        p.actor
+    } else {
+        match p.target {
+            zvtes::cards::Target::Minion(m) => Some(m),
+            _ => None,
+        }
+    }
+}
+
 /// What an amount chosen does (`set_x`), by the terms asking it: blood
 /// paid or moved, pool, counters, cards; `x` where the card calls it X.
 fn amount(x: &Ctx<impl Names>, req: &DecisionRequest, n: u8) -> Vec<Effect> {
@@ -581,9 +648,29 @@ fn amount(x: &Ctx<impl Names>, req: &DecisionRequest, n: u8) -> Vec<Effect> {
                     return Vec::new();
                 };
                 return match terms {
-                    Terms::BloodRange { .. } | Terms::EquipFromHand { .. } => {
-                        vec![of(EffectKind::Blood, -n)]
+                    // From the vampire it moves from (`blood_from`), to the
+                    // uncontrolled target (Grooming the Protégé) or the pool.
+                    Terms::BloodRange { .. } => {
+                        let to = match (p.target, x.target(p.target)) {
+                            (
+                                zvtes::cards::Target::Uncontrolled(_),
+                                Some(Target::Card { copy }),
+                            ) => Effect {
+                                on: Some(On::Uncontrolled),
+                                copy: Some(copy),
+                                ..of(EffectKind::Blood, n)
+                            },
+                            _ => of(EffectKind::Pool, n),
+                        };
+                        vec![
+                            Effect {
+                                copy: blood_from(p).map(|m| x.minion(m)),
+                                ..of(EffectKind::Blood, -n)
+                            },
+                            to,
+                        ]
                     }
+                    Terms::EquipFromHand { .. } => vec![of(EffectKind::Blood, -n)],
                     // "Any amount of blood" of the target vampire.
                     Terms::UpToTargetBlood => vec![Effect {
                         on: Some(On::Target),
@@ -610,21 +697,36 @@ fn amount(x: &Ctx<impl Names>, req: &DecisionRequest, n: u8) -> Vec<Effect> {
                     ..of(EffectKind::Counters, -n)
                 }];
             }
-            let Some((_, mode, _)) = e.ability_terms() else {
+            let Some((_, mode, target)) = e.ability_terms() else {
                 return Vec::new();
             };
             match mode.terms {
-                Some(Terms::Count { .. }) if mode.effects.contains(&E::DrawThenBottom) => {
-                    vec![Effect {
+                // What the count is of, by the effect counting it.
+                Some(Terms::Count { .. }) => match count_of(mode) {
+                    Some(E::DrawThenBottom) => vec![Effect {
                         detail: Some("then_bottom".into()),
                         ..of(EffectKind::Draw, n)
-                    }]
-                }
-                // Jake Washington: blood put on the target.
-                Some(Terms::Count { .. }) => vec![Effect {
-                    on: Some(On::Target),
-                    ..of(EffectKind::Blood, n)
-                }],
+                    }],
+                    // Jake Washington.
+                    Some(E::BloodToTargetX) => vec![Effect {
+                        on: Some(On::Target),
+                        copy: Some(x.minion(target.minion())),
+                        ..of(EffectKind::Blood, n)
+                    }],
+                    // Nehemiah.
+                    Some(E::HandToBottomX) => vec![Effect {
+                        to: Some(Zone::Library),
+                        detail: Some("hand_to_bottom".into()),
+                        ..of(EffectKind::Move, n)
+                    }],
+                    // Ilonka: from the acting minion's controller's hand.
+                    Some(E::ActingControllerDiscardsAtRandom) => vec![Effect {
+                        seat: e.action().map(|a| a.seat.0),
+                        detail: Some("at_random".into()),
+                        ..of(EffectKind::Discard, n)
+                    }],
+                    _ => Vec::new(),
+                },
                 Some(Terms::XPool) => vec![per_x(EffectKind::Pool, -1)],
                 Some(Terms::XCounters) => vec![per_x(EffectKind::Counters, 1)],
                 // The Vozhd: blood from the target to the host.
@@ -635,14 +737,30 @@ fn amount(x: &Ctx<impl Names>, req: &DecisionRequest, n: u8) -> Vec<Effect> {
                 _ => Vec::new(),
             }
         }
-        // Smiling Jack: cards discarded, the rest of the units in pool.
+        // Cards, the rest of the units in pool.
         W::RiderTerms => {
-            let left = e.rider_terms().map_or(0, |(_, l)| l as i32);
+            let Some((card, left)) = e.rider_terms() else {
+                return Vec::new();
+            };
+            let cards = match rider_payment(e, card) {
+                // Constant Revolution: burned at random from the hand.
+                Some(E::PoolOrRandomCardsPerCounter) => Effect {
+                    detail: Some("hand_at_random".into()),
+                    ..of(EffectKind::Burn, n)
+                },
+                // The Gate of Acheron: ash heap cards removed at random.
+                Some(E::PoolOrAshCardsPerCounter) => Effect {
+                    to: Some(Zone::Removed),
+                    detail: Some("ash_at_random".into()),
+                    ..of(EffectKind::Move, n)
+                },
+                _ => return Vec::new(),
+            };
             vec![
-                of(EffectKind::Discard, n),
+                cards,
                 Effect {
                     cost: true,
-                    ..of(EffectKind::Pool, -(left - n))
+                    ..of(EffectKind::Pool, -(left as i32 - n))
                 },
             ]
         }
@@ -1227,8 +1345,19 @@ pub fn about(e: &Engine, req: &DecisionRequest, names: &impl Names) -> Option<Ab
                     });
                 }
                 return Some(match mode.terms? {
+                    // From `minion` to `to` (Grooming the Protégé's
+                    // uncontrolled vampire), else to the pool (Villein).
                     Terms::BloodRange { .. } => About {
                         detail: detail("blood_range"),
+                        minion: blood_from(p).and_then(m),
+                        to: match x.target(p.target) {
+                            Some(Target::Card { copy })
+                                if matches!(p.target, zvtes::cards::Target::Uncontrolled(_)) =>
+                            {
+                                Some(copy)
+                            }
+                            _ => None,
+                        },
                         ..a()
                     },
                     Terms::UpToTargetBlood => About {
@@ -1281,21 +1410,58 @@ pub fn about(e: &Engine, req: &DecisionRequest, names: &impl Names) -> Option<Ab
                 });
             }
             if e.cost_terms().is_some() {
-                return Some(About {
-                    detail: detail("cost_reductions"),
-                    ..a()
+                // The counters of the reduction picked, else which to use.
+                return Some(match e.cost_terms_source() {
+                    Some(c) => About {
+                        detail: detail("cost_counters"),
+                        card: Some(x.in_play(c)),
+                        ..a()
+                    },
+                    None => About {
+                        detail: detail("cost_reductions"),
+                        ..a()
+                    },
                 });
             }
             let (_, mode, target) = e.ability_terms()?;
             Some(match mode.terms? {
+                // Fleshforge Chamber: the card put on it, not discarded.
+                Terms::Discard { n, .. } if mode.effects.contains(&E::StorePickedFromHand) => {
+                    About {
+                        detail: detail("put_on_source"),
+                        n: Some(n),
+                        ..a()
+                    }
+                }
                 Terms::Discard { n, .. } => About {
                     detail: detail("discard"),
                     n: Some(n),
                     ..a()
                 },
-                Terms::Count { .. } => About {
-                    detail: detail("count"),
+                Terms::DiscardAny { .. } => About {
+                    detail: detail("discard_any"),
                     ..a()
+                },
+                Terms::Count { .. } => match count_of(mode) {
+                    Some(E::BloodToTargetX) => About {
+                        detail: detail("blood_on_target"),
+                        minion: m(target.minion()),
+                        ..a()
+                    },
+                    Some(E::HandToBottomX) => About {
+                        detail: detail("hand_to_bottom"),
+                        ..a()
+                    },
+                    Some(E::ActingControllerDiscardsAtRandom) => About {
+                        detail: detail("discard_at_random"),
+                        seat: e.action().map(|a| a.seat.0),
+                        ..a()
+                    },
+                    Some(E::DrawThenBottom) => About {
+                        detail: detail("count"),
+                        ..a()
+                    },
+                    _ => return None,
                 },
                 Terms::XPool => About {
                     detail: detail("x_pool"),
@@ -1330,9 +1496,15 @@ pub fn about(e: &Engine, req: &DecisionRequest, names: &impl Names) -> Option<Ab
             })
         }
         W::RiderTerms => {
-            let (_, left) = e.rider_terms()?;
+            let (c, left) = e.rider_terms()?;
             Some(About {
                 n: Some(left),
+                detail: detail(match rider_payment(e, c)? {
+                    E::PoolOrBloodPerCounter => "pool_or_blood",
+                    E::PoolOrRandomCardsPerCounter => "pool_or_hand_cards",
+                    E::PoolOrAshCardsPerCounter => "pool_or_ash_cards",
+                    _ => "pool_or_burn",
+                }),
                 ..a()
             })
         }

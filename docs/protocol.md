@@ -231,8 +231,16 @@ most, to discard), `m` (a second amount), `cap`, `seat` (whose
 minions, ash heap or hand), `minion` and `to` (the minions blood moves
 between, a block attempt's), `card` (named or in play), `clan` (or a
 circle), and `detail`, what sets it apart within its purpose (`minion_of`:
-`lock`, `lock_vampires`, `corrupt`…; a terms window: `blood_range`,
-`x_blood`, `discard`, `cost_reductions`, `burn_allocated`, `gains_pool`…).
+`lock`, `lock_vampires`, `corrupt`…; a terms window: `blood_range`
+(from `minion`, to `to` or else the pool), `x_blood`, `discard`,
+`discard_any`, `put_on_source` (a card from the hand put on the
+source), `cost_reductions`, `cost_counters` (how many of `card`'s),
+an ability's count by what it counts — `count` (cards drawn, as many
+then to the library's bottom), `blood_on_target` (on `minion`),
+`hand_to_bottom`, `discard_at_random` (from `seat`'s hand) —, a rider
+paid unit by unit by its units — `pool_or_blood`, `pool_or_hand_cards`,
+`pool_or_ash_cards`, `pool_or_burn` (or the source burned) —,
+`burn_allocated`, `gains_pool`…).
 A client tells its prompt from these alone, as the server's English
 rendering (the `text` setting) does. `due` says why a minion phase
 offers no `pass`: what it must do before it ends,
@@ -355,10 +363,19 @@ seat 2; burn 2 pool to keep card 9.)
     `blood` (`cost`, `on: chosen`) for a vampire paying 1 of it.
   - A `set_x` option's (the key's `amount`): what the amount does, by
     the terms asking it — `blood` (`x`: the card calls it X; `copy`:
-    the vampire it is taken from), `pool` (`on: target` given away;
+    the vampire it is taken from, or with `on: target` and a positive
+    `n` put on; a blood range's, then where it goes: `pool`, or `blood`
+    `on: uncontrolled`, its `copy`), `pool` (`on: target` given away;
     `detail: from_blood` the referendum's margin to the pool),
-    `counters` (a cost reduced), `draw`, `discard` (and the rest in
-    `pool`); burning pool for votes: `pool` (`cost`) and `votes`.
+    `counters` (a cost reduced), `draw` (`detail: then_bottom`), `move`
+    (`to: library`, `detail: hand_to_bottom`), `discard` (`detail:
+    at_random`, from `seat`'s hand); a rider's units: `burn` (`detail:
+    hand_at_random`) or `move` (`to: removed`, `detail: ash_at_random`),
+    the rest in `pool` (`cost`); burning pool for votes: `pool` (`cost`)
+    and `votes`.
+    A `discard` putting the card on the source instead (Fleshforge
+    Chamber): `move` (`to: in_play`, `on: card`, `card` the source,
+    `detail: on_source`).
 - `abilities` — a `use_ability`'s: how many its source has (`ability`
   in the key says which); `apart` — what sets it apart from its
   source's other abilities, offered or not: its effects not all of them

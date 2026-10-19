@@ -724,6 +724,15 @@ impl Engine {
         }
     }
 
+    /// The cost reduction whose counters are being counted with a play
+    /// (Ravnos Carnival, Ravnos Cache, Hackerspace), if any.
+    pub fn cost_terms_source(&self) -> Option<CardId> {
+        match &self.flow {
+            Flow::CostTerms { pending, .. } => *pending,
+            _ => None,
+        }
+    }
+
     /// The in-play ability whose terms are being chosen, if any: its
     /// source, its definition and the target chosen with the use.
     pub fn ability_terms(

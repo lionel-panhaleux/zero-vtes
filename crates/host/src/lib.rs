@@ -18,6 +18,9 @@ pub mod session;
 pub mod start;
 pub mod view;
 
+#[cfg(test)]
+mod terms_told;
+
 pub use game::{Bots, Clock, Game, SystemClock, BUILT_IN};
 
 use zvtes_api::DeckList;

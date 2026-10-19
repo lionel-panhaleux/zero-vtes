@@ -15,6 +15,15 @@ removes; its `--check` fails a removal without a major version.
   a replay reads past the Passes of a window the engine no longer asks, a
   resumed game ends there. Records before 2.4.0 have neither and read as
   before.
+- Terms told in their unit and for what (the owner: Jake Washington's
+  "how many cards"): `about.detail` adds `discard_any`, `put_on_source`,
+  `cost_counters`, `blood_on_target`, `hand_to_bottom`,
+  `discard_at_random`, and a rider's `pool_or_blood`,
+  `pool_or_hand_cards`, `pool_or_ash_cards`, `pool_or_burn`; a blood
+  range's `minion` and `to`. A `set_x`'s effects say what each count is
+  of (§7): Nehemiah's and Ilonka's were `blood`, The Gate of Acheron's
+  and Constant Revolution's cards `discard`; Fleshforge Chamber's pick a
+  `move` on it.
 
 ## 2.3.0
 

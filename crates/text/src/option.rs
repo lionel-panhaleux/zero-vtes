@@ -161,7 +161,15 @@ fn base(
             (_, Some(_)) => "Burn 1 blood to draw a crypt card".into(),
             _ => "Draw a crypt card (4 transfers)".into(),
         },
-        K::Discard => format!("Discard {}", card()),
+        // Fleshforge Chamber: put on the card, not discarded.
+        K::Discard => match o
+            .effects
+            .iter()
+            .find(|e| e.detail.as_deref() == Some("on_source"))
+        {
+            Some(e) => format!("Put {} on {}", card(), n.card_id(e.card)),
+            None => format!("Discard {}", card()),
+        },
         K::Bottom => format!("Put {} on the bottom of the library", card()),
         K::FindCard => format!("Take {}", card()),
         K::DeclareBlock => format!("Block with {}", minion(k.minion)),
@@ -656,6 +664,10 @@ fn allocate(o: &OptionView, n: &Names) -> Option<String> {
     Some(format!("Allocate {a} to {}{role}{rest}", n.seat(seat)))
 }
 
+fn detail(e: &Effect) -> Option<&str> {
+    e.detail.as_deref()
+}
+
 /// An amount chosen (`set_x`), by what it does.
 fn amount(o: &OptionView, n: &Names) -> Option<String> {
     let a = o.key.amount?;
@@ -667,9 +679,28 @@ fn amount(o: &OptionView, n: &Names) -> Option<String> {
             _ => format!("Burn {a} pool for {} votes", v.n?),
         });
     }
-    // Smiling Jack: cards, the rest in pool.
-    if has(EffectKind::Discard).is_some() {
-        return Some(format!("{a} card(s), the rest in pool"));
+    // Constant Revolution, The Gate of Acheron: cards, the rest in pool.
+    let rest = || {
+        o.effects
+            .iter()
+            .find(|e| e.cost && e.kind == EffectKind::Pool)
+            .and_then(|e| e.n)
+            .map_or(0, |n| -n)
+    };
+    match o.effects.first().and_then(detail) {
+        Some("hand_at_random") => {
+            return Some(format!(
+                "Burn {a} card(s) at random from your hand and {} pool",
+                rest()
+            ))
+        }
+        Some("ash_at_random") => {
+            return Some(format!(
+                "Remove {a} card(s) at random from your ash heap and burn {} pool",
+                rest()
+            ))
+        }
+        _ => {}
     }
     let Some(e) = o.effects.first() else {
         return Some(format!("X = {a}"));
@@ -684,15 +715,30 @@ fn amount(o: &OptionView, n: &Names) -> Option<String> {
         return Some(format!("X = {a} ({a} {unit})"));
     }
     Some(match e.kind {
+        // Jake Washington: put on the vampire.
+        EffectKind::Blood if e.n > Some(0) && e.copy.is_some() => {
+            format!("{a} blood on {}", n.minion_bare(e.copy?))
+        }
         EffectKind::Blood => match e.copy {
             Some(c) => format!("{a} blood from {}", n.minion_bare(c)),
             None => format!("{a} blood"),
+        },
+        EffectKind::Move if detail(e) == Some("hand_to_bottom") => {
+            format!("{a} card(s) to the bottom of the library")
+        }
+        // Ilonka: from the acting minion's controller's hand.
+        EffectKind::Discard if detail(e) == Some("at_random") => match e.seat {
+            Some(s) => format!("Discard {a} card(s) at random from {}'s hand", n.seat(s)),
+            None => format!("Discard {a} card(s) at random"),
         },
         EffectKind::Pool if e.detail.as_deref() == Some("from_blood") => {
             format!("{a} blood to your pool")
         }
         EffectKind::Pool => format!("Give {a} pool"),
         EffectKind::Counters => format!("{a} counter(s)"),
+        EffectKind::Draw if detail(e) == Some("then_bottom") => {
+            format!("Draw {a} card(s), then {a} to the bottom of the library")
+        }
         EffectKind::Draw => format!("{a} card(s)"),
         _ => return None,
     })

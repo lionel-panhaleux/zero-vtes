@@ -440,7 +440,12 @@ impl Prompt<'_> {
                     self.clan()?
                 ),
                 "second_chosen" => format!("choose the card's chosen {}", self.clan()?),
-                "blood_range" => "how much blood".into(),
+                // `to` may be an uncontrolled vampire (Grooming the Protégé).
+                "blood_range" => match (self.minion(), self.a.to.map(|c| self.n.copy_bare(c))) {
+                    (Some(m), Some(t)) => format!("how much blood to move from {m} to {t}"),
+                    (Some(m), None) => format!("how much blood to move from {m} to your pool"),
+                    _ => "how much blood".into(),
+                },
                 "up_to_target_blood" => format!("how much blood to take from {}", self.minion()?),
                 "x_blood" => "X, paid in blood".into(),
                 "up_to_margin" => "how much blood moves to your pool".into(),
@@ -455,8 +460,21 @@ impl Prompt<'_> {
                 ),
                 "put_in_play" => "the card to put in play".into(),
                 "cost_reductions" => "the cost reductions to use".into(),
+                "cost_counters" => format!("how many counters from {} to use", self.card()?),
                 "discard" => format!("discard {} card(s) to use it", a.n?),
-                "count" => "how many cards".into(),
+                "discard_any" => "the cards to discard, one at a time".into(),
+                "put_on_source" => "the card from your hand to put on it".into(),
+                "count" => "how many cards to draw, then as many from your hand to the bottom \
+                            of your library"
+                    .into(),
+                "blood_on_target" => format!("how much blood to put on {}", self.minion()?),
+                "hand_to_bottom" => {
+                    "how many cards to move from your hand to the bottom of your library".into()
+                }
+                "discard_at_random" => format!(
+                    "how many cards to discard at random from {} hand",
+                    self.whose()?
+                ),
                 "x_pool" => "how much pool to pay".into(),
                 "x_counters" => "how many counters to use".into(),
                 "life_from_target" => format!("how much blood to move from {}", self.minion()?),
@@ -468,7 +486,23 @@ impl Prompt<'_> {
                 },
                 _ => return None,
             },
-            Window::RiderTerms => format!("{} still to pay", a.n?),
+            Window::RiderTerms => match self.detail() {
+                Some("pool_or_blood") => format!(
+                    "{} still to pay, each 1 pool or 1 blood from a vampire you control",
+                    a.n?
+                ),
+                Some("pool_or_hand_cards") => format!(
+                    "{} to pay: how many cards to burn at random from your hand, the rest in pool",
+                    a.n?
+                ),
+                Some("pool_or_ash_cards") => format!(
+                    "{} to pay: how many cards at random from your ash heap to remove from the \
+                     game, the rest in pool",
+                    a.n?
+                ),
+                Some("pool_or_burn") => format!("burn {} pool, or burn it", a.n?),
+                _ => format!("{} still to pay", a.n?),
+            },
             Window::ReferendumTerms => {
                 let chosen = self
                     .seat()
