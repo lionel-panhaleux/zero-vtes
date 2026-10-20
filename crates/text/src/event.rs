@@ -41,7 +41,9 @@ fn why(cause: &Option<Cause>, n: &Names) -> String {
     }
 }
 
-/// An event told; `None` for a decision taken (its option tells it).
+/// An event told; `None` for a decision taken (its option tells it) and
+/// for the state a view shows (a phase, a lock, counters, the action's
+/// and the referendum's state: no log line).
 pub fn event(e: &EventKind, n: &Names) -> Option<String> {
     let signed = |d: i32| {
         if d > 0 {
@@ -55,9 +57,21 @@ pub fn event(e: &EventKind, n: &Names) -> Option<String> {
             .unwrap_or_default()
     };
     Some(match e {
-        EventKind::Decided { .. } | EventKind::AutoPassed { .. } | EventKind::Undone { .. } => {
-            return None
-        }
+        EventKind::Decided { .. }
+        | EventKind::AutoPassed { .. }
+        | EventKind::Undone { .. }
+        | EventKind::Phase { .. }
+        | EventKind::Transfers { .. }
+        | EventKind::Locked { .. }
+        | EventKind::Counters { .. }
+        | EventKind::Controller { .. }
+        | EventKind::Capacity { .. }
+        | EventKind::Title { .. }
+        | EventKind::Markers { .. }
+        | EventKind::Traits { .. }
+        | EventKind::CombatState { .. }
+        | EventKind::ActionState { .. }
+        | EventKind::ReferendumState { .. } => return None,
         EventKind::Turn { turn, active } => format!("Turn {turn}: {}", n.seat(*active)),
         EventKind::Draw { seat, n: k, crypt } => {
             let cards = match (crypt, k) {

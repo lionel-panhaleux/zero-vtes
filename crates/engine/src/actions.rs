@@ -5042,16 +5042,7 @@ impl Engine {
                     a.ash_cost_adjust = if from == seat { 1 } else { -1 };
                     let ctx = found_play(seat, acting, card, copy);
                     self.action = Some(a);
-                    if !self.cost_choices(&ctx) {
-                        self.equip_found(ctx);
-                    } else {
-                        self.flow = Flow::CostTerms {
-                            ctx,
-                            resume: Box::new(Flow::GameOver),
-                            pending: None,
-                            then: crate::plays::CostThen::EquipFound,
-                        };
-                    }
+                    self.equip_found_with_terms(ctx);
                     return;
                 }
             }
@@ -5080,16 +5071,7 @@ impl Engine {
                         && self.payable_with_potential(&ctx, true)
                     {
                         self.action = Some(a);
-                        if !self.cost_choices(&ctx) {
-                            self.equip_found(ctx);
-                        } else {
-                            self.flow = Flow::CostTerms {
-                                ctx,
-                                resume: Box::new(Flow::GameOver),
-                                pending: None,
-                                then: crate::plays::CostThen::EquipFound,
-                            };
-                        }
+                        self.equip_found_with_terms(ctx);
                         return;
                     }
                     self.state.seats[seat.index()].ash.put(card, copy);
@@ -6893,15 +6875,8 @@ impl Engine {
                 if free {
                     self.put_equipment(seat, minion, ctx);
                     self.after_resolution();
-                } else if !self.cost_choices(&ctx) {
-                    self.equip_found(ctx);
                 } else {
-                    self.flow = Flow::CostTerms {
-                        ctx,
-                        resume: Box::new(Flow::GameOver),
-                        pending: None,
-                        then: crate::plays::CostThen::EquipFound,
-                    };
+                    self.equip_found_with_terms(ctx);
                 }
                 return;
             }
@@ -7084,6 +7059,22 @@ impl Engine {
 
     /// A searched or found equipment (Magic of the Smith, Michael Harris,
     /// Vast Wealth) paid, British Museum's reduction first, and equipped.
+    /// A found equipment paid for (rules-qa 38.5): its cost reductions
+    /// chosen first when it has any, then equipped.
+    fn equip_found_with_terms(&mut self, ctx: PlayCtx) {
+        if !self.cost_choices(&ctx) {
+            return self.equip_found(ctx);
+        }
+        self.flow = Flow::CostTerms {
+            ctx,
+            // Never resumed (`EquipFound`), but `phase()` reads it: the
+            // phase under way.
+            resume: Box::new(Flow::Action),
+            pending: None,
+            then: crate::plays::CostThen::EquipFound,
+        };
+    }
+
     pub(crate) fn equip_found(&mut self, ctx: PlayCtx) {
         let found = crate::notes::Source::Played {
             card: ctx.card,

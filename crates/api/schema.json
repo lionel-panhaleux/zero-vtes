@@ -611,7 +611,7 @@
       }
     },
     "Cause": {
-      "description": "What made a `pool` or `blood` change: a cost paid or an effect, of a\ncard or of the rules.",
+      "description": "What made a `pool`, `blood` or `counters` change: a cost paid or an effect, of a\ncard or of the rules.",
       "type": "object",
       "properties": {
         "card": {
@@ -2000,6 +2000,43 @@
           ]
         },
         {
+          "description": "A phase begun (the unlock phase is its turn's `turn`).",
+          "type": "object",
+          "properties": {
+            "kind": {
+              "type": "string",
+              "const": "phase"
+            },
+            "phase": {
+              "$ref": "#/$defs/Phase"
+            }
+          },
+          "required": [
+            "kind",
+            "phase"
+          ]
+        },
+        {
+          "description": "The active seat's transfers left, in its influence phase: as it\nbegins and as they change.",
+          "type": "object",
+          "properties": {
+            "kind": {
+              "type": "string",
+              "const": "transfers"
+            },
+            "left": {
+              "type": "integer",
+              "format": "uint8",
+              "maximum": 255,
+              "minimum": 0
+            }
+          },
+          "required": [
+            "kind",
+            "left"
+          ]
+        },
+        {
           "type": "object",
           "properties": {
             "crypt": {
@@ -2335,6 +2372,217 @@
           ]
         },
         {
+          "description": "A minion or a card in play locked (true) or unlocked.",
+          "type": "object",
+          "properties": {
+            "copy": {
+              "type": "integer",
+              "format": "uint32",
+              "minimum": 0
+            },
+            "kind": {
+              "type": "string",
+              "const": "locked"
+            },
+            "locked": {
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "kind",
+            "copy",
+            "locked"
+          ]
+        },
+        {
+          "description": "The counters on a card in play (`copy`), or the blood counters on\nan uncontrolled vampire, by its place (`slot`: another seat's is a\nback).",
+          "type": "object",
+          "properties": {
+            "cause": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/Cause"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "copy": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "format": "uint32",
+              "minimum": 0
+            },
+            "counters": {
+              "type": "integer",
+              "format": "uint8",
+              "maximum": 255,
+              "minimum": 0
+            },
+            "delta": {
+              "type": "integer",
+              "format": "int32"
+            },
+            "kind": {
+              "type": "string",
+              "const": "counters"
+            },
+            "slot": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/SlotRef"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            }
+          },
+          "required": [
+            "kind",
+            "delta",
+            "counters"
+          ]
+        },
+        {
+          "description": "A minion or a card in play now controlled by `seat` (The Coven's\npredator, a minion taken).",
+          "type": "object",
+          "properties": {
+            "copy": {
+              "type": "integer",
+              "format": "uint32",
+              "minimum": 0
+            },
+            "kind": {
+              "type": "string",
+              "const": "controller"
+            },
+            "seat": {
+              "type": "integer",
+              "format": "uint8",
+              "maximum": 255,
+              "minimum": 0
+            }
+          },
+          "required": [
+            "kind",
+            "copy",
+            "seat"
+          ]
+        },
+        {
+          "description": "A minion's capacity now (a card on it raising it).",
+          "type": "object",
+          "properties": {
+            "capacity": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "format": "uint8",
+              "maximum": 255,
+              "minimum": 0
+            },
+            "kind": {
+              "type": "string",
+              "const": "capacity"
+            },
+            "minion": {
+              "type": "integer",
+              "format": "uint32",
+              "minimum": 0
+            }
+          },
+          "required": [
+            "kind",
+            "minion"
+          ]
+        },
+        {
+          "description": "A minion's markers now (the view's `markers`), told when they\nchanged since the last view: a Red List mark, a corruption\ncounter, a lasting effect (its card told entering play too).",
+          "type": "object",
+          "properties": {
+            "kind": {
+              "type": "string",
+              "const": "markers"
+            },
+            "markers": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/Marker"
+              }
+            },
+            "minion": {
+              "type": "integer",
+              "format": "uint32",
+              "minimum": 0
+            }
+          },
+          "required": [
+            "kind",
+            "minion",
+            "markers"
+          ]
+        },
+        {
+          "description": "A minion's traits now (the view's `traits`), told when they\nchanged since the last view (Black Hand gained, made Red List or\ninfernal).",
+          "type": "object",
+          "properties": {
+            "kind": {
+              "type": "string",
+              "const": "traits"
+            },
+            "minion": {
+              "type": "integer",
+              "format": "uint32",
+              "minimum": 0
+            },
+            "traits": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/Trait"
+              }
+            }
+          },
+          "required": [
+            "kind",
+            "minion",
+            "traits"
+          ]
+        },
+        {
+          "description": "A vampire's title now (absent: none).",
+          "type": "object",
+          "properties": {
+            "kind": {
+              "type": "string",
+              "const": "title"
+            },
+            "minion": {
+              "type": "integer",
+              "format": "uint32",
+              "minimum": 0
+            },
+            "title": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/Title"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            }
+          },
+          "required": [
+            "kind",
+            "minion"
+          ]
+        },
+        {
           "type": "object",
           "properties": {
             "enters": {
@@ -2477,6 +2725,23 @@
           ]
         },
         {
+          "description": "The action under way as it stands, told when it moved since the\nlast view (its step, stealth and intercept, the bleed, the seats\nthat declined to block), the view's `action`.",
+          "type": "object",
+          "properties": {
+            "action": {
+              "$ref": "#/$defs/ActionView"
+            },
+            "kind": {
+              "type": "string",
+              "const": "action_state"
+            }
+          },
+          "required": [
+            "kind",
+            "action"
+          ]
+        },
+        {
           "type": "object",
           "properties": {
             "acting": {
@@ -2567,6 +2832,23 @@
           ]
         },
         {
+          "description": "The referendum under way as it stands, told when it moved since\nthe last view (its step, terms and votes), the view's\n`referendum`.",
+          "type": "object",
+          "properties": {
+            "kind": {
+              "type": "string",
+              "const": "referendum_state"
+            },
+            "referendum": {
+              "$ref": "#/$defs/ReferendumView"
+            }
+          },
+          "required": [
+            "kind",
+            "referendum"
+          ]
+        },
+        {
           "type": "object",
           "properties": {
             "kind": {
@@ -2587,6 +2869,23 @@
           "required": [
             "kind",
             "minions"
+          ]
+        },
+        {
+          "description": "The combat under way as it stands, told when it moved since the\nlast view (its round, range, each side's strike, maneuvers and\npresses), the view's `combat`.",
+          "type": "object",
+          "properties": {
+            "combat": {
+              "$ref": "#/$defs/CombatView"
+            },
+            "kind": {
+              "type": "string",
+              "const": "combat_state"
+            }
+          },
+          "required": [
+            "kind",
+            "combat"
           ]
         },
         {

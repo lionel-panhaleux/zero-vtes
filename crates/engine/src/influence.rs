@@ -17,9 +17,10 @@ pub fn transfers_for_turn(turn: u32) -> u8 {
 }
 
 impl Engine {
-    /// The active seat's transfers left, during its influence phase.
+    /// The active seat's transfers left, during its influence phase (a
+    /// window opened in it too).
     pub fn transfers_left(&self) -> Option<u8> {
-        match self.flow {
+        match *self.flow.resumed() {
             Flow::Influence { left } => Some(left),
             _ => None,
         }

@@ -339,7 +339,7 @@ export type CardRef = {
 }
 
 /**
- * What made a `pool` or `blood` change: a cost paid or an effect, of a
+ * What made a `pool`, `blood` or `counters` change: a cost paid or an effect, of a
  * card or of the rules.
  */
 export type Cause = {
@@ -698,6 +698,14 @@ export type Event = {
         turn: number
     }
     | {
+        kind: 'phase'
+        phase: Phase
+    }
+    | {
+        kind: 'transfers'
+        left: number
+    }
+    | {
         crypt: boolean
         kind: 'draw'
         n: number
@@ -775,6 +783,44 @@ export type Event = {
         to?: Zone | null
     }
     | {
+        copy: number
+        kind: 'locked'
+        locked: boolean
+    }
+    | {
+        cause?: Cause | null
+        copy?: number | null
+        counters: number
+        delta: number
+        kind: 'counters'
+        slot?: SlotRef | null
+    }
+    | {
+        copy: number
+        kind: 'controller'
+        seat: number
+    }
+    | {
+        capacity?: number | null
+        kind: 'capacity'
+        minion: number
+    }
+    | {
+        kind: 'markers'
+        markers: Marker[]
+        minion: number
+    }
+    | {
+        kind: 'traits'
+        minion: number
+        traits: Trait[]
+    }
+    | {
+        kind: 'title'
+        minion: number
+        title?: Title | null
+    }
+    | {
         /** Goes to torpor (true) or leaves it. */
         enters: boolean
         kind: 'torpor'
@@ -806,6 +852,10 @@ export type Event = {
         seat: number
     }
     | {
+        action: ActionView
+        kind: 'action_state'
+    }
+    | {
         acting: number
         action: ActionRef
         /** The minion that blocked it. */
@@ -825,8 +875,16 @@ export type Event = {
         votes_for: number
     }
     | {
+        kind: 'referendum_state'
+        referendum: ReferendumView
+    }
+    | {
         kind: 'combat_begins'
         minions: number[]
+    }
+    | {
+        combat: CombatView
+        kind: 'combat_state'
     }
     | {
         kind: 'strike_declared'

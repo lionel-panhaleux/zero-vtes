@@ -12535,6 +12535,8 @@ fn a_searched_equipment_takes_ravnos_cache_counters_once_chosen() {
     // counters next.
     let req = expect(&mut e, SeatId(0), WindowLabel::PlayTerms);
     assert_eq!(req.options, vec![Choice::SetX(1), Choice::SetX(2)]);
+    // Still the minion phase, as the table tells it.
+    assert_eq!(e.phase(), zvtes::game::Phase::Minion);
     pick(&mut e, Choice::SetX(2));
     until(&mut e, SeatId(0), WindowLabel::MinionPhase);
     assert_eq!(pool(&e, 0), 1, "paid by the counters");
@@ -13071,8 +13073,12 @@ fn vast_wealth_takes_ravnos_cache_counters_for_its_find() {
             target: Target::None,
         },
     );
-    // The Cache, then its counters (a single choice elided).
-    pick_when(&mut e, Choice::SetX(2));
+    // The Cache, then its counters (a single choice elided), still in the
+    // minion phase.
+    let req = until(&mut e, SeatId(0), WindowLabel::PlayTerms);
+    assert!(req.options.contains(&Choice::SetX(2)), "{:?}", req.options);
+    assert_eq!(e.phase(), zvtes::game::Phase::Minion);
+    pick(&mut e, Choice::SetX(2));
     until(&mut e, SeatId(0), WindowLabel::MinionPhase);
     assert!(!e.state.seats[0].ousted);
     assert_eq!(pool(&e, 0), 1);

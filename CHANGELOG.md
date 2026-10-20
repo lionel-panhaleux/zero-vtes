@@ -13,7 +13,8 @@ Round 18's cards (rules-qa Batch 85), the events `action_starts` and
 complete and `decided`'s `source` and `purpose`, additions only;
 `action_ends` now told for every action (one within a message too),
 every event in the order it happened, `resolved` without what its events
-tell, and undo against bots, behaviours with no field or id.
+tell, and undo against bots, behaviours with no field or id; the
+table's state told by events of its own.
 
 - `Purpose`: `store_own_hand` — Storage Annex as it is played: the card of
   the hand put face down on `card` (`find_card`), replaced.
@@ -61,6 +62,17 @@ tell, and undo against bots, behaviours with no field or id.
 - A banished created vampire's uncontrolled slot: viewed and digested by
   its library card (the view and the digest had failed on it, §11's
   definition otherwise unchanged).
+- The table's state told (§9): the events `phase`, `transfers`,
+  `locked`, `counters` (on a card in play, or an uncontrolled vampire by
+  its `slot`, with its `cause`), `controller` (a minion's or a card's),
+  `capacity`, `title`, `markers` and `traits`, and `action_state`, `combat_state` and `referendum_state`
+  (each the view's own, told when it changed since the last view): a
+  view's state no longer changes untold between two decisions (a lock,
+  the phase, a transfer's counters had no event). The view's
+  `transfers` stand during a window the influence phase opens (another
+  seat's impulse had shown none); the view's `phase` at a found
+  equipment's cost terms (Ravnos Cache, Vast Wealth, Filchware's Pawn
+  Shop) is the minion phase (it had shown `over`).
 - `undo` against bots (one human seat: every server game) is open at
   every decision after the seat's first, one human decision back each
   time, across the bots' decisions, vote orders (`vote_all`, the order

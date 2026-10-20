@@ -243,7 +243,8 @@ keys taken by random play) and their goldens (`tests/golden/`, DESIGN
 §7.3); perft counts (§7.5); `tests/elision.rs` (elision is observationally
 equivalent); `tests/obs.rs` and `tests/bots.rs` (nothing read beyond the
 legal view); `crates/host/tests/keys.rs` (no choice offered twice, a key
-per option). A refactor keeps the goldens and perft green without
+per option); `crates/host/tests/events.rs` (every change of a view's
+state told by an event). A refactor keeps the goldens and perft green without
 `GOLDEN_BLESS`; a bless names the moved seeds and decision ranges.
 
 **Enforced by scripts.** `scripts/rulings_v5.py --check
@@ -487,8 +488,12 @@ engine masks), `cards/mod.rs` (the vocabulary: `Window`, `Actor`,
   fuzz and replays keep nothing): what happened, in order, for a
   narrator — actions, plays, reveals, looks, combats — and before each
   note and at each cause's bounds the table as it stood
-  (`Note::Ledger`: pools, ousts, the Edge, minions' presence, torpor and
-  blood, cards in play, the census, a referendum under way) with what
+  (`Note::Ledger`: the phase and the transfers left, pools, ousts, the
+  Edge, minions' presence, torpor, blood, lock, capacity and title,
+  cards in play with their minion, lock, counters and controller,
+  uncontrolled vampires' counters, the census, a referendum under way;
+  a handler running parks the flow as `GameOver`, so a ledger noted
+  then keeps the phase and transfers it left) with what
   changed it (`Cause`: a cost or an effect, of a card played or in play,
   a minion, or a rule). The host diffs two ledgers in a row, so a change
   is told in its place and with its cause. A pool or blood change runs

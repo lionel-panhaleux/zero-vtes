@@ -185,18 +185,36 @@ struct Stream {
             Option<zvtes_api::ids::Purpose>,
         ),
     >,
-    /// Markers the views showed.
+    /// Markers the views showed, and combats a decision's view did.
     markers: usize,
+    combats: usize,
     /// Each copy's KRCG id, as the messages first showed it: an undo
     /// forgets none (a number never names another card).
     faces: HashMap<u32, u64>,
     /// Messages seen; each copy's first message; each decision's message,
-    /// as last asked (what an undo to it restores); the copies first sent after a decision an undo
-    /// went back to, never sent again (§3: never given twice).
+    /// as last asked (what an undo to it restores); the copies first sent
+    /// after a decision an undo went back to, never sent again (§3: never
+    /// given twice).
     seq: usize,
     born: HashMap<u32, usize>,
     asked_at: HashMap<u64, usize>,
     dead: std::collections::HashSet<u32>,
+    /// The phase the events told last (a turn's: its unlock phase), the
+    /// transfers left, and the action's, combat's and referendum's state
+    /// (unknown after an undo).
+    phase: Option<zvtes_api::ids::Phase>,
+    transfers: Option<u8>,
+    told_state: (
+        Option<zvtes_api::view::ActionView>,
+        Option<zvtes_api::view::CombatView>,
+        Option<zvtes_api::view::ReferendumView>,
+    ),
+    /// The last decision's view, and the events told since.
+    prev: Option<TableView>,
+    heard: Vec<EventKind>,
+    /// Per kind of state, its changes between two decisions' views, and
+    /// those no event told.
+    gaps: std::collections::BTreeMap<String, (usize, usize)>,
 }
 
 /// The action ended last: its seat, acting minion and card's copy.
@@ -360,6 +378,7 @@ impl Stream {
             );
         }
         self.names.hear(&e.kind);
+        self.heard.push(e.kind.clone());
         if std::env::var_os("HOST_TRACE").is_some() {
             eprintln!("event {:?} {:?}", e.kind, e.text);
         }
@@ -436,6 +455,37 @@ impl Stream {
                 self.active = Some(*active);
                 self.closed = None;
                 self.decided = None;
+                self.phase = Some(zvtes_api::ids::Phase::Unlock);
+                self.transfers = None;
+            }
+            // A phase begun: a new one, the game's end its `over` message.
+            EventKind::Phase { phase } => {
+                assert_ne!(*phase, zvtes_api::ids::Phase::Over, "seed {seed}: {e:?}");
+                assert_ne!(self.phase, Some(*phase), "seed {seed}: told again: {e:?}");
+                self.phase = Some(*phase);
+                self.transfers = None;
+            }
+            // At each change: never the same twice in a row.
+            EventKind::Transfers { left } => {
+                assert_ne!(
+                    self.transfers,
+                    Some(*left),
+                    "seed {seed}: told again: {e:?}"
+                );
+                self.transfers = Some(*left);
+            }
+            EventKind::ActionState { action } => self.told_state.0 = Some((**action).clone()),
+            EventKind::CombatState { combat } => self.told_state.1 = Some((**combat).clone()),
+            EventKind::ReferendumState { referendum } => {
+                self.told_state.2 = Some((**referendum).clone())
+            }
+            // An uncontrolled vampire's counters: a transfer, or a card.
+            EventKind::Counters {
+                slot: Some(_),
+                cause,
+                ..
+            } => {
+                assert!(cause.is_some(), "seed {seed}: no cause: {e:?}");
             }
             EventKind::Decided { .. } => self.closed = None,
             EventKind::Undone { to, .. } => {
@@ -450,6 +500,11 @@ impl Stream {
                 self.blood.clear();
                 self.torpor.clear();
                 self.name_numbers.clear();
+                self.prev = None;
+                self.heard.clear();
+                self.phase = None;
+                self.transfers = None;
+                self.told_state = (None, None, None);
             }
             EventKind::CombatBegins { minions } => {
                 minions.iter().for_each(|&m| copy(m));
@@ -655,6 +710,24 @@ impl Stream {
                 );
             }
         }
+        // The phase and the action's, combat's and referendum's state as
+        // last told are the view's (a join's view is the client's table).
+        if at.starts_with("decision") {
+            if let Some(p) = self.phase {
+                assert_eq!(p, v.phase, "seed {seed} {at}: the phase told");
+            }
+            let (a, c, r) = &self.told_state;
+            if let Some(x) = &v.action {
+                assert_eq!(a.as_ref(), Some(x), "seed {seed} {at}: the action told");
+            }
+            if let Some(x) = &v.combat {
+                assert_eq!(c.as_ref(), Some(x), "seed {seed} {at}: the combat told");
+                self.combats += 1;
+            }
+            if let Some(x) = &v.referendum {
+                assert_eq!(r.as_ref(), Some(x), "seed {seed} {at}: the referendum told");
+            }
+        }
         for (&s, &pool) in &self.pools {
             assert_eq!(v.seats[s as usize].pool, pool, "seed {seed} {at}: pool");
         }
@@ -674,6 +747,19 @@ impl Stream {
                 }
             }
         }
+        if let Some(p) = self.prev.take() {
+            for (kind, of) in changed(&p, v) {
+                let told = tells(&kind, &of, at, &self.heard);
+                let g = self.gaps.entry(kind.clone()).or_default();
+                g.0 += 1;
+                g.1 += usize::from(!told);
+                if !told && std::env::var_os("HOST_GAPS").is_some() {
+                    eprintln!("seed {seed} {at}: {kind} {of} untold");
+                }
+            }
+        }
+        self.prev = Some(v.clone());
+        self.heard.clear();
         self.pools.clear();
         self.blood.clear();
         self.torpor.clear();
@@ -816,7 +902,9 @@ fn the_events_tell_what_the_views_show() {
     let (mut told, mut texts, mut undone, mut allocated, mut voted) = (0, 0, 0, 0, 0);
     let mut played = [0, 0];
     let (mut within, mut undecided, mut caused, mut markers) = (0, 0, 0, 0);
+    let mut combats = 0;
     let mut reasked = 0;
+    let mut gaps: std::collections::BTreeMap<String, (usize, usize)> = Default::default();
     let mut misses = Vec::new();
     for &seed in &seeds {
         let settings = Settings {
@@ -856,11 +944,18 @@ fn the_events_tell_what_the_views_show() {
             caused: 0,
             sources: HashMap::new(),
             markers: 0,
+            combats: 0,
             faces: HashMap::new(),
             seq: 0,
             born: HashMap::new(),
             asked_at: HashMap::new(),
             dead: Default::default(),
+            phase: None,
+            transfers: None,
+            told_state: (None, None, None),
+            prev: None,
+            heard: Vec::new(),
+            gaps: Default::default(),
         };
         let mut outs = g.handle(
             human,
@@ -959,6 +1054,12 @@ fn the_events_tell_what_the_views_show() {
         undecided += s.undecided;
         caused += s.caused;
         markers += s.markers;
+        combats += s.combats;
+        for (k, (n, u)) in s.gaps {
+            let g = gaps.entry(k).or_default();
+            g.0 += n;
+            g.1 += u;
+        }
         played[0] += s.played[0];
         played[1] += s.played[1];
         misses.extend(s.misses.into_iter().map(|m| (seed, m)));
@@ -989,6 +1090,40 @@ fn the_events_tell_what_the_views_show() {
     eprintln!("{caused} pool and blood events, each with its cause; {markers} markers told");
     assert!(caused > 0, "no pool or blood told");
     assert!(markers > 0, "no marker seen");
+    assert!(combats > 0, "no combat a decision's view showed");
+    // The table's state a view shows, each change told by an event
+    // between the two decisions' views (`HOST_GAPS=1` names them).
+    let untold: Vec<_> = gaps.iter().filter(|(_, &(_, u))| u > 0).collect();
+    assert!(
+        untold.is_empty(),
+        "changes no event told (kind: changes, untold): {untold:?}"
+    );
+    for kind in [
+        "phase",
+        "transfers",
+        "minion locked",
+        "card locked",
+        "card counters",
+        "slot counters",
+        "card controller",
+        "minion capacity",
+        "minion title",
+        "minion markers",
+        "action.step",
+        "action.stealth",
+        "action.bleed",
+        "action.intercept",
+        "referendum.votes",
+        "referendum.terms",
+        "referendum.step",
+    ] {
+        assert!(
+            gaps.get(kind).is_some_and(|&(n, _)| n > 0),
+            "no {kind} change between two views"
+        );
+    }
+    let n: usize = gaps.values().map(|&(n, _)| n).sum();
+    eprintln!("{n} changes of the table's state between decisions, each told");
 }
 
 /// Every option a seat is shown is told in English with the text
@@ -1144,4 +1279,183 @@ fn every_option_and_choice_is_told() {
         "{} kinds of lines name nothing",
         unnamed.len()
     );
+}
+
+/// The table's state a view shows (the zones' cards aside: the minions'
+/// and cards' own state, the phase, the action, combat and referendum
+/// under way), each entry keyed by its kind and what it is about.
+fn state(v: &TableView) -> std::collections::BTreeMap<(String, String), String> {
+    let mut m = std::collections::BTreeMap::new();
+    let mut put = |kind: &str, of: String, x: &dyn std::fmt::Debug| {
+        m.insert((kind.to_string(), of), format!("{x:?}"));
+    };
+    put("phase", String::new(), &v.phase);
+    put("transfers", String::new(), &v.transfers);
+    for s in &v.seats {
+        let n = s.seat;
+        put("edge", n.to_string(), &s.edge);
+        put("vp_halves", n.to_string(), &s.vp_halves);
+        put("prey", n.to_string(), &(s.prey, s.predator));
+        for (i, u) in s.uncontrolled.iter().enumerate() {
+            // By its place (`seat:slot`), and its copy if the viewer sees
+            // it (`seat:slot:copy`): a slot leaving shifts the rest.
+            let of = u
+                .card
+                .copy
+                .map_or(format!("{n}:{i}"), |c| format!("{n}:{i}:{c}"));
+            put("slot counters", of.clone(), &u.counters);
+            put("slot banished", of, &u.banished);
+        }
+        let mut cards: Vec<&zvtes_api::view::InPlayView> = s.in_play.iter().collect();
+        for mi in s.ready.iter().chain(&s.torpor) {
+            let Some(c) = mi.card.copy else { continue };
+            let c = c.to_string();
+            put("minion contested", c.clone(), &mi.contested);
+            put("minion name", c.clone(), &(&mi.name, mi.kind));
+            // A contested minion is out of play: its state told as it
+            // enters play again.
+            if !mi.contested {
+                put("minion locked", c.clone(), &mi.locked);
+                put("minion capacity", c.clone(), &mi.capacity);
+                put("minion title", c.clone(), &mi.title);
+                let markers: Vec<_> = mi
+                    .markers
+                    .iter()
+                    .map(|k| (k.kind, k.seat, k.n, k.card))
+                    .collect();
+                put("minion markers", c.clone(), &markers);
+                put("minion traits", c.clone(), &mi.traits);
+                put("minion owner", c.clone(), &mi.owner);
+                put("minion controller", c, &n);
+            }
+            cards.extend(&mi.cards);
+        }
+        for c in cards {
+            let Some(k) = c.card.copy else { continue };
+            let k = k.to_string();
+            put("card contested", k.clone(), &c.contested);
+            // A contested card is out of play: its state told as it
+            // enters play again.
+            if !c.contested {
+                put("card locked", k.clone(), &c.locked);
+                put("card counters", k.clone(), &c.counters);
+                put("card controller", k, &c.controller);
+            }
+        }
+    }
+    let mut obj = |what: &str, of: String, x: serde_json::Value| {
+        if let serde_json::Value::Object(o) = x {
+            for (f, x) in o {
+                m.insert((format!("{what}.{f}"), of.clone()), x.to_string());
+            }
+        }
+    };
+    if let Some(a) = &v.action {
+        obj(
+            "action",
+            format!("{}:{}", a.seat, a.acting),
+            serde_json::to_value(a).unwrap(),
+        );
+    }
+    if let Some(c) = &v.combat {
+        obj(
+            "combat",
+            format!("{:?}", c.minions),
+            serde_json::to_value(c).unwrap(),
+        );
+    }
+    if let Some(r) = &v.referendum {
+        obj(
+            "referendum",
+            r.caller.to_string(),
+            serde_json::to_value(r).unwrap(),
+        );
+    }
+    m
+}
+
+/// What changed between two views: the entries in both, unequal.
+fn changed(a: &TableView, b: &TableView) -> Vec<(String, String)> {
+    let (a, b) = (state(a), state(b));
+    a.iter()
+        .filter(|&(k, x)| b.get(k).is_some_and(|y| y != x))
+        .map(|(k, _)| k.clone())
+        .collect()
+}
+
+/// Whether the events since the last decision's view tell a change of
+/// `kind` to `of` (a copy, a seat, `seat:slot`), seen at `at`.
+fn tells(kind: &str, of: &str, at: &str, heard: &[EventKind]) -> bool {
+    let is = |c: u32| c.to_string() == of;
+    let copy = |c: &Card| c.copy.is_some_and(is);
+    let any = |f: &dyn Fn(&EventKind) -> bool| heard.iter().any(f);
+    // A card or minion come into play again: its state anew.
+    let entered = any(&|e| matches!(e, EventKind::EntersPlay { card, .. } if copy(card)));
+    match kind {
+        "edge" => any(&|e| matches!(e, EventKind::Edge { .. })),
+        // The game's end is its `over` message.
+        "phase" => {
+            at == "over" || any(&|e| matches!(e, EventKind::Turn { .. } | EventKind::Phase { .. }))
+        }
+        "transfers" => any(&|e| matches!(e, EventKind::Transfers { .. } | EventKind::Phase { .. })),
+        // Ousting moves the prey and predator, and scores.
+        "prey" => any(&|e| matches!(e, EventKind::Ousted { .. })),
+        "vp_halves" => at == "over" || any(&|e| matches!(e, EventKind::Ousted { .. })),
+        "card contested" | "minion contested" => any(&|e| match e {
+            EventKind::LeavesPlay {
+                card,
+                contested: true,
+                ..
+            } => copy(card),
+            EventKind::EntersPlay { card, .. } => copy(card),
+            _ => false,
+        }),
+        _ if entered && (kind.starts_with("minion ") || kind.starts_with("card ")) => true,
+        "minion markers" => any(&|e| matches!(e, EventKind::Markers { minion, .. } if is(*minion))),
+        "minion locked" | "card locked" => {
+            any(&|e| matches!(e, EventKind::Locked { copy, .. } if is(*copy)))
+        }
+        "card counters" => {
+            any(&|e| matches!(e, EventKind::Counters { copy: Some(c), .. } if is(*c)))
+        }
+        "slot counters" => {
+            let place: Vec<&str> = of.split(':').collect();
+            let (seat, slot, seen) = (place[0], place[1], place.get(2));
+            any(&|e| match e {
+                // As the next view places it.
+                EventKind::Counters { slot: Some(r), .. } => {
+                    r.seat.to_string() == seat && r.slot.to_string() == slot
+                }
+                // It left the region (its copy then, a minion).
+                EventKind::Counters { copy: Some(c), .. } => seen == Some(&&*c.to_string()),
+                // The region's backs shifted: a vampire left it, a crypt
+                // card came (a zone's change).
+                EventKind::EntersPlay {
+                    seat: s,
+                    minion: Some(_),
+                    ..
+                }
+                | EventKind::Draw {
+                    seat: s,
+                    crypt: true,
+                    ..
+                } => seen.is_none() && s.to_string() == seat,
+                _ => false,
+            })
+        }
+        "card controller" | "minion controller" | "minion owner" => {
+            any(&|e| matches!(e, EventKind::Controller { copy, .. } if is(*copy)))
+        }
+        "minion traits" => any(&|e| matches!(e, EventKind::Traits { minion, .. } if is(*minion))),
+        "minion capacity" => {
+            any(&|e| matches!(e, EventKind::Capacity { minion, .. } if is(*minion)))
+        }
+        "minion title" => any(&|e| matches!(e, EventKind::Title { minion, .. } if is(*minion))),
+        k if k.starts_with("action.") => any(&|e| matches!(e, EventKind::ActionState { .. })),
+        k if k.starts_with("combat.") => any(&|e| matches!(e, EventKind::CombatState { .. })),
+        k if k.starts_with("referendum.") => {
+            any(&|e| matches!(e, EventKind::ReferendumState { .. }))
+        }
+        _ => false,
+    }
 }

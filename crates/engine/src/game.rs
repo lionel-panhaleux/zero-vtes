@@ -167,6 +167,22 @@ pub(crate) enum Flow {
     GameOver,
 }
 
+impl Flow {
+    /// The flow a terms window or a phase's rotation resumes: the phase
+    /// under way.
+    pub(crate) fn resumed(&self) -> &Flow {
+        match self {
+            Flow::PlayTerms { resume, .. }
+            | Flow::CostTerms { resume, .. }
+            | Flow::AsPlayed { resume, .. }
+            | Flow::AbilityTerms { resume, .. }
+            | Flow::PhaseRotation { resume, .. }
+            | Flow::RiderTerms { resume, .. } => resume.resumed(),
+            f => f,
+        }
+    }
+}
+
 /// The turn's phases (rulebook "Turn Sequence"), plus the game's end.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum Phase {
@@ -635,32 +651,29 @@ impl Engine {
     /// The active Methuselah's current phase (rulebook "Turn Sequence"),
     /// for clients: the outermost flow under any play, terms or rotation.
     pub fn phase(&self) -> Phase {
-        fn of(flow: &Flow) -> Phase {
-            match flow {
-                Flow::PlayTerms { resume, .. }
-                | Flow::CostTerms { resume, .. }
-                | Flow::AsPlayed { resume, .. }
-                | Flow::AbilityTerms { resume, .. }
-                | Flow::PhaseRotation { resume, .. }
-                | Flow::RiderTerms { resume, .. } => of(resume),
-                Flow::Abilities { .. } => Phase::Unlock,
-                Flow::MasterPhase => Phase::Master,
-                Flow::MinionPhase
-                | Flow::CogAction { .. }
-                | Flow::ActionTerms { .. }
-                | Flow::LibrarySearch { .. }
-                | Flow::Exchange { .. }
-                | Flow::Action
-                | Flow::Combat
-                | Flow::TorporBlock
-                | Flow::RescueCost
-                | Flow::Referendum => Phase::Minion,
-                Flow::Influence { .. } => Phase::Influence,
-                Flow::Discard => Phase::Discard,
-                Flow::GameOver => Phase::Over,
-            }
+        match self.flow.resumed() {
+            Flow::Abilities { .. } => Phase::Unlock,
+            Flow::MasterPhase => Phase::Master,
+            Flow::MinionPhase
+            | Flow::CogAction { .. }
+            | Flow::ActionTerms { .. }
+            | Flow::LibrarySearch { .. }
+            | Flow::Exchange { .. }
+            | Flow::Action
+            | Flow::Combat
+            | Flow::TorporBlock
+            | Flow::RescueCost
+            | Flow::Referendum => Phase::Minion,
+            Flow::Influence { .. } => Phase::Influence,
+            Flow::Discard => Phase::Discard,
+            Flow::GameOver => Phase::Over,
+            Flow::PlayTerms { .. }
+            | Flow::CostTerms { .. }
+            | Flow::AsPlayed { .. }
+            | Flow::AbilityTerms { .. }
+            | Flow::PhaseRotation { .. }
+            | Flow::RiderTerms { .. } => unreachable!("resumed() looks through it"),
         }
-        of(&self.flow)
     }
 
     /// The cards being played and not resolved yet, outermost first;

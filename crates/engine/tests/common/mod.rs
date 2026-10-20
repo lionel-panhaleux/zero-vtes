@@ -483,11 +483,11 @@ pub fn noted_changes(
             }
         }
         for (m, (a, b)) in was.minions.iter().zip(&ledger.minions).enumerate() {
-            if a.2 != b.2 {
+            if a.blood != b.blood {
                 out.push((
                     cause,
                     Err(MinionId(m as u32)),
-                    i32::from(b.2) - i32::from(a.2),
+                    i32::from(b.blood) - i32::from(a.blood),
                 ));
             }
         }

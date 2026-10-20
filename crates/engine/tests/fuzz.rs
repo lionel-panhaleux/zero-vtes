@@ -486,6 +486,13 @@ fn play(seed: u64, start: &dyn Fn(u64) -> Engine) -> Played {
         );
         match e.run() {
             Step::Decision(req) => {
+                // A decision's phase is the turn's, never the game's end.
+                assert_ne!(
+                    e.phase(),
+                    zvtes::game::Phase::Over,
+                    "a decision in no phase (seed {seed}, {:?})",
+                    req.window
+                );
                 assert!(
                     !e.state.seats[req.seat.index()].ousted,
                     "decision requested from an ousted seat (seed {seed}, {:?})",

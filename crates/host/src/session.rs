@@ -213,6 +213,12 @@ impl Session {
         &self.engine
     }
 
+    /// The engine, to set a position up (tests).
+    #[cfg(test)]
+    pub(crate) fn engine_mut(&mut self) -> &mut Engine {
+        &mut self.engine
+    }
+
     /// The decision pending (`None` once over).
     pub fn request(&self) -> Option<&DecisionRequest> {
         self.pending.as_ref()

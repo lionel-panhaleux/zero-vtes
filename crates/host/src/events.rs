@@ -3,7 +3,7 @@
 //! fact is public; a card it names is shown, numbered as the viewer last
 //! saw it (`Numbering::name`).
 
-use crate::narrate::{ActionFact, Fact, Told};
+use crate::narrate::{ActionFact, Fact, Held, Told};
 use zvtes::actions::Outcome;
 use zvtes::cards::AbilitySource;
 use zvtes::combat::{CombatNote, Range as R};
@@ -15,6 +15,7 @@ use zvtes::library::LIBRARY;
 use zvtes::state::CardId;
 use zvtes_api::event::{ActionOutcome, ActionRef, EventKind, ReferendumOutcome, StruckSide};
 use zvtes_api::ids::{MinionKind, Range, Zone};
+use zvtes_api::option::SlotRef;
 use zvtes_api::view::Card;
 
 use crate::numbering::Decks;
@@ -103,6 +104,42 @@ impl Namer<'_> {
         self.card(*card.copy, card.card, false)
     }
 
+    /// A minion's or a card in play's copy.
+    fn copy(&mut self, h: Held) -> Option<u32> {
+        match h {
+            Held::Minion(m) => Some(self.minion(m)),
+            Held::Card(c) => self.in_play(c).copy,
+            Held::Slot(_) => unreachable!("a lock or control is a minion's or a card's"),
+        }
+    }
+
+    /// What counters are on: its copy, or an uncontrolled
+    /// vampire's place (none once it left the region: its copy then, a
+    /// minion).
+    fn held(&mut self, h: Held) -> Option<(Option<u32>, Option<SlotRef>)> {
+        let st = &self.e.state;
+        Some(match h {
+            Held::Minion(_) => unreachable!("counters are a card's or a slot's"),
+            Held::Card(c) => (Some(self.in_play(c).copy?), None),
+            Held::Slot(copy) => {
+                let slot = st.seats.iter().enumerate().find_map(|(s, seat)| {
+                    let i = seat.uncontrolled.iter().position(|u| *u.copy == copy)?;
+                    Some(SlotRef {
+                        seat: s as u8,
+                        slot: i as u8,
+                    })
+                });
+                match slot {
+                    Some(slot) => (None, Some(slot)),
+                    None => {
+                        let i = self.faces.iter().position(|&(c, _, _)| c == copy)?;
+                        (Some(self.minion(MinionId(i as u32))), None)
+                    }
+                }
+            }
+        })
+    }
+
     fn action(&mut self, a: ActionFact) -> ActionRef {
         ActionRef {
             kind: action_kind(a.kind),
@@ -122,6 +159,10 @@ impl Namer<'_> {
                 turn,
                 active: active.0,
             },
+            Fact::Phase(p) => EventKind::Phase {
+                phase: crate::view::phase(p),
+            },
+            Fact::Transfers(left) => EventKind::Transfers { left },
             Fact::Draw { seat, n, crypt } => EventKind::Draw {
                 seat: seat.0,
                 n,
@@ -225,6 +266,37 @@ impl Namer<'_> {
                 delta,
                 blood,
                 cause: cause.map(|c| self.cause(c)),
+            },
+            Fact::Locked { what, locked } => EventKind::Locked {
+                copy: self.copy(what)?,
+                locked,
+            },
+            Fact::Counters {
+                what,
+                delta,
+                counters,
+                cause,
+            } => {
+                let (copy, slot) = self.held(what)?;
+                EventKind::Counters {
+                    copy,
+                    slot,
+                    delta,
+                    counters,
+                    cause: cause.map(|c| self.cause(c)),
+                }
+            }
+            Fact::Controller { what, seat } => EventKind::Controller {
+                copy: self.copy(what)?,
+                seat: seat.0,
+            },
+            Fact::Capacity { minion, capacity } => EventKind::Capacity {
+                minion: self.minion(minion),
+                capacity,
+            },
+            Fact::Title { minion, title } => EventKind::Title {
+                minion: self.minion(minion),
+                title: crate::view::title(title),
             },
             Fact::CardEnters { card, on } => EventKind::EntersPlay {
                 card: self.in_play(card),

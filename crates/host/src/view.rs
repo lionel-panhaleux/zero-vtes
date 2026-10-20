@@ -631,7 +631,7 @@ pub(crate) fn title_detail(t: Ti) -> String {
     }
 }
 
-fn title(t: Ti) -> Option<Title> {
+pub(crate) fn title(t: Ti) -> Option<Title> {
     let make = |id: &str, of: Option<&str>, votes: Option<u8>| {
         Some(Title {
             id: id.into(),

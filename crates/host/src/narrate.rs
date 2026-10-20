@@ -5,10 +5,13 @@
 //! the cause of each change; the session tells the notes and the
 //! difference of each two ledgers in a row as facts in the engine's ids
 //! (the host names them for each viewer: `events.rs`): how an action or
-//! a referendum ended, pool and blood moved, minions and cards in and
-//! out of play, torpor, the Edge. What only a decision shows (a block
-//! attempt given up, a strike declared) is read from its marks. Every
-//! fact told is public.
+//! a referendum ended, the phase and transfers, pool and blood moved,
+//! minions and cards in and out of play, torpor, the Edge, locks,
+//! counters, control, capacity and titles. What only a decision shows
+//! (a block attempt given up, a strike declared) is read from its marks.
+//! Every fact told is public. Computed state (the action's, the
+//! combat's, the referendum's, markers, traits) is told by `Game::view`
+//! from two views in a row.
 //!
 //! Every change is a fact; `told` marks the ones a log tells in words
 //! (a decision's own effects are its option's to say, unless the option
@@ -39,6 +42,8 @@ pub enum Fact {
         turn: u32,
         active: SeatId,
     },
+    Phase(zvtes::game::Phase),
+    Transfers(u8),
     Draw {
         seat: SeatId,
         n: u8,
@@ -69,6 +74,29 @@ pub enum Fact {
     Torpor {
         minion: MinionId,
         enters: bool,
+    },
+    Locked {
+        what: Held,
+        locked: bool,
+    },
+    Counters {
+        what: Held,
+        delta: i32,
+        counters: u8,
+        cause: Option<Cause>,
+    },
+    /// A minion or a card in play now controlled by `seat`.
+    Controller {
+        what: Held,
+        seat: SeatId,
+    },
+    Capacity {
+        minion: MinionId,
+        capacity: Option<u8>,
+    },
+    Title {
+        minion: MinionId,
+        title: zvtes::crypt::Title,
     },
     Blood {
         minion: MinionId,
@@ -138,6 +166,15 @@ pub enum Fact {
     Looked(zvtes::game::Look),
 }
 
+/// What a lock or counters are on: a minion, a card in play, an
+/// uncontrolled vampire (by its copy).
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub enum Held {
+    Minion(MinionId),
+    Card(CardId),
+    Slot(CopyId),
+}
+
 /// An action as its end tells it.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct ActionFact {
@@ -204,7 +241,7 @@ fn tell(out: &mut Vec<Told>, fact: Fact, told: bool) {
 /// The table at a decision, as far as events tell it: the engine's
 /// ledger, the action under way, and what only a decision shows (the
 /// strikes declared).
-#[derive(Clone, Debug, Default)]
+#[derive(Clone, Debug)]
 pub(crate) struct Mark {
     pub(crate) ledger: Ledger,
     pub(crate) action: Option<ActionFact>,
@@ -308,6 +345,16 @@ pub(crate) fn changes(
         };
         tell(out, fact, true);
     }
+    // The unlock phase is its turn's (`turn` tells it).
+    if after.phase != before.phase && after.phase != zvtes::game::Phase::Unlock {
+        tell(out, Fact::Phase(after.phase), false);
+    }
+    if let Some(left) = after
+        .transfers
+        .filter(|_| after.transfers != before.transfers)
+    {
+        tell(out, Fact::Transfers(left), false);
+    }
     // A block attempt that ended with no block (short of the stealth,
     // or given up): the action goes on, or ends unblocked.
     if let Some(m) = before.attempting {
@@ -395,16 +442,16 @@ pub(crate) fn changes(
         if gone(e.state.minions[i].owner) {
             continue;
         }
-        let (present, torpor, blood) = *now;
-        let Some(&(was, was_torpor, was_blood)) = before.minions.get(i) else {
-            if present {
+        let Some(b) = before.minions.get(i) else {
+            if now.present {
                 tell(out, Fact::MinionEnters { minion: m }, told);
             }
             continue;
         };
-        match (was, present) {
+        match (b.present, now.present) {
             (false, true) => {
                 tell(out, Fact::MinionEnters { minion: m }, told);
+                continue;
             }
             (true, false) => {
                 let fact = Fact::MinionLeaves {
@@ -418,21 +465,66 @@ pub(crate) fn changes(
             (false, false) => continue,
             (true, true) => {}
         }
-        if torpor != was_torpor && was {
+        if now.torpor != b.torpor {
             let fact = Fact::Torpor {
                 minion: m,
-                enters: torpor,
+                enters: now.torpor,
             };
             tell(out, fact, told);
         }
-        if blood != was_blood && was {
+        if now.blood != b.blood {
             let fact = Fact::Blood {
                 minion: m,
-                delta: i32::from(blood) - i32::from(was_blood),
-                blood,
+                delta: i32::from(now.blood) - i32::from(b.blood),
+                blood: now.blood,
                 cause,
             };
             tell(out, fact, told);
+        }
+        if now.locked != b.locked {
+            let what = Held::Minion(m);
+            tell(
+                out,
+                Fact::Locked {
+                    what,
+                    locked: now.locked,
+                },
+                false,
+            );
+        }
+        if now.controller != b.controller {
+            let fact = Fact::Controller {
+                what: Held::Minion(m),
+                seat: now.controller,
+            };
+            tell(out, fact, false);
+        }
+        if now.capacity != b.capacity {
+            let fact = Fact::Capacity {
+                minion: m,
+                capacity: now.capacity,
+            };
+            tell(out, fact, false);
+        }
+        if now.title != b.title {
+            let fact = Fact::Title {
+                minion: m,
+                title: now.title,
+            };
+            tell(out, fact, false);
+        }
+    }
+    // An uncontrolled vampire's counters, by its copy (a transfer).
+    for &(_, copy, counters) in &after.slots {
+        let was = before.slots.iter().find(|&&(_, c, _)| c == copy);
+        if let Some(&(_, _, was)) = was.filter(|&&(_, _, n)| n != counters) {
+            let fact = Fact::Counters {
+                what: Held::Slot(copy),
+                delta: i32::from(counters) - i32::from(was),
+                counters,
+                cause,
+            };
+            tell(out, fact, false);
         }
     }
     for (i, now) in after.cards.iter().enumerate() {
@@ -442,8 +534,12 @@ pub(crate) fn changes(
         let c = CardId(i as u32);
         let was = before.cards.get(i).copied().flatten();
         match (was, *now) {
-            (None, Some((_, host))) => {
-                tell(out, Fact::CardEnters { card: c, on: host }, told);
+            (None, Some(now)) => {
+                let fact = Fact::CardEnters {
+                    card: c,
+                    on: now.host,
+                };
+                tell(out, fact, told);
             }
             (Some(_), None) => {
                 let card = &e.state.cards[i];
@@ -458,8 +554,41 @@ pub(crate) fn changes(
                 };
                 tell(out, fact, told);
             }
-            (Some((_, from)), Some((_, to))) if from != to => {
-                tell(out, Fact::CardMoves { card: c, on: to }, told);
+            (Some(b), Some(now)) => {
+                if b.host != now.host {
+                    let fact = Fact::CardMoves {
+                        card: c,
+                        on: now.host,
+                    };
+                    tell(out, fact, told);
+                }
+                if b.controller != now.controller {
+                    let fact = Fact::Controller {
+                        what: Held::Card(c),
+                        seat: now.controller,
+                    };
+                    tell(out, fact, false);
+                }
+                if b.locked != now.locked {
+                    let what = Held::Card(c);
+                    tell(
+                        out,
+                        Fact::Locked {
+                            what,
+                            locked: now.locked,
+                        },
+                        false,
+                    );
+                }
+                if b.counters != now.counters {
+                    let fact = Fact::Counters {
+                        what: Held::Card(c),
+                        delta: i32::from(now.counters) - i32::from(b.counters),
+                        counters: now.counters,
+                        cause,
+                    };
+                    tell(out, fact, false);
+                }
             }
             _ => {}
         }
@@ -531,6 +660,27 @@ mod tests {
                     ..
                 }
             )),
+            "{out:?}"
+        );
+    }
+
+    /// A minion taken by another Methuselah is told controlled by them.
+    #[test]
+    fn a_minion_taken_is_told_controlled() {
+        let mut e = Engine::bare(2);
+        let m = e.add_minion(SeatId(0), find_card("Farah Sarroub"), 4, false);
+        e.add_minion(SeatId(1), find_card("Monica Giovanni"), 4, false);
+        let before = Mark::of(&e);
+        e.state.minions[m.index()].owner = SeatId(1);
+        let mut out = Vec::new();
+        let after = Mark::of(&e).ledger;
+        super::changes(&e, (&before.ledger, &after), None, true, None, &mut out);
+        assert!(
+            out.iter().any(|t| t.fact
+                == super::Fact::Controller {
+                    what: super::Held::Minion(m),
+                    seat: SeatId(1),
+                }),
             "{out:?}"
         );
     }

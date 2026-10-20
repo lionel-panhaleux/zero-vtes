@@ -8,7 +8,8 @@ use crate::actions::{ActionCtx, ActionNote, ActionState};
 use crate::cards::AbilitySource;
 use crate::combat::CombatNote;
 use crate::copies::{census, CopyId, Place};
-use crate::game::{Engine, Look, PlayNote, Reveal};
+use crate::crypt::Title;
+use crate::game::{Engine, Look, Phase, PlayNote, Reveal};
 use crate::ids::{MinionId, SeatId};
 use crate::referendum::RefKind;
 use crate::state::CardId;
@@ -101,17 +102,22 @@ impl ActionCtx {
 }
 
 /// The table, as far as a narrator tells it.
-#[derive(Clone, Debug, Default, PartialEq)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct Ledger {
     /// Game turn and active seat.
     pub turn: (u32, SeatId),
+    pub phase: Phase,
+    /// The active seat's transfers left, in its influence phase.
+    pub transfers: Option<u8>,
     pub pools: Vec<i32>,
     pub ousted: Vec<bool>,
     pub edge: Option<SeatId>,
-    /// Per minion id: present, in torpor, blood.
-    pub minions: Vec<(bool, bool, u8)>,
-    /// Per card id: in play (an ally is its minion) and on which minion.
-    pub cards: Vec<Option<(u16, Option<MinionId>)>>,
+    /// Per minion id.
+    pub minions: Vec<MinionLedger>,
+    /// Per card id, in play (an ally is its minion).
+    pub cards: Vec<Option<CardLedger>>,
+    /// Each uncontrolled vampire: its seat, copy and counters.
+    pub slots: Vec<(SeatId, CopyId, u8)>,
     /// Every copy and where it is.
     pub census: Vec<(CopyId, u16, Place)>,
     pub referendum: Option<RefLedger>,
@@ -122,6 +128,28 @@ pub struct Ledger {
     pub attempting: Option<MinionId>,
     /// The minion attempting to block or that blocked it.
     pub blocker: Option<MinionId>,
+}
+
+/// A minion, as a narrator tells it.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct MinionLedger {
+    pub present: bool,
+    pub torpor: bool,
+    pub blood: u8,
+    pub locked: bool,
+    pub capacity: Option<u8>,
+    pub title: Title,
+    pub controller: SeatId,
+}
+
+/// A card in play: on which minion, under whom.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct CardLedger {
+    pub card: u16,
+    pub host: Option<MinionId>,
+    pub locked: bool,
+    pub counters: u8,
+    pub controller: SeatId,
 }
 
 /// A referendum under way.
@@ -138,8 +166,16 @@ impl Engine {
     /// The table now (`Ledger`).
     pub fn table(&self) -> Ledger {
         let st = &self.state;
+        // A handler running parks the flow as the game's end: the phase
+        // and transfers it left (the game's end is the host's to tell).
+        let parked = self
+            .noted
+            .as_deref()
+            .filter(|_| self.phase() == Phase::Over);
         Ledger {
             turn: (st.turn, st.active),
+            phase: parked.map_or(self.phase(), |l| l.phase),
+            transfers: parked.map_or(self.transfers_left(), |l| l.transfers),
             pools: st.seats.iter().map(|s| s.pool).collect(),
             ousted: st.seats.iter().map(|s| s.ousted).collect(),
             edge: st
@@ -150,12 +186,48 @@ impl Engine {
             minions: st
                 .minions
                 .iter()
-                .map(|m| (m.present(), m.in_torpor, m.blood))
+                .enumerate()
+                .map(|(i, m)| {
+                    let id = MinionId(i as u32);
+                    let present = m.present();
+                    MinionLedger {
+                        present,
+                        torpor: m.in_torpor,
+                        blood: m.blood,
+                        locked: m.locked,
+                        controller: m.owner,
+                        capacity: present.then(|| st.capacity_of(id)).flatten(),
+                        title: if present && m.is_vampire() {
+                            st.title_of(id)
+                        } else {
+                            Title::None
+                        },
+                    }
+                })
                 .collect(),
             cards: st
                 .cards
                 .iter()
-                .map(|c| (c.present() && c.body.is_none()).then_some((c.card, c.host)))
+                .enumerate()
+                .map(|(i, c)| {
+                    (c.present() && c.body.is_none()).then(|| CardLedger {
+                        card: c.card,
+                        host: c.host,
+                        locked: c.locked,
+                        counters: c.counters,
+                        controller: st.card_controller(CardId(i as u32)),
+                    })
+                })
+                .collect(),
+            slots: st
+                .seats
+                .iter()
+                .enumerate()
+                .flat_map(|(s, seat)| {
+                    seat.uncontrolled
+                        .iter()
+                        .map(move |u| (SeatId(s as u8), *u.copy, u.counters))
+                })
                 .collect(),
             census: census(self),
             referendum: self.referendum().map(|r| RefLedger {

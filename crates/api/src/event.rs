@@ -4,9 +4,11 @@
 
 use serde::{Deserialize, Serialize};
 
-use crate::ids::{ActionKind, CopyId, DecisionNo, MinionKind, Range, Seat, Window, Zone};
-use crate::option::OptionView;
-use crate::view::{Card, Strike};
+use crate::ids::{
+    ActionKind, CopyId, DecisionNo, MinionKind, Phase, Range, Seat, Trait, Window, Zone,
+};
+use crate::option::{OptionView, SlotRef};
+use crate::view::{ActionView, Card, CombatView, Marker, ReferendumView, Strike, Title};
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
@@ -51,6 +53,15 @@ pub enum EventKind {
     Turn {
         turn: u32,
         active: Seat,
+    },
+    /// A phase begun (the unlock phase is its turn's `turn`).
+    Phase {
+        phase: Phase,
+    },
+    /// The active seat's transfers left, in its influence phase: as it
+    /// begins and as they change.
+    Transfers {
+        left: u8,
     },
     Draw {
         seat: Seat,
@@ -142,6 +153,56 @@ pub enum EventKind {
         #[serde(default, skip_serializing_if = "std::ops::Not::not")]
         effect: bool,
     },
+    /// A minion or a card in play locked (true) or unlocked.
+    Locked {
+        copy: CopyId,
+        locked: bool,
+    },
+    /// The counters on a card in play (`copy`), or the blood counters on
+    /// an uncontrolled vampire, by its place (`slot`: another seat's is a
+    /// back).
+    Counters {
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        copy: Option<CopyId>,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        slot: Option<SlotRef>,
+        delta: i32,
+        counters: u8,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        cause: Option<Cause>,
+    },
+    /// A minion or a card in play now controlled by `seat` (The Coven's
+    /// predator, a minion taken).
+    Controller {
+        copy: CopyId,
+        seat: Seat,
+    },
+    /// A minion's capacity now (a card on it raising it).
+    Capacity {
+        minion: CopyId,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        capacity: Option<u8>,
+    },
+    /// A minion's markers now (the view's `markers`), told when they
+    /// changed since the last view: a Red List mark, a corruption
+    /// counter, a lasting effect (its card told entering play too).
+    Markers {
+        minion: CopyId,
+        markers: Vec<Marker>,
+    },
+    /// A minion's traits now (the view's `traits`), told when they
+    /// changed since the last view (Black Hand gained, made Red List or
+    /// infernal).
+    Traits {
+        minion: CopyId,
+        traits: Vec<Trait>,
+    },
+    /// A vampire's title now (absent: none).
+    Title {
+        minion: CopyId,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        title: Option<Title>,
+    },
     Torpor {
         minion: CopyId,
         /// Goes to torpor (true) or leaves it.
@@ -176,6 +237,12 @@ pub enum EventKind {
         acting: Card,
         minion: MinionKind,
     },
+    /// The action under way as it stands, told when it moved since the
+    /// last view (its step, stealth and intercept, the bleed, the seats
+    /// that declined to block), the view's `action`.
+    ActionState {
+        action: Box<ActionView>,
+    },
     ActionEnds {
         seat: Seat,
         acting: CopyId,
@@ -196,8 +263,20 @@ pub enum EventKind {
         #[serde(default, skip_serializing_if = "Option::is_none")]
         hunted: Option<CopyId>,
     },
+    /// The referendum under way as it stands, told when it moved since
+    /// the last view (its step, terms and votes), the view's
+    /// `referendum`.
+    ReferendumState {
+        referendum: Box<ReferendumView>,
+    },
     CombatBegins {
         minions: [CopyId; 2],
+    },
+    /// The combat under way as it stands, told when it moved since the
+    /// last view (its round, range, each side's strike, maneuvers and
+    /// presses), the view's `combat`.
+    CombatState {
+        combat: Box<CombatView>,
     },
     /// A combatant's strike declared (the acting minion's first: the
     /// blocker chooses knowing it); `None`: no strike.
@@ -244,7 +323,7 @@ pub struct ActionRef {
     pub source: Option<Card>,
 }
 
-/// What made a `pool` or `blood` change: a cost paid or an effect, of a
+/// What made a `pool`, `blood` or `counters` change: a cost paid or an effect, of a
 /// card or of the rules.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]

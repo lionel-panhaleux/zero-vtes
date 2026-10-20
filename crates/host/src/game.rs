@@ -620,6 +620,7 @@ impl Game {
                     if !text {
                         continue;
                     }
+                    tell_state(&mut e.kind, known);
                     e.text = match &e.kind {
                         // A decision taken: its option's line, a pass
                         // only where it ends a phase.
@@ -775,6 +776,9 @@ impl Game {
                     Ok(_) => {
                         self.backlog.clear();
                         self.asked.clear();
+                        // The client drops what it was shown since: the
+                        // view after the undo is its table.
+                        self.last_view = None;
                         let at = self.session.decision();
                         let _ = self.numberings.split_off(&(at + 1));
                         if let Some((n, names)) = self.numberings.get(&at) {
@@ -919,7 +923,6 @@ impl Game {
                         prompt: None,
                         view: view.clone(),
                     };
-                    self.last_view = Some(view);
                     self.numberings.insert(
                         decision,
                         (self.viewer.numbering.clone(), self.viewer.names.clone()),
@@ -952,7 +955,6 @@ impl Game {
                 Next::Over => {
                     let v = self.view();
                     let standing = v.seats.iter().filter(|s| !s.ousted).count();
-                    self.last_view = Some(v);
                     let reason = if standing <= 1 {
                         EndReason::LastStanding
                     } else {
@@ -1100,7 +1102,6 @@ impl Game {
             }
         };
         let steps = self.settings.views == zvtes_api::spec::Views::Steps;
-        self.last_view = Some(view.clone());
         let decided = Event {
             kind: event,
             text: None,
@@ -1173,6 +1174,67 @@ impl Game {
             };
             self.backlog.push_back(told);
         }
+        // The action's, the combat's and the referendum's state, where it
+        // moved since the last view: computed values (stealth, intercept,
+        // the bleed, the votes), told as the view has them.
+        let last = self.last_view.as_ref();
+        let mut state = Vec::new();
+        if let Some(a) = v
+            .action
+            .as_ref()
+            .filter(|&a| last.and_then(|l| l.action.as_ref()) != Some(a))
+        {
+            state.push(EventKind::ActionState {
+                action: Box::new(a.clone()),
+            });
+        }
+        if let Some(c) = v
+            .combat
+            .as_ref()
+            .filter(|&c| last.and_then(|l| l.combat.as_ref()) != Some(c))
+        {
+            state.push(EventKind::CombatState {
+                combat: Box::new(c.clone()),
+            });
+        }
+        if let Some(r) = v
+            .referendum
+            .as_ref()
+            .filter(|&r| last.and_then(|l| l.referendum.as_ref()) != Some(r))
+        {
+            state.push(EventKind::ReferendumState {
+                referendum: Box::new(r.clone()),
+            });
+        }
+        // Each minion's markers and traits, likewise (read live: a Red
+        // List mark, Black Hand gained).
+        fn minions(v: &TableView) -> HashMap<u32, &zvtes_api::view::MinionView> {
+            v.seats
+                .iter()
+                .flat_map(|s| s.ready.iter().chain(&s.torpor))
+                .filter_map(|m| Some((m.card.copy?, m)))
+                .collect()
+        }
+        if let Some(was) = last.map(minions) {
+            let mut now: Vec<_> = minions(&v).into_iter().collect();
+            now.sort_by_key(|&(c, _)| c);
+            for (minion, m) in now {
+                let Some(b) = was.get(&minion) else { continue };
+                if b.markers != m.markers {
+                    let markers = m.markers.clone();
+                    state.push(EventKind::Markers { minion, markers });
+                }
+                if b.traits != m.traits {
+                    let traits = m.traits.clone();
+                    state.push(EventKind::Traits { minion, traits });
+                }
+            }
+        }
+        for kind in state {
+            self.backlog
+                .push_back(Told::Event(Box::new(Event { kind, text: None })));
+        }
+        self.last_view = Some(v.clone());
         v
     }
 
@@ -1374,17 +1436,34 @@ fn empty_view(viewer: Seat) -> TableView {
 /// The view's strikes and markers in English (`Strike::text`,
 /// `Marker::text`), from their data.
 fn tell_view(v: &mut TableView, known: &zvtes_text::Names) {
-    for side in v.combat.iter_mut().flat_map(|c| &mut c.sides) {
+    v.combat.iter_mut().for_each(|c| tell_combat(c, known));
+    for s in &mut v.seats {
+        for m in s.ready.iter_mut().chain(&mut s.torpor) {
+            tell_markers(&mut m.markers, known);
+        }
+    }
+}
+
+/// A state event's strikes and markers in English, as its view's.
+fn tell_state(e: &mut EventKind, known: &zvtes_text::Names) {
+    match e {
+        EventKind::CombatState { combat } => tell_combat(combat, known),
+        EventKind::Markers { markers, .. } => tell_markers(markers, known),
+        _ => {}
+    }
+}
+
+fn tell_combat(c: &mut zvtes_api::view::CombatView, known: &zvtes_text::Names) {
+    for side in &mut c.sides {
         if let Some(s) = side.strike.as_mut() {
             s.text = Some(zvtes_text::strike_declared(s, known));
         }
     }
-    for s in &mut v.seats {
-        for m in s.ready.iter_mut().chain(&mut s.torpor) {
-            for k in &mut m.markers {
-                k.text = Some(zvtes_text::marker(k, known));
-            }
-        }
+}
+
+fn tell_markers(markers: &mut [zvtes_api::view::Marker], known: &zvtes_text::Names) {
+    for k in markers {
+        k.text = Some(zvtes_text::marker(k, known));
     }
 }
 
@@ -1495,6 +1574,62 @@ mod tests {
             }
         }
         out
+    }
+
+    /// A minion's traits read live, told when they change (docs/protocol.md
+    /// §9 `traits`): a vampire gaining Black Hand between two views.
+    #[test]
+    fn a_trait_gained_is_told() {
+        let mut g = game(1);
+        let human = g.human();
+        g.handle(
+            human,
+            In {
+                id: None,
+                command: Command::Join {
+                    token: None,
+                    after: None,
+                },
+            },
+        );
+        // Played on until a dealt vampire is in play, not Black Hand.
+        let vampire = |g: &Game| {
+            let st = &g.session.engine().state;
+            (0..st.minions.len()).find(|&i| {
+                let v = &st.minions[i];
+                v.present() && v.is_vampire() && !st.is_black_hand(zvtes::ids::MinionId(i as u32))
+            })
+        };
+        let mut steps = 0;
+        let m = loop {
+            if let Some(m) = vampire(&g) {
+                break m;
+            }
+            let d = g.pending.as_ref().expect("a decision");
+            let (decision, option) = (d.decision, d.options[0].index);
+            g.handle(
+                human,
+                In {
+                    id: None,
+                    command: Command::Answer { decision, option },
+                },
+            );
+            steps += 1;
+            assert!(steps < 500, "no vampire came into play");
+        };
+        g.view();
+        g.backlog.clear();
+        g.session.engine_mut().state.minions[m].gained_black_hand = true;
+        g.view();
+        let told = g.backlog.iter().any(|t| {
+            matches!(t, Told::Event(e) if matches!(&e.kind, EventKind::Traits { traits, .. }
+                if traits.contains(&zvtes_api::ids::Trait::BlackHand)))
+        });
+        assert!(told, "no traits told");
+        // Told once: the next view finds it as the last.
+        g.backlog.clear();
+        g.view();
+        assert!(g.backlog.is_empty(), "told again");
     }
 
     #[test]
