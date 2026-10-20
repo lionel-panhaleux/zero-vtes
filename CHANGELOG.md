@@ -66,7 +66,9 @@ tell, and undo against bots, behaviours with no field or id.
   time, across the bots' decisions, vote orders (`vote_all`, the order
   taken back with its decision), passes, reveals, looks and searches, as
   far as 64 of the seat's own decisions; the bots answer again as they
-  did.
+  did; the view as first sent at the decision undone to, the numbers
+  given since never given again (§3: they had been handed out again,
+  to other cards).
 
 ## 2.4.0
 

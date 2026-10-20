@@ -156,7 +156,8 @@ struct Stream {
     /// The legacy lines the renderer told otherwise: (legacy, rendered).
     misses: Vec<(String, String)>,
     /// Each minion's `numbered`, as the views and its entering or leaving
-    /// play told it (forgotten at an undo: wire copies are given again).
+    /// play told it (forgotten at an undo: it takes back those given
+    /// since).
     name_numbers: HashMap<u32, Option<u8>>,
     /// The action told announced and not yet ended (seat, acting), by the
     /// events alone; unknown after an undo, until a view shows the table.
@@ -186,6 +187,16 @@ struct Stream {
     >,
     /// Markers the views showed.
     markers: usize,
+    /// Each copy's KRCG id, as the messages first showed it: an undo
+    /// forgets none (a number never names another card).
+    faces: HashMap<u32, u64>,
+    /// Messages seen; each copy's first message; each decision's message,
+    /// as last asked (what an undo to it restores); the copies first sent after a decision an undo
+    /// went back to, never sent again (§3: never given twice).
+    seq: usize,
+    born: HashMap<u32, usize>,
+    asked_at: HashMap<u64, usize>,
+    dead: std::collections::HashSet<u32>,
 }
 
 /// The action ended last: its seat, acting minion and card's copy.
@@ -679,8 +690,56 @@ impl Stream {
         self.open = Some(action);
     }
 
+    /// Every card `x` names by its copy and id (a view's card, an
+    /// option's or an event's): the card its copy first named.
+    fn faces(&mut self, x: &impl serde::Serialize) {
+        fn walk(x: &serde_json::Value, out: &mut Vec<(u64, u64)>) {
+            match x {
+                serde_json::Value::Object(o) => {
+                    if let (Some(c), Some(id)) = (
+                        o.get("copy").and_then(|c| c.as_u64()),
+                        o.get("id").and_then(|c| c.as_u64()),
+                    ) {
+                        out.push((c, id));
+                    }
+                    o.values().for_each(|x| walk(x, out));
+                }
+                serde_json::Value::Array(a) => a.iter().for_each(|x| walk(x, out)),
+                _ => {}
+            }
+        }
+        let mut cards = Vec::new();
+        walk(&serde_json::to_value(x).expect("serializes"), &mut cards);
+        for (c, id) in cards {
+            let c = c as u32;
+            let was = *self.faces.entry(c).or_insert(id);
+            assert_eq!(was, id, "seed {}: copy {c} names another card", self.seed);
+            assert!(
+                !self.dead.contains(&c),
+                "seed {}: copy {c} given again",
+                self.seed
+            );
+            self.born.entry(c).or_insert(self.seq);
+        }
+    }
+
     fn see(&mut self, outs: &[Out]) {
         for o in outs {
+            self.seq += 1;
+            if let Message::Events { events, .. } = &o.message {
+                for e in events {
+                    if let EventKind::Undone { to, .. } = e.kind {
+                        if let Some(&at) = self.asked_at.get(&to) {
+                            let since = self.born.iter().filter(|&(_, &b)| b > at);
+                            self.dead.extend(since.map(|(&c, _)| c));
+                        }
+                    }
+                }
+            }
+            if let Message::Decision(d) = &o.message {
+                self.asked_at.insert(d.decision, self.seq);
+            }
+            self.faces(&o.message);
             self.started = false;
             match &o.message {
                 // A step's view is the table after the step, or after the
@@ -797,6 +856,11 @@ fn the_events_tell_what_the_views_show() {
             caused: 0,
             sources: HashMap::new(),
             markers: 0,
+            faces: HashMap::new(),
+            seq: 0,
+            born: HashMap::new(),
+            asked_at: HashMap::new(),
+            dead: Default::default(),
         };
         let mut outs = g.handle(
             human,

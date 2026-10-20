@@ -155,6 +155,14 @@ impl Numbering {
         Some((n.wire, n.nth))
     }
 
+    /// Back to `earlier` (an undo): its copies in sight as it named
+    /// them, the numbers given since never given again.
+    pub fn restore(&mut self, earlier: &Numbering) {
+        let next = self.next.max(earlier.next);
+        *self = earlier.clone();
+        self.next = next;
+    }
+
     /// The wire copy and label of a visible engine copy.
     pub fn get(&self, c: CopyId) -> Option<(u32, u8)> {
         self.wire.get(&c.0).map(|n| (n.wire, n.nth))

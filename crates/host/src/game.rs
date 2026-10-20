@@ -778,7 +778,7 @@ impl Game {
                         let at = self.session.decision();
                         let _ = self.numberings.split_off(&(at + 1));
                         if let Some((n, names)) = self.numberings.get(&at) {
-                            self.viewer.numbering = n.clone();
+                            self.viewer.numbering.restore(n);
                             self.viewer.names = names.clone();
                         }
                         let mut m = self.advance();

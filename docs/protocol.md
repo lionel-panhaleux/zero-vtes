@@ -194,7 +194,7 @@ an `error`).
 | `answer` | `decision`, `option` | take an option |
 | `allocate` | `decision`, `amounts` | an allocation of points answered whole (one amount per `allocation.recipients`) |
 | `vote_all` | `decision`, `favor` | all the votes `votes` counts, one way; holds for the rest of the polling |
-| `undo` | `decision` | take back the seat's previous decision, from the pending `decision` (when `undo` is true); sent twice, undoes once. With every bot decision, vote order (`vote_all`'s, taken back with its decision) and pass since, whatever was revealed or drawn since; one decision of its own back at each undo, as far as 64 of them; the bots answer again as they did (a game has one human seat) |
+| `undo` | `decision` | take back the seat's previous decision, from the pending `decision` (when `undo` is true); sent twice, undoes once. With every bot decision, vote order (`vote_all`'s, taken back with its decision) and pass since, whatever was revealed or drawn since; one decision of its own back at each undo, as far as 64 of them; the bots answer again as they did (a game has one human seat); the view as first sent at that decision, the numbers given since never given again (§3) |
 | `settings` | `opportunities`?, `views`?, `text`? | change some settings (§8); the pending decision is sent again |
 | `leave` | — | end the game, recorded as abandoned |
 | `feedback` | `text` (1 to 4,000 characters, trimmed) | a problem or a remark, kept in the record at the pending decision (else the last one), also once the game is over; answered `noted` |
