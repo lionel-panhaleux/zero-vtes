@@ -18,7 +18,6 @@ what the community beta needs from Succubus Club first, then
 Thomas's PRs and the proposal, then the fork's remaining interface items,
 then other platforms.
 
-- **Ask the owner whether to chase Thomas, 2026-10-21**: #285 (the engine game, on `dev` since 2026-10-17, with its question whether the chips stay in `CardGO.vue`) waits on his review; the beta's way in waits on #285 (owner, 2026-10-14: if he does not move swiftly enough, our own SC on krcg, or a platform made for the engine, always engine games). Done when the owner has answered and sc.md logs his reaction, or the owner picked the other way in. Docs: sc.md (PRs), the roadmap's milestone.
 - **The engine mode's notice checked**: in #285 and the fork, it says games are recorded two years, anonymous (as `docs/protocol.md` says), and where to send feedback. Done when both say all three. Docs: sc.md.
 - **The referendum and action panels inside the seat's board**: vote totals and "Played during the action" are cut off today. Done when both show whole at the fork's smallest supported size. Docs: none.
 - **"Report a problem" in engine games**: the `feedback {text}` command (protocol 1.2.0, live), its text tied to the game and the decision, and the community channel the notice names. Done when a report sent from the fork shows in `/admin/feedback`. Docs: sc.md.

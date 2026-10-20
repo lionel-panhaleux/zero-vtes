@@ -44,7 +44,8 @@ whenever something reaches us from Thomas or a PR moves.
   any window size (#284). He tries a PR by running it: #285 against
   `engine.krcg.org` from his own build (a CORS refusal, fixed the same day:
   the server allows every origin).
-- **Unknown yet**: what he thinks of the engine game type (#285).
+- **Unknown yet**: what he thinks of the engine game type (#285); the
+  owner and he exchange on it directly, no chasing (owner, 2026-10-20).
 
 ## The integration's shape (online-plan §C, the owner's)
 

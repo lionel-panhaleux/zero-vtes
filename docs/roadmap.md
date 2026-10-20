@@ -27,9 +27,9 @@ good enough to beta test with players of the community.
 What it still needs:
 
 1. **A way in for testers**: Thomas ships SC with #285 merged, or our own
-   SC on krcg, or a platform made for the engine (platforms: Ask the owner
-   whether to chase Thomas; the platforms line held until his review,
-   owner 2026-10-15).
+   SC on krcg, or a platform made for the engine (the owner and Thomas
+   exchange on #285, owner 2026-10-20; the platforms line held until his
+   review, owner 2026-10-15).
 2. **The best bot served**: each run measured against the served weights
    and served if it beats them (training: its run's line).
 3. **The loop on testers' games**: promotion to `data/records`
