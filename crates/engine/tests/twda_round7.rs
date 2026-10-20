@@ -1210,6 +1210,37 @@ fn confusion_adds_to_a_bleed_only() {
     never_offered_until(&mut e, SeatId(0), WindowLabel::MinionPhase, play(0, 1, a));
 }
 
+// Confusion [DEM] during a block attempt that needs stealth: offered once,
+// never the same play twice.
+#[test]
+fn confusion_superior_is_offered_once_as_stealth_is_needed() {
+    let mut e = game(2);
+    let a = e.add_minion(SeatId(0), find_card("Erebus"), 4, false);
+    superior(&mut e, a, "dem");
+    e.add_minion(SeatId(0), plain("Brujah", 0), 4, false);
+    let z = e.add_minion(SeatId(1), plain("Ventrue", 0), 4, false);
+    hand(&mut e, 0, &["Confusion"]);
+    pick(&mut e, bleed(a));
+    pick_when(&mut e, block(z));
+    let req = offering(&mut e, play(0, 1, a));
+    let n = req
+        .options
+        .iter()
+        .filter(|o| {
+            matches!(
+                o,
+                Choice::Play {
+                    card: 0,
+                    mode: 1,
+                    ..
+                }
+            )
+        })
+        .count();
+    assert_eq!(n, 1, "the same play twice");
+    assert!(!req.options.contains(&play(0, 2, a)));
+}
+
 // Eyes of Chaos: "[DEM] +2 bleed (limited)."
 #[test]
 fn eyes_of_chaos_bleeds_for_three() {

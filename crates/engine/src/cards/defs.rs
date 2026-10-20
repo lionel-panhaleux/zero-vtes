@@ -19511,21 +19511,16 @@ pub static COMA: CardDef = CardDef {
 
 /// "Only usable during a bleed action. [dem] +1 bleed (limited). [DEM] +1
 /// stealth and +1 bleed (limited)." ([DEM]: during a bleed only, ANK
-/// 20171023.) The superior mode splits in two (`lines`, as
-/// Subversion's): any time in the bleed, or as stealth is needed.
+/// 20171023.) [DEM] one mode in both windows, any time in the bleed: its
+/// bleed lifts the not-needed bar (advanced rules §1.6).
 pub static CONFUSION: CardDef = CardDef {
     name: "Confusion",
-    lines: &[0, 1, 1],
     modes: &[
         modifier(&[Requirement::IsBleed], &[bleed(1, true)]),
-        modifier(
-            &[Requirement::IsBleed],
-            &[Effect::AddStealth(1), bleed(1, true)],
-        ),
         mode_of(
-            &[Window::ActionStealthIntercept],
+            &[Window::ActionStealthIntercept, Window::ActionDuring],
             Actor::ActingMinion,
-            &[Requirement::IsBleed, Requirement::StealthNeeded],
+            &[Requirement::IsBleed],
             &[Effect::AddStealth(1), bleed(1, true)],
         ),
     ],
