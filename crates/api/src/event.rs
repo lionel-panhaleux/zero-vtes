@@ -206,6 +206,13 @@ pub enum EventKind {
         minion: CopyId,
         traits: Vec<Trait>,
     },
+    /// A Methuselah's victory points now, in halves (the view's
+    /// `vp_halves`), told when they changed since the last view: an oust's
+    /// predator, the last one standing, a survivor at the time limit.
+    VictoryPoints {
+        seat: Seat,
+        vp_halves: u32,
+    },
     /// A vampire's title now (absent: none).
     Title {
         minion: CopyId,
@@ -332,6 +339,11 @@ pub struct ZoneRef {
     /// (`in_play`).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub on: Option<CopyId>,
+    /// In an uncontrolled region (`from`: the one it leaves, `to`: the
+    /// one it goes to): its place there, from the first, the moves told
+    /// before it applied.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub slot: Option<u8>,
 }
 
 /// What an action is: its kind, its card, what grants it.

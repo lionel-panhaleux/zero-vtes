@@ -6,6 +6,43 @@ server runs.
 `python3 scripts/schema_compat.py` lists what a schema change adds or
 removes; its `--check` fails a removal without a major version.
 
+## 2.6.0
+
+The table kept from events alone: the last view with the events since
+applied is the next (§9, the rule a client reduces by, held by the
+host's tests on every decision's view); one field and one event added,
+the rest behaviours with no field or id.
+
+- `card_moves`: `slot`, in an uncontrolled region: `from`'s which of its
+  cards left (a face-down one's place: its counters had no other name),
+  `to`'s where it goes (a redraw fills the places the old ones left); a
+  vampire moved within its region told so (a reshuffle's), from and to
+  it, so the region's order is the events' too; a card moved into a
+  minion's place `numbered` (a merged vampire had none told).
+- Event `victory_points` (`seat`, `vp_halves`), told when a view finds
+  them changed: Methuselahs ousted at once score each predator as the
+  table stood before them, which `ousted` in a row could not say.
+- `counters`: `slot` is the vampire's place in the region as the events
+  have kept it when told (it was the next view's: wrong across a
+  reshuffle, Kaymakli Nightmares); a vampire's counters coming with it
+  into the region, and a training card's counters, now told.
+- A minion or card coming into a contest at once (a second copy
+  influenced out, a unique card or ally played) told `leaves_play`
+  `contested` after its move, its state as for one coming into play.
+- A minion or card coming into play, or back from a contest: what it
+  has beyond what it brought told after its move — `blood` (an ally's
+  life; a vampire's beyond its counters), `locked`, `counters`,
+  `controller` (a card on a minion controlled by another than the
+  minion's), and a minion's `capacity`, `title`, `markers` and `traits`
+  (none were told: the view had them first); a vampire's counters
+  beyond its capacity drained as it comes in, `rule: capacity`.
+- `locked`: told for a card or minion in a contest too (its unlock phase
+  unlocked it untold).
+- The view: an ousted seat's places empty (its crypt cards in the ash
+  heap and its removed cards stayed shown); the `over` message's
+  `phase` `over` and no `transfers`, however the game ended (the
+  humans ousted mid-phase kept the phase).
+
 ## 2.5.0
 
 Round 18's cards (rules-qa Batch 85), the events `action_starts` and

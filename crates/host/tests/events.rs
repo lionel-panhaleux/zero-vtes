@@ -1,8 +1,8 @@
-//! The events a seat is told (docs/protocol.md §8), checked against the
-//! views it is sent: every action and referendum that ends is told
-//! ended, a combat is told begun, its strikes, then ended, and the pool,
-//! blood and torpor the events last told are the table's. Every copy an
-//! event names is numbered; English only when the settings ask, and
+//! The events a seat is told (docs/protocol.md §9), checked against the
+//! views it is sent: each decision's view is the last one with the
+//! events since applied (`reduce`); an action is told ended before the
+//! next is announced, a combat begun, its strikes, then ended. Every copy
+//! an event names is numbered; English only when the settings ask, and
 //! then what `zvtes_text` renders from the event's data (A7's oracle).
 
 use std::collections::HashMap;
@@ -15,6 +15,8 @@ use zvtes_api::{Command, GameSpec, In, Message, Out, Player, SeatSpec, Settings}
 use zvtes_host::{Bots, Clock, Game};
 use zvtes_text::Names;
 
+mod reduce;
+
 /// The first seed a sweep plays (`HOST_SEED_FROM`, to look at one).
 fn from() -> u32 {
     std::env::var("HOST_SEED_FROM").map_or(1, |s| s.parse().unwrap())
@@ -23,8 +25,17 @@ fn from() -> u32 {
 /// Seeds past the default a deeper sweep failed on (`HOST_SEEDS=400`),
 /// kept: a banished created vampire (70), Mask of a Thousand Faces (132),
 /// Victor Pelletier's price (172), the strikes shown after an undo (219),
-/// Spiritual Guidance's play from the ash heap (346).
-const KEPT: [u32; 5] = [70, 132, 172, 219, 346];
+/// Spiritual Guidance's play from the ash heap (346); and the table kept
+/// from the events: a vampire banished and back between two views (45),
+/// one influenced into a contest (81), a unique ally played into one
+/// (95), a crypt card come with counters (111), a contested minion's
+/// cards (118), a merge (119), training counters (152), Kaymakli
+/// Nightmares' reshuffle (154), two Methuselahs ousted at once (239), a
+/// unique card put into a contest (299), a vampire's excess drained in
+/// one (380).
+const KEPT: [u32; 16] = [
+    45, 70, 81, 95, 111, 118, 119, 132, 152, 154, 172, 219, 239, 299, 346, 380,
+];
 
 /// The sweep's seeds: `HOST_SEED_FROM` to `HOST_SEEDS` (40), the kept
 /// ones past it.
@@ -133,14 +144,8 @@ fn game(seed: u64, settings: Settings) -> Game {
 struct Stream {
     seed: u32,
     text: bool,
-    /// A referendum under way at the last view (none after an undo).
-    last: Option<bool>,
-    referendum_ended: bool,
     /// A combat told begun, not yet told ended; unknown after an undo.
     in_combat: Option<bool>,
-    pools: HashMap<u8, i32>,
-    blood: HashMap<u32, u8>,
-    torpor: HashMap<u32, bool>,
     told: usize,
     /// The plays told resolved and canceled.
     played: [usize; 2],
@@ -188,8 +193,9 @@ struct Stream {
     /// Markers the views showed, and combats a decision's view did.
     markers: usize,
     combats: usize,
-    /// Cards told moving, and among them as backs.
-    moved: [usize; 2],
+    /// Cards told moving, among them as backs, and within an uncontrolled
+    /// region (a reshuffle).
+    moved: [usize; 3],
     /// Each copy's KRCG id, as the messages first showed it: an undo
     /// forgets none (a number never names another card).
     faces: HashMap<u32, u64>,
@@ -205,22 +211,21 @@ struct Stream {
     /// undo).
     viewer: Option<u8>,
     played_in: std::collections::HashSet<u32>,
-    /// The phase the events told last (a turn's: its unlock phase), the
-    /// transfers left, and the action's, combat's and referendum's state
-    /// (unknown after an undo).
+    /// The phase the events told last (a turn's: its unlock phase) and
+    /// the transfers left (unknown after an undo).
     phase: Option<zvtes_api::ids::Phase>,
     transfers: Option<u8>,
-    told_state: (
-        Option<zvtes_api::view::ActionView>,
-        Option<zvtes_api::view::CombatView>,
-        Option<zvtes_api::view::ReferendumView>,
-    ),
-    /// The last decision's view, and the events told since.
+    /// The last decision's view.
     prev: Option<TableView>,
-    heard: Vec<EventKind>,
-    /// Per kind of state, its changes between two decisions' views, and
-    /// those no event told.
-    gaps: std::collections::BTreeMap<String, (usize, usize)>,
+    /// The table kept from the events since the last decision's view
+    /// (none after an undo, until a view shows the table), the paths it
+    /// missed with an example, and the places in another order.
+    table: Option<reduce::Table>,
+    unreduced: std::collections::BTreeMap<String, (usize, String)>,
+    unordered: std::collections::BTreeMap<&'static str, usize>,
+    reduced: usize,
+    /// Per kind of state, its changes between two decisions' views.
+    changes: std::collections::BTreeMap<String, usize>,
 }
 
 /// The action ended last: its seat, acting minion and card's copy.
@@ -384,7 +389,9 @@ impl Stream {
             );
         }
         self.names.hear(&e.kind);
-        self.heard.push(e.kind.clone());
+        if let Some(t) = &mut self.table {
+            t.apply(&e.kind);
+        }
         if std::env::var_os("HOST_TRACE").is_some() {
             eprintln!("event {seed} {:?} {:?}", e.kind, e.text);
         }
@@ -486,9 +493,11 @@ impl Stream {
             // shows it (a library, a crypt, another's face-down vampires),
             // its face where one plainly does.
             EventKind::CardMoves { card, from, to } => {
+                use zvtes_api::ids::Zone as Z;
                 self.moved[0] += 1;
                 self.moved[1] += usize::from(card.id.is_none());
-                use zvtes_api::ids::Zone as Z;
+                let region = from.zone == Z::Uncontrolled && to.zone == Z::Uncontrolled;
+                self.moved[2] += usize::from(region && from.seat == to.seat);
                 let v = self.viewer;
                 let hidden =
                     |r: &zvtes_api::event::ZoneRef| matches!(r.zone, Z::Library | Z::Crypt);
@@ -520,11 +529,6 @@ impl Stream {
                 );
                 self.transfers = Some(*left);
             }
-            EventKind::ActionState { action } => self.told_state.0 = Some((**action).clone()),
-            EventKind::CombatState { combat } => self.told_state.1 = Some((**combat).clone()),
-            EventKind::ReferendumState { referendum } => {
-                self.told_state.2 = Some((**referendum).clone())
-            }
             // An uncontrolled vampire's counters: a transfer, or a card.
             EventKind::Counters {
                 slot: Some(_),
@@ -540,18 +544,13 @@ impl Stream {
                 self.active = None;
                 self.sources.clear();
                 self.open = None;
-                self.last = None;
                 self.in_combat = None;
-                self.pools.clear();
-                self.blood.clear();
-                self.torpor.clear();
                 self.name_numbers.clear();
                 self.prev = None;
-                self.heard.clear();
+                self.table = None;
                 self.phase = None;
                 self.transfers = None;
                 self.played_in.clear();
-                self.told_state = (None, None, None);
             }
             EventKind::CombatBegins { minions } => {
                 minions.iter().for_each(|&m| copy(m));
@@ -651,28 +650,13 @@ impl Stream {
                         "seed {seed}: a referendum ended after its action"
                     );
                 }
-                self.referendum_ended = true;
             }
-            EventKind::Pool {
-                seat, pool, cause, ..
-            } => {
-                self.cause(cause.as_ref(), e);
-                self.pools.insert(*seat, *pool);
-            }
-            EventKind::Blood {
-                minion,
-                blood,
-                cause,
-                ..
-            } => {
+            EventKind::Pool { cause, .. } => self.cause(cause.as_ref(), e),
+            EventKind::Blood { minion, cause, .. } => {
                 copy(*minion);
                 self.cause(cause.as_ref(), e);
-                self.blood.insert(*minion, *blood);
             }
-            EventKind::Torpor { minion, enters } => {
-                copy(*minion);
-                self.torpor.insert(*minion, *enters);
-            }
+            EventKind::Torpor { minion, .. } => copy(*minion),
             EventKind::EntersPlay {
                 card, on, effect, ..
             }
@@ -682,10 +666,6 @@ impl Stream {
             }
             EventKind::LeavesPlay { card, effect, .. } => {
                 assert!(numbered(card) != *effect, "seed {seed}: {e:?}");
-                if let Some(c) = card.copy {
-                    self.blood.remove(&c);
-                    self.torpor.remove(&c);
-                }
             }
             EventKind::BlockFails { minion } => {
                 copy(*minion);
@@ -754,78 +734,44 @@ impl Stream {
             assert_eq!(k.text, want, "seed {seed} {at}: a marker's text");
             self.markers += 1;
         }
-        let referendum = v.referendum.is_some();
         self.shows(v, at);
-        if let Some(had_referendum) = self.last {
-            if had_referendum && !referendum {
-                assert!(
-                    self.referendum_ended,
-                    "seed {seed} {at}: a referendum's end untold"
-                );
-            }
+        if at.starts_with("decision") && v.combat.is_some() {
+            self.combats += 1;
         }
-        // The phase and the action's, combat's and referendum's state as
-        // last told are the view's (a join's view is the client's table).
-        if at.starts_with("decision") {
-            if let Some(p) = self.phase {
-                assert_eq!(p, v.phase, "seed {seed} {at}: the phase told");
-            }
-            let (a, c, r) = &self.told_state;
-            if let Some(x) = &v.action {
-                assert_eq!(a.as_ref(), Some(x), "seed {seed} {at}: the action told");
-            }
-            if let Some(x) = &v.combat {
-                assert_eq!(c.as_ref(), Some(x), "seed {seed} {at}: the combat told");
-                self.combats += 1;
-            }
-            if let Some(x) = &v.referendum {
-                assert_eq!(r.as_ref(), Some(x), "seed {seed} {at}: the referendum told");
-            }
-        }
-        for (&s, &pool) in &self.pools {
-            assert_eq!(v.seats[s as usize].pool, pool, "seed {seed} {at}: pool");
-        }
-        for s in &v.seats {
-            for (m, torpor) in s
-                .ready
-                .iter()
-                .map(|m| (m, false))
-                .chain(s.torpor.iter().map(|m| (m, true)))
-            {
-                let Some(c) = m.card.copy else { continue };
-                if let Some(&b) = self.blood.get(&c) {
-                    assert_eq!(m.blood, b, "seed {seed} {at}: {}'s blood", m.name);
-                }
-                if let Some(&t) = self.torpor.get(&c) {
-                    assert_eq!(torpor, t, "seed {seed} {at}: {}'s torpor", m.name);
-                }
-            }
-        }
+        // The kinds of state a view changed, each told (`reduce`).
         if let Some(p) = self.prev.take() {
-            for (kind, of) in zones_untold(&p, v, &self.heard) {
-                let g = self.gaps.entry(kind.clone()).or_default();
-                g.1 += 1;
-                if std::env::var_os("HOST_GAPS").is_some() {
-                    eprintln!("seed {seed} {at}: {kind} {of} untold");
-                }
-            }
-            for (kind, of) in changed(&p, v) {
-                let told = tells(&kind, &of, at, &self.heard);
-                let g = self.gaps.entry(kind.clone()).or_default();
-                g.0 += 1;
-                g.1 += usize::from(!told);
-                if !told && std::env::var_os("HOST_GAPS").is_some() {
-                    eprintln!("seed {seed} {at}: {kind} {of} untold");
-                }
+            for (kind, _) in changed(&p, v) {
+                *self.changes.entry(kind).or_default() += 1;
             }
         }
         self.prev = Some(v.clone());
-        self.heard.clear();
-        self.pools.clear();
-        self.blood.clear();
-        self.torpor.clear();
-        self.referendum_ended = false;
-        self.last = Some(referendum);
+    }
+
+    /// The table the events kept since the last decision's view is this
+    /// one (`over`'s: the phase over); then this view is the table.
+    fn reduce(&mut self, v: &TableView, at: &str, over: bool) {
+        if std::env::var_os("HOST_TRACE").is_some() {
+            eprintln!("view {} {at}", self.seed);
+        }
+        if let Some(mut t) = self.table.take() {
+            if over {
+                t.v.phase = zvtes_api::ids::Phase::Over;
+                t.v.transfers = None;
+            }
+            let missed = reduce::check(&mut t.v, v, &mut self.unordered);
+            self.reduced += 1;
+            for (path, example) in missed {
+                if std::env::var_os("HOST_REDUCE").is_some() {
+                    eprintln!("seed {} {at}: {path}: {example}", self.seed);
+                }
+                let e = self.unreduced.entry(path).or_insert((0, String::new()));
+                e.0 += 1;
+                if e.1.is_empty() {
+                    e.1 = format!("seed {} {at}: {example}", self.seed);
+                }
+            }
+        }
+        self.table = Some(reduce::Table::new(v.clone()));
     }
 
     /// The view shows the action the events told under way, if any.
@@ -919,10 +865,18 @@ impl Stream {
                         }
                     }
                     self.asked.insert(d.decision, d.view.clone());
-                    self.view(&d.view, &format!("decision {}", d.decision))
+                    let at = format!("decision {}", d.decision);
+                    self.reduce(&d.view, &at, false);
+                    self.view(&d.view, &at)
                 }
-                Message::Over(over) => self.view(&over.view, "over"),
-                Message::Joined(j) => self.view(&j.view, "joined"),
+                Message::Over(over) => {
+                    self.reduce(&over.view, "over", true);
+                    self.view(&over.view, "over")
+                }
+                Message::Joined(j) => {
+                    self.table = Some(reduce::Table::new(j.view.clone()));
+                    self.view(&j.view, "joined")
+                }
                 _ => {}
             }
         }
@@ -964,9 +918,14 @@ fn the_events_tell_what_the_views_show() {
     let mut played = [0, 0];
     let (mut within, mut undecided, mut caused, mut markers) = (0, 0, 0, 0);
     let mut combats = 0;
-    let mut moved = [0, 0];
+    let mut moved = [0; 3];
     let mut reasked = 0;
-    let mut gaps: std::collections::BTreeMap<String, (usize, usize)> = Default::default();
+    let (mut unreduced, mut unordered, mut reduced) = (
+        std::collections::BTreeMap::new(),
+        std::collections::BTreeMap::new(),
+        0,
+    );
+    let mut changes: std::collections::BTreeMap<String, usize> = Default::default();
     let mut misses = Vec::new();
     for &seed in &seeds {
         let settings = Settings {
@@ -980,12 +939,7 @@ fn the_events_tell_what_the_views_show() {
         let mut s = Stream {
             seed,
             text: settings.text,
-            last: None,
-            referendum_ended: false,
             in_combat: Some(false),
-            pools: HashMap::new(),
-            blood: HashMap::new(),
-            torpor: HashMap::new(),
             told: 0,
             texts: 0,
             names: Names::new(zvtes_host::cards::cards()),
@@ -1007,7 +961,7 @@ fn the_events_tell_what_the_views_show() {
             sources: HashMap::new(),
             markers: 0,
             combats: 0,
-            moved: [0, 0],
+            moved: [0; 3],
             faces: HashMap::new(),
             seq: 0,
             born: HashMap::new(),
@@ -1017,10 +971,12 @@ fn the_events_tell_what_the_views_show() {
             played_in: Default::default(),
             phase: None,
             transfers: None,
-            told_state: (None, None, None),
             prev: None,
-            heard: Vec::new(),
-            gaps: Default::default(),
+            table: None,
+            unreduced: Default::default(),
+            unordered: Default::default(),
+            reduced: 0,
+            changes: Default::default(),
         };
         let mut outs = g.handle(
             human,
@@ -1120,16 +1076,23 @@ fn the_events_tell_what_the_views_show() {
         caused += s.caused;
         markers += s.markers;
         combats += s.combats;
-        moved[0] += s.moved[0];
-        moved[1] += s.moved[1];
-        for (k, (n, u)) in s.gaps {
-            let g = gaps.entry(k).or_default();
-            g.0 += n;
-            g.1 += u;
+        for (m, n) in moved.iter_mut().zip(s.moved) {
+            *m += n;
+        }
+        for (k, n) in s.changes {
+            *changes.entry(k).or_default() += n;
         }
         played[0] += s.played[0];
         played[1] += s.played[1];
         misses.extend(s.misses.into_iter().map(|m| (seed, m)));
+        reduced += s.reduced;
+        for (k, (n, ex)) in s.unreduced {
+            let e = unreduced.entry(k).or_insert((0, ex));
+            e.0 += n;
+        }
+        for (k, n) in s.unordered {
+            *unordered.entry(k).or_insert(0) += n;
+        }
     }
     for (seed, (legacy, rendered)) in misses.iter().take(20) {
         eprintln!("seed {seed}: {legacy:?} rendered {rendered:?}");
@@ -1158,13 +1121,8 @@ fn the_events_tell_what_the_views_show() {
     assert!(caused > 0, "no pool or blood told");
     assert!(markers > 0, "no marker seen");
     assert!(combats > 0, "no combat a decision's view showed");
-    // The table's state a view shows, each change told by an event
-    // between the two decisions' views (`HOST_GAPS=1` names them).
-    let untold: Vec<_> = gaps.iter().filter(|(_, &(_, u))| u > 0).collect();
-    assert!(
-        untold.is_empty(),
-        "changes no event told (kind: changes, untold): {untold:?}"
-    );
+    // Each kind of the table's state changes at least once between two
+    // decisions' views: the reducer's check below meets it.
     for kind in [
         "phase",
         "transfers",
@@ -1185,14 +1143,31 @@ fn the_events_tell_what_the_views_show() {
         "referendum.step",
     ] {
         assert!(
-            gaps.get(kind).is_some_and(|&(n, _)| n > 0),
+            changes.get(kind).is_some_and(|&n| n > 0),
             "no {kind} change between two views"
         );
     }
-    let n: usize = gaps.values().map(|&(n, _)| n).sum();
-    eprintln!("{n} changes of the table's state between decisions, each told");
-    // And every place's cards (`zones_untold`, in the gaps above).
+    let n: usize = changes.values().sum();
+    eprintln!("{n} changes of the table's state between decisions");
     eprintln!("{} cards told moving, {} as backs", moved[0], moved[1]);
+    // Each decision's view is the last one with the events since applied
+    // (`HOST_REDUCE=1` names each miss), a place's order the view's.
+    eprintln!("{reduced} views kept from the events; places in another order: {unordered:?}");
+    // An uncontrolled region's order told too (`slot`): the counters an
+    // event names by place are on the vampire the view shows there.
+    assert!(
+        !unordered.contains_key("uncontrolled"),
+        "an uncontrolled region in another order: {unordered:?}"
+    );
+    assert!(moved[2] > 0, "no vampire moved within its region");
+    for (path, (n, ex)) in &unreduced {
+        eprintln!("  {path}: {n}, as {ex}");
+    }
+    assert!(
+        unreduced.is_empty(),
+        "{} paths the events miss",
+        unreduced.len()
+    );
     assert!(
         moved[0] > 0 && moved[1] > 0,
         "no card moves told: {moved:?}"
@@ -1447,175 +1422,6 @@ fn state(v: &TableView) -> std::collections::BTreeMap<(String, String), String> 
     m
 }
 
-/// A seat's zone, and the card or minion it is on, as `card_moves`
-/// names them: the minions in play one place (ready or in torpor); a
-/// place on a card or minion by it alone (seat `ON`: it may change
-/// hands).
-type Place = (u8, zvtes_api::ids::Zone, Option<u32>);
-const ON: u8 = u8::MAX;
-
-/// Every place's cards a view shows.
-fn places(v: &TableView) -> HashMap<Place, Vec<Card>> {
-    use zvtes_api::ids::Zone as Z;
-    let mut out: HashMap<Place, Vec<Card>> = HashMap::new();
-    for s in &v.seats {
-        let n = s.seat;
-        for (z, cards) in [
-            (Z::Hand, &s.hand),
-            (Z::Library, &s.library),
-            (Z::Crypt, &s.crypt),
-            (Z::AshHeap, &s.ash_heap),
-            (Z::Removed, &s.removed),
-            (Z::Limbo, &s.limbo),
-        ] {
-            out.insert((n, z, None), cards.clone());
-        }
-        out.insert(
-            (n, Z::Uncontrolled, None),
-            s.uncontrolled.iter().map(|u| u.card).collect(),
-        );
-        out.insert(
-            (n, Z::Training, None),
-            s.training.iter().map(|c| c.card).collect(),
-        );
-        // A banished vampire's cards, with it.
-        for u in s.uncontrolled.iter().filter(|u| u.banished) {
-            out.insert((ON, Z::Uncontrolled, u.card.copy), u.cards.clone());
-        }
-        let minions = s.ready.iter().chain(&s.torpor);
-        out.insert(
-            (n, Z::Ready, None),
-            minions.clone().map(|m| m.card).collect(),
-        );
-        let mut in_play = Vec::new();
-        for m in minions {
-            out.insert(
-                (ON, Z::InPlay, m.card.copy),
-                m.cards.iter().map(|c| c.card).collect(),
-            );
-            in_play.extend(&m.cards);
-        }
-        out.insert(
-            (n, Z::InPlay, None),
-            s.in_play.iter().map(|c| c.card).collect(),
-        );
-        for c in in_play.into_iter().chain(&s.in_play) {
-            out.insert((ON, Z::Stored, c.card.copy), c.stored.clone());
-        }
-    }
-    out
-}
-
-/// Who holds each place on a card or minion (`ON`'s: its card's
-/// controller, the minion's seat, the banished vampire's), and who
-/// controls each card and minion in play.
-fn holders(v: &TableView) -> (HashMap<Place, u8>, HashMap<u32, u8>) {
-    use zvtes_api::ids::Zone as Z;
-    let (mut held, mut controls) = (HashMap::new(), HashMap::new());
-    for s in &v.seats {
-        for u in s.uncontrolled.iter().filter(|u| u.banished) {
-            held.insert((ON, Z::Uncontrolled, u.card.copy), s.seat);
-        }
-        for m in s.ready.iter().chain(&s.torpor) {
-            held.insert((ON, Z::InPlay, m.card.copy), s.seat);
-            controls.extend(m.card.copy.map(|c| (c, s.seat)));
-            for c in &m.cards {
-                held.insert((ON, Z::Stored, c.card.copy), c.controller);
-                controls.extend(c.card.copy.map(|x| (x, c.controller)));
-            }
-        }
-        for c in &s.in_play {
-            held.insert((ON, Z::Stored, c.card.copy), c.controller);
-            controls.extend(c.card.copy.map(|x| (x, c.controller)));
-        }
-    }
-    (held, controls)
-}
-
-/// The places whose cards changed between two views with no
-/// `card_moves` telling it: each place's count moved by the cards told
-/// in and out, each card it shows come or gone told by its copy.
-fn zones_untold(a: &TableView, b: &TableView, heard: &[EventKind]) -> Vec<(String, String)> {
-    use zvtes_api::ids::Zone as Z;
-    let key = |r: &zvtes_api::event::ZoneRef| -> Place {
-        let zone = if r.zone == Z::Torpor {
-            Z::Ready
-        } else {
-            r.zone
-        };
-        (if r.on.is_some() { ON } else { r.seat }, zone, r.on)
-    };
-    let (mut pa, pb) = (places(a), places(b));
-    // A merge: the base card onto the minion as it is named now, its
-    // cards with it.
-    for e in heard {
-        if let EventKind::CardMoves { card, from, to } = e {
-            let minion = |z| matches!(z, Z::Ready | Z::Torpor);
-            if let (true, true, Some(old), Some(new)) =
-                (minion(from.zone), minion(to.zone), card.copy, to.on)
-            {
-                for z in [Z::InPlay, Z::Stored] {
-                    if let Some(v) = pa.remove(&(ON, z, Some(old))) {
-                        pa.entry((ON, z, Some(new))).or_default().extend(v);
-                    }
-                }
-            }
-        }
-    }
-    let moves: Vec<(Card, Place, Place)> = heard
-        .iter()
-        .filter_map(|e| match e {
-            EventKind::CardMoves { card, from, to } => Some((*card, key(from), key(to))),
-            _ => None,
-        })
-        .collect();
-    // An ousted Methuselah's cards leave with them, wherever they were:
-    // its places, the cards it controlled on another's.
-    let oust = heard.iter().any(|e| matches!(e, EventKind::Ousted { .. }));
-    let ousted = |n: u8| n != ON && (a.seats[n as usize].ousted || b.seats[n as usize].ousted);
-    let ((ha, ca), (hb, _)) = (holders(a), holders(b));
-    let holder = |k: &Place| match k.0 {
-        ON => ha.get(k).or(hb.get(k)).copied(),
-        n => Some(n),
-    };
-    let left = |c: &u32| oust && ca.get(c).is_some_and(|&s| ousted(s));
-    // Every place a view shows or a move names, but a merged vampire's
-    // base card's (on its minion: in no view).
-    let merged = |k: &Place| k.0 == ON && k.1 == Z::Ready;
-    let mut keys: Vec<Place> = pa.keys().chain(pb.keys()).copied().collect();
-    keys.extend(moves.iter().flat_map(|m| [m.1, m.2]).filter(|k| !merged(k)));
-    keys.sort_by_key(|k| format!("{k:?}"));
-    keys.dedup();
-    let mut out = Vec::new();
-    for k in keys {
-        if holder(&k).is_some_and(ousted) {
-            continue;
-        }
-        let none = Vec::new();
-        let (x, y) = (pa.get(&k).unwrap_or(&none), pb.get(&k).unwrap_or(&none));
-        let ins = moves.iter().filter(|m| m.2 == k).count() as i64;
-        let outs = moves.iter().filter(|m| m.1 == k).count() as i64;
-        let copies = |v: &[Card]| v.iter().filter_map(|c| c.copy).collect::<Vec<_>>();
-        let (cx, cy) = (copies(x), copies(y));
-        let came = cy
-            .iter()
-            .all(|c| cx.contains(c) || moves.iter().any(|m| m.0.copy == Some(*c) && m.2 == k));
-        let gone =
-            |c: &&u32| !cy.contains(c) && !moves.iter().any(|m| m.0.copy == Some(**c) && m.1 == k);
-        let went = cx.iter().filter(gone).all(left);
-        let vanished = cx.iter().filter(gone).count() as i64;
-        let counted = y.len() as i64 - (x.len() as i64 - vanished) == ins - outs;
-        if !(came && went && counted) {
-            if std::env::var_os("HOST_GAPS").is_some() {
-                let c = |v: &[Card]| v.iter().map(|c| (c.copy, c.id)).collect::<Vec<_>>();
-                eprintln!("  {k:?}: {:?} -> {:?} (in {ins}, out {outs})", c(x), c(y));
-            }
-            out.push((format!("zone {:?}", k.1).to_lowercase(), format!("{k:?}")));
-        }
-    }
-    out
-}
-
 /// What changed between two views: the entries in both, unequal.
 fn changed(a: &TableView, b: &TableView) -> Vec<(String, String)> {
     let (a, b) = (state(a), state(b));
@@ -1623,81 +1429,4 @@ fn changed(a: &TableView, b: &TableView) -> Vec<(String, String)> {
         .filter(|&(k, x)| b.get(k).is_some_and(|y| y != x))
         .map(|(k, _)| k.clone())
         .collect()
-}
-
-/// Whether the events since the last decision's view tell a change of
-/// `kind` to `of` (a copy, a seat, `seat:slot`), seen at `at`.
-fn tells(kind: &str, of: &str, at: &str, heard: &[EventKind]) -> bool {
-    let is = |c: u32| c.to_string() == of;
-    let copy = |c: &Card| c.copy.is_some_and(is);
-    let any = |f: &dyn Fn(&EventKind) -> bool| heard.iter().any(f);
-    // A card or minion come into play again: its state anew.
-    let entered = any(&|e| matches!(e, EventKind::EntersPlay { card, .. } if copy(card)));
-    match kind {
-        "edge" => any(&|e| matches!(e, EventKind::Edge { .. })),
-        // The game's end is its `over` message.
-        "phase" => {
-            at == "over" || any(&|e| matches!(e, EventKind::Turn { .. } | EventKind::Phase { .. }))
-        }
-        "transfers" => any(&|e| matches!(e, EventKind::Transfers { .. } | EventKind::Phase { .. })),
-        // Ousting moves the prey and predator, and scores.
-        "prey" => any(&|e| matches!(e, EventKind::Ousted { .. })),
-        "vp_halves" => at == "over" || any(&|e| matches!(e, EventKind::Ousted { .. })),
-        "card contested" | "minion contested" => any(&|e| match e {
-            EventKind::LeavesPlay {
-                card,
-                contested: true,
-                ..
-            } => copy(card),
-            EventKind::EntersPlay { card, .. } => copy(card),
-            _ => false,
-        }),
-        _ if entered && (kind.starts_with("minion ") || kind.starts_with("card ")) => true,
-        "minion markers" => any(&|e| matches!(e, EventKind::Markers { minion, .. } if is(*minion))),
-        "minion locked" | "card locked" => {
-            any(&|e| matches!(e, EventKind::Locked { copy, .. } if is(*copy)))
-        }
-        "card counters" => {
-            any(&|e| matches!(e, EventKind::Counters { copy: Some(c), .. } if is(*c)))
-        }
-        "slot counters" => {
-            let place: Vec<&str> = of.split(':').collect();
-            let (seat, slot, seen) = (place[0], place[1], place.get(2));
-            any(&|e| match e {
-                // As the next view places it.
-                EventKind::Counters { slot: Some(r), .. } => {
-                    r.seat.to_string() == seat && r.slot.to_string() == slot
-                }
-                // It left the region (its copy then, a minion).
-                EventKind::Counters { copy: Some(c), .. } => seen == Some(&&*c.to_string()),
-                // The region's backs shifted: a vampire left it, a crypt
-                // card came (a zone's change).
-                EventKind::EntersPlay {
-                    seat: s,
-                    minion: Some(_),
-                    ..
-                }
-                | EventKind::Draw {
-                    seat: s,
-                    crypt: true,
-                    ..
-                } => seen.is_none() && s.to_string() == seat,
-                _ => false,
-            })
-        }
-        "card controller" | "minion controller" | "minion owner" => {
-            any(&|e| matches!(e, EventKind::Controller { copy, .. } if is(*copy)))
-        }
-        "minion traits" => any(&|e| matches!(e, EventKind::Traits { minion, .. } if is(*minion))),
-        "minion capacity" => {
-            any(&|e| matches!(e, EventKind::Capacity { minion, .. } if is(*minion)))
-        }
-        "minion title" => any(&|e| matches!(e, EventKind::Title { minion, .. } if is(*minion))),
-        k if k.starts_with("action.") => any(&|e| matches!(e, EventKind::ActionState { .. })),
-        k if k.starts_with("combat.") => any(&|e| matches!(e, EventKind::CombatState { .. })),
-        k if k.starts_with("referendum.") => {
-            any(&|e| matches!(e, EventKind::ReferendumState { .. }))
-        }
-        _ => false,
-    }
 }

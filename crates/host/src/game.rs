@@ -11,7 +11,7 @@ use zvtes::decision::{Choice, DecisionRequest, Zone};
 use zvtes::library::LIBRARY;
 use zvtes::referendum::Recipient as R;
 use zvtes_api::event::{Event, EventKind};
-use zvtes_api::ids::{OptionKind, Purpose, Window};
+use zvtes_api::ids::{OptionKind, Phase, Purpose, Window};
 use zvtes_api::message::{AllocationError, EndReason, Error, Joined, Over, SeatInfo, SpecError};
 use zvtes_api::option::{Allocation, ChoiceKey, OptionView, Recipient, VoteTotals};
 use zvtes_api::record::{BotRecord, By, Entry, GameRecord, GameResult};
@@ -1159,6 +1159,19 @@ impl Game {
         v.viewer = Some(self.human);
         self.searched_view(&mut v);
         self.struck_view(&mut v);
+        // The minions told entering play since the last view (gone and
+        // back between two views too: banished and influenced out again).
+        let entered: Vec<u32> = named
+            .iter()
+            .filter_map(|(_, k)| match k {
+                Some(EventKind::EntersPlay {
+                    card,
+                    minion: Some(_),
+                    ..
+                }) => card.copy,
+                _ => None,
+            })
+            .collect();
         for (t, kind) in named {
             let told = match kind {
                 Some(kind) => Told::Event(Box::new(Event {
@@ -1214,11 +1227,110 @@ impl Game {
                 .filter_map(|m| Some((m.card.copy?, m)))
                 .collect()
         }
+        // Each minion and card in play by its copy: contested, locked.
+        fn locks(v: &TableView) -> HashMap<u32, (bool, bool)> {
+            let minions = v.seats.iter().flat_map(|s| s.ready.iter().chain(&s.torpor));
+            // A card on a contested minion is out of play with it.
+            let on = minions
+                .clone()
+                .flat_map(|m| m.cards.iter().map(move |c| (c, m.contested)));
+            let cards = v
+                .seats
+                .iter()
+                .flat_map(|s| s.in_play.iter().map(|c| (c, false)));
+            let cards = cards
+                .chain(on)
+                .map(|(c, x)| (c.card.copy, (c.contested || x, c.locked)));
+            let minions = minions.map(|m| (m.card.copy, (m.contested, m.locked)));
+            cards
+                .chain(minions)
+                .filter_map(|(c, x)| Some((c?, x)))
+                .collect()
+        }
+        // Each seat's victory points, likewise: Methuselahs ousted at once
+        // score each predator as the table stood before them, which the
+        // `ousted` events in a row cannot say.
+        if let Some(l) = last {
+            for (s, was) in v.seats.iter().zip(&l.seats) {
+                if s.vp_halves != was.vp_halves {
+                    let (seat, vp_halves) = (s.seat, s.vp_halves);
+                    state.push(EventKind::VictoryPoints { seat, vp_halves });
+                }
+            }
+        }
+        // A card's training counters (Web of Knives Recruit), out of play:
+        // in none of the engine's facts.
+        if let Some(l) = last {
+            let had: HashMap<u32, u8> = l
+                .seats
+                .iter()
+                .flat_map(|s| &s.training)
+                .filter_map(|c| Some((c.card.copy?, c.counters)))
+                .collect();
+            for c in v.seats.iter().flat_map(|s| &s.training) {
+                let (Some(copy), was) = (c.card.copy, c.card.copy.and_then(|k| had.get(&k))) else {
+                    continue;
+                };
+                let was = was.copied().unwrap_or(0);
+                if was != c.counters {
+                    state.push(EventKind::Counters {
+                        copy: Some(copy),
+                        slot: None,
+                        delta: i32::from(c.counters) - i32::from(was),
+                        counters: c.counters,
+                        cause: Some(zvtes_api::event::Cause {
+                            kind: zvtes_api::event::CauseKind::Effect,
+                            card: Some(c.card),
+                            rule: None,
+                        }),
+                    });
+                }
+            }
+        }
+        // A minion or card out of play in a contest, locked or unlocked
+        // there (its unlock phase): in none of the engine's facts.
+        if let Some(was) = last.map(locks) {
+            let mut now: Vec<_> = locks(&v).into_iter().collect();
+            now.sort();
+            for (copy, (contested, locked)) in now {
+                if contested && was.get(&copy).is_some_and(|&(x, k)| x && k != locked) {
+                    state.push(EventKind::Locked { copy, locked });
+                }
+            }
+        }
         if let Some(was) = last.map(minions) {
             let mut now: Vec<_> = minions(&v).into_iter().collect();
             now.sort_by_key(|&(c, _)| c);
             for (minion, m) in now {
-                let Some(b) = was.get(&minion) else { continue };
+                // New to the view (in a contest perhaps), or come into play
+                // since (back from a contest, from banishment): its
+                // capacity, title, markers and traits told as the view has
+                // them; a minion staying in a contest, none. Its blood and
+                // lock are the other half: `narrate::changes`.
+                let b = was.get(&minion);
+                let back = b.is_some_and(|b| b.contested) || entered.contains(&minion);
+                if b.is_none() || back && !m.contested {
+                    if let Some(capacity) = m.capacity {
+                        let capacity = Some(capacity);
+                        state.push(EventKind::Capacity { minion, capacity });
+                    }
+                    if let Some(title) = m.title.clone() {
+                        let title = Some(title);
+                        state.push(EventKind::Title { minion, title });
+                    }
+                    if !m.markers.is_empty() {
+                        let markers = m.markers.clone();
+                        state.push(EventKind::Markers { minion, markers });
+                    }
+                    if !m.traits.is_empty() {
+                        let traits = m.traits.clone();
+                        state.push(EventKind::Traits { minion, traits });
+                    }
+                    continue;
+                }
+                let Some(b) = b.filter(|b| !b.contested && !m.contested) else {
+                    continue;
+                };
                 if b.markers != m.markers {
                     let markers = m.markers.clone();
                     state.push(EventKind::Markers { minion, markers });
@@ -1309,7 +1421,10 @@ impl Game {
                 .ok()
                 .or(self.last_view.clone()),
         };
-        let view = view.unwrap_or_else(|| empty_view(self.human));
+        let mut view = view.unwrap_or_else(|| empty_view(self.human));
+        // Over, however it ended (the humans ousted mid-phase too).
+        view.phase = Phase::Over;
+        view.transfers = None;
         let told = self.flush();
         let vp_halves: Vec<u32> = view.seats.iter().map(|s| s.vp_halves).collect();
         let winner = winner(&vp_halves);

@@ -29,7 +29,7 @@ use zvtes::copies::{minion_copy, CopyId, Place};
 use zvtes::decision::ActionKind;
 use zvtes::game::Engine;
 use zvtes::ids::{MinionId, SeatId};
-use zvtes::notes::{Cause, Ledger};
+use zvtes::notes::{Cause, Ledger, Rule, Source};
 use zvtes::referendum::RefKind;
 use zvtes::state::CardId;
 
@@ -118,6 +118,9 @@ pub enum Fact {
         /// Each end as its ledger had it: who held it (a card's
         /// controller, a minion's), in torpor, on which minion.
         at: [Spot; 2],
+        /// Its place in the uncontrolled region it leaves and in the one
+        /// it goes to, the moves told before it applied.
+        slots: [Option<u8>; 2],
     },
     /// To `to`, or contested: in its own contest, or out of play with
     /// its contested minion (rules-qa 83.1).
@@ -184,7 +187,12 @@ pub enum Fact {
 pub enum Held {
     Minion(MinionId),
     Card(CardId),
-    Slot(CopyId),
+    /// An uncontrolled vampire, by its place in its seat's region as the
+    /// events have kept it when told (the ledger's then).
+    Slot {
+        seat: u8,
+        slot: u8,
+    },
 }
 
 /// An action as its end tells it.
@@ -560,6 +568,12 @@ pub(crate) fn changes(
     }
     // A Methuselah ousted takes their table along: told once.
     let gone = |s: SeatId| after.ousted[s.index()] && !before.ousted[s.index()];
+    // The minions and cards come into play: their state told once they
+    // are on the table (their moves below).
+    let (mut minions_in, mut cards_in) = (Vec::new(), Vec::new());
+    // Come into a contest at once (a second copy influenced out): told
+    // contested once on the table.
+    let mut contested_in = Vec::new();
     for (i, now) in after.minions.iter().enumerate() {
         let m = MinionId(i as u32);
         if gone(e.state.minions[i].owner) {
@@ -568,12 +582,16 @@ pub(crate) fn changes(
         let Some(b) = before.minions.get(i) else {
             if now.present {
                 tell(out, Fact::MinionEnters { minion: m }, told);
+                minions_in.push(m);
+            } else if e.state.minions[i].contested {
+                contested_in.push(m);
             }
             continue;
         };
         match (b.present, now.present) {
             (false, true) => {
                 tell(out, Fact::MinionEnters { minion: m }, told);
+                minions_in.push(m);
                 continue;
             }
             (true, false) => {
@@ -632,6 +650,7 @@ pub(crate) fn changes(
                     from: at,
                     to: at,
                     at: [spot(e, before, at, copy), spot(e, after, at, copy)],
+                    slots: [None; 2],
                 };
                 tell(out, fact, false);
             }
@@ -651,12 +670,13 @@ pub(crate) fn changes(
             tell(out, fact, false);
         }
     }
-    // An uncontrolled vampire's counters, by its copy (a transfer).
+    // An uncontrolled vampire's counters, by its copy (a transfer), told
+    // at its place before the moves below.
     for &(_, copy, counters) in &after.slots {
         let was = before.slots.iter().find(|&&(_, c, _)| c == copy);
         if let Some(&(_, _, was)) = was.filter(|&&(_, _, n)| n != counters) {
             let fact = Fact::Counters {
-                what: Held::Slot(copy),
+                what: slot_of(&before.slots, copy),
                 delta: i32::from(counters) - i32::from(was),
                 counters,
                 cause,
@@ -677,6 +697,7 @@ pub(crate) fn changes(
                     on: now.host,
                 };
                 tell(out, fact, told);
+                cards_in.push(c);
             }
             (Some(_), None) => {
                 let card = &e.state.cards[i];
@@ -716,6 +737,7 @@ pub(crate) fn changes(
                             spot(e, before, at, *card.copy),
                             spot(e, after, at, *card.copy),
                         ],
+                        slots: [None; 2],
                     };
                     tell(out, fact, false);
                 }
@@ -759,6 +781,19 @@ pub(crate) fn changes(
         Place::Zone(s, _) | Place::Uncontrolled(s) | Place::InFlight(s) => Some(SeatId(s)),
         _ => None,
     };
+    // Each seat's uncontrolled region as the moves told so far leave it,
+    // and each vampire's place in it after: a card told into the region
+    // goes where the next view has it (Kaymakli Nightmares' redraw fills
+    // the places the old ones left).
+    let mut regions: HashMap<u8, Vec<CopyId>> = HashMap::new();
+    for &(s, c, _) in &before.slots {
+        regions.entry(s.0).or_default().push(c);
+    }
+    let mut rank: HashMap<CopyId, usize> = HashMap::new();
+    for s in 0..after.ousted.len() as u8 {
+        let region = after.slots.iter().filter(|&&(o, _, _)| o.0 == s);
+        rank.extend(region.enumerate().map(|(i, &(_, c, _))| (c, i)));
+    }
     for (copy, card, to) in one_place(&after.census) {
         let last = seen.insert(copy, to);
         let Some(from) = was
@@ -782,6 +817,28 @@ pub(crate) fn changes(
             Place::Minion { id, .. } => crate::view::minion_face(&e.state.minions[id as usize]).1,
             _ => false,
         });
+        let out_of = match from {
+            Place::Uncontrolled(s) => {
+                let region = regions.entry(s).or_default();
+                region.iter().position(|&c| c == copy).map(|i| {
+                    region.remove(i);
+                    i as u8
+                })
+            }
+            _ => None,
+        };
+        let into = match (to, rank.get(&copy)) {
+            (Place::Uncontrolled(s), Some(&r)) => {
+                let region = regions.entry(s).or_default();
+                let next = region
+                    .iter()
+                    .position(|c| rank.get(c).is_some_and(|&q| q > r));
+                let i = next.unwrap_or(region.len());
+                region.insert(i, copy);
+                Some(i as u8)
+            }
+            _ => None,
+        };
         let fact = Fact::Zoned {
             copy,
             card,
@@ -789,9 +846,169 @@ pub(crate) fn changes(
             from,
             to,
             at: [spot(e, before, from, copy), spot(e, after, to, copy)],
+            slots: [out_of, into],
         };
         tell(out, fact, false);
     }
+    // A vampire moved within its region (a reshuffle's), from its place
+    // as the moves left the region to the one it has now: the region's
+    // order the events' too, which `counters` names places by.
+    let mut seats: Vec<u8> = regions.keys().copied().collect();
+    seats.sort();
+    for s in seats {
+        let now: Vec<CopyId> = after
+            .slots
+            .iter()
+            .filter(|&&(o, _, _)| o.0 == s)
+            .map(|&(_, c, _)| c)
+            .collect();
+        let region = regions.get_mut(&s).expect("a seat's region");
+        for (i, &copy) in now.iter().enumerate() {
+            let Some(j) = region.iter().position(|&c| c == copy).filter(|&j| j != i) else {
+                continue;
+            };
+            let &(_, card, at) = after
+                .census
+                .iter()
+                .find(|&&(c, _, _)| c == copy)
+                .expect("an uncontrolled vampire in the census");
+            region.remove(j);
+            region.insert(i, copy);
+            let fact = Fact::Zoned {
+                copy,
+                card,
+                crypt: true,
+                from: at,
+                to: at,
+                at: [spot(e, before, at, copy), spot(e, after, at, copy)],
+                slots: [Some(j as u8), Some(i as u8)],
+            };
+            tell(out, fact, false);
+        }
+    }
+    // An uncontrolled vampire come with counters (its slot new), told at
+    // its place after the moves.
+    for &(_, copy, counters) in &after.slots {
+        let new = !before.slots.iter().any(|&(_, c, _)| c == copy);
+        if new && counters > 0 {
+            let fact = Fact::Counters {
+                what: slot_of(&after.slots, copy),
+                delta: i32::from(counters),
+                counters,
+                cause,
+            };
+            tell(out, fact, false);
+        }
+    }
+    // A card come into a contest at once (a unique card put on a minion
+    // while another copy is in play), told contested once on the table.
+    let on_table = |copy: CopyId, census: &[(CopyId, u16, Place)]| {
+        census
+            .iter()
+            .any(|&(k, _, p)| k == copy && matches!(p, Place::Card { .. }))
+    };
+    for (i, c) in e.state.cards.iter().enumerate() {
+        let new = !matches!(was.get(&c.copy), Some(Place::Card { .. }));
+        if c.in_play && c.contested && c.body.is_none() && new && on_table(*c.copy, &after.census) {
+            let card = CardId(i as u32);
+            let fact = Fact::CardLeaves {
+                card,
+                to: None,
+                contested: true,
+            };
+            tell(out, fact, told);
+        }
+    }
+    for &minion in &contested_in {
+        let to = None;
+        let fact = Fact::MinionLeaves {
+            minion,
+            contested: true,
+            to,
+        };
+        tell(out, fact, told);
+    }
+    // What a minion come into play has beyond what it brought (an
+    // uncontrolled vampire's counters, a returning minion's own blood,
+    // else none; unlocked), and a card's (its place's holder's; a new
+    // one no counters; unlocked). A minion's capacity, title, markers and
+    // traits are the other half: `Game::view`, as the view has them.
+    for m in minions_in.into_iter().chain(contested_in) {
+        let now = after.minions[m.index()];
+        let copy = minion_copy(&e.state, m.index());
+        let slot = before.slots.iter().find(|&&(_, c, _)| c == copy);
+        let own = before.minions.get(m.index()).map(|b| b.blood);
+        let brought = slot.map(|&(_, _, n)| n).or(own).unwrap_or(0);
+        if now.blood != brought {
+            // Counters beyond its capacity drain as it comes in; blood or
+            // life it starts with is its card's, or what put it in play.
+            let cause = if now.blood < brought {
+                Some(Cause::Effect(Source::Rule(Rule::Capacity)))
+            } else {
+                cause.or(Some(Cause::Effect(Source::Minion(m))))
+            };
+            let fact = Fact::Blood {
+                minion: m,
+                delta: i32::from(now.blood) - i32::from(brought),
+                blood: now.blood,
+                cause,
+            };
+            tell(out, fact, false);
+        }
+        if now.locked {
+            let what = Held::Minion(m);
+            tell(out, Fact::Locked { what, locked: true }, false);
+        }
+    }
+    for c in cards_in {
+        let Some(now) = after.cards[c.index()] else {
+            continue;
+        };
+        // On a minion, controlled by another than the minion's.
+        let holder = now.host.map(|m| after.minions[m.index()].controller);
+        if holder.is_some_and(|h| h != now.controller) {
+            let what = Held::Card(c);
+            tell(
+                out,
+                Fact::Controller {
+                    what,
+                    seat: now.controller,
+                },
+                false,
+            );
+        }
+        // Back from a contest, its counters its own still.
+        let card = &e.state.cards[c.index()];
+        let back = matches!(was.get(&card.copy), Some(Place::Card { .. }));
+        if now.counters > 0 && !back {
+            let fact = Fact::Counters {
+                what: Held::Card(c),
+                delta: i32::from(now.counters),
+                counters: now.counters,
+                cause,
+            };
+            tell(out, fact, false);
+        }
+        if now.locked {
+            let what = Held::Card(c);
+            tell(out, Fact::Locked { what, locked: true }, false);
+        }
+    }
+}
+
+/// `copy`'s place among its seat's uncontrolled vampires in `slots` (a
+/// ledger's).
+fn slot_of(slots: &[(SeatId, CopyId, u8)], copy: CopyId) -> Held {
+    let (seat, _, _) = *slots
+        .iter()
+        .find(|&&(_, c, _)| c == copy)
+        .expect("a slot of the ledger");
+    let slot = slots
+        .iter()
+        .filter(|&&(s, _, _)| s == seat)
+        .position(|&(_, c, _)| c == copy)
+        .expect("its own seat's") as u8;
+    Held::Slot { seat: seat.0, slot }
 }
 
 #[cfg(test)]

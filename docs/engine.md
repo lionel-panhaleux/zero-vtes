@@ -243,9 +243,10 @@ keys taken by random play) and their goldens (`tests/golden/`, DESIGN
 §7.3); perft counts (§7.5); `tests/elision.rs` (elision is observationally
 equivalent); `tests/obs.rs` and `tests/bots.rs` (nothing read beyond the
 legal view); `crates/host/tests/keys.rs` (no choice offered twice, a key
-per option); `crates/host/tests/events.rs` (every change of a view's
-state told by an event). A refactor keeps the goldens and perft green without
-`GOLDEN_BLESS`; a bless names the moved seeds and decision ranges.
+per option); `crates/host/tests/events.rs` (each decision's view the
+last one with the events since applied, protocol.md §9). A refactor
+keeps the goldens and perft green without `GOLDEN_BLESS`; a bless names
+the moved seeds and decision ranges.
 
 **Enforced by scripts.** `scripts/rulings_v5.py --check
 data/rulings-v5.csv` (every ledger row on an implemented card backed:

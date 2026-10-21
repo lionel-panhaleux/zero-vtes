@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "title": "zvtes protocol",
-  "version": "2.5.0",
+  "version": "2.6.0",
   "$defs": {
     "About": {
       "description": "What a choice is about (`Decision::about`): each field given where\nthe purpose (or the terms) has it (docs/protocol.md §5).",
@@ -2576,6 +2576,32 @@
             "kind",
             "minion",
             "traits"
+          ]
+        },
+        {
+          "description": "A Methuselah's victory points now, in halves (the view's\n`vp_halves`), told when they changed since the last view: an oust's\npredator, the last one standing, a survivor at the time limit.",
+          "type": "object",
+          "properties": {
+            "kind": {
+              "type": "string",
+              "const": "victory_points"
+            },
+            "seat": {
+              "type": "integer",
+              "format": "uint8",
+              "maximum": 255,
+              "minimum": 0
+            },
+            "vp_halves": {
+              "type": "integer",
+              "format": "uint32",
+              "minimum": 0
+            }
+          },
+          "required": [
+            "kind",
+            "seat",
+            "vp_halves"
           ]
         },
         {
@@ -6024,6 +6050,16 @@
         "seat": {
           "description": "The place's holder as the card moved: a zone's seat, a card's\ncontroller, a minion's (the minion's for a card on it).",
           "type": "integer",
+          "format": "uint8",
+          "maximum": 255,
+          "minimum": 0
+        },
+        "slot": {
+          "description": "In an uncontrolled region (`from`: the one it leaves, `to`: the\none it goes to): its place there, from the first, the moves told\nbefore it applied.",
+          "type": [
+            "integer",
+            "null"
+          ],
           "format": "uint8",
           "maximum": 255,
           "minimum": 0

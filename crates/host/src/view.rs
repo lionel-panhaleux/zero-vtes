@@ -365,7 +365,7 @@ impl Build<'_> {
                 .map(|&i| self.minion(i))
                 .collect()
         };
-        SeatView {
+        let mut v = SeatView {
             seat: s as u8,
             name: self.names.get(s).cloned().unwrap_or_default(),
             pool: seat.pool,
@@ -416,7 +416,26 @@ impl Build<'_> {
                 .map(|c| self.in_play(c))
                 .collect(),
             limbo: self.limbo(s),
+        };
+        // An ousted Methuselah's cards are out of the game, in no place
+        // (the engine keeps its crypt cards in its ash heap and removed).
+        if seat.ousted {
+            v = SeatView {
+                crypt: vec![],
+                library: vec![],
+                hand: vec![],
+                ash_heap: vec![],
+                removed: vec![],
+                uncontrolled: vec![],
+                training: vec![],
+                ready: vec![],
+                torpor: vec![],
+                in_play: vec![],
+                limbo: vec![],
+                ..v
+            };
         }
+        v
     }
 
     /// The cards the seat is playing, then the action's card while it is

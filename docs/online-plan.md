@@ -149,8 +149,8 @@ change resends the pending decision.
   and every record; unknown ids read as `unknown`.
 - **Views where read**: on `decision`, `over`, `joined`; on every step
   with `views: steps` (SC's projection animates each move; WebSocket
-  compression on). Events as a complete delta stream (view N + events =
-  view N+1): later, decided now as the direction.
+  compression on). Events a complete delta stream: view N with its
+  events is view N+1 (protocol.md §9, held on every decision's view).
 
 ### The game record
 

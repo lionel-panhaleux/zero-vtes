@@ -293,8 +293,10 @@ for history.
 
 - `cargo test --profile ci -q` covers the host and the renderer (default
   members); `HOST_SEEDS=n` deepens `crates/host/tests/events.rs` (the
-  events against the views, undo, allocations and vote orders, every
-  option and decision told), `HOST_SEED_FROM=n` starts there; engine-side
+  table kept from the events against each view, undo, allocations and
+  vote orders, every option and decision told), `HOST_SEED_FROM=n`
+  starts there, `HOST_REDUCE=1` names each view field the events missed
+  and `HOST_TRACE=1` prints the events and views; engine-side
   allocation shapes in `tests/politics.rs` / `tests/precon.rs`;
   `crates/host/tests/records.rs` reads the corpus whole.
 - `cargo clippy -p zvtes-server --all-targets --profile ci -- -D

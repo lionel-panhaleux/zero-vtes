@@ -139,6 +139,7 @@ impl Namer<'_> {
             seat: at.seat.0,
             zone,
             on,
+            slot: None,
         })
     }
 
@@ -147,34 +148,17 @@ impl Namer<'_> {
         match h {
             Held::Minion(m) => Some(self.minion(m)),
             Held::Card(c) => self.in_play(c).copy,
-            Held::Slot(_) => unreachable!("a lock or control is a minion's or a card's"),
+            Held::Slot { .. } => unreachable!("a lock or control is a minion's or a card's"),
         }
     }
 
-    /// What counters are on: its copy, or an uncontrolled
-    /// vampire's place (none once it left the region: its copy then, a
-    /// minion).
+    /// What counters are on: its copy, or an uncontrolled vampire's
+    /// place.
     fn held(&mut self, h: Held) -> Option<(Option<u32>, Option<SlotRef>)> {
-        let st = &self.e.state;
         Some(match h {
             Held::Minion(_) => unreachable!("counters are a card's or a slot's"),
             Held::Card(c) => (Some(self.in_play(c).copy?), None),
-            Held::Slot(copy) => {
-                let slot = st.seats.iter().enumerate().find_map(|(s, seat)| {
-                    let i = seat.uncontrolled.iter().position(|u| *u.copy == copy)?;
-                    Some(SlotRef {
-                        seat: s as u8,
-                        slot: i as u8,
-                    })
-                });
-                match slot {
-                    Some(slot) => (None, Some(slot)),
-                    None => {
-                        let i = self.faces.iter().position(|&(c, _, _)| c == copy)?;
-                        (Some(self.minion(MinionId(i as u32))), None)
-                    }
-                }
-            }
+            Held::Slot { seat, slot } => (None, Some(SlotRef { seat, slot })),
         })
     }
 
@@ -361,9 +345,23 @@ impl Namer<'_> {
                 from,
                 to,
                 at: [was, now],
+                slots: [out_of, into],
             } => {
                 let card = if self.sees(was) || self.sees(now) {
-                    self.card(copy, card, crypt)
+                    let mut c = self.card(copy, card, crypt);
+                    // Into play as a minion (a merged vampire, its name's
+                    // number told by no `enters_play`): numbered by its name.
+                    let minion = match to {
+                        Place::Minion { id, merged: false } => Some(MinionId(id)),
+                        Place::Card { id, .. } => st.cards[id as usize].body,
+                        _ => None,
+                    };
+                    if let (Some(m), Some(w)) = (minion, c.copy) {
+                        let token = self.minion_kind(m) == MinionKind::Token;
+                        let base = minion_base(&st.minions[m.index()]);
+                        c.numbered = self.viewer.names.label(w, &base, token);
+                    }
+                    c
                 } else {
                     Card {
                         copy: None,
@@ -375,8 +373,14 @@ impl Namer<'_> {
                 };
                 EventKind::CardMoves {
                     card,
-                    from: self.zone_ref(from, was)?,
-                    to: self.zone_ref(to, now)?,
+                    from: ZoneRef {
+                        slot: out_of,
+                        ..self.zone_ref(from, was)?
+                    },
+                    to: ZoneRef {
+                        slot: into,
+                        ..self.zone_ref(to, now)?
+                    },
                 }
             }
             Fact::Moves { card, on } => EventKind::Moves {

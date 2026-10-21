@@ -69,6 +69,7 @@ pub fn event(e: &EventKind, n: &Names) -> Option<String> {
         | EventKind::Title { .. }
         | EventKind::Markers { .. }
         | EventKind::Traits { .. }
+        | EventKind::VictoryPoints { .. }
         | EventKind::CardMoves { .. }
         | EventKind::CombatState { .. }
         | EventKind::ActionState { .. }
