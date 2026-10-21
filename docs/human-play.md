@@ -23,9 +23,8 @@ engine. The experiment's purpose is to learn what human–bot interaction needs
 (pacing, auto-passes, narration, which inputs are painful) before anything is
 proposed upstream.
 
-**Milestone M2**: a proposal to SC's author (Thomas Wajs): an npm package of
-the engine (+ policy) and an SC PR adding the engine game type; later a
-separately deployed engine server for multiplayer, on the same messages.
+**Milestone M2**: superseded by [`online-plan.md`](online-plan.md) (the
+server, and the fork served as its own platform).
 
 ## Settled (owner, 2026-09-29)
 
@@ -354,7 +353,6 @@ integration's shape"), and hooks in `types/state.ts` (`GameType`),
 1. "Waiting on seat X" leaks that X holds a play (elision hides only what the
    log shows). Hide, delay, or accept? (server only; a rules-qa batch.)
 2. Spectator visibility: public only, or omniscient with delay? (server only.)
-3. When to contact Thomas: after M1, or earlier to shape the protocol?
 
 ## Findings (M1 experiment)
 

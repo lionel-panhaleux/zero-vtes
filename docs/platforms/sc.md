@@ -3,7 +3,11 @@
 [Succubus Club](https://github.com/thomasWajs/succubus-club) (SC) is Thomas
 Wajs's online VTES table. The fork (`../succubus-club`, remote `fork` =
 lionel-panhaleux/succubus-club) plays engine games against
-`engine.krcg.org`. This file is the log the `sc-change` skill reads and
+`engine.krcg.org`. Agreed with Thomas (owner, 2026-10-21): the fork goes
+out on its own as a separate platform on frankfurt, bots only for now:
+the bot mode and deck upload, the rest of SC removed (platforms board:
+"The fork served on its own"); upstream deferred (roadmap "Deferred by
+the owner"). This file is the log the `sc-change` skill reads and
 updates: how Thomas works, the open PRs' state, what we learned. Add to it
 whenever something reaches us from Thomas or a PR moves.
 
@@ -44,8 +48,10 @@ whenever something reaches us from Thomas or a PR moves.
   any window size (#284). He tries a PR by running it: #285 against
   `engine.krcg.org` from his own build (a CORS refusal, fixed the same day:
   the server allows every origin).
-- **Unknown yet**: what he thinks of the engine game type (#285); the
-  owner and he exchange on it directly, no chasing (owner, 2026-10-20).
+- **The engine game type** (#285): the owner and he agreed (2026-10-21)
+  the fork goes out on its own, bots only for now; he asked for a
+  document of how the bots are trained, for a data scientist (written
+  by Z-play from DESIGN §11.2, the owner has it, 2026-10-21).
 
 ## The integration's shape (online-plan §C, the owner's)
 
@@ -90,14 +96,15 @@ checkout's `zero-vtes-engine` against `engine.krcg.org` (no
 
 | Branch | Where | What |
 |---|---|---|
-| `zero-vtes-engine` | local only | the owner's play branch, served by vite on :5188; every fix lands here first |
-| `engine-game` | fork, PR #285 | the upstream re-cut: 6 commits on `origin/dev` (game type + flags; server client; projection/driver; central box; table interaction; controls + menu) |
+| `zero-vtes-engine` | fork (pushed 2026-10-21, public) | the owner's play branch and the separate platform's source, served by vite on :5188; every fix lands here first |
+| `engine-game` | fork, PR #285 | the upstream re-cut, not followed since the agreement: 6 commits on `origin/dev` (game type + flags; server client; projection/driver; central box; table interaction; controls + menu) |
 
 Tags (local): `engine-game-pre-recut`, `recut-flat`, `engine-game-pre-dev`
 (the tip on `master` before the move to `dev`). `zero-vtes-engine` and
 `engine-game` diverge by design: every later fork fix is re-cut again (a
-translation into the re-cut's structure, not a rebase). `engine-game`
-tracks `fork/engine-game`.
+translation into the re-cut's structure, not a rebase), once the owner
+brings upstream back (roadmap "Deferred by the owner"). `engine-game` tracks `fork/engine-game`,
+`zero-vtes-engine` `fork/zero-vtes-engine`.
 
 ## PRs
 
@@ -105,11 +112,11 @@ The open ones; what the closed taught is in "How he reviews".
 
 | # | Branch | State | Asked of Thomas | Reactions |
 |---|---|---|---|---|
-| 285 | engine-game | open, on `dev` | the counted-marker chips live inside `CardGO.vue` (~140 lines behind `isEngine`): keep, or a component of their own? | tried it (a CORS refusal, fixed: the server allows every origin); no review yet |
+| 285 | engine-game | open, on `dev` | the counted-marker chips live inside `CardGO.vue` (~140 lines behind `isEngine`): keep, or a component of their own? | tried it (a CORS refusal, fixed: the server allows every origin); settled outside the PR: the fork goes out on its own (2026-10-21) |
 
 #285's 6 commits carry `Co-Authored-By: Claude` trailers; its body is
-~300 words ending "Generated with Claude Code". The owner's decision: it
-stays as it is, waiting for Thomas's take.
+~300 words ending "Generated with Claude Code". It stays as it is; what
+becomes of it is the owner's word.
 
 ## Recipes
 

@@ -26,10 +26,9 @@ good enough to beta test with players of the community.
 
 What it still needs:
 
-1. **A way in for testers**: Thomas ships SC with #285 merged, or our own
-   SC on krcg, or a platform made for the engine (the owner and Thomas
-   exchange on #285, owner 2026-10-20; the platforms line held until his
-   review, owner 2026-10-15).
+1. **A way in for testers**: our own SC, the fork deployed as a separate
+   platform, bots only for now (agreed with Thomas, owner 2026-10-21;
+   platforms: The fork served on its own).
 2. **The best bot served**: each run measured against the served weights
    and served if it beats them (training: its run's line).
 3. **The loop on testers' games**: promotion to `data/records`
@@ -46,8 +45,7 @@ What it still needs:
    (`/admin/unsupported`) steering the next rounds (cards: Round 16).
 
 Not needed for the beta but in the same order: the first release tagged
-(engine, an ask to the owner), the demo video and the proposal to Thomas
-(platforms).
+(engine, an ask to the owner), the demo video (platforms).
 
 ## Objectives
 
@@ -137,6 +135,10 @@ not on any board; the owner brings each back:
   list the new ids, window-matrix drafts, a round of them) as a step of
   add-cards §1; off the cards board until KRCG announces a set, its
   done-condition needing a real release (2026-10-15).
+- Upstream Succubus Club (2026-10-21: the fork goes out on its own, bots
+  only, agreed with Thomas): #285 as it stands; the `engine-game`
+  re-cut caught up with the fork's fixes after `a7515b1`, its controls
+  commit carrying the Opportunities control (sc.md recipe).
 
 ## Later tracks
 

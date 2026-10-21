@@ -5,8 +5,10 @@
 The engine and its bots served online, so other players' games grow the
 testing vector without anyone exporting a replay. Five workstreams: the
 architecture and the contract (A); a multi-game server that logs every
-game, on frankfurt (B); a clean Succubus Club PR (C); a demo video (E);
-the proposal to SC's author (D). Supersedes `docs/human-play.md` slice 5.
+game, on frankfurt (B); Succubus Club (C): the fork its own platform on
+frankfurt, bots only, agreed with SC's author (D), the upstream PR
+deferred (roadmap "Deferred by the owner"); a demo video (E). Supersedes
+`docs/human-play.md` slice 5.
 
 The owner's frame (2026-10-13): the cleanest result, not the shortest
 path — clear boundaries, minimal dependencies, refactors welcome; what
@@ -26,9 +28,9 @@ was built so far need not be preserved.
 4. **Game logs in Postgres** on frankfurt (nightly restic backups).
 5. **Retention**: games kept 2 years for training — said in the client's
    notice; a purge job in the server.
-6. **Contact SC's author** once the contract doc and the reworked SC PR
-   exist.
-7. **Repo public** shortly before that contact.
+6. **SC's author agreed** (2026-10-21): the fork is its own platform,
+   bots only for now; the upstream PR deferred.
+7. **Repo public** after the demo video (Order 5).
 8. **Copies per viewer** (no information leak), cards in hidden places
    unnumbered; face-up cards labelled `nth` ("Embrace #2"). Engine copy
    ids underneath.
@@ -253,6 +255,11 @@ replaying it once (`--no-turns` skips that), cached in
 
 ## C. Succubus Club
 
+The fork is served as its own platform, bots only (platforms board);
+what follows is the shape of the deferred upstream PR (roadmap
+"Deferred by the owner"), the notice and the layout rules holding for
+the fork too.
+
 Fresh branch off upstream `dev` (every PR targets `dev`, Thomas's ask),
 re-cut (not rebased) from the fork.
 
@@ -281,7 +288,7 @@ A storyboard and a fast-track seed (drafted here) showing: deck pick, the
 glows and staging of a play, an action with a block and a combat, a
 referendum with "all votes one way", the bots' narration, the
 Opportunities switch, undo, the game record. Recorded by the owner on
-`engine.krcg.org` with the re-cut SC branch, a few minutes, captioned.
+the fork's public URL, a few minutes, captioned.
 
 ## Order
 
@@ -296,9 +303,7 @@ throughout.
 2. A2–A7 (the host whole, data first, records, bots, the renderer) →
    A8 (contract tests).
 3. B1–B6 locally → B7 (deploy) → B8.
-4. C's small PRs (any time); C's re-cut branch on the live server
-   (types from `protocol.ts`; the PR may opt into `text` for labels while
-   matching on data); owner games online.
-5. E (video) → repo public → D (contact, with the doc, the PR, the
-   video).
+4. The fork served as its own platform, bots only (platforms board);
+   owner games online.
+5. E (video) → repo public.
 6. A10 → multi-human, later.

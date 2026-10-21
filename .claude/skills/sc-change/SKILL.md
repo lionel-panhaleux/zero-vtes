@@ -66,9 +66,10 @@ branches, PRs, recipes, traps) and update it as you learn.
    engine server (test games on engine.krcg.org pollute the recorded
    corpus).
 3. Fast-forward `zero-vtes-engine` (rule 4); tell the owner what to look at.
-4. Upstream: fold into the `engine-game` re-cut (sc.md recipe) or a
-   carve-out branch from `origin/dev` (every PR targets `dev`); vue-tsc
-   at every commit; show the owner the diff and the PR text before
+4. Upstream (deferred by the owner, 2026-10-21: roadmap "Deferred by
+   the owner"; only once it is brought back): fold into the
+   `engine-game` re-cut (sc.md recipe) or a carve-out branch from
+   `origin/dev` (every PR targets `dev`); vue-tsc at every commit; show the owner the diff and the PR text before
    anything leaves the machine.
 5. Keep sc.md's PR table at the open PRs' current state; what a reaction
    from Thomas teaches goes into its "How he reviews".
