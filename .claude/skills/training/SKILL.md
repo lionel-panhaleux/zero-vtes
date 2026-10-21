@@ -154,7 +154,9 @@ runs" (every run's command, numbers and lessons), `docs/boards/training.md`.
   past shifts it; those their settings hid get no probability, so
   Opportunities off is fine); held-out games named with
   `--bc-held-games` (it matches parts of file names: game ids for harvested
-  files, timestamps in `data/records`), never every Nth. Starts from
+  files, timestamps in `data/records`), never every Nth; `--bc-weak-weight
+  W` draws the choices of a winner on a `--weak-decks` deck W times as
+  often (the first line logs them, `bc_weak`). Starts from
   recorded positions (`--starts`). Weakness mining: a recurring bad choice
   becomes a `waste` counter first, a nudge only if it persists and the owner
   agrees (the owner prefers emergent fixes).

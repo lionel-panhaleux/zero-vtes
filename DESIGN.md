@@ -1767,6 +1767,22 @@ training runs.
   `331ce66`, p13 at one seat against three p11, 30 seats a deck):
   Nosferatu 0.20, Banu Haqim 0.37, Hecata 0.77, Salubri 0.90, Tzimisce
   0.93, Brujah 0.97, Gangrel 1.13 (mean 0.97); in self-play 0.61 to 0.93.
+- **p14, prepared** (owner, 2026-10-21: the deck mix and an imitation
+  weight toward the rush and wall decks, no wake nudge; the baseline
+  "Combat play by deck" above). From p13@4740 (served), opponents p13@4740
+  and p11@4340 frozen, to 5300; as p13 otherwise (no pairing, the nudges,
+  lr, entropy, `--bc-every 4`, the same five held out). The learner's seat
+  on one of Hecata, Nosferatu, Banu Haqim, Brujah, Gangrel, Salubri,
+  Tzimisce (`--weak-decks 0,3,7,8,9,12,13`) on 35% of the league tables
+  (`--weak-rate 0.35`; p9 and p10 at 0.4), its opponents from the whole
+  pool as p10's, and in a start at a seat playing one; the decks off the
+  list may fall back as p10's did, the lower rate the only hedge.
+  Imitation over `data/records` and the 26 harvested games that read whole
+  (of the 35 counted; `e33fab34fee8ca4b` held out): 9,231 choices, 3,263
+  on those decks (none on Banu Haqim, 230 on Nosferatu, 298 on Gangrel),
+  drawn 3 times as often (`--bc-weak-weight 3`: 62% of the imitation
+  minibatches). Measured against p13: `decks.rs` per deck, `waste
+  --by-deck` (the rushes declared, the opposing minion down), `humanset`.
 - **Futile blocks on the E25 engine** (owner, 2026-10-15: before any
   redeploy). E25 (`97c4880`) offers every legal block attempt, those
   that cannot reach the stealth too (`Engine::block_can_reach`); no
@@ -1872,7 +1888,7 @@ Still true today; "(verify)" marks items inferred from older notes.
 - **P5 — community**: bot service, client adapter, human-ergonomics layer
   (its open items on the boards).
 
-Definitions: 920 library, 456 vampires; 2383 Rust tests, 39 Python tests
+Definitions: 920 library, 456 vampires; 2383 Rust tests, 40 Python tests
 
 ## Outlook: deck building (post-v1)
 

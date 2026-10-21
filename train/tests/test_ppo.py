@@ -11,7 +11,7 @@ import zvtes_py
 
 from train.league import EXP, EXPLOITER, FROZEN, League
 from train.model import remap_vocab
-from train.ppo import HIDDEN, Config, Trainer, eval_tables, imitation, load_replays, made
+from train.ppo import HIDDEN, Config, Trainer, deck_index, eval_tables, imitation, load_replays, made, sampling
 
 
 def test_one_iteration(tmp_path):
@@ -267,10 +267,10 @@ def test_imitation_holds_out_named_games():
     a = "data/records/zero-vtes-replay-2026-10-08T21-17-05-603Z.json"
     b = "data/records/zero-vtes-replay-2026-10-09T21-51-54-561Z.json"
     replays = load_replays(",".join([a, b]))
-    train, held, names, _ = imitation(replays, 3, 8, ["2026-10-09T21-51"])
+    train, held, names, _, _ = imitation(replays, 3, 8, ["2026-10-09T21-51"])
     assert names == ["zero-vtes-replay-2026-10-09T21-51-54-561Z.json"]
     assert train and held
-    alone, _, _, _ = imitation(replays[:1], 3, 8)
+    alone, _, _, _, _ = imitation(replays[:1], 3, 8)
     assert len(train) == len(alone)
     with pytest.raises(ValueError, match="no replay"):
         imitation(replays, 3, 8, ["1999-01-01"])
@@ -289,11 +289,11 @@ def test_imitation_leaves_out_a_game_read_partway(tmp_path):
     assert "stopped" in zvtes_py.replay_decisions(cut.read_text(), 3)
     # Loaded apart: the same game twice is read once.
     replays = load_replays(path) + load_replays(str(cut))
-    whole, _, _, none = imitation(replays[:1], 3, 0)
-    train, held, names, stopped = imitation(replays, 3, 0, ["cut"])
+    whole, _, _, none, _ = imitation(replays[:1], 3, 0)
+    train, held, names, stopped, _ = imitation(replays, 3, 0, ["cut"])
     assert none == [] and stopped == ["cut.json"]
     assert len(train) == len(whole) and held == [] and names == []
-    train, _, _, stopped = imitation(replays, 3, 0)
+    train, _, _, stopped, _ = imitation(replays, 3, 0)
     assert stopped == ["cut.json"] and len(train) == len(whole)
 
 
@@ -308,7 +308,7 @@ def test_imitation_keeps_the_winners_shown_choices(tmp_path):
     game = json.loads(open(path).read())
     human = game["result"]["winner"]
     assert human not in {b["seat"] for b in game["bots"]}
-    won, _, _, _ = imitation(load_replays(path), 3, 0)
+    won, _, _, _, _ = imitation(load_replays(path), 3, 0)
     assert won
     for name, result in (
         ("lost", {**game["result"], "winner": (human + 1) % 4}),
@@ -413,9 +413,11 @@ def test_imitation_and_weak_decks(tmp_path):
         bc=",".join([start, "data/records/zero-vtes-replay-2026-10-09T21-51-54-561Z.json"]),
         bc_coef=0.1, bc_holdout=2, bc_batch=32,
         weak_decks="32,5", weak_rate=0.5, starts=start, start_tables=0.3, bots_every=0, critic_warmup=0,
+        bc_weak_weight=3.0,
     )
     trainer = Trainer(cfg)
     assert trainer.bc and trainer.bc_held
+    assert trainer.bc_p is not None and len(trainer.bc_p) == len(trainer.bc)
     specs = [trainer.spec() for _ in range(80)]
     for spec in specs:
         if "start" in spec:
@@ -428,3 +430,22 @@ def test_imitation_and_weak_decks(tmp_path):
     row = json.loads(open(tmp_path / "new" / "metrics.jsonl").read().splitlines()[-1])
     assert {"bc_nll", "bc_val_nll", "bc_val_acc", "bc_fit_nll"} <= set(row)
     assert "vs_bots4" not in row, "bots_every 0: no bots once frozen opponents select"
+
+
+def test_imitation_draws_the_weak_decks_choices_more_often():
+    """p14 (owner, 2026-10-21): each trained choice carries its winner's
+    deck, and the minibatches draw a weak deck's choices `bc_weak_weight`
+    times as often as the others."""
+    a = "data/records/zero-vtes-replay-2026-10-08T21-17-05-603Z.json"
+    b = "data/records/zero-vtes-replay-2026-10-12T21-50-21-712Z.json"
+    replays = load_replays(",".join([a, b]))
+    train, _, _, _, decks = imitation(replays, 3, 0)
+    assert len(decks) == len(train)
+    first = [deck_index(json.loads(t)["spec"]["seats"][json.loads(t)["result"]["winner"]]) for _, t, _ in replays]
+    assert set(decks) == set(first)
+    weak = [first[0]]
+    assert sampling(decks, weak, 1.0) is None
+    p = sampling(decks, weak, 4.0)
+    assert p.sum() == pytest.approx(1.0)
+    on, off = [x for x, d in zip(p, decks) if d in weak], [x for x, d in zip(p, decks) if d not in weak]
+    assert on and off and min(on) == pytest.approx(4 * max(off))

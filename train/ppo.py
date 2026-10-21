@@ -218,6 +218,10 @@ class Config:
     # learner sits at a seat playing one when there is one.
     weak_decks: str = ""
     weak_rate: float = 0.0
+    # The human winners' choices with a weak deck drawn into the imitation
+    # minibatches `bc_weak_weight` times as often as the others (owner,
+    # 2026-10-21, p14: the rush and wall decks).
+    bc_weak_weight: float = 1.0
 
 
 def device_of(name):
@@ -529,11 +533,12 @@ def imitation(replays, obs, holdout, games=()):
     partway (a rules change since they were played), left out whole: their
     choices up to the stop would train on a game cut short, and a held-out
     one would shrink the evaluation set unseen (2026-10-18: rules-qa 82.1
-    stopped six harvested games)."""
+    stopped six harvested games). Last, each trained choice's deck: the
+    winner's pool deck index (`deck_index`), None for a list of their own."""
     for part in games:
         if not any(part in path.name for path, _, _ in replays):
             raise ValueError(f"no replay named like {part!r} to hold out")
-    train, held, names, stopped = [], [], [], []
+    train, held, names, stopped, decks = [], [], [], [], []
     for g, (path, text, _) in enumerate(replays):
         game = zvtes_py.replay_decisions(text, obs)
         if "stopped" in game:
@@ -548,6 +553,7 @@ def imitation(replays, obs, holdout, games=()):
         record = json.loads(text)
         result = record.get("result") or {}
         winner = result.get("winner") if (result.get("reason") or {}).get("type") in PLAYED_OUT else None
+        deck = deck_index(record["spec"]["seats"][winner]) if winner is not None else None
         for d in game["decisions"]:
             if d["chosen"] is None or d["seat"] != winner or d["seat"] not in game["humans"]:
                 continue
@@ -573,7 +579,18 @@ def imitation(replays, obs, holdout, games=()):
                 bias[shown] = 0
             if (bias == 0).sum() > 1:
                 out.append((tuple(d[k] for k in ROW_KEYS) + (bias,), d["chosen"]))
-    return train, held, names, stopped
+                if out is train:
+                    decks.append(deck)
+    return train, held, names, stopped, decks
+
+
+def sampling(decks, weak, weight):
+    """The imitation minibatches' draw over choices of `decks` (`imitation`'s
+    last): a weak deck's `weight` times another's; None, uniform, at 1."""
+    if weight == 1:
+        return None
+    w = np.array([weight if d in weak else 1.0 for d in decks])
+    return w / w.sum()
 
 
 class Learner:
@@ -700,9 +717,9 @@ class Trainer:
             [deck_index(s) for s in json.loads(text)["spec"]["seats"]] for _, text, _ in self.starts
         ]
         self.weak = [int(d) for d in cfg.weak_decks.split(",") if d.strip()]
-        self.bc, self.bc_held = [], []
+        self.bc, self.bc_held, self.bc_p = [], [], None
         if cfg.bc_coef > 0:
-            self.bc, self.bc_held, held, stopped = imitation(
+            self.bc, self.bc_held, held, stopped, decks = imitation(
                 load_replays(cfg.bc),
                 cfg.obs,
                 cfg.bc_holdout,
@@ -710,8 +727,17 @@ class Trainer:
             )
             if not self.bc:
                 raise ValueError("--bc-coef needs --bc replays with human choices")
+            self.bc_p = sampling(decks, self.weak, cfg.bc_weak_weight)
             print(
-                json.dumps({"bc": len(self.bc), "bc_held": len(self.bc_held), "held_out": held, "bc_stopped": stopped}),
+                json.dumps(
+                    {
+                        "bc": len(self.bc),
+                        "bc_weak": sum(d in self.weak for d in decks),
+                        "bc_held": len(self.bc_held),
+                        "held_out": held,
+                        "bc_stopped": stopped,
+                    }
+                ),
                 flush=True,
             )
         if cfg.start_tables > 0 and not self.starts:
@@ -922,7 +948,9 @@ class Trainer:
                         clipped = ((ratio - 1).abs() > cfg.clip).float().mean()
                     totals += w * np.array([pg.item(), vf.item(), ent.item(), kl.item(), clipped.item()])
                 if self.bc and learner.agent == 0 and not warming and len(losses) % cfg.bc_every == 0:
-                    pick = self.rng.choice(len(self.bc), min(cfg.bc_batch, len(self.bc)), replace=False)
+                    pick = self.rng.choice(
+                        len(self.bc), min(cfg.bc_batch, len(self.bc)), replace=False, p=self.bc_p
+                    )
                     nll, _ = self.imitation_loss(learner.model, [self.bc[i] for i in pick])
                     (cfg.bc_every * cfg.bc_coef * nll).backward()
                     bc.append(nll.item())
