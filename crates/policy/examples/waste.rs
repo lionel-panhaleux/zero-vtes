@@ -5,7 +5,7 @@
 //! profile and weights) and self-play of an exported network.
 //! `cargo run -p zvtes-policy --profile ci --example waste -- <policy.zvp>
 //! <games> [--t T] [--rescue B] [--pass B] [--reaction B] [--bleed B]
-//! [--idle B] [--seats N] [--twda] [record.json | records dir]...`
+//! [--idle B] [--seats N] [--twda] [--by-deck] [record.json | records dir]...`
 //! (self-play at N seats, 4 by default, the precons or with `--twda` the
 //! TWDA decks, at temperature T, with those nudges:
 //! `zvtes_policy::Nudges`; none with 0 games, the policy then unread:
@@ -51,13 +51,27 @@
 //!   E25, the futile ones too, `Engine::block_can_reach`): those offering
 //!   an attempt that could reach the stealth and those taken, those
 //!   offering a futile one and those taken, and those offering only
-//!   futile ones (the windows elided before E25) and those attempted.
+//!   futile ones (the windows elided before E25) and those attempted;
+//! - combat play (owner, 2026-10-20, of the walls and rushes: "they have
+//!   specific actions and reactions to enter combat and they need their
+//!   combat to be played efficiently on the right targets"): the seat's own turns
+//!   with a rush offered (`zvtes_policy::rush`) and those with one
+//!   declared, the rushes' targets (the seat's prey, its predator, another
+//!   seat; carrying equipment; a minion that had declared a bleed); its blocks, by the acting seat; every combat
+//!   its minion fought, the cards it played, the combat cards it held as
+//!   the combat began, those with some held and none played, the blood
+//!   the opposing minion lost, whether it or its own went to torpor or
+//!   burned.
+//!
+//! `--by-deck` splits every group by the seat's deck (a pool deck's name,
+//! "own list" for one matching none).
 
 use std::collections::BTreeMap;
 use std::sync::Arc;
 use zvtes::actions::ActionState;
 use zvtes::agent::Agent;
 use zvtes::cards::{self, AbilitySource, Effect};
+use zvtes::combat::CombatNote;
 use zvtes::decision::{ActionKind, Choice, DecisionRequest, WindowLabel};
 use zvtes::decks::Deck;
 use zvtes::draws::Interrupt;
@@ -65,6 +79,7 @@ use zvtes::game::{Engine, Step};
 use zvtes::habits;
 use zvtes::ids::{MinionId, SeatId};
 use zvtes::library::{CardType, LIBRARY};
+use zvtes::notes::Note;
 use zvtes_api::record::GameRecord;
 use zvtes_host::replay::Replay;
 use zvtes_policy::{Net, NetAgent, Nudges};
@@ -135,12 +150,32 @@ struct Counts {
     futile_taken: u64,
     only_futile: u64,
     only_futile_taken: u64,
+    /// Own turns with a rush offered, those with one declared, rushes;
+    /// their targets by `standing`, those carrying equipment, those that
+    /// declared a bleed earlier in the game.
+    rush_turns: u64,
+    rush_turns_taken: u64,
+    rushes: u64,
+    rush_at: [u64; 3],
+    rush_equipped: u64,
+    rush_bleeder: u64,
+    /// Blocks declared, by the acting seat's `standing`.
+    blocks: [u64; 3],
+    /// Every combat its minion fought: the cards it played, the combat
+    /// cards in its hand as it began, those with some and none played, the
+    /// blood the opposing minion lost, it and its own minion down.
+    fights: u64,
+    fight_plays: u64,
+    fight_held: u64,
+    fight_held_idle: u64,
+    fight_damage: u64,
+    fight_down: u64,
+    fight_lost: u64,
 }
 
 fn is_wider(e: &Engine, o: &Choice) -> bool {
     matches!(*o, Choice::UseAbility { source: AbilitySource::Card(c), ability: 0, .. }
-        if c != zvtes::state::ASH_PLAY
-            && LIBRARY[e.state.cards[c.index()].card as usize].name == "Wider View")
+        if LIBRARY[e.state.cards[c.index()].card as usize].name == "Wider View")
 }
 
 /// `b` as `a` sees it: 0 its prey or predator, 1 cross-table; `None` once
@@ -155,14 +190,39 @@ fn relation(e: &Engine, a: SeatId, b: SeatId) -> Option<usize> {
     Some((d != 1 && d != n - 1) as usize)
 }
 
-/// A combat under way: (turn, its minions), their seats, `relation`, the
-/// blood each had when first seen, the cards each side played.
+/// `b` as `a` sees it: 0 its prey, 1 its predator, 2 another seat; with
+/// two seats left the other is both, counted as prey.
+fn standing(e: &Engine, a: SeatId, b: SeatId) -> usize {
+    if e.state.prey(a) == b {
+        0
+    } else if e.state.predator(a) == b {
+        1
+    } else {
+        2
+    }
+}
+
+/// A combat under way: its minions, their seats, `relation`, the blood
+/// each had and the combat cards each side held at the decision before it
+/// began, the cards each side played. That decision can be before costs
+/// paid at resolution (the Red List hunt's blood: damage dealt, as read
+/// here), or inside a combat that ended with no decision since (a second
+/// combat right after: the first's last strikes counted again).
 struct Fight {
-    id: (u32, MinionId, MinionId),
+    minions: [MinionId; 2],
     seats: [SeatId; 2],
-    rel: usize,
+    rel: Option<usize>,
     blood: [u8; 2],
     plays: [u64; 2],
+    held: [u64; 2],
+}
+
+fn combat_cards(e: &Engine, seat: SeatId) -> u64 {
+    e.state.seats[seat.index()]
+        .hand
+        .iter()
+        .filter(|&&k| LIBRARY[k as usize].types.contains(&CardType::Combat))
+        .count() as u64
 }
 
 fn is_stealth(e: &Engine, me: SeatId, o: &Choice) -> bool {
@@ -197,6 +257,13 @@ struct Watch {
     /// The seat bleeding since the last decision, and each seat's prey (0)
     /// or cross-table (1) standing to it and pool then.
     bleeding: Option<(SeatId, Vec<Standing>)>,
+    /// Each seat's own turn under way: (turn, a rush offered, one declared).
+    rush_turn: Vec<Option<(u32, bool, bool)>>,
+    /// At the last decision: each minion's blood, each seat's combat cards.
+    blood: Vec<u8>,
+    held: Vec<u64>,
+    /// The minions that declared a bleed so far.
+    bleeders: Vec<MinionId>,
 }
 
 /// A seat's prey (0) or cross-table (1) standing to the bleeder, and its pool.
@@ -240,14 +307,33 @@ fn playable(e: &Engine, me: SeatId, card: u16) -> bool {
 impl Watch {
     fn new(groups: Vec<String>) -> Self {
         Watch {
+            rush_turn: vec![None; groups.len()],
             groups,
             ..Watch::default()
         }
     }
 
+    /// A seat's own turn over: its rush counts.
+    fn end_turn(&mut self, seat: usize, counts: &mut BTreeMap<String, Counts>) {
+        if let Some((_, offered, taken)) = self.rush_turn[seat].take() {
+            let c = counts.entry(self.groups[seat].clone()).or_default();
+            c.rush_turns += offered as u64;
+            c.rush_turns_taken += taken as u64;
+        }
+    }
+
+    /// The game over: what is still open.
+    fn finish(&mut self, e: &mut Engine, counts: &mut BTreeMap<String, Counts>) {
+        let notes = e.take_notes().unwrap_or_default();
+        self.settle(e, &notes, counts);
+        for s in 0..self.groups.len() {
+            self.end_turn(s, counts);
+        }
+    }
+
     /// What happened since the last decision: the pool a bleed took, a
-    /// combat over.
-    fn settle(&mut self, e: &Engine, counts: &mut BTreeMap<String, Counts>) {
+    /// combat begun or over (`notes`, drained since).
+    fn settle(&mut self, e: &Engine, notes: &[Note], counts: &mut BTreeMap<String, Counts>) {
         let st = &e.state;
         if let Some((x, before)) = self.bleeding.take() {
             let c = counts.entry(self.groups[x.index()].clone()).or_default();
@@ -257,33 +343,60 @@ impl Watch {
                 }
             }
         }
-        let now = e
-            .combat()
-            .map(|c| (st.turn, c.sides[0].minion, c.sides[1].minion));
-        if self.combat.as_ref().is_some_and(|f| Some(f.id) != now) {
-            let f = self.combat.take().unwrap();
-            let minions = [f.id.1, f.id.2];
-            for i in 0..2 {
-                let them = &st.minions[minions[1 - i].index()];
-                let c = counts
-                    .entry(self.groups[f.seats[i].index()].clone())
-                    .or_default();
-                c.combats[f.rel] += 1;
-                c.combat_plays[f.rel] += f.plays[i];
-                c.combat_damage[f.rel] += f.blood[1 - i].saturating_sub(them.blood) as u64;
-                c.combat_down[f.rel] += (them.in_torpor || !them.in_play) as u64;
+        // From the combat notes: a combat with no decision in it (every
+        // window elided) is seen too.
+        for n in notes {
+            match n {
+                Note::Combat(CombatNote::Begins { minions }) => {
+                    let seats = minions.map(|m| st.minions[m.index()].owner);
+                    self.combat = Some(Fight {
+                        minions: *minions,
+                        seats,
+                        rel: relation(e, seats[0], seats[1]),
+                        blood: minions.map(|m| self.blood.get(m.index()).copied().unwrap_or(0)),
+                        plays: [0; 2],
+                        held: seats.map(|s| self.held.get(s.index()).copied().unwrap_or(0)),
+                    });
+                }
+                Note::Combat(CombatNote::Ends { .. }) => {
+                    if let Some(f) = self.combat.take() {
+                        self.fought(e, &f, counts);
+                    }
+                }
+                _ => {}
             }
         }
-        if let (None, Some(id), Some(c)) = (&self.combat, now, e.combat()) {
-            let seats = [c.sides[0].seat, c.sides[1].seat];
-            if let Some(rel) = relation(e, seats[0], seats[1]) {
-                self.combat = Some(Fight {
-                    id,
-                    seats,
-                    rel,
-                    blood: [id.1, id.2].map(|m| st.minions[m.index()].blood),
-                    plays: [0; 2],
-                });
+        self.blood = st.minions.iter().map(|m| m.blood).collect();
+        self.held = (0..st.seats.len())
+            .map(|s| combat_cards(e, SeatId(s as u8)))
+            .collect();
+    }
+
+    /// A combat over: each side's counts.
+    fn fought(&self, e: &Engine, f: &Fight, counts: &mut BTreeMap<String, Counts>) {
+        let st = &e.state;
+        let down = |m: MinionId| {
+            let m = &st.minions[m.index()];
+            (m.in_torpor || !m.in_play) as u64
+        };
+        for i in 0..2 {
+            let them = &st.minions[f.minions[1 - i].index()];
+            let c = counts
+                .entry(self.groups[f.seats[i].index()].clone())
+                .or_default();
+            let damage = f.blood[1 - i].saturating_sub(them.blood) as u64;
+            c.fights += 1;
+            c.fight_plays += f.plays[i];
+            c.fight_held += f.held[i];
+            c.fight_held_idle += (f.held[i] > 0 && f.plays[i] == 0) as u64;
+            c.fight_damage += damage;
+            c.fight_down += down(f.minions[1 - i]);
+            c.fight_lost += down(f.minions[i]);
+            if let Some(rel) = f.rel {
+                c.combats[rel] += 1;
+                c.combat_plays[rel] += f.plays[i];
+                c.combat_damage[rel] += damage;
+                c.combat_down[rel] += down(f.minions[1 - i]);
             }
         }
     }
@@ -332,14 +445,21 @@ impl Watch {
         }
         let declared = match o {
             Choice::TakeAction {
+                minion,
                 action: ActionKind::Bleed,
                 ..
-            } => true,
-            Choice::Play { card, mode, .. } => {
-                effects(e, me, card, mode).contains(&Effect::DeclareAction(ActionKind::Bleed))
+            } => Some(minion),
+            Choice::Play {
+                card, mode, actor, ..
+            } if effects(e, me, card, mode).contains(&Effect::DeclareAction(ActionKind::Bleed)) => {
+                actor
             }
-            _ => false,
+            _ => None,
         };
+        if let Some(m) = declared.filter(|m| !self.bleeders.contains(m)) {
+            self.bleeders.push(m);
+        }
+        let declared = declared.is_some();
         let st = &e.state;
         let bleeder = if declared {
             if relation(e, me, st.prey(me)).is_some() {
@@ -362,6 +482,53 @@ impl Watch {
             (x, before)
         });
     }
+    /// Rushes offered and declared on the seat's own turn, their targets;
+    /// its blocks.
+    fn combat_play(
+        &mut self,
+        e: &Engine,
+        req: &DecisionRequest,
+        o: Choice,
+        counts: &mut BTreeMap<String, Counts>,
+    ) {
+        let me = req.seat;
+        let st = &e.state;
+        let active = st.active.index();
+        if self.rush_turn[active].is_some_and(|(t, _, _)| t != st.turn) {
+            self.end_turn(active, counts);
+        }
+        if let Choice::DeclareBlock { .. } = o {
+            if let Some(a) = e.action() {
+                let c = counts.entry(self.groups[me.index()].clone()).or_default();
+                c.blocks[standing(e, me, a.seat)] += 1;
+            }
+        }
+        if st.active != me || req.window != WindowLabel::MinionPhase {
+            return;
+        }
+        let offered = req
+            .options
+            .iter()
+            .any(|o| zvtes_policy::rush(e, me, o).is_some());
+        let target = zvtes_policy::rush(e, me, &o);
+        let turn = self.rush_turn[active].get_or_insert((st.turn, false, false));
+        turn.1 |= offered;
+        turn.2 |= target.is_some();
+        if let Some(t) = target {
+            let c = counts.entry(self.groups[me.index()].clone()).or_default();
+            c.rushes += 1;
+            c.rush_at[standing(e, me, st.minions[t.index()].owner)] += 1;
+            c.rush_equipped += st.cards.iter().any(|k| {
+                k.in_play
+                    && k.host == Some(t)
+                    && LIBRARY[k.card as usize]
+                        .types
+                        .contains(&CardType::Equipment)
+            }) as u64;
+            c.rush_bleeder += self.bleeders.contains(&t) as u64;
+        }
+    }
+
     /// Before `chosen` is applied: settle what this decision shows, then
     /// record what it plays.
     fn see(
@@ -369,14 +536,17 @@ impl Watch {
         e: &Engine,
         req: &DecisionRequest,
         chosen: usize,
-        group: &str,
+        notes: &[Note],
         counts: &mut BTreeMap<String, Counts>,
     ) {
         let me = req.seat;
         let key = action_key(e);
         let o = req.options[chosen];
-        self.settle(e, counts);
+        let group = self.groups[me.index()].clone();
+        let group = group.as_str();
+        self.settle(e, notes, counts);
         self.cross(e, req, o, counts);
+        self.combat_play(e, req, o, counts);
         // A block by a woken vampire uses its wake.
         if let Choice::DeclareBlock { minion } = o {
             self.wakes.retain(|(_, m, k)| !(*m == minion && *k == key));
@@ -544,7 +714,7 @@ impl Watch {
 /// Game records read back: each seat's counts to its group — "humans",
 /// or the bots by profile and weights (a harvest mixes several). A record
 /// that does not read is skipped, said on stderr.
-fn recorded_games(paths: &[String], counts: &mut BTreeMap<String, Counts>) {
+fn recorded_games(paths: &[String], by_deck: bool, counts: &mut BTreeMap<String, Counts>) {
     for path in paths {
         let record = std::fs::read_to_string(path)
             .map_err(|e| e.to_string())
@@ -558,7 +728,7 @@ fn recorded_games(paths: &[String], counts: &mut BTreeMap<String, Counts>) {
             }
         };
         let mut e = replay.deal();
-        e.notes = None;
+        e.notes = Some(Vec::new());
         let human: Vec<bool> = (0..replay.seats())
             .map(|s| replay.humans.contains(&(s as u8)))
             .collect();
@@ -580,6 +750,11 @@ fn recorded_games(paths: &[String], counts: &mut BTreeMap<String, Counts>) {
                     None => "bots".to_string(),
                 }
             })
+            .enumerate()
+            .map(|(s, g)| match by_deck {
+                true => format!("{g}, {}", deck_name(&record.spec.seats[s].deck)),
+                false => g,
+            })
             .collect();
         let mut watch = Watch::new(groups.clone());
         while let Step::Decision(req) = e.run() {
@@ -597,22 +772,48 @@ fn recorded_games(paths: &[String], counts: &mut BTreeMap<String, Counts>) {
                     break;
                 }
             };
-            watch.see(&e, &req, i, &groups[req.seat.index()], counts);
+            let notes = e.take_notes().unwrap_or_default();
+            watch.see(&e, &req, i, &notes, counts);
             e.choose(i);
         }
-        watch.settle(&e, counts);
+        watch.finish(&mut e, counts);
     }
 }
 
-fn self_play(
-    path: &str,
+/// A record seat's pool deck by name, "own list" when its list is none.
+fn deck_name(list: &zvtes_api::spec::DeckList) -> String {
+    let Ok(r) = zvtes_host::deck::resolve(0, list) else {
+        return "own list".into();
+    };
+    let sorted = |x: &[(u16, u8)]| {
+        let mut v = x.to_vec();
+        v.sort();
+        v
+    };
+    let (crypt, library) = (sorted(&r.crypt), sorted(&r.library));
+    Deck::all()
+        .find(|d| sorted(d.crypt) == crypt && sorted(d.library) == library)
+        .map_or("own list".into(), |d| d.name.to_string())
+}
+
+/// Self-play: `games` at `seats` seats, the precons or the TWDA decks,
+/// at `temperature` with `nudges`.
+struct SelfPlay {
     games: u64,
     seats: u64,
     twda: bool,
     temperature: f32,
     nudges: Nudges,
-    counts: &mut BTreeMap<String, Counts>,
-) {
+}
+
+fn self_play(path: &str, play: &SelfPlay, by_deck: bool, counts: &mut BTreeMap<String, Counts>) {
+    let SelfPlay {
+        games,
+        seats,
+        twda,
+        temperature,
+        nudges,
+    } = *play;
     let net = Arc::new(Net::load(&std::fs::read(path).expect("the policy")).expect("a policy"));
     let decks: Vec<Deck> = if twda {
         (0..zvtes::twda::TWDA.len()).map(Deck::twda).collect()
@@ -637,6 +838,7 @@ fn self_play(
             .collect();
         let mut e = Engine::with_decks(9000 + g, &table);
         e.time_limit = 75;
+        e.notes = Some(Vec::new());
         let mut agents: Vec<NetAgent> = (0..seats)
             .map(|s| {
                 NetAgent::new(net.clone(), g * 10 + s)
@@ -644,26 +846,34 @@ fn self_play(
                     .nudges(nudges)
             })
             .collect();
-        let mut watch = Watch::new(vec![group.clone(); seats as usize]);
+        let groups = table
+            .iter()
+            .map(|d| match by_deck {
+                true => format!("{group}, {}", d.name),
+                false => group.clone(),
+            })
+            .collect();
+        let mut watch = Watch::new(groups);
         while let Step::Decision(req) = e.run() {
             let i = agents[req.seat.index()].decide(&e, &req);
-            watch.see(&e, &req, i, &group, counts);
+            let notes = e.take_notes().unwrap_or_default();
+            watch.see(&e, &req, i, &notes, counts);
             e.choose(i);
             if e.decisions > 30_000 {
                 break;
             }
         }
-        watch.settle(&e, counts);
+        watch.finish(&mut e, counts);
     }
 }
 
 fn main() {
     let mut args = std::env::args().skip(1);
-    let usage = "usage: waste <policy.zvp> <games> [--t T] [--rescue B] [--pass B] [--reaction B] [--bleed B] [--idle B] [--draw B] [--stuck B] [--nightmare B] [--seats N] [--twda] [record.json | records dir]... (`- 0`: the records only, no network)";
+    let usage = "usage: waste <policy.zvp> <games> [--t T] [--rescue B] [--pass B] [--reaction B] [--bleed B] [--idle B] [--draw B] [--stuck B] [--nightmare B] [--seats N] [--twda] [--by-deck] [record.json | records dir]... (`- 0`: the records only, no network)";
     let policy = args.next().expect(usage);
     let games: u64 = args.next().and_then(|n| n.parse().ok()).expect(usage);
-    let (mut temperature, mut nudges, mut replays, mut seats, mut twda) =
-        (1.0, Nudges::default(), Vec::new(), 4, false);
+    let (mut temperature, mut nudges, mut replays, mut seats, mut twda, mut by_deck) =
+        (1.0, Nudges::default(), Vec::new(), 4, false, false);
     while let Some(a) = args.next() {
         let mut num = || {
             args.next()
@@ -682,6 +892,7 @@ fn main() {
             "--nightmare" => nudges.nightmare = num(),
             "--seats" => seats = num() as u64,
             "--twda" => twda = true,
+            "--by-deck" => by_deck = true,
             // A directory: its records (a harvest).
             _ => match std::fs::read_dir(&a) {
                 Ok(dir) => {
@@ -698,17 +909,16 @@ fn main() {
         }
     }
     let mut counts = BTreeMap::new();
-    recorded_games(&replays, &mut counts);
+    recorded_games(&replays, by_deck, &mut counts);
     if games > 0 {
-        self_play(
-            &policy,
+        let play = SelfPlay {
             games,
             seats,
             twda,
             temperature,
             nudges,
-            &mut counts,
-        );
+        };
+        self_play(&policy, &play, by_deck, &mut counts);
     }
     let pct = |a: u64, b: u64| {
         if b == 0 {
@@ -820,6 +1030,31 @@ fn main() {
             pct(c.futile_taken, c.futile_offered),
             c.only_futile,
             pct(c.only_futile_taken, c.only_futile)
+        );
+        println!(
+            "  own turns with a rush offered {}, one declared {:.0}% ({} rushes); their targets: its prey {:.0}%, its predator {:.0}%, another seat {:.0}%, carrying equipment {:.0}%, a minion that had declared a bleed {:.0}%; blocks {}: of its prey {:.0}%, its predator {:.0}%, another seat {:.0}%",
+            c.rush_turns,
+            pct(c.rush_turns_taken, c.rush_turns),
+            c.rushes,
+            pct(c.rush_at[0], c.rushes),
+            pct(c.rush_at[1], c.rushes),
+            pct(c.rush_at[2], c.rushes),
+            pct(c.rush_equipped, c.rushes),
+            pct(c.rush_bleeder, c.rushes),
+            c.blocks.iter().sum::<u64>(),
+            pct(c.blocks[0], c.blocks.iter().sum()),
+            pct(c.blocks[1], c.blocks.iter().sum()),
+            pct(c.blocks[2], c.blocks.iter().sum())
+        );
+        println!(
+            "  combats {}: cards it played {:.2}, combat cards held as it began {:.2}, some held and none played {:.0}%; blood the opposing minion lost {:.2}, to torpor or burned {:.0}%, its own {:.0}%",
+            c.fights,
+            per(c.fight_plays, c.fights),
+            per(c.fight_held, c.fights),
+            pct(c.fight_held_idle, c.fights),
+            per(c.fight_damage, c.fights),
+            pct(c.fight_down, c.fights),
+            pct(c.fight_lost, c.fights)
         );
     }
 }

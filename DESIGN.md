@@ -1735,6 +1735,38 @@ training runs.
   **Served** (owner, 2026-10-19: even with p11 head to head, better from
   the owner's positions), `runs/p13/best.zvp` (`df66d54badf3`), the
   previous `runs/served-prev-2026-10-19-p11at4340.zvp` (`b9035931a527`).
+- **Combat play by deck** (owner, 2026-10-20, the training board's "Rush
+  and wall play": "What matters is they have specific actions and
+  reactions to enter combat and they need their combat to be played
+  efficiently on the right targets for the deck to work against good
+  opponents"). `waste --by-deck`, a rush being an action entering combat
+  with its target (`zvtes_policy::rush`); combats counted from the combat
+  notes from now on, those with every window elided included (the
+  per-combat figures above leave those out). p13 / p11 self-play (400
+  games at 4 seats, no nudges) against the humans (`data/records` and the
+  2026-10-19 harvest pooled, 22 to 81 combats a deck, none on Banu Haqim:
+  small, and against older bots). Own turns with a rush offered and one
+  declared: Nosferatu 4% / 4% (the humans 42%), Gangrel 4% / 3% (21%),
+  Banu Haqim 16% / 14% (none offered to the humans), Tzimisce 29% / 15%
+  (100%), Salubri 26% / 33% (30%), Brujah 29% / 31% (69%), Hecata 42% /
+  60% (100%). The opposing minion to torpor or burned, for p13: Banu Haqim
+  12%, Hecata 14%, Tzimisce 18%, Gangrel 19%, Salubri 22%, Nosferatu 28%,
+  Brujah 36% (p11 within 6 points), the humans 26 to 91% (Brujah 91%,
+  Nosferatu 45%, Gangrel and Salubri 44%); its own minion down 8 to 31%
+  (the humans 2 to 18%). Block windows with a reachable attempt,
+  attempted: p13 48 to 74%, the humans 44 to 65%. Wakes with no block
+  after 77 to 88% (the humans 7 to 67%, 3 to 15 wakes a deck). No gap in
+  the targets (the rushes on the prey 26 to 75%, the humans 31 to 83%; on
+  a minion that had declared a bleed 53 to 88%, the humans 25 to 100%; on
+  one carrying equipment 6% at most, the humans none) nor in holding back
+  (combats with combat cards held and none played 12 to 38%, the humans 5
+  to 58%). The bots block as often as the humans; the gap is the combats
+  they enter and what those achieve: the rush decks seldom rush
+  (Nosferatu, Gangrel, Banu Haqim under one turn in six), and their
+  combats seldom put the opposing minion down. Per deck (`decks.rs` on
+  `331ce66`, p13 at one seat against three p11, 30 seats a deck):
+  Nosferatu 0.20, Banu Haqim 0.37, Hecata 0.77, Salubri 0.90, Tzimisce
+  0.93, Brujah 0.97, Gangrel 1.13 (mean 0.97); in self-play 0.61 to 0.93.
 - **Futile blocks on the E25 engine** (owner, 2026-10-15: before any
   redeploy). E25 (`97c4880`) offers every legal block attempt, those
   that cannot reach the stealth too (`Engine::block_can_reach`); no
@@ -1840,7 +1872,7 @@ Still true today; "(verify)" marks items inferred from older notes.
 - **P5 — community**: bot service, client adapter, human-ergonomics layer
   (its open items on the boards).
 
-Definitions: 920 library, 456 vampires; 2379 Rust tests, 39 Python tests
+Definitions: 920 library, 456 vampires; 2380 Rust tests, 39 Python tests
 
 ## Outlook: deck building (post-v1)
 

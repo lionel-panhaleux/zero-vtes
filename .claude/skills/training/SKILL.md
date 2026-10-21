@@ -35,7 +35,9 @@ runs" (every run's command, numbers and lessons), `docs/boards/training.md`.
    takes record paths or directories (`data/records`, a harvest; `- 0`
    reads records only, no network), groups seats as humans or bots by
    profile and weights, needs `--twda` for Wider View on TWDA decks (four
-   precons have it too) and `--seats 5` for 5-seat cross-table numbers.
+   precons have it too) and `--seats 5` for 5-seat cross-table numbers;
+   `--by-deck` splits each group by the seat's deck, for the combat play
+   (rushes and their targets, blocks, every combat's cards and results).
 2. **Launch** from a dedicated worktree at the launch commit
    (`git worktree add ../zero-vtes-pN <sha>`, `uv sync` there: a fresh
    `.venv` builds the extension at that commit; `--reinstall-package

@@ -26,7 +26,7 @@ use zvtes::cards::Stat;
 use zvtes::decision::{ActionKind, Choice, DecisionRequest, WindowLabel};
 use zvtes::game::Engine;
 use zvtes::habits::{self, Habit};
-use zvtes::ids::SeatId;
+use zvtes::ids::{MinionId, SeatId};
 use zvtes::library::{CardType, LIBRARY};
 use zvtes::obs::{self, Obs};
 use zvtes::politics;
@@ -609,6 +609,48 @@ pub fn own_nightmare(e: &Engine, seat: SeatId, o: &Choice) -> Option<bool> {
         .then(|| e.state.minions[t.index()].owner == seat)
 }
 
+/// `o` declares a rush: an action entering combat with its target on
+/// success (`Effect::EnterCombatWithTarget`, from a card, a card in play's
+/// or a vampire's ability; the Red List hunt). The minion it takes on.
+/// Actions only: the reactions entering combat (The Guardian, The Status
+/// Perfectus, Hidden Lurker's queued combat …) are not rushes, nor Taunt
+/// the Caged Beast's or Yawp Court's combats; no precon holds them.
+pub fn rush(e: &Engine, seat: SeatId, o: &Choice) -> Option<MinionId> {
+    use zvtes::cards::{Effect, Target};
+    let (effects, target): (&[Effect], Target) = match *o {
+        Choice::TakeAction {
+            action: ActionKind::RedListHunt,
+            target,
+            ..
+        } => return target,
+        Choice::Play {
+            card, mode, target, ..
+        } => (
+            zvtes::cards::lookup(e.playable_card(seat, card))
+                .and_then(|d| d.modes.get(mode as usize))
+                .map_or(&[], |m| m.effects),
+            target,
+        ),
+        Choice::UseAbility {
+            source,
+            ability,
+            target,
+            ..
+        } => (
+            source
+                .abilities(&e.state)
+                .get(ability as usize)
+                .map_or(&[], |m| m.effects),
+            target,
+        ),
+        _ => return None,
+    };
+    match target {
+        Target::Minion(m) if effects.contains(&Effect::EnterCombatWithTarget) => Some(m),
+        _ => None,
+    }
+}
+
 /// `req` is a seat's influence phase with a crypt draw still offered (4
 /// transfers left) and 5 pool or more: passing it leaves them unused.
 pub fn idle_influence(e: &Engine, req: &DecisionRequest) -> bool {
@@ -853,5 +895,69 @@ pub(crate) mod tests {
             }
         }
         assert!(offered > 0 && only > 0, "the games met no futile attempt");
+    }
+
+    /// `rush` names the options entering combat with their target: on
+    /// random games of precons with rush cards (Nosferatu, Banu Haqim,
+    /// Brujah, Gangrel), each rush declared is followed, before its action
+    /// ends, by a combat of the acting minion with the target or a blocker.
+    #[test]
+    fn a_rush_is_an_action_entering_combat_with_its_target() {
+        use zvtes::combat::CombatNote;
+        use zvtes::notes::Note;
+        let net = std::sync::Arc::new(uniform_net());
+        let (mut rushes, mut with_target) = (0, 0);
+        for seed in 0..200u64 {
+            let decks: Vec<Deck> = [3, 7, 8, 9].map(Deck::precon).to_vec();
+            let mut e = Engine::with_decks(seed, &decks);
+            e.time_limit = 40;
+            e.notes = Some(Vec::new());
+            let mut agents: Vec<NetAgent> = (0..4)
+                .map(|s| NetAgent::new(net.clone(), seed * 10 + s))
+                .collect();
+            // The rush under way: its action (turn, acting minion), its
+            // target, the minion its actor fought.
+            let mut open: Option<((u32, MinionId), MinionId, Option<MinionId>)> = None;
+            loop {
+                let step = e.run();
+                for n in e.take_notes().unwrap_or_default() {
+                    if let (Some((k, _, seen)), Note::Combat(CombatNote::Begins { minions })) =
+                        (&mut open, n)
+                    {
+                        if minions.contains(&k.1) {
+                            *seen = minions.into_iter().find(|&m| m != k.1);
+                        }
+                    }
+                }
+                let Step::Decision(req) = step else { break };
+                let key = e.action().map(|a| (e.state.turn, a.acting));
+                if open.is_some_and(|(k, _, _)| key != Some(k)) {
+                    let (k, t, seen) = open.take().unwrap();
+                    assert!(
+                        seen.is_some(),
+                        "seed {seed}: the rush of {k:?} on {t:?} fought no one"
+                    );
+                    with_target += (seen == Some(t)) as u32;
+                }
+                let i = agents[req.seat.index()].decide(&e, &req);
+                if let Some(t) = rush(&e, req.seat, &req.options[i]) {
+                    let actor = match req.options[i] {
+                        Choice::Play { actor, .. } | Choice::UseAbility { actor, .. } => actor,
+                        Choice::TakeAction { minion, .. } => Some(minion),
+                        _ => None,
+                    };
+                    rushes += 1;
+                    open = Some(((e.state.turn, actor.expect("an acting minion")), t, None));
+                }
+                e.choose(i);
+                if e.decisions > 20_000 {
+                    break;
+                }
+            }
+        }
+        assert!(
+            rushes >= 20 && with_target > 0,
+            "{rushes} rushes, {with_target} on their target"
+        );
     }
 }
