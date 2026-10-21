@@ -108,6 +108,17 @@ pub enum Fact {
         card: CardId,
         on: Option<MinionId>,
     },
+    /// A card from a place to another (the census of two ledgers).
+    Zoned {
+        copy: CopyId,
+        card: u16,
+        crypt: bool,
+        from: Place,
+        to: Place,
+        /// Each end as its ledger had it: who held it (a card's
+        /// controller, a minion's), in torpor, on which minion.
+        at: [Spot; 2],
+    },
     /// To `to`, or contested: in its own contest, or out of play with
     /// its contested minion (rules-qa 83.1).
     CardLeaves {
@@ -115,7 +126,8 @@ pub enum Fact {
         to: Option<Place>,
         contested: bool,
     },
-    CardMoves {
+    /// A card in play to another minion (or off one).
+    Moves {
         card: CardId,
         on: Option<MinionId>,
     },
@@ -308,6 +320,115 @@ impl Mark {
     }
 }
 
+/// A place's holder as a ledger had it: its seat (a card's controller,
+/// its minion's on one; a minion's), a minion in torpor, the minion a
+/// card is on.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct Spot {
+    pub seat: SeatId,
+    pub torpor: bool,
+    pub on: Option<MinionId>,
+    /// The seats that see a card there, a bit each (`GameState::legal_view`'s
+    /// mask): none in a library or crypt; a hand's own and open viewers,
+    /// as the ledger had them; an uncontrolled vampire's own seat, every
+    /// seat's banished; a card stored face down, its card's controller
+    /// (these two read from the table as it stands: a slot gone, a card
+    /// changed hands since, is read so).
+    pub shown: u8,
+}
+
+/// Every seat.
+pub const ALL: u8 = u8::MAX;
+
+impl Spot {
+    /// Whether `viewer` sees a card there (every seat to a viewer of the
+    /// whole table).
+    pub fn seen_by(&self, viewer: Option<SeatId>) -> bool {
+        viewer.is_none_or(|v| self.shown & 1 << v.0 != 0)
+    }
+}
+
+fn spot(e: &Engine, l: &Ledger, p: Place, copy: CopyId) -> Spot {
+    let st = &e.state;
+    let minion = |m: MinionId| match l.minions.get(m.index()) {
+        Some(m) => (m.controller, m.torpor),
+        None => (st.minions[m.index()].owner, false),
+    };
+    let stored = |c: u32| {
+        (0..st.seats.len())
+            .filter(|&v| st.stored_seen_by(CardId(c), SeatId(v as u8)))
+            .fold(0u8, |m, v| m | 1 << v)
+    };
+    let shown = match p {
+        Place::Zone(_, "library" | "crypt") => 0,
+        Place::Zone(s, "hand") => l.hands_seen.get(s as usize).copied().unwrap_or(1 << s),
+        Place::Uncontrolled(s) => {
+            let slots = &st.seats[s as usize].uncontrolled;
+            match slots
+                .iter()
+                .any(|u| *u.copy == copy && u.banished.is_some())
+            {
+                true => ALL,
+                false => 1 << s,
+            }
+        }
+        Place::Card { id, stored: true }
+        | Place::Banished {
+            stored: Some(id), ..
+        } => stored(id),
+        _ => ALL,
+    };
+    let at = |(seat, torpor): (SeatId, bool), on| Spot {
+        seat,
+        torpor,
+        on,
+        shown,
+    };
+    match p {
+        Place::Zone(s, _)
+        | Place::Uncontrolled(s)
+        | Place::InFlight(s)
+        | Place::Training(s)
+        | Place::Banished { seat: s, .. } => at((SeatId(s), false), None),
+        Place::Minion { id, .. } => at(minion(MinionId(id)), None),
+        Place::Card { id, .. } => {
+            let c = CardId(id);
+            match (
+                l.cards.get(c.index()).copied().flatten(),
+                e.state.cards[c.index()].body,
+            ) {
+                (_, Some(m)) => at(minion(m), None),
+                (Some(card), None) => match card.host {
+                    Some(m) => at((minion(m).0, false), Some(m)),
+                    None => at((card.controller, false), None),
+                },
+                (None, None) => at(
+                    (e.state.card_controller(c), false),
+                    e.state.cards[c.index()].host,
+                ),
+            }
+        }
+    }
+}
+
+/// A census, one place a copy: mid-run, a card already in its zone is
+/// still the action's in flight (its place, the zone).
+fn one_place(census: &[(CopyId, u16, Place)]) -> Vec<(CopyId, u16, Place)> {
+    let mut out: Vec<(CopyId, u16, Place)> = Vec::with_capacity(census.len());
+    let mut at: HashMap<CopyId, usize> = HashMap::new();
+    for &(c, card, p) in census {
+        match at.get(&c) {
+            Some(&i) if matches!(out[i].2, Place::InFlight(_)) => out[i] = (c, card, p),
+            Some(_) => {}
+            None => {
+                at.insert(c, out.len());
+                out.push((c, card, p));
+            }
+        }
+    }
+    out
+}
+
 /// Per seat, the copies in its library, crypt, hand and uncontrolled
 /// region: one from the library in the hand next is a draw.
 fn piles(l: &Ledger) -> [Vec<HashSet<CopyId>>; 4] {
@@ -329,13 +450,15 @@ fn piles(l: &Ledger) -> [Vec<HashSet<CopyId>>; 4] {
 /// What changed on the table from `before` to `after`, made by `cause`;
 /// `told`: in words too (across the engine's run, or a decision whose
 /// option does not tell its effects); `open`: the action under way, a
-/// political referendum's.
+/// political referendum's; `seen`: each copy's last place, kept up to
+/// date (a card resolving is in no place: it moves from where it was).
 pub(crate) fn changes(
     e: &Engine,
     (before, after): (&Ledger, &Ledger),
     cause: Option<Cause>,
     told: bool,
     open: Option<ActionFact>,
+    seen: &mut HashMap<CopyId, Place>,
     out: &mut Vec<Told>,
 ) {
     if after.turn.0 != before.turn.0 {
@@ -498,6 +621,20 @@ pub(crate) fn changes(
                 seat: now.controller,
             };
             tell(out, fact, false);
+            // Its place another seat's: moved.
+            let copy = minion_copy(&e.state, i);
+            let found = after.census.iter().find(|&&(c, _, _)| c == copy);
+            if let Some(&(copy, card, at)) = found.filter(|_| copy != CopyId::NONE) {
+                let fact = Fact::Zoned {
+                    copy,
+                    card,
+                    crypt: crate::view::minion_face(&e.state.minions[i]).1,
+                    from: at,
+                    to: at,
+                    at: [spot(e, before, at, copy), spot(e, after, at, copy)],
+                };
+                tell(out, fact, false);
+            }
         }
         if now.capacity != b.capacity {
             let fact = Fact::Capacity {
@@ -556,11 +693,31 @@ pub(crate) fn changes(
             }
             (Some(b), Some(now)) => {
                 if b.host != now.host {
-                    let fact = Fact::CardMoves {
+                    let fact = Fact::Moves {
                         card: c,
                         on: now.host,
                     };
                     tell(out, fact, told);
+                }
+                // Its place another (a minion, a controller): moved.
+                if (b.host, b.controller) != (now.host, now.controller) {
+                    let card = &e.state.cards[i];
+                    let at = Place::Card {
+                        id: c.0,
+                        stored: false,
+                    };
+                    let fact = Fact::Zoned {
+                        copy: *card.copy,
+                        card: card.card,
+                        crypt: false,
+                        from: at,
+                        to: at,
+                        at: [
+                            spot(e, before, at, *card.copy),
+                            spot(e, after, at, *card.copy),
+                        ],
+                    };
+                    tell(out, fact, false);
                 }
                 if b.controller != now.controller {
                     let fact = Fact::Controller {
@@ -592,6 +749,48 @@ pub(crate) fn changes(
             }
             _ => {}
         }
+    }
+    // Each card from a place to another, its seat not ousted since.
+    let was: HashMap<CopyId, Place> = one_place(&before.census)
+        .into_iter()
+        .map(|(c, _, p)| (c, p))
+        .collect();
+    let seat = |p: Place| match p {
+        Place::Zone(s, _) | Place::Uncontrolled(s) | Place::InFlight(s) => Some(SeatId(s)),
+        _ => None,
+    };
+    for (copy, card, to) in one_place(&after.census) {
+        let last = seen.insert(copy, to);
+        let Some(from) = was
+            .get(&copy)
+            .copied()
+            .or(last)
+            .filter(|_| copy != CopyId::NONE)
+        else {
+            continue;
+        };
+        if from == to || [from, to].iter().any(|&p| seat(p).is_some_and(gone)) {
+            continue;
+        }
+        // A crypt card's places: a crypt pile, the uncontrolled region,
+        // a vampire (its own card's face: a token's is a library card).
+        let crypt = [from, to].iter().any(|&p| match p {
+            Place::Zone(_, "crypt" | "ash_crypt" | "removed_crypt") | Place::Uncontrolled(_) => {
+                true
+            }
+            Place::Minion { merged: true, .. } => true,
+            Place::Minion { id, .. } => crate::view::minion_face(&e.state.minions[id as usize]).1,
+            _ => false,
+        });
+        let fact = Fact::Zoned {
+            copy,
+            card,
+            crypt,
+            from,
+            to,
+            at: [spot(e, before, from, copy), spot(e, after, to, copy)],
+        };
+        tell(out, fact, false);
     }
 }
 
@@ -651,7 +850,15 @@ mod tests {
         e.state.cards[card].out_of_play = true;
         let mut out = Vec::new();
         let after = Mark::of(&e).ledger;
-        super::changes(&e, (&before.ledger, &after), None, true, None, &mut out);
+        super::changes(
+            &e,
+            (&before.ledger, &after),
+            None,
+            true,
+            None,
+            &mut Default::default(),
+            &mut out,
+        );
         assert!(
             out.iter().any(|t| matches!(
                 t.fact,
@@ -664,6 +871,158 @@ mod tests {
         );
     }
 
+    /// A card's face told as its places showed it as it moved: drawn
+    /// into a hand opened to the viewer only later, a back.
+    #[test]
+    fn a_card_drawn_before_its_hand_opens_is_told_a_back() {
+        use zvtes::copies::CopyId;
+        let mut e = Engine::bare(2);
+        e.add_minion(SeatId(0), find_card("Farah Sarroub"), 4, false);
+        e.add_minion(SeatId(1), find_card("Monica Giovanni"), 4, false);
+        let laptop = find_library("Laptop Computer");
+        e.state.seats[1].library.put(laptop, CopyId(500));
+        let before = Mark::of(&e).ledger;
+        let top = e.state.seats[1].library.len() - 1;
+        let (card, copy) = e.state.seats[1].library.take(top);
+        e.state.seats[1].hand.put(card, copy);
+        let after = Mark::of(&e).ledger;
+        // Seat 0 looks at seat 1's hand afterwards.
+        e.state.peeks.push((SeatId(0), SeatId(1)));
+        let mut out = Vec::new();
+        super::changes(
+            &e,
+            (&before, &after),
+            None,
+            true,
+            None,
+            &mut Default::default(),
+            &mut out,
+        );
+        let t = out
+            .into_iter()
+            .find(|t| {
+                matches!(
+                    t.fact,
+                    super::Fact::Zoned {
+                        copy: CopyId(500),
+                        ..
+                    }
+                )
+            })
+            .expect("the draw told");
+        let t = super::Told {
+            faces: super::faces(&e),
+            ..t
+        };
+        let mut viewer = crate::view::Viewer::new(Some(SeatId(0)));
+        let decks = crate::numbering::Decks::default();
+        let told = viewer.event(&e, &decks, &t);
+        assert!(
+            matches!(&told, Some(zvtes_api::event::EventKind::CardMoves { card, .. }) if card.id.is_none() && card.copy.is_none()),
+            "{told:?}"
+        );
+    }
+
+    /// The facts of `steps` (each a change to the table, a ledger
+    /// after it), told to seat 0 by `Viewer::tell` after a first view:
+    /// both views and the events.
+    fn told_to_seat_0(
+        e: &mut Engine,
+        steps: &[&dyn Fn(&mut Engine)],
+    ) -> (
+        [zvtes_api::view::TableView; 2],
+        Vec<zvtes_api::event::EventKind>,
+    ) {
+        let mut viewer = crate::view::Viewer::new(Some(SeatId(0)));
+        let first = viewer.view(e, &Default::default(), &[]);
+        let (v, events) = told_to(&mut viewer, e, steps);
+        ([first, v], events)
+    }
+
+    /// `steps` told to `viewer` as one step.
+    fn told_to(
+        viewer: &mut crate::view::Viewer,
+        e: &mut Engine,
+        steps: &[&dyn Fn(&mut Engine)],
+    ) -> (zvtes_api::view::TableView, Vec<zvtes_api::event::EventKind>) {
+        let decks = crate::numbering::Decks::default();
+        let mut ledger = Mark::of(e).ledger;
+        let (mut out, mut seen) = (Vec::new(), Default::default());
+        for step in steps {
+            step(e);
+            let next = Mark::of(e).ledger;
+            super::changes(e, (&ledger, &next), None, true, None, &mut seen, &mut out);
+            ledger = next;
+        }
+        let faces = super::faces(e);
+        let told = out
+            .into_iter()
+            .map(|t| super::Told {
+                faces: faces.clone(),
+                ..t
+            })
+            .collect();
+        let (v, named) = viewer.tell(e, &decks, &[], told);
+        (v, named.into_iter().filter_map(|(_, k)| k).collect())
+    }
+
+    /// A card in play going to another seat's hand: its leaving and its
+    /// move name the number it had in sight.
+    #[test]
+    fn a_card_leaving_to_a_hidden_hand_keeps_its_number_in_every_event() {
+        use zvtes::copies::CopyId;
+        use zvtes_api::event::EventKind as K;
+        let mut e = Engine::bare(2);
+        e.add_minion(SeatId(0), find_card("Farah Sarroub"), 4, false);
+        let m = e.add_minion(SeatId(1), find_card("Monica Giovanni"), 4, false);
+        let laptop = find_library("Laptop Computer");
+        e.state.cards.push(CardInPlay::entering(
+            laptop,
+            CopyId(600),
+            SeatId(1),
+            Some(m),
+            0,
+        ));
+        let i = e.state.cards.len() - 1;
+        let back = |e: &mut Engine| {
+            e.state.cards[i].in_play = false;
+            e.state.seats[1].hand.put(laptop, CopyId(600));
+        };
+        let ([first, _], events) = told_to_seat_0(&mut e, &[&back]);
+        let had = first.seats[1].ready[0].cards[0].card.copy;
+        let copies: Vec<_> = events
+            .iter()
+            .filter_map(|k| match k {
+                K::LeavesPlay { card, .. } | K::CardMoves { card, .. } => Some(card.copy),
+                _ => None,
+            })
+            .collect();
+        assert_eq!(copies, vec![had, had], "{events:?}");
+        assert!(had.is_some());
+    }
+
+    /// A card stored face down on a banished vampire's card (Shilmulo
+    /// Tarot) is seen by its card's controller alone.
+    #[test]
+    fn a_card_stored_face_down_on_a_banished_vampire_is_hidden() {
+        use zvtes::copies::{CopyId, Place};
+        let mut e = Engine::bare(2);
+        let tarot = find_library("Shilmulo Tarot");
+        e.state
+            .cards
+            .push(CardInPlay::new(tarot, SeatId(1), None, 0));
+        let id = (e.state.cards.len() - 1) as u32;
+        let l = Mark::of(&e).ledger;
+        let at = Place::Banished {
+            seat: 1,
+            slot: CopyId(9),
+            stored: Some(id),
+        };
+        let shown = super::spot(&e, &l, at, CopyId(10)).shown;
+        assert_eq!(shown & 1, 0, "hidden from seat 0");
+        assert_ne!(shown & 2, 0, "seen by its controller");
+    }
+
     /// A minion taken by another Methuselah is told controlled by them.
     #[test]
     fn a_minion_taken_is_told_controlled() {
@@ -674,7 +1033,15 @@ mod tests {
         e.state.minions[m.index()].owner = SeatId(1);
         let mut out = Vec::new();
         let after = Mark::of(&e).ledger;
-        super::changes(&e, (&before.ledger, &after), None, true, None, &mut out);
+        super::changes(
+            &e,
+            (&before.ledger, &after),
+            None,
+            true,
+            None,
+            &mut Default::default(),
+            &mut out,
+        );
         assert!(
             out.iter().any(|t| t.fact
                 == super::Fact::Controller {

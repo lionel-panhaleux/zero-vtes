@@ -398,6 +398,13 @@ impl Build<'_> {
                     }),
                 })
                 .collect(),
+            training: (0..st.cards.len())
+                .filter(|&c| {
+                    let card = &st.cards[c];
+                    card.training && !card.in_play && card.controller == sid
+                })
+                .map(|c| self.in_play(c))
+                .collect(),
             ready: minions(false),
             torpor: minions(true),
             in_play: (0..st.cards.len())

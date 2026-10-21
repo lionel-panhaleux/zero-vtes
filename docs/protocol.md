@@ -171,8 +171,10 @@ Vaticination) is told to that seat alone by a `looked` event, the cards
 as they stood, ids without numbers (the look lasts while the action
 does). A card coming into
 a numbered place from a hidden one takes a fresh number, never used
-before for this viewer. So a number tells nothing the card's face does
-not. Two seats may number the same card differently; records use the
+before for this viewer, once a view has shown it out of sight; one out
+of sight and back between two views keeps its number (its moves in and
+out told: the same physical copy, nothing more). So a number tells
+nothing the card's face and its moves do not. Two seats may number the same card differently; records use the
 engine's own numbers.
 
 **Labels.** A card whose face the viewer sees carries `nth`: its label
@@ -260,7 +262,9 @@ the previous one, never the engine's state.
 - `seats[]`: `name`, `pool`, `vp_halves`, `ousted`, `edge`, `prey`,
   `predator`; zones as cards `{copy?, id?, crypt?, nth?, numbered?}` — `crypt`,
   `library` (top last), `hand`, `ash_heap`, `removed`, `limbo` (cards
-  being played); `uncontrolled[]` (`card`, `counters`, `banished`,
+  being played); `training[]` (library cards in the uncontrolled region
+  with training counters, Web of Knives Recruit: as `in_play[]`'s, the
+  counters the training's); `uncontrolled[]` (`card`, `counters`, `banished`,
   `cards`); `ready[]` and `torpor[]` minions; `in_play[]` (cards on no
   minion).
 - Minion: `card`, `kind` (`vampire`, `ally`, `created`, `token`), `name`,
@@ -322,7 +326,8 @@ seat 2; burn 2 pool to keep card 9.)
   an uncontrolled vampire by its place in the view's `uncontrolled`, its
   card face down to the others — an option's `target` or `card` names
   it only to who sees it). Two options of a
-  decision never share a key (copies alike in hand are one option). Each
+  decision never share a key (copies alike in hand are one option: the
+  copy a `play` took is its `card_moves` into limbo, §9). Each
   key names what its kind is about, so a log reads it without its
   English (`crates/host/tests/keys.rs` holds the list): a `play` its
   `card` and `mode`, a `use_ability` its `card` or `minion` and
@@ -485,7 +490,9 @@ events of that turn. `text` is set on the events the English log tells
 
 Events are public: a card they name is shown (`id`), numbered as the
 recipient knows it (§3), a card that came and went between two views
-numbered fresh. `effect`: a lasting effect whose card is in the ash
+numbered fresh; but a `card_moves` (and a `looked`) is told to each
+seat as it may know the card: a back where neither place shows it to
+that seat, as its places showed it when it moved. `effect`: a lasting effect whose card is in the ash
 heap (a marker on its minion, §6), no copy of its own.
 
 | `kind` | Fields |
@@ -505,6 +512,7 @@ heap (a marker on its minion, §6), no copy of its own.
 | `blood` | `minion`, `delta`, `blood` (an ally's life), `cause`? |
 | `enters_play` | `card`, `seat` (its controller), `on`?, `minion`? (its kind, for a minion), `effect`? |
 | `moves` | `card`, `on`?, `effect`? |
+| `card_moves` | `card` (as the recipient may know it: a back, `{}`, where neither place shows it), `from`, `to` (`{seat, zone, on?}`: `zone` a §6 place, `stored` on a card, `training`; `on` the card it is stored on, the minion it is on, a banished vampire's slot its cards are with, the minion a merged vampire's card is now): every card's move between places, in play included (drawn, discarded, played into limbo, entering or leaving play, a card on a minion moved to another, a card or minion changing hands, a merge: the base card onto its minion, in no view's list); `seat` the place's holder as it moved (a zone's seat, a card's controller, a minion's, the minion's for a card on it) |
 | `leaves_play` | `card`, `to`? (the zone it went to), `minion`? (its kind), `contested`? (into a contest: a vampire, a unique card, or the cards on a contested minion with it, each told `enters_play` again as the contest resolves in its favor; with no `to` and not contested, out of play with its minion: Descent into Darkness, its `out_of_play` marker, `enters_play` again on return), `effect`? |
 | `torpor` | `minion`, `enters` |
 | `locked` | `copy`, `locked`: a minion or a card in play locked or unlocked |
@@ -551,23 +559,33 @@ counter's blood as its vampire unlocks). Pool burned by several cards at
 once (their ousts simultaneous) names the first of them.
 
 Events tell what happened; the view says what is. Every change of the
-table's state a view shows (the zones' cards aside) is told: the phase
-and transfers, each minion's and card's state, the action, combat and
-referendum under way. The `*_state` events, `markers` and `traits` are
+table's state a view shows is told: the phase and transfers, each
+minion's and card's state, the action, combat and referendum under
+way, and every card's place by its `card_moves` (a reducer reads
+those; `draw`, `enters_play`, `leaves_play`, `moves` and `resolved`
+tell the same moves for a log, in words). Where a card sits within its
+place is the next view's to show; a card is numbered as the next view
+numbers it (one that went out of sight and back between two views
+keeps its number, §3). The `*_state` events, `markers` and `traits` are
 told as a view finds them (after the events of the step that moved
 them; none against the view an `undone` drops): their values are
 computed (a stealth, an intercept, the votes), not moved by one
 change. What follows from other events is not told again: prey and
 predator from the seats `ousted`, a seat's victory points from its
-prey's `ousted` and the `over` message. A contested card or minion is
+prey's `ousted` and the `over` message, every card of a seat `ousted`
+gone from its places. A contested card or minion is
 out of play (`leaves_play` `contested`): its state is the next view's
 once it enters play again. A client animating from events resyncs on the next
 view. The host's tests hold the two together: an action is told
 announced before a view shows it, and ended once none does; a
 referendum a view shows and the next does not is told ended in
 between; a combat is told begun, its strikes, then ended; the last
-`pool`, `blood` and `torpor` told are the next view's; and no state
-above changes between two decisions' views with no event telling it.
+`pool`, `blood` and `torpor` told are the next view's; no state above
+changes between two decisions' views with no event telling it; each
+place's cards change only as the `card_moves` between say, their
+copies named, a back only where both places hide it; and every card
+`resolved` or `canceled` was told played (`card_moves` into limbo, the
+copy the play took).
 
 ## 10. Transports
 

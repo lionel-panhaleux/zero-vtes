@@ -66,8 +66,8 @@ pub enum Place {
     /// cards), removed cards (and vampires).
     Zone(u8, &'static str),
     Uncontrolled(u8),
-    /// A card in play (or out of play on a banished vampire, or training),
-    /// by its arena index; `stored`: a card stored on it.
+    /// A card in play, by its arena index; `stored`: a card stored on it
+    /// (or on a training card).
     Card {
         id: u32,
         stored: bool,
@@ -81,6 +81,17 @@ pub enum Place {
     /// A card a Methuselah is playing (announced, in its as-played window,
     /// or the action under way's card).
     InFlight(u8),
+    /// Out of play on a banished vampire in `seat`'s uncontrolled region
+    /// (Banishment: it stays with it), `slot` that vampire's copy;
+    /// `stored`: stored on that card (its arena index), face down perhaps.
+    Banished {
+        seat: u8,
+        slot: CopyId,
+        stored: Option<u32>,
+    },
+    /// In `seat`'s uncontrolled region with training counters (Web of
+    /// Knives Recruit), out of play.
+    Training(u8),
 }
 
 /// Every card in the game with its copy and where it is (`NONE` for an
@@ -111,21 +122,43 @@ pub fn census(e: &Engine) -> Vec<(CopyId, u16, Place)> {
                 add(*slot.copy, slot.card, Place::Uncontrolled(i));
             }
             if let Some(b) = &slot.banished {
-                banished.extend(b.cards.iter().map(|c| c.0));
+                banished.extend(b.cards.iter().map(|&c| (c.0, i, *slot.copy)));
             }
         }
     }
     for (id, c) in st.cards.iter().enumerate() {
         let id = id as u32;
-        let here = c.in_play || c.training || banished.contains(&id);
-        if here && !c.effect_only {
-            add(*c.copy, c.card, Place::Card { id, stored: false });
+        let away = banished.iter().find(|&&(b, _, _)| b == id);
+        let (at, stored) = match away {
+            Some(&(_, seat, slot)) => (
+                Place::Banished {
+                    seat,
+                    slot,
+                    stored: None,
+                },
+                Place::Banished {
+                    seat,
+                    slot,
+                    stored: Some(id),
+                },
+            ),
+            None if c.training => (
+                Place::Training(c.controller.0),
+                Place::Card { id, stored: true },
+            ),
+            None => (
+                Place::Card { id, stored: false },
+                Place::Card { id, stored: true },
+            ),
+        };
+        if (c.in_play || c.training || away.is_some()) && !c.effect_only {
+            add(*c.copy, c.card, at);
         }
         for (card, copy) in c.stored.pairs() {
-            add(copy, card, Place::Card { id, stored: true });
+            add(copy, card, stored);
         }
         if let Some((card, copy, _)) = c.held_vampire {
-            add(copy.0, card, Place::Card { id, stored: true });
+            add(copy.0, card, stored);
         }
     }
     for (id, m) in st.minions.iter().enumerate() {

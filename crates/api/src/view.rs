@@ -80,6 +80,11 @@ pub struct SeatView {
     pub ash_heap: Vec<Card>,
     pub removed: Vec<Card>,
     pub uncontrolled: Vec<SlotView>,
+    /// Library cards in the uncontrolled region with training counters
+    /// (Web of Knives Recruit), out of play: `counters` the training
+    /// counters.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub training: Vec<InPlayView>,
     pub ready: Vec<MinionView>,
     pub torpor: Vec<MinionView>,
     /// Cards in play the seat controls on no minion.

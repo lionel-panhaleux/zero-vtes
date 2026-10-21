@@ -6,6 +6,8 @@
 
 use std::collections::HashMap;
 
+use zvtes::copies::{CopyId, Place};
+
 use zvtes::actions::{ActionState, Outcome};
 use zvtes::agent::Agent;
 use zvtes::cards::{Effect, ModeDef, Window};
@@ -139,6 +141,8 @@ pub struct Session {
     struck: Option<CombatNote>,
     /// The table at the last decision or message, and the facts since.
     mark: Option<Mark>,
+    /// Each copy's last place, as the facts told it.
+    places: HashMap<CopyId, Place>,
     told: Vec<Told>,
     /// Who took each decision, and how (`undo`).
     history: Vec<(SeatId, Taken)>,
@@ -195,6 +199,7 @@ impl Session {
             asked: None,
             struck: None,
             mark: None,
+            places: HashMap::new(),
             told: Vec::new(),
             history: Vec::new(),
             snapshots: Vec::new(),
@@ -284,9 +289,13 @@ impl Session {
         for n in &notes {
             let fact = match n {
                 Note::Ledger { ledger, cause } => {
-                    if let Some(was) = table {
-                        let e = &self.engine;
-                        changes(e, (was, ledger), *cause, ran, open, &mut told);
+                    let seen = &mut self.places;
+                    match table {
+                        Some(was) => {
+                            let e = &self.engine;
+                            changes(e, (was, ledger), *cause, ran, open, seen, &mut told);
+                        }
+                        None => seen.extend(ledger.census.iter().map(|&(c, _, p)| (c, p))),
                     }
                     table = Some(ledger);
                     continue;
@@ -630,7 +639,10 @@ impl Session {
         self.history.truncate(at);
         self.pending = None;
         self.over = None;
-        self.mark = None;
+        // The table as restored: what runs from here is told against it.
+        let mark = Mark::of(&self.engine);
+        self.places = mark.ledger.census.iter().map(|&(c, _, p)| (c, p)).collect();
+        self.mark = Some(mark);
         self.told.clear();
         Ok(k)
     }

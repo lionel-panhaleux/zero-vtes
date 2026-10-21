@@ -14,7 +14,7 @@ complete and `decided`'s `source` and `purpose`, additions only;
 `action_ends` now told for every action (one within a message too),
 every event in the order it happened, `resolved` without what its events
 tell, and undo against bots, behaviours with no field or id; the
-table's state told by events of its own.
+table's state and every card's moves told by events of their own.
 
 - `Purpose`: `store_own_hand` — Storage Annex as it is played: the card of
   the hand put face down on `card` (`find_card`), replaced.
@@ -73,6 +73,15 @@ table's state told by events of its own.
   seat's impulse had shown none); the view's `phase` at a found
   equipment's cost terms (Ravnos Cache, Vast Wealth, Filchware's Pawn
   Shop) is the minion phase (it had shown `over`).
+- Every card's moves told (§9): the event `card_moves` (`card`, a back
+  where neither place shows it; `from`, `to`: `ZoneRef {seat, zone,
+  on?}`), for every move between places, in play included (a draw, a
+  discard, a play into limbo, entering or leaving play, a card on a
+  minion moved, a card or minion changing hands, a merge); the copy a
+  play took told as it goes into limbo. `Zone`: `stored`, `training`.
+  The view's `training[]`: a seat's Web of Knives Recruits in training
+  (they had been in no part of the view). §3 says a card out of sight
+  and back between two views keeps its number (it did, unsaid).
 - `undo` against bots (one human seat: every server game) is open at
   every decision after the seat's first, one human decision back each
   time, across the bots' decisions, vote orders (`vote_all`, the order

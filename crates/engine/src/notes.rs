@@ -118,6 +118,9 @@ pub struct Ledger {
     pub cards: Vec<Option<CardLedger>>,
     /// Each uncontrolled vampire: its seat, copy and counters.
     pub slots: Vec<(SeatId, CopyId, u8)>,
+    /// Per seat, the seats that see its hand (a bit each: its own, an
+    /// open hand's viewers).
+    pub hands_seen: Vec<u8>,
     /// Every copy and where it is.
     pub census: Vec<(CopyId, u16, Place)>,
     pub referendum: Option<RefLedger>,
@@ -217,6 +220,13 @@ impl Engine {
                         counters: c.counters,
                         controller: st.card_controller(CardId(i as u32)),
                     })
+                })
+                .collect(),
+            hands_seen: (0..st.seats.len())
+                .map(|s| {
+                    (0..st.seats.len())
+                        .filter(|&v| st.hand_visible_to(SeatId(s as u8), SeatId(v as u8)))
+                        .fold(0u8, |m, v| m | 1 << v)
                 })
                 .collect(),
             slots: st

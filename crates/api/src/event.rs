@@ -126,6 +126,15 @@ pub enum EventKind {
         #[serde(default, skip_serializing_if = "std::ops::Not::not")]
         effect: bool,
     },
+    /// A card moves from a place to another: drawn, discarded, played
+    /// into limbo, burned from a library, stored on a card, into play or
+    /// out of it (its `enters_play`/`leaves_play` the log's). `card` as
+    /// the recipient may know it: a back where neither place shows it.
+    CardMoves {
+        card: Card,
+        from: ZoneRef,
+        to: ZoneRef,
+    },
     /// A card in play moves to another minion (or off one).
     Moves {
         card: Card,
@@ -308,6 +317,21 @@ pub struct StruckSide {
     /// The strike's share of `damage`.
     #[serde(default)]
     pub strike_damage: u8,
+}
+
+/// A seat's zone, and the card or minion a card is on (stored on a card,
+/// in play on a minion).
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
+pub struct ZoneRef {
+    /// The place's holder as the card moved: a zone's seat, a card's
+    /// controller, a minion's (the minion's for a card on it).
+    pub seat: Seat,
+    pub zone: Zone,
+    /// The card it is stored on (`stored`), the minion it is on
+    /// (`in_play`).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub on: Option<CopyId>,
 }
 
 /// What an action is: its kind, its card, what grants it.

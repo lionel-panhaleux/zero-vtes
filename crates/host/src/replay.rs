@@ -508,10 +508,10 @@ impl Replayer {
     fn told(&mut self) -> Vec<String> {
         let told = self.session.take_told();
         let e = self.session.engine();
-        let v = self.viewer.view(e, &self.dealt, &self.replay.names);
+        let (v, named) = self.viewer.tell(e, &self.dealt, &self.replay.names, told);
         let mut before = Vec::new();
-        for t in told {
-            let Some(kind) = self.viewer.event(e, &self.dealt, &t) else {
+        for (t, kind) in named {
+            let Some(kind) = kind else {
                 continue;
             };
             self.known.hear(&kind);

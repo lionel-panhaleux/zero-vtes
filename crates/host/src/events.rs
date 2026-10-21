@@ -3,7 +3,7 @@
 //! fact is public; a card it names is shown, numbered as the viewer last
 //! saw it (`Numbering::name`).
 
-use crate::narrate::{ActionFact, Fact, Held, Told};
+use crate::narrate::{ActionFact, Fact, Held, Spot, Told};
 use zvtes::actions::Outcome;
 use zvtes::cards::AbilitySource;
 use zvtes::combat::{CombatNote, Range as R};
@@ -13,7 +13,9 @@ use zvtes::game::Engine;
 use zvtes::ids::MinionId;
 use zvtes::library::LIBRARY;
 use zvtes::state::CardId;
-use zvtes_api::event::{ActionOutcome, ActionRef, EventKind, ReferendumOutcome, StruckSide};
+use zvtes_api::event::{
+    ActionOutcome, ActionRef, EventKind, ReferendumOutcome, StruckSide, ZoneRef,
+};
 use zvtes_api::ids::{MinionKind, Range, Zone};
 use zvtes_api::option::SlotRef;
 use zvtes_api::view::Card;
@@ -102,6 +104,42 @@ impl Namer<'_> {
     fn in_play(&mut self, c: CardId) -> Card {
         let card = &self.e.state.cards[c.index()];
         self.card(*card.copy, card.card, false)
+    }
+
+    fn sees(&self, at: Spot) -> bool {
+        at.seen_by(self.viewer.seat)
+    }
+
+    /// A place as a seat's zone, held as the fact found it (`Spot`): a
+    /// stored card's, the card it is on; a card on a minion's, the
+    /// minion; a banished vampire's cards', it.
+    fn zone_ref(&mut self, p: Place, at: Spot) -> Option<ZoneRef> {
+        let st = &self.e.state;
+        let minion = if at.torpor { Zone::Torpor } else { Zone::Ready };
+        let (zone, on) = match p {
+            Place::Zone(..) | Place::Uncontrolled(_) => (zone(p)?, None),
+            Place::InFlight(_) => (Zone::Limbo, None),
+            Place::Training(_) => (Zone::Training, None),
+            // With the banished vampire (a created one's slot unnumbered).
+            Place::Banished { slot, .. } => {
+                let on = self.viewer.numbering.get(slot).map(|(w, _)| w);
+                (Zone::Uncontrolled, on)
+            }
+            Place::Card { id, stored: true } => {
+                (Zone::Stored, Some(self.in_play(CardId(id)).copy?))
+            }
+            // An ally: a minion.
+            Place::Card { id, .. } if st.cards[id as usize].body.is_some() => (minion, None),
+            Place::Card { .. } => (Zone::InPlay, at.on.map(|m| self.minion(m))),
+            // A merged vampire's base card: on the minion it is now.
+            Place::Minion { id, merged: true } => (minion, Some(self.minion(MinionId(id)))),
+            Place::Minion { .. } => (minion, None),
+        };
+        Some(ZoneRef {
+            seat: at.seat.0,
+            zone,
+            on,
+        })
     }
 
     /// A minion's or a card in play's copy.
@@ -316,7 +354,32 @@ impl Namer<'_> {
                 contested,
                 effect: st.cards[card.index()].effect_only,
             },
-            Fact::CardMoves { card, on } => EventKind::Moves {
+            Fact::Zoned {
+                copy,
+                card,
+                crypt,
+                from,
+                to,
+                at: [was, now],
+            } => {
+                let card = if self.sees(was) || self.sees(now) {
+                    self.card(copy, card, crypt)
+                } else {
+                    Card {
+                        copy: None,
+                        id: None,
+                        crypt,
+                        nth: None,
+                        numbered: None,
+                    }
+                };
+                EventKind::CardMoves {
+                    card,
+                    from: self.zone_ref(from, was)?,
+                    to: self.zone_ref(to, now)?,
+                }
+            }
+            Fact::Moves { card, on } => EventKind::Moves {
                 card: self.in_play(card),
                 on: on.map(|m| self.minion(m)),
                 effect: st.cards[card.index()].effect_only,
@@ -432,9 +495,29 @@ fn zone(p: Place) -> Option<Zone> {
 }
 
 impl Viewer {
+    /// The table now and what happened since, named for this viewer as
+    /// the view numbers it.
+    pub fn tell(
+        &mut self,
+        e: &Engine,
+        decks: &Decks,
+        names: &[String],
+        told: Vec<Told>,
+    ) -> (zvtes_api::view::TableView, Vec<(Told, Option<EventKind>)>) {
+        let v = self.view(e, decks, names);
+        let named = told
+            .into_iter()
+            .map(|t| {
+                let kind = self.event(e, decks, &t);
+                (t, kind)
+            })
+            .collect();
+        (v, named)
+    }
+
     /// A fact as this viewer is told it (`None`: a decision taken, told
     /// from its answer), named after the view that took in its change.
-    pub fn event(&mut self, e: &Engine, decks: &Decks, t: &Told) -> Option<EventKind> {
+    pub(crate) fn event(&mut self, e: &Engine, decks: &Decks, t: &Told) -> Option<EventKind> {
         Namer {
             e,
             decks,

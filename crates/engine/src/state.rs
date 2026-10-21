@@ -3234,21 +3234,27 @@ impl GameState {
             }
         }
         for (i, c) in v.cards.iter_mut().enumerate() {
-            let face_down = cards::lookup(c.card).is_some_and(|d| {
-                d.modes.iter().chain(d.abilities).any(|m| {
-                    m.effects.iter().any(|e| {
-                        matches!(
-                            e,
-                            cards::Effect::StoreTopCards(_) | cards::Effect::StoreFromOwnHand
-                        )
-                    })
-                })
-            });
-            if face_down && self.card_controller(CardId(i as u32)) != viewer {
+            if !self.stored_seen_by(CardId(i as u32), viewer) {
                 hide(&mut c.stored);
             }
         }
         v
+    }
+
+    /// Whether `viewer` sees the cards stored on `c`: stored face up, or
+    /// face down (Shilmulo Tarot, Storage Annex) on a card they control.
+    pub fn stored_seen_by(&self, c: CardId, viewer: SeatId) -> bool {
+        let face_down = cards::lookup(self.cards[c.index()].card).is_some_and(|d| {
+            d.modes.iter().chain(d.abilities).any(|m| {
+                m.effects.iter().any(|e| {
+                    matches!(
+                        e,
+                        cards::Effect::StoreTopCards(_) | cards::Effect::StoreFromOwnHand
+                    )
+                })
+            })
+        });
+        !face_down || self.card_controller(c) == viewer
     }
 
     /// Whether `viewer` sees `seat`'s hand: their own, or an open hand

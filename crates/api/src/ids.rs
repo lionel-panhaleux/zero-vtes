@@ -207,6 +207,11 @@ ids!(
         InPlay,
         /// A card being played, not resolved yet.
         Limbo,
+        /// Stored on a card in play (`ZoneRef::on`).
+        Stored,
+        /// In the uncontrolled region with training counters (Web of
+        /// Knives Recruit), out of play: the view's `training`.
+        Training,
     }
 );
 

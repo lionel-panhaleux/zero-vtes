@@ -2299,6 +2299,31 @@
           ]
         },
         {
+          "description": "A card moves from a place to another: drawn, discarded, played\ninto limbo, burned from a library, stored on a card, into play or\nout of it (its `enters_play`/`leaves_play` the log's). `card` as\nthe recipient may know it: a back where neither place shows it.",
+          "type": "object",
+          "properties": {
+            "card": {
+              "$ref": "#/$defs/Card"
+            },
+            "from": {
+              "$ref": "#/$defs/ZoneRef2"
+            },
+            "kind": {
+              "type": "string",
+              "const": "card_moves"
+            },
+            "to": {
+              "$ref": "#/$defs/ZoneRef2"
+            }
+          },
+          "required": [
+            "kind",
+            "card",
+            "from",
+            "to"
+          ]
+        },
+        {
           "description": "A card in play moves to another minion (or off one).",
           "type": "object",
           "properties": {
@@ -4951,6 +4976,13 @@
             "$ref": "#/$defs/MinionView"
           }
         },
+        "training": {
+          "description": "Library cards in the uncontrolled region with training counters\n(Web of Knives Recruit), out of play: `counters` the training\ncounters.",
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/InPlayView"
+          }
+        },
         "uncontrolled": {
           "type": "array",
           "items": {
@@ -5942,6 +5974,16 @@
           "const": "limbo"
         },
         {
+          "description": "Stored on a card in play (`ZoneRef::on`).",
+          "type": "string",
+          "const": "stored"
+        },
+        {
+          "description": "In the uncontrolled region with training counters (Web of\nKnives Recruit), out of play: the view's `training`.",
+          "type": "string",
+          "const": "training"
+        },
+        {
           "description": "A value this reader does not know.",
           "type": "string",
           "const": "unknown"
@@ -5952,6 +5994,35 @@
       "type": "object",
       "properties": {
         "seat": {
+          "type": "integer",
+          "format": "uint8",
+          "maximum": 255,
+          "minimum": 0
+        },
+        "zone": {
+          "$ref": "#/$defs/Zone"
+        }
+      },
+      "required": [
+        "seat",
+        "zone"
+      ]
+    },
+    "ZoneRef2": {
+      "description": "A seat's zone, and the card or minion a card is on (stored on a card,\nin play on a minion).",
+      "type": "object",
+      "properties": {
+        "on": {
+          "description": "The card it is stored on (`stored`), the minion it is on\n(`in_play`).",
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint32",
+          "minimum": 0
+        },
+        "seat": {
+          "description": "The place's holder as the card moved: a zone's seat, a card's\ncontroller, a minion's (the minion's for a card on it).",
           "type": "integer",
           "format": "uint8",
           "maximum": 255,

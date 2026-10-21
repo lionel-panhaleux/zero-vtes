@@ -1,8 +1,9 @@
 //! Copies as one viewer knows them (docs/protocol.md §3): the engine's
 //! copies (dealt in decklist order, `zvtes::copies`) renamed per viewer.
-//! A copy the viewer sees keeps its number; out of sight it is forgotten,
-//! and back in sight it takes a fresh one, never used before for this
-//! viewer. `nth` labels the visible copies of a card from one deck: the
+//! A copy the viewer sees keeps its number; out of sight at a view it is
+//! forgotten, and back in sight it takes a fresh one, never used before
+//! for this viewer (out of sight and back between two views, it keeps
+//! it). `nth` labels the visible copies of a card from one deck: the
 //! lowest number no other holds.
 
 use std::collections::{BTreeSet, HashMap};

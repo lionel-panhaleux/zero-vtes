@@ -1647,6 +1647,13 @@ are in DESIGN §11.2.
   hashed, and the fuzz's replay check fails on it): `Pile` compares and hashes as its
   card ids alone, `Untracked` fields not at all, so the state hash,
   observations and options do not see them.
-- `census` lists every card with its copy and place; the fuzz tests check
-  each dealt copy stays its card and is found exactly once, until its
-  Methuselah is ousted (their cards are removed from every zone).
+- `census` lists every card with its copy and place (`Place`: a seat's
+  zone, the uncontrolled region, a card or minion in play, stored on a
+  card, in flight, on a banished vampire, in training); the fuzz tests
+  check, at each decision, each dealt copy stays its card and is found
+  exactly once, until its Methuselah is ousted (their cards are removed
+  from every zone). Mid-run a card is not always so: a play resolving is
+  in no place, and the action's card is in flight still once in its
+  zone; the host's narrator reads one place a copy, a missing one its
+  last (`narrate::one_place`, `Session::places`), and tells every move
+  between two places (`card_moves`).

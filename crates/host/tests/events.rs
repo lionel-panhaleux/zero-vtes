@@ -188,6 +188,8 @@ struct Stream {
     /// Markers the views showed, and combats a decision's view did.
     markers: usize,
     combats: usize,
+    /// Cards told moving, and among them as backs.
+    moved: [usize; 2],
     /// Each copy's KRCG id, as the messages first showed it: an undo
     /// forgets none (a number never names another card).
     faces: HashMap<u32, u64>,
@@ -199,6 +201,10 @@ struct Stream {
     born: HashMap<u32, usize>,
     asked_at: HashMap<u64, usize>,
     dead: std::collections::HashSet<u32>,
+    /// The viewing seat, and the copies told played into limbo (since an
+    /// undo).
+    viewer: Option<u8>,
+    played_in: std::collections::HashSet<u32>,
     /// The phase the events told last (a turn's: its unlock phase), the
     /// transfers left, and the action's, combat's and referendum's state
     /// (unknown after an undo).
@@ -380,7 +386,7 @@ impl Stream {
         self.names.hear(&e.kind);
         self.heard.push(e.kind.clone());
         if std::env::var_os("HOST_TRACE").is_some() {
-            eprintln!("event {:?} {:?}", e.kind, e.text);
+            eprintln!("event {seed} {:?} {:?}", e.kind, e.text);
         }
         if let Some(t) = &e.text {
             assert!(self.text, "seed {seed}: text unasked: {e:?}");
@@ -430,6 +436,12 @@ impl Stream {
         match &e.kind {
             EventKind::Resolved { card, effects, .. } => {
                 assert!(card.copy.is_some(), "seed {seed}: {e:?}");
+                // Its copy told as it was played (docs/protocol.md §9).
+                let c = card.copy.unwrap_or_default();
+                assert!(
+                    self.played_in.contains(&c),
+                    "seed {seed}: played untold: {e:?}"
+                );
                 // What it moves at once told by its events, not twice.
                 use zvtes_api::option::EffectKind as K;
                 assert!(
@@ -445,6 +457,11 @@ impl Stream {
             }
             EventKind::Canceled { card, .. } => {
                 assert!(card.copy.is_some(), "seed {seed}: {e:?}");
+                let c = card.copy.unwrap_or_default();
+                assert!(
+                    self.played_in.contains(&c),
+                    "seed {seed}: played untold: {e:?}"
+                );
                 self.played[1] += 1;
             }
             _ => {}
@@ -464,6 +481,35 @@ impl Stream {
                 assert_ne!(self.phase, Some(*phase), "seed {seed}: told again: {e:?}");
                 self.phase = Some(*phase);
                 self.transfers = None;
+            }
+            // A card as the viewer may know it: a back where neither place
+            // shows it (a library, a crypt, another's face-down vampires),
+            // its face where one plainly does.
+            EventKind::CardMoves { card, from, to } => {
+                self.moved[0] += 1;
+                self.moved[1] += usize::from(card.id.is_none());
+                use zvtes_api::ids::Zone as Z;
+                let v = self.viewer;
+                let hidden =
+                    |r: &zvtes_api::event::ZoneRef| matches!(r.zone, Z::Library | Z::Crypt);
+                let shown = |r: &zvtes_api::event::ZoneRef| match r.zone {
+                    Z::AshHeap | Z::Removed | Z::Limbo | Z::InPlay | Z::Ready | Z::Torpor => true,
+                    Z::Hand | Z::Uncontrolled => Some(r.seat) == v,
+                    _ => false,
+                };
+                if hidden(from) && hidden(to) {
+                    assert!(
+                        card.id.is_none() && card.copy.is_none(),
+                        "seed {seed}: {e:?}"
+                    );
+                }
+                if shown(from) || shown(to) {
+                    assert!(card.id.is_some(), "seed {seed}: a face withheld: {e:?}");
+                }
+                if to.zone == Z::Limbo {
+                    self.played_in
+                        .insert(card.copy.expect("a card into limbo numbered"));
+                }
             }
             // At each change: never the same twice in a row.
             EventKind::Transfers { left } => {
@@ -504,6 +550,7 @@ impl Stream {
                 self.heard.clear();
                 self.phase = None;
                 self.transfers = None;
+                self.played_in.clear();
                 self.told_state = (None, None, None);
             }
             EventKind::CombatBegins { minions } => {
@@ -663,6 +710,13 @@ impl Stream {
 
     fn view(&mut self, v: &TableView, at: &str) {
         let seed = self.seed;
+        self.viewer = v.viewer;
+        // A card in limbo at the first view, or the view an undo goes back
+        // to, was played before (the events since tell the rest).
+        if self.prev.is_none() {
+            let limbo = v.seats.iter().flat_map(|s| &s.limbo).filter_map(|c| c.copy);
+            self.played_in.extend(limbo);
+        }
         self.names.see(v);
         // Minions of one name told apart, each as told before.
         let mut names: Vec<(&str, Option<u8>)> = Vec::new();
@@ -748,6 +802,13 @@ impl Stream {
             }
         }
         if let Some(p) = self.prev.take() {
+            for (kind, of) in zones_untold(&p, v, &self.heard) {
+                let g = self.gaps.entry(kind.clone()).or_default();
+                g.1 += 1;
+                if std::env::var_os("HOST_GAPS").is_some() {
+                    eprintln!("seed {seed} {at}: {kind} {of} untold");
+                }
+            }
             for (kind, of) in changed(&p, v) {
                 let told = tells(&kind, &of, at, &self.heard);
                 let g = self.gaps.entry(kind.clone()).or_default();
@@ -903,6 +964,7 @@ fn the_events_tell_what_the_views_show() {
     let mut played = [0, 0];
     let (mut within, mut undecided, mut caused, mut markers) = (0, 0, 0, 0);
     let mut combats = 0;
+    let mut moved = [0, 0];
     let mut reasked = 0;
     let mut gaps: std::collections::BTreeMap<String, (usize, usize)> = Default::default();
     let mut misses = Vec::new();
@@ -945,11 +1007,14 @@ fn the_events_tell_what_the_views_show() {
             sources: HashMap::new(),
             markers: 0,
             combats: 0,
+            moved: [0, 0],
             faces: HashMap::new(),
             seq: 0,
             born: HashMap::new(),
             asked_at: HashMap::new(),
             dead: Default::default(),
+            viewer: None,
+            played_in: Default::default(),
             phase: None,
             transfers: None,
             told_state: (None, None, None),
@@ -1055,6 +1120,8 @@ fn the_events_tell_what_the_views_show() {
         caused += s.caused;
         markers += s.markers;
         combats += s.combats;
+        moved[0] += s.moved[0];
+        moved[1] += s.moved[1];
         for (k, (n, u)) in s.gaps {
             let g = gaps.entry(k).or_default();
             g.0 += n;
@@ -1124,6 +1191,12 @@ fn the_events_tell_what_the_views_show() {
     }
     let n: usize = gaps.values().map(|&(n, _)| n).sum();
     eprintln!("{n} changes of the table's state between decisions, each told");
+    // And every place's cards (`zones_untold`, in the gaps above).
+    eprintln!("{} cards told moving, {} as backs", moved[0], moved[1]);
+    assert!(
+        moved[0] > 0 && moved[1] > 0,
+        "no card moves told: {moved:?}"
+    );
 }
 
 /// Every option a seat is shown is told in English with the text
@@ -1372,6 +1445,175 @@ fn state(v: &TableView) -> std::collections::BTreeMap<(String, String), String> 
         );
     }
     m
+}
+
+/// A seat's zone, and the card or minion it is on, as `card_moves`
+/// names them: the minions in play one place (ready or in torpor); a
+/// place on a card or minion by it alone (seat `ON`: it may change
+/// hands).
+type Place = (u8, zvtes_api::ids::Zone, Option<u32>);
+const ON: u8 = u8::MAX;
+
+/// Every place's cards a view shows.
+fn places(v: &TableView) -> HashMap<Place, Vec<Card>> {
+    use zvtes_api::ids::Zone as Z;
+    let mut out: HashMap<Place, Vec<Card>> = HashMap::new();
+    for s in &v.seats {
+        let n = s.seat;
+        for (z, cards) in [
+            (Z::Hand, &s.hand),
+            (Z::Library, &s.library),
+            (Z::Crypt, &s.crypt),
+            (Z::AshHeap, &s.ash_heap),
+            (Z::Removed, &s.removed),
+            (Z::Limbo, &s.limbo),
+        ] {
+            out.insert((n, z, None), cards.clone());
+        }
+        out.insert(
+            (n, Z::Uncontrolled, None),
+            s.uncontrolled.iter().map(|u| u.card).collect(),
+        );
+        out.insert(
+            (n, Z::Training, None),
+            s.training.iter().map(|c| c.card).collect(),
+        );
+        // A banished vampire's cards, with it.
+        for u in s.uncontrolled.iter().filter(|u| u.banished) {
+            out.insert((ON, Z::Uncontrolled, u.card.copy), u.cards.clone());
+        }
+        let minions = s.ready.iter().chain(&s.torpor);
+        out.insert(
+            (n, Z::Ready, None),
+            minions.clone().map(|m| m.card).collect(),
+        );
+        let mut in_play = Vec::new();
+        for m in minions {
+            out.insert(
+                (ON, Z::InPlay, m.card.copy),
+                m.cards.iter().map(|c| c.card).collect(),
+            );
+            in_play.extend(&m.cards);
+        }
+        out.insert(
+            (n, Z::InPlay, None),
+            s.in_play.iter().map(|c| c.card).collect(),
+        );
+        for c in in_play.into_iter().chain(&s.in_play) {
+            out.insert((ON, Z::Stored, c.card.copy), c.stored.clone());
+        }
+    }
+    out
+}
+
+/// Who holds each place on a card or minion (`ON`'s: its card's
+/// controller, the minion's seat, the banished vampire's), and who
+/// controls each card and minion in play.
+fn holders(v: &TableView) -> (HashMap<Place, u8>, HashMap<u32, u8>) {
+    use zvtes_api::ids::Zone as Z;
+    let (mut held, mut controls) = (HashMap::new(), HashMap::new());
+    for s in &v.seats {
+        for u in s.uncontrolled.iter().filter(|u| u.banished) {
+            held.insert((ON, Z::Uncontrolled, u.card.copy), s.seat);
+        }
+        for m in s.ready.iter().chain(&s.torpor) {
+            held.insert((ON, Z::InPlay, m.card.copy), s.seat);
+            controls.extend(m.card.copy.map(|c| (c, s.seat)));
+            for c in &m.cards {
+                held.insert((ON, Z::Stored, c.card.copy), c.controller);
+                controls.extend(c.card.copy.map(|x| (x, c.controller)));
+            }
+        }
+        for c in &s.in_play {
+            held.insert((ON, Z::Stored, c.card.copy), c.controller);
+            controls.extend(c.card.copy.map(|x| (x, c.controller)));
+        }
+    }
+    (held, controls)
+}
+
+/// The places whose cards changed between two views with no
+/// `card_moves` telling it: each place's count moved by the cards told
+/// in and out, each card it shows come or gone told by its copy.
+fn zones_untold(a: &TableView, b: &TableView, heard: &[EventKind]) -> Vec<(String, String)> {
+    use zvtes_api::ids::Zone as Z;
+    let key = |r: &zvtes_api::event::ZoneRef| -> Place {
+        let zone = if r.zone == Z::Torpor {
+            Z::Ready
+        } else {
+            r.zone
+        };
+        (if r.on.is_some() { ON } else { r.seat }, zone, r.on)
+    };
+    let (mut pa, pb) = (places(a), places(b));
+    // A merge: the base card onto the minion as it is named now, its
+    // cards with it.
+    for e in heard {
+        if let EventKind::CardMoves { card, from, to } = e {
+            let minion = |z| matches!(z, Z::Ready | Z::Torpor);
+            if let (true, true, Some(old), Some(new)) =
+                (minion(from.zone), minion(to.zone), card.copy, to.on)
+            {
+                for z in [Z::InPlay, Z::Stored] {
+                    if let Some(v) = pa.remove(&(ON, z, Some(old))) {
+                        pa.entry((ON, z, Some(new))).or_default().extend(v);
+                    }
+                }
+            }
+        }
+    }
+    let moves: Vec<(Card, Place, Place)> = heard
+        .iter()
+        .filter_map(|e| match e {
+            EventKind::CardMoves { card, from, to } => Some((*card, key(from), key(to))),
+            _ => None,
+        })
+        .collect();
+    // An ousted Methuselah's cards leave with them, wherever they were:
+    // its places, the cards it controlled on another's.
+    let oust = heard.iter().any(|e| matches!(e, EventKind::Ousted { .. }));
+    let ousted = |n: u8| n != ON && (a.seats[n as usize].ousted || b.seats[n as usize].ousted);
+    let ((ha, ca), (hb, _)) = (holders(a), holders(b));
+    let holder = |k: &Place| match k.0 {
+        ON => ha.get(k).or(hb.get(k)).copied(),
+        n => Some(n),
+    };
+    let left = |c: &u32| oust && ca.get(c).is_some_and(|&s| ousted(s));
+    // Every place a view shows or a move names, but a merged vampire's
+    // base card's (on its minion: in no view).
+    let merged = |k: &Place| k.0 == ON && k.1 == Z::Ready;
+    let mut keys: Vec<Place> = pa.keys().chain(pb.keys()).copied().collect();
+    keys.extend(moves.iter().flat_map(|m| [m.1, m.2]).filter(|k| !merged(k)));
+    keys.sort_by_key(|k| format!("{k:?}"));
+    keys.dedup();
+    let mut out = Vec::new();
+    for k in keys {
+        if holder(&k).is_some_and(ousted) {
+            continue;
+        }
+        let none = Vec::new();
+        let (x, y) = (pa.get(&k).unwrap_or(&none), pb.get(&k).unwrap_or(&none));
+        let ins = moves.iter().filter(|m| m.2 == k).count() as i64;
+        let outs = moves.iter().filter(|m| m.1 == k).count() as i64;
+        let copies = |v: &[Card]| v.iter().filter_map(|c| c.copy).collect::<Vec<_>>();
+        let (cx, cy) = (copies(x), copies(y));
+        let came = cy
+            .iter()
+            .all(|c| cx.contains(c) || moves.iter().any(|m| m.0.copy == Some(*c) && m.2 == k));
+        let gone =
+            |c: &&u32| !cy.contains(c) && !moves.iter().any(|m| m.0.copy == Some(**c) && m.1 == k);
+        let went = cx.iter().filter(gone).all(left);
+        let vanished = cx.iter().filter(gone).count() as i64;
+        let counted = y.len() as i64 - (x.len() as i64 - vanished) == ins - outs;
+        if !(came && went && counted) {
+            if std::env::var_os("HOST_GAPS").is_some() {
+                let c = |v: &[Card]| v.iter().map(|c| (c.copy, c.id)).collect::<Vec<_>>();
+                eprintln!("  {k:?}: {:?} -> {:?} (in {ins}, out {outs})", c(x), c(y));
+            }
+            out.push((format!("zone {:?}", k.1).to_lowercase(), format!("{k:?}")));
+        }
+    }
+    out
 }
 
 /// What changed between two views: the entries in both, unequal.

@@ -1153,15 +1153,14 @@ impl Game {
     /// The table now, the numbering brought up to date; what happened
     /// since the last view named as it numbers it.
     fn view(&mut self) -> TableView {
+        let told = self.session.take_told();
         let e = self.session.engine();
-        let mut v = self.viewer.view(e, &self.decks, &self.names);
+        let (mut v, named) = self.viewer.tell(e, &self.decks, &self.names, told);
         v.viewer = Some(self.human);
         self.searched_view(&mut v);
         self.struck_view(&mut v);
-        let told = self.session.take_told();
-        let e = self.session.engine();
-        for t in told {
-            let told = match self.viewer.event(e, &self.decks, &t) {
+        for (t, kind) in named {
+            let told = match kind {
                 Some(kind) => Told::Event(Box::new(Event {
                     kind,
                     // Filled by `tell` where a log tells it.

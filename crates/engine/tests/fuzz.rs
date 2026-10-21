@@ -96,7 +96,9 @@ fn dealt_copies(e: &Engine) -> HashMap<CopyId, (u16, usize)> {
                     let m = &e.state.minions[id as usize];
                     m.origin.or(m.temp_from).unwrap_or(m.owner).index()
                 }
-                Place::InFlight(s) => s as usize,
+                Place::InFlight(s) | Place::Banished { seat: s, .. } | Place::Training(s) => {
+                    s as usize
+                }
             };
             (copy, (card, seat))
         })
@@ -142,7 +144,13 @@ fn copies_conserved(
     let ousted_had = |place: Option<&zvtes::copies::Place>| {
         use zvtes::copies::Place;
         let seat = match place {
-            Some(Place::Zone(s, _) | Place::Uncontrolled(s) | Place::InFlight(s)) => *s as usize,
+            Some(
+                Place::Zone(s, _)
+                | Place::Uncontrolled(s)
+                | Place::InFlight(s)
+                | Place::Banished { seat: s, .. }
+                | Place::Training(s),
+            ) => *s as usize,
             Some(Place::Minion { id, .. }) => e.state.minions[*id as usize].owner.index(),
             Some(Place::Card { id, .. }) => e.state.card_controller(CardId(*id)).index(),
             _ => return false,
