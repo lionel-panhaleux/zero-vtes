@@ -11933,7 +11933,7 @@ pub static DUMMY_CORPORATION: CardDef = CardDef {
 /// "Unique. Put this card in play. Once each turn, you can burn 1 pool to
 /// get +3 votes during the polling step of any referendum." (Ministry.) Not
 /// if the cost ousts the player (LSJ 20081105); "each turn": each player's
-/// turn (ANK 20180719-4).
+/// turn (ANK 20180719-4), one use for or against (rules-qa 62.32).
 pub static FERRAILLE: CardDef = CardDef {
     name: "Ferraille",
     modes: &[master_in_play(&[], &[Effect::PutInPlay])],
@@ -12435,7 +12435,8 @@ pub static MONSTER: CardDef = CardDef {
 /// turn, after an action (successful or not) is resolved during which this
 /// vampire used 3 or more Disciplines to play cards, this vampire can
 /// either burn 1 blood to unlock or gain 1 blood." Canceled cards count
-/// (ANK 20220411); a canceled action has no resolution (ANK 20220411).
+/// (ANK 20220411); a canceled action has no resolution (ANK 20220411); one
+/// use each turn, the unlock or the blood.
 pub static DABBLER: CardDef = CardDef {
     name: "Dabbler",
     trifle: true,
@@ -20635,8 +20636,7 @@ pub static LONDON_EVENING_STAR: CardDef = CardDef {
 /// of the chosen Discipline. The vampire's capacity increases by 1: the
 /// vampire is one generation older. Cannot be placed on a vampire with the
 /// superior version of the Discipline." The Discipline chosen as it is
-/// played, after its target (rules-qa 68.8); any Methuselah's vampire, the
-/// acting one included.
+/// played, after its target (rules-qa 68.8); any Methuselah's vampire.
 pub static SANGUINE_INSTRUCTION: CardDef = CardDef {
     name: "Sanguine Instruction",
     modes: &[ModeDef {
@@ -21071,9 +21071,9 @@ pub static HORRID_FORM: CardDef = CardDef {
 /// "Only usable before range is determined. A vampire can play only one
 /// Inner Essence each combat. [vic] Once this combat, this vampire can
 /// reduce the cost of a combat card they play by 1 blood. [VIC] As above,
-/// and this vampire gains 1 blood." The card on the vampire for the combat,
-/// burned to take the blood off as Focus the Blood (rules-qa 36.1), or as
-/// the combat ends (rules-qa 68.12).
+/// and this vampire gains 1 blood." The card in the ash heap, its discount
+/// on the vampire for the combat (owner, rules-qa 68.12): spent as Focus
+/// the Blood's (rules-qa 36.1), or gone as the combat ends.
 pub static INNER_ESSENCE: CardDef = CardDef {
     name: "Inner Essence",
     modes: &[
@@ -21083,7 +21083,7 @@ pub static INNER_ESSENCE: CardDef = CardDef {
                 &[Window::CombatBeforeRange],
                 &[Requirement::ActorVampire],
                 &[
-                    Effect::PutOnActorNowStacking,
+                    Effect::LastingOnActor,
                     Effect::BurnAtCombatEnd,
                     Effect::Layer(Modifier::CostSource(CostSource::FocusBlood)),
                 ],
@@ -21095,7 +21095,7 @@ pub static INNER_ESSENCE: CardDef = CardDef {
                 &[Window::CombatBeforeRange],
                 &[Requirement::ActorVampire],
                 &[
-                    Effect::PutOnActorNowStacking,
+                    Effect::LastingOnActor,
                     Effect::BurnAtCombatEnd,
                     Effect::BloodToActing(1),
                     Effect::Layer(Modifier::CostSource(CostSource::FocusBlood)),

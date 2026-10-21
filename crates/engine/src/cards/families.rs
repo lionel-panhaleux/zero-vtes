@@ -84,6 +84,7 @@ impl Effect {
             | E::RetainerToStartingLife
             | E::DiscardFromAllHands
             | E::PutOnActorNowStacking
+            | E::LastingOnActor
             | E::PutOnOpponent
             | E::BurnLibraryTop(..)
             | E::PutOnActorNow

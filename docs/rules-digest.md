@@ -275,7 +275,8 @@ holder** (9.1, 12.5, 70.20): a non-Ravnos bearer of Treasured Samadji gets
 neither bonus.
 
 **D32. A card text "once each turn" on an in-play ability is once across the
-turn, any of the turn's referendums or actions** (62.32); "once each
+turn, any of the turn's referendums or actions, one use for the card
+whichever its mode** (62.32: Ferraille's votes for or against); "once each
 combat" over every round of it (14.2); "once each round" once a round
 (38.8).
 
@@ -1002,9 +1003,10 @@ simultaneous effects, §2.5 duration). The engine's window primitives are in
   76.24); Rage of Apedemak's for the combat (54.8); Make the
   Misere's [pot] for the whole combat (31.7); Coagulated Entity's capacity
   until the action ends (68.6).
-- "Once this combat" on a card put on the vampire: it stays the combat and
-  burns as it ends if unused (Inner Essence, 68.12); Focus the Blood's copies
-  stay for later combats (63.7).
+- "Once this combat" with no "put this card on": the card goes to the ash
+  heap, its effect on the vampire for the combat, gone as it ends if unused
+  (Inner Essence, 68.12); Focus the Blood's copies, put on the vampire, stay
+  for later combats (63.7).
 - Effects outliving their source: a lasting effect applies though its card
   went to the ash heap (21.1); advanced rules §2.5.3. A permanent hand size
   gain stays after its source leaves (Benjamin Rose, 58.15).
@@ -1678,7 +1680,7 @@ Advanced rules §3.2 (stealth and intercept), §3.3 (blocking).
   John's is a plain +1 (62.17).
 - Sense the Sin: [aus] against a younger acting vampire; [dai]'s extra +1 if
   the acting minion has anyone's corruption counter; [DAI]'s -1 intercept
-  to every minion with any counter, any Methuselah's, read live during the
+  to every minion with any corruption counter, any Methuselah's, read live during the
   action (62.28). The Unmasking: every Methuselah's allies, +1 intercept
   while the acting minion is a vampire (62.29).
 - Branimira reads pool when intercept is compared (13.2).
@@ -1811,11 +1813,11 @@ Advanced rules §3.2 (stealth and intercept), §3.3 (blocking).
 - Iris Bennett: an older vampire's (capacity, D30) successful block lets its
   controller look at her controller's hand before block resolution, once
   that block (78.14).
+- 48.3: the switch of blocker takes effect at once, with no impulse left to
+  others for the abandoned attempt.
 
 ### Open or contested
 
-- 48.3: the switch of blocker takes effect at once, with no impulse left to
-  others for the abandoned attempt — an implemented reading, unconfirmed.
 - The Fury's block and later plays (Change of Target, Mirror Walk, Elder
   Impersonation, KRCG News Radio, Tension in the Ranks): the ledger rows are
   `blocked` (untested), the reading of 60.21 untested against them.
@@ -2197,7 +2199,8 @@ torpor actions, diablerie). Referendums: §13.
   torpor by resolution: 28.7 (§10.2).
 - Rescue: who pays (the acting vampire, the rescued one, or a split) is
   chosen as the action is announced; the blood is paid as it resolves; the
-  cost is read again at resolution (48.8).
+  cost is read again at resolution, the split standing: a share its payer
+  can no longer meet fizzles the action (48.8).
 - Torpid Blood's "actions performed by vampires in torpor": the leave
   torpor action and action cards played by a torpid vampire; +1 blood once
   (40.6).
@@ -2384,9 +2387,10 @@ round (rulebook "Combat").
   a card requiring Auspex in the current action (any action, LSJ 20050201;
   the Discipline the card was played with) uses no maneuver nor strike for
   the rest of the first round — from the combat's start, or from that card
-  on mid-round (an Auspex strike played first stands, ANK 20210614); a range
-  set by an effect stays open, a Sniper Rifle's (a strike commitment) not
-  (LSJ 20100827) (64.6).
+  on mid-round (an Auspex strike played first stands, ANK 20210614); it may
+  still play an effect setting the range that is not a maneuver, not a
+  Sniper Rifle (a strike commitment, LSJ 20100827), the range set once
+  (64.6).
 - Thrown Gate: a ranged strike with an optional maneuver, committed at the
   maneuver as Aid from Bats ("an optional maneuver" read as the window
   matrix's maneuver rider); no maneuver without the strike (LSJ 20021028)
@@ -2719,8 +2723,8 @@ round (rulebook "Combat").
 - As the combat ends: Morbidity's blood goes back as the combat ends (after
   every round, a press included), then the card burns; the card takes as
   much of the opposing vampire's blood as it has, up to 2 (55.2). FBI's
-  damage (40.9). Lam Into's replacement (57.4). Inner Essence (68.12),
-  Trap and Conquer the Beast (59.17) burn. Hunting the Beast [AUS]'s Salubri
+  damage (40.9). Lam Into's replacement (57.4). Inner Essence's discount
+  (68.12) ends; Trap and Conquer the Beast (59.17) burn. Hunting the Beast [AUS]'s Salubri
   is chosen at the end of the combat; "the opposing vampire is not ready" =
   in torpor or burned (31.3).
 - "If the opposing vampire is not ready at the end of combat": Pillars
@@ -2738,8 +2742,9 @@ round (rulebook "Combat").
   controller's unlock phase: each Methuselah controlling a vampire with a
   torture counter (ready or in torpor), its controller included, burns 1
   pool; every torture counter goes once no Path of Lilith is in play (64.7).
-- Ossian's life: the blood the opposing vampire lost to damage that round,
-  at the end of the round, after the presses, the round ended early too
+- Ossian's life: the blood the opposing vampire used that round to heal
+  damage or to prevent destruction (his card's words), at the end of the
+  round, after the presses, the round ended early too
   (RTR 20030519), over his starting life (ANK 20171109) (64.6). Predator's
   Transformation [ABO] at the end of the round in which this vampire's
   combat burned a minion of its controller's prey (64.8).
@@ -2817,13 +2822,13 @@ round (rulebook "Combat").
   stacking; each copy, burned as its host pays a card played as a combat
   card, takes 1 blood off it, in any later combat too, announced with the
   card (63.7).
+- A card granting several strikes (Blur) bars further additional strike
+  cards until all of them are made (48.2).
 
 ### Open or contested
 
 - Advanced rules §4.3.5 reads a limited additional strike card as playable
   "before or after" the strike it adds to, against 47.2 (§23).
-- 48.2: a card granting several strikes (Blur) bars further cards until all
-  of them are made — an implemented reading, unconfirmed.
 - 29.8 (X = 0 consumes no limited slot) has no ruling; LSJ 20030224 (a
   canceled limited effect does not use the limit) supports it by analogy.
 
@@ -3218,8 +3223,8 @@ retainers, traits, titles, trait changes).
 - The Capuchin: burned by any means, he goes to his owner's uncontrolled
   region as a new card with no counter (60.8).
 - Antediluvian Awakening: the vampire burned may be in torpor; burning it
-  burns the card; chosen as the unlock rider resolves, the pool due anyway
-  if the card is gone by then (70.9).
+  burns the card; chosen as the unlock rider resolves; the card gone by
+  then, nothing is due (70.9).
 - An ally at 0 life is always burned (73.5, 71.10).
 - Taking the Skin: Minion: the reflex cancels a frenzy card played on the
   vampire (still played, its cost paid: ANK 20190104, ANK 20260216); the
@@ -3520,8 +3525,8 @@ readings (vampires, allies, library cards) no mechanism section states.
   unlocked Blood Brothers of the circle at resolution (68.7). Sanguine
   Instruction: the target chosen first, then the Discipline — one the actor
   has at superior and the target not; a target with none of them is not
-  offered; any Methuselah's vampire of the acting vampire's clan, the actor
-  included (68.8). Gestalt: all or nothing at resolution (a chosen Blood
+  offered; any Methuselah's vampire of the acting vampire's clan (68.8).
+  Gestalt: all or nothing at resolution (a chosen Blood
   Brother unable to burn: no effect); [SAN]: the reacting vampire plays cards
   with the chosen ones' Discipline levels until the action ends (68.15).
   Shell Game: X = 0 a legal no-op; "you may unlock one of those" — offered
@@ -4178,8 +4183,7 @@ mixed item is stated in its section.
   attempts to block", "when this vampire burns a minion", "with an optional
   maneuver each combat", type tags read in a fixed order (64.11).
 - Enforcement fixes: "once each turn" on an in-play ability enforced across
-  the turn (62.32; the rule is D32; known edge: Ferraille's two modes
-  limited each on its own); bugs seen while testing (63.17: Baltimore
+  the turn (62.32; the rule is D32); bugs seen while testing (63.17: Baltimore
   Purge's conditional stealth, Focus the Blood's discount, Renewed Vigor's
   overflow); a latent bug surfaced by a fixture reshuffle (67.1, the rule
   stated in §17.1).
@@ -4444,13 +4448,8 @@ Readings recorded in rules-qa as implemented, with no owner confirmation on
 record (the batch header or the item says none); the digest states them as
 read, for the owner to confirm or correct:
 
-- 62.2, 62.3, 62.6–62.12, 62.14–62.20, 62.22–62.29, 62.31, 62.32.
-- 64.1–64.6, 64.9–64.11.
-- 65.1–65.3.
-- 67.2, 67.3, 67.5, 67.7.
-- 68.3–68.9, 68.11–68.17.
-- 69.1–69.11, 69.13–69.15.
-- 70.5, 70.9, 70.13, 70.18, 70.20–70.22.
+- 69.1–69.11, 69.13–69.15 and 70.5, 70.13, 70.18, 70.20–70.22 graded green
+  (two blind reads agree; 70.9 answered by the owner).
 - 74.7–74.12 graded green or amber (both reads agree, or a precedent;
   74.1–74.6 and 74.13 answered by the owner).
 - 75.1 (75.2 confirmed, 75.3 settled by 44.1).
@@ -4463,11 +4462,7 @@ read, for the owner to confirm or correct:
 - 84.5–84.40 graded green or amber (84.1–84.4 answered by the owner;
   84.5's active Angelo a gap: his own circle of one).
 - 85.3–85.34 graded green or amber (85.1 and 85.2 confirmed by the owner).
-- The "Question (implemented reading)" tails: 48.2 (a card granting several
-  strikes bars further cards until all are made), 48.3 (the switch of
-  blocker takes effect at once, no impulse left to others), 48.8 (a rescue
-  share its payer cannot meet falls to the other); 49.6's several-holders
-  question is moot (50.1: the Cog is unique).
+- 49.6's several-holders question is moot (50.1: the Cog is unique).
 
 ### 24.2 Questions for a new rules-qa batch
 
@@ -4490,7 +4485,6 @@ ledger, not yet a reading anywhere:
 - Nergal's reduction at a redirected bleed's resolution; I am Legion's
   cancel of a do-not-replace, limited or as-if-from-hand card; a banished
   Great Beast (`blocked`).
-- Ferraille's two modes each limited on its own (62.32's known edge).
 
 ### 24.3 Principles from the rulings and the advanced rules not in rules-qa
 
@@ -4714,9 +4708,9 @@ index or an item cited nowhere.
 - **46** — 46.1 §2,§7.1,§7.2,§13.3; 46.2 §8.6,§13.2; 46.3 §13.2,§16.1; 46.4
   §2,§16.5,§23.2
 - **47** — 47.1 §2,§16.5,§23.2; 47.2 §2,§12.9,§12.15,§23.2,§23.3
-- **48** — 48.1 §2,§9.3; 48.2 §2,§12.9,§12.15,§24.1; 48.3
-  §9.4,§9.6,§23.3,§24.1; 48.4 §5.2,§12.3; 48.5 §9.4,§22,§23.2; 48.6 §22;
-  48.7 §2,§6.3,§6.5,§14.1,§22,§23.2; 48.8 §2,§8.3,§11.6,§24.1
+- **48** — 48.1 §2,§9.3; 48.2 §2,§12.9,§12.15; 48.3 §9.4,§9.6,§23.3; 48.4
+  §5.2,§12.3; 48.5 §9.4,§22,§23.2; 48.6 §22; 48.7
+  §2,§6.3,§6.5,§14.1,§22,§23.2; 48.8 §2,§8.3,§11.6
 - **49** — 49.1 §13.1; 49.2 §13,§13.4,§23.3; 49.3 §4.6,§12.13,§14.8; 49.4
   §14.3,§16.4,§23.3; 49.5 §2,§3.11,§4.1,§11.2,§16.1; 49.6 §5.1,§6.3,§24.1;
   49.7 §3.12,§4.4,§14.10
@@ -4764,19 +4758,18 @@ index or an item cited nowhere.
   §3.6,§4.2,§12.8,§14.7; 60.21 §3.2,§3.4,§3.6,§8.2,§9.6,§10.3,§14.5,§24.2;
   60.22 §2,§5.3,§6.2,§23.2
 - **61** — 61.1 §12.12; 61.2 §3.3,§6.3,§11.1,§21.2
-- **62** — 62.1 §12.5; 62.2 §2,§3.8,§3.14,§7.3,§24.1; 62.3
-  §2,§4.2,§9.1,§14.1,§24.1; 62.4 §2,§11.5,§14.4,§14.9,§23.2; 62.5 §6.2; 62.6
-  §13.5,§21.2,§24.1; 62.7 §3.14,§7.3,§8.3; 62.8 §18.3; 62.9 §9.1; 62.10
-  §4.2,§6.1,§21.3; 62.11 §4.2,§6.1; 62.12 §4.2,§19.2,§24.1; 62.13
-  §2,§6.4,§19.4; 62.14 §6.3,§8.2,§8.8,§11.8,§14.6,§14.10,§23.4,§24.1; 62.15
-  §6.5,§19.3; 62.16 §7.3,§11.1,§12.4; 62.17 §4.2,§9.3,§11.5,§12.8,§14.1;
-  62.18 §12.4; 62.19 §2,§4.2,§5.3,§12.4,§14.11,§16.4,§16.5; 62.20
-  §16.2,§24.1; 62.21 §3.12,§11.9,§23.1; 62.22 §19.1,§24.1; 62.23 §4.5,§12.6;
-  62.24 §3.20,§4.2,§12.4,§12.7,§12.11,§14.5; 62.25 §4.2,§16.1,§16.7; 62.26
-  §12.7,§14.10,§23.3; 62.27 §4.2,§12.3,§12.11; 62.28 §9.3; 62.29
-  §9.3,§19.1,§24.1; 62.30 §3.6,§8.2,§15.2,§16.8,§22; 62.31
-  §3.6,§14.5,§22,§23.2,§24.1; 62.32 §2,§22,§24.1,§24.2; 62.33
-  §3.6,§11.8,§14.1,§14.5
+- **62** — 62.1 §12.5; 62.2 §2,§3.8,§3.14,§7.3; 62.3 §2,§4.2,§9.1,§14.1;
+  62.4 §2,§11.5,§14.4,§14.9,§23.2; 62.5 §6.2; 62.6 §13.5,§21.2; 62.7
+  §3.14,§7.3,§8.3; 62.8 §18.3; 62.9 §9.1; 62.10 §4.2,§6.1,§21.3; 62.11
+  §4.2,§6.1; 62.12 §4.2,§19.2; 62.13 §2,§6.4,§19.4; 62.14
+  §6.3,§8.2,§8.8,§11.8,§14.6,§14.10,§23.4; 62.15 §6.5,§19.3; 62.16
+  §7.3,§11.1,§12.4; 62.17 §4.2,§9.3,§11.5,§12.8,§14.1; 62.18 §12.4; 62.19
+  §2,§4.2,§5.3,§12.4,§14.11,§16.4,§16.5; 62.20 §16.2; 62.21
+  §3.12,§11.9,§23.1; 62.22 §19.1; 62.23 §4.5,§12.6; 62.24
+  §3.20,§4.2,§12.4,§12.7,§12.11,§14.5; 62.25 §4.2,§16.1,§16.7; 62.26
+  §12.7,§14.10,§23.3; 62.27 §4.2,§12.3,§12.11; 62.28 §9.3; 62.29 §9.3,§19.1;
+  62.30 §3.6,§8.2,§15.2,§16.8,§22; 62.31 §3.6,§14.5,§22,§23.2; 62.32 §2,§22;
+  62.33 §3.6,§11.8,§14.1,§14.5
 - **63** — 63.1 §8.8,§9.6,§11.7,§14.10; 63.2 §3.1,§8.7,§11.2,§11.7; 63.3
   §3.12,§13.3; 63.4 §2,§3.13,§12.2,§12.6,§12.12,§14.5; 63.5
   §2,§3.14,§7.3,§12.4; 63.6 §10.5; 63.7 §4.2,§5.5,§7.3,§12.15,§16.5; 63.8
@@ -4784,24 +4777,22 @@ index or an item cited nowhere.
   63.11 §12.15,§19.2; 63.12 §3.1,§11.2; 63.13 §5.4,§8.1; 63.14
   §4.2,§11.1,§16.7; 63.15 §2,§14.2; 63.16
   §3.1,§4.2,§4.4,§9.3,§11.2,§11.5,§12.6,§14.5,§14.7,§15.2; 63.17 §8.1,§22
-- **64** — 64.1 §3.1,§3.6,§4.2,§11.2,§11.7,§12.11,§14.5,§15.2,§24.1; 64.2
+- **64** — 64.1 §3.1,§3.6,§4.2,§11.2,§11.7,§12.11,§14.5,§15.2; 64.2
   §3.17,§12.13,§16.3; 64.3 §5.1,§12.4; 64.4 §3.2,§8.4,§8.5,§9.6,§10.3,§23.2;
-  64.5 §9.2,§12.3; 64.6 §11.8,§12.3,§12.12,§14.5,§14.10,§22,§24.1; 64.7
+  64.5 §9.2,§12.3; 64.6 §11.8,§12.3,§12.12,§14.5,§14.10,§22; 64.7
   §12.12,§14.11; 64.8 §3.8,§4.5,§9.2,§10.4,§12.12,§12.14; 64.9
-  §4.5,§9.6,§19.1,§24.1; 64.10 §3.17,§12.2,§12.3,§12.7,§12.13,§22,§23.3;
-  64.11 §4.5,§22,§24.1; 64.12 §13.3,§13.5,§23.5
-- **65** — 65.1 §12.12,§12.15,§23.4,§24.1; 65.2 §10.4,§12.7; 65.3
-  §6.1,§15.2,§24.1
+  §4.5,§9.6,§19.1; 64.10 §3.17,§12.2,§12.3,§12.7,§12.13,§22,§23.3; 64.11
+  §4.5,§22; 64.12 §13.3,§13.5,§23.5
+- **65** — 65.1 §12.12,§12.15,§23.4; 65.2 §10.4,§12.7; 65.3 §6.1,§15.2
 - **66** — 66.1 §2,§5.2,§9.2; 66.2 §9.4,§22,§23.2
-- **67** — 67.1 §3.9,§7.1,§17.1,§21.1,§22; 67.2 §14.5,§24.1; 67.3
-  §11.1,§24.1; 67.4 §7.1; 67.5 §3.14,§8.3,§8.6,§11.8,§14.10,§22,§24.1; 67.6
-  §14.10,§22,§23.2; 67.7 §3.14,§3.18,§8.1,§24.1
+- **67** — 67.1 §3.9,§7.1,§17.1,§21.1,§22; 67.2 §14.5; 67.3 §11.1; 67.4
+  §7.1; 67.5 §3.14,§8.3,§8.6,§11.8,§14.10,§22; 67.6 §14.10,§22,§23.2; 67.7
+  §3.14,§3.18,§8.1
 - **68** — 68.1 §14.6,§14.10,§22,§23.2; 68.2 §5.2,§11.7,§14.4,§23.3; 68.3
-  §14.3,§24.1; 68.4 §12.1,§12.9; 68.5 §2,§15.2; 68.6 §5.5,§11.8,§14.4; 68.7
-  §15.2; 68.8 §15.2; 68.9 §7.2,§24.1; 68.10
-  §2,§3.11,§4.1,§4.2,§15.2,§16.7,§23.2; 68.11 §16.3,§22,§24.1; 68.12
-  §5.5,§12.12,§16.5; 68.13 §5.2,§10.1; 68.14 §2,§15.2; 68.15 §15.2; 68.16
-  §5.1,§14.1; 68.17 §3.4,§8.1,§11.2,§24.1
+  §14.3; 68.4 §12.1,§12.9; 68.5 §2,§15.2; 68.6 §5.5,§11.8,§14.4; 68.7 §15.2;
+  68.8 §15.2; 68.9 §7.2; 68.10 §2,§3.11,§4.1,§4.2,§15.2,§16.7,§23.2; 68.11
+  §16.3,§22; 68.12 §5.5,§12.12,§16.5; 68.13 §5.2,§10.1; 68.14 §2,§15.2;
+  68.15 §15.2; 68.16 §5.1,§14.1; 68.17 §3.4,§8.1,§11.2
 - **69** — 69.1 §16.1,§24.1; 69.2 §2,§3.11,§4.1,§23.3; 69.3 §6.6,§17.2; 69.4
   §2,§14.4,§23.2; 69.5 §6.4,§14.9,§14.10,§23.5; 69.6 §3.6,§5.3,§14.6; 69.7
   §9.1,§15.2; 69.8 §3.14,§8.3,§15.2; 69.9 §6.5,§13.5; 69.10

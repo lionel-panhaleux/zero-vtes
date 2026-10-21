@@ -1116,6 +1116,23 @@ fn antediluvian_awakening_costs_a_pool_or_a_vampire() {
     assert_eq!(pool(&e)[0], 10);
 }
 
+// Antediluvian Awakening: the card gone before its terms are met, nothing is
+// due (owner, rules-qa 70.9).
+#[test]
+fn antediluvian_awakening_gone_costs_nothing() {
+    let mut e = game(2);
+    e.add_minion(SeatId(0), plain("Brujah", 0), 4, false);
+    e.add_minion(SeatId(0), plain("Brujah", 1), 4, false);
+    e.add_minion(SeatId(1), plain("Ventrue", 0), 4, false);
+    e.add_minion(SeatId(1), plain("Ventrue", 1), 4, false);
+    let aa = in_play(&mut e, 1, "Antediluvian Awakening", None);
+    until(&mut e, SeatId(1), WindowLabel::RiderTerms);
+    // Burned meanwhile.
+    e.state.cards[aa.index()].in_play = false;
+    until(&mut e, SeatId(0), WindowLabel::MinionPhase);
+    assert_eq!(pool(&e)[1], 10, "no pool due");
+}
+
 // Third Tradition: Progeny: "+1 stealth action. Requires a non-sterile
 // prince or justicar. Put this card in play. It becomes a 1-capacity
 // (non-unique) Camarilla vampire of the same clan as the acting vampire and

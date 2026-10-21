@@ -890,9 +890,12 @@ engine masks), `cards/mod.rs` (the vocabulary: `Window`, `Actor`,
   by its copy, else a copy of its name); only with none left there is it an
   effect-only card in play (`CardInPlay.effect_only`) carrying the counters
   and layers. Lost if the strike misses, combat ends first, or combat
-  continues (rules-qa 21.1, 47.1). Only action cards wait in limbo.
-- Per-combat/round/action ability uses key on the card copy: a card's abilities
-  share one use (rules-qa 38.8).
+  continues (rules-qa 21.1, 47.1). Only action cards wait in limbo. A
+  lasting effect with no "put this card on" (Inner Essence's discount:
+  `Effect::LastingOnActor`) is an effect-only card in play on the vampire,
+  the card itself to the ash heap (rules-qa 68.12).
+- Per-combat/round/action/turn ability uses key on the card copy: a card's
+  abilities share one use (rules-qa 38.8, 62.32).
 - Frenzy: `Effect::Frenzy` marks the frenzy mode; `Engine::frenzy_on` names the
   minion affected (rules-qa 28.11); `frenzy_immune` cancels and bars.
 - Weapons: melee `StrikeKind::Melee` (not a hand strike); a weapon's per-combat

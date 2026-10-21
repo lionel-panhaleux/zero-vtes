@@ -2134,6 +2134,11 @@ fn inner_essence_discounts_a_combat_card() {
     let req = request(&mut e);
     assert!(!req.options.contains(&play(0, 1, gabi)), "one each combat");
     let essence = CardId(e.state.cards.len() as u32 - 1);
+    // The card in the ash heap, its discount alone on her (rules-qa 68.12).
+    assert!(e.state.cards[essence.index()].effect_only);
+    assert!(e.state.seats[0]
+        .ash
+        .contains(&find_library("Inner Essence")));
     assert_eq!(blood(&e, gabi), 3 + 1);
     let breath = e.state.seats[0]
         .hand

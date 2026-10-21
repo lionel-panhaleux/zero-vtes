@@ -1219,9 +1219,12 @@ impl Engine {
                     !self.uncontrolled_of(seat, clan).is_empty()
                 }
                 Interrupt::LockOrPay { card, .. } => self.state.cards[card.index()].present(),
-                // The card gone (another copy's vampire burned it), the pool
-                // is still due: the rider fired.
-                Interrupt::PoolOrVampire { seat, .. } => !self.state.seats[seat.index()].ousted,
+                // The card gone before its effect resolves: nothing is due
+                // (owner, rules-qa 70.9).
+                Interrupt::PoolOrVampire { seat, card, .. } => {
+                    !self.state.seats[seat.index()].ousted
+                        && self.state.cards[card.index()].present()
+                }
                 Interrupt::PoolOrNoTransfers { seat, .. } => !self.state.seats[seat.index()].ousted,
                 Interrupt::LibraryToHand { seat, .. } => !self.state.seats[seat.index()].ousted,
                 Interrupt::CryptSearch { seat, clan } => {
@@ -1772,16 +1775,13 @@ impl Engine {
                 WindowLabel::EntryEffect,
                 vec![Choice::Pass, Choice::DrawCrypt],
             ),
-            Interrupt::PoolOrVampire {
-                seat, card, cap, ..
-            } => (
+            Interrupt::PoolOrVampire { seat, cap, .. } => (
                 WindowLabel::RiderTerms,
                 std::iter::once(Choice::BurnPool)
                     .chain(
                         st.minions_of(seat)
                             .filter(|&m| {
-                                st.cards[card.index()].present()
-                                    && st.minions[m.index()].is_vampire()
+                                st.minions[m.index()].is_vampire()
                                     && st.capacity_of(m).is_some_and(|c| c >= cap)
                             })
                             .map(Choice::ChooseMinion),

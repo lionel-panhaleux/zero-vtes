@@ -1633,6 +1633,33 @@ fn spiritual_guidance_plays_from_the_ash_heap() {
     assert!(!e.state.seats[0].ash_combat_play);
 }
 
+// Spiritual Guidance playing Inner Essence ([vic] lent to Primo by another
+// vampire): its discount alone stays on the vampire (rules-qa 68.12), the
+// card itself removed from the game, not back in the ash heap.
+#[test]
+fn spiritual_guidance_removes_a_lasting_effects_card() {
+    let mut e = game(2);
+    let a = e.add_minion(SeatId(0), giovanni("Primo Giovanni"), 4, false);
+    let t = e.add_minion(SeatId(0), vampire_with("vic", 0), 4, false);
+    assert!(e.state.has_discipline(t, "vic"));
+    e.state.lent_disciplines.push((a, t));
+    let z = e.add_minion(SeatId(1), plain("Ventrue", 0), 8, false);
+    hand(&mut e, 0, &["Spiritual Guidance"]);
+    let essence = find_library("Inner Essence");
+    e.state.seats[0].ash = vec![essence].into();
+    blocked_bleed(&mut e, a, z);
+    let req = until(&mut e, SeatId(0), WindowLabel::CombatBeforeRange);
+    e.choose(index_of(&req, play(0, 0, a)));
+    request(&mut e);
+    assert!(e
+        .state
+        .cards
+        .iter()
+        .any(|c| c.card == essence && c.effect_only && c.host == Some(a)));
+    assert!(e.state.seats[0].removed.contains(&essence));
+    assert!(!e.state.seats[0].ash.contains(&essence));
+}
+
 // Spiritual Guidance with two plays from the ash heap (Weighted Walking
 // Stick, Trap), played before range: the next decision is its player's,
 // those plays its only options — no pass, the hand's Trap not offered

@@ -830,9 +830,9 @@ Owner ruled 46.1–46.4 from play (2026-09-30).
 
 **48.1** Stealth and intercept are not floored at 0 (owner, 2026-10-03, from play: Form of the Bat [pro] against a 0-intercept blocker of a 0-stealth action blocked). The -1 leaves the blocker at -1 intercept, below the action's 0 stealth: the attempt fails unless intercept is gained back (it is now needed, 3.2). Stealth likewise may be negative (LSJ 20021211: Draba, Night Terrors "can be played on a minion with zero or negative stealth"); "reduce stealth to 0" leaves a negative stealth unchanged. The table shows the signed values.
 
-**48.2** Additional strike cards are played one at a time: a combatant with an additional strike still to make gains no other until that pair resolves; after each additional pair, a new chance to play one (owner, 2026-10-03, from play: Quickness offered right after Pursuit [CEL]; "you first have to resolve the strikes pair from the Pursuit before you get the opportunity to get yet another additional strike by playing Quickness"). Refines 47.2; the opponent may still answer in the same window (rulebook "Additional Strikes": the acting minion decides first, then the opposing one). Question (implemented reading): a card granting several strikes (Blur) bars further cards until all of them are made.
+**48.2** Additional strike cards are played one at a time: a combatant with an additional strike still to make gains no other until that pair resolves; after each additional pair, a new chance to play one (owner, 2026-10-03, from play: Quickness offered right after Pursuit [CEL]; "you first have to resolve the strikes pair from the Pursuit before you get the opportunity to get yet another additional strike by playing Quickness"). Refines 47.2; the opponent may still answer in the same window (rulebook "Additional Strikes": the acting minion decides first, then the opposing one). A card granting several strikes (Blur) bars further cards until all of them are made (owner, 2026-10-20).
 
-**48.3** A change of blocker: during its own minion's block attempt, while that attempt is short of the action's stealth, a Methuselah may attempt with another of its minions instead — by declaring that one's attempt, or with a card whose unlocked minion attempts to block (Organized Resistance's second mode: "that Anarch attempts to block", so it must be the one blocking). The attempt under way fails then, with a failed attempt's consequences (owner, 2026-10-03, from play: an attempt left short by the acting minion's stealth could not be changed). Refines the "no re-declare" note (the attempt persists until closure unless its Methuselah changes blocker); a forced attempt on the minion already attempting keeps it (ANK 20181122-2). Question (implemented reading): the switch takes effect at once, with no impulse left to others for the abandoned attempt.
+**48.3** A change of blocker: during its own minion's block attempt, while that attempt is short of the action's stealth, a Methuselah may attempt with another of its minions instead — by declaring that one's attempt, or with a card whose unlocked minion attempts to block (Organized Resistance's second mode: "that Anarch attempts to block", so it must be the one blocking). The attempt under way fails then, with a failed attempt's consequences (owner, 2026-10-03, from play: an attempt left short by the acting minion's stealth could not be changed). Refines the "no re-declare" note (the attempt persists until closure unless its Methuselah changes blocker); a forced attempt on the minion already attempting keeps it (ANK 20181122-2). The switch takes effect at once, with no impulse left to others for the abandoned attempt (owner, 2026-10-20).
 
 **48.4** Slam [POT] ("as above, with 1 optional maneuver") is played only at the maneuver, never as the strike: at strike declaration it would be [pot] for 1 blood, its maneuver unusable (owner, 2026-10-04, from play: "superior gives a maneuver so it's only playable during the maneuver step"). The only card of the shape — a mode identical to another but for an optional maneuver; Aid from Bats and Diversion carry their maneuver on their only strike mode and stay playable as the strike (2.5).
 
@@ -842,7 +842,7 @@ Owner ruled 46.1–46.4 from play (2026-09-30).
 
 **48.7** An ability whose only effect is to unlock its own minion is not offered while that minion is unlocked (owner, 2026-10-04, from play: Rutor's Hand offered to unlock an unlocked vampire — "legal, but really useless, no card cycled or anything"). An exception to 17.4's legal no-op plays: locking the card or spending a once-each-turn use buys nothing. Rutor's Hand, Valerie Diaz, Sword of the Archangel; the vampires' unlock abilities required it already.
 
-**48.8** Rescue's cost: who pays it (the acting vampire, the rescued one, or a split) is chosen as the action is announced; the blood is paid as it resolves (3.6) (owner, 2026-10-04, from play: "it should ask when the action is declared (who pays)"). The cost is read again at resolution (live conditions). Question (implemented reading): a share its payer can no longer meet at resolution falls to the other, the action fizzling only when both together cannot pay (3.6); a vampire gone from play pays nothing (28.7).
+**48.8** Rescue's cost: who pays it (the acting vampire, the rescued one, or a split) is chosen as the action is announced; the blood is paid as it resolves (3.6) (owner, 2026-10-04, from play: "it should ask when the action is declared (who pays)"). The cost is read again at resolution (live conditions). The split stands: a share its payer can no longer meet at resolution fizzles the action, the other paying nothing in its place (owner, 2026-10-20; read first as falling to the other); a vampire gone from play pays nothing (28.7). (Test rescue_cost_split_is_chosen_as_announced_and_paid_at_resolution.)
 
 ## Batch 49 — Reign of Stanislava (25th Anniversary) and Sabbat paths (scoping, 2026-10-05)
 
@@ -1152,7 +1152,7 @@ Readings no ruling settles, implemented with slice 16m; questions for the owner.
 
 **61.2** "A bleed against your prey" (Enkil Cog, Gostoso) still holds when that bleed ousted the prey: the target is read as if still seated, live otherwise (a redirected bleed still is not, 50.3). Owner, from play: Enkil Cog drawn after an ousting bleed was not offered.
 
-## Batch 62 — Legacy cards for TWDA decks, round 2 (steps 1–6), implemented readings (2026-10-11)
+## Batch 62 — Legacy cards for TWDA decks, round 2 (steps 1–6), implemented readings (2026-10-11; owner, 2026-10-20: all confirmed)
 
 **62.1** Aims (Target Vitals): the strike is chosen first, then an aim may be played on top of it — the striking minion's Methuselah gets one decision after its strike choice, an aim or pass, before the strikes resolve; a strike committed at the maneuver likewise (55.8 stands). Owner, 2026-10-11 (the engine had the aim before the strike choice).
 
@@ -1208,7 +1208,7 @@ Readings no ruling settles, implemented with slice 16m; questions for the owner.
 
 **62.27** Ruins of Ceoris: one use over the combat, a maneuver (before or as range is determined) or a press; for a Tremere antitribu bearer only, read live.
 
-**62.28** Sense the Sin: [aus] against a younger acting vampire; [dai]'s extra +1 if the acting minion has anyone's corruption counter; [DAI]'s -1 intercept to every minion with any counter, any Methuselah's, read live during the action.
+**62.28** Sense the Sin: [aus] against a younger acting vampire; [dai]'s extra +1 if the acting minion has anyone's corruption counter; [DAI]'s -1 intercept to every minion with any corruption counter, any Methuselah's, read live during the action (owner, 2026-10-20: corruption counters only).
 
 **62.29** The Unmasking: every Methuselah's allies, +1 intercept while the acting minion is a vampire; replaced as its controller's next turn's discard phase begins.
 
@@ -1216,7 +1216,7 @@ Readings no ruling settles, implemented with slice 16m; questions for the owner.
 
 **62.31** 41.8's "no mage ally in the pool" no longer holds: Sri Sansa moves blood or life with Nephandus and Veneficti too.
 
-**62.32** "Once each turn" on an in-play ability its controller uses (Ferraille, CrimethInc. [tha]) is now enforced across the turn, not only within one referendum (a fix seen in the random games). Known edge: Ferraille's two modes (votes for, votes against) are limited each on its own — one each in two referendums of a turn is still offered.
+**62.32** "Once each turn" on an in-play ability its controller uses (Ferraille, CrimethInc. [tha]) is now enforced across the turn, not only within one referendum (a fix seen in the random games). One use for the card, whichever mode: Ferraille's votes for or against, Dabbler's unlock or blood (owner, 2026-10-20). (Tests ferraille_votes_once_a_turn_for_or_against, dabbler_rewards_once_each_turn.)
 
 **62.33** Herald of Topheth (owner, 2026-10-11): an infernal ally — it does not unlock as normal, its controller may burn 1 pool to unlock it, as an infernal vampire (`GameState::unlocks_as_infernal`); it plays [dai], [pot] and [pre] cards as a capacity-5 Independent vampire; its rush at another Methuselah's minion; its life back to 5 at most, 1 each of its controller's unlock phases.
 
@@ -1256,7 +1256,7 @@ Readings no ruling settles, implemented with slice 16m; questions for the owner.
 
 **63.17** Seen while testing: an action card's "+1 stealth if this vampire is Ravnos" (Baltimore Purge) is read as the action is announced and skipped at resolution (it crashed the resolution); Focus the Blood's discount was offered but not taken on a combat card's blood cost (now taken, the card burned as the cost is paid); Renewed Vigor's "add enough life to reach their starting life" overflowed its counter.
 
-## Batch 64 — Legacy cards for TWDA decks, rounds 4–5 (the Gangrel decks), implemented readings (2026-10-11; owner, 2026-10-14: 64.7, 64.8 confirmed)
+## Batch 64 — Legacy cards for TWDA decks, rounds 4–5 (the Gangrel decks), implemented readings (2026-10-11; owner, 2026-10-14: 64.7, 64.8 confirmed; 2026-10-20: the rest, 64.6 restated)
 
 **64.1** Ariadne: her "+1 hunt" adds to every hunt of hers, non-standard ones too (RTR 20030519); no blood hunt is ever called on her (her diablerie, an Abactor). Jacob Fermor: "werewolves you control" are allies of the Werewolf subtype (Renegade Garou, Ossian), +1 bleed while Jacob is ready (in torpor: none), read live; his press once each combat. Gunnar, Lillian and Robert Price print no text.
 
@@ -1268,7 +1268,7 @@ Readings no ruling settles, implemented with slice 16m; questions for the owner.
 
 **64.5** Mind of the Wilds: [ani][aus] in the action's own window, [ANI][AUS]'s +1 stealth only when needed (3.2); the maneuver banked for the first round of the block's combat only; the blocker barred from "strike: combat ends" for the rest of the action, any round of any combat (LSJ 20100308).
 
-**64.6** Ossian: his rush at any vampire, any Methuselah's; the freeze read as cards are played: a vampire opposing him that played a card requiring Auspex in the current action (any action, LSJ 20050201; the Discipline the card was played with) uses no maneuver nor strike for the rest of the first round — from the combat's start, or from that card on mid-round (an Auspex strike played first stands: ANK 20210614); a range set by an effect stays open, a Sniper Rifle's (a strike commitment) not (LSJ 20100827). His life: the blood the opposing vampire lost to damage that round, at the end of the round, after the presses, the round ended early too (RTR 20030519), over his starting life (ANK 20171109). "Red List" is a bare trait.
+**64.6** Ossian: his rush at any vampire, any Methuselah's; the freeze read as cards are played: a vampire opposing him that played a card requiring Auspex in the current action (any action, LSJ 20050201; the Discipline the card was played with) uses no maneuver nor strike for the rest of the first round — from the combat's start, or from that card on mid-round (an Auspex strike played first stands: ANK 20210614); it may still play an effect setting the range that is not a maneuver, not a Sniper Rifle (a strike commitment, LSJ 20100827), the range set once (owner, 2026-10-20). His life: in his card's words, the blood the opposing vampire used that round to heal damage or to prevent destruction (owner, 2026-10-20), at the end of the round, after the presses, the round ended early too (RTR 20030519), over his starting life (ANK 20171109). "Red List" is a bare trait.
 
 **64.7** The Path of Lilith: offered as the torpor lands — the opposing vampire sent to torpor in combat (not burned), the vampire opposing it non-Camarilla and the card's controller's, the card unlocked; its controller's unlock phase: each Methuselah controlling a vampire with a torture counter (ready or in torpor), its controller included, burns 1 pool. Every torture counter goes once no Path of Lilith is in play (one held by another Methuselah keeps them all: none other in the pool).
 
@@ -1282,7 +1282,7 @@ Readings no ruling settles, implemented with slice 16m; questions for the owner.
 
 **64.12** Owner, 2026-10-11 (relayed by Z-play): as a political referendum's polling step opens, the other Methuselahs get a chance to play the cards usable "before any votes and ballots are cast" before the caller casts — Confusion of the Eye [OBF] (63.3), Fakir al Sidi (59.18), Closed Session. The engine opens it with a pre-vote rotation from the caller's left, the caller last, offering those cards (and their abilities) alone, no vote; once it closes, the polling proper rotates from the caller. Not for a blood hunt, nor a referendum passing automatically.
 
-## Batch 65 — Legacy cards for TWDA decks, round 6, implemented readings (2026-10-11)
+## Batch 65 — Legacy cards for TWDA decks, round 6, implemented readings (2026-10-11; owner, 2026-10-20: all confirmed)
 
 **65.1** Psyche!: [CEL] in the end-of-round window as the combat would end, both combatants ready, no combat queued (RTR 20020501) — no "would end" replacement after it (Telepathic Tracking, Hunting the Quarry: ANK 20191219), the end-of-round cards still open before or after it (LSJ 20021113). The queued combat begins as this one ends, the same two minions, still in the action (LSJ 20021213) and ending as this one would have (into the after-combat window, or back to an action's step); this combat's after-combat effects are lost (a continuation as if unblocked, Torrent's included; damage or a card after combat), unlocks aside, applied as their strikes resolved (LSJ 19980109); cards held "until after combat" are replaced before it (LSJ 20001122); no block began it, so no block rider nor "when blocking" equipment carries over (Spirit's Touch, Sniper Rifle: LSJ 20010813, LSJ 20010814); a hand size the first combat lowered is drawn up between them and discarded down again (Raptor, LSJ 20030530).
 
@@ -1296,7 +1296,7 @@ Readings no ruling settles, implemented with slice 16m; questions for the owner.
 
 **66.2** A block attempt is offered when the stealth may yet be met, and stealth an ability in play can still take off (Screamer, Aranthebes) counts as much as intercept: a woken, locked Monica Giovanni attempts against a 1-stealth bleed bounced back to her Methuselah, who controls Screamer (owner, from play; refines 1.3's pruning). Superseded by 73.8 for the engine; the host's opportunities filter keeps the reading.
 
-## Batch 67 — Legacy cards for TWDA decks, round 7: readings no ruling settles (Claude, 2026-10-12)
+## Batch 67 — Legacy cards for TWDA decks, round 7: readings no ruling settles (Claude, 2026-10-12; owner, 2026-10-20: 67.2, 67.3, 67.5, 67.7 confirmed)
 
 Slice 16s: the next hundred cards by TWDA importance (ten new archetypes). Only the readings that no ruling or default reading settles; each is implemented and tested, for the owner to confirm or correct.
 
@@ -1314,7 +1314,7 @@ Slice 16s: the next hundred cards by TWDA importance (ten new archetypes). Only 
 
 **67.7** Trochomancy: "remove thirteen (seven) cards in the target Methuselah's ash heap from the game to get +1 bleed" — the removal is the price: not playable unless that ash heap holds them (burned vampires counted, as Shroud of Decay's, rules-qa 42.7). (Test trochomancy_burns_the_targets_ash_heap_for_bleed.)
 
-## Batch 68 — Blood Brother circles, legacy cards for TWDA decks, round 8: readings no ruling settles (Claude, 2026-10-12)
+## Batch 68 — Blood Brother circles, legacy cards for TWDA decks, round 8: readings no ruling settles (Claude, 2026-10-12; owner, 2026-10-20: all confirmed, 68.12 corrected)
 
 Slice 16t: the sixty cards of the ten Blood Brother TWDA decks. Only the readings that no ruling or default reading settles; each is implemented and tested, for the owner to confirm or correct. A vampire with no circle is in a circle of one (LSJ 20020609): `GameState::same_circle` needs two Blood Brothers of one printed (or chosen) circle.
 
@@ -1332,7 +1332,7 @@ Slice 16t: the sixty cards of the ten Blood Brother TWDA decks. Only the reading
 
 **68.7** Unwholesome Bond [SAN] for New Blood: one chosen uncontrolled Blood Brother with no printed circle (LSJ 20050927, ANK 20211113), a mode of its own; [san]'s X counts any Methuselah's ready unlocked Blood Brothers of the circle at resolution. (Tests unwholesome_bond_counts_the_circle, unwholesome_bond_lets_new_blood_feed_a_circle_of_one.)
 
-**68.8** Sanguine Instruction: the target chosen first, then the Discipline — one the actor has at superior and the target not; a target with none of them is not offered; any Methuselah's vampire of the acting vampire's clan, the actor included. (Test sanguine_instruction_teaches_a_discipline.)
+**68.8** Sanguine Instruction: the target chosen first, then the Discipline — one the actor has at superior and the target not; a target with none of them is not offered; any Methuselah's vampire of the acting vampire's clan. (Test sanguine_instruction_teaches_a_discipline.)
 
 **68.9** Dark Influences: as Direct Intervention, played on another Methuselah's turn; its shield is any Dark Influences in play, whoever controls it, against a cancel of a minion card of another Methuselah than the canceling one. (Test dark_influences_cancels_and_shields.)
 
@@ -1340,7 +1340,7 @@ Slice 16t: the sixty cards of the ten Blood Brother TWDA decks. Only the reading
 
 **68.11** Monocle of Clarity: its question changes no game state — the equip action alone; its rulings n/a. (Test monocle_of_clarity_is_equipped.)
 
-**68.12** Inner Essence: "once this combat" — the card stays on the vampire for the combat (as Focus the Blood's discount, 36.1) and burns as the combat ends if unused. (Test inner_essence_discounts_a_combat_card.)
+**68.12** Inner Essence: "once this combat" — the card goes to the ash heap; its discount stays on the vampire for the combat as an effect (spent as Focus the Blood's, 36.1), gone as the combat ends if unused. Owner, 2026-10-20 (the card was read as staying on the vampire). (Test inner_essence_discounts_a_combat_card.)
 
 **68.13** Major Boon: after it is played (as blocks are declined) or burned, the blocks-declined window closes — only "would be successful" plays (LSJ 20090205). (Test major_boons_do_not_stack.)
 
@@ -1352,9 +1352,9 @@ Slice 16t: the sixty cards of the ten Blood Brother TWDA decks. Only the reading
 
 **68.17** Loki's Gift [PRO] "burn 1 blood from any vampire": the vampire chosen as the card is played, its action directed at that vampire's Methuselah when another's. (Test lokis_gift_hunts_and_bites.)
 
-## Batch 69 — Shadow Play, The Embrace, the Appolonius merge, legacy cards for TWDA decks, round 9: readings no ruling settles (Claude, 2026-10-12)
+## Batch 69 — Shadow Play, The Embrace, the Appolonius merge, legacy cards for TWDA decks, round 9: readings no ruling settles (Claude, 2026-10-12; graded 2026-10-20: all green)
 
-Slice 16u: the cards of the Lasombra, Toreador antitribu and Ravnos TWDA decks and Popó's. Only the readings that no ruling or default reading settles; each is implemented and tested, for the owner to confirm or correct.
+Slice 16u: the cards of the Lasombra, Toreador antitribu and Ravnos TWDA decks and Popó's. Only the readings that no ruling or default reading settles; each is implemented and tested. Graded after the fact per the add-cards skill (owner, 2026-10-20: "I don't want to go over cards one by one myself"): two blind second readers agreed with every reading.
 
 **69.1** Gurchon Hall: "the two oldest ready vampires you control" — oldest by capacity (rulebook); a tie for either place is its controller's pick; one already fed by a hunting ground this turn gains nothing and still counts as one of the two (the next oldest does not step in). (Test gurchon_hall_feeds_the_two_oldest_ready_vampires.)
 
@@ -1386,7 +1386,7 @@ Slice 16u: the cards of the Lasombra, Toreador antitribu and Ravnos TWDA decks a
 
 **69.15** Flames of Insurrection: the offer goes to the Anarch's controller whoever controls the card (ANK 20180627-2), optional, the vampire in their uncontrolled region their pick. (Test flames_of_insurrection_feeds_the_anarchs_uncontrolled_region.)
 
-## Batch 70 — Legacy cards for TWDA decks, round 10 (the 2025–2026 decks): readings no ruling settles (Claude, 2026-10-13; owner, 2026-10-14: 70.1–70.4, 70.6–70.8, 70.10–70.12, 70.14–70.16, 70.19 confirmed, 70.17 corrected)
+## Batch 70 — Legacy cards for TWDA decks, round 10 (the 2025–2026 decks): readings no ruling settles (Claude, 2026-10-13; owner, 2026-10-14: 70.1–70.4, 70.6–70.8, 70.10–70.12, 70.14–70.16, 70.19 confirmed, 70.17 corrected; graded 2026-10-20: 70.5, 70.13, 70.18, 70.20–70.22 green, 70.9 red and corrected)
 
 **70.1** Rumors of Gehenna: the Methuselahs chosen in its terms (the caller may choose themselves) are remembered by the card in play; "two master phase actions (instead of one)" is the same second action as Anson's — neither another copy nor Anson adds a third. (Test rumors_of_gehenna_gives_the_chosen_two_master_phase_actions.)
 
@@ -1404,7 +1404,7 @@ Slice 16u: the cards of the Lasombra, Toreador antitribu and Ravnos TWDA decks a
 
 **70.8** Protected Resources: copies do not lower the cap below 2; "after a minion you control successfully bleeds" — any minion of its controller's, an ally too, every copy they control burning; the cap is on whoever burns pool for the bleed (Major Boon's payer included). (Tests protected_resources_caps_the_pool_burned_not_the_bleed, protected_resources_burns_after_its_controllers_successful_bleed.)
 
-**70.9** Antediluvian Awakening: the vampire burned may be in torpor; burning it burns the card; chosen as the unlock rider resolves, the pool due anyway if the card is gone by then. (Test antediluvian_awakening_costs_a_pool_or_a_vampire.)
+**70.9** Antediluvian Awakening: the vampire burned may be in torpor; burning it burns the card; chosen as the unlock rider resolves; the card gone by then, nothing is due (owner, 2026-10-20; the pool was read as due anyway). (Tests antediluvian_awakening_costs_a_pool_or_a_vampire, antediluvian_awakening_gone_costs_nothing.)
 
 **70.10** Kaymakli Nightmares: a created vampire in an uncontrolled region (banished) is burned, its counters still to the pool and not counted for the draw; a Web of Knives Recruit in training is no crypt card and stays; "only one … per game": anyone's, a canceled play counting. (Test kaymakli_nightmares_reshuffles_every_uncontrolled_crypt_card.)
 

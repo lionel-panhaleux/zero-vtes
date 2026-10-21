@@ -3948,6 +3948,9 @@ impl Engine {
             }
         }
         self.end_cause(outer);
+        // Its lasting effect alone in play (Inner Essence): the card goes
+        // where a card that never entered play goes.
+        let in_play = in_play.filter(|id| !self.state.cards[id.index()].effect_only);
         match in_play {
             // Its search puts its cards on it first: the search's end
             // enters the contest (Black Market Cache).
@@ -4588,22 +4591,25 @@ impl Engine {
             }
             // "Put this card on this vampire" as the combat card resolves
             // (Wall of Filth): the card itself enters play, not the ash heap
-            // — one of its name a vampire, a second one to the ash heap.
-            Effect::PutOnActorNow | Effect::PutOnActorNowStacking => {
+            // — one of its name a vampire, a second one to the ash heap;
+            // `LastingOnActor`: its effect alone, the card to the ash heap
+            // (rules-qa 68.12).
+            Effect::PutOnActorNow | Effect::PutOnActorNowStacking | Effect::LastingOnActor => {
                 let actor = ctx.actor.expect("a combatant");
+                let effect_only = effect == Effect::LastingOnActor;
+                let copy = if effect_only {
+                    crate::copies::CopyId::NONE
+                } else {
+                    *ctx.copy
+                };
                 let placed = self.state.minions[actor.index()]
                     .in_play
                     .then(|| {
                         self.place_now(
                             CardInPlay {
                                 by: Some(actor),
-                                ..CardInPlay::entering(
-                                    ctx.card,
-                                    *ctx.copy,
-                                    s,
-                                    Some(actor),
-                                    ctx.mode,
-                                )
+                                effect_only,
+                                ..CardInPlay::entering(ctx.card, copy, s, Some(actor), ctx.mode)
                             },
                             ModeLayers::FromEffects,
                             effect == Effect::PutOnActorNow,

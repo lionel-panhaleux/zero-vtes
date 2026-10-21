@@ -10512,6 +10512,30 @@ fn ferraille_buys_three_votes_once_a_turn() {
     }
 }
 
+// Ferraille: one use each turn, for or against (owner, rules-qa 62.32): a
+// second referendum in the turn offers neither.
+#[test]
+fn ferraille_votes_once_a_turn_for_or_against() {
+    let mut e = Engine::bare(3);
+    let a = e.add_minion(SeatId(0), anarch(0), 4, false);
+    let b = e.add_minion(SeatId(0), anarch(1), 4, false);
+    e.add_minion(SeatId(1), vampire(|c| c.clan == "Ministry", 0), 4, false);
+    e.add_minion(SeatId(2), plain("", "", 2), 4, false);
+    let f = location(&mut e, 1, "Ferraille");
+    hand(&mut e, 0, &["Anarchist Uprising", "Anarchist Uprising"]);
+    pick(&mut e, play(0, 0, a));
+    pick_when(&mut e, use_on(f, 0, None, Target::None));
+    assert_eq!(pool(&e, 1), 29);
+    pick_when(&mut e, play(0, 0, b));
+    let used = |o: &Choice| {
+        *o == use_on(f, 0, None, Target::None) || *o == use_on(f, 1, None, Target::None)
+    };
+    // The second referendum polls; seat 1, with nothing to use, is not asked.
+    never_offered_where(&mut e, SeatId(0), WindowLabel::ReferendumPolling, used);
+    assert!(e.referendum().is_some());
+    never_offered_where(&mut e, SeatId(0), WindowLabel::MinionPhase, used);
+}
+
 // Oxford University, England: "You can lock this card and burn X pool during
 // the polling step of a political action to get +2X votes."
 #[test]
@@ -11171,6 +11195,39 @@ fn dabbler_rewards_three_disciplines_in_one_action() {
     pick(&mut e, play_at(0, 6, Some(at), Target::Minion(z)));
     pick_when(&mut e, use_on(d, 1, None, Target::None));
     assert_eq!(blood(&e, at), 3 - 1 + 1, "struck once, then gained 1");
+}
+
+// Dabbler: "once each turn, … either burn 1 blood to unlock or gain 1
+// blood": one use, whichever. Unlocked after a first action, Atiena takes a
+// second with three Disciplines again ([pot][pre], and [obf] against a
+// block); neither is offered after it.
+#[test]
+fn dabbler_rewards_once_each_turn() {
+    let mut e = Engine::bare(3);
+    let at = e.add_minion(SeatId(0), zvtes::state::find_card("Atiena"), 6, false);
+    e.add_minion(SeatId(0), plain("", "", 1), 4, false);
+    let z = e.add_minion(SeatId(1), plain("", "", 2), 5, false);
+    let y = e.add_minion(SeatId(1), plain("", "", 3), 5, false);
+    e.state.minions[z.index()].locked = true;
+    e.state.minions[y.index()].locked = true;
+    let w = e.add_minion(SeatId(1), plain("", "", 4), 4, false);
+    e.add_minion(SeatId(2), plain("", "", 5), 4, false);
+    let d = master_on(&mut e, 0, "Dabbler", at);
+    hand(
+        &mut e,
+        0,
+        &["Make the Misere", "Show of Force", "Cloak the Gathering"],
+    );
+    pick(&mut e, play_at(0, 6, Some(at), Target::Minion(z)));
+    pick_when(&mut e, use_on(d, 0, None, Target::None));
+    assert!(!e.state.minions[at.index()].locked, "unlocked");
+    pick_when(&mut e, play(0, 0, at));
+    pick_when(&mut e, Choice::DeclareBlock { minion: w });
+    pick_when(&mut e, play(0, 0, at));
+    never_offered_where(&mut e, SeatId(0), WindowLabel::MinionPhase, |o| {
+        *o == use_on(d, 0, None, Target::None) || *o == use_on(d, 1, None, Target::None)
+    });
+    assert!(e.state.minions[at.index()].locked, "the second action");
 }
 
 // Dead Pool: "After a vampire in combat with a Lasombra you control leaves
@@ -13243,11 +13300,12 @@ fn torpid_blood_taxes_torpor_and_waits_for_a_vampire_to_leave_it() {
 }
 
 // Rescue: who pays the 2 blood is chosen as the action is announced, the
-// blood paid as it resolves (owner, 2026-10-04: rules-qa 48.8); a share its
-// payer can no longer meet falls to the other.
+// blood paid as it resolves (owner, 2026-10-04: rules-qa 48.8); the split
+// stands, a share its payer can no longer meet fizzling the action (owner,
+// 2026-10-20).
 #[test]
 fn rescue_cost_split_is_chosen_as_announced_and_paid_at_resolution() {
-    for (late_blood, paid) in [(4, (2, 3)), (1, (0, 2))] {
+    for (late_blood, paid) in [(4, Some((2, 3))), (1, None)] {
         let mut e = Engine::bare(3);
         let a = e.add_minion(SeatId(0), plain("", "", 0), 4, false);
         e.add_minion(SeatId(0), plain("", "", 3), 4, false);
@@ -13270,8 +13328,12 @@ fn rescue_cost_split_is_chosen_as_announced_and_paid_at_resolution() {
         // The rescuer's blood by resolution.
         e.state.minions[a.index()].blood = late_blood;
         until(&mut e, SeatId(0), WindowLabel::MinionPhase);
-        assert!(!e.state.minions[n.index()].in_torpor);
-        assert_eq!((blood(&e, a), blood(&e, n)), paid);
+        assert_eq!(e.state.minions[n.index()].in_torpor, paid.is_none());
+        assert_eq!(
+            (blood(&e, a), blood(&e, n)),
+            paid.unwrap_or((late_blood, 3)),
+            "nothing paid by the other"
+        );
     }
 }
 

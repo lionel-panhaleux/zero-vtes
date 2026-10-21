@@ -4848,17 +4848,14 @@ impl Engine {
                 let t = self.state.minions[target.index()].blood;
                 a.rescue_cost = self.rescue_cost_now(a.acting, target);
                 a.rescue_gain = self.state.rescue_discount(a.acting, target).1;
-                let payable = acting + t >= a.rescue_cost;
+                // The split chosen as it was announced stands: a share its
+                // payer can no longer meet fizzles it (owner, rules-qa 48.8).
+                let declared = a.rescue_split.unwrap_or(a.rescue_cost);
+                let from_acting = declared.min(a.rescue_cost);
+                let payable = acting >= from_acting && t >= a.rescue_cost - from_acting;
                 if !payable {
                     a.outcome = Some(Outcome::Fizzled);
                 }
-                // The split chosen as it was announced; a share its payer
-                // can no longer meet falls to the other (rules-qa 48.8).
-                let declared = a.rescue_split.unwrap_or(a.rescue_cost);
-                let from_acting = declared
-                    .min(a.rescue_cost)
-                    .min(acting)
-                    .max(a.rescue_cost.saturating_sub(t));
                 self.action = Some(a);
                 if payable {
                     self.rescue_apply(from_acting);

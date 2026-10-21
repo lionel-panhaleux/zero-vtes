@@ -4028,6 +4028,10 @@ pub enum Effect {
     /// As `PutOnActorNow`, copies stacking: no one-per-vampire limit (Focus
     /// the Blood).
     PutOnActorNowStacking,
+    /// The card's lasting effect on this vampire, the card itself in the
+    /// ash heap (Inner Essence, rules-qa 68.12): an effect-only card in
+    /// play carrying the mode's layers.
+    LastingOnActor,
     /// An action card's hunt at +n: 1 + n blood, hunt bonuses included, as
     /// it resolves (Abactor).
     HuntAt(u8),
