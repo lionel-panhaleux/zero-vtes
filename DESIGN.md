@@ -307,7 +307,7 @@ stacking, simultaneity, NRA, changing acting minion: **vtes-advanced-rules**.
 Flat, arena-style, plainly cloneable, no interior mutability (`GameState`:
 `seats`, `minions`, `cards`, `layers`, …; entries are never removed — flags mark
 what left play). Zones per rulebook: ready / controlled / uncontrolled / torpor /
-ash heap / hand / library / crypt (+ removed). Counters, Edge, pool, labels as
+incapacitated / ash heap / hand / library / crypt (+ removed). Counters, Edge, pool, labels as
 plain data. `GameState::hash` for replay checks. Card behavior resolved to static
 tables (`cards::lookup` is indexed by library index).
 
@@ -1944,7 +1944,7 @@ Still true today; "(verify)" marks items inferred from older notes.
 - **P5 — community**: bot service, client adapter, human-ergonomics layer
   (its open items on the boards).
 
-Definitions: 937 library, 476 vampires; 2459 Rust tests, 40 Python tests
+Definitions: 937 library, 476 vampires; 2459 Rust tests, 45 Python tests
 
 ## Outlook: deck building (post-v1)
 

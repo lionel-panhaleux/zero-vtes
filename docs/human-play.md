@@ -264,61 +264,6 @@ for history.
 | 6.3 | Imitation term: cross-entropy on the human's choices beside PPO's loss, once there are dozens of games | todo |
 | 6.4 | The corpus: `data/replays/` (tracked; its README indexes each game: engine commit, seats' decks, bots, result) | done; 1 game |
 
-## Protocol as built (slice 1)
-
-- `Session::advance()` → `Out`: `decision` (a human seat must answer; repeated
-  until answered), `decided` (one decision taken — a bot's now, or the human's
-  answer), `over`. Every message carries `events` (2.18: what happened
-  since the previous message, before it) and `view`: the viewer's table *as of that
-  decision* (elided steps applied), so a client diffs its last view against it,
-  animates, then narrates or asks. `answer(decision, index)` refuses a stale
-  number.
-- `TableView`: per seat pool, VPs, Edge, prey/predator, zones as `CardView
-  {copy, id (KRCG, null when hidden), crypt}`, uncontrolled slots, minions
-  (ready/torpor, with their cards, blood, capacity, title, markers), cards in
-  play on no minion, limbo (plays under way); action/combat/referendum
-  summaries; phase.
-- Options: `{index, kind, text, card {id, copy, card_id}, minion, actor,
-  target, amount, favor}`.
-- Bots: `Player::Bot {style}`: `aggro_bleed`, `wall`, `random` built in; any
-  other style is installed by the host (`Session::set_agent`) — the network
-  policy's entry point (slice 3).
-- Dev tools: a game record (the fork's "Export Replay", the server's
-  `/games/{id}/record`, `data/records`) reads back with `cargo run -p
-  zvtes-host --profile ci --example replay -- <record.json> [--options]`:
-  every decision of every seat, its choice and the events; `--options`
-  lists each decision's options.
-
-### Checks
-
-- `cargo test --profile ci -q` covers the host and the renderer (default
-  members); `HOST_SEEDS=n` deepens `crates/host/tests/events.rs` (the
-  table kept from the events against each view, undo, allocations and
-  vote orders, every option and decision told), `HOST_SEED_FROM=n`
-  starts there, `HOST_REDUCE=1` names each view field the events missed
-  and `HOST_TRACE=1` prints the events and views; engine-side
-  allocation shapes in `tests/politics.rs` / `tests/precon.rs`;
-  `crates/host/tests/records.rs` reads the corpus whole.
-- `cargo clippy -p zvtes-server --all-targets --profile ci -- -D
-  warnings` and `cargo test -p zvtes-server --profile ci` (not a default
-  member: a restart resuming a game left going and ending a stale one, the
-  games left going ended when they cannot be, on the file store, and
-  on Postgres with `ZVTES_TEST_DATABASE_URL` naming a scratch database);
-  `scripts/check_ts.sh` (a game typed against `protocol.ts`); with a
-  server running (Node 22 or later, for its `WebSocket`), `node
-  crates/server/tests/client.mjs <url>` plays a game over HTTP and
-  WebSocket (its seed the server's, not the one it asks) and has a deck
-  with a card outside the pool refused (with `ZVTES_ADMIN_TOKEN`, its
-  feedback read back from `/admin/feedback`, the refused card counted at
-  `/admin/unsupported`, one spec dealt twice differently and the
-  operator's seed kept), `node
-  crates/server/tests/load.mjs <url> <n>` n at
-  once,
-  `node crates/server/tests/rejoin.mjs <url>` a seat joining again (after
-  its last `seq`, after an older one, afresh, on a second socket taking
-  the seat from the first). `uv run --script scripts/minimal_client.py <url>` plays
-  protocol §2's Python client against it.
-
 ## Running the fork
 
 The fork plays on `https://engine.krcg.org` (the server's network bots:

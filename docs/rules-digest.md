@@ -4471,8 +4471,8 @@ rules-qa batch.
 
 ### 23.6 Open at the source
 
-- **K44** Stealing the Edge after its holder burns it mid-action (advanced
-  rules `docs/_work/review.md`): RTR 19980623 (Tereza Rostas: "cannot be
+- **K44** Stealing the Edge after its holder burns it mid-action (the
+  advanced rules' review notes): RTR 19980623 (Tereza Rostas: "cannot be
   thwarted by burning the Edge") vs TOM 19951214-2 (no steal of an
   uncontrolled Edge); the owner leans to "the steal resolves with no effect"
   (2026-07-22). Reachable with Hand Intervention, Sabbat Threat.

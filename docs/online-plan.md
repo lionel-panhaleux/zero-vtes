@@ -42,46 +42,16 @@ was built so far need not be preserved.
 12. The Opus review of 2026-10-13 (contract, plan): every recommendation
     adopted.
 
-## Where things stand (audit, 2026-10-13)
+## The host
 
-- **Protocol** (`crates/protocol`): `Session` (advance / answer /
-  allocate / vote_all / undo / set_opportunities / replay), `Out`
-  (`decision` / `decided` / `over`, each with `events` and a full
-  `TableView`), `OptionView`, errors tagged by `error`. Decision number =
-  `engine.log.len()`, global: fit for a server.
-- **Single human**: `viewer` is the first human seat (session.rs:293);
-  every message carries its view, one `events` buffer, opportunities set
-  for all humans at once. A second human gets seat 0's view.
-- **Not `Send`**: `Agent` has no `Send` bound, `NetAgent` holds `Rc<Net>`.
-  `Engine` is `Clone`, globals are read-only `OnceLock`s, `Net` is plain
-  `Vec<f32>` (1.68 MB): an `Arc<Net>` shared by every game works.
-- **Panics**: ~500 `panic!`/`unreachable!`/`expect` sites; `crates/py`
-  already wraps steps in `catch_unwind(AssertUnwindSafe(..))`.
-- **Prose as data**: `window`, `phase`, minion/action `kind`, `strike`,
-  `markers` and every event are English strings; a client matches on
-  prose. `Logged.choice` is a Rust `Debug` string.
-- **Replay** = `{spec, log, choices}`; engine commit, bot model,
-  temperature and nudges are written by hand in `data/records/README.md`
-  ("the fork's build of that day"); undos are truncated away.
-- **Wire weight**: a full `TableView` on every message, bot steps
-  included: ~15–30 KB each (estimate), 10–20 MB a game.
-- **wasm shell**: camelCase and plain method names mixed; bot temperature
-  and nudges hard-coded there (`crates/wasm/src/lib.rs:20`). `smoke.mjs`
-  answers by list position, not `OptionView.index` (wrong once
-  opportunities filter the list).
-- **SC fork** (`../succubus-club`, `zero-vtes-engine`, 24 commits on
-  upstream `3099b59`, +5.1k lines): a self-contained `src/client/engine/`
-  plus hooks in 27 SC files (77 `GameType.Engine`/`isEngine` lines).
-  Ungated: the layout constants move (123c52d), the CentralBox scroll, the
-  texture-cache reset. `zvtes-wasm` is a `file:` link to this checkout
-  (breaks `npm ci` and SC's deploy). Precon fixes edit a file copied from
-  VDB. `EngineHost` is already all-Promise but pull-driven, no resync.
-- **frankfurt**: OVH VPS, 6 vCPU / 12 GB, near idle; hosts archon beta
-  and the forum (Discourse). pyinfra-deployed systemd units behind nginx +
-  certbot, sops secrets, Alloy → Loki/Prometheus, Postgres 17 with nightly
-  restic backups to Scaleway. Rust ships as a GitHub Actions release
-  asset, never built on the host. Free port e.g. 8040; UFW 22/80/443 only.
-
+frankfurt: an OVH VPS, 6 vCPU / 12 GB, shared with archon beta and the
+forum (Discourse); pyinfra-deployed systemd units behind nginx and
+certbot, sops secrets, Alloy to Loki and Prometheus, Postgres 17 with
+nightly restic backups to Scaleway, UFW 22/80/443 only. The engine's
+Rust ships as a GitHub Actions release asset, never built there
+(`deploy/deploy.py`, port 8040); the Succubus Club fork is built there,
+niced, and served as a static site at sc-bot.krcg.org
+(`deploy/sc_bot.py`).
 
 ## Architecture
 

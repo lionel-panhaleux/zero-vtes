@@ -1,9 +1,9 @@
 ---
 name: sc-change
 description: >
-  Change the Succubus Club (SC) fork or prepare a contribution to Thomas
-  Wajs's upstream SC: playtest fixes on the owner's play branch, re-cuts of
-  the upstream branch, small carve-out PRs, answers to reviews. Use for any
+  Change the Succubus Club (SC) fork, served on its own at sc-bot.krcg.org
+  (bots only; contributions to Thomas Wajs's upstream SC deferred, owner
+  2026-10-21): playtest fixes, its builds, answers to reviews. Use for any
   work in ../succubus-club, any SC pull request, or any question about how
   SC is structured or how Thomas works.
 ---
@@ -46,7 +46,8 @@ branches, PRs, recipes, traps) and update it as you learn.
    infer something the protocol could say, send the leak to Z-main
    for an engine-board line (CLAUDE.md "Between lines"), rather than
    hard-code it.
-7. **Guidance, not advantage** (protocol §8 and the owner's policy there):
+7. **Guidance, not advantage** (the owner's policy; protocol §8 is to
+   gain it, roadmap "Deferred by the owner"):
    the platform may hide what `opportunities` hides and help a player act,
    never remind them of what the engine leaves to the player. Explaining
    why options are missing (the must-hunt notice) is not a reminder.

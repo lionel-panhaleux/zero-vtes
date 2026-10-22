@@ -285,7 +285,7 @@ hazards, from the engine review of 2026-10-14):
 - Card-name literals in engine code: three sites with a reason (Mithraic,
   Anarch Convert, Life Boon) and the Blood Brother circle checks; any other
   name or printed number belongs in `cards/defs.rs`.
-- Conditions are read live, never snapshotted (§6.5, live conditions): no
+- Conditions are read live, never snapshotted (CLAUDE.md "Owner rules"): no
   test can see a snapshot that nothing changes yet.
 - Third-party intercept and stealth strips must be counted by
   `block_can_reach` (§6.6), or the host's opportunities filter hides a live

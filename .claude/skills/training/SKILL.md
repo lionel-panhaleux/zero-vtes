@@ -23,8 +23,8 @@ runs" (every run's command, numbers and lessons), `docs/boards/training.md`.
    quotes every flag); change one or two things, each with a reason and a
    baseline measured with `crates/policy/examples/waste.rs` (waste,
    cross-table, Wider View; the owner's records are the reference group)
-   and `examples/decks.rs` (per-deck strength). The owner decides the deck
-   mix, nudges and what to try. Write a "pN, prepared" note in DESIGN §11.2
+   and `crates/policy/examples/decks.rs` (per-deck strength). The owner
+   decides the deck mix, nudges and what to try. Write a "pN, prepared" note in DESIGN §11.2
    first: why, baseline numbers, settings. §11.2 is the run record, a
    standing page: once the run ends its note becomes one entry (the
    command, the numbers, what it settled), the preparation folded in. New code gets a pytest in
@@ -69,7 +69,8 @@ runs" (every run's command, numbers and lessons), `docs/boards/training.md`.
    the DESIGN note (the server records the weights' SHA-256 per game); keep
    the previous weights as `runs/served-prev-<date>-<run>.zvp`; the served
    profile (temperature, nudges) lives in `crates/policy/src/profiles.rs`
-   (`NETWORK`), which the server and `examples/humanset.rs` read.
+   (`NETWORK`), which the server and `crates/policy/examples/humanset.rs`
+   read.
 
 ## Taking a new engine
 
