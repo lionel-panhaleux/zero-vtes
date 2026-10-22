@@ -3,13 +3,13 @@
 [Succubus Club](https://github.com/thomasWajs/succubus-club) (SC) is Thomas
 Wajs's online VTES table. The fork (`../succubus-club`, remote `fork` =
 lionel-panhaleux/succubus-club) plays engine games against
-`engine.krcg.org`. Agreed with Thomas (owner, 2026-10-21): the fork goes
-out on its own as a separate platform on frankfurt, bots only for now:
-the bot mode and deck upload, the rest of SC removed (platforms board:
-"The fork served on its own"); upstream deferred (roadmap "Deferred by
-the owner"). This file is the log the `sc-change` skill reads and
-updates: how Thomas works, the open PRs' state, what we learned. Add to it
-whenever something reaches us from Thomas or a PR moves.
+`engine.krcg.org`. Agreed with Thomas (owner, 2026-10-21): the fork is
+its own platform, bots only for now, served at `https://sc-bot.krcg.org`
+(human-play.md "Running the fork"): the engine game and decks, the rest
+of SC removed; upstream deferred (roadmap "Deferred by the owner"). This
+file is the log the `sc-change` skill reads and updates: how Thomas
+works, the open PRs' state, what we learned. Add to it whenever
+something reaches us from Thomas or a PR moves.
 
 ## Thomas's working style (what we know)
 
@@ -66,7 +66,10 @@ The re-cut (`engine-game`) gives SC files hooks only: one `useEngineMode()`
 (`manualControlsEnabled`, `automaticCostPaymentEnabled`), one
 `<EngineCentral/>`; never `gameState.gameType == GameType.Engine` inline in
 SC files. The fork (`zero-vtes-engine`) tests `GameType.Engine` inline
-(about 25 places); a re-cut translates those tests into the hooks.
+(about 25 places); a re-cut translates those tests into the hooks. Its
+bots-only edition keeps SC's manual-play branches engine games no
+longer reach (free table, the non-engine side of those tests), so the
+fork stays close to upstream (owner, 2026-10-21).
 
 ## The dev server
 
@@ -96,7 +99,7 @@ checkout's `zero-vtes-engine` against `engine.krcg.org` (no
 
 | Branch | Where | What |
 |---|---|---|
-| `zero-vtes-engine` | fork (pushed 2026-10-21, public) | the owner's play branch and the separate platform's source, served by vite on :5188; every fix lands here first |
+| `zero-vtes-engine` | fork (public, its default branch) | the bots-only edition: the owner's play branch (vite on :5188) and the source of `sc-bot.krcg.org`; every fix lands here first |
 | `engine-game` | fork, PR #285 | the upstream re-cut, not followed since the agreement: 6 commits on `origin/dev` (game type + flags; server client; projection/driver; central box; table interaction; controls + menu) |
 
 Tags (local): `engine-game-pre-recut`, `recut-flat`, `engine-game-pre-dev`

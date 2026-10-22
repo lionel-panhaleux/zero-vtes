@@ -266,7 +266,12 @@ for history.
 
 ## Running the fork
 
-The fork plays on `https://engine.krcg.org` (the server's network bots:
+Served at `https://sc-bot.krcg.org`: the fork's `zero-vtes-engine`, the
+bots-only edition (the engine game, decks, preferences, About), built on
+frankfurt by `deploy/sc_bot.py` (`SC_COMMIT=<sha>`; Z-main deploys, on
+the owner's word).
+
+Locally, the fork plays on `https://engine.krcg.org` (the server's network bots:
 temperature 0.5 and the nudges their weights trained with,
 `zvtes_policy::profiles::NETWORK`):
 
@@ -292,8 +297,10 @@ log), `store/engine.ts`, `Engine*.vue` components (`central/`,
 `ui/ingame/EngineText.vue`, `rightColumn/EngineLog*.vue`; sc.md "The
 integration's shape"), and hooks in `types/state.ts` (`GameType`),
 `state/gameMutations.ts` (the gate), `state/setup.ts` (stop on reset),
-`gateway/savedGames.ts`, the table's objects, `MainMenu.vue`: inline
-`GameType.Engine` tests (the re-cut's are `useEngineMode()`).
+the table's objects, `MainMenu.vue`: inline `GameType.Engine` tests (the
+re-cut's are `useEngineMode()`). The bots-only edition removes the rest
+of SC: the lobby, rooms, chat, availability, TrainBot, Puppeteer, saved
+games, the SC server and Vercel functions, firebase, Ably and Sentry.
 
 ## Open questions (owner)
 

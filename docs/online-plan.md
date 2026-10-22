@@ -51,7 +51,7 @@ nightly restic backups to Scaleway, UFW 22/80/443 only. The engine's
 Rust ships as a GitHub Actions release asset, never built there
 (`deploy/deploy.py`, port 8040); the Succubus Club fork is built there,
 niced, and served as a static site at sc-bot.krcg.org
-(`deploy/sc_bot.py`).
+(`deploy/sc_bot.py`, server-setup's `spa` nginx site).
 
 ## Architecture
 
@@ -225,7 +225,8 @@ replaying it once (`--no-turns` skips that), cached in
 
 ## C. Succubus Club
 
-The fork is served as its own platform, bots only (platforms board);
+The fork is served as its own platform, bots only, at
+`https://sc-bot.krcg.org` (human-play.md "Running the fork");
 what follows is the shape of the deferred upstream PR (roadmap
 "Deferred by the owner"), the notice and the layout rules holding for
 the fork too.
@@ -273,7 +274,7 @@ throughout.
 2. A2–A7 (the host whole, data first, records, bots, the renderer) →
    A8 (contract tests).
 3. B1–B6 locally → B7 (deploy) → B8.
-4. The fork served as its own platform, bots only (platforms board);
-   owner games online.
+4. The fork served as its own platform, bots only, at
+   `https://sc-bot.krcg.org`; owner games online.
 5. E (video) → repo public.
 6. A10 → multi-human, later.

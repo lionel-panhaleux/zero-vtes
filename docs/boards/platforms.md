@@ -13,11 +13,11 @@ A shrinking list (CLAUDE.md "Harness"): one line an ask, its done-condition
 and the docs it changes; done is deleted; order is priority; the only
 state is `[doing: <session>]`; waiting on a person is a dated follow-up.
 Order (owner, 2026-10-21: agreed with Thomas, the fork deployed on its
-own as a separate platform, bots only for now): the fork served first,
-then what the community beta needs from it, then the fork's remaining
+own as a separate platform, bots only for now): what the community
+beta needs from the fork first, then the fork's remaining
 interface items, then other platforms.
 
-- **The fork served on its own**, on frankfurt beside `engine.krcg.org` (owner, 2026-10-21): only the bot mode and deck upload reachable, the rest of SC removed (human-vs-human play, the meeting room, …); a production build of `zero-vtes-engine` (pushed to the fork), deployed by Z-main on the owner's word (its deploy configuration the engine line's, sent to Z-main). Done when a tester plays a bot game at its public URL and nothing else is reachable. Docs: sc.md, human-play.md ("Running the fork"), online-plan.md (B).
+- **The Imbued in the fork** [doing: Z-play]: protocol 2.7.0 (the cards line's round 19, sent by Z-add 2026-10-22): the `incapacitated` region drawn (`SeatView.incapacitated`, the `incapacitated` event moving a minion between it and `ready`, `Zone::Incapacitated` in card moves), `imbued` minions, the `power` and `burn_imbued` actions, the six new purposes and `looked.zone` read from the protocol; decklists with Imbued crypt cards, Powers and Convictions accepted by the fork's deck import. Done when an Imbued deck plays a game on a local 2.7.0 server with the region shown and nothing inferred. Docs: sc.md (if the fork learns something of SC's deck import).
 - **The engine mode's notice checked**: in the fork, it says games are recorded two years, anonymous (as `docs/protocol.md` says), and where to send feedback. Done when it says all three. Docs: sc.md.
 - **The referendum and action panels inside the seat's board**: vote totals and "Played during the action" are cut off today. Done when both show whole at the fork's smallest supported size. Docs: none.
 - **"Report a problem" in engine games**: the `feedback {text}` command (protocol 1.2.0, live), its text tied to the game and the decision, and the community channel the notice names. Done when a report sent from the fork shows in `/admin/feedback`. Docs: sc.md.

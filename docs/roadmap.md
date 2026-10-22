@@ -23,25 +23,24 @@ that could go on two boards:
 
 The owner (2026-10-14): a working VTES bot online; bot + Succubus Club is
 good enough to beta test with players of the community.
+Testers play at `https://sc-bot.krcg.org`, the fork as its own platform,
+bots only (agreed with Thomas, owner 2026-10-21).
 
 What it still needs:
 
-1. **A way in for testers**: our own SC, the fork deployed as a separate
-   platform, bots only for now (agreed with Thomas, owner 2026-10-21;
-   platforms: The fork served on its own).
-2. **The best bot served**: each run measured against the served weights
+1. **The best bot served**: each run measured against the served weights
    and served if it beats them (training: its run's line).
-3. **The loop on testers' games**: promotion to `data/records`
+2. **The loop on testers' games**: promotion to `data/records`
    (training: Promotion as a script).
-4. **Feedback intake**: a "report a problem" from inside the game (the
+3. **Feedback intake**: a "report a problem" from inside the game (the
    protocol's `feedback`, stored with the record at its decision;
    platforms: "Report a problem"), plus one community channel the notice
    names (platforms: The engine mode's notice checked); the `intake`
    skill triages it.
-5. **Known rough edges fixed**: the panel overflow (platforms: The
+4. **Known rough edges fixed**: the panel overflow (platforms: The
    referendum and action panels); Sniper Rifle and strike-only prevention
    (cards).
-6. **What players asked for**: the cards their refused decks named
+5. **What players asked for**: the cards their refused decks named
    (`/admin/unsupported`) steering the next rounds (cards: Round 16).
 
 Not needed for the beta but in the same order: the first release tagged
