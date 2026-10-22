@@ -1173,7 +1173,9 @@ mod tests {
             let mut v = crate::view::Viewer::new(seat.map(SeatId));
             let told = v.event(&s.engine, &s.dealt, &fact);
             match told {
-                Some(zvtes_api::event::EventKind::Looked { seat: of, cards: c }) => {
+                Some(zvtes_api::event::EventKind::Looked {
+                    seat: of, cards: c, ..
+                }) => {
                     assert_eq!((seat, of), (Some(0), 1));
                     let ids: Vec<_> = cards
                         .iter()
@@ -1203,6 +1205,7 @@ mod tests {
                 viewer: SeatId(0),
                 seat: SeatId(1),
                 cards,
+                library: false,
             }));
         s.observe(true);
         assert!(matches!(s.undo(), Err(Refused::NoUndo)), "barred");

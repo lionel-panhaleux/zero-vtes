@@ -110,6 +110,7 @@ pub fn part(e: &Effect, names: &Names) -> Option<String> {
         K::Steal if d == Some("pool") => format!("take {n} pool"),
         K::Steal => format!("steal {n} blood"),
         K::Burn => match (on, d) {
+            (_, Some("conviction")) => format!("burn {n} conviction"),
             (Some(On::Card), _) => "burn it".into(),
             (_, Some("card")) => "burn the card".into(),
             _ => "burn the target".into(),
@@ -121,9 +122,8 @@ pub fn part(e: &Effect, names: &Names) -> Option<String> {
         K::Intercept => format!("+{n} intercept"),
         K::Strike if d == Some("commit") => "commit its strike".into(),
         K::Strike => format!("strike: {}", strike(e.strike.as_ref())),
-        K::Damage if d == Some("weapon_strike") => {
-            format!("a melee weapon's strike at +{n} damage")
-        }
+        K::Damage if d == Some("weapon_strike") => format!("a weapon's strike at +{n} damage"),
+        K::Damage if d == Some("opponent_strength") => "damage as the opponent's strength".into(),
         K::Damage if d == Some("environmental") => format!("{n} environmental damage"),
         K::Damage => format!("{n} damage"),
         K::Strength if d == Some("this_round") => format!("+{n} strength this round"),
@@ -215,6 +215,7 @@ pub fn part(e: &Effect, names: &Names) -> Option<String> {
         K::Bleed => format!("+{n} bleed"),
         K::Counters => match (d, on) {
             (Some("bank"), _) => format!("bank {n} pool"),
+            (Some("from_pool"), Some(On::Uncontrolled)) => format!("{n} pool to uncontrolled"),
             (Some("from_pool"), _) => format!("{n} pool to the card"),
             (Some("from_prey_pool"), _) => format!("{n} of prey's pool to the card"),
             _ if e.cost && e.x => "pay with X counters".into(),

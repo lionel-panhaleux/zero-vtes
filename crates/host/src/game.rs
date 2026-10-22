@@ -1223,13 +1223,13 @@ impl Game {
         fn minions(v: &TableView) -> HashMap<u32, &zvtes_api::view::MinionView> {
             v.seats
                 .iter()
-                .flat_map(|s| s.ready.iter().chain(&s.torpor))
+                .flat_map(|s| s.minions())
                 .filter_map(|m| Some((m.card.copy?, m)))
                 .collect()
         }
         // Each minion and card in play by its copy: contested, locked.
         fn locks(v: &TableView) -> HashMap<u32, (bool, bool)> {
-            let minions = v.seats.iter().flat_map(|s| s.ready.iter().chain(&s.torpor));
+            let minions = v.seats.iter().flat_map(|s| s.minions());
             // A card on a contested minion is out of play with it.
             let on = minions
                 .clone()
@@ -1552,7 +1552,7 @@ fn empty_view(viewer: Seat) -> TableView {
 fn tell_view(v: &mut TableView, known: &zvtes_text::Names) {
     v.combat.iter_mut().for_each(|c| tell_combat(c, known));
     for s in &mut v.seats {
-        for m in s.ready.iter_mut().chain(&mut s.torpor) {
+        for m in s.minions_mut() {
             tell_markers(&mut m.markers, known);
         }
     }
@@ -1675,7 +1675,7 @@ mod tests {
                 out.push((u.card, false));
                 out.extend(u.cards.iter().map(|c| (*c, false)));
             }
-            for m in s.ready.iter().chain(&s.torpor) {
+            for m in s.minions() {
                 out.push((m.card, false));
                 for c in &m.cards {
                     out.push((c.card, false));

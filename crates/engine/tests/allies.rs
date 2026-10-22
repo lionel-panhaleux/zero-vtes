@@ -134,7 +134,7 @@ fn anarch(nth: usize) -> u16 {
         .iter()
         .enumerate()
         .filter(|(i, c)| {
-            c.sect == zvtes::crypt::Sect::Anarch
+            c.sect == Some(zvtes::crypt::Sect::Anarch)
                 && c.title == Title::None
                 && cards::vampire(*i as u16).is_none()
         })
@@ -989,7 +989,7 @@ fn crypts_sons_is_employed_by_an_anarch_only() {
     let other = e.add_minion(SeatId(0), plain("Ventrue", 0), 4, false);
     assert_ne!(
         CRYPT[plain("Ventrue", 0) as usize].sect,
-        zvtes::crypt::Sect::Anarch
+        Some(zvtes::crypt::Sect::Anarch)
     );
     hand(&mut e, 0, &["Crypt's Sons"]);
     let req = expect(&mut e, SeatId(0), WindowLabel::MinionPhase);
@@ -1602,7 +1602,7 @@ fn anarch_with(tag: &str) -> u16 {
         .iter()
         .enumerate()
         .filter(|(i, c)| {
-            c.sect == zvtes::crypt::Sect::Anarch
+            c.sect == Some(zvtes::crypt::Sect::Anarch)
                 && c.disciplines.contains(&tag)
                 && c.title == Title::None
                 && c.capacity >= 4
@@ -2119,7 +2119,9 @@ fn powerbase_munich_never_sees_an_ally_playing_as_a_vampire() {
     let ind = (0..CRYPT.len() as u16)
         .find(|&c| {
             let v = &CRYPT[c as usize];
-            v.sect == Sect::Independent && v.title == Title::None && cards::vampire(c).is_none()
+            v.sect == Some(Sect::Independent)
+                && v.title == Title::None
+                && cards::vampire(c).is_none()
         })
         .expect("a plain Independent vampire");
     let ind = e.add_minion(SeatId(0), ind, 4, false);

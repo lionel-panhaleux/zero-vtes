@@ -1,6 +1,6 @@
-/* zvtes protocol 2.6.0 (docs/protocol.md): generated from
+/* zvtes protocol 2.7.0 (docs/protocol.md): generated from
  * crates/api/schema.json by scripts/gen_ts.py, do not edit. */
-export const PROTOCOL_VERSION = '2.6.0'
+export const PROTOCOL_VERSION = '2.7.0'
 
 /**
  * A command as sent: an optional client id, echoed by an `error` it
@@ -200,6 +200,8 @@ export type ActionKind =
     | 'card'
     | 'ability'
     | 'red_list_hunt'
+    | 'power'
+    | 'burn_imbued'
     | 'unknown'
 
 export type ActionOutcome = 'succeeds' | 'blocked' | 'fails' | 'fizzles' | 'ousted' | 'ends' | 'unknown'
@@ -720,6 +722,11 @@ export type Event = {
         cards: Card[]
         kind: 'looked'
         seat: number
+        /**
+         * `library`: the top of the looking seat's own library, top first
+         * (Anna "Dictatrix11" Suljic); absent, the hand.
+         */
+        zone?: Zone | null
     }
     | {
         card: Card
@@ -835,6 +842,11 @@ export type Event = {
         /** Goes to torpor (true) or leaves it. */
         enters: boolean
         kind: 'torpor'
+        minion: number
+    }
+    | {
+        enters: boolean
+        kind: 'incapacitated'
         minion: number
     }
     | {
@@ -989,7 +1001,7 @@ export type MarkerKind =
     | 'out_of_play'
     | 'unknown'
 
-export type MinionKind = 'vampire' | 'ally' | 'token' | 'created' | 'unknown'
+export type MinionKind = 'vampire' | 'ally' | 'token' | 'created' | 'imbued' | 'unknown'
 
 /** A minion: named by its card's copy everywhere (options, events). */
 export type MinionView = {
@@ -1295,6 +1307,12 @@ export type Purpose =
     | 'buy_title'
     | 'move_for_blood'
     | 'redraw'
+    | 'gain_conviction'
+    | 'burn_convictions'
+    | 'avenge_imbued'
+    | 'name_conviction'
+    | 'power_search'
+    | 'may_cancel_combat'
     | 'unknown'
 
 export type Range = 'close' | 'long' | 'unknown'
@@ -1354,6 +1372,11 @@ export type SeatView = {
     hand: Card[]
     /** Cards in play the seat controls on no minion. */
     in_play: InPlayView[]
+    /**
+     * Imbued with no life, controlled, not ready (rulebook "Appendix:
+     * Imbued Rules" 5).
+     */
+    incapacitated?: MinionView[]
     /** Top last. */
     library: Card[]
     /** Cards the seat is playing, not resolved yet. */
@@ -1659,6 +1682,7 @@ export type Zone =
     | 'limbo'
     | 'stored'
     | 'training'
+    | 'incapacitated'
     | 'unknown'
 
 export type ZoneRef = {

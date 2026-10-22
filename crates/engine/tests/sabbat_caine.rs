@@ -412,7 +412,8 @@ fn fiendish_tongue_bleeds_and_unlocks_a_tzimisce_later() {
     let mut e = game(3);
     let lawbringer = e.add_minion(SeatId(0), card(LAWBRINGER), 4, false);
     e.add_minion(SeatId(0), plain("Brujah", 0), 4, false);
-    let anarch = vampire(|c| c.sect == Sect::Anarch && c.capacity >= 4 && c.title == Title::None);
+    let anarch =
+        vampire(|c| c.sect == Some(Sect::Anarch) && c.capacity >= 4 && c.title == Title::None);
     let z = e.add_minion(SeatId(1), anarch, 4, false);
     hand(&mut e, 0, &["Fiendish Tongue"]);
     pick(&mut e, play(0, 0, lawbringer));
@@ -648,7 +649,8 @@ fn wall_of_filth_prevents_two_damage_once() {
 /// seat 1 Yawp Court with Lawbringer (Sabbat) to fight it.
 fn yawp_table(actor_blood: u8) -> (Engine, MinionId, MinionId, CardId) {
     let mut e = game(3);
-    let anarch = vampire(|c| c.sect == Sect::Anarch && c.capacity >= 5 && c.title == Title::None);
+    let anarch =
+        vampire(|c| c.sect == Some(Sect::Anarch) && c.capacity >= 5 && c.title == Title::None);
     let actor = e.add_minion(SeatId(0), anarch, actor_blood, false);
     e.add_minion(SeatId(0), plain("Brujah", 0), 4, false);
     let sabbat = e.add_minion(SeatId(1), card(PRZEMYSLAW), 4, false);
@@ -731,8 +733,9 @@ fn yawp_court_damage_comes_after_the_combat_continues() {
 #[test]
 fn yawp_court_ends_the_action_of_a_vampire_back_from_torpor() {
     let mut e = game(3);
-    let nosferatu =
-        vampire(|c| c.clan == "Nosferatu" && c.sect != Sect::Sabbat && c.title == Title::None);
+    let nosferatu = vampire(|c| {
+        c.clan == "Nosferatu" && c.sect != Some(Sect::Sabbat) && c.title == Title::None
+    });
     let actor = e.add_minion(SeatId(0), nosferatu, 1, false);
     e.add_minion(SeatId(0), plain("Brujah", 0), 4, false);
     let sabbat = e.add_minion(SeatId(1), card(PRZEMYSLAW), 4, false);

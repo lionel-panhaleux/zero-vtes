@@ -83,6 +83,10 @@ pub enum EventKind {
     Looked {
         seat: Seat,
         cards: Vec<Card>,
+        /// `library`: the top of the looking seat's own library, top first
+        /// (Anna "Dictatrix11" Suljic); absent, the hand.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        zone: Option<crate::ids::Zone>,
     },
     /// A card played resolved: what its mode does (the options' curated
     /// vocabulary, docs/protocol.md §7, `on` as it applies).
@@ -222,6 +226,11 @@ pub enum EventKind {
     Torpor {
         minion: CopyId,
         /// Goes to torpor (true) or leaves it.
+        enters: bool,
+    },
+    /// An imbued enters the incapacitated region (true) or leaves it.
+    Incapacitated {
+        minion: CopyId,
         enters: bool,
     },
     Ousted {

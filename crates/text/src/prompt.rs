@@ -186,6 +186,10 @@ impl Prompt<'_> {
                         "Choose a ready minion of yours to take {} unpreventable damage",
                         a.n?
                     ),
+                    "damage_imbued" => format!(
+                        "Choose another ready imbued of yours to take {} unpreventable damage",
+                        a.n?
+                    ),
                     _ => return None,
                 }
             }
@@ -244,6 +248,21 @@ impl Prompt<'_> {
             P::AllySearch => format!(
                 "{}: you can search for a mage ally to put in play",
                 self.minion()?
+            ),
+            P::GainConviction => format!("{}: you can give them a conviction", self.minion()?),
+            P::BurnConvictions => format!("{}: which conviction does it burn?", self.minion()?),
+            P::NameConviction => {
+                format!("{}: which conviction pays for the action?", self.minion()?)
+            }
+            P::MayCancelCombat => format!("{}: you can cancel the combat", self.minion()?),
+            P::PowerSearch => format!(
+                "{}: you can search for a power to put on them",
+                self.minion()?
+            ),
+            P::AvengeImbued => format!(
+                "{}: you can burn a conviction to inflict 1 damage on {}",
+                self.minion()?,
+                self.to()?
             ),
             P::Redraw => format!(
                 "{}: you can put {} on the bottom of your library and draw a new card",
@@ -651,6 +670,7 @@ mod tests {
                 Some("oldest_gain_blood"),
                 Some("burn_crowded_clan"),
                 Some("damage"),
+                Some("damage_imbued"),
             ],
             Purpose::ChooseForCard => &[
                 Some("unblockable_non_bleed"),
@@ -761,6 +781,12 @@ mod tests {
         StealUpTo,
         MoveBloodUpTo,
         AllySearch,
+        GainConviction,
+        BurnConvictions,
+        AvengeImbued,
+        NameConviction,
+        PowerSearch,
+        MayCancelCombat,
         RemoveUncontrolled,
         ChooseForCard,
         ExchangeAnarch,

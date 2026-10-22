@@ -73,7 +73,7 @@ fn of_capacity(cap: u8, sect: Option<Sect>, nth: usize) -> u16 {
         .enumerate()
         .filter(|(i, c)| {
             c.capacity == cap
-                && sect.is_none_or(|s| c.sect == s)
+                && sect.is_none_or(|s| c.sect == Some(s))
                 && c.title == zvtes::crypt::Title::None
                 && cards::vampire(*i as u16).is_none()
         })

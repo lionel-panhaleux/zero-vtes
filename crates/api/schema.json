@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "title": "zvtes protocol",
-  "version": "2.6.0",
+  "version": "2.7.0",
   "$defs": {
     "About": {
       "description": "What a choice is about (`Decision::about`): each field given where\nthe purpose (or the terms) has it (docs/protocol.md §5).",
@@ -127,6 +127,16 @@
           "description": "Enter combat with a Red List minion.",
           "type": "string",
           "const": "red_list_hunt"
+        },
+        {
+          "description": "An imbued gets a power.",
+          "type": "string",
+          "const": "power"
+        },
+        {
+          "description": "Burn an incapacitated imbued.",
+          "type": "string",
+          "const": "burn_imbued"
         },
         {
           "description": "A value this reader does not know.",
@@ -2109,6 +2119,17 @@
               "format": "uint8",
               "maximum": 255,
               "minimum": 0
+            },
+            "zone": {
+              "description": "`library`: the top of the looking seat's own library, top first\n(Anna \"Dictatrix11\" Suljic); absent, the hand.",
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/Zone"
+                },
+                {
+                  "type": "null"
+                }
+              ]
             }
           },
           "required": [
@@ -2643,6 +2664,29 @@
             "kind": {
               "type": "string",
               "const": "torpor"
+            },
+            "minion": {
+              "type": "integer",
+              "format": "uint32",
+              "minimum": 0
+            }
+          },
+          "required": [
+            "kind",
+            "minion",
+            "enters"
+          ]
+        },
+        {
+          "description": "An imbued enters the incapacitated region (true) or leaves it.",
+          "type": "object",
+          "properties": {
+            "enters": {
+              "type": "boolean"
+            },
+            "kind": {
+              "type": "string",
+              "const": "incapacitated"
             },
             "minion": {
               "type": "integer",
@@ -3554,6 +3598,11 @@
           "description": "A library card as a vampire.",
           "type": "string",
           "const": "created"
+        },
+        {
+          "description": "A crypt card as a mortal ally (rulebook \"Appendix: Imbued Rules\").",
+          "type": "string",
+          "const": "imbued"
         },
         {
           "description": "A value this reader does not know.",
@@ -4684,6 +4733,36 @@
           "const": "redraw"
         },
         {
+          "description": "Imbued `minion` gains a conviction card from `seat`'s hand or ash\nheap (its library too, shuffled after, when entering play):\n`TakeFrom`, or pass.",
+          "type": "string",
+          "const": "gain_conviction"
+        },
+        {
+          "description": "\"[n CONVICTION]\": imbued `minion` burns its conviction cards one\nat a time, `seat` choosing which (`BurnInPlay`) when they differ.",
+          "type": "string",
+          "const": "burn_convictions"
+        },
+        {
+          "description": "An incapacitated imbued burned: ready imbued `minion` may burn a\nconviction (`BurnInPlay`) for 1 unpreventable damage to `to`.",
+          "type": "string",
+          "const": "avenge_imbued"
+        },
+        {
+          "description": "Acting imbued `minion`'s action \"costs 1 conviction\": `seat`\nnames which (`BurnInPlay`), burned at resolution.",
+          "type": "string",
+          "const": "name_conviction"
+        },
+        {
+          "description": "Imbued `minion` entering play: a power requiring its virtue from\n`seat`'s library or hand put on it (`TakeFrom`), or pass; the\nlibrary shuffled either way.",
+          "type": "string",
+          "const": "power_search"
+        },
+        {
+          "description": "Foresee: `seat` may cancel the combat imbued `minion` is in\n(`ContinueAction`), the action continuing as if unblocked when it\nblocked; or pass.",
+          "type": "string",
+          "const": "may_cancel_combat"
+        },
+        {
           "description": "A value this reader does not know.",
           "type": "string",
           "const": "unknown"
@@ -4940,6 +5019,13 @@
           "type": "array",
           "items": {
             "$ref": "#/$defs/InPlayView"
+          }
+        },
+        "incapacitated": {
+          "description": "Imbued with no life, controlled, not ready (rulebook \"Appendix:\nImbued Rules\" 5).",
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/MinionView"
           }
         },
         "library": {
@@ -6008,6 +6094,11 @@
           "description": "In the uncontrolled region with training counters (Web of\nKnives Recruit), out of play: the view's `training`.",
           "type": "string",
           "const": "training"
+        },
+        {
+          "description": "The incapacitated region: imbued with no life, controlled, not\nready (rulebook \"Appendix: Imbued Rules\" 5).",
+          "type": "string",
+          "const": "incapacitated"
         },
         {
           "description": "A value this reader does not know.",

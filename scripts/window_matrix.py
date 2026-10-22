@@ -1179,6 +1179,47 @@ ADDED_BATCHES = [
         201231: "Samson (G2)",
         201301: "Smudge the Ignored (G1)",
     },
+    # Round 19 (slice 16ae): the Imbued, their powers and convictions (owner,
+    # 2026-10-14: in "every card"; 2026-10-21: "let's do the imbued").
+    {
+        100007: "Abjure",
+        100322: "Champion",
+        100551: "Discern",
+        100575: "Donate",
+        100764: "Foresee",
+        100919: "Hide",
+        100953: "Illuminate",
+        100991: "Inspire",
+        101492: "Project",
+        101557: "React with Conviction",
+        101592: "Rejuvenate",
+        101611: "Respire",
+        101705: "Second Sight",
+        101752: "Shame",
+        101886: "Strike with Conviction",
+        101908: "Surge",
+        102120: "Vigilance",
+        200102: "Anna \"Dictatrix11\" Suljic (G4)",
+        200181: "Béatrice \"Oracle171\" Tremblay (G4)",
+        200397: "Earl \"Shaka74\" Deams (G4)",
+        200432: "Erick \"Shophet125\" Franco (G4)",
+        200479: "François \"Warden\" Loehr (G4)",
+        200632: "Inez \"Nurse216\" Villagrande (G4)",
+        200656: "Jack \"Hannibal137\" Harmon (G4)",
+        200689: "Jennie \"Cassie247\" Orne (G4)",
+        200690: "Jennifer \"Flame61\" Vidisania (G4)",
+        200715: "John \"Cop90\" O'Malley (G4)",
+        200825: "Leaf \"Potter116\" Pankowski (G4)",
+        200846: "Liz \"Ticket312\" Thornton (G4)",
+        200886: "Lupe \"Cabbie22\" Droin (G4)",
+        200907: "Maman Boumba (G4)",
+        200934: "Marion \"Teacher193\" Perks (G4)",
+        201103: "Paul \"Sixofswords29\" Moreton (G4)",
+        201108: "Pedro Cortez (G4)",
+        201115: "Peter \"Outback295\" Rophail (G4)",
+        201386: "Travis \"Traveler72\" Miller (G4)",
+        201481: "Xian \"DziDzat155\" Quan (G4)",
+    },
 ]
 ADDED_CARDS = {k: v for batch in ADDED_BATCHES for k, v in batch.items()}
 
@@ -1603,6 +1644,13 @@ def modes_for(card):
     if re.search(IN_PLAY_ACTION, re.sub(r"[^.]*(announces?\b|burns a minion)[^.]*\.", "", text), re.I):
         flags.append("in_play_action")
 
+    # A power is gained as a +1 stealth action, a conviction played onto an
+    # imbued in the unlock phase (rulebook "Appendix: Imbued Rules" 2, 3):
+    # the icons in their text time their abilities, not their play.
+    if "Power" in types:
+        return [(card.get("disciplines", []), ["ACTION_DECLARE_POWER"], [])]
+    if "Conviction" in types:
+        return [([], ["UNLOCK_CONVICTION"], [])]
     out_of_turn = "out_of_turn" in flags
     if "Master" in types and not out_of_turn:
         wins.append("MASTER_PHASE")
@@ -1713,7 +1761,7 @@ def rows_for(cards):
     for card in sorted(cards, key=lambda c: c.get("name", "")):
         if not in_pool(card):
             continue
-        if "Vampire" in card.get("types", []):
+        if {"Vampire", "Imbued"} & set(card.get("types", [])):
             continue
         in_precon = any(
             p.split(":")[0] in codes and re.match(r"^P", p.split(":", 1)[1])

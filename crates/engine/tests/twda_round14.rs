@@ -154,7 +154,7 @@ fn use_vamp(e: &mut Engine, m: MinionId, ability: u8) {
 /// The `nth` textless untitled vampire of `sect` with capacity in `caps`.
 fn of_sect(sect: Sect, caps: std::ops::RangeInclusive<u8>, nth: usize) -> u16 {
     textless(
-        |c| c.sect == sect && c.title == Title::None && caps.contains(&c.capacity),
+        |c| c.sect == Some(sect) && c.title == Title::None && caps.contains(&c.capacity),
         nth,
     )
 }

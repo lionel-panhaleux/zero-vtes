@@ -82,7 +82,7 @@ fn sabbat() -> u16 {
         .iter()
         .enumerate()
         .position(|(i, c)| {
-            c.sect == zvtes::crypt::Sect::Sabbat
+            c.sect == Some(zvtes::crypt::Sect::Sabbat)
                 && (4..=7).contains(&c.capacity)
                 && zvtes::cards::vampire(i as u16).is_none()
         })
@@ -1361,7 +1361,7 @@ fn fee_stake_perth_titles_an_anarch_and_its_burn_weakens_other_titles() {
     let mut e = game(3);
     let t = e.add_minion(
         SeatId(0),
-        pick_crypt(&|c| c.sect == Sect::Anarch && c.capacity >= 5 && c.title == Title::None),
+        pick_crypt(&|c| c.sect == Some(Sect::Anarch) && c.capacity >= 5 && c.title == Title::None),
         4,
         false,
     );

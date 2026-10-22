@@ -100,7 +100,7 @@ fn with_disc(disc: &str, sect: Option<Sect>, nth: usize) -> u16 {
         .iter()
         .enumerate()
         .filter(|(i, c)| {
-            sect.is_none_or(|s| c.sect == s)
+            sect.is_none_or(|s| c.sect == Some(s))
                 && (disc.is_empty() || c.disciplines.contains(&disc))
                 && c.title == Title::None
                 && c.capacity >= 4
@@ -241,7 +241,7 @@ fn banu_haqim_justicar_rivals_kasim_bayar() {
     let b = e.add_minion(
         SeatId(0),
         textless(
-            |c| c.clan == "Banu Haqim" && c.sect == Sect::Camarilla && c.title == Title::None,
+            |c| c.clan == "Banu Haqim" && c.sect == Some(Sect::Camarilla) && c.title == Title::None,
             0,
         ),
         4,
@@ -271,7 +271,7 @@ fn lasombra_justicar_titles_a_ready_camarilla_lasombra() {
     let l = e.add_minion(
         SeatId(0),
         textless(
-            |c| c.clan == "Lasombra" && c.sect == Sect::Camarilla && c.title == Title::None,
+            |c| c.clan == "Lasombra" && c.sect == Some(Sect::Camarilla) && c.title == Title::None,
             0,
         ),
         4,
@@ -280,7 +280,7 @@ fn lasombra_justicar_titles_a_ready_camarilla_lasombra() {
     let sabbat = e.add_minion(
         SeatId(0),
         textless(
-            |c| c.clan == "Lasombra" && c.sect == Sect::Sabbat && c.title == Title::None,
+            |c| c.clan == "Lasombra" && c.sect == Some(Sect::Sabbat) && c.title == Title::None,
             0,
         ),
         4,
@@ -979,7 +979,10 @@ fn joao_bile_blocks_no_titled_vampire_and_embraces_quietly() {
         let mut e = game(2);
         let j = e.add_minion(SeatId(1), find_card("João Bilé"), 5, false);
         let pick_a = if titled {
-            textless(|c| c.title != Title::None && c.sect == Sect::Camarilla, 0)
+            textless(
+                |c| c.title != Title::None && c.sect == Some(Sect::Camarilla),
+                0,
+            )
         } else {
             plain("Brujah", 0)
         };
@@ -1160,14 +1163,16 @@ fn calebros_loses_his_title_to_an_older_camarilla_vampire() {
     let mut e = game(3);
     let camarilla = |min: u8, max: u8| {
         move |c: &zvtes::crypt::CryptCard| {
-            c.sect == Sect::Camarilla && c.title == Title::None && (min..=max).contains(&c.capacity)
+            c.sect == Some(Sect::Camarilla)
+                && c.title == Title::None
+                && (min..=max).contains(&c.capacity)
         }
     };
     let older = e.add_minion(SeatId(0), textless(camarilla(6, 11), 0), 6, false);
     let younger = e.add_minion(SeatId(0), textless(camarilla(1, 5), 0), 4, false);
     let sabbat = e.add_minion(
         SeatId(0),
-        textless(|c| c.sect == Sect::Sabbat && c.capacity >= 6, 0),
+        textless(|c| c.sect == Some(Sect::Sabbat) && c.capacity >= 6, 0),
         6,
         false,
     );
@@ -1899,7 +1904,7 @@ fn banu_haqim_justicar_never_contests_its_own_kasim() {
     let b = e.add_minion(
         SeatId(0),
         textless(
-            |c| c.clan == "Banu Haqim" && c.sect == Sect::Camarilla && c.title == Title::None,
+            |c| c.clan == "Banu Haqim" && c.sect == Some(Sect::Camarilla) && c.title == Title::None,
             0,
         ),
         4,
@@ -2028,7 +2033,7 @@ fn lasombra_justicar_needs_a_ready_camarilla_lasombra() {
     e.add_minion(
         SeatId(1),
         textless(
-            |c| c.clan == "Lasombra" && c.sect == Sect::Camarilla && c.title == Title::None,
+            |c| c.clan == "Lasombra" && c.sect == Some(Sect::Camarilla) && c.title == Title::None,
             0,
         ),
         4,

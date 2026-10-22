@@ -350,12 +350,15 @@ pub struct Reveal {
 
 /// A Methuselah's hand looked at by another (SchreckNET, Vaticination):
 /// its cards as they stood (LIBRARY indices), for the viewer alone; the
-/// look itself ends with the action (`GameState::peeks`).
+/// look itself ends with the action (`GameState::peeks`). `library`: the
+/// top of the viewer's own library, top first (Anna "Dictatrix11"
+/// Suljic).
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Look {
     pub viewer: SeatId,
     pub seat: SeatId,
     pub cards: Vec<u16>,
+    pub library: bool,
 }
 
 /// A seat an engine before rules-qa 82.1 asked again after a block attempt
@@ -428,6 +431,27 @@ impl Engine {
                 viewer,
                 seat,
                 cards,
+                library: false,
+            }));
+        }
+    }
+
+    /// `seat` looks at the top `n` cards of its library, noted for a
+    /// narrator to tell it alone.
+    pub(crate) fn look_library_top(&mut self, seat: SeatId, n: u8) {
+        if self.notes.is_some() {
+            let cards = self.state.seats[seat.index()]
+                .library
+                .iter()
+                .rev()
+                .take(n as usize)
+                .copied()
+                .collect();
+            self.push_note(crate::notes::Note::Look(Look {
+                viewer: seat,
+                seat,
+                cards,
+                library: true,
             }));
         }
     }
@@ -570,13 +594,18 @@ impl Engine {
         e
     }
 
-    /// Test fixture: put the vampire `card` (a CRYPT index) into play for
+    /// Test fixture: put the vampire (or imbued) `card`, a CRYPT index, into play for
     /// `owner`, ready and unlocked (or in torpor), with `blood`. Contests
     /// are *not* entered — use [`Engine::stage_contests`] to stage one.
     pub fn add_minion(&mut self, owner: SeatId, card: u16, blood: u8, in_torpor: bool) -> MinionId {
+        let kind = if crate::crypt::CRYPT[card as usize].imbued {
+            MinionKind::Imbued(card)
+        } else {
+            MinionKind::Vampire(card)
+        };
         self.state.minions.push(Minion {
             in_torpor,
-            ..Minion::new(owner, MinionKind::Vampire(card), blood)
+            ..Minion::new(owner, kind, blood)
         });
         MinionId(self.state.minions.len() as u32 - 1)
     }
@@ -594,6 +623,12 @@ impl Engine {
         let m = self.recruit_ally(owner, card, crate::copies::CopyId::NONE, mode);
         self.state.minions[m.index()].recruited = false;
         m
+    }
+
+    /// Test fixture: `n` unpreventable damage to `m` outside combat, with
+    /// what it sets off.
+    pub fn damage(&mut self, m: MinionId, n: u8) {
+        self.damage_out_of_combat(m, n, false);
     }
 
     /// Test fixture: burn a minion, with everything its burning sets off.
@@ -1380,6 +1415,7 @@ impl Engine {
     /// Methuselah's mandatory effects in their chosen order (each copy of
     /// Anarch Revolt, whoever controls it, spec §1.15), then the others'.
     pub(crate) fn start_unlock_effects(&mut self) {
+        self.state.unlock_phase = true;
         let s = self.state.active;
         for seat in &mut self.state.seats {
             seat.burn_option_used = false;
@@ -1686,8 +1722,18 @@ impl Engine {
         }
         match drawn {
             Some((card, copy)) if crate::crypt::CRYPT[card as usize].capacity < cap => {
-                let capacity = crate::crypt::CRYPT[card as usize].capacity;
+                // An imbued gets no life: incapacitated at once (rulebook
+                // "Appendix: Imbued Rules", card rulings).
+                let imbued = crate::crypt::CRYPT[card as usize].imbued;
+                let capacity = if imbued {
+                    0
+                } else {
+                    crate::crypt::CRYPT[card as usize].capacity
+                };
                 let v = self.add_minion(seat, card, capacity, false);
+                if imbued {
+                    self.state.minions[v.index()].incapacitated = true;
+                }
                 self.state.minions[v.index()].copy = Untracked(copy);
                 self.state.set_host(g, v);
                 // Put in play: its entry effects as any (Gran Madre di Dio,
@@ -1710,8 +1756,45 @@ impl Engine {
         }
     }
 
+    /// An ally with no life left: burned; an imbued incapacitated instead
+    /// (rulebook "Appendix: Imbued Rules" 1, 5).
+    pub(crate) fn lifeless(&mut self, m: MinionId) {
+        if self.state.minions[m.index()].is_imbued() {
+            self.incapacitate(&[m]);
+        } else {
+            self.burn_minion(m);
+        }
+    }
+
+    /// Imbued to the incapacitated region, their life gone (rulebook
+    /// "Appendix: Imbued Rules" 5).
+    pub(crate) fn incapacitate(&mut self, ms: &[MinionId]) {
+        let ms: Vec<MinionId> = ms
+            .iter()
+            .copied()
+            .filter(|&m| self.state.minions[m.index()].ready())
+            .collect();
+        self.about_to_leave_ready(&ms);
+        for &m in &ms {
+            self.state.minions[m.index()].incapacitated = true;
+        }
+        self.leave_riders(Hook::HostIncapacitated, &ms);
+    }
+
+    /// Imbued `m` leaves the incapacitated region, gaining 1 life up to its
+    /// starting life (rulebook "Appendix: Imbued Rules" 5).
+    pub(crate) fn recover(&mut self, m: MinionId) {
+        let life = self.state.ally_body(m).map_or(1, |b| b.life);
+        let v = &mut self.state.minions[m.index()];
+        if v.present() && v.incapacitated {
+            v.incapacitated = false;
+            v.blood = (v.blood + 1).min(life.max(v.blood));
+        }
+    }
+
     /// Minions go to torpor, their riders (Guardian Angel, Fame) at once
-    /// (rules-qa 6.4); an ally is burned instead (advanced rules 5.3.3).
+    /// (rules-qa 6.4); an ally is burned instead (advanced rules 5.3.3), an
+    /// imbued incapacitated (rules-qa 87.2).
     pub(crate) fn minions_to_torpor(&mut self, ms: &[MinionId]) {
         // Who went to torpor during the combat under way (Yawp Court: out of
         // it again at once, still not ready at its end, LSJ 20090325-1).
@@ -1730,7 +1813,7 @@ impl Engine {
             .iter()
             .partition(|m| self.state.minions[m.index()].is_ally());
         for m in allies {
-            self.burn_minion(m);
+            self.lifeless(m);
         }
         let ms = &ms[..];
         self.titled_leaving(ms);
@@ -2657,6 +2740,7 @@ impl Engine {
             m.political_this_turn = false;
             m.expelled = false;
             m.hunting_ground_fed = false;
+            m.conviction_played = false;
             m.hunted = false;
             m.announced_action = false;
             m.acted.clear();
@@ -2856,8 +2940,9 @@ mod tests {
 
     #[test]
     fn crypt_data_is_complete() {
-        // The 200 V5 vampires, then the owner's legacy additions.
-        assert_eq!(CRYPT.len(), 701);
+        // The 200 V5 vampires, then the owner's legacy additions (the
+        // imbued last).
+        assert_eq!(CRYPT.len(), 721);
         assert_eq!(PRECONS.len(), 14);
         for (name, list) in PRECONS.iter() {
             let n: u32 = list.iter().map(|&(_, k)| k as u32).sum();
@@ -2865,13 +2950,13 @@ mod tests {
         }
         let horst = &CRYPT[find_card("Horst von Brühl") as usize];
         assert_eq!(horst.title, Title::Prince("Mannheim"));
-        assert_eq!(horst.sect, Sect::Camarilla);
+        assert_eq!(horst.sect, Some(Sect::Camarilla));
         let aline = &CRYPT[find_card("Aline Gädeke") as usize];
         assert_eq!(aline.title, Title::Baron("Mannheim"));
-        assert_eq!(aline.sect, Sect::Anarch);
+        assert_eq!(aline.sect, Some(Sect::Anarch));
         let hartmut = &CRYPT[find_card("Hartmut Stover") as usize];
         assert_eq!(hartmut.title, Title::Archbishop("Berlin"));
-        assert_eq!(hartmut.sect, Sect::Sabbat);
+        assert_eq!(hartmut.sect, Some(Sect::Sabbat));
         let stanislava = &CRYPT[find_card("Stanislava") as usize];
         assert_eq!(stanislava.title, Title::InnerCircle("Gangrel"));
         let xaviar = &CRYPT[find_card("Xaviar") as usize];

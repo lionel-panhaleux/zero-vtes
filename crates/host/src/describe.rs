@@ -179,7 +179,7 @@ impl<N: Names> Ctx<'_, N> {
             // From a card in play; from the ash heap, no card (the key's
             // `zone` says it).
             from: stored
-                .filter(|&s| s != zvtes::state::ASH_PLAY)
+                .filter(|&s| !zvtes::state::from_ash(s))
                 .map(|s| self.card(s)),
         }
     }
@@ -527,7 +527,7 @@ fn asked(x: &Ctx<impl Names>, i: Interrupt, choice: &Choice) -> Vec<Effect> {
             },
             P::BurnOfCrowdedClan => chosen(EffectKind::Burn),
             P::OldestHuntingGround(_) => n(1, chosen(EffectKind::Blood)),
-            P::Damage(d) => n(d as i32, chosen(EffectKind::Damage)),
+            P::Damage(d) | P::DamageImbued { n: d, .. } => n(d as i32, chosen(EffectKind::Damage)),
         }],
         // Ashur Tablets: to the hand, then into the library.
         (Interrupt::AshurPicks { to_library, .. }, Choice::FindCard(c)) => vec![Effect {
@@ -1105,6 +1105,11 @@ pub fn about(e: &Engine, req: &DecisionRequest, names: &impl Names) -> Option<Ab
             | I::CorruptionOwner { minion, .. }
             | I::DisciplineSearch { minion, .. }
             | I::AllySearch { minion, .. }
+            | I::GainConviction { minion, .. }
+            | I::BurnConvictions { minion, .. }
+            | I::NameConviction { minion, .. }
+            | I::PowerSearch { minion, .. }
+            | I::MayCancelCombat { minion, .. }
             | I::StealForCorruption { minion, .. }
             | I::ChooseCircle { minion, .. }
             | I::BaseSearch { minion, .. }
@@ -1131,6 +1136,7 @@ pub fn about(e: &Engine, req: &DecisionRequest, names: &impl Names) -> Option<Ab
                     P::OldestHuntingGround(_) => ("oldest_gain_blood", None, None, None),
                     P::BurnOfCrowdedClan => ("burn_crowded_clan", None, None, None),
                     P::Damage(d) => ("damage", None, None, Some(d)),
+                    P::DamageImbued { n: d, .. } => ("damage_imbued", None, None, Some(d)),
                 };
                 About {
                     seat: Some(of.0),
@@ -1199,6 +1205,11 @@ pub fn about(e: &Engine, req: &DecisionRequest, names: &impl Names) -> Option<Ab
             I::PurgePick { of, host, .. } => About {
                 seat: Some(of.0),
                 minion: m(host),
+                ..a()
+            },
+            I::AvengeImbued { imbued, acting, .. } => About {
+                minion: m(imbued),
+                to: m(acting),
                 ..a()
             },
             I::StealUpTo { from, to, max, .. } | I::MoveBloodUpTo { from, to, max, .. } => About {
@@ -1721,8 +1732,8 @@ pub fn key(e: &Engine, req: &DecisionRequest, choice: &Choice, names: &impl Name
             k.card = Some(r);
             let (played, from) = e.virtual_hand(req.seat)[card as usize];
             k.mode = Some(mode(played, m));
-            // Spiritual Guidance: played from the ash heap as if from hand.
-            if from == Some(zvtes::state::ASH_PLAY) {
+            // Spiritual Guidance, a conviction: played from the ash heap.
+            if from.is_some_and(zvtes::state::from_ash) {
                 k.zone = Some(ZoneRef {
                     seat: req.seat.0,
                     zone: Zone::AshHeap,

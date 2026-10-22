@@ -50,7 +50,10 @@ pub fn number_unnumbered(e: &mut Engine) {
         }
     }
     for m in &mut st.minions {
-        if matches!(m.kind, MinionKind::Vampire(_) | MinionKind::Token { .. }) {
+        if matches!(
+            m.kind,
+            MinionKind::Vampire(_) | MinionKind::Imbued(_) | MinionKind::Token { .. }
+        ) {
             fresh(&mut m.copy.0);
         }
         if m.merged.is_some() {
@@ -167,7 +170,9 @@ pub fn census(e: &Engine) -> Vec<(CopyId, u16, Place)> {
             continue;
         }
         match m.kind {
-            MinionKind::Vampire(card) | MinionKind::Token { card, .. } => {
+            MinionKind::Vampire(card)
+            | MinionKind::Imbued(card)
+            | MinionKind::Token { card, .. } => {
                 add(*m.copy, card, Place::Minion { id, merged: false });
             }
             _ => {}

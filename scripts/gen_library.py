@@ -24,7 +24,7 @@ from window_matrix import anniversary_decks, in_pool, modes_for, pool_order, sab
 FULL_PRECON_SETS = ["Fifth Edition", "Fifth Edition (Anarch)", "Fifth Edition (Companion)"]
 MINI_PRECON_SETS = ["New Blood", "New Blood II", "New Blood III"]
 TYPES = ["Master", "Action", "Action Modifier", "Reaction", "Combat", "Political Action",
-         "Ally", "Equipment", "Retainer", "Event"]
+         "Ally", "Equipment", "Retainer", "Event", "Power", "Conviction"]
 LABELS = [
     ("Unique", r"^unique\b|\bunique (location|\w+ with)|\. unique\."),
     # The type line only ("Burn a location." is an action's text).
@@ -143,7 +143,7 @@ def multi_modes(modes):
 
 
 def generate(cards):
-    lib = pool_order([c for c in cards if "Vampire" not in c.get("types", []) and in_pool(c)],
+    lib = pool_order([c for c in cards if not {"Vampire", "Imbued"} & set(c.get("types", [])) and in_pool(c)],
                      key=lambda c: (c["_name"], c["id"]))
     index = {c["id"]: i for i, c in enumerate(lib)}
     out = []

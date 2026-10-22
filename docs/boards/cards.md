@@ -9,12 +9,13 @@ Docs: `docs/engine.md` (§2–5, the reference by mechanism),
 and the ledger; a rulebook mechanism no card carries is on the engine board.
 
 Pool (`scripts/coverage.py`, KRCG `vtes.json` of 2026-06-30; 2 crypt and
-18 library cards banned, out of scope, owner 2026-10-14): crypt 701 of
-1,783 (39.3%), library 920 of 2,346 (39.2%); the Imbued, Powers and
-Convictions 0; 75 of 109 sets complete. TWDA decks in the pool 618 of
-4,538, kept 164; recent (2025+) 299 of 476 in the pool, kept 106. Demand
-(the server's counts to 2026-10-19): the 14 cards asked for, all added in
-round 18; 299999 (asked 5 times) is a client's placeholder, no card.
+18 library cards banned, out of scope, owner 2026-10-14): crypt 721 of
+1,783 (40.4%), library 937 of 2,346 (39.9%); the Imbued, Powers and
+Convictions all in (round 19); 75 of 109 sets complete. TWDA decks in the
+pool 620 of 4,538, kept 164; recent (2025+) 299 of 476 in the pool, kept
+106. Demand (the server's counts to 2026-10-19): the 14 cards asked for,
+all added in round 18; 299999 (asked 5 times) is a client's placeholder,
+no card.
 
 A shrinking list (CLAUDE.md "Harness"): one line an ask, its done-condition
 and the docs it changes; done is deleted; order is priority; the only
@@ -26,7 +27,6 @@ ship skill's scope rule). Rounds go set by set when the decks' metric
 stops paying (owner, 2026-10-15: "fine with switching to a set-by-set mode
 when you feel it's best").
 
-- **The Imbued** (owner, 2026-10-14: in "every card"): the 20 Imbued and their library (14 Powers, 3 Convictions), a round with the mechanism (conviction, the Imbued's actions). Done when the round is on `main`. Docs: engine.md (a new mechanism), as a round.
 - **Hard cards** (owner): a sterile baron to close a test loop (Outside the Hourglass and Shalmath in since round 15, Rewind Time since round 14). Done when they are in a round on `main`. Docs: as a round.
 - **Open contradictions that change play**, graded and the red ones asked in a new rules-qa batch: K5 (Yawp Court's after-resolution window), K6 (24.1 under Life Boon's decision point), K7 (an ally's last life as its action's cost), K15 (plays before a diablerie's blood hunt), K16 (Anarch Revolt's condition), K18 (Elen Kamjian at 0 blood), K23 (surplus stealth or intercept), K26 (The Meddling of Semsith ousted), K27 (a locquipment moved with only torpid minions), K29 (Obedience against a queued combat). Done when each K is settled in rules-digest §23 or asked. Docs: rules-digest §23–24, rules-qa.
 - **Open contradictions, the rest**, as the above: K14 (Anathema's master card stays), K30 (the prisci block rows' `n/a`), K31 (vote floors), K35 (stealing from oneself), K37 (the burn option's clauses), K44 (the Edge stolen after its holder burns it; the owner leans "no effect"), K25 (Dawn Operation's wording, unverified), K41 (withdrawal's VP, with the engine board's "Tournament withdrawal"), K42 (the allies box: aggravated damage, torpor burns), K43 (a merge burns the incoming copy's cards). Done and docs as the above.

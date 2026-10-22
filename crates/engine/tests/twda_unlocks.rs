@@ -69,7 +69,7 @@ fn of_sect(sect: Sect, nth: usize) -> u16 {
         .iter()
         .enumerate()
         .filter(|(i, c)| {
-            c.sect == sect
+            c.sect == Some(sect)
                 && c.title == Title::None
                 && c.capacity >= 4
                 && cards::vampire(*i as u16).is_none()
@@ -259,7 +259,7 @@ fn bums_rush_enters_combat_with_a_maneuver() {
 fn big(sect: Sect) -> u16 {
     CRYPT
         .iter()
-        .position(|c| c.sect == sect && c.capacity >= 8)
+        .position(|c| c.sect == Some(sect) && c.capacity >= 8)
         .expect("a big vampire") as u16
 }
 
@@ -333,7 +333,7 @@ fn anarch(with: &[&str], without: &[&str]) -> u16 {
         .iter()
         .enumerate()
         .position(|(i, c)| {
-            c.sect == Sect::Anarch
+            c.sect == Some(Sect::Anarch)
                 && c.capacity >= 4
                 && cards::vampire(i as u16).is_none()
                 && with.iter().all(|d| has(c, d))
@@ -1772,6 +1772,7 @@ fn schrecknet_unlocks_a_big_nosferatu_and_peeks_after_a_referendum() {
             viewer: SeatId(0),
             seat: SeatId(1),
             cards: e.state.seats[1].hand.to_vec(),
+            library: false,
         }]
     );
     to_minion_phase(&mut e, SeatId(0));

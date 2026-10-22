@@ -146,7 +146,7 @@ fn use_vamp(e: &mut Engine, m: MinionId, ability: u8) {
 /// The `nth` textless untitled vampire of `sect` with capacity in `caps`.
 fn of_sect(sect: Sect, caps: std::ops::RangeInclusive<u8>, nth: usize) -> u16 {
     textless(
-        |c| c.sect == sect && c.title == Title::None && caps.contains(&c.capacity),
+        |c| c.sect == Some(sect) && c.title == Title::None && caps.contains(&c.capacity),
         nth,
     )
 }
@@ -342,7 +342,7 @@ fn feo_ramos_is_locked_by_an_older_sabbat_vampire() {
     let older = e.add_minion(SeatId(1), of_sect(Sect::Sabbat, 4..=6, 0), 3, false);
     let peer = CRYPT
         .iter()
-        .position(|c| c.sect == Sect::Sabbat && c.capacity == 1 && c.name != "Feo Ramos")
+        .position(|c| c.sect == Some(Sect::Sabbat) && c.capacity == 1 && c.name != "Feo Ramos")
         .expect("a 1-capacity Sabbat vampire") as u16;
     let younger = e.add_minion(SeatId(1), peer, 1, false);
     let lock = |m: MinionId| {
@@ -568,7 +568,9 @@ fn offering_vamp(e: &mut Engine, m: MinionId) -> DecisionRequest {
 fn iris_bennett_shows_her_hand_to_an_older_blocker() {
     let peer = CRYPT
         .iter()
-        .position(|c| c.sect == Sect::Camarilla && c.capacity == 1 && c.name != "Iris Bennett")
+        .position(|c| {
+            c.sect == Some(Sect::Camarilla) && c.capacity == 1 && c.name != "Iris Bennett"
+        })
         .expect("a 1-capacity Camarilla vampire") as u16;
     for (card, offered) in [(of_sect(Sect::Camarilla, 6..=8, 0), true), (peer, false)] {
         let mut e = game(2);
@@ -1821,7 +1823,11 @@ fn derange_keeps_its_clan_and_sect_as_it_moves() {
     e.add_minion(SeatId(0), plain("Brujah", 1), 4, false);
     let not_malk = |nth| {
         textless(
-            |c| c.sect == Sect::Camarilla && c.capacity <= 3 && !c.clan.starts_with("Malkavian"),
+            |c| {
+                c.sect == Some(Sect::Camarilla)
+                    && c.capacity <= 3
+                    && !c.clan.starts_with("Malkavian")
+            },
             nth,
         )
     };
@@ -2407,7 +2413,7 @@ fn taking_the_skin_is_not_played_by_a_diablerist_the_hunt_burned() {
     let prince = e.add_minion(
         SeatId(1),
         textless(
-            |c| matches!(c.title, Title::Prince(_)) && c.sect == Sect::Camarilla,
+            |c| matches!(c.title, Title::Prince(_)) && c.sect == Some(Sect::Camarilla),
             0,
         ),
         4,
@@ -2450,7 +2456,7 @@ fn forced_march_is_not_played_by_a_diablerist_the_hunt_burned() {
     let prince = e.add_minion(
         SeatId(1),
         textless(
-            |c| matches!(c.title, Title::Prince(_)) && c.sect == Sect::Camarilla,
+            |c| matches!(c.title, Title::Prince(_)) && c.sect == Some(Sect::Camarilla),
             0,
         ),
         4,

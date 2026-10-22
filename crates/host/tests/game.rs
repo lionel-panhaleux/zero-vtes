@@ -545,7 +545,7 @@ fn minions_of_one_name_are_told_apart_and_markers_named() {
     each_decision(seeds, |seed, d| {
         let mut names: Vec<(&str, Option<u8>)> = Vec::new();
         for s in &d.view.seats {
-            for m in s.ready.iter().chain(&s.torpor) {
+            for m in s.minions() {
                 let copy = m.card.copy.expect("a minion in sight is numbered");
                 let was = kept.entry((seed, copy)).or_insert(m.card.numbered);
                 assert_eq!(

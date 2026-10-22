@@ -2627,7 +2627,7 @@ pub static VOTER_CAPTIVATION: CardDef = CardDef {
     ..CARD
 };
 
-pub static DEFS: [&CardDef; 920] = [
+pub static DEFS: [&CardDef; 937] = [
     &TAUNT_THE_CAGED_BEAST,
     &PETRA_RESONANCE,
     &WAITING_GAME,
@@ -3548,6 +3548,23 @@ pub static DEFS: [&CardDef; 920] = [
     &NSA_TRIO,
     &SACRIFICIAL_LAMB,
     &STORAGE_ANNEX,
+    &ABJURE,
+    &CHAMPION,
+    &DISCERN,
+    &DONATE,
+    &FORESEE,
+    &HIDE,
+    &ILLUMINATE,
+    &INSPIRE,
+    &PROJECT,
+    &REJUVENATE,
+    &RESPIRE,
+    &SHAME,
+    &SURGE,
+    &VIGILANCE,
+    &REACT_WITH_CONVICTION,
+    &SECOND_SIGHT,
+    &STRIKE_WITH_CONVICTION,
 ];
 
 // ---- Cards in play with riders and granted actions -------------------------
@@ -10212,13 +10229,7 @@ pub static ANTICIPATION: CardDef = CardDef {
             &[Effect::Strike(StrikeKind::Hand { bonus: 2 })],
         ),
         ModeDef {
-            target: target(
-                TargetKind::Card,
-                &[
-                    Requirement::TargetOnActor,
-                    Requirement::TargetCard(CardFilter::MeleeWeapon),
-                ],
-            ),
+            target: MELEE_WEAPON_STRIKE,
             ..combat(
                 &[Window::CombatStrikeDeclaration],
                 &[Requirement::ActorMayUseEquipment],
@@ -16652,6 +16663,18 @@ pub static MYLAN_HORSEED: CardDef = CardDef {
     ..CARD
 };
 
+/// A melee weapon on the actor whose own strike it may use now (its
+/// requirements and limit: `Engine::weapon_strike_plus`): a strike card's
+/// "use a melee weapon strike".
+const MELEE_WEAPON_STRIKE: Option<TargetSpec> = target(
+    TargetKind::Card,
+    &[
+        Requirement::TargetOnActor,
+        Requirement::TargetCard(CardFilter::MeleeWeapon),
+        Requirement::TargetWeaponStrikeUsable,
+    ],
+);
+
 /// Lam Into's melee weapon strike: a weapon on the actor, which may use
 /// equipment.
 const LAM_INTO_WEAPON: Option<TargetSpec> = target(
@@ -16703,7 +16726,7 @@ pub static LAM_INTO: CardDef = CardDef {
             &[Effect::Strike(StrikeKind::Hand { bonus: 2 })],
         ),
         ModeDef {
-            target: LAM_INTO_WEAPON,
+            target: MELEE_WEAPON_STRIKE,
             ..combat(
                 &[Window::CombatStrikeDeclaration],
                 &[Requirement::ActorMayUseEquipment],
@@ -16720,7 +16743,7 @@ pub static LAM_INTO: CardDef = CardDef {
             ],
         ),
         ModeDef {
-            target: LAM_INTO_WEAPON,
+            target: MELEE_WEAPON_STRIKE,
             ..combat(
                 &[Window::CombatStrikeDeclaration],
                 &[Requirement::ActorMayUseEquipment],
@@ -23285,7 +23308,7 @@ pub static LUCKY_BLOW: CardDef = CardDef {
             &[Effect::Strike(StrikeKind::Hand { bonus: 1 })],
         ),
         ModeDef {
-            target: LAM_INTO_WEAPON,
+            target: MELEE_WEAPON_STRIKE,
             ..combat(
                 &[Window::CombatStrikeDeclaration],
                 &[Requirement::ActorMayUseEquipment],
@@ -27104,13 +27127,7 @@ pub static DECAPITATE: CardDef = CardDef {
             &[Effect::Strike(StrikeKind::Hand { bonus: 2 })],
         ),
         ModeDef {
-            target: target(
-                TargetKind::Card,
-                &[
-                    Requirement::TargetOnActor,
-                    Requirement::TargetCard(CardFilter::MeleeWeapon),
-                ],
-            ),
+            target: MELEE_WEAPON_STRIKE,
             ..combat(
                 &[Window::CombatStrikeDeclaration],
                 &[Requirement::ActorMayUseEquipment],
@@ -29119,5 +29136,813 @@ pub static STORAGE_ANNEX: CardDef = CardDef {
             &[Effect::SwapPickedWithStored],
         )
     }],
+    ..CARD
+};
+
+// ---- Round 19: powers and convictions (rulebook "Appendix: Imbued Rules") ----
+
+/// A power's play: an imbued's +1 stealth action, the power on it if
+/// successful, the imbued unlocked (rulebook "Appendix: Imbued Rules" 3);
+/// `requires` names the power, no second copy.
+const fn power(requires: &'static [Requirement], effects: &'static [Effect]) -> ModeDef {
+    mode_of(
+        &[Window::ActionDeclarePower],
+        Actor::ActingCandidate,
+        requires,
+        effects,
+    )
+}
+
+/// A conviction's play: on an imbued of its player's in their unlock phase,
+/// one each imbued, from hand or ash heap (rulebook "Appendix: Imbued
+/// Rules" 2).
+const CONVICTION: ModeDef = ModeDef {
+    target: target(
+        TargetKind::Minion,
+        &[
+            Requirement::Controlled,
+            Requirement::TargetImbued,
+            Requirement::TargetConvictionUnplayed,
+        ],
+    ),
+    ..mode_of(
+        &[Window::UnlockConviction],
+        Actor::Methuselah,
+        &[],
+        &[Effect::ConvictionOnTarget],
+    )
+};
+
+/// "[COMBAT] Lock this imbued before range is determined to end a combat
+/// between a monster and a mortal. If the mortal is a minion other than
+/// this imbued, you may move a conviction [1 CONVICTION] to this imbued from
+/// your hand or ash heap." Usable incapacitated (LSJ 20081016); the power
+/// locked with it (rulebook "Appendix: Imbued Rules" 3). Another
+/// Methuselah's combat is not offered: combat polls the combatants'
+/// Methuselahs only (rules-qa 87.28).
+pub static ABJURE: CardDef = CardDef {
+    name: "Abjure",
+    modes: &[power(
+        &[
+            Requirement::ActorImbued,
+            Requirement::ActorWithout(Holding::Named("Abjure")),
+        ],
+        &[Effect::DeclareAction(ActionKind::Power)],
+    )],
+    abilities: &[
+        mode_of(
+            &[Window::CombatBeforeRange],
+            Actor::ForOwnCombatant,
+            &[
+                Requirement::HostOutOfCombat,
+                Requirement::CombatMonsterVsMortal,
+                Requirement::CardUnlocked,
+                Requirement::HostUnlocked,
+            ],
+            &[
+                Effect::LockSelf,
+                Effect::LockHost,
+                Effect::EndCombat,
+                Effect::GainConviction { library: false },
+            ],
+        ),
+        mode_of(
+            &[Window::CombatBeforeRange],
+            Actor::Host,
+            &[
+                Requirement::HostInCombat,
+                Requirement::CombatMonsterVsMortal,
+                Requirement::CardUnlocked,
+                Requirement::HostUnlocked,
+            ],
+            &[Effect::LockSelf, Effect::LockHost, Effect::EndCombat],
+        ),
+    ],
+    ..CARD
+};
+
+/// "[REACTION] [2 CONVICTION] Only usable when a monster controlled by
+/// another Methuselah is taking an action directed at you or an imbued
+/// controlled by any player. The action fails and the acting monster enters
+/// combat with this imbued instead." Not a reaction card (LSJ 20070403); not
+/// during a block attempt (ANK 20260316); the action goes on until the
+/// combat ends (LSJ 20070217), failed, not blocked (LSJ 20070219).
+pub static CHAMPION: CardDef = CardDef {
+    name: "Champion",
+    modes: &[power(
+        &[
+            Requirement::ActorImbued,
+            Requirement::ActorWithout(Holding::Named("Champion")),
+        ],
+        &[Effect::DeclareAction(ActionKind::Power)],
+    )],
+    abilities: &[mode_of(
+        &[Window::ReactionDuringAction],
+        Actor::Host,
+        &[
+            Requirement::HostMayReact,
+            Requirement::ActingMonster,
+            Requirement::AnyOf(&[
+                &[Requirement::DirectedAtYou],
+                &[Requirement::ActionTargetsImbued],
+            ]),
+            Requirement::NoBlockAttempt,
+            Requirement::CardUnlocked,
+            Requirement::HostConvictionAtLeast(2),
+        ],
+        &[
+            Effect::LockSelf,
+            Effect::BurnConviction(2),
+            Effect::FailsIntoCombatWithHost,
+        ],
+    )],
+    ..CARD
+};
+
+/// "[REACTION] +1 intercept. Only usable when a monster is acting." Not a
+/// reaction card (LSJ 20070403).
+pub static DISCERN: CardDef = CardDef {
+    name: "Discern",
+    modes: &[power(
+        &[
+            Requirement::ActorImbued,
+            Requirement::ActorWithout(Holding::Named("Discern")),
+        ],
+        &[Effect::DeclareAction(ActionKind::Power)],
+    )],
+    abilities: &[mode_of(
+        &[Window::ActionStealthIntercept],
+        Actor::Host,
+        &[
+            Requirement::HostMayReact,
+            Requirement::ActingMonster,
+            Requirement::InterceptNeeded,
+            Requirement::CardUnlocked,
+        ],
+        &[Effect::LockSelf, Effect::AddIntercept(1)],
+    )],
+    ..CARD
+};
+
+/// "[ACTION MODIFIER] [1 CONVICTION] Only usable during a bleed action by a
+/// ready imbued other than the acting mortal. Burn this card to give the
+/// acting mortal you control +1 bleed (limited). [REACTION] [1 CONVICTION]
+/// Burn this card to give another mortal you control +1 intercept. [COMBAT]
+/// [1 CONVICTION] Only usable by a ready imbued other than a mortal
+/// combatant you control. Burn this card to give that combatant +1
+/// strength for the remainder of the action." The bleed before resolution
+/// (ANK 20231124).
+pub static DONATE: CardDef = CardDef {
+    name: "Donate",
+    modes: &[power(
+        &[
+            Requirement::ActorImbued,
+            Requirement::ActorWithout(Holding::Named("Donate")),
+        ],
+        &[Effect::DeclareAction(ActionKind::Power)],
+    )],
+    abilities: &[
+        mode_of(
+            &[Window::ActionDuring],
+            Actor::Host,
+            &[
+                Requirement::IsBleed,
+                Requirement::HostReady,
+                Requirement::OtherActingControlled,
+                Requirement::ActingAllyOf(&[Label::Mortal]),
+                Requirement::CardUnlocked,
+                Requirement::HostConvictionAtLeast(1),
+            ],
+            &[
+                Effect::LockSelf,
+                Effect::BurnConviction(1),
+                Effect::BurnSelf,
+                bleed(1, true),
+            ],
+        ),
+        mode_of(
+            &[Window::ActionStealthIntercept],
+            Actor::Host,
+            &[
+                Requirement::HostMayReact,
+                Requirement::YourAttemptNeedsIntercept,
+                Requirement::AttemptingAllyOf(&[Label::Mortal]),
+                Requirement::CardUnlocked,
+                Requirement::HostConvictionAtLeast(1),
+            ],
+            &[
+                Effect::LockSelf,
+                Effect::BurnConviction(1),
+                Effect::BurnSelf,
+                Effect::AttemptingIntercept(1),
+            ],
+        ),
+        mode_of(
+            &[Window::CombatUntimed],
+            Actor::ForOwnCombatant,
+            &[
+                Requirement::HostOutOfCombat,
+                Requirement::HostReady,
+                Requirement::ActorAllyOf(&[Label::Mortal]),
+                Requirement::CardUnlocked,
+                Requirement::HostConvictionAtLeast(1),
+            ],
+            &[
+                Effect::LockSelf,
+                Effect::BurnConviction(1),
+                Effect::BurnSelf,
+                Effect::StrengthThisCombat(1),
+            ],
+        ),
+    ],
+    ..CARD
+};
+
+/// "[COMBAT] [1 CONVICTION] Only usable before range is determined on the
+/// first round of combat resulting from a block. Look at the opposing
+/// minion's controller's hand. You may then choose to cancel combat. If you
+/// do, and this imbued was blocking, the action continues as if unblocked."
+/// The action's modifiers and reactions stand (RTR 19941109); no new block
+/// from those who declined (ANK 20190116).
+pub static FORESEE: CardDef = CardDef {
+    name: "Foresee",
+    modes: &[power(
+        &[
+            Requirement::ActorImbued,
+            Requirement::ActorWithout(Holding::Named("Foresee")),
+        ],
+        &[Effect::DeclareAction(ActionKind::Power)],
+    )],
+    abilities: &[mode_of(
+        &[Window::CombatBeforeRange],
+        Actor::Host,
+        &[
+            Requirement::FirstRound,
+            Requirement::CombatFromBlock,
+            Requirement::CardUnlocked,
+            Requirement::HostConvictionAtLeast(1),
+        ],
+        &[
+            Effect::LockSelf,
+            Effect::BurnConviction(1),
+            Effect::PeekOpponentControllersHand,
+            Effect::MayCancelCombat,
+        ],
+    )],
+    ..CARD
+};
+
+/// "Not usable by an imbued with Illuminate. [ACTION MODIFIER] [1
+/// CONVICTION] Only usable as the action is announced. Monsters get -1
+/// intercept against this action. [REACTION] [1 CONVICTION] Only usable
+/// during a monster's action directed at this imbued. The action fails."
+/// The failed action reached resolution (RTR 20180719); not during a block
+/// attempt (ANK 20260316).
+pub static HIDE: CardDef = CardDef {
+    name: "Hide",
+    modes: &[power(
+        &[
+            Requirement::ActorImbued,
+            Requirement::ActorWithout(Holding::Named("Hide")),
+        ],
+        &[Effect::DeclareAction(ActionKind::Power)],
+    )],
+    abilities: &[
+        mode_of(
+            &[Window::ActionAsAnnounced],
+            Actor::Host,
+            &[
+                Requirement::ActorActing,
+                Requirement::ActorWithout(Holding::Named("Illuminate")),
+                Requirement::CardUnlocked,
+                Requirement::HostConvictionAtLeast(1),
+            ],
+            &[
+                Effect::LockSelf,
+                Effect::BurnConviction(1),
+                Effect::ActionLayer(Modifier::MonsterInterceptMod(-1)),
+            ],
+        ),
+        mode_of(
+            &[Window::ReactionDuringAction],
+            Actor::Host,
+            &[
+                Requirement::HostMayReact,
+                Requirement::ActingMonster,
+                Requirement::ActionTargetsHost,
+                Requirement::NoBlockAttempt,
+                Requirement::ActorWithout(Holding::Named("Illuminate")),
+                Requirement::CardUnlocked,
+                Requirement::HostConvictionAtLeast(1),
+            ],
+            &[
+                Effect::LockSelf,
+                Effect::BurnConviction(1),
+                Effect::ActionFails,
+            ],
+        ),
+    ],
+    ..CARD
+};
+
+/// "All imbued get +1 intercept when blocking monsters (not cumulative with
+/// any other Illuminate in play, nor with The Unmasking). Any monster may
+/// enter combat with this imbued as a Ⓓ action. Burn this card during your
+/// next unlock phase or if this imbued leaves the ready region." The action
+/// granted requires what the card lists (LSJ 20080604).
+pub static ILLUMINATE: CardDef = CardDef {
+    name: "Illuminate",
+    modes: &[power(
+        &[
+            Requirement::ActorImbued,
+            Requirement::ActorWithout(Holding::Named("Illuminate")),
+        ],
+        &[
+            Effect::DeclareAction(ActionKind::Power),
+            Effect::Layer(Modifier::ImbuedInterceptVsMonsters),
+        ],
+    )],
+    abilities: &[ModeDef {
+        target: target(
+            TargetKind::Minion,
+            &[
+                Requirement::TargetIsHost,
+                Requirement::NotControlled,
+                Requirement::ActorReady,
+            ],
+        ),
+        ..mode_of(
+            &[Window::ActionDeclare],
+            Actor::ActingCandidate,
+            &[Requirement::ActorMonster],
+            &[
+                Effect::DeclareAction(ActionKind::Ability),
+                Effect::EnterCombatWithTarget,
+            ],
+        )
+    }],
+    riders: &[
+        Rider {
+            hook: Hook::UnlockPhase,
+            scope: RiderScope::Controller,
+            requires: &[],
+            effects: &[Effect::BurnSelf],
+        },
+        Rider {
+            hook: Hook::HostIncapacitated,
+            scope: RiderScope::Every,
+            requires: &[],
+            effects: &[Effect::BurnSelf],
+        },
+    ],
+    ..CARD
+};
+
+/// "[ACTION] [1 CONVICTION] +1 stealth action. Add a counter to an imbued in
+/// your uncontrolled region or move the conviction [1 CONVICTION] you paid
+/// for this action from your ash heap to any imbued in play." The
+/// conviction named as announced, burned at resolution (RTR 20111202).
+pub static INSPIRE: CardDef = CardDef {
+    name: "Inspire",
+    modes: &[power(
+        &[
+            Requirement::ActorImbued,
+            Requirement::ActorWithout(Holding::Named("Inspire")),
+        ],
+        &[Effect::DeclareAction(ActionKind::Power)],
+    )],
+    abilities: &[
+        ModeDef {
+            target: target(TargetKind::Uncontrolled, &[Requirement::TargetImbued]),
+            ..mode_of(
+                &[Window::ActionDeclare],
+                Actor::Host,
+                &[
+                    Requirement::CardUnlocked,
+                    Requirement::HostConvictionAtLeast(1),
+                ],
+                &[
+                    Effect::DeclareAction(ActionKind::Ability),
+                    Effect::AddStealth(1),
+                    Effect::LockSelf,
+                    Effect::PayConviction,
+                    Effect::BloodToUncontrolledTarget(1),
+                ],
+            )
+        },
+        ModeDef {
+            target: target(TargetKind::Minion, &[Requirement::TargetImbued]),
+            ..mode_of(
+                &[Window::ActionDeclare],
+                Actor::Host,
+                &[
+                    Requirement::CardUnlocked,
+                    Requirement::HostConvictionAtLeast(1),
+                ],
+                &[
+                    Effect::DeclareAction(ActionKind::Ability),
+                    Effect::AddStealth(1),
+                    Effect::LockSelf,
+                    Effect::PayConviction,
+                    Effect::PaidConvictionToTarget,
+                ],
+            )
+        },
+    ],
+    ..CARD
+};
+
+/// "[ACTION MODIFIER] [1 CONVICTION] Only usable as the action is announced.
+/// Vampires with capacity less than 7 and monster allies who cost less than
+/// 4 pool cannot block this action."
+pub static PROJECT: CardDef = CardDef {
+    name: "Project",
+    modes: &[power(
+        &[
+            Requirement::ActorImbued,
+            Requirement::ActorWithout(Holding::Named("Project")),
+        ],
+        &[Effect::DeclareAction(ActionKind::Power)],
+    )],
+    abilities: &[mode_of(
+        &[Window::ActionAsAnnounced],
+        Actor::Host,
+        &[
+            Requirement::ActorActing,
+            Requirement::CardUnlocked,
+            Requirement::HostConvictionAtLeast(1),
+        ],
+        &[
+            Effect::LockSelf,
+            Effect::BurnConviction(1),
+            Effect::SmallMonstersCannotBlock {
+                capacity_below: 7,
+                ally_pool_below: 4,
+            },
+        ],
+    )],
+    ..CARD
+};
+
+/// The "[ACTION] [1 CONVICTION] +1 stealth action. Add 1 blood to a vampire
+/// or 1 life to any other ally, not to exceed starting life." of Rejuvenate
+/// and Respire.
+const MEND_ACTION: ModeDef = ModeDef {
+    target: target(TargetKind::Minion, &[Requirement::OtherThanActor]),
+    ..mode_of(
+        &[Window::ActionDeclare],
+        Actor::Host,
+        &[
+            Requirement::CardUnlocked,
+            Requirement::HostConvictionAtLeast(1),
+        ],
+        &[
+            Effect::DeclareAction(ActionKind::Ability),
+            Effect::AddStealth(1),
+            Effect::LockSelf,
+            Effect::PayConviction,
+            Effect::BloodToTargetToStart(1),
+        ],
+    )
+};
+
+/// "During your unlock phase, if this imbued has fewer life than his or her
+/// starting amount, he or she gains 1 life. [ACTION] [1 CONVICTION] +1
+/// stealth action. Add 1 blood to a vampire or 1 life to any other ally, not
+/// to exceed starting life."
+pub static REJUVENATE: CardDef = CardDef {
+    name: "Rejuvenate",
+    modes: &[power(
+        &[
+            Requirement::ActorImbued,
+            Requirement::ActorWithout(Holding::Named("Rejuvenate")),
+        ],
+        &[Effect::DeclareAction(ActionKind::Power)],
+    )],
+    abilities: &[MEND_ACTION],
+    riders: &[Rider {
+        hook: Hook::UnlockPhase,
+        scope: RiderScope::Controller,
+        requires: &[Requirement::HostBelowStartingLife],
+        effects: &[Effect::AddHostBlood(1)],
+    }],
+    ..CARD
+};
+
+/// "[ACTION] Ⓓ Inflict 1 damage on a vampire with capacity less than 6. If
+/// this action is successful, you may move 1 conviction [1 CONVICTION] from
+/// your hand or ash heap to this imbued. [ACTION] [1 CONVICTION] +1 stealth
+/// action. Add 1 blood to a vampire or 1 life to any other ally, not to
+/// exceed starting life."
+pub static RESPIRE: CardDef = CardDef {
+    name: "Respire",
+    modes: &[power(
+        &[
+            Requirement::ActorImbued,
+            Requirement::ActorWithout(Holding::Named("Respire")),
+        ],
+        &[Effect::DeclareAction(ActionKind::Power)],
+    )],
+    abilities: &[
+        ModeDef {
+            target: target(
+                TargetKind::Minion,
+                &[
+                    Requirement::TargetVampire,
+                    Requirement::TargetCapacityAtMost(5),
+                ],
+            ),
+            ..mode_of(
+                &[Window::ActionDeclare],
+                Actor::Host,
+                &[Requirement::CardUnlocked],
+                &[
+                    Effect::DeclareAction(ActionKind::Ability),
+                    Effect::LockSelf,
+                    Effect::DamageTarget(1),
+                    Effect::ActingGainsConviction,
+                ],
+            )
+        },
+        MEND_ACTION,
+    ],
+    ..CARD
+};
+
+/// "[COMBAT] [2 CONVICTION] Only usable before strikes are chosen. Burn this
+/// card. The opposing monster takes an amount of damage equal to his or her
+/// strength, then combat ends. Not usable on an infernal minion, a vampire
+/// with capacity above 7, nor a vampire who has Memories of Mortality or
+/// Humanitas." The damage environmental (RTR 19970630).
+pub static SHAME: CardDef = CardDef {
+    name: "Shame",
+    modes: &[power(
+        &[
+            Requirement::ActorImbued,
+            Requirement::ActorWithout(Holding::Named("Shame")),
+        ],
+        &[Effect::DeclareAction(ActionKind::Power)],
+    )],
+    abilities: &[mode_of(
+        &[Window::CombatBeforeStrikes],
+        Actor::Host,
+        &[
+            Requirement::OpponentMonster,
+            Requirement::OpponentNotInfernal,
+            Requirement::OpponentCapacityAtMost(7),
+            Requirement::OpponentWithout(Holding::Named("Memories of Mortality")),
+            Requirement::OpponentWithout(Holding::Named("Humanitas")),
+            Requirement::CardUnlocked,
+            Requirement::HostConvictionAtLeast(2),
+        ],
+        &[
+            Effect::LockSelf,
+            Effect::BurnConviction(2),
+            Effect::BurnSelf,
+            Effect::DamageOpponentByStrength,
+            Effect::EndCombat,
+        ],
+    )],
+    ..CARD
+};
+
+/// "[COMBAT][REACTION] [1 CONVICTION] Put three surge counters on this
+/// imbued. This imbued may burn any number of surge counters to prevent
+/// that amount of non-aggravated damage. Burn all surge counters on this
+/// imbued at the end of the action." Not aggravated damage, even treated as
+/// normal (LSJ 20040812-2). The counters kept on this card.
+pub static SURGE: CardDef = CardDef {
+    name: "Surge",
+    modes: &[power(
+        &[
+            Requirement::ActorImbued,
+            Requirement::ActorWithout(Holding::Named("Surge")),
+        ],
+        &[Effect::DeclareAction(ActionKind::Power)],
+    )],
+    abilities: &[
+        mode_of(
+            &[Window::CombatUntimed],
+            Actor::Host,
+            &[
+                Requirement::CardUnlocked,
+                Requirement::HostConvictionAtLeast(1),
+            ],
+            &[
+                Effect::LockSelf,
+                Effect::BurnConviction(1),
+                Effect::AddCounter(3),
+            ],
+        ),
+        mode_of(
+            &[Window::ReactionDuringAction],
+            Actor::Host,
+            &[
+                Requirement::HostMayReact,
+                Requirement::CardUnlocked,
+                Requirement::HostConvictionAtLeast(1),
+            ],
+            &[
+                Effect::LockSelf,
+                Effect::BurnConviction(1),
+                Effect::AddCounter(3),
+            ],
+        ),
+        mode_of(
+            &[Window::CombatDamagePrevention],
+            Actor::Host,
+            &[
+                Requirement::CountersAtLeast(1),
+                Requirement::NonAggravatedDamagePending,
+            ],
+            &[Effect::RemoveCounter(1), Effect::PreventNonAggravated(1)],
+        ),
+    ],
+    riders: &[Rider {
+        hook: Hook::ActionEnds,
+        scope: RiderScope::Every,
+        requires: &[],
+        effects: &[Effect::ClearCounters],
+    }],
+    ..CARD
+};
+
+/// "[ACTION MODIFIER] Only usable at the end of a successful action (after
+/// resolving the action). Unlock this imbued. [REACTION] [1 CONVICTION]
+/// Only usable by a locked imbued. Unlock this imbued." Only after-resolution
+/// cards after it (ANK 20190425).
+pub static VIGILANCE: CardDef = CardDef {
+    name: "Vigilance",
+    modes: &[power(
+        &[
+            Requirement::ActorImbued,
+            Requirement::ActorWithout(Holding::Named("Vigilance")),
+        ],
+        &[Effect::DeclareAction(ActionKind::Power)],
+    )],
+    abilities: &[
+        mode_of(
+            &[Window::ActionAfterResolution],
+            Actor::Host,
+            &[
+                Requirement::ActorActing,
+                Requirement::ActionSuccessful,
+                Requirement::HostLocked,
+                Requirement::CardUnlocked,
+            ],
+            &[Effect::LockSelf, Effect::UnlockHost],
+        ),
+        mode_of(
+            &[Window::ReactionDuringAction],
+            Actor::Host,
+            &[
+                Requirement::HostMayReactLocked,
+                Requirement::CardUnlocked,
+                Requirement::HostConvictionAtLeast(1),
+            ],
+            &[
+                Effect::LockSelf,
+                Effect::BurnConviction(1),
+                Effect::UnlockHost,
+            ],
+        ),
+    ],
+    ..CARD
+};
+
+/// The Disciplines React with Conviction answers.
+const REACT_DISCIPLINES: Requirement = Requirement::AnyOf(&[
+    &[Requirement::PlayedRequiresDiscipline("chi")],
+    &[Requirement::PlayedRequiresDiscipline("dem")],
+    &[Requirement::PlayedRequiresDiscipline("dom")],
+    &[Requirement::PlayedRequiresDiscipline("pre")],
+    &[Requirement::PlayedRequiresDiscipline("ser")],
+]);
+
+/// "When an effect that would change control of this imbued is played or
+/// announced, you may burn this card to cancel that effect. Burn this card
+/// to cancel either an action directed at this imbued that requires
+/// Chimerstry [chi], Dementation [dem], Dominate [dom], Presence [pre], or
+/// Serpentis [ser] or a strike card that requires any of those Disciplines
+/// played by a minion opposing this imbued as it is announced. No cost is
+/// paid." The canceled action's minion stays unlocked (LSJ 20060425); its
+/// "do not replace" canceled too (LSJ 20011023).
+pub static REACT_WITH_CONVICTION: CardDef = CardDef {
+    name: "React with Conviction",
+    modes: &[CONVICTION],
+    abilities: &[
+        mode_of(
+            &[Window::CardAsPlayed],
+            Actor::Host,
+            &[Requirement::PlayedTakesControlOfActor],
+            &[Effect::BurnSelf, Effect::CancelPlayed { refund: true }],
+        ),
+        mode_of(
+            &[Window::CardAsPlayed],
+            Actor::Host,
+            &[
+                Requirement::PlayedCardType(CardType::Action),
+                Requirement::PlayedTargetsActor,
+                REACT_DISCIPLINES,
+            ],
+            &[Effect::BurnSelf, Effect::CancelPlayed { refund: true }],
+        ),
+        mode_of(
+            &[Window::CardAsPlayed],
+            Actor::Host,
+            &[
+                Requirement::PlayedCardType(CardType::Combat),
+                Requirement::PlayedStrikeByOpponent,
+                REACT_DISCIPLINES,
+            ],
+            &[Effect::BurnSelf, Effect::CancelPlayed { refund: true }],
+        ),
+    ],
+    ..CARD
+};
+
+/// "An imbued may burn only one Second Sight for the following effects each
+/// action. Burn when a monster is acting to give this imbued +1 intercept
+/// for that action. Burn when this imbued declares an action to give
+/// monsters -1 intercept for this action."
+pub static SECOND_SIGHT: CardDef = CardDef {
+    name: "Second Sight",
+    modes: &[CONVICTION],
+    abilities: &[
+        mode_of(
+            &[Window::ActionStealthIntercept],
+            Actor::Host,
+            &[
+                Requirement::ActingMonster,
+                Requirement::InterceptNeeded,
+                Requirement::HostNameUnusedThisAction,
+            ],
+            &[Effect::BurnSelf, Effect::AddIntercept(1)],
+        ),
+        mode_of(
+            &[Window::ActionAsAnnounced],
+            Actor::Host,
+            &[
+                Requirement::ActorActing,
+                Requirement::HostNameUnusedThisAction,
+            ],
+            &[
+                Effect::BurnSelf,
+                Effect::ActionLayer(Modifier::MonsterInterceptMod(-1)),
+            ],
+        ),
+    ],
+    ..CARD
+};
+
+/// "Burn to make a hand or weapon strike against a monster at +1 damage.
+/// Burn to bleed at +1 bleed as a Ⓓ action." The bleed's card burned only
+/// as it resolves (LSJ 20060421, RTR 20111202). The weapon strike is the
+/// weapon's own, any weapon's (guns too), its requirements, limit and
+/// riders standing, its damage's properties the added one's (RTR
+/// 19970630).
+pub static STRIKE_WITH_CONVICTION: CardDef = CardDef {
+    name: "Strike with Conviction",
+    modes: &[CONVICTION],
+    abilities: &[
+        mode_of(
+            &[Window::CombatStrikeDeclaration],
+            Actor::Host,
+            &[Requirement::OpponentMonster],
+            &[
+                Effect::BurnSelf,
+                Effect::Strike(StrikeKind::Hand { bonus: 1 }),
+            ],
+        ),
+        ModeDef {
+            target: target(
+                TargetKind::Card,
+                &[
+                    Requirement::TargetOnActor,
+                    Requirement::TargetCard(CardFilter::HasLabel(Label::Weapon)),
+                    Requirement::TargetWeaponStrikeUsable,
+                ],
+            ),
+            ..mode_of(
+                &[Window::CombatStrikeDeclaration],
+                Actor::Host,
+                &[
+                    Requirement::OpponentMonster,
+                    Requirement::ActorMayUseEquipment,
+                ],
+                &[Effect::BurnSelf, Effect::WeaponStrikePlus(1)],
+            )
+        },
+        mode_of(
+            &[Window::ActionDeclare],
+            Actor::Host,
+            &[],
+            &[
+                Effect::DeclareAction(ActionKind::Bleed),
+                bleed(1, false),
+                Effect::BurnSourceOnResolution,
+            ],
+        ),
+    ],
     ..CARD
 };

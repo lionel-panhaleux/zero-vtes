@@ -840,7 +840,9 @@ engine masks), `cards/mod.rs` (the vocabulary: `Window`, `Actor`,
   stay in force.
 - Strikes: a weapon strike remembers its source (`Side.strike_source`) and does
   nothing if the weapon left; a maneuver from a weapon or strike card commits the
-  initial strike (`Side.committed`, `committed_card`); the round's one limited
+  initial strike (`Side.committed`, `committed_card`), a committed weapon's
+  strike made through any play or ability whose `WeaponStrikePlus` names it
+  (rules-qa 87.42); the round's one limited
   additional-strike source; a strike not said to be ranged is close range only
   (rules-qa 21.1). Strike riders fire as the strike lands (in range, not dodged,
   not aimed at a retainer). Ranged strikes at long range may be aimed at a
@@ -901,6 +903,14 @@ engine masks), `cards/mod.rs` (the vocabulary: `Window`, `Actor`,
 - Weapons: melee `StrikeKind::Melee` (not a hand strike); a weapon's per-combat
   maneuver is `Limit::PerCombat` per copy; `cards::melee_strike`,
   `cards::becomes_weapon` (Weighted Walking Stick is a weapon only in play).
+  "Use a weapon strike at +n" (Lucky Blow, Lam Into, Anticipation,
+  Decapitate, Strike with Conviction) is one routine,
+  `Engine::weapon_strike_plus`: the weapon's own strike ability
+  (`cards::weapon_damage_strike`) resolved, its limit, riders and source
+  standing, then `Side::raise_strike`; its target
+  (`Requirement::TargetWeaponStrikeUsable`) holds only while that strike's
+  gate does, and the strike bars (frozen, hand strikes only, no strike
+  cards) read `Effect::WeaponStrikePlus` as a strike.
 - Aims (Target Vitals) come after the strike choice: a side whose strike
   is chosen gets one more `ChooseStrike` decision, an aim or pass
   (`Side::aim_declined`; rules-qa 62.1). Damage reduction is not prevention:
@@ -1074,7 +1084,7 @@ engine masks), `cards/mod.rs` (the vocabulary: `Window`, `Actor`,
 
 ### 6.10 Minions
 
-`state.rs`: `Minion`, `MinionKind::{Vampire, Ally, Created, Token}`.
+`state.rs`: `Minion`, `MinionKind::{Vampire, Ally, Imbued, Created, Token}`.
 
 - Vampire traits are read live: `capacity_of` (with `capacity_ceiling`),
   `discipline_level`, `has_discipline`, `Minion::clan`, `GameState::sect_of`
@@ -1095,6 +1105,32 @@ engine masks), `cards/mod.rs` (the vocabulary: `Window`, `Actor`,
   "Burn n blood" lands on an ally as life (`GameState::burn_blood_or_life`,
   rules-qa 73.5); as an ability's blood cost an ally never pays it (advanced
   rules 5.5.1, `ability_gate`).
+- **Imbued** (`MinionKind::Imbued(crypt)`, rulebook "Appendix: Imbued
+  Rules"; rules-digest §14.12): crypt cards influenced like vampires, in
+  play an ally (`is_ally`, `is_imbued`) with its text in `VAMPIRES`: life =
+  cost (the counters influenced in), 1 strength, 1 bleed; creed as clan,
+  virtues as Disciplines (`printed_disciplines`, `has_disciplines`),
+  excluded from the clan and Discipline vocabularies. A Mortal
+  (`GameState::is_mortal`, `ally_of`: the Mortal-label readers take it);
+  `is_monster` is a vampire or an ally neither mortal nor animal. At its
+  last life `Engine::lifeless` incapacitates it (`incapacitate`:
+  `Minion::incapacitated`, out of `ready()`, `Hook::HostIncapacitated`
+  riders) where any other ally burns; the host and api show it as its
+  own region (`Zone::Incapacitated`). It leaves by `Engine::recover` (+1
+  life), through `vampires::RECOVER` (3 conviction, its own unlock phase)
+  or `RECOVER_GRANTED` (Jennie). Burning one is `ActionKind::BurnImbued`
+  (D, its equipment taken; `Interrupt::AvengeImbued` per ready imbued).
+  Convictions (`GameState::convictions`) are cards on it, played in the
+  unlock phase (`Window::UnlockConviction`, once per imbued:
+  `Minion::conviction_played`), from the hand or the ash heap
+  (`GameState::unlock_phase` adds the ash heap's to the virtual hand as
+  `state::ASH_UNLOCK`), at most 5. Entering play it gains one
+  (`Interrupt::GainConviction`, unless `Effect::NoEntryConviction`). A
+  "[n CONVICTION]" cost: `Effect::BurnConviction(n)` on abilities
+  (`Interrupt::BurnConvictions`), `PayConviction` on granted actions
+  (`Interrupt::NameConviction` at declaration, paid at resolution: gone,
+  the action fizzles). Powers: `ActionKind::Power` (+1 stealth; success
+  puts it on the actor, unlocked; a second copy fizzles).
 - **Created vampires** (`MinionKind::Created`: Childe of the Revolution, Waters of
   Duat): 1-capacity, sire's clan, printed or sire's sect, no Discipline or title;
   their card is the body. **Tokens** (`MinionKind::Token`: Absimiliard's Army):

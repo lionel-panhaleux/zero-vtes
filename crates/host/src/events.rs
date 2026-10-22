@@ -115,7 +115,7 @@ impl Namer<'_> {
     /// minion; a banished vampire's cards', it.
     fn zone_ref(&mut self, p: Place, at: Spot) -> Option<ZoneRef> {
         let st = &self.e.state;
-        let minion = if at.torpor { Zone::Torpor } else { Zone::Ready };
+        let minion = at.region.zone();
         let (zone, on) = match p {
             Place::Zone(..) | Place::Uncontrolled(_) => (zone(p)?, None),
             Place::InFlight(_) => (Zone::Limbo, None),
@@ -205,6 +205,7 @@ impl Namer<'_> {
                         .iter()
                         .map(|&c| self.card(CopyId::NONE, c, false))
                         .collect(),
+                    zone: l.library.then_some(Zone::Library),
                 }
             }
             Fact::Played(p) if p.canceled => EventKind::Canceled {
@@ -275,6 +276,10 @@ impl Namer<'_> {
                 effect: false,
             },
             Fact::Torpor { minion, enters } => EventKind::Torpor {
+                minion: self.minion(minion),
+                enters,
+            },
+            Fact::Incapacitated { minion, enters } => EventKind::Incapacitated {
                 minion: self.minion(minion),
                 enters,
             },

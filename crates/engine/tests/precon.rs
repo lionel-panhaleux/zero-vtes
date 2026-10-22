@@ -298,7 +298,7 @@ fn monkey_wrench_bleeds_for_x_paid_in_blood() {
     let a = e.add_minion(
         SeatId(0),
         vampire(
-            |c| c.sect == zvtes::crypt::Sect::Anarch && c.title == Title::None,
+            |c| c.sect == Some(zvtes::crypt::Sect::Anarch) && c.title == Title::None,
             0,
         ),
         2,
@@ -322,7 +322,7 @@ fn monkey_wrench_bleeds_for_x_paid_in_blood() {
     let a = e.add_minion(
         SeatId(0),
         vampire(
-            |c| c.sect == zvtes::crypt::Sect::Anarch && c.title == Title::None,
+            |c| c.sect == Some(zvtes::crypt::Sect::Anarch) && c.title == Title::None,
             0,
         ),
         2,
@@ -446,7 +446,7 @@ fn obfuscator(titled: bool) -> u16 {
 #[test]
 fn protection_racket_gives_an_additional_intercept_against_a_titled_acting_minion() {
     let anarch = vampire(
-        |c| c.sect == zvtes::crypt::Sect::Anarch && c.title == Title::None,
+        |c| c.sect == Some(zvtes::crypt::Sect::Anarch) && c.title == Title::None,
         0,
     );
     assert!(blocked_with(
@@ -469,7 +469,7 @@ fn protection_racket_gives_an_additional_intercept_against_a_titled_acting_minio
 #[test]
 fn protection_racket_reads_the_acting_minions_title_live() {
     let anarch = vampire(
-        |c| c.sect == zvtes::crypt::Sect::Anarch && c.title == Title::None,
+        |c| c.sect == Some(zvtes::crypt::Sect::Anarch) && c.title == Title::None,
         0,
     );
     let mut e = Engine::bare(3);
@@ -1121,7 +1121,7 @@ fn deep_ecology_reduces_a_bleed_and_unlocks_for_blood() {
     let anarch_with = |tag: &'static str| {
         vampire(
             move |c| {
-                c.sect == zvtes::crypt::Sect::Anarch
+                c.sect == Some(zvtes::crypt::Sect::Anarch)
                     && c.title == Title::None
                     && c.disciplines.contains(&tag)
             },
@@ -1362,7 +1362,7 @@ fn truth_in_darkness_unlocks_the_blocker_for_blood_after_combat() {
 /// The `nth` untitled Anarch vampire with no printed-text definition.
 fn anarch(nth: usize) -> u16 {
     vampire(
-        |c| c.sect == zvtes::crypt::Sect::Anarch && c.title == Title::None,
+        |c| c.sect == Some(zvtes::crypt::Sect::Anarch) && c.title == Title::None,
         nth,
     )
 }
@@ -2025,7 +2025,7 @@ fn camarilla_toreador(nth: usize) -> u16 {
     vampire(
         |c| {
             c.clan == "Toreador"
-                && c.sect == zvtes::crypt::Sect::Camarilla
+                && c.sect == Some(zvtes::crypt::Sect::Camarilla)
                 && c.title == Title::None
                 && c.capacity >= 5
         },
@@ -2901,7 +2901,7 @@ fn dust_up_strikes_through_a_dodge() {
     let a = e.add_minion(
         SeatId(0),
         vampire(
-            |c| c.sect == zvtes::crypt::Sect::Anarch && has(c, &["ani"]),
+            |c| c.sect == Some(zvtes::crypt::Sect::Anarch) && has(c, &["ani"]),
             0,
         ),
         5,
@@ -2931,7 +2931,7 @@ fn dust_up_dodge_is_not_playable_once_the_limited_strike_is_used() {
     let a = e.add_minion(
         SeatId(0),
         vampire(
-            |c| c.sect == zvtes::crypt::Sect::Anarch && has(c, &["cel"]) && has(c, &["pot"]),
+            |c| c.sect == Some(zvtes::crypt::Sect::Anarch) && has(c, &["cel"]) && has(c, &["pot"]),
             0,
         ),
         5,
@@ -4170,7 +4170,7 @@ fn has_level(c: &zvtes::crypt::CryptCard, tags: &[&str]) -> bool {
 fn anarch_with(tags: &[&str], without: &[&str], nth: usize) -> u16 {
     vampire(
         |c| {
-            c.sect == zvtes::crypt::Sect::Anarch
+            c.sect == Some(zvtes::crypt::Sect::Anarch)
                 && c.title == Title::None
                 && has_level(c, tags)
                 && !without.iter().any(|w| has_level(c, &[w]))
@@ -4681,7 +4681,7 @@ fn line_brawl_steals_a_pool_from_any_other_methuselah() {
     let b = e.add_minion(
         SeatId(0),
         vampire(
-            |c| c.sect != zvtes::crypt::Sect::Anarch && has_level(c, &["cel"]),
+            |c| c.sect != Some(zvtes::crypt::Sect::Anarch) && has_level(c, &["cel"]),
             0,
         ),
         5,
@@ -6788,13 +6788,17 @@ fn frontal_assault_rushes_the_prey_pays_for_losses_and_costs_at_influence() {
 fn piper_has_an_anarch_recruit_an_ally_outside_an_action() {
     let mut e = Engine::bare(3);
     let brujah = vampire(
-        |c| c.sect == zvtes::crypt::Sect::Anarch && c.clan == "Brujah" && c.title == Title::None,
+        |c| {
+            c.sect == Some(zvtes::crypt::Sect::Anarch)
+                && c.clan == "Brujah"
+                && c.title == Title::None
+        },
         0,
     );
     let a = e.add_minion(SeatId(0), brujah, 3, false);
     let other = e.add_minion(
         SeatId(0),
-        vampire(|c| c.sect != zvtes::crypt::Sect::Anarch, 0),
+        vampire(|c| c.sect != Some(zvtes::crypt::Sect::Anarch), 0),
         3,
         false,
     );
@@ -6862,7 +6866,7 @@ fn piper_employs_by_the_anarchs_disciplines_and_is_no_action() {
     let mut e = Engine::bare(3);
     let superior_ani = vampire(
         |c| {
-            c.sect == zvtes::crypt::Sect::Anarch
+            c.sect == Some(zvtes::crypt::Sect::Anarch)
                 && c.title == Title::None
                 && c.disciplines.contains(&"ANI")
         },
@@ -7975,7 +7979,9 @@ fn diversion_is_an_anarchs_steal_maneuver_or_prevention() {
     // Not an Anarch: none of it.
     let not_anarch = vampire(
         |c| {
-            c.sect != zvtes::crypt::Sect::Anarch && c.title == Title::None && has_level(c, &["tha"])
+            c.sect != Some(zvtes::crypt::Sect::Anarch)
+                && c.title == Title::None
+                && has_level(c, &["tha"])
         },
         0,
     );
@@ -9538,7 +9544,7 @@ fn hunting_the_beast_superior_feeds_an_uncontrolled_salubri_after_winning() {
 fn make_the_misere_gives_what_each_discipline_used_adds() {
     let card = vampire(
         |c| {
-            c.sect == zvtes::crypt::Sect::Anarch
+            c.sect == Some(zvtes::crypt::Sect::Anarch)
                 && has(c, &["pot"])
                 && !c.disciplines.iter().any(|d| d.eq_ignore_ascii_case("cel"))
         },
@@ -9548,7 +9554,7 @@ fn make_the_misere_gives_what_each_discipline_used_adds() {
     let a = e.add_minion(SeatId(0), card, 5, false);
     let other = e.add_minion(
         SeatId(0),
-        vampire(|c| c.sect != zvtes::crypt::Sect::Anarch, 0),
+        vampire(|c| c.sect != Some(zvtes::crypt::Sect::Anarch), 0),
         4,
         false,
     );
@@ -9758,7 +9764,7 @@ fn mind_numb_and_make_the_misere_fizzle_on_a_target_no_longer_eligible() {
         let mut e = Engine::bare(3);
         let card = if misere {
             vampire(
-                |c| c.sect == zvtes::crypt::Sect::Anarch && has(c, &["pot"]),
+                |c| c.sect == Some(zvtes::crypt::Sect::Anarch) && has(c, &["pot"]),
                 0,
             )
         } else {
@@ -9791,7 +9797,11 @@ fn mind_numb_and_make_the_misere_fizzle_on_a_target_no_longer_eligible() {
 fn piper_paid_down_to_zero_ousts_once() {
     let mut e = Engine::bare(3);
     let brujah = vampire(
-        |c| c.sect == zvtes::crypt::Sect::Anarch && c.clan == "Brujah" && c.title == Title::None,
+        |c| {
+            c.sect == Some(zvtes::crypt::Sect::Anarch)
+                && c.clan == "Brujah"
+                && c.title == Title::None
+        },
         0,
     );
     let a = e.add_minion(SeatId(0), brujah, 3, false);
@@ -9856,7 +9866,7 @@ fn army_of_rats_burns_one_prey_pool_a_turn_whatever_the_copies() {
 fn judgment_camarilla_segregation_taxes_non_camarilla_methuselahs() {
     let mut e = Engine::bare(3);
     let p = e.add_minion(SeatId(0), prince(0), 4, false);
-    let cam = |c: &zvtes::crypt::CryptCard| c.sect == zvtes::crypt::Sect::Camarilla;
+    let cam = |c: &zvtes::crypt::CryptCard| c.sect == Some(zvtes::crypt::Sect::Camarilla);
     e.add_minion(
         SeatId(0),
         vampire(|c| cam(c) && c.title == Title::None, 0),
@@ -10040,7 +10050,7 @@ fn fee_stake_represents_a_baron_and_its_burn_weakens_other_titles() {
         vampire(
             |c| {
                 c.clan == "Brujah"
-                    && c.sect == zvtes::crypt::Sect::Anarch
+                    && c.sect == Some(zvtes::crypt::Sect::Anarch)
                     && c.capacity >= 5
                     && c.title == Title::None
             },
@@ -10120,9 +10130,7 @@ fn waters_of_duat_creates_a_follower_of_set_that_must_hunt() {
         (new.clan(), e.state.sect_of(v), e.state.capacity_of(v)),
         (
             Some("Ministry"),
-            Some(
-                zvtes::crypt::CRYPT[e.state.minions[m.index()].crypt_card().unwrap() as usize].sect
-            ),
+            zvtes::crypt::CRYPT[e.state.minions[m.index()].crypt_card().unwrap() as usize].sect,
             Some(1)
         )
     );
@@ -10296,7 +10304,7 @@ fn open_war_grants_two_anarch_actions_and_pays_out_at_four_counters() {
     let c = e.add_minion(
         SeatId(0),
         vampire(
-            |c| c.sect == zvtes::crypt::Sect::Camarilla && c.title == Title::None,
+            |c| c.sect == Some(zvtes::crypt::Sect::Camarilla) && c.title == Title::None,
             0,
         ),
         4,
@@ -10378,7 +10386,7 @@ fn fee_stake_gives_its_brujah_a_vote_in_the_referendums_it_calls() {
         vampire(
             |c| {
                 c.clan == "Brujah"
-                    && c.sect == zvtes::crypt::Sect::Anarch
+                    && c.sect == Some(zvtes::crypt::Sect::Anarch)
                     && c.capacity >= 5
                     && c.title == Title::None
             },
@@ -10661,7 +10669,7 @@ fn charisma_discounts_the_recruit_ally_action() {
             vampire(
                 |c| {
                     c.clan == "Gangrel"
-                        && c.sect == zvtes::crypt::Sect::Anarch
+                        && c.sect == Some(zvtes::crypt::Sect::Anarch)
                         && c.title == Title::None
                 },
                 0,
@@ -11394,7 +11402,7 @@ fn powerbase_munich_shuttles_blood_and_burns_for_independents() {
     let ind = e.add_minion(
         SeatId(1),
         vampire(
-            |c| c.sect == zvtes::crypt::Sect::Independent && c.title == Title::None,
+            |c| c.sect == Some(zvtes::crypt::Sect::Independent) && c.title == Title::None,
             0,
         ),
         3,
@@ -11430,7 +11438,7 @@ fn twilight_camp_makes_anarchs_and_feeds_them() {
         (2, 3)
     );
     let cam = vampire(
-        |c| c.sect == zvtes::crypt::Sect::Camarilla && c.title == Title::None,
+        |c| c.sect == Some(zvtes::crypt::Sect::Camarilla) && c.title == Title::None,
         7,
     );
     let slot = uncontrolled(&mut e, 0, cam);
@@ -11572,7 +11580,7 @@ fn secure_haven_taxes_master_cards_on_its_minion() {
         vampire(
             |c| {
                 c.clan == "Gangrel"
-                    && c.sect == zvtes::crypt::Sect::Anarch
+                    && c.sect == Some(zvtes::crypt::Sect::Anarch)
                     && c.title == Title::None
             },
             0,
@@ -11998,7 +12006,7 @@ fn reductions_reach_cards_played_by_piper_and_contraband() {
         vampire(
             |c| {
                 c.clan == "Gangrel"
-                    && c.sect == zvtes::crypt::Sect::Anarch
+                    && c.sect == Some(zvtes::crypt::Sect::Anarch)
                     && c.title == Title::None
             },
             0,
@@ -12611,7 +12619,7 @@ fn a_searched_equipment_takes_ravnos_cache_counters_once_chosen() {
 /// An untitled vampire of `clan` and `sect`, no printed text.
 fn of_sect(clan: &str, sect: zvtes::crypt::Sect, nth: usize) -> u16 {
     vampire(
-        |c| c.clan == clan && c.sect == sect && c.title == Title::None,
+        |c| c.clan == clan && c.sect == Some(sect) && c.title == Title::None,
         nth,
     )
 }

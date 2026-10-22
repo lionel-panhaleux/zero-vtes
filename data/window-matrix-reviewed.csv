@@ -919,3 +919,20 @@ id,name,types,disciplines,in_precon,windows,flags,needs_review,review
 101877,Storage Annex,Master,,no,MASTER_PHASE,,,
 100023,The Admonitions,Master,,no,MASTER_PHASE,,,
 101708,The Secret Library of Alexandria,Master,,no,MASTER_PHASE,,,
+100007,Abjure,Power,red,no,ACTION_DECLARE_POWER,,,ok
+100322,Champion,Power,def,no,ACTION_DECLARE_POWER,,,ok
+100551,Discern,Power,jud,no,ACTION_DECLARE_POWER,,,ok
+100575,Donate,Power,mar,no,ACTION_DECLARE_POWER,,,ok
+100764,Foresee,Power,viz,no,ACTION_DECLARE_POWER,,,ok
+100919,Hide,Power,inn,no,ACTION_DECLARE_POWER,,,ok
+100953,Illuminate,Power,inn,no,ACTION_DECLARE_POWER,,,ok
+100991,Inspire,Power,inn,no,ACTION_DECLARE_POWER,,,ok
+101492,Project,Power,mar,no,ACTION_DECLARE_POWER,,,ok
+101557,React with Conviction,Conviction,,no,UNLOCK_CONVICTION,,,ok
+101592,Rejuvenate,Power,def,no,ACTION_DECLARE_POWER,,,ok
+101611,Respire,Power,red,no,ACTION_DECLARE_POWER,,,ok
+101705,Second Sight,Conviction,,no,UNLOCK_CONVICTION,,,ok
+101752,Shame,Power,red,no,ACTION_DECLARE_POWER,,,ok
+101886,Strike with Conviction,Conviction,,no,UNLOCK_CONVICTION,,,ok
+101908,Surge,Power,ven,no,ACTION_DECLARE_POWER,,,ok
+102120,Vigilance,Power,jud,no,ACTION_DECLARE_POWER,,,ok

@@ -99,7 +99,7 @@ fn with_disc(disc: &str, sect: Option<Sect>, nth: usize) -> u16 {
         .iter()
         .enumerate()
         .filter(|(i, c)| {
-            sect.is_none_or(|s| c.sect == s)
+            sect.is_none_or(|s| c.sect == Some(s))
                 && (disc.is_empty() || c.disciplines.contains(&disc))
                 && c.title == Title::None
                 && c.capacity >= 4

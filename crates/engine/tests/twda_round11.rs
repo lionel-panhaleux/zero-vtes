@@ -99,7 +99,7 @@ fn with_disc(disc: &str, sect: Option<Sect>, nth: usize) -> u16 {
         .iter()
         .enumerate()
         .filter(|(i, c)| {
-            sect.is_none_or(|s| c.sect == s)
+            sect.is_none_or(|s| c.sect == Some(s))
                 && (disc.is_empty() || c.disciplines.contains(&disc))
                 && c.title == Title::None
                 && c.capacity >= 4
@@ -1034,7 +1034,7 @@ fn anarch_manifesto_strengthens_titled_non_anarch_foes() {
     e.add_minion(SeatId(0), plain("Brujah", 1), 4, false);
     let p = e.add_minion(
         SeatId(1),
-        quiet_where(|c| matches!(c.title, Title::Prince(_)) && c.sect == Sect::Camarilla),
+        quiet_where(|c| matches!(c.title, Title::Prince(_)) && c.sect == Some(Sect::Camarilla)),
         4,
         false,
     );
@@ -1048,7 +1048,7 @@ fn anarch_manifesto_strengthens_titled_non_anarch_foes() {
 /// A quiet Anarch or Independent of capacity 9 or 10 (5 points).
 fn anarch_of_nine() -> u16 {
     quiet_where(|c| {
-        matches!(c.sect, Sect::Anarch | Sect::Independent) && (9..=10).contains(&c.capacity)
+        matches!(c.sect, Some(Sect::Anarch | Sect::Independent)) && (9..=10).contains(&c.capacity)
     })
 }
 

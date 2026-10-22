@@ -48,6 +48,19 @@ impl Effect {
         self.class().1
     }
 
+    /// Does this effect take control of its target minion? The one list
+    /// (React with Conviction's `PlayedTakesControlOfActor` reads it): a new
+    /// control-taking effect joins it.
+    pub fn takes_control(self) -> bool {
+        matches!(
+            self,
+            Effect::StealTargetAlly
+                | Effect::StealTargetVampire
+                | Effect::TakeControlOfTargetUntilUnlock
+                | Effect::TakeControlOfTargetUntilNextTurn
+        )
+    }
+
     /// The family and whether it prevents, classified together so a new
     /// effect is classified where it is routed.
     fn class(self) -> (Family, bool) {
@@ -65,6 +78,7 @@ impl Effect {
             | E::RotschreckEndsCombat
             | E::BecomesVampire { .. }
             | E::PutOnTarget
+            | E::ConvictionOnTarget
             | E::TargetSeatTakesCard
             | E::DualFormCopy
             | E::DescendActor
@@ -147,6 +161,7 @@ impl Effect {
             | E::PreyBurnsPool(..)
             | E::GainPool(..)
             | E::BloodToUncontrolledTarget(..)
+            | E::PoolToUncontrolledTarget(..)
             | E::BloodToTarget(..)
             | E::LockActor
             | E::EndCombat
@@ -205,8 +220,17 @@ impl Effect {
             | E::StealPoolFromBoonTarget
             | E::PoolToCounter(..)
             | E::PayPool(..)
+            | E::PayConviction
             | E::SpendMasterPhaseAction
             | E::LockSelf
+            | E::BurnConviction(..)
+            | E::FailsIntoCombatWithHost
+            | E::PeekOpponentControllersHand
+            | E::MayCancelCombat
+            | E::DamageOpponentByStrength
+            | E::LookAtLibraryTop(..)
+            | E::GainConviction { .. }
+            | E::LeaveIncapacitated
             | E::SpendDiscardPhaseAction
             | E::AddHostBlood(..)
             | E::AddCounter(..)
@@ -320,6 +344,7 @@ impl Effect {
             | E::BleedMod { .. }
             | E::Wake
             | E::VampiresCannotBlock
+            | E::SmallMonstersCannotBlock { .. }
             | E::DamageAfterResolution(..)
             | E::TargetCannotBlock
             | E::NoUnlockThisAction
@@ -577,7 +602,9 @@ impl Effect {
             | E::GraftOnTarget
             | E::IfBleedSuccessful(..)
             | E::LockMinionOfTarget
-            | E::CorruptMinionOfTarget => (Family::Success, false),
+            | E::CorruptMinionOfTarget
+            | E::ActingGainsConviction
+            | E::PaidConvictionToTarget => (Family::Success, false),
             E::CannotGainLife
             | E::ActsWhenRecruited
             | E::UnlockRecruiterOnFirst
@@ -595,6 +622,9 @@ impl Effect {
             | E::BurnSelfUnlessPool(..)
             | E::PreyChoosesMinionDamaged(..)
             | E::ControllerChoosesMinionDamaged(..)
+            | E::OtherReadyImbuedDamaged(..)
+            | E::HostBurnsConviction(..)
+            | E::ClearCounters
             | E::DamageHost(..)
             | E::MayMoveOffBurnedBearer
             | E::CoinFlipActionFails
@@ -629,6 +659,8 @@ impl Effect {
             | E::LockOrBurnPool(..)
             | E::DrawCryptOnEntry
             | E::ChooseCircleOnEntry
+            | E::NoEntryConviction
+            | E::SearchPowerOnEntry(..)
             | E::BurnsBloodOrIsBurnedOnEntry(..)
             | E::AnarchsBloodOrCamarillaAlliesBurn
             | E::LockUnlessDiscard
@@ -654,6 +686,7 @@ impl Effect {
             | E::EmployRetainer { .. }
             | E::BleedIfTargetHasNoReadyUnlocked(..)
             | E::BurnSourceOnDeclare
+            | E::BurnSourceOnResolution
             | E::TitledCannotBlock
             | E::StealthIfOwnTarget(..)
             | E::TakeAnyAction

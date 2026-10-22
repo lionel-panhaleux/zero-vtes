@@ -100,6 +100,12 @@ fn add(e: &E, w: Whom, when: Option<When>, out: &mut Vec<Effect>) {
         E::PoolToHostBlood(v) => push(detail(on(n(K::Blood, i(v)), On::Host), "from_pool")),
         E::BloodToTarget(v) => push(on(n(K::Blood, i(v)), On::Target)),
         E::BloodToUncontrolledTarget(v) => push(on(n(K::Blood, i(v)), On::Uncontrolled)),
+        E::PoolToUncontrolledTarget(v) => push(detail(
+            on(n(K::Counters, i(v)), On::Uncontrolled),
+            "from_pool",
+        )),
+        E::BurnConviction(v) => push(cost(detail(on(n(K::Burn, i(v)), On::Host), "conviction"))),
+        E::PayConviction => push(cost(detail(on(n(K::Burn, 1), On::Actor), "conviction"))),
         E::TargetBurnsBlood(v) => push(on(n(K::Blood, -i(v)), On::Target)),
         E::TargetBloodToPool(v) => push(detail(on(n(K::Blood, -i(v)), On::Target), "to_pool")),
         E::PoolToTargetBlood(v) => push(detail(on(n(K::Blood, i(v)), On::Target), "from_pool")),
@@ -162,6 +168,7 @@ fn add(e: &E, w: Whom, when: Option<When>, out: &mut Vec<Effect>) {
             push(detail(n(K::Damage, i(v)), "weapon_strike"))
         }
         E::DamageTarget(v) => push(on(n(K::Damage, i(v)), On::Target)),
+        E::DamageOpponentByStrength => push(detail(of(K::Damage), "opponent_strength")),
         E::EnvironmentalDamage { n: v, .. } | E::EnvironmentalDamageThisRound(v) => {
             push(detail(n(K::Damage, i(v)), "environmental"))
         }

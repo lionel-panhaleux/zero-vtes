@@ -1297,7 +1297,7 @@ fn vampire_of_sect(sect: Sect, nth: usize) -> u16 {
     CRYPT
         .iter()
         .enumerate()
-        .filter(|(i, c)| c.sect == sect && zvtes::cards::vampire(*i as u16).is_none())
+        .filter(|(i, c)| c.sect == Some(sect) && zvtes::cards::vampire(*i as u16).is_none())
         .nth(nth)
         .map(|(i, _)| i as u16)
         .unwrap_or_else(|| panic!("no {sect:?} vampire"))
@@ -1745,7 +1745,7 @@ fn alamut_gives_votes_to_its_controllers_vampires_only() {
         .iter()
         .enumerate()
         .position(|(i, c)| {
-            c.sect == Sect::Anarch
+            c.sect == Some(Sect::Anarch)
                 && c.title == zvtes::crypt::Title::None
                 && zvtes::cards::vampire(i as u16).is_none()
         })

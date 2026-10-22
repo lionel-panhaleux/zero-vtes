@@ -141,9 +141,10 @@ pub fn mask(e: &Engine, req: &DecisionRequest, set: Set) -> Option<Vec<bool>> {
     }
     let (st, me) = (&e.state, req.seat);
     let ready = st.ready_unlocked(me);
-    let acted = st
-        .minions_of(me)
-        .any(|m| st.minions[m.index()].locked && !st.minions[m.index()].in_torpor);
+    let acted = st.minions_of(me).any(|m| {
+        let v = &st.minions[m.index()];
+        v.locked && !v.in_torpor && !v.incapacitated
+    });
     let [last] = ready[..] else { return None };
     if !acted {
         return None;

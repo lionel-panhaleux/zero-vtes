@@ -408,6 +408,8 @@ fn kind_of(c: &Choice) -> &'static str {
             ActionKind::Ability => "ability_action",
             ActionKind::BecomeAnarch => "become_anarch",
             ActionKind::RedListHunt => "red_list_hunt",
+            ActionKind::Power => "power",
+            ActionKind::BurnImbued => "burn_imbued",
         },
         Choice::FindCard(_) => "find_card",
         Choice::TakeFrom { .. } => "take_from",
@@ -1330,7 +1332,7 @@ fuzz_tests! {
         setup: |e, seed| {
             per_seat(
                 e,
-                |c| c.clan == "Salubri" && c.sect == zvtes::crypt::Sect::Independent,
+                |c| c.clan == "Salubri" && c.sect == Some(zvtes::crypt::Sect::Independent),
                 3,
             );
             let valerius = find_card("Valerius");
@@ -3617,7 +3619,7 @@ fuzz_tests! {
             if absent(e, adv) {
                 e.add_minion(SeatId(2), adv, 4, false);
             }
-            per_seat(e, |c| c.sect == zvtes::crypt::Sect::Anarch, 4);
+            per_seat(e, |c| c.sect == Some(zvtes::crypt::Sect::Anarch), 4);
             // Venere Carboni in torpor, to leave it in his unlock phase.
             let venere = find_card("Venere Carboni");
             for m in &mut e.state.minions {
@@ -3662,7 +3664,7 @@ fuzz_tests! {
         ],
         setup: |e, _| {
             named(e, &["Leandro", "Venere Carboni", "Jessica", "Giotto Verducci"]);
-            per_seat(e, |c| c.sect == zvtes::crypt::Sect::Anarch, 4);
+            per_seat(e, |c| c.sect == Some(zvtes::crypt::Sect::Anarch), 4);
             per_seat(e, |c| c.clan == "Toreador antitribu", 4);
             // Maabara is a Harbinger of Skulls card.
             per_seat(e, |c| c.clan == "Harbinger of Skulls", 4);
@@ -3720,7 +3722,7 @@ fuzz_tests! {
             per_seat(e, |c| c.clan == "Banu Haqim" && c.capacity >= 5, 4);
             per_seat(e, |c| has(c, "qui"), 4);
             per_seat(e, |c| has(c, "dem"), 4);
-            per_seat(e, |c| has(c, "nec") && c.sect == zvtes::crypt::Sect::Anarch, 4);
+            per_seat(e, |c| has(c, "nec") && c.sect == Some(zvtes::crypt::Sect::Anarch), 4);
             per_seat(e, |c| has(c, "nec"), 4);
             per_seat(e, |c| has(c, "obe") || has(c, "aus"), 4);
             per_seat(e, |c| c.clan == "Ventrue", 4);
@@ -3789,11 +3791,11 @@ fuzz_tests! {
                 e.add_minion(SeatId(3), lucinde, 4, false);
             }
             let has = |c: &CryptCard, d: &str| c.disciplines.iter().any(|x| x.eq_ignore_ascii_case(d));
-            per_seat(e, |c| c.sect == zvtes::crypt::Sect::Anarch && has(c, "for"), 4);
+            per_seat(e, |c| c.sect == Some(zvtes::crypt::Sect::Anarch) && has(c, "for"), 4);
             per_seat(e, |c| c.clan == "Harbinger of Skulls", 4);
             per_seat(e, |c| has(c, "ani"), 4);
             per_seat(e, |c| has(c, "obe") || has(c, "pre"), 4);
-            per_seat(e, |c| c.sect == zvtes::crypt::Sect::Camarilla, 4);
+            per_seat(e, |c| c.sect == Some(zvtes::crypt::Sect::Camarilla), 4);
         },
         seeds: 10,
         ..BASE
@@ -3857,7 +3859,7 @@ fuzz_tests! {
         ],
         setup: |e, _| {
             let has = |c: &CryptCard, d: &str| c.disciplines.iter().any(|x| x.eq_ignore_ascii_case(d));
-            let camarilla = |c: &CryptCard| c.sect == zvtes::crypt::Sect::Camarilla;
+            let camarilla = |c: &CryptCard| c.sect == Some(zvtes::crypt::Sect::Camarilla);
             per_seat(e, |c| c.clan == "Toreador", 4);
             per_seat(e, |c| c.clan == "Tremere", 4);
             per_seat(e, |c| c.clan == "Tremere antitribu", 4);
@@ -3931,7 +3933,7 @@ fuzz_tests! {
                 ],
             );
             per_seat(e, |c| c.clan == "Toreador" && c.capacity >= 7, 4);
-            per_seat(e, |c| c.sect == zvtes::crypt::Sect::Camarilla && c.capacity >= 6, 4);
+            per_seat(e, |c| c.sect == Some(zvtes::crypt::Sect::Camarilla) && c.capacity >= 6, 4);
             per_seat(e, |c| c.clan == "Nosferatu", 4);
             // Allies for Dr. Morrow's grafts.
             for s in 0..4 {
@@ -4002,7 +4004,7 @@ fuzz_tests! {
         ],
         setup: |e, _| {
             let has = |c: &CryptCard, d: &str| c.disciplines.iter().any(|x| x.eq_ignore_ascii_case(d));
-            let sabbat = |c: &CryptCard| c.sect == zvtes::crypt::Sect::Sabbat;
+            let sabbat = |c: &CryptCard| c.sect == Some(zvtes::crypt::Sect::Sabbat);
             per_seat(e, |c| c.clan == "Osebo", 4);
             per_seat(e, |c| c.clan == "Nosferatu antitribu", 4);
             per_seat(e, |c| c.clan == "Gangrel antitribu", 4);
@@ -4091,13 +4093,13 @@ fuzz_tests! {
                     "Martin Franckel",
                 ],
             );
-            per_seat(e, |c| c.sect == zvtes::crypt::Sect::Sabbat && c.capacity >= 4, 4);
+            per_seat(e, |c| c.sect == Some(zvtes::crypt::Sect::Sabbat) && c.capacity >= 4, 4);
             per_seat(e, |c| c.clan == "Tremere", 4);
             // Younger untitled Sabbat vampires beside Gerald FitzGerald.
             per_seat(
                 e,
                 |c| {
-                    c.sect == zvtes::crypt::Sect::Sabbat
+                    c.sect == Some(zvtes::crypt::Sect::Sabbat)
                         && c.title == zvtes::crypt::Title::None
                         && c.capacity <= 5
                 },
@@ -4265,7 +4267,7 @@ fuzz_tests! {
                     "Tegyrius, Vizier",
                 ],
             );
-            per_seat(e, |c| c.sect == zvtes::crypt::Sect::Sabbat && c.capacity >= 4, 4);
+            per_seat(e, |c| c.sect == Some(zvtes::crypt::Sect::Sabbat) && c.capacity >= 4, 4);
             per_seat(e, |c| c.title != zvtes::crypt::Title::None, 4);
         },
         seeds: 100,
@@ -4360,9 +4362,9 @@ fuzz_tests! {
             per_seat(e, |c| c.clan == "Malkavian", 4);
             per_seat(e, |c| c.clan == "Banu Haqim", 4);
             per_seat(e, |c| c.clan == "True Brujah", 4);
-            per_seat(e, |c| c.sect == Sect::Anarch && c.capacity >= 5, 4);
-            per_seat(e, |c| c.sect == Sect::Camarilla && c.capacity >= 6, 4);
-            per_seat(e, |c| c.sect == Sect::Sabbat, 4);
+            per_seat(e, |c| c.sect == Some(Sect::Anarch) && c.capacity >= 5, 4);
+            per_seat(e, |c| c.sect == Some(Sect::Camarilla) && c.capacity >= 6, 4);
+            per_seat(e, |c| c.sect == Some(Sect::Sabbat), 4);
             per_seat(e, |c| has(c, "aus") && has(c, "dem"), 4);
             per_seat(e, |c| has(c, "obf"), 4);
             per_seat(e, |c| has(c, "pot"), 4);
@@ -4579,8 +4581,8 @@ fuzz_tests! {
             per_seat(e, |c| c.clan == "Harbinger of Skulls", 4);
             per_seat(e, |c| c.clan == "True Brujah", 4);
             per_seat(e, |c| c.black_hand, 4);
-            per_seat(e, |c| c.sect == Sect::Camarilla && c.capacity >= 6, 4);
-            per_seat(e, |c| c.sect == Sect::Anarch, 4);
+            per_seat(e, |c| c.sect == Some(Sect::Camarilla) && c.capacity >= 6, 4);
+            per_seat(e, |c| c.sect == Some(Sect::Anarch), 4);
             per_seat(e, |c| c.title != zvtes::crypt::Title::None, 4);
             per_seat(e, |c| c.capacity >= 8, 4);
             per_seat(e, |c| has(c, "ani") && has(c, "pro"), 4);
@@ -4747,13 +4749,13 @@ fuzz_tests! {
             let has = |c: &CryptCard, d: &str| c.disciplines.iter().any(|x| x.eq_ignore_ascii_case(d));
             per_seat(
                 e,
-                |c| c.sect == Sect::Sabbat
+                |c| c.sect == Some(Sect::Sabbat)
                     && matches!(c.title, Title::Archbishop(_) | Title::Priscus | Title::Cardinal | Title::Regent),
                 4,
             );
             per_seat(e, |c| c.black_hand, 4);
-            per_seat(e, |c| c.sect == Sect::Sabbat, 4);
-            per_seat(e, |c| c.clan == "Nosferatu" && c.sect == Sect::Camarilla, 4);
+            per_seat(e, |c| c.sect == Some(Sect::Sabbat), 4);
+            per_seat(e, |c| c.clan == "Nosferatu" && c.sect == Some(Sect::Camarilla), 4);
             per_seat(e, |c| c.clan == "Nosferatu antitribu", 4);
             per_seat(e, |c| has(c, "obf"), 4);
             per_seat(e, |c| has(c, "pro") && has(c, "ser"), 4);
@@ -4791,10 +4793,145 @@ fuzz_tests! {
                     "Smudge the Ignored",
                 ],
             );
-            per_seat(e, |c| c.sect == zvtes::crypt::Sect::Sabbat, 4);
+            per_seat(e, |c| c.sect == Some(zvtes::crypt::Sect::Sabbat), 4);
             per_seat(e, |c| c.clan == "Gangrel", 4);
         },
         seeds: 8,
+        ..BASE
+    };    /// Legacy cards, round 19 (slice 16ae): the powers and convictions, on
+    /// imbued covering every virtue.
+    random_games_with_twda_round_19a_hold_invariants_and_replay: Fixture {
+        slice: &[
+            "Abjure",
+            "Champion",
+            "Discern",
+            "Donate",
+            "Foresee",
+            "Hide",
+            "Illuminate",
+            "Inspire",
+            "Project",
+            "Rejuvenate",
+            "Respire",
+            "Shame",
+            "Surge",
+            "Vigilance",
+            "React with Conviction",
+            "Second Sight",
+            "Strike with Conviction",
+        ],
+        covers: &[
+            "play:Abjure",
+            "play:Champion",
+            "play:Discern",
+            "play:Donate",
+            "play:Foresee",
+            "play:Hide",
+            "play:Illuminate",
+            "play:Inspire",
+            "play:Project",
+            "play:Rejuvenate",
+            "play:Respire",
+            "play:Shame",
+            "play:Surge",
+            "play:Vigilance",
+            "play:React with Conviction",
+            "play:Second Sight",
+            "play:Strike with Conviction",
+            "ability:Abjure",
+            "ability:Champion",
+            "ability:Discern",
+            "ability:Donate",
+            "ability:Foresee",
+            "ability:Hide",
+            "ability:Illuminate",
+            "ability:Inspire",
+            "ability:Project",
+            "ability:Rejuvenate",
+            "ability:Respire",
+            "ability:Surge",
+            "ability:Vigilance",
+            "ability:Second Sight",
+            "ability:Strike with Conviction",
+        ],
+        setup: |e, _| {
+            named(
+                e,
+                &[
+                    "Anna \"Dictatrix11\" Suljic",
+                    "Béatrice \"Oracle171\" Tremblay",
+                    "Earl \"Shaka74\" Deams",
+                    "Erick \"Shophet125\" Franco",
+                    "François \"Warden\" Loehr",
+                    "Inez \"Nurse216\" Villagrande",
+                    "Jack \"Hannibal137\" Harmon",
+                    "Jennie \"Cassie247\" Orne",
+                    "Jennifer \"Flame61\" Vidisania",
+                    "John \"Cop90\" O'Malley",
+                    "Leaf \"Potter116\" Pankowski",
+                    "Liz \"Ticket312\" Thornton",
+                    "Lupe \"Cabbie22\" Droin",
+                    "Maman Boumba",
+                    "Marion \"Teacher193\" Perks",
+                    "Paul \"Sixofswords29\" Moreton",
+                    "Pedro Cortez",
+                    "Peter \"Outback295\" Rophail",
+                    "Travis \"Traveler72\" Miller",
+                    "Xian \"DziDzat155\" Quan",
+                ],
+            );
+        },
+        seeds: 200,
+        ..BASE
+    };
+    /// Legacy cards, round 19 (slice 16ae): the imbued, convictions to pay
+    /// their costs.
+    random_games_with_twda_round_19b_hold_invariants_and_replay: Fixture {
+        slice: &["Second Sight", "Strike with Conviction", "Sport Bike"],
+        covers: &[
+            "play:Second Sight",
+            "burn_imbued",
+            "ability:Anna \"Dictatrix11\" Suljic",
+            "ability:Erick \"Shophet125\" Franco",
+            "ability:Jack \"Hannibal137\" Harmon",
+            "ability:Jennie \"Cassie247\" Orne",
+            "ability:John \"Cop90\" O'Malley",
+            "ability:Leaf \"Potter116\" Pankowski",
+            "ability:Lupe \"Cabbie22\" Droin",
+            "ability:Maman Boumba",
+            "ability:Peter \"Outback295\" Rophail",
+            "ability:Travis \"Traveler72\" Miller",
+            "ability:Xian \"DziDzat155\" Quan",
+            "ability:Marion \"Teacher193\" Perks",
+        ],
+        setup: |e, _| {
+            named(
+                e,
+                &[
+                    "Anna \"Dictatrix11\" Suljic",
+                    "Béatrice \"Oracle171\" Tremblay",
+                    "Earl \"Shaka74\" Deams",
+                    "Erick \"Shophet125\" Franco",
+                    "François \"Warden\" Loehr",
+                    "Inez \"Nurse216\" Villagrande",
+                    "Jack \"Hannibal137\" Harmon",
+                    "Jennie \"Cassie247\" Orne",
+                    "Jennifer \"Flame61\" Vidisania",
+                    "John \"Cop90\" O'Malley",
+                    "Leaf \"Potter116\" Pankowski",
+                    "Liz \"Ticket312\" Thornton",
+                    "Lupe \"Cabbie22\" Droin",
+                    "Maman Boumba",
+                    "Marion \"Teacher193\" Perks",
+                    "Paul \"Sixofswords29\" Moreton",
+                    "Pedro Cortez",
+                    "Peter \"Outback295\" Rophail",
+                    "Travis \"Traveler72\" Miller",
+                    "Xian \"DziDzat155\" Quan",
+                ],
+            );
+        },
+        seeds: 300,
         ..BASE
     };
 }

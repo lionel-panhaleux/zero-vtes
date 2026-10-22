@@ -18,7 +18,7 @@ is created by one request and played over one WebSocket. Every game is
 recorded, anonymously, and kept two years to train and test the engine
 (§11).
 
-Version **2.6.0**. The types: the models of the
+Version **2.7.0**. The types: the models of the
 [API reference](https://engine.krcg.org/docs), also as
 [JSON Schema](https://engine.krcg.org/schema.json) (2020-12) and
 [TypeScript](https://engine.krcg.org/protocol.ts).
@@ -218,7 +218,7 @@ A JSON object with `seq`, `reply_to`? and a `type`:
 … 41: the schema's `Window`). `source` is the card whose terms or effect
 the decision chooses, when it is one (a play's or an action's terms, a
 referendum's): the options' `effects` say what each choice gets.
-`purpose` is what an effect asks the choice for, when one does (82 ids,
+`purpose` is what an effect asks the choice for, when one does (88 ids,
 the schema's `Purpose`: `pay_or_burn`, `store_search`…, one per kind
 of effect choice the engine asks). The purpose says the verb
 (`remove_uncontrolled`: the slot chosen is removed); where it has
@@ -268,9 +268,12 @@ the previous one, never the engine's state.
   game); `training[]` (library cards in the uncontrolled region
   with training counters, Web of Knives Recruit: as `in_play[]`'s, the
   counters the training's); `uncontrolled[]` (`card`, `counters`, `banished`,
-  `cards`); `ready[]` and `torpor[]` minions; `in_play[]` (cards on no
+  `cards`); `ready[]`, `torpor[]` and `incapacitated[]` minions (an
+  imbued with no life, controlled and not ready: the rulebook's
+  incapacitated region, its own zone `incapacitated`); `in_play[]` (cards on no
   minion).
-- Minion: `card`, `kind` (`vampire`, `ally`, `created`, `token`), `name`,
+- Minion: `card`, `kind` (`vampire`, `ally`, `created`, `token`,
+  `imbued`: a crypt card as a mortal ally, its `blood` its life), `name`,
   `blood`, `capacity`, `locked`, `contested`, `title` (id), `owner`,
   `cards[]` (in play on it), `markers[]` (`kind`, `seat`, `n`, `card`),
   `traits[]` (`black_hand`, `infernal`, `red_list`, `blood_cursed`,
@@ -380,7 +383,9 @@ seat 2; burn 2 pool to keep card 9.)
     the opposing strike's damage only), `strike_non_aggravated`,
     `strike_all`, `x_plus` (X + `n`), `each_round`, `beyond_first`,
     `beyond_first_non_aggravated`, `to_pool`,
-    `from_pool`, `per_counter`, `then_bottom`, `master_phase`….
+    `from_pool`, `per_counter`, `then_bottom`, `master_phase`,
+    `conviction` (a burn of the imbued's convictions, `n` of them),
+    `opponent_strength`….
   - A vote's: `votes` (`n` cast, `favor`; `detail: prisci_ballot` the
     ballots a priscus casts with them; `on: card` the political action
     card's own vote).
@@ -508,7 +513,7 @@ heap (a marker on its minion, §6), no copy of its own.
 | `transfers` | `left`: the active seat's transfers left, as its influence phase begins and at each change |
 | `draw` | `seat`, `n`, `crypt` |
 | `revealed` | `seat`, `card` (its `id`, `crypt`; no number): a card of a crypt or library an effect revealed to all (a top card, a search's find) |
-| `looked` | `seat`, `cards` (their `id`s; no number): `seat`'s hand as it stood when an effect let this seat look at it (SchreckNET, Vaticination), told to the looking seat only |
+| `looked` | `seat`, `cards` (their `id`s; no number), `zone`?: `seat`'s hand as it stood when an effect let this seat look at it (SchreckNET, Vaticination), told to the looking seat only; `zone: library`, the top of its own library, top first (Anna "Dictatrix11" Suljic) |
 | `resolved` | `seat`, `card`, `effects`? (the options' vocabulary, §7, `on` as it applies): a card played resolved — what its mode does (none when it takes no effect: its payer burned paying), the changes it makes told by the events after it, so its `pool`, `blood` and `life` effects at once are not among `effects` (their events follow, the card their `cause`; one that comes later, its `when` set, stays); an action card's end is its `action_ends` |
 | `canceled` | `seat`, `card`: a card played canceled (still played: to the ash heap) |
 | `pool` | `seat`, `delta`, `pool`, `cause`? |
@@ -518,6 +523,7 @@ heap (a marker on its minion, §6), no copy of its own.
 | `card_moves` | `card` (as the recipient may know it: a back, `{}`, where neither place shows it), `from`, `to` (`{seat, zone, on?}`: `zone` a §6 place, `stored` on a card, `training`; `on` the card it is stored on, the minion it is on, a banished vampire's slot its cards are with, the minion a merged vampire's card is now): every card's move between places, in play included (drawn, discarded, played into limbo, entering or leaving play, a card on a minion moved to another, a card or minion changing hands, a merge: the base card onto its minion, in no view's list; a vampire moved within its uncontrolled region, a reshuffle's); `seat` the place's holder as it moved (a zone's seat, a card's controller, a minion's, the minion's for a card on it); `slot`, in an uncontrolled region: `from`'s which of its cards left (a face-down one's too), `to`'s where it goes, each from the first, the moves told before applied |
 | `leaves_play` | `card`, `to`? (the zone it went to), `minion`? (its kind), `contested`? (into a contest: a vampire, a unique card, or the cards on a contested minion with it, each told `enters_play` again as the contest resolves in its favor; with no `to` and not contested, out of play with its minion: Descent into Darkness, its `out_of_play` marker, `enters_play` again on return), `effect`? |
 | `torpor` | `minion`, `enters` |
+| `incapacitated` | `minion`, `enters`: an imbued into the incapacitated region (true) or out of it |
 | `locked` | `copy`, `locked`: a minion or a card in play locked or unlocked, or one in a contest (its unlock phase) |
 | `counters` | `copy`? (a card in play or in training), `slot`? (`{seat, slot}`: an uncontrolled vampire, its place in the region as the events have kept it when told; another seat's a back), `delta`, `counters`, `cause`? (as `pool`'s) |
 | `controller` | `copy`, `seat`: a minion or a card in play now controlled by `seat` (a minion taken, The Coven's predator) |
@@ -596,7 +602,7 @@ tests hold every view to it. What it applies:
   told after its move when it comes into the contest at once (a second
   copy influenced out, a unique card played); `enters_play` ends it;
 - the rest by the event of its field: `pool`, `blood`, `torpor` (ready
-  or in torpor), `locked` (a card or minion in a contest too),
+  or in torpor), `incapacitated` (ready or incapacitated), `locked` (a card or minion in a contest too),
   `counters` (a card's, in training too; a slot by its place),
   `controller`, `capacity`, `title`, `markers`, `traits`,
   `victory_points`, `edge`, `turn` (its unlock phase) and `phase`,

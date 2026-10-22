@@ -87,6 +87,10 @@ pub struct SeatView {
     pub training: Vec<InPlayView>,
     pub ready: Vec<MinionView>,
     pub torpor: Vec<MinionView>,
+    /// Imbued with no life, controlled, not ready (rulebook "Appendix:
+    /// Imbued Rules" 5).
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub incapacitated: Vec<MinionView>,
     /// Cards in play the seat controls on no minion.
     pub in_play: Vec<InPlayView>,
     /// Cards the seat is playing, not resolved yet.
@@ -104,6 +108,24 @@ pub struct SlotView {
     /// The cards it carries there, out of play until it returns.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub cards: Vec<Card>,
+}
+
+impl SeatView {
+    /// Every minion the seat controls: ready, in torpor, incapacitated.
+    pub fn minions(&self) -> impl Iterator<Item = &MinionView> + Clone {
+        self.ready
+            .iter()
+            .chain(&self.torpor)
+            .chain(&self.incapacitated)
+    }
+
+    /// As `minions`, mutably.
+    pub fn minions_mut(&mut self) -> impl Iterator<Item = &mut MinionView> {
+        self.ready
+            .iter_mut()
+            .chain(&mut self.torpor)
+            .chain(&mut self.incapacitated)
+    }
 }
 
 /// A minion: named by its card's copy everywhere (options, events).

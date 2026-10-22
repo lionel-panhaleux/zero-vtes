@@ -97,7 +97,15 @@ pub fn event(e: &EventKind, n: &Names) -> Option<String> {
                 n.card(card)
             )
         }
-        EventKind::Looked { seat, cards } => {
+        EventKind::Looked {
+            zone: Some(_),
+            cards,
+            ..
+        } => {
+            let names: Vec<String> = cards.iter().map(|c| n.card(c)).collect();
+            format!("You look at the top of your library: {}", names.join(", "))
+        }
+        EventKind::Looked { seat, cards, .. } => {
             let names: Vec<String> = cards.iter().map(|c| n.card(c)).collect();
             match names.is_empty() {
                 true => format!("You look at {}'s hand: empty", n.seat(*seat)),
@@ -172,6 +180,14 @@ pub fn event(e: &EventKind, n: &Names) -> Option<String> {
                 "goes to torpor"
             } else {
                 "leaves torpor"
+            };
+            format!("{} {how}", n.minion(*minion))
+        }
+        EventKind::Incapacitated { minion, enters } => {
+            let how = if *enters {
+                "is incapacitated"
+            } else {
+                "leaves the incapacitated region"
             };
             format!("{} {how}", n.minion(*minion))
         }
@@ -313,6 +329,8 @@ pub fn action_kind(k: ActionKind) -> &'static str {
         ActionKind::EquipFound => "equip from the library",
         ActionKind::BecomeAnarch => "become Anarch",
         ActionKind::RedListHunt => "enter combat with a Red List minion",
+        ActionKind::Power => "get a power",
+        ActionKind::BurnImbued => "burn an incapacitated imbued",
     }
 }
 

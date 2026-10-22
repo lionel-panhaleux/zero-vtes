@@ -64,10 +64,13 @@ pub const V_CLAN: i32 = V_WINDOW + N_WINDOWS as i32;
 pub const N_ACTION_KINDS: usize = ActionKind::Ability as usize + 1;
 
 /// An action kind's one-hot slot: Become Anarch and the Red List hunt
-/// share the granted actions' (no schema change for trained networks).
+/// share the granted actions', an imbued's power the equip action's (no
+/// schema change for trained networks).
 fn action_slot(kind: ActionKind) -> usize {
     match kind {
         ActionKind::BecomeAnarch | ActionKind::RedListHunt => ActionKind::Ability as usize,
+        ActionKind::Power => ActionKind::Equip as usize,
+        ActionKind::BurnImbued => ActionKind::Diablerie as usize,
         k => k as usize,
     }
 }
@@ -216,7 +219,7 @@ fn library_id(card: u16) -> i32 {
 
 fn minion_id(kind: MinionKind) -> i32 {
     match kind {
-        MinionKind::Vampire(c) => crypt_id(c),
+        MinionKind::Vampire(c) | MinionKind::Imbued(c) => crypt_id(c),
         MinionKind::Ally { card, .. }
         | MinionKind::Created { card, .. }
         | MinionKind::GreatBeast { card, .. }
@@ -324,7 +327,8 @@ fn encode_as(e: &Engine, req: &DecisionRequest, v: Version, omniscient: bool) ->
         f[F_BLOOD] = m.blood as f32 / 10.0;
         f[F_CAPACITY] = st.capacity_of(id).unwrap_or(0) as f32 / 11.0;
         f[F_LOCKED] = flag(m.locked);
-        f[F_TORPOR] = flag(m.in_torpor);
+        // Incapacitated: an imbued's torpor (no schema change).
+        f[F_TORPOR] = flag(m.in_torpor || m.incapacitated);
         // Out of play (Descent into Darkness) shares the face-down flag.
         f[F_CONTESTED] = flag(m.contested || m.title_contested || m.out_of_play);
         f[F_TITLED] = flag(m.is_vampire() && st.title_of(id) != Title::None);

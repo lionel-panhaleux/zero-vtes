@@ -6,6 +6,25 @@ server runs.
 `python3 scripts/schema_compat.py` lists what a schema change adds or
 removes; its `--check` fails a removal without a major version.
 
+## 2.7.0
+
+The Imbued (rulebook "Appendix: Imbued Rules"): a crypt card as a mortal
+ally, its region when it has no life, its powers and convictions; ids
+added, none removed.
+
+- Minion `kind` `imbued`: a crypt card in play as an ally, its `blood`
+  its life, its creed and virtues the card's clan and Disciplines.
+- Zone `incapacitated` and `SeatView.incapacitated[]` (its minions, as
+  `ready` and `torpor`'s); event `incapacitated` (`minion`, `enters`),
+  the minion moved between `ready` and `incapacitated` as `torpor`
+  moves it (§9's reducer).
+- Action kinds `power` (an imbued gets a power: +1 stealth) and
+  `burn_imbued` (an incapacitated imbued burned, its equipment taken).
+- Purposes `gain_conviction`, `burn_convictions`, `avenge_imbued`,
+  `name_conviction`, `power_search`, `may_cancel_combat` (88 ids).
+- Event `looked`: `zone` (`library`: the top of the looking seat's own
+  library, top first); absent, the hand as before.
+
 ## 2.6.0
 
 The table kept from events alone: the last view with the events since

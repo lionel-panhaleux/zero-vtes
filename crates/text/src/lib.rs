@@ -76,7 +76,7 @@ impl<'a> Names<'a> {
         self.action = v.action.clone();
         self.referendum = v.referendum.clone();
         for (seat, s) in v.seats.iter().enumerate() {
-            for m in s.ready.iter().chain(&s.torpor) {
+            for m in s.minions() {
                 let name = match m.card.copy {
                     Some(c) => self.numbered(c, minion_name(m.kind, &m.name), m.card.numbered),
                     None => minion_name(m.kind, &m.name),

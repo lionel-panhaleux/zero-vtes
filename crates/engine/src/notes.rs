@@ -138,6 +138,7 @@ pub struct Ledger {
 pub struct MinionLedger {
     pub present: bool,
     pub torpor: bool,
+    pub incapacitated: bool,
     pub blood: u8,
     pub locked: bool,
     pub capacity: Option<u8>,
@@ -196,6 +197,7 @@ impl Engine {
                     MinionLedger {
                         present,
                         torpor: m.in_torpor,
+                        incapacitated: m.incapacitated,
                         blood: m.blood,
                         locked: m.locked,
                         controller: m.owner,

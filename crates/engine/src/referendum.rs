@@ -441,10 +441,11 @@ pub(crate) fn chooseable_card(
         && filter.matches(card.card)
 }
 
-/// Clans of the V5 crypt, in crypt order (Consanguineous Boon's choice).
+/// Clans of the V5 crypt, in crypt order (Consanguineous Boon's choice);
+/// an imbued's creed is none.
 pub fn clans() -> Vec<&'static str> {
     let mut out: Vec<&'static str> = Vec::new();
-    for c in CRYPT.iter() {
+    for c in CRYPT.iter().filter(|c| !c.imbued) {
         if !out.contains(&c.clan) {
             out.push(c.clan);
         }
@@ -1472,7 +1473,7 @@ impl Engine {
                     match e {
                         cards::Effect::HostBurnBlood(n) => {
                             if self.state.burn_blood_or_life(host, n) {
-                                self.burn_minion(host);
+                                self.lifeless(host);
                             }
                         }
                         other => self.apply_rider_effect(id, other, hook),

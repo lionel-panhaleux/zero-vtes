@@ -2076,3 +2076,93 @@ Thirty-four cards (20 library, 14 crypt: 9 defined, 5 text-only), the first four
 ## Batch 86 — The master Discipline search found empty or declined (Z-main, 2026-10-19, tracing harvested records; owner, 2026-10-19: 86.1 confirmed)
 
 **86.1** 81.1's search taking nothing (no master Discipline card the diablerist could take in library, hand or ash heap) or declined (its Pass): the library is shuffled all the same: the controller goes through the library either way (advanced rules 4: "may go through … and then shuffle"); a seat with no card to take is not asked, its library shuffled. Confirmed (owner, 2026-10-19). Found tracing two harvested records whose games diverge at that shuffle (05d1a4123dfe22af, 81e9bf16b18eb65c; 7d7d339). (Test a_diablerist_of_an_older_vampire_takes_a_master_discipline, the younger victim's case aside.)
+
+## Batch 87 — Round 19 (the Imbued, their powers and convictions): readings graded (Claude, 2026-10-21)
+
+Thirty-seven cards (20 imbued, 14 powers, 3 convictions) and the rules of the rulebook's "Appendix: Imbued Rules" (an imbued a mortal ally, life its cost, creeds and virtues; convictions; powers; the incapacitated region; monster and mortal), graded per the add-cards skill: four blind second readers read the cards and the appendix, their reads diffed against the code. Red: 87.1–87.7, 87.42 and 87.43, answered by the owner (2026-10-22): 87.42 and 87.43 corrected.
+
+**87.1** An incapacitated imbued's printed text and powers stay usable ("controlled but not ready", as a vampire's text works in torpor; Abjure's ruling, LSJ 20081016): Béatrice's damage and Earl's burn each unlock phase, Anna's look, Paul's move, Maman's 3 votes against for a conviction. A reader agreed for the riders and the phase abilities but would not let an incapacitated Maman vote (a torpid vampire casts no votes). Question (implemented reading): Maman incapacitated may still burn a conviction for her 3 votes. Red, confirmed by the owner (2026-10-22). (Tests maman_buys_three_votes_against_with_a_conviction, beatrice_damages_another_of_her_imbued_each_unlock_phase.)
+
+**87.2** An effect sending an imbued to torpor (a strike's "send to torpor", Touch of Oblivion [OBL]) incapacitates it, the appendix's analogue of torpor (advanced rules §5.3: "incapacitation is the imbued analogue"); an ally sent to torpor is burned (advanced rules 5.3.3). No ruling. Question (implemented reading): incapacitated, not burned. Red, confirmed by the owner (2026-10-22). (Code path; `Engine::minions_to_torpor`.)
+
+**87.3** Illuminate: "any monster may enter combat with this imbued as a Ⓓ action" — another Methuselah's monster only (the Ⓓ, and rushes at another's minion: Haven Uncovered's shape). A reader would let the imbued's own controller's monster take it, undirected. Question (implemented reading): another Methuselah's only. Red, confirmed by the owner (2026-10-22). (Test illuminate_gives_imbued_intercept_and_invites_a_rush.)
+
+**87.4** A power's [ACTION] with "[1 CONVICTION]" (Inspire, Rejuvenate, Respire's mend): the conviction named as the action is announced, burned as it resolves, the action fizzling if it is gone by then — as Travis's "action that costs 1 conviction" (RTR 20111202) and every action's cost (3.6). A reader read the appendix's "lock the power card (and pay whatever cost the effect requires)" as paid as the action is announced, lost on a block. Question (implemented reading): paid at resolution. Red, confirmed by the owner (2026-10-22). (Test inspire_moves_the_conviction_it_paid_to_another_imbued.)
+
+**87.5** Rejuvenate's and Respire's "add 1 blood to a vampire or 1 life to any other ally": "other" than this imbued — the imbued itself not a target. A reader read "other" than a vampire, the imbued a target. Question (implemented reading): not itself. Red, confirmed by the owner (2026-10-22). (Code path; `MEND_ACTION`'s `OtherThanActor`.)
+
+**87.6** Surge: "burn all surge counters on this imbued at the end of the action" — counters gained in a combat outside any action stay until an action ends (`Hook::ActionEnds`). A reader would burn them as that combat ends. Question (implemented reading): until an action ends. Red, answered by the owner (2026-10-22): "in theory I suppose, but there is no combat outside of an action" — the reading stands, its case unmet. (Test surge_counters_prevent_damage_and_go_with_the_action.)
+
+**87.7** Xian: "if Xian successfully blocks a monster and is still ready at the end of the action" — the monster read as the action ends (the gain's moment). A reader would read it as the block succeeds. Question (implemented reading): at the end. Red, confirmed by the owner (2026-10-22). (Test xian_gains_a_conviction_after_blocking_a_monster.)
+
+**87.8** An imbued is a mortal ally (`MinionKind::Imbued`, `Minion::is_ally`, `is_imbued`): no vampire (no clan, sect, capacity, title, votes), its creed and virtues printed as clan and Disciplines in the crypt table (vocabularies of clans and Disciplines leave them out), 1 strength and 1 bleed, its cost its starting life; the "mortal ally" readers (`GameState::ally_of`: Mortal) read it so; a monster is a vampire or an ally neither mortal nor animal (`is_monster`). Influenced like a vampire, life from the counters. Green (rulebook "Appendix: Imbued Rules" 1, 4). (Test an_imbued_is_a_mortal_ally_its_cost_its_life.)
+
+**87.9** Convictions: played in their player's unlock phase on an imbued of theirs, one each imbued each phase (`Minion::conviction_played`), from hand or ash heap (the ash heap's in the virtual hand, `ASH_UNLOCK`), an incapacitated imbued included; above five, burned; an imbued entering play with none may gain one from library, hand or ash heap (`Interrupt::GainConviction`), the hand's replaced (AllySearch's precedent); "gaining" one is no play (no unlock-phase use spent). Liz gains none. Green; the incapacitated receiver amber. (Tests convictions_are_played_in_the_unlock_phase_one_each_imbued, a_sixth_conviction_is_burned, an_imbued_influenced_out_gains_a_conviction.)
+
+**87.10** "[n CONVICTION]" on an ability: n conviction cards of its imbued burned as it is used, its player choosing which when they differ (`Interrupt::BurnConvictions`); none to pay, not offered. Green (rulebook "Appendix: Imbued Rules" 2). (Tests peter_burns_a_conviction_to_maneuver_against_a_monster, maman_buys_three_votes_against_with_a_conviction.)
+
+**87.11** Powers: an imbued's +1 stealth action (`ActionKind::Power`), requiring the power's virtue, the power on it if successful, the imbued then unlocked; no second copy (masked, fizzling if one arrived since). An iconed ability locks the power card and pays its cost; "always on" text works locked; a [REACTION] is usable as reactions are — the imbued ready, unlocked or woken, in another Methuselah's action (`Requirement::HostMayReact`; LSJ 20070403), Vigilance's "by a locked imbued" without the unlock (`HostMayReactLocked`). Green. (Tests a_power_is_gained_by_a_plus_one_stealth_action_the_imbued_unlocking, discern_gives_intercept_against_an_acting_monster, vigilance_unlocks_a_locked_imbued_as_a_reaction.)
+
+**87.12** The incapacitated region: an imbued with no life is incapacitated, not burned — controlled, not ready, its cards with it; a "burn" effect still burns it; it leaves for 3 conviction in its controller's unlock phase (every imbued's shared ability), gaining 1 life up to its starting life, as leaving by any effect; any minion may burn one as a Ⓓ action (`ActionKind::BurnImbued`, undirected at one's own as a diablerie), taking its equipment; then each ready imbued, any Methuselah's, may burn a conviction for 1 unpreventable damage to the actor (`Interrupt::AvengeImbued`). Incapacitation is neither burn nor torpor: no "burned or sent to torpor" rider fires (advanced rules §5.7.5). Its region is the protocol's own (`Zone::Incapacitated`, `SeatView.incapacitated`, the `incapacitated` event; Z-main, 2026-10-21). Green. (Tests an_imbued_with_no_life_is_incapacitated_and_recovers_for_three_convictions, an_incapacitated_imbued_is_burned_by_an_action_and_avenged.)
+
+**87.13** Crypt cards met by earlier cards (the appendix's card rulings): "a vampire in your uncontrolled region" never names an imbued (`uncontrolled_target_qualifies` gates it to a filter naming one: Paul, Travis, Inspire); Lázár takes from a prey's imbued (a blind target) but gives to a vampire only, his "vampire in your uncontrolled region" one too; the Soul Gem of Etrius brings an imbued younger than its bearer in with no life, incapacitated; cards naming "a vampire" in an ash heap skip an imbued (`state::vampire_card`). Green. (Tests lazar_takes_from_an_imbued_but_gives_to_vampires_only, the_soul_gem_brings_an_imbued_in_with_no_life.)
+
+**87.14** Anna: her action's vampire chosen as announced, any Methuselah's, directed when another's; the look a phase ability, the cards told to her alone (the `looked` event's `zone: library`). Green. (Test anna_gives_two_blood_from_the_bank_to_any_vampire.)
+
+**87.15** Béatrice: the damaged imbued chosen by her controller, another than her, ready; none, nothing. Green. (Test beatrice_damages_another_of_her_imbued_each_unlock_phase.)
+
+**87.16** Earl: his stealth on any action not to enter combat; his count of ready imbued includes him. Amber (both reads). (Test earl_burns_a_conviction_with_more_than_two_ready_imbued.)
+
+**87.17** Erick: a combat from his action's success (not a block), first round before range, the opponent a monster, once; the conviction from hand or ash heap. Amber ("before combat begins" taken as before range in its first round). (Test erick_gains_a_conviction_rushing_a_monster.)
+
+**87.18** François: another Methuselah's action naming him as its target costs its acting minion 1 blood or life as it resolves (with the action's cost, Ambrosio's precedent), unpayable it fizzles; once whatever else it targets. Amber. (Test actions_at_francois_cost_another_blood.)
+
+**87.19** Inez: a power whose requirement includes innocence, from library (shuffled) or hand (replaced), put on her, no action; before any contest (LSJ 20080526). Amber. (Test inez_searches_a_power_requiring_innocence_as_she_enters.)
+
+**87.20** Jack, Marion, Pedro, Jennifer: printed modifiers (a first-round maneuver; a press; +1 strength, no maneuver to long range, no press to end, no "combat ends" strike; a weapon 1 pool or blood less, +1 bleed, -1 stealth). Green. (Tests jack_gets_a_maneuver_in_the_first_round, marion_gets_a_press_each_combat, pedro_cannot_maneuver_to_long_range, jennifer_pays_a_pool_less_for_weapons.)
+
+**87.21** Jennie: any Methuselah's incapacitated imbued may leave for 2 conviction in any Methuselah's unlock phase while she is in play, gaining 1 life (the rule's, not 2). Amber (both reads). (Test jennie_lets_any_incapacitated_imbued_recover_for_two_convictions.)
+
+**87.22** John: another Methuselah's ready monster, the conviction named as announced and burned as the action resolves (Travis's ruling). Amber. (Test john_rushes_a_monster_for_a_conviction.)
+
+**87.23** Leaf: locking him the cost, the search offered with no conviction to find (a legal no-op, the library shuffled). Amber. (Test leaf_locks_to_gain_a_conviction_from_the_library.)
+
+**87.24** Lupe: one use each action for stealth or intercept together, each only when needed. Amber (D15). (Test lupe_with_a_vehicle_buys_stealth_with_a_conviction.)
+
+**87.25** Paul: outside the transfer rules, the last pool ousting; usable as he arrives (RTR 20180303). Amber. (Tests paul_moves_a_pool_counter_to_an_uncontrolled_imbued, paul_moves_a_counter_in_the_influence_phase_he_arrives.)
+
+**87.26** Peter: "while" (not "during", 79.3): again each time paid. Amber. (Test peter_burns_a_conviction_to_maneuver_against_a_monster.)
+
+**87.27** Travis: the conviction named as the action is announced (RTR 20111202), burned at resolution, the action fizzling if it is gone. Green. (Test travis_names_his_conviction_and_pays_it_at_resolution.)
+
+**87.28** Abjure: any combat between a monster and a mortal, its imbued in it or not, incapacitated too (LSJ 20081016); locking both the imbued and the power; the conviction only when the mortal is another minion. Green. A combat of another Methuselah's minions only is not offered: the engine polls the combatants' Methuselahs alone in combat, where the rulebook's impulse goes on to every other Methuselah (an engine gap, on the engine board). (Tests abjure_ends_a_combat_between_a_monster_and_a_mortal, abjure_is_used_by_an_incapacitated_imbued.)
+
+**87.29** Champion: the action fails at once and the acting monster fights its imbued, the action going on until the combat ends (LSJ 20070217), failed, not blocked (LSJ 20070219), never during a block attempt (ANK 20260316). Green. (Tests champion_turns_a_monsters_action_into_a_combat_with_its_imbued, champion_is_not_used_during_a_block_attempt.)
+
+**87.30** Donate: each mode burns the card; its +1 bleed limited and before resolution (ANK 20231124); its strength for the combatant's remaining combat. Green. (Test donate_gives_another_mortal_a_bleed.)
+
+**87.31** Foresee: the opposing minion's controller's hand looked at, then the combat may be canceled; the imbued blocking, the action continues as if unblocked (rules-qa 3.4; RTR 19941109). Green. (Test foresee_looks_and_cancels_the_combat_the_bleed_going_on.)
+
+**87.32** Hide: its modifier's -1 intercept for monsters, as announced; its reaction failing a monster's action at its imbued; neither with an Illuminate on it (only their use barred). Green. (Test hide_fails_a_monsters_action_at_its_imbued.)
+
+**87.33** Illuminate: +1 intercept for every imbued blocking a monster, once whatever the copies, none on top of The Unmasking's; burned in its controller's next unlock phase or as its imbued is incapacitated. Green. (Tests illuminate_gives_imbued_intercept_and_invites_a_rush, illuminate_burns_as_its_imbued_is_incapacitated.)
+
+**87.34** Project: "monster allies who cost less than 4 pool" read narrowly: an ally printed with a pool cost below 4 (one costing blood is not barred). Green (default reading).
+
+**87.35** Respire: its damage environmental, out of combat; its "if successful" gain after a fizzle too (56.1, 78.38). Amber. (Test respire_damages_a_small_vampire_and_gains_a_conviction.)
+
+**87.36** Shame: the opposing monster's strength as it is now, environmental damage (RTR 19970630), then the combat ends; the card burns. Green. (Test shame_turns_a_monsters_strength_on_it_and_ends_combat.)
+
+**87.37** React with Conviction: a card taking control of its imbued, an action card requiring one of the five Disciplines aimed at it, or such a strike by its opponent, canceled as played, no cost paid; the canceled actor stays unlocked (LSJ 20060425). Green. (Test react_with_conviction_cancels_a_steal_of_its_imbued.)
+
+**87.38** Second Sight: one per imbued per action whichever mode; its intercept only when needed. Green. (Test second_sight_gives_intercept_against_a_monster.)
+
+**87.39** Strike with Conviction: burned as the strike's cost, the strike made (a card in play burned for its strike leaves nothing to lose, unlike a weapon gone: spec §4.10.4); its bleed burns it as it resolves, kept if blocked (LSJ 20060421). Green. (Tests strike_with_conviction_hits_a_monster_harder, strike_with_conviction_bleeds_and_burns_only_as_it_resolves, strike_with_convictions_blocked_bleed_keeps_it.)
+
+**87.40** Found by the tests: allies' Discipline checks read an imbued's virtues as its own (`cards::has_disciplines`); Béatrice's pick was optional (a missing mandatory purpose); a conviction moved to another Methuselah's imbued changed owner (copies conservation, the fuzz). Green.
+
+**87.41** Strike with Conviction's "weapon strike" is any weapon's (guns too) and is the weapon's own strike: the weapon's requirements and limit hold (Sniper Rifle at long range only, Sawed-Off once each combat), its riders stand (Waxen Poetica burned, AK-47's additional strike), and the +1 is damage of the weapon's kind (ranged, aggravated: RTR 19970630); every pool weapon's strike deals damage, so RTR 19960221 has no case. Amber: the precedent is Lucky Blow's and Lam Into's "use a melee weapon strike", one routine for both (`Engine::weapon_strike_plus`), the target's filter choosing the weapons; found by the tests (a gun panicked the old melee-only path). (Test strike_with_convictions_added_damage_is_the_weapons.)
+
+**87.42** A gun's maneuver commits its strike (LSJ 20090528-2-2), and Strike with Conviction may still make that gun's strike at +1: a strike committed to a weapon is that weapon's strike however it is made, through a card or an ability using it ("same way they could use Target Vitals on the gun strike"). The committed strike's options are the weapon's own and every play or ability whose `WeaponStrikePlus` names it. Red, answered by the owner (2026-10-22): yes, the engine changed. (Tests strike_with_conviction_strikes_with_the_gun_its_maneuver_committed, strike_with_convictions_added_damage_is_the_weapons.)
+
+**87.43** Rejuvenate's "during your unlock phase, if this imbued has fewer life than his or her starting amount, he or she gains 1 life" works on an incapacitated imbued (0 life): it gains the life and stays incapacitated — life gained is not leaving the region, which only the appendix's rule does (3 conviction, +1 life). Red, answered by the owner (2026-10-22): "it gains life, it does not get them out of incapacitated", the engine changed (no `HostReady` on the rider). (Test rejuvenate_gives_life_to_an_incapacitated_imbued_left_there.)

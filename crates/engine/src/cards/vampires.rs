@@ -1777,7 +1777,7 @@ pub static PARIJAT: VampireDef = VampireDef {
     ..VAMP
 };
 
-pub static VAMPIRES: [&VampireDef; 456] = [
+pub static VAMPIRES: [&VampireDef; 476] = [
     &JOSEF_VON_BAUREN,
     &GABRIELLE_DI_RIGHETTI,
     &HAROLD_TANNER,
@@ -2234,6 +2234,26 @@ pub static VAMPIRES: [&VampireDef; 456] = [
     &JULIUS,
     &NAVAR_MCCLAREN,
     &SMUDGE_THE_IGNORED,
+    &ANNA_DICTATRIX11_SULJIC,
+    &BEATRICE_ORACLE171_TREMBLAY,
+    &EARL_SHAKA74_DEAMS,
+    &ERICK_SHOPHET125_FRANCO,
+    &FRANCOIS_WARDEN_LOEHR,
+    &INEZ_NURSE216_VILLAGRANDE,
+    &JACK_HANNIBAL137_HARMON,
+    &JENNIFER_FLAME61_VIDISANIA,
+    &JOHN_COP90_OMALLEY,
+    &LEAF_POTTER116_PANKOWSKI,
+    &LIZ_TICKET312_THORNTON,
+    &LUPE_CABBIE22_DROIN,
+    &MAMAN_BOUMBA,
+    &MARION_TEACHER193_PERKS,
+    &PAUL_SIXOFSWORDS29_MORETON,
+    &PEDRO_CORTEZ,
+    &PETER_OUTBACK295_ROPHAIL,
+    &TRAVIS_TRAVELER72_MILLER,
+    &XIAN_DZIDZAT155_QUAN,
+    &JENNIE_CASSIE247_ORNE,
 ];
 
 /// "Anarch Baron of Miami: During your influence phase, Gilbert can burn 1
@@ -5233,7 +5253,7 @@ pub static ANKA: VampireDef = VampireDef {
 pub static LAZAR_DOBRESCU: VampireDef = VampireDef {
     name: "Lázár Dobrescu",
     abilities: &[ModeDef {
-        requires: &[R::OwnUncontrolledNotEmpty, R::PreyUncontrolledHasBlood],
+        requires: &[R::OwnUncontrolledVampire, R::PreyUncontrolledHasBlood],
         ..printed_action(
             Some(TargetSpec {
                 kind: TargetKind::Seat,
@@ -8536,3 +8556,410 @@ pub static SMUDGE_THE_IGNORED: VampireDef = VampireDef {
     printed: &[own(Stat::Strength, 1, &[R::DiablerizedOlder])],
     ..VAMP
 };
+
+// ---- Round 19: the Imbued (rulebook "Appendix: Imbued Rules") ----
+
+/// "An imbued may leave the incapacitated region and gain a life (not to
+/// exceed their starting life) by burning 3 conviction during their unlock
+/// phase" (rulebook "Appendix: Imbued Rules" 5): every imbued's.
+const RECOVER: ModeDef = mode_of(
+    &[Window::UnlockPhaseOwn],
+    Actor::Host,
+    &[R::HostIncapacitated, R::HostConvictionAtLeast(3)],
+    &[Effect::BurnConviction(3), Effect::LeaveIncapacitated],
+);
+
+/// Jennie "Cassie247" Orne's grant, every imbued's while she is in play:
+/// "any incapacitated imbued may move to the ready region and gain a life
+/// … by burning 2 conviction during any Methuselah's unlock phase".
+const RECOVER_GRANTED: ModeDef = mode_of(
+    &[Window::UnlockPhaseAny],
+    Actor::Host,
+    &[
+        R::HostIncapacitated,
+        R::ImbuedRecoveryGranted,
+        R::HostConvictionAtLeast(2),
+    ],
+    &[Effect::BurnConviction(2), Effect::LeaveIncapacitated],
+);
+
+/// "Anna may move 2 blood from the blood bank to any vampire as a +1
+/// stealth action. During your unlock phase, you may look at the top three
+/// cards of your library."
+pub static ANNA_DICTATRIX11_SULJIC: VampireDef = VampireDef {
+    name: "Anna \"Dictatrix11\" Suljic",
+    abilities: &[
+        printed_action(
+            target(TargetKind::Minion, &[R::TargetVampire]),
+            &[
+                Effect::DeclareAction(ActionKind::Ability),
+                Effect::AddStealth(1),
+                Effect::BloodToTarget(2),
+            ],
+        ),
+        mode_of(
+            &[Window::UnlockPhaseOwn],
+            Actor::Host,
+            &[],
+            &[Effect::LookAtLibraryTop(3)],
+        ),
+        RECOVER,
+        RECOVER_GRANTED,
+    ],
+    ..VAMP
+};
+
+/// "During your unlock phase, another ready imbued you control takes 1
+/// unpreventable damage. +1 bleed."
+pub static BEATRICE_ORACLE171_TREMBLAY: VampireDef = VampireDef {
+    name: "Béatrice \"Oracle171\" Tremblay",
+    printed: &[own(Stat::Bleed, 1, &[])],
+    abilities: &[RECOVER, RECOVER_GRANTED],
+    riders: &[Rider {
+        hook: Hook::UnlockPhase,
+        scope: RiderScope::Controller,
+        requires: &[],
+        effects: &[Effect::OtherReadyImbuedDamaged(1)],
+    }],
+    ..VAMP
+};
+
+/// "Earl gets +1 stealth on actions other than actions to enter combat.
+/// During your unlock phase, if you control more than two ready imbued,
+/// Earl burns 1 conviction [1 CONVICTION]." Earl counted among them.
+pub static EARL_SHAKA74_DEAMS: VampireDef = VampireDef {
+    name: "Earl \"Shaka74\" Deams",
+    printed: &[own(Stat::Stealth, 1, &[R::ActionNotEnteringCombat])],
+    abilities: &[RECOVER, RECOVER_GRANTED],
+    riders: &[Rider {
+        hook: Hook::UnlockPhase,
+        scope: RiderScope::Controller,
+        requires: &[R::HostControllerReadyImbuedAtLeast(3)],
+        effects: &[Effect::HostBurnsConviction(1)],
+    }],
+    ..VAMP
+};
+
+/// "If Erick successfully enters combat with a monster as an action, he
+/// may gain a conviction [1 CONVICTION] from your hand or ash heap (before
+/// combat begins)."
+pub static ERICK_SHOPHET125_FRANCO: VampireDef = VampireDef {
+    name: "Erick \"Shophet125\" Franco",
+    abilities: &[
+        ability(
+            &[Window::CombatBeforeRange],
+            Actor::Host,
+            &[
+                R::ActorActing,
+                R::ActionEntersCombat,
+                R::CombatFromSuccess,
+                R::OpponentMonster,
+                R::FirstRound,
+            ],
+            Limit::PerCombat,
+            &[Effect::GainConviction { library: false }],
+        ),
+        RECOVER,
+        RECOVER_GRANTED,
+    ],
+    ..VAMP
+};
+
+/// "Other Methuselahs' actions that target François cost an additional
+/// blood or life."
+pub static FRANCOIS_WARDEN_LOEHR: VampireDef = VampireDef {
+    name: "François \"Warden\" Loehr",
+    printed: &[own(Stat::TargetedCostsBlood, 1, &[])],
+    abilities: &[RECOVER, RECOVER_GRANTED],
+    ..VAMP
+};
+
+/// "When Inez enters play, you may search your library (shuffle afterward)
+/// or hand for a power that requires innocence and put it on her." Before
+/// any contest (LSJ 20080526).
+pub static INEZ_NURSE216_VILLAGRANDE: VampireDef = VampireDef {
+    name: "Inez \"Nurse216\" Villagrande",
+    abilities: &[RECOVER, RECOVER_GRANTED],
+    riders: &[Rider {
+        hook: Hook::EntersPlay,
+        scope: RiderScope::Every,
+        requires: &[],
+        effects: &[Effect::SearchPowerOnEntry("inn")],
+    }],
+    ..VAMP
+};
+
+/// "Jack gets an optional maneuver on the first round of combat."
+pub static JACK_HANNIBAL137_HARMON: VampireDef = VampireDef {
+    name: "Jack \"Hannibal137\" Harmon",
+    abilities: &[
+        ability(
+            &[Window::CombatDetermineRange],
+            Actor::Host,
+            &[R::FirstRound],
+            Limit::PerCombat,
+            &[Effect::Maneuver],
+        ),
+        RECOVER,
+        RECOVER_GRANTED,
+    ],
+    ..VAMP
+};
+
+/// "Weapons cost Jennifer 1 less pool or blood. +1 bleed. -1 stealth."
+pub static JENNIFER_FLAME61_VIDISANIA: VampireDef = VampireDef {
+    name: "Jennifer \"Flame61\" Vidisania",
+    printed: &[
+        own(
+            Stat::CostOff,
+            1,
+            &[R::PlayedCard(CardFilter::HasLabel(Label::Weapon))],
+        ),
+        own(Stat::Bleed, 1, &[]),
+        own(Stat::Stealth, -1, &[]),
+    ],
+    abilities: &[RECOVER, RECOVER_GRANTED],
+    ..VAMP
+};
+
+/// "John may enter combat with a monster as a Ⓓ action that costs 1
+/// conviction [1 CONVICTION]."
+pub static JOHN_COP90_OMALLEY: VampireDef = VampireDef {
+    name: "John \"Cop90\" O'Malley",
+    abilities: &[
+        printed_action(
+            target(
+                TargetKind::Minion,
+                &[R::NotControlled, R::ActorReady, R::TargetMonster],
+            ),
+            &[
+                Effect::DeclareAction(ActionKind::Ability),
+                Effect::PayConviction,
+                Effect::EnterCombatWithTarget,
+            ],
+        ),
+        RECOVER,
+        RECOVER_GRANTED,
+    ],
+    ..VAMP
+};
+
+/// "During your discard phase, Leaf may lock to gain a conviction [1
+/// CONVICTION] from your library (shuffle afterward), hand or ash heap."
+pub static LEAF_POTTER116_PANKOWSKI: VampireDef = VampireDef {
+    name: "Leaf \"Potter116\" Pankowski",
+    abilities: &[
+        mode_of(
+            &[Window::DiscardPhase],
+            Actor::Host,
+            &[R::HostUnlocked],
+            &[Effect::LockHost, Effect::GainConviction { library: true }],
+        ),
+        RECOVER,
+        RECOVER_GRANTED,
+    ],
+    ..VAMP
+};
+
+/// "Liz doesn't gain a conviction [1 CONVICTION] as normal when entering
+/// play."
+pub static LIZ_TICKET312_THORNTON: VampireDef = VampireDef {
+    name: "Liz \"Ticket312\" Thornton",
+    abilities: &[RECOVER, RECOVER_GRANTED],
+    riders: &[Rider {
+        hook: Hook::EntersPlay,
+        scope: RiderScope::Every,
+        requires: &[],
+        effects: &[Effect::NoEntryConviction],
+    }],
+    ..VAMP
+};
+
+/// "If Lupe has a vehicle, once each action she may burn a conviction [1
+/// CONVICTION] to get +1 stealth or +1 intercept." One use for both.
+pub static LUPE_CABBIE22_DROIN: VampireDef = VampireDef {
+    name: "Lupe \"Cabbie22\" Droin",
+    abilities: &[
+        ability(
+            &[Window::ActionDuring],
+            Actor::Host,
+            &[
+                R::ActorActing,
+                R::ActorHolds(super::Holding::Label(Label::Vehicle)),
+                R::StealthNeeded,
+                R::HostConvictionAtLeast(1),
+            ],
+            Limit::PerActionCard,
+            &[Effect::BurnConviction(1), Effect::AddStealth(1)],
+        ),
+        ability(
+            &[Window::ActionStealthIntercept],
+            Actor::Host,
+            &[
+                R::ActorHolds(super::Holding::Label(Label::Vehicle)),
+                R::InterceptNeeded,
+                R::HostConvictionAtLeast(1),
+            ],
+            Limit::PerActionCard,
+            &[Effect::BurnConviction(1), Effect::AddIntercept(1)],
+        ),
+        RECOVER,
+        RECOVER_GRANTED,
+    ],
+    ..VAMP
+};
+
+/// "During a referendum, Maman may burn a conviction [1 CONVICTION] to get 3
+/// votes against the referendum. You may lock Maman before range is
+/// determined in a combat between two monsters to end that combat."
+pub static MAMAN_BOUMBA: VampireDef = VampireDef {
+    name: "Maman Boumba",
+    abilities: &[
+        ability(
+            &[Window::Referendum],
+            Actor::Host,
+            &[R::AnyPollingStep, R::HostConvictionAtLeast(1)],
+            Limit::PerReferendum,
+            &[Effect::BurnConviction(1), Effect::AddVotesAgainst(3)],
+        ),
+        mode_of(
+            &[Window::CombatBeforeRange],
+            Actor::HostOutOfCombat,
+            &[R::HostUnlocked, R::CombatBothMonsters],
+            &[Effect::LockHost, Effect::EndCombat],
+        ),
+        RECOVER,
+        RECOVER_GRANTED,
+    ],
+    ..VAMP
+};
+
+/// "Marion gets an optional press each combat."
+pub static MARION_TEACHER193_PERKS: VampireDef = VampireDef {
+    name: "Marion \"Teacher193\" Perks",
+    printed: &[own(Stat::CombatPress, 1, &[])],
+    abilities: &[RECOVER, RECOVER_GRANTED],
+    ..VAMP
+};
+
+/// "During your influence phase, you may move a counter from your pool to
+/// an imbued in your uncontrolled region." Influenced out, usable in that
+/// influence phase (RTR 20180303).
+pub static PAUL_SIXOFSWORDS29_MORETON: VampireDef = VampireDef {
+    name: "Paul \"Sixofswords29\" Moreton",
+    abilities: &[
+        ModeDef {
+            target: target(TargetKind::Uncontrolled, &[R::TargetImbued]),
+            ..mode_of(
+                &[Window::InfluencePhaseOwn],
+                Actor::Host,
+                &[],
+                &[Effect::PoolToUncontrolledTarget(1)],
+            )
+        },
+        RECOVER,
+        RECOVER_GRANTED,
+    ],
+    ..VAMP
+};
+
+/// "+1 strength. Pedro cannot maneuver to long range, press to end combat,
+/// or end combat as a strike."
+pub static PEDRO_CORTEZ: VampireDef = VampireDef {
+    name: "Pedro Cortez",
+    printed: &[
+        own(Stat::Strength, 1, &[]),
+        own(Stat::NoManeuverToLong, 1, &[]),
+        own(Stat::NoPressToEnd, 1, &[]),
+        own(Stat::NoCombatEnds, 1, &[]),
+    ],
+    abilities: &[RECOVER, RECOVER_GRANTED],
+    ..VAMP
+};
+
+/// "While Peter is in combat with a monster, he may burn a conviction [1
+/// CONVICTION] to get a maneuver."
+pub static PETER_OUTBACK295_ROPHAIL: VampireDef = VampireDef {
+    name: "Peter \"Outback295\" Rophail",
+    abilities: &[
+        mode_of(
+            &[Window::CombatDetermineRange],
+            Actor::Host,
+            &[R::OpponentMonster, R::HostConvictionAtLeast(1)],
+            &[Effect::BurnConviction(1), Effect::Maneuver],
+        ),
+        RECOVER,
+        RECOVER_GRANTED,
+    ],
+    ..VAMP
+};
+
+/// "Travis may move 2 blood from the blood bank to an imbued in your
+/// uncontrolled region as a +1 stealth action that costs 1 conviction [1
+/// CONVICTION]." The conviction named as the action is announced (RTR
+/// 20111202).
+pub static TRAVIS_TRAVELER72_MILLER: VampireDef = VampireDef {
+    name: "Travis \"Traveler72\" Miller",
+    abilities: &[
+        printed_action(
+            target(TargetKind::Uncontrolled, &[R::TargetImbued]),
+            &[
+                Effect::DeclareAction(ActionKind::Ability),
+                Effect::AddStealth(1),
+                Effect::PayConviction,
+                Effect::BloodToUncontrolledTarget(2),
+            ],
+        ),
+        RECOVER,
+        RECOVER_GRANTED,
+    ],
+    ..VAMP
+};
+
+/// "If Xian successfully blocks a monster and is still ready at the end of
+/// the action, he may gain a conviction [1 CONVICTION] from your hand or
+/// ash heap."
+pub static XIAN_DZIDZAT155_QUAN: VampireDef = VampireDef {
+    name: "Xian \"DziDzat155\" Quan",
+    abilities: &[
+        ability(
+            &[Window::ActionAfterCombat],
+            Actor::Host,
+            &[R::ActorHasBlocked, R::ActingMonster, R::HostReady],
+            Limit::PerAction,
+            &[Effect::GainConviction { library: false }],
+        ),
+        RECOVER,
+        RECOVER_GRANTED,
+    ],
+    ..VAMP
+};
+
+/// "Any incapacitated imbued may move to the ready region and gain a life
+/// (not to exceed his or her starting amount) by burning 2 conviction [2
+/// CONVICTION] during any Methuselah's unlock phase." Any Methuselah's
+/// imbued; a life only, the rulebook's included.
+pub static JENNIE_CASSIE247_ORNE: VampireDef = VampireDef {
+    name: "Jennie \"Cassie247\" Orne",
+    printed: &[own(Stat::GrantsImbuedRecovery, 1, &[])],
+    abilities: &[RECOVER, RECOVER_GRANTED],
+    ..VAMP
+};
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::crypt::CRYPT;
+
+    // Every imbued may leave the incapacitated region (rulebook "Appendix:
+    // Imbued Rules" 5), Jennie's way too: both abilities on each.
+    #[test]
+    fn every_imbued_carries_the_recovery_abilities() {
+        for (i, c) in CRYPT.iter().enumerate().filter(|(_, c)| c.imbued) {
+            let def = crate::cards::vampire(i as u16).expect(c.name);
+            for r in [RECOVER, RECOVER_GRANTED] {
+                assert!(def.abilities.contains(&r), "{}", c.name);
+            }
+        }
+    }
+}

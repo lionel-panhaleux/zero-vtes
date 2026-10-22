@@ -582,6 +582,27 @@ impl Side {
         }
     }
 
+    /// The strike chosen at +n damage (Strike with Conviction's weapon
+    /// strike).
+    pub(crate) fn raise_strike(&mut self, n: u8) {
+        self.strike = match self.strike {
+            Some(StrikeKind::Melee { bonus, aggravated }) => Some(StrikeKind::Melee {
+                bonus: bonus + n,
+                aggravated,
+            }),
+            Some(StrikeKind::Damage {
+                n: d,
+                ranged,
+                aggravated,
+            }) => Some(StrikeKind::Damage {
+                n: d + n,
+                ranged,
+                aggravated,
+            }),
+            k => k,
+        };
+    }
+
     /// A new strike chosen: the old one's riders are gone.
     fn set_strike(&mut self, k: Option<StrikeKind>) {
         self.strike = k;
@@ -877,7 +898,7 @@ impl CombatCtx {
     /// Side `i`'s strength this round: printed strength (Massimiliano;
     /// Kevin Jackson's, on him and on a Brujah opposing him) added to the
     /// strength of 1 or to a set strength (spec §4.4.1).
-    fn strength_now(
+    pub(crate) fn strength_now(
         &self,
         st: &GameState,
         action: Option<&crate::actions::ActionCtx>,
@@ -1222,6 +1243,7 @@ impl CombatCtx {
             | Effect::Maneuver
             | Effect::CommitStrike
             | Effect::CommittedStrike(_)
+            | Effect::WeaponStrikePlus(_)
             | Effect::CommittedWeaponStrikePlus(_)
                 if frozen =>
             {
@@ -1275,7 +1297,9 @@ impl CombatCtx {
                     && !self.strikes_barred(side)
                     && !self.only_hand_strikes
             }
-            Effect::CommittedWeaponStrikePlus(_) => !self.only_hand_strikes,
+            Effect::WeaponStrikePlus(_) | Effect::CommittedWeaponStrikePlus(_) => {
+                !self.only_hand_strikes
+            }
             Effect::Press if self.step == Step::Press => {
                 self.last_press != Some(side)
                     && self.may_press(side)
@@ -1656,11 +1680,40 @@ impl Engine {
                     side.additional_with
                 };
                 if let Some(w) = committed {
+                    // Or that weapon's strike made through a card or an
+                    // ability using it (Strike with Conviction at +1, as
+                    // Target Vitals aims it: rules-qa 87.42).
+                    let st = &self.state;
+                    let through = |mode: &cards::ModeDef, t: cards::Target| {
+                        t == cards::Target::Card(w)
+                            && mode
+                                .effects
+                                .iter()
+                                .any(|e| matches!(e, Effect::WeaponStrikePlus(_)))
+                    };
+                    let hand = &st.seats[side.seat.index()].hand;
                     let mut options: Vec<Choice> = self
-                        .ability_options(side.seat, Window::CombatStrikeDeclaration)
+                        .play_options(side.seat, &c.windows(), None)
                         .into_iter()
-                        .filter(|o| {
-                            matches!(o, Choice::UseAbility { source: cards::AbilitySource::Card(c), .. } if *c == w)
+                        .chain(self.ability_options(side.seat, Window::CombatStrikeDeclaration))
+                        .filter(|o| match *o {
+                            Choice::UseAbility {
+                                source: cards::AbilitySource::Card(c),
+                                ..
+                            } if c == w => true,
+                            Choice::UseAbility {
+                                source,
+                                ability,
+                                target,
+                                ..
+                            } => through(source.mode(st, ability), target),
+                            Choice::Play {
+                                card, mode, target, ..
+                            } => hand
+                                .get(card as usize)
+                                .and_then(|&h| cards::lookup(h))
+                                .is_some_and(|d| through(&d.modes[mode as usize], target)),
+                            _ => false,
                         })
                         .collect();
                     // Dam the Heart's River [QUI] after the commitment: it
@@ -1849,7 +1902,14 @@ impl Engine {
                                 && self.state.minions[c.sides[i].minion.index()].blood
                                     >= c.sides[i].maneuver_blood))
                             && c.last_maneuver != Some(i)
-                            && c.may_maneuver(i) =>
+                            && c.may_maneuver(i)
+                            // "Cannot maneuver to long range" (Pedro Cortez).
+                            && !(c.range == Range::Close
+                                && self.state.printed_mod(
+                                    c.sides[i].minion,
+                                    cards::Stat::NoManeuverToLong,
+                                    crate::state::PrintedCtx::default(),
+                                ) > 0) =>
                     {
                         options.push(Choice::UseManeuver);
                     }
@@ -1911,6 +1971,8 @@ impl Engine {
         let c = self.combat.as_mut().expect("combat context");
         // A maneuver's blood, paid after the borrow ends.
         let mut maneuver_paid = None;
+        // A committed weapon strike, made after the borrow ends.
+        let mut weapon_due = None;
         // The seat playing a card through the as-played stack or using an
         // ability (announced or used after the borrow ends).
         let acting = match (c.step, choice) {
@@ -1941,7 +2003,7 @@ impl Engine {
                         let m = c.sides[i].minion;
                         let card = &self.state.cards[w.index()];
                         if card.present() && card.host == Some(m) {
-                            weapon_strike(&self.state, c, i, w, n);
+                            weapon_due = Some((m, w, n));
                         } else {
                             c.sides[i].set_strike(None);
                             c.sides[i].chosen = true;
@@ -2148,6 +2210,9 @@ impl Engine {
         if let Some((m, n)) = maneuver_paid {
             let paid = Cause::Cost(Source::Minion(m));
             self.caused(paid, |e| e.state.minions[m.index()].blood -= n);
+        }
+        if let Some((m, w, n)) = weapon_due {
+            self.weapon_strike_plus(m, w, n, true);
         }
         if let (
             Some(seat),
@@ -3668,6 +3733,7 @@ impl Engine {
         }
         let mut wounded = Vec::new();
         let mut burned = Vec::new();
+        let mut lifeless = Vec::new();
         // "Burned (without going into torpor) if he takes more than n damage
         // during a single combat" (Franciscus).
         let over = c.sides.each_ref().map(|s| {
@@ -3690,7 +3756,11 @@ impl Engine {
             // Decapitate [POT]: burned instead of going to torpor.
             let instead = std::mem::take(&mut s.burn_instead_of_torpor);
             s.torpor_offered = false;
-            if r.burned || over || (sent && m.is_ally()) || (instead && (r.wounded || sent)) {
+            if over || (instead && (r.wounded || sent)) {
+                burned.push(s.minion);
+            } else if m.is_imbued() && (r.burned || sent) {
+                lifeless.push(s.minion);
+            } else if r.burned || (sent && m.is_ally()) {
                 burned.push(s.minion);
             } else if r.wounded || sent {
                 wounded.push(s.minion);
@@ -3719,6 +3789,7 @@ impl Engine {
         for &m in &burned {
             self.burn_minion(m);
         }
+        self.incapacitate(&lifeless);
         if !wounded.is_empty() {
             self.minions_to_torpor(&wounded);
         }
@@ -3726,7 +3797,7 @@ impl Engine {
         if !c.both_ready(&self.state) {
             c.round_over = true;
         }
-        if !wounded.is_empty() || !burned.is_empty() {
+        if !wounded.is_empty() || !burned.is_empty() || !lifeless.is_empty() {
             return self.combat_ousts();
         }
         false
@@ -3976,7 +4047,7 @@ impl Engine {
                 self.caused(strike, |e| e.state.burn_blood(m, n));
                 let v = &self.state.minions[m.index()];
                 if v.is_ally() && v.blood == 0 {
-                    self.burn_minion(m);
+                    self.lifeless(m);
                 }
             }
         }
@@ -4130,7 +4201,7 @@ impl Engine {
         for (m, n) in due {
             let toll = Cause::Cost(Source::Minion(m));
             if self.caused(toll, |e| e.state.burn_blood_or_life(m, n)) {
-                self.burn_minion(m);
+                self.lifeless(m);
             }
         }
         self.combat.is_none()
@@ -4404,8 +4475,8 @@ impl Engine {
             // (Lam Into [for]); at strike declaration, the strike.
             Effect::CommittedWeaponStrikePlus(n) if c.step == Step::DetermineRange => {
                 let w = play.target.card();
-                let k = cards::melee_strike(self.state.cards[w.index()].card)
-                    .expect("a melee weapon")
+                let k = cards::weapon_damage_strike(self.state.cards[w.index()].card)
+                    .expect("a weapon's strike")
                     .1;
                 c.maneuver(i);
                 c.sides[i].committed_card = Some(k);
@@ -4414,7 +4485,7 @@ impl Engine {
             // The weapon's own strike and its riders, +n damage, from that
             // card (gone by resolution, no effect: spec §4.10.4).
             Effect::WeaponStrikePlus(n) | Effect::CommittedWeaponStrikePlus(n) => {
-                weapon_strike(&self.state, c, i, play.target.card(), n);
+                self.weapon_strike_plus(actor, play.target.card(), n, true);
             }
             // Orgy of Blood: the burned ally's recruit cost, to each
             // vampire of the player's in play (in torpor too).
@@ -4912,41 +4983,6 @@ impl CombatCtx {
         if self.press_continue {
             self.press_toll = Some(i);
         }
-    }
-}
-
-/// A melee weapon's strike for side `i`: its own strike and riders at +n
-/// damage, from that card (Anticipation [aus], Lam Into).
-fn weapon_strike(st: &GameState, c: &mut CombatCtx, i: usize, w: CardId, n: u8) {
-    let (ability, k) = cards::melee_strike(st.cards[w.index()].card).expect("a melee weapon");
-    let StrikeKind::Melee { bonus, aggravated } = k else {
-        unreachable!()
-    };
-    let initial = c.pair == 0;
-    let s = &mut c.sides[i];
-    s.set_strike(Some(StrikeKind::Melee {
-        bonus: bonus + n,
-        aggravated,
-    }));
-    s.strike_source = Some(w);
-    s.strike_at = None;
-    s.chosen = true;
-    if initial {
-        s.committed = None;
-    } else {
-        s.additional_with = None;
-    }
-    // "1 optional press only usable to continue, once each combat"
-    // (Righteous Blade): had as the strike is chosen.
-    let source = cards::AbilitySource::Card(w);
-    let rides = source
-        .mode(st, ability as u8)
-        .effects
-        .contains(&Effect::ContinuePressEachCombat);
-    let key = source.use_key(ability as u8);
-    if rides && !c.abilities_used.contains(&key) {
-        c.abilities_used.push(key);
-        c.sides[i].continue_presses += 1;
     }
 }
 

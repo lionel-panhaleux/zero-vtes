@@ -147,7 +147,10 @@ fn a_path_icon_requires_a_vampire_following_the_path() {
     let mut e = game(3);
     let lika = e.add_minion(SeatId(0), card("Lika, The Purger"), 3, false);
     let other = e.add_minion(SeatId(0), vampire_with("POT", 0), 4, false);
-    assert_ne!(CRYPT[vampire_with("POT", 0) as usize].sect, Sect::Sabbat);
+    assert_ne!(
+        CRYPT[vampire_with("POT", 0) as usize].sect,
+        Some(Sect::Sabbat)
+    );
     assert_eq!(e.state.minions[lika.index()].path(), Some(POWER));
     let z = e.add_minion(SeatId(1), plain("Brujah", 1), 4, false);
     hand(&mut e, 0, &["Dominant Personality"]);

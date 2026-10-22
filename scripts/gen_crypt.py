@@ -44,6 +44,9 @@ TITLE = re.compile(
 
 
 def parse(card):
+    # An imbued has no sect nor title (rulebook "Appendix: Imbued Rules").
+    if "Imbued" in card["types"]:
+        return None, "Title::None"
     m = TITLE.match(card["card_text"])
     if not m:
         raise SystemExit(f"cannot parse sect/title of {card['name']}: {card['card_text'][:80]}")
@@ -76,7 +79,7 @@ def rust_str(s):
 
 def generate(cards):
     vamps = pool_order(
-        [c for c in cards if "Vampire" in c.get("types", [])
+        [c for c in cards if {"Vampire", "Imbued"} & set(c.get("types", []))
          and (set(V5_SETS) & set(c.get("ordered_sets", [])) or c["id"] in ADDED_CARDS)],
         key=lambda c: (c["_name"], c["name"]))
     index = {c["name"]: i for i, c in enumerate(vamps)}
@@ -139,10 +142,16 @@ def generate(cards):
     out.append("    pub capacity: u8,")
     out.append("    /// Its crypt group; 0 for a vampire of any group (Anarch Convert).")
     out.append("    pub group: u8,")
+    out.append("    /// The clan; an imbued's creed.")
     out.append("    pub clan: &'static str,")
-    out.append("    /// Disciplines as printed: lower case = basic, upper case = superior.")
+    out.append("    /// Disciplines as printed: lower case = basic, upper case = superior;")
+    out.append("    /// an imbued's virtues.")
     out.append("    pub disciplines: &'static [&'static str],")
-    out.append("    pub sect: Sect,")
+    out.append("    /// `None` for an imbued.")
+    out.append("    pub sect: Option<Sect>,")
+    out.append("    /// An imbued (rulebook \"Appendix: Imbued Rules\"): a mortal ally, its")
+    out.append("    /// capacity its cost and starting life.")
+    out.append("    pub imbued: bool,")
     out.append("    pub title: Title,")
     out.append("    /// The title an advanced vampire holds only merged (\"[MERGED] Baron of")
     out.append("    /// London\", Appolonius): it takes precedence over the printed one.")
@@ -201,7 +210,8 @@ def generate(cards):
         flight = ["FLIGHT"] if "Flight [FLIGHT]" in c["card_text"] else []
         disc = ", ".join(rust_str(d) for d in c.get("disciplines", []) + flight)
         out.append(f"        disciplines: &[{disc}],")
-        out.append(f"        sect: Sect::{sect},")
+        out.append(f"        sect: {f'Some(Sect::{sect})' if sect else 'None'},")
+        out.append(f"        imbued: {'true' if 'Imbued' in c['types'] else 'false'},")
         out.append(f"        title: {title},")
         merged = re.search(r"\[MERGED\] (Prince|Baron|Archbishop) of ((?:[^:.]|\.(?=\w))+)[:.]", c["card_text"])
         out.append(f"        merged_title: {f'Some(Title::{merged.group(1)}({rust_str(merged.group(2))}))' if merged else 'None'},")

@@ -248,7 +248,7 @@ impl Requirement {
             | R::ActingByPredatorOrPrey
             | R::ActorUnmergedAdvanced
             | R::ActorPassedReferendumThisTurn
-            | R::OwnUncontrolledNotEmpty
+            | R::OwnUncontrolledVampire
             | R::PlayedByAllyOrCapacityAtMost(..)
             | R::PlayedByYoungerVampire
             | R::PlayedActionCardTargetsYou
@@ -356,6 +356,8 @@ impl Requirement {
             | R::NotGehennaImmune
             | R::TargetLocked
             | R::TargetVampire
+            | R::TargetMonster
+            | R::TargetConvictionUnplayed
             | R::TargetEnteredSinceYourLastMinionPhase
             | R::TargetEnteredInYourLastInfluencePhase
             | R::TargetAllyOrCapacityAtMost(..)
@@ -375,6 +377,7 @@ impl Requirement {
             | R::TargetNotOfPredator
             | R::NoSelfContest(..) => &[S::MinionTarget],
             R::TargetCirclelessBloodBrother => &[S::UncontrolledTarget],
+            R::TargetImbued => &[S::MinionTarget, S::UncontrolledTarget],
             R::NotActingController
             | R::NotSelf
             | R::TargetPoolMoreThanYours
@@ -445,6 +448,7 @@ impl Requirement {
             R::ActorSectIn(..) => &[S::Play, S::MinionTarget, S::UncontrolledTarget, S::Printed],
             R::IsBleed
             | R::ActorVampire
+            | R::ActorImbued
             | R::IsHunt
             | R::RulebookHunt
             | R::IsDiablerie
@@ -471,6 +475,26 @@ impl Requirement {
             | R::ReadyNamed(..)
             | R::OwnReadyNamed(..) => &[S::Play, S::Printed],
             R::HostLocked | R::HostUnlocked => &[S::Host, S::Printed],
+            R::ActingMonster | R::ActingImbued => &[S::Play],
+            R::HostConvictionAtLeast(..)
+            | R::HostIncapacitated
+            | R::HostControllerReadyImbuedAtLeast(..)
+            | R::ImbuedRecoveryGranted => &[S::Host],
+            R::OpponentMonster
+            | R::OpponentNotInfernal
+            | R::OpponentCapacityAtMost(..)
+            | R::CombatMonsterVsMortal
+            | R::CombatBothMonsters
+            | R::ActorMonster
+            | R::ActorHolds(..)
+            | R::ActionTargetsImbued
+            | R::CombatFromSuccess
+            | R::PlayedTargetsActor
+            | R::PlayedTakesControlOfActor => &[S::Play],
+            R::HostNameUnusedThisAction | R::HostInCombat => &[S::Engine(Site::AbilityGate)],
+            R::ActionNotEnteringCombat => &[S::Printed],
+            R::HostMayReactLocked => &[S::Engine(Site::AbilityGate)],
+            R::HostMayReact => &[S::Engine(Site::AbilityGate)],
             R::HostClan(..) | R::HostDiscipline(..) => &[S::Card, S::Host],
             R::CountersAtLeast(..) | R::CountersAtMost(..) | R::CardMode(..) | R::BasicVersion => {
                 &[S::Card, S::Rider]
@@ -559,6 +583,7 @@ impl Requirement {
                 S::Engine(Site::CardTargetQualifies),
                 S::Engine(Site::AbilityTargets),
             ],
+            R::TargetWeaponStrikeUsable => &[S::Engine(Site::CardTargetQualifies)],
         }
     }
 }
@@ -569,6 +594,7 @@ pub fn implied_requirement(payer: Actor, cost: Effect) -> Option<Requirement> {
     match cost {
         Effect::LockSelf => Some(Requirement::CardUnlocked),
         Effect::LockHost => Some(Requirement::HostUnlocked),
+        Effect::BurnConviction(n) => Some(Requirement::HostConvictionAtLeast(n)),
         Effect::BurnActorBlood(n) => Some(Requirement::ActorBloodAtLeast(n)),
         Effect::HostBurnBlood(n) | Effect::HostBurnLife(n) => Some(match payer {
             Actor::AnyReadyVampire | Actor::ActingMinion => Requirement::ActorBloodAtLeast(n),

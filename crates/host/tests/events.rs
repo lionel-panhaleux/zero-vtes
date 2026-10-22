@@ -42,7 +42,40 @@ const KEPT: [u32; 16] = [
 fn seeds() -> Vec<u32> {
     let to: u32 = std::env::var("HOST_SEEDS").map_or(40, |s| s.parse().unwrap());
     let kept = KEPT.into_iter().filter(|&s| s > to && from() == 1);
-    (from()..=to).chain(kept).collect()
+    let imbued = IMBUED.into_iter().filter(|_| from() == 1);
+    (from()..=to).chain(kept).chain(imbued).collect()
+}
+
+/// Seeds whose seat after the human's plays the imbued: one
+/// incapacitated, burned or recovering between two views.
+const IMBUED: [u32; 4] = [1001, 1002, 1003, 1004];
+
+/// Every imbued, every power and conviction.
+fn imbued() -> zvtes_api::DeckList {
+    use zvtes::crypt::CRYPT;
+    use zvtes::library::{CardType, LIBRARY};
+    let crypt = CRYPT.iter().filter(|c| c.imbued).map(|c| (c.id, 1));
+    let library = LIBRARY
+        .iter()
+        .filter(|c| {
+            c.types
+                .iter()
+                .any(|t| matches!(t, CardType::Power | CardType::Conviction))
+        })
+        .map(|c| {
+            (
+                c.id,
+                if c.types.contains(&CardType::Conviction) {
+                    8
+                } else {
+                    3
+                },
+            )
+        });
+    crypt
+        .chain(library)
+        .map(|(id, n)| (id.to_string(), n))
+        .collect()
 }
 
 struct NoBots;
@@ -116,10 +149,14 @@ fn game(seed: u64, settings: Settings) -> Game {
                 } else {
                     (seed as usize + i * 5) % decks.len()
                 };
-                let (name, list) = &decks[pick];
+                let (name, list) = if IMBUED.contains(&(seed as u32)) && i == (human + 1) % 4 {
+                    ("Imbued".to_string(), imbued())
+                } else {
+                    decks[pick].clone()
+                };
                 SeatSpec {
-                    name: name.clone(),
-                    deck: list.clone(),
+                    name,
+                    deck: list,
                     player: if i == human {
                         Player::Human { settings }
                     } else {
@@ -700,7 +737,7 @@ impl Stream {
         self.names.see(v);
         // Minions of one name told apart, each as told before.
         let mut names: Vec<(&str, Option<u8>)> = Vec::new();
-        for m in v.seats.iter().flat_map(|s| s.ready.iter().chain(&s.torpor)) {
+        for m in v.seats.iter().flat_map(|s| s.minions()) {
             if let Some(c) = m.card.copy {
                 self.number(c, m.card.numbered, at);
             }
@@ -727,7 +764,7 @@ impl Stream {
         for k in v
             .seats
             .iter()
-            .flat_map(|s| s.ready.iter().chain(&s.torpor))
+            .flat_map(|s| s.minions())
             .flat_map(|m| &m.markers)
         {
             let want = self.text.then(|| zvtes_text::marker(k, &self.names));
@@ -920,6 +957,7 @@ fn the_events_tell_what_the_views_show() {
     let mut combats = 0;
     let mut moved = [0; 3];
     let mut reasked = 0;
+    let mut incapacitated = 0;
     let (mut unreduced, mut unordered, mut reduced) = (
         std::collections::BTreeMap::new(),
         std::collections::BTreeMap::new(),
@@ -1061,6 +1099,14 @@ fn the_events_tell_what_the_views_show() {
             };
             outs = g.handle(human, cmd(c));
             s.see(&outs);
+            for o in &outs {
+                if let Message::Events { events, .. } = &o.message {
+                    incapacitated += events
+                        .iter()
+                        .filter(|e| matches!(e.kind, EventKind::Incapacitated { .. }))
+                        .count();
+                }
+            }
         }
         assert!(!settings.text || s.texts > 0, "seed {seed}: no text");
         reasked += s.reasked;
@@ -1120,6 +1166,8 @@ fn the_events_tell_what_the_views_show() {
     eprintln!("{caused} pool and blood events, each with its cause; {markers} markers told");
     assert!(caused > 0, "no pool or blood told");
     assert!(markers > 0, "no marker seen");
+    eprintln!("{incapacitated} imbued told entering or leaving incapacitation");
+    assert!(incapacitated > 0, "no imbued incapacitated");
     assert!(combats > 0, "no combat a decision's view showed");
     // Each kind of the table's state changes at least once between two
     // decisions' views: the reducer's check below meets it.
@@ -1355,7 +1403,7 @@ fn state(v: &TableView) -> std::collections::BTreeMap<(String, String), String> 
             put("slot banished", of, &u.banished);
         }
         let mut cards: Vec<&zvtes_api::view::InPlayView> = s.in_play.iter().collect();
-        for mi in s.ready.iter().chain(&s.torpor) {
+        for mi in s.minions() {
             let Some(c) = mi.card.copy else { continue };
             let c = c.to_string();
             put("minion contested", c.clone(), &mi.contested);

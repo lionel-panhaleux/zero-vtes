@@ -2351,15 +2351,17 @@ round (rulebook "Combat").
   (22.1, LSJ 20021028). Slam [POT] ("as above, with 1 optional maneuver") is
   played only at the maneuver, never as the strike (48.4); Aid from Bats and
   Diversion stay playable as the strike (2.5, 48.4).
-- A gun's "1 optional maneuver each combat" (.44 Magnum, AK-47, Assault
-  Rifle) commits the round's initial strike to that gun: no other initial
-  strike that round, none at all if an effect then bars it (Immortal
-  Grapple), no second strike card or weapon maneuver that round; additional
-  strikes free; the allowance tracks the gun (10.1, LSJ 20090528-2-2, PIB
-  20141026, LSJ 19980302-2). Deer Rifle: two maneuvers each combat per copy,
-  the second committing the strike to the same gun again (71.5). Zip Gun's
-  maneuver commits the strike (64.10, LSJ 20021028). Lam Into [for] played
-  at the maneuver commits the round's strike (the weapon's, if chosen), not
+- A gun's "1 optional maneuver each combat" (.44 Magnum, AK-47, Assault Rifle)
+  commits the round's initial strike to that gun: no other initial strike that
+  round, none at all if an effect then bars it (Immortal Grapple), no second
+  strike card or weapon maneuver that round; additional strikes free; the
+  allowance tracks the gun (10.1, LSJ 20090528-2-2, PIB 20141026, LSJ
+  19980302-2). Deer Rifle: two maneuvers each combat per copy, the second
+  committing the strike to the same gun again (71.5). Zip Gun's maneuver
+  commits the strike (64.10, LSJ 20021028); a committed weapon strike is made
+  through any card or ability using that weapon's strike (Strike with
+  Conviction at +1, as Target Vitals aims it: 87.42). Lam Into [for] played at
+  the maneuver commits the round's strike (the weapon's, if chosen), not
   usable while the strike could not be (57.4).
 - Sniper Rifle: offered to the blocker before range in the first round,
   only while no other effect set that round's range, and only if the
@@ -3463,6 +3465,41 @@ retainers, traits, titles, trait changes).
   whether or not (LSJ 20100205-2, ANK 20221007) (corrected: a blood-cost
   ally's cost counts) (78.45).
 
+### 14.12 The Imbued
+
+- An imbued is a mortal ally: no clan, sect, capacity, title or votes; its
+  creed and virtues are printed as clan and Disciplines and read as its
+  own; 1 strength, 1 bleed, its cost its starting life; influenced as a
+  vampire, its life from the counters (87.8). "A vampire in your
+  uncontrolled region" or ash heap never names one; Lázár and the Soul Gem
+  as the appendix rules them (87.13).
+- Convictions: one played on each of its player's imbued each unlock
+  phase, from hand or ash heap, an incapacitated one too; five at most;
+  one gained as an imbued enters play with none, a gain no play (87.9).
+  "[n CONVICTION]" burns n of the imbued's, its player choosing (87.10);
+  an action "that costs 1 conviction", and a power's [ACTION] cost, named
+  as announced, paid at resolution (87.27, 87.22, 87.4).
+- Powers: gained by a +1 stealth action requiring the virtue, the imbued
+  unlocked on success, no second copy; an iconed ability locks the power;
+  a [REACTION] as reactions are used (87.11).
+- The incapacitated region: no life, not burned, controlled and not
+  ready; leaving for 3 conviction (2 with Jennie, any unlock phase),
+  gaining 1 life; burned by a Ⓓ action, avenged by ready imbued's
+  convictions; neither burn nor torpor for riders; its own zone in the
+  protocol (87.12, 87.21). Its text and powers still work (87.1), a life
+  gained included, the imbued staying there (Rejuvenate, 87.43); sent to
+  torpor, an imbued is incapacitated (87.2).
+- The imbued's text: Anna (87.14), Béatrice (87.15), Earl (87.16), Erick
+  (87.17), François (87.18), Inez (87.19), Jack, Marion, Pedro, Jennifer
+  (87.20), John (87.22), Leaf (87.23), Lupe (87.24), Paul (87.25), Peter
+  (87.26), Travis (87.27), Xian (87.7).
+- The powers and convictions: Abjure (87.28), Champion (87.29), Donate
+  (87.30), Foresee (87.31), Hide (87.32), Illuminate (87.33, 87.3), Project
+  (87.34), Rejuvenate and Respire (87.5, 87.35), Shame (87.36), Surge (87.6),
+  React with Conviction (87.37), Second Sight (87.38), Strike with Conviction
+  (87.39; its weapon strike any weapon's own, 87.41, after that gun's maneuver
+  too, 87.42); found by the tests (87.40).
+
 ## 15. Vampires' printed text; other card readings
 
 The principles of printed vampire text; most vampires' readings sit with
@@ -4462,6 +4499,8 @@ read, for the owner to confirm or correct:
 - 84.5–84.40 graded green or amber (84.1–84.4 answered by the owner;
   84.5's active Angelo a gap: his own circle of one).
 - 85.3–85.34 graded green or amber (85.1 and 85.2 confirmed by the owner).
+- 87.8–87.41 graded green or amber (87.1–87.7, 87.42 and 87.43 red,
+  answered by the owner: 87.42 and 87.43 corrected).
 - 49.6's several-holders question is moot (50.1: the Cog is unique).
 
 ### 24.2 Questions for a new rules-qa batch
@@ -4576,7 +4615,7 @@ an owner ruling:
 Every rules-qa item, by batch, with the digest sections citing it: the
 section stating it and those cross-referring to it (§2 the default
 readings, §22 engine modeling, §23 the contradictions, §24 the open
-readings). 853 items, Batches 1–86 (44.11 was removed, replaced by Batch
+readings). 896 items, Batches 1–87 (44.11 was removed, replaced by Batch
 45). The index is derived from the citations: a bare `N.M` cites rules-qa
 item N.M in the section it appears in. A new rules-qa item gets its line in
 the section stating it, then its entry here: `python3
@@ -4878,3 +4917,13 @@ index or an item cited nowhere.
   §15.2; 85.27 §15.2; 85.28 §15.2; 85.29 §15.2; 85.30 §15.2; 85.31 §15.2;
   85.32 §18.1; 85.33 §15.2; 85.34 §15.2,§24.1
 - **86** — 86.1 §5.2
+- **87** — 87.1 §14.12,§24.1; 87.2 §14.12; 87.3 §14.12; 87.4 §14.12; 87.5
+  §14.12; 87.6 §14.12; 87.7 §14.12,§24.1; 87.8 §14.12,§24.1; 87.9 §14.12;
+  87.10 §14.12; 87.11 §14.12; 87.12 §14.12; 87.13 §14.12; 87.14 §14.12;
+  87.15 §14.12; 87.16 §14.12; 87.17 §14.12; 87.18 §14.12; 87.19 §14.12;
+  87.20 §14.12; 87.21 §14.12; 87.22 §14.12; 87.23 §14.12; 87.24 §14.12;
+  87.25 §14.12; 87.26 §14.12; 87.27 §14.12; 87.28 §14.12; 87.29 §14.12;
+  87.30 §14.12; 87.31 §14.12; 87.32 §14.12; 87.33 §14.12; 87.34 §14.12;
+  87.35 §14.12; 87.36 §14.12; 87.37 §14.12; 87.38 §14.12; 87.39 §14.12;
+  87.40 §14.12; 87.41 §14.12,§24.1; 87.42 §12.3,§14.12,§24.1; 87.43
+  §14.12,§24.1

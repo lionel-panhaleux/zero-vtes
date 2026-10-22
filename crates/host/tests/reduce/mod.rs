@@ -83,7 +83,7 @@ impl Table {
         self.v
             .seats
             .iter_mut()
-            .flat_map(|s| s.ready.iter_mut().chain(s.torpor.iter_mut()))
+            .flat_map(|s| s.minions_mut())
             .find(|m| m.card.copy == Some(copy))
     }
 
@@ -100,7 +100,14 @@ impl Table {
             if let Some(c) = find(&mut s.training, copy) {
                 return Some(c);
             }
-            for m in s.ready.iter_mut().chain(s.torpor.iter_mut()) {
+            // Field by field: `minions_mut` would borrow all of `s` past
+            // the returns above.
+            for m in s
+                .ready
+                .iter_mut()
+                .chain(&mut s.torpor)
+                .chain(&mut s.incapacitated)
+            {
                 if let Some(c) = find(&mut m.cards, copy) {
                     return Some(c);
                 }
@@ -116,13 +123,14 @@ impl Table {
         }
         let s = r.seat as usize;
         match (r.zone, r.on) {
-            (Zone::Ready | Zone::Torpor, None) => {
+            (Zone::Ready | Zone::Torpor | Zone::Incapacitated, None) => {
                 let seat = &mut self.v.seats[s];
                 let m = pick(&mut seat.ready, told, |m| m.card)
-                    .or_else(|| pick(&mut seat.torpor, told, |m| m.card))?;
+                    .or_else(|| pick(&mut seat.torpor, told, |m| m.card))
+                    .or_else(|| pick(&mut seat.incapacitated, told, |m| m.card))?;
                 Some(Item::Minion(m))
             }
-            (Zone::Ready | Zone::Torpor, Some(_)) => None,
+            (Zone::Ready | Zone::Torpor | Zone::Incapacitated, Some(_)) => None,
             (Zone::InPlay, None) => {
                 pick(&mut self.v.seats[s].in_play, told, |c| c.card).map(Item::InPlay)
             }
@@ -249,10 +257,10 @@ impl Table {
                     }
                 }
                 let seat = &mut self.v.seats[s];
-                if r.zone == Zone::Torpor {
-                    seat.torpor.push(m);
-                } else {
-                    seat.ready.push(m);
+                match r.zone {
+                    Zone::Torpor => seat.torpor.push(m),
+                    Zone::Incapacitated => seat.incapacitated.push(m),
+                    _ => seat.ready.push(m),
                 }
             }
             // A merge: the base vampire's card onto the minion it is now,
@@ -409,9 +417,7 @@ impl Table {
                 ..
             } => {
                 let on_contested = self.v.seats.iter().any(|s| {
-                    s.ready
-                        .iter()
-                        .chain(&s.torpor)
+                    s.minions()
                         .any(|m| m.contested && m.cards.iter().any(|x| x.card.copy == Some(*c)))
                 });
                 if let Some(m) = self.minion_mut(*c) {
@@ -428,6 +434,18 @@ impl Table {
                         (&mut s.ready, &mut s.torpor)
                     } else {
                         (&mut s.torpor, &mut s.ready)
+                    };
+                    if let Some(i) = from.iter().position(|m| m.card.copy == Some(*minion)) {
+                        to.push(from.remove(i));
+                    }
+                }
+            }
+            EventKind::Incapacitated { minion, enters } => {
+                for s in &mut self.v.seats {
+                    let (from, to) = if *enters {
+                        (&mut s.ready, &mut s.incapacitated)
+                    } else {
+                        (&mut s.incapacitated, &mut s.ready)
                     };
                     if let Some(i) = from.iter().position(|m| m.card.copy == Some(*minion)) {
                         to.push(from.remove(i));
@@ -505,10 +523,11 @@ impl Table {
                 gone.training.clear();
                 gone.ready.clear();
                 gone.torpor.clear();
+                gone.incapacitated.clear();
                 gone.in_play.clear();
                 // The cards it controlled on others' minions, gone with it.
                 for s in &mut self.v.seats {
-                    for m in s.ready.iter_mut().chain(s.torpor.iter_mut()) {
+                    for m in s.minions_mut() {
                         m.cards.retain(|c| c.controller != *seat);
                     }
                 }
@@ -619,17 +638,18 @@ fn order_as(a: &mut TableView, b: &TableView, unordered: &mut BTreeMap<&'static 
         }
         like(&mut s.ready, &t.ready, "ready", unordered);
         like(&mut s.torpor, &t.torpor, "torpor", unordered);
+        like(
+            &mut s.incapacitated,
+            &t.incapacitated,
+            "incapacitated",
+            unordered,
+        );
         like(&mut s.in_play, &t.in_play, "in_play", unordered);
         like(&mut s.training, &t.training, "training", unordered);
         let inner = |c: &mut InPlayView, d: &InPlayView, unordered: &mut BTreeMap<_, _>| {
             like(&mut c.stored, &d.stored, "stored", unordered);
         };
-        for (m, n) in s
-            .ready
-            .iter_mut()
-            .chain(s.torpor.iter_mut())
-            .zip(t.ready.iter().chain(&t.torpor))
-        {
+        for (m, n) in s.minions_mut().zip(t.minions()) {
             like(&mut m.cards, &n.cards, "minion cards", unordered);
             for (c, d) in m.cards.iter_mut().zip(&n.cards) {
                 inner(c, d, unordered);

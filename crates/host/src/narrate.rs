@@ -75,6 +75,10 @@ pub enum Fact {
         minion: MinionId,
         enters: bool,
     },
+    Incapacitated {
+        minion: MinionId,
+        enters: bool,
+    },
     Locked {
         what: Held,
         locked: bool,
@@ -329,12 +333,12 @@ impl Mark {
 }
 
 /// A place's holder as a ledger had it: its seat (a card's controller,
-/// its minion's on one; a minion's), a minion in torpor, the minion a
+/// its minion's on one; a minion's), a minion's region, the minion a
 /// card is on.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct Spot {
     pub seat: SeatId,
-    pub torpor: bool,
+    pub region: crate::view::Region,
     pub on: Option<MinionId>,
     /// The seats that see a card there, a bit each (`GameState::legal_view`'s
     /// mask): none in a library or crypt; a hand's own and open viewers,
@@ -359,8 +363,11 @@ impl Spot {
 fn spot(e: &Engine, l: &Ledger, p: Place, copy: CopyId) -> Spot {
     let st = &e.state;
     let minion = |m: MinionId| match l.minions.get(m.index()) {
-        Some(m) => (m.controller, m.torpor),
-        None => (st.minions[m.index()].owner, false),
+        Some(m) => (
+            m.controller,
+            crate::view::Region::from_flags(m.torpor, m.incapacitated),
+        ),
+        None => (st.minions[m.index()].owner, crate::view::Region::Ready),
     };
     let stored = |c: u32| {
         (0..st.seats.len())
@@ -386,9 +393,9 @@ fn spot(e: &Engine, l: &Ledger, p: Place, copy: CopyId) -> Spot {
         } => stored(id),
         _ => ALL,
     };
-    let at = |(seat, torpor): (SeatId, bool), on| Spot {
+    let at = |(seat, region): (SeatId, crate::view::Region), on| Spot {
         seat,
-        torpor,
+        region,
         on,
         shown,
     };
@@ -397,7 +404,7 @@ fn spot(e: &Engine, l: &Ledger, p: Place, copy: CopyId) -> Spot {
         | Place::Uncontrolled(s)
         | Place::InFlight(s)
         | Place::Training(s)
-        | Place::Banished { seat: s, .. } => at((SeatId(s), false), None),
+        | Place::Banished { seat: s, .. } => at((SeatId(s), crate::view::Region::Ready), None),
         Place::Minion { id, .. } => at(minion(MinionId(id)), None),
         Place::Card { id, .. } => {
             let c = CardId(id);
@@ -407,11 +414,11 @@ fn spot(e: &Engine, l: &Ledger, p: Place, copy: CopyId) -> Spot {
             ) {
                 (_, Some(m)) => at(minion(m), None),
                 (Some(card), None) => match card.host {
-                    Some(m) => at((minion(m).0, false), Some(m)),
-                    None => at((card.controller, false), None),
+                    Some(m) => at((minion(m).0, crate::view::Region::Ready), Some(m)),
+                    None => at((card.controller, crate::view::Region::Ready), None),
                 },
                 (None, None) => at(
-                    (e.state.card_controller(c), false),
+                    (e.state.card_controller(c), crate::view::Region::Ready),
                     e.state.cards[c.index()].host,
                 ),
             }
@@ -610,6 +617,13 @@ pub(crate) fn changes(
             let fact = Fact::Torpor {
                 minion: m,
                 enters: now.torpor,
+            };
+            tell(out, fact, told);
+        }
+        if now.incapacitated != b.incapacitated {
+            let fact = Fact::Incapacitated {
+                minion: m,
+                enters: now.incapacitated,
             };
             tell(out, fact, told);
         }

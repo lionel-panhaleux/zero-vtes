@@ -73,7 +73,7 @@ fn of_sect(sect: zvtes::crypt::Sect, caps: std::ops::RangeInclusive<u8>) -> u16 
         .iter()
         .enumerate()
         .position(|(i, c)| {
-            c.sect == sect
+            c.sect == Some(sect)
                 && caps.contains(&c.capacity)
                 && zvtes::cards::vampire(i as u16).is_none()
         })
@@ -1502,7 +1502,7 @@ fn public_enemy_red_lists_an_anarch() {
             .iter()
             .enumerate()
             .filter(|(i, c)| {
-                c.sect == zvtes::crypt::Sect::Camarilla
+                c.sect == Some(zvtes::crypt::Sect::Camarilla)
                     && c.title == zvtes::crypt::Title::None
                     && zvtes::cards::vampire(*i as u16).is_none()
             })
@@ -1541,7 +1541,7 @@ fn public_enemy_red_lists_an_anarch() {
         .iter()
         .enumerate()
         .filter(|(i, c)| {
-            c.sect == zvtes::crypt::Sect::Anarch
+            c.sect == Some(zvtes::crypt::Sect::Anarch)
                 && c.title == zvtes::crypt::Title::None
                 && zvtes::cards::vampire(*i as u16).is_none()
         })
@@ -2287,7 +2287,7 @@ fn groundfighting_cancels_superior_thoughts_betrayed() {
         .iter()
         .enumerate()
         .position(|(i, c)| {
-            c.sect == zvtes::crypt::Sect::Anarch
+            c.sect == Some(zvtes::crypt::Sect::Anarch)
                 && c.disciplines.contains(&"cel")
                 && zvtes::cards::vampire(i as u16).is_none()
         })

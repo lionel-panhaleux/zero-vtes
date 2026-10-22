@@ -305,6 +305,30 @@ impl Engine {
         if self.state.sect_of(m) == Some(crate::crypt::Sect::Anarch) {
             self.anarch_arrives(s);
         }
+        // Inez: a power requiring her virtue, from library or hand.
+        if let Some(virtue) = entry_effects(card).find_map(|e| match *e {
+            crate::cards::Effect::SearchPowerOnEntry(v) => Some(v),
+            _ => None,
+        }) {
+            self.interrupts.push(crate::draws::Interrupt::PowerSearch {
+                seat: s,
+                minion: m,
+                virtue,
+            });
+        }
+        // An imbued entering play with no conviction may gain one (rulebook
+        // "Appendix: Imbued Rules" 2), but Liz.
+        if self.state.minions[m.index()].is_imbued()
+            && self.state.convictions(m).is_empty()
+            && !entry_has(card, crate::cards::Effect::NoEntryConviction)
+        {
+            self.interrupts
+                .push(crate::draws::Interrupt::GainConviction {
+                    seat: s,
+                    minion: m,
+                    library: true,
+                });
+        }
         // New Blood: "choose any circle and draw 1 card from your
         // crypt" as he enters.
         if entry_has(card, crate::cards::Effect::ChooseCircleOnEntry) {

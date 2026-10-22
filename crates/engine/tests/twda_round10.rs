@@ -293,7 +293,7 @@ fn with_disc(disc: &str, anarch: bool, nth: usize) -> u16 {
         .iter()
         .enumerate()
         .filter(|(i, c)| {
-            (!anarch || c.sect == zvtes::crypt::Sect::Anarch)
+            (!anarch || c.sect == Some(zvtes::crypt::Sect::Anarch))
                 && c.disciplines.contains(&disc)
                 && c.title == zvtes::crypt::Title::None
                 && c.capacity >= 4
@@ -1399,7 +1399,7 @@ fn small(nth: usize) -> u16 {
         .filter(|(i, c)| {
             (2..=3).contains(&c.capacity)
                 && c.title == zvtes::crypt::Title::None
-                && c.sect != zvtes::crypt::Sect::Anarch
+                && c.sect != Some(zvtes::crypt::Sect::Anarch)
                 && zvtes::cards::vampire(*i as u16).is_none()
         })
         .nth(nth)
@@ -1572,7 +1572,7 @@ fn ankara_citadel_halves_an_x_cost() {
         .position(|(i, c)| {
             c.capacity == 3
                 && c.title == zvtes::crypt::Title::None
-                && c.sect != zvtes::crypt::Sect::Anarch
+                && c.sect != Some(zvtes::crypt::Sect::Anarch)
                 && zvtes::cards::vampire(i as u16).is_none()
         })
         .expect("a capacity 3") as u16;

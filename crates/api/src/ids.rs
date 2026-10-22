@@ -128,6 +128,10 @@ ids!(ActionKind {
     BecomeAnarch,
     /// Enter combat with a Red List minion.
     RedListHunt,
+    /// An imbued gets a power.
+    Power,
+    /// Burn an incapacitated imbued.
+    BurnImbued,
 });
 
 ids!(
@@ -190,6 +194,8 @@ ids!(MinionKind {
     /// A library card as a vampire.
     Created,
     Token,
+    /// A crypt card as a mortal ally (rulebook "Appendix: Imbued Rules").
+    Imbued,
 });
 
 ids!(
@@ -212,6 +218,9 @@ ids!(
         /// In the uncontrolled region with training counters (Web of
         /// Knives Recruit), out of play: the view's `training`.
         Training,
+        /// The incapacitated region: imbued with no life, controlled, not
+        /// ready (rulebook "Appendix: Imbued Rules" 5).
+        Incapacitated,
     }
 );
 
@@ -679,6 +688,27 @@ ids!(
         /// (Blackhorse Tanner, `minion`): `DrawLibrary` to do it with `card`,
         /// just drawn, or pass.
         Redraw,
+        /// Imbued `minion` gains a conviction card from `seat`'s hand or ash
+        /// heap (its library too, shuffled after, when entering play):
+        /// `TakeFrom`, or pass.
+        GainConviction,
+        /// "[n CONVICTION]": imbued `minion` burns its conviction cards one
+        /// at a time, `seat` choosing which (`BurnInPlay`) when they differ.
+        BurnConvictions,
+        /// An incapacitated imbued burned: ready imbued `minion` may burn a
+        /// conviction (`BurnInPlay`) for 1 unpreventable damage to `to`.
+        AvengeImbued,
+        /// Acting imbued `minion`'s action "costs 1 conviction": `seat`
+        /// names which (`BurnInPlay`), burned at resolution.
+        NameConviction,
+        /// Imbued `minion` entering play: a power requiring its virtue from
+        /// `seat`'s library or hand put on it (`TakeFrom`), or pass; the
+        /// library shuffled either way.
+        PowerSearch,
+        /// Foresee: `seat` may cancel the combat imbued `minion` is in
+        /// (`ContinueAction`), the action continuing as if unblocked when it
+        /// blocked; or pass.
+        MayCancelCombat,
     }
 );
 ids!(

@@ -756,7 +756,7 @@ fn obedience_ends_deep_song_before_its_lock_and_combat() {
 fn obedience_is_not_played_after_crypts_sons_continues_the_action() {
     let mut e = game(3);
     let anarch = vampire(|c| {
-        c.sect == zvtes::crypt::Sect::Anarch && c.capacity <= 4 && c.title == Title::None
+        c.sect == Some(zvtes::crypt::Sect::Anarch) && c.capacity <= 4 && c.title == Title::None
     });
     let young = e.add_minion(SeatId(0), anarch, 4, false);
     e.add_minion(SeatId(0), plain("Brujah", 0), 4, false);

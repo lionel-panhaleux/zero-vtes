@@ -55,6 +55,12 @@ pub enum ActionKind {
     /// turn (`target`), +1 stealth, directed, 1 blood at resolution; once
     /// each turn per vampire.
     RedListHunt,
+    /// An imbued gets a power card from hand (rulebook "Appendix: Imbued
+    /// Rules" 3): +1 stealth, undirected; it unlocks if successful.
+    Power,
+    /// Burn an incapacitated imbued (`target`) and take its equipment
+    /// (rulebook "Appendix: Imbued Rules" 5): directed, as a diablerie.
+    BurnImbued,
 }
 
 /// One indexed option inside a decision request. `Pass` is always explicit;

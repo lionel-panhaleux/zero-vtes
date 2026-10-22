@@ -359,9 +359,9 @@ impl Build<'_> {
         let mine: Vec<usize> = (0..st.minions.len())
             .filter(|&i| st.minions[i].in_play && st.minions[i].owner == sid)
             .collect();
-        let minions = |torpor: bool| {
+        let minions = |region: Region| {
             mine.iter()
-                .filter(|&&i| st.minions[i].in_torpor == torpor)
+                .filter(|&&i| Region::of(&st.minions[i]) == region)
                 .map(|&i| self.minion(i))
                 .collect()
         };
@@ -405,8 +405,9 @@ impl Build<'_> {
                 })
                 .map(|c| self.in_play(c))
                 .collect(),
-            ready: minions(false),
-            torpor: minions(true),
+            ready: minions(Region::Ready),
+            torpor: minions(Region::Torpor),
+            incapacitated: minions(Region::Incapacitated),
             in_play: (0..st.cards.len())
                 .filter(|&c| {
                     shown_card(st, c)
@@ -430,6 +431,7 @@ impl Build<'_> {
                 training: vec![],
                 ready: vec![],
                 torpor: vec![],
+                incapacitated: vec![],
                 in_play: vec![],
                 limbo: vec![],
                 ..v
@@ -601,9 +603,43 @@ fn traits(st: &zvtes::state::GameState, m: MinionId) -> Vec<Trait> {
     .collect()
 }
 
+/// The region a minion in play is in.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Region {
+    Ready,
+    Torpor,
+    /// An imbued with no life (rulebook "Appendix: Imbued Rules" 5).
+    Incapacitated,
+}
+
+impl Region {
+    pub fn of(m: &zvtes::state::Minion) -> Region {
+        Region::from_flags(m.in_torpor, m.incapacitated)
+    }
+
+    pub fn from_flags(torpor: bool, incapacitated: bool) -> Region {
+        if incapacitated {
+            Region::Incapacitated
+        } else if torpor {
+            Region::Torpor
+        } else {
+            Region::Ready
+        }
+    }
+
+    pub fn zone(self) -> zvtes_api::ids::Zone {
+        match self {
+            Region::Ready => zvtes_api::ids::Zone::Ready,
+            Region::Torpor => zvtes_api::ids::Zone::Torpor,
+            Region::Incapacitated => zvtes_api::ids::Zone::Incapacitated,
+        }
+    }
+}
+
 pub(crate) fn minion_kind(m: &zvtes::state::Minion) -> MinionKind {
     match m.kind {
         Mk::Vampire(_) => MinionKind::Vampire,
+        Mk::Imbued(_) => MinionKind::Imbued,
         Mk::Ally { .. } => MinionKind::Ally,
         Mk::Created { .. } | Mk::GreatBeast { .. } | Mk::Fury { .. } => MinionKind::Created,
         Mk::Token { .. } => MinionKind::Token,
@@ -613,7 +649,7 @@ pub(crate) fn minion_kind(m: &zvtes::state::Minion) -> MinionKind {
 /// A minion's face: its card, crypt or library.
 pub(crate) fn minion_face(m: &zvtes::state::Minion) -> (u16, bool) {
     match m.kind {
-        Mk::Vampire(c) => (c, true),
+        Mk::Vampire(c) | Mk::Imbued(c) => (c, true),
         Mk::Ally { card, .. }
         | Mk::Created { card, .. }
         | Mk::GreatBeast { card, .. }
@@ -867,6 +903,8 @@ pub fn action_kind(k: Ak) -> ActionKind {
         Ak::Ability => ActionKind::Ability,
         Ak::BecomeAnarch => ActionKind::BecomeAnarch,
         Ak::RedListHunt => ActionKind::RedListHunt,
+        Ak::Power => ActionKind::Power,
+        Ak::BurnImbued => ActionKind::BurnImbued,
     }
 }
 

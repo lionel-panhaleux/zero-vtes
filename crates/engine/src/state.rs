@@ -188,6 +188,9 @@ impl CostOff {
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum MinionKind {
     Vampire(u16),
+    /// An imbued (CRYPT index): a mortal ally from the crypt, its blood its
+    /// life (rulebook "Appendix: Imbued Rules" 1).
+    Imbued(u16),
     /// Call the Great Beast become a vampire: 9-capacity, clanless,
     /// Independent, infernal, 4 strength, 3 bleed (`beast_disciplines`).
     GreatBeast {
@@ -303,6 +306,7 @@ impl MinionKind {
             MinionKind::Ally { card, .. } => Some(card),
             // Textless: no card to read.
             MinionKind::Vampire(_)
+            | MinionKind::Imbued(_)
             | MinionKind::Created { .. }
             | MinionKind::Token { .. }
             | MinionKind::GreatBeast { .. }
@@ -327,6 +331,12 @@ pub struct Minion {
     pub blood: u8,
     pub locked: bool,
     pub in_torpor: bool,
+    /// An imbued with no life, in the incapacitated region: controlled,
+    /// not ready (rulebook "Appendix: Imbued Rules" 5).
+    pub incapacitated: bool,
+    /// A conviction played on this imbued this unlock phase (one each,
+    /// rulebook "Appendix: Imbued Rules" 2).
+    pub conviction_played: bool,
     pub in_play: bool,
     /// Face down and out of play, blood kept (rulebook "Contested Cards").
     pub contested: bool,
@@ -565,6 +575,8 @@ impl Minion {
             blood,
             locked: false,
             in_torpor: false,
+            incapacitated: false,
+            conviction_played: false,
             in_play: true,
             contested: false,
             out_of_play: false,
@@ -634,7 +646,8 @@ impl Minion {
     pub fn vampire(&self) -> Option<&'static CryptCard> {
         match self.kind {
             MinionKind::Vampire(c) => Some(&CRYPT[c as usize]),
-            MinionKind::Ally { .. }
+            MinionKind::Imbued(_)
+            | MinionKind::Ally { .. }
             | MinionKind::Created { .. }
             | MinionKind::Token { .. }
             | MinionKind::GreatBeast { .. }
@@ -642,11 +655,11 @@ impl Minion {
         }
     }
 
-    /// The vampire's CRYPT index (printed text lookup); `None` for an ally
-    /// or a created vampire.
+    /// The vampire's or imbued's CRYPT index (printed text lookup); `None`
+    /// for an ally or a created vampire.
     pub fn crypt_card(&self) -> Option<u16> {
         match self.kind {
-            MinionKind::Vampire(c) => Some(c),
+            MinionKind::Vampire(c) | MinionKind::Imbued(c) => Some(c),
             MinionKind::Ally { .. }
             | MinionKind::Created { .. }
             | MinionKind::Token { .. }
@@ -655,11 +668,18 @@ impl Minion {
         }
     }
 
+    /// An ally: a library card's, a token, or an imbued ("considered a
+    /// mortal ally", rulebook "Appendix: Imbued Rules" 1).
     pub fn is_ally(&self) -> bool {
         matches!(
             self.kind,
-            MinionKind::Ally { .. } | MinionKind::Token { .. }
+            MinionKind::Ally { .. } | MinionKind::Token { .. } | MinionKind::Imbued(_)
         )
+    }
+
+    /// An imbued (rulebook "Appendix: Imbued Rules").
+    pub fn is_imbued(&self) -> bool {
+        matches!(self.kind, MinionKind::Imbued(_))
     }
 
     /// A vampire: from the crypt or created from a library card.
@@ -672,6 +692,7 @@ impl Minion {
         match self.kind {
             MinionKind::Ally { id, .. } => Some(id),
             MinionKind::Vampire(_)
+            | MinionKind::Imbued(_)
             | MinionKind::Created { .. }
             | MinionKind::Token { .. }
             | MinionKind::GreatBeast { .. }
@@ -683,7 +704,7 @@ impl Minion {
     /// created vampire's is for display only, advanced rules 5.1.3).
     pub fn name(&self) -> &'static str {
         match self.kind {
-            MinionKind::Vampire(c) => CRYPT[c as usize].name,
+            MinionKind::Vampire(c) | MinionKind::Imbued(c) => CRYPT[c as usize].name,
             MinionKind::Ally { card, .. }
             | MinionKind::Created { card, .. }
             | MinionKind::GreatBeast { card, .. }
@@ -713,8 +734,9 @@ impl Minion {
         match self.kind {
             MinionKind::Vampire(c) => Some(CRYPT[c as usize].clan),
             MinionKind::Created { clan, .. } => clan,
-            // Clanless.
-            MinionKind::Ally { .. }
+            // Clanless; an imbued's creed is `GameState::creed`.
+            MinionKind::Imbued(_)
+            | MinionKind::Ally { .. }
             | MinionKind::Token { .. }
             | MinionKind::GreatBeast { .. }
             | MinionKind::Fury { .. } => None,
@@ -740,10 +762,13 @@ impl Minion {
             return self.sect_override;
         }
         match self.kind {
-            MinionKind::Vampire(c) => Some(CRYPT[c as usize].sect),
+            MinionKind::Vampire(c) => CRYPT[c as usize].sect,
             MinionKind::Created { sect, .. } => Some(sect),
             MinionKind::GreatBeast { .. } => Some(Sect::Independent),
-            MinionKind::Ally { .. } | MinionKind::Token { .. } | MinionKind::Fury { .. } => None,
+            MinionKind::Ally { .. }
+            | MinionKind::Imbued(_)
+            | MinionKind::Token { .. }
+            | MinionKind::Fury { .. } => None,
         }
     }
 
@@ -761,6 +786,8 @@ impl Minion {
             {
                 &["FLIGHT"]
             }
+            // An imbued's virtues.
+            MinionKind::Imbued(c) => CRYPT[c as usize].disciplines,
             _ => self.vampire().map_or(&[], |v| v.disciplines),
         }
     }
@@ -789,7 +816,7 @@ impl Minion {
             MinionKind::Vampire(c) => Some(CRYPT[c as usize].capacity),
             MinionKind::Created { born, .. } => Some(born.capacity),
             MinionKind::GreatBeast { .. } | MinionKind::Fury { .. } => Some(9),
-            MinionKind::Ally { .. } | MinionKind::Token { .. } => None,
+            MinionKind::Ally { .. } | MinionKind::Token { .. } | MinionKind::Imbued(_) => None,
         };
         printed.map(|c| c.saturating_sub(self.capacity_less).max(1))
     }
@@ -799,9 +826,9 @@ impl Minion {
         self.in_play && !self.contested && !self.out_of_play
     }
 
-    /// Ready: present and not in torpor (locked or not).
+    /// Ready: present, not in torpor nor incapacitated (locked or not).
     pub fn ready(&self) -> bool {
-        self.present() && !self.in_torpor
+        self.present() && !self.in_torpor && !self.incapacitated
     }
 }
 
@@ -938,6 +965,22 @@ pub struct CardId(pub u32);
 /// The virtual-hand source of a combat card played from the ash heap as if
 /// from hand (Spiritual Guidance): no card in play.
 pub const ASH_PLAY: CardId = CardId(u32::MAX);
+
+/// The virtual-hand source of a conviction played from the ash heap in its
+/// player's unlock phase (rulebook "Appendix: Imbued Rules" 2): not removed
+/// when burned.
+pub const ASH_UNLOCK: CardId = CardId(u32::MAX - 1);
+
+/// A crypt card that is a vampire, not an imbued (rulebook "Appendix:
+/// Imbued Rules", card rulings: a card naming a vampire seen).
+pub fn vampire_card(c: u16) -> bool {
+    !CRYPT[c as usize].imbued
+}
+
+/// A virtual-hand source in the ash heap, no card in play.
+pub fn from_ash(from: CardId) -> bool {
+    from == ASH_PLAY || from == ASH_UNLOCK
+}
 
 impl CardId {
     pub fn index(self) -> usize {
@@ -1297,6 +1340,9 @@ pub struct GameState {
     /// Cards each minion played this turn under `Limit::PerTurn` (Forced
     /// March).
     pub turn_plays: Vec<(MinionId, u16)>,
+    /// The active Methuselah's unlock phase is under way (its convictions
+    /// played from the ash heap, `Engine::virtual_hand`).
+    pub unlock_phase: bool,
     /// Gestalt [SAN]: (the reacting vampire, a chosen Blood Brother whose
     /// Disciplines it plays cards with), until the action ends.
     pub lent_disciplines: Vec<(MinionId, MinionId)>,
@@ -1423,9 +1469,62 @@ impl GameState {
         self.minions_of(s)
             .filter(|m| {
                 let m = &self.minions[m.index()];
-                !m.locked && !m.in_torpor
+                !m.locked && !m.in_torpor && !m.incapacitated
             })
             .collect()
+    }
+
+    /// The conviction cards on imbued `m` (rulebook "Appendix: Imbued
+    /// Rules" 2).
+    pub fn convictions(&self, m: MinionId) -> Vec<CardId> {
+        self.cards
+            .iter()
+            .enumerate()
+            .filter(|(_, c)| {
+                c.present()
+                    && c.host == Some(m)
+                    && LIBRARY[c.card as usize]
+                        .types
+                        .contains(&CardType::Conviction)
+            })
+            .map(|(i, _)| CardId(i as u32))
+            .collect()
+    }
+
+    /// A mortal: an imbued, or an ally whose type line says so (rulebook
+    /// "Appendix: Imbued Rules" 4).
+    pub fn is_mortal(&self, m: MinionId) -> bool {
+        let v = &self.minions[m.index()];
+        v.is_imbued()
+            || v.kind
+                .ally_card()
+                .is_some_and(|c| LIBRARY[c as usize].labels.contains(&Label::Mortal))
+    }
+
+    /// An ally whose type line has one of `labels`, an imbued Mortal
+    /// (rulebook "Appendix: Imbued Rules" 1).
+    pub fn ally_of(&self, m: MinionId, labels: &[Label]) -> bool {
+        let v = &self.minions[m.index()];
+        if v.is_imbued() {
+            return labels.contains(&Label::Mortal);
+        }
+        v.kind.ally_card().is_some_and(|c| {
+            labels
+                .iter()
+                .any(|l| LIBRARY[c as usize].labels.contains(l))
+        })
+    }
+
+    /// A monster: a vampire, or an ally neither mortal nor animal (rulebook
+    /// "Appendix: Imbued Rules" 4).
+    pub fn is_monster(&self, m: MinionId) -> bool {
+        let v = &self.minions[m.index()];
+        v.is_vampire()
+            || (!self.is_mortal(m)
+                && !v
+                    .kind
+                    .ally_card()
+                    .is_some_and(|c| LIBRARY[c as usize].labels.contains(&Label::Animal)))
     }
 
     /// An ally's type line, of the version that entered play (`None` for
@@ -1433,6 +1532,13 @@ impl GameState {
     pub fn ally_body(&self, m: MinionId) -> Option<Body> {
         match self.minions[m.index()].kind {
             MinionKind::Ally { body, .. } | MinionKind::Token { body, .. } => Some(body),
+            // Its cost its starting life; 1 strength, 1 bleed (rulebook
+            // "Appendix: Imbued Rules" 1).
+            MinionKind::Imbued(c) => Some(Body {
+                life: CRYPT[c as usize].capacity,
+                strength: 1,
+                bleed: 1,
+            }),
             MinionKind::Vampire(_)
             | MinionKind::Created { .. }
             | MinionKind::GreatBeast { .. }
@@ -1671,13 +1777,12 @@ impl GameState {
         }
     }
 
-    /// The printed sect of `seat`'s uncontrolled vampire `i`.
-    pub fn slot_sect(&self, seat: SeatId, i: usize) -> Sect {
+    /// The printed sect of `seat`'s uncontrolled vampire `i`; none for an
+    /// imbued.
+    pub fn slot_sect(&self, seat: SeatId, i: usize) -> Option<Sect> {
         let slot = &self.seats[seat.index()].uncontrolled[i];
         match slot.banished {
-            Some(ref b) => self.minions[b.minion.index()]
-                .underlying_sect()
-                .unwrap_or(Sect::Independent),
+            Some(ref b) => self.minions[b.minion.index()].underlying_sect(),
             None => CRYPT[slot.card as usize].sect,
         }
     }
@@ -2235,6 +2340,7 @@ impl GameState {
             }
             R::IsEquipWeaponFromHand => ctx.equip_weapon,
             R::ActionEntersCombat => ctx.enters_combat,
+            R::ActionNotEnteringCombat => ctx.kind.is_some() && !ctx.enters_combat,
             R::ActionPutsVampireInPlay => ctx.puts_vampire_in_play,
             R::OpponentAlly => opp.is_some_and(|o| o.is_ally()),
             R::OpponentInfernal => ctx.opponent.is_some_and(|o| self.is_infernal(o)),
@@ -4098,10 +4204,14 @@ pub fn circles() -> Vec<&'static str> {
 }
 
 /// The Disciplines printed in the crypt, lower case, in crypt order
-/// (Sanguine Instruction's choices).
+/// (Sanguine Instruction's choices); an imbued's virtues are none.
 pub fn disciplines() -> Vec<&'static str> {
     let mut out: Vec<&'static str> = Vec::new();
-    for d in CRYPT.iter().flat_map(|c| c.disciplines.iter()) {
+    for d in CRYPT
+        .iter()
+        .filter(|c| !c.imbued)
+        .flat_map(|c| c.disciplines.iter())
+    {
         if d.chars().all(|c| c.is_ascii_lowercase()) && !out.contains(d) {
             out.push(d);
         }

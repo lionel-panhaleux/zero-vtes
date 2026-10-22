@@ -69,7 +69,7 @@ fn of_sect(sect: zvtes::crypt::Sect, caps: std::ops::RangeInclusive<u8>) -> u16 
         .iter()
         .enumerate()
         .position(|(i, c)| {
-            c.sect == sect
+            c.sect == Some(sect)
                 && caps.contains(&c.capacity)
                 && c.title == zvtes::crypt::Title::None
                 && zvtes::cards::vampire(i as u16).is_none()
@@ -342,10 +342,15 @@ fn pass_referendum(e: &mut Engine, a: MinionId) {
 fn crusade_chicago_titles_its_sabbat_caller() {
     use zvtes::crypt::{Sect, Title};
     let mut e = game(2);
-    let a = e.add_minion(SeatId(0), textless(|c| c.sect == Sect::Sabbat, 0), 4, false);
+    let a = e.add_minion(
+        SeatId(0),
+        textless(|c| c.sect == Some(Sect::Sabbat), 0),
+        4,
+        false,
+    );
     let cam = e.add_minion(
         SeatId(0),
-        textless(|c| c.sect == Sect::Camarilla, 0),
+        textless(|c| c.sect == Some(Sect::Camarilla), 0),
         4,
         false,
     );
@@ -358,7 +363,12 @@ fn crusade_chicago_titles_its_sabbat_caller() {
     assert_eq!(e.state.title_of(a), Title::Archbishop("Chicago"));
     // Its player claiming the title: no second Crusade (rules-qa 76.2).
     hand(&mut e, 0, &["Crusade: Chicago"]);
-    let b = e.add_minion(SeatId(0), textless(|c| c.sect == Sect::Sabbat, 1), 4, false);
+    let b = e.add_minion(
+        SeatId(0),
+        textless(|c| c.sect == Some(Sect::Sabbat), 1),
+        4,
+        false,
+    );
     assert!(!request(&mut e).options.contains(&play(0, 0, b)));
     let on = e
         .state
@@ -382,7 +392,7 @@ fn crusades_unlock_their_clan_at_the_discard_phase() {
         let mut e = game(2);
         let a = e.add_minion(
             SeatId(0),
-            textless(|c| c.sect == Sect::Sabbat && c.clan == clan, 0),
+            textless(|c| c.sect == Some(Sect::Sabbat) && c.clan == clan, 0),
             4,
             false,
         );
@@ -406,7 +416,10 @@ fn nosferatu_justicar_titles_a_camarilla_nosferatu() {
     let mut e = game(2);
     let n = e.add_minion(
         SeatId(0),
-        textless(|c| c.clan == "Nosferatu" && c.sect == Sect::Camarilla, 0),
+        textless(
+            |c| c.clan == "Nosferatu" && c.sect == Some(Sect::Camarilla),
+            0,
+        ),
         4,
         false,
     );
@@ -719,9 +732,9 @@ fn the_admonitions_passes_to_the_next_sabbat_methuselah() {
         let mut e = game(3);
         for s in 0..3 {
             let crypt = if sabbat_seats.contains(&s) {
-                textless(|c| c.sect == Sect::Sabbat, s)
+                textless(|c| c.sect == Some(Sect::Sabbat), s)
             } else {
-                textless(|c| c.sect == Sect::Camarilla, s)
+                textless(|c| c.sect == Some(Sect::Camarilla), s)
             };
             e.add_minion(SeatId(s as u8), crypt, 4, false);
             e.add_minion(SeatId(s as u8), of_clan("Ventrue", 4..=6), 4, false);
@@ -747,7 +760,7 @@ fn the_admonitions_locks_need_sabbat_and_black_hand() {
     let mut e = game(2);
     e.add_minion(
         SeatId(0),
-        textless(|c| c.sect == Sect::Sabbat && !c.black_hand, 0),
+        textless(|c| c.sect == Some(Sect::Sabbat) && !c.black_hand, 0),
         4,
         false,
     );
@@ -778,19 +791,19 @@ fn communal_haven_moves_between_sabbat_vampires() {
     let mut e = game(2);
     let from = e.add_minion(
         SeatId(0),
-        textless(|c| c.sect == Sect::Sabbat && c.capacity >= 4, 0),
+        textless(|c| c.sect == Some(Sect::Sabbat) && c.capacity >= 4, 0),
         4,
         false,
     );
     let to = e.add_minion(
         SeatId(0),
-        textless(|c| c.sect == Sect::Sabbat && c.capacity >= 4, 1),
+        textless(|c| c.sect == Some(Sect::Sabbat) && c.capacity >= 4, 1),
         1,
         false,
     );
     let cam = e.add_minion(
         SeatId(0),
-        textless(|c| c.sect == Sect::Camarilla, 0),
+        textless(|c| c.sect == Some(Sect::Camarilla), 0),
         1,
         false,
     );
@@ -824,13 +837,13 @@ fn communal_haven_moves_between_sabbat_vampires() {
     let mut e = game(2);
     let from = e.add_minion(
         SeatId(0),
-        textless(|c| c.sect == Sect::Sabbat && c.capacity >= 4, 0),
+        textless(|c| c.sect == Some(Sect::Sabbat) && c.capacity >= 4, 0),
         4,
         false,
     );
     e.add_minion(
         SeatId(0),
-        textless(|c| c.sect == Sect::Camarilla, 0),
+        textless(|c| c.sect == Some(Sect::Camarilla), 0),
         1,
         false,
     );
@@ -933,7 +946,7 @@ fn eternal_vigilance_unlocks_to_block_and_burns_in_torpor() {
     e.add_minion(SeatId(0), of_clan("Brujah", 4..=6), 4, false);
     let v = e.add_minion(
         SeatId(1),
-        textless(|c| c.sect == Sect::Sabbat && c.capacity >= 3, 0),
+        textless(|c| c.sect == Some(Sect::Sabbat) && c.capacity >= 3, 0),
         3,
         false,
     );
@@ -957,8 +970,18 @@ fn eternal_vigilance_unlocks_to_block_and_burns_in_torpor() {
 fn eternal_vigilance_goes_on_its_titled_actor() {
     use zvtes::crypt::{Sect, Title};
     let mut e = game(2);
-    let a = e.add_minion(SeatId(0), textless(|c| c.sect == Sect::Sabbat, 0), 4, false);
-    let untitled = e.add_minion(SeatId(0), textless(|c| c.sect == Sect::Sabbat, 1), 4, false);
+    let a = e.add_minion(
+        SeatId(0),
+        textless(|c| c.sect == Some(Sect::Sabbat), 0),
+        4,
+        false,
+    );
+    let untitled = e.add_minion(
+        SeatId(0),
+        textless(|c| c.sect == Some(Sect::Sabbat), 1),
+        4,
+        false,
+    );
     e.state.minions[a.index()].granted_title = Some(Title::Priscus);
     e.add_minion(SeatId(1), of_clan("Ventrue", 4..=6), 4, false);
     hand(&mut e, 0, &["Eternal Vigilance"]);
@@ -1085,7 +1108,7 @@ fn creation_rites_makes_a_sabbat_vampire_of_the_actors_clan() {
     let a = e.add_minion(
         SeatId(0),
         textless(
-            |c| c.sect == Sect::Sabbat && c.clan == "Tzimisce" && !c.sterile,
+            |c| c.sect == Some(Sect::Sabbat) && c.clan == "Tzimisce" && !c.sterile,
             0,
         ),
         4,
@@ -1226,14 +1249,14 @@ fn alastor_puts_a_helicopter_on_unlocked() {
     let mut e = game(2);
     let j = e.add_minion(
         SeatId(0),
-        textless(|c| c.sect == Sect::Camarilla, 0),
+        textless(|c| c.sect == Some(Sect::Camarilla), 0),
         4,
         false,
     );
     e.state.minions[j.index()].granted_title = Some(Title::Justicar("Ventrue"));
     let other = e.add_minion(
         SeatId(0),
-        textless(|c| c.sect == Sect::Camarilla, 1),
+        textless(|c| c.sect == Some(Sect::Camarilla), 1),
         4,
         false,
     );
@@ -1473,7 +1496,7 @@ fn eternal_vigilance_keeps_the_block_restrictions() {
     }
     let v = e.add_minion(
         SeatId(2),
-        textless(|c| c.sect == Sect::Sabbat && c.capacity >= 3, 0),
+        textless(|c| c.sect == Some(Sect::Sabbat) && c.capacity >= 3, 0),
         3,
         false,
     );
@@ -1512,7 +1535,7 @@ fn the_admonitions_not_as_played_and_draws_what_there_is() {
     e.add_minion(SeatId(0), of_clan("Brujah", 4..=6), 4, false);
     e.add_minion(
         SeatId(1),
-        textless(|c| c.sect == zvtes::crypt::Sect::Sabbat, 0),
+        textless(|c| c.sect == Some(zvtes::crypt::Sect::Sabbat), 0),
         4,
         false,
     );

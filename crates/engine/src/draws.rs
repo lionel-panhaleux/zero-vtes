@@ -274,6 +274,49 @@ pub enum Interrupt {
         to: MinionId,
         max: u8,
     },
+    /// An incapacitated imbued burned: `imbued`, ready, may burn a
+    /// conviction for 1 unpreventable damage to `acting` (rulebook
+    /// "Appendix: Imbued Rules" 5).
+    AvengeImbued {
+        seat: SeatId,
+        imbued: crate::ids::MinionId,
+        acting: crate::ids::MinionId,
+    },
+    /// An action "that costs 1 conviction": which of acting imbued
+    /// `minion`'s it pays with, named as announced (`ActionCtx::conviction`;
+    /// RTR 20111202).
+    NameConviction {
+        seat: SeatId,
+        minion: crate::ids::MinionId,
+    },
+    /// A power requiring `virtue` from `seat`'s library (shuffled after) or
+    /// hand put on imbued `minion` (Inez "Nurse216" Villagrande), or none.
+    PowerSearch {
+        seat: SeatId,
+        minion: crate::ids::MinionId,
+        virtue: &'static str,
+    },
+    /// Foresee: `seat` may cancel the combat imbued `minion` is in; it
+    /// blocking, the action continues as if unblocked (`ContinueAction`).
+    MayCancelCombat {
+        seat: SeatId,
+        minion: crate::ids::MinionId,
+    },
+    /// "[n CONVICTION]": imbued `minion` burns n of its conviction cards,
+    /// one at a time, `seat` choosing among their names (RTR 20111202).
+    BurnConvictions {
+        seat: SeatId,
+        minion: crate::ids::MinionId,
+        n: u8,
+    },
+    /// An imbued gains a conviction card from the player's hand or ash
+    /// heap, `library` too (shuffled after), or none (rulebook "Appendix:
+    /// Imbued Rules" 2: as it enters play with none; Erick, Leaf, Abjure).
+    GainConviction {
+        seat: SeatId,
+        minion: crate::ids::MinionId,
+        library: bool,
+    },
     /// Antonio d'Erlette: a mage ally he could play, from library or hand,
     /// put in play paid (Pass: none); the library shuffled.
     AllySearch {
@@ -547,6 +590,9 @@ pub enum MinionPurpose {
     /// A ready minion of the chooser's, which takes n unpreventable damage
     /// (Gnaeus Aemilius Augustinus): mandatory.
     Damage(u8),
+    /// Another ready imbued of the chooser's than `except`, which takes n
+    /// unpreventable damage (Béatrice "Oracle171" Tremblay): mandatory.
+    DamageImbued { n: u8, except: crate::ids::MinionId },
     /// Gurchon Hall: one of the two oldest ready vampires gains 1 blood,
     /// mandatory; a tie is the chooser's (rules-qa 69.1).
     OldestHuntingGround(Option<crate::ids::MinionId>),
@@ -583,6 +629,12 @@ impl Interrupt {
             | Interrupt::RemoveFromAsh { seat, .. }
             | Interrupt::DisciplineSearch { seat, .. }
             | Interrupt::AllySearch { seat, .. }
+            | Interrupt::GainConviction { seat, .. }
+            | Interrupt::BurnConvictions { seat, .. }
+            | Interrupt::AvengeImbued { seat, .. }
+            | Interrupt::NameConviction { seat, .. }
+            | Interrupt::PowerSearch { seat, .. }
+            | Interrupt::MayCancelCombat { seat, .. }
             | Interrupt::PutInPlaySearch { seat, .. }
             | Interrupt::MoveCardToOldest { seat, .. }
             | Interrupt::MayPreventForBlood { seat, .. }
@@ -1062,6 +1114,82 @@ impl Engine {
                         continue;
                     }
                     true
+                }
+                Interrupt::MayCancelCombat { minion, .. } => {
+                    if self
+                        .combat
+                        .as_ref()
+                        .is_some_and(|c| c.side_of_minion(minion).is_some())
+                    {
+                        return;
+                    }
+                    self.interrupts.remove(0);
+                    continue;
+                }
+                Interrupt::PowerSearch { minion, virtue, .. } => {
+                    if present(minion) && self.power_sources(s, minion, virtue).len() > 1 {
+                        return;
+                    }
+                    self.interrupts.remove(0);
+                    self.state.seats[s.index()].library.shuffle(&mut self.rng);
+                    continue;
+                }
+                Interrupt::NameConviction { minion, .. } => {
+                    let held = self.state.convictions(minion);
+                    let first = held.first().map(|c| self.state.cards[c.index()].card);
+                    if held
+                        .iter()
+                        .all(|c| Some(self.state.cards[c.index()].card) == first)
+                    {
+                        self.interrupts.remove(0);
+                        if let Some(a) = self.action.as_mut() {
+                            a.conviction = held.first().copied();
+                        }
+                        continue;
+                    }
+                    return;
+                }
+                Interrupt::AvengeImbued { imbued, acting, .. } => {
+                    if self.state.minions[imbued.index()].ready()
+                        && present(acting)
+                        && !self.state.convictions(imbued).is_empty()
+                    {
+                        return;
+                    }
+                    self.interrupts.remove(0);
+                    continue;
+                }
+                Interrupt::BurnConvictions { minion, n, .. } => {
+                    let held = self.state.convictions(minion);
+                    if n == 0 || held.is_empty() {
+                        self.interrupts.remove(0);
+                        continue;
+                    }
+                    // One name: no choice.
+                    let first = self.state.cards[held[0].index()].card;
+                    if held
+                        .iter()
+                        .all(|c| self.state.cards[c.index()].card == first)
+                    {
+                        self.burn_card_in_play(held[0]);
+                        if let Interrupt::BurnConvictions { n, .. } = &mut self.interrupts[0] {
+                            *n -= 1;
+                        }
+                        continue;
+                    }
+                    return;
+                }
+                Interrupt::GainConviction {
+                    minion, library, ..
+                } => {
+                    if present(minion) && self.conviction_sources(s, library).len() > 1 {
+                        return;
+                    }
+                    self.interrupts.remove(0);
+                    if library {
+                        self.state.seats[s.index()].library.shuffle(&mut self.rng);
+                    }
+                    continue;
                 }
                 Interrupt::AllySearch { minion, .. } => {
                     if present(minion) && !self.mage_allies(s, minion).is_empty() {
@@ -1702,6 +1830,35 @@ impl Engine {
                 options.extend(self.mage_allies(s, minion));
                 (WindowLabel::LibrarySearch, options)
             }
+            Interrupt::MayCancelCombat { .. } => (
+                WindowLabel::ResolutionChoice,
+                vec![Choice::Pass, Choice::ContinueAction],
+            ),
+            Interrupt::PowerSearch { minion, virtue, .. } => (
+                WindowLabel::LibrarySearch,
+                self.power_sources(s, minion, virtue),
+            ),
+            Interrupt::NameConviction { minion, .. } => {
+                let options = self.conviction_choices(minion);
+                (WindowLabel::ActionTerms, options)
+            }
+            Interrupt::AvengeImbued { imbued, .. } => {
+                let mut options = vec![Choice::Pass];
+                options.extend(self.conviction_choices(imbued));
+                (WindowLabel::ResolutionChoice, options)
+            }
+            Interrupt::BurnConvictions { minion, .. } => {
+                let options = self.conviction_choices(minion);
+                (WindowLabel::ResolutionChoice, options)
+            }
+            Interrupt::GainConviction { library, .. } => (
+                if library {
+                    WindowLabel::LibrarySearch
+                } else {
+                    WindowLabel::ResolutionChoice
+                },
+                self.conviction_sources(s, library),
+            ),
             Interrupt::ShortfallPicks { to, .. } => {
                 let mut picks: Vec<MinionId> = Vec::new();
                 for &t in to.iter().flatten() {
@@ -2059,10 +2216,13 @@ impl Engine {
             }
             Interrupt::NameAshVampire { seat } => (
                 WindowLabel::ResolutionChoice,
-                crate::state::distinct(&st.seats[seat.index()].ash_crypt, |_| true)
-                    .into_iter()
-                    .map(Choice::AshVampire)
-                    .collect(),
+                crate::state::distinct(
+                    &st.seats[seat.index()].ash_crypt,
+                    crate::state::vampire_card,
+                )
+                .into_iter()
+                .map(Choice::AshVampire)
+                .collect(),
             ),
             Interrupt::AllyFromAsh { seat, of, .. } => (
                 WindowLabel::ResolutionChoice,
@@ -2145,7 +2305,13 @@ impl Engine {
                         .filter(|&i| st.seats[of.index()].uncontrolled[i as usize].counters > 0)
                         .map(Choice::Slot)
                         .collect(),
+                    // "To a vampire in your uncontrolled region": no imbued
+                    // (rulebook "Appendix: Imbued Rules", Lázár Dobrescu).
                     Some(_) => (0..st.seats[seat.index()].uncontrolled.len() as u8)
+                        .filter(|&i| {
+                            let c = st.seats[seat.index()].uncontrolled[i as usize].card;
+                            c == crate::state::CREATED || !crate::crypt::CRYPT[c as usize].imbued
+                        })
                         .map(Choice::Slot)
                         .collect(),
                 },
@@ -2182,6 +2348,7 @@ impl Engine {
                         | MinionPurpose::OldestHuntingGround(_)
                         | MinionPurpose::BurnOfCrowdedClan
                         | MinionPurpose::Damage(_)
+                        | MinionPurpose::DamageImbued { .. }
                 ) {
                     options.insert(0, Choice::Pass);
                 }
@@ -2210,7 +2377,7 @@ impl Engine {
                 let mut options = vec![Choice::Pass];
                 options.extend(self.ash_allies(s, &[]).into_iter().map(Choice::FindCard));
                 options.extend(
-                    distinct(&st.seats[s.index()].ash_crypt, |_| true)
+                    distinct(&st.seats[s.index()].ash_crypt, crate::state::vampire_card)
                         .into_iter()
                         .map(Choice::AshVampire),
                 );
@@ -2324,6 +2491,9 @@ impl Engine {
                         v.ready() && st.can_hold(*m, st.cards[c.index()].card, &[])
                     }
                     MinionPurpose::Damage(_) => v.ready(),
+                    MinionPurpose::DamageImbued { except, .. } => {
+                        v.ready() && v.is_imbued() && *m != except
+                    }
                     MinionPurpose::BurnOfCrowdedClan => {
                         v.is_vampire()
                             && v.clan().is_some_and(|c| {
@@ -2906,6 +3076,104 @@ impl Engine {
         }
     }
 
+    /// The powers requiring `virtue` imbued `m` could have, from `s`'s
+    /// library and hand, by zone and card, and `Pass` (no second copy).
+    fn power_sources(&self, s: SeatId, m: MinionId, virtue: &str) -> Vec<Choice> {
+        let st = &self.state;
+        let seat = &st.seats[s.index()];
+        let lib = &crate::library::LIBRARY;
+        let fits = |c: u16| {
+            let l = &lib[c as usize];
+            l.types.contains(&crate::library::CardType::Power)
+                && l.disciplines.contains(&virtue)
+                && !st.holds_a(m, crate::cards::Holding::Named(l.name))
+        };
+        let mut out = vec![Choice::Pass];
+        for (zone, cards) in [(Zone::Library, &seat.library), (Zone::Hand, &seat.hand)] {
+            out.extend(
+                distinct(cards, fits)
+                    .into_iter()
+                    .map(|card| Choice::TakeFrom { zone, card }),
+            );
+        }
+        out
+    }
+
+    /// The conviction cards `s` could give an imbued, by zone and card, and
+    /// `Pass` (hand and ash heap; the library too with `library`).
+    fn conviction_sources(&self, s: SeatId, library: bool) -> Vec<Choice> {
+        let seat = &self.state.seats[s.index()];
+        let mut out = vec![Choice::Pass];
+        let zones = [
+            (Zone::Library, &seat.library),
+            (Zone::Hand, &seat.hand),
+            (Zone::AshHeap, &seat.ash),
+        ];
+        for (zone, cards) in zones.into_iter().skip(usize::from(!library)) {
+            out.extend(
+                distinct(cards, |c| {
+                    crate::library::LIBRARY[c as usize]
+                        .types
+                        .contains(&crate::library::CardType::Conviction)
+                })
+                .into_iter()
+                .map(|card| Choice::TakeFrom { zone, card }),
+            );
+        }
+        out
+    }
+
+    /// One `BurnInPlay` per distinct conviction on imbued `m`: copies of
+    /// one card are the same choice.
+    fn conviction_choices(&self, m: MinionId) -> Vec<Choice> {
+        let st = &self.state;
+        let mut seen: Vec<u16> = Vec::new();
+        let mut options = Vec::new();
+        for c in st.convictions(m) {
+            let card = st.cards[c.index()].card;
+            if !seen.contains(&card) {
+                seen.push(card);
+                options.push(Choice::BurnInPlay { card: c.0 });
+            }
+        }
+        options
+    }
+
+    /// The last copy of `card` taken out of `s`'s `zone`, for a search or a
+    /// take from hand or ash heap.
+    fn take_from_zone(&mut self, s: SeatId, zone: Zone, card: u16) -> crate::copies::CopyId {
+        let seat = &mut self.state.seats[s.index()];
+        let from = match zone {
+            Zone::Library => &mut seat.library,
+            Zone::Hand => &mut seat.hand,
+            Zone::AshHeap => &mut seat.ash,
+        };
+        let k = from.iter().rposition(|&x| x == card).expect("found card");
+        from.take(k).1
+    }
+
+    /// A conviction card of `owner`'s gained by imbued `m`: on it, to its
+    /// owner's ash heap above five (rulebook "Appendix: Imbued Rules" 2).
+    pub(crate) fn gain_conviction(
+        &mut self,
+        m: MinionId,
+        card: u16,
+        copy: crate::copies::CopyId,
+        owner: SeatId,
+    ) {
+        if self.state.minions[m.index()].present() && self.state.convictions(m).len() < 5 {
+            self.enter_play(crate::state::CardInPlay::entering(
+                card,
+                copy,
+                owner,
+                Some(m),
+                0,
+            ));
+        } else {
+            self.state.seats[owner.index()].ash.put(card, copy);
+        }
+    }
+
     /// The mage allies Antonio d'Erlette (`m`) could play, by zone and card:
     /// payable after reductions (LSJ 20090920-2), no unique already in play.
     fn mage_allies(&self, s: SeatId, m: MinionId) -> Vec<Choice> {
@@ -2999,7 +3267,7 @@ impl Engine {
         if vampire {
             let ok = |c: u16| {
                 let v = &crate::crypt::CRYPT[c as usize];
-                !v.scarce && v.capacity <= x
+                !v.imbued && !v.scarce && v.capacity <= x
             };
             let mut cards = distinct(&seat.crypt, ok);
             cards.extend(distinct(&seat.ash_crypt, ok));
@@ -3495,18 +3763,83 @@ impl Engine {
                 self.state.minions[from.index()].blood -= n;
                 self.state.gain_blood(to, n);
             }
+            (Interrupt::MayCancelCombat { minion, .. }, c) => {
+                self.interrupts.remove(0);
+                if c == Choice::ContinueAction {
+                    if let Some(a) = self.action.as_mut() {
+                        if a.blocked_by.contains(&minion) {
+                            a.continued = true;
+                        }
+                    }
+                    self.end_combat_now();
+                }
+            }
+            (Interrupt::PowerSearch { minion, .. }, c) => {
+                self.interrupts.remove(0);
+                if let Choice::TakeFrom { zone, card } = c {
+                    let copy = self.take_from_zone(s, zone, card);
+                    let play = crate::cards::PlayCtx {
+                        copy: crate::copies::Untracked(copy),
+                        ..crate::cards::PlayCtx::new(
+                            s,
+                            card,
+                            0,
+                            Some(minion),
+                            crate::cards::Target::Minion(minion),
+                            0,
+                        )
+                    };
+                    self.put_equipment(s, minion, play);
+                    if zone == Zone::Hand {
+                        self.replace(s, 1, None);
+                    }
+                }
+                self.state.seats[s.index()].library.shuffle(&mut self.rng);
+            }
+            (Interrupt::NameConviction { .. }, Choice::BurnInPlay { card }) => {
+                self.interrupts.remove(0);
+                if let Some(a) = self.action.as_mut() {
+                    a.conviction = Some(CardId(card));
+                }
+            }
+            (Interrupt::AvengeImbued { acting, .. }, c) => {
+                self.interrupts.remove(0);
+                if let Choice::BurnInPlay { card } = c {
+                    self.burn_card_in_play(CardId(card));
+                    if self.state.minions[acting.index()].present() {
+                        self.damage_out_of_combat(acting, 1, false);
+                    }
+                }
+            }
+            (Interrupt::BurnConvictions { .. }, Choice::BurnInPlay { card }) => {
+                self.burn_card_in_play(CardId(card));
+                if let Interrupt::BurnConvictions { n, .. } = &mut self.interrupts[0] {
+                    *n -= 1;
+                }
+            }
+            (
+                Interrupt::GainConviction {
+                    minion, library, ..
+                },
+                c,
+            ) => {
+                self.interrupts.remove(0);
+                if let Choice::TakeFrom { zone, card } = c {
+                    let copy = self.take_from_zone(s, zone, card);
+                    self.gain_conviction(minion, card, copy, s);
+                    if zone == Zone::Hand {
+                        self.replace(s, 1, None);
+                    }
+                }
+                if library {
+                    self.state.seats[s.index()].library.shuffle(&mut self.rng);
+                }
+            }
             (Interrupt::AllySearch { minion, .. }, c) => {
                 self.interrupts.remove(0);
                 if let Choice::TakeFrom { zone, card } = c {
                     let (pool, blood) = self.searched_ally_cost(s, minion, card);
-                    let seat = &mut self.state.seats[s.index()];
-                    let from = match zone {
-                        Zone::Library => &mut seat.library,
-                        Zone::Hand => &mut seat.hand,
-                        Zone::AshHeap => &mut seat.ash,
-                    };
-                    let k = from.iter().rposition(|&x| x == card).expect("found card");
-                    let (_, copy) = from.take(k);
+                    let copy = self.take_from_zone(s, zone, card);
                     self.state.minions[minion.index()].blood -= blood;
                     self.put_ally_in_play(s, card, copy);
                     if zone == Zone::Hand {
@@ -3609,14 +3942,7 @@ impl Engine {
             (Interrupt::DisciplineSearch { minion, .. }, c) => {
                 self.interrupts.remove(0);
                 if let Choice::TakeFrom { zone, card } = c {
-                    let seat = &mut self.state.seats[s.index()];
-                    let from = match zone {
-                        Zone::Library => &mut seat.library,
-                        Zone::Hand => &mut seat.hand,
-                        Zone::AshHeap => &mut seat.ash,
-                    };
-                    let k = from.iter().rposition(|&x| x == card).expect("found card");
-                    let (_, copy) = from.take(k);
+                    let copy = self.take_from_zone(s, zone, card);
                     self.put_on_minion(s, card, copy, minion);
                     // Out of the hand: drawn back up at once (advanced rules
                     // 6.8).
@@ -3864,7 +4190,9 @@ impl Engine {
                     | MinionPurpose::LockVampire
                     | MinionPurpose::LockOldest(_) => v.locked = true,
                     MinionPurpose::HostCard(c) => self.state.set_host(c, m),
-                    MinionPurpose::Damage(n) => self.damage_out_of_combat(m, n, false),
+                    MinionPurpose::Damage(n) | MinionPurpose::DamageImbued { n, .. } => {
+                        self.damage_out_of_combat(m, n, false)
+                    }
                     // A vampire fed by another hunting ground this turn
                     // still counts as one of the two.
                     MinionPurpose::OldestHuntingGround(first) => {

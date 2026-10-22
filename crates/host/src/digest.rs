@@ -48,7 +48,7 @@ pub fn digest(e: &Engine) -> String {
             .filter(|(_, m)| m.in_play && m.owner.index() == s)
             .map(|(i, m)| {
                 let id = match m.kind {
-                    MinionKind::Vampire(c) => crypt(c),
+                    MinionKind::Vampire(c) | MinionKind::Imbued(c) => crypt(c),
                     MinionKind::Ally { card, .. }
                     | MinionKind::Created { card, .. }
                     | MinionKind::GreatBeast { card, .. }
