@@ -1807,6 +1807,38 @@ training runs.
   **Served** (owner, 2026-10-22: at least even with p13, its behaviour
   maybe better), `runs/p14/best.zvp` (`a78e74292acb`), the previous
   `runs/served-prev-2026-10-22-p13at4740.zvp` (`df66d54badf3`).
+- **The critic against the position** (owner with Tom, 2026-10-22: "some
+  measure of the quality of the position", the pools of every seat, the
+  lunge, the actions and blocks each side has). `train.position` (the
+  features: `zvtes_py.position_names`, `crates/py/src/position.rs`, for
+  the deciding seat: the pools of the seat, its prey, its predator and
+  the cross-table seats, VPs, each side's ready, unlocked and torpid
+  minions and the blood on the ready ones, hand, library, turn, the edge,
+  the lunge — a bleed of one a ready minion reaching the prey's pool, or
+  the predator's reaching one's own): on 1,024 self-play games of
+  p14@5280 (every seat its policy, 4 and 5 seats alternating, 578,503
+  decisions), the explained variance of each seat's result ((VPs + 5 ×
+  win) / 5, the critic's target) by the decision's share of the game,
+  for the critic as it is, a linear fit of the 26 features per stage
+  (fitted on 70% of the games, scored on the others) and both together.
+  Self-play: the first quarter −0.03 / 0.02 / 0.08, the second 0.07 /
+  0.09 / 0.17, the third 0.34 / 0.29 / 0.38, the last 0.71 / 0.57 /
+  0.72; the human records (`data/records` and the harvest, read whole,
+  28,554 decisions, the self-play fit): −0.13 / −0.03 / −0.05, −0.01 /
+  −0.09 / −0.04, 0.23 / 0.10 / 0.21, 0.66 / 0.47 / 0.66. Through the
+  first half the critic predicts almost nothing, no better than the
+  features, and the two together double it in the second quarter: the
+  critic does not read all the position holds there, so the first half's
+  advantages rest on a near-constant baseline; from the third quarter it
+  reads more than the features. On the humans' games it is worse early
+  (their play is not the self-play it learned). The features' weights (a
+  standard deviation each, the result's scale): in the second quarter the
+  seat's pool +0.10, the blood on its ready minions +0.08, the prey's
+  pool −0.07 and its margin over one's ready minions −0.08, the
+  predator's ready blood −0.05, the prey's −0.05; in the third the ready
+  blood +0.14, the pool +0.12, VPs +0.12; the lunge +0.04 in the third
+  and +0.05 in the last, being lunged −0.04 in the last; the unlocked
+  minions +0.03 to +0.04 (the actions and blocks left this turn).
 - **Futile blocks on the E25 engine** (owner, 2026-10-15: before any
   redeploy). E25 (`97c4880`) offers every legal block attempt, those
   that cannot reach the stealth too (`Engine::block_can_reach`); no

@@ -66,7 +66,8 @@ fn put(py: Python<'_>, d: &Bound<'_, PyDict>, prefix: &str, o: Obs, options: boo
 /// `entries` of the decision entry it took), `before` (what happened since the previous
 /// decision), the deciding seat's policy encoding (`tok_ids`, `tok_f`,
 /// `opt_ids`, `opt_f`) and critic encoding (`critic_tok_ids`,
-/// `critic_tok_f`), both in observation version `obs`. The dict `over`
+/// `critic_tok_f`), both in observation version `obs`, and `position`
+/// (`position_names`' features for the deciding seat). The dict `over`
 /// (`vps`, `before`) ends a finished game; `stopped` (why) a game whose
 /// record stops reading (a rule change since: the decisions up to it, the
 /// last unanswered). Also `names` (seats') and `humans` (the seats a human
@@ -97,6 +98,10 @@ pub fn replay_decisions<'py>(
         let req = r.request().expect("a decision is pending");
         put(py, &x, "", encode(r.engine(), req, v), true)?;
         put(py, &x, "critic_", encode_critic(r.engine(), req, v), false)?;
+        x.set_item(
+            "position",
+            crate::position::features(&r.engine().state, req.seat),
+        )?;
         Ok(x)
     };
     loop {

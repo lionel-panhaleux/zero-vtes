@@ -60,7 +60,10 @@ runs" (every run's command, numbers and lessons), `docs/boards/training.md`.
    ci --example humanset -- <pN.zvp> <served bots.zvp> 20 <records>`) on the
    human wins no network trained on — the run's `--bc-held-games`;
    hold out new harvested wins the same way to grow the set — for pN and
-   pPREV alike. A "pN run" note in DESIGN §11.2 with the numbers.
+   pPREV alike; `uv run python -m train.position runs/pN/best.pt
+   --records data/records,data/server-records` for the critic against
+   the position by stage (DESIGN §11.2 "The critic against the
+   position"). A "pN run" note in DESIGN §11.2 with the numbers.
 5. **Serve** (the owner's call): Z-main redeploys engine.krcg.org with
    `ZVTES_WEIGHTS` explicit (CLAUDE.md "Sessions": only Z-main deploys); name the served weights by their sha prefix in
    the DESIGN note (the server records the weights' SHA-256 per game); keep

@@ -30,6 +30,7 @@ use zvtes_host::start::Start;
 use zvtes_policy::Nudges;
 
 mod human;
+mod position;
 
 /// Who plays a seat.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -1082,6 +1083,28 @@ impl GamePool {
     fn starts(&self) -> Vec<usize> {
         self.starts.iter().map(|s| s.readable).collect()
     }
+
+    /// Each pending decision's position for its deciding seat
+    /// (`position::features`, `position_names`' order), [games, features]:
+    /// `observe`'s rows.
+    fn positions<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, numpy::PyArray2<f32>>> {
+        let f: Vec<f32> = self
+            .games
+            .iter()
+            .flat_map(|g| {
+                let (r, _) = g.pending.as_ref().expect("a pending decision");
+                position::features(&g.engine.state, r.seat)
+            })
+            .collect();
+        PyArray1::from_vec(py, f).reshape([self.games.len(), position::NAMES.len()])
+    }
+}
+
+/// The names of `GamePool.positions`' and `replay_decisions`' `position`
+/// features.
+#[pyfunction]
+fn position_names() -> Vec<&'static str> {
+    position::NAMES.to_vec()
 }
 
 /// Replay a game from its seed, decks and decision log: the final
@@ -1202,6 +1225,7 @@ fn zvtes_py(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(replay, m)?)?;
     m.add_function(wrap_pyfunction!(futile_blocks, m)?)?;
     m.add_function(wrap_pyfunction!(schema, m)?)?;
+    m.add_function(wrap_pyfunction!(position_names, m)?)?;
     m.add_function(wrap_pyfunction!(deck_names, m)?)?;
     m.add_function(wrap_pyfunction!(vocab_keys, m)?)?;
     m.add_function(wrap_pyfunction!(deck_families, m)?)?;
