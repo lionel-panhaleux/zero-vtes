@@ -1767,23 +1767,46 @@ training runs.
   `331ce66`, p13 at one seat against three p11, 30 seats a deck):
   Nosferatu 0.20, Banu Haqim 0.37, Hecata 0.77, Salubri 0.90, Tzimisce
   0.93, Brujah 0.97, Gangrel 1.13 (mean 0.97); in self-play 0.61 to 0.93.
-- **p14, prepared** (owner, 2026-10-21: the deck mix and an imitation
-  weight toward the rush and wall decks; no wake nudge, the wakes with no
-  block after left to the deck mix and the starts and measured again; the
-  baseline "Combat play by deck" above). From p13@4740 (served), opponents
-  p13@4740 and p11@4340 frozen, to 5300; as p13 otherwise (no pairing, the
-  nudges, lr, entropy, `--bc-every 4`, the same five held out). The
-  learner's seat on one of Hecata, Nosferatu, Banu Haqim, Brujah, Gangrel,
-  Salubri, Tzimisce (`--weak-decks 0,3,7,8,9,12,13`) on 35% of the league
-  tables (`--weak-rate 0.35`; p9 and p10 at 0.4), its opponents from the
-  whole pool as p10's, and in a start at a seat playing one; the decks off
-  the list may fall back as p10's did, the lower rate the only hedge.
-  Imitation over `data/records` and the 26 harvested games that read whole
-  (of the 35 counted; `e33fab34fee8ca4b` held out): 9,231 choices, 3,263
-  on those decks (none on Banu Haqim, 230 on Nosferatu, 298 on Gangrel),
-  drawn 3 times as often (`--bc-weak-weight 3`: 62% of the imitation
-  minibatches). Measured against p13: `decks.rs` per deck, `waste
-  --by-deck` (the rushes declared, the opposing minion down), `humanset`.
+- **p14** (`runs/p14`, `../zero-vtes-p14` at `10b4369`; launched
+  2026-10-21, 4741 → 5300, ~111 s an iteration, no panic, nothing
+  truncated). The owner's lever of 2026-10-21 for "Combat play by deck"
+  above: the deck mix and an imitation weight toward the rush and wall
+  decks, no wake nudge. From p13@4740 (served), opponents p13@4740 and
+  p11@4340 frozen; as p13 otherwise (no pairing, the nudges, lr, entropy,
+  `--bc-every 4`, the same five held out). The learner's seat on one of
+  Hecata, Nosferatu, Banu Haqim, Brujah, Gangrel, Salubri, Tzimisce
+  (`--weak-decks 0,3,7,8,9,12,13`) on 35% of the league tables
+  (`--weak-rate 0.35`), its opponents from the whole pool, and in a start
+  at a seat playing one. Imitation over `data/records` and the 26
+  harvested games that read whole (of the 35 counted): 9,231 choices,
+  3,263 on those decks (none on Banu Haqim), drawn 3 times as often
+  (`--bc-weak-weight 3`). Scores (bests, against p13 and p11): 1.70 at
+  4760, 1.88, 1.97, 1.98, 1.98, 2.03, 2.05, 2.10 at 5120, **2.13 at
+  5280** (4 seats 1.01 VP a seat, 0.24 game wins; 5 seats 1.04, 0.22);
+  held-out imitation
+  0.49 → 0.52. Measured on `10b4369`, p13 alongside on the same engine:
+  at one seat against three p13 (600 games) 1.00 VP a seat, even; on the
+  seven decks Brujah 1.43, Hecata 0.87, Tzimisce 0.93, Gangrel 0.83,
+  Nosferatu 0.57, Banu Haqim 0.40, Salubri 0.40 (p13 against p11: 0.97,
+  0.77, 0.93, 1.13, 0.20, 0.37, 0.90; 30 seats a deck, a standard error
+  ~0.2). `humanset` (the five, bots p11 as in p13's measure): agreement
+  51.3% against p13's 47.1%, won from the owner's positions 140 / 300 against
+  139 (a quarter in 36% / 40%, halfway 33% / 33%, three quarters 71% /
+  66%). `waste --by-deck` (400 self-play games, p14 / p13): own turns with
+  a rush offered and one declared Brujah 41% / 29%, Hecata 56% / 42%,
+  Gangrel 8% / 4%, Nosferatu 4% / 4%, Banu Haqim 11% / 16%, Salubri 21% /
+  26%, Tzimisce 16% / 29%; the opposing minion to torpor or burned within
+  3 points of p13 on every deck (Banu Haqim 12%, Tzimisce 16%, Hecata 16%,
+  Salubri 19%, Gangrel 22%, Nosferatu 26%, Brujah 36%); wakes with no
+  block after 75–88% (p13 77–88%); targets and holding back as p13. The
+  lever moved the rushes of the decks that already rushed (Brujah,
+  Hecata) and none of the combats' outcomes: the rush decks still seldom
+  rush, and their combats still seldom put the opposing minion down.
+  Regressed as p12 did: Wider View taken at 18–23% of the offers (p13
+  12–14%), cross-table minions sent to torpor at 4 seats 16% (p13 10%).
+  **Served** (owner, 2026-10-22: at least even with p13, its behaviour
+  maybe better), `runs/p14/best.zvp` (`a78e74292acb`), the previous
+  `runs/served-prev-2026-10-22-p13at4740.zvp` (`df66d54badf3`).
 - **Futile blocks on the E25 engine** (owner, 2026-10-15: before any
   redeploy). E25 (`97c4880`) offers every legal block attempt, those
   that cannot reach the stealth too (`Engine::block_can_reach`); no
