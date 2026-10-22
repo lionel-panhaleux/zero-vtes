@@ -3482,13 +3482,13 @@ retainers, traits, titles, trait changes).
 - Powers: gained by a +1 stealth action requiring the virtue, the imbued
   unlocked on success, no second copy; an iconed ability locks the power;
   a [REACTION] as reactions are used (87.11).
-- The incapacitated region: no life, not burned, controlled and not
-  ready; leaving for 3 conviction (2 with Jennie, any unlock phase),
-  gaining 1 life; burned by a Ⓓ action, avenged by ready imbued's
-  convictions; neither burn nor torpor for riders; its own zone in the
-  protocol (87.12, 87.21). Its text and powers still work (87.1), a life
-  gained included, the imbued staying there (Rejuvenate, 87.43); sent to
-  torpor, an imbued is incapacitated (87.2).
+- The incapacitated region: its last life lost, not burned, controlled and not
+  ready; leaving for 3 conviction (2 with Jennie, any unlock phase), gaining 1
+  life; burned by a Ⓓ action, avenged by ready imbued's convictions; neither
+  burn nor torpor for riders; its own zone in the protocol (87.12, 87.21). Its
+  text and powers still work (87.1), a life gained included, the imbued
+  staying there (Rejuvenate, 87.43); sent to torpor, an imbued is
+  incapacitated (87.2).
 - The imbued's text: Anna (87.14), Béatrice (87.15), Earl (87.16), Erick
   (87.17), François (87.18), Inez (87.19), Jack, Marion, Pedro, Jennifer
   (87.20), John (87.22), Leaf (87.23), Lupe (87.24), Paul (87.25), Peter

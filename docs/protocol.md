@@ -269,7 +269,8 @@ the previous one, never the engine's state.
   with training counters, Web of Knives Recruit: as `in_play[]`'s, the
   counters the training's); `uncontrolled[]` (`card`, `counters`, `banished`,
   `cards`); `ready[]`, `torpor[]` and `incapacitated[]` minions (an
-  imbued with no life, controlled and not ready: the rulebook's
+  imbued that lost its last life, controlled and not ready, its `blood`
+  the life it has gained there since (Rejuvenate): the rulebook's
   incapacitated region, its own zone `incapacitated`); `in_play[]` (cards on no
   minion).
 - Minion: `card`, `kind` (`vampire`, `ally`, `created`, `token`,

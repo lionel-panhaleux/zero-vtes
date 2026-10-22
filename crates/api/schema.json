@@ -5022,7 +5022,7 @@
           }
         },
         "incapacitated": {
-          "description": "Imbued with no life, controlled, not ready (rulebook \"Appendix:\nImbued Rules\" 5).",
+          "description": "Imbued that lost their last life, controlled, not ready, a life\ngained there keeping them in it (rulebook \"Appendix: Imbued Rules\"\n5; rules-qa 87.43).",
           "type": "array",
           "items": {
             "$ref": "#/$defs/MinionView"
@@ -6096,7 +6096,7 @@
           "const": "training"
         },
         {
-          "description": "The incapacitated region: imbued with no life, controlled, not\nready (rulebook \"Appendix: Imbued Rules\" 5).",
+          "description": "The incapacitated region: imbued that lost their last life,\ncontrolled, not ready (rulebook \"Appendix: Imbued Rules\" 5).",
           "type": "string",
           "const": "incapacitated"
         },

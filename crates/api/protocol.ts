@@ -1373,8 +1373,9 @@ export type SeatView = {
     /** Cards in play the seat controls on no minion. */
     in_play: InPlayView[]
     /**
-     * Imbued with no life, controlled, not ready (rulebook "Appendix:
-     * Imbued Rules" 5).
+     * Imbued that lost their last life, controlled, not ready, a life
+     * gained there keeping them in it (rulebook "Appendix: Imbued Rules"
+     * 5; rules-qa 87.43).
      */
     incapacitated?: MinionView[]
     /** Top last. */

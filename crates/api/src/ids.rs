@@ -218,8 +218,8 @@ ids!(
         /// In the uncontrolled region with training counters (Web of
         /// Knives Recruit), out of play: the view's `training`.
         Training,
-        /// The incapacitated region: imbued with no life, controlled, not
-        /// ready (rulebook "Appendix: Imbued Rules" 5).
+        /// The incapacitated region: imbued that lost their last life,
+        /// controlled, not ready (rulebook "Appendix: Imbued Rules" 5).
         Incapacitated,
     }
 );

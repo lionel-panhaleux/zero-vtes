@@ -87,8 +87,9 @@ pub struct SeatView {
     pub training: Vec<InPlayView>,
     pub ready: Vec<MinionView>,
     pub torpor: Vec<MinionView>,
-    /// Imbued with no life, controlled, not ready (rulebook "Appendix:
-    /// Imbued Rules" 5).
+    /// Imbued that lost their last life, controlled, not ready, a life
+    /// gained there keeping them in it (rulebook "Appendix: Imbued Rules"
+    /// 5; rules-qa 87.43).
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub incapacitated: Vec<MinionView>,
     /// Cards in play the seat controls on no minion.
