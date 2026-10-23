@@ -101,7 +101,7 @@ by the owner. Apply them to every new card; only a ruling overrides them.
 - **Conditions read live; card-text defaults** — 4.3, 9.1, 13.2, 18.4, 19.3, 28.2, 28.6, 29.11, 32.4, 32.7, 39.5, 49.5, 49.7, 73.7, 77.6, 77.13
 - **Corruption counters, multi-Discipline cards** — 25.1–25.6, 34.3, 35.2, 38.4, 52.1, 77.28
 - **Printed vampire abilities** — 13.1, 13.2, 14.1, 14.2, 15.1, 15.2, 16.1–16.6, 17.1–17.4, 41.1–41.14, 49.2, 49.3, 52.4, 72.1, 72.2, 72.5, 73.5, 73.7, 79.2, 79.3, 88.6, 89.2, 89.20–89.22
-- **Two-player variant** — 91.1–91.7
+- **Two-player variant** — 91.1–91.8
 - **Game end, VP, ousting** — 6.9, 18.2, 24.1, 33.2, 53.1, 58.20, 91.1
 ## Batch 1 — sequencing, impulse, windows
 
@@ -2266,3 +2266,5 @@ Twenty-seven cards (the server's /admin/unsupported of 2026-10-23: a Kiasyd deck
 **91.6** "If two contested vampires (two copies of the same vampire) have a title, their title is not contested": both copies claim it, neither pays blood for it; a title shared with a different vampire is contested by the rulebook (blood), both copies among its claimants. Amber (the second half is the rulebook's, the variant silent). (Tests two_contested_copies_keep_their_title, another_claimant_contests_both_copies_title.)
 
 **91.7** Transfers: 3 in the first player's first influence phase, 4 in every other influence phase, the second player's first included ("everyone else gets the standard 4"). Green. (Test two_player_transfers_are_3_then_4.)
+
+**91.8** A 2-seat game's decks: a library of 40 to 60 cards, every card on VEKN's "List of allowed cards in 2-player VTES" (`data/two-player.json`, from `scripts/two_player.py`); the crypt as the rulebook's, unchecked by the host (as at any seat count: 4 crypt to deal). The list names V5 cards: a vampire the pool holds in several printings is allowed in its V5 one only (Lucinde, Alastor; Nikolaus Vermeulen; the newest group, not a legacy addition), not its older printings. VEKN's own Tzimisce decklist plays Nesserian, neither on its list nor in the pool: left out of the suggested lists. Amber (the list is silent on older printings of a listed name; read narrowly, as a list of V5 cards). (Tests two_seats_take_the_variant_s_decks_only, the_two_player_lists_are_legal.)

@@ -54,9 +54,10 @@ fn seeds() -> Vec<u32> {
 /// incapacitated, burned or recovering between two views.
 const IMBUED: [u32; 4] = [1001, 1002, 1003, 1004];
 
-/// Seeds played by two seats (VEKN's two-player variant), both the same
-/// precon every other one: crypt cards contested in play.
-const TWO: std::ops::RangeInclusive<u32> = 2001..=2020;
+/// Seeds played by two seats (VEKN's two-player variant, its suggested
+/// lists), both the same list every other one: crypt cards contested in
+/// play.
+const TWO: std::ops::RangeInclusive<u32> = 2001..=2040;
 
 /// Every imbued, every power and conviction.
 fn imbued() -> zvtes_api::DeckList {
@@ -141,9 +142,13 @@ fn political(decks: &[(String, zvtes_api::DeckList)]) -> usize {
 }
 
 fn game(seed: u64, settings: Settings) -> Game {
-    let decks = zvtes_host::catalog();
-    let styles = ["aggro_bleed", "wall", "random"];
     let n = if TWO.contains(&(seed as u32)) { 2 } else { 4 };
+    // Two seats play VEKN's suggested lists, the variant's decks.
+    let decks = match n {
+        2 => zvtes_host::two_player_catalog(),
+        _ => zvtes_host::catalog(),
+    };
+    let styles = ["aggro_bleed", "wall", "random"];
     let human = seed as usize % n;
     let spec = GameSpec {
         seed: Some(seed),

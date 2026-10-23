@@ -4040,6 +4040,9 @@ Advanced rules §1.13 (contests), §5.8 (titles).
   claim of it is, by the rulebook (91.6).
 - Transfers: 3 in the first player's first influence phase, 4 in every
   other (91.7).
+- Its decks: a library of 40 to 60 cards, each on VEKN's list of allowed
+  cards (`data/two-player.json`), a vampire in its V5 printing only;
+  VEKN's suggested lists are the decks a 2-seat game is offered (91.8).
 
 ## 19. Replacement, hand, draws, searches, stored cards
 
@@ -4668,7 +4671,7 @@ an owner ruling:
 Every rules-qa item, by batch, with the digest sections citing it: the
 section stating it and those cross-referring to it (§2 the default
 readings, §22 engine modeling, §23 the contradictions, §24 the open
-readings). 940 items, Batches 1–91 (44.11 was removed, replaced by Batch
+readings). 941 items, Batches 1–91 (44.11 was removed, replaced by Batch
 45). The index is derived from the citations: a bare `N.M` cites rules-qa
 item N.M in the section it appears in. A new rules-qa item gets its line in
 the section stating it, then its entry here: `python3
@@ -4991,4 +4994,4 @@ index or an item cited nowhere.
   89.21 §15.2; 89.22 §15.2; 89.23 §15.2; 89.24 §15.2; 89.25 §15.2; 89.26
   §3.1,§15.2,§24.1
 - **91** — 91.1 §18.5; 91.2 §18.5; 91.3 §18.5; 91.4 §18.5; 91.5 §18.5; 91.6
-  §18.5; 91.7 §18.5
+  §18.5; 91.7 §18.5; 91.8 §18.5

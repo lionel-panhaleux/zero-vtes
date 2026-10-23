@@ -28,7 +28,7 @@ use std::time::{Duration, Instant};
 
 use axum::extract::ws::rejection::WebSocketUpgradeRejection;
 use axum::extract::ws::{Message as Ws, WebSocket, WebSocketUpgrade};
-use axum::extract::{ConnectInfo, Path, State};
+use axum::extract::{ConnectInfo, Path, Query, State};
 use axum::http::{header, HeaderMap, HeaderValue, Method, StatusCode};
 use axum::response::{Html, IntoResponse, Redirect, Response};
 use axum::routing::{any, get, post};
@@ -151,7 +151,7 @@ async fn main() {
         )
         .route("/health", get(|| async { "ok" }))
         .route("/version", get(version))
-        .route("/catalog", get(|| async { Json(zvtes_host::catalog()) }))
+        .route("/catalog", get(catalog))
         .route("/games", post(create))
         .route("/games/{id}/ws", any(socket))
         .route("/games/{id}/record", get(record))
@@ -219,6 +219,20 @@ fn cors(origins: &Option<Vec<String>>) -> CorsLayer {
         )),
         None => layer.allow_origin(AllowOrigin::any()),
     }
+}
+
+#[derive(serde::Deserialize)]
+struct CatalogQuery {
+    seats: Option<u8>,
+}
+
+/// The decks a game of `seats` plays: VEKN's suggested two-player
+/// decklists for 2, else the decks the engine ships.
+async fn catalog(Query(q): Query<CatalogQuery>) -> Json<Vec<(String, zvtes_api::DeckList)>> {
+    Json(match q.seats {
+        Some(2) => zvtes_host::two_player_catalog(),
+        _ => zvtes_host::catalog(),
+    })
 }
 
 async fn version(State(app): State<Shared>) -> Json<serde_json::Value> {
@@ -619,5 +633,23 @@ async fn serve(app: Shared, id: String, mut ws: WebSocket) {
                 return;
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// `GET /catalog` keeps the shipped decks; `?seats=2` gives VEKN's
+    /// two-player lists (protocol.md §10).
+    #[tokio::test]
+    async fn the_catalog_serves_the_two_player_lists_when_asked() {
+        let all = catalog(Query(CatalogQuery { seats: None })).await.0;
+        let four = catalog(Query(CatalogQuery { seats: Some(4) })).await.0;
+        let two = catalog(Query(CatalogQuery { seats: Some(2) })).await.0;
+        assert_eq!(all, zvtes_host::catalog());
+        assert_eq!(four, all);
+        assert_eq!(two, zvtes_host::two_player_catalog());
+        assert!(two.iter().all(|(name, _)| name.starts_with("2-player: ")));
     }
 }

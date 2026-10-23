@@ -97,7 +97,10 @@ zero-vtes                                       ../succubus-club (fork)
   The request also carries the window label in text.
 - **Decks**: SC gives `Record<KrcgId, number>`. The protocol builds an owned
   deck from KRCG ids (the engine's `Deck` holds `&'static` slices: needs an
-  owned variant) and names unsupported cards.
+  owned variant) and names unsupported cards; a 2-seat game takes VEKN's
+  two-player decks only (`deck::two_player_legal`, `data/two-player.json`
+  from `scripts/two_player.py`), its suggested lists at `GET
+  /catalog?seats=2`.
 - **Decision number** on every answer (`Engine.decisions`); a stale answer is
   rejected with the current request. Moot locally, kept for the server.
 - **Replay** = (seed, decklists by KRCG id, log): an export from day one, for

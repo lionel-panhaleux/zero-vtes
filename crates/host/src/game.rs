@@ -204,6 +204,12 @@ impl Game {
             .enumerate()
             .map(|(seat, s)| crate::deck::resolve(seat as Seat, &s.deck))
             .collect::<Result<Vec<_>, _>>()?;
+        // VEKN's two-player variant: its decks only (rules-digest §18.5).
+        if n == 2 {
+            for (seat, d) in decks.iter().enumerate() {
+                crate::deck::two_player_legal(seat as Seat, d)?;
+            }
+        }
         let names = spec.seats.iter().map(|s| s.name.clone()).collect();
         let mut session = Session::new(seed, spec.time_limit, decks, agents);
         session.set_opportunities(settings.opportunities);

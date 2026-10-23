@@ -1,0 +1,1805 @@
+{
+ "source": "https://www.vekn.net/two-player-format/657-list-of-allowed-cards-in-2-player-vtes",
+ "updated": "October 3, 2026",
+ "allowed": [
+  {
+   "id": 100046,
+   "name": "Ambush"
+  },
+  {
+   "id": 100056,
+   "name": "Anarch Salon"
+  },
+  {
+   "id": 100093,
+   "name": "Army of Rats"
+  },
+  {
+   "id": 100114,
+   "name": "Auspex"
+  },
+  {
+   "id": 100135,
+   "name": "Barrens, The"
+  },
+  {
+   "id": 100146,
+   "name": "Beast Meld"
+  },
+  {
+   "id": 100157,
+   "name": "Bewitching Oration"
+  },
+  {
+   "id": 100201,
+   "name": "Blood Fury"
+  },
+  {
+   "id": 100230,
+   "name": "Body Flare"
+  },
+  {
+   "id": 100236,
+   "name": "Bonding"
+  },
+  {
+   "id": 100266,
+   "name": "Bum's Rush"
+  },
+  {
+   "id": 100294,
+   "name": "Cardinal Benediction"
+  },
+  {
+   "id": 100301,
+   "name": "Carrion Crows"
+  },
+  {
+   "id": 100308,
+   "name": "Cats' Guidance"
+  },
+  {
+   "id": 100312,
+   "name": "Celerity"
+  },
+  {
+   "id": 100323,
+   "name": "Change of Target"
+  },
+  {
+   "id": 100329,
+   "name": "Chantry"
+  },
+  {
+   "id": 100332,
+   "name": "Charisma"
+  },
+  {
+   "id": 100362,
+   "name": "Cloak the Gathering"
+  },
+  {
+   "id": 100501,
+   "name": "Dawn Operation"
+  },
+  {
+   "id": 100515,
+   "name": "Deep Song"
+  },
+  {
+   "id": 100557,
+   "name": "Disputed Territory"
+  },
+  {
+   "id": 100563,
+   "name": "Diversion"
+  },
+  {
+   "id": 100570,
+   "name": "Domain Challenge"
+  },
+  {
+   "id": 100572,
+   "name": "Dominate"
+  },
+  {
+   "id": 100573,
+   "name": "Dominate Kine"
+  },
+  {
+   "id": 100594,
+   "name": "Dummy Corporation"
+  },
+  {
+   "id": 100597,
+   "name": "Dust Up"
+  },
+  {
+   "id": 100600,
+   "name": "Earth Control"
+  },
+  {
+   "id": 100618,
+   "name": "Elder Intervention"
+  },
+  {
+   "id": 100620,
+   "name": "Elder Library"
+  },
+  {
+   "id": 100640,
+   "name": "Enchant Kindred"
+  },
+  {
+   "id": 100644,
+   "name": "Enhanced Senses"
+  },
+  {
+   "id": 100652,
+   "name": "Entrancement"
+  },
+  {
+   "id": 100680,
+   "name": "Eyes of Argus"
+  },
+  {
+   "id": 100687,
+   "name": "Faceless Night"
+  },
+  {
+   "id": 100698,
+   "name": "Fame"
+  },
+  {
+   "id": 100703,
+   "name": "Far Mastery"
+  },
+  {
+   "id": 100713,
+   "name": "Fee Stake: Corte"
+  },
+  {
+   "id": 100714,
+   "name": "Fee Stake: Los Angeles"
+  },
+  {
+   "id": 100716,
+   "name": "Fee Stake: Perth"
+  },
+  {
+   "id": 100726,
+   "name": "Fiendish Tongue"
+  },
+  {
+   "id": 100727,
+   "name": "Fifth Tradition: Hospitality"
+  },
+  {
+   "id": 100747,
+   "name": "Fleetness"
+  },
+  {
+   "id": 100760,
+   "name": "Forced Awakening"
+  },
+  {
+   "id": 100762,
+   "name": "Forced Vigilance"
+  },
+  {
+   "id": 100782,
+   "name": "Fourth Tradition: Accounting"
+  },
+  {
+   "id": 100785,
+   "name": "Fragment of the Book of Nod"
+  },
+  {
+   "id": 100834,
+   "name": "Glancing Blow"
+  },
+  {
+   "id": 100842,
+   "name": "Golconda"
+  },
+  {
+   "id": 100860,
+   "name": "Grooming the Protégé"
+  },
+  {
+   "id": 100863,
+   "name": "Guard Dogs"
+  },
+  {
+   "id": 100995,
+   "name": "Instinctive Reaction"
+  },
+  {
+   "id": 101008,
+   "name": "Iron Glare"
+  },
+  {
+   "id": 101056,
+   "name": "Kine Resources Contested"
+  },
+  {
+   "id": 101104,
+   "name": "Life in the City"
+  },
+  {
+   "id": 101110,
+   "name": "Line, The"
+  },
+  {
+   "id": 101125,
+   "name": "Lost in Crowds"
+  },
+  {
+   "id": 101156,
+   "name": "Malkavian Rider Clause"
+  },
+  {
+   "id": 101175,
+   "name": "Martyr’s Resilience"
+  },
+  {
+   "id": 101195,
+   "name": "Melange"
+  },
+  {
+   "id": 101223,
+   "name": "Mirror Walk"
+  },
+  {
+   "id": 101225,
+   "name": "Misdirection"
+  },
+  {
+   "id": 101242,
+   "name": "Monster"
+  },
+  {
+   "id": 101262,
+   "name": "Mythic Form"
+  },
+  {
+   "id": 101310,
+   "name": "Obfuscate"
+  },
+  {
+   "id": 101318,
+   "name": "Old Friends"
+  },
+  {
+   "id": 101321,
+   "name": "On the Qui Vive"
+  },
+  {
+   "id": 101340,
+   "name": "Owl Companion"
+  },
+  {
+   "id": 101341,
+   "name": "Oxford University, England"
+  },
+  {
+   "id": 101353,
+   "name": "Parity Shift"
+  },
+  {
+   "id": 101387,
+   "name": "Perfect Paragon"
+  },
+  {
+   "id": 101388,
+   "name": "Perfectionist"
+  },
+  {
+   "id": 101411,
+   "name": "Political Ally"
+  },
+  {
+   "id": 101424,
+   "name": "Potence"
+  },
+  {
+   "id": 101475,
+   "name": "Precognition"
+  },
+  {
+   "id": 101495,
+   "name": "Propaganda"
+  },
+  {
+   "id": 101498,
+   "name": "Protean"
+  },
+  {
+   "id": 101501,
+   "name": "Protection Racket"
+  },
+  {
+   "id": 101515,
+   "name": "Pulled Fangs"
+  },
+  {
+   "id": 101523,
+   "name": "Pursuit"
+  },
+  {
+   "id": 101552,
+   "name": "Ravnos Cache"
+  },
+  {
+   "id": 101553,
+   "name": "Ravnos Carnival"
+  },
+  {
+   "id": 101588,
+   "name": "Rego Motum"
+  },
+  {
+   "id": 101613,
+   "name": "Restoration"
+  },
+  {
+   "id": 101631,
+   "name": "Revolutionary Council"
+  },
+  {
+   "id": 101632,
+   "name": "Rewilding"
+  },
+  {
+   "id": 101649,
+   "name": "Rolling with the Punches"
+  },
+  {
+   "id": 101662,
+   "name": "Rumor Mill, Tabloid Newspaper, The"
+  },
+  {
+   "id": 101686,
+   "name": "Scalpel Tongue"
+  },
+  {
+   "id": 101698,
+   "name": "Scouting Mission"
+  },
+  {
+   "id": 101706,
+   "name": "Second Tradition: Domain"
+  },
+  {
+   "id": 101712,
+   "name": "Seduction"
+  },
+  {
+   "id": 101717,
+   "name": "Sense the Savage Way"
+  },
+  {
+   "id": 101767,
+   "name": "Shilmulo Tarot"
+  },
+  {
+   "id": 101778,
+   "name": "Side Strike"
+  },
+  {
+   "id": 101798,
+   "name": "Slam"
+  },
+  {
+   "id": 101805,
+   "name": "Sleeping Mind, The"
+  },
+  {
+   "id": 101817,
+   "name": "Soak"
+  },
+  {
+   "id": 101819,
+   "name": "Social Charm"
+  },
+  {
+   "id": 101829,
+   "name": "Soul Burn"
+  },
+  {
+   "id": 101850,
+   "name": "Spirit’s Thouch, The"
+  },
+  {
+   "id": 101857,
+   "name": "Spying Mission"
+  },
+  {
+   "id": 101913,
+   "name": "Swallowed by the Night"
+  },
+  {
+   "id": 101945,
+   "name": "Taste of Vitae"
+  },
+  {
+   "id": 101948,
+   "name": "Telepathic Counter"
+  },
+  {
+   "id": 101951,
+   "name": "Telepathic Vote Counting"
+  },
+  {
+   "id": 101958,
+   "name": "Tension in the Ranks"
+  },
+  {
+   "id": 101966,
+   "name": "Theft of Vitae"
+  },
+  {
+   "id": 101972,
+   "name": "Thing"
+  },
+  {
+   "id": 101978,
+   "name": "Threats"
+  },
+  {
+   "id": 101984,
+   "name": "Tier of Souls"
+  },
+  {
+   "id": 102041,
+   "name": "True Love's Face"
+  },
+  {
+   "id": 102078,
+   "name": "Unlicensed Taxicab"
+  },
+  {
+   "id": 102087,
+   "name": "Vagabond Mystic"
+  },
+  {
+   "id": 102131,
+   "name": "Voter Captivation"
+  },
+  {
+   "id": 102137,
+   "name": "Wake with Evening’s Freshness"
+  },
+  {
+   "id": 102152,
+   "name": "Wasserschloss Anif, Austria"
+  },
+  {
+   "id": 102169,
+   "name": "Weighted Walking Stick"
+  },
+  {
+   "id": 102180,
+   "name": "Wider View"
+  },
+  {
+   "id": 102185,
+   "name": "Wind Dance"
+  },
+  {
+   "id": 102189,
+   "name": "WMRH Talk Radio"
+  },
+  {
+   "id": 102213,
+   "name": "Creeping Sabotage"
+  },
+  {
+   "id": 102214,
+   "name": "Protected District"
+  },
+  {
+   "id": 102216,
+   "name": "Warrens, The"
+  },
+  {
+   "id": 102217,
+   "name": "47th Street Royals"
+  },
+  {
+   "id": 102219,
+   "name": "Deep Ecology"
+  },
+  {
+   "id": 102220,
+   "name": "Double Deuce"
+  },
+  {
+   "id": 102222,
+   "name": "Eyes of the Wild"
+  },
+  {
+   "id": 102223,
+   "name": "Form of the Bat"
+  },
+  {
+   "id": 102224,
+   "name": "Form of the Cobra"
+  },
+  {
+   "id": 102227,
+   "name": "Hunger of Marduk"
+  },
+  {
+   "id": 102229,
+   "name": "Line Brawl"
+  },
+  {
+   "id": 102230,
+   "name": "Organized Resistance"
+  },
+  {
+   "id": 102231,
+   "name": "Party Out Of Bounds"
+  },
+  {
+   "id": 102232,
+   "name": "Platinum Protocol, The"
+  },
+  {
+   "id": 102234,
+   "name": "City Star Taxi"
+  },
+  {
+   "id": 102238,
+   "name": "Enhanced Coagulant"
+  },
+  {
+   "id": 102247,
+   "name": "Break the Bonds"
+  },
+  {
+   "id": 102250,
+   "name": "Forced Confessional"
+  },
+  {
+   "id": 102255,
+   "name": "Obedient Flesh"
+  },
+  {
+   "id": 102256,
+   "name": "One With the Land"
+  },
+  {
+   "id": 102262,
+   "name": "Touch of Valeren"
+  },
+  {
+   "id": 102265,
+   "name": "Visions of Zapathasura"
+  },
+  {
+   "id": 102266,
+   "name": "Voracious Vermin"
+  },
+  {
+   "id": 102267,
+   "name": "Vozhd of Sofia, The"
+  },
+  {
+   "id": 102273,
+   "name": "Loup"
+  },
+  {
+   "id": 102274,
+   "name": "Amici Noctis"
+  },
+  {
+   "id": 102275,
+   "name": "Arms of Ahriman"
+  },
+  {
+   "id": 102277,
+   "name": "Oblivion"
+  },
+  {
+   "id": 102278,
+   "name": "Ominous Chorus"
+  },
+  {
+   "id": 102280,
+   "name": "Shadow Cast"
+  },
+  {
+   "id": 102281,
+   "name": "Shadow Cloak"
+  },
+  {
+   "id": 102284,
+   "name": "Truth in Darkness"
+  },
+  {
+   "id": 102285,
+   "name": "Where the Veil Thins"
+  },
+  {
+   "id": 102289,
+   "name": "Family Gathering"
+  },
+  {
+   "id": 102293,
+   "name": "Bone Shamblers"
+  },
+  {
+   "id": 102294,
+   "name": "Shadow Sentinel"
+  },
+  {
+   "id": 102295,
+   "name": "Shroud of Decay"
+  },
+  {
+   "id": 102301,
+   "name": "Powerbase: Munich"
+  },
+  {
+   "id": 102305,
+   "name": "Shadow Shift"
+  },
+  {
+   "id": 102306,
+   "name": "Umbrous Clutch"
+  },
+  {
+   "id": 102308,
+   "name": "Absolute Tyranny"
+  },
+  {
+   "id": 102309,
+   "name": "Abuse of Power"
+  },
+  {
+   "id": 102310,
+   "name": "Augury of Doom"
+  },
+  {
+   "id": 102312,
+   "name": "Cold War"
+  },
+  {
+   "id": 102313,
+   "name": "Cursed Abattoir"
+  },
+  {
+   "id": 102315,
+   "name": "Dance with the Devil"
+  },
+  {
+   "id": 102316,
+   "name": "Dominant Personality"
+  },
+  {
+   "id": 102318,
+   "name": "Empires Fall"
+  },
+  {
+   "id": 102319,
+   "name": "Ensnare a Beast"
+  },
+  {
+   "id": 102320,
+   "name": "Enthrall"
+  },
+  {
+   "id": 102321,
+   "name": "Fever Pitch"
+  },
+  {
+   "id": 102323,
+   "name": "Forward Momentum"
+  },
+  {
+   "id": 102327,
+   "name": "Heartrender"
+  },
+  {
+   "id": 102328,
+   "name": "Hedonism"
+  },
+  {
+   "id": 102331,
+   "name": "Magnetic Authority"
+  },
+  {
+   "id": 102332,
+   "name": "Morbidity"
+  },
+  {
+   "id": 102333,
+   "name": "Pillars Fall"
+  },
+  {
+   "id": 102335,
+   "name": "Putrescent Sustenance"
+  },
+  {
+   "id": 102336,
+   "name": "Rage of Apedemak"
+  },
+  {
+   "id": 102337,
+   "name": "Relentlessness"
+  },
+  {
+   "id": 102338,
+   "name": "Seeds of Terror"
+  },
+  {
+   "id": 102339,
+   "name": "Sentry Signal"
+  },
+  {
+   "id": 102341,
+   "name": "Subversion"
+  },
+  {
+   "id": 102342,
+   "name": "Swift Cover"
+  },
+  {
+   "id": 102346,
+   "name": "Unthinkable Humiliation"
+  },
+  {
+   "id": 102347,
+   "name": "Wall of Filth"
+  },
+  {
+   "id": 102352,
+   "name": "Contraband"
+  },
+  {
+   "id": 102353,
+   "name": "Dogged Pursuit"
+  },
+  {
+   "id": 102354,
+   "name": "Fleshforge Chamber"
+  },
+  {
+   "id": 102355,
+   "name": "Go-getter"
+  },
+  {
+   "id": 102356,
+   "name": "Hunting the Beast"
+  },
+  {
+   "id": 102358,
+   "name": "Phantasmagoria"
+  },
+  {
+   "id": 102360,
+   "name": "Szlachta Assistant"
+  },
+  {
+   "id": 102361,
+   "name": "Szlachta Bodyguard"
+  },
+  {
+   "id": 102362,
+   "name": "Tranquility Shield"
+  },
+  {
+   "id": 102364,
+   "name": "Vozhd of Juiz de Fora, The"
+  },
+  {
+   "id": 200081,
+   "name": "André the Manipulator"
+  },
+  {
+   "id": 201521,
+   "name": "Casey Snyder"
+  },
+  {
+   "id": 201526,
+   "name": "Leumeah"
+  },
+  {
+   "id": 201529,
+   "name": "Alexa Draper"
+  },
+  {
+   "id": 201530,
+   "name": "Alexander Silverson"
+  },
+  {
+   "id": 201531,
+   "name": "Alice Chen"
+  },
+  {
+   "id": 201532,
+   "name": "Andi Liu"
+  },
+  {
+   "id": 201535,
+   "name": "Ayelech"
+  },
+  {
+   "id": 201537,
+   "name": "Belinde"
+  },
+  {
+   "id": 201542,
+   "name": "Chrysanthemum"
+  },
+  {
+   "id": 201544,
+   "name": "Donny Kowalczyk"
+  },
+  {
+   "id": 201545,
+   "name": "Dowager, The"
+  },
+  {
+   "id": 201548,
+   "name": "Gelasia Fotiou"
+  },
+  {
+   "id": 201549,
+   "name": "Horace Radcliffe"
+  },
+  {
+   "id": 201550,
+   "name": "Horst von Brühl"
+  },
+  {
+   "id": 201551,
+   "name": "Inês Tristão"
+  },
+  {
+   "id": 201553,
+   "name": "Larissa Moreira"
+  },
+  {
+   "id": 201556,
+   "name": "Lloyd Brooks"
+  },
+  {
+   "id": 201557,
+   "name": "Madison"
+  },
+  {
+   "id": 201561,
+   "name": "Mkhokheli"
+  },
+  {
+   "id": 201574,
+   "name": "Kuyén"
+  },
+  {
+   "id": 201579,
+   "name": "Atiena"
+  },
+  {
+   "id": 201582,
+   "name": "Crystal Lynn"
+  },
+  {
+   "id": 201583,
+   "name": "Dario Ziggler"
+  },
+  {
+   "id": 201586,
+   "name": "Elisha Tucker"
+  },
+  {
+   "id": 201587,
+   "name": "Farah Sarroub"
+  },
+  {
+   "id": 201591,
+   "name": "Hesha Ruhadze"
+  },
+  {
+   "id": 201593,
+   "name": "Jenny Silver"
+  },
+  {
+   "id": 201594,
+   "name": "Warmaksan"
+  },
+  {
+   "id": 201596,
+   "name": "Kalinda"
+  },
+  {
+   "id": 201598,
+   "name": "Kasim Bayar"
+  },
+  {
+   "id": 201599,
+   "name": "Khadija Al-Kindi"
+  },
+  {
+   "id": 201602,
+   "name": "Massimiliano"
+  },
+  {
+   "id": 201604,
+   "name": "Kassandra Tassaki"
+  },
+  {
+   "id": 201609,
+   "name": "Octane"
+  },
+  {
+   "id": 201612,
+   "name": "Siarhei Levchenko"
+  },
+  {
+   "id": 201614,
+   "name": "Valeriya Zinovieva"
+  },
+  {
+   "id": 201615,
+   "name": "Vivian VI"
+  },
+  {
+   "id": 201616,
+   "name": "Fiorenza Savona"
+  },
+  {
+   "id": 201621,
+   "name": "Karl Schrekt"
+  },
+  {
+   "id": 201625,
+   "name": "Carmelita Neillson"
+  },
+  {
+   "id": 201629,
+   "name": "Kevin Jackson"
+  },
+  {
+   "id": 201633,
+   "name": "Maila"
+  },
+  {
+   "id": 201634,
+   "name": "Abraham Mellon"
+  },
+  {
+   "id": 201647,
+   "name": "Queen Anne"
+  },
+  {
+   "id": 201654,
+   "name": "Tegyrius, Vizier g6"
+  },
+  {
+   "id": 201656,
+   "name": "Oluwafunmilayo"
+  },
+  {
+   "id": 201658,
+   "name": "Saku Pihlajamäki"
+  },
+  {
+   "id": 201660,
+   "name": "Ragnar Nordstrom"
+  },
+  {
+   "id": 201662,
+   "name": "Sergio Bueno"
+  },
+  {
+   "id": 201665,
+   "name": "Ángel Guerrero"
+  },
+  {
+   "id": 201666,
+   "name": "Aniel"
+  },
+  {
+   "id": 201667,
+   "name": "Branimira"
+  },
+  {
+   "id": 201669,
+   "name": "Clara Hjortshøj"
+  },
+  {
+   "id": 201670,
+   "name": "Doc Martina"
+  },
+  {
+   "id": 201672,
+   "name": "Gathii"
+  },
+  {
+   "id": 201675,
+   "name": "Luciano Carvalho"
+  },
+  {
+   "id": 201676,
+   "name": "Malachi"
+  },
+  {
+   "id": 201678,
+   "name": "Neserian"
+  },
+  {
+   "id": 201680,
+   "name": "Opikun"
+  },
+  {
+   "id": 201683,
+   "name": "Roberto Rivamonte"
+  },
+  {
+   "id": 201685,
+   "name": "Sakhar"
+  },
+  {
+   "id": 201686,
+   "name": "Seraphina"
+  },
+  {
+   "id": 201687,
+   "name": "Sreelekha"
+  },
+  {
+   "id": 201690,
+   "name": "Whisper"
+  },
+  {
+   "id": 201694,
+   "name": "Diana Iadanza"
+  },
+  {
+   "id": 201697,
+   "name": "Ian Carfax"
+  },
+  {
+   "id": 201698,
+   "name": "Juliet Parr"
+  },
+  {
+   "id": 201700,
+   "name": "Lucinde, Alastor"
+  },
+  {
+   "id": 201702,
+   "name": "Marcos Belegrad"
+  },
+  {
+   "id": 201703,
+   "name": "Modius"
+  },
+  {
+   "id": 201704,
+   "name": "Molly MacDonald"
+  },
+  {
+   "id": 201705,
+   "name": "Nikolaus Vermeulen"
+  },
+  {
+   "id": 201708,
+   "name": "Aintzane Arriaga"
+  },
+  {
+   "id": 201710,
+   "name": "Azucena"
+  },
+  {
+   "id": 201712,
+   "name": "Gnaeus Aemilius Augustinus"
+  },
+  {
+   "id": 201713,
+   "name": "Kamaluddin"
+  },
+  {
+   "id": 201714,
+   "name": "María del Toro"
+  },
+  {
+   "id": 201716,
+   "name": "Yewon Ong"
+  },
+  {
+   "id": 201718,
+   "name": "Gebeyehy Abdu"
+  },
+  {
+   "id": 201720,
+   "name": "Holliday \"Burgundy\" Hall"
+  },
+  {
+   "id": 201723,
+   "name": "Monica Giovanni"
+  },
+  {
+   "id": 201726,
+   "name": "Parijat, The Dark Oracle"
+  },
+  {
+   "id": 201731,
+   "name": "Hel-Blá"
+  },
+  {
+   "id": 201732,
+   "name": "Roger de Camden"
+  },
+  {
+   "id": 201733,
+   "name": "Aaradhya, The Callous Tyrant"
+  },
+  {
+   "id": 201735,
+   "name": "Aelswith, The Irresistible"
+  },
+  {
+   "id": 201737,
+   "name": "Aitana, The Unholy"
+  },
+  {
+   "id": 201738,
+   "name": "Algirdas, The Solar Prophet"
+  },
+  {
+   "id": 201740,
+   "name": "Anxo Vilela"
+  },
+  {
+   "id": 201741,
+   "name": "Ashur-uballit, Son of the Abyss"
+  },
+  {
+   "id": 201742,
+   "name": "Berenguela, The Vicious"
+  },
+  {
+   "id": 201744,
+   "name": "Concordia"
+  },
+  {
+   "id": 201748,
+   "name": "Devorah"
+  },
+  {
+   "id": 201751,
+   "name": "Fotini Katsikaris"
+  },
+  {
+   "id": 201752,
+   "name": "Frau Schädel"
+  },
+  {
+   "id": 201753,
+   "name": "Glissando"
+  },
+  {
+   "id": 201754,
+   "name": "Gostoso"
+  },
+  {
+   "id": 201755,
+   "name": "Grażyna \"Butcher\" Olesińska"
+  },
+  {
+   "id": 201756,
+   "name": "Hekla \"Bonecrusher\" Jónasdóttir"
+  },
+  {
+   "id": 201757,
+   "name": "Huldu, The Desecrator"
+  },
+  {
+   "id": 201758,
+   "name": "Jürgen, The Libertine"
+  },
+  {
+   "id": 201760,
+   "name": "Khin Aye"
+  },
+  {
+   "id": 201764,
+   "name": "Lyyli Yösydän"
+  },
+  {
+   "id": 201767,
+   "name": "Osvaldo Kühnemann"
+  },
+  {
+   "id": 201768,
+   "name": "Przemysław, War Beast"
+  },
+  {
+   "id": 201769,
+   "name": "Rasha Tarabzouni"
+  },
+  {
+   "id": 201775,
+   "name": "Üresség"
+  },
+  {
+   "id": 201776,
+   "name": "Věnceslava, The Implacable"
+  },
+  {
+   "id": 201780,
+   "name": "Zbigniew, Hunter of Mekhet"
+  },
+  {
+   "id": 201782,
+   "name": "Djeneba"
+  },
+  {
+   "id": 201784,
+   "name": "Máddji, Mistress of Szlachtas"
+  },
+  {
+   "id": 201785,
+   "name": "Noluthando"
+  }
+ ],
+ "decks": [
+  {
+   "name": "2-player: Banu Haqim",
+   "source": "https://www.vekn.net/two-player-format/658-2-player-decklist-banu-haqim",
+   "updated": "July 8, 2025",
+   "cards": {
+    "201598": 2,
+    "201656": 2,
+    "201587": 2,
+    "201604": 2,
+    "201599": 1,
+    "201596": 1,
+    "201594": 2,
+    "100698": 1,
+    "100860": 2,
+    "101662": 1,
+    "102180": 1,
+    "100747": 4,
+    "101056": 2,
+    "101353": 2,
+    "101318": 2,
+    "101913": 4,
+    "100618": 2,
+    "101706": 5,
+    "102227": 6,
+    "101523": 4,
+    "101588": 2,
+    "101778": 4
+   }
+  },
+  {
+   "name": "2-player: Brujah",
+   "source": "https://www.vekn.net/two-player-format/659-2-player-decklist-brujah",
+   "updated": "May 17, 2025",
+   "cards": {
+    "201658": 3,
+    "201614": 3,
+    "201579": 2,
+    "201526": 2,
+    "201609": 1,
+    "201612": 1,
+    "100312": 1,
+    "100698": 1,
+    "100860": 2,
+    "101341": 1,
+    "102180": 1,
+    "100640": 4,
+    "100747": 2,
+    "102229": 4,
+    "101056": 2,
+    "102217": 1,
+    "102230": 4,
+    "101501": 2,
+    "100597": 6,
+    "101523": 3,
+    "101778": 2,
+    "101798": 4,
+    "101945": 2
+   }
+  },
+  {
+   "name": "2-player: Gangrel",
+   "source": "https://www.vekn.net/two-player-format/660-2-player-decklist",
+   "updated": "July 8, 2025",
+   "cards": {
+    "201660": 4,
+    "201602": 2,
+    "201521": 2,
+    "201574": 2,
+    "200081": 1,
+    "201583": 1,
+    "100860": 2,
+    "101104": 2,
+    "102180": 1,
+    "100093": 1,
+    "100515": 4,
+    "101632": 1,
+    "101972": 4,
+    "102220": 1,
+    "100600": 4,
+    "100308": 1,
+    "102219": 3,
+    "102222": 2,
+    "102230": 3,
+    "101501": 2,
+    "100230": 2,
+    "100301": 4,
+    "101262": 1,
+    "101649": 2,
+    "101817": 2
+   }
+  },
+  {
+   "name": "2-player: Lasombra",
+   "source": "https://www.vekn.net/two-player-format/661-2-player-decklist-lasombra",
+   "updated": null,
+   "cards": {
+    "201712": 3,
+    "201716": 3,
+    "201714": 2,
+    "201713": 2,
+    "201708": 1,
+    "201710": 1,
+    "100860": 2,
+    "101104": 2,
+    "102180": 1,
+    "101698": 4,
+    "100570": 1,
+    "101056": 3,
+    "101353": 2,
+    "102274": 2,
+    "102278": 3,
+    "102280": 3,
+    "102281": 3,
+    "101978": 2,
+    "102285": 2,
+    "101706": 2,
+    "102294": 2,
+    "102284": 2,
+    "102275": 4,
+    "101798": 2
+   }
+  },
+  {
+   "name": "2-player: Malkavian",
+   "source": "https://www.vekn.net/two-player-format/662-2-player-decklist-malkavian",
+   "updated": null,
+   "cards": {
+    "201698": 3,
+    "201634": 2,
+    "201530": 2,
+    "201544": 2,
+    "201532": 2,
+    "201548": 1,
+    "100860": 2,
+    "101104": 2,
+    "101310": 1,
+    "102180": 1,
+    "100573": 1,
+    "101698": 6,
+    "100236": 2,
+    "100362": 2,
+    "100687": 2,
+    "101125": 2,
+    "101857": 2,
+    "101978": 5,
+    "101913": 4,
+    "100680": 2,
+    "101948": 4,
+    "102137": 2,
+    "102169": 2
+   }
+  },
+  {
+   "name": "2-player: Ministry",
+   "source": "https://www.vekn.net/two-player-format/663-2-player-decklist-ministry",
+   "updated": "May 17, 2025",
+   "cards": {
+    "201662": 3,
+    "201615": 2,
+    "201591": 2,
+    "201586": 2,
+    "201582": 2,
+    "201593": 1,
+    "100860": 2,
+    "101104": 2,
+    "102180": 1,
+    "100640": 4,
+    "102232": 4,
+    "101056": 2,
+    "100687": 2,
+    "101125": 3,
+    "101857": 1,
+    "102041": 4,
+    "101913": 3,
+    "102223": 2,
+    "101321": 2,
+    "102231": 4,
+    "102265": 2,
+    "102137": 2,
+    "100230": 2
+   }
+  },
+  {
+   "name": "2-player: Nosferatu",
+   "source": "https://www.vekn.net/two-player-format/664-2-player-decklist-nosferatu",
+   "updated": "May 17, 2025",
+   "cards": {
+    "201704": 2,
+    "201705": 2,
+    "201537": 2,
+    "201545": 2,
+    "201553": 3,
+    "201549": 1,
+    "100594": 1,
+    "100698": 1,
+    "100860": 2,
+    "102180": 1,
+    "100093": 1,
+    "102213": 2,
+    "100515": 4,
+    "101340": 1,
+    "101318": 2,
+    "101913": 3,
+    "100308": 2,
+    "100760": 2,
+    "100863": 2,
+    "100995": 2,
+    "102214": 2,
+    "102216": 2,
+    "100301": 4,
+    "101798": 4,
+    "101945": 2,
+    "102266": 2
+   }
+  },
+  {
+   "name": "2-player: Salubri",
+   "source": "https://www.vekn.net/two-player-format/665-2-player-decklist-salubri",
+   "updated": "July 8, 2025",
+   "cards": {
+    "201686": 3,
+    "201666": 2,
+    "201676": 3,
+    "201685": 2,
+    "201680": 2,
+    "100860": 2,
+    "101104": 2,
+    "102180": 1,
+    "100573": 2,
+    "101698": 5,
+    "102262": 2,
+    "100236": 3,
+    "102250": 2,
+    "101712": 2,
+    "101805": 2,
+    "101978": 3,
+    "100680": 2,
+    "101475": 1,
+    "101850": 1,
+    "101948": 3,
+    "101321": 2,
+    "101515": 1,
+    "101649": 2,
+    "101817": 2,
+    "102169": 2
+   }
+  },
+  {
+   "name": "2-player: Toreador",
+   "source": "https://www.vekn.net/two-player-format/666-2-player-decklist-toreador",
+   "updated": "May 17, 2025",
+   "cards": {
+    "201694": 4,
+    "201702": 2,
+    "201703": 2,
+    "201561": 2,
+    "201633": 1,
+    "201625": 1,
+    "100312": 1,
+    "100860": 2,
+    "102180": 1,
+    "100640": 4,
+    "100557": 1,
+    "101056": 4,
+    "101353": 2,
+    "102273": 3,
+    "101387": 4,
+    "102131": 2,
+    "101686": 1,
+    "101321": 2,
+    "101706": 2,
+    "101948": 4,
+    "101523": 2,
+    "101778": 4,
+    "102169": 3
+   }
+  },
+  {
+   "name": "2-player: Tremere",
+   "source": "https://www.vekn.net/two-player-format/667-2-player-decklist-tremere",
+   "updated": "May 17, 2025",
+   "cards": {
+    "201621": 3,
+    "201697": 3,
+    "201535": 2,
+    "201551": 2,
+    "201556": 1,
+    "201542": 1,
+    "100329": 1,
+    "101225": 1,
+    "102189": 1,
+    "102152": 1,
+    "100573": 2,
+    "101698": 5,
+    "100236": 3,
+    "101223": 3,
+    "101978": 2,
+    "100680": 2,
+    "100760": 1,
+    "101195": 1,
+    "101475": 2,
+    "101706": 2,
+    "101850": 2,
+    "100201": 3,
+    "101588": 3,
+    "101829": 1,
+    "101966": 4,
+    "102185": 2
+   }
+  },
+  {
+   "name": "2-player: Ventrue",
+   "source": "https://www.vekn.net/two-player-format/668-2-player-decklist-ventrue",
+   "updated": "July 8, 2025",
+   "cards": {
+    "201700": 2,
+    "201647": 1,
+    "201529": 3,
+    "201531": 2,
+    "201629": 1,
+    "201616": 1,
+    "201550": 1,
+    "201557": 1,
+    "100860": 2,
+    "101104": 2,
+    "101388": 1,
+    "102180": 1,
+    "100573": 1,
+    "100640": 3,
+    "101495": 2,
+    "101056": 3,
+    "101353": 2,
+    "100236": 2,
+    "101387": 3,
+    "101712": 2,
+    "101805": 2,
+    "101978": 2,
+    "102131": 2,
+    "101706": 4,
+    "101515": 1,
+    "101649": 3,
+    "101817": 2,
+    "102169": 2
+   }
+  },
+  {
+   "name": "2-player: Hecata",
+   "source": "https://www.vekn.net/two-player-format/680-2-player-decklist-hecata",
+   "updated": "June 14, 2025",
+   "cards": {
+    "201732": 2,
+    "201731": 2,
+    "201726": 2,
+    "201723": 2,
+    "201718": 2,
+    "201720": 2,
+    "102289": 2,
+    "100860": 2,
+    "101225": 1,
+    "102301": 1,
+    "102295": 6,
+    "102293": 4,
+    "102280": 3,
+    "102281": 3,
+    "102285": 3,
+    "100680": 2,
+    "100644": 2,
+    "101948": 3,
+    "101321": 2,
+    "102275": 4,
+    "101175": 2,
+    "101649": 2
+   }
+  },
+  {
+   "name": "2-player: Ravnos",
+   "source": "https://www.vekn.net/two-player-format/689-2-player-decklist-ravnos",
+   "updated": "October 3, 2026",
+   "cards": {
+    "201785": 2,
+    "201687": 4,
+    "201670": 2,
+    "201675": 1,
+    "201683": 2,
+    "201672": 1,
+    "100594": 1,
+    "101104": 1,
+    "101388": 1,
+    "102180": 1,
+    "102247": 5,
+    "101984": 2,
+    "102234": 1,
+    "101767": 1,
+    "100362": 3,
+    "100687": 3,
+    "101125": 3,
+    "101857": 2,
+    "102041": 5,
+    "101913": 2,
+    "100863": 2,
+    "101321": 2,
+    "102265": 4,
+    "102266": 3
+   }
+  },
+  {
+   "name": "2-player: Path of Caine",
+   "source": "https://www.vekn.net/two-player-format/788-2-player-decklist-path-of-caine",
+   "updated": "October 5, 2026",
+   "cards": {
+    "201738": 4,
+    "201742": 2,
+    "201768": 2,
+    "201755": 2,
+    "201756": 2,
+    "100698": 1,
+    "101242": 1,
+    "101662": 1,
+    "101958": 1,
+    "102180": 1,
+    "102309": 3,
+    "100726": 2,
+    "102333": 2,
+    "102310": 1,
+    "102336": 6,
+    "101798": 4,
+    "102347": 4,
+    "101945": 3,
+    "102315": 3,
+    "102339": 6,
+    "102319": 3
+   }
+  },
+  {
+   "name": "2-player: Path of Cathari",
+   "source": "https://www.vekn.net/two-player-format/789-2-player-decklist-path-of-cathari",
+   "updated": "October 5, 2026",
+   "cards": {
+    "201735": 3,
+    "201758": 3,
+    "201751": 2,
+    "201753": 1,
+    "201767": 1,
+    "201748": 1,
+    "201754": 1,
+    "101104": 2,
+    "100842": 1,
+    "102180": 1,
+    "102323": 1,
+    "102320": 3,
+    "100640": 2,
+    "101819": 2,
+    "100652": 1,
+    "102338": 3,
+    "102341": 3,
+    "100323": 2,
+    "100362": 2,
+    "102321": 2,
+    "102328": 2,
+    "101817": 2,
+    "101948": 3,
+    "100680": 2,
+    "101321": 2,
+    "102265": 2,
+    "102342": 4
+   }
+  },
+  {
+   "name": "2-player: Path of Death and the Soul",
+   "source": "https://www.vekn.net/two-player-format/790-2-player-decklist-path-of-death-and-the-soul",
+   "updated": "October 5, 2026",
+   "cards": {
+    "201741": 3,
+    "201757": 2,
+    "201752": 2,
+    "201737": 2,
+    "201780": 2,
+    "201740": 1,
+    "100594": 1,
+    "100842": 1,
+    "102180": 1,
+    "102301": 1,
+    "102313": 1,
+    "101698": 2,
+    "102295": 2,
+    "100703": 1,
+    "102335": 1,
+    "101223": 2,
+    "102280": 2,
+    "102281": 2,
+    "102285": 2,
+    "102275": 2,
+    "101175": 1,
+    "101588": 1,
+    "101649": 1,
+    "101966": 1,
+    "102185": 1,
+    "102293": 5,
+    "102087": 1,
+    "102327": 1,
+    "101948": 4,
+    "100680": 2,
+    "102294": 2,
+    "101321": 1
+   }
+  },
+  {
+   "name": "2-player: Path of Power and the Inner Voice",
+   "source": "https://www.vekn.net/two-player-format/791-2-player-decklist-path-of-power-and-the-inner-voice",
+   "updated": "October 5, 2026",
+   "cards": {
+    "201733": 3,
+    "201776": 2,
+    "201775": 2,
+    "201760": 2,
+    "201744": 1,
+    "201769": 1,
+    "201764": 1,
+    "100594": 1,
+    "100842": 1,
+    "101225": 1,
+    "101388": 1,
+    "102180": 1,
+    "100640": 3,
+    "101008": 2,
+    "102131": 2,
+    "102316": 2,
+    "102337": 2,
+    "102346": 2,
+    "101387": 1,
+    "102331": 1,
+    "102308": 2,
+    "101798": 3,
+    "101817": 3,
+    "102169": 1,
+    "102312": 4,
+    "100570": 1,
+    "102318": 1,
+    "100618": 3,
+    "101321": 3,
+    "102137": 1
+   }
+  }
+ ],
+ "excluded": [
+  {
+   "name": "2-player: Tzimisce",
+   "source": "https://www.vekn.net/two-player-format/669-2-player-decklist-tzimisce",
+   "updated": "May 17, 2025",
+   "reasons": [
+    "not in the pool: Nesserian"
+   ]
+  }
+ ]
+}

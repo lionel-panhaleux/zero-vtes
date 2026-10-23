@@ -18,6 +18,12 @@ Two-player games under VEKN's variant (§1); ids added, none removed:
   down and out of play). Unique library cards contest as before.
 - Two contested copies' title is not contested.
 - Transfers: 3 in the first player's first influence phase, then 4.
+- Its decks: a library of 40 to 60, every card on VEKN's list of allowed
+  cards (`data/two-player.json`, from `scripts/two_player.py`), else the
+  new `SpecError` `two_player_deck` (`seat`, `cards` off the list,
+  `library`); `GET /catalog?seats=2` lists VEKN's 17 suggested
+  decklists the engine plays (its Tzimisce one plays a card off the
+  list).
 - Games of 3, 4, 5 and 6 seats are unchanged.
 
 ## 2.9.0

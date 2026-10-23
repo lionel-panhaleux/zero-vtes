@@ -5349,6 +5349,39 @@
           ]
         },
         {
+          "description": "A two-player game's deck outside VEKN's variant (§1): its cards\noff the variant's list of allowed cards (KRCG ids), or a library\noutside 40 to 60 cards.",
+          "type": "object",
+          "properties": {
+            "cards": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "error": {
+              "type": "string",
+              "const": "two_player_deck"
+            },
+            "library": {
+              "type": "integer",
+              "format": "uint32",
+              "minimum": 0
+            },
+            "seat": {
+              "type": "integer",
+              "format": "uint8",
+              "maximum": 255,
+              "minimum": 0
+            }
+          },
+          "required": [
+            "error",
+            "seat",
+            "cards",
+            "library"
+          ]
+        },
+        {
           "description": "A card id that is no card.",
           "type": "object",
           "properties": {

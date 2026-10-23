@@ -35,7 +35,10 @@ Key facts:
   hand: `scripts/gen_crypt.py` → `crypt.rs`, `scripts/gen_library.py` →
   `library.rs` (`python3 scripts/gen_library.py <vtes.json> --check
   crates/engine/src/library.rs`; same for crypt); `scripts/gen_twda.py [twda.json] --check crates/engine/src/twda.rs`
-  after either: the TWDA decks fully in the pool).
+  after either: the TWDA decks fully in the pool;
+  `scripts/two_player.py --check data/two-player.json`: VEKN's two-player
+  list and decklists, downloaded from vekn.net, a directory of the pages
+  as first argument offline).
 - Reference material: the `vtes` skill (rulebook, tournament rules, judges'
   guides); `../vtes-advanced-rules` (judge-level semantics + machine-readable
   rulings YAML — the spec for effect semantics and a scenario-test generator);

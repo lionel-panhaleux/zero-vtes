@@ -1496,3 +1496,50 @@ fn undo_against_bots_takes_back_a_vote_order() {
     }
     assert_eq!(checked, 3, "decisions asked under a vote order");
 }
+
+/// A two-player game takes VEKN's two-player decks only (rules-digest
+/// §18.5): a precon refused at 2 seats, naming exactly its cards off the
+/// variant's list; the same precon plays at 4; two suggested lists play.
+#[test]
+fn two_seats_take_the_variant_s_decks_only() {
+    use zvtes_api::message::SpecError;
+    let data: serde_json::Value =
+        serde_json::from_str(include_str!("../../../data/two-player.json")).unwrap();
+    let allowed: Vec<String> = data["allowed"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|a| a["id"].to_string())
+        .collect();
+    let precon = zvtes_host::catalog()[0].1.clone();
+    let lists = zvtes_host::two_player_catalog();
+    let new = |s: GameSpec| Game::new("g".into(), s, &NoBots, Box::new(Ticks(Default::default())));
+    let two = |a: &zvtes_api::DeckList, b: &zvtes_api::DeckList| {
+        let mut s = spec(1, 0, Settings::default());
+        s.seats.truncate(2);
+        s.seats[0].deck = a.clone();
+        s.seats[1].deck = b.clone();
+        s
+    };
+    let Err(SpecError::TwoPlayerDeck {
+        seat,
+        mut cards,
+        library,
+    }) = new(two(&lists[0].1, &precon))
+    else {
+        panic!("a precon accepted at two seats");
+    };
+    let mut off: Vec<String> = precon
+        .keys()
+        .filter(|id| !allowed.contains(id))
+        .cloned()
+        .collect();
+    cards.sort();
+    off.sort();
+    assert_eq!((seat, cards), (1, off));
+    assert!(library > 60, "{library}");
+    let mut four = spec(1, 0, Settings::default());
+    four.seats[1].deck = precon.clone();
+    assert!(new(four).is_ok(), "a precon at four seats");
+    assert!(new(two(&lists[0].1, &lists[1].1)).is_ok());
+}

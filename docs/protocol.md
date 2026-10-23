@@ -31,7 +31,11 @@ Version **2.10.0**. The types: the models of the
   (a `contested` marker, 1 pool in each of its controller's unlock
   phases or yielded; no `leaves_play`), two contested copies' title is not
   contested, and the first player gets 3 transfers in their first
-  influence phase, then everyone 4.
+  influence phase, then everyone 4. Its decks follow the variant: a
+  library of 40 to 60 cards, every card on VEKN's list of allowed cards
+  in 2-player VTES (else `SpecError` `two_player_deck`: `seat`, `cards`
+  off the list, `library`); `GET /catalog?seats=2` lists VEKN's suggested
+  2-player decklists.
 - The engine asks one **decision** at a time, of one seat: a list of
   **options**, every legal move, each a whole move (card, mode, actor,
   target). The seat answers with an option's `index`. Nothing else
@@ -663,7 +667,7 @@ its strikes, then ended; every card `resolved` or `canceled` told played
 | `GET /docs` | the API reference: this document, the routes and the types (its test requests are reads only) |
 | `GET /openapi.json`, `/schema.json`, `/protocol.ts` | the API reference's document, and the types as JSON Schema and TypeScript |
 | `GET /version` | protocol, engine commit, bot profiles offered, limits (seats, time limit, idle timeout) |
-| `GET /catalog` | the precon decklists the engine plays |
+| `GET /catalog` | the decklists the engine ships, `[name, list]`; `?seats=2`: VEKN's suggested 2-player decklists (the variant's, §1; its Tzimisce list, playing a card off its own list, left out) |
 | `POST /games` | body: a `GameSpec` (one human seat); `{game, seat, token}`, or a `SpecError` (400). The deal's seed is the server's, 53 random bits (too many to try from a known opening hand): a spec's `seed` is kept only with the admin token (a playtest's fixed deal), at most `SEED_MAX` (2^53 − 1, exact as a JSON number), else `SpecError` `seed` (its `max`) |
 | `GET /games/{game}/ws` | WebSocket: one JSON command or message per text frame; the first command is `join` with the token. 404 to any request once the game has left the server (the idle timeout passed, after its end or with no command, or a server restart ended it), so a client whose socket will not reopen can `fetch` it to tell |
 | `GET /games/{game}/record` | the game's record (§11), `Authorization: Bearer <token>`, once the game is over (409 before: the record replayed would show the hidden cards) |

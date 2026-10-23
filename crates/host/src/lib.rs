@@ -34,5 +34,10 @@ pub fn catalog() -> Vec<(String, DeckList)> {
     deck::catalog()
 }
 
+/// VEKN's suggested two-player decklists: (name, list).
+pub fn two_player_catalog() -> Vec<(String, DeckList)> {
+    deck::two_player_catalog()
+}
+
 /// The engine's version: the commit this was built from.
 pub const ENGINE: &str = env!("ZVTES_ENGINE");

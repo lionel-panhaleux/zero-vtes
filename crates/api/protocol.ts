@@ -109,6 +109,11 @@ export type SpecError = {
     library: number
     seat: number
 } | {
+    cards: string[]
+    error: 'two_player_deck'
+    library: number
+    seat: number
+} | {
     error: 'unknown_card'
     id: string
     seat: number

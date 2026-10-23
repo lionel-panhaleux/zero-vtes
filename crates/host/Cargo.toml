@@ -14,7 +14,7 @@ name = "zvtes_host"
 zero-vtes-engine = { path = "../engine" }
 zvtes-env = { path = "../env" }
 zvtes-api = { path = "../api" }
-serde = "1"
+serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 # The English renderings (the `text` setting), over the contract alone.
 zvtes-text = { path = "../text" }

@@ -274,6 +274,14 @@ pub enum SpecError {
         crypt: u32,
         library: u32,
     },
+    /// A two-player game's deck outside VEKN's variant (§1): its cards
+    /// off the variant's list of allowed cards (KRCG ids), or a library
+    /// outside 40 to 60 cards.
+    TwoPlayerDeck {
+        seat: Seat,
+        cards: Vec<String>,
+        library: u32,
+    },
     /// A card id that is no card.
     UnknownCard {
         seat: Seat,

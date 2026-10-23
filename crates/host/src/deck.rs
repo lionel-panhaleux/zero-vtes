@@ -85,6 +85,65 @@ pub fn catalog() -> Vec<(String, DeckList)> {
         .collect()
 }
 
+/// VEKN's two-player variant's decks (`data/two-player.json`, from
+/// `scripts/two_player.py`): the cards it allows, its suggested lists.
+#[derive(serde::Deserialize)]
+struct TwoPlayer {
+    allowed: Vec<Allowed>,
+    decks: Vec<TwoPlayerList>,
+}
+
+#[derive(serde::Deserialize)]
+struct Allowed {
+    id: u32,
+}
+
+#[derive(serde::Deserialize)]
+struct TwoPlayerList {
+    name: String,
+    cards: DeckList,
+}
+
+fn two_player() -> &'static TwoPlayer {
+    static DATA: std::sync::OnceLock<TwoPlayer> = std::sync::OnceLock::new();
+    DATA.get_or_init(|| {
+        serde_json::from_str(include_str!("../../../data/two-player.json"))
+            .expect("data/two-player.json")
+    })
+}
+
+/// VEKN's suggested two-player decklists, by name (`GET
+/// /catalog?seats=2`).
+pub fn two_player_catalog() -> Vec<(String, DeckList)> {
+    two_player()
+        .decks
+        .iter()
+        .map(|d| (d.name.clone(), d.cards.clone()))
+        .collect()
+}
+
+/// A deck resolved for a two-player game, within the variant's rules: a
+/// library of 40 to 60, every card on its list; else the cards off it.
+pub fn two_player_legal(seat: Seat, deck: &Resolved) -> Result<(), SpecError> {
+    let allowed = &two_player().allowed;
+    let ok = |id: u32| allowed.iter().any(|a| a.id == id);
+    let ids = deck
+        .crypt
+        .iter()
+        .map(|&(c, _)| CRYPT[c as usize].id)
+        .chain(deck.library.iter().map(|&(c, _)| LIBRARY[c as usize].id));
+    let cards: Vec<String> = ids.filter(|&id| !ok(id)).map(|id| id.to_string()).collect();
+    let library: u32 = deck.library.iter().map(|&(_, n)| u32::from(n)).sum();
+    if cards.is_empty() && (40..=60).contains(&library) {
+        return Ok(());
+    }
+    Err(SpecError::TwoPlayerDeck {
+        seat,
+        cards,
+        library,
+    })
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -131,6 +190,19 @@ mod tests {
                 library: 7
             })
         );
+    }
+
+    /// VEKN's suggested two-player lists are within its rules, every one
+    /// the engine plays (its Tzimisce list, playing Nesserian, neither on
+    /// its own list nor in the pool, excluded by `scripts/two_player.py`).
+    #[test]
+    fn the_two_player_lists_are_legal() {
+        let lists = two_player_catalog();
+        assert_eq!(lists.len(), 17);
+        for (name, list) in &lists {
+            let r = resolve(0, list).expect(name);
+            assert_eq!(two_player_legal(0, &r), Ok(()), "{name}");
+        }
     }
 
     /// A count past what the engine holds is refused, not clamped.

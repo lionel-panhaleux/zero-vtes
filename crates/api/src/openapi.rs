@@ -83,10 +83,16 @@ fn catalog() -> Value {
     json!({
         "tags": ["Server"],
         "summary": "The decks",
-        "description": "The decklists the engine plays (the V5 preconstructed decks and \
+        "description": "The decklists the engine ships (the V5 preconstructed decks and \
             tournament-winning decks within its card pool), as `[name, deck]` pairs: a \
-            deck goes as is in a seat of `POST /games`.",
+            deck goes as is in a seat of `POST /games`. With `seats=2`, VEKN's suggested \
+            two-player decklists, the decks a 2-seat game takes.",
         "operationId": "catalog",
+        "parameters": [{
+            "name": "seats", "in": "query", "required": false,
+            "description": "2: the two-player variant's decklists.",
+            "schema": {"type": "integer", "minimum": 2, "maximum": 6},
+        }],
         "responses": {"200": ok("The decks, by name.", json!({
             "type": "array",
             "items": {
@@ -105,8 +111,9 @@ fn create() -> Value {
         "summary": "Create a game",
         "description": "Deals a game: 2 to 6 seats in seating order, one human, the others \
             bots (a profile from `GET /version`), each with a deck (from `GET /catalog`, or \
-            any deck within the engine's pool: 12 crypt cards at least, 60 to 90 library \
-            cards). The answer's token is the human seat's: send it in `join` on the \
+            any deck within the engine's pool, at least 4 crypt and 7 library cards to \
+            deal; at 2 seats, VEKN's two-player variant: a library of 40 to 60 cards, \
+            each on its list, else `two_player_deck`). The answer's token is the human seat's: send it in `join` on the \
             game's WebSocket. Not tried from this page: each call creates a recorded game.",
         "operationId": "createGame",
         "requestBody": {
