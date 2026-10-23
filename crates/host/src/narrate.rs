@@ -209,6 +209,10 @@ pub struct ActionFact {
     pub card: Option<(u16, CopyId)>,
     /// What grants it: a card in play, another vampire.
     pub source: Option<AbilitySource>,
+    /// The Methuselah bled, a bleed's.
+    pub bleed_target: Option<SeatId>,
+    /// Its target, else its card's.
+    pub target: zvtes::cards::Target,
 }
 
 impl ActionFact {
@@ -219,6 +223,11 @@ impl ActionFact {
             kind: a.kind,
             card: a.card.as_ref().map(|p| (p.card, *p.copy)),
             source: a.source.filter(|&s| s != AbilitySource::Vampire(a.acting)),
+            bleed_target: a.bleed_target,
+            target: match (a.target, &a.card) {
+                (zvtes::cards::Target::None, Some(p)) => p.target,
+                (t, _) => t,
+            },
         }
     }
 }

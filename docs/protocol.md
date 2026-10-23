@@ -401,7 +401,10 @@ seat 2; burn 2 pool to keep card 9.)
     as the terms it follows from).
   - A card's chosen vampire (Toreador Grand Ball's second, chosen after
     the play): `role` with its `clan`; a play locking its target says
-    so (`lock`, `on: target`).
+    so (`lock`, `on: target`). A play's or an ability's effects `on:
+    target` carry the `clan` its target must be (Grand Ball's first:
+    `toreador`); a card put on its target, `move` `to: in_play`, `on:
+    target`, `card` the card played (Priority Contract).
   - A round's strike granted by a card (`round_strike` without a card):
     `strike`.
   - A cost's terms: `cost` (kind) for a card's or a vampire's reduction,
@@ -559,8 +562,11 @@ heap (a marker on its minion, §6), no copy of its own.
 | `strikes` | `round`, `pair`, `range`, `sides` (`minion`, `strike`?, `damage`: before prevention, its retainers' and environmental damage included; `strike_damage`: the strike's share) |
 | `combat_ends` | — |
 
-`action`: `{kind, card?, source?}` — the action's kind, its card, what
-grants it (a card in play, another vampire).
+`action`: `{kind, card?, source?, target?}` — the action's kind, its
+card, what grants it (a card in play, another vampire), what it is aimed
+at as it stands when told (`{"kind":"seat"}`: a Methuselah, a bleed's
+the one bled; `{"kind":"card"}`: the minion or card in play it
+targets; an uncontrolled vampire not named).
 
 `cause`: `{kind, card?, rule?}` — what made a `pool`, `blood` or
 `counters` change

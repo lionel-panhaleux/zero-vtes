@@ -6,7 +6,7 @@
 use zvtes::cards::Effect as E;
 use zvtes::combat::Range as R;
 use zvtes::crypt::CRYPT;
-use zvtes_api::ids::Range;
+use zvtes_api::ids::{KrcgId, Range, Zone};
 use zvtes_api::option::{Effect, EffectKind as K, On, When};
 
 use crate::view::{action_kind, strike};
@@ -19,6 +19,8 @@ pub struct Whom {
     pub host: Option<u32>,
     pub actor: Option<u32>,
     pub card: Option<u32>,
+    /// The card played's id: what it puts on its target.
+    pub id: Option<KrcgId>,
 }
 
 fn of(kind: K) -> Effect {
@@ -45,6 +47,23 @@ fn cost(mut e: Effect) -> Effect {
 fn x(mut e: Effect) -> Effect {
     e.x = true;
     e
+}
+
+/// A card's mode played or an ability used: its effects, those on its
+/// target with the clan the target must be of (Toreador Grand Ball's
+/// "ready Toreador").
+pub fn mode(m: &zvtes::cards::ModeDef, whom: Whom) -> Vec<Effect> {
+    use zvtes::cards::Requirement as Q;
+    let mut out = curated(m.effects, whom);
+    let filter = m.target.map_or(&[][..], |t| t.filter);
+    let clan = filter.iter().find_map(|r| match r {
+        Q::TargetClan(c) => Some(crate::view::snake(c)),
+        _ => None,
+    });
+    for e in out.iter_mut().filter(|e| e.on == Some(On::Target)) {
+        e.clan = e.clan.take().or_else(|| clan.clone());
+    }
+    out
 }
 
 /// The effects of `effects`, in order.
@@ -212,6 +231,11 @@ fn add(e: &E, w: Whom, when: Option<When>, out: &mut Vec<Effect>) {
         }),
         E::EndCombat => push(of(K::EndCombat)),
         E::EnterCombatWithTarget => push(on(of(K::EnterCombat), On::Target)),
+        E::PutOnTarget => push(Effect {
+            card: w.id,
+            to: Some(Zone::InPlay),
+            ..on(of(K::Move), On::Target)
+        }),
         E::UnlockActor | E::UnlockHost | E::UnlockSelf => push(on(of(K::Unlock), On::Host)),
         E::UnlockTarget => push(on(of(K::Unlock), On::Target)),
         E::UnlockActing => push(on(of(K::Unlock), On::Acting)),

@@ -21,6 +21,8 @@ pub mod view;
 #[cfg(test)]
 mod passes_told;
 #[cfg(test)]
+mod targets_told;
+#[cfg(test)]
 mod terms_told;
 
 pub use game::{Bots, Clock, Game, SystemClock, BUILT_IN};

@@ -170,6 +170,19 @@ impl Namer<'_> {
                 AbilitySource::Card(c) => self.in_play(c),
                 AbilitySource::Vampire(m) => self.minion_card(m),
             }),
+            target: match (a.bleed_target, a.target) {
+                (Some(s), _) | (None, zvtes::cards::Target::Seat(s)) => {
+                    Some(zvtes_api::view::Target::Seat { seat: s.0 })
+                }
+                (None, zvtes::cards::Target::Minion(m)) => Some(zvtes_api::view::Target::Card {
+                    copy: self.minion(m),
+                }),
+                (None, zvtes::cards::Target::Card(c)) => self
+                    .in_play(c)
+                    .copy
+                    .map(|copy| zvtes_api::view::Target::Card { copy }),
+                (None, _) => None,
+            },
         }
     }
 
@@ -226,13 +239,14 @@ impl Namer<'_> {
                     host: None,
                     actor: p.actor.map(|m| self.minion(m)),
                     card: card.copy,
+                    id: card.id,
                 };
                 // Pool and blood (life) it moves at once: told by their
                 // events, the card their cause.
                 let effects = zvtes::cards::lookup(p.card)
                     .and_then(|d| d.modes.get(p.mode as usize))
                     .filter(|_| !p.no_effect)
-                    .map_or(Vec::new(), |m| crate::effects::curated(m.effects, whom))
+                    .map_or(Vec::new(), |m| crate::effects::mode(m, whom))
                     .into_iter()
                     .filter(|e| !(e.when.is_none() && told_by_events(e.kind)))
                     .collect();

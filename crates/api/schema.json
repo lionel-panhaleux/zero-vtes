@@ -201,6 +201,17 @@
               "type": "null"
             }
           ]
+        },
+        "target": {
+          "description": "What it is aimed at, as it stands when told: a Methuselah (a\nbleed's: the one bled), or the minion or card in play it targets\n(an uncontrolled vampire not named).",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Target"
+            },
+            {
+              "type": "null"
+            }
+          ]
         }
       },
       "required": [
@@ -1132,7 +1143,7 @@
           ]
         },
         "card": {
-          "description": "A card named (to hand, discarded, fetched).",
+          "description": "A card named (to hand, discarded, fetched, put on the target).",
           "type": [
             "integer",
             "null"
@@ -1141,7 +1152,7 @@
           "minimum": 0
         },
         "clan": {
-          "description": "Of this clan (a snake_case clan id: the chosen Toreador).",
+          "description": "Of this clan (a snake_case clan id: the chosen Toreador; on an\n`on: target` effect, the clan its target must be).",
           "type": [
             "string",
             "null"

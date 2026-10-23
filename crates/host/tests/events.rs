@@ -189,6 +189,8 @@ struct Stream {
     told: usize,
     /// The plays told resolved and canceled.
     played: [usize; 2],
+    /// The bleeds told started or ended, each with its target.
+    bleeds: usize,
     texts: usize,
     names: Names<'static>,
     /// Each decision's view as first sent, and the decision an undo
@@ -512,6 +514,18 @@ impl Stream {
                 self.played[1] += 1;
             }
             _ => {}
+        }
+        // A bleed told with the Methuselah it bleeds (docs/protocol.md §9).
+        if let EventKind::ActionStarts { action, .. } | EventKind::ActionEnds { action, .. } =
+            &e.kind
+        {
+            if action.kind == zvtes_api::ids::ActionKind::Bleed {
+                assert!(
+                    matches!(action.target, Some(zvtes_api::view::Target::Seat { .. })),
+                    "seed {seed}: a bleed told without its target: {e:?}"
+                );
+                self.bleeds += 1;
+            }
         }
         let copy = |c: u32| assert_ne!(c, u32::MAX, "seed {seed}: an unnumbered minion: {e:?}");
         match &e.kind {
@@ -956,6 +970,7 @@ fn the_events_tell_what_the_views_show() {
     let seeds = seeds();
     let (mut told, mut texts, mut undone, mut allocated, mut voted) = (0, 0, 0, 0, 0);
     let mut played = [0, 0];
+    let mut bleeds = 0;
     let (mut within, mut undecided, mut caused, mut markers) = (0, 0, 0, 0);
     let mut combats = 0;
     let mut moved = [0; 3];
@@ -991,6 +1006,7 @@ fn the_events_tell_what_the_views_show() {
             unasked: Vec::new(),
             name_numbers: HashMap::new(),
             played: [0, 0],
+            bleeds: 0,
             open: Some(None),
             decided: None,
             within: 0,
@@ -1133,6 +1149,7 @@ fn the_events_tell_what_the_views_show() {
         }
         played[0] += s.played[0];
         played[1] += s.played[1];
+        bleeds += s.bleeds;
         misses.extend(s.misses.into_iter().map(|m| (seed, m)));
         reduced += s.reduced;
         for (k, (n, ex)) in s.unreduced {
@@ -1151,6 +1168,7 @@ fn the_events_tell_what_the_views_show() {
         "{} events rendered otherwise",
         misses.len()
     );
+    assert!(bleeds > 0, "no bleed told");
     eprintln!(
         "{} games: {told} events ({texts} with text), {undone} undos, \
          {allocated} allocations, {voted} votes cast at once, {reasked} views asked again alike",

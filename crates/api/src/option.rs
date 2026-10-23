@@ -138,7 +138,7 @@ pub struct Effect {
     /// Only if this comes to pass.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub when: Option<When>,
-    /// A card named (to hand, discarded, fetched).
+    /// A card named (to hand, discarded, fetched, put on the target).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub card: Option<KrcgId>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -157,7 +157,8 @@ pub struct Effect {
     /// What a chosen minion or Methuselah becomes (`role`).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub role: Option<Role>,
-    /// Of this clan (a snake_case clan id: the chosen Toreador).
+    /// Of this clan (a snake_case clan id: the chosen Toreador; on an
+    /// `on: target` effect, the clan its target must be).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub clan: Option<String>,
     /// What sets it apart within its kind, a snake_case id: `this_round`,

@@ -8,7 +8,7 @@ use crate::ids::{
     ActionKind, CopyId, DecisionNo, MinionKind, Phase, Range, Seat, Trait, Window, Zone,
 };
 use crate::option::{OptionView, SlotRef};
-use crate::view::{ActionView, Card, CombatView, Marker, ReferendumView, Strike, Title};
+use crate::view::{ActionView, Card, CombatView, Marker, ReferendumView, Strike, Target, Title};
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
@@ -366,6 +366,11 @@ pub struct ActionRef {
     /// What grants the action: a card in play, or another vampire.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub source: Option<Card>,
+    /// What it is aimed at, as it stands when told: a Methuselah (a
+    /// bleed's: the one bled), or the minion or card in play it targets
+    /// (an uncontrolled vampire not named).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub target: Option<Target>,
 }
 
 /// What made a `pool`, `blood` or `counters` change: a cost paid or an effect, of a

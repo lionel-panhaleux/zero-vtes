@@ -19,7 +19,7 @@ use zvtes_api::message::{About, Due};
 use zvtes_api::option::{CardRef, ChoiceKey, Effect, EffectKind, On, SlotRef, User, ZoneRef};
 use zvtes_api::view::Target;
 
-use crate::effects::{curated, Whom};
+use crate::effects::{mode as mode_effects, Whom};
 use crate::view::{action_kind, minion_copy, mode, snake};
 
 /// How copies are named: a viewer's numbers, or the engine's.
@@ -254,9 +254,10 @@ pub fn effects(
                     Target::Seat { .. } => None,
                 }),
                 actor: actor.map(|a| x.minion(a)),
+                id: Some(LIBRARY[played as usize].id),
                 ..Whom::default()
             };
-            let mut out = curated(m.effects, whom);
+            let mut out = mode_effects(m, whom);
             out.extend(second_chosen(m));
             out
         }
@@ -301,8 +302,9 @@ pub fn effects(
                 host,
                 actor: actor.map(|a| x.minion(a)),
                 card,
+                id: None,
             };
-            curated(a.effects, whom)
+            mode_effects(a, whom)
         }
         Choice::SetX(n) => amount(&x, req, n),
         // Fleshforge Chamber: the card picked put on it, not discarded.

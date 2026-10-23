@@ -233,6 +233,7 @@ fn events_are_tagged_by_kind() {
                 kind: ActionKind::Bleed,
                 card: None,
                 source: None,
+                target: Some(Target::Seat { seat: 2 }),
             },
             outcome: ActionOutcome::Blocked,
             blocker: Some(12),
@@ -242,7 +243,7 @@ fn events_are_tagged_by_kind() {
     let j = serde_json::to_value(&e).unwrap();
     assert_eq!(
         j,
-        json!({"kind": "action_ends", "seat": 1, "acting": 7, "action": {"kind": "bleed"},
+        json!({"kind": "action_ends", "seat": 1, "acting": 7, "action": {"kind": "bleed", "target": {"kind": "seat", "seat": 2}},
                "outcome": "blocked", "blocker": 12})
     );
     assert_eq!(serde_json::from_value::<Event>(j).unwrap(), e);

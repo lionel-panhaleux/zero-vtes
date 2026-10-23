@@ -1,7 +1,7 @@
 //! Effects in English (docs/protocol.md §7): short parts joined ("1
 //! transfer, burn it, gain 2 pool"), as option buttons read.
 
-use zvtes_api::ids::{ActionKind, Range};
+use zvtes_api::ids::{ActionKind, Range, Zone};
 use zvtes_api::option::{Effect, EffectKind as K, On, When};
 
 use crate::event::{action_kind, strike};
@@ -187,6 +187,9 @@ pub fn part(e: &Effect, names: &Names) -> Option<String> {
             Some("action_card") => "the action card to hand".into(),
             Some("hand_to_bottom") => "cards from hand to the library's bottom".into(),
             Some("crypt_top") => "remove the crypt's top card".into(),
+            _ if e.to == Some(Zone::InPlay) && e.on == Some(On::Target) => {
+                "put on the target".into()
+            }
             _ => format!("fetch {}", names.card_id(e.card)),
         },
         K::Votes => match d {
@@ -278,5 +281,21 @@ mod tests {
             "prevent all but the first each round"
         );
         assert_eq!(told(None, None, None), "prevent X damage");
+    }
+
+    // A card put on its target (Priority Contract), not fetched.
+    #[test]
+    fn a_card_put_on_its_target_is_told() {
+        let e = Effect {
+            on: Some(On::Target),
+            to: Some(Zone::InPlay),
+            card: Some(100001),
+            copy: Some(7),
+            ..Effect::new(K::Move)
+        };
+        assert_eq!(
+            part(&e, &Names::new(&NoCards)).as_deref(),
+            Some("put on the target")
+        );
     }
 }

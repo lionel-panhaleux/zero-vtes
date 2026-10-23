@@ -8,7 +8,8 @@ removes; its `--check` fails a removal without a major version.
 
 ## 2.9.0
 
-What a pass does, in its data (§7); ids added, none removed:
+What a pass does and what a play or an action targets, in the data (§7,
+§9); ids and fields added, none removed:
 
 - Effect kinds `end_phase` (`detail`: the phase) and `block`: a pass
   ending the master, minion, influence or discard phase says so; in
@@ -23,6 +24,14 @@ What a pass does, in its data (§7); ids added, none removed:
   Rutor's Hand, Waiting Game, Leandro).
 - A pass with no effects takes none of the options beside it.
 - `margin_blood`'s `about.minion`: the recipient its pass skips.
+- A play's target told (Z-succubus): a play's or an ability's effects
+  `on: target` carry the `clan` the target must be (Toreador Grand
+  Ball's lock, Saulot's Avenging Fist's action on a Tremere); a card put on
+  its target (Priority Contract and 53 more) tells `move` `to: in_play`
+  `on: target`, `card` the card played; told alike in `resolved`.
+- `action` (`action_starts`, `action_ends`, `referendum_ends`) gains
+  `target`: the Methuselah it is aimed at (a bleed's: the one bled), else
+  the minion or card it targets, as it stands when told.
 - The English (`text`): a pass reads from its own data; the block
   window's passes beyond these read "Pass"; a decided pass is told in
   the events whenever it has effects.

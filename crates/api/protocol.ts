@@ -213,6 +213,12 @@ export type ActionRef = {
     kind: ActionKind
     /** What grants the action: a card in play, or another vampire. */
     source?: Card | null
+    /**
+     * What it is aimed at, as it stands when told: a Methuselah (a
+     * bleed's: the one bled), or the minion or card in play it targets
+     * (an uncontrolled vampire not named).
+     */
+    target?: Target | null
 }
 
 /** Where an action stands. */
@@ -493,9 +499,12 @@ export type DueKind = 'hunt' | 'action' | 'take_control' | 'unknown'
 export type Effect = {
     /** An action declared (`action`). */
     action?: ActionKind | null
-    /** A card named (to hand, discarded, fetched). */
+    /** A card named (to hand, discarded, fetched, put on the target). */
     card?: number | null
-    /** Of this clan (a snake_case clan id: the chosen Toreador). */
+    /**
+     * Of this clan (a snake_case clan id: the chosen Toreador; on an
+     * `on: target` effect, the clan its target must be).
+     */
     clan?: string | null
     /** The minion or card in play it applies to, when known. */
     copy?: number | null
