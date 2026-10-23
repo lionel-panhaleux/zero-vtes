@@ -4,14 +4,14 @@
 //! A bot reads only its seat's legal view, never `ActionCtx::card` or
 //! `exchange` (a card named from hand); `tests/bots.rs` checks it.
 
-use crate::agent::Agent;
-use crate::cards::{self, Effect, RefEffect, Term};
-use crate::decision::{ActionKind, Choice, DecisionRequest, WindowLabel as W};
-use crate::draws::Interrupt;
-use crate::game::Engine;
-use crate::ids::{MinionId, SeatId};
-use crate::library::{CardType, LIBRARY};
-use crate::rng::Rng;
+use zvtes::agent::Agent;
+use zvtes::cards::{self, Effect, RefEffect, Term};
+use zvtes::decision::{ActionKind, Choice, DecisionRequest, WindowLabel as W};
+use zvtes::draws::Interrupt;
+use zvtes::game::Engine;
+use zvtes::ids::{MinionId, SeatId};
+use zvtes::library::{CardType, LIBRARY};
+use zvtes::rng::Rng;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Style {
@@ -352,7 +352,7 @@ fn referendum_terms(e: &Engine, req: &DecisionRequest, o: &Choice) -> i32 {
     let (st, me) = (&e.state, req.seat);
     let Some(r) = e.referendum() else { return 0 };
     // Ancient Influence, Reins of Power: the biggest ready vampire.
-    if r.step == crate::referendum::RefStep::Choose {
+    if r.step == zvtes::referendum::RefStep::Choose {
         return match *o {
             // Kindred Segregation: an ally kept while its cost leaves pool.
             Choice::ChooseMinion(m) if st.minions[m.index()].is_ally() => {
@@ -407,7 +407,7 @@ fn referendum_terms(e: &Engine, req: &DecisionRequest, o: &Choice) -> i32 {
         }
         Choice::AllocateToCard { card, n } => {
             let n = n as i32;
-            if st.card_controller(crate::state::CardId(card)) == me {
+            if st.card_controller(zvtes::state::CardId(card)) == me {
                 -n
             } else {
                 n
@@ -436,7 +436,7 @@ fn referendum_terms(e: &Engine, req: &DecisionRequest, o: &Choice) -> i32 {
             }
         }
         Choice::ChooseCard(c) => {
-            let owner = st.card_controller(crate::state::CardId(c));
+            let owner = st.card_controller(zvtes::state::CardId(c));
             match owner {
                 s if s == me => -10,
                 s if foe(s) => 10,

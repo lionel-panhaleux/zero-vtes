@@ -14,6 +14,7 @@ name = "zvtes_policy"
 
 [dependencies]
 zero-vtes-engine = { path = "../engine" }
+zvtes-env = { path = "../env" }
 # The profiles a host offers (`profiles`: `zvtes_host::Bots`, its records).
 zvtes-api = { path = "../api" }
 zvtes-host = { path = "../host" }

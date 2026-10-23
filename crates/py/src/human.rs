@@ -10,8 +10,8 @@ use pyo3::prelude::*;
 use pyo3::types::PyDict;
 use zvtes::crypt::CRYPT;
 use zvtes::library::LIBRARY;
-use zvtes::obs::{encode, encode_critic, Obs, OPT_F, OPT_IDS, TOK_F, TOK_IDS};
 use zvtes_api::record::GameRecord;
+use zvtes_env::obs::{encode, encode_critic, Obs, OPT_F, OPT_IDS, TOK_F, TOK_IDS};
 use zvtes_host::replay::{Read, Replayer, Step};
 
 use crate::{all_decks, version};

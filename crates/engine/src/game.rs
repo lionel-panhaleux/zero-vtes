@@ -260,7 +260,7 @@ pub struct Engine {
     /// the seed plus the decision log.
     pub(crate) rng: Rng,
     /// The last [`HISTORY`] public choices, oldest first (observations'
-    /// memory, `obs::Version::V2`).
+    /// memory, `zvtes_env::obs::Version::V2`).
     pub history: std::collections::VecDeque<Event>,
 }
 

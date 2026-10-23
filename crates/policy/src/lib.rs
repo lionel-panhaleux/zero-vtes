@@ -25,12 +25,12 @@ use zvtes::agent::Agent;
 use zvtes::cards::Stat;
 use zvtes::decision::{ActionKind, Choice, DecisionRequest, WindowLabel};
 use zvtes::game::Engine;
-use zvtes::habits::{self, Habit};
 use zvtes::ids::{MinionId, SeatId};
 use zvtes::library::{CardType, LIBRARY};
-use zvtes::obs::{self, Obs};
-use zvtes::politics;
 use zvtes::rng::Rng;
+use zvtes_env::habits::{self, Habit};
+use zvtes_env::obs::{self, Obs};
+use zvtes_env::politics;
 
 struct Layer {
     norm1: (Vec<f32>, Vec<f32>),
@@ -746,7 +746,7 @@ impl NetAgent {
 
 impl Agent for NetAgent {
     fn decide(&mut self, engine: &Engine, req: &DecisionRequest) -> usize {
-        // Referendum terms and votes by rule (`zvtes::politics`).
+        // Referendum terms and votes by rule (`zvtes_env::politics`).
         if let Some(i) = politics::terms_choice(engine, req) {
             return i;
         }

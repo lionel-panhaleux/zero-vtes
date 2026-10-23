@@ -6,12 +6,12 @@
 //! terms are announced).
 
 use crate::bots::does;
-use crate::cards::{CardFilter, RefEffect, Term};
-use crate::decision::{Choice, DecisionRequest, WindowLabel};
-use crate::game::Engine;
-use crate::ids::{MinionId, SeatId};
-use crate::referendum::RefStep;
-use crate::state::CardId;
+use zvtes::cards::{CardFilter, RefEffect, Term};
+use zvtes::decision::{Choice, DecisionRequest, WindowLabel};
+use zvtes::game::Engine;
+use zvtes::ids::{MinionId, SeatId};
+use zvtes::referendum::RefStep;
+use zvtes::state::CardId;
 
 /// How much the caller wants a Methuselah to lose pool: the caller never,
 /// the prey most, then the predator, then the others. Gains are the

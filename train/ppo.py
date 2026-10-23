@@ -80,14 +80,14 @@ class Config:
     shaping_coef: float = 1.0
     d: int = 96
     layers: int = 2
-    # The observation the learner reads (`zvtes::obs::Version`): 2 adds
+    # The observation the learner reads (`zvtes_env::obs::Version`): 2 adds
     # the ash heaps' contents and the last public choices; 3 reads the
     # same in ~40% fewer tokens (the deck pooled out of attention, others'
     # face-down vampires as counts) and the transfers left (owner,
     # 2026-10-06: lighter training). Frozen networks read the one they
     # were trained on (`obs` in their config, else 1).
     obs: int = 3
-    # Network seats play the default politics (zvtes::politics, DESIGN
+    # Network seats play the default politics (zvtes_env::politics, DESIGN
     # §11.2): referendum terms by rule, wrong-side votes masked. Temporary
     # guidance, to be relaxed later in training (owner, 2026-10-04).
     politics: bool = True
@@ -157,11 +157,11 @@ class Config:
     # against them (train/league.py).
     opponents: str = ""
     # The share of frozen opponent seats playing with the punishing habits
-    # (`net:k+habits`, `zvtes::habits`; owner, 2026-10-04: opponents that
+    # (`net:k+habits`, `zvtes_env::habits`; owner, 2026-10-04: opponents that
     # punish what the replays show the network never does); evaluated as
     # `vs_habits4/5`, not used for `best.pt`.
     habit_seats: float = 0.0
-    # Which habits those seats play (`zvtes::habits::Set`): a forced rescue
+    # Which habits those seats play (`zvtes_env::habits::Set`): a forced rescue
     # made the network stronger, a forced burn, diablerie or minion kept
     # home weaker (DESIGN §11.2).
     habits: str = "rescue,burn,diablerie,home"

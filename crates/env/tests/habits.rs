@@ -1,4 +1,4 @@
-//! The punishing habits (`zvtes::habits`): what they take by rule is what
+//! The punishing habits (`zvtes_env::habits`): what they take by rule is what
 //! they say (a rescue of one's own vampire by a minion with 2 blood, a burn
 //! of another's card, a diablerie of another's vampire), what they keep
 //! home is the last ready minion after another acted, they read only the
@@ -9,7 +9,7 @@ use zvtes::cards::{AbilitySource, Effect};
 use zvtes::decision::{ActionKind, Choice, DecisionRequest};
 use zvtes::decks::Deck;
 use zvtes::game::{Engine, Step};
-use zvtes::habits::{self, Set};
+use zvtes_env::habits::{self, Set};
 
 fn precons(seed: u64) -> Vec<Deck> {
     (0..4)

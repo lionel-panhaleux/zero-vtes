@@ -2624,6 +2624,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "zvtes-env"
+version = "0.0.1"
+dependencies = [
+ "zero-vtes-engine",
+]
+
+[[package]]
 name = "zvtes-host"
 version = "0.1.0"
 dependencies = [
@@ -2632,6 +2639,7 @@ dependencies = [
  "serde_json",
  "zero-vtes-engine",
  "zvtes-api",
+ "zvtes-env",
  "zvtes-text",
 ]
 
@@ -2642,6 +2650,7 @@ dependencies = [
  "serde_json",
  "zero-vtes-engine",
  "zvtes-api",
+ "zvtes-env",
  "zvtes-host",
 ]
 
@@ -2655,6 +2664,7 @@ dependencies = [
  "serde_json",
  "zero-vtes-engine",
  "zvtes-api",
+ "zvtes-env",
  "zvtes-host",
  "zvtes-policy",
 ]

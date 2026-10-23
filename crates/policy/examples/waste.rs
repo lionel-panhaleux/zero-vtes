@@ -76,11 +76,11 @@ use zvtes::decision::{ActionKind, Choice, DecisionRequest, WindowLabel};
 use zvtes::decks::Deck;
 use zvtes::draws::Interrupt;
 use zvtes::game::{Engine, Step};
-use zvtes::habits;
 use zvtes::ids::{MinionId, SeatId};
 use zvtes::library::{CardType, LIBRARY};
 use zvtes::notes::Note;
 use zvtes_api::record::GameRecord;
+use zvtes_env::habits;
 use zvtes_host::replay::Replay;
 use zvtes_policy::{Net, NetAgent, Nudges};
 

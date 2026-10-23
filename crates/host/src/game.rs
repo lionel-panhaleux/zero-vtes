@@ -5,7 +5,6 @@ use std::collections::{BTreeMap, HashMap, VecDeque};
 use std::panic::{catch_unwind, AssertUnwindSafe};
 
 use zvtes::agent::{Agent, RandomLegal};
-use zvtes::bots::{Scripted, Style};
 use zvtes::combat::CombatNote;
 use zvtes::decision::{Choice, DecisionRequest, Zone};
 use zvtes::library::LIBRARY;
@@ -17,6 +16,7 @@ use zvtes_api::option::{Allocation, ChoiceKey, OptionView, Recipient, VoteTotals
 use zvtes_api::record::{BotRecord, By, Entry, GameRecord, GameResult};
 use zvtes_api::view::Target;
 use zvtes_api::{Command, Decision, GameSpec, In, Message, Out, Player, Seat, Settings, TableView};
+use zvtes_env::bots::{Scripted, Style};
 
 use crate::describe::{self, EngineNames, Names};
 use crate::narrate::Fact;

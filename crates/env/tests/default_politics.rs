@@ -1,4 +1,4 @@
-//! The network seats' default politics (`zvtes::politics`): referendum
+//! The network seats' default politics (`zvtes_env::politics`): referendum
 //! terms by rule, no vote against one's own interest. Random games with the
 //! political decks reach the referendums; from their terms on, the caller
 //! answers by the rule.
@@ -10,8 +10,8 @@ use zvtes::decks::Deck;
 use zvtes::game::{Engine, Step};
 use zvtes::ids::{MinionId, SeatId};
 use zvtes::library::LIBRARY;
-use zvtes::politics::{mask, terms_choice};
 use zvtes::state::CardId;
+use zvtes_env::politics::{mask, terms_choice};
 
 const POLITICS: &[&str] = &[
     "Parity Shift",

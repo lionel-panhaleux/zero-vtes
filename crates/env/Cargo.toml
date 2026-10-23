@@ -1,0 +1,17 @@
+[package]
+name = "zvtes-env"
+version = "0.0.1"
+edition = "2021"
+license = "MIT"
+
+# The layer between the engine and the agents (roadmap, objective C): the
+# observations a network reads, the habits and default politics around it,
+# the scripted bots. The engine crate holds the rules only.
+[lib]
+name = "zvtes_env"
+
+[dependencies]
+zero-vtes-engine = { path = "../engine" }
+
+[dev-dependencies]
+zero-vtes-engine = { path = "../engine", features = ["fixtures"] }

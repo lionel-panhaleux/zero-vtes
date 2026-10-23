@@ -64,7 +64,7 @@ converted games carry neither their bots' nudges nor their turn count
 commits (its engine column names the last commit under it), exported
 before choices were logged and converted at `c968dcf`; the others logged
 their choices as played. Its bots sample every decision, terms and votes
-included: the default politics (`zvtes::politics`, DESIGN §11.2) came
+included: the default politics (`zvtes_env::politics`, DESIGN §11.2) came
 after.
 
 The server's records promoted (each names the engine it was played on, by

@@ -4,13 +4,13 @@
 //! none), so a new card is a new vocabulary id, never a new output.
 //! `tests/obs.rs` pins it: the full state encodes as its legal view.
 
-use crate::cards::{AbilitySource, Target};
-use crate::crypt::{Title, CRYPT};
-use crate::decision::{ActionKind, Choice, DecisionRequest, WindowLabel, Zone};
-use crate::game::{Contest, Engine};
-use crate::ids::{MinionId, SeatId};
-use crate::library::LIBRARY;
-use crate::state::{CardId, GameState, MinionKind, HIDDEN};
+use zvtes::cards::{AbilitySource, Target};
+use zvtes::crypt::{Title, CRYPT};
+use zvtes::decision::{ActionKind, Choice, DecisionRequest, WindowLabel, Zone};
+use zvtes::game::{Contest, Engine};
+use zvtes::ids::{MinionId, SeatId};
+use zvtes::library::LIBRARY;
+use zvtes::state::{CardId, GameState, MinionKind, HIDDEN};
 
 /// Token and option id widths.
 pub const TOK_IDS: usize = 4;
@@ -254,10 +254,10 @@ pub fn encode_critic(e: &Engine, req: &DecisionRequest, v: Version) -> Obs {
 fn encode_as(e: &Engine, req: &DecisionRequest, v: Version, omniscient: bool) -> Obs {
     let st = &e.state;
     let viewer = req.seat;
-    let clans = crate::referendum::clans();
+    let clans = zvtes::referendum::clans();
     let political = e
         .referendum()
-        .filter(|r| matches!(r.kind, crate::referendum::RefKind::Political));
+        .filter(|r| matches!(r.kind, zvtes::referendum::RefKind::Political));
     let terms = political.map(|r| &r.terms);
     let card_v = |c: CardId| library_id(st.cards[c.index()].card);
     let mut o = Obs::default();
@@ -458,8 +458,8 @@ fn encode_as(e: &Engine, req: &DecisionRequest, v: Version, omniscient: bool) ->
         {
             let card = e.action().map_or(0, |a| match (a.card, a.source) {
                 (Some(play), _) => library_id(play.card),
-                (None, Some(crate::cards::AbilitySource::Card(c))) => card_v(c),
-                (None, Some(crate::cards::AbilitySource::Vampire(m))) => {
+                (None, Some(zvtes::cards::AbilitySource::Card(c))) => card_v(c),
+                (None, Some(zvtes::cards::AbilitySource::Vampire(m))) => {
                     minion_id(st.minions[m.index()].kind)
                 }
                 (None, None) => 0,
@@ -511,7 +511,7 @@ fn encode_as(e: &Engine, req: &DecisionRequest, v: Version, omniscient: bool) ->
             let (ids, of) = option(e, ev.seat, &evix, &clans, &ev.choice, ev.card);
             let mut f = [0.0; TOK_F];
             f[F_REL + rel(st, viewer, ev.seat).min(SEATS - 1)] = 1.0;
-            f[E_AGE] = (n - k) as f32 / crate::game::HISTORY as f32;
+            f[E_AGE] = (n - k) as f32 / zvtes::game::HISTORY as f32;
             f[E_TURNS] = st.turn.saturating_sub(ev.turn) as f32 / 10.0;
             f[E_OPT..E_OPT + OPT_F].copy_from_slice(&of);
             let a = if ids[3] != 0 { ids[3] } else { ids[2] };
@@ -523,8 +523,8 @@ fn encode_as(e: &Engine, req: &DecisionRequest, v: Version, omniscient: bool) ->
     let mut f = [0.0; TOK_F];
     let (mut a_ptr, mut b_ptr) = (0, 0);
     f[F_TURN] = st.turn as f32 / 100.0;
-    if let (Version::V3, crate::game::Flow::Influence { left }) = (v, &e.flow) {
-        f[F_MPA] = *left as f32 / 4.0;
+    if let (Version::V3, Some(left)) = (v, e.influence_transfers_left()) {
+        f[F_MPA] = left as f32 / 4.0;
     }
     if let Some(a) = e.action() {
         f[F_ACTION + action_slot(a.kind)] = 1.0;
@@ -536,7 +536,7 @@ fn encode_as(e: &Engine, req: &DecisionRequest, v: Version, omniscient: bool) ->
         a_ptr = ix.minion(a.acting);
     }
     if let Some(c) = e.combat() {
-        f[F_LONG] = flag(c.range == crate::combat::Range::Long);
+        f[F_LONG] = flag(c.range == zvtes::combat::Range::Long);
         f[F_ROUND] = c.round as f32 / 5.0;
         a_ptr = ix.minion(c.sides[0].minion);
         b_ptr = ix.minion(c.sides[1].minion);
@@ -544,8 +544,8 @@ fn encode_as(e: &Engine, req: &DecisionRequest, v: Version, omniscient: bool) ->
     if let Some(r) = e.referendum() {
         f[F_CALLER + rel(st, viewer, r.caller).min(SEATS - 1)] = 1.0;
         match r.kind {
-            crate::referendum::RefKind::Political => f[F_POLITICAL_REF] = 1.0,
-            crate::referendum::RefKind::BloodHunt { diablerist } => {
+            zvtes::referendum::RefKind::Political => f[F_POLITICAL_REF] = 1.0,
+            zvtes::referendum::RefKind::BloodHunt { diablerist } => {
                 f[F_BLOOD_HUNT] = 1.0;
                 b_ptr = ix.minion(diablerist);
             }
@@ -699,16 +699,16 @@ fn option(
         }
         // A Discipline: its token after the circles'.
         Choice::ChooseDiscipline(d) => {
-            let k = crate::state::disciplines()
+            let k = zvtes::state::disciplines()
                 .iter()
                 .position(|&x| x == d)
                 .unwrap_or(0);
-            let base = clans.len() + crate::state::circles().len();
+            let base = clans.len() + zvtes::state::circles().len();
             [32, V_CLAN + (base + k) as i32, 0, 0, 0]
         }
         // A circle: its token after the clans'.
         Choice::ChooseCircle(c) => {
-            let k = crate::state::circles()
+            let k = zvtes::state::circles()
                 .iter()
                 .position(|&x| x == c)
                 .unwrap_or(0);
@@ -771,17 +771,17 @@ pub fn vocab_keys() -> Vec<String> {
     keys.push("hidden".into());
     keys.extend((0..N_WINDOWS).map(|w| format!("window:{w}")));
     keys.extend(
-        crate::referendum::clans()
+        zvtes::referendum::clans()
             .into_iter()
             .map(|c| format!("clan:{c}")),
     );
     keys.extend(
-        crate::state::circles()
+        zvtes::state::circles()
             .into_iter()
             .map(|c| format!("circle:{c}")),
     );
     keys.extend(
-        crate::state::disciplines()
+        zvtes::state::disciplines()
             .into_iter()
             .map(|d| format!("discipline:{d}")),
     );
@@ -792,9 +792,9 @@ pub fn vocab_keys() -> Vec<String> {
 /// The token vocabulary: cards, windows, clans, circles, then Disciplines.
 fn vocab_len() -> usize {
     V_CLAN as usize
-        + crate::referendum::clans().len()
-        + crate::state::circles().len()
-        + crate::state::disciplines().len()
+        + zvtes::referendum::clans().len()
+        + zvtes::state::circles().len()
+        + zvtes::state::disciplines().len()
 }
 
 /// The encoding's shape, for the Python side (never hardcode a width):

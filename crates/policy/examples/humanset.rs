@@ -20,9 +20,9 @@
 use std::sync::Arc;
 use zvtes::agent::Agent;
 use zvtes::game::{Engine, Step};
-use zvtes::obs;
 use zvtes_api::message::EndReason;
 use zvtes_api::record::GameRecord;
+use zvtes_env::obs;
 use zvtes_host::replay::Replay;
 use zvtes_host::start::Start;
 use zvtes_policy::profiles::NETWORK;

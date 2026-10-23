@@ -4,10 +4,10 @@
 //! a blocker home. Agent behaviour, not an engine mask (rules-qa 17.4
 //! untouched); reads only public state.
 
-use crate::cards::{AbilitySource, Effect};
-use crate::decision::{ActionKind, Choice, DecisionRequest, WindowLabel};
-use crate::game::Engine;
-use crate::ids::{MinionId, SeatId};
+use zvtes::cards::{AbilitySource, Effect};
+use zvtes::decision::{ActionKind, Choice, DecisionRequest, WindowLabel};
+use zvtes::game::Engine;
+use zvtes::ids::{MinionId, SeatId};
 
 /// The minion taking the action an option declares, if it is one.
 fn actor(o: &Choice) -> Option<MinionId> {

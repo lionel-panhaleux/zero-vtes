@@ -4,7 +4,7 @@
 //! out). `cargo run -p zvtes-policy --profile ci --example strength --
 //! <policy.zvp> <deals> [variant]...`: each variant prints the VPs a seat
 //! of each half. A variant is `none` (the control) or `+`-joined parts:
-//! `habits:<set>` (`zvtes::habits::Set::parse`, comma-separated),
+//! `habits:<set>` (`zvtes_env::habits::Set::parse`, comma-separated),
 //! `t:<temperature>` (logits divided by it), and the nudges
 //! (`zvtes_policy::Nudges`): `rescue:<bonus>` (added to the logit of a
 //! rescue of one's own vampire), `pass:<bonus>` (to passing one's discard
@@ -21,9 +21,9 @@ use zvtes::agent::Agent;
 use zvtes::decision::DecisionRequest;
 use zvtes::decks::Deck;
 use zvtes::game::{Engine, Step};
-use zvtes::habits::{self, Set};
 use zvtes::rng::Rng;
-use zvtes::{obs, politics};
+use zvtes_env::habits::{self, Set};
+use zvtes_env::{obs, politics};
 use zvtes_policy::{chores, Net, Nudges};
 
 /// A way of playing: the plain network is `Variant::default()`.

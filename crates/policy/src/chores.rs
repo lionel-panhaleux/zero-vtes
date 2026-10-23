@@ -3,7 +3,7 @@
 //! allowed to forget them, but it's never good to do so"). When one is
 //! offered, a network seat does not decline it: passing is masked, the
 //! network still choosing among the rest (which chore first, which
-//! vampire). Agent behaviour like the default politics (`zvtes::politics`),
+//! vampire). Agent behaviour like the default politics (`zvtes_env::politics`),
 //! not an engine mask (rules-qa 17.4 untouched): every option stays legal.
 //!
 //! - The Edge's pool in the unlock phase ("you may gain 1 pool"; declining

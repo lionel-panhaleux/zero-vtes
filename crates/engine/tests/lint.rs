@@ -6,33 +6,36 @@ use zvtes::crypt::CRYPT;
 use zvtes::library::LIBRARY;
 
 /// Engine files read by the lints: the hand-written ones, without the
-/// definitions (where card names belong) and the generated tables.
+/// definitions (where card names belong) and the generated tables; the
+/// env crate's too (`env/…`), agent code held to the same conventions.
 fn engine_sources() -> Vec<(String, String)> {
-    let root = concat!(env!("CARGO_MANIFEST_DIR"), "/src");
+    let engine = concat!(env!("CARGO_MANIFEST_DIR"), "/src");
+    let env = concat!(env!("CARGO_MANIFEST_DIR"), "/../env/src");
     let mut out = Vec::new();
-    let mut dirs = vec![std::path::PathBuf::from(root)];
-    while let Some(dir) = dirs.pop() {
-        for entry in std::fs::read_dir(&dir).unwrap() {
-            let path = entry.unwrap().path();
-            if path.is_dir() {
-                dirs.push(path);
-                continue;
-            }
-            let rel = path
-                .strip_prefix(root)
-                .unwrap()
-                .to_string_lossy()
-                .to_string();
-            let skip = [
-                "cards/defs.rs",
-                "cards/vampires.rs",
-                "crypt.rs",
-                "library.rs",
-                "twda.rs",
-                "decks.rs",
-            ];
-            if rel.ends_with(".rs") && !skip.contains(&rel.as_str()) {
-                out.push((rel, std::fs::read_to_string(&path).unwrap()));
+    for (prefix, root) in [("", engine), ("env/", env)] {
+        let mut dirs = vec![std::path::PathBuf::from(root)];
+        while let Some(dir) = dirs.pop() {
+            for entry in std::fs::read_dir(&dir).unwrap() {
+                let path = entry.unwrap().path();
+                if path.is_dir() {
+                    dirs.push(path);
+                    continue;
+                }
+                let rel = format!(
+                    "{prefix}{}",
+                    path.strip_prefix(root).unwrap().to_string_lossy()
+                );
+                let skip = [
+                    "cards/defs.rs",
+                    "cards/vampires.rs",
+                    "crypt.rs",
+                    "library.rs",
+                    "twda.rs",
+                    "decks.rs",
+                ];
+                if rel.ends_with(".rs") && !skip.contains(&rel.as_str()) {
+                    out.push((rel, std::fs::read_to_string(&path).unwrap()));
+                }
             }
         }
     }

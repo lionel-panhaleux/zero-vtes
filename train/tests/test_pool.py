@@ -165,7 +165,7 @@ OWNER_GAME = "data/records/zero-vtes-replay-2026-10-04T12-09-51-567Z.json"
 
 def test_habit_seats_and_the_learners_habits():
     """`net:k+habits`: a network seat playing with the punishing habits
-    (`zvtes::habits`), named apart in episodes; `habits()` counts the
+    (`zvtes_env::habits`), named apart in episodes; `habits()` counts the
     learner's offered and taken habits, then resets."""
     table = ["net:0", "net:1+habits", "net:1", "net:1+habits"]
     pool = zvtes_py.GamePool(8, table, seed=5)

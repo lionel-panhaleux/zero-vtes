@@ -26,6 +26,16 @@ impl Engine {
         }
     }
 
+    /// The transfers left at the influence phase's own decision only, not
+    /// in a window opened in it (the observation's transfers feature,
+    /// trained on that reading).
+    pub fn influence_transfers_left(&self) -> Option<u8> {
+        match self.flow {
+            Flow::Influence { left } => Some(left),
+            _ => None,
+        }
+    }
+
     /// The transfers an ability use gains ("lock to get +1 transfer").
     fn transfer_gain(&self, choice: &Choice) -> u8 {
         let Choice::UseAbility {

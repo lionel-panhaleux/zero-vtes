@@ -1,4 +1,4 @@
-//! Observations (`zvtes::obs`, DESIGN §5): the encoding of a request reads
+//! Observations (`zvtes_env::obs`, DESIGN §5): the encoding of a request reads
 //! only what the deciding seat may know — it equals the encoding of the
 //! same request from the seat's legal view — and every pointer names a
 //! token or carries an identity. Games from the opening (bots and random seats) and the fuzz
@@ -8,14 +8,15 @@
 //! `V2` with its deck tokens apart and the others' face-down uncontrolled
 //! vampires gone, pointers following.
 
+#[path = "../../engine/tests/common/mod.rs"]
 mod common;
 
 use common::tables::{table, ALLY_SLICE, PRECON_SLICE, SLICE};
 use zvtes::agent::{Agent, RandomLegal};
-use zvtes::bots::{Scripted, Style};
 use zvtes::decision::Choice;
 use zvtes::game::{Engine, Step};
-use zvtes::obs::{
+use zvtes_env::bots::{Scripted, Style};
+use zvtes_env::obs::{
     encode, encode_critic, Obs, Version, T_ASH, T_CONTEXT, T_DECK, T_EVENT, T_HAND, T_REFERENDUM,
     T_SEAT, T_SLOT, V_CRYPT, V_HIDDEN, V_LIBRARY,
 };
@@ -285,10 +286,10 @@ fn observations_read_only_the_legal_view() {
 fn a_banished_created_vampire_is_its_card() {
     use zvtes::crypt::Sect;
     use zvtes::ids::{MinionId, SeatId};
-    use zvtes::obs::{T_SLOT, V_LIBRARY};
     use zvtes::state::{
         find_card, find_library, Banished, CardId, Minion, MinionKind, UncontrolledSlot, CREATED,
     };
+    use zvtes_env::obs::{T_SLOT, V_LIBRARY};
     let mut e = Engine::bare(2);
     e.add_minion(SeatId(0), find_card("Nayarana"), 3, false);
     e.add_minion(SeatId(0), find_card("Mithras"), 3, false);

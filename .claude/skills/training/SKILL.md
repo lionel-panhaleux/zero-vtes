@@ -107,9 +107,10 @@ runs" (every run's command, numbers and lessons), `docs/boards/training.md`.
   slot, as Become Anarch's), else its one-hot lands in `F_LONG`. Interrupts,
   purposes, a new marker kind and the api's wire ids are not encoded (the
   hostage, nightmare, torture and disease counts are, summed in
-  `F_MARKERS`): `git diff <pin> <main> -- crates/engine/src/obs.rs
-  crates/engine/src/decision.rs` says whether a table the networks read
-  moved; a change to how an encoded state is counted (`state.rs`, a
+  `F_MARKERS`): `git diff -M <pin> <main> -- crates/engine/src/obs.rs
+  crates/env/src/obs.rs crates/engine/src/decision.rs` says whether a
+  table the networks read moved (both obs paths, the file having moved to
+  `crates/env`, so a pin before the move diffs as a rename); a change to how an encoded state is counted (`state.rs`, a
   marker's count, `F_CONTESTED`'s inputs) moves a value, not a table.
 - After an engine update the first evaluation is a new bar: scores compare
   within a run only.

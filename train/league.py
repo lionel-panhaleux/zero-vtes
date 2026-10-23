@@ -21,7 +21,7 @@ one of those frozen networks (`net:FROZEN + k`, by PFSP among them): no
 bots, no snapshots (owner, 2026-10-03: only good opponents, the previous
 bests). They read the encoding they were trained on (`frozen_versions`).
 With `habit_seats`, that share of those seats plays with the punishing
-habits (`net:k+habits`, `zvtes::habits`: rescues, burns others' Ⓓ-burnable
+habits (`net:k+habits`, `zvtes_env::habits`: rescues, burns others' Ⓓ-burnable
 cards, diablerizes, keeps its last minion home); their beat rates are kept
 apart."""
 

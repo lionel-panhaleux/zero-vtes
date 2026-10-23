@@ -225,8 +225,9 @@ tables; `limit_slot` matches every `Limit`.
 - `no_in_play_effect_requires_a_justicar` (`tests/twda_unlocks.rs`);
 - `legal_no_ops_are_offered_and_known_to_gain_nothing` (`tests/precon.rs`).
 - `no_card_name_in_engine_code` (`tests/lint.rs`): no card name as a string
-  in hand-written engine code outside the definitions; each exception in
-  `CARD_NAMES_ALLOWED` carries its reason, a stale one fails.
+  in hand-written engine code (`crates/env`'s included) outside the
+  definitions; each exception in `CARD_NAMES_ALLOWED` carries its reason,
+  a stale one fails.
 - `during_abilities_are_once` (`tests/lint.rs`): a definition whose quoted
   text grants a "during" ability has an ability of its own once in its span
   (a `Limit`, phase windows only, a cost spending the card or its host's
@@ -241,7 +242,7 @@ tables; `limit_slot` matches every `Limit`.
 conservation of copies, replay of every 4th seed, each fixture's `covers`
 keys taken by random play) and their goldens (`tests/golden/`, DESIGN
 §7.3); perft counts (§7.5); `tests/elision.rs` (elision is observationally
-equivalent); `tests/obs.rs` and `tests/bots.rs` (nothing read beyond the
+equivalent); `crates/env/tests/obs.rs` and `bots.rs` (nothing read beyond the
 legal view); `crates/host/tests/keys.rs` (no choice offered twice, a key
 per option); `crates/host/tests/events.rs` (each decision's view the
 last one with the events since applied, protocol.md §9). A refactor
@@ -442,16 +443,23 @@ abilities, costs, riders' collector, `apply_card_effect`), `actions.rs`
 `influence.rs`, `draws.rs` (`Interrupt`, draws, searches), `ousting.rs`
 (the oust decision point), `state.rs` (`GameState`, `Minion`,
 `CardInPlay`, `Seat`, `Held`, `Timed`, live stat reads, `legal_view`),
-`copies.rs` (copy identities and their census, §6.22), `obs.rs` (observations),
-`decks.rs` and `twda.rs` (decklists), `agent.rs` and `bots.rs` (policies),
-`politics.rs` and `habits.rs` (agent behaviour around a network, not
-engine masks), `cards/mod.rs` (the vocabulary: `Window`, `Actor`,
-`Requirement`, `Terms`, `Effect`, `Modifier`, `Hook`, `Limit`, `Until`,
-`CardDef`, `ModeDef`, `Rider`), `cards/families.rs` (`Effect::family`),
+`copies.rs` (copy identities and their census, §6.22), `decks.rs` and
+`twda.rs` (decklists), `agent.rs` (the `Agent` trait, `RandomLegal`),
+`cards/mod.rs` (the vocabulary: `Window`, `Actor`, `Requirement`,
+`Terms`, `Effect`, `Modifier`, `Hook`, `Limit`, `Until`, `CardDef`,
+`ModeDef`, `Rider`), `cards/families.rs` (`Effect::family`),
 `cards/slots.rs` (`Requirement::slots`, `implied_requirement`),
 `cards/defs.rs` and `cards/vampires.rs` (definitions),
 `crypt.rs`/`library.rs` (generated). Tests: one file per family under
 `crates/engine/tests/` (`precon.rs` holds the slice-11 cards by section).
+
+The engine crate holds the rules only; what sits between it and an agent
+is `crates/env` (`zvtes_env`, over the engine's public API): `obs.rs`
+(observations), `bots.rs` (the scripted bots), `politics.rs` and
+`habits.rs` (agent behaviour around a network, not engine masks), their
+tests in `crates/env/tests/`. `policy`, `py` and `host` (the scripted
+bots' profiles) read it; `tests/lint.rs` holds its sources to the
+engine's conventions.
 
 ### 6.2 Run loop and interrupts
 
@@ -793,7 +801,7 @@ engine masks), `cards/mod.rs` (the vocabulary: `Window`, `Actor`,
   stealth too. **Reachability** is a query, `Engine::block_can_reach(seat, m)`
   (`intercept_reachable`), read by the host's opportunities filter (it hides a
   futile attempt with them off, `crates/host` `Opportunity::Futile`), by the
-  scripted bots (`bots.rs`: a futile attempt scores below the pass), by the
+  scripted bots (`zvtes_env::bots`: a futile attempt scores below the pass), by the
   network bots' mask (`zvtes_policy::reachable_blocks`: never made, a
   futile-only window passed, in training and on the server) and by
   the record reader (`Replay::elided`: a record from an engine before 73.8
@@ -1667,7 +1675,7 @@ are in DESIGN §11.2.
     announced but never shown, so an observation or a bot never reads it,
     and an observation adding these contexts must redact it.
 - A new `Choice` kind or a new option shape needs its observation slot
-  (`obs.rs`: option ids and `OPT_F` features); a new rulebook-like choice
+  (`crates/env/src/obs.rs`: option ids and `OPT_F` features); a new rulebook-like choice
   usually shares an existing kind's slot (`Choice::UnlockInfernal` in
   `UnlockForBlood`'s, `BurnBloodToAvoid`'s for the Society of Leopold).
   Vocabulary keys (`obs::vocab_keys`) keep trained networks across pool
@@ -1675,8 +1683,8 @@ are in DESIGN §11.2.
 - `game::public_choice` is the whitelist of choices recorded as public
   history (`Engine::history`): a choice that reveals hidden information
   stays out of it.
-- `tests/obs.rs` (the encoding of the full state equals that of the
-  seat's legal view; every pointer names a token) and `tests/bots.rs` (bot
+- `crates/env/tests/obs.rs` (the encoding of the full state equals that of
+  the seat's legal view; every pointer names a token) and `bots.rs` (bot
   decisions answered again from `legal_view`) guard all three.
 
 ### 6.22 Card copies

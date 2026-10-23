@@ -313,8 +313,8 @@ tables (`cards::lookup` is indexed by library index).
 
 ## 5. RL-facing surface
 
-Built: `Engine::run`/`choose`, the legal view, observations (`obs.rs`), the
-batched pool (`crates/py`), the first model and PPO loop (`train/`); §11.2
+Built: `Engine::run`/`choose`, the legal view, observations (`zvtes_env::obs`),
+the batched pool (`crates/py`), the first model and PPO loop (`train/`); §11.2
 "Observations" and "Training" describe them, the omniscient critic, the
 league and the remaining-deck tokens included.
 
@@ -607,13 +607,13 @@ stays here is the policy side: the scripted bots, the observations and the
 training runs.
 
 **Agents and scripted bots** (`agent.rs`: `Agent`, `RandomLegal`, `play_out`;
-`bots.rs`: `Scripted`, `Style`)
+`zvtes_env::bots`: `Scripted`, `Style`)
 - `Agent::decide(&Engine, &DecisionRequest)`: a policy may read the engine, but
-  only what its seat's legal view shows. `tests/bots.rs` answers every 3rd
-  decision of bot tables again from `legal_view` (a bot reads the action's
-  `seat`, `acting`, `kind`, `bleed_target`, `directed_seats`, the referendum's
-  `caller`; never `ActionCtx::card`/`exchange`, which name a card from hand and
-  are not redacted).
+  only what its seat's legal view shows. `crates/env/tests/bots.rs` answers
+  every 3rd decision of bot tables again from `legal_view` (a bot reads the
+  action's `seat`, `acting`, `kind`, `bleed_target`, `directed_seats`, the
+  referendum's `caller`; never `ActionCtx::card`/`exchange`, which name a card
+  from hand and are not redacted).
 - `Agent::fork`: a copy of the agent as it stands, for an undo against bots
   (the host's `Session::solo`) to put back with the engine.
 - The bots score the options of the windows that define a style; everything
@@ -653,7 +653,7 @@ training runs.
   one table (480 games): aggro-bleed 1.51 VPs a seat, wall 0.49; 45 turns a
   game, none at the time limit; 2–5 ms a game.
 
-**Observations** (`obs.rs`: `encode`, `Obs`, `schema_json`)
+**Observations** (`zvtes_env::obs`: `encode`, `Obs`, `schema_json`)
 - One request as its seat sees it: tokens — seats in relative order (pool,
   VPs, Edge, zone sizes, prey/predator, phase budgets), minions in play
   (contested ones too), the viewer's virtual hand (`Choice::Play` indexing),
@@ -675,8 +675,8 @@ training runs.
   floats (amount, favor, mode, zone, title contest, action kind). A card or
   minion an option names carries its identity too (a rider's card may have
   left play). Vocabulary: crypt, library, hidden, windows, clans.
-- `tests/obs.rs`: the encoding of the full state equals the encoding from
-  the seat's legal view (every 2nd decision of bot, random and fuzz-table
+- `crates/env/tests/obs.rs`: the encoding of the full state equals the encoding
+  from the seat's legal view (every 2nd decision of bot, random and fuzz-table
   games; a planted leak of face-down vampires fails it), and every pointer
   names a token. At most 63 tokens and 104 options met.
 - Review points: ash heaps, removed cards and cards stored on cards are sizes
@@ -962,8 +962,8 @@ training runs.
   heap) … to ground the bot decisions with assessment of possible cards
   in hand"): `obs::Version` — a network reads the encoding it was trained
   on (`V1` byte-identical to before: a digest of 3,274 decisions' policy
-  and critic encodings matched the previous commit; `tests/obs.rs` checks
-  that `V2` minus its new tokens is `V1`). `V2` adds, after every token a
+  and critic encodings matched the previous commit; `crates/env/tests/obs.rs`
+  checks that `V2` minus its new tokens is `V1`). `V2` adds, after every token a
   pointer names and before the context token: `T_ASH`, a token per seat
   and card in its ash heap (library and crypt), with its copies; and
   `T_EVENT + kind`, the last `HISTORY` = 32 public choices
@@ -978,8 +978,8 @@ training runs.
   and clans, discards to the ash heap, transfers and influence, rescue
   and toll payments, diablerie); never a Pass, a search, a draw, a card
   put under the library or taken from a hidden zone, X choices or slot
-  picks (`tests/obs.rs`: a choice outside it leaves no event; the legal
-  view swap cannot see the history, which lives on `Engine`). Owner to
+  picks (`crates/env/tests/obs.rs`: a choice outside it leaves no event; the
+  legal view swap cannot see the history, which lives on `Engine`). Owner to
   veto an entry. Cost: the learner's tokens go from ~66 to ~136 a
   decision (p95 164, max 190; frozen opponents unchanged at ~67), from
   the opening of 256 four/five-seat games. The critic reads `V2`.
@@ -1094,7 +1094,7 @@ training runs.
   So, as temporary guidance to help training (owner: the goal is to
   relax these automated choices later in training), the network seats
   play their politics by rule —
-  `zvtes::politics`, agent behaviour around the forward pass, not an
+  `zvtes_env::politics`, agent behaviour around the forward pass, not an
   engine mask (rules-qa 17.4 untouched: every option stays legal):
   (1) terms of the referendums moving pool are chosen by rule: damage
   to the prey first, then the predator, then across, the caller only
@@ -1180,7 +1180,7 @@ training runs.
   so rewards cannot teach them. Two levers, kept within the settled
   rule that training opponents be good ones (2026-10-03: no random or
   wall, aggro sparingly), hence no new scripted style:
-  (1) Punishing habits on frozen opponents (`zvtes::habits`, agent
+  (1) Punishing habits on frozen opponents (`zvtes_env::habits`, agent
   behaviour like `politics`, not an engine mask): a `net:k+habits` seat
   plays its network and, by rule in the minion phase, rescues its own
   vampire (by a minion with 2 blood), burns another Methuselah's card
@@ -1190,7 +1190,7 @@ training runs.
   the predator's turn). `--habit-seats` is the share of frozen seats
   given them (their beat rates apart in `pfsp`), evaluated as
   `vs_habits4/5`; `best.pt` is still selected on the plain frozen
-  opponents. `tests/habits.rs` checks every rule choice and mask over
+  opponents. `crates/env/tests/habits.rs` checks every rule choice and mask over
   40 random games, from the legal view too. Each habit can be switched
   off (`--habits`, `habits::Set`), because forced, most of them cost
   the network strength — measured on `p7-politics@1400` with
@@ -1328,7 +1328,7 @@ training runs.
   policy reads ~92 a decision: 32 for its own library and crypt, 16
   uncontrolled slots — others' face down, all alike — ~22 history, 7
   hand, 6 ash; the critic ~122 with every hand) and passes (epochs).
-  Observation `V3` (`zvtes::obs`; owner, 2026-10-06: "make our
+  Observation `V3` (`zvtes_env::obs`; owner, 2026-10-06: "make our
   training as lightweight as possible"): `V2`'s content in fewer tokens
   — the viewer's library and crypt apart (`Obs::deck_ids`/`deck_f`: the
   network embeds them as tokens and adds their mean to the context
@@ -1338,7 +1338,7 @@ training runs.
   none), and the transfers left in the influence phase on the context
   token (the network had to infer them). 256 self-play games of random
   moves: the policy's tokens 120 → 76 a decision (p90 145 → 101), the
-  critic's 141 → 110. `tests/obs.rs` checks `V3` is `V2` less those
+  critic's 141 → 110. `crates/env/tests/obs.rs` checks `V3` is `V2` less those
   tokens, pointers following, and reads only the legal view. The pool
   reads each network's version (`net_obs`: a frozen `V2` network beside
   a `V3` learner); `--obs 3` is the default. The update's collation

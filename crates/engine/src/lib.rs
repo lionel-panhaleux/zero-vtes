@@ -17,7 +17,6 @@ macro_rules! sum_n {
 
 pub mod actions;
 pub mod agent;
-pub mod bots;
 pub mod cards;
 pub mod combat;
 pub mod contests;
@@ -27,15 +26,12 @@ pub mod decision;
 pub mod decks;
 pub mod draws;
 pub mod game;
-pub mod habits;
 pub mod ids;
 pub mod influence;
 pub mod library;
 pub mod notes;
-pub mod obs;
 pub mod ousting;
 pub mod plays;
-pub mod politics;
 pub mod referendum;
 pub mod rng;
 pub mod state;

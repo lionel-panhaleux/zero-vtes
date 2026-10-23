@@ -1,7 +1,7 @@
 name: ci
 
-# CLAUDE.md's checks: the default members (engine, policy, api, host,
-# text) and the server, which builds without Python.
+# CLAUDE.md's checks: the default members (engine, env, policy, api,
+# host, text) and the server, which builds without Python.
 on:
   push:
     branches: [main]

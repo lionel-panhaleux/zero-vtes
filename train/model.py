@@ -3,7 +3,7 @@ transformer trunk; each offered option is scored against the tokens it
 points at (pointer-network style), so new cards and options change data, not
 the network's shape. A value head reads the context token.
 
-Inputs are `zvtes_py.GamePool.observe()` batches (see `zvtes::obs`): ids
+Inputs are `zvtes_py.GamePool.observe()` batches (see `zvtes_env::obs`): ids
 `[kind/type, vocabulary, pointer, pointer(, pointer)]` with pointers as
 token index + 1 (0 = none), plus float features. Observation `V3`'s deck
 rows (the viewer's library and crypt, `deck_*`) are embedded as tokens are

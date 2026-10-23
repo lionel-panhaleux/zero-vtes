@@ -3,7 +3,7 @@
 //! A `GamePool` holds N games, each waiting on one network's decision
 //! (seats `net:k`: the learner, frozen snapshots — Python routes each row to
 //! its network by the `agent` column). `observe` returns that batch as padded
-//! arrays (`zvtes::obs`); `act` answers it, then advances every game in
+//! arrays (`zvtes_env::obs`); `act` answers it, then advances every game in
 //! parallel until its next network decision — seats played by a scripted bot
 //! or `RandomLegal` are answered inside, and a finished game is reported and
 //! replaced by a new one: the next spec `queue`d by Python (matchmaking), or
@@ -18,14 +18,14 @@ use pyo3::prelude::*;
 use pyo3::types::PyDict;
 use rayon::prelude::*;
 use zvtes::agent::{Agent, RandomLegal};
-use zvtes::bots::{Scripted, Style};
 use zvtes::decision::{Choice, DecisionRequest};
 use zvtes::decks::Deck;
 use zvtes::game::{Engine, Step};
 use zvtes::library::{CardType, LIBRARY};
-use zvtes::obs::{encode, encode_critic, Obs, Version, OPT_F, OPT_IDS, TOK_F, TOK_IDS};
 use zvtes::rng::Rng;
-use zvtes::{habits, politics};
+use zvtes_env::bots::{Scripted, Style};
+use zvtes_env::obs::{encode, encode_critic, Obs, Version, OPT_F, OPT_IDS, TOK_F, TOK_IDS};
+use zvtes_env::{habits, politics};
 use zvtes_host::start::Start;
 use zvtes_policy::Nudges;
 
@@ -36,7 +36,7 @@ mod position;
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 enum Kind {
     /// A network answered from Python, by id (0: the learner); with
-    /// the punishing habits (`zvtes::habits`) when flagged (`net:k+habits`).
+    /// the punishing habits (`zvtes_env::habits`) when flagged (`net:k+habits`).
     Net(u16, bool),
     Random,
     Bot(Style),
@@ -119,7 +119,7 @@ struct Game {
     /// the default politics masked some (`politics`): Python answers
     /// among the offered ones.
     offered: Option<Vec<usize>>,
-    /// Network seats play the default politics (`zvtes::politics`):
+    /// Network seats play the default politics (`zvtes_env::politics`):
     /// terms by rule (not sampled), masked options never offered.
     politics: bool,
     /// The habits of the `net:k+habits` seats.
@@ -462,15 +462,15 @@ fn all_decks() -> &'static [Deck] {
 /// limit is drawn in this range of player turns (a time-out scores 0.5 VP
 /// per survivor, which counts toward the game win); episodes report it and
 /// `replay` takes it. `obs`: the encoding the networks read
-/// (`zvtes::obs::Version`, 1 to 3), but the `net_obs` network ids (id,
+/// (`zvtes_env::obs::Version`, 1 to 3), but the `net_obs` network ids (id,
 /// version), which read their own, and the `legacy` ones, which read `V1`;
 /// the critic reads `V2`, or `V3` when a network does. `politics`: network seats play the
-/// default politics (`zvtes::politics`; DESIGN §11.2): referendum terms by
+/// default politics (`zvtes_env::politics`; DESIGN §11.2): referendum terms by
 /// rule, never offered to Python; options the rule masks left out of the
 /// request Python sees (its option indices are among those offered).
 /// `replays`: the games a queued table may `start` from (game records,
 /// `zvtes_protocol::start`). `habits`: the habits of the `net:k+habits`
-/// seats (`zvtes::habits::Set::parse`), all by default. `chores`: network
+/// seats (`zvtes_env::habits::Set::parse`), all by default. `chores`: network
 /// seats never decline a chore (`zvtes_policy::chores`: the Edge's pool, a
 /// hunting ground's blood). Without `refill`,
 /// a game finished once the queue is empty leaves the pool instead of the
@@ -509,7 +509,7 @@ struct GamePool {
     /// 2026-10-05: encouraged, not forced): `zvtes_policy::Nudges`.
     nudges: Nudges,
     /// The learner's minion-phase decisions offering each habit
-    /// (`zvtes::habits::Habit`: rescue, burn, diablerie) and those taking
+    /// (`zvtes_env::habits::Habit`: rescue, burn, diablerie) and those taking
     /// it, since the last `habits()`.
     habit_counts: [(u64, u64); 3],
     /// The learner's discard phases with a card to cycle: (those, those
@@ -1162,7 +1162,7 @@ fn futile_blocks(
 /// The encoding's widths and counts, as JSON.
 #[pyfunction]
 fn schema() -> String {
-    zvtes::obs::schema_json()
+    zvtes_env::obs::schema_json()
 }
 
 /// The decklist names, by index.
@@ -1171,10 +1171,10 @@ fn deck_names() -> Vec<&'static str> {
     all_decks().iter().map(|d| d.name).collect()
 }
 
-/// The vocabulary's stable keys, by id (`zvtes::obs::vocab_keys`).
+/// The vocabulary's stable keys, by id (`zvtes_env::obs::vocab_keys`).
 #[pyfunction]
 fn vocab_keys() -> Vec<String> {
-    zvtes::obs::vocab_keys()
+    zvtes_env::obs::vocab_keys()
 }
 
 /// The decklist families: name -> deck indices ("precons", "minis",

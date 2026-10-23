@@ -3,12 +3,13 @@
 //! from its seat's legal view, and every decklist plays to a finish.
 
 use zvtes::agent::{play_out, Agent, RandomLegal};
-use zvtes::bots::{Scripted, Style};
 use zvtes::decision::{ActionKind, Choice, WindowLabel};
 use zvtes::decks::Deck;
 use zvtes::game::{Engine, Step};
 use zvtes::ids::SeatId;
+use zvtes_env::bots::{Scripted, Style};
 
+#[path = "../../engine/tests/common/mod.rs"]
 mod common;
 use common::*;
 

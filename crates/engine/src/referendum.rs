@@ -1628,7 +1628,7 @@ impl Engine {
     /// An ally's pool cost to recruit (Kindred Segregation): its card's
     /// pool cost — 0 for a blood cost, or an ally with no card (RTR
     /// 20010711, LSJ 20060409).
-    pub(crate) fn ally_pool_cost(&self, m: MinionId) -> i32 {
+    pub fn ally_pool_cost(&self, m: MinionId) -> i32 {
         match self.state.minions[m.index()]
             .kind
             .ally_card()

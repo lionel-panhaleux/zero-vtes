@@ -23,6 +23,7 @@ deep-RL agent for the V5 card pool.
 | Path | What |
 |---|---|
 | `crates/engine` | the rules engine: a decision-request state machine, card definitions as data |
+| `crates/env` | between the engine and the agents: observations, habits, default politics, scripted bots |
 | `crates/api` | the protocol's types (serde only, no engine) |
 | `crates/host` | the engine behind the protocol: views per viewer, events, records |
 | `crates/text` | the optional English renderer, over the protocol only |
