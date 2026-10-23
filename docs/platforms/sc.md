@@ -82,8 +82,8 @@ fork stays close to upstream (owner, 2026-10-21).
 On `https://sc-bot.krcg.org` (owner, 2026-10-23: no local dev server
 for now): the fork's `zero-vtes-engine` at a pinned commit, built on the
 box (`deploy/sc_bot.py`, `SC_COMMIT`), against `engine.krcg.org`. A fix
-reaches the owner when Z-main redeploys it, on the owner's word, once
-the commit is on GitHub. A redeploy changes the bundle under an open
+reaches the owner when Z-main redeploys it, once the commit is on
+GitHub. A redeploy changes the bundle under an open
 tab: the game goes on until the tab reloads (traps below).
 
 ## Branches

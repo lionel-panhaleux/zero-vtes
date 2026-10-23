@@ -70,7 +70,9 @@ Then:
 
 ## 5. Commit
 
-On the owner's word (CLAUDE.md). The message ends with the review's
+Once the checks are green and the review has no blocking finding left:
+the owner's standing word (CLAUDE.md "Owner rules"); a red reading is
+answered by the owner first. The message ends with the review's
 trailers, which the upkeep's ratchet reads:
 
 ```
@@ -86,8 +88,7 @@ Grading-missed: <round> <rules-qa item>: <one line>  (a reading graded green/amb
 of a kind can be counted. Then the usual attribution trailers.
 
 The branch reaches `main` through Z-main, who merges a line's request
-without asking the owner again (CLAUDE.md "Sessions"; the commit itself
-was on the owner's word): send it the branch, its tip and what it changes
+without asking the owner (CLAUDE.md "Sessions"): send it the branch, its tip and what it changes
 for the other lines, and tell those lines yourself ("Between lines").
 Z-main, after a merge: `python3 scripts/harness.py due`, and `upkeep`
 when it is due.

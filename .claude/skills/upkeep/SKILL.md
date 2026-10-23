@@ -73,7 +73,8 @@ Questions for the owner, short, with a recommendation.
 
 ## 5. Land
 
-One commit, on the owner's word, with the trailer that marks the pass for
+One commit, once its checks and egress are clean (CLAUDE.md "Owner
+rules"), with the trailer that marks the pass for
 `harness.py`:
 
 ```

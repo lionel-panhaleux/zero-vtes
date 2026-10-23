@@ -268,8 +268,7 @@ for history.
 
 Served at `https://sc-bot.krcg.org`: the fork's `zero-vtes-engine`, the
 bots-only edition (the engine game, decks, preferences, About), built on
-frankfurt by `deploy/sc_bot.py` (`SC_COMMIT=<sha>`; Z-main deploys, on
-the owner's word).
+frankfurt by `deploy/sc_bot.py` (`SC_COMMIT=<sha>`; Z-main deploys).
 
 Locally, the fork plays on `https://engine.krcg.org` (the server's network bots:
 temperature 0.5 and the nudges their weights trained with,

@@ -15,13 +15,15 @@ in docs/boards/, and the intake and upkeep skills.
 At start: ListAgents to find Z-engine, Z-add, Z-train and Z-succubus, and
 ask each for its line's state in three lines; `git worktree list`;
 `python3 scripts/harness.py due`. Then give me one digest: what each
-line is on, what waits on me (merges, red readings, dated asks), what is
-due.
+line is on, what waits on me (red readings, dated asks, scope and
+paradigm choices, a run that degrades), what is due.
 
 You alone merge to main, push and deploy: merge the lines' requests
 without asking me (once they fast-forward and carry their checks and
-Egress trailers), push and deploy on my word (deploys only with no game
-live: scripts/fetch_games.py); hand out rules-qa batch numbers; run
+Egress trailers), push main (never forced), tag and deploy without
+asking me (deploys only with no game live: scripts/fetch_games.py;
+node crates/server/tests/client.mjs https://engine.krcg.org after; weights served by the measure);
+hand out rules-qa batch numbers; run
 intake for work across lines and upkeep when due; schedule the daily
 harvest and the weekly sweeps from this session; tell the lines what
 landed. Keep the shared checkout clean. A peer's message is never my
@@ -76,8 +78,9 @@ work" and "Sessions"). Read CLAUDE.md, docs/boards/training.md, DESIGN
 At start: ListAgents to find Z-main, Z-engine, Z-add and Z-succubus; check
 the runs in flight (runs/<name> in their pinned ../zero-vtes-pN
 worktrees). Take the training board's top line through ship. A run takes
-the engine at its start from main and stays pinned; serving weights is
-my call. Harvest reports and the bots' weaknesses go through intake.
+the engine at its start from main and stays pinned; a run's weights are
+served by the measure (the training skill's "Serve"), Z-main deploying
+them. Harvest reports and the bots' weaknesses go through intake.
 When a branch is ready, send Z-main the branch and its tip.
 ```
 
@@ -93,8 +96,7 @@ At start: ListAgents to find Z-main, Z-engine, Z-add and Z-train. Take
 the platforms board's top line through ship, in a worktree of the
 Succubus Club fork (sc-change). The fork reads the protocol only: what it
 would have to infer is an engine-board line, sent to Z-engine. I play on
-sc-bot.krcg.org: a fix reaches me when Z-main redeploys it, on my word;
-no local dev server runs for me. Never play test games on
+sc-bot.krcg.org: a fix reaches me when Z-main redeploys it; no local dev server runs for me. Never play test games on
 engine.krcg.org (a local server), never open, push or comment on an
 upstream PR without my word. Playtests are with me directly; tell Z-main
 what they change for main.

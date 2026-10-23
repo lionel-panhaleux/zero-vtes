@@ -59,16 +59,35 @@ runs" (every run's command, numbers and lessons), `docs/boards/training.md`.
    last evaluation + 1 (`model.pt` is saved at evaluations only: up to 19
    iterations lost). Machine sleep stalls a run, it doesn't crash it.
 4. **Evaluate**: `uv run python -m train.export runs/pN/best.pt
-   runs/pN/best.zvp`; `waste` against the baseline; `decks.rs` per deck and
-   pN against three pPREV; `humanset` (`cargo run -p zvtes-policy --profile
+   runs/pN/best.zvp`; `waste` for pN and the served weights; `decks.rs`
+   per deck and pN against three of the served weights (and three pPREV
+   when pPREV was not served); `humanset` (`cargo run -p zvtes-policy --profile
    ci --example humanset -- <pN.zvp> <served bots.zvp> 20 <records>`) on the
    human wins no network trained on — the run's `--bc-held-games`;
    hold out new harvested wins the same way to grow the set — for pN and
-   pPREV alike; `uv run python -m train.position runs/pN/best.pt
+   the served weights alike; `uv run python -m train.position runs/pN/best.pt
    --records data/records,data/server-records` for the critic against
    the position by stage (DESIGN §11.2 "The critic against the
    position"). A "pN run" note in DESIGN §11.2 with the numbers.
-5. **Serve** (the owner's call): Z-main redeploys engine.krcg.org with
+5. **Serve** (by the measure, owner 2026-10-23): a run is served when
+   step 4 shows it does not degrade the served weights and gains
+   somewhere. Not degrading, each within two standard errors: pN's VP a
+   seat against three of the served weights (`decks.rs`'s second
+   measure, 4 seats) at or above even, 1.0 (2·s/√n over its seats);
+   `humanset`'s agreement and wins from the positions, and `waste`'s
+   rates no worse than the served weights' (a rate's error
+   2·√(p(1−p)/n) over its n decisions): bleeds for nothing taken, wakes
+   with no block after, unlocks with no action after, a playable card
+   cycled while an unplayable one stayed, influence ended with a
+   transfer or draw possible and none made, Wider View used,
+   cross-table combats to torpor or burned (lower is better); rescues
+   taken, adjacent combats to torpor or burned (higher is better). A
+   gain: overall, or a niche one (a deck's VPs in `decks.rs`, a
+   `humanset` score), shown by a step-4 number against the served
+   weights. Z-train sends Z-main the numbers, which
+   DESIGN §11.2's "pN run" note records; a run that fails the
+   not-degrading test goes to the owner instead. Z-main redeploys
+   engine.krcg.org with
    `ZVTES_WEIGHTS` explicit (CLAUDE.md "Sessions": only Z-main deploys); name the served weights by their sha prefix in
    the DESIGN note (the server records the weights' SHA-256 per game); keep
    the previous weights as `runs/served-prev-<date>-<run>.zvp`; the served
@@ -185,7 +204,8 @@ runs" (every run's command, numbers and lessons), `docs/boards/training.md`.
 
 ## Rules
 
-- Commit only on the owner's word; weights never in a commit.
+- Commit once checks and egress are clean (CLAUDE.md "Owner rules");
+  weights never in a commit.
 - Served weights: named by sha prefix, previous ones kept (see Serve).
 - Findings (a bot's weakness, a harvest surprise) go through `intake`,
   onto the training board.

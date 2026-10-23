@@ -109,8 +109,9 @@ with its board companion), as applied here:
   sweeps (fuzz, perft, the key sweep) for the hazardous invariants.
 - **Ask the owner only for**: rulings and paradigm choices (short options,
   a recommendation), scope changes, irreversible or outward-facing
-  actions, a review deadlocked after two rounds. Everything else
-  proceeds.
+  actions beyond the routine ones (commits, "Owner rules"; Z-main's
+  pushes, tags and deploys, "Sessions"), a review deadlocked
+  after two rounds. Everything else proceeds.
 - **Where this repo departs from the pattern, and why**:
   - worktrees, not one shared branch: a training run pins its engine, and
     tables regenerated in the shared checkout broke a run's `uv sync`;
@@ -176,13 +177,21 @@ its skill and its task notes.
 - **Z-main**: the pilot (the engine line is Z-engine's, owner,
   2026-10-23). The owner's one contact: it
   collects what the lines need from the owner (red readings, dated asks,
-  pushes, deploys) into one digest, and relays the answers. The only
+  scope and paradigm choices) into one digest, and relays the answers. The only
   session that merges to `main`, pushes and deploys. A line's merge
   request is trusted (owner, 2026-10-15): Z-main merges it without asking
   the owner again, once it fast-forwards onto `main` (or rebases cleanly)
   and carries its checks and `Egress:` trailers, and reports the merge in
-  the digest. Pushes and deploys stay on the owner's word (Z-succubus pushes
-  its own fork branches, sc-change). It orders merges
+  the digest. It pushes `main` (fast-forward only, never forced), tags
+  and deploys without asking (the owner's standing word, 2026-10-23): a
+  release tagged `vX.Y.Z` on `main`'s checked tip; a deploy only with no
+  game live (`scripts/fetch_games.py`: a game live stops it), the client
+  smoke test after (`node crates/server/tests/client.mjs
+  https://engine.krcg.org`, Node 22 or later), the lines told before a
+  redeploy, each reported in the digest; weights served by the measure
+  (training skill "Serve"). Z-succubus pushes its own fork branches but
+  `engine-game` (upstream PR #285, sc-change); upstream stays on the
+  owner's word. It orders merges
   that move the goldens and tells the lines what landed. It hands out rules-qa batch numbers, keeps the roadmap's ranking,
   runs `intake` for work across lines and `upkeep` when due, and runs the
   schedules a line builds (the daily harvest is Z-train's script, the
@@ -205,7 +214,9 @@ its skill and its task notes.
 
 ## Owner rules
 
-- Commit only when the owner says so (often mid-turn).
+- A change commits once its checks are green and its egress review has
+  no blocking finding left: the owner's standing word (2026-10-23); its
+  red readings answered by the owner first.
 - Apply every ruling of the cards you add: read the card's KRCG rulings, its
   ledger rows and `../vtes-advanced-rules` before designing, and make the design
   satisfy each.

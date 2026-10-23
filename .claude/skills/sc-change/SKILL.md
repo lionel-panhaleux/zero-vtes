@@ -64,8 +64,8 @@ branches, PRs, recipes, traps) and update it as you learn.
    sc-bot.krcg.org (sc.md "Where the owner plays"). A visual check, when
    the owner asks for one, runs against a LOCAL engine server (test games
    on engine.krcg.org pollute the recorded corpus).
-3. Fast-forward `zero-vtes-engine` (rule 4); once the owner says push,
-   push it and ask Z-main for the sc-bot redeploy at that commit; tell the
+3. Fast-forward `zero-vtes-engine` (rule 4); push it (rule 5) and ask
+   Z-main for the sc-bot redeploy at that commit; tell the
    owner what to look at once it is live.
 4. Upstream (deferred by the owner, 2026-10-21: roadmap "Deferred by
    the owner"; only once it is brought back): fold into the

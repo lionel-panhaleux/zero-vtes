@@ -29,7 +29,9 @@ bots only (agreed with Thomas, owner 2026-10-21).
 What it still needs:
 
 1. **The best bot served**: each run measured against the served weights
-   and served if it beats them (training: its run's line).
+   and served if it improves on them without degrading them, a niche
+   gain enough (owner, 2026-10-23; training skill "Serve").
+   Training: its run's line.
 2. **Feedback intake**: a "report a problem" from inside the game (the
    protocol's `feedback`, stored with the record at its decision;
    platforms: "Report a problem"), plus the channel the fork's notice
