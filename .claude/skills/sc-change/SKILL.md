@@ -43,7 +43,7 @@ branches, PRs, recipes, traps) and update it as you learn.
    `push.default=upstream` is set globally.
 6. **The platform stays agnostic of the engine's internals**: the fork reads
    the protocol (`docs/protocol.md`), never engine code. When it has to
-   infer something the protocol could say, send the leak to Z-main
+   infer something the protocol could say, send the leak to Z-engine
    for an engine-board line (CLAUDE.md "Between lines"), rather than
    hard-code it.
 7. **Guidance, not advantage** (the owner's policy; protocol §8 is to

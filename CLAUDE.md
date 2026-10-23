@@ -173,7 +173,8 @@ with its launch prompt (`docs/sessions.md`); a line's work outlives a
 context window, so a session that restarts or compacts re-reads its board,
 its skill and its task notes.
 
-- **Z-main**: the engine line and the pilot. The owner's one contact: it
+- **Z-main**: the pilot (the engine line is Z-engine's, owner,
+  2026-10-23). The owner's one contact: it
   collects what the lines need from the owner (red readings, dated asks,
   pushes, deploys) into one digest, and relays the answers. The only
   session that merges to `main`, pushes and deploys. A line's merge
@@ -187,7 +188,8 @@ its skill and its task notes.
   schedules a line builds (the daily harvest is Z-train's script, the
   weekly sweeps the engine's). It keeps the shared
   checkout clean and works in its own worktrees.
-- **Z-add** (cards), **Z-train** (training), **Z-play** (platforms): each
+- **Z-engine** (engine), **Z-add** (cards), **Z-train** (training),
+  **Z-play** (platforms): each
   ships its board's lines in its worktree and, when a branch is ready
   (checks green, egress trailers in the commits), sends Z-main the branch,
   its tip and what it changes for the other lines.
