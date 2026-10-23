@@ -17,7 +17,6 @@ own as a separate platform, bots only for now): what the community
 beta needs from the fork first, then the fork's remaining
 interface items, then other platforms.
 
-- **"Report a problem" in engine games**: the `feedback {text}` command (protocol 1.2.0, live), its text tied to the game and the decision, and the community channel the notice names. Done when a report sent from the fork shows in `/admin/feedback`. Docs: sc.md.
 - **Export Replay before the game's end**: from protocol 1.7.0, `GET /games/{id}/record` answers 409 until `over`, and `host.ts` `replay()` returns `res.text()` unchecked. Done when the fork's Export Replay says the record comes at the game's end before it, and saves it after. Docs: none.
 - **The demo video**: a storyboard and a fast-track seed (deck pick, glows and staging, an action with a block and a combat, a referendum with all votes one way, the bots' narration, Opportunities, undo, the record), for the owner to record on the fork's public URL. Done when the owner has the storyboard and the seed. Docs: none.
 - **The target step's prompt, short** (owner, 2026-10-16: yes, "the Toreador to lock" for Toreador Grand Ball; "the minion to put this card on" for Priority Contract), built from the option's effects (`lock` `on: target`, the second's `role`); the first pick's clan from the protocol, or an engine-board line if it does not say it. Done when the fork prompts so. Docs: none.

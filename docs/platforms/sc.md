@@ -9,7 +9,10 @@ its own platform, bots only for now, served at `https://sc-bot.krcg.org`
 of SC removed; upstream deferred (roadmap "Deferred by the owner").
 Before an engine game its notice (`EngineNotice.vue`, until "Don't show
 again") says where the game runs, that it is recorded, anonymously, for
-two years, and where to send feedback (the fork's GitHub issues). This
+two years, and where to send feedback (the fork's GitHub issues); in
+the game, the Game menu's "Report A Problem" (`EngineReport.vue`) sends
+protocol `feedback`, kept in the record at the decision under way and
+read at `/admin/feedback`, the dialog naming the issues too. This
 file is the log the `sc-change` skill reads and updates: how Thomas
 works, the open PRs' state, what we learned. Add to it whenever
 something reaches us from Thomas or a PR moves.
