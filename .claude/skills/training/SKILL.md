@@ -137,8 +137,16 @@ runs" (every run's command, numbers and lessons), `docs/boards/training.md`.
   committed.
 - **Promotion**: curated games go to `data/records/` (committed: a test
   fixture and a training input) by an explicit step: the owner's games,
-  games the owner flags, human wins worth learning from. Check what a
-  stranger's record holds before committing it.
+  games the owner flags, human wins worth learning from.
+  `python3 scripts/promote.py <game id> … --from <main
+  checkout>/data/server-records` in the run's worktree (its engine reads
+  each whole) copies them and lists them in the README, refusing a game
+  not played out with a human, a test client's, one this engine stops,
+  and one failing the stranger's check (a field it does not know, a seat
+  name or client the server or Succubus Club did not write, a feedback
+  text: `--allow-text` once the owner has read them). A promoted game is
+  in `data/records` and in the harvest list both; the trainer reads it
+  once (`load_replays` keeps a game listed twice once).
 - **Use**: train on `data/records` (curated) plus an explicit list or a
   filtered copy of harvested games, never the raw `data/server-records`
   directory (`--bc`/`--starts` read every `*.json` there: bot-only,

@@ -3,11 +3,19 @@
 Game records (docs/protocol.md §11: the spec by KRCG ids, each decision
 by its option index and its `ChoiceKey` with the engine's copies), kept
 as the corpus for human games as data (DESIGN §11.2). The server records
-every game it hosts in Postgres; these 24 were played in the Succubus Club
-fork (its "Export replay": a spec and a decision log) and converted to
-records on 2026-10-13 (`p6-online`; the originals are in the history as
-`data/replays`, read whole by the legacy reader then: every decision
-kept). Read one with `uv run python -m train.assess
+every game it hosts in Postgres; 24 of these were played in the Succubus
+Club fork (its "Export replay": a spec and a decision log) and converted
+to records on 2026-10-13 (`p6-online`; the originals are in the history
+as `data/replays`, read whole by the legacy reader then: every decision
+kept); the others are the server's records, promoted from the harvest
+(`data/server-records`, the training skill's "Promotion",
+`scripts/promote.py`) under their game id, after a check of what a
+stranger's record holds (no field the script does not know, no text but
+the server's seat names, the deck names Succubus Club gives its bots and
+a known client; a feedback text only once the owner has read it). From protocol 2.4.0 a record carries each
+decision's position digest: the corpus test then stops a game whose
+position an engine change moved (hidden state included), not only one
+whose options changed. Read one with `uv run python -m train.assess
 data/records/<file>.json [checkpoint]`, or `cargo run -p zvtes-host
 --profile ci --example replay -- <file>`; `crates/host/tests/records.rs`
 checks they all read whole.
@@ -19,8 +27,8 @@ still stops it (the engine asks a decision the game never had, or no
 longer offers what was chosen) — but for the block windows offering only
 attempts that cannot reach the stealth, which an engine before rules-qa
 73.8 skipped: a record reading further past them is read so
-(`Replay::elided`). Each game names the engine commit its wasm was built
-from below — check out that commit to read it as it was played. These
+(`Replay::elided`). Each converted game names the engine commit its wasm was
+built from below — check out that commit to read it as it was played. These
 converted games carry neither their bots' nudges nor their turn count
 (the Bots column says the run); a server record does from protocol
 1.7.0 on (`bots[].nudges`, `result.turns`).
@@ -58,6 +66,14 @@ before choices were logged and converted at `c968dcf`; the others logged
 their choices as played. Its bots sample every decision, terms and votes
 included: the default politics (`zvtes::politics`, DESIGN §11.2) came
 after.
+
+The server's records promoted (each names the engine it was played on, by
+its commit prefix, and its protocol):
+
+| File (`.json`) | Engine | Seats (in order; the human's in bold) | Bots | Result |
+|---|---|---|---|---|
+| `d8ec2c01edab010d.json` | `237fd5d42a79` (protocol 2.4.0), 2026-10-19 | **Lasombra (Fifth Edition)**, Banu Haqim (Fifth Edition (Anarch)), Brujah (Fifth Edition (Anarch)), Ministry (Fifth Edition (Anarch)) | `df66d54badf3` (network, t 0.5) | the human 3 VP, Brujah (Fifth Edition (Anarch)) 1 VP, last standing; 2 undos |
+| `da59eaaa7e4abda6.json` | `1f616016b7cd` (protocol 2.6.0), 2026-10-22 | **Salubri (Fifth Edition (Companion))**, Tzimisce (Fifth Edition (Companion)), The Endless Dance (Thirtieth Anniversary), Toreador (Fifth Edition) | `a78e74292acb` (network, t 0.5) | the human 3 VP, The Endless Dance (Thirtieth Anniversary) 1 VP, last standing; 4 undos |
 
 Every game here reads whole on the current engine
 (`crates/host/tests/records.rs`). A game a rules fix stops partway, or an

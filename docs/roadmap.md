@@ -30,16 +30,14 @@ What it still needs:
 
 1. **The best bot served**: each run measured against the served weights
    and served if it beats them (training: its run's line).
-2. **The loop on testers' games**: promotion to `data/records`
-   (training: Promotion as a script).
-3. **Feedback intake**: a "report a problem" from inside the game (the
+2. **Feedback intake**: a "report a problem" from inside the game (the
    protocol's `feedback`, stored with the record at its decision;
    platforms: "Report a problem"), plus the channel the fork's notice
    names (its GitHub issues); the `intake` skill triages it.
-4. **Known rough edges fixed**: the panel overflow (platforms: The
+3. **Known rough edges fixed**: the panel overflow (platforms: The
    referendum and action panels); Sniper Rifle and strike-only prevention
    (cards).
-5. **What players asked for**: the cards their refused decks named
+4. **What players asked for**: the cards their refused decks named
    (`/admin/unsupported`) steering the next rounds (cards: Round 16).
 
 Not needed for the beta but in the same order: the first release tagged

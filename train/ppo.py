@@ -535,7 +535,8 @@ def deck_index(seat):
 DECK_INDEX = None
 
 
-# The ends of a game played out: its winner won at the end.
+# The ends of a game played out: its winner won at the end (also
+# `scripts/promote.py`'s).
 PLAYED_OUT = {"last_standing", "time_limit"}
 
 # The bias of an option the human was not shown (their settings hid it):

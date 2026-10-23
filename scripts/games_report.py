@@ -38,6 +38,8 @@ import sys
 import urllib.request
 
 REPO = pathlib.Path(__file__).resolve().parent.parent
+# The server's test scripts (`spec.client`): their games are not players'.
+TEST_CLIENTS = ("client.mjs", "load.mjs")
 CATALOG_URL = "https://engine.krcg.org/catalog"
 SMALL = 10  # samples below this are marked
 NOTABLE_VP = 3
@@ -458,7 +460,7 @@ def main():
     p.add_argument("--min-decisions", type=int, default=30)
     p.add_argument(
         "--test-clients",
-        default="client.mjs,load.mjs",
+        default=",".join(TEST_CLIENTS),
         help="clients whose games are counted apart (the server's test scripts)",
     )
     args = p.parse_args()
