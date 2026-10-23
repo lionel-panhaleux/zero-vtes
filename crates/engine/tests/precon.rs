@@ -5751,6 +5751,44 @@ fn childe_of_the_revolution_becomes_a_vampire_that_must_hunt() {
     assert!(req.options.contains(&Choice::Pass));
 }
 
+// Childe of the Revolution "requires a non-sterile baron": no printed
+// sterile baron exists, but a sterile vampire becomes one — Effie Lowery
+// (capacity 5) takes the rulebook "become Anarch" action, then Fee Stake:
+// Corte's title. Childe is not offered her; a non-sterile baron, yes.
+#[test]
+fn childe_of_the_revolution_needs_a_non_sterile_baron() {
+    let mut e = Engine::bare(2);
+    for s in &mut e.state.seats {
+        s.pool = 10;
+    }
+    let effie = e.add_minion(SeatId(0), zvtes::state::find_card("Effie Lowery"), 5, false);
+    let b = e.add_minion(SeatId(0), baron(0), 5, false);
+    e.add_minion(SeatId(1), plain("", "", 0), 5, false);
+    e.add_minion(SeatId(1), plain("", "", 1), 5, false);
+    pick(&mut e, action(effie, ActionKind::BecomeAnarch));
+    until(&mut e, SeatId(0), WindowLabel::MinionPhase);
+    pick(&mut e, Choice::Pass);
+    until(&mut e, SeatId(0), WindowLabel::MinionPhase);
+    hand(&mut e, 0, &["Fee Stake: Corte"]);
+    pick(&mut e, play(0, 0, effie));
+    until(&mut e, SeatId(0), WindowLabel::MinionPhase);
+    assert!(matches!(e.state.title_of(effie), Title::Baron("Corte")));
+    assert!(CRYPT[zvtes::state::find_card("Effie Lowery") as usize].sterile);
+    pick(&mut e, Choice::Pass);
+    until(&mut e, SeatId(0), WindowLabel::MinionPhase);
+    hand(&mut e, 0, &["Childe of the Revolution"]);
+    let req = request(&mut e);
+    let slot = (e.state.seats[0].hand.len() - 1) as u8;
+    assert!(
+        !req.options.contains(&play(slot, 0, effie)),
+        "a sterile baron"
+    );
+    assert!(
+        req.options.contains(&play(slot, 0, b)),
+        "a non-sterile baron"
+    );
+}
+
 // [LSJ 20020115] "Is not a vampire in the ash heap". Diablerized, its card
 // goes to the ash heap as the library card it is; two of them never contest
 // (non-unique).

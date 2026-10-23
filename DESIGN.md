@@ -1947,14 +1947,11 @@ Still true today; "(verify)" marks items inferred from older notes.
   Rötschreck range check (a strike ineffective at the range), Powerbase:
   Savannah with Deep Song's acting target, Saatet-ta's stealth and intercept
   locks, Carlton's strike and dodge.
-- Owner suggestions: hard legacy cards to stress the engine (Rötschreck, Outside
-  the Hourglass, Rewind Time) and legacy cards closing test loops (a sterile
-  baron); more `EXTRA_CARDS` / `ADDED_CARDS` at the owner's call (§3); the
-  TWDA unlocks by new archetype (owner, 2026-10-08: steps 0–20 of the greedy
-  ranking, slices 16j–16m; 2026-10-11: round 2 steps 1–6, slice 16n, and
-  the owner's list, slice 16o — next
-  in that ranking: Shalmath with Outside the Hourglass and Rewind Time, the
-  Lasombra G2, the Ravnos G2).
+- Owner suggestions: more `EXTRA_CARDS` / `ADDED_CARDS` at the owner's call
+  (§3), the TWDA unlocks by new archetype first (owner, 2026-10-08). The
+  hard cards (Rötschreck, Outside the Hourglass, Rewind Time) are in; no
+  printed sterile baron exists, so Childe of the Revolution's sterile mask
+  is tested on a sterile vampire made a baron (Effie Lowery).
 
 ### 11.4 What remains
 
@@ -1968,7 +1965,7 @@ Still true today; "(verify)" marks items inferred from older notes.
 - **P5 — community**: bot service, client adapter, human-ergonomics layer
   (its open items on the boards).
 
-Definitions: 954 library, 482 vampires; 2507 Rust tests, 45 Python tests
+Definitions: 954 library, 482 vampires; 2508 Rust tests, 45 Python tests
 
 ## Outlook: deck building (post-v1)
 
