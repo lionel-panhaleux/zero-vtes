@@ -77,6 +77,15 @@ bots-only edition keeps SC's manual-play branches engine games no
 longer reach (free table, the non-engine side of those tests), so the
 fork stays close to upstream (owner, 2026-10-21).
 
+The fork reads the protocol's data, never its English: a pass's meaning
+from its `effects`, an ability from its `apart`, a terms answer by
+`decided`'s `source` (its `purpose` not needed), a play by its copy
+(`card_moves` into limbo, from a hidden hand), markers and the combat's
+strikes by their `text`, a bleed's Methuselah by its action's `target`.
+English (`text`) is shown as is; the log links in it only the cards and
+Methuselahs its own event or option names. Strikes in events carry no
+`text`: the log names them by kind (`labels.ts`).
+
 ## Where the owner plays
 
 On `https://sc-bot.krcg.org` (owner, 2026-10-23: no local dev server
