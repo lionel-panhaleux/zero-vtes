@@ -12,7 +12,7 @@ import zvtes_py
 
 from train.league import EXP, EXPLOITER, FROZEN, League
 from train.model import remap_vocab
-from train.ppo import HIDDEN, Config, Trainer, deck_index, end, eval_tables, games_weight, imitation, load_replays, made, sampling, step
+from train.ppo import BIAS, CTX, HIDDEN, Config, Trainer, deck_index, end, eval_tables, games_weight, imitation, load_replays, made, sampling, step
 
 
 def test_one_iteration(tmp_path):
@@ -336,10 +336,10 @@ def test_imitation_keeps_the_winners_shown_choices(tmp_path):
     entry["shown"] = [i for i in range(n) if i != (chosen + 1) % n]
     hid = tmp_path / "hid.json"
     hid.write_text(json.dumps(game))
-    biased = [(r, c) for r, c in imitation(load_replays(str(hid)), 3, 0)[0] if (r[-1] < 0).any()]
+    biased = [(r, c) for r, c in imitation(load_replays(str(hid)), 3, 0)[0] if (r[BIAS] < 0).any()]
     assert len(biased) == 1 and biased[0][1] == chosen
     row = biased[0][0]
-    assert (row[-1] == 0).sum() == n - 1 and row[-1][(chosen + 1) % n] == HIDDEN
+    assert (row[BIAS] == 0).sum() == n - 1 and row[BIAS][(chosen + 1) % n] == HIDDEN
     # The row is that decision's.
     assert row[0].shape == told[k]["tok_ids"].shape and (row[0] == told[k]["tok_ids"]).all()
     assert (row[2] == told[k]["opt_ids"]).all()
@@ -348,17 +348,17 @@ def test_imitation_keeps_the_winners_shown_choices(tmp_path):
     for stale in ([(chosen + 1) % n], [chosen, n]):
         entry["shown"] = stale
         hid.write_text(json.dumps(game))
-        assert not any((r[-1] < 0).any() for r, _ in imitation(load_replays(str(hid)), 3, 0)[0])
+        assert not any((r[BIAS] < 0).any() for r, _ in imitation(load_replays(str(hid)), 3, 0)[0])
     entry["shown"] = [i for i in range(n) if i != (chosen + 1) % n]
     at = game["entries"].index(entry)
     redo = {k: v for k, v in entry.items() if k != "shown"}
     game["entries"][at + 1 : at + 1] = [{"type": "undo", "seat": human, "at": entry["at"], "to": entry["decision"]}, redo]
     hid.write_text(json.dumps(game))
     assert [e["option"] for e in made(game)] == [e["option"] for e in entries]
-    assert not any((r[-1] < 0).any() for r, _ in imitation(load_replays(str(hid)), 3, 0)[0])
+    assert not any((r[BIAS] < 0).any() for r, _ in imitation(load_replays(str(hid)), 3, 0)[0])
     # In the loss: an option alone shown has all the probability.
     trainer = Trainer(Config(games=2, steps=4, d=16, layers=1, device="cpu", out=str(tmp_path / "t")))
-    alone = row[:-1] + (np.where(np.arange(n) == chosen, 0, HIDDEN).astype(np.float32),)
+    alone = row[:BIAS] + (np.where(np.arange(n) == chosen, 0, HIDDEN).astype(np.float32), row[CTX])
     nll, acc = trainer.imitation_loss(trainer.learner.model, [(alone, chosen)])
     assert nll.item() < 1e-4 and acc == 1.0
 

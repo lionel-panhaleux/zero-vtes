@@ -55,7 +55,7 @@
 //! - combat play (owner, 2026-10-20, of the walls and rushes: "they have
 //!   specific actions and reactions to enter combat and they need their
 //!   combat to be played efficiently on the right targets"): the seat's own turns
-//!   with a rush offered (`zvtes_policy::rush`) and those with one
+//!   with a rush offered (`zvtes::profile::rush`) and those with one
 //!   declared, the rushes' targets (the seat's prey, its predator, another
 //!   seat; carrying equipment; a minion that had declared a bleed); its blocks, by the acting seat; every combat
 //!   its minion fought, the cards it played, the combat cards it held as
@@ -509,8 +509,8 @@ impl Watch {
         let offered = req
             .options
             .iter()
-            .any(|o| zvtes_policy::rush(e, me, o).is_some());
-        let target = zvtes_policy::rush(e, me, &o);
+            .any(|o| zvtes::profile::rush(e, me, o).is_some());
+        let target = zvtes::profile::rush(e, me, &o);
         let turn = self.rush_turn[active].get_or_insert((st.turn, false, false));
         turn.1 |= offered;
         turn.2 |= target.is_some();

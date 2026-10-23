@@ -7,7 +7,7 @@ every game — and a short summary on stdout.
 
 Usage: python3 scripts/games_report.py [DIR] [--catalog FILE|URL]
     [--date YYYY-MM-DD] [--no-turns] [--no-waste] [--list FILE] [--min-rounds 2] [--min-decisions 30]
-    [--test-clients client.mjs,load.mjs]
+    [--test-clients client.mjs,load.mjs,succubus-club-demo]
 
 A game counts when it ended normally with a human seat; abandoned games,
 engine errors, games a server restart ended, games still going, games
@@ -38,8 +38,10 @@ import sys
 import urllib.request
 
 REPO = pathlib.Path(__file__).resolve().parent.parent
-# The server's test scripts (`spec.client`): their games are not players'.
-TEST_CLIENTS = ("client.mjs", "load.mjs")
+# The clients whose games are not players' (`spec.client`): the server's
+# test scripts, and Succubus Club's demo games (a fixed deal, the human
+# seat replaying the served network's own moves; Z-succubus, 2026-10-23).
+TEST_CLIENTS = ("client.mjs", "load.mjs", "succubus-club-demo")
 CATALOG_URL = "https://engine.krcg.org/catalog"
 SMALL = 10  # samples below this are marked
 NOTABLE_VP = 3

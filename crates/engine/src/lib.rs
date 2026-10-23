@@ -32,6 +32,7 @@ pub mod library;
 pub mod notes;
 pub mod ousting;
 pub mod plays;
+pub mod profile;
 pub mod referendum;
 pub mod rng;
 pub mod state;

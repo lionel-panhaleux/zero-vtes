@@ -51,7 +51,7 @@ def load(path):
 def evaluate(policy, critic, decisions, batch=64):
     """Each decision's option probabilities and the critic's value."""
     rows = [
-        tuple(d[k] for k in ROW_KEYS) + (None,)
+        tuple(d[k] for k in ROW_KEYS) + (None, d["ctx"])
         for d in decisions
     ]
     probs, values = [], []

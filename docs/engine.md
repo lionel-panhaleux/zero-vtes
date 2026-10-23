@@ -443,7 +443,8 @@ abilities, costs, riders' collector, `apply_card_effect`), `actions.rs`
 `influence.rs`, `draws.rs` (`Interrupt`, draws, searches), `ousting.rs`
 (the oust decision point), `state.rs` (`GameState`, `Minion`,
 `CardInPlay`, `Seat`, `Held`, `Timed`, live stat reads, `legal_view`),
-`copies.rs` (copy identities and their census, §6.22), `decks.rs` and
+`copies.rs` (copy identities and their census, §6.22), `profile.rs` (each
+seat's public choices counted, `Engine::profiles`), `decks.rs` and
 `twda.rs` (decklists), `agent.rs` (the `Agent` trait, `RandomLegal`),
 `cards/mod.rs` (the vocabulary: `Window`, `Actor`, `Requirement`,
 `Terms`, `Effect`, `Modifier`, `Hook`, `Limit`, `Until`, `CardDef`,
@@ -455,7 +456,7 @@ abilities, costs, riders' collector, `apply_card_effect`), `actions.rs`
 
 The engine crate holds the rules only; what sits between it and an agent
 is `crates/env` (`zvtes_env`, over the engine's public API): `obs.rs`
-(observations), `bots.rs` (the scripted bots), `politics.rs` and
+(observations), `context.rs` (the seats' context they carry), `bots.rs` (the scripted bots), `politics.rs` and
 `habits.rs` (agent behaviour around a network, not engine masks), their
 tests in `crates/env/tests/`. `policy`, `py` and `host` (the scripted
 bots' profiles) read it; `tests/lint.rs` holds its sources to the
@@ -1713,8 +1714,10 @@ are in DESIGN §11.2.
   Vocabulary keys (`obs::vocab_keys`) keep trained networks across pool
   extensions.
 - `game::public_choice` is the whitelist of choices recorded as public
-  history (`Engine::history`): a choice that reveals hidden information
-  stays out of it.
+  history (`Engine::history`) and counted in each seat's profile
+  (`Engine::profiles`, `profile.rs`; read by the observations' seats'
+  context, `crates/env/src/context.rs`): a choice that reveals hidden
+  information stays out of both.
 - `crates/env/tests/obs.rs` (the encoding of the full state equals that of
   the seat's legal view; every pointer names a token) and `bots.rs` (bot
   decisions answered again from `legal_view`) guard all three.

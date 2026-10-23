@@ -25,7 +25,7 @@ from train.assess import load
 from train.ppo import Config, act, collate_critic, device_of, rewards, shaped
 
 STAGES = ((0.0, 0.25), (0.25, 0.5), (0.5, 0.75), (0.75, 1.01))
-CRITIC_KEYS = [f"critic_{a}_{b}" for a in ("tok", "deck") for b in ("ids", "f", "n")]
+CRITIC_KEYS = [f"critic_{a}_{b}" for a in ("tok", "deck") for b in ("ids", "f", "n")] + ["ctx"]
 
 
 @torch.no_grad()
@@ -59,7 +59,7 @@ def self_play(policy, critic, cfg, games, seats, seed, device, budget=20_000):
         idx = np.arange(len(obs["tok_n"]))
         part = shaped({k: obs[k] for k in CRITIC_KEYS}, idx)
         args = [torch.from_numpy(part[k]).to(device) for k in CRITIC_KEYS]
-        args = [a.long() if not k.endswith("_f") else a for k, a in zip(CRITIC_KEYS, args)]
+        args = [a.long() if not k.endswith(("_f", "ctx")) else a.float() for k, a in zip(CRITIC_KEYS, args)]
         values = critic(*args).float().cpu().numpy()[: len(idx)]
         for i in idx:
             open_rows.setdefault(i, []).append((int(obs["seat"][i]), feats[i], float(values[i])))
@@ -102,7 +102,7 @@ def from_records(critic, cfg, paths):
 @torch.no_grad()
 def critic_values(critic, decisions, batch=64):
     keys = ("critic_tok_ids", "critic_tok_f", "critic_deck_ids", "critic_deck_f")
-    rows = [(None,) * 6 + tuple(d[k] for k in keys) for d in decisions]
+    rows = [(None,) * 6 + tuple(d[k] for k in keys) + (None, d["ctx"]) for d in decisions]
     values = []
     for i in range(0, len(rows), batch):
         values += critic(*collate_critic(rows[i : i + batch], "cpu")).tolist()

@@ -266,6 +266,9 @@ pub struct Engine {
     /// The last [`HISTORY`] public choices, oldest first (observations'
     /// memory, `zvtes_env::obs::Version::V2`).
     pub history: std::collections::VecDeque<Event>,
+    /// Each seat's public play over the whole game, counted (`profile`,
+    /// the observations' seats' context).
+    pub profiles: Vec<crate::profile::Profile>,
 }
 
 /// How many public choices [`Engine::history`] keeps.
@@ -548,6 +551,7 @@ impl Engine {
             2 => crate::state::Format::TwoPlayer,
             _ => crate::state::Format::Standard,
         };
+        let n = seats.len();
         let mut engine = Self {
             state: GameState {
                 format,
@@ -579,6 +583,7 @@ impl Engine {
             held_at: None,
             notes_drained: 0,
             history: Default::default(),
+            profiles: vec![Default::default(); n],
         };
         engine.start_turn();
         engine
@@ -944,12 +949,14 @@ impl Engine {
         }
     }
 
-    /// Keep `choice` in the history if it is public (before it applies:
-    /// a hand index still names its card).
+    /// Keep `choice` in the history and count it in its seat's profile if
+    /// it is public (before it applies: a hand index still names its card).
     fn record(&mut self, req: &DecisionRequest, choice: &Choice) {
         if !public_choice(choice) {
             return;
         }
+        let counted = crate::profile::counts(self, req.seat, choice);
+        self.profiles[req.seat.index()].add_all(counted);
         let card = match *choice {
             Choice::Play { card, .. }
             | Choice::Discard(card)

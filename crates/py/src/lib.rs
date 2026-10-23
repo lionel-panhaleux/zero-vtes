@@ -880,6 +880,15 @@ impl GamePool {
         d.set_item("seat", PyArray1::from_vec(py, seat))?;
         d.set_item("agent", PyArray1::from_vec(py, agent))?;
         d.set_item("window", PyArray1::from_vec(py, window))?;
+        // The seats' context, [B, context::LEN].
+        let ctx: Vec<f32> = obs
+            .iter()
+            .flat_map(|(_, o)| o.ctx.iter().copied())
+            .collect();
+        d.set_item(
+            "ctx",
+            PyArray1::from_vec(py, ctx).reshape([b, zvtes_env::context::LEN])?,
+        )?;
         // `V3`'s decks apart (`Obs::deck_ids`), empty before.
         padded(
             py,
@@ -1200,9 +1209,11 @@ fn deck_families() -> Vec<(&'static str, Vec<usize>)> {
 /// The exported policy's forward pass on one observation (`zvtes-policy`,
 /// what plays outside Python): the options' logits and the value. `weights`
 /// is a `.zvp` file (`train/export.py`); the test of their agreement with
-/// `train/model.py` reads this. `deck_ids`/`deck_f`: `V3`'s deck rows.
+/// `train/model.py` reads this. `deck_ids`/`deck_f`: `V3`'s deck rows;
+/// `ctx`: the seats' context (`zvtes_env::context::LEN`).
 #[pyfunction]
-#[pyo3(signature = (weights, tok_ids, tok_f, opt_ids, opt_f, deck_ids=Vec::new(), deck_f=Vec::new()))]
+#[pyo3(signature = (weights, tok_ids, tok_f, opt_ids, opt_f, deck_ids, deck_f, ctx))]
+#[allow(clippy::too_many_arguments)]
 fn policy_forward(
     weights: &[u8],
     tok_ids: Vec<[i32; TOK_IDS]>,
@@ -1211,6 +1222,7 @@ fn policy_forward(
     opt_f: Vec<[f32; OPT_F]>,
     deck_ids: Vec<[i32; TOK_IDS]>,
     deck_f: Vec<[f32; TOK_F]>,
+    ctx: Vec<f32>,
 ) -> PyResult<(Vec<f32>, f32)> {
     let net = zvtes_policy::Net::load(weights).map_err(PyValueError::new_err)?;
     Ok(net.forward(&Obs {
@@ -1220,6 +1232,7 @@ fn policy_forward(
         opt_f,
         deck_ids,
         deck_f,
+        ctx,
     }))
 }
 

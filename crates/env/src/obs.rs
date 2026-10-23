@@ -144,7 +144,10 @@ const _: () = assert!(O_ACTION + N_ACTION_KINDS <= OPT_F);
 
 /// One observation: tokens and options, row by row; with `V3`, the
 /// viewer's library and crypt apart (`T_DECK` rows the network pools into
-/// the context token, nothing points at them), empty before.
+/// the context token, nothing points at them), empty before; in every
+/// version, the seats' context (`context::features`, `context::LEN`),
+/// which a network trained with it adds to the context token (the
+/// policy's encoding only: the critic reads that one).
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct Obs {
     pub tok_ids: Vec<[i32; TOK_IDS]>,
@@ -153,6 +156,7 @@ pub struct Obs {
     pub opt_f: Vec<[f32; OPT_F]>,
     pub deck_ids: Vec<[i32; TOK_IDS]>,
     pub deck_f: Vec<[f32; TOK_F]>,
+    pub ctx: Vec<f32>,
 }
 
 /// Token indices of the entities, for pointers (index + 1; 0 = none).
@@ -564,6 +568,10 @@ fn encode_as(e: &Engine, req: &DecisionRequest, v: Version, omniscient: bool) ->
         o.opt_ids.push(ids);
         o.opt_f.push(f);
     }
+    // Public: the critic reads the policy's (`ctx`), its own left empty.
+    if !omniscient {
+        o.ctx = crate::context::features(e, viewer);
+    }
     o
 }
 
@@ -808,7 +816,10 @@ pub fn schema_json() -> String {
     format!(
         "{{\"tok_ids\": {TOK_IDS}, \"tok_f\": {TOK_F}, \"opt_ids\": {OPT_IDS}, \
          \"opt_f\": {OPT_F}, \"vocab\": {vocab}, \"choice_kinds\": {N_CHOICE_KINDS}, \
-         \"token_types\": {}, \"windows\": {N_WINDOWS}, \"action_kinds\": {N_ACTION_KINDS}}}",
-        T_EVENT + N_CHOICE_KINDS as i32
+         \"token_types\": {}, \"windows\": {N_WINDOWS}, \"action_kinds\": {N_ACTION_KINDS}, \
+         \"ctx\": {}, \"ctx_slots\": {}}}",
+        T_EVENT + N_CHOICE_KINDS as i32,
+        crate::context::LEN,
+        crate::context::SLOTS
     )
 }

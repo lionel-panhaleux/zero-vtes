@@ -25,7 +25,7 @@ use zvtes::agent::Agent;
 use zvtes::cards::Stat;
 use zvtes::decision::{ActionKind, Choice, DecisionRequest, WindowLabel};
 use zvtes::game::Engine;
-use zvtes::ids::{MinionId, SeatId};
+use zvtes::ids::SeatId;
 use zvtes::library::{CardType, LIBRARY};
 use zvtes::rng::Rng;
 use zvtes_env::habits::{self, Habit};
@@ -64,6 +64,9 @@ pub struct Net {
     opt_ptr: [Vec<f32>; 3],
     score: Head,
     value: Head,
+    /// The seats' context into the context token (`ctx`, [d, LEN]); none
+    /// in a network trained before it.
+    ctx: Option<Vec<f32>>,
 }
 
 /// `out = W · x (+ b)`, `W` row-major with `x.len()` columns.
@@ -179,6 +182,9 @@ impl Net {
             3 => obs::Version::V3,
             v => return Err(format!("unknown obs version {v}")),
         };
+        // The seats' context layer, if the network has one: [d, its LEN],
+        // features appended since read as zero columns.
+        let ctx_saved = tensors.remove("ctx.weight");
         let mut take = |name: &str, shape: &[usize]| -> Result<Vec<f32>, String> {
             let (s, v) = tensors
                 .remove(name)
@@ -263,6 +269,20 @@ impl Net {
             }
         }
         let token_type = take("token_type.weight", &[])?;
+        let ctx = match ctx_saved {
+            Some((s, v)) => {
+                let len = zvtes_env::context::LEN;
+                if s.len() != 2 || s[0] != d || s[1] > len {
+                    return Err(format!("ctx.weight: shape {s:?}, expected [{d}, ≤{len}]"));
+                }
+                let mut w = vec![0.0; d * len];
+                for r in 0..d {
+                    w[r * len..r * len + s[1]].copy_from_slice(&v[r * s[1]..(r + 1) * s[1]]);
+                }
+                Some(w)
+            }
+            None => None,
+        };
 
         Ok(Net {
             version,
@@ -280,6 +300,7 @@ impl Net {
             opt_ptr,
             score,
             value,
+            ctx,
         })
     }
 
@@ -331,6 +352,16 @@ impl Net {
             let n = o.deck_ids.len() as f32;
             for k in 0..d {
                 base[(t - 1) * d + k] += pooled[k] / n;
+            }
+        }
+        // The seats' context, added to the context token alike.
+        if let Some(w) = &self.ctx {
+            debug_assert_eq!(o.ctx.len(), zvtes_env::context::LEN, "the seats' context");
+            if t > 0 {
+                linear(w, None, &o.ctx, &mut tmp);
+                for k in 0..d {
+                    base[(t - 1) * d + k] += tmp[k];
+                }
             }
         }
         let mut x = base.clone();
@@ -609,48 +640,6 @@ pub fn own_nightmare(e: &Engine, seat: SeatId, o: &Choice) -> Option<bool> {
         .then(|| e.state.minions[t.index()].owner == seat)
 }
 
-/// `o` declares a rush: an action entering combat with its target on
-/// success (`Effect::EnterCombatWithTarget`, from a card, a card in play's
-/// or a vampire's ability; the Red List hunt). The minion it takes on.
-/// Actions only: the reactions entering combat (The Guardian, The Status
-/// Perfectus, Hidden Lurker's queued combat …) are not rushes, nor Taunt
-/// the Caged Beast's or Yawp Court's combats; no precon holds them.
-pub fn rush(e: &Engine, seat: SeatId, o: &Choice) -> Option<MinionId> {
-    use zvtes::cards::{Effect, Target};
-    let (effects, target): (&[Effect], Target) = match *o {
-        Choice::TakeAction {
-            action: ActionKind::RedListHunt,
-            target,
-            ..
-        } => return target,
-        Choice::Play {
-            card, mode, target, ..
-        } => (
-            zvtes::cards::lookup(e.playable_card(seat, card))
-                .and_then(|d| d.modes.get(mode as usize))
-                .map_or(&[], |m| m.effects),
-            target,
-        ),
-        Choice::UseAbility {
-            source,
-            ability,
-            target,
-            ..
-        } => (
-            source
-                .abilities(&e.state)
-                .get(ability as usize)
-                .map_or(&[], |m| m.effects),
-            target,
-        ),
-        _ => return None,
-    };
-    match target {
-        Target::Minion(m) if effects.contains(&Effect::EnterCombatWithTarget) => Some(m),
-        _ => None,
-    }
-}
-
 /// `req` is a seat's influence phase with a crypt draw still offered (4
 /// transfers left) and 5 pool or more: passing it leaves them unused.
 pub fn idle_influence(e: &Engine, req: &DecisionRequest) -> bool {
@@ -812,6 +801,7 @@ pub(crate) mod tests {
     use super::*;
     use zvtes::decks::Deck;
     use zvtes::game::Step;
+    use zvtes::ids::MinionId;
 
     /// A network of zeros (no layer): every option scores alike, so the
     /// agent draws uniformly among those its masks leave.
@@ -940,7 +930,7 @@ pub(crate) mod tests {
                     with_target += (seen == Some(t)) as u32;
                 }
                 let i = agents[req.seat.index()].decide(&e, &req);
-                if let Some(t) = rush(&e, req.seat, &req.options[i]) {
+                if let Some(t) = zvtes::profile::rush(&e, req.seat, &req.options[i]) {
                     let actor = match req.options[i] {
                         Choice::Play { actor, .. } | Choice::UseAbility { actor, .. } => actor,
                         Choice::TakeAction { minion, .. } => Some(minion),

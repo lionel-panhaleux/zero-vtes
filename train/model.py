@@ -8,7 +8,8 @@ Inputs are `zvtes_py.GamePool.observe()` batches (see `zvtes_env::obs`): ids
 token index + 1 (0 = none), plus float features. Observation `V3`'s deck
 rows (the viewer's library and crypt, `deck_*`) are embedded as tokens are
 and their mean added to the context token (the last), out of attention:
-no weights of their own.
+no weights of their own. The seats' context (`ctx`, `zvtes::context`) is
+added to it too, through a layer started at zero.
 """
 
 import torch
@@ -36,6 +37,24 @@ def with_deck(net, base, tok_n, deck_ids, deck_f, deck_n):
     return base + at.unsqueeze(-1) * pooled.unsqueeze(1)
 
 
+def with_ctx(net, base, tok_n, context):
+    """`base` with the seats' context (`zvtes::context`, [B, LEN]) added to
+    each row's context token through `net.ctx` (zeros at first: a network
+    trained without it plays as before); none when `context` is None."""
+    if context is None:
+        return base
+    at = torch.arange(base.shape[1], device=base.device)[None, :] == (tok_n - 1).clamp(min=0)[:, None]
+    return base + at.unsqueeze(-1) * net.ctx(context).unsqueeze(1)
+
+
+def ctx_layer(schema, d):
+    """The seats' context into the model width, zeros: a resumed network
+    reads it only once trained."""
+    layer = nn.Linear(schema["ctx"], d, bias=False)
+    nn.init.zeros_(layer.weight)
+    return layer
+
+
 class Policy(nn.Module):
     def __init__(self, schema, d=128, layers=3, heads=4):
         super().__init__()
@@ -53,8 +72,11 @@ class Policy(nn.Module):
         self.opt_ptr = nn.ModuleList(nn.Linear(d, d, bias=False) for _ in range(3))
         self.score = nn.Sequential(nn.Linear(2 * d, d), nn.GELU(), nn.Linear(d, 1))
         self.value = nn.Sequential(nn.Linear(2 * d, d), nn.GELU(), nn.Linear(d, 1))
+        self.ctx = ctx_layer(schema, d)
 
-    def forward(self, tok_ids, tok_f, tok_n, opt_ids, opt_f, opt_n, deck_ids=None, deck_f=None, deck_n=None):
+    def forward(
+        self, tok_ids, tok_f, tok_n, opt_ids, opt_f, opt_n, deck_ids=None, deck_f=None, deck_n=None, context=None
+    ):
         """Option logits [B, O] (padding at -1e9) and values [B]."""
         b, t, _ = tok_ids.shape
         o = opt_ids.shape[1]
@@ -65,6 +87,7 @@ class Policy(nn.Module):
 
         base = self.vocab(tok_ids[..., 1]) + self.token_type(tok_ids[..., 0]) + self.tok_f(tok_f)
         base = with_deck(self, base, tok_n, deck_ids, deck_f, deck_n)
+        base = with_ctx(self, base, tok_n, context)
         # A card's host, the context's minions: the pointed token's base.
         base = base + self.tok_ptr(gather(base, tok_ids[..., 2]) + gather(base, tok_ids[..., 3]))
         x = self.norm(self.trunk(base, src_key_padding_mask=tok_pad))
@@ -111,13 +134,15 @@ class Critic(nn.Module):
         self.trunk = nn.TransformerEncoder(layer, layers, enable_nested_tensor=False)
         self.norm = nn.LayerNorm(d)
         self.value = nn.Sequential(nn.Linear(2 * d, d), nn.GELU(), nn.Linear(d, 1))
+        self.ctx = ctx_layer(schema, d)
 
-    def forward(self, tok_ids, tok_f, tok_n, deck_ids=None, deck_f=None, deck_n=None):
+    def forward(self, tok_ids, tok_f, tok_n, deck_ids=None, deck_f=None, deck_n=None, context=None):
         """Values [B]."""
         b, t, _ = tok_ids.shape
         tok_pad = torch.arange(t, device=tok_ids.device)[None, :] >= tok_n[:, None]
         base = self.vocab(tok_ids[..., 1]) + self.token_type(tok_ids[..., 0]) + self.tok_f(tok_f)
         base = with_deck(self, base, tok_n, deck_ids, deck_f, deck_n)
+        base = with_ctx(self, base, tok_n, context)
         base = base + self.tok_ptr(gather(base, tok_ids[..., 2]) + gather(base, tok_ids[..., 3]))
         x = self.norm(self.trunk(base, src_key_padding_mask=tok_pad))
         last = (tok_n - 1).clamp(min=0)
@@ -131,8 +156,15 @@ def remap_vocab(state, old_keys, new_keys, fresh):
     """A state dict saved under vocabulary `old_keys`, for a network built
     on `new_keys` (the pool grew, ids shifted): each embedding row follows
     its key; rows of new keys come from `fresh` (a new network's state).
-    Token types added since (they are appended) start at zero."""
+    Token types added since (they are appended) start at zero, and so does
+    the seats' context layer of a network saved before it, or its columns
+    for the context's features appended since (`zvtes_env::context`)."""
     out = dict(state)
+    if "ctx.weight" in fresh:
+        w = state.get("ctx.weight", fresh["ctx.weight"][:, :0])
+        width = fresh["ctx.weight"].shape[1]
+        if w.shape[1] < width:
+            out["ctx.weight"] = torch.cat([w, w.new_zeros(w.shape[0], width - w.shape[1])], dim=1)
     types, n = state["token_type.weight"], len(fresh["token_type.weight"])
     if len(types) < n:
         out["token_type.weight"] = torch.cat([types, types.new_zeros(n - len(types), types.shape[1])])

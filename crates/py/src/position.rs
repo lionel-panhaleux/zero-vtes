@@ -56,24 +56,6 @@ pub fn features(st: &GameState, s: SeatId) -> Vec<f32> {
     } else {
         cross.iter().sum::<f32>() / cross.len() as f32
     };
-    // Ready (in play, uncontested, out of torpor), unlocked among them,
-    // the blood on the ready ones, those in torpor (an incapacitated
-    // imbued with them, as the observation reads it).
-    let minions = |x: SeatId| {
-        let (mut ready, mut unlocked, mut blood, mut torpor) = (0.0, 0.0, 0.0, 0.0);
-        for m in st.minions.iter().filter(|m| m.owner == x && m.present()) {
-            if m.in_torpor || m.incapacitated {
-                torpor += 1.0;
-            } else {
-                ready += 1.0;
-                blood += m.blood as f32;
-                if !m.locked {
-                    unlocked += 1.0;
-                }
-            }
-        }
-        [ready / 5.0, unlocked / 5.0, blood / 20.0, torpor / 5.0]
-    };
     // An ousted seat keeps its VPs.
     let best_other = st
         .seats
@@ -83,31 +65,30 @@ pub fn features(st: &GameState, s: SeatId) -> Vec<f32> {
         .map(|(_, x)| x.half_vps)
         .max()
         .unwrap_or(0);
-    let (own, of_prey, of_pred) = (minions(s), minions(prey), minions(pred));
-    // A bleed of one a ready minion: the lunge is the prey's pool within
-    // the seat's ready minions, lunged the seat's within its predator's.
-    let lunge = (own[0] * 5.0 >= seat(prey).pool as f32 && prey != s) as u8 as f32;
-    let lunged = (of_pred[0] * 5.0 >= seat(s).pool as f32 && pred != s) as u8 as f32;
+    // The seats' positions as the context reads them (pools, minions,
+    // sizes, the lunge both ways).
+    let at = |x: SeatId| zvtes_env::context::position(st, x);
+    let (own, of_prey, of_pred) = (at(s), at(prey), at(pred));
     let mut f = vec![
-        seat(s).pool as f32 / 30.0,
-        seat(prey).pool as f32 / 30.0,
-        seat(pred).pool as f32 / 30.0,
+        own[0],
+        of_prey[0],
+        of_pred[0],
         cross_pool / 30.0,
         alive.len() as f32 / 5.0,
-        seat(s).half_vps as f32 / 10.0,
+        own[2],
         best_other as f32 / 10.0,
     ];
-    f.extend(own);
-    f.extend(of_prey);
-    f.extend(of_pred);
+    f.extend(&own[3..7]);
+    f.extend(&of_prey[3..7]);
+    f.extend(&of_pred[3..7]);
     f.extend([
-        seat(s).hand.len() as f32 / 10.0,
-        seat(s).library.len() as f32 / 60.0,
+        own[7],
+        own[8],
         st.turn as f32 / 60.0,
-        seat(s).has_edge as u8 as f32,
-        lunge,
-        lunged,
-        (seat(prey).pool as f32 - own[0] * 5.0) / 30.0,
+        own[9],
+        own[10],
+        own[11],
+        own[12],
     ]);
     debug_assert_eq!(f.len(), NAMES.len());
     f

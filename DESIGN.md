@@ -361,6 +361,28 @@ league and the remaining-deck tokens included.
   sketched here, never built, dropped for it);
   league = current agent + snapshots + exploiters + scripted bots, PFSP; decks ×
   seats sampled per episode; policy conditioned on own decklist identity.
+- **The seats' context** (owner with Tom, 2026-10-22/23: "a better view of
+  the opponents' action history: what they did, what they're capable of …
+  as part of a context vector", the position for the policy too): every
+  observation carries `Obs::ctx` (`zvtes_env::context`), for each seat from
+  the viewer's, clockwise: its position (pool, VPs, ready and unlocked
+  minions and their blood, capacity and equipment, torpor, hand and library
+  sizes, the edge, the lunge both ways), the Disciplines of its ready
+  vampires (summed levels, a fixed order), and its play over the whole game
+  counted per round (`Engine::profiles`, `zvtes::profile`: the public
+  choices by kind — cards played by type, bleeds, hunts, political
+  actions, rushes, builds, blocks, strikes, stealth and intercept shown —
+  and the outcomes all see: blocks that land, pool bled) — what the
+  history's last 32 choices cannot hold. Public only (the legal view's
+  encoding equals the full state's, `crates/env/tests/obs.rs`). The policy
+  and the critic add it to the context token through a layer started at
+  zero (`train/model.py`, `crates/policy`'s `Net`, `ctx.weight` in a
+  `.zvp`): a network saved before it plays unchanged, and its first resume
+  starts the optimizer's moments afresh. Laid out feature by feature,
+  each across the seats (`context::names`, owner, 2026-10-23): a feature
+  is appended at the end, never inserted (`crates/env/tests/context.rs`
+  pins the names), so an older layer reads it as zero columns at the end
+  (`remap_vocab`, `Net::load`).
 
 ## 6. Window census (V5 pool)
 
@@ -956,10 +978,9 @@ training runs.
   crypt and ash heap sizes), every minion and card in play at the table
   (blood, capacity, lock, torpor, titles, counters, hosts), the viewer's
   own hand and remaining library/crypt contents, the action, combat and
-  referendum under way. Not in it: the ash heaps' contents — public, what
-  each opponent has played and discarded, hence their deck — only their
-  sizes; and any history: each decision is encoded alone, no memory of
-  earlier turns. Candidate next input (owner to decide).
+  referendum under way. Not in it then: the ash heaps' contents and any
+  history (V2 below added both, the seats' context of §5 the whole game's
+  play).
 - Observation V2 (owner, 2026-10-03: "more input (past actions, ash
   heap) … to ground the bot decisions with assessment of possible cards
   in hand"): `obs::Version` — a network reads the encoding it was trained
@@ -1967,7 +1988,7 @@ Still true today; "(verify)" marks items inferred from older notes.
 - **P5 — community**: bot service, client adapter, human-ergonomics layer
   (its open items on the boards).
 
-Definitions: 954 library, 482 vampires; 2508 Rust tests, 45 Python tests
+Definitions: 954 library, 482 vampires; 2524 Rust tests, 59 Python tests
 
 ## Outlook: deck building (post-v1)
 

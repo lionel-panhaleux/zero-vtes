@@ -51,6 +51,7 @@ def test_the_stranger_check():
         (lambda r: r["result"].update(reason={"type": "humans_ousted"}), "not played out: humans_ousted"),
         (lambda r: r.pop("result"), "not finished"),
         (lambda r: r["spec"].update(client="client.mjs"), "a test client's: client.mjs"),
+        (lambda r: r["spec"].update(client="succubus-club-demo"), "a test client's: succubus-club-demo"),
         (lambda r: r["spec"]["seats"][0]["player"].update(type="bot", profile="network"), "no human seat"),
     ]
     for f, why in cases:

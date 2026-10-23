@@ -13,9 +13,12 @@ mod common;
 
 use common::tables::{table, ALLY_SLICE, PRECON_SLICE, SLICE};
 use zvtes::agent::{Agent, RandomLegal};
-use zvtes::decision::Choice;
+use zvtes::decision::{ActionKind, Choice};
 use zvtes::game::{Engine, Step};
+use zvtes::library::{CardType, LIBRARY};
+use zvtes::profile;
 use zvtes_env::bots::{Scripted, Style};
+use zvtes_env::context;
 use zvtes_env::obs::{
     encode, encode_critic, Obs, Version, T_ASH, T_CONTEXT, T_DECK, T_EVENT, T_HAND, T_REFERENDUM,
     T_SEAT, T_SLOT, V_CRYPT, V_HIDDEN, V_LIBRARY,
@@ -92,6 +95,8 @@ struct Stats {
     tokens_v3: usize,
     options: usize,
     samples: usize,
+    strikes: usize,
+    rushes: usize,
 }
 
 /// `V2` without its ash heap and event tokens is `V1`: they come after
@@ -189,6 +194,18 @@ fn game(what: &str, mut e: Engine, agents: &mut [Box<dyn Agent>], stats: &mut St
         extends_v1(&seeing, &seeing_v2, &what);
         let seeing_v3 = encode(&e, &req, Version::V3);
         check(&seeing_v3, &req, &what);
+        // The seats' context: every version alike, one slot a seat.
+        assert!(
+            seeing.ctx == seeing_v3.ctx && seeing.ctx.len() == context::LEN,
+            "{what}"
+        );
+        for k in 0..context::SLOTS {
+            let present = seeing.ctx[k];
+            assert!(
+                present == (k < e.state.seats.len()) as u8 as f32,
+                "{what}: slot {k}"
+            );
+        }
         lightens_v2(&seeing_v2, &seeing_v3, false, &what);
         lightens_v2(
             &encode_critic(&e, &req, Version::V2),
@@ -220,7 +237,12 @@ fn game(what: &str, mut e: Engine, agents: &mut [Box<dyn Agent>], stats: &mut St
         // The history keeps the public choices only, a played card by
         // its identity.
         let before = e.history.clone();
+        let profiles = e.profiles.clone();
         let choice = req.options[i];
+        // What the profile should count, read apart from it.
+        let rush = zvtes::profile::rush(&e, req.seat, &choice).is_some();
+        let combat_card = matches!(choice, Choice::Play { card, .. }
+            if LIBRARY[e.playable_card(req.seat, card) as usize].types.first() == Some(&CardType::Combat));
         let played = match choice {
             Choice::Play { card, .. }
             | Choice::Discard(card)
@@ -236,6 +258,36 @@ fn game(what: &str, mut e: Engine, agents: &mut [Box<dyn Agent>], stats: &mut St
             );
         } else {
             assert!(e.history == before, "{what}: {choice:?} recorded");
+            assert!(e.profiles == profiles, "{what}: {choice:?} counted");
+        }
+        // A seat's profile counts its blocks, bleeds, strikes, rushes and
+        // combat cards played, one each.
+        let mut counted = vec![];
+        match choice {
+            Choice::DeclareBlock { .. } => counted.push(profile::Count::Blocks),
+            Choice::TakeAction {
+                action: ActionKind::Bleed,
+                ..
+            } => counted.push(profile::Count::Bleeds),
+            Choice::HandStrike | Choice::RoundStrike { .. } | Choice::CommittedStrike => {
+                counted.push(profile::Count::Strikes);
+                stats.strikes += 1;
+            }
+            _ => {}
+        }
+        if rush {
+            counted.push(profile::Count::Rushes);
+            stats.rushes += 1;
+        }
+        if combat_card {
+            counted.push(profile::Count::PlaysCombat);
+        }
+        for k in counted {
+            let (was, now) = (
+                profiles[req.seat.index()].get(k),
+                e.profiles[req.seat.index()].get(k),
+            );
+            assert!(now == was + 1, "{what}: {k:?}");
         }
     }
 }
@@ -272,6 +324,13 @@ fn observations_read_only_the_legal_view() {
             );
         }
     }
+    // The games reach what the profile counts.
+    assert!(
+        stats.strikes > 0 && stats.rushes > 0,
+        "strikes {}, rushes {}",
+        stats.strikes,
+        stats.rushes
+    );
     if std::env::var("OBS_STATS").is_ok() {
         eprintln!(
             "{} samples; at most {} tokens ({} in V2, {} in V3), {} options",

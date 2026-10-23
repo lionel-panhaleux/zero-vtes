@@ -38,6 +38,9 @@ runs" (every run's command, numbers and lessons), `docs/boards/training.md`.
    precons have it too) and `--seats 5` for 5-seat cross-table numbers;
    `--by-deck` splits each group by the seat's deck, for the combat play
    (rushes and their targets, blocks, every combat's cards and results).
+   The seats' context (DESIGN §5) is read by every network from p16 on: a
+   checkpoint saved before it resumes with its layer at zero (and fresh
+   optimizer moments, once).
    The reward's shaping (`--shaping runs/phi-<run>.json`, from p15): the
    position's potential, fitted by `train.position --phi` on the
    previous best and the run's `--gw-weight`; a new fit or coefficient
@@ -127,7 +130,8 @@ runs" (every run's command, numbers and lessons), `docs/boards/training.md`.
   purposes, a new marker kind and the api's wire ids are not encoded (the
   hostage, nightmare, torture and disease counts are, summed in
   `F_MARKERS`): `git diff -M <pin> <main> -- crates/engine/src/obs.rs
-  crates/env/src/obs.rs crates/engine/src/decision.rs` says whether a
+  crates/env/src/obs.rs crates/env/src/context.rs
+  crates/engine/src/profile.rs crates/engine/src/decision.rs` says whether a
   table the networks read moved (both obs paths, the file having moved to
   `crates/env`, so a pin before the move diffs as a rename); a change to how an encoded state is counted (`state.rs`, a
   marker's count, `F_CONTESTED`'s inputs) moves a value, not a table.

@@ -4286,6 +4286,8 @@ impl Engine {
     /// Block resolution: the blocker locks; combat, except a blocked
     /// leave-torpor (no combat; the blocker may diablerise).
     fn blocked(&mut self, blocker: MinionId) {
+        let owner = self.state.minions[blocker.index()].owner;
+        self.profiles[owner.index()].add(crate::profile::Count::BlocksLanded, 1);
         // Unleash Hell's Fury: its damage and burn before any other effect,
         // even if the action is ended (ANK 20210627, LSJ 20100301).
         if let crate::state::MinionKind::Fury { id, .. } = self.state.minions[blocker.index()].kind
@@ -4863,6 +4865,7 @@ impl Engine {
                 // (rulebook "Bleed").
                 if amount > 0 {
                     a.bleed_successful = true;
+                    self.profiles[seat.index()].add(crate::profile::Count::PoolBled, amount as u16);
                     let turn = self.state.turn;
                     self.state.minions[a.acting.index()]
                         .bleeds

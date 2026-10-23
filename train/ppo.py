@@ -249,8 +249,8 @@ def device_of(name):
 FIELDS = ("tok_ids", "tok_f", "opt_ids", "opt_f", "deck_ids", "deck_f")
 # A row's items (`rows`): the observation, `V3`'s deck rows (empty
 # before), the critic's tokens and deck rows (None without the critic),
-# the options' logit bias (the nudges).
-TOK, TOK_F, OPT, OPT_F, DECK, DECK_F, C_TOK, C_TOK_F, C_DECK, C_DECK_F, BIAS = range(11)
+# the options' logit bias (the nudges), the seats' context.
+TOK, TOK_F, OPT, OPT_F, DECK, DECK_F, C_TOK, C_TOK_F, C_DECK, C_DECK_F, BIAS, CTX = range(12)
 
 # A decision's arrays as `zvtes_py.replay_decisions` names them, in a
 # row's order (`rows`, the bias aside).
@@ -288,7 +288,7 @@ def shaped(obs, idx):
 
 def rows(obs):
     """Per-game observations, trimmed to their token and option counts:
-    tuples of the items `TOK` … `BIAS`."""
+    tuples of the items `TOK` … `CTX`."""
     out = []
     critic = "critic_tok_n" in obs
     for i in range(len(obs["tok_n"])):
@@ -311,7 +311,7 @@ def rows(obs):
             )
         else:
             row += (None, None, None, None)
-        row += (obs["opt_bias"][i, :o],)
+        row += (obs["opt_bias"][i, :o], obs["ctx"][i])
         out.append(row)
     return out
 
@@ -345,11 +345,18 @@ def collate_bias(samples, width, device):
     return torch.from_numpy(out).to(device)
 
 
+def collate_ctx(samples, device):
+    """The rows' seats' contexts [B, LEN]."""
+    return torch.from_numpy(np.stack([s[CTX] for s in samples]).astype(np.float32)).to(device)
+
+
 def collate_critic(samples, device):
-    """The critic's inputs (tokens, then deck rows) padded into a batch."""
+    """The critic's inputs (tokens, deck rows, the seats' context) padded
+    into a batch."""
     tok = pad_rows(samples, C_TOK, C_TOK_F, device, "tok")
     deck = pad_rows(samples, C_DECK, C_DECK_F, device, "deck")
-    return (tok["tok_ids"], tok["tok_f"], tok["tok_n"], deck["deck_ids"], deck["deck_f"], deck["deck_n"])
+    ctx = collate_ctx(samples, device)
+    return (tok["tok_ids"], tok["tok_f"], tok["tok_n"], deck["deck_ids"], deck["deck_f"], deck["deck_n"], ctx)
 
 
 def collate(samples, device):
@@ -368,6 +375,7 @@ def collate(samples, device):
     batch["opt_ids"] = torch.from_numpy(opt_ids).to(device)
     batch["opt_f"] = torch.from_numpy(opt_f).to(device)
     batch["opt_n"] = torch.from_numpy(opt_n).to(device)
+    batch["ctx"] = collate_ctx(samples, device)
     return batch
 
 
@@ -379,6 +387,7 @@ def batch_of(obs, device):
     batch["tok_n"] = torch.from_numpy(obs["tok_n"]).long().to(device)
     batch["opt_n"] = torch.from_numpy(obs["opt_n"]).long().to(device)
     batch["deck_n"] = torch.from_numpy(obs["deck_n"]).long().to(device)
+    batch["ctx"] = torch.from_numpy(obs["ctx"]).float().to(device)
     return batch
 
 
@@ -393,6 +402,7 @@ def forward(model, batch):
         batch["deck_ids"],
         batch["deck_f"],
         batch["deck_n"],
+        batch["ctx"],
     )
 
 
@@ -453,7 +463,7 @@ def act(nets, obs, device, rng):
     actions, logp, values = np.zeros(b, np.int64), np.zeros(b), np.zeros(b, np.float32)
     for agent in np.unique(obs["agent"]):
         idx = np.nonzero(obs["agent"] == agent)[0]
-        part = shaped({k: obs[k] for k in (*FIELDS, "tok_n", "opt_n", "deck_n")}, idx)
+        part = shaped({k: obs[k] for k in (*FIELDS, "tok_n", "opt_n", "deck_n", "ctx")}, idx)
         logits, v = forward(nets[int(agent)], batch_of(part, device))
         logits, v = logits[: len(idx), : obs["opt_ids"].shape[1]], v[: len(idx)]
         # The nudges: part of the distribution sampled and trained.
@@ -612,7 +622,7 @@ def imitation(replays, obs, holdout, games=()):
                 bias[:] = HIDDEN
                 bias[shown] = 0
             if (bias == 0).sum() > 1:
-                out.append((tuple(d[k] for k in ROW_KEYS) + (bias,), d["chosen"]))
+                out.append((tuple(d[k] for k in ROW_KEYS) + (bias, d["ctx"]), d["chosen"]))
                 if out is train:
                     decks.append(deck)
                     sources.append(path.name)
@@ -686,7 +696,7 @@ class Trainer:
             # The optimizer's moments are shaped by the vocabulary and the
             # token types: kept only when neither changed.
             same_shapes = old == self.vocab and all(
-                v.shape == saved["model"][k].shape for k, v in model.state_dict().items()
+                k in saved["model"] and v.shape == saved["model"][k].shape for k, v in model.state_dict().items()
             )
             if "optimizer" in saved and same_shapes:
                 self.learner.opt.load_state_dict(saved["optimizer"])
@@ -772,8 +782,11 @@ class Trainer:
             if cfg.exploiter:
                 self.exploiter = Learner(EXPLOITER, copy.deepcopy(model), cfg.lr)
                 if "exploiter" in saved:
-                    self.exploiter.model.load_state_dict(saved["exploiter"])
-                    self.exploiter.opt.load_state_dict(saved["exploiter_optimizer"])
+                    old = saved.get("vocab", self.vocab)
+                    fresh = self.exploiter.model.state_dict()
+                    self.exploiter.model.load_state_dict(remap_vocab(saved["exploiter"], old, self.vocab, fresh))
+                    if same_shapes:
+                        self.exploiter.opt.load_state_dict(saved["exploiter_optimizer"])
         families = dict(zvtes_py.deck_families())
         names = [f.strip() for f in cfg.decks.split(",")]
         if not set(names) <= {"precons", "anniversary", "sabbat", "twda"}:
@@ -939,10 +952,10 @@ class Trainer:
         """The learner's rows valued by the omniscient critic."""
         idx = np.nonzero(obs["agent"] == 0)[0]
         if len(idx):
-            keys = [f"critic_{a}_{b}" for a in ("tok", "deck") for b in ("ids", "f", "n")]
+            keys = [f"critic_{a}_{b}" for a in ("tok", "deck") for b in ("ids", "f", "n")] + ["ctx"]
             part = shaped({k: obs[k] for k in keys}, idx)
             t = {k: torch.from_numpy(part[k]).to(self.device) for k in keys}
-            args = [t[k].long() if not k.endswith("_f") else t[k] for k in keys]
+            args = [t[k].long() if not k.endswith(("_f", "ctx")) else t[k].float() for k in keys]
             values = values.copy()
             values[idx] = self.critic(*args).cpu().numpy()[: len(idx)]
         return values
