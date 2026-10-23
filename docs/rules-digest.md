@@ -310,10 +310,13 @@ below rely on these and do not repeat them.
   must take the special hunt (28.8).
 - "Did not hunt" (Thirst): a vampire that took a hunt action this turn
   hunted, blocked or not (40.2, LSJ 20050727).
-- "Successfully hunts" / "successful resolution" of a hunt: unblocked and
-  gained blood (17.3, 63.2, LSJ 20090411, advanced rules §3.7.2); a hunt at
-  capacity or by a diseased vampire is successful but gains nothing (63.12,
-  59.4) — no Abactor blood hunt then.
+- A hunt's action is successful unblocked, at capacity or diseased too
+  (63.12, 59.4). "Successfully hunts" (Adisa, Eddie Gaines, Restricted
+  Vitae, Harvest Rites spent) is a hunt getting its blood: at capacity, its
+  blood drained off, yes; a diseased vampire's, which gets none, no (owner,
+  89.1, 89.26; 59.4); an action that is not a hunt, never. Abactor's
+  "successful resolution" is narrower: blood gained (63.2, LSJ 20090411,
+  advanced rules §3.7.2; 17.3), so no blood hunt at capacity.
 - "+n hunt" adds to every hunt of the vampire, non-standard ones too (64.1,
   RTR 20030519); a hunt taking blood from a target takes the bonus from it
   (53.8, RTR 20030519); "cannot gain blood by hunting" covers every hunt
@@ -3599,8 +3602,8 @@ readings (vampires, allies, library cards) no mechanism section states.
   revealed, the gains and burns at once (76.14).
 - Thadius Zho: any vampire, a torpid one too (Apolonia's precedent); a
   0-blood target a legal no-op (76.20).
-- Winterlich: no changeling ally in the pool, his text inert (DESIGN §11.3)
-  (77.32).
+- Winterlich: his changeling discount live with Mylan Horseed, his "as if
+  he met the requirements" inert (77.32, revised by 89.24).
 - Read as printed, by the default readings and their KRCG rulings: Aimery,
   Alex Camille (a threshold, 88.7), Bulscu (an action at another's
   equipment or location is directed, D12), Carna (torpor too), Claudio
@@ -3657,6 +3660,23 @@ readings (vampires, allies, library cards) no mechanism section states.
   Town Hunting Ground (85.26); Storage Annex (85.27); directed at another's
   minion (85.28); "your next discard phase" (85.29); Hatch put in play
   (85.30); found while testing (85.31, 85.33, 85.34).
+- Round 20's cards, each read in its rules-qa item: Harvest Rites spent by
+  a hunt at capacity too (89.1, 89.13); Quincy's two actions kept across
+  turns while both stay in play (89.2); Chanjelin Ward's blood on any target,
+  never an ally's (89.3), its burn to fail (89.4); Great Symposium's search
+  and bank blood (89.5); Stone Travel [MYT]'s cancel, the action blocked
+  (89.6); the blood-for-effect modes (89.7); a grapple card prints
+  "Grapple." (89.8); Gremlins' melee weapons (89.9); Goblinism's haven put
+  on instead of the hand, before the discard (89.10); Guarded Rubrics'
+  Gehenna tax while the bearer is ready (89.11); Humanitas and Catacombs
+  for the acting rescuer (89.12); Nocturn (89.14) and its [OBT] repeats at
+  +1 blood each (89.15); Ravager's changelings (89.16); Song of Pan
+  (89.17); Watchtower: Four Ride Forth (89.18); the Fee Stakes (89.19);
+  Isanwayen (89.20); The Arcadian, Omme, Pherydima (89.21); Roderick's
+  equip actions (89.22); text-only (89.23); Mylan Horseed a changeling:
+  Winterlich's discount and Black Forest Base's burn live (89.24);
+  Foresee's cancel offered as a cancel (89.25); "successfully hunts" at
+  capacity (89.26).
 
 ## 16. Cards in play
 
@@ -3687,8 +3707,8 @@ cards), §1.10 (burn and removal), §6.3 (control of a card in play).
   left (62.25). Powerbase: Savannah (44.7). Powerbase: Madrid (52.7, 73.3).
   Powerbase: Munich (73.6). Powerbase: Los Angeles (28.12).
 - Zaire River Ferry: "this Lasombra" — the bearer must be Lasombra for
-  either ability (9.1); "a vampire can have only one haven": the only haven
-  in the pool, and unique (70.20).
+  either ability (9.1); "a vampire can have only one haven": Secure Haven
+  or the Ferry, one of them a minion, Goblinism's put-on too (70.20, 89.10).
 - Monastery of Shadows (49.5, 50.4), Yawp Court (54.1), Heidelberg Castle
   (57.7), Wasserschloss Anif (28.6), Twilight Camp (34.7), Cappadocian Crypt
   (34.6), Alamut (34.5), Secure Haven (35.1), Cave of Apples (35.2),
@@ -4520,6 +4540,8 @@ read, for the owner to confirm or correct:
 - 85.3–85.34 graded green or amber (85.1 and 85.2 confirmed by the owner).
 - 87.8–87.41 graded green or amber (87.1–87.7, 87.42 and 87.43 red,
   answered by the owner: 87.42 and 87.43 corrected).
+- 89.3–89.26 graded green or amber (89.1 and 89.2 red, answered by the
+  owner: 89.1 corrected, 89.2 confirmed).
 - 49.6's several-holders question is moot (50.1: the Cog is unique).
 
 ### 24.2 Questions for a new rules-qa batch
@@ -4629,7 +4651,7 @@ an owner ruling:
 Every rules-qa item, by batch, with the digest sections citing it: the
 section stating it and those cross-referring to it (§2 the default
 readings, §22 engine modeling, §23 the contradictions, §24 the open
-readings). 907 items, Batches 1–88 (44.11 was removed, replaced by Batch
+readings). 933 items, Batches 1–89 (44.11 was removed, replaced by Batch
 45). The index is derived from the citations: a bare `N.M` cites rules-qa
 item N.M in the section it appears in. A new rules-qa item gets its line in
 the section stating it, then its entry here: `python3
@@ -4945,3 +4967,9 @@ index or an item cited nowhere.
   §5.2,§14.3,§23.3; 88.5 §5.3,§23.3; 88.6 §8.7,§23.3; 88.7
   §2,§9.2,§15.2,§23.3; 88.8 §19.1,§23.3; 88.9 §11.5,§16.1,§17.3,§23.3; 88.10
   §3.2,§9.6,§11.8,§23.4; 88.11 §9.6,§23.4
+- **89** — 89.1 §3.1,§15.2,§24.1; 89.2 §15.2,§24.1; 89.3 §15.2,§24.1; 89.4
+  §15.2; 89.5 §15.2; 89.6 §15.2; 89.7 §15.2; 89.8 §15.2; 89.9 §15.2; 89.10
+  §15.2,§16.1; 89.11 §15.2; 89.12 §15.2; 89.13 §15.2; 89.14 §15.2; 89.15
+  §15.2; 89.16 §15.2; 89.17 §15.2; 89.18 §15.2; 89.19 §15.2; 89.20 §15.2;
+  89.21 §15.2; 89.22 §15.2; 89.23 §15.2; 89.24 §15.2; 89.25 §15.2; 89.26
+  §3.1,§15.2,§24.1

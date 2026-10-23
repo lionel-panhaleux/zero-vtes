@@ -1220,6 +1220,40 @@ ADDED_BATCHES = [
         201386: "Travis \"Traveler72\" Miller (G4)",
         201481: "Xian \"DziDzat155\" Quan (G4)",
     },
+    # Round 20 (slice 16af): the cards players asked for (/admin/unsupported,
+    # 2026-10-23; owner: "tell Z-add what cards players have tried to play and
+    # couldn't so they can be added").
+    {
+        100111: "Aura Absorption",
+        100306: "Catacombs",
+        100326: "Chanjelin Ward",
+        100689: "Fae Contortion",
+        100841: "Goblinism",
+        100853: "Great Symposium",
+        100856: "Gremlins",
+        100865: "Guarded Rubrics",
+        100889: "Harvest Rites",
+        100943: "Humanitas",
+        101293: "Nocturn",
+        101548: "Ravager",
+        101826: "Song of Pan",
+        101875: "Stone Travel",
+        102156: "Watchtower: Four Ride Forth",
+        # The two cards of VEKN's "List of allowed cards in 2-player VTES"
+        # (2026-10-03) outside the pool (Z-main, 2026-10-23).
+        100713: "Fee Stake: Corte",
+        100714: "Fee Stake: Los Angeles",
+        200085: "Andrew Emory (G4)",
+        200127: "The Arcadian (G5)",
+        200165: "Banjoko (G3)",
+        200311: "Dame Hollerton (G4)",
+        200644: "Isanwayen (G4)",
+        201081: "Omme Enberbenight (G4)",
+        201120: "Pherydima (G4)",
+        201144: "Quincy, The Trapper (G3)",
+        201161: "Randel, The Coward (G4)",
+        201195: "Roderick Phillips March (G4)",
+    },
 ]
 ADDED_CARDS = {k: v for batch in ADDED_BATCHES for k, v in batch.items()}
 
@@ -1362,7 +1396,10 @@ RIDERS = [
     # window.
     r"can burn this card during the polling step[^.]*",
     r"but to prevent \d[^.]*",                            # its [PRO] "as above, but to prevent 2"
-    r"to get \+\d intercept",                             # granted intercept ability
+    # A granted intercept ability ("can burn 1 life to get +1 intercept"),
+    # not a reaction's own "this vampire burns 1 blood to get +1 intercept"
+    # (Aura Absorption [aus]).
+    r"\b(can|may) [^.]*?to get \+\d intercept",
     r"skip the determine range step",
     # A weapon's own maneuver once in play (Zip Gun): no play window.
     r"with an optional maneuver each combat",

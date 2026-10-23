@@ -936,3 +936,20 @@ id,name,types,disciplines,in_precon,windows,flags,needs_review,review
 101886,Strike with Conviction,Conviction,,no,UNLOCK_CONVICTION,,,ok
 101908,Surge,Power,ven,no,ACTION_DECLARE_POWER,,,ok
 102120,Vigilance,Power,jud,no,ACTION_DECLARE_POWER,,,ok
+100111,Aura Absorption,Action Modifier/Reaction,myt/aus,no,ACTION_STEALTH_INTERCEPT,,,corrected
+100306,Catacombs,Equipment,,no,ACTION_DECLARE_EQUIP,,,ok
+100326,Chanjelin Ward,Master,,no,MASTER_PHASE,,,ok
+100689,Fae Contortion,Action Modifier/Combat,myt/obt,no,CARD_AS_PLAYED;COMBAT_DETERMINE_RANGE;ACTION_STEALTH_INTERCEPT,cancel_as_played,yes,ok
+100841,Goblinism,Action,myt/pot,no,ACTION_DECLARE,,,ok
+100853,Great Symposium,Master,,no,MASTER_PHASE,,,ok
+100856,Gremlins,Action,myt/dom,no,ACTION_DECLARE,,,ok
+100865,Guarded Rubrics,Equipment,,no,ACTION_DECLARE_EQUIP,in_play_action,,ok
+100889,Harvest Rites,Action,,no,ACTION_DECLARE,,,ok
+100943,Humanitas,Master,,no,MASTER_PHASE,,,ok
+101293,Nocturn,Ally,obt,no,ACTION_DECLARE_RECRUIT,,,ok
+101548,Ravager,Master,,no,MASTER_PHASE,,,ok
+101826,Song of Pan,Action,,no,ACTION_DECLARE,,,ok
+101875,Stone Travel,Action Modifier,myt/obt,no,ACTION_STEALTH_INTERCEPT,,,ok
+102156,Watchtower: Four Ride Forth,Master,,no,MASTER_PHASE,,,ok
+100713,Fee Stake: Corte,Action,,no,ACTION_DECLARE,in_play_action,,ok
+100714,Fee Stake: Los Angeles,Action,,no,ACTION_DECLARE,in_play_action,,ok

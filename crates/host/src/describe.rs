@@ -1321,6 +1321,11 @@ pub fn about(e: &Engine, req: &DecisionRequest, names: &impl Names) -> Option<Ab
                 minion: m(held.minion),
                 ..a()
             },
+            I::PutFoundOn { minion, card, .. } => About {
+                card: named(card),
+                minion: m(minion),
+                ..a()
+            },
             I::MayStoreAim { card: k, .. } => About {
                 card: named(k),
                 ..a()
@@ -1707,7 +1712,8 @@ pub fn key(e: &Engine, req: &DecisionRequest, choice: &Choice, names: &impl Name
         | Choice::UsePrevent
         | Choice::StrikeCombatEnds
         | Choice::CommittedStrike
-        | Choice::GainStrength => k.actor = combatant(),
+        | Choice::GainStrength
+        | Choice::CancelCombat => k.actor = combatant(),
         Choice::TakeDamageAfterResolution | Choice::ContinueAction => k.actor = acting(),
         // The torpid acting vampire, by the vampire that blocked it.
         Choice::Diablerise => {
@@ -1955,5 +1961,6 @@ pub fn kind(c: &Choice) -> OptionKind {
         Choice::BurnCorruptionToFail { .. } => K::BurnCorruptionToFail,
         Choice::BurnCorruptionToUnlock { .. } => K::BurnCorruptionToUnlock,
         Choice::Diablerise => K::Diablerise,
+        Choice::CancelCombat => K::CancelCombat,
     }
 }

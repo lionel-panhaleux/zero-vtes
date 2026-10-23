@@ -67,18 +67,18 @@ by the owner. Apply them to every new card; only a ruling overrides them.
 ## Index
 
 - **Untimed abilities** — 7.7, 29.10, 15.2 (Kalinda)
-- **Legacy additions for TWDA decks** — 44.1–44.10, 57.1–57.10, 58.1–58.20, 59.1–59.19, 60.1–60.22, 62.2–62.31, 62.33, 63.1–63.17, 64.1–64.12, 65.1–65.3, 67.1–67.7, 68.1–68.17, 69.1–69.15, 70.1–70.22, 71.1–71.27, 74.1–74.13, 76.1–76.25, 77.1–77.35, 78.1–78.49, 78.54, 79.3, 80.1–80.45, 84.1–84.40, 85.1–85.34
+- **Legacy additions for TWDA decks** — 44.1–44.10, 57.1–57.10, 58.1–58.20, 59.1–59.19, 60.1–60.22, 62.2–62.31, 62.33, 63.1–63.17, 64.1–64.12, 65.1–65.3, 67.1–67.7, 68.1–68.17, 69.1–69.15, 70.1–70.22, 71.1–71.27, 74.1–74.13, 76.1–76.25, 77.1–77.35, 78.1–78.49, 78.54, 79.3, 80.1–80.45, 84.1–84.40, 85.1–85.34, 89.1–89.26
 - **Ousts, Life Boon's decision point** — 45.1–45.8, 88.2
 - **Impulse, sequencing, windows** — 1.2, 1.3, 1.5, 2.1, 2.2, 2.3, 2.4, 3.7, 4.1, 5.3, 7.7, 7.8, 7.9, 23.3, 24.2, 26.5, 66.1
 - **Mandatory effects and their ordering** — 6.1, 6.4, 7.8, 7.9, 17.2, 27.1, 28.9, 32.10, 40.5, 88.5
 - **Periodicity ("during X" = once per X, once each …)** — 6.6, 7.4, 9.6, 10.4, 11.2, 15.1, 15.2, 16.1, 36.3, 36.4, 37.1, 38.8, 42.3, 42.9, 79.1–79.4
-- **No-repeat-action, "same action"** — 1.4, 6.2, 16.6, 23.2, 25.4, 32.1, 88.1
-- **Action outcomes: fizzle, fail, success, after resolution** — 3.6, 5.8, 5.9, 17.1, 17.3, 17.4, 23.3, 24.1, 24.4, 26.1, 26.4, 28.7, 30.2, 30.3, 34.6, 42.6, 43.1, 55.3, 55.4, 55.5, 56.1, 58.1, 58.13, 73.3, 73.4, 77.13, 78.13, 78.38, 78.50, 88.1, 88.2, 88.3
-- **Directed / undirected, targeting, choosing** — 6.8, 17.2, 17.4, 20.1, 24.5, 26.3, 27.2, 32.5, 33.3, 34.8, 35.1, 38.2, 38.6, 39.4, 42.1, 57.10, 75.1, 77.12, 77.26, 77.27, 78.30, 78.36, 78.52
+- **No-repeat-action, "same action"** — 1.4, 6.2, 16.6, 23.2, 25.4, 32.1, 88.1, 89.2, 89.15
+- **Action outcomes: fizzle, fail, success, after resolution** — 3.6, 5.8, 5.9, 17.1, 17.3, 17.4, 23.3, 24.1, 24.4, 26.1, 26.4, 28.7, 30.2, 30.3, 34.6, 42.6, 43.1, 55.3, 55.4, 55.5, 56.1, 58.1, 58.13, 73.3, 73.4, 77.13, 78.13, 78.38, 78.50, 88.1, 88.2, 88.3, 89.4
+- **Directed / undirected, targeting, choosing** — 6.8, 17.2, 17.4, 20.1, 24.5, 26.3, 27.2, 32.5, 33.3, 34.8, 35.1, 38.2, 38.6, 39.4, 42.1, 57.10, 75.1, 77.12, 77.26, 77.27, 78.30, 78.36, 78.52, 89.3, 89.9
 - **When choices are made (play vs resolution vs use)** — 3.5, 6.7, 22.2, 26.8, 28.5, 31.2, 31.3, 32.11, 32.12, 33.4, 38.1
 - **Bleeds** — 18.4, 23.5, 24.1–24.4, 25.6, 30.5, 31.2, 32.2, 32.4, 32.8, 33.9, 34.4, 34.5, 39.5, 42.3, 42.7, 53.6, 53.8, 57.1, 57.2, 61.2, 76.12
-- **Stealth, intercept, blocks** — 1.3, 1.6, 3.2, 3.4, 8.1, 9.6, 15.2, 23.1, 24.5, 25.3, 25.5, 27.3, 30.1, 30.3, 30.4, 23.6, 34.1, 34.2, 35.1, 42.4, 42.8, 48.1, 48.3, 48.5, 48.6, 49.5, 50.4, 52.8, 53.1, 53.2, 53.3, 55.7, 66.2, 72.1–72.4, 73.8, 76.17, 77.18, 77.19, 77.20, 78.20, 78.28, 78.37, 78.53, 82.1, 82.2, 88.7
-- **Combat structure, strikes, maneuvers, presses** — 1.2, 4.1, 4.3, 4.4, 4.5, 10.1, 10.2, 10.4, 10.5, 14.1, 14.2, 19.5, 21.1, 22.1, 22.3, 26.2, 26.6, 26.7, 27.5, 29.7, 29.8, 29.9, 31.7, 33.6, 42.2, 47.2, 48.2, 48.4, 53.3, 54.4, 54.6, 54.7, 54.8, 55.1, 55.2, 55.8, 57.3, 57.4, 58.2, 58.17, 58.18, 59.2, 59.17, 60.11, 61.1, 62.1, 63.4, 63.6, 63.8, 75.1–75.3, 76.9, 76.10, 76.11, 77.9, 78.23, 78.32, 78.40, 88.10, 88.11
+- **Stealth, intercept, blocks** — 1.3, 1.6, 3.2, 3.4, 8.1, 9.6, 15.2, 23.1, 24.5, 25.3, 25.5, 27.3, 30.1, 30.3, 30.4, 23.6, 34.1, 34.2, 35.1, 42.4, 42.8, 48.1, 48.3, 48.5, 48.6, 49.5, 50.4, 52.8, 53.1, 53.2, 53.3, 55.7, 66.2, 72.1–72.4, 73.8, 76.17, 77.18, 77.19, 77.20, 78.20, 78.28, 78.37, 78.53, 82.1, 82.2, 88.7, 89.6, 89.7, 89.16
+- **Combat structure, strikes, maneuvers, presses** — 1.2, 4.1, 4.3, 4.4, 4.5, 10.1, 10.2, 10.4, 10.5, 14.1, 14.2, 19.5, 21.1, 22.1, 22.3, 26.2, 26.6, 26.7, 27.5, 29.7, 29.8, 29.9, 31.7, 33.6, 42.2, 47.2, 48.2, 48.4, 53.3, 54.4, 54.6, 54.7, 54.8, 55.1, 55.2, 55.8, 57.3, 57.4, 58.2, 58.17, 58.18, 59.2, 59.17, 60.11, 61.1, 62.1, 63.4, 63.6, 63.8, 75.1–75.3, 76.9, 76.10, 76.11, 77.9, 78.23, 78.32, 78.40, 88.10, 88.11, 89.6, 89.8, 89.25
 - **Frenzy cards** — 28.11, 29.5
 - **Damage, prevention, immunity** — 4.2, 10.3, 14.2, 21.3, 29.1, 29.2, 29.3, 29.4, 30.6, 38.3, 38.8, 40.9, 77.8, 77.21, 77.22, 77.23, 78.19, 78.33, 78.34, 78.38
 - **Rushes (entering combat as an action)** — 17.3, 26.1, 27.2, 27.5, 38.6, 52.6, 54.3, 54.4, 54.7, 55.7, 56.2, 58.6, 88.10, 88.11
@@ -86,21 +86,21 @@ by the owner. Apply them to every new card; only a ruling overrides them.
 - **Titles** — 3.1, 13.2, 19.1, 19.2, 19.6, 32.9, 49.4, 52.5, 52.6, 52.9, 58.3, 58.11, 59.13, 59.14, 60.1, 76.1–76.4, 77.1, 77.2, 78.1, 78.7, 78.16
 - **Contests, uniqueness** — 3.1, 7.1, 7.3, 7.5, 8.2, 11.2, 12.3, 19.1, 36.3, 38.7, 39.4, 40.1, 57.9, 58.5, 58.19, 59.13, 60.1, 60.9, 60.20, 76.2, 76.3, 85.32
 - **Control, steals, ousts, removal from game** — 6.9, 7.5, 17.4, 25.1, 27.3, 27.4, 27.7, 28.13, 31.4, 31.5, 31.6, 33.5, 33.7, 38.4, 39.4, 42.7, 55.4, 55.6, 88.9
-- **Costs and reductions** — 3.6, 5.9, 9.3, 18.1, 18.2, 23.4, 29.6, 27.6, 36.1–36.5, 38.5, 42.1, 42.2, 42.5, 42.6, 54.1, 58.12, 59.5, 60.5, 60.7, 77.24, 78.3, 78.17, 78.21
+- **Costs and reductions** — 3.6, 5.9, 9.3, 18.1, 18.2, 23.4, 29.6, 27.6, 36.1–36.5, 38.5, 42.1, 42.2, 42.5, 42.6, 54.1, 58.12, 59.5, 60.5, 60.7, 77.24, 78.3, 78.17, 78.21, 89.3, 89.10, 89.11, 89.15, 89.24
 - **Replacement, draws, stored and held cards** — 5.5, 7.10, 8.2, 8.3, 8.4, 9.4, 9.5, 11.1–11.3, 12.1–12.5, 22.2, 37.1, 40.4, 53.4, 53.5, 73.1, 73.2, 77.35, 78.18, 78.26, 78.51, 88.8
 - **Card destination (ash heap, limbo, lingering effects)** — 21.1, 22.1, 31.6, 46.4, 47.1
 - **Equipment and weapons** — 9.1–9.6, 10.1–10.5, 17.4, 18.3, 22.4, 29.7, 35.3, 38.4, 38.5, 38.7, 76.9, 76.10, 76.15, 76.16, 77.19, 77.29, 78.28, 78.42
-- **Allies, retainers, ghouls** — 22.2, 28.10, 29.2, 32.4, 32.11, 32.12, 32.13, 37.1, 40.10, 42.2, 42.9, 49.3, 50.6, 73.5, 73.6, 76.7, 76.8, 77.29, 88.3
-- **Locations, hunting grounds, locquipment** — 6.5, 7.2, 7.4, 17.4, 28.2, 28.6, 31.4, 34.7, 39.4, 49.5, 50.4, 51.4, 52.7, 54.1, 57.7, 73.3, 73.6, 77.16, 88.9
+- **Allies, retainers, ghouls** — 22.2, 28.10, 29.2, 32.4, 32.11, 32.12, 32.13, 37.1, 40.10, 42.2, 42.9, 49.3, 50.6, 73.5, 73.6, 76.7, 76.8, 77.29, 88.3, 89.14, 89.15, 89.24
+- **Locations, hunting grounds, locquipment** — 6.5, 7.2, 7.4, 17.4, 28.2, 28.6, 31.4, 34.7, 39.4, 49.5, 50.4, 51.4, 52.7, 54.1, 57.7, 73.3, 73.6, 77.16, 88.9, 89.10, 89.12
 - **Blood, capacity, uncontrolled region, banishment** — 5.7, 7.6, 25.1, 27.7, 28.1, 28.3, 28.4, 32.6, 40.7, 73.5
-- **Torpor, rescue, diablerie, blood hunt** — 3.1, 3.6, 5.2, 5.8, 6.4, 16.2, 28.7, 38.2, 48.8, 81.1, 86.1, 88.4
-- **Hunting** — 6.5, 7.7, 17.3, 28.1, 28.8, 32.13, 40.2, 53.8, 72.1–72.5, 77.30
+- **Torpor, rescue, diablerie, blood hunt** — 3.1, 3.6, 5.2, 5.8, 6.4, 16.2, 28.7, 38.2, 48.8, 81.1, 86.1, 88.4, 89.12, 89.20
+- **Hunting** — 6.5, 7.7, 17.3, 28.1, 28.8, 32.13, 40.2, 53.8, 72.1–72.5, 77.30, 89.1, 89.13, 89.26
 - **Master phase, master cards, out-of-turn** — 1.5, 3.3, 6.6, 7.5, 28.10, 32.3, 33.1, 33.8, 36.4, 49.6, 49.7, 50.1–50.3, 53.7, 57.8, 77.11, 77.27, 78.10, 78.48, 78.49
 - **Unlock phase, locking, stun** — 3.7, 6.1, 7.8, 16.5, 21.2, 25.5, 26.5, 31.1, 48.7, 54.2, 54.5, 58.4, 58.9, 59.3, 59.4, 60.6, 88.5
-- **Discard phase, events** — 8.4, 15.2, 28.12, 33.8, 40.1–40.11, 54.5, 57.5, 57.6, 58.10
+- **Discard phase, events** — 8.4, 15.2, 28.12, 33.8, 40.1–40.11, 54.5, 57.5, 57.6, 58.10, 89.17, 89.18
 - **Conditions read live; card-text defaults** — 4.3, 9.1, 13.2, 18.4, 19.3, 28.2, 28.6, 29.11, 32.4, 32.7, 39.5, 49.5, 49.7, 73.7, 77.6, 77.13
 - **Corruption counters, multi-Discipline cards** — 25.1–25.6, 34.3, 35.2, 38.4, 52.1, 77.28
-- **Printed vampire abilities** — 13.1, 13.2, 14.1, 14.2, 15.1, 15.2, 16.1–16.6, 17.1–17.4, 41.1–41.14, 49.2, 49.3, 52.4, 72.1, 72.2, 72.5, 73.5, 73.7, 79.2, 79.3, 88.6
+- **Printed vampire abilities** — 13.1, 13.2, 14.1, 14.2, 15.1, 15.2, 16.1–16.6, 17.1–17.4, 41.1–41.14, 49.2, 49.3, 52.4, 72.1, 72.2, 72.5, 73.5, 73.7, 79.2, 79.3, 88.6, 89.2, 89.20–89.22
 - **Game end, VP, ousting** — 6.9, 18.2, 24.1, 33.2, 53.1, 58.20
 ## Batch 1 — sequencing, impulse, windows
 
@@ -1427,7 +1427,7 @@ Slice 16u: the cards of the Lasombra, Toreador antitribu and Ravnos TWDA decks a
 
 **70.19** Infernal Servitor: "if you control no infernal vampires" — one in torpor counts; read as each step settles; "after it performs a successful action" — a fizzled action counts (rules-qa 56.1), removed as the action ends. (Test infernal_servitor_leaves_after_success_or_without_an_infernal.)
 
-**70.20** Zaire River Ferry: "this Lasombra" — the bearer must be Lasombra for either ability (rules-qa 9.1); "a vampire can have only one haven": the only haven in the pool, and unique. (Tests zaire_river_ferry_fails_an_action_at_its_lasombra, zaire_river_ferry_gives_its_lasombra_stealth, zaire_river_ferry_needs_a_lasombra_bearer.)
+**70.20** Zaire River Ferry: "this Lasombra" — the bearer must be Lasombra for either ability (rules-qa 9.1); "a vampire can have only one haven": the only haven in the pool, and unique. (Tests zaire_river_ferry_fails_an_action_at_its_lasombra, zaire_river_ferry_gives_its_lasombra_stealth, zaire_river_ferry_needs_a_lasombra_bearer.) Revised by 89.10: Secure Haven is a haven too; one haven a vampire, whichever.
 
 **70.21** Malabranca: "if your prey has more pool than you" read as the action is announced and again as it resolves (it fizzles otherwise). (Test malabranca_takes_a_pool_from_a_richer_prey.)
 
@@ -1681,7 +1681,7 @@ Sixty-nine cards, graded per the add-cards skill: eight blind second readers on 
 
 **77.31** Shakar: the Hunt: the contract's combat against a minion of another Methuselah only (17.3); "every Black Hand vampire is considered chosen" read by no pool card beyond its own action (inert, DESIGN §11.3); Gerald FitzGerald's Black Hand kept through a sect change (LSJ 20070322), his Seraph read by no pool card (inert; read by Tattoo Signal since round 15, 78.30). Green. (Tests shakar_lets_the_black_hand_hunt_its_minion, gerald_makes_a_younger_sabbat_vampire_black_hand.)
 
-**77.32** Winterlich: no changeling ally in the pool: his text inert (DESIGN §11.3). Green.
+**77.32** Winterlich: no changeling ally in the pool: his text inert (DESIGN §11.3). Green. Revised by 89.24: Mylan Horseed is a changeling ally.
 
 **77.33** The rest read as printed, settled by the default readings and their KRCG rulings: Aimery, Alex Camille (threshold, settled by 88.7), Bulscu (an action at another's equipment or location directed, D12), Carna (torpor too), Claudio Severino (Ayse Dhanial's discard), Dan Murdock (Sakhar's search), Dr. Julius Sutphen (Mithras G6's toll), Gold Pan Dan (once each turn after combat), Karif al Numair (any Methuselah's, toggled), Lazverinus, Martin Franckel (the bled Methuselah, read live), Mélusine d'Anjou (a younger vampire's pending attempt), Nehemiah (Heart of Nizchetus's moves; his [cel] modes only barred, LSJ 20050322-2), Paul Cordwood (stealth or intercept when needed), Recruitment Exercise, Spoils of War, Suhailah (read live), Taste of Death; the twelve whose text is their sect and title. Green. (Tests in twda_round14.rs, the_round_14_text_only_vampires_carry_their_printed_traits.)
 
@@ -2193,3 +2193,59 @@ Each contradiction read against the KRCG rulings, the advanced rules and the rul
 **88.10** Obedience before the combat Psyche! [CEL] queues: an unlocked older vampire about to fight the acting younger vampire again plays it between the combats (LSJ 19991025); the action ends with no second combat, failed, NRA holding (LSJ 20070709) — blocked if a block began the combats. Not against Hedonism's combat, whose vampire is not the acting one (56.2), nor Fast Reaction's, whose vampire locks first. Green (the card's ruling). (Test obedience_avoids_the_combat_psyche_queues.)
 
 **88.11** Promise of 1528 likewise: the Giovanni "about to enter combat with a Camarilla vampire" in Psyche!'s combat — the locked Giovanni blocker facing the Camarilla actor, or the acting Giovanni facing a Camarilla opponent — ends the action before it, blocked if a block began the combats (as Promise played on the block), failed otherwise. Amber: 88.10's ruling on the same template; both reads agree. (Test promise_of_1528_ends_the_action_before_psyches_combat.)
+
+## Batch 89 — Round 20 (the cards players asked for, the two-player list's last two): readings graded (Claude, 2026-10-23; owner, 2026-10-23: 89.1 corrected, 89.2 confirmed)
+
+Twenty-seven cards (the server's /admin/unsupported of 2026-10-23: a Kiasyd deck, a Lasombra one, Catacombs, Humanitas, Nocturn; Fee Stake: Corte and Los Angeles, VEKN's two-player list), graded per the add-cards skill: three blind second readers read the cards, their KRCG rulings and the advanced rules, their reads diffed against the code. Red: 89.1, 89.2.
+
+**89.1** Harvest Rites's "once each turn, when this vampire successfully hunts": a hunt at capacity is successful — it gets its blood, which drains off — and spends the once (owner: "the fact the blood bleeds off does not stop the hunt from getting the blood and being successful", 63.12); the bonus is the hunt's, from its target (RTR 20030519, RTR 20180511). The engine first read LSJ 20050720-2 (Immaculate Vitae: no blood gained) as covering it. Red, answered by the owner (2026-10-23): corrected. (Test harvest_rites_adds_a_blood_to_one_hunt_each_turn.)
+
+**89.2** Quincy, The Trapper: the first successful action at an ally recorded on Quincy, the second, in a later turn of any of his controller's (ANK 20170202), burns it; kept while both stay in play — through Quincy's torpor, a change of control, a reseating — the second action needing the ally's controller to be his predator or prey then. Red (no precedent), confirmed by the owner (2026-10-23). (Test quincy_burns_an_ally_with_two_actions_in_two_turns.)
+
+**89.3** Chanjelin Ward: on a vampire its player controls, one a vampire (`TargetWithout`); "other Methuselahs' actions targeting this vampire cost an additional blood" on any one of the action's targets (LSJ 20080809-2, RTR 20081119), other than the Ward's controller's, read live; paid with the action's cost at resolution, unpayable it fizzles (3.6); blood only, so no ally's action at the vampire is offered (73.5, D3). Amber (the reads agree). (Tests chanjelin_ward_makes_actions_at_its_vampire_cost_a_blood, chanjelin_ward_bars_an_allys_action_at_its_vampire, chanjelin_ward_goes_on_your_vampire_one_each.)
+
+**89.4** Chanjelin Ward's burn: the vampire's current controller decides (ANK 20210309-3), in torpor too (D25), not during a block attempt nor after a block (ANK 20260316, LSJ 20041022); the failed action reached resolution (NRA), was not blocked (ANK 20211015, LSJ 20070219). Green. (Tests chanjelin_ward_burns_to_fail_an_action_at_its_vampire, chanjelin_ward_is_not_burned_during_a_block_attempt.)
+
+**89.5** Great Symposium: a master requiring Kiasyd (a ready Kiasyd controlled); one Kiasyd searched, the search may fail (ANK 20210304, LSJ 20100306); then all 3 blood from the bank, one at a time, among the Kiasyd in the uncontrolled region (`Effect::BankBloodAmongUncontrolled`), none with no Kiasyd there; once a game, anyone's copy (`NotPlayedThisGame`). Green. (Test great_symposium_searches_a_kiasyd_and_distributes_three_blood.)
+
+**89.6** Stone Travel [MYT]: its stealth only when needed (3.2), its cancel with it; blocked, the acting vampire may cancel the combat (`Effect::MayCancelCombatIfBlocked`, `Choice::CancelCombat`) as it begins: the action stays blocked, no bleed. Not Mirror Walk's end before block resolution. Amber (the reads agree). (Test stone_travel_superior_may_cancel_the_combat_after_a_block.)
+
+**89.7** Aura Absorption [aus], Stone Travel [obt]: the blood burned is an effect, not reduced, and the card not played without it (ANK 20210226); [aus] an intercept play, as Aura's own play, not a granted ability (the window matrix's rider pattern narrowed). Green. (Tests burn_blood_modes_need_the_blood, stone_travel_and_aura_absorption_trade_stealth_and_intercept.)
+
+**89.8** Fae Contortion [myt]: "a grapple card" is a card printing "Grapple." (the generated label Michaela, Bollix and Charismatic Aura read); in the pool only Immortal Grapple is one. A reader would take only the cards named "… Grapple": the same cards in the pool. Amber (no pool card differs). (Tests fae_contortion_cancels_a_grapple_as_it_is_played, fae_contortion_maneuvers_and_cancels_only_grapples.)
+
+**89.9** Gremlins [myt]: Ⓓ at the equipment's controller (LSJ 20090324), undirected at one's own; "melee weapons" are weapons with a melee strike (`CardFilter::MeleeWeapon`), one with both a melee and a ranged strike included; a locquipment in play is no equipment. Green. (Test gremlins_burns_a_non_melee_equipment_or_bleeds.)
+
+**89.10** Goblinism: [pot] Ⓓ at the location's controller (LSJ 20090324); [myt] the location (a locquipment too) shown and put in hand, the library shuffled, the hand discarded down after; [MYT] a haven (the generated "Haven." label: Secure Haven, Zaire River Ferry) may go on the acting vampire instead, not played, its cost paid as normal (Therbold Realty's discount included), only if it holds no haven yet — chosen before the discard down (the card goes "instead" of the hand). One haven a minion, Secure Haven's and the Ferry's "only one haven" alike (`ONE_HAVEN`: Secure Haven not put on the Ferry's bearer, the Ferry not equipped by a Secure Haven's; revises 70.20). Amber (the reads agree). (Tests goblinism_burns_a_location, goblinism_finds_a_location_and_may_put_a_haven_on, one_haven_a_minion_whichever_it_is.)
+
+**89.11** Guarded Rubrics: requires a ready Black Hand vampire; the bearer's bleed at +2 for 1 blood, the action fizzling if the Rubrics left it (RTR 19960221); "Gehenna cards" the cards printing "Gehenna." (the generated label), costing every Methuselah 1 more pool while the bearer is ready (`LabelPoolSurcharge::while_host_ready`). Amber. (Test guarded_rubrics_bleeds_and_taxes_gehenna_cards.)
+
+**89.12** Humanitas: on a ready vampire its player controls; rescuing, +1 stealth and 1 blood less whoever pays (PIB 20110918, LSJ 20020304-2); the vampire commits no diablerie (advanced rules §3.7.8). Catacombs: the same for its bearer, the acting rescuer (a Catacombs on the rescued vampire does nothing); a locquipment (LSJ 20080114). Green. (Tests humanitas_helps_rescues_and_bars_diablerie, catacombs_helps_its_vampire_rescue.)
+
+**89.13** Harvest Rites: a Sabbat vampire's +1 stealth action, put on it, one a vampire. Green. (Test harvest_rites_adds_a_blood_to_one_hunt_each_turn.)
+
+**89.14** Nocturn [obt]: Spectral Servitor's shape — acts the turn it is recruited, in its Methuselah's minion phase only (ANK 20200930); its recruiter unlocked on its first successful recruit this turn; plays non-ally cards requiring basic [obt] as an independent vampire of capacity 1 (`AsVampire::non_ally`; LSJ 20020503), so not another Nocturn; burned in its controller's unlock phase, after Khobar Towers if its player orders so (ANK 20170625). Green. (Tests nocturn_acts_at_once_plays_obtenebration_and_burns_at_unlock, khobar_towers_takes_nocturn_before_it_burns.)
+
+**89.15** Nocturn [OBT]: each successful [OBT] recruit lets its recruiter recruit Nocturn once more this turn (`Minion::repeats`), each costing +1 blood for each earlier one this turn, blocked ones counted (NRA's: reached resolution); a repeat at [obt] allowed, granting none. Amber (the reads agree). (Test nocturn_superior_lets_its_recruiter_recruit_again_at_a_higher_cost.)
+
+**89.16** Ravager: on any Kiasyd (33.3); only changeling allies (the generated label: Mylan Horseed, who cannot block vampires) may block its undirected hunts; its directed actions blockable as normal. Green. (Test ravager_bars_non_changelings_from_blocking_its_kiasyds_hunt.)
+
+**89.17** Song of Pan: the acting Kiasyd unlocked, the card in play; every Methuselah's Kiasyd and changeling allies +1 bleed (D11; `Modifier::SubtypeStat`); in its controller's discard phase it burns and each of their Kiasyd (torpid too) and changeling allies that did not bleed successfully this turn takes 1 unpreventable damage (`Effect::DamageUnbledThisTurn`). Amber (the reads agree). (Test song_of_pan_raises_kiasyd_bleeds_and_hurts_those_that_did_not_bleed.)
+
+**89.18** Watchtower: Four Ride Forth: requires a ready Seraph (`ControlsReadySeraph`); in its controller's discard phase, locked to unlock any Methuselah's ready Black Hand vampire (D11), not one already unlocked (48.7: an unlock alone, no card cycled); burned as another watchtower — any Methuselah's — enters play (`Hook::LabelEntersPlay`). Amber (48.7). (Test watchtower_unlocks_a_black_hand_vampire_and_burns_for_another.)
+
+**89.19** Fee Stake: Corte, Fee Stake: Los Angeles: as Fee Stake: Perth (an Anarch of capacity 5 or more, Baron of the city; contested face down, LSJ 20070808-2). Green. (Test fee_stakes_corte_and_los_angeles_make_a_baron.)
+
+**89.20** Isanwayen: locked in his controller's master phase while ready for +1 master phase action; rescuing him costs 1 more blood, any rescue's (a card's too), read as announced and as it resolves (48.8). Amber (a reader asked about card rescues; the reads agree). (Tests isanwayen_locks_for_a_master_phase_action, rescuing_isanwayen_costs_one_more_blood.)
+
+**89.21** The Arcadian (Cybele's bleed at +1 with +1 stealth), Omme Enberbenight (Ludmijla's discount on [myt] modes, 38.4), Pherydima (Dónal's unlock in the discard phase, for a pool, in torpor too): green. (Tests the_arcadian_bleeds_at_plus_one_for_a_blood, omme_pays_less_for_mytherceria_cards, pherydima_burns_a_pool_to_unlock_in_the_discard_phase.)
+
+**89.22** Roderick Phillips March: while ready, +1 stealth on the equip actions of every minion his controller controls, himself included; an equip action as 78.28 and 80.44 read it (`PrintedCtx::equip_action`). A reader asked whether a move from another minion counts: it does not (78.28). Green. (Test roderick_gives_stealth_on_equip_actions.)
+
+**89.23** Andrew Emory, Dame Hollerton, Randel, The Coward print no text; Banjoko's Black Hand and Seraph are generated traits (LSJ 20070322, ANK 20180807). Green. (Test the_textless_round_20_vampires_have_no_definition_and_their_traits.)
+
+**89.24** Mylan Horseed is a changeling (his type line), so two texts 77.32 and the definitions called inert now act: Winterlich's "while he is ready, changelings cost you 1 fewer pool" (his and his Methuselah's other minions' recruits; his "as if he met the requirements" still inert: no changeling in the pool has a requirement) and Black Forest Base's "changeling allies can burn this location as a +1 stealth Ⓓ action". Revises 77.32. Green (a gap found on the way). (Tests winterlich_makes_changelings_cost_one_pool_less, black_forest_base_is_burned_by_a_changeling_ally.)
+
+**89.25** Foresee's "you may then choose to cancel combat" is offered as `Choice::CancelCombat` (Stone Travel's), no longer as `ContinueAction` (Form of Mist's continue): the choice is the cancel, continuing only when the imbued blocked (87.31). No reading changes. Green. (Tests foresee_looks_and_cancels_the_combat_the_bleed_going_on, foresees_continued_action_asks_no_decliner_again.)
+
+**89.26** "Successfully hunts" (Adisa, Eddie Gaines, Enhanced Coagulant, Restricted Vitae's "until a vampire successfully hunts", Harvest Rites): a hunt at capacity is successful, its blood got and drained off (owner, 89.1; 63.12); a vampire that cannot gain blood by hunting does not (59.4). Abactor's "successful resolution" stays a hunt that gained blood (63.2, LSJ 20090411). Before, the engine fired these only on blood kept. Green (the owner's 89.1, generalized; found on the way). (Tests a_hunt_at_capacity_is_a_successful_hunt, harvest_rites_adds_a_blood_to_one_hunt_each_turn.)

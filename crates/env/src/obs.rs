@@ -748,7 +748,9 @@ fn option(
         Choice::UnlockForBlood { minion } | Choice::UnlockInfernal { minion } => {
             [52, minion_v(minion), ix.minion(minion), 0, 0]
         }
-        Choice::ContinueAction => [53, 0, 0, 0, 0],
+        // CancelCombat folded into 53, no schema change: never offered
+        // beside ContinueAction (an interrupt of its own).
+        Choice::ContinueAction | Choice::CancelCombat => [53, 0, 0, 0, 0],
         Choice::GainStrength => [54, 0, 0, 0, 0],
         Choice::BurnBloodToAvoid => [55, 0, 0, 0, 0],
         Choice::BurnCorruptionToFail { minion } => [56, minion_v(minion), ix.minion(minion), 0, 0],

@@ -143,6 +143,9 @@ pub struct PrintedCtx {
     pub own_printed: bool,
     /// The action equips with a weapon card from hand (Adhiambo).
     pub equip_weapon: bool,
+    /// An equip action (`ActionCtx::is_equip_action`: Roderick Phillips
+    /// March).
+    pub equip_action: bool,
     /// The action enters combat with a minion (Adhiambo).
     pub enters_combat: bool,
     /// The action's card puts a vampire in play (João Bilé).
@@ -376,6 +379,12 @@ pub struct Minion {
     /// Actions it performed this turn that reached resolution (NRA,
     /// rules-qa 1.4).
     pub acted: Vec<ActionId>,
+    /// Action cards it may perform again this turn, one entry a repeat
+    /// (Nocturn [OBT]).
+    pub repeats: Vec<u16>,
+    /// The minions its two-action ability has had one action at, and the
+    /// turn (Quincy, The Trapper).
+    pub progress: Vec<(MinionId, u32)>,
     /// Recruited this turn, so cannot act (rulebook "Recruit Ally"; one put
     /// in play otherwise can, advanced rules 5.5.4).
     pub recruited: bool,
@@ -592,6 +601,8 @@ impl Minion {
             hunting_ground_fed: false,
             skip_unlock: false,
             acted: Vec::new(),
+            repeats: Vec::new(),
+            progress: Vec::new(),
             recruited: false,
             recruits_this_turn: 0,
             played_since_unlock: Vec::new(),
@@ -900,6 +911,9 @@ pub struct CardInPlay {
     /// In the uncontrolled region with training counters (Web of Knives
     /// Recruit), out of play.
     pub training: bool,
+    /// The turn its once-each-turn effect was spent (Harvest Rites), 0 if
+    /// never.
+    pub spent_turn: u32,
 }
 
 impl CardInPlay {
@@ -941,6 +955,7 @@ impl CardInPlay {
             stored_owner: None,
             held_vampire: None,
             fixed_x: 0,
+            spent_turn: 0,
             discipline: None,
             chosen: Vec::new(),
             training: false,
@@ -1949,11 +1964,28 @@ impl GameState {
         self.ally_body(m).map_or(1, |b| b.bleed)
     }
 
-    /// Blood `m` gains by hunting: none with a disease counter (Vampiric
-    /// Disease), the hunt then unsuccessful (LSJ 20090411).
-    pub fn hunt_blood(&mut self, m: MinionId, n: u8) {
-        if !self.minions[m.index()].disease {
-            self.gain_blood(m, n);
+    /// `m`'s hunt gets n blood from the bank: whether it successfully hunts
+    /// (at capacity too, rules-qa 89.26; none with a disease counter, 59.4),
+    /// its once-each-turn bonus then spent (`spend_once_hunt`).
+    pub fn hunt_blood(&mut self, m: MinionId, n: u8) -> bool {
+        if self.minions[m.index()].disease {
+            return false;
+        }
+        self.gain_blood(m, n);
+        self.spend_once_hunt(m);
+        true
+    }
+
+    /// A successful hunt spends `m`'s once-each-turn hunt bonus (Harvest
+    /// Rites, at capacity too: owner, rules-qa 89.1).
+    pub fn spend_once_hunt(&mut self, m: MinionId) {
+        let spent: Vec<CardId> = self
+            .borne(m)
+            .filter(|l| matches!(l.modifier, Modifier::BearerHuntOncePerTurn(_)))
+            .map(|l| l.source)
+            .collect();
+        for c in spent {
+            self.cards[c.index()].spent_turn = self.turn;
         }
     }
 
@@ -2339,6 +2371,7 @@ impl GameState {
                 matches!(ctx.kind, Some(ActionKind::Recruit | ActionKind::Employ))
             }
             R::IsEquipWeaponFromHand => ctx.equip_weapon,
+            R::IsEquipAction => ctx.equip_action,
             R::ActionEntersCombat => ctx.enters_combat,
             R::ActionNotEnteringCombat => ctx.kind.is_some() && !ctx.enters_combat,
             R::ActionPutsVampireInPlay => ctx.puts_vampire_in_play,
@@ -2722,6 +2755,12 @@ impl GameState {
                     Modifier::BearerHunt(n) if self.cards[l.source.index()].bearer() == Some(m) => {
                         n
                     }
+                    Modifier::BearerHuntOncePerTurn(n)
+                        if self.cards[l.source.index()].bearer() == Some(m)
+                            && self.cards[l.source.index()].spent_turn != self.turn =>
+                    {
+                        n
+                    }
                     _ => 0,
                 })
                 .sum::<u8>()
@@ -3011,6 +3050,17 @@ impl GameState {
             .sum()
     }
 
+    /// The extra blood other Methuselahs' actions targeting `m` cost `seat`
+    /// through the cards on it (Chanjelin Ward).
+    pub fn targeted_surcharge(&self, m: MinionId, seat: SeatId) -> u8 {
+        self.borne(m)
+            .map(|l| match l.modifier {
+                Modifier::TargetedCostsBlood(n) if self.card_controller(l.source) != seat => n,
+                _ => 0,
+            })
+            .sum()
+    }
+
     /// Can `actor` perform an action directed at `m` (Shadow Cloak [OBL],
     /// Secure Haven, Veneficti)?
     pub fn may_direct_at(&self, actor: MinionId, m: MinionId) -> bool {
@@ -3018,6 +3068,13 @@ impl GameState {
         // actions" (the caller reads only another Methuselah's minions).
         if self.havens_on(m) > 0
             && self.minions[actor.index()].owner != self.minions[m.index()].owner
+        {
+            return false;
+        }
+        // Chanjelin Ward: an ally pays no blood (73.5), and a payment not
+        // had is not offered (D3).
+        if self.minions[actor.index()].is_ally()
+            && self.targeted_surcharge(m, self.minions[actor.index()].owner) > 0
         {
             return false;
         }
@@ -3203,6 +3260,11 @@ impl GameState {
                 && self.cards[l.source.index()].bearer() == Some(m)
                 && during_reads(during)
                 && who.is(self, m) =>
+            {
+                Some((self.cards[l.source.index()].card, n as i32))
+            }
+            Modifier::SubtypeStat { label, stat: s, n }
+                if s == stat && self.has_subtype(m, label) =>
             {
                 Some((self.cards[l.source.index()].card, n as i32))
             }
@@ -3464,6 +3526,41 @@ impl GameState {
     pub fn plays_as_vampire(&self, m: MinionId) -> Option<cards::AsVampire> {
         self.borne(m).find_map(|l| match l.modifier {
             Modifier::PlaysAsVampire(g) => Some(g),
+            _ => None,
+        })
+    }
+
+    /// How many times `m` performed `card`'s action this turn (NRA).
+    pub fn performed_this_turn(&self, m: MinionId, card: u16) -> u8 {
+        self.minions[m.index()]
+            .acted
+            .iter()
+            .filter(|a| a.same(ActionId::Card(card)))
+            .count() as u8
+    }
+
+    /// The repeats of `card`'s action `m` was granted this turn (Nocturn
+    /// [OBT]).
+    pub fn repeats_of(&self, m: MinionId, card: u16) -> u8 {
+        self.minions[m.index()]
+            .repeats
+            .iter()
+            .filter(|&&c| ActionId::Card(c).same(ActionId::Card(card)))
+            .count() as u8
+    }
+
+    /// `m` is an ally of the subtype its card prints (a changeling).
+    pub fn has_subtype(&self, m: MinionId, label: Label) -> bool {
+        self.minions[m.index()]
+            .kind
+            .ally_card()
+            .is_some_and(|card| LIBRARY[card as usize].labels.contains(&label))
+    }
+
+    /// Only allies of a subtype may block `m`'s undirected hunts (Ravager).
+    pub fn only_subtype_blocks_undirected_hunts(&self, m: MinionId) -> Option<Label> {
+        self.borne(m).find_map(|l| match l.modifier {
+            Modifier::OnlySubtypeBlocksUndirectedHunts(label) => Some(label),
             _ => None,
         })
     }

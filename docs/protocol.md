@@ -18,7 +18,7 @@ is created by one request and played over one WebSocket. Every game is
 recorded, anonymously, and kept two years to train and test the engine
 (§11).
 
-Version **2.7.1**. The types: the models of the
+Version **2.8.0**. The types: the models of the
 [API reference](https://engine.krcg.org/docs), also as
 [JSON Schema](https://engine.krcg.org/schema.json) (2020-12) and
 [TypeScript](https://engine.krcg.org/protocol.ts).
@@ -345,7 +345,7 @@ seat 2; burn 2 pool to keep card 9.)
   `merge` and `slot` their `slot` (the Great Beast's Discipline slot its
   `value`); a combatant's choice (`hand_strike`, `round_strike`,
   `use_maneuver`, `use_press`, `use_prevent`, `strike_combat_ends`,
-  `committed_strike`, `gain_strength`) and the acting minion's own
+  `committed_strike`, `gain_strength`, `cancel_combat`) and the acting minion's own
   (`continue_action`, `take_damage_after_resolution`) its `actor`;
   `diablerise` the blocker diablerising as `actor`, the acting vampire
   as `minion`; a card chosen (`discard`, `bottom`, `find_card`,

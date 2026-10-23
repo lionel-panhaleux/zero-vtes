@@ -9,13 +9,14 @@ Docs: `docs/engine.md` (§2–5, the reference by mechanism),
 and the ledger; a rulebook mechanism no card carries is on the engine board.
 
 Pool (`scripts/coverage.py`, KRCG `vtes.json` of 2026-06-30; 2 crypt and
-18 library cards banned, out of scope, owner 2026-10-14): crypt 721 of
-1,783 (40.4%), library 937 of 2,346 (39.9%); the Imbued, Powers and
-Convictions all in (round 19); 75 of 109 sets complete. TWDA decks in the
-pool 620 of 4,538, kept 164; recent (2025+) 299 of 476 in the pool, kept
-106. Demand (the server's counts to 2026-10-19): the 14 cards asked for,
-all added in round 18; 299999 (asked 5 times) is a client's placeholder,
-no card.
+18 library cards banned, out of scope, owner 2026-10-14): crypt 731 of
+1,783 (41.0%), library 954 of 2,346 (40.7%); the Imbued, Powers and
+Convictions all in (round 19); 76 of 109 sets complete. TWDA decks in the
+pool 644 of 4,538, kept 166; recent (2025+) 302 of 476 in the pool, kept
+102 (round 20's larger-event versions displaced four 2025 ones). Demand
+(the server's counts to 2026-10-23): every card asked for in the pool
+since round 20; 299999 (asked 12 times) is a client's placeholder, no card.
+VEKN's two-player allowed list all in the pool (round 20).
 
 A shrinking list (CLAUDE.md "Harness"): one line an ask, its done-condition
 and the docs it changes; done is deleted; order is priority; the only

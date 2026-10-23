@@ -194,7 +194,8 @@ pub static ADELINO_DA_SILVA: VampireDef = VampireDef {
 
 /// "Adisa can enter combat with an ally or younger vampire as a Ⓓ action. If
 /// she successfully hunts, she does not unlock as normal during her next
-/// unlock phase." A successful hunt gains blood (spec §3.7.2.1).
+/// unlock phase." A successful hunt gets its blood, at capacity too
+/// (owner, rules-qa 89.26).
 pub static ADISA: VampireDef = VampireDef {
     name: "Adisa",
     abilities: &[enter_combat(&[
@@ -1777,7 +1778,7 @@ pub static PARIJAT: VampireDef = VampireDef {
     ..VAMP
 };
 
-pub static VAMPIRES: [&VampireDef; 476] = [
+pub static VAMPIRES: [&VampireDef; 482] = [
     &JOSEF_VON_BAUREN,
     &GABRIELLE_DI_RIGHETTI,
     &HAROLD_TANNER,
@@ -2254,6 +2255,12 @@ pub static VAMPIRES: [&VampireDef; 476] = [
     &TRAVIS_TRAVELER72_MILLER,
     &XIAN_DZIDZAT155_QUAN,
     &JENNIE_CASSIE247_ORNE,
+    &ISANWAYEN,
+    &THE_ARCADIAN,
+    &OMME_ENBERBENIGHT,
+    &PHERYDIMA,
+    &RODERICK_PHILLIPS_MARCH,
+    &QUINCY_THE_TRAPPER,
 ];
 
 /// "Anarch Baron of Miami: During your influence phase, Gilbert can burn 1
@@ -7101,11 +7108,30 @@ pub static MALDAVIS: VampireDef = VampireDef {
 
 /// "Sabbat: Winterlich can recruit a changeling ally as if he met the
 /// requirements of playing that card. While he is ready, changelings cost
-/// you 1 fewer pool." No changeling ally is in the pool: his text is inert.
+/// you 1 fewer pool." Himself and the other minions recruiting or employing
+/// one. No changeling in the pool has requirements (Mylan Horseed): the
+/// first clause inert.
 pub static WINTERLICH: VampireDef = VampireDef {
     name: "Winterlich",
+    printed: &[
+        own(
+            Stat::PoolCostOff,
+            1,
+            &[R::ThisVampireReady, CHANGELING_PLAYED],
+        ),
+        Printed {
+            stat: Stat::PoolCostOff,
+            n: 1,
+            to: PrintedTo::OthersControlled,
+            per: Per::One,
+            requires: &[R::ThisVampireReady, CHANGELING_PLAYED],
+        },
+    ],
     ..VAMP
 };
+
+/// A changeling played (Winterlich).
+const CHANGELING_PLAYED: R = R::PlayedCard(CardFilter::HasLabel(Label::Changeling));
 
 /// "Independent. 2 votes (titled): During your unlock phase, you can move
 /// up to two cards from your hand to the bottom of your library (draw up
@@ -8943,6 +8969,113 @@ pub static JENNIE_CASSIE247_ORNE: VampireDef = VampireDef {
     name: "Jennie \"Cassie247\" Orne",
     printed: &[own(Stat::GrantsImbuedRecovery, 1, &[])],
     abilities: &[RECOVER, RECOVER_GRANTED],
+    ..VAMP
+};
+
+// ---- Round 20: the cards players asked for (/admin/unsupported, 2026-10-23) ----
+//
+// Andrew Emory ("Sabbat bishop."), Dame Hollerton and Randel, The Coward
+// ("Sabbat.") print no text; Banjoko's "Sabbat: Black Hand. Seraph." are
+// generated traits (LSJ 20070322, ANK 20180807).
+
+/// "Sabbat: If Isanwayen is ready during your master phase, you can lock
+/// him to get +1 master phase action. Rescuing him from torpor costs 1
+/// additional blood." The rescue read as announced and as it resolves
+/// (rules-qa 48.8).
+pub static ISANWAYEN: VampireDef = VampireDef {
+    name: "Isanwayen",
+    printed: &[own(Stat::RescueCostMore, 1, &[])],
+    abilities: &[mode_of(
+        &[Window::MasterPhase],
+        Actor::Host,
+        &[R::HostReady, R::HostUnlocked],
+        &[Effect::LockHost, Effect::GainMasterPhaseAction],
+    )],
+    ..VAMP
+};
+
+/// "Sabbat: The Arcadian can bleed with +1 bleed as a +1 stealth Ⓓ action
+/// that costs 1 blood."
+pub static THE_ARCADIAN: VampireDef = VampireDef {
+    name: "Arcadian, The",
+    abilities: &[ModeDef {
+        requires: &[R::ActorBloodAtLeast(1)],
+        ..mode_of(
+            &[Window::ActionDeclare],
+            Actor::Host,
+            &[],
+            &[
+                Effect::DeclareAction(ActionKind::Bleed),
+                Effect::PayBlood(1),
+                Effect::AddStealth(1),
+                bleed(1, false),
+            ],
+        )
+    }],
+    ..VAMP
+};
+
+/// "Sabbat priscus: Cards that require Mytherceria [myt] cost Omme 1 less
+/// blood."
+pub static OMME_ENBERBENIGHT: VampireDef = VampireDef {
+    name: "Omme Enberbenight",
+    printed: &[own(
+        Stat::BloodCostOff,
+        1,
+        &[R::PlayedRequiresDiscipline("myt")],
+    )],
+    ..VAMP
+};
+
+/// "Sabbat bishop: During your discard phase, you may burn a pool to unlock
+/// Pherydima." In torpor too (Dónal O'Connor's, LSJ 20011022); once in the
+/// phase (a phase window).
+pub static PHERYDIMA: VampireDef = VampireDef {
+    name: "Pherydima",
+    abilities: &[mode_of(
+        &[Window::DiscardPhase],
+        Actor::Host,
+        &[R::HostLocked, R::PoolAtLeast(1)],
+        &[Effect::PayPool(1), Effect::UnlockHost],
+    )],
+    ..VAMP
+};
+
+/// "Sabbat: While Roderick is ready, your minions get an additional +1
+/// stealth on equip actions." Himself too; an equip action as rules-qa
+/// 78.28 and 80.44 read it (not a move from another minion).
+pub static RODERICK_PHILLIPS_MARCH: VampireDef = VampireDef {
+    name: "Roderick Phillips March",
+    printed: &[
+        own(Stat::Stealth, 1, &[R::ThisVampireReady, R::IsEquipAction]),
+        Printed {
+            stat: Stat::Stealth,
+            n: 1,
+            to: PrintedTo::OthersControlled,
+            per: Per::One,
+            requires: &[R::ThisVampireReady, R::IsEquipAction],
+        },
+    ],
+    ..VAMP
+};
+
+/// "Sabbat: Quincy may burn an ally controlled by your predator or prey
+/// with two +1 stealth Ⓓ actions." The same action twice, in two different
+/// turns (ANK 20170202): the first successful one at an ally recorded, the
+/// second burns it; kept while both stay in play.
+pub static QUINCY_THE_TRAPPER: VampireDef = VampireDef {
+    name: "Quincy, The Trapper",
+    abilities: &[printed_action(
+        target(
+            TargetKind::Minion,
+            &[R::TargetAlly, R::ControlledByPredatorOrPrey],
+        ),
+        &[
+            Effect::DeclareAction(ActionKind::Ability),
+            Effect::AddStealth(1),
+            Effect::BurnTargetOnSecondAction,
+        ],
+    )],
     ..VAMP
 };
 

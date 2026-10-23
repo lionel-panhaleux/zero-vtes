@@ -337,6 +337,7 @@ ids!(
         BurnCorruptionToFail,
         BurnCorruptionToUnlock,
         Diablerise,
+        CancelCombat,
     }
 );
 
@@ -705,10 +706,14 @@ ids!(
         /// `seat`'s library or hand put on it (`TakeFrom`), or pass; the
         /// library shuffled either way.
         PowerSearch,
-        /// Foresee: `seat` may cancel the combat imbued `minion` is in
-        /// (`ContinueAction`), the action continuing as if unblocked when it
-        /// blocked; or pass.
+        /// `seat` may cancel the combat `minion` is in (`CancelCombat`), or
+        /// pass: Foresee's imbued (the action continuing as if unblocked
+        /// when it blocked), Stone Travel [MYT]'s blocked acting vampire.
         MayCancelCombat,
+        /// Goblinism [MYT]: the haven `card` just searched to `seat`'s hand
+        /// put on `minion` instead (`FindCard`), its cost paid, or kept
+        /// (Pass).
+        PutFoundOn,
     }
 );
 ids!(

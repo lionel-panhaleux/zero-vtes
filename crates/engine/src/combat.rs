@@ -4075,7 +4075,9 @@ impl Engine {
         for (id, from) in ended.iter().flat_map(|c| c.morbidity.clone()) {
             let n = std::mem::take(&mut self.state.cards[id.index()].counters);
             if self.state.minions[from.index()].present() {
-                self.state.gain_blood(from, n);
+                self.caused(Cause::Effect(Source::Card(id)), |e| {
+                    e.state.gain_blood(from, n)
+                });
             }
             if self.state.cards[id.index()].present() {
                 self.burn_card_in_play(id);

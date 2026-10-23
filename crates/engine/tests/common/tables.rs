@@ -380,6 +380,7 @@ pub fn table(seed: u64, slice: &[&str], extra: &[&str]) -> Engine {
             fixed_x: 0,
             discipline: None,
             training: false,
+            spent_turn: 0,
             chosen: Vec::new(),
         });
     }

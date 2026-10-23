@@ -149,6 +149,7 @@ impl Scripted {
                     e.interrupt(),
                     Some(
                         Interrupt::MayPutOn { .. }
+                            | Interrupt::PutFoundOn { .. }
                             | Interrupt::MayAddCounter { .. }
                             | Interrupt::MayStoreAim { .. }
                             | Interrupt::MayGainPool { .. }

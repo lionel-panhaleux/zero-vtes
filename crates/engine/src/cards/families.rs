@@ -117,8 +117,10 @@ impl Effect {
             | E::EnterWithCountersPerOwnClan(..)
             | E::EnterWithCountersPerOwnAnarch
             | E::CryptClanToUncontrolled(..)
+            | E::BankBloodAmongUncontrolled { .. }
             | E::RemoveBleedTargetAshCards(..)
             | E::SearchLibraryToHand(..)
+            | E::SearchLibraryToHandOrHavenOnActor(..)
             | E::SudarioRefraction
             | E::OwnReadyVampiresBloodToPool
             | E::GainPerUnlockedCircleMember
@@ -178,6 +180,7 @@ impl Effect {
             | E::UnlockTarget
             | E::LockTarget
             | E::BurnTargetMinion
+            | E::BurnTargetOnSecondAction
             | E::SacrificeTarget
             | E::CircleBloodMoves { .. }
             | E::BurnTargetCard
@@ -359,6 +362,7 @@ impl Effect {
             | E::ActionFails
             | E::DeferReactionReplacement
             | E::EndActionIfBlocked
+            | E::MayCancelCombatIfBlocked
             | E::ContinueUnblocked
             | E::AlliesCannotBlock
             | E::StrengthThisAction(..)
@@ -608,6 +612,7 @@ impl Effect {
             E::CannotGainLife
             | E::ActsWhenRecruited
             | E::UnlockRecruiterOnFirst
+            | E::MayRepeatThisTurn
             | E::Version(..)
             | E::EntryBurnAllyOrRetainer
             | E::EntryRemoveFromAshOrBurn => (Family::Entry, false),
@@ -674,7 +679,8 @@ impl Effect {
             | E::MayHandSizeOncePerTurn(..)
             | E::BuyTitleOnEntry(..)
             | E::CryptSearchOnEntry(..)
-            | E::PassesToSect(..) => (Family::Rider, false),
+            | E::PassesToSect(..)
+            | E::DamageUnbledThisTurn { .. } => (Family::Rider, false),
             // Read where the action is declared or offered: its kind, its
             // cost, its stealth, its bleed (`declare_action`, `stealth`,
             // `bleed_amount`).

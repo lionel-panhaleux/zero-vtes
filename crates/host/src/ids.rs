@@ -187,6 +187,7 @@ pub fn purpose(i: &Interrupt) -> Purpose {
         I::GiveCardTo { .. } => Purpose::GiveCardTo,
         I::NameAshPair { .. } => Purpose::NameAshPair,
         I::MayPutOn { .. } => Purpose::MayPutOn,
+        I::PutFoundOn { .. } => Purpose::PutFoundOn,
         I::MayAddCounter { .. } => Purpose::MayAddCounter,
         I::MayStoreAim { .. } => Purpose::MayStoreAim,
         I::MayTorture { .. } => Purpose::MayTorture,

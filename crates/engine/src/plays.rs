@@ -1097,15 +1097,13 @@ impl Engine {
                             continue;
                         }
                         // NRA (rules-qa 1.4): same action card name once per
-                        // minion per turn.
+                        // minion per turn, again as many times as a card
+                        // let it (Nocturn [OBT]).
                         if mode
                             .effects
                             .iter()
                             .any(|e| matches!(e, Effect::DeclareAction(_)))
-                            && st.minions[m.index()]
-                                .acted
-                                .iter()
-                                .any(|a| a.same(ActionId::Card(card)))
+                            && st.performed_this_turn(m, card) > st.repeats_of(m, card)
                         {
                             continue;
                         }
@@ -2901,7 +2899,8 @@ impl Engine {
                     if uses && top.is_some_and(|c| cards::CardFilter::Discipline(disc).matches(c)) {
                         pending.canceled = true;
                         pending.cost_paid = true;
-                        self.state.burn_blood(m, burn);
+                        let own = Cause::Effect(Source::Minion(m));
+                        self.caused(own, |e| e.state.burn_blood(m, burn));
                     }
                 }
             }
@@ -4150,6 +4149,16 @@ impl Engine {
         if layers == ModeLayers::Push {
             self.push_mode_layers(id);
         }
+        for &l in LIBRARY[c as usize].labels {
+            let hook = Hook::LabelEntersPlay(l);
+            for (other, r) in self.fired_riders(hook, &HookAt::ANY) {
+                if other != id {
+                    for &e in r.effects {
+                        self.apply_rider_effect(other, e, hook);
+                    }
+                }
+            }
+        }
         if let (Some(t), Some(h)) = (cards::card_title(c), host) {
             let unique = LIBRARY[c as usize].labels.contains(&Label::Unique);
             if !unique || self.state.library_rivals(id).is_empty() {
@@ -4255,6 +4264,16 @@ impl Engine {
             Effect::CryptClanToUncontrolled(clan) => {
                 self.interrupts
                     .push(Interrupt::CryptSearch { seat: s, clan });
+            }
+            Effect::BankBloodAmongUncontrolled { n, clan } => {
+                for _ in 0..n {
+                    self.interrupts.push(Interrupt::UncontrolledBlood {
+                        seat: s,
+                        clan: Some(clan),
+                        n: 1,
+                        may: false,
+                    });
+                }
             }
             // Trochomancy: from the ash heap of the Methuselah bled.
             Effect::RemoveBleedTargetAshCards(n) => {
@@ -5159,8 +5178,18 @@ impl Engine {
                 }
             }
             Effect::SearchLibraryToHand(filter) => {
-                self.interrupts
-                    .push(Interrupt::LibraryToHand { seat: s, filter });
+                self.interrupts.push(Interrupt::LibraryToHand {
+                    seat: s,
+                    filter,
+                    haven_on: None,
+                });
+            }
+            Effect::SearchLibraryToHandOrHavenOnActor(filter) => {
+                self.interrupts.push(Interrupt::LibraryToHand {
+                    seat: s,
+                    filter,
+                    haven_on: ctx.actor,
+                });
             }
             // Third Tradition: Progeny: up to n of the acting vampire's
             // blood to the new vampire, decided now (PIB 20150418).
@@ -5208,9 +5237,9 @@ impl Engine {
             }
             // The ally named as the card was played, if still in that ash
             // heap (else no effect); the acting vampire gains the blood (a
-            // hunt: successful if any, LSJ 20050720-2), a hunt bonus more
-            // from the bank (The Hungry Coyote; owner, 2026-10-08:
-            // rules-qa 53.8).
+            // hunt: successful, at capacity too, rules-qa 89.26), a hunt
+            // bonus more from the bank (The Hungry Coyote; owner,
+            // 2026-10-08: rules-qa 53.8).
             Effect::EatAshAlly { blood, unlock } => {
                 let (Some((from, card)), Some(acting)) = (ctx.ash, ctx.actor) else {
                     unreachable!("an ash ally named at play");
@@ -5231,16 +5260,17 @@ impl Engine {
                     let (_, copy) = seat.ash.take(k);
                     seat.removed.put(card, copy);
                     if self.state.minions[acting.index()].present() {
-                        let before = self.state.minions[acting.index()].blood;
-                        if hunt {
-                            self.state.hunt_blood(acting, blood);
+                        let successful = if hunt {
+                            self.state.hunt_blood(acting, blood)
                         } else {
+                            // Not a hunt: no "successfully hunts" (89.26).
                             self.state.gain_blood(acting, blood);
-                        }
+                            false
+                        };
                         if unlock {
                             self.state.unlock(acting);
                         }
-                        if self.state.minions[acting.index()].blood > before {
+                        if successful {
                             self.successful_hunt_riders(acting);
                         }
                     }
@@ -5807,6 +5837,22 @@ impl Engine {
                             victim: t,
                             diablerie: false,
                         });
+                    }
+                }
+            }
+            // Quincy: kept through torpor and control changes, the two
+            // actions in two different turns (ANK 20170202).
+            Effect::BurnTargetOnSecondAction => {
+                if let (Target::Minion(t), Some(a)) = (ctx.target, ctx.actor) {
+                    if self.state.minions[t.index()].in_play {
+                        let turn = self.state.turn;
+                        let p = &mut self.state.minions[a.index()].progress;
+                        if p.iter().any(|&(m, at)| m == t && at < turn) {
+                            p.retain(|&(m, _)| m != t);
+                            self.burn_minion(t);
+                        } else if !p.contains(&(t, turn)) {
+                            p.push((t, turn));
+                        }
                     }
                 }
             }
@@ -7249,6 +7295,12 @@ impl Engine {
                 _ => 0,
             })
             .sum::<u8>()
+            // Nocturn [OBT]: +1 blood for each time this turn (cumulative).
+            + if st.repeats_of(actor, card) > 0 {
+                st.performed_this_turn(actor, card)
+            } else {
+                0
+            }
             // Printed on the vampire (Scout Youngwood's reactions), or on its
             // opposing combatant (Murat).
             + st
@@ -10361,6 +10413,20 @@ impl Engine {
             match e {
                 Effect::PredatorTakesControl => self.predator_takes_control(id, controller),
                 Effect::PassesToSect(sect) => self.passes_to_sect(id, controller, sect),
+                Effect::DamageUnbledThisTurn { clan, label, n } => {
+                    let st = &self.state;
+                    let hit: Vec<MinionId> = st
+                        .minions_of(controller)
+                        .filter(|&m| {
+                            let v = &st.minions[m.index()];
+                            (v.clan() == Some(clan) || st.has_subtype(m, label))
+                                && !v.bleeds.iter().any(|&(t, _, _)| t == st.turn)
+                        })
+                        .collect();
+                    for m in hit {
+                        self.damage_out_of_combat(m, n, false);
+                    }
+                }
                 other => self.apply_rider_effect(id, other, Hook::DiscardPhase),
             }
         }

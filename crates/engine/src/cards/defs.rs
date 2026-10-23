@@ -1283,6 +1283,7 @@ pub static VOZHD_OF_JUIZ_DE_FORA: CardDef = CardDef {
             disciplines: &["ani"],
             capacity: 5,
             non_action: false,
+            non_ally: false,
             sect: Sect::Independent,
         })),
     ])],
@@ -1332,6 +1333,7 @@ pub static SPECTRAL_SERVITOR: CardDef = CardDef {
                 disciplines: &["obl"],
                 capacity: 1,
                 non_action: true,
+                non_ally: false,
                 sect: Sect::Independent,
             })),
         ]),
@@ -1343,6 +1345,7 @@ pub static SPECTRAL_SERVITOR: CardDef = CardDef {
                 disciplines: &["obl"],
                 capacity: 1,
                 non_action: true,
+                non_ally: false,
                 sect: Sect::Independent,
             })),
         ]),
@@ -2627,7 +2630,7 @@ pub static VOTER_CAPTIVATION: CardDef = CardDef {
     ..CARD
 };
 
-pub static DEFS: [&CardDef; 937] = [
+pub static DEFS: [&CardDef; 954] = [
     &TAUNT_THE_CAGED_BEAST,
     &PETRA_RESONANCE,
     &WAITING_GAME,
@@ -3565,6 +3568,23 @@ pub static DEFS: [&CardDef; 937] = [
     &REACT_WITH_CONVICTION,
     &SECOND_SIGHT,
     &STRIKE_WITH_CONVICTION,
+    &AURA_ABSORPTION,
+    &GREMLINS,
+    &FAE_CONTORTION,
+    &HUMANITAS,
+    &CATACOMBS,
+    &STONE_TRAVEL,
+    &FEE_STAKE_CORTE,
+    &FEE_STAKE_LOS_ANGELES,
+    &SONG_OF_PAN,
+    &RAVAGER,
+    &CHANJELIN_WARD,
+    &GREAT_SYMPOSIUM,
+    &HARVEST_RITES,
+    &GUARDED_RUBRICS,
+    &WATCHTOWER_FOUR_RIDE_FORTH,
+    &NOCTURN,
+    &GOBLINISM,
 ];
 
 // ---- Cards in play with riders and granted actions -------------------------
@@ -12780,7 +12800,7 @@ pub static SECURE_HAVEN: CardDef = CardDef {
             TargetKind::Minion,
             &[
                 Requirement::Controlled,
-                Requirement::TargetWithout(Holding::Named("Secure Haven")),
+                Requirement::TargetWithout(ONE_HAVEN),
             ],
         ),
         ..mode_of(
@@ -14768,8 +14788,8 @@ static BLACK_FOREST_BASE_REFERENDUM: ReferendumDef = ReferendumDef {
 /// location as a +1 stealth Ⓓ action." Any Methuselah's Sabbat vampire;
 /// once each turn by any (ANK 20180719-4: each player's turn), counted as
 /// attempted, blocked or not (LSJ 20091224); an action requiring a Sabbat
-/// vampire (LSJ 20080604). No changeling ally is in the pool: the burn is
-/// inert.
+/// vampire (LSJ 20080604). The burn directed at the location's controller
+/// (LSJ 20090324), any Methuselah's changeling ally's (Mylan Horseed).
 pub static BLACK_FOREST_BASE: CardDef = CardDef {
     name: "Black Forest Base",
     modes: &[mode_of(
@@ -14778,22 +14798,34 @@ pub static BLACK_FOREST_BASE: CardDef = CardDef {
         &[Requirement::ControlsReadySect(&[Sect::Sabbat])],
         &[Effect::PutInPlay],
     )],
-    abilities: &[ModeDef {
-        limit: Some(Limit::PerTurn),
-        ..mode_of(
-            &[Window::ActionDeclarePolitical],
+    abilities: &[
+        ModeDef {
+            limit: Some(Limit::PerTurn),
+            ..mode_of(
+                &[Window::ActionDeclarePolitical],
+                Actor::ActingCandidate,
+                &[
+                    Requirement::ActorVampire,
+                    Requirement::ActorSectIn(&[Sect::Sabbat]),
+                ],
+                &[
+                    Effect::DeclareAction(ActionKind::Political),
+                    Effect::AddStealth(1),
+                    Effect::CallReferendum(&BLACK_FOREST_BASE_REFERENDUM),
+                ],
+            )
+        },
+        mode_of(
+            &[Window::ActionDeclare],
             Actor::ActingCandidate,
+            &[Requirement::ActorSubtype(Label::Changeling)],
             &[
-                Requirement::ActorVampire,
-                Requirement::ActorSectIn(&[Sect::Sabbat]),
-            ],
-            &[
-                Effect::DeclareAction(ActionKind::Political),
+                Effect::DeclareAction(ActionKind::BurnCard),
                 Effect::AddStealth(1),
-                Effect::CallReferendum(&BLACK_FOREST_BASE_REFERENDUM),
+                Effect::BurnSource,
             ],
-        )
-    }],
+        ),
+    ],
     ..CARD
 };
 
@@ -18297,6 +18329,7 @@ pub static HERALD_OF_TOPHETH: CardDef = CardDef {
             disciplines: &["dai", "pot", "pre"],
             capacity: 5,
             non_action: false,
+            non_ally: false,
             sect: Sect::Independent,
         })),
     ])],
@@ -22270,11 +22303,14 @@ pub static KAYMAKLI_NIGHTMARES: CardDef = CardDef {
 /// 20081105), before the other modifiers and reactions (ANK 20190425); the
 /// failed action reached resolution (NRA; ANK 20211015, RTR 20180719), was
 /// not blocked (LSJ 20070219), and takes its after-resolution cards (ANK
-/// 20221205). A location once in play (LSJ 20080114); the only haven in
-/// the pool, and unique.
+/// 20221205). A location once in play (LSJ 20080114); one haven a vampire,
+/// Secure Haven included (rules-qa 89.10).
 pub static ZAIRE_RIVER_FERRY: CardDef = CardDef {
     name: "Zaire River Ferry",
-    modes: &[EQUIP],
+    modes: &[ModeDef {
+        requires: &[Requirement::ActorWithout(ONE_HAVEN)],
+        ..EQUIP
+    }],
     abilities: &[
         mode_of(
             &[Window::ReactionAsAnnounced],
@@ -22413,6 +22449,7 @@ pub static INFERNAL_SERVITOR: CardDef = CardDef {
                     disciplines: &["dai", "obf"],
                     capacity: 1,
                     non_action: false,
+                    non_ally: false,
                     sect: Sect::Independent,
                 })),
             ])
@@ -26832,6 +26869,7 @@ pub static VIVIENNE_GEROUX: CardDef = CardDef {
             disciplines: &["cel", "for"],
             capacity: 1,
             non_action: false,
+            non_ally: false,
             sect: Sect::Anarch,
         })),
         Effect::Layer(Modifier::OwnMinionsStat {
@@ -27552,6 +27590,7 @@ pub static CENTRALIZED_BACKGROUND_CHECK: CardDef = CardDef {
             Effect::Layer(Modifier::LabelPoolSurcharge {
                 label: Label::Weapon,
                 pool: 1,
+                while_host_ready: false,
             }),
         ],
         ..LOCATION
@@ -29944,6 +29983,524 @@ pub static STRIKE_WITH_CONVICTION: CardDef = CardDef {
                 Effect::DeclareAction(ActionKind::Bleed),
                 bleed(1, false),
                 Effect::BurnSourceOnResolution,
+            ],
+        ),
+    ],
+    ..CARD
+};
+
+// ---- Round 20: the cards players asked for (/admin/unsupported, 2026-10-23) ----
+
+/// "A minion can have only one haven" (Secure Haven, Zaire River Ferry,
+/// Goblinism [MYT]'s put-on): any card printing "Haven.".
+pub(crate) const ONE_HAVEN: Holding = Holding::Label(Label::Haven);
+
+/// "[aus] [REACTION] This vampire burns 1 blood to get +1 intercept. [myt]
+/// [REACTION] +1 intercept. [MYT] [ACTION MODIFIER] +1 stealth." The [aus]
+/// blood is no cost (ANK 20210226): not reduced, and the card is not
+/// played without it.
+pub static AURA_ABSORPTION: CardDef = CardDef {
+    name: "Aura Absorption",
+    modes: &[
+        intercept(
+            &[
+                Requirement::InterceptNeeded,
+                Requirement::ActorBloodAtLeast(1),
+            ],
+            &[Effect::BurnActorBlood(1), Effect::AddIntercept(1)],
+        ),
+        intercept(&[Requirement::InterceptNeeded], &[Effect::AddIntercept(1)]),
+        stealth(&[Effect::AddStealth(1)]),
+    ],
+    ..CARD
+};
+
+/// "[dom] Ⓓ Bleed with +1 bleed. [myt] +1 stealth action. Ⓓ Burn an
+/// equipment. Not usable on melee weapons. [MYT] +1 stealth action. Ⓓ Bleed
+/// with +1 bleed." Directed at the equipment's controller (LSJ 20090324); a
+/// location in play is no equipment (Conceal's).
+pub static GREMLINS: CardDef = CardDef {
+    name: "Gremlins",
+    modes: &[
+        action_at(
+            &[],
+            None,
+            &[Effect::DeclareAction(ActionKind::Bleed), PLUS_ONE_BLEED],
+        ),
+        action_at(
+            &[],
+            target(
+                TargetKind::Card,
+                &[
+                    Requirement::TargetCard(CardFilter::Type(CardType::Equipment)),
+                    Requirement::TargetCardNot(CardFilter::MeleeWeapon),
+                ],
+            ),
+            &[
+                Effect::DeclareAction(ActionKind::Card),
+                Effect::AddStealth(1),
+                Effect::BurnTargetCard,
+            ],
+        ),
+        action_at(
+            &[],
+            None,
+            &[
+                Effect::DeclareAction(ActionKind::Bleed),
+                Effect::AddStealth(1),
+                PLUS_ONE_BLEED,
+            ],
+        ),
+    ],
+    ..CARD
+};
+
+/// "[myt] [REFLEX] Cancel a grapple card as it is played, and its cost is
+/// not paid. [obt] [COMBAT] Maneuver. [myt] [COMBAT] Maneuver. [MYT] [ACTION
+/// MODIFIER] +1 stealth." A grapple card prints "Grapple." (Immortal
+/// Grapple, Mighty Grapple, Grasp of the Python, Shoulder Drop). The cancel
+/// rules (LSJ 20061207, LSJ 20080630, ANK 20190104, LSJ 20030224); one
+/// Discipline as played (LSJ 20011204-3, PIB 20130704).
+pub static FAE_CONTORTION: CardDef = CardDef {
+    name: "Fae Contortion",
+    modes: &[
+        combat(
+            &[Window::CardAsPlayed],
+            &[
+                Requirement::PlayedByOpposingMinion,
+                Requirement::PlayedCard(CardFilter::HasLabel(Label::Grapple)),
+            ],
+            &[Effect::CancelPlayed { refund: true }],
+        ),
+        combat(&[Window::CombatDetermineRange], &[], &[Effect::Maneuver]),
+        combat(&[Window::CombatDetermineRange], &[], &[Effect::Maneuver]),
+        stealth(&[Effect::AddStealth(1)]),
+    ],
+    ..CARD
+};
+
+/// "Unique master. Put this card on a ready vampire you control. When
+/// attempting to rescue a vampire from torpor, this vampire gets +1 stealth
+/// and burns 1 less blood if successful. This vampire cannot commit
+/// diablerie." The discount is the action's, whoever pays (PIB 20110918,
+/// LSJ 20020304-2); barred from diablerie, never compelled to it (advanced
+/// rules §3.7.8).
+pub static HUMANITAS: CardDef = CardDef {
+    name: "Humanitas",
+    modes: &[ModeDef {
+        target: target(
+            TargetKind::Minion,
+            &[
+                Requirement::Controlled,
+                Requirement::TargetVampire,
+                Requirement::ActorReady,
+            ],
+        ),
+        ..mode_of(
+            &[Window::MasterPhase],
+            Actor::Methuselah,
+            &[],
+            &[
+                Effect::PutOnTarget,
+                Effect::Layer(RESCUE_STEALTH),
+                Effect::Layer(RESCUE_DISCOUNT),
+                Effect::Layer(Modifier::HostCannotDiablerize),
+            ],
+        )
+    }],
+    ..CARD
+};
+
+/// "+1 stealth when attempting to rescue a vampire from torpor" (Humanitas,
+/// Catacombs): the acting rescuer's.
+const RESCUE_STEALTH: Modifier = Modifier::Bearer {
+    stat: Stat::Stealth,
+    n: 1,
+    during: &[ActionKind::Rescue],
+    who: Bearer::Any,
+};
+
+/// "Burns 1 less blood if successful" (Humanitas, Catacombs).
+const RESCUE_DISCOUNT: Modifier = Modifier::RescueDiscount {
+    not_clan: None,
+    n: 1,
+    gain: 0,
+};
+
+/// "This equipment card represents a location and does not count as
+/// equipment while in play. Unique. When attempting to rescue a vampire
+/// from torpor, the vampire with this location gets +1 stealth and burns 1
+/// less blood if successful." (1 blood.) A location once in play (LSJ
+/// 20080114); the discount the action's, whoever pays (PIB 20110918, LSJ
+/// 20020304-2).
+pub static CATACOMBS: CardDef = CardDef {
+    name: "Catacombs",
+    modes: &[ModeDef {
+        effects: &[
+            Effect::DeclareAction(ActionKind::Equip),
+            Effect::Layer(RESCUE_STEALTH),
+            Effect::Layer(RESCUE_DISCOUNT),
+        ],
+        ..EQUIP
+    }],
+    ..CARD
+};
+
+/// "[obt] Burn 1 blood to get +1 stealth. [myt] +1 stealth. [MYT] As [myt]
+/// above, and this vampire can choose to cancel the resulting combat if
+/// this action is blocked." The [obt] blood is no cost (ANK 20210226); the
+/// stealth only when needed (rules-qa 3.2), [MYT]'s cancel with it; the
+/// combat canceled, the action stays blocked.
+pub static STONE_TRAVEL: CardDef = CardDef {
+    name: "Stone Travel",
+    modes: &[
+        ModeDef {
+            requires: &[
+                Requirement::StealthNeeded,
+                Requirement::ActorBloodAtLeast(1),
+            ],
+            ..stealth(&[Effect::BurnActorBlood(1), Effect::AddStealth(1)])
+        },
+        stealth(&[Effect::AddStealth(1)]),
+        stealth(&[Effect::AddStealth(1), Effect::MayCancelCombatIfBlocked]),
+    ],
+    ..CARD
+};
+
+// "+1 stealth action. Requires an Anarch with capacity 5 or more. Title.
+// Put this card on this Anarch to represent the unique Anarch title of
+// Baron of <Corte | Los Angeles>. Vampires can call a referendum to burn
+// this card as a +1 stealth political action; during that referendum,
+// non-Anarch titles are worth -1 vote." As Perth's.
+fee_stake!(FEE_STAKE_CORTE, "Fee Stake: Corte", "Corte");
+fee_stake!(
+    FEE_STAKE_LOS_ANGELES,
+    "Fee Stake: Los Angeles",
+    "Los Angeles"
+);
+
+/// "+1 stealth action. Unique. Unlock this acting Kiasyd and put this card
+/// in play. All Kiasyd and changeling allies get +1 bleed. During your
+/// discard phase, burn this card and inflict 1 unpreventable damage on each
+/// Kiasyd or changeling ally you control who did not successfully bleed
+/// this turn." (1 pool.) Every Methuselah's Kiasyd and changelings get the
+/// bleed (D11); the damage to its controller's, torpid Kiasyd included.
+pub static SONG_OF_PAN: CardDef = CardDef {
+    name: "Song of Pan",
+    modes: &[action_at(
+        &[],
+        None,
+        &[
+            Effect::DeclareAction(ActionKind::Card),
+            Effect::AddStealth(1),
+            Effect::UnlockActor,
+            Effect::PutInPlay,
+            Effect::Layer(Modifier::ClanStat {
+                clan: "Kiasyd",
+                stat: Stat::Bleed,
+                n: 1,
+                own: false,
+                titled: None,
+                during: &[],
+            }),
+            Effect::Layer(Modifier::SubtypeStat {
+                label: Label::Changeling,
+                stat: Stat::Bleed,
+                n: 1,
+            }),
+        ],
+    )],
+    riders: &[Rider {
+        hook: Hook::DiscardPhase,
+        scope: RiderScope::Controller,
+        requires: &[],
+        effects: &[
+            Effect::BurnSelf,
+            Effect::DamageUnbledThisTurn {
+                clan: "Kiasyd",
+                label: Label::Changeling,
+                n: 1,
+            },
+        ],
+    }],
+    ..CARD
+};
+
+/// "Master. Put this card on a Kiasyd. Non-changelings cannot block this
+/// Kiasyd's undirected hunt actions." Any Methuselah's Kiasyd (rules-qa
+/// 33.3's reading); a hunt a card makes is a hunt (rules-digest §3.1).
+pub static RAVAGER: CardDef = CardDef {
+    name: "Ravager",
+    modes: &[ModeDef {
+        target: target(
+            TargetKind::Minion,
+            &[
+                Requirement::TargetVampire,
+                Requirement::TargetClan("Kiasyd"),
+            ],
+        ),
+        ..mode_of(
+            &[Window::MasterPhase],
+            Actor::Methuselah,
+            &[],
+            &[
+                Effect::PutOnTarget,
+                Effect::Layer(Modifier::OnlySubtypeBlocksUndirectedHunts(
+                    Label::Changeling,
+                )),
+            ],
+        )
+    }],
+    ..CARD
+};
+
+/// "Master. Put this card on a vampire you control. Other Methuselahs'
+/// actions targeting this vampire cost an additional blood. This vampire
+/// can burn this card to cause an action targeting him or her to fail. A
+/// vampire may have only one Chanjelin Ward." The cost on any one of the
+/// action's targets (LSJ 20080809-2, RTR 20081119), blood only: no ally's
+/// action at him offered (73.5, D3). The failure not while a block is
+/// attempted nor after one succeeded (ANK 20260316, LSJ 20041022); the
+/// failed action reached resolution (NRA), was not blocked, and takes its
+/// after-resolution cards (ANK 20211015, LSJ 20070219, ANK 20221205); in
+/// torpor too (D25).
+pub static CHANJELIN_WARD: CardDef = CardDef {
+    name: "Chanjelin Ward",
+    modes: &[ModeDef {
+        target: target(
+            TargetKind::Minion,
+            &[
+                Requirement::Controlled,
+                Requirement::TargetVampire,
+                Requirement::TargetWithout(Holding::Named("Chanjelin Ward")),
+            ],
+        ),
+        ..mode_of(
+            &[Window::MasterPhase],
+            Actor::Methuselah,
+            &[],
+            &[
+                Effect::PutOnTarget,
+                Effect::Layer(Modifier::TargetedCostsBlood(1)),
+            ],
+        )
+    }],
+    abilities: &[mode_of(
+        &[Window::ReactionDuringAction],
+        Actor::Host,
+        &[Requirement::ActionTargetsHost, Requirement::NoBlockAttempt],
+        &[Effect::BurnSelf, Effect::ActionFails],
+    )],
+    ..CARD
+};
+
+/// "Only one Great Symposium can be played in a game. Search your crypt for
+/// a Kiasyd (shuffle afterward), reveal them, and move them to your
+/// uncontrolled region, then distribute 3 blood from the blood bank among
+/// one or more Kiasyd in your uncontrolled region." One Kiasyd (ANK
+/// 20210304); the search may fail, the blood still distributed (LSJ
+/// 20100306), none with no Kiasyd there.
+pub static GREAT_SYMPOSIUM: CardDef = CardDef {
+    name: "Great Symposium",
+    modes: &[mode_of(
+        &[Window::MasterPhase],
+        Actor::Methuselah,
+        &[Requirement::NotPlayedThisGame],
+        &[
+            Effect::CryptClanToUncontrolled("Kiasyd"),
+            Effect::BankBloodAmongUncontrolled {
+                n: 3,
+                clan: "Kiasyd",
+            },
+        ],
+    )],
+    ..CARD
+};
+
+/// "+1 stealth action. Requires a Sabbat vampire. Put this card on this
+/// vampire. Once each turn, when this vampire successfully hunts, they gain
+/// 1 additional blood. A vampire can have only one Harvest Rites." (1
+/// blood.) Every hunt, a card's too, the blood from the hunt's target (RTR
+/// 20030519, RTR 20180511); a hunt at capacity is successful, its blood
+/// draining off, and spends it (owner, rules-qa 89.1).
+pub static HARVEST_RITES: CardDef = CardDef {
+    name: "Harvest Rites",
+    modes: &[action_at(
+        &[
+            Requirement::ActorSectIn(&[Sect::Sabbat]),
+            Requirement::ActorWithout(Holding::Named("Harvest Rites")),
+        ],
+        None,
+        &[
+            Effect::DeclareAction(ActionKind::Card),
+            Effect::AddStealth(1),
+            Effect::PutOnActor,
+            Effect::Layer(Modifier::BearerHuntOncePerTurn(1)),
+        ],
+    )],
+    ..CARD
+};
+
+/// "Unique equipment. Requires a ready Black Hand vampire. The vampire with
+/// this equipment may bleed at +2 bleed as a Ⓓ action that costs 1 blood.
+/// While bearer is ready, Gehenna cards cost an additional pool." (1 pool.)
+/// The granted bleed fizzles if the Rubrics is no longer on the acting
+/// vampire at resolution (RTR 19960221); every Methuselah's Gehenna cards,
+/// its controller's too.
+pub static GUARDED_RUBRICS: CardDef = CardDef {
+    name: "Guarded Rubrics",
+    modes: &[ModeDef {
+        requires: &[Requirement::ActorBlackHand],
+        effects: &[
+            Effect::DeclareAction(ActionKind::Equip),
+            Effect::Layer(Modifier::LabelPoolSurcharge {
+                label: Label::Gehenna,
+                pool: 1,
+                while_host_ready: true,
+            }),
+        ],
+        ..EQUIP
+    }],
+    abilities: &[ModeDef {
+        requires: &[Requirement::ActorBloodAtLeast(1)],
+        ..mode_of(
+            &[Window::ActionDeclare],
+            Actor::Host,
+            &[],
+            &[
+                Effect::DeclareAction(ActionKind::Bleed),
+                Effect::PayBlood(1),
+                bleed(2, false),
+            ],
+        )
+    }],
+    ..CARD
+};
+
+/// "Master: watchtower. Requires a ready Seraph. Put this card in play.
+/// During your discard phase, you may lock this card to unlock any ready
+/// Black Hand vampire. Burn this card if another watchtower enters play."
+/// (1 pool.) Any Methuselah's Black Hand vampire (D11), once in the phase
+/// (a phase window); another watchtower is any Methuselah's.
+pub static WATCHTOWER_FOUR_RIDE_FORTH: CardDef = CardDef {
+    name: "Watchtower: Four Ride Forth",
+    modes: &[master_in_play(
+        &[Requirement::ControlsReadySeraph],
+        &[Effect::PutInPlay],
+    )],
+    abilities: &[ModeDef {
+        target: target(
+            TargetKind::Minion,
+            &[
+                Requirement::TargetVampire,
+                Requirement::ActorReady,
+                Requirement::ActorBlackHand,
+                Requirement::TargetLocked,
+            ],
+        ),
+        ..mode_of(
+            &[Window::DiscardPhase],
+            Actor::Controller,
+            &[Requirement::CardUnlocked],
+            &[Effect::LockSelf, Effect::UnlockTarget],
+        )
+    }],
+    riders: &[Rider {
+        hook: Hook::LabelEntersPlay(Label::Watchtower),
+        scope: RiderScope::Every,
+        requires: &[],
+        effects: &[Effect::BurnSelf],
+    }],
+    ..CARD
+};
+
+/// Nocturn plays non-ally cards requiring basic Obtenebration [obt] as an
+/// independent vampire of capacity 1 (LSJ 20020503).
+const NOCTURN_AS_VAMPIRE: Modifier = Modifier::PlaysAsVampire(AsVampire {
+    disciplines: &["obt"],
+    capacity: 1,
+    non_action: false,
+    non_ally: true,
+    sect: Sect::Independent,
+});
+
+/// "Demon with 1 life. 1 strength, 1 bleed. [obt] Nocturn can perform
+/// actions the turn it is recruited. Unlock this vampire if this is their
+/// first successful recruit ally action this turn. Nocturn can play
+/// non-ally cards requiring basic Obtenebration [obt] as a vampire. Burn
+/// Nocturn during your unlock phase. [OBT] As above, and this vampire can
+/// perform this action again this turn, with the cost increased by 1 blood
+/// (cumulative)." (1 blood.) It acts only in its own Methuselah's minion
+/// phase (ANK 20200930); its last life paid for a card as a vampire (ANK
+/// 20180928-1, LSJ 20080512, LSJ 20060409); no diablerie (RTR 19970630);
+/// its grant meets one requirement, gives no Discipline (LSJ 20011217, LSJ
+/// 19980303, ANK 20180111). Each [OBT] recruit that succeeds grants one
+/// more, each costing +1 blood for each this turn.
+pub static NOCTURN: CardDef = CardDef {
+    name: "Nocturn",
+    modes: &[
+        recruit(&[
+            Effect::DeclareAction(ActionKind::Recruit),
+            Effect::ActsWhenRecruited,
+            Effect::UnlockRecruiterOnFirst,
+            Effect::Layer(NOCTURN_AS_VAMPIRE),
+        ]),
+        recruit(&[
+            Effect::DeclareAction(ActionKind::Recruit),
+            Effect::ActsWhenRecruited,
+            Effect::UnlockRecruiterOnFirst,
+            Effect::MayRepeatThisTurn,
+            Effect::Layer(NOCTURN_AS_VAMPIRE),
+        ]),
+    ],
+    riders: &[Rider {
+        hook: Hook::UnlockPhase,
+        scope: RiderScope::Controller,
+        requires: &[],
+        effects: &[Effect::BurnSelf],
+    }],
+    ..CARD
+};
+
+/// "[pot] Ⓓ Burn a location. [myt] +1 stealth action. Search your library
+/// for a location or equipment that is a location while in play. Show it
+/// to the other players and put it in your hand. Shuffle and discard
+/// afterward. [MYT] As [myt] above, and if the location or equipment is a
+/// haven, you may put it on this vampire instead (requirements and cost, if
+/// any, must be met and paid as normal)." [pot] directed at the location's
+/// controller, undirected at one's own (LSJ 20090324). Discarded down to the
+/// hand size afterward; the haven put on, not played (Secure Haven, Zaire
+/// River Ferry), one a vampire.
+pub static GOBLINISM: CardDef = CardDef {
+    name: "Goblinism",
+    modes: &[
+        action_at(
+            &[],
+            target(
+                TargetKind::Card,
+                &[Requirement::TargetCard(CardFilter::Location)],
+            ),
+            &[
+                Effect::DeclareAction(ActionKind::Card),
+                Effect::BurnTargetCard,
+            ],
+        ),
+        action_at(
+            &[],
+            None,
+            &[
+                Effect::DeclareAction(ActionKind::Card),
+                Effect::AddStealth(1),
+                Effect::SearchLibraryToHand(CardFilter::Location),
+            ],
+        ),
+        action_at(
+            &[],
+            None,
+            &[
+                Effect::DeclareAction(ActionKind::Card),
+                Effect::AddStealth(1),
+                Effect::SearchLibraryToHandOrHavenOnActor(CardFilter::Location),
             ],
         ),
     ],

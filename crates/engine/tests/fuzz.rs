@@ -213,6 +213,9 @@ fn invariants(e: &Engine, totals: &[usize], seed: u64, window: WindowLabel) {
                 || s.hand.len() + s.held.total() <= size
                 || window == WindowLabel::DiscardDown
                 || window == WindowLabel::Draw
+                // Goblinism [MYT]: the haven on the vampire "instead" of
+                // the hand, chosen before the discard.
+                || matches!(e.interrupt(), Some(zvtes::draws::Interrupt::PutFoundOn { .. }))
                 || window == WindowLabel::BottomCards,
             "hand over size at seat {i} (seed {seed}): {} cards + {} held, size {size}, at {window:?}",
             s.hand.len(),
@@ -456,6 +459,7 @@ fn kind_of(c: &Choice) -> &'static str {
         Choice::BurnBloodToAvoid => "burn_blood_to_avoid",
         Choice::BurnCorruptionToUnlock { .. } => "burn_corruption_to_unlock",
         Choice::Diablerise => "diablerise_blocked",
+        Choice::CancelCombat => "cancel_combat",
         Choice::UnlockInfernal { .. } => "unlock_infernal",
         Choice::ChooseCircle(_) => "choose_circle",
         Choice::ChooseDiscipline(_) => "choose_discipline",
@@ -4932,6 +4936,108 @@ fuzz_tests! {
             );
         },
         seeds: 300,
+        ..BASE
+    };
+    /// Legacy cards, round 20 (slice 16af): the cards players asked for,
+    /// the library cards (Kiasyd's Mytherceria, the Sabbat's).
+    random_games_with_twda_round_20a_hold_invariants_and_replay: Fixture {
+        slice: &[
+            "Aura Absorption",
+            "Catacombs",
+            "Chanjelin Ward",
+            "Fae Contortion",
+            "Fee Stake: Corte",
+            "Fee Stake: Los Angeles",
+            "Goblinism",
+            "Great Symposium",
+            "Gremlins",
+            "Guarded Rubrics",
+            "Harvest Rites",
+            "Humanitas",
+            "Nocturn",
+            "Ravager",
+            "Song of Pan",
+            "Stone Travel",
+            "Watchtower: Four Ride Forth",
+            // Targets and partners: equipment for Gremlins, a grapple for
+            // Fae Contortion, havens for Goblinism, a changeling for Song
+            // of Pan and Black Forest Base, Khobar Towers for Nocturn.
+            "Kevlar Vest",
+            "Immortal Grapple",
+            "Secure Haven",
+            "Therbold Realty",
+            "Mylan Horseed",
+            "Black Forest Base",
+            "Khobar Towers, Al-Khubar",
+        ],
+        covers: &[
+            "play:Aura Absorption",
+            "play:Catacombs",
+            "play:Chanjelin Ward",
+            "play:Fae Contortion",
+            "play:Fee Stake: Corte",
+            "play:Fee Stake: Los Angeles",
+            "play:Goblinism",
+            "play:Great Symposium",
+            "play:Gremlins",
+            "play:Guarded Rubrics",
+            "play:Harvest Rites",
+            "play:Humanitas",
+            "play:Nocturn",
+            "play:Ravager",
+            "play:Song of Pan",
+            "play:Stone Travel",
+            "play:Watchtower: Four Ride Forth",
+            "ability:Chanjelin Ward",
+            "ability:Guarded Rubrics",
+            "ability:Watchtower: Four Ride Forth",
+            "cancel_combat",
+        ],
+        setup: |e, _| {
+            let has = |c: &CryptCard, d: &str| c.disciplines.iter().any(|x| x.eq_ignore_ascii_case(d));
+            per_seat(e, |c| c.clan == "Kiasyd", 4);
+            per_seat(e, |c| c.seraph || c.black_hand, 4);
+            per_seat(e, |c| has(c, "obt"), 4);
+            per_seat(e, |c| has(c, "pot"), 4);
+            per_seat(e, |c| has(c, "aus"), 4);
+            per_seat(
+                e,
+                |c| c.sect == Some(zvtes::crypt::Sect::Anarch) && c.capacity >= 5,
+                4,
+            );
+        },
+        seeds: 300,
+        ..BASE
+    };
+    /// Legacy cards, round 20 (slice 16af): the vampires, Winterlich with
+    /// a changeling to recruit.
+    random_games_with_twda_round_20b_hold_invariants_and_replay: Fixture {
+        slice: &["Mylan Horseed", "Kevlar Vest", "Flak Jacket", "Dodge"],
+        covers: &[
+            "ability:Isanwayen",
+            "ability:Arcadian, The",
+            "ability:Pherydima",
+            "ability:Quincy, The Trapper",
+        ],
+        setup: |e, _| {
+            named(
+                e,
+                &[
+                    "Isanwayen",
+                    "Arcadian, The",
+                    "Pherydima",
+                    "Quincy, The Trapper",
+                    "Omme Enberbenight",
+                    "Roderick Phillips March",
+                    "Dame Hollerton",
+                    "Andrew Emory",
+                    "Banjoko",
+                    "Randel, The Coward",
+                    "Winterlich",
+                ],
+            );
+        },
+        seeds: 80,
         ..BASE
     };
 }

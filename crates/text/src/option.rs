@@ -221,6 +221,7 @@ fn base(
         K::GainStrength => "Gain the strength".into(),
         K::BurnBloodToAvoid => "Burn blood to avoid the damage".into(),
         K::Diablerise => "Diablerize the acting vampire".into(),
+        K::CancelCombat => "Cancel the combat".into(),
         K::UnlockInfernal => format!("Burn 1 pool to unlock {}", minion(k.minion)),
         K::UnlockForBlood => format!("{} burns blood to unlock", minion(k.minion)),
         K::BurnBloodForIntercept => {
@@ -529,6 +530,8 @@ fn asked(
         }
         (P::EntryBurn, K::ChooseMinion) => role("burned")?,
         (P::MayPutOn, K::Pass) => format!("Leave {} in the ash heap", named()?),
+        (P::PutFoundOn, K::Pass) => format!("Keep {} in your hand", named()?),
+        (P::PutFoundOn, K::FindCard) => format!("Put {} on it", named()?),
         (P::MayAddCounter, K::Pass) => "Add no counter".into(),
         (P::MayStoreAim, K::Pass) => format!("Leave {} in the ash heap", named()?),
         (P::MayStoreAim, K::ResolveRider) => {
@@ -1054,6 +1057,7 @@ mod tests {
             P::MayDrawExtra,
             P::MayGainPool,
             P::MayPutOn,
+            P::PutFoundOn,
             P::MayRecycleCanceled,
             P::MinionOf,
             P::MoveBetween,

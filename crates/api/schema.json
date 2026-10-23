@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "title": "zvtes protocol",
-  "version": "2.7.1",
+  "version": "2.8.0",
   "$defs": {
     "About": {
       "description": "What a choice is about (`Decision::about`): each field given where\nthe purpose (or the terms) has it (docs/protocol.md §5).",
@@ -3856,7 +3856,8 @@
             "burn_blood_to_avoid",
             "burn_corruption_to_fail",
             "burn_corruption_to_unlock",
-            "diablerise"
+            "diablerise",
+            "cancel_combat"
           ]
         },
         {
@@ -4758,9 +4759,14 @@
           "const": "power_search"
         },
         {
-          "description": "Foresee: `seat` may cancel the combat imbued `minion` is in\n(`ContinueAction`), the action continuing as if unblocked when it\nblocked; or pass.",
+          "description": "`seat` may cancel the combat `minion` is in (`CancelCombat`), or\npass: Foresee's imbued (the action continuing as if unblocked\nwhen it blocked), Stone Travel [MYT]'s blocked acting vampire.",
           "type": "string",
           "const": "may_cancel_combat"
+        },
+        {
+          "description": "Goblinism [MYT]: the haven `card` just searched to `seat`'s hand\nput on `minion` instead (`FindCard`), its cost paid, or kept\n(Pass).",
+          "type": "string",
+          "const": "put_found_on"
         },
         {
           "description": "A value this reader does not know.",

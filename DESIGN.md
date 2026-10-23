@@ -1890,8 +1890,8 @@ training runs.
 Still true today; "(verify)" marks items inferred from older notes.
 
 - **Inert clauses, no pool tenant**: Blood Trade's boons; The Fourth Cycle's
-  conviction cards; self-damaging weapons (rows n/a); Black Forest Base's
-  changeling burn and Winterlich's text (no changeling ally); the [MERGED]
+  conviction cards; self-damaging weapons (rows n/a); Winterlich's "as if
+  he met the requirements" (no changeling with one); the [MERGED]
   text of Brunhilde, Danielle Diron, Claudio Severino, Masika, Bulscu and
   Maldavis (their base cards are not in the pool); Veneficti's demon steal
   or burn (no demon); Tupdog's Visceratika reduction (no Visceratika card);
@@ -1968,7 +1968,7 @@ Still true today; "(verify)" marks items inferred from older notes.
 - **P5 — community**: bot service, client adapter, human-ergonomics layer
   (its open items on the boards).
 
-Definitions: 937 library, 476 vampires; 2459 Rust tests, 45 Python tests
+Definitions: 954 library, 482 vampires; 2507 Rust tests, 45 Python tests
 
 ## Outlook: deck building (post-v1)
 

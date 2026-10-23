@@ -60,6 +60,7 @@ LABELS = [
     ("Werewolf", r"^(unique )?werewolf with"),
     ("Mage", r"^(unique )?mage with"),
     ("Demon", r"^(unique )?demon with"),
+    ("Changeling", r"^(unique )?changeling with"),
     # An infernal ally (Herald of Topheth): "… flight [FLIGHT]. Infernal."
     # on its type line.
     ("Infernal", r"^(unique )?\w+ with [^\n]*\. infernal\."),
@@ -85,6 +86,12 @@ LABELS = [
     # "Hunting ground. Derivative." (Poacher's Hunting Ground counts the
     # non-derivative ones).
     ("Derivative", r"(^|\. )derivative\."),
+    # "Haven." on the type line (Goblinism [MYT] keys on a haven: Secure
+    # Haven, Zaire River Ferry).
+    ("Haven", r"(^|\. )haven\."),
+    # "Master: watchtower." (Watchtower: Four Ride Forth burns as another
+    # enters play).
+    ("Watchtower", r"^watchtower\."),
 ]
 # An ally's or retainer's type line: "Unique mortal with 2 life. 1 strength,
 # 0 bleed." (a retainer prints its life only).

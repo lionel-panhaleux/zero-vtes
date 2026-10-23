@@ -124,6 +124,7 @@ fn every_option_s_key_names_what_it_is_about() {
                             | C::StrikeCombatEnds
                             | C::CommittedStrike
                             | C::GainStrength
+                            | C::CancelCombat
                             | C::RoundStrike { .. }
                             | C::ContinueAction
                             | C::TakeDamageAfterResolution => k.actor.is_some(),

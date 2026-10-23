@@ -320,6 +320,8 @@ pub enum Choice {
     /// A blocked leave-torpor: the blocking vampire diablerises the acting
     /// vampire (rulebook "Leave Torpor").
     Diablerise,
+    /// Cancel the combat (Foresee; Stone Travel [MYT] after a block).
+    CancelCombat,
 }
 
 /// Where a card is taken from (`Choice::TakeFrom`).

@@ -2102,8 +2102,8 @@ fn nathaniel_bordruff_action_fizzles_if_the_target_unlocks() {
 }
 
 // Adisa enters combat with a younger vampire only; after a successful hunt
-// — blood gained — she does not unlock in her next unlock phase; a hunt at
-// full capacity gains none and is not one (spec §3.7.2.1).
+// she does not unlock in her next unlock phase — one at full capacity too,
+// its blood got and drained off (owner, rules-qa 89.26).
 #[test]
 fn adisa_enters_combat_with_younger_vampires_and_stays_locked_after_hunting() {
     let mut e = bare();
@@ -2135,7 +2135,7 @@ fn adisa_enters_combat_with_younger_vampires_and_stays_locked_after_hunting() {
     e.add_minion(SeatId(1), plain("Ventrue", 0), 4, false);
     pick(&mut e, action(adisa, ActionKind::Hunt));
     until(&mut e, SeatId(0), WindowLabel::MinionPhase);
-    assert!(!e.state.minions[adisa.index()].skip_unlock);
+    assert!(e.state.minions[adisa.index()].skip_unlock);
 }
 
 /// As `until`, returning the windows passed on the way (seat 2 never asked

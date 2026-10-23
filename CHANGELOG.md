@@ -6,6 +6,18 @@ server runs.
 `python3 scripts/schema_compat.py` lists what a schema change adds or
 removes; its `--check` fails a removal without a major version.
 
+## 2.8.0
+
+The cards players asked for (rules-qa Batch 89); ids added, none removed:
+
+- Choice kind `cancel_combat`: cancel the combat a minion is in, its
+  `actor` the combatant — Stone Travel [MYT]'s blocked acting vampire,
+  and Foresee's imbued, whose cancel was offered as `continue_action`
+  (the option's index unchanged: a record reads the same).
+- Purpose `put_found_on`: Goblinism [MYT]'s haven, just searched to the
+  hand, put on the acting vampire instead (`find_card`, its cost paid)
+  or kept (`pass`), asked before the hand is discarded down.
+
 ## 2.7.1
 
 Behaviours only, no field or id (rules-qa Batch 88, the play-changing

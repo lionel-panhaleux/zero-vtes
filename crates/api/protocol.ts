@@ -1,6 +1,6 @@
-/* zvtes protocol 2.7.1 (docs/protocol.md): generated from
+/* zvtes protocol 2.8.0 (docs/protocol.md): generated from
  * crates/api/schema.json by scripts/gen_ts.py, do not edit. */
-export const PROTOCOL_VERSION = '2.7.1'
+export const PROTOCOL_VERSION = '2.8.0'
 
 /**
  * A command as sent: an optional client id, echoed by an `error` it
@@ -1124,6 +1124,7 @@ export type OptionKind =
     | 'burn_corruption_to_fail'
     | 'burn_corruption_to_unlock'
     | 'diablerise'
+    | 'cancel_combat'
     | 'unknown'
 
 /**
@@ -1313,6 +1314,7 @@ export type Purpose =
     | 'name_conviction'
     | 'power_search'
     | 'may_cancel_combat'
+    | 'put_found_on'
     | 'unknown'
 
 export type Range = 'close' | 'long' | 'unknown'

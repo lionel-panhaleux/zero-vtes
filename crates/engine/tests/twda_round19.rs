@@ -933,7 +933,7 @@ fn foresee_looks_and_cancels_the_combat_the_bleed_going_on() {
     let u = first_use(&mut e, zvtes::cards::AbilitySource::Card(fs), 0);
     pick(&mut e, u);
     assert!(e.state.hand_visible_to(SeatId(1), SeatId(0)));
-    pick(&mut e, Choice::ContinueAction);
+    pick(&mut e, Choice::CancelCombat);
     to_window(&mut e, SeatId(1), WindowLabel::MinionPhase);
     assert_eq!(pool(&e)[0], 10 - 1, "bled, as if unblocked");
 }
@@ -1790,7 +1790,7 @@ fn foresees_continued_action_asks_no_decliner_again() {
     pick(&mut e, u);
     let u = first_use(&mut e, zvtes::cards::AbilitySource::Card(fs), 0);
     pick(&mut e, u);
-    pick(&mut e, Choice::ContinueAction);
+    pick(&mut e, Choice::CancelCombat);
     for _ in 0..40 {
         let req = request(&mut e);
         if e.last_outcome.is_some() {

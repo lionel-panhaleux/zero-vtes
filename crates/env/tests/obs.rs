@@ -55,6 +55,7 @@ fn names_a_token(c: &Choice) -> bool {
             | Choice::GainStrength
             | Choice::BurnBloodToAvoid
             | Choice::Diablerise
+            | Choice::CancelCombat
     )
 }
 

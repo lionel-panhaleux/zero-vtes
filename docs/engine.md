@@ -690,10 +690,14 @@ engine's conventions.
 - **NRA**: `ActionId` — card name for hand cards, `InPlay(card, ability)` per
   copy and ability (LSJ 20100909), `Printed(vampire, ability)`, `Rulebook(kind,
   target)` (Change of Target's ban); `Effect::SameActionAs` unifies two printed
-  actions. Recorded at resolution (`mark_resolved`); a failed bleed or political
-  action counts. Delaying Tactics bans by `ActionId`. `Printed` keeps the
-  vampire so a record the seat holds (`Seat::forbidden_political`) still
-  names it.
+  actions. Recorded at resolution (`mark_resolved`); a failed bleed or
+  political action counts. Delaying Tactics bans by `ActionId`. `Printed`
+  keeps the vampire so a record the seat holds (`Seat::forbidden_political`)
+  still names it. A card may let its action be performed again this turn
+  (`Effect::MayRepeatThisTurn`, Nocturn [OBT]: `Minion::repeats`,
+  `GameState::performed_this_turn` against `repeats_of`), each earlier one
+  +1 blood (`card_surcharge`). A two-action printed ability keeps its
+  progress on the minion (`Minion::progress`, Quincy, The Trapper).
 - **Queued combat** (Hedonism: `ActionCtx::queued_combat`,
   `begin_queued_combat`, `resume_after_queued_combat`): it begins once the
   block's own combat is over (block resolution), or after a successful
@@ -787,7 +791,13 @@ engine's conventions.
 
 - Eligibility: prey/predator/target rule (`eligible_blockers`), widened per
   attempt by `can_attempt_block_anyone` (Eagle's Sight: one attempt, not the
-  acting Methuselah's own minion nor a decliner nor a barred blocker).
+  acting Methuselah's own minion nor a decliner nor a barred blocker);
+  narrowed by the bars in `block_candidates_locked` (Ravager's "only
+  changelings" on undirected hunts: `only_subtype_blocks_undirected_hunts`).
+- A combat a block begins may be canceled by the acting vampire
+  (`ActionCtx::cancel_combat_if_blocked`, Stone Travel [MYT]): the
+  `Interrupt::MayCancelCombat` Foresee also asks, `Choice::CancelCombat`;
+  the action stays blocked.
 - Forced attempts (`Effect::AttemptBlock`, `R::CanAttemptBlock` →
   `can_attempt_block`). A card-made failure bars re-attempts this action.
 - Tolls (`block_toll`): paid as the attempt is made; an attempt under way when a
@@ -1244,7 +1254,11 @@ engine's conventions.
   a minion moves onto a minion of the new controller that can hold it, a torpid
   one too, else burns: rules-qa 88.9). The Admonitions passes in its controller's discard phase, a due
   (`Effect::PassesToSect`: counter-clockwise, its controller last, else
-  burned).
+  burned). A card entering play (`place_now`) fires the other cards'
+  `Hook::LabelEntersPlay` riders for each of its labels (a watchtower burns
+  for another). A once-each-turn bonus records its turn on the card
+  (`CardInPlay::spent_turn`: Harvest Rites, spent in `GameState::hunt_blood`,
+  a hunt at capacity too: rules-qa 89.1).
 - **Oust**: cards the Methuselah *controlled* are removed (not burned, nothing
   triggers, spec §1.10); other players' cards on their removed minions burn to
   their owners' ash heaps.
@@ -1444,7 +1458,10 @@ engine's conventions.
   be equipped as a play (no unpayable blood cost, rules-qa 9.3). A search is
   private unless the card says to reveal (PIB 20121028): `SearchToHand`'s
   `shown`, and the find of Fortschritt Library, The Mithraeum, Disciple of
-  Lazarus; a revealed card (a search's find, a top card) goes to
+  Lazarus; a haven found by Goblinism [MYT] (`LibraryToHand::haven_on`) may
+  go on the vampire instead (`Interrupt::PutFoundOn`, its cost paid,
+  `place_now`), asked before the hand is discarded down (`discards_first`);
+  a revealed card (a search's find, a top card) goes to
   `Note::Reveal` (`Reveal`), which the host tells every seat. A
   look at another seat's hand goes through `Engine::peek`: the hand
   visible to the viewer until the action ends (`GameState::peeks`), and
@@ -1494,7 +1511,12 @@ engine's conventions.
 - Surcharges: `card_surcharge` (Discipline and event surcharges),
   `discipline_surcharge` (Libertas), `combat_card_surcharge` (Terror Frenzy,
   Djeneba), `torpid_surcharge`, Haven's +1 on masters targeting its minion;
-  Daria's on the action (`action_toll`). An ally combatant burned by paying
+  Daria's on the action (`action_toll`); a label's pool surcharge, every
+  Methuselah's, `while_host_ready` only while its bearer is ready (Guarded
+  Rubrics); Chanjelin Ward's blood on actions targeting its vampire
+  (`GameState::targeted_surcharge`, paid at resolution beside François
+  Loehr's, an ally's such action not offered: `may_direct_at`). An ally
+  combatant burned by paying
   its last life for a card ends the combat (`pay_play_blood`).
 - Paying the last pool ousts: out of turn or from an ability, without passing the
   active turn (`pay_pool_for_ability`); a play whose effects already ousted its
@@ -1559,7 +1581,9 @@ engine's conventions.
 - Generated labels read from card text/type line: `Weapon` (incl. "Melee
   weapon."), `Electronic`, `Location` (type line only), `Discipline`, `Grapple`,
   `Aim`, `Title`, `RequiresAnarch`, `MakesAnarch`, `OperationAntigen`,
-  `MultiDiscipline`; "Unique." after the first sentence; ally body (life,
+  `MultiDiscipline`, `Haven`, `Watchtower`, an ally's `Changeling` (read by
+  `GameState::has_subtype`: Song of Pan's bleed, Ravager, Winterlich);
+  "Unique." after the first sentence; ally body (life,
   strength, bleed) and subtypes. `Title::Independent { name, votes }`. Printed
   justicars keep the clan's old name.
 - Pool order: the V5 cards (and `EXTRA_CARDS`) sorted by name, then the

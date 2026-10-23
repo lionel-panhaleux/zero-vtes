@@ -296,8 +296,9 @@ pub enum Interrupt {
         minion: crate::ids::MinionId,
         virtue: &'static str,
     },
-    /// Foresee: `seat` may cancel the combat imbued `minion` is in; it
-    /// blocking, the action continues as if unblocked (`ContinueAction`).
+    /// `seat` may cancel the combat `minion` is in (`CancelCombat`): Foresee's
+    /// imbued (blocking, the action continues as if unblocked), Stone Travel
+    /// [MYT]'s blocked acting vampire.
     MayCancelCombat {
         seat: SeatId,
         minion: crate::ids::MinionId,
@@ -390,10 +391,20 @@ pub enum Interrupt {
         cap: u8,
     },
     /// Fortschritt Library: a `filter` card searched to hand (`FindCard`) or
-    /// none (Pass); the library shuffled.
+    /// none (Pass); the library shuffled. With `haven_on`, a haven found may
+    /// then go on that vampire (Goblinism [MYT]: `PutFoundOn`).
     LibraryToHand {
         seat: SeatId,
         filter: crate::cards::CardFilter,
+        haven_on: Option<crate::ids::MinionId>,
+    },
+    /// Goblinism [MYT]: the haven `card` just searched to `seat`'s hand may
+    /// be put on `minion` instead (`FindCard`), its cost paid, or stay
+    /// (Pass).
+    PutFoundOn {
+        seat: SeatId,
+        minion: crate::ids::MinionId,
+        card: u16,
     },
     /// Leandro: `BurnPool` burns, `Pass` loses the next influence phase's
     /// transfers; no default (LSJ 20021210-1).
@@ -660,6 +671,7 @@ impl Interrupt {
             | Interrupt::PoolOrVampire { seat, .. }
             | Interrupt::PoolOrNoTransfers { seat, .. }
             | Interrupt::LibraryToHand { seat, .. }
+            | Interrupt::PutFoundOn { seat, .. }
             | Interrupt::PreySlotToPool { seat, .. }
             | Interrupt::DistributeFrom { seat, .. }
             | Interrupt::ChooseCircle { seat, .. }
@@ -1355,6 +1367,9 @@ impl Engine {
                 }
                 Interrupt::PoolOrNoTransfers { seat, .. } => !self.state.seats[seat.index()].ousted,
                 Interrupt::LibraryToHand { seat, .. } => !self.state.seats[seat.index()].ousted,
+                Interrupt::PutFoundOn { seat, minion, card } => {
+                    self.may_put_found_on(seat, minion, card)
+                }
                 Interrupt::CryptSearch { seat, clan } => {
                     if self.crypt_of_clan(seat, clan).is_empty() {
                         self.interrupts.remove(0);
@@ -1832,7 +1847,7 @@ impl Engine {
             }
             Interrupt::MayCancelCombat { .. } => (
                 WindowLabel::ResolutionChoice,
-                vec![Choice::Pass, Choice::ContinueAction],
+                vec![Choice::Pass, Choice::CancelCombat],
             ),
             Interrupt::PowerSearch { minion, virtue, .. } => (
                 WindowLabel::LibrarySearch,
@@ -1958,7 +1973,11 @@ impl Engine {
                 },
             ),
             // By card, not by position: the order of the library is hidden.
-            Interrupt::LibraryToHand { seat, filter } => (
+            Interrupt::PutFoundOn { card, .. } => (
+                WindowLabel::ResolutionChoice,
+                vec![Choice::Pass, Choice::FindCard(card)],
+            ),
+            Interrupt::LibraryToHand { seat, filter, .. } => (
                 WindowLabel::ResolutionChoice,
                 std::iter::once(Choice::Pass)
                     .chain(
@@ -3764,7 +3783,7 @@ impl Engine {
             }
             (Interrupt::MayCancelCombat { minion, .. }, c) => {
                 self.interrupts.remove(0);
-                if c == Choice::ContinueAction {
+                if c == Choice::CancelCombat {
                     if let Some(a) = self.action.as_mut() {
                         if a.blocked_by.contains(&minion) {
                             a.continued = true;
@@ -4490,8 +4509,23 @@ impl Engine {
                 });
                 self.state.seats[seat.index()].crypt.shuffle(&mut self.rng);
             }
-            (Interrupt::LibraryToHand { seat, .. }, Choice::FindCard(card)) => {
+            (Interrupt::PutFoundOn { seat, minion, card }, Choice::FindCard(_)) => {
                 self.interrupts.remove(0);
+                self.put_found_on(seat, minion, card);
+            }
+            (Interrupt::PutFoundOn { .. }, Choice::Pass) => {
+                self.interrupts.remove(0);
+            }
+            (Interrupt::LibraryToHand { seat, haven_on, .. }, Choice::FindCard(card)) => {
+                self.interrupts.remove(0);
+                if let Some(minion) = haven_on.filter(|_| {
+                    crate::library::LIBRARY[card as usize]
+                        .labels
+                        .contains(&crate::library::Label::Haven)
+                }) {
+                    self.interrupts
+                        .insert(0, Interrupt::PutFoundOn { seat, minion, card });
+                }
                 self.reveal(seat, card, false);
                 let s = &mut self.state.seats[seat.index()];
                 let k = s
@@ -4833,6 +4867,48 @@ impl Engine {
             })
             .map(|(i, _)| Choice::BurnInPlay { card: i as u32 })
             .collect()
+    }
+
+    /// Goblinism [MYT]: the haven still in `seat`'s hand, `minion` with no
+    /// haven yet ("a minion can have only one haven"), its cost payable.
+    fn may_put_found_on(&self, seat: SeatId, minion: crate::ids::MinionId, card: u16) -> bool {
+        let st = &self.state;
+        let (pool, blood) = self.found_on_cost(seat, minion, card);
+        st.minions[minion.index()].present()
+            && st.seats[seat.index()].hand.contains(&card)
+            && !st.holds_a(minion, crate::cards::defs::ONE_HAVEN)
+            && st.seats[seat.index()].pool >= pool
+            && st.minions[minion.index()].blood >= blood
+    }
+
+    /// The pool and blood the haven costs "as normal" (Therbold Realty's
+    /// discount included).
+    fn found_on_cost(&self, seat: SeatId, minion: crate::ids::MinionId, card: u16) -> (i32, u8) {
+        let st = &self.state;
+        let pool = crate::cards::pool_cost(st, seat, card, crate::cards::Target::Minion(minion));
+        let blood =
+            crate::cards::blood_cost(st, card, 0).saturating_sub(st.equip_discount(minion, card));
+        (pool.max(0), blood)
+    }
+
+    /// Put the haven from `seat`'s hand on `minion`, its cost paid: in play
+    /// with its own layers, not played.
+    fn put_found_on(&mut self, seat: SeatId, minion: crate::ids::MinionId, card: u16) {
+        let (pool, blood) = self.found_on_cost(seat, minion, card);
+        let s = &mut self.state.seats[seat.index()];
+        let i = s
+            .hand
+            .iter()
+            .rposition(|&c| c == card)
+            .expect("the haven in hand");
+        let (_, copy) = s.hand.take(i);
+        self.paying(|e| {
+            e.state.seats[seat.index()].pool -= pool;
+            e.state.minions[minion.index()].blood -= blood;
+        });
+        self.note_pool_burned(seat);
+        let placed = crate::state::CardInPlay::entering(card, copy, seat, Some(minion), 0);
+        self.place_now(placed, crate::plays::ModeLayers::Push, false);
     }
 }
 

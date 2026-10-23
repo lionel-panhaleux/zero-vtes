@@ -200,7 +200,6 @@ impl Requirement {
             | R::PreyAshHasPair
             | R::ActorInfernal
             | R::ActorSeraph
-            | R::IsEquipAction
             | R::LastCombatantsReady
             | R::NotPlayedThisAction(..)
             | R::UncontrolledAtLeast(..)
@@ -293,7 +292,8 @@ impl Requirement {
             | R::BleedTargetAshAtLeast(..)
             | R::NoOlderReadyUntitled { .. }
             | R::IsEquipLabeledFromHand(..)
-            | R::ControlsReadyBlackHand => &[S::Play],
+            | R::ControlsReadyBlackHand
+            | R::ControlsReadySeraph => &[S::Play],
             R::ActorBlackHand | R::ActorTitleNotIn(..) => &[S::Play, S::MinionTarget],
             R::HostBelowCapacity
             | R::HostControllerPoolAtLeast(..)
@@ -427,7 +427,6 @@ impl Requirement {
             | R::DiablerizedOlder
             | R::PlayedAsCombat
             | R::NoReadyNamed(..)
-            | R::ActorSubtype(..)
             | R::OpponentSectIn(..)
             | R::OpponentControllerHasGehenna
             | R::OtherNonHuntAction
@@ -445,6 +444,7 @@ impl Requirement {
             R::ActorReady | R::BleedTargetPoolAtMost(..) => &[S::Play, S::MinionTarget],
             R::AnyOf(..) => &[S::Play, S::MinionTarget, S::CardTarget, S::Printed],
             R::ActorTitleIn(..) | R::ActorClan(..) => &[S::Play, S::MinionTarget, S::Printed],
+            R::ActorSubtype(..) => &[S::Play, S::Printed],
             R::ActorSectIn(..) => &[S::Play, S::MinionTarget, S::UncontrolledTarget, S::Printed],
             R::IsBleed
             | R::ActorVampire
@@ -473,6 +473,7 @@ impl Requirement {
             | R::ActorFoughtItsContractsMinion
             | R::OpponentSubtype(..)
             | R::ReadyNamed(..)
+            | R::IsEquipAction
             | R::OwnReadyNamed(..) => &[S::Play, S::Printed],
             R::HostLocked | R::HostUnlocked => &[S::Host, S::Printed],
             R::ActingMonster | R::ActingImbued => &[S::Play],

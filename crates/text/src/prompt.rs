@@ -125,6 +125,11 @@ impl Prompt<'_> {
                 self.minion()?
             ),
             P::MayPutOn => format!("You can put {} on {}", self.card()?, self.minion()?),
+            P::PutFoundOn => format!(
+                "You can put {} on {} instead, paying its cost",
+                self.card()?,
+                self.minion()?
+            ),
             P::MayAddCounter => format!("You can add 1 counter to {}", self.card()?),
             P::MayStoreAim => format!(
                 "You can move {} onto Light Intensifying Goggles",
@@ -787,6 +792,7 @@ mod tests {
         NameConviction,
         PowerSearch,
         MayCancelCombat,
+        PutFoundOn,
         RemoveUncontrolled,
         ChooseForCard,
         ExchangeAnarch,

@@ -309,6 +309,8 @@ pub struct AsVampire {
     pub capacity: u8,
     /// Only non-action cards (Spectral Servitor).
     pub non_action: bool,
+    /// Only non-ally cards (Nocturn).
+    pub non_ally: bool,
     /// The sect it plays them as: Independent (rulebook "Allies"), or the
     /// printed one ("as an Anarch vampire", Vivienne Géroux).
     pub sect: Sect,
@@ -724,6 +726,8 @@ pub enum Requirement {
     /// Its player controls a ready Black Hand vampire (a master card's
     /// "Requires a Black Hand vampire": Shakar: the Hunt).
     ControlsReadyBlackHand,
+    /// Its player controls a ready Seraph (Watchtower: Four Ride Forth).
+    ControlsReadySeraph,
     /// The minion attempting to block has at least this capacity (Kumpania).
     AttemptingCapacityAtLeast(u8),
     /// The minion attempting to block is an ally or a vampire younger than
@@ -1833,8 +1837,8 @@ pub enum Requirement {
     AllyOrYounger,
     /// The actor's opposing combatant is an ally of this subtype (Rowena).
     OpponentSubtype(crate::library::Label),
-    /// Printed: the modified minion is an ally of this subtype (Jacob
-    /// Fermor).
+    /// The actor (printed: the modified minion) is an ally of this subtype
+    /// (Jacob Fermor, Black Forest Base).
     ActorSubtype(crate::library::Label),
     /// The actor's opposing combatant is a vampire: a card naming the
     /// opposing vampire has no object in an ally (Taste of Vitae; advanced
@@ -3001,10 +3005,12 @@ pub enum Modifier {
     /// too (Therbold Realty; LSJ 20080107).
     LocationDiscount(u8),
     /// Cards of this label cost every Methuselah n more pool (Centralized
-    /// Background Check: weapons).
+    /// Background Check: weapons), with `while_host_ready` only while the
+    /// card's bearer is ready (Guarded Rubrics: Gehenna cards).
     LabelPoolSurcharge {
         label: crate::library::Label,
         pool: u8,
+        while_host_ready: bool,
     },
     /// Minions of the clan get 1 optional maneuver each combat (Brujah
     /// Debate).
@@ -3133,6 +3139,9 @@ pub enum Modifier {
     /// The bearer gets +n hunt (Aaron's Feeding Razor;
     /// `GameState::hunt_bonus`).
     BearerHunt(u8),
+    /// As `BearerHunt`, once each turn: spent by a successful hunt, one at
+    /// capacity too (Harvest Rites; rules-qa 89.1; `CardInPlay::spent_turn`).
+    BearerHuntOncePerTurn(u8),
     /// The opposing minion's strikes and damaging effects inflict n less on
     /// the bearer (Nephandus; `GameState::damage_reduction`).
     OpposingDamageLess(u8),
@@ -3273,6 +3282,21 @@ pub enum Modifier {
     PlaysAsVampire(AsVampire),
     /// Allies cannot block the bearer (Libertas).
     AlliesCannotBlockBearer,
+    /// Other Methuselahs' actions targeting the host cost n additional
+    /// blood, the card's controller's others (Chanjelin Ward; an ally never
+    /// pays it, 73.5). Not `Stat::TargetedCostsBlood` (François Loehr's:
+    /// directed actions only, blood or life).
+    TargetedCostsBlood(u8),
+    /// Only allies of this subtype may block the bearer's undirected hunts
+    /// (Ravager: changelings).
+    OnlySubtypeBlocksUndirectedHunts(crate::library::Label),
+    /// Every ally of the subtype gets n to the stat (Song of Pan: changeling
+    /// allies +1 bleed).
+    SubtypeStat {
+        label: crate::library::Label,
+        stat: Stat,
+        n: i8,
+    },
     /// Others' cards requiring these Disciplines cost +n blood around the
     /// acting, blocked or fighting bearer (Libertas).
     DisciplineSurchargeAround(&'static [&'static str], u8),
@@ -3668,6 +3692,14 @@ pub enum Effect {
     /// Methuselah controlling a ready vampire of the sect, back to its
     /// controller at most; burned if none (The Admonitions; LSJ 20031121).
     PassesToSect(Sect),
+    /// Rider effect: n unpreventable damage to each vampire of the clan and
+    /// ally of the subtype its controller controls that did not bleed
+    /// successfully this turn (Song of Pan).
+    DamageUnbledThisTurn {
+        clan: &'static str,
+        label: crate::library::Label,
+        n: u8,
+    },
     /// Rider effect: burn this card (Guardian Angel).
     BurnSelf,
     /// Burn the card in play granting this action, with
@@ -3790,6 +3822,9 @@ pub enum Effect {
     /// If this action is blocked, lock the blocking minion and end the
     /// action before block resolution (Mirror Walk [THA]).
     EndActionIfBlocked,
+    /// If this action is blocked, the acting vampire may cancel the
+    /// resulting combat (Stone Travel [MYT]).
+    MayCancelCombatIfBlocked,
     /// The card (a retainer) enters play on the acting minion with this life.
     EmployRetainer { life: u8 },
     /// Burn n life from this card (a retainer's, an ally's own: Crypt's
@@ -3819,6 +3854,9 @@ pub enum Effect {
     /// Unlock the recruiter on its first successful recruit ally action
     /// this turn, read by the recruit's resolution (Spectral Servitor).
     UnlockRecruiterOnFirst,
+    /// The recruiter may perform this action again this turn, its cost +1
+    /// blood for each time this turn (Nocturn [OBT]; `Minion::repeats`).
+    MayRepeatThisTurn,
     /// Rider effect: in the unlock phase, burn n pool instead of this ally,
     /// the controller's choice (Spectral Servitor [OBL]; `Flow::RiderTerms`).
     BurnSelfUnlessPool(u8),
@@ -4344,6 +4382,10 @@ pub enum Effect {
     StolenToReadyForBlood(u8),
     /// Burn the target minion (Judgment: Camarilla Segregation).
     BurnTargetMinion,
+    /// Burn the target minion at the second such action of the actor at
+    /// it, in a later turn; the first is recorded (Quincy, The Trapper;
+    /// ANK 20170202; `Minion::progress`).
+    BurnTargetOnSecondAction,
     /// A granted "burn this card" action's alternative: shuffle the card
     /// into its owner's library (Aranthebes, The Immortal).
     ShuffleSourceIntoLibrary,
@@ -4548,6 +4590,9 @@ pub enum Effect {
     /// Search the crypt for a vampire of the clan, revealed, into the
     /// uncontrolled region, the player's pick or none (Disciple of Lazarus).
     CryptClanToUncontrolled(&'static str),
+    /// Distribute n blood from the bank among the player's uncontrolled
+    /// vampires of the clan, one at a time, all of it (Great Symposium).
+    BankBloodAmongUncontrolled { n: u8, clan: &'static str },
     /// Move the named ally from the ash heap to the ready region, unlocked,
     /// with its starting life (Emerald Legionnaire; ANK 20180509).
     RaiseNamedAllyFromAsh(&'static str),
@@ -4573,6 +4618,10 @@ pub enum Effect {
     /// to all, then discard down (Fortschritt Library;
     /// `Interrupt::LibraryToHand`).
     SearchLibraryToHand(CardFilter),
+    /// As `SearchLibraryToHand`, a haven found then put on the actor if
+    /// its player likes, its cost paid (Goblinism [MYT];
+    /// `Interrupt::PutFoundOn`).
+    SearchLibraryToHandOrHavenOnActor(CardFilter),
     /// The hands of each Methuselah with a ready vampire of the clan, open
     /// to the user until the next action ends (The Baron).
     PeekHandsOfReadyClan(&'static str),
@@ -5477,6 +5526,9 @@ pub enum Hook {
     OwnVampireBlocked,
     /// A vampire's own entry, influenced out, before its contests (Erlik).
     EntersPlay,
+    /// Another card of this label enters play (Watchtower: Four Ride
+    /// Forth burns).
+    LabelEntersPlay(crate::library::Label),
     /// The host plays a card, as it is played, before any cancel (Andrew
     /// Stuart; LSJ 20100728).
     HostPlaysCard,
@@ -6357,8 +6409,11 @@ pub fn plays_card_as_vampire(
             .iter()
             .any(|e| matches!(e, Effect::DeclareAction(_)))
     });
-    st.plays_as_vampire(m)
-        .filter(|g| tags.iter().any(|t| g.disciplines.contains(t)) && !(g.non_action && declares))
+    st.plays_as_vampire(m).filter(|g| {
+        tags.iter().any(|t| g.disciplines.contains(t))
+            && !(g.non_action && declares)
+            && !(g.non_ally && LIBRARY[card as usize].types.contains(&CardType::Ally))
+    })
 }
 
 /// Whether `m` meets the Discipline tags of mode `mi` of `card` (lower
@@ -6710,6 +6765,8 @@ pub fn holds(
             .minions_of(seat)
             .any(|m| st.title_of(m) == crate::crypt::Title::Prince(city)),
         Requirement::ActorVampire => actor.is_some_and(|m| !st.minions[m.index()].is_ally()),
+        // "Changeling allies can burn this location" (Black Forest Base).
+        Requirement::ActorSubtype(l) => actor.is_some_and(|m| st.has_subtype(m, l)),
         Requirement::ActorImbued => actor.is_some_and(|m| st.minions[m.index()].is_imbued()),
         Requirement::HandHas(f, n) => st.hand_picks(seat, f).len() >= n as usize,
         Requirement::HostLocked
@@ -7176,6 +7233,9 @@ pub fn holds(
         Requirement::ControlsReadyBlackHand => st
             .minions_of(seat)
             .any(|m| st.minions[m.index()].ready() && st.is_black_hand(m)),
+        Requirement::ControlsReadySeraph => st
+            .minions_of(seat)
+            .any(|m| st.minions[m.index()].ready() && st.is_seraph(m)),
         Requirement::OwnMinionInCombat => {
             combat.is_some_and(|cb| cb.sides.iter().any(|s| s.seat == seat))
         }
@@ -7532,7 +7592,6 @@ pub fn holds(
         Requirement::HostClan(_) | Requirement::HostDiscipline(_) => true, // host predicates
         Requirement::ThisVampireReady
         | Requirement::ActorGraftedAlly
-        | Requirement::ActorSubtype(_)
         | Requirement::OpponentClan(_)
         | Requirement::OpponentSectIn(_)
         | Requirement::OpponentInfernal
@@ -8220,8 +8279,18 @@ pub fn pool_cost(st: &GameState, payer: SeatId, card: u16, target: Target) -> i3
     }
     // Centralized Background Check: weapons, any Methuselah's.
     for l in st.in_play_layers() {
-        if let Modifier::LabelPoolSurcharge { label, pool } = l.modifier {
-            if def.labels.contains(&label) {
+        if let Modifier::LabelPoolSurcharge {
+            label,
+            pool,
+            while_host_ready,
+        } = l.modifier
+        {
+            let ready = || {
+                st.cards[l.source.index()]
+                    .bearer()
+                    .is_some_and(|h| st.minions[h.index()].ready())
+            };
+            if def.labels.contains(&label) && (!while_host_ready || ready()) {
                 cost += pool as i32;
             }
         }

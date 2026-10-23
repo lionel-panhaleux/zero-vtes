@@ -818,7 +818,13 @@ pub(crate) fn changes(
         else {
             continue;
         };
-        if from == to || [from, to].iter().any(|&p| seat(p).is_some_and(gone)) {
+        // An ousted Methuselah's places are out of the game (the view has
+        // none): a card going to an earlier ousted owner's is not told.
+        if from == to
+            || [from, to]
+                .iter()
+                .any(|&p| seat(p).is_some_and(|s| gone(s) || after.ousted[s.index()]))
+        {
             continue;
         }
         // A crypt card's places: a crypt pile, the uncontrolled region,

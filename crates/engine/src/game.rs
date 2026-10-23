@@ -335,6 +335,7 @@ pub fn public_choice(c: &Choice) -> bool {
             | BurnCorruptionToFail { .. }
             | BurnCorruptionToUnlock { .. }
             | Diablerise
+            | CancelCombat
     )
 }
 
@@ -1120,6 +1121,14 @@ impl Engine {
 
     /// A hand over size waits for no pending choice but a draw's own.
     fn discards_first(&self) -> bool {
+        // Goblinism [MYT]'s haven goes on the vampire "instead" of the
+        // hand: chosen before the discard.
+        if matches!(
+            self.interrupts.first(),
+            Some(crate::draws::Interrupt::PutFoundOn { .. })
+        ) {
+            return false;
+        }
         self.discard_down_seat().is_some()
             && self.interrupt_request().is_some_and(|r| {
                 !matches!(
@@ -2763,6 +2772,7 @@ impl Engine {
             m.hunted = false;
             m.announced_action = false;
             m.acted.clear();
+            m.repeats.clear();
             m.recruited = false;
             m.recruits_this_turn = 0;
             m.must_hunt = false;
@@ -2959,9 +2969,8 @@ mod tests {
 
     #[test]
     fn crypt_data_is_complete() {
-        // The 200 V5 vampires, then the owner's legacy additions (the
-        // imbued last).
-        assert_eq!(CRYPT.len(), 721);
+        // The 200 V5 vampires, then the owner's legacy additions.
+        assert_eq!(CRYPT.len(), 731);
         assert_eq!(PRECONS.len(), 14);
         for (name, list) in PRECONS.iter() {
             let n: u32 = list.iter().map(|&(_, k)| k as u32).sum();

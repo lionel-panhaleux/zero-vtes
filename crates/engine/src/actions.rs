@@ -224,6 +224,9 @@ pub struct ActionCtx {
     /// Mirror Walk [THA]: if blocked, the blocker locks and the action
     /// ends before block resolution.
     pub end_on_block: bool,
+    /// Stone Travel [MYT]: if blocked, the acting vampire may cancel the
+    /// combat.
+    pub cancel_combat_if_blocked: bool,
     /// Archon Investigation: the action is not successful.
     pub failed: bool,
     /// Set when the action ends.
@@ -1071,6 +1074,7 @@ impl ActionCtx {
                         .labels
                         .contains(&crate::library::Label::Weapon)
                 }),
+            equip_action: self.is_equip_action(st),
             enters_combat: self.combat_target(st).is_some(),
             // A card's created vampire (The Embrace), or a granted action's
             // (Legion's fledgling).
@@ -2163,6 +2167,11 @@ impl Engine {
         // "Allies cannot block this action / this Anarch" (Visions of
         // Gehenna, Invigorate [dom], Libertas).
         let no_allies = a.allies_cannot_block || st.allies_cannot_block(a.acting);
+        // Ravager: "non-changelings cannot block this Kiasyd's undirected
+        // hunt actions".
+        let only = st
+            .only_subtype_blocks_undirected_hunts(a.acting)
+            .filter(|_| a.is_hunt() && a.directed_seat(st).is_none());
         // "Vampires with capacity 3 or less cannot block Rexton".
         let small = st
             .printed_mod(
@@ -2195,6 +2204,7 @@ impl Engine {
                     && !st.cannot_block(*m, a.acting)
                     && !st.unblockable(a.acting, a.kind)
                     && !(no_allies && v.is_ally())
+                    && only.is_none_or(|l| st.has_subtype(*m, l))
                     && !(small > 0
                         && v.is_vampire()
                         && st.capacity_of(*m).is_some_and(|c| (c as i32) <= small))
@@ -3255,6 +3265,7 @@ impl Engine {
                     let acting = a.acting;
                     let riders = a.block_riders.clone();
                     let dawn = a.dawn_operation;
+                    let may_cancel = a.cancel_combat_if_blocked.then_some(a.seat);
                     // Ensnare a Beast [ANI]/[CEL]: its vampire blocked.
                     let toll: u8 = a
                         .strike_toll_if_blocks
@@ -3263,6 +3274,13 @@ impl Engine {
                         .map(|&(_, n)| n)
                         .sum();
                     self.start_combat(acting, blocker);
+                    if let Some(seat) = may_cancel {
+                        self.interrupts
+                            .push(crate::draws::Interrupt::MayCancelCombat {
+                                seat,
+                                minion: acting,
+                            });
+                    }
                     // Divine Sign [NEC]: blocking its chosen minion.
                     let st = &self.state;
                     if st.borne(blocker).any(|l| {
@@ -4178,6 +4196,7 @@ impl Engine {
             }
             Effect::DeferReactionReplacement => a.defer_reaction_replacement = true,
             Effect::EndActionIfBlocked => a.end_on_block = true,
+            Effect::MayCancelCombatIfBlocked => a.cancel_combat_if_blocked = true,
             other => unreachable!("not an action effect: {other:?}"),
         }
         self.action = Some(a);
@@ -4715,6 +4734,21 @@ impl Engine {
                 }
             }
         }
+        // Chanjelin Ward: blood only, on any target (LSJ 20080809-2); paid
+        // with the cost, unpayable it fizzles (rules-qa 3.6).
+        if let Some(t) = a.target_minion() {
+            let n = self.state.targeted_surcharge(t, seat);
+            if n > 0 {
+                let acting = a.acting;
+                if self.state.minions[acting.index()].is_ally()
+                    || self.state.minions[acting.index()].blood < n
+                {
+                    self.mark_resolved(acting, a.kind);
+                    return self.fizzle(a);
+                }
+                self.paying(|e| e.state.minions[acting.index()].blood -= n);
+            }
+        }
         // Ambrosio Luis Monçada: paid with the cost; his own Methuselah's
         // action is not directed (LSJ 20030214-2).
         if a.directed_seat(&self.state).is_some() {
@@ -4948,10 +4982,11 @@ impl Engine {
                 self.state.minions[a.acting.index()].must_hunt = false;
                 let before = self.state.minions[a.acting.index()].blood;
                 let hunt = 1 + self.state.hunt_bonus(a.acting);
-                self.state.hunt_blood(a.acting, hunt);
-                // Successful only if blood was gained (LSJ 20050720-2).
+                let successful = self.state.hunt_blood(a.acting, hunt);
+                // Gained blood is Abactor's narrower "successful resolution"
+                // (63.2).
                 a.hunt_gained = self.state.minions[a.acting.index()].blood > before;
-                if a.hunt_gained {
+                if successful {
                     self.successful_hunt_riders(a.acting);
                 }
             }
@@ -5148,6 +5183,13 @@ impl Engine {
                             self.state.unlock(acting);
                         }
                         self.state.minions[acting.index()].recruits_this_turn += 1;
+                        if cards::lookup(play.card).is_some_and(|d| {
+                            d.modes[play.mode as usize]
+                                .effects
+                                .contains(&Effect::MayRepeatThisTurn)
+                        }) {
+                            self.state.minions[acting.index()].repeats.push(play.card);
+                        }
                     }
                     _ => {
                         let id = self.put_retainer(seat, acting, play, false);
@@ -5500,9 +5542,9 @@ impl Engine {
                     let acting = a.acting;
                     let before = self.state.minions[acting.index()].blood;
                     let n = 1 + n + self.state.hunt_bonus(acting);
-                    self.state.hunt_blood(acting, n);
+                    let successful = self.state.hunt_blood(acting, n);
                     a.hunt_gained = self.state.minions[acting.index()].blood > before;
-                    if a.hunt_gained {
+                    if successful {
                         self.action = Some(a);
                         self.successful_hunt_riders(acting);
                         a = self.action.take().expect("action context");
@@ -6059,12 +6101,12 @@ impl Engine {
                             }
                             let before = self.state.minions[acting.index()].blood;
                             let n = 1 + bonus + self.state.hunt_bonus(acting);
-                            self.state.hunt_blood(acting, n);
+                            let successful = self.state.hunt_blood(acting, n);
                             let gained = self.state.minions[acting.index()].blood > before;
                             if let Some(a) = self.action.as_mut() {
                                 a.hunt_gained = gained;
                             }
-                            if gained {
+                            if successful {
                                 self.successful_hunt_riders(acting);
                             }
                         }
@@ -6195,6 +6237,7 @@ impl Engine {
                             // bank (LSJ 20010809-1).
                             if hunt && taken > 0 {
                                 self.action.as_mut().expect("action").hunt_gained = true;
+                                self.state.spend_once_hunt(acting);
                                 self.successful_hunt_riders(acting);
                             }
                             // An ally's life taken as blood (Gabrielle di
@@ -6983,7 +7026,7 @@ impl Engine {
                     self.state.minions[ctx.actor.expect("the entering ally").index()].recruited =
                         false;
                 }
-                Effect::UnlockRecruiterOnFirst => {}
+                Effect::UnlockRecruiterOnFirst | Effect::MayRepeatThisTurn => {}
                 Effect::CannotGainLife => {
                     self.state.minions[ctx.actor.expect("the entering ally").index()]
                         .no_life_gain = true;
