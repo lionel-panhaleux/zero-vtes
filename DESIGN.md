@@ -354,7 +354,9 @@ league and the remaining-deck tokens included.
 - **Encoding sketch**: entity tokens (players with relative-seat encoding,
   minions, hand, in-play cards; since `obs::Version::V2` the ash heaps'
   contents and the last public choices, §11.2), transformer trunk, auto-regressive head over
-  options; reward = tournament scoring (VPs, GW), small survival shaping early;
+  options; reward = tournament scoring (VPs, GW), shaped from p15 by the
+  position's potential (§11.2 "p15, prepared"; the survival shaping first
+  sketched here, never built, dropped for it);
   league = current agent + snapshots + exploiters + scripted bots, PFSP; decks ×
   seats sampled per episode; policy conditioned on own decklist identity.
 
@@ -1839,6 +1841,29 @@ training runs.
   blood +0.14, the pool +0.12, VPs +0.12; the lunge +0.04 in the third
   and +0.05 in the last, being lunged −0.04 in the last; the unlocked
   minions +0.03 to +0.04 (the actions and blocks left this turn).
+- **p15, prepared** (owner, 2026-10-22: the potential-based shaping, the
+  lever "The critic against the position" above points at). One change
+  from p14: `--shaping runs/phi-p14.json` (coefficient 1), Φ the linear
+  fit of the 26 position features over the whole game on p14@5280's
+  1,024 self-play games at `--gw-weight` 5 (`train.position --phi`; held
+  out, as good as the per-stage fits: 0.02 / 0.09 / 0.29 / 0.56 by
+  quarter; a VP +0.30, the seat's pool +0.58 a 30 pool, the blood on its
+  ready minions +0.41 a 20 blood, the prey's pool −0.32, the margin over
+  one's ready minions −0.35, the best other seat's 5 VPs −0.33). Each learner
+  decision gains Φ(next) − Φ(this) and the last −Φ(last) (γ 1): a game's
+  shaped return is its result less Φ at its first decision, so the best
+  play is unchanged (Ng 1999) while a rush that sends the prey's blocker
+  to torpor, or a bleed that brings the prey into reach, is rewarded as
+  it lands. The critic re-warms 10 iterations (its values move by −Φ).
+  From p14@5280 (served), opponents p14@5280 and p13@4740 frozen, to
+  5840; as p14 otherwise (the deck mix and imitation weight, nudges, lr,
+  entropy, `--bc-every 4`, the same five held out, the same starts and
+  imitation games), on main after round 19 and the contradictions round
+  (`df03761`; the Imbued in no training deck, the vocabulary remapped on
+  resume). Measured against
+  p14 as p14 was against p13: `decks.rs` per deck, `waste --by-deck`,
+  `humanset`, and `train.position` (whether the critic reads the first
+  half better).
 - **Futile blocks on the E25 engine** (owner, 2026-10-15: before any
   redeploy). E25 (`97c4880`) offers every legal block attempt, those
   that cannot reach the stealth too (`Engine::block_can_reach`); no
@@ -1934,10 +1959,9 @@ Still true today; "(verify)" marks items inferred from older notes.
 ### 11.4 What remains
 
 - **P2 — full engine pool**: the deliverable above.
-- **P3 — training loop**: built (slice 14); remaining: training long enough
-  to beat the bots, frozen
-  snapshots on the ladder, the early survival shaping of §5 (the reward is
-  tournament scoring only).
+- **P3 — training loop**: built (slice 14), the reward shaped by the
+  position's potential from p15 (§11.2); remaining: training long enough
+  to beat the bots, frozen snapshots on the ladder.
 - **P4 — league & 5p**: the league, PFSP, 4- and 5-seat tables and seat
   sampling, the exploiter built (slice 15); remaining: evaluation vs humans
   (with the protocol server).

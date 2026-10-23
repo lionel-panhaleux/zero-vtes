@@ -38,6 +38,10 @@ runs" (every run's command, numbers and lessons), `docs/boards/training.md`.
    precons have it too) and `--seats 5` for 5-seat cross-table numbers;
    `--by-deck` splits each group by the seat's deck, for the combat play
    (rushes and their targets, blocks, every combat's cards and results).
+   The reward's shaping (`--shaping runs/phi-<run>.json`, from p15): the
+   position's potential, fitted by `train.position --phi` on the
+   previous best and the run's `--gw-weight`; a new fit or coefficient
+   re-warms the critic (compared by value, kept in the checkpoint).
 2. **Launch** from a dedicated worktree at the launch commit
    (`git worktree add ../zero-vtes-pN <sha>`, `uv sync` there: a fresh
    `.venv` builds the extension at that commit; `--reinstall-package

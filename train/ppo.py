@@ -69,6 +69,14 @@ class Config:
     # 3-VP win's reward at 2; win-only would leave ~70% of the games
     # without a gradient).
     gw_weight: float = 2.0
+    # Potential-based shaping (DESIGN §11.2 "The critic against the
+    # position"): a `train.position --phi` file, Φ a linear fit of the
+    # deciding seat's position (`zvtes_py.position_names`) to its result;
+    # each learner decision's reward gains `shaping_coef` × (γΦ(next) −
+    # Φ(this)), the last −Φ(last): a game's shaped return is its result
+    # less Φ at its first decision, so the best play is unchanged.
+    shaping: str = ""
+    shaping_coef: float = 1.0
     d: int = 96
     layers: int = 2
     # The observation the learner reads (`zvtes::obs::Version`): 2 adds
@@ -380,6 +388,22 @@ def forward(model, batch):
     )
 
 
+def step(chain, t, cfg):
+    """Append transition `t` ([obs, action, logp, value, reward, done, Φ])
+    to a seat's chain, the previous one's reward gaining the shaping
+    γΦ(t) − Φ(previous) (`Config.shaping`; Φ is 0 without)."""
+    if chain:
+        chain[-1][4] += cfg.shaping_coef * (cfg.gamma * t[6] - chain[-1][6])
+    chain.append(t)
+
+
+def end(chain, r, cfg):
+    """The game's end: the last transition's reward is the result `r`,
+    less its Φ (the end's potential is 0)."""
+    chain[-1][4] = r - cfg.shaping_coef * chain[-1][6]
+    chain[-1][5] = True
+
+
 def scores(ep):
     """VPs and game wins per seat (tournament rules 3.7: at least 2 VPs and
     strictly more than every other seat)."""
@@ -636,6 +660,14 @@ class Trainer:
             if "optimizer" in saved and same_shapes:
                 self.learner.opt.load_state_dict(saved["optimizer"])
             self.start = saved.get("iteration", 0) + 1
+        self.phi = None
+        if cfg.shaping:
+            phi = json.load(open(cfg.shaping))
+            if phi["names"] != zvtes_py.position_names():
+                raise ValueError(f"{cfg.shaping}: features other than zvtes_py.position_names()")
+            if phi["gw_weight"] != cfg.gw_weight:
+                raise ValueError(f"{cfg.shaping}: fitted at --gw-weight {phi['gw_weight']}")
+            self.phi = (np.array(phi["weights"], np.float32), float(phi["intercept"]))
         self.critic = None
         self.warmup = 0
         if cfg.critic:
@@ -654,9 +686,16 @@ class Trainer:
                 self.critic_opt.load_state_dict(saved["critic_optimizer"])
             self.warmup = saved.get("critic_warmup", self.warmup)
             # A new observation is a new input for the critic too, a new
-            # game-win weight a new scale for its returns.
+            # game-win weight a new scale for its returns, a new potential
+            # or coefficient new returns (its values move by −Φ): compared
+            # by value, not by the file's path.
             old_cfg = saved.get("config", {})
-            if saved and (old_cfg.get("obs", 1) != cfg.obs or old_cfg.get("gw_weight", 2.0) != cfg.gw_weight):
+            changed = (
+                old_cfg.get("obs", 1) != cfg.obs
+                or old_cfg.get("gw_weight", 2.0) != cfg.gw_weight
+                or saved.get("shaping") != self.shaping_state()
+            )
+            if saved and changed:
                 self.warmup = cfg.critic_warmup
         # The best selection evaluation so far (`best.pt`: against the bots
         # or the frozen opponents; kept across a resume into the same
@@ -802,13 +841,13 @@ class Trainer:
             actions, logp, values = act(self.nets(), obs, self.device, self.rng)
             if self.critic is not None:
                 values = self.critic_values(obs, values)
+            phi = self.potentials(obs)
             for i, row in enumerate(rows(obs)):
                 learner = by_agent.get(int(obs["agent"][i]))
                 if learner is None:
                     continue
-                learner.chains.setdefault((i, int(obs["seat"][i])), []).append(
-                    [row, int(actions[i]), float(logp[i]), float(values[i]), 0.0, False]
-                )
+                chain = learner.chains.setdefault((i, int(obs["seat"][i])), [])
+                step(chain, [row, int(actions[i]), float(logp[i]), float(values[i]), 0.0, False, float(phi[i])], self.cfg)
             for ep in self.pool.act(actions.tolist()):
                 if "panic" in ep:
                     # An engine bug (named on stderr): the game's chains
@@ -829,7 +868,7 @@ class Trainer:
                     learner = by_agent.get(net_id(name))
                     chain = learner and learner.chains.pop((ep["slot"], s), None)
                     if chain:
-                        chain[-1][4], chain[-1][5] = float(r[s]), True
+                        end(chain, float(r[s]), self.cfg)
                         closed[learner.agent].append(chain)
         samples = {}
         for learner in self.learners():
@@ -843,6 +882,21 @@ class Trainer:
                     learner.chains[key] = [chain[-1]]
             samples[learner.agent] = out
         return samples, stats
+
+    def shaping_state(self):
+        """The potential in use and its coefficient (None without
+        shaping), as checkpoints keep it."""
+        if self.phi is None:
+            return None
+        return {"weights": self.phi[0].tolist(), "intercept": self.phi[1], "coef": self.cfg.shaping_coef}
+
+    def potentials(self, obs):
+        """Φ of each pending decision's position (`obs`' rows,
+        `Config.shaping`), 0 without shaping."""
+        if self.phi is None:
+            return np.zeros(len(obs["tok_n"]), np.float32)
+        w, b = self.phi
+        return self.pool.positions() @ w + b
 
     @torch.no_grad()
     def critic_values(self, obs, values):
@@ -860,7 +914,7 @@ class Trainer:
     def advantages(self, chain, bootstrap):
         cfg, out, gae = self.cfg, [], 0.0
         next_value = bootstrap if bootstrap is not None else 0.0
-        for row, a, logp, v, r, done in reversed(chain):
+        for row, a, logp, v, r, done, _ in reversed(chain):
             if done:
                 next_value, gae = 0.0, 0.0
             delta = r + cfg.gamma * next_value - v
@@ -1049,6 +1103,7 @@ class Trainer:
             "best": self.best,
             "entropy_coef": self.entropy_coef,
             "vocab": self.vocab,
+            "shaping": self.shaping_state(),
         }
         if self.critic is not None:
             saved["critic"] = self.critic.state_dict()

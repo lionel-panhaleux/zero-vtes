@@ -11,7 +11,7 @@ import zvtes_py
 
 from train.league import EXP, EXPLOITER, FROZEN, League
 from train.model import remap_vocab
-from train.ppo import HIDDEN, Config, Trainer, deck_index, eval_tables, imitation, load_replays, made, sampling
+from train.ppo import HIDDEN, Config, Trainer, deck_index, end, eval_tables, imitation, load_replays, made, sampling, step
 
 
 def test_one_iteration(tmp_path):
@@ -449,3 +449,73 @@ def test_imitation_draws_the_weak_decks_choices_more_often():
     assert p.sum() == pytest.approx(1.0)
     on, off = [x for x, d in zip(p, decks) if d in weak], [x for x, d in zip(p, decks) if d not in weak]
     assert on and off and min(on) == pytest.approx(4 * max(off))
+
+
+def test_shaping_telescopes():
+    # Potential-based shaping (Ng 1999; DESIGN §11.2 "The critic against
+    # the position"): over a game the shaped rewards sum to the result
+    # less coef × Φ at the first decision, whatever Φ between.
+    rng = np.random.default_rng(3)
+    cfg = Config(shaping_coef=0.7)
+    for _ in range(20):
+        phi = rng.normal(size=int(rng.integers(1, 30)))
+        chain = []
+        for p in phi:
+            step(chain, [None, 0, 0.0, 0.0, 0.0, False, float(p)], cfg)
+        end(chain, 1.4, cfg)
+        assert abs(sum(t[4] for t in chain) - (1.4 - 0.7 * phi[0])) < 1e-9
+        assert chain[-1][5] and not any(t[5] for t in chain[:-1])
+        if len(phi) > 1:
+            assert abs(chain[0][4] - 0.7 * (phi[1] - phi[0])) < 1e-9
+
+
+def test_shaping_trains(tmp_path):
+    names = zvtes_py.position_names()
+    rng = np.random.default_rng(4)
+    phi = {"names": names, "weights": rng.normal(size=len(names)).tolist(), "intercept": 0.1, "gw_weight": 2.0}
+    (tmp_path / "phi.json").write_text(json.dumps(phi))
+    small = dict(games=8, steps=24, iterations=1, epochs=1, minibatch=64, d=32, layers=1,
+                 eval_every=1, eval_games=4, device="cpu", critic_warmup=0)
+    cfg = Config(**small, out=str(tmp_path / "run"), shaping=str(tmp_path / "phi.json"))
+    trainer = Trainer(cfg)
+    phi_now = trainer.potentials(trainer.pool.observe())
+    assert phi_now.shape == (8,) and np.abs(phi_now).sum() > 0
+    trainer.run()
+    assert (tmp_path / "run" / "model.pt").exists()
+    # Turning shaping on moves the critic's returns: it warms up again.
+    plain = Config(**small, out=str(tmp_path / "plain"))
+    Trainer(plain).run()
+    resumed = Trainer(Config(**{**vars(cfg), "out": str(tmp_path / "on"), "critic_warmup": 3,
+                                "resume": str(tmp_path / "plain" / "model.pt")}))
+    assert resumed.warmup == 3
+    # The same potential under another path is not a new one.
+    (tmp_path / "copy.json").write_text((tmp_path / "phi.json").read_text())
+    same = Trainer(Config(**{**vars(cfg), "out": str(tmp_path / "same"), "critic_warmup": 3,
+                             "shaping": str(tmp_path / "copy.json"), "resume": str(tmp_path / "run" / "model.pt")}))
+    assert same.warmup == 0
+    for bad in ({**phi, "gw_weight": 5.0}, {**phi, "names": names[::-1]}):
+        (tmp_path / "bad.json").write_text(json.dumps(bad))
+        with pytest.raises(ValueError):
+            Trainer(Config(**small, out=str(tmp_path / "bad"), shaping=str(tmp_path / "bad.json")))
+
+
+def test_shaping_in_the_rollout(tmp_path):
+    # A constant potential c: every step's term is c − c = 0 and the end's
+    # −c, so against the same rollout unshaped (same seed, λ 1) a sample's
+    # return moves by −c where its game ended, and not at all where its
+    # chain is still open (bootstrapped).
+    names = zvtes_py.position_names()
+    c = 0.37
+    phi = {"names": names, "weights": [0.0] * len(names), "intercept": c, "gw_weight": 2.0}
+    (tmp_path / "phi.json").write_text(json.dumps(phi))
+    small = dict(games=8, steps=160, d=32, layers=1, device="cpu", critic_warmup=0, lam=1.0, budget=60)
+    plain = Trainer(Config(**small, out=str(tmp_path / "plain")))
+    shaped = Trainer(Config(**small, out=str(tmp_path / "shaped"), shaping=str(tmp_path / "phi.json")))
+    (a, sa), (b, sb) = plain.rollout(), shaped.rollout()
+    assert sa == sb and sa["episodes"] > 0, "the same games, some of them over"
+    ra = np.array([s[4] for s in a[0]])
+    rb = np.array([s[4] for s in b[0]])
+    assert len(ra) == len(rb) > 0
+    diff = rb - ra
+    assert np.all(np.isclose(diff, 0, atol=1e-5) | np.isclose(diff, -c, atol=1e-5))
+    assert np.isclose(diff, -c, atol=1e-5).any() and np.isclose(diff, 0, atol=1e-5).any()

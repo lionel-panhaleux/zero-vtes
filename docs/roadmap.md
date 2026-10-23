@@ -127,8 +127,7 @@ not on any board; the owner brings each back:
   engine tables, and the same in SC.
 - Stops and auto-pass preferences per window or card, within the guidance
   rule.
-- Training: the early survival shaping of DESIGN §5 (kept, tried or
-  dropped) and strength levels players pick (named server profiles), to
+- Training: strength levels players pick (named server profiles), to
   discuss on the training side.
 - New-set intake (cards): the recipe for a set KRCG publishes (regenerate,
   list the new ids, window-matrix drafts, a round of them) as a step of

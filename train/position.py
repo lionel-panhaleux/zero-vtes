@@ -9,7 +9,7 @@ of a checkpoint (every seat its policy), scored on held-out ones and on
 the human records.
 
 `uv run python -m train.position runs/<name>/best.pt [--games 512]
-[--records data/records,…] [--out report.json]`
+[--records data/records,…] [--out report.json] [--phi phi.json]`
 """
 
 import argparse
@@ -22,7 +22,7 @@ import torch
 import zvtes_py
 
 from train.assess import load
-from train.ppo import act, collate_critic, device_of, rewards, shaped
+from train.ppo import Config, act, collate_critic, device_of, rewards, shaped
 
 STAGES = ((0.0, 0.25), (0.25, 0.5), (0.5, 0.75), (0.75, 1.01))
 CRITIC_KEYS = [f"critic_{a}_{b}" for a in ("tok", "deck") for b in ("ids", "f", "n")]
@@ -73,7 +73,7 @@ def self_play(policy, critic, cfg, games, seats, seed, device, budget=20_000):
                 dropped += 1
                 continue
             g = ep["game"]
-            over[g] = (ep["turns"], rewards(ep, cfg.get("gw_weight", 5)))
+            over[g] = (ep["turns"], rewards(ep, cfg.get("gw_weight", Config.gw_weight)))
             out += [(g, s, f, v) for s, f, v in rows]
     return out, over, dropped
 
@@ -93,7 +93,7 @@ def from_records(critic, cfg, paths):
         ep = {"half_vps": (vps * 2).astype(int).tolist()}
         decisions = game["decisions"]
         turns = max(d["turn"] for d in decisions)
-        over[g] = (turns, rewards(ep, cfg.get("gw_weight", 5)))
+        over[g] = (turns, rewards(ep, cfg.get("gw_weight", Config.gw_weight)))
         values = critic_values(critic, decisions)
         out += [(g, d["seat"], np.array(d["position"], np.float32), v) for d, v in zip(decisions, values)]
     return out, over
@@ -143,14 +143,19 @@ def r2(y, p):
 
 def measure(train, tests):
     """Per stage, fit on `train` (self-play) and score on each of `tests`:
-    the explained variance of the critic as it is, of the features' fit
-    and of both together (the critic's value as one more feature); and
-    the features' weights scaled by their spread (a weight per standard
-    deviation of the feature)."""
+    the explained variance of the critic as it is, of the features' fit,
+    of the whole-game fit (`phi`) and of both together (the critic's
+    value as one more feature); the features' weights scaled by their
+    spread (a weight per standard deviation of the feature); and the
+    whole-game fit itself (`report["phi"]`, `--phi`'s)."""
     names = zvtes_py.position_names()
     report = {"weights": {}}
     fits = {}
     X, v, y, stage, _ = train
+    # One fit over the whole game: a potential the position alone gives
+    # (no stage, which needs the game's end), `--phi`'s.
+    w_all = fit(X, y)
+    report["phi"] = {"names": names, "weights": w_all[:-1].tolist(), "intercept": float(w_all[-1])}
     for lo, hi in STAGES:
         m = (stage >= lo) & (stage < hi)
         key = f"{lo:.2f}-{min(hi, 1):.2f}"
@@ -171,6 +176,7 @@ def measure(train, tests):
                     "n": int(m.sum()),
                     "critic": round(r2(y[m], v[m]), 3),
                     "features": round(r2(y[m], predict(w_f, X[m])), 3),
+                    "phi": round(r2(y[m], predict(w_all, X[m])), 3),
                     "both": round(r2(y[m], predict(w_b, np.hstack([X[m], v[m, None]]))), 3),
                 }
             )
@@ -194,6 +200,7 @@ def main():
     ap.add_argument("--device", default="auto")
     ap.add_argument("--budget", type=int, default=20_000, help="decisions before a game is truncated")
     ap.add_argument("--out", default="")
+    ap.add_argument("--phi", default="", help="write the whole-game fit, `train.ppo --shaping`'s potential")
     a = ap.parse_args()
     policy, critic, cfg, _ = load(a.checkpoint)
     if critic is None:
@@ -214,6 +221,9 @@ def main():
     print(json.dumps(report, indent=1))
     if a.out:
         json.dump(report, open(a.out, "w"), indent=1)
+    if a.phi:
+        phi = report["phi"] | {"gw_weight": cfg.get("gw_weight", Config.gw_weight), "checkpoint": a.checkpoint}
+        json.dump(phi, open(a.phi, "w"), indent=1)
 
 
 if __name__ == "__main__":

@@ -57,11 +57,12 @@ pub fn features(st: &GameState, s: SeatId) -> Vec<f32> {
         cross.iter().sum::<f32>() / cross.len() as f32
     };
     // Ready (in play, uncontested, out of torpor), unlocked among them,
-    // the blood on the ready ones, those in torpor.
+    // the blood on the ready ones, those in torpor (an incapacitated
+    // imbued with them, as the observation reads it).
     let minions = |x: SeatId| {
         let (mut ready, mut unlocked, mut blood, mut torpor) = (0.0, 0.0, 0.0, 0.0);
         for m in st.minions.iter().filter(|m| m.owner == x && m.present()) {
-            if m.in_torpor {
+            if m.in_torpor || m.incapacitated {
                 torpor += 1.0;
             } else {
                 ready += 1.0;
