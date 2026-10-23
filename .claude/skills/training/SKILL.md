@@ -172,7 +172,12 @@ runs" (every run's command, numbers and lessons), `docs/boards/training.md`.
   `--bc-held-games` (it matches parts of file names: game ids for harvested
   files, timestamps in `data/records`), never every Nth; `--bc-weak-weight
   W` draws the choices of a winner on a `--weak-decks` deck W times as
-  often (the first line logs them, `bc_weak`). Starts from
+  often (the first line logs them, `bc_weak`); `--bc-games-weight
+  part=W,…` those of named games (parts of file names; the first part a
+  name holds) W times, the deck's and the game's weights multiplied
+  (`bc_games`): the owner's games, `zero-vtes-replay` (the 24
+  converted fork games, all the owner's) and a harvested one by its id —
+  no record names its player. Starts from
   recorded positions (`--starts`). Weakness mining: a recurring bad choice
   becomes a `waste` counter first, a nudge only if it persists and the owner
   agrees (the owner prefers emergent fixes).

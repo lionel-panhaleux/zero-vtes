@@ -3,6 +3,7 @@ self-play, and the league (one learner seat, the exploiter, snapshots and
 bots at 4- and 5-seat tables)."""
 
 import json
+import pathlib
 
 import numpy as np
 import pytest
@@ -11,7 +12,7 @@ import zvtes_py
 
 from train.league import EXP, EXPLOITER, FROZEN, League
 from train.model import remap_vocab
-from train.ppo import HIDDEN, Config, Trainer, deck_index, end, eval_tables, imitation, load_replays, made, sampling, step
+from train.ppo import HIDDEN, Config, Trainer, deck_index, end, eval_tables, games_weight, imitation, load_replays, made, sampling, step
 
 
 def test_one_iteration(tmp_path):
@@ -267,10 +268,10 @@ def test_imitation_holds_out_named_games():
     a = "data/records/zero-vtes-replay-2026-10-08T21-17-05-603Z.json"
     b = "data/records/zero-vtes-replay-2026-10-09T21-51-54-561Z.json"
     replays = load_replays(",".join([a, b]))
-    train, held, names, _, _ = imitation(replays, 3, 8, ["2026-10-09T21-51"])
+    train, held, names, _, _, _ = imitation(replays, 3, 8, ["2026-10-09T21-51"])
     assert names == ["zero-vtes-replay-2026-10-09T21-51-54-561Z.json"]
     assert train and held
-    alone, _, _, _, _ = imitation(replays[:1], 3, 8)
+    alone, _, _, _, _, _ = imitation(replays[:1], 3, 8)
     assert len(train) == len(alone)
     with pytest.raises(ValueError, match="no replay"):
         imitation(replays, 3, 8, ["1999-01-01"])
@@ -289,11 +290,11 @@ def test_imitation_leaves_out_a_game_read_partway(tmp_path):
     assert "stopped" in zvtes_py.replay_decisions(cut.read_text(), 3)
     # Loaded apart: the same game twice is read once.
     replays = load_replays(path) + load_replays(str(cut))
-    whole, _, _, none, _ = imitation(replays[:1], 3, 0)
-    train, held, names, stopped, _ = imitation(replays, 3, 0, ["cut"])
+    whole, _, _, none, _, _ = imitation(replays[:1], 3, 0)
+    train, held, names, stopped, _, _ = imitation(replays, 3, 0, ["cut"])
     assert none == [] and stopped == ["cut.json"]
     assert len(train) == len(whole) and held == [] and names == []
-    train, _, _, stopped, _ = imitation(replays, 3, 0)
+    train, _, _, stopped, _, _ = imitation(replays, 3, 0)
     assert stopped == ["cut.json"] and len(train) == len(whole)
 
 
@@ -308,7 +309,7 @@ def test_imitation_keeps_the_winners_shown_choices(tmp_path):
     game = json.loads(open(path).read())
     human = game["result"]["winner"]
     assert human not in {b["seat"] for b in game["bots"]}
-    won, _, _, _, _ = imitation(load_replays(path), 3, 0)
+    won, _, _, _, _, _ = imitation(load_replays(path), 3, 0)
     assert won
     for name, result in (
         ("lost", {**game["result"], "winner": (human + 1) % 4}),
@@ -439,16 +440,45 @@ def test_imitation_draws_the_weak_decks_choices_more_often():
     a = "data/records/zero-vtes-replay-2026-10-08T21-17-05-603Z.json"
     b = "data/records/zero-vtes-replay-2026-10-12T21-50-21-712Z.json"
     replays = load_replays(",".join([a, b]))
-    train, _, _, _, decks = imitation(replays, 3, 0)
+    train, _, _, _, decks, sources = imitation(replays, 3, 0)
     assert len(decks) == len(train)
     first = [deck_index(json.loads(t)["spec"]["seats"][json.loads(t)["result"]["winner"]]) for _, t, _ in replays]
     assert set(decks) == set(first)
     weak = [first[0]]
-    assert sampling(decks, weak, 1.0) is None
-    p = sampling(decks, weak, 4.0)
+    assert sampling(decks, weak, 1.0, sources, {}) is None
+    p = sampling(decks, weak, 4.0, sources, {})
     assert p.sum() == pytest.approx(1.0)
     on, off = [x for x, d in zip(p, decks) if d in weak], [x for x, d in zip(p, decks) if d not in weak]
     assert on and off and min(on) == pytest.approx(4 * max(off))
+
+
+def test_the_owners_games_weighted(tmp_path):
+    """The training board's "The owner's games weighted up in --bc": named
+    games' winners drawn `W` times as often (no record names its player:
+    a player's games named by game), times a weak deck's weight."""
+    a = "data/records/zero-vtes-replay-2026-10-08T21-17-05-603Z.json"
+    b = "data/records/d8ec2c01edab010d.json"
+    replays = load_replays(",".join([a, b]))
+    train, _, _, _, decks, sources = imitation(replays, 3, 0)
+    assert len(sources) == len(train) and set(sources) == {pathlib.Path(a).name, pathlib.Path(b).name}
+    owner = games_weight("zero-vtes-replay=3")
+    assert owner == {"zero-vtes-replay": 3.0}
+    assert sampling(decks, [], 1.0, sources, {}) is None
+    p = sampling(decks, [], 1.0, sources, owner)
+    mine = [x for x, s in zip(p, sources) if "zero-vtes-replay" in s]
+    other = [x for x, s in zip(p, sources) if "zero-vtes-replay" not in s]
+    assert mine and other and min(mine) == pytest.approx(3 * max(other))
+    weak = [decks[sources.index(pathlib.Path(b).name)]]
+    both = sampling(decks, weak, 2.0, sources, owner)
+    assert max(both) / min(both) == pytest.approx(3 / 2), "each its own weight, multiplied"
+    for bad in ("zero-vtes-replay", "x=0", "=2", "x=nan", "x=inf", "x=-1"):
+        with pytest.raises(ValueError):
+            games_weight(bad)
+    small = dict(games=4, steps=4, d=16, layers=1, device="cpu", bc=",".join([a, b]), bc_coef=0.1, bc_holdout=0)
+    trainer = Trainer(Config(**small, out=str(tmp_path / "t"), bc_games_weight="zero-vtes-replay=3"))
+    assert trainer.bc_p is not None and np.allclose(trainer.bc_p, p)
+    with pytest.raises(ValueError, match="no trained game"):
+        Trainer(Config(**small, out=str(tmp_path / "u"), bc_games_weight="1999-01-01=3"))
 
 
 def test_shaping_telescopes():

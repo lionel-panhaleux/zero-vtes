@@ -17,6 +17,7 @@ import copy
 import dataclasses
 import itertools
 import json
+import math
 import time
 from pathlib import Path
 
@@ -230,6 +231,13 @@ class Config:
     # minibatches `bc_weak_weight` times as often as the others (owner,
     # 2026-10-21, p14: the rush and wall decks).
     bc_weak_weight: float = 1.0
+    # Named games' winners drawn more often (`part=W,…`: parts of file
+    # names, as `bc_held_games`, and their weight — the first part a name
+    # holds, not their product; times the weak deck's):
+    # the owner's games (the training board; no record names its player,
+    # so a player's games are named by game: `zero-vtes-replay` the 24
+    # converted fork games, all the owner's, a harvested one by its id).
+    bc_games_weight: str = ""
 
 
 def device_of(name):
@@ -558,12 +566,13 @@ def imitation(replays, obs, holdout, games=()):
     partway (a rules change since they were played), left out whole: their
     choices up to the stop would train on a game cut short, and a held-out
     one would shrink the evaluation set unseen (2026-10-18: rules-qa 82.1
-    stopped six harvested games). Last, each trained choice's deck: the
-    winner's pool deck index (`deck_index`), None for a list of their own."""
+    stopped six harvested games). Last, each trained choice's deck (the
+    winner's pool deck index, `deck_index`; None for a list of their own)
+    and its game's file name."""
     for part in games:
         if not any(part in path.name for path, _, _ in replays):
             raise ValueError(f"no replay named like {part!r} to hold out")
-    train, held, names, stopped, decks = [], [], [], [], []
+    train, held, names, stopped, decks, sources = [], [], [], [], [], []
     for g, (path, text, _) in enumerate(replays):
         game = zvtes_py.replay_decisions(text, obs)
         if "stopped" in game:
@@ -606,16 +615,37 @@ def imitation(replays, obs, holdout, games=()):
                 out.append((tuple(d[k] for k in ROW_KEYS) + (bias,), d["chosen"]))
                 if out is train:
                     decks.append(deck)
-    return train, held, names, stopped, decks
+                    sources.append(path.name)
+    return train, held, names, stopped, decks, sources
 
 
-def sampling(decks, weak, weight):
-    """The imitation minibatches' draw over choices of `decks` (`imitation`'s
-    last): a weak deck's `weight` times another's; None, uniform, at 1."""
-    if weight == 1:
-        return None
+def sampling(decks, weak, weight, sources, games):
+    """The imitation minibatches' draw over choices of `decks` from games
+    `sources` (`imitation`'s last two): a weak deck's `weight` times
+    another's, times the weight of the first part of `games` ({part of a
+    file name: weight}) its game's name holds; None, uniform, when every
+    weight is 1."""
     w = np.array([weight if d in weak else 1.0 for d in decks])
+    if games:
+        w = w * np.array([next((g for part, g in games.items() if part in s), 1.0) for s in sources])
+    if (w == 1).all():
+        return None
     return w / w.sum()
+
+
+def games_weight(spec):
+    """`Config.bc_games_weight` read: {part of a file name: weight}."""
+    out = {}
+    for item in filter(None, (x.strip() for x in spec.split(","))):
+        part, _, w = item.rpartition("=")
+        try:
+            x = float(w)
+        except ValueError:
+            x = float("nan")
+        if not part or not math.isfinite(x) or x <= 0:
+            raise ValueError(f"--bc-games-weight: {item!r} is not part=weight (a positive weight)")
+        out[part] = x
+    return out
 
 
 class Learner:
@@ -759,7 +789,7 @@ class Trainer:
         self.weak = [int(d) for d in cfg.weak_decks.split(",") if d.strip()]
         self.bc, self.bc_held, self.bc_p = [], [], None
         if cfg.bc_coef > 0:
-            self.bc, self.bc_held, held, stopped, decks = imitation(
+            self.bc, self.bc_held, held, stopped, decks, sources = imitation(
                 load_replays(cfg.bc),
                 cfg.obs,
                 cfg.bc_holdout,
@@ -767,12 +797,17 @@ class Trainer:
             )
             if not self.bc:
                 raise ValueError("--bc-coef needs --bc replays with human choices")
-            self.bc_p = sampling(decks, self.weak, cfg.bc_weak_weight)
+            weights = games_weight(cfg.bc_games_weight)
+            for part in weights:
+                if not any(part in s for s in sources):
+                    raise ValueError(f"--bc-games-weight: no trained game named like {part!r}")
+            self.bc_p = sampling(decks, self.weak, cfg.bc_weak_weight, sources, weights)
             print(
                 json.dumps(
                     {
                         "bc": len(self.bc),
                         "bc_weak": sum(d in self.weak for d in decks),
+                        "bc_games": {p: sum(p in s for s in sources) for p in weights},
                         "bc_held": len(self.bc_held),
                         "held_out": held,
                         "bc_stopped": stopped,
