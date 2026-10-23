@@ -6,6 +6,20 @@ server runs.
 `python3 scripts/schema_compat.py` lists what a schema change adds or
 removes; its `--check` fails a removal without a major version.
 
+## 2.10.0
+
+Two-player games under VEKN's variant (§1); ids added, none removed:
+
+- A game of 2 seats plays the variant: a contested vampire (or imbued)
+  stays in play and is used as normal; its upkeep is due as before
+  (`pay_contest` / `yield_contest`, 1 pool), and no `leaves_play`
+  `contested` is told for it: its minion carries the new marker
+  `contested` instead (`MinionView.contested` stays false, meaning face
+  down and out of play). Unique library cards contest as before.
+- Two contested copies' title is not contested.
+- Transfers: 3 in the first player's first influence phase, then 4.
+- Games of 3, 4, 5 and 6 seats are unchanged.
+
 ## 2.9.0
 
 What a pass does and what a play or an action targets, in the data (§7,

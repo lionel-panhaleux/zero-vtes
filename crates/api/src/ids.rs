@@ -760,5 +760,8 @@ ids!(
         /// Out of play with its cards, its effects remembered (Descent into
         /// Darkness).
         OutOfPlay,
+        /// Contested yet in play and usable (a two-player game, §1): 1 pool
+        /// in each of its controller's unlock phases, or yielded, burned.
+        Contested,
     }
 );

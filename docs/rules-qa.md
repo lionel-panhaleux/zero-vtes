@@ -83,8 +83,8 @@ by the owner. Apply them to every new card; only a ruling overrides them.
 - **Damage, prevention, immunity** — 4.2, 10.3, 14.2, 21.3, 29.1, 29.2, 29.3, 29.4, 30.6, 38.3, 38.8, 40.9, 77.8, 77.21, 77.22, 77.23, 78.19, 78.33, 78.34, 78.38
 - **Rushes (entering combat as an action)** — 17.3, 26.1, 27.2, 27.5, 38.6, 52.6, 54.3, 54.4, 54.7, 55.7, 56.2, 58.6, 88.10, 88.11
 - **Referendums, votes, political actions** — 1.1, 3.5, 5.1–5.9, 6.2, 6.3, 15.2, 16.5, 19.3, 19.4, 32.9, 33.2, 35.4, 38.6, 39.1–39.4, 42.4, 49.1, 49.2, 50.5, 50.6, 51.1, 51.2, 51.5, 51.6, 51.8, 52.2, 52.3, 52.5, 52.7, 52.9, 52.10, 54.1, 58.8, 58.14, 58.15, 58.16, 59.7, 59.9, 59.18, 59.19, 60.2, 60.14, 60.16, 71.25, 73.4, 76.5, 76.6, 76.14, 76.15, 77.5, 77.14, 77.15, 77.25, 77.26
-- **Titles** — 3.1, 13.2, 19.1, 19.2, 19.6, 32.9, 49.4, 52.5, 52.6, 52.9, 58.3, 58.11, 59.13, 59.14, 60.1, 76.1–76.4, 77.1, 77.2, 78.1, 78.7, 78.16
-- **Contests, uniqueness** — 3.1, 7.1, 7.3, 7.5, 8.2, 11.2, 12.3, 19.1, 36.3, 38.7, 39.4, 40.1, 57.9, 58.5, 58.19, 59.13, 60.1, 60.9, 60.20, 76.2, 76.3, 85.32
+- **Titles** — 3.1, 13.2, 19.1, 19.2, 19.6, 32.9, 49.4, 52.5, 52.6, 52.9, 58.3, 58.11, 59.13, 59.14, 60.1, 76.1–76.4, 77.1, 77.2, 78.1, 78.7, 78.16, 91.6
+- **Contests, uniqueness** — 3.1, 7.1, 7.3, 7.5, 8.2, 11.2, 12.3, 19.1, 36.3, 38.7, 39.4, 40.1, 57.9, 58.5, 58.19, 59.13, 60.1, 60.9, 60.20, 76.2, 76.3, 85.32, 91.2–91.6
 - **Control, steals, ousts, removal from game** — 6.9, 7.5, 17.4, 25.1, 27.3, 27.4, 27.7, 28.13, 31.4, 31.5, 31.6, 33.5, 33.7, 38.4, 39.4, 42.7, 55.4, 55.6, 88.9
 - **Costs and reductions** — 3.6, 5.9, 9.3, 18.1, 18.2, 23.4, 29.6, 27.6, 36.1–36.5, 38.5, 42.1, 42.2, 42.5, 42.6, 54.1, 58.12, 59.5, 60.5, 60.7, 77.24, 78.3, 78.17, 78.21, 89.3, 89.10, 89.11, 89.15, 89.24
 - **Replacement, draws, stored and held cards** — 5.5, 7.10, 8.2, 8.3, 8.4, 9.4, 9.5, 11.1–11.3, 12.1–12.5, 22.2, 37.1, 40.4, 53.4, 53.5, 73.1, 73.2, 77.35, 78.18, 78.26, 78.51, 88.8
@@ -101,7 +101,8 @@ by the owner. Apply them to every new card; only a ruling overrides them.
 - **Conditions read live; card-text defaults** — 4.3, 9.1, 13.2, 18.4, 19.3, 28.2, 28.6, 29.11, 32.4, 32.7, 39.5, 49.5, 49.7, 73.7, 77.6, 77.13
 - **Corruption counters, multi-Discipline cards** — 25.1–25.6, 34.3, 35.2, 38.4, 52.1, 77.28
 - **Printed vampire abilities** — 13.1, 13.2, 14.1, 14.2, 15.1, 15.2, 16.1–16.6, 17.1–17.4, 41.1–41.14, 49.2, 49.3, 52.4, 72.1, 72.2, 72.5, 73.5, 73.7, 79.2, 79.3, 88.6, 89.2, 89.20–89.22
-- **Game end, VP, ousting** — 6.9, 18.2, 24.1, 33.2, 53.1, 58.20
+- **Two-player variant** — 91.1–91.7
+- **Game end, VP, ousting** — 6.9, 18.2, 24.1, 33.2, 53.1, 58.20, 91.1
 ## Batch 1 — sequencing, impulse, windows
 
 **1.1** Vote casting. A *source* is a vampire or a Methuselah. A vampire source is atomic: all its votes cast at once, in one commitment, all the same way; then spent for that referendum. Sources are independent commitments: a Methuselah may cast one source on one rotation and hold others for later rotations. Methuselah-sourced ballots (the Edge, each discarded/burned card, each card granting Methuselah votes) are each independent and may go either way. Card effects that modify a vampire's votes fold into that vampire's source.
@@ -2249,3 +2250,19 @@ Twenty-seven cards (the server's /admin/unsupported of 2026-10-23: a Kiasyd deck
 **89.25** Foresee's "you may then choose to cancel combat" is offered as `Choice::CancelCombat` (Stone Travel's), no longer as `ContinueAction` (Form of Mist's continue): the choice is the cancel, continuing only when the imbued blocked (87.31). No reading changes. Green. (Tests foresee_looks_and_cancels_the_combat_the_bleed_going_on, foresees_continued_action_asks_no_decliner_again.)
 
 **89.26** "Successfully hunts" (Adisa, Eddie Gaines, Enhanced Coagulant, Restricted Vitae's "until a vampire successfully hunts", Harvest Rites): a hunt at capacity is successful, its blood got and drained off (owner, 89.1; 63.12); a vampire that cannot gain blood by hunting does not (59.4). Abactor's "successful resolution" stays a hunt that gained blood (63.2, LSJ 20090411). Before, the engine fired these only on blood kept. Green (the owner's 89.1, generalized; found on the way). (Tests a_hunt_at_capacity_is_a_successful_hunt, harvest_rites_adds_a_blood_to_one_hunt_each_turn.)
+
+## Batch 91 — Two-player games under VEKN's variant ("Two-player variant for Vampire: The Eternal Struggle", vekn.net, §2.3): readings graded (Claude, 2026-10-23)
+
+**91.1** A game dealt with 2 seats plays the variant (owner, 2026-10-23: "the engine should use 2 players rules when instantiating a 2 players game"; `Format::TwoPlayer`, set as it is dealt); a table of 4 or 5 brought down to 2 by ousts keeps the rulebook's; a test fixture (`Engine::bare`) keeps the rulebook's at any seat count. Green. (Test two_player_transfers_are_3_then_4.)
+
+**91.2** A contested crypt card "can still be used as normal" and is "no longer out of play": it acts, blocks, votes, plays cards and uses its abilities; its own text, title, bonuses and the cards on it apply, nothing suspended; only its upkeep is due (`Minion::contested_in_play`). Green. (Test a_contested_crypt_card_stays_in_play_its_upkeep_pool.)
+
+**91.3** Its upkeep is 1 pool in each of its controller's unlock phases, ordered freely among the other unlock dues (7.8), payable down to 0 pool and ousting as a card contest's; yielded, it is burned with the cards and counters on it, as a rulebook yield; once every rival has yielded, the contest ends in its controller's next unlock phase. Green. (Test a_contested_crypt_card_stays_in_play_its_upkeep_pool.)
+
+**91.4** Only unique crypt cards contest in play: the variant's rule names them. A unique library card (an ally, an equipment, a location, a title card) contests by the rulebook in a two-player game, face down and out of play, 1 pool. Amber (the variant is silent on library cards; read narrowly, as its text says "unique crypt card").
+
+**91.5** An imbued, a crypt card, contests in play as a vampire does. Amber (the variant does not mention the Imbued; read from "crypt card").
+
+**91.6** "If two contested vampires (two copies of the same vampire) have a title, their title is not contested": both copies claim it, neither pays blood for it; a title shared with a different vampire is contested by the rulebook (blood), both copies among its claimants. Amber (the second half is the rulebook's, the variant silent). (Tests two_contested_copies_keep_their_title, another_claimant_contests_both_copies_title.)
+
+**91.7** Transfers: 3 in the first player's first influence phase, 4 in every other influence phase, the second player's first included ("everyone else gets the standard 4"). Green. (Test two_player_transfers_are_3_then_4.)

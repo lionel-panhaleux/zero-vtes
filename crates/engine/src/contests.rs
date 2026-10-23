@@ -21,7 +21,7 @@ impl Engine {
             .filter(|(_, m)| m.owner == s && m.in_play && !m.out_of_play)
             .flat_map(|(i, m)| {
                 let id = MinionId(i as u32);
-                let card = m.contested.then_some(Contest::Card(id));
+                let card = (m.contested || m.contested_in_play).then_some(Contest::Card(id));
                 let title = (m.title_contested && !m.contested).then_some(Contest::Title(id));
                 card.into_iter().chain(title)
             })
@@ -80,7 +80,7 @@ impl Engine {
     pub(crate) fn release_contest(&mut self, item: Contest) {
         match item {
             Contest::Card(m) => {
-                self.set_minion_contested(m, false);
+                self.set_card_contest(m, false);
                 self.enter_title_contest(m);
             }
             Contest::Title(m) => self.set_title_contested(m, false),
@@ -157,9 +157,9 @@ impl Engine {
         }
         let rivals = self.state.card_rivals(m);
         if !rivals.is_empty() {
-            self.set_minion_contested(m, true);
+            self.set_card_contest(m, true);
             for r in rivals {
-                self.set_minion_contested(r, true);
+                self.set_card_contest(r, true);
             }
         }
     }
@@ -169,9 +169,9 @@ impl Engine {
     /// 78.54); a rival left alone is uncontested.
     pub(crate) fn leave_contests(&mut self, m: MinionId) {
         for r in self.state.card_rivals(m) {
-            self.set_minion_contested(m, false);
+            self.set_card_contest(m, false);
             if self.state.card_rivals(r).iter().all(|&o| o == m) {
-                self.set_minion_contested(r, false);
+                self.set_card_contest(r, false);
                 self.enter_title_contest(r);
             }
         }
@@ -182,6 +182,21 @@ impl Engine {
                     self.set_title_contested(r, false);
                 }
             }
+        }
+    }
+
+    /// A minion's card contest: a crypt card's in a two-player game stays
+    /// in play and usable (`Minion::contested_in_play`), else face down
+    /// and out of play.
+    fn set_card_contest(&mut self, m: MinionId, contested: bool) {
+        let crypt_card = matches!(
+            self.state.minions[m.index()].kind,
+            crate::state::MinionKind::Vampire(_) | crate::state::MinionKind::Imbued(_)
+        );
+        if self.state.format == crate::state::Format::TwoPlayer && crypt_card {
+            self.state.minions[m.index()].contested_in_play = contested;
+        } else {
+            self.set_minion_contested(m, contested);
         }
     }
 

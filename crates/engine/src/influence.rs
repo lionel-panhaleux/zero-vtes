@@ -11,9 +11,14 @@ use crate::notes::{Cause, Source};
 use crate::state::UncontrolledSlot;
 
 /// Transfers granted at the start of an influence phase: 1/2/3 on the first
-/// three turns of the game, 4 thereafter (rulebook "Influence Phase").
-pub fn transfers_for_turn(turn: u32) -> u8 {
-    turn.min(4) as u8
+/// three turns of the game, 4 thereafter (rulebook "Influence Phase"); in
+/// the two-player variant, 3 on the first turn, 4 thereafter.
+pub fn transfers_for_turn(turn: u32, format: crate::state::Format) -> u8 {
+    match format {
+        crate::state::Format::Standard => turn.min(4) as u8,
+        crate::state::Format::TwoPlayer if turn == 1 => 3,
+        crate::state::Format::TwoPlayer => 4,
+    }
 }
 
 impl Engine {

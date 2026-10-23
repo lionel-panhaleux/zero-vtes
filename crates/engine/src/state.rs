@@ -343,6 +343,9 @@ pub struct Minion {
     pub in_play: bool,
     /// Face down and out of play, blood kept (rulebook "Contested Cards").
     pub contested: bool,
+    /// Contested yet in play and usable: a crypt card in a two-player game
+    /// (`Format::TwoPlayer`), its upkeep due in each unlock phase.
+    pub contested_in_play: bool,
     /// Out of play with its cards and counters, remembering its effects
     /// (Descent into Darkness). `in_play` stays true: a site reading
     /// `in_play` must also exclude this, or read `present()`.
@@ -588,6 +591,7 @@ impl Minion {
             conviction_played: false,
             in_play: true,
             contested: false,
+            contested_in_play: false,
             out_of_play: false,
             title_contested: false,
             disease: false,
@@ -1403,6 +1407,22 @@ pub struct GameState {
     /// The minion performing the action under way (Midget: "while Midget is
     /// acting").
     pub acting: Option<MinionId>,
+    /// The rules the game is played under, set as it is dealt.
+    pub format: Format,
+}
+
+/// The rules a game is played under.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
+pub enum Format {
+    /// The rulebook's, for 3 to 6 Methuselahs.
+    #[default]
+    Standard,
+    /// VEKN's two-player variant ("Two-player variant for Vampire: The
+    /// Eternal Struggle", vekn.net, 2025): a contested crypt card stays in
+    /// play, its upkeep 1 pool in each unlock phase; two contested copies'
+    /// title is not contested; 3 transfers in the first player's first
+    /// influence phase, then 4.
+    TwoPlayer,
 }
 
 impl GameState {
@@ -4246,12 +4266,16 @@ impl GameState {
         let Some(key) = title_key(self.claimed_title(m)) else {
             return Vec::new();
         };
+        let me = &self.minions[m.index()];
         self.minions
             .iter()
             .enumerate()
             .filter(|(i, o)| {
                 *i != m.index()
                     && o.present()
+                    // Two-player: two contested copies' title is not
+                    // contested (their card contest entered first).
+                    && !(me.contested_in_play && o.contested_in_play && o.name() == me.name())
                     && !self.seats[o.owner.index()].ousted
                     && title_key(self.claimed_title(MinionId(*i as u32))) == Some(key)
             })

@@ -376,6 +376,7 @@ pub fn marker(m: &Marker, n: &Names) -> String {
         MarkerKind::Expelled => "expelled".into(),
         MarkerKind::RedListMark => format!("Red List mark{}", of(m.seat)),
         MarkerKind::OutOfPlay => "out of play".into(),
+        MarkerKind::Contested => "contested".into(),
         MarkerKind::Effect => {
             let card = n.card_id(m.card);
             match m.n {
@@ -620,6 +621,7 @@ mod tests {
                 K::Expelled => (m(k, None, None, None), "expelled"),
                 K::RedListMark => (m(k, Some(0), None, None), "Red List mark (Ana)"),
                 K::OutOfPlay => (m(k, None, None, None), "out of play"),
+                K::Contested => (m(k, None, None, None), "contested"),
                 K::Effect => (
                     m(k, None, Some(1), Some(2)),
                     "Torn Signpost's effect, 1 counter",
@@ -654,6 +656,7 @@ mod tests {
             Expelled,
             RedListMark,
             OutOfPlay,
+            Contested,
             Effect,
             Unknown,
         );

@@ -541,6 +541,7 @@ impl Build<'_> {
             (MarkerKind::TitleContested, m.title_contested),
             (MarkerKind::Expelled, m.expelled),
             (MarkerKind::OutOfPlay, m.out_of_play),
+            (MarkerKind::Contested, m.contested_in_play),
         ] {
             if on {
                 markers.push(Marker {

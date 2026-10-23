@@ -329,8 +329,10 @@ fn encode_as(e: &Engine, req: &DecisionRequest, v: Version, omniscient: bool) ->
         f[F_LOCKED] = flag(m.locked);
         // Incapacitated: an imbued's torpor (no schema change).
         f[F_TORPOR] = flag(m.in_torpor || m.incapacitated);
-        // Out of play (Descent into Darkness) shares the face-down flag.
-        f[F_CONTESTED] = flag(m.contested || m.title_contested || m.out_of_play);
+        // Out of play (Descent into Darkness) shares the face-down flag; a
+        // two-player contest in play, the contest's.
+        f[F_CONTESTED] =
+            flag(m.contested || m.contested_in_play || m.title_contested || m.out_of_play);
         f[F_TITLED] = flag(m.is_vampire() && st.title_of(id) != Title::None);
         f[F_ALLY] = flag(!m.is_vampire());
         f[F_TERM_CHOSEN] = flag(terms.is_some_and(|t| t.minions.contains(&id)));

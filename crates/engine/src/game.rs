@@ -544,8 +544,13 @@ impl Engine {
     }
 
     fn from_seats(rng: Rng, copies: CopyCounter, seats: Vec<Seat>) -> Self {
+        let format = match seats.len() {
+            2 => crate::state::Format::TwoPlayer,
+            _ => crate::state::Format::Standard,
+        };
         let mut engine = Self {
             state: GameState {
+                format,
                 seats,
                 copy_counter: Untracked(copies),
                 ..Default::default()
@@ -580,7 +585,8 @@ impl Engine {
     }
 
     /// Test fixture: `n_seats` empty seats, at seat 0's minion phase on
-    /// turn 1 (populate with [`Engine::add_minion`] and hands).
+    /// turn 1 (populate with [`Engine::add_minion`] and hands), under the
+    /// standard rules whatever the seats (`state.format` to change).
     pub fn bare(n_seats: usize) -> Self {
         Self::bare_seeded(0, n_seats)
     }
@@ -597,6 +603,7 @@ impl Engine {
         }
         e.flow = Flow::MinionPhase;
         e.state.in_minion_phase = true;
+        e.state.format = crate::state::Format::Standard;
         e
     }
 
@@ -2202,7 +2209,7 @@ impl Engine {
                 // "During your influence phase" abilities: once per phase.
                 self.state.phase_uses.clear();
                 let a = self.state.active;
-                let earned = transfers_for_turn(self.state.turn)
+                let earned = transfers_for_turn(self.state.turn, self.state.format)
                     + self.state.transfer_bonus(a)
                     + std::mem::take(&mut self.state.seats[a.index()].transfers_next);
                 // Leandro: all of them lost, this phase.
@@ -3179,11 +3186,14 @@ mod tests {
 
     #[test]
     fn transfers_ramp_by_game_turn_not_by_seat() {
-        assert_eq!(transfers_for_turn(1), 1);
-        assert_eq!(transfers_for_turn(2), 2);
-        assert_eq!(transfers_for_turn(3), 3);
-        assert_eq!(transfers_for_turn(4), 4);
-        assert_eq!(transfers_for_turn(9), 4);
+        use crate::state::Format::{Standard, TwoPlayer};
+        assert_eq!(transfers_for_turn(1, Standard), 1);
+        assert_eq!(transfers_for_turn(2, Standard), 2);
+        assert_eq!(transfers_for_turn(3, Standard), 3);
+        assert_eq!(transfers_for_turn(4, Standard), 4);
+        assert_eq!(transfers_for_turn(9, Standard), 4);
+        assert_eq!(transfers_for_turn(1, TwoPlayer), 3);
+        assert_eq!(transfers_for_turn(2, TwoPlayer), 4);
         // Seat 1's first influence phase is game turn 2: two transfers.
         // (Empty hands keep the master and discard phases elided.)
         let mut e = Engine::new(7, 3);

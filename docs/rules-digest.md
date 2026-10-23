@@ -4024,6 +4024,23 @@ Advanced rules §1.13 (contests), §5.8 (titles).
   controller's ready region; no votes in torpor (D25) (78.7).
 - Praxis Seizure: York: the unique Camarilla title Prince of York (80.26).
 
+### 18.5 The two-player variant
+
+- A game dealt with 2 seats plays VEKN's two-player variant
+  (`Format::TwoPlayer`); one brought down to 2 by ousts, and a test
+  fixture, keep the rulebook's (91.1).
+- A contested unique crypt card (a vampire, an imbued) stays in play and
+  is used as normal: it acts, blocks and votes, its text, title and cards
+  apply (91.2, 91.5). Its upkeep: 1 pool in each of its controller's
+  unlock phases, ordered among the other dues, or yielded and burned with
+  its cards and counters; the contest ends once every rival has yielded
+  (91.3). A unique library card contests by the rulebook, face down
+  (91.4).
+- Two contested copies' title is not contested; a different vampire's
+  claim of it is, by the rulebook (91.6).
+- Transfers: 3 in the first player's first influence phase, 4 in every
+  other (91.7).
+
 ## 19. Replacement, hand, draws, searches, stored cards
 
 Advanced rules §1.9 (replacement), §6.8 (hand, draw and discard).
@@ -4651,7 +4668,7 @@ an owner ruling:
 Every rules-qa item, by batch, with the digest sections citing it: the
 section stating it and those cross-referring to it (§2 the default
 readings, §22 engine modeling, §23 the contradictions, §24 the open
-readings). 933 items, Batches 1–89 (44.11 was removed, replaced by Batch
+readings). 940 items, Batches 1–91 (44.11 was removed, replaced by Batch
 45). The index is derived from the citations: a bare `N.M` cites rules-qa
 item N.M in the section it appears in. A new rules-qa item gets its line in
 the section stating it, then its entry here: `python3
@@ -4973,3 +4990,5 @@ index or an item cited nowhere.
   §15.2; 89.16 §15.2; 89.17 §15.2; 89.18 §15.2; 89.19 §15.2; 89.20 §15.2;
   89.21 §15.2; 89.22 §15.2; 89.23 §15.2; 89.24 §15.2; 89.25 §15.2; 89.26
   §3.1,§15.2,§24.1
+- **91** — 91.1 §18.5; 91.2 §18.5; 91.3 §18.5; 91.4 §18.5; 91.5 §18.5; 91.6
+  §18.5; 91.7 §18.5

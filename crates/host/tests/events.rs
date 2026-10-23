@@ -41,17 +41,22 @@ const KEPT: [u32; 19] = [
 ];
 
 /// The sweep's seeds: `HOST_SEED_FROM` to `HOST_SEEDS` (40), the kept
-/// ones past it.
+/// ones past it, the imbued and the two-player ones.
 fn seeds() -> Vec<u32> {
     let to: u32 = std::env::var("HOST_SEEDS").map_or(40, |s| s.parse().unwrap());
     let kept = KEPT.into_iter().filter(|&s| s > to && from() == 1);
     let imbued = IMBUED.into_iter().filter(|_| from() == 1);
-    (from()..=to).chain(kept).chain(imbued).collect()
+    let two = TWO.filter(|_| from() == 1);
+    (from()..=to).chain(kept).chain(imbued).chain(two).collect()
 }
 
 /// Seeds whose seat after the human's plays the imbued: one
 /// incapacitated, burned or recovering between two views.
 const IMBUED: [u32; 4] = [1001, 1002, 1003, 1004];
+
+/// Seeds played by two seats (VEKN's two-player variant), both the same
+/// precon every other one: crypt cards contested in play.
+const TWO: std::ops::RangeInclusive<u32> = 2001..=2020;
 
 /// Every imbued, every power and conviction.
 fn imbued() -> zvtes_api::DeckList {
@@ -138,21 +143,24 @@ fn political(decks: &[(String, zvtes_api::DeckList)]) -> usize {
 fn game(seed: u64, settings: Settings) -> Game {
     let decks = zvtes_host::catalog();
     let styles = ["aggro_bleed", "wall", "random"];
-    let human = seed as usize % 4;
+    let n = if TWO.contains(&(seed as u32)) { 2 } else { 4 };
+    let human = seed as usize % n;
     let spec = GameSpec {
         seed: Some(seed),
         time_limit: Some(40),
         client: Some("tests".into()),
-        seats: (0..4)
+        seats: (0..n)
             .map(|i| {
                 // Every other game, the human plays the most political
                 // precon: referendums, their allocations and votes.
-                let pick = if i == human && seed.is_multiple_of(2) {
+                let pick = if n == 2 && seed.is_multiple_of(2) {
+                    seed as usize % decks.len()
+                } else if i == human && seed.is_multiple_of(2) {
                     political(&decks)
                 } else {
                     (seed as usize + i * 5) % decks.len()
                 };
-                let (name, list) = if IMBUED.contains(&(seed as u32)) && i == (human + 1) % 4 {
+                let (name, list) = if IMBUED.contains(&(seed as u32)) && i == (human + 1) % n {
                     ("Imbued".to_string(), imbued())
                 } else {
                     decks[pick].clone()
@@ -191,6 +199,8 @@ struct Stream {
     played: [usize; 2],
     /// The bleeds told started or ended, each with its target.
     bleeds: usize,
+    /// Views showing a minion contested in play (two seats).
+    contested: usize,
     texts: usize,
     names: Names<'static>,
     /// Each decision's view as first sent, and the decision an undo
@@ -745,6 +755,14 @@ impl Stream {
     fn view(&mut self, v: &TableView, at: &str) {
         let seed = self.seed;
         self.viewer = v.viewer;
+        let in_play = |m: &zvtes_api::view::MinionView| {
+            m.markers
+                .iter()
+                .any(|k| k.kind == zvtes_api::ids::MarkerKind::Contested)
+        };
+        if v.seats.iter().flat_map(|s| &s.ready).any(in_play) {
+            self.contested += 1;
+        }
         // A card in limbo at the first view, or the view an undo goes back
         // to, was played before (the events since tell the rest).
         if self.prev.is_none() {
@@ -971,6 +989,7 @@ fn the_events_tell_what_the_views_show() {
     let (mut told, mut texts, mut undone, mut allocated, mut voted) = (0, 0, 0, 0, 0);
     let mut played = [0, 0];
     let mut bleeds = 0;
+    let mut contested = 0;
     let (mut within, mut undecided, mut caused, mut markers) = (0, 0, 0, 0);
     let mut combats = 0;
     let mut moved = [0; 3];
@@ -1007,6 +1026,7 @@ fn the_events_tell_what_the_views_show() {
             name_numbers: HashMap::new(),
             played: [0, 0],
             bleeds: 0,
+            contested: 0,
             open: Some(None),
             decided: None,
             within: 0,
@@ -1150,6 +1170,7 @@ fn the_events_tell_what_the_views_show() {
         played[0] += s.played[0];
         played[1] += s.played[1];
         bleeds += s.bleeds;
+        contested += s.contested;
         misses.extend(s.misses.into_iter().map(|m| (seed, m)));
         reduced += s.reduced;
         for (k, (n, ex)) in s.unreduced {
@@ -1173,6 +1194,10 @@ fn the_events_tell_what_the_views_show() {
         "{} games: {told} events ({texts} with text), {undone} undos, \
          {allocated} allocations, {voted} votes cast at once, {reasked} views asked again alike",
         seeds.len()
+    );
+    assert!(
+        contested > 0 || !seeds.iter().any(|s| TWO.contains(s)),
+        "no two-player contest in view"
     );
     assert!(
         allocated > 0 && voted > 0,

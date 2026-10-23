@@ -309,7 +309,9 @@ Flat, arena-style, plainly cloneable, no interior mutability (`GameState`:
 what left play). Zones per rulebook: ready / controlled / uncontrolled / torpor /
 incapacitated / ash heap / hand / library / crypt (+ removed). Counters, Edge, pool, labels as
 plain data. `GameState::hash` for replay checks. Card behavior resolved to static
-tables (`cards::lookup` is indexed by library index).
+tables (`cards::lookup` is indexed by library index). `GameState::format`: the
+rules a game is played under, set as it is dealt — VEKN's two-player variant
+for 2 seats (rules-digest §18.5), the rulebook's otherwise.
 
 ## 5. RL-facing surface
 
@@ -692,7 +694,7 @@ training runs.
   answered from Python, 0 the learner; "policy" = "net:0"), "random",
   "aggro" or "wall" (answered inside); `rotate` shifts seating per game;
   decks drawn per seat from `decks` (default the 14 precons). `queue(specs)`
-  replaces the tables new games take (seats, optional decks; 4 or 5 seats: tournament tables only),
+  replaces the tables new games take (seats, optional decks; 4 or 5 seats, tournament tables, or 2, the two-player variant),
   the default table once it runs out. `observe()` pads the batch (with an
   `agent` column: the network to ask); `act(actions)` advances every game in parallel (rayon) to
   its next policy decision and returns the games finished (slot, game
@@ -757,7 +759,7 @@ training runs.
   frozen into the pool and restarted from the learner's weights once the
   learner's beat rate against it falls under `exploiter_beaten` (0.3), or
   after `exploiter_reset` (50) iterations. One forward pass per network
-  present. The pool refuses tables other than 4 or 5 seats. 1024 games in
+  present. The pool refuses tables other than 2, 4 or 5 seats. 1024 games in
   parallel since 2026-09-29 (512 from the third league run, 256 before:
   one learner seat a table halved the samples). An opponent seat is a bot
   with probability `bot_seats` (0.6, since 2026-09-29; before, all bots

@@ -30,8 +30,8 @@ impl Start {
     pub fn new(json: &str) -> Result<Start, String> {
         let record: GameRecord = serde_json::from_str(json).map_err(|e| format!("record: {e}"))?;
         let replay = Replay::new(&record)?;
-        if !(4..=5).contains(&replay.seats()) {
-            return Err("4 or 5 seats (tournament tables)".into());
+        if !matches!(replay.seats(), 2 | 4 | 5) {
+            return Err("2, 4 or 5 seats (tournament tables, the two-player variant)".into());
         }
         let mut start = Start {
             replay,

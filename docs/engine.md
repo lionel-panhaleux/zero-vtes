@@ -1078,6 +1078,14 @@ engine's conventions.
   enters contest only after its own effects resolve (spec §1.13.2). The cards
   on a contested minion go out of play with it (`set_minion_contested`, through
   `Engine::cards_out_with` / `cards_back_with`, as Descent's; rules-qa 83.1).
+- Two-player games (`GameState::format`, `Format::TwoPlayer`, set as a
+  2-seat game is dealt; rules-digest §18.5): a crypt card's contest goes
+  through `set_card_contest`, which keeps it in play
+  (`Minion::contested_in_play`: `present()` true, nothing suspended) with
+  the same upkeep (`Contest::Card`, 1 pool or yield); library cards contest
+  as above. `title_rivals` skips two copies of one vampire both
+  contested in play.
+  Transfers: `influence::transfers_for_turn` reads the format.
 - Self-contest is masked (rules-qa 7.1; `controls_unique_copy` also for
   searches); a forced one burns the incoming copy (The Coven,
   `Engine::take_card_control`). A title card put on its caller is not

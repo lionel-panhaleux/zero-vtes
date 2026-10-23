@@ -1,6 +1,6 @@
-/* zvtes protocol 2.9.0 (docs/protocol.md): generated from
+/* zvtes protocol 2.10.0 (docs/protocol.md): generated from
  * crates/api/schema.json by scripts/gen_ts.py, do not edit. */
-export const PROTOCOL_VERSION = '2.9.0'
+export const PROTOCOL_VERSION = '2.10.0'
 
 /**
  * A command as sent: an optional client id, echoed by an `error` it
@@ -1010,6 +1010,7 @@ export type MarkerKind =
     | 'pact'
     | 'taint'
     | 'out_of_play'
+    | 'contested'
     | 'unknown'
 
 export type MinionKind = 'vampire' | 'ally' | 'token' | 'created' | 'imbued' | 'unknown'

@@ -457,7 +457,7 @@ fn all_decks() -> &'static [Deck] {
 /// k (the policy meets every position). `decks`: indices into the decklist
 /// table (0–13 the precons, 14–27 the New Blood minis), drawn per seat
 /// and game. `tables`: specs the first games take (as `queue`). Tables are
-/// 4 or 5 seats: tournament tables only. `critic`: `observe` adds the
+/// 4 or 5 seats (tournament tables) or 2 (the two-player variant). `critic`: `observe` adds the
 /// omniscient critic's tokens (`critic_tok_*`). `time_limits`: each game's time
 /// limit is drawn in this range of player turns (a time-out scores 0.5 VP
 /// per survivor, which counts toward the game win); episodes report it and
@@ -617,8 +617,10 @@ impl GamePool {
         decks: Option<Vec<Option<usize>>>,
         start: Option<usize>,
     ) -> PyResult<Spec> {
-        if !(4..=5).contains(&seats.len()) {
-            return Err(PyValueError::new_err("4 or 5 seats (tournament tables)"));
+        if !matches!(seats.len(), 2 | 4 | 5) {
+            return Err(PyValueError::new_err(
+                "2, 4 or 5 seats (tournament tables, the two-player variant)",
+            ));
         }
         let kinds = seats
             .iter()
@@ -716,8 +718,10 @@ impl GamePool {
                 "time_limits: (low, high), 0 < low <= high",
             ));
         }
-        if !(4..=5).contains(&seats.len()) {
-            return Err(PyValueError::new_err("4 or 5 seats (tournament tables)"));
+        if !matches!(seats.len(), 2 | 4 | 5) {
+            return Err(PyValueError::new_err(
+                "2, 4 or 5 seats (tournament tables, the two-player variant)",
+            ));
         }
         let kinds = seats
             .iter()

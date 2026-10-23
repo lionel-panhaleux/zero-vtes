@@ -86,7 +86,19 @@ def test_queued_tables_route_rows_to_their_networks():
             assert ep["decks"] == [14, 15, 16, 17]
 
 
-def test_only_tournament_tables():
+def test_two_seat_games_play_the_variant():
+    # Two seats: VEKN's two-player variant, played to the end and replayed.
+    pool = zvtes_py.GamePool(2, ["policy"] * 2, seed=5, keep_logs=True)
+    rng = np.random.default_rng(5)
+    done = []
+    while len(done) < 2:
+        done += pool.act(random_actions(pool.observe(), rng))
+    for ep in done:
+        assert len(ep["decks"]) == 2
+        assert zvtes_py.replay(ep["seed"], ep["decks"], ep["log"], ep["time_limit"]) == ep["half_vps"]
+
+
+def test_only_tournament_and_two_player_tables():
     for n in (3, 6):
         with pytest.raises(ValueError):
             zvtes_py.GamePool(2, ["policy"] * n)

@@ -18,7 +18,7 @@ is created by one request and played over one WebSocket. Every game is
 recorded, anonymously, and kept two years to train and test the engine
 (§11).
 
-Version **2.9.0**. The types: the models of the
+Version **2.10.0**. The types: the models of the
 [API reference](https://engine.krcg.org/docs), also as
 [JSON Schema](https://engine.krcg.org/schema.json) (2020-12) and
 [TypeScript](https://engine.krcg.org/protocol.ts).
@@ -26,7 +26,12 @@ Version **2.9.0**. The types: the models of the
 ## 1. Model
 
 - A **game** has 2 to 6 seats in seating order (0, 1, …), each a human
-  or a bot. The server hosts one human per game.
+  or a bot. The server hosts one human per game. A game of 2 seats plays
+  VEKN's two-player variant: a contested vampire stays in play and acts
+  (a `contested` marker, 1 pool in each of its controller's unlock
+  phases or yielded; no `leaves_play`), two contested copies' title is not
+  contested, and the first player gets 3 transfers in their first
+  influence phase, then everyone 4.
 - The engine asks one **decision** at a time, of one seat: a list of
   **options**, every legal move, each a whole move (card, mode, actor,
   target). The seat answers with an option's `index`. Nothing else
@@ -282,7 +287,8 @@ the previous one, never the engine's state.
   `scarce`, `sterile`, `seraph`: as they stand, Black Hand gained and
   infernal made included; a Red List minion marked this turn carries a
   `red_list_mark` marker, its `seat` the marking Methuselah; a minion out
-  of play with its cards, an `out_of_play` one).
+  of play with its cards, an `out_of_play` one; one contested yet in play,
+  a `contested` one, its `contested` field false: a two-player game, §1).
 - `action`: `seat`, `acting`, `kind` (`bleed`, `hunt`, …, `card`), `step`
   (`announced`, `open`, `attempt`, `declined`, `would_succeed`,
   `blocked`, `after_combat`, `resolved`), the `card` and its `mode` and

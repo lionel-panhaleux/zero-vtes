@@ -925,6 +925,28 @@ fn random_games_from_the_opening_terminate_hold_invariants_and_replay() {
     );
 }
 
+/// Two seats: VEKN's two-player variant (`Format::TwoPlayer`) from the
+/// opening, the precons dealt.
+#[test]
+fn random_two_player_games_from_the_opening_terminate_hold_invariants_and_replay() {
+    let (seen, _) = fuzz(
+        "random_two_player_games_from_the_opening_terminate_hold_invariants_and_replay",
+        SEEDS,
+        &|seed| Engine::new(seed, 2),
+    );
+    covers(
+        &seen,
+        &[
+            "pass",
+            "bleed",
+            "hunt",
+            "transfer",
+            "influence_out",
+            "pay_contest",
+        ],
+    );
+}
+
 fuzz_tests! {
     /// The mid-game position (`table`): torpor, referendums, contests, card
     /// plays and ousts.

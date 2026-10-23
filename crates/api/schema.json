@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "title": "zvtes protocol",
-  "version": "2.9.0",
+  "version": "2.10.0",
   "$defs": {
     "About": {
       "description": "What a choice is about (`Decision::about`): each field given where\nthe purpose (or the terms) has it (docs/protocol.md §5).",
@@ -3597,6 +3597,11 @@
           "description": "Out of play with its cards, its effects remembered (Descent into\nDarkness).",
           "type": "string",
           "const": "out_of_play"
+        },
+        {
+          "description": "Contested yet in play and usable (a two-player game, §1): 1 pool\nin each of its controller's unlock phases, or yielded, burned.",
+          "type": "string",
+          "const": "contested"
         },
         {
           "description": "A value this reader does not know.",
