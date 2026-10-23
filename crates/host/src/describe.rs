@@ -107,11 +107,14 @@ impl<N: Names> Ctx<'_, N> {
             .unwrap_or(UNSEEN)
     }
 
-    /// A card in play: its KRCG id and copy.
+    /// A card in play: its KRCG id and copy; a lasting effect whose card
+    /// is in the ash heap (Inner Essence) its id alone, as the view's
+    /// marker names it.
     fn in_play(&self, c: CardId) -> CardRef {
+        let k = &self.e.state.cards[c.index()];
         CardRef {
-            id: Some(LIBRARY[self.e.state.cards[c.index()].card as usize].id),
-            copy: Some(self.card(c)),
+            id: Some(LIBRARY[k.card as usize].id),
+            copy: (!k.effect_only).then(|| self.card(c)),
             from: None,
         }
     }

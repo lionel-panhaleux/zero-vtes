@@ -1733,7 +1733,9 @@ are in DESIGN §11.2.
   check, at each decision, each dealt copy stays its card and is found
   exactly once, until its Methuselah is ousted (their cards are removed
   from every zone). Mid-run a card is not always so: a play resolving is
-  in no place, and the action's card is in flight still once in its
-  zone; the host's narrator reads one place a copy, a missing one its
-  last (`narrate::one_place`, `Session::places`), and tells every move
-  between two places (`card_moves`).
+  in no place (one being opened is in flight, `Engine::opening`: a play
+  canceled as it is announced is told into limbo first), and the action's
+  card is in flight still once in its zone; the host's narrator reads one
+  place a copy, a missing one its last (`narrate::one_place`,
+  `Session::places`), and tells every move between two places
+  (`card_moves`).

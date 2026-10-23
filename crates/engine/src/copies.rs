@@ -181,7 +181,7 @@ pub fn census(e: &Engine) -> Vec<(CopyId, u16, Place)> {
             add(*m.merged_copy, base, Place::Minion { id, merged: true });
         }
     }
-    for p in e.in_flight() {
+    for p in e.in_flight().into_iter().chain(&e.opening) {
         add(*p.copy, p.card, Place::InFlight(p.seat.0));
     }
     // The action's card, until it enters play or goes back to the hand.

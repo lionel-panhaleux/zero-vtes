@@ -2880,6 +2880,7 @@ impl Engine {
             canceled: false,
             cost_paid: false,
         };
+        self.opening = Some(ctx);
         // Andrew Stuart: the top card revealed as he plays a card requiring
         // his Discipline; requiring it too, the play canceled at once (LSJ
         // 20100728), its cost paid (RBK cancel-a-card), his blood burned.
@@ -2927,6 +2928,7 @@ impl Engine {
         // more; an open stack's window goes on.
         if pending.canceled {
             self.settle_canceled(pending.ctx, pending.cost_paid);
+            self.opening = None;
             if std::mem::take(&mut self.ousted_during_play) {
                 return;
             }
@@ -2935,6 +2937,7 @@ impl Engine {
             }
             return;
         }
+        self.opening = None;
         let flow = std::mem::replace(&mut self.flow, Flow::GameOver);
         match flow {
             Flow::AsPlayed { mut stack, resume } => {

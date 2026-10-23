@@ -220,6 +220,10 @@ pub struct Engine {
     /// Set when a play's resolution ousted its player: the as-played stack
     /// must not resume the ousted seat's phase.
     pub(crate) ousted_during_play: bool,
+    /// A play being opened, before its as-played window: in flight for the
+    /// copy census, a play canceled as it is announced (Andrew Stuart, Two
+    /// Wrongs) included.
+    pub(crate) opening: Option<crate::cards::PlayCtx>,
     /// Choices about cards drawn, moved or stored, served in order before
     /// any other decision (`draws`).
     pub(crate) interrupts: Vec<Interrupt>,
@@ -554,6 +558,7 @@ impl Engine {
             combat: None,
             referendum: None,
             ousted_during_play: false,
+            opening: None,
             interrupts: Vec::new(),
             ousting: None,
             purge_picks: Vec::new(),

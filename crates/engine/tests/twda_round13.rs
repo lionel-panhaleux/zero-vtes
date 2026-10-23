@@ -1692,6 +1692,41 @@ fn two_wrongs_turns_a_bleed_and_shields_it() {
     assert_eq!(blood(&e, d2), 4 - 1, "the canceled card's cost paid");
 }
 
+// The Deflection Two Wrongs cancels as it is played is in flight for a
+// narrator (the table noted, `Engine::notes`) before it reaches the ash
+// heap: a client is told it left the hand, then went to the ash heap.
+#[test]
+fn two_wrongs_canceled_card_is_noted_in_flight() {
+    use zvtes::copies::Place;
+    use zvtes::notes::Note;
+    let mut e = game(4);
+    let b = e.add_minion(SeatId(0), plain("Brujah", 0), 4, false);
+    e.add_minion(SeatId(0), plain("Brujah", 1), 4, false);
+    let d = e.add_minion(SeatId(1), vampire_with("dom", 0), 4, false);
+    e.add_minion(SeatId(2), plain("Ventrue", 0), 4, false);
+    e.add_minion(SeatId(3), plain("Ventrue", 1), 4, false);
+    let d2 = e.add_minion(SeatId(1), vampire_with("dom", 1), 4, false);
+    hand(&mut e, 1, &["Deflection", "Deflection"]);
+    hand(&mut e, 2, &["Two Wrongs"]);
+    pick(&mut e, bleed(b));
+    pick_when(&mut e, play_at(0, 0, d, Target::Seat(SeatId(2))));
+    let two = master(0, 0, Target::None);
+    offering(&mut e, two);
+    pick(&mut e, two);
+    request(&mut e);
+    e.notes = Some(Vec::new());
+    pick_when(&mut e, play_at(0, 0, d2, Target::Seat(SeatId(3))));
+    let deflection = find_library("Deflection");
+    let in_flight = e.notes.as_ref().expect("noting").iter().any(|n| match n {
+        Note::Ledger { ledger, .. } => ledger
+            .census
+            .iter()
+            .any(|&(_, card, p)| card == deflection && p == Place::InFlight(1)),
+        _ => false,
+    });
+    assert!(in_flight, "the canceled Deflection never noted in flight");
+}
+
 // Form of Corruption: "If your prey gets the Edge anew, you can add 1
 // counter to this card. If the number of counters on this card equals or
 // exceeds the amount of blood on a vampire controlled by your prey during
