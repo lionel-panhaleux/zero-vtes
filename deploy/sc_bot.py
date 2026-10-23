@@ -23,7 +23,9 @@ src = f"{home}/src"
 root = f"/var/www/{name}"
 
 # Debian 13's Node (20.19) is what Vite 7 asks for.
-apt.packages(name="Node and git", packages=["nodejs", "npm", "git", "rsync"], update=True)
+# No package-list refresh: server-setup keeps the lists, and a
+# third-party repository mid-sync (Grafana's) fails an update.
+apt.packages(name="Node and git", packages=["nodejs", "npm", "git", "rsync"])
 
 server.group(name="Build group", group=name, system=True)
 server.user(
