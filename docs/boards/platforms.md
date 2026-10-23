@@ -17,7 +17,6 @@ own as a separate platform, bots only for now): what the community
 beta needs from the fork first, then the fork's remaining
 interface items, then other platforms.
 
-- **The Imbued in the fork** [doing: Z-play]: protocol 2.7.0 (the cards line's round 19, sent by Z-add 2026-10-22): the `incapacitated` region drawn (`SeatView.incapacitated`, the `incapacitated` event moving a minion between it and `ready`, `Zone::Incapacitated` in card moves), `imbued` minions, the `power` and `burn_imbued` actions, the six new purposes and `looked.zone` read from the protocol; decklists with Imbued crypt cards, Powers and Convictions accepted by the fork's deck import. Done when an Imbued deck plays a game on a local 2.7.0 server with the region shown and nothing inferred. Docs: sc.md (if the fork learns something of SC's deck import).
 - **The engine mode's notice checked**: in the fork, it says games are recorded two years, anonymous (as `docs/protocol.md` says), and where to send feedback. Done when it says all three. Docs: sc.md.
 - **The referendum and action panels inside the seat's board**: vote totals and "Played during the action" are cut off today. Done when both show whole at the fork's smallest supported size. Docs: none.
 - **"Report a problem" in engine games**: the `feedback {text}` command (protocol 1.2.0, live), its text tied to the game and the decision, and the community channel the notice names. Done when a report sent from the fork shows in `/admin/feedback`. Docs: sc.md.
