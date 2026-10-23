@@ -6,7 +6,10 @@ lionel-panhaleux/succubus-club) plays engine games against
 `engine.krcg.org`. Agreed with Thomas (owner, 2026-10-21): the fork is
 its own platform, bots only for now, served at `https://sc-bot.krcg.org`
 (human-play.md "Running the fork"): the engine game and decks, the rest
-of SC removed; upstream deferred (roadmap "Deferred by the owner"). This
+of SC removed; upstream deferred (roadmap "Deferred by the owner").
+Before an engine game its notice (`EngineNotice.vue`, until "Don't show
+again") says where the game runs, that it is recorded, anonymously, for
+two years, and where to send feedback (the fork's GitHub issues). This
 file is the log the `sc-change` skill reads and updates: how Thomas
 works, the open PRs' state, what we learned. Add to it whenever
 something reaches us from Thomas or a PR moves.

@@ -34,9 +34,8 @@ What it still needs:
    (training: Promotion as a script).
 3. **Feedback intake**: a "report a problem" from inside the game (the
    protocol's `feedback`, stored with the record at its decision;
-   platforms: "Report a problem"), plus one community channel the notice
-   names (platforms: The engine mode's notice checked); the `intake`
-   skill triages it.
+   platforms: "Report a problem"), plus the channel the fork's notice
+   names (its GitHub issues); the `intake` skill triages it.
 4. **Known rough edges fixed**: the panel overflow (platforms: The
    referendum and action panels); Sniper Rifle and strike-only prevention
    (cards).
