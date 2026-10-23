@@ -123,6 +123,17 @@ becomes of it is the owner's word.
   (`GameType.Engine` inline, `short(...)!`) are translated, not copied: grep
   added lines for `GameType.`, `!.`, `!)`, `border-radius`, `box-shadow`,
   `!important`, emoji.
+- **A fixed deal** (a demo, a playtest): in the browser's console on the
+  fork, `localStorage.setItem('engine-fixed-deal', JSON.stringify({seed,
+  seat, bots: [<catalog names, seat order>], token: <admin token>}))`;
+  the next game takes it (`setup.ts`: the seat, the bots' decks, the
+  seed with the token, client `succubus-club-demo`: a test client to
+  the harvest, `games_report.py` `TEST_CLIENTS`) and removes it. A
+  deal holds only for the engine and weights it was found on (`GET
+  /version`); a scripted path (the human's answers from a fixed deal)
+  is found by a scratch example playing the human seat with the served
+  network (its own agent at the seat's bot seed), then replayed through
+  the server over the WebSocket, an undo included.
 - **Diagnosis** from the server's record, not screenshots:
   `scripts/fetch_games.py --since … --out $CLAUDE_JOB_DIR/tmp/records`, then
   `cargo run -p zvtes-host --profile ci --example replay -- <record> --options`.
