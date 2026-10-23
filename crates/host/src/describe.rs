@@ -380,9 +380,54 @@ pub fn effects(
         _ if req.window == zvtes::decision::WindowLabel::ReferendumTerms => {
             referendum_terms(&x, choice)
         }
-        _ => e
-            .interrupt()
-            .map_or_else(Vec::new, |i| asked(&x, i, choice)),
+        _ => match window_pass(&x, req, choice) {
+            Some(f) => vec![f],
+            None => e
+                .interrupt()
+                .map_or_else(Vec::new, |i| asked(&x, i, choice)),
+        },
+    }
+}
+
+/// What a pass does by its window: ends the phase; in the block window,
+/// declines to block for good (rules-qa 1.3), or, the seat's own attempt
+/// pending, lets it stand: it blocks if it meets the stealth when the
+/// round ends, else it is the decline (rules-qa 82.1).
+fn window_pass(x: &Ctx<impl Names>, req: &DecisionRequest, choice: &Choice) -> Option<Effect> {
+    use zvtes::actions::ActionState;
+    use zvtes::decision::WindowLabel as W;
+    if *choice != Choice::Pass {
+        return None;
+    }
+    let ends = |phase: &str| Effect {
+        detail: Some(phase.into()),
+        ..Effect::new(EffectKind::EndPhase)
+    };
+    let declines = || Some("declines".to_string());
+    match req.window {
+        W::MasterPhase => Some(ends("master")),
+        W::MinionPhase => Some(ends("minion")),
+        W::InfluenceTransfers => Some(ends("influence")),
+        W::DiscardPhase => Some(ends("discard")),
+        W::ActionBlock if x.e.pass_declines_block(req.seat) => Some(Effect {
+            detail: declines(),
+            ..Effect::new(EffectKind::Block)
+        }),
+        W::ActionBlock => {
+            let a = x.e.action()?;
+            let ActionState::Attempt(m) = a.state else {
+                return None;
+            };
+            let st = &x.e.state;
+            (st.minions[m.index()].owner == req.seat).then(|| Effect {
+                copy: Some(x.minion(m)),
+                detail: (a.intercept_of(st, m) < a.stealth(st))
+                    .then(declines)
+                    .flatten(),
+                ..Effect::new(EffectKind::Block)
+            })
+        }
+        _ => None,
     }
 }
 
@@ -591,6 +636,38 @@ fn asked(x: &Ctx<impl Names>, i: Interrupt, choice: &Choice) -> Vec<Effect> {
                 ..chosen(EffectKind::Role)
             }]
         }
+        // Passes that do more than decline the options beside them.
+        (Interrupt::BlockToll { minion, .. }, Choice::Pass) => vec![Effect {
+            copy: Some(x.minion(minion)),
+            detail: Some("resigned".into()),
+            ..Effect::new(EffectKind::Block)
+        }],
+        (Interrupt::LockOrDiscard { minion, .. }, Choice::Pass) => vec![Effect {
+            copy: Some(x.minion(minion)),
+            ..Effect::new(EffectKind::Lock)
+        }],
+        (Interrupt::EntryRemoveOrBurn { ally, .. }, Choice::Pass) => vec![Effect {
+            copy: Some(x.minion(ally)),
+            ..Effect::new(EffectKind::Burn)
+        }],
+        (Interrupt::MoveOffBurnedBearer { card, .. }, Choice::Pass) => vec![Effect {
+            copy: Some(x.card(card)),
+            ..Effect::new(EffectKind::Burn)
+        }],
+        (Interrupt::BloodOrCamarilla { minion, .. }, Choice::Pass) => vec![Effect {
+            copy: Some(x.minion(minion)),
+            role: Some(Role::Camarilla),
+            ..Effect::new(EffectKind::Role)
+        }],
+        (Interrupt::AvoidDamage { minion, damage, .. }, Choice::Pass) => vec![Effect {
+            copy: Some(x.minion(minion)),
+            ..n(damage as i32, Effect::new(EffectKind::Damage))
+        }],
+        // Leandro: no transfers in the next influence phase.
+        (Interrupt::PoolOrNoTransfers { .. }, Choice::Pass) => vec![Effect {
+            detail: Some("none_next_influence".into()),
+            ..Effect::new(EffectKind::Transfers)
+        }],
         // A card burned unless its pool is paid.
         (Interrupt::PayOrBurn { card, .. }, Choice::Pass) => vec![Effect {
             copy: Some(x.card(card)),
@@ -1378,7 +1455,12 @@ pub fn about(e: &Engine, req: &DecisionRequest, names: &impl Names) -> Option<Ab
                 clan: Some(snake(clan)),
                 ..a()
             },
+            // The recipient its pass skips.
             I::MarginBlood { left, clan, .. } => About {
+                minion: req.options.iter().find_map(|o| match *o {
+                    Choice::ChooseMinion(r) => m(r),
+                    _ => None,
+                }),
                 n: Some(left),
                 clan: Some(snake(clan)),
                 ..a()

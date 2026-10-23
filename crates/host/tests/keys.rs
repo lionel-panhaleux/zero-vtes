@@ -178,3 +178,49 @@ fn every_option_s_key_names_what_it_is_about() {
     }
     assert!(checked > 10_000, "{checked} options");
 }
+
+/// A pass on the seat's own block attempt says so (docs/protocol.md §7):
+/// `block` with its minion's copy, the decline (`declines`) while short
+/// of the stealth (rules-qa 82.1); every seat's, at random.
+#[test]
+fn a_pass_on_its_own_attempt_tells_it() {
+    use zvtes::actions::ActionState;
+    use zvtes::decision::{Choice, WindowLabel};
+    use zvtes_api::option::EffectKind;
+    use zvtes_host::describe::effects;
+    let seeds: u64 = std::env::var("HOST_SEEDS").map_or(60, |s| s.parse().unwrap());
+    let (mut short, mut meets) = (0usize, 0usize);
+    for seed in 1..=seeds {
+        let mut e = engine(seed);
+        let mut agent = RandomLegal::new(seed);
+        for _ in 0..20_000 {
+            match e.run() {
+                Step::Over(_) => break,
+                Step::Decision(req) => {
+                    let a = e
+                        .action()
+                        .filter(|_| req.window == WindowLabel::ActionBlock);
+                    if let Some((a, ActionState::Attempt(m))) = a.map(|a| (a, a.state)) {
+                        if e.state.minions[m.index()].owner == req.seat
+                            && req.options.contains(&Choice::Pass)
+                        {
+                            let declines = a.intercept_of(&e.state, m) < a.stealth(&e.state);
+                            let told = effects(&e, &req, &Choice::Pass, &EngineNames);
+                            let block = told.iter().find(|f| f.kind == EffectKind::Block);
+                            assert!(
+                                block.is_some_and(|f| f.copy.is_some()
+                                    && (f.detail.as_deref() == Some("declines")) == declines),
+                                "seed {seed}: the pass on its own attempt told {told:?}"
+                            );
+                            *if declines { &mut short } else { &mut meets } += 1;
+                        }
+                    }
+                    let pick = agent.choose(&req);
+                    e.choose(pick);
+                }
+            }
+        }
+    }
+    eprintln!("passes on an own attempt: {short} short, {meets} meeting");
+    assert!(short > 0 && meets > 0, "{short} short, {meets} meeting");
+}

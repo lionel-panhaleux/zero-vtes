@@ -1226,9 +1226,11 @@ fn the_events_tell_what_the_views_show() {
 }
 
 /// Every option a seat is shown is told in English with the text
-/// setting, every decision taken too (a pass where it ends a phase), and
-/// no line falls back to an unnamed card or minion: a name the client
-/// was never shown is a field missing.
+/// setting, every decision taken too (a pass where it does something),
+/// and no line falls back to an unnamed card or minion: a name the client
+/// was never shown is a field missing. A pass reads the same without the
+/// options beside it and the action or referendum under way: what it
+/// does is in its data, never only in its English (docs/protocol.md §7).
 #[test]
 fn every_option_and_choice_is_told() {
     let seeds = seeds();
@@ -1251,6 +1253,14 @@ fn every_option_and_choice_is_told() {
                 after: None,
             }),
         );
+        // The names a client knows, with no action or referendum seen.
+        let mut bare = Names::new(zvtes_host::cards::cards());
+        let see = |names: &mut Names, v: &TableView| {
+            let mut v = v.clone();
+            v.action = None;
+            v.referendum = None;
+            names.see(&v);
+        };
         let mut check = |what: String, text: &str| {
             // A gap the words leave (a name of nothing); the decks' own
             // names aside.
@@ -1287,16 +1297,19 @@ fn every_option_and_choice_is_told() {
         };
         loop {
             for o in &outs {
-                if let Message::Events { events, .. } = &o.message {
+                if let Message::Events { events, view, .. } = &o.message {
                     for e in events {
+                        bare.hear(&e.kind);
                         if let EventKind::Decided { choice, window, .. } = &e.kind {
                             let t = e.text.as_deref();
-                            if choice.key.kind != OptionKind::Pass {
-                                assert!(
-                                    t.is_some_and(|t| !t.is_empty()),
-                                    "seed {seed}: a decision untold: {e:?}"
-                                );
-                            }
+                            // A pass told only where it does something.
+                            let told =
+                                choice.key.kind != OptionKind::Pass || !choice.effects.is_empty();
+                            assert_eq!(
+                                t.is_some_and(|t| !t.is_empty()),
+                                told,
+                                "seed {seed}: a decision told {t:?}: {e:?}"
+                            );
                             if let Some(t) = t {
                                 decided += 1;
                                 check(format!("decided {:?} in {window:?}", choice.key.kind), t);
@@ -1304,6 +1317,9 @@ fn every_option_and_choice_is_told() {
                         } else if let Some(t) = &e.text {
                             check(format!("{:?}", std::mem::discriminant(&e.kind)), t);
                         }
+                    }
+                    if let Some(v) = view {
+                        see(&mut bare, v);
                     }
                 }
             }
@@ -1318,6 +1334,7 @@ fn every_option_and_choice_is_told() {
                     _ => None,
                 })
                 .unwrap();
+            see(&mut bare, &d.view);
             if let Some(p) = &d.prompt {
                 prompts += 1;
                 check(format!("prompt in {:?} for {:?}", d.window, d.purpose), p);
@@ -1332,6 +1349,24 @@ fn every_option_and_choice_is_told() {
                 );
                 options += 1;
                 check(format!("{:?} in {:?}", o.key.kind, d.window), t.unwrap());
+                if o.key.kind == OptionKind::Pass {
+                    let alone = zvtes_text::option(
+                        o,
+                        d.window,
+                        d.purpose,
+                        d.about.as_ref(),
+                        d.seat,
+                        &[],
+                        &bare,
+                    );
+                    assert_eq!(
+                        alone.as_deref(),
+                        t,
+                        "seed {seed}: a pass in {:?} for {:?} told beyond its data: {o:?}",
+                        d.window,
+                        d.purpose
+                    );
+                }
             }
             // The options of one decision read apart, unless they do the
             // same (a card's line split into modes alike in effect).

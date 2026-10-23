@@ -23,10 +23,13 @@ pub fn option(
     offered: &[OptionView],
     n: &Names,
 ) -> Option<String> {
+    if o.key.kind == K::Pass {
+        return pass(o, window, purpose, about, n);
+    }
     let base = base(o, window, seat, offered, n);
     match purpose {
         None => base,
-        Some(p) => asked(o, p, about, base, offered, n),
+        Some(p) => asked(o, p, about, base, n),
     }
 }
 
@@ -72,38 +75,6 @@ fn base(
         })
     };
     Some(match k.kind {
-        K::Pass if window == Window::ActionBlock => block_pass(seat, n),
-        // A cost's terms: the pass reduces nothing.
-        K::Pass
-            if window == Window::PlayTerms
-                && offered
-                    .iter()
-                    .flat_map(|o| &o.effects)
-                    .any(|e| e.cost || e.kind == EffectKind::Cost) =>
-        {
-            "No reduction".into()
-        }
-        K::Pass
-            if matches!(
-                window,
-                Window::PlayTerms
-                    | Window::RiderTerms
-                    | Window::ActionTerms
-                    | Window::ReferendumTerms
-            ) =>
-        {
-            "Pass".into()
-        }
-        // A distribution walks the recipients: the pass skips this one.
-        K::Pass if window == Window::Distribution => match offered
-            .iter()
-            .find(|o| o.key.kind == K::ChooseMinion)
-            .and_then(|o| o.key.minion)
-        {
-            Some(m) => format!("No blood to {}", minion(Some(m))),
-            None => "Pass".into(),
-        },
-        K::Pass => pass(window)?.into(),
         K::EdgePool => "Gain 1 pool (the Edge)".into(),
         K::TakeFrom => {
             let from = match k.zone.as_ref()?.zone {
@@ -408,7 +379,6 @@ fn asked(
     p: Purpose,
     about: Option<&About>,
     base: Option<String>,
-    offered: &[OptionView],
     n: &Names,
 ) -> Option<String> {
     use Purpose as P;
@@ -427,13 +397,6 @@ fn asked(
     let verb = |from: &str, to: &str| Some(base.clone()?.replacen(from, to, 1));
     let card = || n.card_id(k.card.as_ref().and_then(|c| c.id));
     let has = |kind| o.effects.iter().find(|e| e.kind == kind);
-    // What the other options of the choice do (a pass's meaning).
-    let any = |kind| {
-        offered
-            .iter()
-            .flat_map(|o| &o.effects)
-            .find(|e| e.kind == kind)
-    };
     Some(match (p, k.kind) {
         (P::RemoveUncontrolled, K::Slot) => verb("Choose ", "Remove ")?,
         (P::RemoveFromAsh, K::FindCard) => verb("Take ", "Remove ")?,
@@ -452,19 +415,10 @@ fn asked(
                 _ => return None,
             })?
         }
-        (P::MinionOf, K::Pass) => match any(EffectKind::Lock).or(any(EffectKind::Unlock)) {
-            Some(e) if e.kind == EffectKind::Lock && e.detail.is_none() => "Lock no more".into(),
-            Some(e) if e.kind == EffectKind::Unlock => "Unlock none".into(),
-            _ => "Choose none".into(),
-        },
         // Ashur Tablets: to the hand first, then into the library.
         (P::AshurPicks, K::FindCard) => match has(EffectKind::Move)?.to? {
             Zone::Hand => format!("{} to your hand", card()),
             _ => format!("Shuffle {} into your library", card()),
-        },
-        (P::AshurPicks, K::Pass) => match any(EffectKind::Move).and_then(|e| e.to) {
-            Some(Zone::Hand) => "None to your hand".into(),
-            _ => "No more".into(),
         },
         (P::ExchangeAnarch, K::Discard) => format!(
             "{} (for {})",
@@ -473,17 +427,14 @@ fn asked(
         ),
         (P::DistributeFrom, K::Slot) => role("gets 1 blood")?,
         (P::DiscardFromHandOf, K::FindCard) => format!("Discard {}", card()),
-        (P::PayOrBurn, K::Pass) => format!("Let {} burn", n.own(has(EffectKind::Burn)?.copy?)),
         (P::PayOrBurn, K::PayToCancel) => format!(
             "Burn {} pool to keep {}",
             -has(EffectKind::Pool)?.n?,
             n.own(has(EffectKind::Keep)?.copy?)
         ),
         (P::DiablerieEquipment, K::ChooseCard) => role("moves")?,
-        (P::DiablerieEquipment, K::Pass) => "Take nothing more".into(),
         (P::MoveBetween, K::ChooseMinion) => role("receives")?,
         (P::MoveBetween, K::ChooseCard) => role("moves")?,
-        (P::MoveBetween, K::Pass) => "Move nothing more".into(),
         (P::ChooseForCard, K::ChooseMinion) => {
             let e = has(EffectKind::Role)?;
             let clan = e.clan.as_deref().map_or("vampire".into(), |c| n.value(c));
@@ -493,77 +444,44 @@ fn asked(
                 _ => format!("the card's chosen {clan}"),
             })?
         }
-        (P::DistributeFrom, K::Pass) => "Move no more blood".into(),
         (P::BloodOrBurned, K::BurnBloodToAvoid) => {
             let e = has(EffectKind::Blood)?;
             format!("{} burns {} blood", n.minion_bare(e.copy?), -e.n?)
         }
-        (P::BloodOrBurned, K::Pass) => {
-            let e = has(EffectKind::Burn)?;
-            let name = match e.card {
-                Some(c) => n.card_id(Some(c)),
-                None => n.minion_bare(e.copy?),
-            };
-            format!("Let {name} burn")
-        }
-        // Gilbert Duane: the chosen becomes Anarch, or stays; once chosen,
         // a pass gains 1 pool.
         (P::AnarchConvert, K::ChooseMinion) => role("becomes Anarch")?,
-        (P::AnarchConvert, K::Pass) if has(EffectKind::Pool).is_some() => "Gain 1 pool".into(),
-        (P::AnarchConvert, K::Pass) => "Keep him in play".into(),
         (P::CryptSearch, K::AshVampire) => format!(
             "Move {} from your crypt to your uncontrolled region",
             card()
         ),
-        (P::CryptSearch | P::BaseSearch | P::LibraryToHand, K::Pass) => "Find none".into(),
-        (P::ChooseCircle, K::Pass) => "Keep his own circle".into(),
-        (P::StoreSearch | P::DisciplineSearch, K::Pass) => "Stop searching".into(),
-        (P::BlockToll, K::Pass) => "Resign the attempt".into(),
         (P::GiveBlood, K::ChooseMinion) => role("receives 1 blood")?,
-        (P::LockOrDiscard, K::Pass) => format!("Lock {}", whom()?),
-        (P::AllySearch, K::Pass) => "Find nothing".into(),
-        (P::MayDrawExtra, K::Pass) => "Draw no more".into(),
         (P::MayDrawExtra, K::DrawLibrary) => "Draw an additional card".into(),
-        (P::Redraw, K::Pass) => format!("Keep {}", named()?),
         (P::Redraw, K::DrawLibrary) => {
             format!("Put {} on the bottom and draw a new card", named()?)
         }
         (P::EntryBurn, K::ChooseMinion) => role("burned")?,
-        (P::MayPutOn, K::Pass) => format!("Leave {} in the ash heap", named()?),
-        (P::PutFoundOn, K::Pass) => format!("Keep {} in your hand", named()?),
         (P::PutFoundOn, K::FindCard) => format!("Put {} on it", named()?),
-        (P::MayAddCounter, K::Pass) => "Add no counter".into(),
-        (P::MayStoreAim, K::Pass) => format!("Leave {} in the ash heap", named()?),
         (P::MayStoreAim, K::ResolveRider) => {
             format!("Move {} onto Light Intensifying Goggles", named()?)
         }
         (P::MayAddCounter, K::ResolveRider) => format!("Add 1 counter to {}", named()?),
-        (P::MayTorture, K::Pass) => "No torture counter".into(),
         (P::MayTorture, K::ResolveRider) => "Lock The Path of Lilith: a torture counter".into(),
-        (P::MayGainPool, K::Pass) => "Gain no pool".into(),
         (P::MayGainPool, K::ResolvePrinted) => format!("Gain {} pool", about?.n?),
-        (P::BuyTitle, K::Pass) => "Buy no title".into(),
         (P::BuyTitle, K::SetX) => {
             let pool = o.effects.iter().find(|e| e.cost)?.n?.unsigned_abs();
             let title = o.effects.iter().find_map(|e| e.detail.as_deref())?;
             format!("Pay {pool} pool: {}", title.replace('_', " "))
         }
-        (P::MayGainHandSize, K::Pass) => "Keep your hand size".into(),
         (P::MayGainHandSize, K::ResolvePrinted) => format!("Get +{} hand size", about?.n?),
-        (P::MayPreventForBlood, K::Pass) => "Burn no blood".into(),
         (P::MayPreventForBlood, K::ResolvePrinted) => {
             format!("Burn {} blood to prevent the damage", about?.n?)
         }
-        (P::MayUnlock, K::Pass) => "Stay locked".into(),
         (P::MayUnlock, K::ResolvePrinted) => "Unlock".into(),
-        (P::EntryRemoveOrBurn, K::Pass) => format!("Burn {}", whom()?),
         (P::EntryRemoveOrBurn, K::FindCard) => verb("Take ", "Remove ")?,
         (P::EntryRemoveOrBurn, K::AshVampire) => verb("Choose ", "Remove ")?,
         (P::CancelAttempt, K::ChooseMinion) => "Cancel the attempt".into(),
-        (P::CancelAttempt, K::Pass) => "Keep the attempt".into(),
         (P::CorruptionOwner, K::ChooseSeat) => role("their counter burns")?,
         (P::GiveCardTo, K::ChooseSeat) => role("takes control of it")?,
-        (P::AvoidDamage, K::Pass) => format!("Take the {} damage", about?.m?),
         (P::AvoidDamage, K::BurnBloodToAvoid) => {
             format!("Burn {} blood to avoid the damage", about?.n?)
         }
@@ -573,13 +491,10 @@ fn asked(
         (P::LockForPool, K::ResolveRider) => {
             format!("Lock {}: gain {} pool", named()?, about?.n?)
         }
-        (P::PoolForCard | P::LockForPool, K::Pass) => "No pool".into(),
         (P::StealForCorruption, K::ChooseMinion) => format!("Steal {}", whom()?),
-        (P::StealForCorruption, K::Pass) => "Don't steal".into(),
         (P::MakeAnarch, K::ResolveRider) => {
             format!("Burn 1 blood from {}: {} becomes Anarch", named()?, whom()?)
         }
-        (P::MakeAnarch, K::Pass) => "No Anarch".into(),
         (P::BecomesAnarch, K::ChooseMinion) => role("becomes Anarch")?,
         (P::UncontrolledBlood, K::Slot) => role(&format!("gets {} blood", about?.n?))?,
         (P::LockOrPay, K::ResolveRider) => format!("Lock {}", named()?),
@@ -587,8 +502,6 @@ fn asked(
         (P::PoolOrVampire, K::BurnPool) => format!("Burn {} pool", about?.n?),
         (P::PoolOrNoTransfers, K::BurnPool) => format!("Burn {} pool", about?.n?),
         (P::BloodOrCamarilla, K::BurnBloodToAvoid) => "Burn 1 blood".into(),
-        (P::BloodOrCamarilla, K::Pass) => "Become Camarilla".into(),
-        (P::PoolOrNoTransfers, K::Pass) => "Lose all transfers next influence phase".into(),
         (P::PoolOrVampire, K::ChooseMinion) => role("is burned")?,
         (P::BaseSearch, K::AshVampire) => format!("Merge with {}", card()),
         (P::BaseSearch, K::Slot) => "Merge with this vampire".into(),
@@ -607,23 +520,9 @@ fn asked(
             about?.n?,
             n.minion_bare(about?.to?)
         ),
-        (P::MoveForBlood, K::Pass) => "Don't move it".into(),
         (P::MoveCardToTitled | P::MoveOffBurnedBearer, K::ChooseMinion) => {
             role(&format!("gets {}", named()?))?
         }
-        (P::MoveOffBurnedBearer, K::Pass) => "Let it burn".into(),
-        // What declining does, where a bare pass would not say.
-        (P::CircleBlood, K::Pass) => "Move nothing more".into(),
-        (P::PoolToVampires, K::Pass) => "Move no more pool".into(),
-        (P::MayRecycleCanceled, K::Pass) => match named() {
-            Some(c) => format!("Leave {c} in your ash heap"),
-            None => "Leave it in your ash heap".into(),
-        },
-        (P::NameOwnAshCard, K::Pass) => "Name none".into(),
-        (P::PutInPlaySearch, K::Pass) => "Put nothing in play".into(),
-        (P::ReadyTitledLeft, K::Pass) => "Play no card for it".into(),
-        (P::SearchEquipFor, K::Pass) => "Find no equipment".into(),
-        (P::UncontrolledBlood, K::Pass) => "Add no blood".into(),
         // The rest reads as anywhere.
         _ => base?,
     })
@@ -762,47 +661,144 @@ fn amount(o: &OptionView, n: &Names) -> Option<String> {
     })
 }
 
-/// A pass in the block window, short and explicit: the defender's pass
-/// blocks while its minion's attempt meets the stealth, and declines while
-/// it is short, once the table passed too; a third party's then completes
-/// that decline, and the acting Methuselah's leaves blocks open.
-fn block_pass(seat: u8, n: &Names) -> String {
-    use zvtes_api::ids::ActionStep;
-    let Some(a) = n.action() else {
-        return "Pass".into();
+/// A pass, from its own effects (what it does, where it does more than
+/// decline), its window and its purpose's particulars: never from the
+/// options beside it or the view (docs/protocol.md §7). `None`: a pass
+/// whose doing is not in its effects.
+fn pass(
+    o: &OptionView,
+    window: Window,
+    purpose: Option<Purpose>,
+    about: Option<&About>,
+    n: &Names,
+) -> Option<String> {
+    use Purpose as P;
+    let has = |kind| o.effects.iter().find(|e| e.kind == kind);
+    let named = || {
+        let c = about?.card.as_ref()?;
+        Some(match (c.id, c.copy) {
+            (Some(id), _) => n.card_id(Some(id)),
+            (None, Some(copy)) => n.own(copy),
+            (None, None) => return None,
+        })
     };
-    let short = a.intercept.is_some_and(|i| i < a.stealth);
-    let defender = a.blocker.and_then(|b| n.controller(b));
-    match a.step {
-        ActionStep::Attempt if defender == Some(seat) && short => "Decline to block".into(),
-        ActionStep::Attempt if defender == Some(seat) => "Pass (blocking)".into(),
-        ActionStep::Attempt if a.seat == seat && short => "Pass (blocks not declined yet)".into(),
-        ActionStep::Attempt => match defender {
-            Some(d) if a.declining => format!("Pass ({} declines to block)", n.seat(d)),
-            _ => "Pass".into(),
-        },
-        _ if a.seat == seat => "Pass".into(),
-        _ => "Pass (no block)".into(),
+    let detail = about.and_then(|a| a.detail.as_deref());
+    if let Some(e) = has(EffectKind::EndPhase) {
+        return Some(format!("End the {} phase", e.detail.as_deref()?));
     }
-}
-
-/// A pass, by its window; `None` where what it does depends on more.
-fn pass(w: Window) -> Option<&'static str> {
-    Some(match w {
-        Window::MasterPhase => "End the master phase",
-        Window::MinionPhase => "End the minion phase",
-        Window::InfluenceTransfers => "End the influence phase",
-        Window::DiscardPhase => "End the discard phase",
-        Window::CombatPress => "Pass (no press)",
-        Window::ReferendumPolling | Window::BloodHuntPolling => "Pass (no vote now)",
-        // A distribution: what the pass does depends on more; in terms, on
-        // the terms (a cost's: "No reduction").
-        Window::Distribution
-        | Window::PlayTerms
-        | Window::RiderTerms
-        | Window::ActionTerms
-        | Window::ReferendumTerms => return None,
-        _ => "Pass",
+    if let Some(e) = has(EffectKind::Block) {
+        return Some(
+            match e.detail.as_deref() {
+                Some("resigned") => "Resign the attempt",
+                Some("declines") => "Decline to block",
+                _ => "Pass (blocking)",
+            }
+            .into(),
+        );
+    }
+    let plain = || -> Option<String> {
+        Some(
+            match window {
+                // Its effects say it ends the phase.
+                Window::MasterPhase
+                | Window::MinionPhase
+                | Window::InfluenceTransfers
+                | Window::DiscardPhase => return None,
+                Window::CombatPress => "Pass (no press)",
+                Window::ReferendumPolling | Window::BloodHuntPolling => "Pass (no vote now)",
+                // A cost's terms: the pass reduces nothing.
+                Window::PlayTerms
+                    if matches!(detail, Some("cost_counters" | "cost_reductions")) =>
+                {
+                    "No reduction"
+                }
+                _ => "Pass",
+            }
+            .into(),
+        )
+    };
+    let Some(p) = purpose else {
+        return plain();
+    };
+    Some(match p {
+        // What it does.
+        P::PayOrBurn => format!("Let {} burn", n.own(has(EffectKind::Burn)?.copy?)),
+        P::BloodOrBurned => {
+            let e = has(EffectKind::Burn)?;
+            let name = match e.card {
+                Some(c) => n.card_id(Some(c)),
+                None => n.minion_bare(e.copy?),
+            };
+            format!("Let {name} burn")
+        }
+        P::EntryRemoveOrBurn => format!("Burn {}", n.minion_bare(has(EffectKind::Burn)?.copy?)),
+        P::MoveOffBurnedBearer => {
+            has(EffectKind::Burn)?;
+            "Let it burn".into()
+        }
+        P::LockOrDiscard => format!("Lock {}", n.minion_bare(has(EffectKind::Lock)?.copy?)),
+        P::AvoidDamage => format!("Take the {} damage", has(EffectKind::Damage)?.n?),
+        P::BloodOrCamarilla => {
+            has(EffectKind::Role)?;
+            "Become Camarilla".into()
+        }
+        P::PoolOrNoTransfers => {
+            has(EffectKind::Transfers)?;
+            "Lose all transfers next influence phase".into()
+        }
+        // Its `block` effect says it resigns.
+        P::BlockToll => return None,
+        // Gilbert Duane: once chosen, a pass gains 1 pool.
+        P::AnarchConvert if has(EffectKind::Pool).is_some() => "Gain 1 pool".into(),
+        // What declining does, where a bare pass would not say.
+        P::AnarchConvert => "Keep him in play".into(),
+        P::MinionOf => match detail {
+            Some("lock" | "lock_vampires") => "Lock no more".into(),
+            Some("unlock_anarch") => "Unlock none".into(),
+            _ => "Choose none".into(),
+        },
+        // Ashur Tablets: to the hand first, then into the library.
+        P::AshurPicks if detail == Some("to_library") => "No more".into(),
+        P::AshurPicks => "None to your hand".into(),
+        // A distribution walks the recipients: the pass skips this one.
+        P::MarginBlood => match about.and_then(|a| a.minion) {
+            Some(m) => format!("No blood to {}", n.minion_bare(m)),
+            None => "Pass".into(),
+        },
+        P::DiablerieEquipment => "Take nothing more".into(),
+        P::MoveBetween | P::CircleBlood => "Move nothing more".into(),
+        P::DistributeFrom => "Move no more blood".into(),
+        P::CryptSearch | P::BaseSearch | P::LibraryToHand => "Find none".into(),
+        P::ChooseCircle => "Keep his own circle".into(),
+        P::StoreSearch | P::DisciplineSearch => "Stop searching".into(),
+        P::AllySearch => "Find nothing".into(),
+        P::MayDrawExtra => "Draw no more".into(),
+        P::Redraw => format!("Keep {}", named()?),
+        P::MayPutOn | P::MayStoreAim => format!("Leave {} in the ash heap", named()?),
+        P::PutFoundOn => format!("Keep {} in your hand", named()?),
+        P::MayAddCounter => "Add no counter".into(),
+        P::MayTorture => "No torture counter".into(),
+        P::MayGainPool => "Gain no pool".into(),
+        P::BuyTitle => "Buy no title".into(),
+        P::MayGainHandSize => "Keep your hand size".into(),
+        P::MayPreventForBlood => "Burn no blood".into(),
+        P::MayUnlock => "Stay locked".into(),
+        P::CancelAttempt => "Keep the attempt".into(),
+        P::PoolForCard | P::LockForPool => "No pool".into(),
+        P::StealForCorruption => "Don't steal".into(),
+        P::MakeAnarch => "No Anarch".into(),
+        P::MoveForBlood => "Don't move it".into(),
+        P::PoolToVampires => "Move no more pool".into(),
+        P::MayRecycleCanceled => match named() {
+            Some(c) => format!("Leave {c} in your ash heap"),
+            None => "Leave it in your ash heap".into(),
+        },
+        P::NameOwnAshCard => "Name none".into(),
+        P::PutInPlaySearch => "Put nothing in play".into(),
+        P::ReadyTitledLeft => "Play no card for it".into(),
+        P::SearchEquipFor => "Find no equipment".into(),
+        P::UncontrolledBlood => "Add no blood".into(),
+        _ => plain()?,
     })
 }
 
@@ -938,68 +934,10 @@ mod tests {
         }
     }
 
-    // The block window's passes (rules-qa 82.1): the defender's short of the
-    // stealth declines; the table's then completes that decline; the
-    // acting Methuselah's leaves blocks open.
-    #[test]
-    fn a_pass_against_a_short_attempt_says_who_declines() {
-        let mut n = Names::new(&NoCards);
-        n.seats = vec!["Ana".into(), "Ben".into(), "Cal".into()];
-        n.controllers.insert(7, 1);
-        let action = |intercept, declining| ActionView {
-            seat: 0,
-            acting: 3,
-            kind: ActionKind::Bleed,
-            step: ActionStep::Attempt,
-            card: None,
-            mode: None,
-            x: None,
-            source: None,
-            target: None,
-            bleed_target: Some(1),
-            bleed: Some(1),
-            stealth: 1,
-            blocker: Some(7),
-            intercept: Some(intercept),
-            declined: vec![],
-            declining,
-        };
-        n.action = Some(action(0, false));
-        assert_eq!(super::block_pass(1, &n), "Decline to block");
-        assert_eq!(super::block_pass(0, &n), "Pass (blocks not declined yet)");
-        assert_eq!(super::block_pass(2, &n), "Pass");
-        n.action = Some(action(0, true));
-        assert_eq!(super::block_pass(2, &n), "Pass (Ben declines to block)");
-        n.action = Some(action(1, false));
-        assert_eq!(super::block_pass(1, &n), "Pass (blocking)");
-        assert_eq!(super::block_pass(0, &n), "Pass");
-    }
-
-    /// The purposes whose choice offers a pass (the engine's
-    /// `interrupt_request`): each pass says what declining does, not
-    /// "Pass".
-    #[test]
-    fn every_declined_purpose_says_what_declining_does() {
-        use zvtes_api::ids::{OptionKind, Purpose as P, Window};
-        use zvtes_api::message::About;
-        use zvtes_api::option::{CardRef, ChoiceKey, OptionView};
-        let n = Names::new(&NoCards);
-        let about = About {
-            n: Some(2),
-            m: Some(1),
-            cap: Some(3),
-            seat: Some(1),
-            minion: Some(7),
-            to: Some(8),
-            card: Some(CardRef {
-                id: Some(100001),
-                copy: Some(9),
-                from: None,
-            }),
-            clan: Some("brujah".into()),
-            detail: None,
-        };
-        let pass = OptionView {
+    fn bare_pass() -> zvtes_api::option::OptionView {
+        use zvtes_api::ids::OptionKind;
+        use zvtes_api::option::{ChoiceKey, OptionView};
+        OptionView {
             index: 0,
             key: ChoiceKey {
                 kind: OptionKind::Pass,
@@ -1022,7 +960,84 @@ mod tests {
             apart: Vec::new(),
             user: None,
             text: None,
+        }
+    }
+
+    // The block window's passes read from their effects alone (rules-qa
+    // 1.3, 82.1): the action under way in the view changes nothing.
+    #[test]
+    fn a_block_window_pass_reads_from_its_effects() {
+        use zvtes_api::ids::Window;
+        use zvtes_api::option::{Effect, EffectKind};
+        let mut n = Names::new(&NoCards);
+        n.action = Some(ActionView {
+            seat: 0,
+            acting: 3,
+            kind: ActionKind::Bleed,
+            step: ActionStep::Attempt,
+            card: None,
+            mode: None,
+            x: None,
+            source: None,
+            target: None,
+            bleed_target: Some(1),
+            bleed: Some(1),
+            stealth: 1,
+            blocker: Some(7),
+            intercept: Some(0),
+            declined: vec![],
+            declining: true,
+        });
+        let with = |e: Option<Effect>| {
+            let mut o = bare_pass();
+            o.effects.extend(e);
+            super::option(&o, Window::ActionBlock, None, None, 1, &[], &n)
         };
+        let block = |copy, detail: Option<&str>| Effect {
+            copy,
+            detail: detail.map(Into::into),
+            ..Effect::new(EffectKind::Block)
+        };
+        assert_eq!(with(None).as_deref(), Some("Pass"));
+        assert_eq!(
+            with(Some(block(None, Some("declines")))).as_deref(),
+            Some("Decline to block")
+        );
+        assert_eq!(
+            with(Some(block(Some(7), Some("declines")))).as_deref(),
+            Some("Decline to block")
+        );
+        assert_eq!(
+            with(Some(block(Some(7), None))).as_deref(),
+            Some("Pass (blocking)")
+        );
+    }
+
+    /// The purposes whose choice offers a pass (the engine's
+    /// `interrupt_request`): each pass says what declining does, not
+    /// "Pass".
+    #[test]
+    fn every_declined_purpose_says_what_declining_does() {
+        use zvtes_api::ids::{Purpose as P, Window};
+        use zvtes_api::message::About;
+        use zvtes_api::option::{CardRef, Effect, EffectKind as E};
+        let n = Names::new(&NoCards);
+        let about = About {
+            n: Some(2),
+            m: Some(1),
+            cap: Some(3),
+            seat: Some(1),
+            minion: Some(7),
+            to: Some(8),
+            card: Some(CardRef {
+                id: Some(100001),
+                copy: Some(9),
+                from: None,
+            }),
+            clan: Some("brujah".into()),
+            detail: None,
+        };
+        let pass = bare_pass();
         let declined = [
             P::AllySearch,
             P::AnarchConvert,
@@ -1076,25 +1091,38 @@ mod tests {
         ];
         let mut generic = Vec::new();
         for p in declined {
-            // What burns, as the host tells a pass that lets it.
-            let mut pass = pass.clone();
-            if matches!(p, P::BloodOrBurned | P::PayOrBurn) {
-                pass.effects.push(zvtes_api::option::Effect {
-                    copy: Some(9),
-                    ..zvtes_api::option::Effect::new(zvtes_api::option::EffectKind::Burn)
-                });
-            }
-            // A distribution's pass skips the recipient its choice names.
-            let (window, offered) = match p {
-                P::MarginBlood => {
-                    let mut to = pass.clone();
-                    to.key.kind = OptionKind::ChooseMinion;
-                    to.key.minion = Some(7);
-                    (Window::Distribution, vec![to, pass.clone()])
-                }
-                _ => (Window::ResolutionChoice, Vec::new()),
+            // What it does, as the host tells a pass doing more than
+            // declining: without it, the pass is untold.
+            let does = |kind| Effect {
+                copy: Some(9),
+                n: Some(1),
+                ..Effect::new(kind)
             };
-            let t = super::option(&pass, window, Some(p), Some(&about), 0, &offered, &n);
+            let effect = match p {
+                P::BloodOrBurned | P::PayOrBurn | P::EntryRemoveOrBurn | P::MoveOffBurnedBearer => {
+                    Some(does(E::Burn))
+                }
+                P::LockOrDiscard => Some(does(E::Lock)),
+                P::AvoidDamage => Some(does(E::Damage)),
+                P::BloodOrCamarilla => Some(does(E::Role)),
+                P::PoolOrNoTransfers => Some(does(E::Transfers)),
+                P::BlockToll => Some(Effect {
+                    detail: Some("resigned".into()),
+                    ..does(E::Block)
+                }),
+                _ => None,
+            };
+            let window = match p {
+                P::MarginBlood => Window::Distribution,
+                _ => Window::ResolutionChoice,
+            };
+            let mut pass = pass.clone();
+            if effect.is_some() {
+                let t = super::option(&pass, window, Some(p), Some(&about), 0, &[], &n);
+                assert_eq!(t, None, "{p:?} told without its effect");
+            }
+            pass.effects.extend(effect);
+            let t = super::option(&pass, window, Some(p), Some(&about), 0, &[], &n);
             if t.as_deref().is_none_or(|t| t == "Pass") {
                 generic.push((p, t));
             }

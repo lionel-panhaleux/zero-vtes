@@ -2273,6 +2273,17 @@ impl Engine {
             })
     }
 
+    /// Would `seat`'s pass in the block window be its final decline to
+    /// block: no attempt pending, `seat` entitled to one and not declined
+    /// yet (rules-qa 1.3, rulebook A.3)?
+    pub fn pass_declines_block(&self, seat: SeatId) -> bool {
+        self.action.as_ref().is_some_and(|a| {
+            a.state == ActionState::Open
+                && !a.declined.contains(&seat)
+                && self.eligible_blockers(a).contains(&seat)
+        })
+    }
+
     /// Is it `seat`'s moment to block the action under way: its own
     /// minion attempting, or it may attempt now and every would-be blocker
     /// before it in the order declined (the prey's before the predator's)?
@@ -2908,20 +2919,14 @@ impl Engine {
     }
 
     fn action_apply_now(&mut self, choice: &Choice) {
-        let eligible = {
-            let a = self.action.as_ref().expect("action context");
-            self.eligible_blockers(a)
-        };
+        let seat = (self.action.as_ref().expect("action context").window)
+            .current()
+            .expect("impulse holder");
+        let declines = self.pass_declines_block(seat);
         let a = self.action.as_mut().expect("action context");
-        let seat = a.window.current().expect("impulse holder");
         match choice {
             Choice::Pass => {
-                if a.state == ActionState::Open
-                    && eligible.contains(&seat)
-                    && !a.declined.contains(&seat)
-                {
-                    // rules-qa 1.3: passing with no attempt pending is a final
-                    // decline (rulebook A.3).
+                if declines {
                     a.declined.push(seat);
                 }
                 a.window.pass();

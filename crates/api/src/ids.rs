@@ -730,6 +730,8 @@ ids!(
         Anarch,
         /// No reactions, blocks or votes this turn (Expel).
         Expelled,
+        /// Becomes Camarilla (Waiting Game's anarch not burning blood).
+        Camarilla,
     }
 );
 

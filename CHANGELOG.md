@@ -6,6 +6,26 @@ server runs.
 `python3 scripts/schema_compat.py` lists what a schema change adds or
 removes; its `--check` fails a removal without a major version.
 
+## 2.9.0
+
+What a pass does, in its data (§7); ids added, none removed:
+
+- Effect kinds `end_phase` (`detail`: the phase) and `block`: a pass
+  ending the master, minion, influence or discard phase says so; in
+  `action_block`, `block` `detail: declines` the seat's final decline
+  (no attempt pending), `block` with `copy` its own minion's attempt
+  let stand (`declines` beside it: short of the stealth, the decline);
+  `block` `detail: resigned` a block toll's pass.
+- A pass that burns, locks or damages a minion, makes it Camarilla
+  (role `camarilla`, added) or loses the next influence phase's
+  transfers (`transfers`, `detail: none_next_influence`) carries that
+  effect (Rotting Behemoth, Charnas the Imp, Nightmares upon Nightmares,
+  Rutor's Hand, Waiting Game, Leandro).
+- A pass with no effects takes none of the options beside it.
+- `margin_blood`'s `about.minion`: the recipient its pass skips.
+- The English (`text`): a pass reads from its own data; the block
+  window's passes beyond these read "Pass"; a decided pass is told in
+  the events whenever it has effects.
 ## 2.8.0
 
 The cards players asked for (rules-qa Batch 89); ids added, none removed:

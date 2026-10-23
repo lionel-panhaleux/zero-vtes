@@ -45,8 +45,6 @@ pub struct Names<'a> {
     hosts: HashMap<CopyId, CopyId>,
     /// Each card on the table's own name (without the minion it is on).
     own: HashMap<CopyId, String>,
-    /// The seat controlling each minion, as the last view showed.
-    controllers: HashMap<CopyId, Seat>,
     /// The action under way, as the last view showed.
     action: Option<ActionView>,
     /// The referendum under way, as the last view showed.
@@ -63,7 +61,6 @@ impl<'a> Names<'a> {
             table: HashMap::new(),
             hosts: HashMap::new(),
             own: HashMap::new(),
-            controllers: HashMap::new(),
             action: None,
             referendum: None,
         }
@@ -75,7 +72,7 @@ impl<'a> Names<'a> {
         self.prey = v.seats.iter().map(|s| s.prey).collect();
         self.action = v.action.clone();
         self.referendum = v.referendum.clone();
-        for (seat, s) in v.seats.iter().enumerate() {
+        for s in &v.seats {
             for m in s.minions() {
                 let name = match m.card.copy {
                     Some(c) => self.numbered(c, minion_name(m.kind, &m.name), m.card.numbered),
@@ -104,9 +101,6 @@ impl<'a> Names<'a> {
                             self.hosts.insert(copy, h);
                         }
                     }
-                }
-                if let Some(c) = m.card.copy {
-                    self.controllers.insert(c, seat as Seat);
                 }
             }
             for c in &s.in_play {
@@ -241,11 +235,6 @@ impl<'a> Names<'a> {
     /// The referendum under way, as the last view showed.
     pub fn referendum(&self) -> Option<&ReferendumView> {
         self.referendum.as_ref()
-    }
-
-    /// The seat controlling a minion, as the last view showed.
-    pub fn controller(&self, minion: CopyId) -> Option<Seat> {
-        self.controllers.get(&minion).copied()
     }
 
     /// The minion a card is on, as the last view showed.

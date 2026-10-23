@@ -24,7 +24,7 @@ const SEATS: [&str; 4] = ["Ann", "Bob", "Cid", "Dee"];
 /// The decision `req` as the deciding seat is sent it with the text
 /// setting: built as `Game::advance` builds it, its prompt and options
 /// rendered as `Game::tell` renders them.
-fn told(e: &Engine, req: &DecisionRequest) -> Decision {
+pub(crate) fn told(e: &Engine, req: &DecisionRequest) -> Decision {
     let names: Vec<String> = SEATS[..e.state.seats.len()]
         .iter()
         .map(|s| s.to_string())

@@ -623,19 +623,13 @@ impl Game {
                     tell_state(&mut e.kind, known);
                     e.text = match &e.kind {
                         // A decision taken: its option's line, a pass
-                        // only where it ends a phase.
+                        // only where it does something (ends a phase,
+                        // declines a block).
                         EventKind::Decided {
                             decision, choice, ..
                         } => self.asked.remove(decision).and_then(|a| {
                             let pass = choice.key.kind == OptionKind::Pass;
-                            let ends = matches!(
-                                a.window,
-                                Window::MasterPhase
-                                    | Window::MinionPhase
-                                    | Window::InfluenceTransfers
-                                    | Window::DiscardPhase
-                            );
-                            (!pass || ends).then(|| {
+                            (!pass || !choice.effects.is_empty()).then(|| {
                                 zvtes_text::option(
                                     choice,
                                     a.window,

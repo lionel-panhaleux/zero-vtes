@@ -237,6 +237,14 @@ crate::ids::ids!(EffectKind {
     Keep,
     /// What a chosen minion or Methuselah becomes for the card (`role`).
     Role,
+    /// A pass ends the phase (`detail`: `master`, `minion`, `influence`,
+    /// `discard`).
+    EndPhase,
+    /// A pass in the block window: declines to block (`detail: declines`),
+    /// or lets the seat's attempt by `copy` stand (with `declines`: short
+    /// of the stealth, the decline); a block attempt resigned (`detail:
+    /// resigned`).
+    Block,
 });
 
 crate::ids::ids!(

@@ -1,6 +1,6 @@
-/* zvtes protocol 2.8.0 (docs/protocol.md): generated from
+/* zvtes protocol 2.9.0 (docs/protocol.md): generated from
  * crates/api/schema.json by scripts/gen_ts.py, do not edit. */
-export const PROTOCOL_VERSION = '2.8.0'
+export const PROTOCOL_VERSION = '2.9.0'
 
 /**
  * A command as sent: an optional client id, echoed by an `error` it
@@ -568,6 +568,8 @@ export type EffectKind =
     | 'cost'
     | 'keep'
     | 'role'
+    | 'end_phase'
+    | 'block'
     | 'unknown'
 
 export type EndReason = {
@@ -1348,7 +1350,14 @@ export type ReferendumView = {
  * What a chosen minion or Methuselah becomes for the card choosing it
  * (completed with the host, A3).
  */
-export type Role = 'does_not_unlock' | 'unblockable_non_bleed' | 'chosen' | 'anarch' | 'expelled' | 'unknown'
+export type Role = 
+    | 'does_not_unlock'
+    | 'unblockable_non_bleed'
+    | 'chosen'
+    | 'anarch'
+    | 'expelled'
+    | 'camarilla'
+    | 'unknown'
 
 export type SeatInfo = {
     /** The bot profile; absent for a human. */

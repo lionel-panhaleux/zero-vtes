@@ -18,7 +18,7 @@ is created by one request and played over one WebSocket. Every game is
 recorded, anonymously, and kept two years to train and test the engine
 (§11).
 
-Version **2.8.0**. The types: the models of the
+Version **2.9.0**. The types: the models of the
 [API reference](https://engine.krcg.org/docs), also as
 [JSON Schema](https://engine.krcg.org/schema.json) (2020-12) and
 [TypeScript](https://engine.krcg.org/protocol.ts).
@@ -231,7 +231,8 @@ other seats without its amount or effects, its `index` 0. `about` holds the part
 purpose, the source and the options: `n` (how many: still to pay, at
 most, to discard), `m` (a second amount), `cap`, `seat` (whose
 minions, ash heap or hand), `minion` and `to` (the minions blood moves
-between, a block attempt's), `card` (named or in play), `clan` (or a
+between, a block attempt's; `margin_blood`: the recipient its pass
+skips), `card` (named or in play), `clan` (or a
 circle), and `detail`, what sets it apart within its purpose (`minion_of`:
 `lock`, `lock_vampires`, `corrupt`…; a terms window: `blood_range`
 (from `minion`, to `to` or else the pool), `x_blood`, `discard`,
@@ -363,7 +364,7 @@ seat 2; burn 2 pool to keep card 9.)
   vocabulary, not the engine's own effects: each
   `{kind, n?, x?, on?, seat?, copy?, cost?, when?, card?, to?, action?,
   favor?, strike?, range?, role?, clan?, detail?}`.
-  - `kind` (37, open): `pool`, `blood`, `life`, `counters`,
+  - `kind` (39, open): `pool`, `blood`, `life`, `counters`,
     `transfers`, `damage`, `strike`, `strength`, `stealth`,
     `intercept`, `bleed`, `prevent`, `press`, `maneuver`, `range`,
     `end_combat`, `enter_combat`, `immune`, `burn`, `lock`, `unlock`,
@@ -372,7 +373,8 @@ seat 2; burn 2 pool to keep card 9.)
     `action`; without it, a phase's action: `detail` `master_phase`, the
     master phase action spent as a cost, or `discard_phase`, a discard
     phase action gained), `hunt`, `hand_size`, `cost` (reduced),
-    `corruption`, `keep`, `role` (§12).
+    `corruption`, `keep`, `role`, `end_phase` and `block` (a pass's,
+    below; §12).
   - `n` signed (+ gained, − lost or spent), per X with `x`; `cost`: paid
     to take the option; `when`: `successful`, `bleed_successful`.
   - `on`: whom, from the option — `target`, `host` (the minion the card
@@ -435,11 +437,20 @@ seat 2; burn 2 pool to keep card 9.)
   text its controller's prey uses; the seat said, so a `user` reads
   alone). An absent `actor` is not the
   Methuselah: `user` says.
-- A pass's plain meaning follows from the window: `master_phase` … ends
-  the phase, `action_block` declines to block (the defender's, while
-  its minion's attempt meets the stealth — `action.blocker`,
-  `intercept` ≥ `stealth` in the view — blocks), `combat_press` presses
-  no further, a polling passes for now.
+- A pass doing more than declining the options beside it says what in
+  its `effects`: `end_phase` (`detail`: `master`, `minion`,
+  `influence`, `discard`) ends the phase; in `action_block`, `block`
+  `detail: declines` is the seat's final decline to block (no attempt
+  pending), and `block` with `copy`, its own minion's attempt under way,
+  lets it stand (it blocks if it meets the stealth as the round ends;
+  with `declines`, short of it, the pass is the decline); `block`
+  `detail: resigned` resigns a block attempt (a toll unpaid); what it
+  burns, locks or damages (`burn`, `lock`, `damage`, `copy`), a vampire
+  made Camarilla (`role: camarilla`), transfers lost (`transfers`,
+  `detail: none_next_influence`), pool gained. A pass with no effects
+  takes none of the options beside it: a search stops, nothing more is
+  moved or drawn, the card stays; the decision's `purpose` says which
+  choice, `combat_press` presses no further, a polling's passes for now.
 - A client may match a user's gesture to options by their keys
   (dragging a card onto a minion: `play` options with that `card` and
   `actor` or `target`) and ask only what still differs.
