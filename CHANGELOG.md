@@ -6,6 +6,20 @@ server runs.
 `python3 scripts/schema_compat.py` lists what a schema change adds or
 removes; its `--check` fails a removal without a major version.
 
+## 2.7.1
+
+Behaviours only, no field or id (rules-qa Batch 88, the play-changing
+contradictions):
+
+- Anarch Revolt's choice no longer asked: its ready Anarch read as the
+  unlock phase ends, resolved as the active Methuselah passes; a record
+  answering that choice reads past it (§11).
+- A window between the combats Psyche! queues (Obedience, Promise of
+  1528): `action_after_combat` again, elided when empty.
+- Taking the Skin: Minion offered before a diablerie's blood hunt only,
+  Yawp Court's action ended as it reaches resolution, the Meddling of
+  Semsith's held replacements drawn when it leaves mid-phase.
+
 ## 2.7.0
 
 The Imbued (rulebook "Appendix: Imbued Rules"): a crypt card as a mortal
