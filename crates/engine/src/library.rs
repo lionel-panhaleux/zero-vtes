@@ -11777,12 +11777,12 @@ pub static LIBRARY: [LibraryCard; 937] = [
         modes: &[
             Mode {
                 tags: &["dom"],
-                windows: &["ACTION_BLOCKED", "ACTION_BLOCKS_DECLINED"],
+                windows: &["ACTION_BLOCKED", "ACTION_BLOCKS_DECLINED", "ACTION_QUEUED_COMBAT"],
                 flags: &[],
             },
             Mode {
                 tags: &["DOM"],
-                windows: &["ACTION_BLOCKED", "ACTION_BLOCKS_DECLINED"],
+                windows: &["ACTION_BLOCKED", "ACTION_BLOCKS_DECLINED", "ACTION_QUEUED_COMBAT"],
                 flags: &[],
             },
         ],
@@ -19435,7 +19435,7 @@ pub static LIBRARY: [LibraryCard; 937] = [
             },
             Mode {
                 tags: &["abo"],
-                windows: &["ACTION_AFTER_RESOLUTION", "COMBAT_END_OF_ROUND"],
+                windows: &["ACTION_AFTER_RESOLUTION", "ACTION_AFTER_DIABLERIE", "COMBAT_END_OF_ROUND"],
                 flags: &["cancel_as_played"],
             },
         ],
@@ -20816,7 +20816,7 @@ pub static LIBRARY: [LibraryCard; 937] = [
         modes: &[
             Mode {
                 tags: &[],
-                windows: &["REFERENDUM", "REACTION_DURING_ACTION", "ACTION_BLOCKED", "ACTION_BLOCKS_DECLINED"],
+                windows: &["REFERENDUM", "REACTION_DURING_ACTION", "ACTION_BLOCKED", "ACTION_BLOCKS_DECLINED", "ACTION_QUEUED_COMBAT"],
                 flags: &["usable_locked"],
             },
         ],

@@ -94,9 +94,9 @@ reductions whose own text needs the card played normally through an action
 as the payer has it: an ally pays its last life and burns, its attempt or
 effect then failing — a block attempt so paid fails, a combat it is in ends
 (41.4, 42.2, 60.13, ANK 20180928-1) — and a Methuselah pays their last pool
-and is ousted (38.5, 33.2, 36.3, 58.4, 71.2). For an ally's last life paid
-as its own action's cost, LSJ 20080512 and advanced rules §5.5.3 have the
-action still resolve — open (§23, K7). A payment the payer does not
+and is ousted (38.5, 33.2, 36.3, 58.4, 71.2). An ally's last life paid as
+its own action's cost leaves the action resolving in full, then it burns
+(LSJ 20080512, advanced rules §5.5.3; 88.3). A payment the payer does not
 have is not offered. The one exception on record: burning one's last pool
 to cancel True Love's Face is not offered (18.2).
 
@@ -186,9 +186,10 @@ minion is not offered (48.7, §22).
 
 **D15. Stealth and intercept only when needed.** Gaining stealth is legal
 only while a block attempt is pending with intercept ≥ stealth; intercept
-only while stealth exceeds it; surplus plays are illegal (3.2). Advanced
-rules §3.2.1 reads need as a threshold, not a cap (once needed, a play may
-give more): open (§23, K23). Exceptions are the card's words ("even if …
+only while stealth exceeds it; a play once it is no longer needed is
+illegal (3.2). Need is a threshold, not a cap: once needed, a play may give
+more than needed (advanced rules §3.2.1, Angelica, LSJ 20010111; 88.7).
+Exceptions are the card's words ("even if …
 not yet needed") and standing bonuses of cards in play (Loup, a Repulsion
 on the vampire) (3.2, 51.7). Reducing the opposing value is legal even to
 no effect (on zero or negative stealth, LSJ 20021211, 48.1), within its own
@@ -332,8 +333,9 @@ below rely on these and do not repeat them.
   the action's own "if successful" clause beside the lost effect (Tye
   Cooper's ash card, 78.38).
 - **Failed**: ended unsuccessfully by an effect at or before resolution
-  (Archon Investigation, Spying Mission [OBF], Obedience, Yawp Court's
-  combat; 56.1, 56.2, 54.1). A political action whose referendum fails is
+  (Archon Investigation, Spying Mission [OBF], Obedience; 56.1, 56.2,
+  88.10). Ended by Yawp Court's combat: successful with no effect, as a
+  fizzle, nothing more played (88.1). A political action whose referendum fails is
   successful (§13): the failure is the referendum's.
 - **Canceled**: an action card canceled as it is played is no action (no
   Waiting Game counter, 71.10, ANK 20210124); an action canceled as
@@ -347,8 +349,9 @@ below rely on these and do not repeat them.
   an action (Freak Drive playable) but triggers nothing keyed to a
   successful bleed. A referendum "succeeds" when it passes (58.14).
 - Every action has an after-resolution window, blocked or failed included,
-  except one canceled before resolution or ended as failed by a combat at
-  Yawp Court (23.3, 5.8, 54.1, 64.4). §10.
+  except one canceled before resolution (23.3, 5.8, 64.4); one ended
+  (Change of Target, Yawp Court's combat) plays nothing there, its
+  Daring the Dawn damage still taken (23.3, 88.1). §10.
 
 ### 3.3 A bleed; "a bleed against your prey"
 
@@ -928,7 +931,9 @@ simultaneous effects, §2.5 duration). The engine's window primitives are in
   LSJ 20090205). §10.1.
 - **After resolution**: every action has one, blocked, failed or ended
   included (23.3, 5.8; exceptions §3.2); for a political action after the
-  referendum; after a diablerie, after the blood hunt (5.8). §10.4.
+  referendum; after a diablerie, after the blood hunt (5.8), the cards keyed
+  to the diablerie before it (Slake the Thirst, Taking the Skin: Minion;
+  68.2, 88.4). §10.4.
 - **After combat**: opens once, after the last combat arising from the
   block — "after block resolution" plays (Cats' Guidance [ani], Forced
   Vigilance [for]) are after-combat plays, after all combats of the action
@@ -955,11 +960,12 @@ simultaneous effects, §2.5 duration). The engine's window primitives are in
 
 - A mandatory effect resolves before its controller passes the impulse;
   its controller orders it among their other effects of the step (6.1,
-  advanced rules §1.1.2, §2.4). Unlock-phase dues (Anarch Revolt's burn,
-  contest upkeep, Gnaeus Aemilius Augustinus, Contagion's pool, Web of
+  advanced rules §1.1.2, §2.4). Unlock-phase dues (contest upkeep, Gnaeus Aemilius Augustinus, Contagion's pool, Web of
   Knives Recruit's counter) are ordered freely by the active Methuselah with their other unlock
-  effects (6.1, 7.8, 41.11, 62.19, 69.6); the condition is read as the effect
-  resolves (6.1).
+  effects (6.1, 7.8, 41.11, 62.19, 69.6), the condition read as the effect
+  resolves (6.1). Anarch Revolt's burn is not among them: its ready Anarch
+  is read as the phase ends, the burn resolving as the active Methuselah
+  passes (LSJ 20080106; 88.5).
 - Other phases likewise: Frontal Assault's influence-phase burn (28.9), The
   Uncoiling's (40.5), Dragonbound's (57.5) discard-phase burns, Brujah
   Debate's master-phase lock (33.1, 60.22), Puppet Master's "during your
@@ -1015,9 +1021,7 @@ simultaneous effects, §2.5 duration). The engine's window primitives are in
 
 ### Open or contested
 
-- 54.1 vs 23.3: an action Yawp Court's combat ends is "a failed action, with
-  no after-resolution window", while 23.3 gives a failed action one (ANK
-  20221205); read 54.1 as the narrower, card-specific word (§23).
+- None: 54.1 vs 23.3 settled by 88.1 (§23, K5).
 
 ## 6. Turn and phases
 
@@ -1563,7 +1567,8 @@ actions), §3.9 (mandatory actions), §3.10 (changing the acting minion).
 - Ordering: 17.2. A mandatory action holds the minion phase until taken;
   other actions wait (Elen Kamjian's bleed while she controls a locked
   minion — any minion, torpor included — and has not bled this turn; with
-  0 blood the rulebook hunt takes over; once she bled she declares no
+  0 blood the rulebook hunt takes over, her bleed owed still if she
+  unlocks after it with blood (88.6); once she bled she declares no
   action but may block and react) (17.1).
 - Must hunt: a new vampire of Childe of the Revolution must hunt, even with
   blood, at once when that is its only option (28.1); a card hunt
@@ -1625,9 +1630,10 @@ Advanced rules §3.2 (stealth and intercept), §3.3 (blocking).
 ### 9.2 Only when needed
 
 - Gaining stealth is legal only while a block attempt is pending with
-  intercept ≥ stealth; intercept only while stealth exceeds it; surplus
-  plays are illegal; no pre-emptive stealth without an attempt (3.2, 1.6,
-  advanced rules §3.2.1). It applies to cards, printed abilities and
+  intercept ≥ stealth; intercept only while stealth exceeds it; a play
+  once it is no longer needed is illegal, but once needed a play may give
+  more (a threshold, not a cap: 88.7); no pre-emptive stealth without an
+  attempt (3.2, 1.6, advanced rules §3.2.1). It applies to cards, printed abilities and
   in-play abilities alike: Abraham DuSable, Daria (lock while the acting
   Nosferatu — anyone's — needs stealth), Oskar Anasov, Gwenllian Arwyn
   (15.2); Saatet-ta (44.3); Maila, once each of her Methuselah's turns
@@ -1665,7 +1671,7 @@ Advanced rules §3.2 (stealth and intercept), §3.3 (blocking).
   with this equipment may burn it": an ally bearing it cannot (77.19,
   corrected).
 - Corpse Minion: as often as paid (TOM 19960109), X burned 1 at a time while
-  the intercept is needed — no surplus (K23 not opened) (80.13).
+  the intercept is needed (80.13): need a threshold, not a cap (88.7).
 
 ### 9.3 Values
 
@@ -1790,7 +1796,9 @@ Advanced rules §3.2 (stealth and intercept), §3.3 (blocking).
   blocks are declined, by the vampire the action is to enter combat with;
   the action ends failed at resolution (NRA holds, LSJ 20070709); not
   against a combat Hedonism queues, a reacting minion's (The Guardian) or
-  the after-resolution window's (56.2).
+  the after-resolution window's (56.2). Before the combat Psyche! queues
+  with an unlocked older vampire, between the combats (LSJ 19991025; 88.10);
+  Promise of 1528 likewise (88.11).
 - Mental Maze: "Followers of Set" is the Ministry, the reacting vampire's
   clan; the acting minion stays locked (no unlock printed, unlike
   Obedience); [OBF]'s blocker is as it was before the block (71.11).
@@ -1838,14 +1846,17 @@ Vocabulary: §3.2.
 - A bleed whose target is ousted before it resolves (by the cost of
   canceling Spying Mission, LSJ 20050607): the oust is handled first (its
   predator paid), then the bleed fizzles — no pool, no Edge,
-  after-resolution cards apply (24.1).
+  after-resolution cards apply (24.1); the oust's decision point (Life
+  Boon) comes first, and saved, the target is bled as normal (45.4,
+  88.2).
 - Yawp Court is used in the political action's would-be-successful window
   (blocks declined, before it resolves): the action card's cost is paid
   first (LSJ 20080201), then the location and the Sabbat vampire lock and
   the combat begins, the acting vampire first; "still ready at the end of
   combat" is read as the combat ends — before a Rötschreck's torpor (LSJ
   20080821), not after a torpor left at once (LSJ 20090325-1); the action
-  ending there is a failed action, with no after-resolution window (54.1).
+  ending there reached resolution: successful with no effect, NRA, nothing
+  more played, Daring the Dawn's damage taken (54.1, 88.1).
 - Major Boon: 68.13 (§5.2).
 
 ### 10.2 Resolution and fizzle
@@ -2186,9 +2197,9 @@ torpor actions, diablerie). Referendums: §13.
   minion cards move with it; [DOM]'s move is offered at resolution only if
   the acting vampire has the 2 blood (31.5).
 - Dominate Kine [DOM] stealing Living Manse: the new controller chooses
-  the new host as the action resolves among their ready minions able to
-  hold it (the requirement not rechecked); burned if none can (31.4, 39.4,
-  LSJ 19990928).
+  the new host as the action resolves among their minions able to hold it,
+  a torpid one too (the requirement not rechecked); burned if none can
+  (31.4, RTR 19960112; 88.9).
 - Taking control of minions: §17.2.
 - Vivienne Géroux's steal: only by a vampire of another Methuselah (80.31).
 
@@ -2247,7 +2258,8 @@ torpor actions, diablerie). Referendums: §13.
   (38.6); a regent's (52.6); Tupdog (62.14); Renegade Garou (+1 stealth at
   another Methuselah's minion, 63.8); Herald of Topheth (62.33); The Red
   List (67.5); Ossian's at any vampire, any Methuselah's (64.6).
-- Reginald Moore: 58.6. Obedience against a rush's combat: 55.7, 56.2.
+- Reginald Moore: 58.6. Obedience against a rush's combat: 55.7, 56.2;
+  against Psyche!'s next one: 88.10.
 - Coagulated Entity: the blood moved as the action resolves, before the
   combat; any chosen Blood Brother unable (no blood, gone) and the action is
   canceled: no combat; the +X capacity lasts until the action ends, the
@@ -3233,8 +3245,8 @@ retainers, traits, titles, trait changes).
   skin when the vampire burns a minion by its action or in combat (LSJ
   20090922), not a referendum's or a side effect's burn (RTR 19960124, ANK
   20220916); one skin a minion; its extra bleed past the once-a-turn cap
-  (1.4), any bleed; burned in its controller's discard phase; its play
-  before a diablerie's blood hunt (RTR 19991206) waits on K15 (78.39).
+  (1.4), any bleed; burned in its controller's discard phase; on a
+  diablerie, before its blood hunt, not after (RTR 19991206; 78.39, 88.4).
 
 ### 14.4 Blood, capacity
 
@@ -3590,7 +3602,7 @@ readings (vampires, allies, library cards) no mechanism section states.
 - Winterlich: no changeling ally in the pool, his text inert (DESIGN §11.3)
   (77.32).
 - Read as printed, by the default readings and their KRCG rulings: Aimery,
-  Alex Camille (threshold, open K23), Bulscu (an action at another's
+  Alex Camille (a threshold, 88.7), Bulscu (an action at another's
   equipment or location is directed, D12), Carna (torpor too), Claudio
   Severino, Dan Murdock, Dr. Julius Sutphen (Mithras G6's toll), Gold Pan
   Dan (once each turn after combat), Karif al Numair (any Methuselah's,
@@ -3658,9 +3670,9 @@ cards), §1.10 (burn and removal), §6.3 (control of a card in play).
   (46.3); an unaddressed bonus reaches anyone's minions (49.5).
 - Locquipment (Living Manse) is a location in play: not stealable as
   equipment nor taken by the equip action, but stealable by cards that steal
-  locations (17.4); moved in an ambiguous fashion, it goes on any ready
-  minion of the new controller able to hold it; none: burned (39.4, LSJ
-  19990928; 31.4).
+  locations (17.4); moved in an ambiguous fashion, it goes on any minion
+  of the new controller able to hold it, a torpid one too; none: burned
+  (RTR 19960112; 39.4, 31.4, 88.9).
 - Carfax Abbey: 7.4. Gurchon Hall: "the two oldest ready vampires you
   control" — oldest by capacity; a tie for either place its controller's
   pick; one already fed by a hunting ground this turn gains nothing and
@@ -3898,8 +3910,8 @@ minions), §6.3 (of a card in play), §6.4 (leaving and re-entering play).
 ### 17.3 Taking control of cards in play
 
 - Requirements are not checked (17.4, 31.4; advanced rules §6.3.1); the
-  card's placement: a locquipment on a ready minion of the new controller
-  able to hold it, else burned (31.4, 39.4); equipment changes host,
+  card's placement: a locquipment on a minion of the new controller able
+  to hold it, a torpid one too, else burned (31.4, 39.4, 88.9); equipment changes host,
   controller follows, owner stays (17.4).
 - Disputed Territory's location (39.4), Dominate Kine [DOM] (31.4),
   Confiscation (51.3), Fast Hands (70.11).
@@ -4016,8 +4028,9 @@ Advanced rules §1.9 (replacement), §6.8 (hand, draw and discard).
   before (40.4). The Meddling of Semsith: "does not replace cards during any
   Methuselah's minion phase" — the replacements are held and drawn as that
   minion phase ends (or the turn ends early), counting against the hand size
-  meanwhile (ANK 20180318); the card leaving play mid-phase does not release
-  them before the phase's end (70.4).
+  meanwhile (ANK 20180318); the card leaving play mid-phase (burned, or its
+  player ousted: LSJ 20021008) releases them at once, unless another copy
+  still holds them (70.4, 88.8).
 - Replacement order around searches and draws: Black Market Cache replaced
   before its search (12.4); Victor Donaldson offered once the canceled card is
   replaced (59.12); Fleshforge Chamber (37.1); Pack Alpha's retainer replaced
@@ -4275,21 +4288,22 @@ rules-qa batch.
   combat ends a failed action "with no after-resolution window") vs 64.4
   (The Kiss of Ra's canceled action has none, consistent with ANK
   20220411). Digest: 23.3 the rule, 64.4 the exception for actions canceled
-  before resolution, 54.1 card-specific — **open**: is Yawp Court's an action
-  that ends rather than fails?
+  before resolution, 54.1 card-specific — settled by 88.1 (owner,
+  2026-10-22): it ends having reached resolution (successful, no effect;
+  NRA; Daring the Dawn's damage), nothing more played.
 - **K6** 45.4 (the oust waits; the effect that ran the pool out goes on as
   if the Methuselah were still seated) vs 24.1 (a bleed whose target is
   ousted before it resolves: the oust first, then the bleed fizzles) and
   advanced rules §1.7.1, §6.5.2 ("handle the oust before the canceled
   card"). 24.1 is an oust by another effect mid-action (a cancel cost), 45.4
-  the effect that drained the pool — **open** whether 24.1 still holds under
-  Life Boon's decision point.
+  the effect that drained the pool — settled by 88.2: the decision point first,
+  then 24.1's oust before the bleed.
 - **K7** Default readings' "an ally pays its last life … its attempt/effect
   then fails" (41.4, 42.2) may be too broad: an ally's last life paid for its own
   action's cost leaves the action resolving (LSJ 20080512, Rotting
   Behemoth); spent on a modifier the action fails, on a strike the combat
-  ends first (ANK 20180928-1; advanced rules §5.5.3, §6.5.2). D3 keeps
-  rules-qa's wording and flags the action-cost case — **open**.
+  ends first (ANK 20180928-1; advanced rules §5.5.3, §6.5.2). Settled by
+  88.3: the action resolves, then the ally burns (D3).
 - **K8** Default readings' "choices are made at declaration … only a random
   or searched result is known at resolution" is overstated: choices inside
   the effect or worded on success are made at resolution (advanced rules
@@ -4333,13 +4347,15 @@ rules-qa batch.
 - **K15** Diablerie: 5.8 (the after-resolution window after the blood hunt)
   vs advanced rules §2.3.4, §3.7.8.1 (ANK 20201228: after-resolution effects
   fit between the diablerie and the blood hunt); 68.2 gives Slake the
-  Thirst a window there — **open** whether Freak Drive-type cards may be
-  played before the blood hunt.
+  Thirst a window there; settled by 88.4 (owner, 2026-10-22):
+  only the cards keyed to the diablerie there (Slake the Thirst, Taking the
+  Skin: Minion), Freak Drive after the hunt (5.8 kept).
 - **K16** Anarch Revolt's burn condition: 6.1 (read when the effect
   resolves, ordered freely) vs LSJ 20080106 and advanced rules §5.2.2
   (checked at the end of the unlock phase, even if the Methuselah had a
   ready Anarch earlier). 6.1 lets the burn resolve early while an Anarch is
-  present — **open**.
+  present — settled by 88.5: read as the phase ends, the burn
+  resolving as the active Methuselah passes.
 - **K17** Withdrawing a block attempt: 48.3 (owner, 2026-10-03: change of
   blocker, the attempt under way failing) and 30.1 (Dawn Operation's
   canceled attempt withdrawn, the vampire may attempt again) vs advanced
@@ -4354,8 +4370,8 @@ rules-qa batch.
   hunt, must bleed — is stuck; its footnote's LSJ 20001127 is, in the
   ledger, a Rötschreck ruling: the reference is unverified). The ledger's
   ANK 20211009-2 on Elen: another bleed (Flurry of Action) does not
-  discharge her forced bleed; having bled already she is stuck (as 17.1) —
-  **open** for the 0-blood case.
+  discharge her forced bleed; having bled already she is stuck (as 17.1) — settled by 88.6: her text's "unless she must hunt", the
+  hunt; the bleed owed after it.
 - **K19** Grants to a class of minions read live (19.3, 39.5, 69.2) vs
   advanced rules §2.5.2, which reads only the members in play as the effect
   resolves (Annabelle Triabell, citing LSJ 20030811, not in the ledger); the
@@ -4374,8 +4390,9 @@ rules-qa batch.
   §1.7.5 (pay what you can, the effect fails: Sword of Nuln) — the card's
   wording ("burns 5 blood or is burned") decides.
 - **K23** 3.2's "surplus plays are illegal" vs advanced rules §3.2.1 (need is
-  a threshold, not a cap: once needed, a play may give more, Angelica). D15
-  and §9.2 follow 3.2 — **open**.
+  a threshold, not a cap: once needed, a play may give more, Angelica). Settled
+  by 88.7: a threshold; 3.2's surplus is a play no longer needed (D15,
+  §9.2).
 - **K24** 1.3's "anyone may play reactions with an unlocked/awoken minion"
   vs the rulebook and advanced rules §2.1.2 (other Methuselahs' minions);
   52.2's "by another as a reaction" is another Methuselah's; Touch of
@@ -4386,11 +4403,11 @@ rules-qa batch.
   aggravated too) — likely the cards' wording; unverified.
 - **K26** The Meddling of Semsith leaving play: 70.4 (replacements not
   released before the phase's end) vs LSJ 20021008 and advanced rules §6.5.3
-  (its effect ends when its player is ousted, the cards drawn at once) — the
-  oust case is **open**.
+  (its effect ends when its player is ousted, the cards drawn at once) — settled
+  by 88.8 (owner, 2026-10-22): drawn at once, oust or burn.
 - **K27** Where a moved locquipment goes: 31.4, 39.4 (a ready minion of the
   new controller) vs RTR 19960112 and advanced rules §6.3.2 (any minion,
-  burned only if there is none) — **open** (torpid minions).
+  burned only if there is none) — settled by 88.9 (owner, 2026-10-22): any minion, a torpid one too.
 - **K28** A gun's maneuver commits the strike (10.1, 64.10, 71.5; advanced
   rules §4.3.1) vs advanced rules §4.10.1 ("never commits … may still strike
   with that gun"): the advanced rules contradict themselves; rules-qa
@@ -4404,7 +4421,9 @@ rules-qa batch.
   reason ("no V5 card queues a combat with the acting vampire after a
   combat") no longer holds: Hedonism queues one after the block's combat,
   its vampire the acting side (53.3), and Psyche! queues the same two
-  minions again (65.1) — **open**.
+  minions again (65.1) — settled by 88.10: offered before Psyche!'s combat
+  (not Hedonism's: its vampire is not the acting one); Promise of 1528
+  alike (88.11).
 - **K30** The prisci block: ANK 20180307-1 (vote reductions do not touch
   the prisci block's votes) is `n/a` on the Fee Stake rows ("no Priscus in
   V5") and on Free States Rant ("no Priscus sub-referendum"), against 52.9's
@@ -4505,15 +4524,10 @@ read, for the owner to confirm or correct:
 
 ### 24.2 Questions for a new rules-qa batch
 
-From §23: K5 (Yawp Court's after-resolution window), K6 (24.1 under the
-oust's decision point), K7 (an ally's last life as its action's cost), K11
-(the "during" template, for the advanced rules),
-K14 (Anathema), K15 (after-resolution plays before a diablerie's blood
-hunt), K16 (Anarch Revolt's condition), K18 (Elen Kamjian), K19 (live
-grants), K26 (The Meddling of Semsith ousted), K27 (locquipment on a torpid
-minion), K29 (Obedience vs a queued combat), K30 (the prisci block's 3
-votes), K31 (vote floors), K35 (stealing from oneself), K23 (surplus
-stealth or intercept), K37 (the burn option's clauses). Also from the
+From §23: K11 (the "during" template, for the advanced rules), K14
+(Anathema), K19 (live grants), K30 (the prisci block's 3 votes), K31 (vote
+floors), K35 (stealing from oneself), K37 (the burn option's clauses).
+Also from the
 ledger, not yet a reading anywhere:
 
 - The Fury's block (60.21) against later plays: the `blocked:untested` rows
@@ -4615,7 +4629,7 @@ an owner ruling:
 Every rules-qa item, by batch, with the digest sections citing it: the
 section stating it and those cross-referring to it (§2 the default
 readings, §22 engine modeling, §23 the contradictions, §24 the open
-readings). 896 items, Batches 1–87 (44.11 was removed, replaced by Batch
+readings). 907 items, Batches 1–88 (44.11 was removed, replaced by Batch
 45). The index is derived from the citations: a bare `N.M` cites rules-qa
 item N.M in the section it appears in. A new rules-qa item gets its line in
 the section stating it, then its entry here: `python3
@@ -4676,8 +4690,8 @@ index or an item cited nowhere.
 - **23** — 23.1 §3.2,§9.6,§10.3; 23.2 §3.16,§8.5,§11.6; 23.3
   §3.2,§5.2,§5.3,§5.5,§10.4,§23.2; 23.4 §7.3; 23.5 §2,§4.3,§11.1; 23.6
   §7.3,§8.4
-- **24** — 24.1 §10.1,§21.1,§21.3,§23.2,§24.2; 24.2 §5.2,§10.1; 24.3
-  §3.3,§10.1; 24.4 §3.2,§10.4,§11.1,§21.3; 24.5 §2,§3.4,§9.2
+- **24** — 24.1 §10.1,§21.1,§21.3,§23.2; 24.2 §5.2,§10.1; 24.3 §3.3,§10.1;
+  24.4 §3.2,§10.4,§11.1,§21.3; 24.5 §2,§3.4,§9.2
 - **25** — 25.1 §3.9,§14.6,§14.11,§21.1; 25.2 §4.5,§12.2,§12.7; 25.3
   §4.5,§9.2; 25.4 §14.11; 25.5 §2,§4.1,§9.2,§14.1,§14.11,§23.2; 25.6
   §2,§4.5,§11.1,§23.2
@@ -4720,7 +4734,7 @@ index or an item cited nowhere.
   §2,§3.9,§3.12,§7.3,§12.13,§16.3,§16.4; 38.5 §2,§7.3,§11.3,§19.4; 38.6
   §2,§3.5,§8.6,§11.8,§13.1; 38.7 §2,§3.7,§7.1; 38.8 §2,§4.2,§12.8,§23.2
 - **39** — 39.1 §13.1; 39.2 §13.1; 39.3 §13.1; 39.4
-  §11.5,§13.1,§16.1,§17.3,§18.2,§23.2,§23.3; 39.5 §2,§4.3,§11.1,§14.5,§23.3
+  §13.1,§16.1,§17.3,§18.2,§23.2,§23.3; 39.5 §2,§4.3,§11.1,§14.5,§23.3
 - **40** — 40.1 §2,§6.5,§20; 40.2 §3.1,§6.3,§11.2,§20,§23.3; 40.3 §14.1,§20;
   40.4 §19.1,§20; 40.5 §2,§5.3,§6.5,§20; 40.6 §11.6,§20; 40.7
   §14.4,§16.7,§20; 40.8 §14.2,§20; 40.9 §12.7,§12.12,§20; 40.10
@@ -4742,8 +4756,8 @@ index or an item cited nowhere.
   44.4 §3.7,§11.4,§14.5,§14.7; 44.5 §3.5,§4.2,§6.4,§14.10; 44.6 §9.3,§11.7;
   44.7 §12.2,§16.1,§22; 44.8 §12.5; 44.9 §12.4,§12.6,§12.10; 44.10 §2,§18.1
 - **45** — 45.1 §5.4,§21.1; 45.2 §21.1; 45.3 §2,§3.14,§6.2,§21.1; 45.4
-  §12.1,§21.1,§23.2; 45.5 §21.2,§23.5; 45.6 §6.1,§21.2; 45.7 §21.2; 45.8
-  §21.1
+  §10.1,§12.1,§21.1,§23.2; 45.5 §21.2,§23.5; 45.6 §6.1,§21.2; 45.7 §21.2;
+  45.8 §21.1
 - **46** — 46.1 §2,§7.1,§7.2,§13.3; 46.2 §8.6,§13.2; 46.3 §13.2,§16.1; 46.4
   §2,§16.5,§23.2
 - **47** — 47.1 §2,§16.5,§23.2; 47.2 §2,§12.9,§12.15,§23.2,§23.3
@@ -4765,9 +4779,9 @@ index or an item cited nowhere.
 - **53** — 53.1 §9.5,§21.1; 53.2 §3.14,§9.1,§14.5; 53.3 §12.1,§12.12,§23.4;
   53.4 §5.5,§19.3; 53.5 §11.1,§16.5,§22; 53.6 §3.2,§5.3,§11.1; 53.7
   §2,§4.1,§16.4; 53.8 §3.1,§11.2
-- **54** — 54.1 §3.2,§5.2,§5.5,§10.1,§13.1,§16.1,§23.2; 54.2 §6.1,§16.7;
-  54.3 §12.12,§16.5; 54.4 §2,§8.3; 54.5 §4.3,§6.5; 54.6 §12.3; 54.7 §12.12;
-  54.8 §4.6,§5.5,§12.15,§19.3
+- **54** — 54.1 §5.2,§5.5,§10.1,§13.1,§16.1,§23.2; 54.2 §6.1,§16.7; 54.3
+  §12.12,§16.5; 54.4 §2,§8.3; 54.5 §4.3,§6.5; 54.6 §12.3; 54.7 §12.12; 54.8
+  §4.6,§5.5,§12.15,§19.3
 - **55** — 55.1 §12.5,§12.7,§12.11; 55.2 §12.12; 55.3 §2,§3.14,§8.3; 55.4
   §8.3; 55.5 §10.4; 55.6 §14.3,§22; 55.7 §9.6,§11.8; 55.8 §12.5
 - **56** — 56.1 §3.2,§10.3,§12.12; 56.2 §3.2,§9.6,§11.8,§23.4
@@ -4927,3 +4941,7 @@ index or an item cited nowhere.
   87.35 §14.12; 87.36 §14.12; 87.37 §14.12; 87.38 §14.12; 87.39 §14.12;
   87.40 §14.12; 87.41 §14.12,§24.1; 87.42 §12.3,§14.12,§24.1; 87.43
   §14.12,§24.1
+- **88** — 88.1 §3.2,§5.5,§10.1,§23.2; 88.2 §10.1,§23.2; 88.3 §2,§23.2; 88.4
+  §5.2,§14.3,§23.3; 88.5 §5.3,§23.3; 88.6 §8.7,§23.3; 88.7
+  §2,§9.2,§15.2,§23.3; 88.8 §19.1,§23.3; 88.9 §11.5,§16.1,§17.3,§23.3; 88.10
+  §3.2,§9.6,§11.8,§23.4; 88.11 §9.6,§23.4

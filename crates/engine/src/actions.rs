@@ -86,6 +86,45 @@ pub enum ActionState {
     /// A diablerie made (by `.0` on `.1`), before its blood hunt: the cards
     /// played on its blood (Slake the Thirst [SAN], ANK 20201228).
     AfterDiablerie(MinionId, MinionId),
+    /// Psyche!'s combat about to begin between the acting minion and its
+    /// opponent (`ActionCtx::psyche_next`): Obedience, Promise of 1528 (LSJ
+    /// 19991025).
+    QueuedCombat,
+}
+
+/// The combat Psyche! [CEL] queued: its minions and the ended combat's
+/// routing flags.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct PsycheNext {
+    pub pair: [MinionId; 2],
+    pub at_resolution: bool,
+    pub after_resolution: bool,
+    pub queued: bool,
+    pub yawp: Option<MinionId>,
+}
+
+impl ActionCtx {
+    /// The minion `m` is about to enter combat with in the combat Psyche!
+    /// queued (`ActionState::QueuedCombat`).
+    pub fn queued_opponent(&self, m: MinionId) -> Option<MinionId> {
+        let (n, _) = self
+            .psyche_next
+            .filter(|_| self.state == ActionState::QueuedCombat)?;
+        match n.pair {
+            [x, y] if x == m => Some(y),
+            [x, y] if y == m => Some(x),
+            _ => None,
+        }
+    }
+
+    /// `m` is about to enter combat with the acting minion: the combat the
+    /// resolution begins, blocks declined, or the one Psyche! queued.
+    pub fn about_to_fight(&self, st: &crate::state::GameState, m: MinionId) -> bool {
+        match self.state {
+            ActionState::Declined => !self.failed && self.combat_target(st) == Some(m),
+            _ => self.queued_opponent(m) == Some(self.acting),
+        }
+    }
 }
 
 /// A bonus for the rest of the action whose condition is read live on a
@@ -318,6 +357,9 @@ pub struct ActionCtx {
     /// minion), begun after block resolution or the action's effects, lost
     /// if the action ends first (advanced rules 4.9.3; rules-qa 53.3).
     pub queued_combat: Option<(MinionId, MinionId)>,
+    /// Psyche!'s combat waiting on Obedience's window (`QueuedCombat`),
+    /// with the action's step to restore before it begins.
+    pub psyche_next: Option<(PsycheNext, ActionState)>,
     /// Riders on the queued combat's combatants (Fast Reaction).
     pub queued_riders: Vec<(MinionId, cards::BlockRider)>,
     /// Forward Momentum's counter after the bleed (+1 successful, -1 not),
@@ -1129,7 +1171,7 @@ impl ActionCtx {
         self.fresh_window();
     }
 
-    fn fresh_window(&mut self) {
+    pub(crate) fn fresh_window(&mut self) {
         self.window = OrderedWindow::new(self.order.clone());
     }
 
@@ -2663,6 +2705,7 @@ impl Engine {
             ActionState::AfterCombat => vec![Window::ActionAfterCombat],
             ActionState::AfterResolution => vec![Window::ActionAfterResolution],
             ActionState::AfterDiablerie(..) => vec![Window::ActionAfterDiablerie],
+            ActionState::QueuedCombat => vec![Window::ActionQueuedCombat],
             // Continued as if unblocked (Crypt's Sons): no combat to react
             // to (ANK 20210131).
             ActionState::Blocked(_) if a.continued => vec![],
@@ -2840,7 +2883,7 @@ impl Engine {
             ActionState::Open | ActionState::Attempt(_) => WindowLabel::ActionBlock,
             ActionState::Declined => WindowLabel::ActionBlocksDeclined,
             ActionState::WouldSucceed => WindowLabel::ActionWouldBeSuccessful,
-            ActionState::AfterCombat => WindowLabel::ActionAfterCombat,
+            ActionState::AfterCombat | ActionState::QueuedCombat => WindowLabel::ActionAfterCombat,
             ActionState::AfterResolution | ActionState::AfterDiablerie(..) => {
                 WindowLabel::ActionAfterResolution
             }
@@ -3108,12 +3151,7 @@ impl Engine {
             }
             // Obedience against the resolution's combat: failed, no combat
             // (rules-qa 55.7, 56.2); NRA holds (LSJ 20070709).
-            ActionState::Declined if a.ended_early => {
-                a.outcome = Some(Outcome::Failed);
-                let (acting, kind) = (a.acting, a.kind);
-                self.mark_resolved(acting, kind);
-                self.after_resolution();
-            }
+            ActionState::Declined if a.ended_early => self.resolved_as(Outcome::Failed),
             ActionState::Declined | ActionState::WouldSucceed => {
                 // A bleed for 1 or more, or a political action before its
                 // referendum (Yawp Court: "if a political action is
@@ -3133,10 +3171,7 @@ impl Engine {
                     // Failed at resolution (Archon Investigation, Spying
                     // Mission [OBF]): it reached resolution, so NRA holds
                     // (ANK 20211015, RTR 20180719).
-                    a.outcome = Some(Outcome::Failed);
-                    let (acting, kind) = (a.acting, a.kind);
-                    self.mark_resolved(acting, kind);
-                    self.after_resolution();
+                    self.resolved_as(Outcome::Failed);
                 } else {
                     let source = self.action.as_ref().expect("action").cause_source();
                     self.caused(Cause::Effect(source), Self::succeed);
@@ -3156,10 +3191,7 @@ impl Engine {
                 } else if a.failed && a.blocked_by.is_empty() {
                     // Champion's combat: the action failed, not blocked (LSJ
                     // 20070219); it reached resolution (NRA).
-                    a.outcome = Some(Outcome::Failed);
-                    let (acting, kind) = (a.acting, a.kind);
-                    self.mark_resolved(acting, kind);
-                    self.after_resolution();
+                    self.resolved_as(Outcome::Failed);
                 } else {
                     a.outcome = Some(Outcome::Blocked);
                     self.after_resolution();
@@ -3176,6 +3208,20 @@ impl Engine {
             ActionState::AfterResolution => self.end_action(),
             ActionState::AfterDiablerie(diablerist, victim) => {
                 self.end_action_into_blood_hunt(diablerist, victim);
+            }
+            ActionState::QueuedCombat => {
+                let (next, resume) = a.psyche_next.take().expect("Psyche!'s combat");
+                a.state = resume;
+                if !a.ended_early {
+                    self.begin_psyche_combat(next);
+                } else if a.blocked_by.is_empty() {
+                    // Obedience against a rush's: failed, NRA (LSJ 20070709).
+                    self.resolved_as(Outcome::Failed);
+                } else {
+                    // Ended after a block (Promise of 1528): blocked.
+                    a.outcome = Some(Outcome::Blocked);
+                    self.after_resolution();
+                }
             }
             // Change of Target: failed before block resolution, no combat
             // nor diablerie (LSJ 20050105-2), the blocker not locked (LSJ
@@ -3454,9 +3500,14 @@ impl Engine {
         let Some(a) = self.action.as_mut() else {
             return;
         };
+        // The action ends (LSJ 20060902) having reached resolution, its
+        // cost paid (LSJ 20080201): successful with no effect, NRA, nothing
+        // more played (RTR 20180719), a queued combat lost (LSJ 20090826),
+        // Daring the Dawn's damage still taken (rules-qa 88.1).
         if !ready_at_end || !self.state.minions[acting.index()].ready() {
-            a.outcome = Some(Outcome::Failed);
-            self.end_action();
+            a.ended_early = true;
+            a.queued_combat = None;
+            self.resolved_as(Outcome::Fizzled);
             return;
         }
         self.resume_after_queued_combat();
@@ -4142,7 +4193,6 @@ impl Engine {
     /// when the action ended.
     fn announced_at_target_riders(&mut self) -> bool {
         let a = self.action.as_ref().expect("action context");
-        let (kind, acting) = (a.kind, a.acting);
         let Some(target) = a.directed_minion() else {
             return false;
         };
@@ -4160,9 +4210,7 @@ impl Engine {
                 // acting minion locked and the action counted for NRA
                 // (rules-qa 16.6).
                 Effect::CoinFlipActionFails if self.rng.below(2) == 0 => {
-                    self.action.as_mut().expect("action context").outcome = Some(Outcome::Failed);
-                    self.mark_resolved(acting, kind);
-                    self.after_resolution();
+                    self.resolved_as(Outcome::Failed);
                     return true;
                 }
                 Effect::CoinFlipActionFails => {}
@@ -4170,6 +4218,16 @@ impl Engine {
             }
         }
         false
+    }
+
+    /// The action ended having reached resolution (failed, or Yawp Court's
+    /// fizzle): its outcome, its NRA mark, its after-resolution window.
+    fn resolved_as(&mut self, outcome: Outcome) {
+        let a = self.action.as_mut().expect("action context");
+        a.outcome = Some(outcome);
+        let (acting, kind) = (a.acting, a.kind);
+        self.mark_resolved(acting, kind);
+        self.after_resolution();
     }
 
     /// The action reached resolution: the rulebook's once-a-turn bleed and

@@ -1412,8 +1412,9 @@ impl Engine {
     }
 
     /// The unlock-phase effects window (rules-qa 3.7, 6.1, 7.8): the active
-    /// Methuselah's mandatory effects in their chosen order (each copy of
-    /// Anarch Revolt, whoever controls it, spec §1.15), then the others'.
+    /// Methuselah's mandatory effects in their chosen order (each copy of a
+    /// card in play, whoever controls it, spec §1.15), those read as the
+    /// phase ends as they pass (88.5), then the others'.
     pub(crate) fn start_unlock_effects(&mut self) {
         self.state.unlock_phase = true;
         let s = self.state.active;
@@ -1435,6 +1436,7 @@ impl Engine {
         let mut riders: Vec<CardId> = self
             .fired_riders(Hook::UnlockPhase, &HookAt::of(s))
             .into_iter()
+            .chain(self.fired_riders(Hook::UnlockPhaseEnd, &HookAt::of(s)))
             .map(|(id, _)| id)
             .collect();
         riders.dedup();
@@ -1995,6 +1997,21 @@ impl Engine {
         self.state
             .layers
             .retain(|l| l.scope == crate::cards::Scope::Action || l.source != id);
+        self.release_unmeddled();
+    }
+
+    /// The Meddling of Semsith gone mid-phase (burned, or removed with its
+    /// ousted player: LSJ 20021008), its effect ends: the replacements it
+    /// held are drawn at once (rules-qa 88.8), unless another copy still
+    /// holds them.
+    fn release_unmeddled(&mut self) {
+        for i in 0..self.state.seats.len() {
+            let s = SeatId(i as u8);
+            let seat = &self.state.seats[i];
+            if seat.held[Release::MinionPhaseEnd] > 0 && !seat.ousted && !self.state.meddled(s) {
+                self.replace_held(s, Release::MinionPhaseEnd, 0, None);
+            }
+        }
     }
 
     /// Absimiliard's Army `id` leaving play (burned, or removed with its
@@ -2043,6 +2060,7 @@ impl Engine {
         self.state
             .layers
             .retain(|l| l.scope == crate::cards::Scope::Action || l.source != id);
+        self.release_unmeddled();
     }
 
     /// The active Methuselah passed out of a phase: the impulse goes round
@@ -2483,6 +2501,7 @@ impl Engine {
         for &s in seats {
             self.caused(oust, |e| e.remove_seat(s));
         }
+        self.release_unmeddled();
         // "Do not replace until a Methuselah is ousted" (Absimiliard's Army).
         self.release_held(Release::MethuselahOusted);
         // "After a Methuselah is ousted, burn this card."

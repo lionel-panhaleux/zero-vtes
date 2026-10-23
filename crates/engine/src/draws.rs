@@ -2486,10 +2486,9 @@ impl Engine {
                     MinionPurpose::BurnBloodOfClan(c) => {
                         v.ready() && v.clan() == Some(c) && v.blood > 0
                     }
-                    // "Any ready minion" (LSJ 19990928).
-                    MinionPurpose::HostCard(c) => {
-                        v.ready() && st.can_hold(*m, st.cards[c.index()].card, &[])
-                    }
+                    // Any minion, a torpid one too (RTR 19960112, rules-qa
+                    // 88.9).
+                    MinionPurpose::HostCard(c) => st.can_hold(*m, st.cards[c.index()].card, &[]),
                     MinionPurpose::Damage(_) => v.ready(),
                     MinionPurpose::DamageImbued { except, .. } => {
                         v.ready() && v.is_imbued() && *m != except
@@ -2900,7 +2899,7 @@ impl Engine {
 
     /// A location changing controller (Dominate Kine [DOM], Disputed
     /// Territory): one on a minion moves to a new controller's minion that
-    /// can hold it, else burns (LSJ 19990928; rules-qa 39.4).
+    /// can hold it, else burns (RTR 19960112; rules-qa 39.4, 88.9).
     pub(crate) fn give_location(&mut self, card: CardId, seat: SeatId) {
         self.give_card_control(card, seat);
         if self.state.cards[card.index()].host.is_none() {

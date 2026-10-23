@@ -659,6 +659,42 @@ fn obedience_ends_a_younger_vampires_action() {
     }
 }
 
+// [LSJ 19991025] Obedience "can be played by an unlocked older vampire to
+// avoid a new combat queued after a preceding combat, if the opponent is
+// still the acting vampire" (rules-qa 88.10): Lawbringer's rush, the older
+// target declining Obedience before the first combat; Psyche! [CEL] queues
+// a second; Obedience ends the action before it.
+#[test]
+fn obedience_avoids_the_combat_psyche_queues() {
+    let mut e = game(3);
+    let young = e.add_minion(SeatId(0), card("Lawbringer"), 3, false);
+    let slots = &mut e.state.minions[young.index()].beast_disciplines;
+    slots[slots.iter().position(Option::is_none).expect("a free slot")] = Some("CEL");
+    e.add_minion(SeatId(0), plain("Brujah", 0), 4, false);
+    let old = e.add_minion(SeatId(1), with("DOM", 8..=11), 6, false);
+    hand(&mut e, 0, &["Abuse of Power", "Psyche!"]);
+    hand(&mut e, 1, &["Obedience"]);
+    pick(
+        &mut e,
+        Choice::Play {
+            card: 0,
+            mode: 0,
+            actor: Some(young),
+            target: Target::Minion(old),
+        },
+    );
+    let req = offering(&mut e, play(0, 1, young));
+    assert!(e.combat().is_some(), "the first combat");
+    e.choose(index_of(&req, play(0, 1, young)));
+    let req = offering(&mut e, play(0, 2, old));
+    assert!(e.combat().is_none(), "between the combats");
+    e.choose(index_of(&req, play(0, 2, old)));
+    assert!(e.combat().is_none(), "no second combat");
+    until(&mut e, SeatId(0), WindowLabel::MinionPhase);
+    assert_eq!(e.last_outcome, Some(zvtes::actions::Outcome::Failed));
+    assert!(!e.state.minions[young.index()].locked, "[dom]: unlocked");
+}
+
 // Obedience against the combat the action itself begins (Abuse of Power's
 // "enter combat with a minion", by Lawbringer of the Path of Caine): played by the target once blocks are
 // declined, by an unlocked (or woken) vampire — a reaction (owner,

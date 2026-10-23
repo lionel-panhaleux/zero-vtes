@@ -885,6 +885,43 @@ fn meddling_survives_its_target_not_its_player() {
     assert!(!e.state.meddled(SeatId(1)));
 }
 
+// [LSJ 20021008] The Meddling of Semsith "is removed from play and its
+// effect cancelled if the Methuselah who played it is ousted" (rules-qa
+// 88.8, over 70.4's wait): the replacements it held are drawn at once, its
+// player ousted mid-phase or the card burned, the minion phase going on.
+#[test]
+fn meddling_gone_mid_phase_draws_the_held_replacements_at_once() {
+    for ousted in [false, true] {
+        let mut e = game(3);
+        e.add_minion(SeatId(0), plain("Brujah", 0), 4, false);
+        let y = e.add_minion(SeatId(1), anarch_with("pot", 0), 4, false);
+        e.add_minion(SeatId(1), plain("Ventrue", 0), 4, false);
+        e.add_minion(SeatId(2), plain("Brujah", 1), 4, true);
+        let m = meddling(&mut e, 2, 1);
+        if ousted {
+            e.state.seats[2].pool = 1;
+        }
+        hand(&mut e, 1, &["Power of One"]);
+        fill_hand(&mut e, 1);
+        e.state.seats[1].library = vec![find_library("Conceal"); 3].into();
+        to_minion_phase(&mut e, SeatId(1));
+        pick(&mut e, bleed(y));
+        pick_when(&mut e, play(0, 1, y));
+        until(&mut e, SeatId(1), WindowLabel::MinionPhase);
+        if ousted {
+            assert!(e.state.seats[2].ousted);
+        } else {
+            assert_eq!(e.state.seats[1].held[Release::MinionPhaseEnd], 1);
+            e.burn_card(m);
+            request(&mut e);
+        }
+        assert!(!e.state.cards[m.index()].present());
+        assert_eq!(e.state.seats[1].held[Release::MinionPhaseEnd], 0);
+        assert_eq!(e.state.seats[1].hand.len(), 7, "replaced at once");
+        assert!(e.state.in_minion_phase);
+    }
+}
+
 // Eat the Rich: "Requires an Anarch. Choose one or more Methuselahs.
 // Successful referendum means each chosen Methuselah burns 1 pool, plus 3
 // additional pool if they control a ready titled vampire. In this

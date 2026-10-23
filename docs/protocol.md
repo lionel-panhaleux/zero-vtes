@@ -701,7 +701,10 @@ past the block windows its engine skipped; one from before rules-qa 82.1 (protoc
 before 1.9.0), whose engine reopened the block window at the acting
 Methuselah after an attempt failed short of the stealth, reads past the
 passes it recorded there; the engines from 22cf131 to it, never
-deployed, left no record read). Kept two years, to train and
+deployed, left no record read; one from before rules-qa 88.5, whose
+engine ordered Anarch Revolt's burn among the unlock-phase riders,
+reads past the rider orders the engine no longer asks, a last one too as
+the game ends before it). Kept two years, to train and
 test the engine; anonymous.
 
 ## 12. Open sets

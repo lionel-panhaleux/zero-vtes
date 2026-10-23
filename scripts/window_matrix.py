@@ -1431,6 +1431,9 @@ MODIFIER_TIMING = [
     (r"when an? [^.]{0,60}? attempts to block", "ACTION_BLOCK_ATTEMPT"),
     # "… burns a minion … as a Ⓓ action" (Predator's Transformation [ABO]).
     (r"when this vampire burns a minion", "ACTION_AFTER_RESOLUTION"),
+    # … and a skin played on a diablerie, before its blood hunt (Taking
+    # the Skin: Minion, RTR 19991206).
+    (r"skin\. play when this vampire burns a minion", "ACTION_AFTER_DIABLERIE"),
     (r"if (this|the acting) minion is blocked", "ACTION_BLOCKED"),
     # "Only usable if this Anarch is blocked, before block resolution"
     # (Power of One [obt]); "Only usable when this vampire is blocked"
@@ -1500,6 +1503,8 @@ REACTION_TIMING = [
     # 2026-10-08: rules-qa 55.7).
     (r"about to enter combat with", "ACTION_BLOCKED"),
     (r"about to enter combat with", "ACTION_BLOCKS_DECLINED"),
+    # … or before a combat queued after a preceding one (LSJ 19991025).
+    (r"about to enter combat with", "ACTION_QUEUED_COMBAT"),
     # "Only usable if this vampire blocks an ally or younger vampire,
     # before block resolution" (Mental Maze): the block made.
     # "Only usable if this vampire blocks, before block resolution"

@@ -1646,6 +1646,55 @@ fn promise_of_1528_ends_a_camarilla_vampires_action() {
     assert_eq!(blood(&e, a), 5, "no combat");
 }
 
+// Promise of 1528 before the combat Psyche! [CEL] queues (rules-qa 88.11,
+// by LSJ 19991025): the Giovanni "about to enter combat with a Camarilla
+// vampire" again ends the action — the locked Giovanni blocker against the
+// Camarilla bleeder's Psyche!, or the acting Giovanni against the Camarilla
+// blocker after his own Psyche!. No second combat; the action blocked.
+#[test]
+fn promise_of_1528_ends_the_action_before_psyches_combat() {
+    for giovanni_acts in [false, true] {
+        let mut e = game(2);
+        let (cam, gio) = (
+            of_sect(zvtes::crypt::Sect::Camarilla, 4..=8),
+            of_clan("Giovanni", 4..=11),
+        );
+        let (first, second) = if giovanni_acts {
+            (gio, cam)
+        } else {
+            (cam, gio)
+        };
+        let a = e.add_minion(SeatId(0), first, 6, false);
+        superior(&mut e, a, "CEL");
+        e.add_minion(SeatId(0), plain("Brujah", 0), 4, false);
+        let z = e.add_minion(SeatId(1), second, 6, false);
+        let g = if giovanni_acts { a } else { z };
+        if giovanni_acts {
+            hand(&mut e, 0, &["Psyche!", "Promise of 1528"]);
+        } else {
+            hand(&mut e, 0, &["Psyche!"]);
+            hand(&mut e, 1, &["Promise of 1528"]);
+        }
+        pick(&mut e, bleed(a));
+        pick_when(&mut e, block(z));
+        let req = offering(&mut e, play(0, 1, a));
+        e.choose(index_of(&req, play(0, 1, a)));
+        let promise = if giovanni_acts {
+            play(0, 1, g)
+        } else {
+            play(0, 2, g)
+        };
+        let req = offering(&mut e, promise);
+        assert_eq!(req.window, WindowLabel::ActionAfterCombat);
+        assert!(e.combat().is_none(), "between the combats");
+        e.choose(index_of(&req, promise));
+        assert!(e.combat().is_none(), "no second combat");
+        until(&mut e, SeatId(0), WindowLabel::MinionPhase);
+        assert_eq!(e.last_outcome, Some(zvtes::actions::Outcome::Blocked));
+        assert_eq!(e.state.seats[1].pool, 10, "no bleed");
+    }
+}
+
 // Increased Strength [POT]: "For the remainder of combat, all damaging
 // strikes that require Potence made by this vampire inflict +2 damage": a
 // Potence strike card's damage, not the hand strike's.

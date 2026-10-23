@@ -991,6 +991,43 @@ fn life_boon_keeps_a_methuselah_in_the_game() {
     assert!(e.state.seats[2].out_of_turn.is_some());
 }
 
+// rules-qa 88.2: [LSJ 20050607] "If the cost of the cancellation ousts a
+// player, handle the oust before resolving the bleed" — the oust's own
+// decision point first (45.4): the prey's Direct Intervention on Spying
+// Mission [OBF] takes its last pool; Life Boon is offered before the bleed
+// resolves, and saved, the prey is bled as normal.
+#[test]
+fn life_boon_saves_a_cancel_cost_before_the_bleed_resolves() {
+    let mut e = Engine::bare(3);
+    e.state.turn = 4;
+    let a = e.add_minion(
+        SeatId(0),
+        vampire(|c| c.capacity >= 5 && c.disciplines.contains(&"OBF"), 0),
+        4,
+        false,
+    );
+    e.add_minion(SeatId(0), plain("Brujah", &[], 1), 4, false);
+    e.state.seats[1].pool = 1;
+    e.state.seats[2].pool = 10;
+    hand(&mut e, 0, &["Spying Mission"]);
+    hand(&mut e, 1, &["Direct Intervention"]);
+    hand(&mut e, 2, &["Life Boon"]);
+    pick(&mut e, bleed(a));
+    pick_when(&mut e, play_at(0, 1, Some(a), Target::None));
+    pick_when(&mut e, play_at(0, 0, None, Target::None));
+    let save = play_at(0, 0, None, Target::Seat(SeatId(1)));
+    let req = offering(&mut e, save);
+    assert_eq!(req.seat, SeatId(2));
+    assert_eq!(pool(&e, 1), 0, "the cost paid, the bleed not yet resolved");
+    assert!(!e.state.seats[0].has_edge);
+    pick(&mut e, save);
+    pick_when(&mut e, Choice::SetX(3));
+    until(&mut e, SeatId(0), WindowLabel::MinionPhase);
+    assert!(!e.state.seats[1].ousted);
+    assert_eq!(pool(&e, 1), 3 - 1, "bled as normal");
+    assert!(e.state.seats[0].has_edge);
+}
+
 // Declined: the oust applies — the predator scores and gains 6 pool.
 #[test]
 fn a_declined_life_boon_lets_the_oust_apply() {

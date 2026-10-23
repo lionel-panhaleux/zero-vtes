@@ -13155,28 +13155,31 @@ fn vast_wealth_takes_ravnos_cache_counters_for_its_find() {
         .any(|c| c.in_play && c.card == magnum && c.host == Some(t)));
 }
 
-// [LSJ 19990928] "Loquipment may be put on any ready minion if moved in an
-// ambiguous fashion (by Disputed Territory, e.g.). If the new controller
-// has no minions, the locquipment is burned." (owner, 2026-09-27: rules-qa
-// 39.4, Dominate Kine alike): given to a Methuselah whose only vampire is
-// in torpor, or stolen by one whose minions each hold a Living Manse
-// already, it is burned.
+// [RTR 19960112] Living Manse: "May be put on any minion if the controller
+// changes. If the new controller has no minions, it is burned." (rules-qa
+// 88.9, over 39.4's "any ready minion"): given to a Methuselah whose only
+// vampire is in torpor, it goes on that vampire; stolen by one whose
+// minions each hold a Living Manse already, it is burned.
 #[test]
-fn a_locquipment_with_no_ready_minion_to_hold_it_is_burned() {
+fn a_locquipment_goes_to_a_torpid_minion_and_burns_with_none_to_hold_it() {
     // Disputed Territory: seat 2's only vampire is in torpor.
     let mut e = Engine::bare(3);
     let a = e.add_minion(SeatId(0), plain("Ventrue", "", 0), 5, false);
     e.add_minion(SeatId(0), plain("Ventrue", "", 1), 5, false);
     let y = e.add_minion(SeatId(1), plain("Gangrel", "", 0), 5, false);
-    e.add_minion(SeatId(2), plain("Brujah", "", 0), 2, true);
+    let torpid = e.add_minion(SeatId(2), plain("Brujah", "", 0), 2, true);
     let manse = equip(&mut e, "Living Manse", y);
     hand(&mut e, 0, &["Disputed Territory"]);
     pick(&mut e, play(0, 0, a));
     pick(&mut e, Choice::ChooseSeat(SeatId(2)));
     pass_referendum(&mut e, a);
     until(&mut e, SeatId(0), WindowLabel::MinionPhase);
-    assert!(!e.state.cards[manse.index()].in_play, "burned");
-    assert!(e.state.seats[1].ash.contains(&find_library("Living Manse")));
+    let card = &e.state.cards[manse.index()];
+    assert!(
+        card.in_play && card.host == Some(torpid),
+        "on the torpid vampire"
+    );
+    assert_eq!(e.state.card_controller(manse), SeatId(2));
     // Dominate Kine [DOM]: each of the thief's minions has one already.
     let mut e = Engine::bare(3);
     let tz = |n| vampire(|c| c.clan == "Tzimisce" && c.title == Title::None, n);
@@ -14706,9 +14709,10 @@ fn tension_in_the_ranks_counts_a_burned_ghoul_of_absimiliards_army_only() {
 
 // [LSJ 20080106] Anarch Revolt: "If a Methuselah controls no ready Anarch by
 // the end of the unlock phase, they must burn 1 pool, even if they had a
-// ready Anarch at some point during the unlock phase." Recalled to the
-// Founder, ordered first, burns the Methuselah's only Anarch (one of three
-// Toreador): Anarch Revolt then burns a pool.
+// ready Anarch at some point during the unlock phase." Anarch Revolt is
+// not ordered among the unlock effects (rules-qa 88.5): Recalled to the
+// Founder burns the Methuselah's only Anarch (one of three Toreador), and
+// the Revolt burns a pool as the phase ends.
 #[test]
 fn anarch_revolt_burns_after_the_only_anarch_left_during_the_unlock_phase() {
     let mut e = Engine::bare(3);
@@ -14718,13 +14722,13 @@ fn anarch_revolt_burns_after_the_only_anarch_left_during_the_unlock_phase() {
         e.add_minion(SeatId(0), camarilla_toreador(n), 3, false);
     }
     e.add_minion(SeatId(1), plain("Gangrel", "", 0), 4, false);
-    let recalled = event_in_play(&mut e, 1, "Recalled to the Founder", 0);
+    event_in_play(&mut e, 1, "Recalled to the Founder", 0);
     let revolt = location(&mut e, 1, "Anarch Revolt");
-    let req = until(&mut e, SeatId(0), WindowLabel::UnlockAbilities);
-    assert!(req
+    // Recalled to the Founder elides: the Revolt is not ordered with it.
+    let req = until(&mut e, SeatId(0), WindowLabel::ResolutionChoice);
+    assert!(!req
         .options
         .contains(&Choice::ResolveRider { card: revolt.0 }));
-    pick(&mut e, Choice::ResolveRider { card: recalled.0 });
     let p0 = pool(&e, 0);
     pick(&mut e, Choice::ChooseMinion(anarch));
     assert!(!e.state.minions[anarch.index()].in_play);

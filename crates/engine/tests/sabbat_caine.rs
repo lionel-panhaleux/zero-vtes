@@ -700,6 +700,49 @@ fn yawp_court_fights_a_political_actor_before_the_referendum() {
     assert_eq!(blood(&e, sabbat), 4 - 1, "no environmental damage");
 }
 
+// rules-qa 88.1: [LSJ 20060902] Yawp Court's combat leaves the acting
+// vampire in torpor: the action ends, having reached resolution (its cost
+// paid, LSJ 20080201). [ANK 20220331] Daring the Dawn's damage "is applied
+// if the action reaches resolution, even if it ends": its 2 aggravated
+// damage burns the empty, torpid vampire; without it, the vampire in
+// torpor has taken its political action (NRA).
+#[test]
+fn yawp_court_ends_the_action_after_resolution_daring_the_dawn_still_burns() {
+    let mut e = game(3);
+    let anarch = vampire(|c| {
+        c.sect == Some(Sect::Anarch)
+            && c.capacity >= 5
+            && c.title == Title::None
+            && c.disciplines.contains(&"for")
+    });
+    let actor = e.add_minion(SeatId(0), anarch, 2, false);
+    e.add_minion(SeatId(0), plain("Brujah", 0), 4, false);
+    let sabbat = e.add_minion(SeatId(1), card(PRZEMYSLAW), 4, false);
+    let court = in_play(&mut e, 1, "Yawp Court", None);
+    hand(&mut e, 0, &["Reckless Agitation", "Daring the Dawn"]);
+    pick(&mut e, play(0, 0, actor));
+    pick_when(&mut e, play(0, 0, actor));
+    pick_when(&mut e, use_at(court, 0, Some(sabbat), Target::None));
+    loop {
+        let req = request(&mut e);
+        assert!(e.referendum().is_none(), "no referendum");
+        if (req.seat, req.window) == (SeatId(0), WindowLabel::MinionPhase) {
+            break;
+        }
+        e.choose(fallback(&req));
+    }
+    assert!(!e.state.minions[actor.index()].in_play, "burned at dawn");
+
+    // Without Daring the Dawn: in torpor, its political action taken.
+    let (mut e, actor, sabbat, court) = yawp_table(2);
+    hand(&mut e, 0, &["Reckless Agitation"]);
+    pick(&mut e, play(0, 0, actor));
+    pick_when(&mut e, use_at(court, 0, Some(sabbat), Target::None));
+    until(&mut e, SeatId(0), WindowLabel::MinionPhase);
+    let v = &e.state.minions[actor.index()];
+    assert!(v.in_torpor && v.political_this_turn, "NRA");
+}
+
 // [ANK 20180910-1] [LSJ 20060903] Yawp Court: "The effect is applied after
 // cards that are played … 'when combat would end'": Hekla's Hunting the
 // Quarry [THA] starts a second round; the 2 damage comes after it.

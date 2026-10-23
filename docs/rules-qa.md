@@ -33,8 +33,9 @@ by the owner. Apply them to every new card; only a ruling overrides them.
   and "cannot play" bans apply. Only an effect that says *put in play* does not
   play the card. (36.5, 38.5, 40.10, 41.13)
 - **A cost may be paid even if paying burns or ousts the payer**, as long as
-  the payer has it: an ally pays its last life and burns (its attempt/effect
-  then fails), a Methuselah pays their last pool and is ousted. (38.5, 41.4)
+  the payer has it: an ally pays its last life and burns (its attempt or
+  modifier then fails; its own action's cost paid, the action resolves),
+  a Methuselah pays their last pool and is ousted. (38.5, 41.4, 88.3)
 - **Limits and caps read on the words they qualify**, no further: "not to exceed
   their starting life" caps allies only; "once each round" is one use for one
   strike or damaging effect. (38.8, 41.8)
@@ -67,39 +68,39 @@ by the owner. Apply them to every new card; only a ruling overrides them.
 
 - **Untimed abilities** — 7.7, 29.10, 15.2 (Kalinda)
 - **Legacy additions for TWDA decks** — 44.1–44.10, 57.1–57.10, 58.1–58.20, 59.1–59.19, 60.1–60.22, 62.2–62.31, 62.33, 63.1–63.17, 64.1–64.12, 65.1–65.3, 67.1–67.7, 68.1–68.17, 69.1–69.15, 70.1–70.22, 71.1–71.27, 74.1–74.13, 76.1–76.25, 77.1–77.35, 78.1–78.49, 78.54, 79.3, 80.1–80.45, 84.1–84.40, 85.1–85.34
-- **Ousts, Life Boon's decision point** — 45.1–45.8
+- **Ousts, Life Boon's decision point** — 45.1–45.8, 88.2
 - **Impulse, sequencing, windows** — 1.2, 1.3, 1.5, 2.1, 2.2, 2.3, 2.4, 3.7, 4.1, 5.3, 7.7, 7.8, 7.9, 23.3, 24.2, 26.5, 66.1
-- **Mandatory effects and their ordering** — 6.1, 6.4, 7.8, 7.9, 17.2, 27.1, 28.9, 32.10, 40.5
+- **Mandatory effects and their ordering** — 6.1, 6.4, 7.8, 7.9, 17.2, 27.1, 28.9, 32.10, 40.5, 88.5
 - **Periodicity ("during X" = once per X, once each …)** — 6.6, 7.4, 9.6, 10.4, 11.2, 15.1, 15.2, 16.1, 36.3, 36.4, 37.1, 38.8, 42.3, 42.9, 79.1–79.4
-- **No-repeat-action, "same action"** — 1.4, 6.2, 16.6, 23.2, 25.4, 32.1
-- **Action outcomes: fizzle, fail, success, after resolution** — 3.6, 5.8, 5.9, 17.1, 17.3, 17.4, 23.3, 24.1, 24.4, 26.1, 26.4, 28.7, 30.2, 30.3, 34.6, 42.6, 43.1, 55.3, 55.4, 55.5, 56.1, 58.1, 58.13, 73.3, 73.4, 77.13, 78.13, 78.38, 78.50
+- **No-repeat-action, "same action"** — 1.4, 6.2, 16.6, 23.2, 25.4, 32.1, 88.1
+- **Action outcomes: fizzle, fail, success, after resolution** — 3.6, 5.8, 5.9, 17.1, 17.3, 17.4, 23.3, 24.1, 24.4, 26.1, 26.4, 28.7, 30.2, 30.3, 34.6, 42.6, 43.1, 55.3, 55.4, 55.5, 56.1, 58.1, 58.13, 73.3, 73.4, 77.13, 78.13, 78.38, 78.50, 88.1, 88.2, 88.3
 - **Directed / undirected, targeting, choosing** — 6.8, 17.2, 17.4, 20.1, 24.5, 26.3, 27.2, 32.5, 33.3, 34.8, 35.1, 38.2, 38.6, 39.4, 42.1, 57.10, 75.1, 77.12, 77.26, 77.27, 78.30, 78.36, 78.52
 - **When choices are made (play vs resolution vs use)** — 3.5, 6.7, 22.2, 26.8, 28.5, 31.2, 31.3, 32.11, 32.12, 33.4, 38.1
 - **Bleeds** — 18.4, 23.5, 24.1–24.4, 25.6, 30.5, 31.2, 32.2, 32.4, 32.8, 33.9, 34.4, 34.5, 39.5, 42.3, 42.7, 53.6, 53.8, 57.1, 57.2, 61.2, 76.12
-- **Stealth, intercept, blocks** — 1.3, 1.6, 3.2, 3.4, 8.1, 9.6, 15.2, 23.1, 24.5, 25.3, 25.5, 27.3, 30.1, 30.3, 30.4, 23.6, 34.1, 34.2, 35.1, 42.4, 42.8, 48.1, 48.3, 48.5, 48.6, 49.5, 50.4, 52.8, 53.1, 53.2, 53.3, 55.7, 66.2, 72.1–72.4, 73.8, 76.17, 77.18, 77.19, 77.20, 78.20, 78.28, 78.37, 78.53, 82.1, 82.2
-- **Combat structure, strikes, maneuvers, presses** — 1.2, 4.1, 4.3, 4.4, 4.5, 10.1, 10.2, 10.4, 10.5, 14.1, 14.2, 19.5, 21.1, 22.1, 22.3, 26.2, 26.6, 26.7, 27.5, 29.7, 29.8, 29.9, 31.7, 33.6, 42.2, 47.2, 48.2, 48.4, 53.3, 54.4, 54.6, 54.7, 54.8, 55.1, 55.2, 55.8, 57.3, 57.4, 58.2, 58.17, 58.18, 59.2, 59.17, 60.11, 61.1, 62.1, 63.4, 63.6, 63.8, 75.1–75.3, 76.9, 76.10, 76.11, 77.9, 78.23, 78.32, 78.40
+- **Stealth, intercept, blocks** — 1.3, 1.6, 3.2, 3.4, 8.1, 9.6, 15.2, 23.1, 24.5, 25.3, 25.5, 27.3, 30.1, 30.3, 30.4, 23.6, 34.1, 34.2, 35.1, 42.4, 42.8, 48.1, 48.3, 48.5, 48.6, 49.5, 50.4, 52.8, 53.1, 53.2, 53.3, 55.7, 66.2, 72.1–72.4, 73.8, 76.17, 77.18, 77.19, 77.20, 78.20, 78.28, 78.37, 78.53, 82.1, 82.2, 88.7
+- **Combat structure, strikes, maneuvers, presses** — 1.2, 4.1, 4.3, 4.4, 4.5, 10.1, 10.2, 10.4, 10.5, 14.1, 14.2, 19.5, 21.1, 22.1, 22.3, 26.2, 26.6, 26.7, 27.5, 29.7, 29.8, 29.9, 31.7, 33.6, 42.2, 47.2, 48.2, 48.4, 53.3, 54.4, 54.6, 54.7, 54.8, 55.1, 55.2, 55.8, 57.3, 57.4, 58.2, 58.17, 58.18, 59.2, 59.17, 60.11, 61.1, 62.1, 63.4, 63.6, 63.8, 75.1–75.3, 76.9, 76.10, 76.11, 77.9, 78.23, 78.32, 78.40, 88.10, 88.11
 - **Frenzy cards** — 28.11, 29.5
 - **Damage, prevention, immunity** — 4.2, 10.3, 14.2, 21.3, 29.1, 29.2, 29.3, 29.4, 30.6, 38.3, 38.8, 40.9, 77.8, 77.21, 77.22, 77.23, 78.19, 78.33, 78.34, 78.38
-- **Rushes (entering combat as an action)** — 17.3, 26.1, 27.2, 27.5, 38.6, 52.6, 54.3, 54.4, 54.7, 55.7, 56.2, 58.6
+- **Rushes (entering combat as an action)** — 17.3, 26.1, 27.2, 27.5, 38.6, 52.6, 54.3, 54.4, 54.7, 55.7, 56.2, 58.6, 88.10, 88.11
 - **Referendums, votes, political actions** — 1.1, 3.5, 5.1–5.9, 6.2, 6.3, 15.2, 16.5, 19.3, 19.4, 32.9, 33.2, 35.4, 38.6, 39.1–39.4, 42.4, 49.1, 49.2, 50.5, 50.6, 51.1, 51.2, 51.5, 51.6, 51.8, 52.2, 52.3, 52.5, 52.7, 52.9, 52.10, 54.1, 58.8, 58.14, 58.15, 58.16, 59.7, 59.9, 59.18, 59.19, 60.2, 60.14, 60.16, 71.25, 73.4, 76.5, 76.6, 76.14, 76.15, 77.5, 77.14, 77.15, 77.25, 77.26
 - **Titles** — 3.1, 13.2, 19.1, 19.2, 19.6, 32.9, 49.4, 52.5, 52.6, 52.9, 58.3, 58.11, 59.13, 59.14, 60.1, 76.1–76.4, 77.1, 77.2, 78.1, 78.7, 78.16
 - **Contests, uniqueness** — 3.1, 7.1, 7.3, 7.5, 8.2, 11.2, 12.3, 19.1, 36.3, 38.7, 39.4, 40.1, 57.9, 58.5, 58.19, 59.13, 60.1, 60.9, 60.20, 76.2, 76.3, 85.32
-- **Control, steals, ousts, removal from game** — 6.9, 7.5, 17.4, 25.1, 27.3, 27.4, 27.7, 28.13, 31.4, 31.5, 31.6, 33.5, 33.7, 38.4, 39.4, 42.7, 55.4, 55.6
+- **Control, steals, ousts, removal from game** — 6.9, 7.5, 17.4, 25.1, 27.3, 27.4, 27.7, 28.13, 31.4, 31.5, 31.6, 33.5, 33.7, 38.4, 39.4, 42.7, 55.4, 55.6, 88.9
 - **Costs and reductions** — 3.6, 5.9, 9.3, 18.1, 18.2, 23.4, 29.6, 27.6, 36.1–36.5, 38.5, 42.1, 42.2, 42.5, 42.6, 54.1, 58.12, 59.5, 60.5, 60.7, 77.24, 78.3, 78.17, 78.21
-- **Replacement, draws, stored and held cards** — 5.5, 7.10, 8.2, 8.3, 8.4, 9.4, 9.5, 11.1–11.3, 12.1–12.5, 22.2, 37.1, 40.4, 53.4, 53.5, 73.1, 73.2, 77.35, 78.18, 78.26, 78.51
+- **Replacement, draws, stored and held cards** — 5.5, 7.10, 8.2, 8.3, 8.4, 9.4, 9.5, 11.1–11.3, 12.1–12.5, 22.2, 37.1, 40.4, 53.4, 53.5, 73.1, 73.2, 77.35, 78.18, 78.26, 78.51, 88.8
 - **Card destination (ash heap, limbo, lingering effects)** — 21.1, 22.1, 31.6, 46.4, 47.1
 - **Equipment and weapons** — 9.1–9.6, 10.1–10.5, 17.4, 18.3, 22.4, 29.7, 35.3, 38.4, 38.5, 38.7, 76.9, 76.10, 76.15, 76.16, 77.19, 77.29, 78.28, 78.42
-- **Allies, retainers, ghouls** — 22.2, 28.10, 29.2, 32.4, 32.11, 32.12, 32.13, 37.1, 40.10, 42.2, 42.9, 49.3, 50.6, 73.5, 73.6, 76.7, 76.8, 77.29
-- **Locations, hunting grounds, locquipment** — 6.5, 7.2, 7.4, 17.4, 28.2, 28.6, 31.4, 34.7, 39.4, 49.5, 50.4, 51.4, 52.7, 54.1, 57.7, 73.3, 73.6, 77.16
+- **Allies, retainers, ghouls** — 22.2, 28.10, 29.2, 32.4, 32.11, 32.12, 32.13, 37.1, 40.10, 42.2, 42.9, 49.3, 50.6, 73.5, 73.6, 76.7, 76.8, 77.29, 88.3
+- **Locations, hunting grounds, locquipment** — 6.5, 7.2, 7.4, 17.4, 28.2, 28.6, 31.4, 34.7, 39.4, 49.5, 50.4, 51.4, 52.7, 54.1, 57.7, 73.3, 73.6, 77.16, 88.9
 - **Blood, capacity, uncontrolled region, banishment** — 5.7, 7.6, 25.1, 27.7, 28.1, 28.3, 28.4, 32.6, 40.7, 73.5
-- **Torpor, rescue, diablerie, blood hunt** — 3.1, 3.6, 5.2, 5.8, 6.4, 16.2, 28.7, 38.2, 48.8, 81.1, 86.1
+- **Torpor, rescue, diablerie, blood hunt** — 3.1, 3.6, 5.2, 5.8, 6.4, 16.2, 28.7, 38.2, 48.8, 81.1, 86.1, 88.4
 - **Hunting** — 6.5, 7.7, 17.3, 28.1, 28.8, 32.13, 40.2, 53.8, 72.1–72.5, 77.30
 - **Master phase, master cards, out-of-turn** — 1.5, 3.3, 6.6, 7.5, 28.10, 32.3, 33.1, 33.8, 36.4, 49.6, 49.7, 50.1–50.3, 53.7, 57.8, 77.11, 77.27, 78.10, 78.48, 78.49
-- **Unlock phase, locking, stun** — 3.7, 6.1, 7.8, 16.5, 21.2, 25.5, 26.5, 31.1, 48.7, 54.2, 54.5, 58.4, 58.9, 59.3, 59.4, 60.6
+- **Unlock phase, locking, stun** — 3.7, 6.1, 7.8, 16.5, 21.2, 25.5, 26.5, 31.1, 48.7, 54.2, 54.5, 58.4, 58.9, 59.3, 59.4, 60.6, 88.5
 - **Discard phase, events** — 8.4, 15.2, 28.12, 33.8, 40.1–40.11, 54.5, 57.5, 57.6, 58.10
 - **Conditions read live; card-text defaults** — 4.3, 9.1, 13.2, 18.4, 19.3, 28.2, 28.6, 29.11, 32.4, 32.7, 39.5, 49.5, 49.7, 73.7, 77.6, 77.13
 - **Corruption counters, multi-Discipline cards** — 25.1–25.6, 34.3, 35.2, 38.4, 52.1, 77.28
-- **Printed vampire abilities** — 13.1, 13.2, 14.1, 14.2, 15.1, 15.2, 16.1–16.6, 17.1–17.4, 41.1–41.14, 49.2, 49.3, 52.4, 72.1, 72.2, 72.5, 73.5, 73.7, 79.2, 79.3
+- **Printed vampire abilities** — 13.1, 13.2, 14.1, 14.2, 15.1, 15.2, 16.1–16.6, 17.1–17.4, 41.1–41.14, 49.2, 49.3, 52.4, 72.1, 72.2, 72.5, 73.5, 73.7, 79.2, 79.3, 88.6
 - **Game end, VP, ousting** — 6.9, 18.2, 24.1, 33.2, 53.1, 58.20
 ## Batch 1 — sequencing, impulse, windows
 
@@ -136,7 +137,7 @@ by the owner. Apply them to every new card; only a ruling overrides them.
 
 **3.1** A contested vampire in torpor stays in torpor through the contest (face down, out of play: no rescue or diablerie target); if it wins it returns to torpor. Two vampires under one Methuselah do contest a title (the same-controller exemption covers cards only).
 
-**3.2** "Only when needed" is a legality rule (closes 1.6): stealth only while a block attempt is pending with intercept ≥ stealth; intercept only when stealth exceeds it; surplus plays are illegal; no pre-emptive stealth without a block attempt. Exceptions: card text "even if … not yet needed" (Form of the Cobra [PRO], Paths in Two Worlds, Form of Mist's continuation, Creepshow Casino; intercept: Organized Resistance, Second Tradition), and permanent bonuses rather than stealth added to the current action (Loup: Toreador get +1 stealth while in play — playable with no block attempt).
+**3.2** "Only when needed" is a legality rule (closes 1.6): stealth only while a block attempt is pending with intercept ≥ stealth; intercept only when stealth exceeds it; surplus plays are illegal; no pre-emptive stealth without a block attempt. Exceptions: card text "even if … not yet needed" (Form of the Cobra [PRO], Paths in Two Worlds, Form of Mist's continuation, Creepshow Casino; intercept: Organized Resistance, Second Tradition), and permanent bonuses rather than stealth added to the current action (Loup: Toreador get +1 stealth while in play — playable with no block attempt). Read by 88.7: need is a threshold, not a cap.
 
 **3.3** Out-of-turn masters (Archon Investigation, Sudden Reversal): count toward the player's next master phase. An out-of-turn trifle also consumes that next MPA and gives the extra MPA only when the player reaches their master phase. So a player can never play two out-of-turn cards between their turns.
 
@@ -182,7 +183,7 @@ by the owner. Apply them to every new card; only a ruling overrides them.
 
 ## Batch 6 — cards in play (riders, granted actions)
 
-**6.1** "During their unlock phase" mandatory effects (Anarch Revolt's burn) must resolve before the impulse passes to another player; the active Methuselah orders them before or after their other unlock-phase effects; the condition is read when the effect resolves.
+**6.1** "During their unlock phase" mandatory effects (Anarch Revolt's burn) must resolve before the impulse passes to another player; the active Methuselah orders them before or after their other unlock-phase effects; the condition is read when the effect resolves. Revised by 88.5: Anarch Revolt's condition is read as the phase ends.
 
 **6.2** A referendum/action granted by a card in play (Anarch Revolt): a political action in every respect — locks, blockable, the one-political-action-per-minion cap. Stealth is **not** implied: the default +1 stealth applies to political action *cards* only; a granted action has only the stealth its text prints (directed or not). NRA is keyed to the *copy* (1.4). No calling card, so no card vote for the caller. Delaying Tactics cancels it (nothing to return to hand). Its "same political action" ban uses the ordinary NRA identity (23.2): the card's name from hand, the copy for a card in play (another copy's referendum stays open, LSJ 20020201).
 
@@ -554,7 +555,7 @@ by the owner. Apply them to every new card; only a ruling overrides them.
 
 **31.3** Hunting the Beast [AUS]'s Salubri is chosen at the end of the combat (ANK 20240706 is Public Trust's, a different timing). "The opposing vampire is not ready" = in torpor or burned.
 
-**31.4** Dominate Kine [DOM] stealing Living Manse: the new controller chooses the new host as the action resolves, among their **ready** minions able to hold it (Tzimisce requirement not rechecked); burned if none can (revised by 39.4, LSJ 19990928).
+**31.4** Dominate Kine [DOM] stealing Living Manse: the new controller chooses the new host as the action resolves, among their **ready** minions able to hold it (Tzimisce requirement not rechecked); burned if none can (revised by 39.4, LSJ 19990928). Revised by 88.9: any minion, a torpid one too.
 
 **31.5** Graverobbing: the stolen vampire keeps its cards and blood; burned later, it goes to its owner's ash heap. Master cards on it stay their player's (7.5); minion cards on it move with it. [DOM]'s move is offered at resolution only if the acting vampire has the 2 blood.
 
@@ -680,7 +681,7 @@ by the owner. Apply them to every new card; only a ruling overrides them.
 
 **39.3** Archon's "choose a Camarilla vampire": any Methuselah's, in torpor included.
 
-**39.4** Disputed Territory: the location may be any Methuselah's; the chosen Methuselah may be the caller. A locquipment moved in an ambiguous fashion goes on any ready minion of the new controller able to hold it; none: burned (LSJ 19990928) — also for Dominate Kine [DOM] (31.4). A unique location with another copy in play is contested (out of play), so it cannot be chosen.
+**39.4** Disputed Territory: the location may be any Methuselah's; the chosen Methuselah may be the caller. A locquipment moved in an ambiguous fashion goes on any ready minion of the new controller able to hold it; none: burned (LSJ 19990928) — also for Dominate Kine [DOM] (31.4). A unique location with another copy in play is contested (out of play), so it cannot be chosen. Revised by 88.9: any minion, a torpid one too.
 
 **39.5** Raising the Portcullis: +1 bleed to every vampire you control (not allies), whoever it bleeds, read live as the prey's vampires enter/leave torpor.
 
@@ -944,7 +945,7 @@ Readings no ruling settles, implemented with the slice; answered by the owner on
 
 Readings no ruling settles, implemented with the slice; answered by the owner on 2026-10-08.
 
-**54.1** Yawp Court is used in the political action's would-be-successful window (its blocks declined, before it resolves); the action card's cost is paid first (LSJ 20080201), then the location and the Sabbat vampire lock and the combat begins, the acting vampire acting first. "Still ready at the end of combat" is read as the combat ends — before a Rötschreck's torpor (LSJ 20080821), not after a torpor left at once (LSJ 20090325-1); the action ending there is a failed action, with no after-resolution window. The would-be-successful window now exists for every political action (The Line and Ravnos Cache can be used there). Confirmed (owner, 2026-10-08).
+**54.1** Yawp Court is used in the political action's would-be-successful window (its blocks declined, before it resolves); the action card's cost is paid first (LSJ 20080201), then the location and the Sabbat vampire lock and the combat begins, the acting vampire acting first. "Still ready at the end of combat" is read as the combat ends — before a Rötschreck's torpor (LSJ 20080821), not after a torpor left at once (LSJ 20090325-1); the action ending there is a failed action, with no after-resolution window. The would-be-successful window now exists for every political action (The Line and Ravnos Cache can be used there). Confirmed (owner, 2026-10-08). Revised by 88.1: the action ends having reached resolution.
 
 **54.2** Augury of Doom's "if your prey controls no vampires in torpor … burn this card" is read in its controller's prey's unlock phase, instead of the burn; played while the prey has none, it waits for that phase. Confirmed (owner, 2026-10-08).
 
@@ -1394,7 +1395,7 @@ Slice 16u: the cards of the Lasombra, Toreador antitribu and Ravnos TWDA decks a
 
 **70.3** Chameleon: "who entered play since your last minion phase" — since the end of the player's previous minion phase: entries of their current minion phase count; X is the target's capacity, paid in blood; the target ready or in torpor. (Tests chameleon_steals_a_vampire_that_entered_not_one_that_merged, chameleon_makes_ones_own_vampire_anarch.)
 
-**70.4** The Meddling of Semsith: "does not replace cards during any Methuselah's minion phase" — the replacements are held and drawn as that minion phase ends (or the turn ends early), counting against the hand size meanwhile (ANK 20180318); the card leaving play mid-phase does not release them before the phase's end. (Tests meddling_holds_replacements_through_the_minion_phase, meddling_outlasts_a_cards_own_delay.)
+**70.4** The Meddling of Semsith: "does not replace cards during any Methuselah's minion phase" — the replacements are held and drawn as that minion phase ends (or the turn ends early), counting against the hand size meanwhile (ANK 20180318); the card leaving play mid-phase does not release them before the phase's end. (Tests meddling_holds_replacements_through_the_minion_phase, meddling_outlasts_a_cards_own_delay.) Revised by 88.8: the card gone, the held cards are drawn at once.
 
 **70.5** Camarilla Threat: each copy in play adds its pool; paid as the card is discarded, a last pool ousting its Methuselah. (Test camarilla_threat_charges_a_pool_per_discard.)
 
@@ -1682,7 +1683,7 @@ Sixty-nine cards, graded per the add-cards skill: eight blind second readers on 
 
 **77.32** Winterlich: no changeling ally in the pool: his text inert (DESIGN §11.3). Green.
 
-**77.33** The rest read as printed, settled by the default readings and their KRCG rulings: Aimery, Alex Camille (threshold, open K23), Bulscu (an action at another's equipment or location directed, D12), Carna (torpor too), Claudio Severino (Ayse Dhanial's discard), Dan Murdock (Sakhar's search), Dr. Julius Sutphen (Mithras G6's toll), Gold Pan Dan (once each turn after combat), Karif al Numair (any Methuselah's, toggled), Lazverinus, Martin Franckel (the bled Methuselah, read live), Mélusine d'Anjou (a younger vampire's pending attempt), Nehemiah (Heart of Nizchetus's moves; his [cel] modes only barred, LSJ 20050322-2), Paul Cordwood (stealth or intercept when needed), Recruitment Exercise, Spoils of War, Suhailah (read live), Taste of Death; the twelve whose text is their sect and title. Green. (Tests in twda_round14.rs, the_round_14_text_only_vampires_carry_their_printed_traits.)
+**77.33** The rest read as printed, settled by the default readings and their KRCG rulings: Aimery, Alex Camille (threshold, settled by 88.7), Bulscu (an action at another's equipment or location directed, D12), Carna (torpor too), Claudio Severino (Ayse Dhanial's discard), Dan Murdock (Sakhar's search), Dr. Julius Sutphen (Mithras G6's toll), Gold Pan Dan (once each turn after combat), Karif al Numair (any Methuselah's, toggled), Lazverinus, Martin Franckel (the bled Methuselah, read live), Mélusine d'Anjou (a younger vampire's pending attempt), Nehemiah (Heart of Nizchetus's moves; his [cel] modes only barred, LSJ 20050322-2), Paul Cordwood (stealth or intercept when needed), Recruitment Exercise, Spoils of War, Suhailah (read live), Taste of Death; the twelve whose text is their sect and title. Green. (Tests in twda_round14.rs, the_round_14_text_only_vampires_carry_their_printed_traits.)
 
 **77.34** My Kin Against the World and Abombwe: their Laibon clauses were left inert as if no Laibon were in the pool — Laibon came with earlier rounds. A Laibon acting vampire may choose younger Laibon of any clan (`Requirement::ActorAndTargetSect`); Abombwe goes on a Laibon or a vampire with Protean. Corrected (found on the way; 63.16's "no Laibon" amended). (Tests my_kin_against_the_world_unlocks_a_laibon_of_another_clan, abombwe_needs_protean_only_when_played.)
 
@@ -1768,7 +1769,7 @@ Fifty-six cards, graded per the add-cards skill: seven blind second readers on t
 
 **78.38** Tye Cooper: burns a minion in torpor of any Methuselah (D11); the ash card picked as the action succeeds (D1); immune to non-aggravated damage, none inflicted (LSJ 20010627). A fizzled burn (its target gone or rescued) is a success (rules-digest §3.2): the ash card still fetched. Red, corrected (owner: "it should give the card from the ash heap"; the design gave none). (Tests tye_cooper_burns_a_torpid_minion_and_fetches_from_the_ash_heap, tye_cooper_takes_no_normal_damage.)
 
-**78.39** Taking the Skin: Minion: the reflex cancels a frenzy card played on the vampire (still played, its cost paid: ANK 20190104, ANK 20260216); the skin when the vampire burns a minion by its action or in combat (LSJ 20090922), not a referendum's or a side effect's burn (RTR 19960124, ANK 20220916); one skin a minion; the extra bleed past the once-a-turn cap (1.4), any bleed; burned in its controller's discard phase. Its play before a diablerie's blood hunt (RTR 19991206) waits on K15 (ledger row blocked). Green. (Tests taking_the_skin_follows_a_burned_minion_with_a_bleed, taking_the_skin_ignores_a_war_ghouls_entry_burn, taking_the_skin_is_not_played_by_a_diablerist_the_hunt_burned.)
+**78.39** Taking the Skin: Minion: the reflex cancels a frenzy card played on the vampire (still played, its cost paid: ANK 20190104, ANK 20260216); the skin when the vampire burns a minion by its action or in combat (LSJ 20090922), not a referendum's or a side effect's burn (RTR 19960124, ANK 20220916); one skin a minion; the extra bleed past the once-a-turn cap (1.4), any bleed; burned in its controller's discard phase. Its play before a diablerie's blood hunt (RTR 19991206) waits on K15 (ledger row blocked). Green. (Tests taking_the_skin_follows_a_burned_minion_with_a_bleed, taking_the_skin_ignores_a_war_ghouls_entry_burn, taking_the_skin_is_not_played_by_a_diablerist_the_hunt_burned.) Revised by 88.4: on a diablerie, played before its blood hunt.
 
 **78.40** Pocket Out of Time: [obt]'s blood no cost (ANK 20210226); [TEM] after each combat of the action, the one just ended included, 1 blood for a new combat with the opposing minion, not with a combat queued (RTR 20020501) nor either not ready (ANK 20220429). Amber (the reads agree). (Tests pocket_out_of_time_starts_another_combat, pocket_out_of_time_needs_no_queued_combat_and_a_ready_opponent.)
 
@@ -1838,7 +1839,7 @@ Fifty-one cards (27 library, 24 crypt: 16 defined, 8 text-only), graded per the 
 
 **80.12** Len Konopka: +1 transfer when he is ready as his controller's influence phase begins, read then; none from torpor. Black Hand generated. Green. (Test len_konopka_gives_a_transfer_while_ready.)
 
-**80.13** Corpse Minion: its vampire burns blood for intercept as often as it pays in the action (TOM 19960109: no "during", 79.3). X is burned 1 at a time, each use only while the intercept is needed (3.2), so the surplus question (K23) is not opened. A ghoul is no mortal (ANK 20200203-2). Amber (a reader left the surplus open; the reads agree on the rest). (Test corpse_minion_buys_intercept_as_often_as_paid.)
+**80.13** Corpse Minion: its vampire burns blood for intercept as often as it pays in the action (TOM 19960109: no "during", 79.3). X is burned 1 at a time, each use only while the intercept is needed (3.2), so the surplus question (K23) is not opened. A ghoul is no mortal (ANK 20200203-2). Amber (a reader left the surplus open; the reads agree on the rest). (Test corpse_minion_buys_intercept_as_often_as_paid.) Settled by 88.7: need is a threshold, not a cap.
 
 **80.14** Death Seeker: cancels a combat card the opposing minion plays, as it is played; the canceled card's cost is not paid (LSJ 20061207, LSJ 20080630, ANK 20190104, LSJ 20030224). A canceled strike is chosen again (LSJ 20100206). One Death Seeker per vampire each round. Its play on an end-of-round card, counted in that round (ANK 20180910-2), is implemented but untested (ledger row blocked). Green. (Tests death_seeker_cancels_an_opposing_combat_card, death_seeker_cancels_a_strike_and_another_is_chosen.)
 
@@ -2166,3 +2167,29 @@ Thirty-seven cards (20 imbued, 14 powers, 3 convictions) and the rules of the ru
 **87.42** A gun's maneuver commits its strike (LSJ 20090528-2-2), and Strike with Conviction may still make that gun's strike at +1: a strike committed to a weapon is that weapon's strike however it is made, through a card or an ability using it ("same way they could use Target Vitals on the gun strike"). The committed strike's options are the weapon's own and every play or ability whose `WeaponStrikePlus` names it. Red, answered by the owner (2026-10-22): yes, the engine changed. (Tests strike_with_conviction_strikes_with_the_gun_its_maneuver_committed, strike_with_convictions_added_damage_is_the_weapons.)
 
 **87.43** Rejuvenate's "during your unlock phase, if this imbued has fewer life than his or her starting amount, he or she gains 1 life" works on an incapacitated imbued (0 life): it gains the life and stays incapacitated — life gained is not leaving the region, which only the appendix's rule does (3 conviction, +1 life). Red, answered by the owner (2026-10-22): "it gains life, it does not get them out of incapacitated", the engine changed (no `HostReady` on the rider). (Test rejuvenate_gives_life_to_an_incapacitated_imbued_left_there.)
+
+## Batch 88 — Open contradictions that change play (rules-digest §23: K5–K7, K15, K16, K18, K23, K26, K27, K29): readings graded (Claude, 2026-10-22; owner, 2026-10-22: 88.1, 88.8, 88.9 confirmed, 88.4 answered: 5.8 kept)
+
+Each contradiction read against the KRCG rulings, the advanced rules and the rulebook, graded per the add-cards skill: a blind second reader read the sources, its reads diffed against the code. Red: 88.1, 88.4, 88.8, 88.9 (each revising an owner item), answered by the owner (2026-10-22).
+
+**88.1** Yawp Court's combat leaving the acting vampire not ready: the action ends (LSJ 20060902) having reached resolution, its cost paid first (LSJ 20080201): successful with no effect, as a fizzle (56.1); NRA holds; nothing more is played (RTR 20180719); a queued combat is lost (LSJ 20090826); Daring the Dawn's damage is still taken (ANK 20220331, as 23.3's ended actions). Revises 54.1's "failed, with no after-resolution window". Red, confirmed by the owner (2026-10-22). (Test yawp_court_ends_the_action_after_resolution_daring_the_dawn_still_burns.)
+
+**88.2** A cost that runs a Methuselah's pool out mid-action (the bleed's target paying to cancel Spying Mission [OBF]): the oust's decision point comes first (45.4: Life Boon), before the bleed resolves (LSJ 20050607); saved, they are bled as normal; not saved, the oust, then the bleed fizzles (24.1). 24.1's oust is the one 45.4 lets wait: no conflict. Green. (Tests life_boon_saves_a_cancel_cost_before_the_bleed_resolves, spying_mission_canceled_lets_the_bleed_resolve_after_the_oust.)
+
+**88.3** An ally paying its last life: for its own action's cost, the action resolves in full, then it burns (LSJ 20080512: Rotting Behemoth's rush successful, no combat; Herald of Topheth), the oust it causes first (advanced rules §6.5.2); for an action modifier, it burns and the action fails (ANK 20180928-1); for a strike, combat ends before strike resolution; for a block toll, its attempt fails (41.4). Narrows the default reading's "its attempt/effect then fails". Green. (Tests rotting_behemoth_paying_its_last_life_for_its_rush_burns_without_combat, an_ally_paying_its_last_life_as_a_vampire_resolves_the_action_then_burns, spectral_servitor_paying_its_last_life_for_a_modifier_burns_and_the_action_fails, sergio_bueno_makes_corrupted_minions_burn_blood_or_life_to_block_him.)
+
+**88.4** Between a diablerie and its blood hunt only the cards keyed to the diablerie are played: Slake the Thirst (68.2) and Taking the Skin: Minion (RTR 19991206: "must be played before the Blood Hunt", so not after it); after-resolution cards (Freak Drive) wait for the after-resolution window after the blood hunt (5.8), over advanced rules §2.3.4 and §3.7.8.1. Red, answered by the owner (2026-10-22): 5.8 kept. (Tests taking_the_skin_on_a_diablerie_comes_before_the_blood_hunt, slake_the_thirst_after_a_diablerie.)
+
+**88.5** Anarch Revolt's ready Anarch is read as the unlock phase ends (LSJ 20080106; advanced rules §5.2.2): its burn is not ordered among the unlock-phase effects; it resolves as the active Methuselah passes, before the impulse passes (6.1, LSJ 20100723). Revises 6.1's "the condition is read when the effect resolves". Green (the card's ruling). (Tests anarch_revolt_burns_after_the_only_anarch_left_during_the_unlock_phase, anarch_revolt_burns_as_the_active_methuselah_passes_before_the_impulse_passes.)
+
+**88.6** Elen Kamjian with no blood: "unless she must hunt" — the rulebook hunt (17.1); unlocked after it, with blood, while you control a locked minion, her bleed is still owed (advanced rules §3.9.2: not yet discharged). Green. (Test elen_kamjian_hunts_instead_when_she_has_no_blood.)
+
+**88.7** "Only when needed" is a threshold, not a cap (rulebook "Stealth and intercept"; advanced rules §3.2.1; Angelica, LSJ 20010111): once stealth (or intercept) is needed, a play may give more than needed; a play once it is no longer needed is illegal — 3.2's "surplus plays". Green. (Tests stealth_only_when_needed, angelica_discards_masters_for_intercept.)
+
+**88.8** The Meddling of Semsith leaving play mid-phase — its player ousted (LSJ 20021008: "removed from play and its effect cancelled") or the card burned: the replacements it held are drawn at once, unless another copy still holds them. Revises 70.4's last clause. Red, confirmed by the owner (2026-10-22). (Test meddling_gone_mid_phase_draws_the_held_replacements_at_once.)
+
+**88.9** A locquipment changing controller goes on any minion of the new controller able to hold it, a torpid one too; burned only with none (RTR 19960112: Living Manse, Disputed Territory, Dominate Kine; advanced rules §6.3.2). Revises 31.4 and 39.4's "ready" (LSJ 19990928, not in the KRCG rulings). Red, confirmed by the owner (2026-10-22). (Test a_locquipment_goes_to_a_torpid_minion_and_burns_with_none_to_hold_it.)
+
+**88.10** Obedience before the combat Psyche! [CEL] queues: an unlocked older vampire about to fight the acting younger vampire again plays it between the combats (LSJ 19991025); the action ends with no second combat, failed, NRA holding (LSJ 20070709) — blocked if a block began the combats. Not against Hedonism's combat, whose vampire is not the acting one (56.2), nor Fast Reaction's, whose vampire locks first. Green (the card's ruling). (Test obedience_avoids_the_combat_psyche_queues.)
+
+**88.11** Promise of 1528 likewise: the Giovanni "about to enter combat with a Camarilla vampire" in Psyche!'s combat — the locked Giovanni blocker facing the Camarilla actor, or the acting Giovanni facing a Camarilla opponent — ends the action before it, blocked if a block began the combats (as Promise played on the block), failed otherwise. Amber: 88.10's ruling on the same template; both reads agree. (Test promise_of_1528_ends_the_action_before_psyches_combat.)

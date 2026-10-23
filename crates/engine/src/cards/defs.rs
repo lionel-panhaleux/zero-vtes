@@ -3581,10 +3581,10 @@ static BURN_THIS_CARD: ReferendumDef = ReferendumDef {
 
 /// "Put this card in play. A Methuselah not controlling a ready Anarch burns
 /// 1 pool during their unlock phase. Vampires can call a referendum to burn
-/// this card as a +1 stealth political action." The burn is a mandatory
-/// unlock-phase effect the active Methuselah orders among their own and
-/// resolves before passing the impulse (rules-qa 6.1; LSJ 20080106); copies
-/// burn cumulatively (LSJ 19980225). Any Methuselah's vampire may call the
+/// this card as a +1 stealth political action." The burn's ready Anarch is
+/// read as the unlock phase ends, resolved as the active Methuselah passes
+/// (LSJ 20080106, LSJ 20100723; rules-qa 88.5); copies burn cumulatively
+/// (LSJ 19980225). Any Methuselah's vampire may call the
 /// referendum: a political action (one per minion per turn, NRA per copy)
 /// whose +1 stealth is the card's own text, with no calling card to vote
 /// with (rules-qa 6.2).
@@ -3607,7 +3607,7 @@ pub static ANARCH_REVOLT: CardDef = CardDef {
         ],
     )],
     riders: &[Rider {
-        hook: Hook::UnlockPhase,
+        hook: Hook::UnlockPhaseEnd,
         scope: RiderScope::Every,
         requires: &[],
         effects: &[Effect::UnlockBurnPoolUnlessReady {
@@ -16429,8 +16429,10 @@ pub static MORBIDITY: CardDef = CardDef {
 /// not against a minion taking the acting vampire's place (ANK 20171212).
 /// As a block succeeds, or against the combat the action itself begins (a
 /// rush, Deep Song: ANK 20200702), blocks declined, by an unlocked or woken
-/// vampire, a reaction (rules-qa 55.7). Each version
-/// splits in two (`lines`).
+/// vampire, a reaction (rules-qa 55.7); against the combat Psyche! queues
+/// with an unlocked older vampire (LSJ 19991025; rules-qa 88.10), not
+/// Hedonism's, whose vampire is not the acting one. Each version splits in
+/// two (`lines`).
 pub static OBEDIENCE: CardDef = CardDef {
     name: "Obedience",
     lines: &[0, 1, 0, 1],
@@ -16448,13 +16450,13 @@ pub static OBEDIENCE: CardDef = CardDef {
             &[Effect::EndBlockedActionLocked],
         ),
         mode_of(
-            &[Window::ActionBlocksDeclined],
+            &[Window::ActionBlocksDeclined, Window::ActionQueuedCombat],
             Actor::ReactingMinion,
             &[Requirement::FoughtByYoungerActing],
             &[Effect::EndBlockedAction],
         ),
         mode_of(
-            &[Window::ActionBlocksDeclined],
+            &[Window::ActionBlocksDeclined, Window::ActionQueuedCombat],
             Actor::ReactingMinion,
             &[Requirement::FoughtByYoungerActing],
             &[Effect::EndBlockedActionLocked],
@@ -25923,7 +25925,7 @@ pub static TAKING_THE_SKIN_MINION: CardDef = CardDef {
         ModeDef {
             limit: Some(Limit::PerAction),
             ..mode_of(
-                &[Window::ActionAfterResolution],
+                &[Window::ActionAfterResolution, Window::ActionAfterDiablerie],
                 Actor::ActingMinion,
                 &[
                     Requirement::ActorBurnedMinion,
@@ -28027,8 +28029,9 @@ pub static PROVISION_OF_THE_SILSILA: CardDef = CardDef {
 /// locked Giovanni. End the action. (Do not lock this vampire if they are
 /// blocking.)" (Giovanni.) The action ends unsuccessfully at once, nothing
 /// more played (RTR 20180719, ANK 20200207), the acting vampire left
-/// locked; Obedience's moments for the combat (rules-qa 55.7), the acting
-/// Giovanni's own when blocked; never in a referendum passing
+/// locked; Obedience's moments for the combat (rules-qa 55.7) and before a
+/// combat Psyche! queued (88.11), the acting Giovanni's own when blocked or
+/// before such a combat; never in a referendum passing
 /// automatically (PIB 20150105: no polling step).
 pub static PROMISE_OF_1528: CardDef = CardDef {
     name: "Promise of 1528",
@@ -28044,13 +28047,13 @@ pub static PROMISE_OF_1528: CardDef = CardDef {
             &[Effect::EndBlockedActionLocked],
         ),
         mode_of(
-            &[Window::ActionBlocked],
+            &[Window::ActionBlocked, Window::ActionQueuedCombat],
             Actor::ActingMinion,
             &[Requirement::BlockedByVampireOfSect(Sect::Camarilla)],
             &[Effect::EndBlockedActionLocked],
         ),
         mode_of(
-            &[Window::ActionBlocksDeclined],
+            &[Window::ActionBlocksDeclined, Window::ActionQueuedCombat],
             Actor::ReactingMinion,
             &[
                 Requirement::MayBeLocked,

@@ -247,16 +247,16 @@ fn anarch_revolt_referendum_canceled_by_delaying_tactics() {
     let _ = anita;
 }
 
-// rules-qa 6.1: the active Methuselah orders the mandatory unlock-phase
-// effects among their own (two copies: either first, no Pass until both are
-// resolved), and resolves them before the impulse passes to other players'
-// unlock-phase abilities (seat 0's Homunculus sees the pool already burned).
-// Rulings: [LSJ 20100723].
+// rules-qa 6.1, 88.5: Anarch Revolt's burns are not ordered among the
+// unlock effects: they resolve as the active Methuselah passes (its ready
+// Anarch read as the phase ends, LSJ 20080106), before the impulse passes
+// to other players' unlock-phase abilities (seat 0's Homunculus sees the
+// pool already burned). Rulings: [LSJ 20100723].
 #[test]
-fn anarch_revolt_burn_is_ordered_by_the_active_methuselah_before_the_impulse_passes() {
+fn anarch_revolt_burns_as_the_active_methuselah_passes_before_the_impulse_passes() {
     let Table { mut e, alexa, .. } = table();
-    let first = revolt_in_play(&mut e, 0);
-    let second = revolt_in_play(&mut e, 2);
+    revolt_in_play(&mut e, 0);
+    revolt_in_play(&mut e, 2);
     e.state.cards.push(CardInPlay::new(
         find_library("Homunculus"),
         SeatId(0),
@@ -264,19 +264,10 @@ fn anarch_revolt_burn_is_ordered_by_the_active_methuselah_before_the_impulse_pas
         0,
     ));
     e.state.minions[alexa.index()].locked = true;
-    // Seat 0's own turn ends; seat 1 has a ready Anarch, so its two riders
-    // resolve to nothing (still ordered: two options, no Pass).
-    let req = to_unlock_abilities(&mut e, SeatId(1));
-    assert_eq!(
-        req.options,
-        vec![
-            Choice::ResolveRider { card: first },
-            Choice::ResolveRider { card: second }
-        ]
-    );
-    pick(&mut e, Choice::ResolveRider { card: second });
-    // The last one elides; then seat 0 may use Homunculus (Alexa locked).
-    let req = expect(&mut e, SeatId(0), WindowLabel::UnlockAbilities);
+    // Seat 1 has a ready Anarch: its lone Pass elides, both riders burning
+    // nothing; then seat 0 may use Homunculus (Alexa locked).
+    let req = to_unlock_abilities(&mut e, SeatId(0));
+    assert_eq!(e.state.active, SeatId(1));
     assert_eq!(pool(&e), vec![10, 10, 10]);
     assert_eq!(req.options.len(), 2);
     pick(&mut e, Choice::Pass);
@@ -284,9 +275,8 @@ fn anarch_revolt_burn_is_ordered_by_the_active_methuselah_before_the_impulse_pas
     // Seat 2's unlock phase: no Anarch; both burns are resolved before
     // seat 0's Homunculus window opens.
     e.state.minions[alexa.index()].locked = true;
-    let req = to_unlock_abilities(&mut e, SeatId(2));
-    pick(&mut e, req.options[0]);
-    expect(&mut e, SeatId(0), WindowLabel::UnlockAbilities);
+    to_unlock_abilities(&mut e, SeatId(0));
+    assert_eq!(e.state.active, SeatId(2));
     assert_eq!(pool(&e), vec![10, 10, 8]);
 }
 

@@ -663,9 +663,10 @@ engine masks), `cards/mod.rs` (the vocabulary: `Window`, `Actor`,
   unblocked) → block resolution → combat → after-combat → for a bleed of 1+,
   `ActionWouldBeSuccessful` → resolution → after-resolution.
 - **After resolution always opens** once an action reached resolution —
-  successful, fizzled, failed, blocked (after its combat), or ended before block
-  resolution (Change of Target, Mirror Walk; no card is played there). Only a
-  cancel before resolution or an acting minion leaving skips it (`action_windows`).
+  successful, fizzled, failed, blocked (after its combat), or ended (Change of
+  Target, Mirror Walk, Yawp Court's combat: `ActionCtx::ended_early`, no card
+  is played there; rules-qa 88.1). Only a cancel before resolution or an
+  acting minion leaving skips it (`action_windows`).
   Damage "after resolution" is ordered there by the acting Methuselah.
 - Resolution: costs paid then; targets re-read — gone or illegal → fizzle, paid
   (card actions) or successful with no effect (granted actions, spec §3.4.1). An
@@ -940,7 +941,11 @@ engine masks), `cards/mod.rs` (the vocabulary: `Window`, `Actor`,
   `end_combat` releases the after-combat held cards, drops the ended
   combat's after-combat effects and begins the new one with the same
   routing flags (`at_resolution`, `after_resolution`, `queued`, `yawp`),
-  no `held_at_block` (rules-qa 65.1).
+  no `held_at_block` (rules-qa 65.1; `begin_psyche_combat`). A new combat
+  with the action's acting minion waits first in
+  `ActionState::QueuedCombat` (`ActionCtx::psyche_next`), a window where
+  "about to enter combat with" reactions are played (Obedience, Promise of
+  1528: rules-qa 88.10, 88.11); elided when none can be.
 - Flames of Insurrection's offers come as a minion opposing an Anarch leaves
   the ready region, to both controllers when both Anarchs leave
   (`Engine::flames_offers`).
@@ -1228,8 +1233,8 @@ engine masks), `cards/mod.rs` (the vocabulary: `Window`, `Actor`,
   routes a minion card to its host's controller, a master card stays its
   player's (rules-qa 7.5), `Effect::StillYours` keeps a card its player's on
   another's minion. `Engine::give_card_control` / `give_location` (a location on
-  a minion moves onto a ready minion of the new controller that can hold it, else
-  burns). The Admonitions passes in its controller's discard phase, a due
+  a minion moves onto a minion of the new controller that can hold it, a torpid
+  one too, else burns: rules-qa 88.9). The Admonitions passes in its controller's discard phase, a due
   (`Effect::PassesToSect`: counter-clockwise, its controller last, else
   burned).
 - **Oust**: cards the Methuselah *controlled* are removed (not burned, nothing
@@ -1247,7 +1252,9 @@ engine masks), `cards/mod.rs` (the vocabulary: `Window`, `Actor`,
   Controller, Others, Prey}`): requirements read at collection and at
   resolution (`rider_fires` again as a chosen rider resolves; an unmet rider
   is not pending, its window elides); unlock riders are pending mandatory
-  effects ordered by their resolver (DESIGN §10.7); one burn per copy;
+  effects ordered by their resolver (DESIGN §10.7), but for one whose
+  condition is read as the phase ends (`Hook::UnlockPhaseEnd`: Anarch
+  Revolt's), resolved as its Methuselah passes (rules-qa 88.5); one burn per copy;
   `R::OneCopyPerTurn` drops the other copies once one resolves. An unlock
   rider paid unit by unit as it resolves (Smiling Jack: pool or a vampire's
   blood, per counter) runs through `Flow::RiderTerms`.
@@ -1418,7 +1425,8 @@ engine masks), `cards/mod.rs` (the vocabulary: `Window`, `Actor`,
   from the Capuchin burns a counter instead of drawing, the hand size
   shrinking with it. A hand-size increase only draws up
   (`draw_up`). The Meddling of Semsith holds replacements made during a
-  minion phase until it ends (`Release::MinionPhaseEnd`).
+  minion phase until it ends (`Release::MinionPhaseEnd`), or until it leaves
+  play (`release_unmeddled`, rules-qa 88.8).
 - Draw alternatives (`Hook::WouldDraw`): a choice per card drawn (rules-qa 9.4);
   beside Visit from the Capuchin a replacement is the Capuchin's counter or a
   stored card.

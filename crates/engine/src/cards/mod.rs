@@ -53,6 +53,9 @@ pub enum Window {
     /// After a diablerie, before its blood hunt (Slake the Thirst; ANK
     /// 20201228).
     ActionAfterDiablerie,
+    /// Before a combat Psyche! queued with the acting vampire (Obedience;
+    /// LSJ 19991025).
+    ActionQueuedCombat,
     ReactionDuringAction,
     ReactionUnlock,
     ReactionUnlockAttempt,
@@ -164,6 +167,7 @@ impl Window {
             "ACTION_AFTER_RESOLUTION" => ActionAfterResolution,
             "ACTION_AFTER_COMBAT" => ActionAfterCombat,
             "ACTION_AFTER_DIABLERIE" => ActionAfterDiablerie,
+            "ACTION_QUEUED_COMBAT" => ActionQueuedCombat,
             "REACTION_DURING_ACTION" => ReactionDuringAction,
             "REACTION_UNLOCK" => ReactionUnlock,
             "REACTION_UNLOCK_ATTEMPT" => ReactionUnlockAttempt,
@@ -1015,9 +1019,9 @@ pub enum Requirement {
     /// The acting minion is a vampire younger than the actor, which is
     /// about to enter combat with it as its blocker (Obedience).
     BlockingYoungerActing,
-    /// The action's resolution is about to enter combat with the actor, the
-    /// acting minion a younger vampire, blocks declined (Obedience; rules-qa
-    /// 55.7, 56.2).
+    /// The actor is about to enter combat with the acting minion, a
+    /// younger vampire: by the action's resolution, blocks declined, or in
+    /// the combat Psyche! queued (Obedience; rules-qa 55.7, 56.2, 88.10).
     FoughtByYoungerActing,
     /// The own minion in combat is another copy of the host (Gravebound
     /// Drone's prevention).
@@ -1075,7 +1079,8 @@ pub enum Requirement {
     /// (Predator's Transformation [abo] reflex; LSJ 20051113): engine-checked.
     PlayedFrenzyOnActor,
     /// The actor burned a minion, any Methuselah's, in this combat or by
-    /// this action (Taking the Skin: Minion).
+    /// this action, a diablerie's only before its blood hunt (Taking the
+    /// Skin: Minion, RTR 19991206).
     ActorBurnedMinion,
     /// The actor burned a minion of its controller's prey, in this combat
     /// or by this directed action (Predator's Transformation [ABO]; ANK
@@ -1903,8 +1908,9 @@ pub enum Requirement {
     /// The actor is chosen in the terms of the referendum under way
     /// (Promise of 1528).
     TermsChoseActor,
-    /// The actor is the acting minion, blocked by a vampire of this sect
-    /// (Promise of 1528 as an action modifier).
+    /// The actor is the acting minion, blocked by a vampire of this sect,
+    /// or about to fight one again in the combat Psyche! queued (Promise of
+    /// 1528 as an action modifier; rules-qa 88.11).
     BlockedByVampireOfSect(Sect),
     /// The actor, ready, fought the combat just ended against a minion now
     /// not ready that had a contract choosing it as it began (Provision of
@@ -5479,8 +5485,12 @@ pub enum Hook {
     NeighborVampireBurned,
     /// "During their unlock phase": ordered by the active Methuselah among
     /// their unlock effects (spec §2.4.4; rules-qa 6.1), its condition read
-    /// as it resolves (spec §5.2.2, Anarch Revolt).
+    /// as it resolves.
     UnlockPhase,
+    /// "During their unlock phase", its condition read as the phase ends:
+    /// resolved as the active Methuselah passes (Anarch Revolt; spec §5.2.2,
+    /// rules-qa 88.5).
+    UnlockPhaseEnd,
     /// Any non-Anarch vampire's action, as announced, a later-canceled one
     /// counted (Waiting Game; ANK 20210124).
     NonAnarchVampireActs,
@@ -6509,14 +6519,12 @@ pub fn holds(
         }),
         Requirement::ActingAllyOf(labels) => action.is_some_and(|a| st.ally_of(a.acting, labels)),
         Requirement::FoughtByYoungerActing => action.is_some_and(|a| {
-            a.state == ActionState::Declined
-                && !a.failed
-                && actor.is_some_and(|m| {
-                    a.combat_target(st) == Some(m)
-                        && st.minions[m.index()].is_vampire()
-                        && st.minions[a.acting.index()].is_vampire()
-                        && st.younger_than(a.acting, m)
-                })
+            actor.is_some_and(|m| {
+                a.about_to_fight(st, m)
+                    && st.minions[m.index()].is_vampire()
+                    && st.minions[a.acting.index()].is_vampire()
+                    && st.younger_than(a.acting, m)
+            })
         }),
         Requirement::BlockingActingOfSect(sect) => action.is_some_and(|a| {
             a.blocker.is_some()
@@ -6525,9 +6533,7 @@ pub fn holds(
                 && st.sect_of(a.acting) == Some(sect)
         }),
         Requirement::FoughtByActingOfSect(sect) => action.is_some_and(|a| {
-            a.state == ActionState::Declined
-                && !a.failed
-                && actor.is_some_and(|m| a.combat_target(st) == Some(m))
+            actor.is_some_and(|m| a.about_to_fight(st, m))
                 && st.minions[a.acting.index()].is_vampire()
                 && st.sect_of(a.acting) == Some(sect)
         }),
@@ -6538,8 +6544,12 @@ pub fn holds(
                 && st.sect_of(a.acting) == Some(sect)
         }),
         Requirement::BlockedByVampireOfSect(sect) => action.is_some_and(|a| {
+            let opposing = match a.state {
+                ActionState::QueuedCombat => a.queued_opponent(a.acting),
+                _ => a.blocker,
+            };
             actor == Some(a.acting)
-                && a.blocker.is_some_and(|b| {
+                && opposing.is_some_and(|b| {
                     st.minions[b.index()].is_vampire() && st.sect_of(b) == Some(sect)
                 })
         }),
@@ -7177,7 +7187,9 @@ pub fn holds(
         // the action, not a referendum's or a side effect's (RTR 19960124).
         Requirement::ActorBurnedMinion => actor.is_some_and(|m| {
             combat.is_some_and(|c| c.burned_minions.iter().any(|&(b, _)| b == m))
-                || action.is_some_and(|a| a.acting == m && !a.burned_owners.is_empty())
+                || action.is_some_and(|a| {
+                    a.acting == m && !a.burned_owners.is_empty() && a.diablerist != Some(m)
+                })
         }),
         Requirement::ActorBurnedPreyMinion => actor.is_some_and(|m| {
             let prey = st.prey(st.minions[m.index()].owner);

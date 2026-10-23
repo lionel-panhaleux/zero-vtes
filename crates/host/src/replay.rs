@@ -273,6 +273,18 @@ impl Reader<'_> {
             }
         }
         self.declines = notes.len();
+        // Before rules-qa 88.5, Anarch Revolt's burn was ordered among the
+        // unlock-phase riders: a rider's order recorded there that the
+        // engine no longer asks (the Revolt not offered, a lone rider
+        // elided) is read past.
+        while let Some(d) = self.replay.decisions.get(self.next) {
+            if d.choice.kind != zvtes_api::ids::OptionKind::ResolveRider
+                || recorded_option(e, req, d).is_ok()
+            {
+                break;
+            }
+            self.next += 1;
+        }
         let rest = self.replay.decisions.get(self.next..).unwrap_or_default();
         match past(e, req, rest) {
             Ok(n) => self.next += n,
@@ -528,6 +540,16 @@ impl Replayer {
         let shown = loop {
             let shown = match self.session.advance() {
                 Next::Over => {
+                    // The game over before a rider's order recorded last
+                    // (rules-qa 88.5: the Revolt's burn ousting at the
+                    // pass): read past it.
+                    let rest = self.replay.decisions.get(self.next..).unwrap_or_default();
+                    if rest
+                        .iter()
+                        .all(|d| d.choice.kind == zvtes_api::ids::OptionKind::ResolveRider)
+                    {
+                        self.next += rest.len();
+                    }
                     let before = self.told();
                     let vp_halves = self.session.over().unwrap_or_default().to_vec();
                     return Step::Over { vp_halves, before };

@@ -916,7 +916,8 @@ fn action_step(s: ActionState) -> ActionStep {
         ActionState::Declined => ActionStep::Declined,
         ActionState::WouldSucceed => ActionStep::WouldSucceed,
         ActionState::Blocked(_) => ActionStep::Blocked,
-        ActionState::AfterCombat => ActionStep::AfterCombat,
+        // Between Psyche!'s combats: the first one is over.
+        ActionState::AfterCombat | ActionState::QueuedCombat => ActionStep::AfterCombat,
         ActionState::AfterResolution => ActionStep::Resolved,
         ActionState::AfterDiablerie(..) => ActionStep::Diablerie,
     }

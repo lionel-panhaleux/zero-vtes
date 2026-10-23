@@ -1989,19 +1989,29 @@ fn lenelle_names_the_cards_she_exchanges_as_she_announces_the_action() {
 }
 
 // "Unless she must hunt": with no blood, Elen's rulebook hunt comes before
-// her mandatory bleed.
+// her mandatory bleed (rules-qa 17.1, 88.6). Unlocked after it, with blood,
+// she owes the bleed still (advanced rules §3.9.2: not yet discharged).
 #[test]
 fn elen_kamjian_hunts_instead_when_she_has_no_blood() {
     let mut e = bare();
     let elen = e.add_minion(SeatId(0), find_card("Elen Kamjian"), 0, false);
     let other = e.add_minion(SeatId(0), plain("Brujah", 0), 4, false);
     e.state.minions[other.index()].locked = true;
+    e.add_minion(SeatId(0), plain("Brujah", 1), 4, false);
     e.add_minion(SeatId(1), plain("Ventrue", 0), 4, false);
     // The hunt is the only option: it elides.
     let pool = e.state.seats[1].pool;
-    until(&mut e, SeatId(1), WindowLabel::MinionPhase);
+    let req = expect(&mut e, SeatId(0), WindowLabel::MinionPhase);
     assert_eq!(blood(&e, elen), 1);
     assert_eq!(e.state.seats[1].pool, pool);
+    assert!(!req.options.iter().any(|o| matches!(o,
+        Choice::TakeAction { minion, .. } | Choice::UseAbility { actor: Some(minion), .. }
+            if *minion == elen)));
+    // Her bleed the only option, it elides.
+    e.state.minions[elen.index()].locked = false;
+    request(&mut e);
+    let a = e.action().expect("an action");
+    assert_eq!((a.acting, a.kind), (elen, ActionKind::Bleed));
 }
 
 // Another vampire must hunt while Elen Kamjian's bleed is mandatory: the

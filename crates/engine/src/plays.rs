@@ -5290,9 +5290,9 @@ impl Engine {
                 v.locked = true;
                 v.skip_unlock = true;
             }
-            // Its control changes; one on a minion moves onto a ready
-            // minion of the player's, their choice (RTR 19960112), or is
-            // burned if none can hold it (LSJ 19990928).
+            // Its control changes; one on a minion moves onto a minion of
+            // the player's, their choice, or is burned if none can hold it
+            // (RTR 19960112, rules-qa 88.9).
             Effect::FourthCycle(cap) => {
                 for i in 0..self.state.cards.len() {
                     let c = &self.state.cards[i];
@@ -9394,10 +9394,19 @@ impl Engine {
         self.printed_riders(m, Hook::UnlockPhase, Some(self.state.active))
     }
 
+    /// A card whose unlock rider is read as the phase ends
+    /// (`Hook::UnlockPhaseEnd`): resolved as its Methuselah passes, not
+    /// ordered among the other effects (rules-qa 88.5).
+    fn read_at_phase_end(&self, id: CardId) -> bool {
+        cards::lookup(self.state.cards[id.index()].card)
+            .is_some_and(|d| d.riders.iter().any(|r| r.hook == Hook::UnlockPhaseEnd))
+    }
+
     /// Unlock-phase effects: an ordered window clockwise from the active
-    /// seat; its Methuselah resolves every pending mandatory rider (Anarch
-    /// Revolt), ordered among their optional abilities, before passing
-    /// (rules-qa 6.1); then the others use theirs (Homunculus).
+    /// seat; its Methuselah resolves every pending mandatory rider,
+    /// ordered among their optional abilities, before passing (rules-qa
+    /// 6.1), Anarch Revolt's as they pass (88.5); then the others use
+    /// theirs (Homunculus).
     pub(crate) fn abilities_request(
         &self,
         window: &OrderedWindow,
@@ -9412,6 +9421,7 @@ impl Engine {
         let live: Vec<&Pending> = pending
             .iter()
             .filter(|p| !matches!(p, Pending::Contest(i) if self.contest_choices(*i).is_empty()))
+            .filter(|p| !matches!(p, Pending::Rider(c) if self.read_at_phase_end(*c)))
             .collect();
         if seat == self.state.active && !live.is_empty() {
             for p in live {
@@ -9513,7 +9523,29 @@ impl Engine {
                     pending.retain(|p| *p != Pending::Contest(i));
                     self.release_contest(i);
                 }
-                window.pass()
+                let due: Vec<CardId> = pending
+                    .iter()
+                    .filter_map(|p| match *p {
+                        Pending::Rider(c) if self.read_at_phase_end(c) => Some(c),
+                        _ => None,
+                    })
+                    .collect();
+                window.pass();
+                if !due.is_empty() {
+                    pending.retain(|p| !matches!(p, Pending::Rider(c) if due.contains(c)));
+                    for id in due {
+                        let resume = Flow::Abilities {
+                            window: window.clone(),
+                            pending: pending.clone(),
+                            edge_taken,
+                        };
+                        self.resolve_unlock_rider(id, resume);
+                        if !matches!(self.flow, Flow::Abilities { .. }) {
+                            return; // ousted: the turn has passed
+                        }
+                    }
+                    return;
+                }
             }
             Choice::PayContest(item) | Choice::YieldContest(item) => {
                 pending.retain(|p| *p != Pending::Contest(*item));
@@ -9788,7 +9820,10 @@ impl Engine {
         let riders: Vec<&cards::Rider> = def
             .riders
             .iter()
-            .filter(|r| r.hook == Hook::UnlockPhase && self.rider_fires(id, r, &at))
+            .filter(|r| {
+                matches!(r.hook, Hook::UnlockPhase | Hook::UnlockPhaseEnd)
+                    && self.rider_fires(id, r, &at)
+            })
             .collect();
         let mut lifeless = None;
         let mut host_damage = None;

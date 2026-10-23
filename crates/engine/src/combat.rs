@@ -2,6 +2,7 @@
 //! damage. A combat is part of its action (spec §4.1.2); each step is a
 //! window over the combatants, the acting side first (rules-qa 1.2).
 
+use crate::actions::{ActionState, PsycheNext};
 use crate::cards::{self, Effect, PlayCtx, StrikeKind, Window};
 use crate::decision::{Choice, DecisionRequest, WindowLabel};
 use crate::game::{Engine, Flow};
@@ -3955,15 +3956,23 @@ impl Engine {
                         self.draw_up(s);
                     }
                 }
-                self.begin_combat(x, y, at_resolution);
-                let n = self.combat.as_mut().expect("the new combat");
-                // No block began it: block riders and "when blocking"
-                // equipment (Sniper Rifle) do not carry over (LSJ 20010813,
-                // LSJ 20010814).
-                n.held_at_block.clear();
-                n.after_resolution = after_resolution;
-                n.queued = queued;
-                n.yawp = yawp;
+                let next = PsycheNext {
+                    pair: [x, y],
+                    at_resolution,
+                    after_resolution,
+                    queued,
+                    yawp,
+                };
+                // A window before the new combat (rules-qa 88.10).
+                if self.facing_acting(x, y) {
+                    let a = self.action.as_mut().expect("action context");
+                    a.psyche_next = Some((next, a.state));
+                    a.state = ActionState::QueuedCombat;
+                    a.fresh_window();
+                    self.flow = Flow::Action;
+                    return;
+                }
+                self.begin_psyche_combat(next);
                 return;
             }
         }
@@ -4173,18 +4182,70 @@ impl Engine {
                 self.draw_up(s);
             }
         }
-        if ended.as_ref().is_some_and(|c| c.after_resolution) {
-            self.back_to_after_resolution();
-        } else if ended.as_ref().is_some_and(|c| c.queued) {
-            self.resume_after_queued_combat();
-        } else if let Some(c) = ended.as_ref().filter(|c| c.yawp.is_some()) {
-            let sabbat = c.yawp.expect("Yawp Court's vampire");
+        let yawp = ended.as_ref().and_then(|c| {
             let acting = self.action.as_ref().map(|a| a.acting);
             let torpored = acting.is_some_and(|m| c.torpored.contains(&m));
-            self.after_yawp_combat(sabbat, acting_ready && !torpored);
+            c.yawp.map(|sabbat| (sabbat, acting_ready && !torpored))
+        });
+        self.after_combat_ends(
+            ended.as_ref().is_some_and(|c| c.after_resolution),
+            ended.as_ref().is_some_and(|c| c.queued),
+            yawp,
+        );
+    }
+
+    /// Where the action goes as its combats are over: back to its
+    /// after-resolution window, its step after a queued combat, Yawp Court's
+    /// end (its Sabbat vampire, the acting one still ready), or the
+    /// after-combat window.
+    fn after_combat_ends(
+        &mut self,
+        after_resolution: bool,
+        queued: bool,
+        yawp: Option<(MinionId, bool)>,
+    ) {
+        if after_resolution {
+            self.back_to_after_resolution();
+        } else if queued {
+            self.resume_after_queued_combat();
+        } else if let Some((sabbat, ready)) = yawp {
+            self.after_yawp_combat(sabbat, ready);
         } else {
             self.after_combat();
         }
+    }
+
+    /// Psyche!'s combat begins, the same two minions: no block began it, so
+    /// block riders and "when blocking" equipment (Sniper Rifle) do not
+    /// carry over (LSJ 20010813, LSJ 20010814). Either one no longer ready
+    /// after Obedience's window, the action goes on as the first combat
+    /// ended.
+    pub(crate) fn begin_psyche_combat(&mut self, next: PsycheNext) {
+        let [x, y] = next.pair;
+        let ready = |m: MinionId| self.state.minions[m.index()].ready();
+        if !(ready(x) && ready(y)) {
+            let a = self.action.as_mut().expect("action context");
+            a.resolved |= next.at_resolution;
+            let ready = self.state.minions[a.acting.index()].ready();
+            let yawp = next.yawp.map(|sabbat| (sabbat, ready));
+            self.after_combat_ends(next.after_resolution, next.queued, yawp);
+            return;
+        }
+        self.begin_combat(x, y, next.at_resolution);
+        let n = self.combat.as_mut().expect("the new combat");
+        n.held_at_block.clear();
+        n.after_resolution = next.after_resolution;
+        n.queued = next.queued;
+        n.yawp = next.yawp;
+    }
+
+    /// Psyche!'s next combat is with the acting minion: reactions keyed to
+    /// a minion "about to enter combat with" it may come first (Obedience,
+    /// LSJ 19991025), the window elided when none can.
+    fn facing_acting(&self, x: MinionId, y: MinionId) -> bool {
+        self.action
+            .as_ref()
+            .is_some_and(|a| (x == a.acting) != (y == a.acting))
     }
 
     /// Dam the Heart's River [QUI]: each chosen strike not from a card

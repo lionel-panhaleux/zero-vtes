@@ -1393,6 +1393,47 @@ fn taking_the_skin_follows_a_burned_minion_with_a_bleed() {
     );
 }
 
+// [RTR 19991206] Taking the Skin: Minion: "If played on a diablerie, can
+// be played before or after getting a Discipline card (if any), but must be
+// played before the Blood Hunt": offered between the diablerie and its
+// blood hunt (rules-qa 88.4), not after the hunt.
+#[test]
+fn taking_the_skin_on_a_diablerie_comes_before_the_blood_hunt() {
+    for take in [true, false] {
+        let mut e = game(2);
+        let a = e.add_minion(SeatId(0), plain("Brujah", 0), 4, false);
+        superior(&mut e, a, "abo");
+        e.add_minion(SeatId(0), plain("Brujah", 1), 4, false);
+        let z = e.add_minion(SeatId(1), plain("Ventrue", 0), 2, true);
+        e.add_minion(SeatId(1), plain("Ventrue", 1), 4, false);
+        hand(&mut e, 0, &["Taking the Skin: Minion"]);
+        pick(
+            &mut e,
+            Choice::TakeAction {
+                minion: a,
+                action: ActionKind::Diablerie,
+                target: Some(z),
+            },
+        );
+        let skin = play(0, 2, a);
+        let req = offering(&mut e, skin);
+        assert!(e.referendum().is_none(), "before the blood hunt");
+        if take {
+            e.choose(index_of(&req, skin));
+            until(&mut e, SeatId(0), WindowLabel::MinionPhase);
+            let card = find_library("Taking the Skin: Minion");
+            assert!(e
+                .state
+                .cards
+                .iter()
+                .any(|c| c.card == card && c.present() && c.host == Some(a)));
+        } else {
+            e.choose(index_of(&req, Choice::Pass));
+            never_offered_until(&mut e, SeatId(0), WindowLabel::MinionPhase, skin);
+        }
+    }
+}
+
 // Pocket Out of Time: "[TEM] Usable after combat. After each combat this
 // action, this vampire can burn 1 blood to start a new combat with the
 // opposing minion (if both combatants are still ready)."

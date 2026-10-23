@@ -6,10 +6,12 @@ midgame/3 depth 6: 72912 leaves
   DiscardPhase 1712 nodes 11704 options
   InfluenceTransfers 7813 nodes 70116 options
   MinionPhase 196 nodes 812 options
-midgame/5 depth 4: 3899 leaves
-  DiscardPhase 106 nodes 742 options
-  InfluenceTransfers 449 nodes 3515 options
-  MasterPhase 98 nodes 294 options
+midgame/5 depth 4: 1716 leaves
+  ActionBlock 7 nodes 35 options
+  DiscardPhase 174 nodes 1218 options
+  InfluenceTransfers 64 nodes 301 options
+  MasterPhase 357 nodes 714 options
+  MinionPhase 7 nodes 56 options
 action depth 7: 2598 leaves
   ActionAfterCombat 14 nodes 28 options
   ActionAsAnnounced 2 nodes 6 options
