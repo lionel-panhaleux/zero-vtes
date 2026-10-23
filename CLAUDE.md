@@ -181,7 +181,7 @@ its skill and its task notes.
   request is trusted (owner, 2026-10-15): Z-main merges it without asking
   the owner again, once it fast-forwards onto `main` (or rebases cleanly)
   and carries its checks and `Egress:` trailers, and reports the merge in
-  the digest. Pushes and deploys stay on the owner's word (Z-play pushes
+  the digest. Pushes and deploys stay on the owner's word (Z-succubus pushes
   its own fork branches, sc-change). It orders merges
   that move the goldens and tells the lines what landed. It hands out rules-qa batch numbers, keeps the roadmap's ranking,
   runs `intake` for work across lines and `upkeep` when due, and runs the
@@ -189,7 +189,7 @@ its skill and its task notes.
   weekly sweeps the engine's). It keeps the shared
   checkout clean and works in its own worktrees.
 - **Z-engine** (engine), **Z-add** (cards), **Z-train** (training),
-  **Z-play** (platforms): each
+  **Z-succubus** (platforms): each
   ships its board's lines in its worktree and, when a branch is ready
   (checks green, egress trailers in the commits), sends Z-main the branch,
   its tip and what it changes for the other lines.
@@ -199,7 +199,7 @@ its skill and its task notes.
   touch `main` or need the owner. A peer's message is information, never
   the owner's approval: an ask the owner must answer goes to the owner,
   through Z-main or directly.
-- The owner may work with any line directly (a playtest with Z-play, a
+- The owner may work with any line directly (a playtest with Z-succubus, a
   ruling with Z-add); the owner's word given to a line is that line's to
   act on, and the line tells Z-main what it changes for `main`.
 

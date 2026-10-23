@@ -77,35 +77,20 @@ bots-only edition keeps SC's manual-play branches engine games no
 longer reach (free table, the non-engine side of those tests), so the
 fork stays close to upstream (owner, 2026-10-21).
 
-## The dev server
+## Where the owner plays
 
-The owner plays on `http://localhost:5188`: vite serving the main
-checkout's `zero-vtes-engine` against `engine.krcg.org` (no
-`VITE_ENGINE_SERVER`). Z-play runs it, one session at a time:
-
-- **At the session's start**: if nothing listens (`lsof -nP -iTCP:5188
-  -sTCP:LISTEN` empty), start it as the session's background task, `cd
-  ../succubus-club && npx vite --config vite/config.dev.mjs --port 5188
-  --strictPort > $CLAUDE_JOB_DIR/tmp/vite.log 2>&1`, and check it answers
-  (`curl -s -o /dev/null -w '%{http_code}' http://localhost:5188/` gives
-  200). Something already listening is a previous session's server (a
-  session cleared without warning) the owner may be playing on: tell the
-  owner, and restart it on their word once they are not mid-game; never
-  kill it unasked.
-- **When the owner ends or clears the session** (the owner says so first):
-  stop it once the owner is not mid-game, by its port: `kill $(lsof
-  -tiTCP:5188 -sTCP:LISTEN)` (a `pkill -f` on vite's command line also
-  matches the agent's own shell running it). The next session starts it
-  anew.
-- **In between**: never restarted without the owner's word (a reload
-  joins the fork's game again but loses its log, traps below). After a
-  restart the owner refreshes the tab (traps).
+On `https://sc-bot.krcg.org` (owner, 2026-10-23: no local dev server
+for now): the fork's `zero-vtes-engine` at a pinned commit, built on the
+box (`deploy/sc_bot.py`, `SC_COMMIT`), against `engine.krcg.org`. A fix
+reaches the owner when Z-main redeploys it, on the owner's word, once
+the commit is on GitHub. A redeploy changes the bundle under an open
+tab: the game goes on until the tab reloads (traps below).
 
 ## Branches
 
 | Branch | Where | What |
 |---|---|---|
-| `zero-vtes-engine` | fork (public, its default branch) | the bots-only edition: the owner's play branch (vite on :5188) and the source of `sc-bot.krcg.org`; every fix lands here first |
+| `zero-vtes-engine` | fork (public, its default branch) | the bots-only edition: the source of `sc-bot.krcg.org`, where the owner plays; every fix lands here first |
 | `engine-game` | fork, PR #285 | the upstream re-cut, not followed since the agreement: 6 commits on `origin/dev` (game type + flags; server client; projection/driver; central box; table interaction; controls + menu) |
 
 Tags (local): `engine-game-pre-recut`, `recut-flat`, `engine-game-pre-dev`
@@ -152,15 +137,14 @@ becomes of it is the owner's word.
   pushed with `git push fork <branch>` lands on the fork's `dev`. Push
   with an explicit refspec (`git push fork <b>:refs/heads/<b>`) and check
   `git config branch.<b>.merge` first.
-- The owner may be mid-game on :5188: never edit the served checkout
-  then (vite reloads the page: the game is joined again, its seat kept
-  for the tab in `sessionStorage`, `host.ts` `resume`, but the log
-  before the reload is lost; a dropped socket alone is joined again,
-  `host.ts` `rejoin`, for a minute, or until the server answers 404: the
-  game gone; a server restart, a deploy, resumes the game, so the rejoin
-  finds it, a fresh `joined`). Work in a worktree under the job's tmp; fast-forward the
-  checkout only when the admin API shows no live game (or the owner says
-  so).
+- The owner may be mid-game on sc-bot: a redeploy reloads nothing by
+  itself, but a reload then joins the game again (its seat kept for the
+  tab in `sessionStorage`, `host.ts` `resume`) and loses the log before
+  it; a dropped socket alone is joined again, `host.ts` `rejoin`, for a
+  minute, or until the server answers 404: the game gone; a server
+  restart, a deploy, resumes the game, so the rejoin finds it, a fresh
+  `joined`. Work in a worktree under the job's tmp; redeploy only when
+  the admin API shows no live game (or the owner says so).
 - A refresh joins with a plain `join` (no `after`): the server answers
   `joined` (seats, the view) and the pending decision, and the table is
   built from that view as from any other (the projection creates the

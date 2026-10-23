@@ -60,13 +60,13 @@ branches, PRs, recipes, traps) and update it as you learn.
    game is involved (sc.md "Recipes").
 2. Fix on a worktree of `zero-vtes-engine`; checks: `npx vue-tsc --noEmit`,
    `npx eslint`, `npx prettier --check` (SC has no test suite). Agents
-   don't start vite as a check (AGENTS.md); the owner's own dev server on
-   :5188 is the owner's loop, run by Z-play from its session's start to
-   its end (sc.md "The dev server"), restarted in between only on their
-   word. A visual check, when the owner asks for one, runs against a LOCAL
-   engine server (test games on engine.krcg.org pollute the recorded
-   corpus).
-3. Fast-forward `zero-vtes-engine` (rule 4); tell the owner what to look at.
+   don't start vite as a check (AGENTS.md); the owner plays on
+   sc-bot.krcg.org (sc.md "Where the owner plays"). A visual check, when
+   the owner asks for one, runs against a LOCAL engine server (test games
+   on engine.krcg.org pollute the recorded corpus).
+3. Fast-forward `zero-vtes-engine` (rule 4); once the owner says push,
+   push it and ask Z-main for the sc-bot redeploy at that commit; tell the
+   owner what to look at once it is live.
 4. Upstream (deferred by the owner, 2026-10-21: roadmap "Deferred by
    the owner"; only once it is brought back): fold into the
    `engine-game` re-cut (sc.md recipe) or a carve-out branch from
