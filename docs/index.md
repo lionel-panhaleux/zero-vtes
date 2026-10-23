@@ -40,6 +40,9 @@ reasoning journeys live in a task and die with it, git keeping them.
 
 - [`platforms/sc.md`](platforms/sc.md): Succubus Club: Thomas's style,
   branches, PRs and his reactions, recipes, traps.
+- [`platforms/jol.md`](platforms/jol.md), [`platforms/elysium.md`](platforms/elysium.md):
+  JOL and Elysium, how each runs games, what plugging the engine in would
+  take, their asks of the API.
 
 ## The work
 

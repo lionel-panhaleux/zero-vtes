@@ -49,7 +49,8 @@ server, and the fork served as its own platform).
 - **License**: MIT + the Dark Pack notice (`LICENSE`, `README.md`).
 - **Fork**: `../succubus-club`, branch `zero-vtes-engine`, based on upstream
   `3099b59` (2026-09-28).
-- **JOL**: out of scope (no license, no structured state API).
+- **JOL, Elysium**: not plugged in; what it would take in
+  [`platforms/jol.md`](platforms/jol.md), [`platforms/elysium.md`](platforms/elysium.md).
 
 ## Architecture
 
