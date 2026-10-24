@@ -2873,9 +2873,14 @@ impl GameState {
     }
 
     /// Could `m` take equipment `card` as well, no "only one X" limit
-    /// reached by what it has or the cards `with` it in the same action?
+    /// reached by what it has or the cards `with` it in the same action? A
+    /// minion with no equipment still takes a locquipment, a location in
+    /// play (The Beast, Leatherface of Detroit, through Vast Wealth: LSJ
+    /// 20050315).
     pub fn can_hold(&self, m: MinionId, card: u16, with: &[u16]) -> bool {
-        if self.no_equipment(m) || self.ranged_barred(m, card) {
+        if (self.no_equipment(m) && cards::is_equipment_in_play(card))
+            || self.ranged_barred(m, card)
+        {
             return false;
         }
         let Some(def) = cards::lookup(card) else {

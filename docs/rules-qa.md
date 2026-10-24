@@ -74,25 +74,25 @@ by the owner. Apply them to every new card; only a ruling overrides them.
 - **Periodicity ("during X" = once per X, once each …)** — 6.6, 7.4, 9.6, 10.4, 11.2, 15.1, 15.2, 16.1, 36.3, 36.4, 37.1, 38.8, 42.3, 42.9, 79.1–79.4
 - **No-repeat-action, "same action"** — 1.4, 6.2, 16.6, 23.2, 25.4, 32.1, 88.1, 89.2, 89.15
 - **Action outcomes: fizzle, fail, success, after resolution** — 3.6, 5.8, 5.9, 17.1, 17.3, 17.4, 23.3, 24.1, 24.4, 26.1, 26.4, 28.7, 30.2, 30.3, 34.6, 42.6, 43.1, 55.3, 55.4, 55.5, 56.1, 58.1, 58.13, 73.3, 73.4, 77.13, 78.13, 78.38, 78.50, 88.1, 88.2, 88.3, 89.4
-- **Directed / undirected, targeting, choosing** — 6.8, 17.2, 17.4, 20.1, 24.5, 26.3, 27.2, 32.5, 33.3, 34.8, 35.1, 38.2, 38.6, 39.4, 42.1, 57.10, 75.1, 77.12, 77.26, 77.27, 78.30, 78.36, 78.52, 89.3, 89.9
+- **Directed / undirected, targeting, choosing** — 6.8, 17.2, 17.4, 20.1, 24.5, 26.3, 27.2, 32.5, 33.3, 34.8, 35.1, 38.2, 38.6, 39.4, 42.1, 57.10, 75.1, 77.12, 77.26, 77.27, 78.30, 78.36, 78.52, 89.3, 89.9, 94.5
 - **When choices are made (play vs resolution vs use)** — 3.5, 6.7, 22.2, 26.8, 28.5, 31.2, 31.3, 32.11, 32.12, 33.4, 38.1
 - **Bleeds** — 18.4, 23.5, 24.1–24.4, 25.6, 30.5, 31.2, 32.2, 32.4, 32.8, 33.9, 34.4, 34.5, 39.5, 42.3, 42.7, 53.6, 53.8, 57.1, 57.2, 61.2, 76.12
 - **Stealth, intercept, blocks** — 1.3, 1.6, 3.2, 3.4, 8.1, 9.6, 15.2, 23.1, 24.5, 25.3, 25.5, 27.3, 30.1, 30.3, 30.4, 23.6, 34.1, 34.2, 35.1, 42.4, 42.8, 48.1, 48.3, 48.5, 48.6, 49.5, 50.4, 52.8, 53.1, 53.2, 53.3, 55.7, 66.2, 72.1–72.4, 73.8, 76.17, 77.18, 77.19, 77.20, 78.20, 78.28, 78.37, 78.53, 82.1, 82.2, 88.7, 89.6, 89.7, 89.16, 92.1–92.3, 93.1–93.5
 - **Combat structure, strikes, maneuvers, presses** — 1.2, 4.1, 4.3, 4.4, 4.5, 10.1, 10.2, 10.4, 10.5, 14.1, 14.2, 19.5, 21.1, 22.1, 22.3, 26.2, 26.6, 26.7, 27.5, 29.7, 29.8, 29.9, 31.7, 33.6, 42.2, 47.2, 48.2, 48.4, 53.3, 54.4, 54.6, 54.7, 54.8, 55.1, 55.2, 55.8, 57.3, 57.4, 58.2, 58.17, 58.18, 59.2, 59.17, 60.11, 61.1, 62.1, 63.4, 63.6, 63.8, 75.1–75.3, 76.9, 76.10, 76.11, 77.9, 78.23, 78.32, 78.40, 88.10, 88.11, 89.6, 89.8, 89.25
-- **Frenzy cards** — 28.11, 29.5
+- **Frenzy cards** — 28.11, 29.5, 94.1
 - **Damage, prevention, immunity** — 4.2, 10.3, 14.2, 21.3, 29.1, 29.2, 29.3, 29.4, 30.6, 38.3, 38.8, 40.9, 77.8, 77.21, 77.22, 77.23, 78.19, 78.33, 78.34, 78.38, 90.1
 - **Rushes (entering combat as an action)** — 17.3, 26.1, 27.2, 27.5, 38.6, 52.6, 54.3, 54.4, 54.7, 55.7, 56.2, 58.6, 88.10, 88.11
 - **Referendums, votes, political actions** — 1.1, 3.5, 5.1–5.9, 6.2, 6.3, 15.2, 16.5, 19.3, 19.4, 32.9, 33.2, 35.4, 38.6, 39.1–39.4, 42.4, 49.1, 49.2, 50.5, 50.6, 51.1, 51.2, 51.5, 51.6, 51.8, 52.2, 52.3, 52.5, 52.7, 52.9, 52.10, 54.1, 58.8, 58.14, 58.15, 58.16, 59.7, 59.9, 59.18, 59.19, 60.2, 60.14, 60.16, 71.25, 73.4, 76.5, 76.6, 76.14, 76.15, 77.5, 77.14, 77.15, 77.25, 77.26, 90.3, 90.8
 - **Titles** — 3.1, 13.2, 19.1, 19.2, 19.6, 32.9, 49.4, 52.5, 52.6, 52.9, 58.3, 58.11, 59.13, 59.14, 60.1, 76.1–76.4, 77.1, 77.2, 78.1, 78.7, 78.16, 91.6
-- **Contests, uniqueness** — 3.1, 7.1, 7.3, 7.5, 8.2, 11.2, 12.3, 19.1, 36.3, 38.7, 39.4, 40.1, 57.9, 58.5, 58.19, 59.13, 60.1, 60.9, 60.20, 76.2, 76.3, 85.32, 91.2–91.6
+- **Contests, uniqueness** — 3.1, 7.1, 7.3, 7.5, 8.2, 11.2, 12.3, 19.1, 36.3, 38.7, 39.4, 40.1, 57.9, 58.5, 58.19, 59.13, 60.1, 60.9, 60.20, 76.2, 76.3, 85.32, 91.2–91.6, 94.6
 - **Control, steals, ousts, removal from game** — 6.9, 7.5, 17.4, 25.1, 27.3, 27.4, 27.7, 28.13, 31.4, 31.5, 31.6, 33.5, 33.7, 38.4, 39.4, 42.7, 55.4, 55.6, 88.9, 90.4, 90.7, 90.10
 - **Costs and reductions** — 3.6, 5.9, 9.3, 18.1, 18.2, 23.4, 29.6, 27.6, 36.1–36.5, 38.5, 42.1, 42.2, 42.5, 42.6, 54.1, 58.12, 59.5, 60.5, 60.7, 77.24, 78.3, 78.17, 78.21, 89.3, 89.10, 89.11, 89.15, 89.24, 93.9
 - **Replacement, draws, stored and held cards** — 5.5, 7.10, 8.2, 8.3, 8.4, 9.4, 9.5, 11.1–11.3, 12.1–12.5, 22.2, 37.1, 40.4, 53.4, 53.5, 73.1, 73.2, 77.35, 78.18, 78.26, 78.51, 88.8, 93.8, 93.10
 - **Card destination (ash heap, limbo, lingering effects)** — 21.1, 22.1, 31.6, 46.4, 47.1
 - **Equipment and weapons** — 9.1–9.6, 10.1–10.5, 17.4, 18.3, 22.4, 29.7, 35.3, 38.4, 38.5, 38.7, 76.9, 76.10, 76.15, 76.16, 77.19, 77.29, 78.28, 78.42
 - **Allies, retainers, ghouls** — 22.2, 28.10, 29.2, 32.4, 32.11, 32.12, 32.13, 37.1, 40.10, 42.2, 42.9, 49.3, 50.6, 73.5, 73.6, 76.7, 76.8, 77.29, 88.3, 89.14, 89.15, 89.24, 90.2
-- **Locations, hunting grounds, locquipment** — 6.5, 7.2, 7.4, 17.4, 28.2, 28.6, 31.4, 34.7, 39.4, 49.5, 50.4, 51.4, 52.7, 54.1, 57.7, 73.3, 73.6, 77.16, 88.9, 89.10, 89.12
-- **Blood, capacity, uncontrolled region, banishment** — 5.7, 7.6, 25.1, 27.7, 28.1, 28.3, 28.4, 32.6, 40.7, 73.5, 90.5, 93.7
+- **Locations, hunting grounds, locquipment** — 6.5, 7.2, 7.4, 17.4, 28.2, 28.6, 31.4, 34.7, 39.4, 49.5, 50.4, 51.4, 52.7, 54.1, 57.7, 73.3, 73.6, 77.16, 88.9, 89.10, 89.12, 94.4
+- **Blood, capacity, uncontrolled region, banishment** — 5.7, 7.6, 25.1, 27.7, 28.1, 28.3, 28.4, 32.6, 40.7, 73.5, 90.5, 93.7, 94.2, 94.3
 - **Torpor, rescue, diablerie, blood hunt** — 3.1, 3.6, 5.2, 5.8, 6.4, 16.2, 28.7, 38.2, 48.8, 81.1, 86.1, 88.4, 89.12, 89.20
 - **Hunting** — 6.5, 7.7, 17.3, 28.1, 28.8, 32.13, 40.2, 53.8, 72.1–72.5, 77.30, 89.1, 89.13, 89.26
 - **Master phase, master cards, out-of-turn** — 1.5, 3.3, 6.6, 7.5, 28.10, 32.3, 33.1, 33.8, 36.4, 49.6, 49.7, 50.1–50.3, 53.7, 57.8, 77.11, 77.27, 78.10, 78.48, 78.49
@@ -2322,3 +2322,17 @@ Each contradiction read against the KRCG rulings, the advanced rules and the rul
 **93.9** Nergal's reduction (60.7) is taken off a bleed or political action card's cost at the action's resolution, as off any action card's (a gap found on the way: those two paths, and a political cost paid early, ignored it, so a card payable only with it fizzled): Propaganda at 1 blood, redirected by Deflection, is paid with it (LSJ 20091021-2); a card left unpayable even with it does not spend it, nor does a card canceled unpaid (Direct Intervention). Green. (Tests nergal_pays_a_deflected_propaganda_with_his_reduction, nergal_pays_reckless_agitation_with_his_reduction, nergals_reduction_is_unspent_when_his_action_is_left_unpayable, nergals_reduction_is_unspent_by_a_card_canceled_unpaid.)
 
 **93.10** The card on The Erciyes Fragments is no card in hand: never burned for a vote nor discarded for another effect (LSJ 20050118); a named card the Fragments took leaves Sudario Refraction resolving for the others, 3 still discarded (LSJ 20090722); the Fragments lock at any impulse of an action (ANK 20200616; 60.19). Green. (Tests the_fragments_card_is_no_political_card_to_burn_for_a_vote, sudario_refraction_resolves_without_the_card_the_fragments_took, the_erciyes_fragments_lock_during_an_action, delaying_tactics_returns_the_fragments_card_to_its_owner.)
+
+## Batch 94 — The ledger's untested rows to tests (cards board): readings the tests found wrong (Claude, 2026-10-24)
+
+**94.1** Rötschreck goes on any Methuselah's vampire facing an opposing minion's aggravated strike, played by any Methuselah but the active one (out-of-turn): "put this card on a vampire" (RTR 19980623: the vampire that would receive the damage); LSJ 20080821 has it on the acting vampire of a Yawp Court combat, so by the Yawp Court's player. The engine had held it to one's own vampire. Green. (Tests yawp_court_against_rotschreck_damages_then_ends_the_action, rotschreck_answers_a_weapon_strike_blood_fury_would_nullify.)
+
+**94.2** Slake the Thirst answers a gain made at the end of a round (Taste of Vitae) in that end-of-round window, once for each other Blood Brother (LSJ 20100206-2; 68.2: the window of the next real decision). Green. (Test slake_the_thirst_twice_on_a_taste_of_vitae.)
+
+**94.3** A banished vampire's leave-ready effects come before its cards go out of play with it: Righteous Aura burns, it does not come back on it (ANK 20180511-1; 25.1 for the cards that stay). Green. (Test righteous_aura_burns_as_its_vampire_is_banished.)
+
+**94.4** A minion that cannot have equipment still takes a locquipment, a location once in play: The Beast, Leatherface of Detroit equips Palatial Estate through Vast Wealth; playing it from hand stays barred (an action card for him) (LSJ 20050315, LSJ 20050413-1). Green. (Test the_beast_equips_a_location_through_vast_wealth.)
+
+**94.5** A minion an action card's effect burns as the directed action resolves is burned by that action (ANK 20220507): Predator's Transformation [ABO] after Smash and Grab [ani] burns the prey's ally, the Trophies alike (a gap found on the way: the card action's burns went unrecorded). Green. (Test smash_and_grab_burning_an_ally_answers_predators_transformation.)
+
+**94.6** A Jimmy Dunn burned for a second one entering play during an action is burned by the rule, not by the acting minion (LSJ 19990719, RTR 19991001): reachable through a Soul Gem of Etrius drawing a Jimmy as its bearer is diablerized; the burn answers no "burns a minion" card (Predator's Transformation [ABO], the Trophies). The ledger's `n/a` ("no pool effect brings a vampire out during an action") was wrong: the Soul Gem does (egress finding). Green. (Test a_jimmy_dunn_burned_for_a_second_is_not_burned_by_the_action.)

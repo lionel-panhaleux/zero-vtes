@@ -650,7 +650,10 @@ sources to the engine's conventions.
   `self.action.take()` that puts it back is no end. Its resolution
   (`succeed`) and its window's choices (`action_apply`) run as its
   effect (`ActionCtx::cause_source`), its costs inside as costs
-  (`paying`).
+  (`paying`). Taken out, the action is not `self.action`: what reads it
+  there misses it — an action card's burns go through `Engine::card_burns`
+  into `ActionCtx::burned_owners` (Predator's Transformation [ABO], the
+  Trophies; rules-qa 94.5).
 - Kinds: rulebook (bleed, hunt, leave torpor, rescue, diablerie, political),
   `Card`, `Equip`/`EquipFrom`/`EquipFound`, `Recruit`/`Employ`, `BurnCard`,
   `StealCard`, `Ability` (granted by a card in play or printed on a vampire;
@@ -1425,8 +1428,10 @@ sources to the engine's conventions.
   longer holdable: fizzle), NRA by name. From another own minion
   (`EquipFrom`): free, no requirement check, each taken card's equip stealth
   added, moves what is still there at resolution. One vehicle etc. via
-  `GameState::can_hold`. `Engine::put_equipment` is shared by equip, searches
-  and Vast Wealth; "only one played or equipped in a game" is recorded there.
+  `GameState::can_hold`, which bars a no-equipment minion only from what is
+  still equipment in play: a locquipment is a location (rules-qa 94.4).
+  `Engine::put_equipment` is shared by equip, searches and Vast Wealth;
+  "only one played or equipped in a game" is recorded there.
 - "An equip action" (Hag's Wrinkles, NRA PAC): `ActionCtx::is_equip_action`,
   an equip from hand or a search equipping (`SearchEquip`), never the
   equip-from-another-minion move (rules-qa 78.28, digest §3.7).
@@ -1676,7 +1681,9 @@ Slice 16a; `defs.rs` section "Legacy cards for tournament decks",
   weapon burned so loses its strike; a dodge still protects.
 - Before-resolution combat window (`Window::CombatBeforeResolution`): cards
   triggered by the chosen opposing strike (Rötschreck, with
-  `CombatCtx::aggravated_strike_on`). Rötschreck ends combat at once
+  `CombatCtx::aggravated_strike_on`, any Methuselah's vampire: its target's
+  `Requirement::TargetFacesAggravatedStrike` is read in `play_options`,
+  which sees the combat; rules-qa 94.1). Rötschreck ends combat at once
   (`end_combat_now`), the lock and torpor landing as the combat ends
   (`CombatCtx::rotschreck`), dropped if the combat continues.
 - `Effect::BecomesAlly(body)`: a master card in play as its ally (Jake

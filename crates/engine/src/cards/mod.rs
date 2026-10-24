@@ -1868,10 +1868,13 @@ pub enum Requirement {
     /// The target Methuselah this card remembers is the active one (Life
     /// Boon).
     BoonTargetActive,
-    /// The user's vampire in combat faces an opposing strike attempting
-    /// aggravated damage, effective at this range (Rötschreck: RTR
-    /// 19980928; a strike only, ANK 20220114; dodged or not, LSJ 20011005).
-    OwnCombatantFacesAggravatedStrike,
+    /// A vampire in combat faces an opposing strike attempting aggravated
+    /// damage, effective at this range (Rötschreck: RTR 19980928; a strike
+    /// only, ANK 20220114; dodged or not, LSJ 20011005); any Methuselah's
+    /// (LSJ 20080821: on the acting vampire, by the Yawp Court's player).
+    CombatantFacesAggravatedStrike,
+    /// The target is that vampire (Rötschreck: RTR 19980623).
+    TargetFacesAggravatedStrike,
     /// The target minion is in the combat under way.
     TargetCombatant,
     /// The combat's acting side is a vampire the user controls, Deep Song's
@@ -6509,6 +6512,7 @@ pub fn holds(
         | Requirement::TargetInfernal
         | Requirement::BloodAtMost(_)
         | Requirement::TargetCombatant
+        | Requirement::TargetFacesAggravatedStrike
         | Requirement::TargetSeatOusting
         | Requirement::TargetSeatLostTitled
         | Requirement::ActiveIsAgainst
@@ -7561,8 +7565,8 @@ pub fn holds(
             let v = &st.minions[c.sides[0].minion.index()];
             v.is_vampire() && v.owner == seat
         }),
-        Requirement::OwnCombatantFacesAggravatedStrike => combat.is_some_and(|c| {
-            c.side_of(seat).is_some_and(|i| {
+        Requirement::CombatantFacesAggravatedStrike => combat.is_some_and(|c| {
+            (0..2).any(|i| {
                 st.minions[c.sides[i].minion.index()].is_vampire()
                     && c.aggravated_strike_on(st, action, i)
             })
@@ -7758,6 +7762,9 @@ pub fn holds_for_minion(
                 && acting.is_some_and(|a| a != m && st.minions[a.index()].name() == v.name())
         }
         Requirement::TargetCombatant => st.combatants.is_some_and(|p| p.contains(&m)),
+        // The strike is read by the play's options (`play_options`), which
+        // see the combat; here, without it, a combatant.
+        Requirement::TargetFacesAggravatedStrike => st.combatants.is_some_and(|p| p.contains(&m)),
         Requirement::TargetDiablerieSinceYourLastTurn => v
             .diablerie_turn
             .is_some_and(|t| t > st.seats[seat.index()].previous_turn),

@@ -1384,6 +1384,13 @@ impl Engine {
                                             {
                                                 st.meets_clan(id, &[c], actor != Some(id))
                                             }
+                                            Requirement::TargetFacesAggravatedStrike => {
+                                                combat.is_some_and(|c| {
+                                                    c.side_of_minion(id).is_some_and(|i| {
+                                                        c.aggravated_strike_on(st, action, i)
+                                                    })
+                                                })
+                                            }
                                             _ => cards::holds_for_minion(
                                                 r,
                                                 st,

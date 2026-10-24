@@ -808,3 +808,76 @@ fn yawp_court_ends_the_action_of_a_vampire_back_from_torpor() {
     assert!(used, "Warsaw Station offered");
     assert!(!e.state.minions[actor.index()].in_torpor);
 }
+
+// [LSJ 20080821] Yawp Court: "If Rötschreck is played against the acting
+// vampire, the Sabbat vampire takes 2 damage (combat ends before torpor),
+// the acting vampire goes to torpor and no referendum is conducted": the
+// Sabbat vampire's Ivory Bow strike, Rötschreck on the acting vampire.
+#[test]
+fn yawp_court_against_rotschreck_damages_then_ends_the_action() {
+    let (mut e, actor, sabbat, court) = yawp_table(5);
+    let bow = in_play(&mut e, 1, "Ivory Bow", Some(sabbat));
+    hand(&mut e, 0, &["Political Stranglehold"]);
+    hand(&mut e, 1, &["Rötschreck"]);
+    pick(&mut e, play(0, 0, actor));
+    pick_when(&mut e, use_at(court, 0, Some(sabbat), Target::None));
+    pick_when(&mut e, use_at(bow, 0, None, Target::None));
+    let rot = Choice::Play {
+        card: 0,
+        mode: 0,
+        actor: None,
+        target: Target::Minion(actor),
+    };
+    pick_when(&mut e, rot);
+    loop {
+        let req = request(&mut e);
+        assert!(e.referendum().is_none(), "no referendum");
+        if (req.seat, req.window) == (SeatId(0), WindowLabel::MinionPhase) {
+            break;
+        }
+        let i = fallback(&req);
+        e.choose(i);
+    }
+    assert!(e.state.minions[actor.index()].in_torpor);
+    assert_eq!(blood(&e, sabbat), 4 - 2, "2 environmental, no strike");
+}
+
+// [ANK 20180910-1] [LSJ 20060903] Yawp Court: "The effect is applied after
+// cards that are played 'at the end of the round' (eg. Disarm)": the Sabbat
+// vampire's .44 Magnum outdamages the acting vampire; its Disarm at the
+// round's end sends it to torpor — not ready as the combat ends: no 2
+// damage, no referendum.
+#[test]
+fn yawp_court_damage_comes_after_a_disarm() {
+    let (mut e, actor, _, court) = yawp_table(5);
+    let brute = CRYPT
+        .iter()
+        .enumerate()
+        .position(|(i, c)| {
+            c.sect == Some(Sect::Sabbat)
+                && c.disciplines.contains(&"pot")
+                && c.capacity >= 4
+                && c.title == Title::None
+                && cards::vampire(i as u16).is_none()
+        })
+        .expect("a Sabbat vampire with Potence") as u16;
+    let sabbat = e.add_minion(SeatId(1), brute, 4, false);
+    let gun = in_play(&mut e, 1, ".44 Magnum", Some(sabbat));
+    hand(&mut e, 0, &["Political Stranglehold"]);
+    hand(&mut e, 1, &["Disarm"]);
+    pick(&mut e, play(0, 0, actor));
+    pick_when(&mut e, use_at(court, 0, Some(sabbat), Target::None));
+    pick_when(&mut e, use_at(gun, 0, None, Target::None));
+    pick_when(&mut e, play(0, 0, sabbat));
+    loop {
+        let req = request(&mut e);
+        assert!(e.referendum().is_none(), "no referendum");
+        if (req.seat, req.window) == (SeatId(0), WindowLabel::MinionPhase) {
+            break;
+        }
+        let i = fallback(&req);
+        e.choose(i);
+    }
+    assert!(e.state.minions[actor.index()].in_torpor);
+    assert_eq!(blood(&e, sabbat), 4 - 1, "the hand strike only");
+}

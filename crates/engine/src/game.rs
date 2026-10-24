@@ -220,6 +220,11 @@ pub struct Engine {
     /// Set when a play's resolution ousted its player: the as-played stack
     /// must not resume the ousted seat's phase.
     pub(crate) ousted_during_play: bool,
+    /// The Methuselahs whose minions an action card's effects burn as it
+    /// resolves, its context out of `action` meanwhile: folded into the
+    /// action's `burned_owners` (Smash and Grab [ani] for Predator's
+    /// Transformation [ABO] and the Trophies; ANK 20220507).
+    pub(crate) card_burns: Option<Vec<SeatId>>,
     /// A play being opened, before its as-played window: in flight for the
     /// copy census, a play canceled as it is announced (Andrew Stuart, Two
     /// Wrongs) included.
@@ -564,6 +569,7 @@ impl Engine {
             time_limit: TURN_LIMIT,
             flow: Flow::GameOver, // replaced by start_turn
             action: None,
+            card_burns: None,
             combat: None,
             referendum: None,
             ousted_during_play: false,
@@ -1510,6 +1516,8 @@ impl Engine {
                 if a.directed_seat(st).is_some() {
                     a.burned_owners.push(owner);
                 }
+            } else if let Some(burns) = self.card_burns.as_mut() {
+                burns.push(owner);
             }
         }
         // "After a zombie (ally or retainer) you control is burned, you can

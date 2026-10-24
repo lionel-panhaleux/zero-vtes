@@ -2533,7 +2533,9 @@ round (rulebook "Combat").
 - Rötschreck is played once both strikes of a pair are chosen (before they
   resolve), additional pairs included; "an opposing minion attempts to
   inflict aggravated damage" reads the chosen strike (aggravated at its
-  source, effective at the range, not aimed at a retainer) (44.8).
+  source, effective at the range, not aimed at a retainer) (44.8); on any
+  Methuselah's vampire facing it, by any Methuselah but the active one
+  (94.1).
 
 ### 12.6 Strike resolution, first strike
 
@@ -2842,7 +2844,9 @@ round (rulebook "Combat").
 - Predator's Transformation: the reflex by the vampire the frenzy card is
   played on, locked or not, its cost still paid (ANK 20260216); [abo] +1
   stealth as the action is announced, even if not needed; [ABO] once per
-  action (64.8; owner 2026-10-14 confirmed the locked reflex).
+  action (64.8; owner 2026-10-14 confirmed the locked reflex); [ABO] after
+  a directed action card burning the prey's minion as it resolves (Smash
+  and Grab), the Trophies alike (94.5).
 - Drawing Out the Beast against an armed anarch restricts its strikes
   (Groundfighting, 71.6); not played against an ally (70.16).
 
@@ -3304,7 +3308,7 @@ retainers, traits, titles, trait changes).
   stays answerable in the window of the first real decision after it; a
   strike's gain as the strikes end; several gains: the one answered chosen
   by its amount (LSJ 20100203); also between a diablerie and its blood hunt
-  (68.2).
+  (68.2); an end-of-round gain (Taste of Vitae) at the round's end (94.2).
 
 ### 14.5 Allies
 
@@ -3370,7 +3374,8 @@ retainers, traits, titles, trait changes).
   (Kaymakli Nightmares, 93.7). Pit of
   Contemplation's "owner's uncontrolled region": a temporarily controlled
   vampire goes to the region of the Methuselah it would return to; the move
-  is Banishment's (27.7).
+  is Banishment's (27.7). Its leave-ready effects first: Righteous Aura
+  burns, not kept on it (94.3).
 - Entering from the uncontrolled region: "comes into play" / "put in play
   from your uncontrolled region" = influenced out (58.12, 34.7). Anarch
   Convert: his ability applies as he is moved out (the pool's only way in);
@@ -3728,7 +3733,8 @@ cards), §1.10 (burn and removal), §6.3 (control of a card in play).
   equipment nor taken by the equip action, but stealable by cards that steal
   locations (17.4); moved in an ambiguous fashion, it goes on any minion
   of the new controller able to hold it, a torpid one too; none: burned
-  (RTR 19960112; 39.4, 31.4, 88.9).
+  (RTR 19960112; 39.4, 31.4, 88.9). A minion that cannot have equipment
+  still takes one (The Beast through Vast Wealth, 94.4).
 - Carfax Abbey: 7.4. Gurchon Hall: "the two oldest ready vampires you
   control" — oldest by capacity; a tie for either place its controller's
   pick; one already fed by a hunting ground this turn gains nothing and
@@ -3996,7 +4002,8 @@ Advanced rules §1.13 (contests), §5.8 (titles).
   correction). Created vampires and "Non-unique." vampires (41.5, 58.5).
 - Jimmy Dunn: a second Jimmy entering play (influenced, or by any effect)
   burns every other Jimmy in play, any Methuselah's, before any contest
-  (60.9).
+  (60.9); during an action, a burn by the rule, not by the acting minion
+  (94.6).
 
 ### 18.2 Contested cards
 
@@ -4718,7 +4725,7 @@ an owner ruling:
 Every rules-qa item, by batch, with the digest sections citing it: the
 section stating it and those cross-referring to it (§2 the default
 readings, §22 engine modeling, §23 the contradictions, §24 the open
-readings). 964 items, Batches 1–93 (44.11 was removed, replaced by Batch
+readings). 970 items, Batches 1–94 (44.11 was removed, replaced by Batch
 45). The index is derived from the citations: a bare `N.M` cites rules-qa
 item N.M in the section it appears in. A new rules-qa item gets its line in
 the section stating it, then its entry here: `python3
@@ -5049,3 +5056,5 @@ index or an item cited nowhere.
 - **92** — 92.1 §9.1,§24.1; 92.2 §9.1,§24.1; 92.3 §9.1,§24.1
 - **93** — 93.1 §9.6,§24.1; 93.2 §9.6; 93.3 §9.6; 93.4 §9.6; 93.5
   §9.6,§23.1; 93.6 §9.6; 93.7 §14.6; 93.8 §7.2; 93.9 §7.3; 93.10 §7.1,§24.1
+- **94** — 94.1 §12.5; 94.2 §14.4; 94.3 §14.6; 94.4 §16.1; 94.5 §12.14; 94.6
+  §18.1

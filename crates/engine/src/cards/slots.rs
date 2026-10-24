@@ -266,7 +266,7 @@ impl Requirement {
             | R::OpponentVampireNotOlder
             | R::OpponentNotReady
             | R::OpponentPresent
-            | R::OwnCombatantFacesAggravatedStrike
+            | R::CombatantFacesAggravatedStrike
             | R::ActingCombatantYourVampire
             | R::ActingByPredator
             | R::MoreThanTwoLeft
@@ -368,6 +368,7 @@ impl Requirement {
             | R::TargetAllyHurt
             | R::AllyOrYounger
             | R::TargetCombatant
+            | R::TargetFacesAggravatedStrike
             | R::BloodAtMost(..)
             | R::TargetDiablerieSinceYourLastTurn
             | R::TargetBledSinceYourLastTurn { .. }

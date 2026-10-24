@@ -5494,6 +5494,7 @@ impl Engine {
                 let later = mode
                     .effects
                     .contains(&Effect::PutOnActorIfOpposingNotReadyAfterCombat);
+                self.card_burns = Some(Vec::new());
                 for e in mode.effects.iter().filter(|_| target_ok).filter(|e| {
                     !(later && matches!(e, Effect::Layer(_)))
                         && !matches!(
@@ -5524,6 +5525,10 @@ impl Engine {
                         )
                 }) {
                     self.apply_card_effect(*e, &ctx, &mut in_play);
+                }
+                let burns = self.card_burns.take().unwrap_or_default();
+                if a.directed_seat(&self.state).is_some() {
+                    a.burned_owners.extend(burns);
                 }
                 if target_ok
                     && mode

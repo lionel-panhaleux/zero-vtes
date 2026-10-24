@@ -15575,12 +15575,12 @@ pub static LIBRARY: [LibraryCard; 954] = [
         modes: &[
             Mode {
                 tags: &["san", "COMBAT"],
-                windows: &["COMBAT_UNTIMED"],
+                windows: &["COMBAT_UNTIMED", "COMBAT_END_OF_ROUND"],
                 flags: &[],
             },
             Mode {
                 tags: &["SAN", "ACTION MODIFIER"],
-                windows: &["COMBAT_UNTIMED", "ACTION_DURING", "ACTION_AFTER_RESOLUTION", "ACTION_AFTER_DIABLERIE"],
+                windows: &["COMBAT_UNTIMED", "COMBAT_END_OF_ROUND", "ACTION_DURING", "ACTION_AFTER_RESOLUTION", "ACTION_AFTER_DIABLERIE"],
                 flags: &[],
             },
         ],

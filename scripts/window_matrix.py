@@ -1440,6 +1440,11 @@ COMBAT_TIMING = [
     # "Only usable when the opposing vampire is going into torpor"
     # (Decapitate [POT]): after the preventions, the damage about to land.
     (r"opposing vampire is going into torpor", "COMBAT_GOING_TO_TORPOR"),
+    # "Only usable after this Blood Brother gains blood" (Slake the
+    # Thirst): any step after the gain, the round's end too (Taste of
+    # Vitae's gain; LSJ 20100206-2, rules-qa 94.2).
+    (r"after this [^.]{0,30}gains blood", "COMBAT_UNTIMED"),
+    (r"after this [^.]{0,30}gains blood", "COMBAT_END_OF_ROUND"),
 ]
 COMBAT_DEFAULT = "COMBAT_UNTIMED"   # rules-qa 2.2: no printed step
 

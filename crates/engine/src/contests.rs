@@ -150,8 +150,18 @@ impl Engine {
                     o != m && v.in_play && !v.out_of_play && v.name() == name
                 })
                 .collect();
+            // Burned by the rule, not by the acting minion (LSJ 19990719):
+            // kept out of the action's burns.
+            let burned = self.action.as_ref().map(|a| a.burned_owners.len());
+            let card_burned = self.card_burns.as_ref().map(Vec::len);
             for o in firsts {
                 self.burn_minion(o);
+            }
+            if let (Some(a), Some(n)) = (self.action.as_mut(), burned) {
+                a.burned_owners.truncate(n);
+            }
+            if let (Some(b), Some(n)) = (self.card_burns.as_mut(), card_burned) {
+                b.truncate(n);
             }
             return;
         }

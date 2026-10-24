@@ -665,7 +665,7 @@ id,name,types,disciplines,in_precon,windows,flags,needs_review,review
 100986,Inner Essence,Combat,vic,no,COMBAT_BEFORE_RANGE,,,ok
 101792,Skin of Steel,Combat,for,no,COMBAT_DAMAGE_PREVENTION,,,ok
 102116,Vicissitude,Master,,no,MASTER_PHASE,,,ok
-101797,Slake the Thirst,Action Modifier/Combat,san,no,COMBAT_UNTIMED;ACTION_DURING;ACTION_AFTER_RESOLUTION;ACTION_AFTER_DIABLERIE,,yes,ok
+101797,Slake the Thirst,Action Modifier/Combat,san,no,COMBAT_UNTIMED;COMBAT_END_OF_ROUND;ACTION_DURING;ACTION_AFTER_RESOLUTION;ACTION_AFTER_DIABLERIE,,yes,ok
 101743,Shadow Play,Action Modifier,obt,no,ACTION_STEALTH_INTERCEPT,,,ok
 101207,Metro Underground,Master,,no,MASTER_PHASE,,,ok
 101774,Shroud of Absence,Action Modifier,dom/obt,no,ACTION_STEALTH_INTERCEPT,,,ok

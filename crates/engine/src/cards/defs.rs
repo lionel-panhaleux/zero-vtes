@@ -14026,7 +14026,9 @@ pub static ASHUR_TABLETS: CardDef = CardDef {
 /// whether the damage would be successfully inflicted or not. Combat ends.
 /// This vampire is locked and sent to torpor. This vampire does not unlock
 /// as normal. During this vampire's next unlock phase, burn this card."
-/// On the vampire facing the damage (RTR 19980623), once both strikes are
+/// On the vampire facing the damage, any Methuselah's (RTR 19980623; LSJ
+/// 20080821: the acting vampire, by the Yawp Court's player; rules-qa
+/// 94.1), once both strikes are
 /// declared, before they resolve (LSJ 19990217); a strike's damage only
 /// (ANK 20220114), effective at the range (RTR 19980928), dodged or not
 /// (LSJ 20011005), aggravated at its source (ANK 20200130-1). Combat ends
@@ -14041,9 +14043,8 @@ pub static ROTSCHRECK: CardDef = CardDef {
         target: target(
             TargetKind::Minion,
             &[
-                Requirement::Controlled,
                 Requirement::TargetVampire,
-                Requirement::TargetCombatant,
+                Requirement::TargetFacesAggravatedStrike,
             ],
         ),
         ..mode_of(
@@ -14051,7 +14052,7 @@ pub static ROTSCHRECK: CardDef = CardDef {
             Actor::Methuselah,
             &[
                 Requirement::NotOwnTurn,
-                Requirement::OwnCombatantFacesAggravatedStrike,
+                Requirement::CombatantFacesAggravatedStrike,
             ],
             &[
                 Effect::PutOnTarget,
@@ -20282,7 +20283,8 @@ pub static SHELL_GAME: CardDef = CardDef {
 /// another ready Blood Brother of the same circle. The chosen Blood Brother
 /// gains the same amount of blood. [SAN] [ACTION MODIFIER] As above, but
 /// usable as an action modifier." The gain read between decisions
-/// (rules-qa 68.2), a strike's as the strikes end; [SAN] in combat too, and
+/// (rules-qa 68.2), a strike's as the strikes end, an end-of-round one
+/// (Taste of Vitae) at the round's end; [SAN] in combat too, and
 /// during an action after its resolution (LSJ 20100325); again on the same
 /// gain (LSJ 20100206-2); several gains, the one it answers chosen (LSJ
 /// 20100203). The chosen any Methuselah's.
@@ -20295,7 +20297,7 @@ pub static SLAKE_THE_THIRST: CardDef = CardDef {
             target: SLAKE_TARGET,
             terms: Some(Terms::ActorGain),
             ..combat(
-                &[Window::CombatUntimed],
+                &[Window::CombatUntimed, Window::CombatEndOfRound],
                 &[Requirement::ActorGainedBlood],
                 &[Effect::TargetGainsActorGain],
             )
@@ -20304,7 +20306,7 @@ pub static SLAKE_THE_THIRST: CardDef = CardDef {
             target: SLAKE_TARGET,
             terms: Some(Terms::ActorGain),
             ..combat(
-                &[Window::CombatUntimed],
+                &[Window::CombatUntimed, Window::CombatEndOfRound],
                 &[Requirement::ActorGainedBlood],
                 &[Effect::TargetGainsActorGain],
             )

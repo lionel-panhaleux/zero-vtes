@@ -2228,8 +2228,13 @@ impl Engine {
     /// Contemplation), keeping its blood and cards (rules-qa 25.1).
     pub(crate) fn banish(&mut self, m: MinionId, to: SeatId) {
         self.about_to_leave_ready(&[m]);
+        // It leaves the ready region (Slaughtering the Herd [DOM]): its
+        // cards burned so (Righteous Aura, ANK 20180511-1) while still in
+        // play, before the rest go out of play with it.
+        if self.state.minions[m.index()].ready() {
+            self.by_left_ready(m);
+        }
         let v = &mut self.state.minions[m.index()];
-        let was_ready = v.ready();
         v.in_play = false;
         let card = v.crypt_card().unwrap_or(crate::state::CREATED);
         let copy = *v.copy;
@@ -2255,10 +2260,6 @@ impl Engine {
                     cards: on,
                 }),
             });
-        // It left the ready region (Slaughtering the Herd [DOM]).
-        if was_ready {
-            self.by_left_ready(m);
-        }
     }
 
     /// The acting Methuselah was ousted during their action: on their turn
