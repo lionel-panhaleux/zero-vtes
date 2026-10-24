@@ -2163,6 +2163,32 @@ impl Engine {
         ignore_lock: bool,
     ) -> Vec<MinionId> {
         let st = &self.state;
+        st.minions_of(seat)
+            .chain(self.fury_tokens(a, seat))
+            .filter(|m| {
+                let v = &st.minions[m.index()];
+                !v.in_torpor
+                    && !v.incapacitated
+                    && !v.expelled
+                    && (ignore_lock
+                        || !v.locked
+                        || a.woken.contains(m)
+                        || a.aus_unlocked.contains(m))
+                    && !a.barred_blockers.contains(m)
+                    && st.tether_holds(*m)
+                    && self.block_toll(a, *m).is_some()
+                    && !self.blocker_barred(a, *m)
+            })
+            .collect()
+    }
+
+    /// The action's and the cards' bars on `m` blocking it, read live: as
+    /// attempts are offered, and against the attempt under way after each
+    /// effect resolves in the action (`apply_action_effect`: Daring the Dawn
+    /// played into a vampire's attempt fails it, owner, rules-qa 92.1).
+    fn blocker_barred(&self, a: &ActionCtx, m: MinionId) -> bool {
+        let st = &self.state;
+        let v = &st.minions[m.index()];
         let vampire_acting = !st.minions[a.acting.index()].is_ally();
         // "Allies cannot block this action / this Anarch" (Visions of
         // Gehenna, Invigorate [dom], Libertas).
@@ -2180,54 +2206,38 @@ impl Engine {
                 crate::state::PrintedCtx::default(),
             )
             .max(0);
-        st.minions_of(seat)
-            .chain(self.fury_tokens(a, seat))
-            .filter(|m| {
-                let v = &st.minions[m.index()];
-                !v.in_torpor
-                    && !v.incapacitated
-                    && !v.expelled
-                    && (ignore_lock
-                        || !v.locked
-                        || a.woken.contains(m)
-                        || a.aus_unlocked.contains(m))
-                    && !a.barred_blockers.contains(m)
-                    && st.tether_holds(*m)
-                    && !a.barred_seats.contains(&v.owner)
-                    && self.block_toll(a, *m).is_some()
-                    && !(vampire_acting && st.cannot_block_vampires(*m))
-                    && !st.shuns(*m, a.acting)
-                    && !(v.is_vampire()
-                        && st
-                            .big_cannot_block(a.acting)
-                            .is_some_and(|n| st.capacity_of(*m).is_some_and(|c| c >= n)))
-                    && !st.cannot_block(*m, a.acting)
-                    && !st.unblockable(a.acting, a.kind)
-                    && !(no_allies && v.is_ally())
-                    && only.is_none_or(|l| st.has_subtype(*m, l))
-                    && !(small > 0
-                        && v.is_vampire()
-                        && st.capacity_of(*m).is_some_and(|c| (c as i32) <= small))
-                    && !(a.vampires_cannot_block && !v.is_ally())
-                    && !a.small_monsters_cannot_block.is_some_and(|(cap, pool)| {
-                        if v.is_vampire() {
-                            st.capacity_of(*m).is_some_and(|c| c < cap)
-                        } else {
-                            // A pool cost printed, read narrowly: an ally
-                            // costing blood is not barred.
-                            st.is_monster(*m)
-                                && v.kind.ally_card().is_some_and(|c| {
-                                    matches!(LIBRARY[c as usize].pool_cost,
-                                        crate::library::Cost::Fixed(n) if n < pool)
-                                })
-                        }
-                    })
-                    && !a.unblockable
-                    && !(a.titled_cannot_block
-                        && !v.is_ally()
-                        && st.title_of(*m) != crate::crypt::Title::None)
+        a.barred_seats.contains(&v.owner)
+            || (vampire_acting && st.cannot_block_vampires(m))
+            || st.shuns(m, a.acting)
+            || (v.is_vampire()
+                && st
+                    .big_cannot_block(a.acting)
+                    .is_some_and(|n| st.capacity_of(m).is_some_and(|c| c >= n)))
+            || st.cannot_block(m, a.acting)
+            || st.unblockable(a.acting, a.kind)
+            || (no_allies && v.is_ally())
+            || only.is_some_and(|l| !st.has_subtype(m, l))
+            || (small > 0
+                && v.is_vampire()
+                && st.capacity_of(m).is_some_and(|c| (c as i32) <= small))
+            || (a.vampires_cannot_block && !v.is_ally())
+            || a.small_monsters_cannot_block.is_some_and(|(cap, pool)| {
+                if v.is_vampire() {
+                    st.capacity_of(m).is_some_and(|c| c < cap)
+                } else {
+                    // A pool cost printed, read narrowly: an ally costing
+                    // blood is not barred.
+                    st.is_monster(m)
+                        && v.kind.ally_card().is_some_and(|c| {
+                            matches!(LIBRARY[c as usize].pool_cost,
+                                crate::library::Cost::Fixed(n) if n < pool)
+                        })
+                }
             })
-            .collect()
+            || a.unblockable
+            || (a.titled_cannot_block
+                && !v.is_ally()
+                && st.title_of(m) != crate::crypt::Title::None)
     }
 
     /// Unleash Hell's Fury of `seat`'s, in play, against an action directed
@@ -4203,6 +4213,11 @@ impl Engine {
             Effect::EndActionIfBlocked => a.end_on_block = true,
             Effect::MayCancelCombatIfBlocked => a.cancel_combat_if_blocked = true,
             other => unreachable!("not an action effect: {other:?}"),
+        }
+        if let ActionState::Attempt(m) = a.state {
+            if self.blocker_barred(&a, m) {
+                a.attempt_failed(&self.state, true);
+            }
         }
         self.action = Some(a);
         if let Some(m) = burned {

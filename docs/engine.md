@@ -799,8 +799,12 @@ sources to the engine's conventions.
 - Eligibility: prey/predator/target rule (`eligible_blockers`), widened per
   attempt by `can_attempt_block_anyone` (Eagle's Sight: one attempt, not the
   acting Methuselah's own minion nor a decliner nor a barred blocker);
-  narrowed by the bars in `block_candidates_locked` (Ravager's "only
-  changelings" on undirected hunts: `only_subtype_blocks_undirected_hunts`).
+  narrowed by the bars in `Engine::blocker_barred` (Ravager's "only
+  changelings" on undirected hunts: `only_subtype_blocks_undirected_hunts`),
+  read live: as attempts are offered (`block_candidates_locked`, with the
+  minion's own state: torpor, lock, toll) and against the attempt under
+  way after each action effect (`apply_action_effect`), which then fails
+  barred (Daring the Dawn [FOR] into a vampire's attempt, rules-qa 92.1).
 - A combat a block begins may be canceled by the acting vampire
   (`ActionCtx::cancel_combat_if_blocked`, Stone Travel [MYT]): the
   `Interrupt::MayCancelCombat` Foresee also asks, `Choice::CancelCombat`;

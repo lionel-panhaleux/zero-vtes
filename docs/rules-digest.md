@@ -1626,6 +1626,12 @@ Advanced rules §3.2 (stealth and intercept), §3.3 (blocking).
   new controller may attempt with it if eligible (27.3).
 - A blocker locked during its own attempt fails it (Alexandra, 62.3;
   Marciana, 69.7).
+- An attempt under way fails when the action becomes one its minion cannot
+  block: the bars on blockers are read live against it as each effect
+  resolves in the action (owner, 92.1): Daring the Dawn [FOR] played into
+  a vampire's attempt fails it, an ally's stands; failed so, the minion is
+  locked under Faceless Night [OBF] (92.2), and The Kiss of Ra never follows
+  Daring the Dawn (92.3).
 - Aisling Sturbridge: a younger Tremere of any Methuselah is no block
   candidate, read live (80.1). Karsh (ADV) cannot block an infernal vampire,
   read at the attempt (80.5). General Perfidio Díos: 1 blood to unlock and
@@ -4592,6 +4598,7 @@ read, for the owner to confirm or correct:
   owner: 89.1 corrected, 89.2 confirmed).
 - 90.1–90.3, 90.5, 90.8–90.10 graded green or amber (90.4, 90.6, 90.7
   red, answered by the owner: 90.4 confirmed, 90.6 and 90.7 corrected).
+- 92.2, 92.3 graded green or amber (92.1 the owner's playtest ruling).
 - 49.6's several-holders question is moot (50.1: the Cog is unique).
 
 ### 24.2 Questions for a new rules-qa batch
@@ -4700,7 +4707,7 @@ an owner ruling:
 Every rules-qa item, by batch, with the digest sections citing it: the
 section stating it and those cross-referring to it (§2 the default
 readings, §22 engine modeling, §23 the contradictions, §24 the open
-readings). 951 items, Batches 1–91 (44.11 was removed, replaced by Batch
+readings). 954 items, Batches 1–92 (44.11 was removed, replaced by Batch
 45). The index is derived from the citations: a bare `N.M` cites rules-qa
 item N.M in the section it appears in. A new rules-qa item gets its line in
 the section stating it, then its entry here: `python3
@@ -5028,3 +5035,4 @@ index or an item cited nowhere.
   §2,§23.3,§24.1
 - **91** — 91.1 §18.5; 91.2 §18.5; 91.3 §18.5; 91.4 §18.5; 91.5 §18.5; 91.6
   §18.5; 91.7 §18.5; 91.8 §18.5
+- **92** — 92.1 §9.1,§24.1; 92.2 §9.1,§24.1; 92.3 §9.1,§24.1

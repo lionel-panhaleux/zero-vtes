@@ -691,6 +691,55 @@ fn under_siege_keeps_the_blocking_restrictions() {
     );
 }
 
+// Daring the Dawn [FOR] "Vampires cannot block this action", played into a
+// vampire's block attempt under way: the attempt fails (owner, sc-bot
+// playtest: "the block happened it should not have"; rules-qa 92.1), the
+// bleed lands and Aaradhya takes its damage after resolution. An ally's
+// attempt is untouched: it blocks.
+#[test]
+fn daring_the_dawn_fails_a_vampires_attempt_under_way_not_an_allys() {
+    for ally in [false, true] {
+        let (mut e, aaradhya) = table(AARADHYA);
+        let blocker = if ally {
+            e.add_ally(SeatId(1), find_library("Political Ally"))
+        } else {
+            e.add_minion(SeatId(1), plain("Brujah", 1), 4, false)
+        };
+        hand(&mut e, 0, &["Daring the Dawn"]);
+        pick(&mut e, bleed(aaradhya));
+        pick_when(&mut e, Choice::DeclareBlock { minion: blocker });
+        pick_when(&mut e, play(0, 1, aaradhya));
+        until(&mut e, SeatId(0), WindowLabel::MinionPhase);
+        if ally {
+            assert_eq!(e.state.seats[1].pool, 10, "the ally blocks");
+            continue;
+        }
+        assert!(e.state.seats[1].pool < 10, "unblocked: the bleed lands");
+        assert!(
+            e.state.minions[aaradhya.index()].in_torpor,
+            "Daring the Dawn's aggravated damage after resolution"
+        );
+    }
+}
+
+// Faceless Night [OBF] "minions who attempt to block this action and fail
+// become locked before action resolution": an attempt failed by Daring the
+// Dawn [FOR] played into it is one (rules-qa 92.2; LSJ 20081202): the
+// blocker is locked.
+#[test]
+fn faceless_night_locks_a_vampire_whose_attempt_daring_the_dawn_fails() {
+    let (mut e, sree) = table("Sreelekha");
+    let blocker = e.add_minion(SeatId(1), plain("Brujah", 1), 4, false);
+    hand(&mut e, 0, &["Faceless Night", "Daring the Dawn"]);
+    pick(&mut e, bleed(sree));
+    pick_when(&mut e, Choice::DeclareBlock { minion: blocker });
+    pick_when(&mut e, play(0, 1, sree));
+    pick_when(&mut e, play(0, 1, sree));
+    until(&mut e, SeatId(0), WindowLabel::MinionPhase);
+    assert!(e.state.seats[1].pool < 10, "unblocked");
+    assert!(e.state.minions[blocker.index()].locked, "a failed attempt");
+}
+
 // [LSJ 20091224] Black Forest Base "Cannot be attempted twice even if the
 // first attempt was blocked and failed": used once, no other Sabbat
 // vampire's this turn. [ANK 20180719-4] "'Once each turn' means once
