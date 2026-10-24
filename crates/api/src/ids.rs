@@ -338,6 +338,8 @@ ids!(
         BurnCorruptionToUnlock,
         Diablerise,
         CancelCombat,
+        /// Announce a withdrawal from the game (§1).
+        WithdrawFromGame,
     }
 );
 

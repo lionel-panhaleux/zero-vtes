@@ -228,6 +228,11 @@ tables; `limit_slot` matches every `Limit`.
   in hand-written engine code (`crates/env`'s included) outside the
   definitions; each exception in `CARD_NAMES_ALLOWED` carries its reason,
   a stale one fails.
+- `pool_and_blood_go_down_through_their_primitives` (`tests/lint.rs`):
+  pool and blood are lowered only by `Seat::lose_pool` / `set_pool` and
+  `GameState::lose_blood` / `set_blood` / `burn_blood` (a minion leaving
+  play: `Minion::clear_blood`; a non-decreasing set: `raise_blood`), the
+  one place a loss breaks a withdrawal (§6.17); a gain may add in place.
 - `during_abilities_are_once` (`tests/lint.rs`): a definition whose quoted
   text grants a "during" ability has an ability of its own once in its span
   (a `Limit`, phase windows only, a cost spending the card or its host's
@@ -337,6 +342,9 @@ hazards, from the engine review of 2026-10-14):
    cannot reach the stealth on their way (`futile_blocks`; the window the
    engine elided before), `request` returns it; `decline_futile` passes
    them, `never_reaching_until` proves an attempt cannot reach the stealth.
+   A bare fixture's seats (empty library and hand) are offered a
+   withdrawal each unlock phase: `expect` and `pick` pass a window
+   offering only it on the way (`withdrawal_only`), `request` returns it.
    A test in `tests/rulings.rs` backs a ledger row; regressions go
    elsewhere.
 6. **Ledger**: each of the card's rows in `data/rulings-v5.csv` (CRLF)
@@ -535,7 +543,8 @@ sources to the engine's conventions.
 - Unlock-phase effects (`start_unlock_effects`, `Flow::Abilities`): one
   ordered impulse sequence clockwise from the active Methuselah, who settles
   their mandatory effects (contest upkeep, every pending rider) in the order
-  they choose, among their optional ones (the Edge's pool, abilities), and
+  they choose, among their optional ones (the Edge's pool, a withdrawal
+  §6.17, abilities), and
   cannot pass before; then the other seats' abilities. A contest with no
   rival left is released and a forced yield settles at once: neither is a
   decision.
@@ -1598,11 +1607,20 @@ sources to the engine's conventions.
   `acting_pool_out` instead: off their turn (Enkil Cog, Madness Network)
   the action ends with them and the active Methuselah's phase goes on
   (rules-qa 49.6, 78.48).
+- Withdrawal (rules-qa 95): `Choice::WithdrawFromGame`, offered in the
+  unlock-phase window (`GameState::may_announce_withdrawal`:
+  `Seat::began_short`, set as the turn begins, and the library empty) sets
+  `Seat::withdrawal` `Announced`; a pool or vampire blood loss (the
+  primitives, §3) or a minion entering combat (`begin_combat`) breaks it;
+  `start_turn` takes it first: kept, `Engine::withdraw` removes the seat as an
+  oust does (`remove_seat`, `Seat::withdrew`, `Rule::Withdrawal`) without the
+  predator's reward or the oust's releases, and the next turn begins.
 - Victory points go through `Engine::gain_half_vps` (prey ousts, last
-  standing, the time limit's half point): a Life Boon in play remembering the
-  Methuselah (`CardInPlay::against`) takes them, oldest first, its counters
-  the half points given, burned at 1 VP. `Effect::StealPoolFromBoonTarget`
-  (`Requirement::BoonTargetActive`, `Window::UnlockPhaseAny`).
+  standing, a withdrawal, the time limit's half point): a Life Boon in play
+  remembering the Methuselah (`CardInPlay::against`) takes them, oldest first,
+  its counters the half points given, burned at 1 VP.
+  `Effect::StealPoolFromBoonTarget` (`Requirement::BoonTargetActive`,
+  `Window::UnlockPhaseAny`).
 
 ### 6.18 Generated data
 

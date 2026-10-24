@@ -163,6 +163,8 @@ impl Scripted {
                 Choice::PayContest(_) => 10,
                 // The Edge's pool costs nothing.
                 Choice::BurnEdge => 10,
+                // A scripted style plays on to the end.
+                Choice::WithdrawFromGame => -5,
                 _ => 0,
             },
             W::DiscardPhase | W::DiscardDown => match o {

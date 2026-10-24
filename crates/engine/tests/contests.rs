@@ -191,7 +191,11 @@ fn unique_library_card_contest_pay_yield_and_return() {
     let req = to_window(&mut e, SeatId(0), WindowLabel::UnlockAbilities);
     assert_eq!(
         req.options,
-        vec![Choice::PayContest(item), Choice::YieldContest(item)]
+        vec![
+            Choice::PayContest(item),
+            Choice::YieldContest(item),
+            Choice::WithdrawFromGame
+        ]
     );
     pick(&mut e, Choice::PayContest(item));
     assert_eq!(e.state.seats[0].pool, 7);

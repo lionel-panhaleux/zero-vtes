@@ -321,10 +321,14 @@ impl Game {
                                 .then(|| zvtes_policy::chores::mask(&self.engine, &req))
                                 .flatten(),
                         );
-                        // Never a futile block attempt, as the server's bots
-                        // (`zvtes_policy::reachable_blocks`): the outermost.
+                        // Never a futile block attempt nor a withdrawal, as
+                        // the server's bots (`zvtes_policy::reachable_blocks`,
+                        // `no_withdrawal`): the outermost.
                         let mask = zvtes_policy::combine(
-                            zvtes_policy::reachable_blocks(&self.engine, &req),
+                            zvtes_policy::combine(
+                                zvtes_policy::reachable_blocks(&self.engine, &req),
+                                zvtes_policy::no_withdrawal(&req),
+                            ),
                             mask,
                         );
                         let (req, offered) = match mask {
@@ -1172,6 +1176,27 @@ fn futile_blocks(
     counts
 }
 
+/// Unlock phases in a game replayed from its log (`replay`'s arguments)
+/// offering a withdrawal, and the withdrawals announced — the rollouts'
+/// mask (`zvtes_policy::no_withdrawal`) leaves the second at 0.
+#[pyfunction]
+#[pyo3(signature = (seed, decks, log, time_limit=zvtes::game::TURN_LIMIT))]
+fn withdrawals(seed: u64, decks: Vec<usize>, log: Vec<usize>, time_limit: u32) -> (u32, u32) {
+    let list: Vec<Deck> = decks.iter().map(|&d| all_decks()[d]).collect();
+    let mut e = Engine::with_decks(seed, &list);
+    e.time_limit = time_limit;
+    let mut counts = (0, 0);
+    for i in log {
+        let Step::Decision(req) = e.run() else { break };
+        if req.options.contains(&Choice::WithdrawFromGame) {
+            counts.0 += 1;
+            counts.1 += (req.options[i] == Choice::WithdrawFromGame) as u32;
+        }
+        e.choose(i);
+    }
+    counts
+}
+
 /// The encoding's widths and counts, as JSON.
 #[pyfunction]
 fn schema() -> String {
@@ -1241,6 +1266,7 @@ fn zvtes_py(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<GamePool>()?;
     m.add_function(wrap_pyfunction!(replay, m)?)?;
     m.add_function(wrap_pyfunction!(futile_blocks, m)?)?;
+    m.add_function(wrap_pyfunction!(withdrawals, m)?)?;
     m.add_function(wrap_pyfunction!(schema, m)?)?;
     m.add_function(wrap_pyfunction!(position_names, m)?)?;
     m.add_function(wrap_pyfunction!(deck_names, m)?)?;

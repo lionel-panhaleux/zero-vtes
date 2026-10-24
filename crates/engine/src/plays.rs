@@ -2296,7 +2296,7 @@ impl Engine {
         self.spend_counters(&used);
         // A vampire's blood paying 1 of what is left (Regina Blake).
         if let Some(r) = self.blood_payment(ctx.blood_payer, &mut pool, &mut blood) {
-            self.state.minions[r.index()].blood -= 1;
+            self.state.lose_blood(r, 1);
         }
         (pool, blood)
     }
@@ -3137,7 +3137,7 @@ impl Engine {
                 continue;
             }
             if v.blood >= n {
-                self.state.minions[i].blood -= n;
+                self.state.lose_blood(m, n);
             } else {
                 self.burn_minion(m);
             }
@@ -3349,7 +3349,9 @@ impl Engine {
                     card: top.ctx.card,
                     copy: *top.ctx.copy,
                 });
-                self.caused(canceled, |e| e.state.seats[seat.index()].pool -= n as i32);
+                self.caused(canceled, |e| {
+                    e.state.seats[seat.index()].lose_pool(n as i32)
+                });
                 self.flow = Flow::AsPlayed { stack, resume };
             }
             other => unreachable!("illegal as-played choice {other:?}"),
@@ -3557,7 +3559,7 @@ impl Engine {
                 copy: *ctx.copy,
             });
             self.caused(canceled, |e| {
-                e.state.seats[ctx.seat.index()].pool -= pool.max(0);
+                e.state.seats[ctx.seat.index()].lose_pool(pool.max(0));
                 e.pay_play_blood(&ctx, blood_off);
             });
         }
@@ -3736,8 +3738,8 @@ impl Engine {
             + self.discipline_surcharge(m, ctx.card, ctx.mode)
             + self.combat_card_surcharge(m, ctx.card, ctx.mode))
         .saturating_sub(blood_off);
+        self.state.burn_blood(m, blood);
         let v = &mut self.state.minions[m.index()];
-        v.blood = v.blood.saturating_sub(blood);
         if blood > 0 && v.is_ally() && v.blood == 0 {
             let combatant = self
                 .combat
@@ -3868,7 +3870,7 @@ impl Engine {
             let before = cards::blood_cost(&self.state, ctx.card, ctx.x).saturating_sub(blood_off);
             let mut blood = before;
             if let Some(r) = self.blood_payment(Some(r), &mut pool, &mut blood) {
-                self.state.minions[r.index()].blood -= 1;
+                self.state.lose_blood(r, 1);
                 blood_off += before - blood;
             }
         }
@@ -3890,7 +3892,7 @@ impl Engine {
                 pool = (pool - 1).max(0);
             }
         }
-        self.state.seats[s.index()].pool -= pool;
+        self.state.seats[s.index()].lose_pool(pool);
         if pool > 0 {
             self.note_pool_burned(s);
         }
@@ -4716,7 +4718,7 @@ impl Engine {
                     .find(|&m| m != actor)
                     .expect("an opposing minion");
                 let moved = n.min(self.state.minions[opposing.index()].blood);
-                self.state.minions[opposing.index()].blood -= moved;
+                self.state.lose_blood(opposing, moved);
                 let id = self.enter_play(CardInPlay {
                     by: Some(actor),
                     counters: moved,
@@ -4844,8 +4846,8 @@ impl Engine {
                     }
                     let (pool, blood) = self.pay_named_discounts(ctx, pool, blood);
                     let share = share.min(pool.max(0) as u8);
-                    self.state.seats[s.index()].pool -= pool - share as i32;
-                    self.state.minions[m.index()].blood -= blood + share;
+                    self.state.seats[s.index()].lose_pool(pool - share as i32);
+                    self.state.lose_blood(m, blood + share);
                     let play = PlayCtx {
                         copy: crate::copies::Untracked(copy),
                         ..PlayCtx::new(s, card, mode, Some(m), Target::Minion(m), 0)
@@ -4908,12 +4910,11 @@ impl Engine {
                         cards::pool_cost(&self.state, s, card, Target::Minion(m)),
                         cards::blood_cost(&self.state, card, 0),
                     );
-                    self.state.seats[s.index()].pool -= pool;
+                    self.state.seats[s.index()].lose_pool(pool);
                     if pool > 0 {
                         self.note_pool_burned(s);
                     }
-                    self.state.minions[m.index()].blood -=
-                        blood.min(self.state.minions[m.index()].blood);
+                    self.state.burn_blood(m, blood);
                     let play = PlayCtx {
                         copy: crate::copies::Untracked(copy),
                         ..PlayCtx::new(s, card, mode, Some(m), Target::Minion(m), 0)
@@ -5066,7 +5067,7 @@ impl Engine {
                             }
                         }
                         let v = &mut self.state.minions[t.index()];
-                        v.blood = 0;
+                        v.clear_blood();
                         v.in_play = false;
                         if let Some(base) = merged {
                             self.state.seats[owner.index()]
@@ -5098,7 +5099,7 @@ impl Engine {
             Effect::MoveBloodTargetToPoolX => {
                 let t = ctx.target.minion();
                 let moved = ctx.x.min(self.state.minions[t.index()].blood);
-                self.state.minions[t.index()].blood -= moved;
+                self.state.lose_blood(t, moved);
                 self.state.seats[s.index()].pool += moved as i32;
             }
             Effect::Layer(modifier) => {
@@ -5232,9 +5233,9 @@ impl Engine {
             // hold goes to the bank.
             Effect::StealBloodFromTarget(n) => {
                 let t = ctx.target.minion();
-                let v = &mut self.state.minions[t.index()];
-                let taken = n.min(v.blood);
-                v.blood -= taken;
+                let taken = n.min(self.state.minions[t.index()].blood);
+                self.state.lose_blood(t, taken);
+                let v = &self.state.minions[t.index()];
                 let lifeless = v.is_ally() && v.blood == 0;
                 if let Some(a) = ctx.actor {
                     if self.state.minions[a.index()].present() {
@@ -5321,7 +5322,7 @@ impl Engine {
                 };
                 let a = ctx.actor.expect("the vampire moving the blood");
                 let n = ctx.x.min(self.state.minions[a.index()].blood);
-                self.state.minions[a.index()].blood -= n;
+                self.state.lose_blood(a, n);
                 self.state.add_uncontrolled_blood(s, i as usize, n);
             }
             Effect::Stun => {
@@ -6034,8 +6035,11 @@ impl Engine {
                 self.open_phase_rotation(Flow::Discard)
             }
             Choice::UnlockForBlood { minion } => {
-                let v = &mut self.state.minions[minion.index()];
-                v.blood -= v.discard_unlock.take().map_or(0, |(_, n)| n);
+                let paid = self.state.minions[minion.index()]
+                    .discard_unlock
+                    .take()
+                    .map_or(0, |(_, n)| n);
+                self.state.lose_blood(*minion, paid);
                 self.state.unlock(*minion);
                 self.flow = Flow::Discard;
             }
@@ -6121,7 +6125,7 @@ impl Engine {
                         })
                         .count() as i32;
                     let dragon = Cause::Effect(Source::Card(c));
-                    self.caused(dragon, |e| e.state.seats[s.index()].pool -= n);
+                    self.caused(dragon, |e| e.state.seats[s.index()].lose_pool(n));
                     if self.state.seats[s.index()].pool <= 0 {
                         self.oust_and_pass(s);
                     }
@@ -8543,7 +8547,7 @@ impl Engine {
                     if let Some(h) = self.state.cards[source.card().index()].host {
                         let cap = self.state.capacity_of(h).unwrap_or(u8::MAX);
                         let v = &mut self.state.minions[h.index()];
-                        v.blood = (v.blood + n).min(cap.max(v.blood));
+                        v.raise_blood((v.blood + n).min(cap.max(v.blood)));
                     }
                 }
                 Effect::ReturnHost { unlocked } => {
@@ -8565,7 +8569,7 @@ impl Engine {
                 Effect::BloodToCard(n) => {
                     let t = target.minion();
                     let moved = n.min(self.state.minions[t.index()].blood);
-                    self.state.minions[t.index()].blood -= moved;
+                    self.state.lose_blood(t, moved);
                     self.state.cards[source.card().index()].counters += moved;
                 }
                 Effect::CountersToUncontrolledTarget => {
@@ -8666,7 +8670,7 @@ impl Engine {
                     let h = host.expect("host");
                     if let Target::Uncontrolled(i) = target {
                         let give = n.min(self.state.minions[h.index()].blood);
-                        self.state.minions[h.index()].blood -= give;
+                        self.state.lose_blood(h, give);
                         self.state
                             .add_uncontrolled_blood(ctx.seat, i as usize, give);
                     }
@@ -8677,17 +8681,17 @@ impl Engine {
                     let was = self.state.minions[t.index()].blood;
                     let now = self.state.cap_starting(t, was.saturating_add(n.min(have)));
                     self.state.set_blood(t, now);
-                    self.state.minions[h.index()].blood -= now - was;
+                    self.state.lose_blood(h, now - was);
                 }
                 // Blood above the host's capacity drains off as the engine
                 // settles (rules-qa 41.8).
                 Effect::TargetBloodToHost(n) => {
                     let (h, t) = (host.expect("host"), target.minion());
                     let give = n.min(self.state.minions[t.index()].blood);
-                    let b = &mut self.state.minions[h.index()].blood;
-                    *b = b.saturating_add(give);
-                    let v = &mut self.state.minions[t.index()];
-                    v.blood -= give;
+                    let v = &mut self.state.minions[h.index()];
+                    v.raise_blood(v.blood.saturating_add(give));
+                    self.state.lose_blood(t, give);
+                    let v = &self.state.minions[t.index()];
                     if v.is_ally() && v.blood == 0 {
                         self.lifeless(t);
                     }
@@ -8724,19 +8728,19 @@ impl Engine {
                 }
                 Effect::HostBurnBloodToUnlock => {
                     let h = host.expect("host");
-                    self.state.minions[h.index()].blood -= 1;
+                    self.state.lose_blood(h, 1);
                     self.effect_unlock(h);
                 }
                 Effect::ActorBloodToTarget(n) => {
                     let a = ctx.actor.expect("the actor");
                     let moved = n.min(self.state.minions[a.index()].blood);
-                    self.state.minions[a.index()].blood -= moved;
+                    self.state.lose_blood(a, moved);
                     self.state.gain_blood(target.minion(), moved);
                 }
                 Effect::HostBloodToPool(n) => {
-                    let h = &mut self.state.minions[host.expect("host").index()];
-                    let moved = n.min(h.blood);
-                    h.blood -= moved;
+                    let h = host.expect("host");
+                    let moved = n.min(self.state.minions[h.index()].blood);
+                    self.state.lose_blood(h, moved);
                     self.state.seats[ctx.seat.index()].pool += moved as i32;
                 }
                 Effect::PoolToHostBlood(n) => {
@@ -8748,7 +8752,7 @@ impl Engine {
                         .min(self.state.seats[ctx.seat.index()].pool.max(0) as u8);
                     let b = h.blood + moved;
                     self.state.set_blood(host.expect("host"), b);
-                    self.state.seats[ctx.seat.index()].pool -= moved as i32;
+                    self.state.seats[ctx.seat.index()].lose_pool(moved as i32);
                     if self.state.seats[ctx.seat.index()].pool == 0 {
                         self.oust_and_pass(ctx.seat);
                     }
@@ -8777,7 +8781,7 @@ impl Engine {
                     let st = &self.state;
                     let from = st.active;
                     if st.cards[source.card().index()].against.contains(from) {
-                        self.state.seats[from.index()].pool -= 1;
+                        self.state.seats[from.index()].lose_pool(1);
                         self.state.seats[ctx.seat.index()].pool += 1;
                         if self.state.seats[from.index()].pool <= 0 {
                             self.oust_and_pass(from);
@@ -8869,9 +8873,8 @@ impl Engine {
                     let id = source.card();
                     match self.state.cards[id.index()].body {
                         Some(m) => {
-                            let v = &mut self.state.minions[m.index()];
-                            v.blood = v.blood.saturating_sub(n);
-                            if v.blood == 0 {
+                            self.state.burn_blood(m, n);
+                            if self.state.minions[m.index()].blood == 0 {
                                 self.burn_minion(m);
                             }
                         }
@@ -8887,7 +8890,7 @@ impl Engine {
                 Effect::StealBloodToHostX => {
                     if let (Target::Minion(t), Some(h)) = (target, host) {
                         let n = ctx.x.min(self.state.minions[t.index()].blood);
-                        self.state.minions[t.index()].blood -= n;
+                        self.state.lose_blood(t, n);
                         self.state.gain_blood(h, n);
                     }
                 }
@@ -9184,7 +9187,7 @@ impl Engine {
                 // "Move 1 counter from their pool to this card" (Open War):
                 // paid down to 0, its user is ousted.
                 Effect::PoolToCounter(n) => {
-                    self.state.seats[ctx.seat.index()].pool -= n as i32;
+                    self.state.seats[ctx.seat.index()].lose_pool(n as i32);
                     self.state.cards[source.card().index()].counters += n;
                     if self.state.seats[ctx.seat.index()].pool <= 0 {
                         self.oust_and_pass(ctx.seat);
@@ -9271,10 +9274,9 @@ impl Engine {
                 Effect::AddVotesX => self.apply_vote_effect(Effect::AddVotes(ctx.x), &ctx),
                 Effect::TargetBloodToPool(n) => {
                     if let Target::Minion(t) = target {
-                        let v = &mut self.state.minions[t.index()];
-                        let moved = n.min(v.blood);
-                        v.blood -= moved;
-                        let owner = v.owner;
+                        let moved = n.min(self.state.minions[t.index()].blood);
+                        self.state.lose_blood(t, moved);
+                        let owner = self.state.minions[t.index()].owner;
                         self.state.seats[owner.index()].pool += moved as i32;
                     }
                 }
@@ -9434,7 +9436,7 @@ impl Engine {
     /// An ability's pool cost, paid down to 0: its user is ousted — on
     /// their turn the turn passes, else it goes on without them.
     pub(crate) fn pay_pool_for_ability(&mut self, seat: SeatId, n: i32) {
-        self.paying(|e| e.state.seats[seat.index()].pool -= n);
+        self.paying(|e| e.state.seats[seat.index()].lose_pool(n));
         if n > 0 {
             self.note_pool_burned(seat);
         }
@@ -9503,6 +9505,9 @@ impl Engine {
         // Edge lock first, then the pool).
         if seat == self.state.active && self.state.seats[seat.index()].has_edge && !edge_taken {
             options.push(Choice::BurnEdge);
+        }
+        if seat == self.state.active && self.state.may_announce_withdrawal(seat) {
+            options.push(Choice::WithdrawFromGame);
         }
         // An infernal minion locked: 1 pool to unlock it, any time in the
         // phase — again if locked again (advanced rules §5.7.3).
@@ -9643,11 +9648,16 @@ impl Engine {
                 edge_taken = true;
                 window.play();
             }
+            Choice::WithdrawFromGame => {
+                let s = self.state.active;
+                self.state.seats[s.index()].withdrawal = crate::state::Withdrawal::Announced;
+                window.play();
+            }
             // Infernal: 1 pool, a last one included (a cost may oust).
             Choice::UnlockInfernal { minion } => {
                 let s = self.state.active;
                 let infernal = Cause::Cost(Source::Minion(*minion));
-                self.caused(infernal, |e| e.state.seats[s.index()].pool -= 1);
+                self.caused(infernal, |e| e.state.seats[s.index()].lose_pool(1));
                 self.state.unlock(*minion);
                 if self.state.seats[s.index()].pool <= 0 && self.oust_and_pass(s) {
                     return;
@@ -9999,9 +10009,8 @@ impl Engine {
                                 if v.incapacitated {
                                     continue;
                                 }
-                                let v = &mut self.state.minions[i];
-                                v.blood = v.blood.saturating_sub(1);
-                                if v.blood == 0 {
+                                self.state.burn_blood(m, 1);
+                                if self.state.minions[i].blood == 0 {
                                     self.lifeless(m);
                                 }
                             } else if self.state.sect_of(m) == Some(crate::crypt::Sect::Anarch) {
@@ -10122,7 +10131,7 @@ impl Engine {
         if own_loss > 0 {
             let seat = &mut self.state.seats[s.index()];
             let moved = own_loss.min(seat.pool) as u8;
-            seat.pool = (seat.pool - own_loss).max(0);
+            seat.set_pool((seat.pool - own_loss).max(0));
             // Counters move even as the last pool goes (the card leaves
             // with its ousted controller anyway).
             self.state.cards[id.index()].counters += to_counters.min(moved);
@@ -10345,7 +10354,7 @@ impl Engine {
                     seat.removed.put(c, copy);
                 }
                 let seat = &mut self.state.seats[s.index()];
-                seat.pool = (seat.pool - (left - k) as i32).max(0);
+                seat.set_pool((seat.pool - (left - k) as i32).max(0));
                 if seat.pool == 0 && self.oust_and_pass(s) {
                     return;
                 }
@@ -10357,7 +10366,7 @@ impl Engine {
                 // the units from the pool; the hand is drawn up afterward.
                 self.discard_at_random(s, *k as usize);
                 let seat = &mut self.state.seats[s.index()];
-                seat.pool = (seat.pool - (left - k) as i32).max(0);
+                seat.set_pool((seat.pool - (left - k) as i32).max(0));
                 if seat.pool == 0 && self.oust_and_pass(s) {
                     return;
                 }
@@ -10367,14 +10376,14 @@ impl Engine {
             }
             Choice::BurnPool => {
                 let seat = &mut self.state.seats[s.index()];
-                seat.pool -= 1;
+                seat.lose_pool(1);
                 // Ousted on their own unlock phase: the turn passes.
                 if seat.pool == 0 && self.oust_and_pass(s) {
                     return;
                 }
             }
             Choice::BurnBloodFrom { minion } => {
-                self.state.minions[minion.index()].blood -= 1;
+                self.state.lose_blood(*minion, 1);
             }
             Choice::BurnInPlay { card: c } => self.burn_card_in_play(CardId(*c)),
             other => unreachable!("illegal rider terms choice {other:?}"),

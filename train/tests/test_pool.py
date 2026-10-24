@@ -64,6 +64,25 @@ def test_rollouts_never_attempt_a_futile_block():
     assert offered > 0 and only > 0
 
 
+def test_rollouts_never_withdraw():
+    """A withdrawal (rulebook "Withdrawing from the Game") is masked as the
+    server's bots mask it (`zvtes_policy::no_withdrawal`): offered once a
+    library runs out (the New Blood minis' small libraries do), never
+    announced by a network seat."""
+    pool = zvtes_py.GamePool(4, ["policy"] * 4, seed=13, keep_logs=True)
+    pool.queue([{"seats": ["net:0"] * 4, "decks": [14, 15, 16, 17]}] * 8)
+    rng = np.random.default_rng(13)
+    done = []
+    while len(done) < 8:
+        done += pool.act(random_actions(pool.observe(), rng))
+    offered = 0
+    for ep in done:
+        o, taken = zvtes_py.withdrawals(ep["seed"], ep["decks"], ep["log"], ep["time_limit"])
+        assert taken == 0
+        offered += o
+    assert offered > 0
+
+
 def test_queued_tables_route_rows_to_their_networks():
     pool = zvtes_py.GamePool(6, ["policy"] * 4, seed=3)
     specs = [

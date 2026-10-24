@@ -69,7 +69,11 @@ fn a_contested_crypt_card_stays_in_play_its_upkeep_pool() {
     let req = expect(&mut e, SeatId(0), WindowLabel::UnlockAbilities);
     assert_eq!(
         req.options,
-        vec![Choice::PayContest(item), Choice::YieldContest(item)]
+        vec![
+            Choice::PayContest(item),
+            Choice::YieldContest(item),
+            Choice::WithdrawFromGame
+        ]
     );
     let pool = e.state.seats[0].pool;
     pick(&mut e, Choice::PayContest(item));

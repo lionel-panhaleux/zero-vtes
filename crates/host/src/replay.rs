@@ -88,6 +88,10 @@ pub struct Replay {
     /// failed short of the stealth: its recorded passes there are read past
     /// (`Reader::next`).
     reopens: bool,
+    /// Played before protocol 2.13.0, when no withdrawal was offered: a
+    /// window offering it beside a lone option (elided then) takes that
+    /// option unread (`Replay::elided`).
+    before_withdrawals: bool,
 }
 
 impl Replay {
@@ -125,6 +129,7 @@ impl Replay {
                 .collect(),
             elides: false,
             reopens: before(&record.protocol, (1, 9)),
+            before_withdrawals: before(&record.protocol, (2, 13)),
         };
         let plain = replay.read(usize::MAX).1;
         replay.elides = true;
@@ -177,9 +182,19 @@ impl Replay {
     }
 
     /// The Pass of a block window offering only attempts that cannot reach
-    /// the stealth, in a record from an engine that elided it (`elides`):
-    /// taken without reading a recorded decision.
+    /// the stealth, in a record from an engine that elided it (`elides`),
+    /// or the lone option beside a withdrawal in a record from before it
+    /// (`before_withdrawals`): taken without reading a recorded decision.
     pub fn elided(&self, e: &Engine, req: &DecisionRequest) -> Option<usize> {
+        if self.before_withdrawals
+            && req.options.len() == 2
+            && req.options.contains(&Choice::WithdrawFromGame)
+        {
+            return req
+                .options
+                .iter()
+                .position(|o| *o != Choice::WithdrawFromGame);
+        }
         if !self.elides || !e.futile_blocks(req) {
             return None;
         }
@@ -279,7 +294,7 @@ impl Reader<'_> {
         // elided) is read past.
         while let Some(d) = self.replay.decisions.get(self.next) {
             if d.choice.kind != zvtes_api::ids::OptionKind::ResolveRider
-                || recorded_option(e, req, d).is_ok()
+                || recorded_option(e, req, d, self.replay.before_withdrawals).is_ok()
             {
                 break;
             }
@@ -292,7 +307,7 @@ impl Reader<'_> {
         }
         let d = self.replay.decisions.get(self.next)?;
         self.next += 1;
-        Some(recorded_option(e, req, d))
+        Some(recorded_option(e, req, d, self.replay.before_withdrawals))
     }
 }
 
@@ -348,11 +363,16 @@ pub(crate) fn recorded_option(
     e: &Engine,
     req: &DecisionRequest,
     d: &Recorded,
+    before_withdrawals: bool,
 ) -> Result<usize, String> {
-    // A record by index alone (its keys unknown): the index.
+    // A record by index alone (its keys unknown): the index, among the
+    // options of its time (no withdrawal before 2.13.0).
     if d.choice.kind == zvtes_api::ids::OptionKind::Unknown {
         let i = d.option as usize;
-        return if i < req.options.len() {
+        let then: Vec<usize> = (0..req.options.len())
+            .filter(|&j| !(before_withdrawals && req.options[j] == Choice::WithdrawFromGame))
+            .collect();
+        return if let Some(&i) = then.get(i) {
             Ok(i)
         } else {
             Err(format!(

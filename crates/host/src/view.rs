@@ -371,6 +371,8 @@ impl Build<'_> {
             pool: seat.pool,
             vp_halves: seat.half_vps,
             ousted: seat.ousted,
+            withdrawing: seat.withdrawal == zvtes::state::Withdrawal::Announced,
+            withdrew: seat.withdrew,
             edge: seat.has_edge,
             prey: st.prey(sid).0,
             predator: st.predator(sid).0,

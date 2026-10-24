@@ -68,7 +68,14 @@ pub struct SeatView {
     /// Victory points, in halves of a point (a survivor at the time limit
     /// scores 1 half).
     pub vp_halves: u32,
+    /// Out of the game: ousted, or withdrawn (`withdrew`).
     pub ousted: bool,
+    /// A withdrawal announced and not broken (§1).
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub withdrawing: bool,
+    /// Out of the game by a withdrawal.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub withdrew: bool,
     pub edge: bool,
     pub prey: Seat,
     pub predator: Seat,

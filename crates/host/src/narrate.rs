@@ -58,6 +58,15 @@ pub enum Fact {
     Ousted {
         seat: SeatId,
     },
+    WithdrawalAnnounced {
+        seat: SeatId,
+    },
+    WithdrawalBroken {
+        seat: SeatId,
+    },
+    Withdrew {
+        seat: SeatId,
+    },
     /// The Edge's holder now (`None`: burned, no one holds it).
     Edge {
         seat: Option<SeatId>,
@@ -570,8 +579,17 @@ pub(crate) fn changes(
             tell(out, fact, told);
         }
     }
+    for (s, (&was, &now)) in before.withdrawal.iter().zip(&after.withdrawal).enumerate() {
+        let seat = SeatId(s as u8);
+        match (was, now) {
+            ((_, false), (_, true)) => tell(out, Fact::Withdrew { seat }, told),
+            ((false, _), (true, _)) => tell(out, Fact::WithdrawalAnnounced { seat }, told),
+            ((true, _), (false, _)) => tell(out, Fact::WithdrawalBroken { seat }, told),
+            _ => {}
+        }
+    }
     for (s, (&was, &now)) in before.ousted.iter().zip(&after.ousted).enumerate() {
-        if now && !was {
+        if now && !was && !after.withdrawal[s].1 {
             let fact = Fact::Ousted {
                 seat: SeatId(s as u8),
             };

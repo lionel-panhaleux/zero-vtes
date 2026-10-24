@@ -107,12 +107,12 @@ impl Engine {
         match (item, pay) {
             (Contest::Card(_) | Contest::Library(_), true) => {
                 let contest = Cause::Cost(Source::Rule(Rule::Contest));
-                self.caused(contest, |e| e.state.seats[s.index()].pool -= 1);
+                self.caused(contest, |e| e.state.seats[s.index()].lose_pool(1));
             }
             (Contest::Title(m), true) => {
                 let cost = self.state.title_contest_cost(m);
                 let contest = Cause::Cost(Source::Rule(Rule::Contest));
-                self.caused(contest, |e| e.state.minions[m.index()].blood -= cost);
+                self.caused(contest, |e| e.state.lose_blood(m, cost));
             }
             // Yielded: burned with everything on it (not ready: no "ready
             // minion burned" rider).

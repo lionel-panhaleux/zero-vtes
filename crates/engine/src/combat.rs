@@ -1428,6 +1428,12 @@ impl Engine {
     }
 
     fn begin_combat(&mut self, acting: MinionId, opposing: MinionId, at_resolution: bool) {
+        // "None of your minions enter combat" (rulebook "Withdrawing from
+        // the Game").
+        for m in [acting, opposing] {
+            let owner = self.state.minions[m.index()].owner;
+            self.state.seats[owner.index()].withdrawal.r#break();
+        }
         let st = &self.state;
         let mut sides = [
             Side::new(acting, st.minions[acting.index()].owner),
@@ -2210,7 +2216,7 @@ impl Engine {
         };
         if let Some((m, n)) = maneuver_paid {
             let paid = Cause::Cost(Source::Minion(m));
-            self.caused(paid, |e| e.state.minions[m.index()].blood -= n);
+            self.caused(paid, |e| e.state.lose_blood(m, n));
         }
         if let Some((m, w, n)) = weapon_due {
             self.weapon_strike_plus(m, w, n, true);
@@ -3502,7 +3508,7 @@ impl Engine {
         // Simultaneous steals: amounts from the pre-strike state, capacity
         // applied after both moves (Theft of Vitae rulings).
         for (i, &n) in steals.iter().enumerate() {
-            self.state.minions[c.sides[1 - i].minion.index()].blood -= n;
+            self.state.lose_blood(c.sides[1 - i].minion, n);
         }
         for (i, &n) in steals.iter().enumerate() {
             self.state.gain_blood(c.sides[i].minion, n);
@@ -3510,8 +3516,7 @@ impl Engine {
         // Argent Baton: life burned as a steal is, an ally at 0 burned with
         // the damage's casualties.
         for (m, n) in life_burns {
-            let v = &mut self.state.minions[m.index()];
-            v.blood = v.blood.saturating_sub(n);
+            self.state.burn_blood(m, n);
         }
         // Damage to a retainer waits for prevention (Martyr's Resilience);
         // life stolen from it moves at once, becoming blood.
@@ -3746,8 +3751,8 @@ impl Engine {
             cap > 0 && s.combat_damage as i32 > cap
         });
         for ((s, r), over) in c.sides.iter_mut().zip(results).zip(over) {
-            let m = &mut self.state.minions[s.minion.index()];
-            m.blood -= r.blood_burned;
+            self.state.lose_blood(s.minion, r.blood_burned);
+            let m = &self.state.minions[s.minion.index()];
             s.lost_to_damage += r.blood_burned;
             s.pending = Damage::default();
             s.keep_normal = 0;

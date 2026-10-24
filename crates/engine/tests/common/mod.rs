@@ -27,11 +27,20 @@ pub fn request(e: &mut Engine) -> DecisionRequest {
     }
 }
 
+/// An unlock phase offering only a withdrawal (an empty library and a
+/// short hand, as a bare fixture's): passed on the way, as futile blocks.
+pub fn withdrawal_only(req: &DecisionRequest) -> bool {
+    req.window == WindowLabel::UnlockAbilities
+        && req.options == [Choice::Pass, Choice::WithdrawFromGame]
+}
+
 /// The pending decision, asserted to be `seat`'s `window`; a window of
-/// futile blocks only on the way is declined.
+/// futile blocks only, or of a withdrawal only, on the way is declined.
 pub fn expect(e: &mut Engine, seat: SeatId, window: WindowLabel) -> DecisionRequest {
     let mut req = request(e);
-    while (req.seat, req.window) != (seat, window) && e.futile_blocks(&req) {
+    while (req.seat, req.window) != (seat, window)
+        && (e.futile_blocks(&req) || withdrawal_only(&req))
+    {
         e.choose(index_of(&req, Choice::Pass));
         req = request(e);
     }
@@ -52,10 +61,11 @@ pub fn index_of(req: &DecisionRequest, want: Choice) -> usize {
 }
 
 /// Answer the pending decision with `want`, which must be offered; a
-/// window of futile blocks only on the way is declined.
+/// window of futile blocks only, or of a withdrawal only, on the way is
+/// declined.
 pub fn pick(e: &mut Engine, want: Choice) {
     let mut req = request(e);
-    while !req.options.contains(&want) && e.futile_blocks(&req) {
+    while !req.options.contains(&want) && (e.futile_blocks(&req) || withdrawal_only(&req)) {
         e.choose(index_of(&req, Choice::Pass));
         req = request(e);
     }
@@ -82,8 +92,9 @@ pub fn until(e: &mut Engine, seat: SeatId, window: WindowLabel) -> DecisionReque
     }
 }
 
-/// Pass every window until `seat`'s `window` opens (mandatory riders are
-/// resolved in offer order on the way; single-option windows elide).
+/// Pass every window until `seat`'s `window` opens (mandatory riders and
+/// printed effects are resolved in offer order on the way; single-option
+/// windows elide).
 pub fn to_window(e: &mut Engine, seat: SeatId, window: WindowLabel) -> DecisionRequest {
     loop {
         let req = request(e);
@@ -91,7 +102,10 @@ pub fn to_window(e: &mut Engine, seat: SeatId, window: WindowLabel) -> DecisionR
             return req;
         }
         assert!(
-            matches!(req.options[0], Choice::Pass | Choice::ResolveRider { .. }),
+            matches!(
+                req.options[0],
+                Choice::Pass | Choice::ResolveRider { .. } | Choice::ResolvePrinted { .. }
+            ),
             "{req:?}"
         );
         e.choose(0);

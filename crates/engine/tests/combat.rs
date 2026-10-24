@@ -96,8 +96,6 @@ fn combat_step_impulse_reset() {
     assert_eq!(plays(&req).len(), 2);
     pick(e, play(0, 1, t.a));
     // Both at strength 3, hand strikes: 3 damage each way.
-    pick(e, Choice::Pass);
-    pick(e, Choice::Pass);
     expect(e, SeatId(0), WindowLabel::MinionPhase);
     assert_eq!((blood(e, t.a), blood(e, z)), (1, 1));
 }

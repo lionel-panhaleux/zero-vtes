@@ -298,6 +298,7 @@ pub fn public_choice(c: &Choice) -> bool {
     matches!(
         c,
         BurnEdge
+            | WithdrawFromGame
             | PayContest(_)
             | YieldContest(_)
             | Play { .. }
@@ -1634,7 +1635,7 @@ impl Engine {
         {
             let v = &mut self.state.minions[m.index()];
             v.in_play = false;
-            v.blood = 0;
+            v.clear_blood();
             v.corruption.clear();
             // A burned vampire goes to its owner's ash heap, whoever
             // controls it (an ally's card goes with the cards on it, below).
@@ -1826,7 +1827,7 @@ impl Engine {
         let v = &mut self.state.minions[m.index()];
         if v.present() && v.incapacitated {
             v.incapacitated = false;
-            v.blood = (v.blood + 1).min(life.max(v.blood));
+            v.raise_blood((v.blood + 1).min(life.max(v.blood)));
         }
     }
 
@@ -2064,7 +2065,7 @@ impl Engine {
                     let owner = v.origin.or(v.temp_from).unwrap_or(v.owner);
                     let v = &mut self.state.minions[i];
                     v.in_play = false;
-                    v.blood = 0;
+                    v.clear_blood();
                     let copy = *v.copy;
                     self.state.seats[owner.index()].removed.put(t, copy);
                     for ci in 0..self.state.cards.len() {
@@ -2142,7 +2143,7 @@ impl Engine {
             .filter(|m| self.state.minions[m.index()].ready())
             .count() as i32;
         self.burn_card_in_play(id);
-        self.state.seats[s.index()].pool -= loss;
+        self.state.seats[s.index()].lose_pool(loss);
         if loss > 0 && self.state.seats[s.index()].pool <= 0 && self.oust_and_pass(s) {
             return true;
         }
@@ -2177,7 +2178,7 @@ impl Engine {
         let v = &mut self.state.minions[m.index()];
         v.owner = to;
         v.locked = true;
-        v.blood = v.blood.max(life);
+        v.raise_blood(v.blood.max(life));
         self.enter_card_contest(m);
         let c = self.combat.as_mut().expect("combat");
         c.round_over = true;
@@ -2578,6 +2579,11 @@ impl Engine {
                 }
             }
         }
+        self.last_standing();
+    }
+
+    /// The game's end as Methuselahs leave it (an oust, a withdrawal).
+    fn last_standing(&mut self) {
         match self.state.living() {
             // The last Methuselah standing gains one additional VP.
             1 => {
@@ -2593,6 +2599,21 @@ impl Engine {
             0 => self.flow = Flow::GameOver,
             _ => {}
         }
+    }
+
+    /// `s` withdraws: out of the game as an ousted Methuselah is, with half
+    /// a victory point (rules-qa 90.9); the predator gains nothing, and
+    /// nothing waiting on an oust follows (rulebook "Withdrawing from the
+    /// Game").
+    pub(crate) fn withdraw(&mut self, s: SeatId) {
+        // Set before `remove_seat`: the ledger `caused` takes around it
+        // tells the host `withdrew`, not `ousted`.
+        self.state.seats[s.index()].withdrew = true;
+        let rule = Cause::Effect(Source::Rule(Rule::Withdrawal));
+        self.caused(rule, |e| e.remove_seat(s));
+        self.release_unmeddled();
+        self.gain_half_vps(s, 1);
+        self.last_standing();
     }
 
     /// A minion removed from the game (not burned: nothing triggers), the
@@ -2622,7 +2643,7 @@ impl Engine {
         {
             let seat = &mut self.state.seats[s.index()];
             seat.ousted = true;
-            seat.pool = 0;
+            seat.set_pool(0);
             seat.has_edge = false;
             seat.crypt.clear();
             seat.uncontrolled.clear();
@@ -2734,6 +2755,20 @@ impl Engine {
 
     fn start_turn(&mut self) {
         let s = self.state.active;
+        // A withdrawal kept until this unlock phase: out of the game.
+        if std::mem::take(&mut self.state.seats[s.index()].withdrawal)
+            == crate::state::Withdrawal::Announced
+        {
+            self.withdraw(s);
+            if self.state.living() > 1 {
+                self.state.active = self.state.prey(s);
+                self.start_turn();
+            }
+            return;
+        }
+        let short = self.state.seats[s.index()].library.is_empty()
+            && self.state.hand_load(s) < self.state.hand_size(s);
+        self.state.seats[s.index()].began_short = short;
         self.state.turn += 1;
         let seat = &mut self.state.seats[s.index()];
         seat.turns_taken += 1;
@@ -2901,8 +2936,19 @@ mod tests {
         }
     }
 
+    /// An unlock phase offering only a withdrawal (a bare seat's empty
+    /// library and hand), passed on the way.
+    fn withdrawal_only(req: &DecisionRequest) -> bool {
+        req.window == WindowLabel::UnlockAbilities
+            && req.options == [Choice::Pass, Choice::WithdrawFromGame]
+    }
+
     fn pick(e: &mut Engine, want: Choice) {
-        let req = request(e);
+        let mut req = request(e);
+        while !req.options.contains(&want) && withdrawal_only(&req) {
+            e.choose(0);
+            req = request(e);
+        }
         let idx = req
             .options
             .iter()
@@ -2912,7 +2958,11 @@ mod tests {
     }
 
     fn expect(e: &mut Engine, seat: SeatId, window: WindowLabel) -> DecisionRequest {
-        let req = request(e);
+        let mut req = request(e);
+        while (req.seat, req.window) != (seat, window) && withdrawal_only(&req) {
+            e.choose(0);
+            req = request(e);
+        }
         assert_eq!((req.seat, req.window), (seat, window), "{:?}", req.options);
         req
     }
@@ -3323,7 +3373,8 @@ mod tests {
         });
         e.state.turn = 4;
         pick(&mut e, Choice::Pass); // seat 0 minion phase; its influence elides
-        pick(&mut e, Choice::Pass); // seat 1 minion phase
+        expect(&mut e, SeatId(1), WindowLabel::MinionPhase);
+        pick(&mut e, Choice::Pass);
         pick(&mut e, Choice::InfluenceOut { slot: 0 });
         let copy = MinionId(3);
         assert!(e.state.minions[1].contested && e.state.minions[copy.index()].contested);
@@ -3332,7 +3383,11 @@ mod tests {
         let req = expect(&mut e, SeatId(0), WindowLabel::UnlockAbilities);
         assert_eq!(
             req.options,
-            vec![Choice::PayContest(item), Choice::YieldContest(item)]
+            vec![
+                Choice::PayContest(item),
+                Choice::YieldContest(item),
+                Choice::WithdrawFromGame
+            ]
         );
         pick(&mut e, Choice::PayContest(item));
         assert_eq!(e.state.seats[0].pool, START_POOL - 1);
@@ -3405,13 +3460,13 @@ mod tests {
         pick(&mut e, act(horst, ActionKind::Hunt));
         decline_futile(&mut e);
         pick(&mut e, Choice::Pass);
-        // Seat 1's unlock: Aline in torpor must yield (elided).
-        let logged = e.log.len();
-        expect(&mut e, SeatId(1), WindowLabel::MinionPhase);
-        assert_eq!(e.log.len(), logged);
+        // Seat 1's unlock: Aline in torpor must yield, no choice of it.
+        let req = expect(&mut e, SeatId(1), WindowLabel::UnlockAbilities);
+        assert_eq!(req.options, [Choice::Pass, Choice::WithdrawFromGame]);
         assert!(e.state.minions[aline.index()].title_lost);
         // Horst (now at 1 blood, but that is beside the point: no rival) is
         // titled again at his next unlock phase.
+        expect(&mut e, SeatId(1), WindowLabel::MinionPhase);
         pick(&mut e, Choice::Pass);
         expect(&mut e, SeatId(0), WindowLabel::MinionPhase);
         assert_eq!(e.state.title_votes_of(horst), 2);
@@ -3472,6 +3527,54 @@ mod tests {
     }
 
     #[test]
+    fn a_withdrawal_breaks_as_its_minion_enters_combat() {
+        let mut e = Engine::bare(3);
+        let a = e.add_minion(SeatId(2), find_card("Alexa Draper"), 5, false);
+        let b = e.add_minion(SeatId(0), find_card("Abaddon"), 5, false);
+        e.state.seats[0].withdrawal = crate::state::Withdrawal::Announced;
+        e.start_combat(a, b);
+        assert_eq!(
+            e.state.seats[0].withdrawal,
+            crate::state::Withdrawal::Broken
+        );
+        assert_eq!(e.state.minions[b.index()].blood, 5);
+    }
+
+    /// An ally's life is not blood: lost, the withdrawal holds; a
+    /// vampire's breaks it (rules-qa 95.2).
+    #[test]
+    fn an_allys_life_lost_keeps_a_withdrawal() {
+        let mut e = Engine::bare(3);
+        let ally = e.add_ally(SeatId(0), crate::state::find_library("Double Deuce"));
+        let v = e.add_minion(SeatId(0), find_card("Abaddon"), 5, false);
+        e.state.minions[ally.index()].blood = 3;
+        e.state.seats[0].withdrawal = crate::state::Withdrawal::Announced;
+        e.state.lose_blood(ally, 1);
+        assert_eq!(
+            e.state.seats[0].withdrawal,
+            crate::state::Withdrawal::Announced
+        );
+        e.state.lose_blood(v, 1);
+        assert_eq!(
+            e.state.seats[0].withdrawal,
+            crate::state::Withdrawal::Broken
+        );
+    }
+
+    /// A library left: no withdrawal, the turn begun short or not (rules-qa
+    /// 95.3).
+    #[test]
+    fn no_withdrawal_with_a_library_left() {
+        let mut e = Engine::bare(3);
+        e.state.seats[0].began_short = true;
+        assert!(e.state.may_announce_withdrawal(SeatId(0)));
+        e.state.seats[0]
+            .library
+            .push(crate::state::find_library("Form of Mist"));
+        assert!(!e.state.may_announce_withdrawal(SeatId(0)));
+    }
+
+    #[test]
     fn edge_pool_is_offered_on_unlock() {
         let mut e = bare();
         e.state.seats[0].has_edge = false;
@@ -3481,14 +3584,18 @@ mod tests {
         // Edge's pool (rules-qa 7.8: an optional unlock effect).
         pick(&mut e, Choice::Pass);
         let req = expect(&mut e, SeatId(1), WindowLabel::UnlockAbilities);
-        assert_eq!(req.options, vec![Choice::Pass, Choice::BurnEdge]);
+        assert_eq!(
+            req.options,
+            vec![Choice::Pass, Choice::BurnEdge, Choice::WithdrawFromGame]
+        );
         let pool = e.state.seats[1].pool;
         pick(&mut e, Choice::BurnEdge);
         // "If you have the Edge, you may gain 1 pool": the Edge stays,
         // the pool is gained once.
         assert_eq!(e.state.seats[1].pool, pool + 1);
         assert!(e.state.seats[1].has_edge);
-        // Not offered again: the unlock phase's lone pass elides.
-        expect(&mut e, SeatId(1), WindowLabel::MinionPhase);
+        // Not offered again.
+        let req = expect(&mut e, SeatId(1), WindowLabel::UnlockAbilities);
+        assert!(!req.options.contains(&Choice::BurnEdge));
     }
 }

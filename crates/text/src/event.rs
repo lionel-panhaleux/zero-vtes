@@ -29,6 +29,7 @@ fn why(cause: &Option<Cause>, n: &Names) -> String {
                 CauseRule::Diablerie => ", by diablerie",
                 CauseRule::Capacity => ", above capacity",
                 CauseRule::Vote => ", paid for votes",
+                CauseRule::Withdrawal => ", by the withdrawal",
                 CauseRule::Unknown => "",
             }
             .into()
@@ -192,6 +193,13 @@ pub fn event(e: &EventKind, n: &Names) -> Option<String> {
             format!("{} {how}", n.minion(*minion))
         }
         EventKind::Ousted { seat } => format!("{} is ousted", n.seat(*seat)),
+        EventKind::WithdrawalAnnounced { seat } => {
+            format!("{} announces a withdrawal", n.seat(*seat))
+        }
+        EventKind::WithdrawalBroken { seat } => {
+            format!("{}'s withdrawal fails", n.seat(*seat))
+        }
+        EventKind::Withdrew { seat } => format!("{} withdraws from the game", n.seat(*seat)),
         EventKind::Edge { seat: Some(s) } => format!("{} gains the Edge", n.seat(*s)),
         EventKind::Edge { seat: None } => "The Edge is burned".into(),
         EventKind::BlockFails { minion } => format!("{} fails to block", n.minion(*minion)),

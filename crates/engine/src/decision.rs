@@ -322,6 +322,9 @@ pub enum Choice {
     Diablerise,
     /// Cancel the combat (Foresee; Stone Travel [MYT] after a block).
     CancelCombat,
+    /// Announce a withdrawal from the game (rulebook "Withdrawing from the
+    /// Game"): the library exhausted, the turn begun short of a full hand.
+    WithdrawFromGame,
 }
 
 /// Where a card is taken from (`Choice::TakeFrom`).

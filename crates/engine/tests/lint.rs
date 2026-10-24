@@ -134,6 +134,46 @@ fn no_card_name_in_engine_code() {
     assert!(stale.is_empty(), "stale entries:\n{}", stale.join("\n"));
 }
 
+/// Pool and blood go down through their primitives only (`Seat::lose_pool`,
+/// `GameState::lose_blood` and the setters beside them), which break a
+/// withdrawal (rulebook "Withdrawing from the Game"); a gain may add in
+/// place.
+#[test]
+fn pool_and_blood_go_down_through_their_primitives() {
+    let primitives = [
+        "lose_pool",
+        "set_pool",
+        "lose_blood",
+        "set_blood",
+        "clear_blood",
+        "raise_blood",
+    ];
+    let writes = [".pool -=", ".pool = ", ".blood -=", ".blood = "];
+    let ends = [".pool =", ".blood ="];
+    let mut found = Vec::new();
+    for (file, src) in engine_sources() {
+        let code = src.split("#[cfg(test)]").next().unwrap_or(&src);
+        let mut within = "";
+        for (n, line) in code.lines().enumerate() {
+            let line = line.split("//").next().unwrap_or("");
+            if let Some((_, name)) = line.split_once("fn ") {
+                within = name.split(['(', '<']).next().unwrap_or("");
+            }
+            let raw = writes.iter().any(|w| line.contains(w))
+                || ends.iter().any(|w| line.trim_end().ends_with(w))
+                || line.contains("&mut ") && (line.contains(".blood;") || line.contains(".pool;"));
+            if raw && !(file == "state.rs" && primitives.contains(&within)) {
+                found.push(format!("{file}:{}: {}", n + 1, line.trim()));
+            }
+        }
+    }
+    assert!(
+        found.is_empty(),
+        "pool or blood written in place (use lose_pool / lose_blood or their setters):\n{}",
+        found.join("\n")
+    );
+}
+
 /// No to-do markers in the repository's code: work found on the way is
 /// done now or goes on a board through the `intake` skill (CLAUDE.md
 /// "Harness"). The markers are spelled in pieces so this file passes.

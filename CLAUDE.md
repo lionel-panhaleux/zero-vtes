@@ -286,7 +286,8 @@ its skill and its task notes.
 - Window elision breaks naive tests: single-option windows auto-apply, a
   lone-Pass minion phase elides into the next turn (add a second minion), state
   from elided follow-ups lands on the next `run()`. Prove a non-offer with
-  `never_offered_until` (`tests/common`).
+  `never_offered_until` (`tests/common`). A bare seat (empty library and
+  hand) is offered a withdrawal each unlock phase: `expect`/`pick` pass it.
 - Adding a card to a fuzz fixture reshuffles its random games: rare coverage
   keys may starve and latent bugs surface. A fixture's `seeds` is about twice
   the seed where its last key first appears (at most 300); `FUZZ_SEEDS=n` sweeps

@@ -345,6 +345,39 @@ impl Table {
         }
     }
 
+    /// `seat` out of the game, its table with it (an oust, a withdrawal).
+    fn leaves(&mut self, seat: u8) {
+        let gone = &mut self.v.seats[seat as usize];
+        gone.ousted = true;
+        for z in [
+            &mut gone.crypt,
+            &mut gone.library,
+            &mut gone.hand,
+            &mut gone.ash_heap,
+            &mut gone.removed,
+            &mut gone.limbo,
+        ] {
+            z.clear();
+        }
+        gone.uncontrolled.clear();
+        gone.training.clear();
+        gone.ready.clear();
+        gone.torpor.clear();
+        gone.incapacitated.clear();
+        gone.in_play.clear();
+        // The cards it controlled on others' minions, gone with it.
+        for s in &mut self.v.seats {
+            for m in s.minions_mut() {
+                m.cards.retain(|c| c.controller != seat);
+            }
+        }
+        for i in 0..self.v.seats.len() as u8 {
+            let (prey, predator) = (self.seat_from(i, 1), self.seat_from(i, -1));
+            let s = &mut self.v.seats[i as usize];
+            (s.prey, s.predator) = (prey, predator);
+        }
+    }
+
     /// The next seat not ousted from `s`, either way.
     fn seat_from(&self, s: u8, step: i32) -> u8 {
         let n = self.v.seats.len() as i32;
@@ -506,36 +539,17 @@ impl Table {
             EventKind::VictoryPoints { seat, vp_halves } => {
                 self.v.seats[*seat as usize].vp_halves = *vp_halves
             }
-            EventKind::Ousted { seat } => {
+            EventKind::Ousted { seat } => self.leaves(*seat),
+            EventKind::WithdrawalAnnounced { seat } => {
+                self.v.seats[*seat as usize].withdrawing = true
+            }
+            EventKind::WithdrawalBroken { seat } => {
+                self.v.seats[*seat as usize].withdrawing = false
+            }
+            EventKind::Withdrew { seat } => {
+                self.leaves(*seat);
                 let gone = &mut self.v.seats[*seat as usize];
-                gone.ousted = true;
-                for z in [
-                    &mut gone.crypt,
-                    &mut gone.library,
-                    &mut gone.hand,
-                    &mut gone.ash_heap,
-                    &mut gone.removed,
-                    &mut gone.limbo,
-                ] {
-                    z.clear();
-                }
-                gone.uncontrolled.clear();
-                gone.training.clear();
-                gone.ready.clear();
-                gone.torpor.clear();
-                gone.incapacitated.clear();
-                gone.in_play.clear();
-                // The cards it controlled on others' minions, gone with it.
-                for s in &mut self.v.seats {
-                    for m in s.minions_mut() {
-                        m.cards.retain(|c| c.controller != *seat);
-                    }
-                }
-                for i in 0..self.v.seats.len() as u8 {
-                    let (prey, predator) = (self.seat_from(i, 1), self.seat_from(i, -1));
-                    let s = &mut self.v.seats[i as usize];
-                    (s.prey, s.predator) = (prey, predator);
-                }
+                (gone.withdrawing, gone.withdrew) = (false, true);
             }
             EventKind::Edge { seat } => {
                 for s in &mut self.v.seats {

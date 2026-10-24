@@ -6,6 +6,20 @@ server runs.
 `python3 scripts/schema_compat.py` lists what a schema change adds or
 removes; its `--check` fails a removal without a major version.
 
+## 2.13.0
+
+Tournament withdrawal (§1; rules-qa 95); ids and fields added, none
+removed:
+
+- `OptionKind` `withdraw_from_game`: offered in the unlock phase of a
+  Methuselah whose library is exhausted and whose turn began short of a
+  full hand.
+- Events `withdrawal_announced`, `withdrawal_broken`, `withdrew` (a
+  withdrawn seat is told `withdrew`, not `ousted`); `CauseRule`
+  `withdrawal` (the withdrawing Methuselah's pool gone).
+- `SeatView.withdrawing`, `SeatView.withdrew` (absent when false);
+  `ousted` stays true for a seat out of the game either way.
+
 ## 2.12.0
 
 A decklist checked without a game (§10); routes added, no field or id

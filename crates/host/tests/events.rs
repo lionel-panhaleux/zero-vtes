@@ -374,7 +374,7 @@ impl Stream {
             Some(R::Disease | R::Capacity) => !pool && delta < 0,
             Some(R::Edge) => pool && delta > 0,
             Some(R::Vote) => pool && delta < 0,
-            Some(R::Oust) => pool,
+            Some(R::Oust | R::Withdrawal) => pool,
             Some(R::Contest) => delta < 0,
             Some(R::Diablerie) => true,
             Some(R::Unknown) => false,
@@ -1476,6 +1476,7 @@ fn state(v: &TableView) -> std::collections::BTreeMap<(String, String), String> 
     for s in &v.seats {
         let n = s.seat;
         put("edge", n.to_string(), &s.edge);
+        put("withdrawal", n.to_string(), &(s.withdrawing, s.withdrew));
         put("vp_halves", n.to_string(), &s.vp_halves);
         put("prey", n.to_string(), &(s.prey, s.predator));
         for (i, u) in s.uncontrolled.iter().enumerate() {

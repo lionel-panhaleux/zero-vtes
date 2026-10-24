@@ -236,6 +236,21 @@ pub enum EventKind {
     Ousted {
         seat: Seat,
     },
+    /// A withdrawal announced (§1): out of the game at the seat's next
+    /// unlock phase unless broken.
+    WithdrawalAnnounced {
+        seat: Seat,
+    },
+    /// The withdrawal broken: pool or a vampire's blood lost or spent, or a
+    /// minion of the seat in combat.
+    WithdrawalBroken {
+        seat: Seat,
+    },
+    /// Out of the game by a withdrawal: half a victory point, nothing for
+    /// the predator; `ousted` in the view, no `ousted` event.
+    Withdrew {
+        seat: Seat,
+    },
     /// The Edge goes to `seat` (absent: burned, no one holds it).
     Edge {
         #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -414,6 +429,8 @@ crate::ids::ids!(CauseRule {
     Capacity,
     /// Pool burned for votes (Business Pressure's round).
     Vote,
+    /// A Methuselah withdrawing from the game: their pool gone with them.
+    Withdrawal,
 });
 
 crate::ids::ids!(ActionOutcome {

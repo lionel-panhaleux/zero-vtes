@@ -156,6 +156,7 @@ fn every_option_s_key_names_what_it_is_about() {
                             }
                             C::Pass
                             | C::BurnEdge
+                            | C::WithdrawFromGame
                             | C::BurnPool
                             | C::DrawLibrary
                             | C::DrawCrypt

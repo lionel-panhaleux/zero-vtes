@@ -4273,6 +4273,16 @@ Advanced rules §6.5 (pool, the Edge and ousting).
   are legal (two at 2 VP; four or five all at 1 VP) (6.9; the tournament
   rules' win condition). A withdrawal scores half a VP (tournament rules)
   (90.9).
+- Withdrawal: offered in the unlock phase of a Methuselah whose library is
+  empty and whose hand (the cards counted against the hand size) was
+  under it as the turn began (95.3); kept until their next turn begins —
+  no pool lost or spent, a gain never repairing it; no blood a vampire of
+  theirs loses or spends; no minion of theirs entering combat — they leave
+  the game then, that turn unplayed (95.4). An ally's or imbued's life is
+  not blood (95.2); a minion leaving play with blood loses none (95.1). No
+  oust: nothing for the predator, no prey-ousted nor "until a Methuselah
+  is ousted" effect; the half VP gained as any VP, a Life Boon's included
+  (95.5).
 - Life Boon's VP: the Boon player gains every VP the Methuselah saved gains
   — a prey's oust, being the last one standing, the half point at the time
   limit (tournament rules) — the oldest Boon first, each until it has given 1
@@ -4628,6 +4638,7 @@ read, for the owner to confirm or correct:
   red, answered by the owner: 90.4 confirmed, 90.6 and 90.7 corrected).
 - 92.2, 92.3 graded green or amber (92.1 the owner's playtest ruling).
 - 93.1–93.10 graded green (settled by KRCG rulings and 60.7, 60.19, 60.21).
+- 95.1–95.5 graded green or amber (the tournament withdrawal).
 - 49.6's several-holders question is moot (50.1: the Cog is unique).
 
 ### 24.2 Questions for a new rules-qa batch
@@ -4725,7 +4736,7 @@ an owner ruling:
 Every rules-qa item, by batch, with the digest sections citing it: the
 section stating it and those cross-referring to it (§2 the default
 readings, §22 engine modeling, §23 the contradictions, §24 the open
-readings). 970 items, Batches 1–94 (44.11 was removed, replaced by Batch
+readings). 975 items, Batches 1–95 (44.11 was removed, replaced by Batch
 45). The index is derived from the citations: a bare `N.M` cites rules-qa
 item N.M in the section it appears in. A new rules-qa item gets its line in
 the section stating it, then its entry here: `python3
@@ -5058,3 +5069,5 @@ index or an item cited nowhere.
   §9.6,§23.1; 93.6 §9.6; 93.7 §14.6; 93.8 §7.2; 93.9 §7.3; 93.10 §7.1,§24.1
 - **94** — 94.1 §12.5; 94.2 §14.4; 94.3 §14.6; 94.4 §16.1; 94.5 §12.14; 94.6
   §18.1
+- **95** — 95.1 §21.2,§24.1; 95.2 §21.2; 95.3 §21.2; 95.4 §21.2; 95.5
+  §21.2,§24.1

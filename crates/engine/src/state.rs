@@ -697,6 +697,23 @@ impl Minion {
         matches!(self.kind, MinionKind::Imbued(_))
     }
 
+    /// Its blood back to the bank as it leaves play: no loss (rules-qa
+    /// 95.1).
+    pub fn clear_blood(&mut self) {
+        self.blood = 0;
+    }
+
+    /// Its blood (life) set to `b`, never less (a recovery, a capacity
+    /// filled): no gain noted (`GameState::set_blood` notes one).
+    pub fn raise_blood(&mut self, b: u8) {
+        debug_assert!(
+            b >= self.blood,
+            "raise_blood lowering {} to {b}",
+            self.blood
+        );
+        self.blood = b;
+    }
+
     /// A vampire: from the crypt or created from a library card.
     pub fn is_vampire(&self) -> bool {
         !self.is_ally()
@@ -1186,9 +1203,36 @@ impl Timed {
     }
 }
 
+/// A withdrawal from the game (rulebook "Withdrawing from the Game"):
+/// announced in an unlock phase, broken by the Methuselah's pool or a
+/// vampire's blood lost or spent, or one of their minions entering combat,
+/// before their next unlock phase, which it ends with them out of the game.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
+pub enum Withdrawal {
+    #[default]
+    None,
+    Announced,
+    Broken,
+}
+
+impl Withdrawal {
+    /// A condition failed: a gain later does not repair it (ANK 20180813).
+    pub fn r#break(&mut self) {
+        if *self == Withdrawal::Announced {
+            *self = Withdrawal::Broken;
+        }
+    }
+}
+
 #[derive(Clone, Debug, Default, PartialEq, Eq, Hash)]
 pub struct Seat {
     pub pool: i32,
+    pub withdrawal: Withdrawal,
+    /// Out of the game by a withdrawal (`ousted` too: out of the game).
+    pub withdrew: bool,
+    /// This turn began with an exhausted library and less than a full hand:
+    /// a withdrawal may be announced (rulebook "Withdrawing from the Game").
+    pub began_short: bool,
     pub ousted: bool,
     /// Victory points in half-point units (tournament rules 3.7: 0.5 VP for
     /// surviving at the time limit).
@@ -1301,6 +1345,22 @@ pub struct Seat {
     /// Political actions the seat's minions cannot perform again this
     /// turn (Delaying Tactics; LSJ 20020201).
     pub forbidden_political: Vec<ActionId>,
+}
+
+impl Seat {
+    /// Lose or spend `n` pool (a negative `n` gains), the one way pool goes
+    /// down (`tests/lint.rs`): it breaks a withdrawal.
+    pub fn lose_pool(&mut self, n: i32) {
+        self.pool -= n;
+        if n > 0 {
+            self.withdrawal.r#break();
+        }
+    }
+
+    /// Pool set to `v`: a decrease is a loss (`lose_pool`).
+    pub fn set_pool(&mut self, v: i32) {
+        self.lose_pool(self.pool - v);
+    }
 }
 
 #[derive(Clone, Debug, Default, PartialEq, Eq, Hash)]
@@ -1884,19 +1944,35 @@ impl GameState {
     }
 
     /// Set `m`'s blood (life) to `b`, noting what it gained (Slake the
-    /// Thirst's "after this Blood Brother gains blood").
+    /// Thirst's "after this Blood Brother gains blood") or lost.
     pub fn set_blood(&mut self, m: MinionId, b: u8) {
         let old = self.minions[m.index()].blood;
+        if b < old {
+            self.lose_blood(m, old - b);
+            return;
+        }
         self.minions[m.index()].blood = b;
         if b > old {
             self.gains_pending.push((m, b - old));
         }
     }
 
+    /// `m` loses or spends `n` blood (an ally or an imbued life), the one way
+    /// blood goes down (`tests/lint.rs`): a vampire's breaks its
+    /// controller's withdrawal (an ally has life, not blood: advanced rules
+    /// 5.5.1).
+    pub fn lose_blood(&mut self, m: MinionId, n: u8) {
+        let v = &mut self.minions[m.index()];
+        v.blood -= n;
+        if n > 0 && v.is_vampire() {
+            let owner = v.owner;
+            self.seats[owner.index()].withdrawal.r#break();
+        }
+    }
+
     /// Burn up to `n` blood (life) from `m`.
     pub fn burn_blood(&mut self, m: MinionId, n: u8) {
-        let v = &mut self.minions[m.index()];
-        v.blood -= n.min(v.blood);
+        self.lose_blood(m, n.min(self.minions[m.index()].blood));
     }
 
     /// `m` burns up to `n` blood (an ally life); true when an ally in play
@@ -1969,8 +2045,7 @@ impl GameState {
                 continue;
             }
             if let Some(c) = self.capacity_of(m) {
-                let v = &mut self.minions[i];
-                v.blood = v.blood.min(c);
+                self.burn_blood(m, self.minions[i].blood.saturating_sub(c));
             }
         }
     }
@@ -2098,11 +2173,19 @@ impl GameState {
         v.locked = false;
         if v.disease {
             if v.blood > 0 {
-                v.blood -= 1;
+                self.lose_blood(m, 1);
             } else {
                 v.disease = false;
             }
         }
+    }
+
+    /// `s` may announce a withdrawal: the turn began with the library
+    /// exhausted and less than a full hand, none announced (rulebook
+    /// "Withdrawing from the Game").
+    pub fn may_announce_withdrawal(&self, s: SeatId) -> bool {
+        let seat = &self.seats[s.index()];
+        seat.began_short && seat.library.is_empty() && seat.withdrawal == Withdrawal::None
     }
 
     /// The "current bleed" of `m` outside a bleed action, against its prey,

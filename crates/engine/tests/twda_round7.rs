@@ -761,7 +761,8 @@ fn arika_taxes_her_preys_locations() {
     assert_eq!(req.seat, SeatId(1));
     assert!(req.options.contains(&feed));
     e.choose(index_of(&req, feed));
-    // Arika's effect, the only thing left to do, resolves at once.
+    // Arika's effect, the only thing left due.
+    pick(&mut e, arika_due);
     let mut paid = false;
     loop {
         let req = request(&mut e);

@@ -312,7 +312,7 @@ impl Game {
                     let at = g.resuming.as_ref().expect("resuming").next - 1;
                     let d = crate::replay::Recorded::of(at, &entry).expect("a decision");
                     let favor = d.choice.favor;
-                    let i = crate::replay::recorded_option(g.session.engine(), &req, &d)?;
+                    let i = crate::replay::recorded_option(g.session.engine(), &req, &d, false)?;
                     let decision = g.session.decision();
                     // An allocation answered whole: its steps taken as
                     // `Command::Allocate` takes them (the undo depth reads
@@ -424,7 +424,7 @@ impl Game {
                 _ => break,
             };
             self.resuming.as_mut().expect("resuming").next += 1;
-            let i = crate::replay::recorded_option(self.session.engine(), &req, &step)?;
+            let i = crate::replay::recorded_option(self.session.engine(), &req, &step, false)?;
             m.extend(self.take(i, Taken::Order, By::Order));
         }
         m.extend(self.advance());
@@ -455,7 +455,7 @@ impl Game {
         };
         r.next += 1;
         let req = self.session.request().expect("a decision").clone();
-        match crate::replay::recorded_option(self.session.engine(), &req, &d) {
+        match crate::replay::recorded_option(self.session.engine(), &req, &d, false) {
             Ok(i) => i,
             Err(e) => {
                 self.resuming.as_mut().expect("resuming").failed = Some(e);

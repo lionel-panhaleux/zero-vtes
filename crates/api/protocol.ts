@@ -1,6 +1,6 @@
-/* zvtes protocol 2.12.0 (docs/protocol.md): generated from
+/* zvtes protocol 2.13.0 (docs/protocol.md): generated from
  * crates/api/schema.json by scripts/gen_ts.py, do not edit. */
-export const PROTOCOL_VERSION = '2.12.0'
+export const PROTOCOL_VERSION = '2.13.0'
 
 /**
  * A command as sent: an optional client id, echoed by an `error` it
@@ -375,6 +375,7 @@ export type CauseRule =
     | 'disease'
     | 'capacity'
     | 'vote'
+    | 'withdrawal'
     | 'unknown'
 
 /**
@@ -870,6 +871,18 @@ export type Event = {
         seat: number
     }
     | {
+        kind: 'withdrawal_announced'
+        seat: number
+    }
+    | {
+        kind: 'withdrawal_broken'
+        seat: number
+    }
+    | {
+        kind: 'withdrew'
+        seat: number
+    }
+    | {
         kind: 'edge'
         seat?: number | null
     }
@@ -1142,6 +1155,7 @@ export type OptionKind =
     | 'burn_corruption_to_unlock'
     | 'diablerise'
     | 'cancel_combat'
+    | 'withdraw_from_game'
     | 'unknown'
 
 /**
@@ -1409,6 +1423,7 @@ export type SeatView = {
     /** Cards the seat is playing, not resolved yet. */
     limbo: Card[]
     name: string
+    /** Out of the game: ousted, or withdrawn (`withdrew`). */
     ousted: boolean
     pool: number
     predator: number
@@ -1429,6 +1444,10 @@ export type SeatView = {
      * scores 1 half).
      */
     vp_halves: number
+    /** A withdrawal announced and not broken (§1). */
+    withdrawing?: boolean
+    /** Out of the game by a withdrawal. */
+    withdrew?: boolean
 }
 
 /**

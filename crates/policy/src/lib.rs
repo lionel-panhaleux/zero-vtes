@@ -648,6 +648,18 @@ pub fn idle_influence(e: &Engine, req: &DecisionRequest) -> bool {
         && req.options.contains(&Choice::DrawCrypt)
 }
 
+/// A withdrawal is not a network's choice: no run has trained with it (its
+/// observation folded into another kind, `obs::option`). `None` when not
+/// offered.
+pub fn no_withdrawal(req: &DecisionRequest) -> Option<Vec<bool>> {
+    let mask: Vec<bool> = req
+        .options
+        .iter()
+        .map(|o| *o != Choice::WithdrawFromGame)
+        .collect();
+    mask.contains(&false).then_some(mask)
+}
+
 /// The options a network seat may take in a block window (owner,
 /// 2026-10-15: "mask in the bot layer, train and serve"): the engine
 /// offers every legal attempt (rules-qa 73.8), those that cannot reach the
@@ -742,7 +754,7 @@ impl Agent for NetAgent {
         // Options score independently (each against the context): the
         // masked ones change nothing of the others' logits.
         let mask = combine(
-            reachable_blocks(engine, req),
+            combine(reachable_blocks(engine, req), no_withdrawal(req)),
             combine(
                 politics::mask(engine, req),
                 self.chores.then(|| chores::mask(engine, req)).flatten(),

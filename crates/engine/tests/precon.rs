@@ -10446,7 +10446,8 @@ fn judgment_reads_the_non_camarilla_vampire_as_it_resolves() {
     let p1 = pool(&e, 1);
     pick(&mut e, Choice::Pass);
     let req = until(&mut e, SeatId(1), WindowLabel::UnlockAbilities);
-    assert_eq!(req.options.len(), 2, "two burns due");
+    let due = |o: &&Choice| matches!(o, Choice::ResolveRider { .. });
+    assert_eq!(req.options.iter().filter(due).count(), 2, "two burns due");
     // Another effect burns the Anarch first.
     e.state.minions[x.index()].in_play = false;
     to_minion_phase(&mut e, 2);

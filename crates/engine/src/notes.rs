@@ -75,6 +75,8 @@ pub enum Rule {
     Capacity,
     /// Pool burned for votes (Business Pressure's round).
     Vote,
+    /// A Methuselah withdrawing from the game, their cards removed.
+    Withdrawal,
 }
 
 impl From<AbilitySource> for Source {
@@ -111,6 +113,8 @@ pub struct Ledger {
     pub transfers: Option<u8>,
     pub pools: Vec<i32>,
     pub ousted: Vec<bool>,
+    /// Per seat: a withdrawal announced and not broken, and withdrawn.
+    pub withdrawal: Vec<(bool, bool)>,
     pub edge: Option<SeatId>,
     /// Per minion id.
     pub minions: Vec<MinionLedger>,
@@ -182,6 +186,16 @@ impl Engine {
             transfers: parked.map_or(self.transfers_left(), |l| l.transfers),
             pools: st.seats.iter().map(|s| s.pool).collect(),
             ousted: st.seats.iter().map(|s| s.ousted).collect(),
+            withdrawal: st
+                .seats
+                .iter()
+                .map(|s| {
+                    (
+                        s.withdrawal == crate::state::Withdrawal::Announced,
+                        s.withdrew,
+                    )
+                })
+                .collect(),
             edge: st
                 .seats
                 .iter()

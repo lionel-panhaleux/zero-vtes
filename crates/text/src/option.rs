@@ -76,6 +76,7 @@ fn base(
     };
     Some(match k.kind {
         K::EdgePool => "Gain 1 pool (the Edge)".into(),
+        K::WithdrawFromGame => "Announce a withdrawal from the game".into(),
         K::TakeFrom => {
             let from = match k.zone.as_ref()?.zone {
                 Zone::Library => "the library",

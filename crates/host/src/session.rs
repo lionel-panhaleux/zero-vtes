@@ -951,8 +951,11 @@ fn untold_effects(c: &Choice) -> bool {
 mod tests {
     use zvtes::cards::{AbilitySource, Target};
     use zvtes::copies::CopyId;
+    use zvtes::decision::{ActionKind, WindowLabel};
     use zvtes::decks::Deck;
+    use zvtes::ids::MinionId;
     use zvtes::state::{find_card, find_library, CardId, CardInPlay};
+    use zvtes_api::event::EventKind;
 
     use super::*;
 
@@ -970,6 +973,86 @@ mod tests {
         let crypt = decks[0].crypt.clone();
         let s = Session::new(1, None, decks, (0..3).map(|_| None).collect());
         (s, crypt)
+    }
+
+    /// A bare table where seat 0 announces a withdrawal at its unlock
+    /// phase (its library and hand empty), seat 2's vampire bleeding it
+    /// after if `bleed`; the events a viewer is told until seat 0 is out of
+    /// the game or its next turn comes, and the last view.
+    fn withdrawal_told(bleed: bool) -> (Vec<EventKind>, zvtes_api::view::TableView) {
+        let (mut s, crypt) = session();
+        let mut e = Engine::bare(3);
+        for (seat, &(card, _)) in crypt.iter().take(3).enumerate() {
+            e.add_minion(SeatId(seat as u8), card, 4, false);
+        }
+        e.notes = Some(Vec::new());
+        s.engine = e;
+        s.observe(false);
+        let names = vec![String::new(); 3];
+        let mut v = crate::view::Viewer::new(None);
+        v.view(&s.engine, &s.dealt, &names);
+        let mut told = Vec::new();
+        let (mut announced, mut bled) = (false, false);
+        for _ in 0..100 {
+            let Step::Decision(req) = s.engine.run() else {
+                panic!("a decision");
+            };
+            s.observe(true);
+            told.extend(
+                s.take_told()
+                    .iter()
+                    .filter_map(|t| v.event(&s.engine, &s.dealt, t)),
+            );
+            let at = |c: &Choice| req.options.iter().position(|o| o == c);
+            let bleeds = Choice::TakeAction {
+                minion: MinionId(2),
+                action: ActionKind::Bleed,
+                target: None,
+            };
+            if s.engine.state.seats[0].withdrew {
+                break;
+            }
+            let i = match req.seat {
+                SeatId(0) if !announced => at(&Choice::WithdrawFromGame),
+                SeatId(0) if req.window == WindowLabel::UnlockAbilities => break,
+                SeatId(2) if bleed && announced && !bled => at(&bleeds),
+                _ => None,
+            };
+            announced |= i.is_some() && req.seat == SeatId(0);
+            bled |= i.is_some() && req.seat == SeatId(2);
+            s.engine
+                .choose(i.or_else(|| at(&Choice::Pass)).unwrap_or(0));
+        }
+        let view = v.view(&s.engine, &s.dealt, &names);
+        (told, view)
+    }
+
+    /// A withdrawal kept is told `withdrawal_announced` then `withdrew`,
+    /// never `ousted`; the view shows the seat out of the game, withdrawn
+    /// (protocol.md §9; rules-qa 95.4, 95.5).
+    #[test]
+    fn a_withdrawal_is_told() {
+        let (told, view) = withdrawal_told(false);
+        let at = |k: &EventKind| told.iter().position(|t| t == k);
+        let announced = at(&EventKind::WithdrawalAnnounced { seat: 0 }).expect("announced");
+        let withdrew = at(&EventKind::Withdrew { seat: 0 }).expect("withdrew");
+        assert!(announced < withdrew);
+        assert!(!told.iter().any(|t| matches!(t, EventKind::Ousted { .. })));
+        let s = &view.seats[0];
+        assert!(s.ousted && s.withdrew && !s.withdrawing);
+    }
+
+    /// A withdrawal broken by a pool loss is told `withdrawal_broken`, the
+    /// seat still in the game (rules-qa 95.4).
+    #[test]
+    fn a_broken_withdrawal_is_told() {
+        let (told, view) = withdrawal_told(true);
+        assert!(
+            told.contains(&EventKind::WithdrawalBroken { seat: 0 }),
+            "{told:?}"
+        );
+        let s = &view.seats[0];
+        assert!(!s.ousted && !s.withdrew && !s.withdrawing);
     }
 
     /// A card an effect reveals is told to every seat with its id, no copy

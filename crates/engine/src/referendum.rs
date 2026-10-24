@@ -1411,7 +1411,7 @@ impl Engine {
         {
             return None;
         }
-        self.state.minions[m.index()].blood -= toll;
+        self.state.lose_blood(m, toll);
         Some(VoteRecord {
             source: Source::Vampire(m),
             seat: self.state.minions[m.index()].owner,
@@ -2210,7 +2210,7 @@ impl Engine {
             }
             // Below 0 is kept until the oust: a Life Boon must make it good
             // (RTR 19970630).
-            seat.pool -= n;
+            seat.lose_pool(n);
             burned.push(SeatId(i as u8));
             if seat.pool <= 0 {
                 ousted.push(SeatId(i as u8));
@@ -2239,7 +2239,7 @@ impl Engine {
         let card = v.crypt_card().unwrap_or(crate::state::CREATED);
         let copy = *v.copy;
         let blood = v.blood;
-        v.blood = 0;
+        v.clear_blood();
         // The cards on it go out of play until it returns, a created
         // vampire's own card too.
         let mut on = Vec::new();
@@ -2513,11 +2513,10 @@ impl Engine {
                     }
                 }
                 ctx.abstaining.push(t);
-                let v = &mut self.state.minions[t.index()];
                 if lock {
-                    v.locked = true;
+                    self.state.minions[t.index()].locked = true;
                 }
-                v.blood = v.blood.saturating_sub(burn);
+                self.state.burn_blood(t, burn);
             }
             cards::Effect::TallyPenaltyAgainst(n) => ctx.scorn += n,
             cards::Effect::BarNonCamarillaVotes => ctx.only_sect = Some(Sect::Camarilla),

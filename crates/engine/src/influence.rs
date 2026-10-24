@@ -155,7 +155,7 @@ impl Engine {
             }
             Choice::Transfer { slot } => {
                 let seat = &mut self.state.seats[s.index()];
-                seat.pool -= 1;
+                seat.lose_pool(1);
                 seat.uncontrolled[*slot as usize].counters += 1;
                 self.flow = Flow::Influence { left: left - 1 };
                 if seat.pool == 0 {
@@ -170,7 +170,7 @@ impl Engine {
             }
             Choice::DrawCrypt => {
                 let seat = &mut self.state.seats[s.index()];
-                seat.pool -= 1;
+                seat.lose_pool(1);
                 let (card, copy) = seat.crypt.take_top().expect("draw from empty crypt");
                 seat.uncontrolled.push(UncontrolledSlot {
                     card,
@@ -205,7 +205,7 @@ impl Engine {
                             c.locked = false;
                         }
                         let capacity = self.state.capacity_of(m).unwrap_or(1);
-                        self.state.minions[m.index()].blood = out.counters.min(capacity);
+                        self.state.minions[m.index()].raise_blood(out.counters.min(capacity));
                         m
                     }
                     None => {
@@ -274,7 +274,7 @@ impl Engine {
                         .count() as i32;
                     if k > 0 {
                         let scarce = Cause::Effect(Source::Minion(m));
-                        self.caused(scarce, |e| e.state.seats[s.index()].pool -= 3 * k);
+                        self.caused(scarce, |e| e.state.seats[s.index()].lose_pool(3 * k));
                         if self.state.seats[s.index()].pool <= 0 {
                             self.oust_and_pass(s);
                         }
@@ -298,7 +298,7 @@ impl Engine {
                 self.merge(m, slot.card, *slot.copy);
                 self.flow = Flow::Influence { left: left - 4 };
                 let merged = Cause::Cost(Source::Minion(m));
-                self.caused(merged, |e| e.state.seats[s.index()].pool -= 1);
+                self.caused(merged, |e| e.state.seats[s.index()].lose_pool(1));
                 if self.state.seats[s.index()].pool == 0 {
                     self.oust_and_pass(s);
                 }

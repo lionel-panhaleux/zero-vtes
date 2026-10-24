@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "title": "zvtes protocol",
-  "version": "2.12.0",
+  "version": "2.13.0",
   "$defs": {
     "About": {
       "description": "What a choice is about (`Decision::about`): each field given where\nthe purpose (or the terms) has it (docs/protocol.md §5).",
@@ -731,6 +731,11 @@
           "description": "Pool burned for votes (Business Pressure's round).",
           "type": "string",
           "const": "vote"
+        },
+        {
+          "description": "A Methuselah withdrawing from the game: their pool gone with them.",
+          "type": "string",
+          "const": "withdrawal"
         },
         {
           "description": "A value this reader does not know.",
@@ -2741,6 +2746,66 @@
           ]
         },
         {
+          "description": "A withdrawal announced (§1): out of the game at the seat's next\nunlock phase unless broken.",
+          "type": "object",
+          "properties": {
+            "kind": {
+              "type": "string",
+              "const": "withdrawal_announced"
+            },
+            "seat": {
+              "type": "integer",
+              "format": "uint8",
+              "maximum": 255,
+              "minimum": 0
+            }
+          },
+          "required": [
+            "kind",
+            "seat"
+          ]
+        },
+        {
+          "description": "The withdrawal broken: pool or a vampire's blood lost or spent, or a\nminion of the seat in combat.",
+          "type": "object",
+          "properties": {
+            "kind": {
+              "type": "string",
+              "const": "withdrawal_broken"
+            },
+            "seat": {
+              "type": "integer",
+              "format": "uint8",
+              "maximum": 255,
+              "minimum": 0
+            }
+          },
+          "required": [
+            "kind",
+            "seat"
+          ]
+        },
+        {
+          "description": "Out of the game by a withdrawal: half a victory point, nothing for\nthe predator; `ousted` in the view, no `ousted` event.",
+          "type": "object",
+          "properties": {
+            "kind": {
+              "type": "string",
+              "const": "withdrew"
+            },
+            "seat": {
+              "type": "integer",
+              "format": "uint8",
+              "maximum": 255,
+              "minimum": 0
+            }
+          },
+          "required": [
+            "kind",
+            "seat"
+          ]
+        },
+        {
           "description": "The Edge goes to `seat` (absent: burned, no one holds it).",
           "type": "object",
           "properties": {
@@ -3885,6 +3950,11 @@
             "diablerise",
             "cancel_combat"
           ]
+        },
+        {
+          "description": "Announce a withdrawal from the game (§1).",
+          "type": "string",
+          "const": "withdraw_from_game"
         },
         {
           "description": "A value this reader does not know.",
@@ -5083,6 +5153,7 @@
           "type": "string"
         },
         "ousted": {
+          "description": "Out of the game: ousted, or withdrawn (`withdrew`).",
           "type": "boolean"
         },
         "pool": {
@@ -5143,6 +5214,14 @@
           "type": "integer",
           "format": "uint32",
           "minimum": 0
+        },
+        "withdrawing": {
+          "description": "A withdrawal announced and not broken (§1).",
+          "type": "boolean"
+        },
+        "withdrew": {
+          "description": "Out of the game by a withdrawal.",
+          "type": "boolean"
         }
       },
       "required": [

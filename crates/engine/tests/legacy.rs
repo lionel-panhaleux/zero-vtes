@@ -938,6 +938,22 @@ fn half(e: &Engine) -> Vec<u32> {
     e.state.seats.iter().map(|s| s.half_vps).collect()
 }
 
+// rules-qa 95.5 — a withdrawal's half victory point is gained as any: the
+// Life Boon remembering the Methuselah takes it.
+#[test]
+fn a_life_boon_takes_a_withdrawals_half_point() {
+    let mut e = Engine::bare(3);
+    boon_on(&mut e, 2, 0);
+    pick(&mut e, Choice::Pass);
+    until(&mut e, SeatId(0), WindowLabel::UnlockAbilities);
+    pick(&mut e, Choice::WithdrawFromGame);
+    while !e.state.seats[0].withdrew {
+        let req = request(&mut e);
+        e.choose(fallback(&req));
+    }
+    assert_eq!(half(&e), [0, 0, 1]);
+}
+
 /// 3 seats; seat 0 bleeds seat 1 for 3, seat 1 at 1 pool; seat 2 holds a
 /// Life Boon.
 fn boon_bleed() -> (Engine, MinionId) {

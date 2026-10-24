@@ -1841,6 +1841,7 @@ pub fn key(e: &Engine, req: &DecisionRequest, choice: &Choice, names: &impl Name
     match *choice {
         Choice::Pass
         | Choice::BurnEdge
+        | Choice::WithdrawFromGame
         | Choice::BurnPool
         | Choice::DrawLibrary
         | Choice::DrawCrypt
@@ -2045,6 +2046,7 @@ pub fn kind(c: &Choice) -> OptionKind {
     match c {
         Choice::Pass => K::Pass,
         Choice::BurnEdge => K::EdgePool,
+        Choice::WithdrawFromGame => K::WithdrawFromGame,
         Choice::PayContest(_) => K::PayContest,
         Choice::YieldContest(_) => K::YieldContest,
         Choice::Play { .. } => K::Play,

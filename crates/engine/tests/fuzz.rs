@@ -382,6 +382,7 @@ fn kind_of(c: &Choice) -> &'static str {
     match c {
         Choice::Pass => "pass",
         Choice::BurnEdge => "burn_edge",
+        Choice::WithdrawFromGame => "withdraw_from_game",
         Choice::PayContest(_) => "pay_contest",
         Choice::YieldContest(_) => "yield_contest",
         Choice::Play { .. } => "play",
@@ -543,7 +544,29 @@ fn play(seed: u64, start: &dyn Fn(u64) -> Engine) -> Played {
                         );
                     }
                 }
-                let idx = agent.choose(&req);
+                // A withdrawal (offered at most unlock phases once a
+                // fixture's library is empty) is taken on one seed in eight, with no
+                // draw; the others draw among the rest as before it existed,
+                // a lone option without a draw (the window elided then).
+                let withdraw = req
+                    .options
+                    .iter()
+                    .position(|o| *o == Choice::WithdrawFromGame);
+                let idx = match withdraw {
+                    Some(w) if seed % 8 == 7 => w,
+                    Some(_) if req.options.len() == 2 => {
+                        (req.options[0] == Choice::WithdrawFromGame) as usize
+                    }
+                    Some(w) => {
+                        let j = agent.rng.below(req.options.len() - 1);
+                        if j >= w {
+                            j + 1
+                        } else {
+                            j
+                        }
+                    }
+                    None => agent.choose(&req),
+                };
                 if trace {
                     eprintln!(
                         "#{} {:?} {:?} -> {:?} {}",
@@ -1750,6 +1773,7 @@ fuzz_tests! {
         extra: &["OBF"],
         plays: 16,
         covers: &[
+            "withdraw_from_game",
             "ability:Dogged Pursuit",
             "ability:Melange",
         ],

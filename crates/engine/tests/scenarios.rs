@@ -239,11 +239,7 @@ fn out_of_turn_consumes_next_mpa() {
        // Seat 0's turn runs out; seat 1's master phase has no action left, so
        // its Villein is not offered and the phase elides.
     pick(&mut e, Choice::Pass); // seat 0 minion phase
-    let req = request(&mut e);
-    assert_eq!(
-        (req.seat, req.window),
-        (SeatId(1), WindowLabel::MinionPhase)
-    );
+    expect(&mut e, SeatId(1), WindowLabel::MinionPhase);
     assert_eq!(e.state.seats[1].mpa, 0);
     assert!(e.state.seats[1].out_of_turn.is_none());
 }
@@ -298,4 +294,106 @@ fn no_two_out_of_turn_between_turns() {
     );
     assert_eq!(e.state.minions[0].blood, 3);
     assert_eq!(e.state.seats[1].hand.len(), 1);
+}
+
+/// Pass until `seat`'s unlock-phase window, `n` times over (the first is
+/// the next one).
+fn to_unlock(e: &mut Engine, seat: SeatId, n: usize) -> zvtes::decision::DecisionRequest {
+    let mut req = until(e, seat, WindowLabel::UnlockAbilities);
+    for _ in 1..n {
+        e.choose(fallback(&req));
+        req = until(e, seat, WindowLabel::UnlockAbilities);
+    }
+    req
+}
+
+// rules-qa 95.3–95.5 — a withdrawal (library exhausted, turn begun short
+// of a full hand, announced in the unlock phase) kept until the next
+// unlock phase: out of the game with half a victory point (90.9), the
+// predator gaining neither victory point nor pool (rulebook "Withdrawing
+// from the Game").
+#[test]
+fn a_withdrawal_kept_a_round_scores_half_a_victory_point() {
+    let mut e = table();
+    e.add_minion(SeatId(2), find_card("Alexa Draper"), 5, false);
+    let req = to_unlock(&mut e, SeatId(0), 1);
+    assert!(req.options.contains(&Choice::WithdrawFromGame));
+    pick(&mut e, Choice::WithdrawFromGame);
+    // Announced once.
+    assert!(!e.state.may_announce_withdrawal(SeatId(0)));
+    assert!(!request(&mut e).options.contains(&Choice::WithdrawFromGame));
+    let predator_pool = e.state.seats[2].pool;
+    to_unlock(&mut e, SeatId(2), 1);
+    let req = to_unlock(&mut e, SeatId(1), 1);
+    assert_eq!(req.seat, SeatId(1));
+    let s = &e.state.seats[0];
+    assert!(s.withdrew && s.ousted);
+    let vps: Vec<u32> = e.state.seats.iter().map(|s| s.half_vps).collect();
+    assert_eq!(vps, [1, 0, 0]);
+    assert_eq!(e.state.seats[2].pool, predator_pool);
+}
+
+// rules-qa 95.4 — pool lost before the next unlock phase breaks the
+// withdrawal; it may be announced again then.
+#[test]
+fn a_withdrawal_fails_on_a_pool_loss() {
+    let mut e = table();
+    let bleeder = e.add_minion(SeatId(2), find_card("Alexa Draper"), 5, false);
+    to_unlock(&mut e, SeatId(0), 1);
+    pick(&mut e, Choice::WithdrawFromGame);
+    until(&mut e, SeatId(2), WindowLabel::MinionPhase);
+    pick(&mut e, act(bleeder, ActionKind::Bleed, None));
+    let req = to_unlock(&mut e, SeatId(0), 1);
+    assert!(e.state.seats[0].pool < 30);
+    assert!(!e.state.seats[0].withdrew);
+    assert!(req.options.contains(&Choice::WithdrawFromGame));
+}
+
+// rules-qa 95.4 — one of the Methuselah's minions entering combat breaks
+// the withdrawal.
+#[test]
+fn a_withdrawal_fails_on_combat() {
+    let mut e = table();
+    let bleeder = e.add_minion(SeatId(2), find_card("Alexa Draper"), 5, false);
+    to_unlock(&mut e, SeatId(0), 1);
+    pick(&mut e, Choice::WithdrawFromGame);
+    until(&mut e, SeatId(2), WindowLabel::MinionPhase);
+    pick(&mut e, act(bleeder, ActionKind::Bleed, None));
+    pick(&mut e, block(MinionId(0)));
+    to_unlock(&mut e, SeatId(0), 1);
+    assert!(!e.state.seats[0].withdrew);
+}
+
+// rules-qa 95.3 — no withdrawal with a full hand at the turn's start: the
+// unlock phase offers none.
+#[test]
+fn no_withdrawal_with_a_full_hand() {
+    let mut e = table();
+    fill_hand(&mut e, 0);
+    until(&mut e, SeatId(2), WindowLabel::UnlockAbilities);
+    loop {
+        let req = request(&mut e);
+        if req.seat == SeatId(0) {
+            assert!(!req.options.contains(&Choice::WithdrawFromGame));
+        }
+        if (req.seat, req.window) == (SeatId(0), WindowLabel::MinionPhase) {
+            break;
+        }
+        e.choose(fallback(&req));
+    }
+}
+
+// rules-qa 95.2, 95.4 — blood a vampire of the Methuselah spends, no
+// combat (leaving torpor), breaks the withdrawal.
+#[test]
+fn a_withdrawal_fails_on_blood_spent() {
+    let mut e = table();
+    let torpid = e.add_minion(SeatId(0), find_card("Alexa Draper"), 4, true);
+    to_unlock(&mut e, SeatId(0), 1);
+    pick(&mut e, Choice::WithdrawFromGame);
+    pick(&mut e, act(torpid, ActionKind::LeaveTorpor, None));
+    let req = to_unlock(&mut e, SeatId(0), 1);
+    assert!(e.state.minions[torpid.index()].blood < 4);
+    assert!(!e.state.seats[0].withdrew);
+    assert!(req.options.contains(&Choice::WithdrawFromGame));
 }

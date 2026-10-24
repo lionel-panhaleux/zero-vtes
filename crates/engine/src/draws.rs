@@ -3741,7 +3741,7 @@ impl Engine {
             }
             (Interrupt::MoveForBlood { payer, n, .. }, Choice::ChooseMinion(m)) => {
                 self.interrupts.remove(0);
-                self.state.minions[payer.index()].blood -= n;
+                self.state.lose_blood(payer, n);
                 self.leave_torpor(m);
             }
             (Interrupt::RemoveUncontrolled { .. }, Choice::Slot(i)) => {
@@ -3772,13 +3772,13 @@ impl Engine {
             (Interrupt::MoveBloodUpTo { from, to, .. }, Choice::SetX(n)) => {
                 self.interrupts.remove(0);
                 let n = n.min(self.state.minions[from.index()].blood);
-                self.state.minions[from.index()].blood -= n;
+                self.state.lose_blood(from, n);
                 self.state.minions[to.index()].blood += n;
             }
             (Interrupt::StealUpTo { from, to, .. }, Choice::SetX(n)) => {
                 self.interrupts.remove(0);
                 let n = n.min(self.state.minions[from.index()].blood);
-                self.state.minions[from.index()].blood -= n;
+                self.state.lose_blood(from, n);
                 self.state.gain_blood(to, n);
             }
             (Interrupt::MayCancelCombat { minion, .. }, c) => {
@@ -3858,7 +3858,7 @@ impl Engine {
                 if let Choice::TakeFrom { zone, card } = c {
                     let (pool, blood) = self.searched_ally_cost(s, minion, card);
                     let copy = self.take_from_zone(s, zone, card);
-                    self.state.minions[minion.index()].blood -= blood;
+                    self.state.lose_blood(minion, blood);
                     self.put_ally_in_play(s, card, copy);
                     if zone == Zone::Hand {
                         self.replace(s, 1, None);
@@ -4113,7 +4113,7 @@ impl Engine {
             }
             (Interrupt::AvoidDamage { minion, blood, .. }, Choice::BurnBloodToAvoid) => {
                 self.interrupts.remove(0);
-                self.state.minions[minion.index()].blood -= blood;
+                self.state.lose_blood(minion, blood);
             }
             // The chosen card to the next place down from the top.
             (
@@ -4230,7 +4230,7 @@ impl Engine {
                         }
                     }
                     MinionPurpose::UnlockAnarch => self.state.unlock(m),
-                    MinionPurpose::BurnBloodOfClan(_) => v.blood -= 1,
+                    MinionPurpose::BurnBloodOfClan(_) => self.state.lose_blood(m, 1),
                     MinionPurpose::Corrupt => v.add_corruption(seat, 1),
                     // Capacity 6 or more: that Methuselah ignores it for the
                     // rest of the game.
@@ -4270,7 +4270,7 @@ impl Engine {
                 },
                 Choice::SetX(n),
             ) => {
-                self.state.minions[from.index()].blood -= n;
+                self.state.lose_blood(from, n);
                 self.state.gain_blood(to, n);
                 self.interrupts[0] = Interrupt::MoveBetween {
                     seat,
@@ -4304,7 +4304,7 @@ impl Engine {
             // To Karen, the blood goes to the bank (LSJ 20081120-2).
             (Interrupt::GiveBlood { from, .. }, Choice::ChooseMinion(to)) => {
                 self.interrupts.remove(0);
-                self.state.minions[from.index()].blood -= 1;
+                self.state.lose_blood(from, 1);
                 if !self.state.gehenna_immune(to) {
                     self.state.gain_blood(to, 1);
                 }
@@ -4564,7 +4564,7 @@ impl Engine {
             ) => {
                 let own = Cause::Effect(Source::Minion(from));
                 self.caused(own, |e| {
-                    e.state.minions[from.index()].blood -= 1;
+                    e.state.lose_blood(from, 1);
                     e.state.add_uncontrolled_blood(seat, i as usize, 1);
                 });
                 self.interrupts[0] = Interrupt::DistributeFrom {
@@ -4903,8 +4903,8 @@ impl Engine {
             .expect("the haven in hand");
         let (_, copy) = s.hand.take(i);
         self.paying(|e| {
-            e.state.seats[seat.index()].pool -= pool;
-            e.state.minions[minion.index()].blood -= blood;
+            e.state.seats[seat.index()].lose_pool(pool);
+            e.state.lose_blood(minion, blood);
         });
         self.note_pool_burned(seat);
         let placed = crate::state::CardInPlay::entering(card, copy, seat, Some(minion), 0);

@@ -192,7 +192,7 @@ impl Engine {
             return;
         }
         self.caused(Cause::Effect(Source::Card(card)), |e| {
-            e.state.seats[seat.index()].pool -= x as i32;
+            e.state.seats[seat.index()].lose_pool(x as i32);
             e.state.seats[target.index()].pool += x as i32;
         });
         self.state.seats[target.index()].oust_pending = false;

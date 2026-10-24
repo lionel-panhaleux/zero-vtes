@@ -94,6 +94,7 @@ impl Namer<'_> {
                     Rule::Diablerie => R::Diablerie,
                     Rule::Capacity => R::Capacity,
                     Rule::Vote => R::Vote,
+                    Rule::Withdrawal => R::Withdrawal,
                 };
                 (None, Some(r))
             }
@@ -268,6 +269,9 @@ impl Namer<'_> {
                 cause: cause.map(|c| self.cause(c)),
             },
             Fact::Ousted { seat } => EventKind::Ousted { seat: seat.0 },
+            Fact::WithdrawalAnnounced { seat } => EventKind::WithdrawalAnnounced { seat: seat.0 },
+            Fact::WithdrawalBroken { seat } => EventKind::WithdrawalBroken { seat: seat.0 },
+            Fact::Withdrew { seat } => EventKind::Withdrew { seat: seat.0 },
             Fact::Edge { seat } => EventKind::Edge {
                 seat: seat.map(|s| s.0),
             },

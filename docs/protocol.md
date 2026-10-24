@@ -18,7 +18,7 @@ is created by one request and played over one WebSocket. Every game is
 recorded, anonymously, and kept two years to train and test the engine
 (§11).
 
-Version **2.12.0**. The types: the models of the
+Version **2.13.0**. The types: the models of the
 [API reference](https://engine.krcg.org/docs), also as
 [JSON Schema](https://engine.krcg.org/schema.json) (2020-12) and
 [TypeScript](https://engine.krcg.org/protocol.ts).
@@ -36,6 +36,12 @@ Version **2.12.0**. The types: the models of the
   in 2-player VTES (else `SpecError` `two_player_deck`: `seat`, `cards`
   off the list, `library`); `GET /catalog?seats=2` lists VEKN's suggested
   2-player decklists.
+- A Methuselah whose library is exhausted and whose turn began short of
+  a full hand may announce a **withdrawal** in their unlock phase
+  (`withdraw_from_game`): kept until their next turn begins — no pool
+  lost or spent, no blood a vampire of theirs loses or spends, no minion
+  of theirs in combat — they leave the game with half a victory point,
+  their predator gaining nothing (rules-qa 95; tournament rules).
 - The engine asks one **decision** at a time, of one seat: a list of
   **options**, every legal move, each a whole move (card, mode, actor,
   target). The seat answers with an option's `index`. Nothing else
@@ -270,7 +276,9 @@ the previous one, never the engine's state.
 - `turn`, `active`, `phase` (`unlock`, `master`, `minion`, `influence`,
   `discard`; `over` in the `over` message's view, however the game
   ended), `decision` (the next one's number).
-- `seats[]`: `name`, `pool`, `vp_halves`, `ousted`, `edge`, `prey`,
+- `seats[]`: `name`, `pool`, `vp_halves`, `ousted` (out of the game:
+  ousted, or withdrawn), `withdrawing`? (a withdrawal announced, not
+  broken), `withdrew`? (out by a withdrawal), `edge`, `prey`,
   `predator`; zones as cards `{copy?, id?, crypt?, nth?, numbered?}` — `crypt`,
   `library` (top last; while the seat searches it, the cards it may take
   show their `id`), `hand`, `ash_heap`, `removed`, `limbo` (cards
@@ -368,7 +376,8 @@ seat 2; burn 2 pool to keep card 9.)
   `allocate_to_card` their `target` and `amount`; `choose_seat` its `target`;
   `choose_clan`, `choose_circle`, `choose_discipline` their `value`;
   `cast_edge`, `cast_card_vote` their `favor`; a contest's its `minion` or
-  `card`. The rest (`pass`, `edge_pool`, `burn_pool`, `draw_library`,
+  `card`. The rest (`pass`, `edge_pool`, `withdraw_from_game`,
+  `burn_pool`, `draw_library`,
   `draw_crypt`, `pay_block_toll`, `pay_to_cancel`, `burn_blood_to_avoid`) read
   from their `effects` and the decision's `source` and `purpose`, which
   `decided` repeats.
@@ -561,6 +570,9 @@ heap (a marker on its minion, §6), no copy of its own.
 | `traits` | `minion`, `traits` (§6's): a minion's traits now, told when they changed since the last view (Black Hand gained, made Red List or infernal) |
 | `victory_points` | `seat`, `vp_halves`: a Methuselah's victory points now, told when they changed since the last view (an oust's predator, as the table stood before the Methuselahs ousted at once; the last standing; a survivor at the time limit) |
 | `ousted` | `seat` |
+| `withdrawal_announced` | `seat`: a withdrawal announced (§1) |
+| `withdrawal_broken` | `seat`: the withdrawal broken (pool or a vampire's blood lost or spent, a minion in combat) |
+| `withdrew` | `seat`: out of the game by the withdrawal (in place of `ousted`: the seat's `ousted` and `withdrew` true; no `victory_points` for the predator) |
 | `edge` | `seat`? (who holds the Edge now; absent: burned) |
 | `block_fails` | `minion` (its block attempt ended, the action goes on) |
 | `action_starts` | `seat`, `acting` (the minion's card, numbered by its name, as `enters_play` tells one: it may have come into play in the same run), `minion` (its kind), `action`: an action announced, by a decision or by the engine itself (a forced action: a hunt, Elen Kamjian's bleed); its `action_ends` follows, however short the action, before the next is announced |
@@ -598,7 +610,8 @@ burned for pool), `contest` (a contested card or title paid for),
 `diablerie`, `capacity` (blood above capacity draining, an uncontrolled
 vampire's counters beyond it as it comes into play), `vote` (pool
 burned for votes: Business Pressure's round), `disease` (a disease
-counter's blood as its vampire unlocks). Pool burned by several cards at
+counter's blood as its vampire unlocks), `withdrawal` (a withdrawing
+Methuselah's pool gone with them). Pool burned by several cards at
 once (their ousts simultaneous) names the first of them.
 
 Events tell what happened; the view says what is. A client keeping the
@@ -642,9 +655,10 @@ tests hold every view to it. What it applies:
   under way: `*_state` to set it, `action_ends`, `combat_ends`,
   `referendum_ends` to end it; `over`'s view the phase `over`;
 - what follows from other events: prey and predator from the seats
-  `ousted` (each seat's next not ousted, an ousted one's too), every
-  card of a seat `ousted` gone from its places (its own and those it
-  controlled on others' minions).
+  `ousted` or `withdrew` (each seat's next still in the game, a gone
+  one's too), every card of a seat `ousted` or `withdrew` gone from its
+  places (its own and those it controlled on others' minions); a
+  `withdrew` seat's `ousted`, `withdrew` true and `withdrawing` false.
 
 Where a card sits within its place is the next view's to show (a minion
 out of torpor, a card come into play); so are the cards a search shows
