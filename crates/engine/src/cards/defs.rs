@@ -996,6 +996,7 @@ pub static FAR_MASTERY: CardDef = CardDef {
                     Requirement::TargetCard(CardFilter::Type(CardType::Retainer)),
                     Requirement::TargetOnVampire,
                     Requirement::NotHost,
+                    Requirement::NotControlled,
                     Requirement::ActorMayHoldTarget,
                 ],
             ),
@@ -24444,6 +24445,7 @@ const fn corruption_steal(version: &'static [Requirement], effects: &'static [Ef
             &[
                 Requirement::TargetVampire,
                 Requirement::ControlledByPrey,
+                Requirement::NotControlled,
                 Requirement::TargetBloodAtMostCounters,
             ],
         ),

@@ -9526,7 +9526,9 @@ impl Engine {
     /// Rulebook (advanced) "Burn option": a Methuselah with no minion
     /// meeting the card's requirements may discard and replace it in any
     /// unlock phase, once each; a unique card's copy in play changes
-    /// nothing (LSJ 20100203-2).
+    /// nothing (LSJ 20100203-2). The rulebook's "or is not a legal target"
+    /// is the minion's own readiness, never the card's targets: a Chanjelin
+    /// Ward on each vampire opens nothing (owner, rules-qa 90.6).
     fn burn_option_discards(&self, seat: SeatId) -> Vec<Choice> {
         let st = &self.state;
         if st.seats[seat.index()].burn_option_used {

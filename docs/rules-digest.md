@@ -110,8 +110,9 @@ counts [san] plays only; copies of Protected Resources do not lower its cap
 unique: created vampires (Embrace, Childe of the Revolution, Waters of Duat)
 and cards printed "Non-unique." (Valkyrie) are not (41.5, 58.5). A minion
 card on a minion is controlled by the minion's controller; a master card on
-a minion stays its player's (7.5, 38.4; Anathema's ruling, PIB 20121028, is
-the contested exception, §23). A card that is not unique never contests
+a minion stays its player's (7.5, 38.4). Anathema, a political action, is
+a minion card: it stays on its vampire when its player is ousted (PIB
+20121028), no exception (90.10). A card that is not unique never contests
 (44.10).
 
 **D6. Choosing in a referendum's terms is never targeting** (38.6, 35.1).
@@ -158,7 +159,9 @@ acting Methuselah (25.5).
 
 **D12. Ⓓ is only a reminder.** Printed or not, an action aimed at another
 Methuselah or what they control is directed at them; one aimed at one's own
-minion or card is undirected (20.1, 17.4, 17.2; §3.4).
+minion or card is undirected (20.1, 17.4, 17.2; §3.4); never a steal of a
+card in play: one cannot steal one from oneself (90.4; Chameleon excepted,
+blood steals untouched, 71.13).
 
 **D13. Conditions are read live, never snapshotted**, even when no pool card
 could change them yet (18.4, 13.2, 19.3, 39.5, 32.4): as the effect applies,
@@ -2193,8 +2196,10 @@ torpor actions, diablerie). Referendums: §13.
   steal locations; a steal that would give a second vehicle is not offered
   (17.4). Darius Shirazi's "non-weapon" excludes melee weapons; Camera
   Phone and Laptop Computer may join the pool (17.4).
-- Steals from one's own minion are undirected (17.4) — against the
-  rulebook glossary's "you cannot steal a card from yourself" (§23).
+- No steal of a card in play targets one's own: "you cannot steal a card
+  from yourself" (rulebook glossary; owner, 90.4, revising 17.4's own
+  steals); Chameleon's "take control" excepted by its ruling (LSJ
+  20080803-2); blood steals untouched (71.13).
 - Graverobbing: the stolen vampire keeps its cards and blood; burned later,
   it goes to its owner's ash heap; master cards on it stay their player's,
   minion cards move with it; [DOM]'s move is offered at resolution only if
@@ -2554,7 +2559,9 @@ round (rulebook "Combat").
   (14.2). Target Vitals' add-on: 55.1. Psychic Assault is normal at its
   source — an aggravating effect (Dawn Operation) leaves its damage normal;
   Black Hand read on the striker as it resolves; unpreventable damage is
-  still reduced by Nephandus (LSJ 20100519) (62.26).
+  still reduced by Nephandus (LSJ 20100519) (62.26). Dawn Operation
+  aggravates every damage on the vampires in the combat, environmental and
+  retainer damage too (PIB 20150603-1) (90.1).
 - Nephandus's reduction is its own step, before prevention, for each strike
   of the opposing minion — hand, melee weapon, ranged, unpreventable
   included — and a strike's damage after combat (Catatonic Fear); not
@@ -2962,7 +2969,9 @@ prisci's alone (52.9, 70.6) — read "a Methuselah's ballots" in rules-qa as
   cast, a legal no-op (73.4).
 - The prisci block: each ready priscus casts one ballot, even with no vote
   of its own; the side with more ballots gets the block's 3 votes, a tie
-  gives none (52.9). Eat the Rich: "each priscus gets -1 ballot" — its
+  gives none (52.9); a reduction of titles' or vampires' votes leaves the
+  block's 3 (ANK 20180307-1), Free States Rant's "1 less ballot" lessening
+  the ballots that decide it (90.8). Eat the Rich: "each priscus gets -1 ballot" — its
   ballots in all lessened by 1 (Gratiano, a priscus with "+1 ballot", keeps
   one); "each non-priscus titled vampire gets -1 vote" — off its total
   votes in this referendum, never below 0; the Edge cast is worth 2 votes;
@@ -2970,16 +2979,17 @@ prisci's alone (52.9, 70.6) — read "a Methuselah's ballots" in rules-qa as
   do not touch the block's 3 votes (ANK 20180307-1).
 - Title votes: by title, read live; contested, yielded or off-sect titles
   give none (§18.4). Fee Stake: "non-Anarch titles are worth -1 vote" =
-  every title but baron, minimum 0; its +1 vote to its Anarch only when it
+  every title but baron, netted like any reduction: a priscus's title,
+  worth no votes, takes one gained later (90.3); its +1 vote to its Anarch only when it
   calls the referendum (32.9).
 - Vote penalties reaching votes already cast: Camarilla Conclave's -1 vote
-  to each non-Camarilla vampire, a vampire's votes stopping at 0 (51.2, ANK
+  to each non-Camarilla vampire, a vampire's total stopping at 0 (51.2, ANK
   20251125); Absolute Tyranny [POT][PRE]'s -1 vote to each vampire not
   following the Path of Power and the Inner Voice, likewise; played by the
   acting vampire as an action modifier, by another as a reaction (52.2).
-  KRCG: a vampire's net votes may go negative and simply subtract nothing
-  (ANK 20251125, LSJ 20050221-2) — "stop at 0" differs when votes come
-  back (§23).
+  Netted: a vampire's votes may go net negative, kept against votes it
+  gains later, and only the total, tallied, stops at 0 (ANK 20251125, LSJ
+  20050221-2): -1, then Awe's +1, is 0 (90.3).
 - Tyler McGill: the +1 vote counts in votes he casts after a Methuselah
   burned the Edge for a vote in that referendum; votes already cast are not
   revised; "Nosferatu" is the clan only (74.8).
@@ -3286,7 +3296,11 @@ retainers, traits, titles, trait changes).
   stays a blood cost an ally never pays (73.5, advanced rules §5.5.1). An
   ally pays tolls in life where the toll allows (41.4, 42.2, 60.13); Seeds of
   Terror's blood-only toll bars it (53.2).
-- Playing as a vampire: D16 (73.6). Herald of Topheth plays [dai], [pot]
+- Playing as a vampire: D16 (73.6). The rulebook's allies box: life is
+  blood, life over the printed life does not drain, aggravated damage costs
+  life with no torpor, an effect sending it to torpor burns it (LSJ
+  20060409): Vivienne Géroux's Daring the Dawn costs her 2 life (90.2).
+  Herald of Topheth plays [dai], [pot]
   and [pre] cards as a capacity-5 Independent vampire; infernal (it does not
   unlock as normal, 1 pool to unlock); its rush at another Methuselah's
   minion; its life back to 5 at most, 1 each of its controller's unlock
@@ -3419,7 +3433,9 @@ retainers, traits, titles, trait changes).
   [MERGED] title first, else its printed title, else the base card's; the
   base card's text whole (Appolonius's optional press and +1 bleed beside
   the advanced card's). Burned, both cards go to the ash heap. Legacy
-  finding no base version is still successful (69.5).
+  finding no base version is still successful (69.5). The counters and
+  cards on the incoming card burn, the vampire in play keeping its own
+  (rulebook "Advanced") (90.5).
 - Group versions are one vampire for contests, each with its own text:
   Theo Bell G2 and G6 (no merge, the G2 advanced card not in the pool; his
   ready prince or justicar is another vampire of his controller's, read
@@ -3863,9 +3879,11 @@ cards), §1.10 (burn and removal), §6.3 (control of a card in play).
   (not in torpor) of the card's clan if named, with one of its Disciplines if
   any (pool: Sight Beyond Sight) (33.8). Veneficti's per his printed clan
   (62.30).
-- Not in rules-qa: the rulebook's one such discard per unlock phase and its
-  "is not a legal target" clause; LSJ 20100203-2 (not usable while one meets
-  the requirement) (§24).
+- One such discard per unlock phase; not usable while one meets the
+  requirement, a unique copy in play no bar (LSJ 20100203-2); the
+  rulebook's "or is not a legal target" is a torpid minion where the
+  requirement is ready, never the card's targets: Chanjelin Ward on each of
+  its player's vampires stays in hand (owner, 90.6).
 - The burn option reads a card's printed trait requirement (a Seraph, an
   infernal vampire, an unmerged advanced vampire, 33.8): Legacy, Unleash
   Hell's Fury, Veneficti and Tattoo Signal are burnable only with a minion
@@ -4225,7 +4243,8 @@ Advanced rules §6.5 (pool, the Edge and ousting).
   ousted themselves or not; the 6 pool goes only to a non-ousted predator.
   Game win = ≥ 2 VP and strictly more than any other, ousted or not; draws
   are legal (two at 2 VP; four or five all at 1 VP) (6.9; the tournament
-  rules' win condition).
+  rules' win condition). A withdrawal scores half a VP (tournament rules)
+  (90.9).
 - Life Boon's VP: the Boon player gains every VP the Methuselah saved gains
   — a prey's oust, being the last one standing, the half point at the time
   limit (tournament rules) — the oldest Boon first, each until it has given 1
@@ -4382,8 +4401,9 @@ rules-qa batch.
   removed when that player is ousted; rulebook "Master Cards", advanced rules
   §6.6.3, §6.4.3) vs advanced rules §1.12.2 and PIB 20121028 (a card on a
   minion is controlled by the minion's controller, so Anathema stays when its
-  player is ousted; a test-backed ledger row). Digest: 7.5, Anathema the
-  ruled exception — **open** whether it is one.
+  player is ousted; a test-backed ledger row) — settled by 90.10: Anathema
+  is a minion card (a political action), 7.5's own rule; §1.12.2's example
+  it, §6.6.3 the master cards'.
 - **K15** Diablerie: 5.8 (the after-resolution window after the blood hunt)
   vs advanced rules §2.3.4, §3.7.8.1 (ANK 20201228: after-resolution effects
   fit between the diablerie and the blood hunt); 68.2 gives Slake the
@@ -4440,7 +4460,7 @@ rules-qa batch.
   20090425). §3.8.
 - **K25** Dawn Operation: 62.26 (Psychic Assault stays normal) vs advanced
   rules §4.4.3 (Dawn Operation makes environmental and retainer damage
-  aggravated too) — likely the cards' wording; unverified.
+  aggravated too) — settled by 90.1: both hold, by the two cards' wording.
 - **K26** The Meddling of Semsith leaving play: 70.4 (replacements not
   released before the phase's end) vs LSJ 20021008 and advanced rules §6.5.3
   (its effect ends when its player is ousted, the cards drawn at once) — settled
@@ -4468,11 +4488,14 @@ rules-qa batch.
   the prisci block's votes) is `n/a` on the Fee Stake rows ("no Priscus in
   V5") and on Free States Rant ("no Priscus sub-referendum"), against 52.9's
   block and 70.6's prisci; it is in no rules-qa item and bears on 32.9,
-  51.2, 52.2, 70.6 — **open** (the rows' statuses).
+  51.2, 52.2, 70.6 — settled by 90.8: the block's 3 votes are no title's,
+  the rows tested.
 - **K31** Vote floors: 51.2, 52.2, 70.6 ("a vampire's votes stop at 0",
   citing ANK 20251125) vs ANK 20251125 and LSJ 20050221-2 (net negative
   votes, subtracting nothing). They differ when votes come back (a 0-vote
-  vampire at -1 then +1: 0 under the ruling, 1 under the floor) — **open**.
+  vampire at -1 then +1: 0 under the ruling, 1 under the floor) — settled
+  by 90.3: netted, the total floored (the engine's, a Fee Stake's minus
+  aligned).
 - **K32** A card played by another card: D2 / 41.13 (still played) vs ANK
   20201229 (Concealed Weapon's weapon "is not played by the minion": Louhi
   cannot cancel it) and RTR 20001020 (Dark Influences, Disguised Weapon,
@@ -4496,13 +4519,15 @@ rules-qa batch.
 - **K35** Steals from oneself: 17.4 (Darius Shirazi, Saankaláxt stealing
   from their own minion, undirected) and 27.2 (Puppet Master on one's own
   vampire, a no-op) vs the rulebook glossary "Steal (a card)": "you cannot
-  steal a card from yourself" — **open**.
+  steal a card from yourself" — settled by 90.4 (owner): no self-steals of
+  a card in play.
 - **K36** Saulot's Guiding Wisdom: 19.1 (the unique card contests first,
   paid in pool) vs the glossary "Title" (unique title contests are paid in
   blood) — an exception for a unique title card; settled by 19.1.
 - **K37** The burn option: 33.8 omits the rulebook's one discard per unlock
   phase and its "not a legal target" clause, and LSJ 20100203-2 (not usable
-  while one meets the requirement) — **open** (§16.8).
+  while one meets the requirement) — settled by 90.6 (owner): the
+  requirements only (§16.8).
 - **K38** Lightning Reflexes at X = 0 consuming no limited slot (29.8) has
   no ruling; the glossary "Limited" allows one card or effect per round; LSJ
   20030224 (a canceled limited effect does not trigger the limit) supports
@@ -4518,15 +4543,16 @@ rules-qa batch.
 - **K41** Game end: 6.9's win condition (≥ 2 VP, strictly more than any
   other) and 45.5's half point at the time limit are the tournament rules';
   the rulebook says only that most VP wins, a tie having no winner;
-  withdrawal (1 VP in the rulebook, half a VP in the tournament rules) is in no
-  rules-qa item.
+  withdrawal (1 VP in the rulebook, half a VP in the tournament rules) — settled
+  by 90.9: the tournament rules'.
 - **K42** Allies "as a vampire": 73.6 (the granted capacity) vs the
   rulebook allies box's default capacity 1 when none is printed — no
   conflict for the pool's cards, which print one; the box's other points
   (aggravated damage costs life as normal; an effect sending the ally to
-  torpor burns it, LSJ 20060409) are in no rules-qa item.
+  torpor burns it, LSJ 20060409) are in no rules-qa item — settled by 90.2.
 - **K43** Merging: 69.5's title order is a reading; the rulebook also burns
-  the cards and counters on the incoming copy, which 69.5 does not state.
+  the cards and counters on the incoming copy, which 69.5 does not state
+  — settled by 90.5.
 
 ### 23.6 Open at the source
 
@@ -4534,7 +4560,9 @@ rules-qa batch.
   advanced rules' review notes): RTR 19980623 (Tereza Rostas: "cannot be
   thwarted by burning the Edge") vs TOM 19951214-2 (no steal of an
   uncontrolled Edge); the owner leans to "the steal resolves with no effect"
-  (2026-07-22). Reachable with Hand Intervention, Sabbat Threat.
+  (2026-07-22). Unreachable: no pool card steals the Edge (Tereza Rostas
+  is not in it; Hand Intervention and Sabbat Threat only burn it) — settled
+  by 90.7 (owner): the steal still gets it.
 
 ## 24. Open readings
 
@@ -4562,13 +4590,14 @@ read, for the owner to confirm or correct:
   answered by the owner: 87.42 and 87.43 corrected).
 - 89.3–89.26 graded green or amber (89.1 and 89.2 red, answered by the
   owner: 89.1 corrected, 89.2 confirmed).
+- 90.1–90.3, 90.5, 90.8–90.10 graded green or amber (90.4, 90.6, 90.7
+  red, answered by the owner: 90.4 confirmed, 90.6 and 90.7 corrected).
 - 49.6's several-holders question is moot (50.1: the Cog is unique).
 
 ### 24.2 Questions for a new rules-qa batch
 
-From §23: K11 (the "during" template, for the advanced rules), K14
-(Anathema), K19 (live grants), K30 (the prisci block's 3 votes), K31 (vote
-floors), K35 (stealing from oneself), K37 (the burn option's clauses).
+From §23: K11 (the "during" template, for the advanced rules), K19 (live
+grants).
 Also from the
 ledger, not yet a reading anywhere:
 
@@ -4671,7 +4700,7 @@ an owner ruling:
 Every rules-qa item, by batch, with the digest sections citing it: the
 section stating it and those cross-referring to it (§2 the default
 readings, §22 engine modeling, §23 the contradictions, §24 the open
-readings). 941 items, Batches 1–91 (44.11 was removed, replaced by Batch
+readings). 951 items, Batches 1–91 (44.11 was removed, replaced by Batch
 45). The index is derived from the citations: a bare `N.M` cites rules-qa
 item N.M in the section it appears in. A new rules-qa item gets its line in
 the section stating it, then its entry here: `python3
@@ -4905,8 +4934,8 @@ index or an item cited nowhere.
   71.4 §13.2; 71.5 §12.3,§12.13,§23.3; 71.6 §4.5,§7.2,§12.14; 71.7
   §3.11,§4.1,§4.2,§12.12; 71.8 §2,§6.5,§19.3; 71.9 §14.4,§14.6,§15.2,§23.4;
   71.10 §3.2,§14.3,§14.10,§16.7,§20; 71.11 §1,§9.6; 71.12
-  §5.1,§8.6,§16.1,§19.4; 71.13 §3.4,§11.5; 71.14 §2,§3.12,§12.4,§14.5; 71.15
-  §13.1; 71.16 §2,§16.1,§19.4; 71.17 §12.1,§19.4; 71.18
+  §5.1,§8.6,§16.1,§19.4; 71.13 §2,§3.4,§11.5; 71.14 §2,§3.12,§12.4,§14.5;
+  71.15 §13.1; 71.16 §2,§16.1,§19.4; 71.17 §12.1,§19.4; 71.18
   §4.2,§6.5,§9.5,§19.1; 71.19 §6.4,§14.6; 71.20 §12.3; 71.21 §2,§3.4,§11.8;
   71.22 §8.6,§10.4,§14.10; 71.23 §2,§12.4,§12.6,§12.10,§16.3; 71.24
   §2,§3.8,§7.3; 71.25 §3.8,§4.6,§13.3; 71.26 §3.8,§3.18,§7.2,§23.3; 71.27
@@ -4993,5 +5022,9 @@ index or an item cited nowhere.
   §15.2; 89.16 §15.2; 89.17 §15.2; 89.18 §15.2; 89.19 §15.2; 89.20 §15.2;
   89.21 §15.2; 89.22 §15.2; 89.23 §15.2; 89.24 §15.2; 89.25 §15.2; 89.26
   §3.1,§15.2,§24.1
+- **90** — 90.1 §12.7,§23.3,§24.1; 90.2 §14.5,§23.5; 90.3 §13.2,§23.4,§24.1;
+  90.4 §2,§11.5,§23.5,§24.1; 90.5 §14.9,§23.5,§24.1; 90.6 §16.8,§23.5,§24.1;
+  90.7 §23.6,§24.1; 90.8 §13.2,§23.4,§24.1; 90.9 §21.2,§23.5; 90.10
+  §2,§23.3,§24.1
 - **91** — 91.1 §18.5; 91.2 §18.5; 91.3 §18.5; 91.4 §18.5; 91.5 §18.5; 91.6
   §18.5; 91.7 §18.5; 91.8 §18.5

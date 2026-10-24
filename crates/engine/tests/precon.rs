@@ -10117,6 +10117,46 @@ fn fee_stake_represents_a_baron_and_its_burn_weakens_other_titles() {
     assert_eq!(r.votes_of(&e.state, t), 2, "not its caller");
 }
 
+// [ANK 20180307-1] Reduce votes: "The votes provided by the Priscii
+// sub-referendum are not affected." A Fee Stake's burn referendum, where
+// non-Anarch titles are worth -1 vote: Khin Aye's prisci ballot still
+// gives the block's 3 votes, no title's votes.
+#[test]
+fn a_fee_stakes_burn_leaves_the_prisci_block_its_3_votes() {
+    let mut e = Engine::bare(3);
+    let a = e.add_minion(SeatId(0), anarch(0), 4, false);
+    let caller = e.add_minion(SeatId(0), plain("", "", 0), 4, false);
+    let khin = e.add_minion(SeatId(1), zvtes::state::find_card("Khin Aye"), 4, false);
+    e.add_minion(SeatId(2), plain("", "", 2), 4, false);
+    let fee = attach(&mut e, "Fee Stake: Boston", a, 0);
+    pick_when(&mut e, use_on(fee, 0, Some(caller), Target::None));
+    to_referendum(&mut e);
+    pick_when(&mut e, votes(khin, false));
+    let r = e.referendum().expect("a referendum");
+    assert_eq!(r.tally(&e.state), (0, 3), "the block, untouched");
+}
+
+// A Fee Stake's burn: "non-Anarch titles are worth -1 vote", netted like
+// every reduction (ANK 20251125, rules-qa 90.3): Stavros, a priscus (a
+// title worth no votes), calls it and plays Awe (X = 0): +1 - 1, no vote.
+#[test]
+fn a_fee_stakes_title_penalty_nets_against_votes_gained() {
+    let mut e = Engine::bare(3);
+    let a = e.add_minion(SeatId(0), anarch(0), 4, false);
+    let stavros = e.add_minion(SeatId(0), zvtes::state::find_card("Stavros"), 4, false);
+    e.add_minion(SeatId(1), plain("", "", 1), 4, false);
+    e.add_minion(SeatId(2), plain("", "", 2), 4, false);
+    let fee = attach(&mut e, "Fee Stake: Boston", a, 0);
+    hand(&mut e, 0, &["Awe"]);
+    pick_when(&mut e, use_on(fee, 0, Some(stavros), Target::None));
+    to_referendum(&mut e);
+    pick_when(&mut e, play(0, 0, stavros));
+    pick(&mut e, Choice::SetX(0));
+    request(&mut e);
+    let r = e.referendum().expect("a referendum");
+    assert_eq!(r.votes_of(&e.state, stavros), 0, "-1 + 1");
+}
+
 // [LSJ 20070808-2] Fee Stake: "If the title is contested, the card is
 // turned face down out of play and the provided action cannot be used."
 #[test]
@@ -11097,6 +11137,54 @@ fn fragment_of_the_book_of_nod_is_no_as_played_answer() {
     pick(&mut e, play(0, 1, a));
     let req = expect(&mut e, SeatId(1), WindowLabel::CardAsPlayed);
     assert!(!req.options.contains(&use_on(f, 0, None, Target::None)));
+}
+
+// Rulebook (advanced) "Burn option": "a Methuselah who does not control a
+// minion who meets the requirements of this card or is not a legal target":
+// the requirements only, "not a legal target" a torpid minion where the
+// requirement is ready (owner, rules-qa 90.6). Chanjelin Ward ("a vampire
+// may have only one") with one on each of its player's vampires: a Kiasyd
+// still meets it, so it is not discarded, as with a vampire still bare;
+// with no Kiasyd, it is.
+#[test]
+fn chanjelin_ward_is_kept_with_a_ward_on_each_vampire() {
+    for (kiasyd, bare) in [(true, false), (true, true), (false, true)] {
+        let mut e = Engine::bare(3);
+        e.add_minion(SeatId(0), plain("", "", 0), 4, false);
+        let k = e.add_minion(
+            SeatId(1),
+            if kiasyd {
+                vampire(|c| c.clan == "Kiasyd" && c.title == Title::None, 0)
+            } else {
+                plain("Ventrue", "", 0)
+            },
+            4,
+            false,
+        );
+        let other = e.add_minion(SeatId(1), plain("Ventrue", "", 1), 4, false);
+        e.add_minion(SeatId(2), plain("", "", 2), 4, false);
+        attach(&mut e, "Chanjelin Ward", k, 0);
+        if !bare {
+            attach(&mut e, "Chanjelin Ward", other, 0);
+        }
+        let ward = find_library("Chanjelin Ward");
+        assert!(zvtes::library::LIBRARY[ward as usize].burn_option);
+        e.state.seats[1].hand = vec![ward].into();
+        e.state.seats[1].library = vec![find_library("Soak"); 2].into();
+        pick(&mut e, Choice::Pass);
+        let found = loop {
+            let req = request(&mut e);
+            if req.window == WindowLabel::UnlockAbilities && req.seat == SeatId(1) {
+                break Some(req);
+            }
+            if (req.seat, req.window) == (SeatId(1), WindowLabel::MinionPhase) {
+                break None;
+            }
+            e.choose(fallback(&req));
+        };
+        let offered = found.is_some_and(|r| r.options.contains(&Choice::Discard(0)));
+        assert_eq!(offered, !kiasyd, "kiasyd: {kiasyd}, bare: {bare}");
+    }
 }
 
 // Rulebook (advanced) "Burn option": "a Methuselah who does not control a

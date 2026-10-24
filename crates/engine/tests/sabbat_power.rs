@@ -865,6 +865,29 @@ fn absolute_tyranny_reduces_votes_never_below_nothing() {
     assert_eq!(r.tally(&e.state).1, 0, "-1 counted 0");
 }
 
+// [ANK 20251125] [LSJ 20050221-2] "A vampire can have net negative votes":
+// the -1 is netted against the votes gained, never a floor at 0 first.
+// Khin Aye's Absolute Tyranny [POT][PRE] gives Stavros (a priscus: no
+// votes, a ballot) -1, then his Awe (X = 0) +1: 0 votes (rules-qa 90.3).
+#[test]
+fn absolute_tyranny_keeps_a_net_negative_against_later_votes() {
+    let (mut e, stavros) = table("Stavros");
+    let khin = e.add_minion(SeatId(1), card("Khin Aye"), 4, false);
+    hand(&mut e, 0, &["Political Stranglehold", "Awe"]);
+    hand(&mut e, 1, &["Absolute Tyranny"]);
+    pick(&mut e, play(0, 0, stavros));
+    to_referendum(&mut e);
+    pick_when(&mut e, play(0, 1, khin));
+    request(&mut e);
+    let r = e.referendum().expect("referendum");
+    assert_eq!(r.votes_of(&e.state, stavros), 0, "-1, counted 0");
+    pick_when(&mut e, play(0, 0, stavros));
+    pick(&mut e, Choice::SetX(0));
+    request(&mut e);
+    let r = e.referendum().expect("referendum");
+    assert_eq!(r.votes_of(&e.state, stavros), 0, "-1 + 1, not 0 + 1");
+}
+
 // [LSJ 20020612] Unthinkable Humiliation "Can be played any time during
 // the action before resolution; a block attempt is not required": played
 // before any block, the blocker then burns 1 blood to attempt.

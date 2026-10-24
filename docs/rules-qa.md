@@ -80,29 +80,29 @@ by the owner. Apply them to every new card; only a ruling overrides them.
 - **Stealth, intercept, blocks** — 1.3, 1.6, 3.2, 3.4, 8.1, 9.6, 15.2, 23.1, 24.5, 25.3, 25.5, 27.3, 30.1, 30.3, 30.4, 23.6, 34.1, 34.2, 35.1, 42.4, 42.8, 48.1, 48.3, 48.5, 48.6, 49.5, 50.4, 52.8, 53.1, 53.2, 53.3, 55.7, 66.2, 72.1–72.4, 73.8, 76.17, 77.18, 77.19, 77.20, 78.20, 78.28, 78.37, 78.53, 82.1, 82.2, 88.7, 89.6, 89.7, 89.16
 - **Combat structure, strikes, maneuvers, presses** — 1.2, 4.1, 4.3, 4.4, 4.5, 10.1, 10.2, 10.4, 10.5, 14.1, 14.2, 19.5, 21.1, 22.1, 22.3, 26.2, 26.6, 26.7, 27.5, 29.7, 29.8, 29.9, 31.7, 33.6, 42.2, 47.2, 48.2, 48.4, 53.3, 54.4, 54.6, 54.7, 54.8, 55.1, 55.2, 55.8, 57.3, 57.4, 58.2, 58.17, 58.18, 59.2, 59.17, 60.11, 61.1, 62.1, 63.4, 63.6, 63.8, 75.1–75.3, 76.9, 76.10, 76.11, 77.9, 78.23, 78.32, 78.40, 88.10, 88.11, 89.6, 89.8, 89.25
 - **Frenzy cards** — 28.11, 29.5
-- **Damage, prevention, immunity** — 4.2, 10.3, 14.2, 21.3, 29.1, 29.2, 29.3, 29.4, 30.6, 38.3, 38.8, 40.9, 77.8, 77.21, 77.22, 77.23, 78.19, 78.33, 78.34, 78.38
+- **Damage, prevention, immunity** — 4.2, 10.3, 14.2, 21.3, 29.1, 29.2, 29.3, 29.4, 30.6, 38.3, 38.8, 40.9, 77.8, 77.21, 77.22, 77.23, 78.19, 78.33, 78.34, 78.38, 90.1
 - **Rushes (entering combat as an action)** — 17.3, 26.1, 27.2, 27.5, 38.6, 52.6, 54.3, 54.4, 54.7, 55.7, 56.2, 58.6, 88.10, 88.11
-- **Referendums, votes, political actions** — 1.1, 3.5, 5.1–5.9, 6.2, 6.3, 15.2, 16.5, 19.3, 19.4, 32.9, 33.2, 35.4, 38.6, 39.1–39.4, 42.4, 49.1, 49.2, 50.5, 50.6, 51.1, 51.2, 51.5, 51.6, 51.8, 52.2, 52.3, 52.5, 52.7, 52.9, 52.10, 54.1, 58.8, 58.14, 58.15, 58.16, 59.7, 59.9, 59.18, 59.19, 60.2, 60.14, 60.16, 71.25, 73.4, 76.5, 76.6, 76.14, 76.15, 77.5, 77.14, 77.15, 77.25, 77.26
+- **Referendums, votes, political actions** — 1.1, 3.5, 5.1–5.9, 6.2, 6.3, 15.2, 16.5, 19.3, 19.4, 32.9, 33.2, 35.4, 38.6, 39.1–39.4, 42.4, 49.1, 49.2, 50.5, 50.6, 51.1, 51.2, 51.5, 51.6, 51.8, 52.2, 52.3, 52.5, 52.7, 52.9, 52.10, 54.1, 58.8, 58.14, 58.15, 58.16, 59.7, 59.9, 59.18, 59.19, 60.2, 60.14, 60.16, 71.25, 73.4, 76.5, 76.6, 76.14, 76.15, 77.5, 77.14, 77.15, 77.25, 77.26, 90.3, 90.8
 - **Titles** — 3.1, 13.2, 19.1, 19.2, 19.6, 32.9, 49.4, 52.5, 52.6, 52.9, 58.3, 58.11, 59.13, 59.14, 60.1, 76.1–76.4, 77.1, 77.2, 78.1, 78.7, 78.16, 91.6
 - **Contests, uniqueness** — 3.1, 7.1, 7.3, 7.5, 8.2, 11.2, 12.3, 19.1, 36.3, 38.7, 39.4, 40.1, 57.9, 58.5, 58.19, 59.13, 60.1, 60.9, 60.20, 76.2, 76.3, 85.32, 91.2–91.6
-- **Control, steals, ousts, removal from game** — 6.9, 7.5, 17.4, 25.1, 27.3, 27.4, 27.7, 28.13, 31.4, 31.5, 31.6, 33.5, 33.7, 38.4, 39.4, 42.7, 55.4, 55.6, 88.9
+- **Control, steals, ousts, removal from game** — 6.9, 7.5, 17.4, 25.1, 27.3, 27.4, 27.7, 28.13, 31.4, 31.5, 31.6, 33.5, 33.7, 38.4, 39.4, 42.7, 55.4, 55.6, 88.9, 90.4, 90.7, 90.10
 - **Costs and reductions** — 3.6, 5.9, 9.3, 18.1, 18.2, 23.4, 29.6, 27.6, 36.1–36.5, 38.5, 42.1, 42.2, 42.5, 42.6, 54.1, 58.12, 59.5, 60.5, 60.7, 77.24, 78.3, 78.17, 78.21, 89.3, 89.10, 89.11, 89.15, 89.24
 - **Replacement, draws, stored and held cards** — 5.5, 7.10, 8.2, 8.3, 8.4, 9.4, 9.5, 11.1–11.3, 12.1–12.5, 22.2, 37.1, 40.4, 53.4, 53.5, 73.1, 73.2, 77.35, 78.18, 78.26, 78.51, 88.8
 - **Card destination (ash heap, limbo, lingering effects)** — 21.1, 22.1, 31.6, 46.4, 47.1
 - **Equipment and weapons** — 9.1–9.6, 10.1–10.5, 17.4, 18.3, 22.4, 29.7, 35.3, 38.4, 38.5, 38.7, 76.9, 76.10, 76.15, 76.16, 77.19, 77.29, 78.28, 78.42
-- **Allies, retainers, ghouls** — 22.2, 28.10, 29.2, 32.4, 32.11, 32.12, 32.13, 37.1, 40.10, 42.2, 42.9, 49.3, 50.6, 73.5, 73.6, 76.7, 76.8, 77.29, 88.3, 89.14, 89.15, 89.24
+- **Allies, retainers, ghouls** — 22.2, 28.10, 29.2, 32.4, 32.11, 32.12, 32.13, 37.1, 40.10, 42.2, 42.9, 49.3, 50.6, 73.5, 73.6, 76.7, 76.8, 77.29, 88.3, 89.14, 89.15, 89.24, 90.2
 - **Locations, hunting grounds, locquipment** — 6.5, 7.2, 7.4, 17.4, 28.2, 28.6, 31.4, 34.7, 39.4, 49.5, 50.4, 51.4, 52.7, 54.1, 57.7, 73.3, 73.6, 77.16, 88.9, 89.10, 89.12
-- **Blood, capacity, uncontrolled region, banishment** — 5.7, 7.6, 25.1, 27.7, 28.1, 28.3, 28.4, 32.6, 40.7, 73.5
+- **Blood, capacity, uncontrolled region, banishment** — 5.7, 7.6, 25.1, 27.7, 28.1, 28.3, 28.4, 32.6, 40.7, 73.5, 90.5
 - **Torpor, rescue, diablerie, blood hunt** — 3.1, 3.6, 5.2, 5.8, 6.4, 16.2, 28.7, 38.2, 48.8, 81.1, 86.1, 88.4, 89.12, 89.20
 - **Hunting** — 6.5, 7.7, 17.3, 28.1, 28.8, 32.13, 40.2, 53.8, 72.1–72.5, 77.30, 89.1, 89.13, 89.26
 - **Master phase, master cards, out-of-turn** — 1.5, 3.3, 6.6, 7.5, 28.10, 32.3, 33.1, 33.8, 36.4, 49.6, 49.7, 50.1–50.3, 53.7, 57.8, 77.11, 77.27, 78.10, 78.48, 78.49
 - **Unlock phase, locking, stun** — 3.7, 6.1, 7.8, 16.5, 21.2, 25.5, 26.5, 31.1, 48.7, 54.2, 54.5, 58.4, 58.9, 59.3, 59.4, 60.6, 88.5
-- **Discard phase, events** — 8.4, 15.2, 28.12, 33.8, 40.1–40.11, 54.5, 57.5, 57.6, 58.10, 89.17, 89.18
+- **Discard phase, events** — 8.4, 15.2, 28.12, 33.8, 40.1–40.11, 54.5, 57.5, 57.6, 58.10, 89.17, 89.18, 90.6
 - **Conditions read live; card-text defaults** — 4.3, 9.1, 13.2, 18.4, 19.3, 28.2, 28.6, 29.11, 32.4, 32.7, 39.5, 49.5, 49.7, 73.7, 77.6, 77.13
 - **Corruption counters, multi-Discipline cards** — 25.1–25.6, 34.3, 35.2, 38.4, 52.1, 77.28
 - **Printed vampire abilities** — 13.1, 13.2, 14.1, 14.2, 15.1, 15.2, 16.1–16.6, 17.1–17.4, 41.1–41.14, 49.2, 49.3, 52.4, 72.1, 72.2, 72.5, 73.5, 73.7, 79.2, 79.3, 88.6, 89.2, 89.20–89.22
 - **Two-player variant** — 91.1–91.8
-- **Game end, VP, ousting** — 6.9, 18.2, 24.1, 33.2, 53.1, 58.20, 91.1
+- **Game end, VP, ousting** — 6.9, 18.2, 24.1, 33.2, 53.1, 58.20, 90.9, 91.1
 ## Batch 1 — sequencing, impulse, windows
 
 **1.1** Vote casting. A *source* is a vampire or a Methuselah. A vampire source is atomic: all its votes cast at once, in one commitment, all the same way; then spent for that referendum. Sources are independent commitments: a Methuselah may cast one source on one rotation and hold others for later rotations. Methuselah-sourced ballots (the Edge, each discarded/burned card, each card granting Methuselah votes) are each independent and may go either way. Card effects that modify a vampire's votes fold into that vampire's source.
@@ -354,7 +354,7 @@ by the owner. Apply them to every new card; only a ruling overrides them.
 **17.3** Rush (enter combat as a Ⓓ action — Theo Bell, Barachiel, Dafina Hanganu, Nathaniel Bordruff, Adisa): target a ready minion of another Methuselah (not in torpor), locked or not unless printed (Nathaniel: locked; Adisa: younger); directed at its controller, who alone may block. Unblocked: combat at resolution, part of the action, acting minion first; the combat has its after-combat window like any combat, then the after-resolution window. "Continue as if unblocked" effects need a blocked action; a blocked rush can use one, and the continued action then enters combat with its target at resolution. Target no longer qualifying at resolution: successful, no effect. Adisa "successfully hunts" only when the hunt gains blood (advanced rules §3.7.2.1).
 
 **17.4** Steals and card targets (Apolonia Czarnecki, Darius Shirazi, Saankaláxt, Aniel):
-- The Ⓓ icon is a reminder: targeting one's own minion/card makes the action undirected (Apolonia on her own younger vampire, Darius/Saankaláxt stealing from their own minion, Aniel burning a card on their own ready minion). (Unlike rushes, which need another's minion.)
+- The Ⓓ icon is a reminder: targeting one's own minion/card makes the action undirected (Apolonia on her own younger vampire, Darius/Saankaláxt stealing from their own minion, Aniel burning a card on their own ready minion). (Unlike rushes, which need another's minion.) Own steals revised by 90.4: none.
 - Apolonia: any younger vampire, torpor or no blood included (takes what is there); excess over capacity drains off.
 - Stolen equipment changes host (controller follows, owner stays); no requirement checked (moving is not equipping). A locquipment (Living Manse) is a location in play: not stealable as equipment nor taken by the equip action, but stealable by cards that steal locations. Targeting a card on a minion does not target the minion (Evan Klein does not flip).
 - A steal that would give a second vehicle is not offered. Principle: an action sure to aim at an illegal target is not allowed; one whose object comes from a choice/randomness at resolution (Vast Wealth's search) may be taken even if it will fail.
@@ -2250,6 +2250,30 @@ Twenty-seven cards (the server's /admin/unsupported of 2026-10-23: a Kiasyd deck
 **89.25** Foresee's "you may then choose to cancel combat" is offered as `Choice::CancelCombat` (Stone Travel's), no longer as `ContinueAction` (Form of Mist's continue): the choice is the cancel, continuing only when the imbued blocked (87.31). No reading changes. Green. (Tests foresee_looks_and_cancels_the_combat_the_bleed_going_on, foresees_continued_action_asks_no_decliner_again.)
 
 **89.26** "Successfully hunts" (Adisa, Eddie Gaines, Enhanced Coagulant, Restricted Vitae's "until a vampire successfully hunts", Harvest Rites): a hunt at capacity is successful, its blood got and drained off (owner, 89.1; 63.12); a vampire that cannot gain blood by hunting does not (59.4). Abactor's "successful resolution" stays a hunt that gained blood (63.2, LSJ 20090411). Before, the engine fired these only on blood kept. Green (the owner's 89.1, generalized; found on the way). (Tests a_hunt_at_capacity_is_a_successful_hunt, harvest_rites_adds_a_blood_to_one_hunt_each_turn.)
+
+## Batch 90 — Open contradictions, the rest (rules-digest §23: K14, K25, K30, K31, K35, K37, K41–K44): readings graded (Claude, 2026-10-23; owner, 2026-10-24: 90.4 confirmed, 90.6 and 90.7 answered)
+
+Each contradiction read against the KRCG rulings, the advanced rules and the rulebook, graded per the add-cards skill, and played out against the engine. Red: 90.4, 90.6, 90.7, answered by the owner (2026-10-24).
+
+**90.1** Dawn Operation's "all damage inflicted on vampires during the resulting combat is aggravated" takes every source, strikes, environmental and retainer damage alike (PIB 20150603-1; advanced rules §4.4.3); Psychic Assault stays normal by its own text (62.26): the two agree, no contradiction (K25). Green. (Tests dawn_operation_aggravates_the_combat_damage, dawn_operation_does_not_aggravate_catatonic_fears_damage.)
+
+**90.2** The rulebook's allies box for an ally playing a card as a vampire: its life is its blood for costs and effects, life over its printed life does not drain, aggravated damage costs it life as normal and it does not go to torpor, an effect sending it to torpor burns it (LSJ 20060409); its capacity the granted one (73.6), 1 when none is printed (K42). Vivienne Géroux's Daring the Dawn [for] costs her 2 life. Green. (Test vivienne_loses_life_to_her_own_daring_the_dawn.)
+
+**90.3** Vote reductions are netted (ANK 20251125, LSJ 20050221-2): a vampire can have net negative votes, kept against votes gained later, and only its total, tallied, stops at 0 — 51.2's and 52.2's "a vampire's votes stop at 0" is that total (K31). A Fee Stake's "non-Anarch titles are worth -1 vote" is netted the same (as Free States Rant's, worded alike): a priscus's title, worth no votes, takes one gained later. Before, the Fee Stake's minus stopped at the title's worth. Amber (the ruling's net, extended to a title's worth by Free States Rant's wording). (Tests absolute_tyranny_keeps_a_net_negative_against_later_votes, a_fee_stakes_title_penalty_nets_against_votes_gained.)
+
+**90.4** No steal of a card in play targets one's own (K35; rulebook glossary "Steal (a card)": "you cannot steal a card from yourself"); blood steals are untouched (71.13). Every steal of a card in play — equipment, retainer, ally, vampire, location, title (Darius Shirazi, Saankaláxt, Xipe Totec, Far Mastery, Valerius) — targets another Methuselah's, masked; Chameleon's "take control" still may take one's own vampire, its ruling over the glossary (LSJ 20080803-2: "to make it Anarch"; 70.3). Revises 17.4's own-minion steals. 27.2 is no steal (Puppet Master takes control until the end of the turn): kept. Red, confirmed by the owner (2026-10-24). (Tests steals_never_target_ones_own_cards, saankalaxt_steals_an_equipment_but_not_a_second_vehicle.)
+
+**90.5** Merging (rulebook "Advanced"): the counters and cards on the vampire already in play stay; those on the card coming from the uncontrolled region are burned (its transferred blood) (K43, completing 69.5). Green. (Test appolonius_merges_in_the_influence_phase.)
+
+**90.6** The burn option's "a Methuselah who does not control a minion who meets the requirements of this card or is not a legal target" (rulebook, advanced) reads the requirements only: "not a legal target" is a minion in torpor where the requirement is a ready one (owner: "not a legal target if it's on torpor and requirement is ready, then you can burn"; 33.8), never the card's own targets — Chanjelin Ward with one on each of its player's vampires stays in hand; one discard each unlock phase; a unique card's copy in play no bar (LSJ 20100203-2) (K37). Red, answered by the owner (2026-10-24): the legal-target opening proposed, no. (Tests chanjelin_ward_is_kept_with_a_ward_on_each_vampire, a_burn_option_card_is_discarded_without_a_minion_to_play_it.)
+
+**90.7** Stealing the Edge after its holder burns it mid-action (K44): the steal still gets it (RTR 19980623: Tereza Rostas "cannot be thwarted by burning the Edge"), over TOM 19951214-2 and the owner's earlier lean (2026-07-22). No pool card steals the Edge (Tereza Rostas is not in it): recorded for when one enters. Red, answered by the owner (2026-10-24).
+
+**90.8** The prisci block's 3 votes are no title's votes: a reduction of titles' or vampires' votes leaves them (ANK 20180307-1: "the votes provided by the Priscii sub-referendum are not affected"), the block's 3 going to the side with more ballots (52.9); Free States Rant's "priscus title is worth 1 less ballot" lessens the ballots, which decide the block, not its 3 votes (K30: the ledger rows' `n/a` stale since the prisci entered the pool). Green. (Tests a_fee_stakes_burn_leaves_the_prisci_block_its_3_votes, free_states_rant_lessens_prisci_ballots_not_the_block.)
+
+**90.9** Game end follows the tournament rules (6.9, 45.5); a withdrawal scores half a victory point (tournament rules), not the rulebook's 1 (K41); the withdrawal itself is the engine board's "Tournament withdrawal". Green.
+
+**90.10** Anathema is a political action, a minion card: on a vampire it is controlled by the vampire's controller and stays when its player is ousted (7.5's minion-card rule; PIB 20121028; advanced rules §1.12.2, whose example it is); a master card on another's minion stays its player's (7.5, 31.5; advanced rules §6.6.3, §6.4.3). No exception, no contradiction (K14). Amber (7.5). (Test anathema_pays_once_and_belongs_to_its_hosts_controller.)
 
 ## Batch 91 — Two-player games under VEKN's variant ("Two-player variant for Vampire: The Eternal Struggle", vekn.net, §2.3): readings graded (Claude, 2026-10-23)
 

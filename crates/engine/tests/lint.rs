@@ -355,3 +355,48 @@ fn during_abilities_are_once() {
     );
     assert!(stale.is_empty(), "stale entries: {stale:?}");
 }
+
+// Rulebook glossary "Steal (a card)": "You cannot steal a card from
+// yourself" (owner, rules-qa 90.4): every steal of a card in play targets
+// another Methuselah's (`NotControlled` in its target), whatever the text
+// prints. Chameleon's "take control" may take one's own vampire, its ruling
+// over the glossary (LSJ 20080803-2: "to make it Anarch").
+#[test]
+fn steals_never_target_ones_own_cards() {
+    use zvtes::cards::{defs::DEFS, vampires::VAMPIRES, Effect, ModeDef, Requirement};
+    let steals = |m: &ModeDef| {
+        m.effects.iter().any(|e| {
+            matches!(
+                e,
+                Effect::StealTargetCard
+                    | Effect::StealTargetAlly
+                    | Effect::StealTargetVampire
+                    | Effect::StealLocation
+                    | Effect::StealTargetTitle
+            )
+        })
+    };
+    let mut bad = Vec::new();
+    let defs = DEFS
+        .iter()
+        .map(|d| (d.name, d.modes.iter().chain(d.abilities)));
+    let vamps = VAMPIRES
+        .iter()
+        .map(|d| (d.name, [].iter().chain(d.abilities)));
+    for (name, modes) in defs
+        .map(|(n, m)| (n, m.collect::<Vec<_>>()))
+        .chain(vamps.map(|(n, m)| (n, m.collect::<Vec<_>>())))
+    {
+        for (i, m) in modes.iter().enumerate() {
+            if steals(m)
+                && name != "Chameleon"
+                && !m
+                    .target
+                    .is_some_and(|t| t.filter.contains(&Requirement::NotControlled))
+            {
+                bad.push(format!("{name} #{i}"));
+            }
+        }
+    }
+    assert!(bad.is_empty(), "steals without NotControlled: {bad:?}");
+}

@@ -1098,6 +1098,35 @@ fn free_states_rant_needs_room_for_every_point() {
     }
 }
 
+// Free States Rant: "priscus title is worth 1 less ballot" — the ballots,
+// not the block: [ANK 20180307-1] "The votes provided by the Priscii
+// sub-referendum are not affected." Gratiano (+1 ballot) keeps one; the
+// block's 3 votes go against.
+#[test]
+fn free_states_rant_lessens_prisci_ballots_not_the_block() {
+    let mut e = game(2);
+    let a = e.add_minion(SeatId(0), anarch_of_nine(), 9, false);
+    let x = e.add_minion(SeatId(1), plain("Ventrue", 0), 4, false);
+    let y = e.add_minion(SeatId(1), plain("Ventrue", 1), 4, false);
+    let g = e.add_minion(SeatId(1), find_card("Gratiano"), 4, false);
+    hand(&mut e, 0, &["Free States Rant"]);
+    pick(&mut e, play(0, 0, a));
+    for m in [x, x, x, y, y] {
+        pick(&mut e, Choice::ChooseMinion(m));
+    }
+    to_referendum(&mut e);
+    pick_when(&mut e, votes(g, false));
+    let r = e.referendum().expect("referendum");
+    let ballots: Vec<u8> = r
+        .records
+        .iter()
+        .filter(|v| v.source == zvtes::referendum::Source::Vampire(g))
+        .map(|v| v.ballots)
+        .collect();
+    assert_eq!(ballots, vec![1], "2 less 1");
+    assert_eq!(r.tally(&e.state).1, 3, "the block's 3 votes");
+}
+
 /// The Gargoyle with superior Visceratika (Alabástrom: his ability adds no
 /// decision here).
 fn gargoyle() -> u16 {

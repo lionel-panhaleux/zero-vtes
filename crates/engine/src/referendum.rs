@@ -259,8 +259,10 @@ impl ReferendumCtx {
                     crate::crypt::Title::None | crate::crypt::Title::Priscus
                 ),
         );
-        // "Non-Anarch titles are worth -1 vote" (Fee Stake: Boston); a
-        // title card's "+1 vote during referendums they call".
+        // "Non-Anarch titles are worth -1 vote" (Fee Stake: Boston), netted
+        // like every reduction: a priscus's title, worth none, takes a vote
+        // gained later (ANK 20251125; rules-qa 90.3); a title card's "+1
+        // vote during referendums they call".
         let title = st.title_of(m);
         let penalty = i32::from(
             self.def.is_some_and(|d| d.non_anarch_titles_minus)
@@ -291,7 +293,7 @@ impl ReferendumCtx {
             .filter(|&&(p, _, spared)| p.reaches(st, m) && spared != Some(m))
             .map(|&(_, n, _)| n as i32)
             .sum();
-        ((title_votes(title) as i32 - penalty).max(0)
+        (title_votes(title) as i32 - penalty
             + st.clan_votes(m)
             + st.host_votes(m)
             + bonus as i32

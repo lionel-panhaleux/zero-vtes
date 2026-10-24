@@ -80,8 +80,8 @@ pub(super) const fn enter_combat(filter: &'static [R]) -> ModeDef {
 
 /// "… can steal <filter> equipment as a Ⓓ action": moved to the vampire on
 /// success, if it could still hold it (like an equip from another minion),
-/// directed at the equipment's controller — undirected from a minion of
-/// the vampire's own Methuselah.
+/// directed at the equipment's controller, never its own Methuselah's
+/// (rules-qa 90.4).
 const fn steal_equipment(filter: &'static [R], effects: &'static [Effect]) -> ModeDef {
     printed_action(
         Some(TargetSpec {
@@ -589,6 +589,7 @@ pub static DARIUS_SHIRAZI: VampireDef = VampireDef {
                 Label::Weapon,
             ])),
             R::NotHost,
+            R::NotControlled,
             R::ActorMayHoldTarget,
         ],
         &[
@@ -1517,6 +1518,7 @@ pub static SAANKALAXT: VampireDef = VampireDef {
         &[
             R::TargetCard(CardFilter::EquipmentWithout(&[])),
             R::NotHost,
+            R::NotControlled,
             R::ActorMayHoldTarget,
         ],
         &[
@@ -1715,7 +1717,11 @@ pub static VALERIUS: VampireDef = VampireDef {
         ..printed_action(
             target(
                 TargetKind::Minion,
-                &[R::TargetVampire, R::TargetTitleIn(&[TitleClass::Prince])],
+                &[
+                    R::TargetVampire,
+                    R::NotControlled,
+                    R::TargetTitleIn(&[TitleClass::Prince]),
+                ],
             ),
             &[
                 Effect::DeclareAction(ActionKind::Ability),
@@ -5702,6 +5708,7 @@ pub static XIPE_TOTEC: VampireDef = VampireDef {
                     &[
                         R::TargetCard(CardFilter::Type(CardType::Retainer)),
                         R::NotHost,
+                        R::NotControlled,
                         R::ActorMayHoldTarget,
                     ],
                 ),
@@ -6362,6 +6369,7 @@ pub static CALEBROS: VampireDef = VampireDef {
             TargetKind::Minion,
             &[
                 R::TargetIsHost,
+                R::NotControlled,
                 R::Younger,
                 R::TargetTitle(Title::Prince("New York")),
             ],

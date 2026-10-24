@@ -2195,9 +2195,10 @@ fn at_card(m: MinionId, card: usize) -> Choice {
 }
 
 // Saankaláxt steals an equipment for 1 blood: directed at its controller
-// (not at the minion it is on, rulebook "Target"), undirected from a minion
-// of his own Methuselah; not a second vehicle, not a locquipment (a
-// location once in play, spec §1.3.1), not his own.
+// (not at the minion it is on, rulebook "Target"); not a second vehicle, not
+// a locquipment (a location once in play, spec §1.3.1), not his own nor one
+// on his Methuselah's other minion: "you cannot steal a card from yourself"
+// (rulebook glossary; owner, rules-qa 90.4).
 #[test]
 fn saankalaxt_steals_an_equipment_but_not_a_second_vehicle() {
     let mut e = bare();
@@ -2212,7 +2213,7 @@ fn saankalaxt_steals_an_equipment_but_not_a_second_vehicle() {
     let req = request(&mut e);
     for (card, offered) in [
         (bike, false),
-        (vest, true),
+        (vest, false),
         (magnum, true),
         (cruiser, false),
         (manse, false),
@@ -2232,17 +2233,6 @@ fn saankalaxt_steals_an_equipment_but_not_a_second_vehicle() {
     assert_eq!(e.state.card_controller(CardId(magnum as u32)), SeatId(0));
     assert_eq!(e.state.cards[magnum].owner, SeatId(1));
     assert_eq!(blood(&e, saan), 3);
-
-    // From his own Methuselah's minion: undirected.
-    let mut e = bare();
-    let saan = add(&mut e, 0, "Saankaláxt");
-    let friend = e.add_minion(SeatId(0), plain("Brujah", 0), 4, false);
-    e.add_minion(SeatId(1), plain("Ventrue", 0), 4, false);
-    let vest = in_play(&mut e, "Kevlar Vest", 0, Some(friend));
-    pick(&mut e, at_card(saan, vest));
-    assert_eq!(e.action().expect("action").directed_seat(&e.state), None);
-    until(&mut e, SeatId(0), WindowLabel::MinionPhase);
-    assert_eq!(e.state.cards[vest].host, Some(saan));
 }
 
 // Darius steals a non-electronic, non-vehicle, non-weapon equipment, a

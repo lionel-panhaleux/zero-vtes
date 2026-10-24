@@ -655,6 +655,11 @@ engine's conventions.
   `StealCard`, `Ability` (granted by a card in play or printed on a vampire;
   checked by `ability_gate`, `may_take_granted` inside it). A granted action
   has only its printed stealth (rules-qa 6.2).
+- Steals: every steal of a card in play (`Effect::StealTarget*`,
+  `StealLocation`) carries `Requirement::NotControlled` in its target, even
+  where the text does not print "another Methuselah's": one cannot steal
+  from oneself (rules-qa 90.4; Chameleon excepted by its ruling); `tests/lint.rs`
+  (`steals_never_target_ones_own_cards`) holds a new steal to it.
 - Hunting: `actions::is_hunt(kind, card_hunt)`, read through
   `ActionCtx::is_hunt` and `PrintedCtx::is_hunt`: an action a card makes a
   hunt (`Effect::HuntAction`: Loki's Gift, Psychophagia, Abactor, Week of

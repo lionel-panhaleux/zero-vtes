@@ -1638,3 +1638,24 @@ fn power_structure_is_not_usable_during_a_blood_hunt() {
         vec![ability(hq, 0, Target::None), ability(hq, 1, Target::None)]
     );
 }
+
+// [LSJ 20060409] Allies who can play as a vampire: "If they takes
+// aggravated damage from a card they plays as a vampire (eg. Burst of
+// Sunlight), they lose one life but do not go to torpor." Vivienne Géroux
+// plays Daring the Dawn [for] as an Anarch vampire: its 2 aggravated
+// damage costs her 2 of her 3 life; she stays in play.
+#[test]
+fn vivienne_loses_life_to_her_own_daring_the_dawn() {
+    let mut e = Engine::bare(2);
+    let v = e.add_ally(SeatId(0), find_library("Vivienne Géroux"));
+    e.state.minions[v.index()].blood = 3;
+    e.add_minion(SeatId(0), plain("Brujah", 0), 4, false);
+    e.add_minion(SeatId(1), plain("Ventrue", 0), 4, false);
+    hand(&mut e, 0, &["Daring the Dawn"]);
+    pick(&mut e, bleed(v));
+    pick(&mut e, play(0, 0, v));
+    until(&mut e, SeatId(0), WindowLabel::MinionPhase);
+    let m = &e.state.minions[v.index()];
+    assert!(m.in_play && !m.in_torpor, "an ally does not go to torpor");
+    assert_eq!(m.blood, 1, "2 aggravated damage, 2 life");
+}
