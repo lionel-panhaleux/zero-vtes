@@ -218,11 +218,11 @@ table move where SC has the UI for it; no imitation of a UI SC lacks
 | choose_minion, choose_card, take_equipment, slot, resolve_rider, resolve_printed, burn_blood_from, burn_blood_for_intercept, unlock_for_blood, burn_corruption_to_fail, burn_corruption_to_unlock, draw_stored, round_strike (at a card), burn_weapon_strike, cast_votes | **On-card buttons**: SC's floating actions (as its Bleed/Hunt/Block) under the card the option is about, while that decision is pending; the panel keeps them too | done, unseen |
 | set_x | **Stepper** in the panel: the offered values, then "X = n" | done, unseen |
 | hand_strike, round_strike (no card), strike_combat_ends, committed_strike, use_maneuver, use_press, use_prevent, take_damage_after_resolution, gain_strength, burn_blood_to_avoid, continue_action, diablerise | **Combat strip** in the panel: who fights, round, range, then these buttons; strike cards and maneuvers from hand stay plays (drag them) | done, unseen |
-| choose_seat | Panel (a seat is not a card; a button on each player's pool widget would do: later if missed) | panel |
-| find_card, take_from, ash_vampire, employ_from_hand (searches: the cards are off the table) | Panel; a search viewer (the library or ash heap opened, a card dragged out) is real work: after M1 if searches feel bad | panel |
+| choose_seat | Panel (a seat is not a card; a button on each player's pool widget would do: later if missed) | settled: central buttons (sc.md "The integration's shape") |
+| find_card, take_from, ash_vampire, employ_from_hand (searches: the cards are off the table) | Panel; a search viewer (the library or ash heap opened, a card dragged out) is real work: after M1 if searches feel bad | settled: the zone glows (2.34; sc.md "The integration's shape") |
 | choose_clan, pay_rescue, use_ability | Panel for the first two (no table object); use_ability is reached by locking the card (a minion's, a location's, a master card's) and in the panel | panel / done |
 | allocate_to, allocate_to_card | Allocation menu (2.12) | done |
-| cast_votes, cast_card_vote | All votes one way (2.13); per vampire: on-card buttons. **Owner's call**: SC's own referendum widget (`ReferendumVoteBoxes`, `REFERENDUM_castVote` = cast_votes 1:1) needs the projection to drive SC's referendum state (call, tally, close) from `view.referendum` | open |
+| cast_votes, cast_card_vote | All votes one way (2.13); per vampire: on-card buttons. **Owner's call**: SC's own referendum widget (`ReferendumVoteBoxes`, `REFERENDUM_castVote` = cast_votes 1:1) needs the projection to drive SC's referendum state (call, tally, close) from `view.referendum` | settled: the vote boxes; SC's panel kept, read-only (sc.md "The integration's shape") |
 
 ### Slice 3 — network policy in the browser (DESIGN slice 17c)
 

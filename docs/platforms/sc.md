@@ -86,6 +86,16 @@ English (`text`) is shown as is; the log links in it only the cards and
 Methuselahs its own event or option names. Strikes in events carry no
 `text`: the log names them by kind (`labels.ts`).
 
+An option is answered where the table shows what it is about
+(`answeredOnTable`, interaction.ts): a card or minion's glow or menu, a
+button on a card, a search in its zone (glowing, the offered cards its
+candidates) when the option names the zone and the view shows them, a
+minion's votes in its vote box (SC's referendum panel kept, read-only:
+the engine tallies). The rest is a central-box button with its `text`
+(`leftoverOptions`): a Methuselah chosen (one a seat), a search whose
+zone the option omits or hides, a library draw (its stack glows too, a
+click draws).
+
 ## Where the owner plays
 
 On `https://sc-bot.krcg.org` (owner, 2026-10-23: no local dev server
