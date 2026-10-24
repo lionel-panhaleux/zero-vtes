@@ -631,7 +631,8 @@ sources to the engine's conventions.
   (`actor_candidates`: a blood hunt's diablerist plays nothing after
   resolution). The burn option reads a card's printed trait requirement
   (`cards::trait_requirements`: a Seraph, an infernal or an unmerged
-  advanced vampire). `GameState::master_surcharge_on` folds Walker Grimes's
+  advanced vampire, a master card's `ControlsReadySeraph`).
+  `GameState::master_surcharge_on` folds Walker Grimes's
   `Stat::MasterTargetingCostsYou` into the haven surcharge. Skidmark's
   `Stat::HoldsReplacementsWhileActing` (`holds_replacements_of`) holds every
   card his controller plays during his action until it ends.

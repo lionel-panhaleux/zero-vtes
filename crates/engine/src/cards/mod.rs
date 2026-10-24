@@ -6219,7 +6219,8 @@ pub struct VampireDef {
 
 /// The printed trait a card requires of its minion, beyond clan and
 /// Discipline ("Requires a Seraph", "an infernal vampire", "an unmerged
-/// advanced vampire"): its first mode's (the burn option, rules-qa 33.8).
+/// advanced vampire"), or a master card's "requires a ready Seraph": its
+/// first mode's (the burn option, rules-qa 33.8).
 pub fn trait_requirements(card: u16) -> impl Iterator<Item = Requirement> {
     lookup(card)
         .and_then(|d| d.modes.first())
@@ -6232,6 +6233,7 @@ pub fn trait_requirements(card: u16) -> impl Iterator<Item = Requirement> {
                 Requirement::ActorSeraph
                     | Requirement::ActorInfernal
                     | Requirement::ActorUnmergedAdvanced
+                    | Requirement::ControlsReadySeraph
             )
         })
 }

@@ -3891,8 +3891,9 @@ cards), §1.10 (burn and removal), §6.3 (control of a card in play).
   requirement is ready, never the card's targets: Chanjelin Ward on each of
   its player's vampires stays in hand (owner, 90.6).
 - The burn option reads a card's printed trait requirement (a Seraph, an
-  infernal vampire, an unmerged advanced vampire, 33.8): Legacy, Unleash
-  Hell's Fury, Veneficti and Tattoo Signal are burnable only with a minion
+  infernal vampire, an unmerged advanced vampire; a master card's ready
+  Seraph, 33.8): Legacy, Unleash Hell's Fury, Veneficti, Tattoo Signal and
+  Watchtower: Four Ride Forth are burnable only without a ready minion
   meeting it (78.31).
 
 ## 17. Control and ownership

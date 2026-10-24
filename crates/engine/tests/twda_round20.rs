@@ -777,6 +777,44 @@ fn guarded_rubrics_bleeds_and_taxes_gehenna_cards() {
     assert_eq!(pool(&e)[1], 10 - 3, "bleed 1 + 2");
 }
 
+// Watchtower: Four Ride Forth "requires a ready Seraph": its burn option is
+// open with no ready Seraph, closed with one (rules-qa 33.8; the owner's
+// sc-bot playtest: "not proposed even though I control no seraph").
+#[test]
+fn watchtower_is_burnable_without_a_ready_seraph() {
+    for seraph in [false, true] {
+        let mut e = Engine::bare(3);
+        e.add_minion(SeatId(0), of_clan("Ventrue", 0), 4, false);
+        e.add_minion(SeatId(1), of_clan("Brujah", 0), 4, false);
+        if seraph {
+            e.add_minion(SeatId(1), find_card("Banjoko"), 5, false);
+        }
+        e.add_minion(SeatId(2), of_clan("Ventrue", 1), 4, false);
+        let tower = find_library("Watchtower: Four Ride Forth");
+        assert!(zvtes::library::LIBRARY[tower as usize].burn_option);
+        e.state.seats[1].hand = vec![tower].into();
+        e.state.seats[1].library = vec![find_library("Soak"); 2].into();
+        pick(&mut e, Choice::Pass);
+        let found = loop {
+            let req = request(&mut e);
+            if req.window == WindowLabel::UnlockAbilities && req.seat == SeatId(1) {
+                break Some(req);
+            }
+            if (req.seat, req.window) == (SeatId(1), WindowLabel::MinionPhase) {
+                break None;
+            }
+            let c = if req.options.contains(&Choice::Pass) {
+                Choice::Pass
+            } else {
+                req.options[0]
+            };
+            pick(&mut e, c);
+        };
+        let offered = found.is_some_and(|r| r.options.contains(&Choice::Discard(0)));
+        assert_eq!(offered, !seraph, "seraph: {seraph}");
+    }
+}
+
 // Watchtower: Four Ride Forth: requires a ready Seraph; during the
 // discard phase, lock it to unlock any ready Black Hand vampire; burned
 // as another watchtower enters play.
