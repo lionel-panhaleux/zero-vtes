@@ -716,18 +716,18 @@ training runs.
   answered from Python, 0 the learner; "policy" = "net:0"), "random",
   "aggro" or "wall" (answered inside); `rotate` shifts seating per game;
   decks drawn per seat from `decks` (default the 14 precons). `queue(specs)`
-  replaces the tables new games take (seats, optional decks; 4 or 5 seats, tournament tables, or 2, the two-player variant),
-  the default table once it runs out. `observe()` pads the batch (with an
-  `agent` column: the network to ask); `act(actions)` advances every game in parallel (rayon) to
-  its next policy decision and returns the games finished (slot, game
-  number in start order, seed, time limit, decks, seats, half-VPs, turns,
-  decisions, truncated, log). Each game draws its time limit in
-  `time_limits` (60–90 player turns inclusive, owner 2026-09-28: player
-  turns, so a table losing a Methuselah early plays more rounds;
-  `Engine::time_limit`, default `TURN_LIMIT` for the engine's own tests):
-  0.5 VP per survivor, counting toward the game win (2 VP + 0.5 wins with a
-  strict lead). `replay(seed, decks, log, time_limit)`. A game over
-  `budget` decisions is cut (§11.3).
+  replaces the tables new games take (seats, optional decks; 4 or 5 seats,
+  tournament tables, or 2, the two-player variant), the default table once it
+  runs out. `observe()` pads the batch (with an `agent` column: the network to
+  ask); `act(actions)` advances every game in parallel (rayon) to its next
+  policy decision and returns the games finished (slot, game number in start
+  order, seed, time limit, decks, seats, half-VPs, turns, decisions,
+  truncated, log). Each game draws its time limit in `time_limits` (60–90
+  player turns inclusive, owner 2026-09-28: player turns, so a table losing a
+  Methuselah early plays more rounds; `Engine::time_limit`, default
+  `TURN_LIMIT` for the engine's own tests): 0.5 VP per survivor, counting
+  toward the game win (2 VP + 0.5 wins with a strict lead). `replay(seed,
+  decks, log, time_limit)`. A game over `budget` decisions is cut (§11.3).
 - Vocabulary keys (`obs::vocab_keys`: `crypt:<KRCG id>`,
   `library:<KRCG id>`, `window:<k>`, `clan:<name>`): checkpoints and
   snapshot directories (`vocab.json`) record them; loading under another

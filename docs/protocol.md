@@ -359,19 +359,19 @@ seat 2; burn 2 pool to keep card 9.)
   `merge` and `slot` their `slot` (the Great Beast's Discipline slot its
   `value`); a combatant's choice (`hand_strike`, `round_strike`,
   `use_maneuver`, `use_press`, `use_prevent`, `strike_combat_ends`,
-  `committed_strike`, `gain_strength`, `cancel_combat`) and the acting minion's own
-  (`continue_action`, `take_damage_after_resolution`) its `actor`;
-  `diablerise` the blocker diablerising as `actor`, the acting vampire
-  as `minion`; a card chosen (`discard`, `bottom`, `find_card`,
+  `committed_strike`, `gain_strength`, `cancel_combat`) and the acting
+  minion's own (`continue_action`, `take_damage_after_resolution`) its
+  `actor`; `diablerise` the blocker diablerising as `actor`, the acting
+  vampire as `minion`; a card chosen (`discard`, `bottom`, `find_card`,
   `take_from`, `resolve_rider`, `burn_in_play`, `burn_for_vote`, …) its
   `card`; `set_x` and `pay_rescue` their `amount`; `allocate_to` and
-  `allocate_to_card` their `target` and `amount`; `choose_seat` its
-  `target`; `choose_clan`, `choose_circle`, `choose_discipline` their
-  `value`; `cast_edge`, `cast_card_vote` their `favor`; a contest's its
-  `minion` or `card`. The rest (`pass`, `edge_pool`, `burn_pool`,
-  `draw_library`, `draw_crypt`, `pay_block_toll`, `pay_to_cancel`,
-  `burn_blood_to_avoid`) read from their `effects` and the decision's
-  `source` and `purpose`, which `decided` repeats.
+  `allocate_to_card` their `target` and `amount`; `choose_seat` its `target`;
+  `choose_clan`, `choose_circle`, `choose_discipline` their `value`;
+  `cast_edge`, `cast_card_vote` their `favor`; a contest's its `minion` or
+  `card`. The rest (`pass`, `edge_pool`, `burn_pool`, `draw_library`,
+  `draw_crypt`, `pay_block_toll`, `pay_to_cancel`, `burn_blood_to_avoid`) read
+  from their `effects` and the decision's `source` and `purpose`, which
+  `decided` repeats.
 - **`effects`** — what taking it does: an ability's effects, a play's
   mode's, a cost, what a chosen Methuselah or minion gets. A curated
   vocabulary, not the engine's own effects: each

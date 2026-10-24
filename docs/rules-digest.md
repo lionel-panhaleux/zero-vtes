@@ -2971,17 +2971,17 @@ prisci's alone (52.9, 70.6) — read "a Methuselah's ballots" in rules-qa as
   of its own; the side with more ballots gets the block's 3 votes, a tie
   gives none (52.9); a reduction of titles' or vampires' votes leaves the
   block's 3 (ANK 20180307-1), Free States Rant's "1 less ballot" lessening
-  the ballots that decide it (90.8). Eat the Rich: "each priscus gets -1 ballot" — its
-  ballots in all lessened by 1 (Gratiano, a priscus with "+1 ballot", keeps
-  one); "each non-priscus titled vampire gets -1 vote" — off its total
-  votes in this referendum, never below 0; the Edge cast is worth 2 votes;
-  "a ready titled vampire" read as it passes (70.6). KRCG: vote reductions
-  do not touch the block's 3 votes (ANK 20180307-1).
+  the ballots that decide it (90.8). Eat the Rich: "each priscus gets -1
+  ballot" — its ballots in all lessened by 1 (Gratiano, a priscus with "+1
+  ballot", keeps one); "each non-priscus titled vampire gets -1 vote" — off
+  its total votes in this referendum, never below 0; the Edge cast is worth 2
+  votes; "a ready titled vampire" read as it passes (70.6). KRCG: vote
+  reductions do not touch the block's 3 votes (ANK 20180307-1).
 - Title votes: by title, read live; contested, yielded or off-sect titles
   give none (§18.4). Fee Stake: "non-Anarch titles are worth -1 vote" =
   every title but baron, netted like any reduction: a priscus's title,
-  worth no votes, takes one gained later (90.3); its +1 vote to its Anarch only when it
-  calls the referendum (32.9).
+  worth no votes, takes one gained later (90.3); its +1 vote to its Anarch
+  only when it calls the referendum (32.9).
 - Vote penalties reaching votes already cast: Camarilla Conclave's -1 vote
   to each non-Camarilla vampire, a vampire's total stopping at 0 (51.2, ANK
   20251125); Absolute Tyranny [POT][PRE]'s -1 vote to each vampire not

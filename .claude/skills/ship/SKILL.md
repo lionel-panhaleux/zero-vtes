@@ -46,7 +46,12 @@ Before review, in the change itself:
 
 - the code and its tests, the CLAUDE.md checks green;
 - each page the line named updated, or the commit says why none moved;
-- the board line deleted (not marked done; git keeps it).
+- the board line deleted (not marked done; git keeps it);
+- `python3 scripts/harness.py stale main` clean: no name the diff
+  removes (an identifier, a heading, a path) still cited by a page, the
+  harness or a code comment, and no line it adds to a wrapped page past
+  80 columns; a hit is fixed, or, when the citation is right (a name
+  that lives on elsewhere), said in the commit.
 
 ## 4. Egress review
 
@@ -88,7 +93,7 @@ Grading-missed: <round> <rules-qa item>: <one line>  (a reading graded green/amb
 of a kind can be counted. Then the usual attribution trailers.
 
 The branch reaches `main` through Z-main, who merges a line's request
-without asking the owner (CLAUDE.md "Sessions"): send it the branch, its tip and what it changes
-for the other lines, and tell those lines yourself ("Between lines").
-Z-main, after a merge: `python3 scripts/harness.py due`, and `upkeep`
-when it is due.
+without asking the owner (CLAUDE.md "Sessions"): send it the branch, its tip
+and what it changes for the other lines, and tell those lines yourself
+("Between lines"). Z-main, after a merge: `python3 scripts/harness.py due`,
+and `upkeep` when it is due.

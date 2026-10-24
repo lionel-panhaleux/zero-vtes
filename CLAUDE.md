@@ -99,10 +99,12 @@ with its board companion), as applied here:
   pages, the line deleted — then the `egress-reviewer` agent, fresh
   context, given the diff, the line and its pages only; findings
   blocking or advisory, recorded as commit trailers; two rejection rounds
-  go to the owner); `upkeep` (every 20 deleted lines or monthly:
+  go to the owner; before it, `harness.py stale` finds the names the
+  diff removed that a page or a comment still cites, and the added lines
+  past the width); `upkeep` (every 20 deleted lines or monthly:
   eviction, wiki lint, the ratchet turning three advisories of a class
   into a harness amendment). `scripts/harness.py` counts (size, line age,
-  `due`, orphan pages).
+  `due`, orphan pages) and checks (`stale`).
 - **Comments are for traps** (docs/engine.md "Comment policy"); no to-do
   comments (`tests/lint.rs`): found work is done now, in the change, or,
   clearly outside its line, goes through `intake`.

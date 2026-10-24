@@ -50,7 +50,8 @@ server, and the fork served as its own platform).
 - **Fork**: `../succubus-club`, branch `zero-vtes-engine`, based on upstream
   `3099b59` (2026-09-28).
 - **JOL, Elysium**: not plugged in; what it would take in
-  [`platforms/jol.md`](platforms/jol.md), [`platforms/elysium.md`](platforms/elysium.md).
+  [`platforms/jol.md`](platforms/jol.md),
+  [`platforms/elysium.md`](platforms/elysium.md).
 
 ## Architecture
 

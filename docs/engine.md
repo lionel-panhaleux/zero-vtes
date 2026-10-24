@@ -456,11 +456,11 @@ seat's public choices counted, `Engine::profiles`), `decks.rs` and
 
 The engine crate holds the rules only; what sits between it and an agent
 is `crates/env` (`zvtes_env`, over the engine's public API): `obs.rs`
-(observations), `context.rs` (the seats' context they carry), `bots.rs` (the scripted bots), `politics.rs` and
-`habits.rs` (agent behaviour around a network, not engine masks), their
-tests in `crates/env/tests/`. `policy`, `py` and `host` (the scripted
-bots' profiles) read it; `tests/lint.rs` holds its sources to the
-engine's conventions.
+(observations), `context.rs` (the seats' context they carry), `bots.rs` (the
+scripted bots), `politics.rs` and `habits.rs` (agent behaviour around a
+network, not engine masks), their tests in `crates/env/tests/`. `policy`, `py`
+and `host` (the scripted bots' profiles) read it; `tests/lint.rs` holds its
+sources to the engine's conventions.
 
 ### 6.2 Run loop and interrupts
 
@@ -658,8 +658,9 @@ engine's conventions.
 - Steals: every steal of a card in play (`Effect::StealTarget*`,
   `StealLocation`) carries `Requirement::NotControlled` in its target, even
   where the text does not print "another Methuselah's": one cannot steal
-  from oneself (rules-qa 90.4; Chameleon excepted by its ruling); `tests/lint.rs`
-  (`steals_never_target_ones_own_cards`) holds a new steal to it.
+  from oneself (rules-qa 90.4; Chameleon excepted by its ruling);
+  `tests/lint.rs` (`steals_never_target_ones_own_cards`) holds a new steal to
+  it.
 - Hunting: `actions::is_hunt(kind, card_hunt)`, read through
   `ActionCtx::is_hunt` and `PrintedCtx::is_hunt`: an action a card makes a
   hunt (`Effect::HuntAction`: Loki's Gift, Psychophagia, Abactor, Week of

@@ -170,10 +170,10 @@ owner directly): a "no" lands in the same commit, and the commit waits
 for their answers only. Then rebase the round branch on `main`
 (regenerate `crypt.rs`/`library.rs`/`twda.rs` on conflict, never
 hand-merge them), send Z-main the branch to merge (CLAUDE.md "Sessions": the
-merge needs no ask), and tell the training session the vocabulary deltas (library n→m,
-vampires, kept decks) and any new encoder id. The round's rules-qa batch
-number comes from Z-main, asked before the batch is written (CLAUDE.md
-"Sessions").
+merge needs no ask), and tell the training session the vocabulary deltas
+(library n→m, vampires, kept decks) and any new encoder id. The round's
+rules-qa batch number comes from Z-main, asked before the batch is written
+(CLAUDE.md "Sessions").
 
 ## 7. Learn from every correction
 
