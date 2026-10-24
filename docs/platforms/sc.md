@@ -94,7 +94,11 @@ minion's votes in its vote box (SC's referendum panel kept, read-only:
 the engine tallies). The rest is a central-box button with its `text`
 (`leftoverOptions`): a Methuselah chosen (one a seat), a search whose
 zone the option omits or hides, a library draw (its stack glows too, a
-click draws).
+click draws). A searched stack opens by itself and stays open through
+the decisions searching it, then closes (`showSearch`, driver.ts;
+owner, 2026-10-24, Shroud of Decay's seven cards); a card found is one
+click, never confirmed, and the search's pass is in the panel too: the
+panel hides the central box.
 
 ## Where the owner plays
 
