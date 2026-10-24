@@ -3332,7 +3332,8 @@ fn the_erciyes_fragments_play_a_card_from_the_preys_ash_heap() {
 
 // The Erciyes Fragments' card belongs to the prey: its controller ousted,
 // the card on it goes to its owner's ash heap, as a card on a removed
-// minion does (owner, 2026-09-06; rules-qa 67.1) — not lost.
+// minion does (owner, 2026-09-06; rules-qa 67.1) — not lost; [LSJ
+// 20021128] "If it leaves play, the card on it is burned".
 #[test]
 fn the_erciyes_fragments_card_returns_to_its_owner_when_its_controller_is_ousted() {
     let mut e = game(3);
@@ -3717,4 +3718,749 @@ fn the_capuchin_hand_stays_at_nine_through_a_play() {
     );
     assert_eq!(e.state.seats[0].hand.len(), 9);
     assert_eq!(e.state.seats[0].library.len(), 9, "one replacement");
+}
+
+// ---- Unleash Hell's Fury against later plays (rules-qa Batch 93) -----------
+
+/// Seat `seat`'s Unleash Hell's Fury in play, with its token out of play
+/// until it attempts to block: the card and the token.
+fn fury(e: &mut Engine, seat: u8) -> (CardId, MinionId) {
+    let card = in_play(e, seat, "Unleash Hell's Fury", None);
+    e.state.minions.push(zvtes::state::Minion {
+        in_play: false,
+        ..zvtes::state::Minion::new(
+            SeatId(seat),
+            zvtes::state::MinionKind::Fury {
+                card: find_library("Unleash Hell's Fury"),
+                id: card,
+            },
+            0,
+        )
+    });
+    (card, MinionId(e.state.minions.len() as u32 - 1))
+}
+
+/// A 2-seat game at seat 1's minion phase: seat 0 holds the Fury (and a
+/// vampire), seat 1 bleeds with `actor` (and a second vampire).
+fn fury_game(actor: u16) -> (Engine, CardId, MinionId, MinionId) {
+    let mut e = game(2);
+    e.add_minion(SeatId(0), plain("Brujah", 0), 4, false);
+    let z = e.add_minion(SeatId(1), actor, 4, false);
+    e.add_minion(SeatId(1), plain("Ventrue", 1), 4, false);
+    let (card, token) = fury(&mut e, 0);
+    to_minion_phase(&mut e, SeatId(1));
+    (e, card, token, z)
+}
+
+// Unleash Hell's Fury and Elder Impersonation [LSJ 20100210] "If The Kiss
+// of Ra or Elder Impersonation are used, the block does not happen" and
+// "Is considered the same minion for every block attempt. Cards that
+// prevent future block attempts by the same minion (e.g. Elder
+// Impersonation) affect Unleash Hell's Fury normally": its attempt fails,
+// no damage, the card stays, the token out of play and never offered again
+// this action (rules-qa 93.1).
+#[test]
+fn elder_impersonation_fails_the_furys_attempt_for_good() {
+    let (mut e, card, token, z) = fury_game(vampire_with("OBF", 0));
+    hand(&mut e, 1, &["Elder Impersonation"]);
+    pick(&mut e, bleed(z));
+    pick(&mut e, block(token));
+    pick_when(&mut e, play(0, 1, z));
+    never_offered_until(&mut e, SeatId(1), WindowLabel::MinionPhase, block(token));
+    assert!(!e.state.minions[z.index()].in_torpor, "no damage");
+    assert!(e.state.cards[card.index()].in_play);
+    assert!(!e.state.minions[token.index()].in_play);
+    assert_eq!(pool(&e)[0], 10 - 1, "bled");
+}
+
+/// A Fury attempt failing against seat 1's bleed at stealth 3 (Faceless
+/// Night [OBF], Elder Impersonation and Cloak the Gathering), the Fury card
+/// locked first if `locked`: the card and the bleeder.
+fn fury_fails(locked: bool) -> (Engine, CardId, MinionId) {
+    let (mut e, card, token, z) = fury_game(vampire_with("OBF", 0));
+    e.state.cards[card.index()].locked = locked;
+    hand(
+        &mut e,
+        1,
+        &[
+            "Faceless Night",
+            "Elder Impersonation",
+            "Cloak the Gathering",
+        ],
+    );
+    pick(&mut e, bleed(z));
+    pick(&mut e, block(token));
+    pick_when(&mut e, play(0, 1, z));
+    pick_when(&mut e, play(0, 0, z));
+    pick_when(&mut e, play(0, 0, z));
+    until(&mut e, SeatId(1), WindowLabel::MinionPhase);
+    (e, card, z)
+}
+
+// Unleash Hell's Fury and Faceless Night [LSJ 20100210] "Unleash Hell's
+// Fury is not locked if Faceless Night was played. Also, it can attempt to
+// block even if locked": a locked Fury attempts, fails against stealth 3
+// (Faceless Night [OBF], Elder Impersonation and Cloak the Gathering), and
+// the lock of Faceless Night does not reach the card (rules-qa 60.21: it is
+// never locked; 93.2).
+#[test]
+fn faceless_night_does_not_lock_the_fury() {
+    let (e, card, z) = fury_fails(false);
+    assert!(!e.state.minions[z.index()].in_torpor, "the attempt failed");
+    assert_eq!(pool(&e)[0], 10 - 1, "bled");
+    assert!(e.state.cards[card.index()].in_play);
+    assert!(!e.state.cards[card.index()].locked);
+    // Locked, it attempts all the same.
+    let (e, card, _) = fury_fails(true);
+    assert!(e.state.cards[card.index()].in_play);
+}
+
+// Unleash Hell's Fury and KRCG News Radio [ANK 20211112-2] "Once it is
+// attempting to block, its intercept can be affected by other cards
+// normally": against stealth 3 the Fury (+2 intercept) blocks with the
+// Radio's +1 (rules-qa 93.3).
+#[test]
+fn krcg_news_radio_raises_the_furys_intercept() {
+    let (mut e, card, token, z) = fury_game(vampire_with("OBF", 0));
+    let radio = in_play(&mut e, 0, "KRCG News Radio", None);
+    hand(
+        &mut e,
+        1,
+        &[
+            "Faceless Night",
+            "Elder Impersonation",
+            "Cloak the Gathering",
+        ],
+    );
+    pick(&mut e, bleed(z));
+    pick(&mut e, block(token));
+    pick_when(&mut e, play(0, 1, z));
+    pick_when(&mut e, play(0, 0, z));
+    pick_when(&mut e, play(0, 0, z));
+    // Short, the attempt under way: the Radio for the Fury (rules-qa 82.1).
+    expect(&mut e, SeatId(0), WindowLabel::ActionBlock);
+    assert_eq!(e.action().unwrap().stealth(&e.state), 3);
+    pick(&mut e, use_at(radio, 0, None, Target::None));
+    until(&mut e, SeatId(1), WindowLabel::MinionPhase);
+    assert!(e.state.minions[z.index()].in_torpor, "blocked: the damage");
+    assert!(!e.state.cards[card.index()].in_play);
+    assert_eq!(pool(&e)[0], 10, "not bled");
+}
+
+// Unleash Hell's Fury and Tension in the Ranks [ANK 20230317] "Is not a
+// minion when it burns (e.g. does not trigger Tension in the Ranks)": the
+// Fury burns, its controller keeps their pool; the bleeder sent to torpor
+// costs its own controller 1 (rules-qa 93.3).
+#[test]
+fn the_fury_burning_is_no_minion_for_tension_in_the_ranks() {
+    let (mut e, card, token, z) = fury_game(plain("Ventrue", 0));
+    in_play(&mut e, 1, "Tension in the Ranks", None);
+    pick(&mut e, bleed(z));
+    pick(&mut e, block(token));
+    until(&mut e, SeatId(1), WindowLabel::MinionPhase);
+    assert!(!e.state.cards[card.index()].in_play);
+    assert!(e.state.minions[z.index()].in_torpor);
+    assert_eq!(pool(&e), vec![10, 10 - 1]);
+}
+
+/// Seat 1's bleed of seat 0 against seat 0's attempt by the Fury (+2
+/// intercept: stealth 3 from Faceless Night [OBF], Elder Impersonation and
+/// Cloak the Gathering), or by its vampire if not `fury` (stealth 1), seat
+/// 0 holding Elder Intervention: at seat 0's window as that attempt falls
+/// short.
+fn short_attempt(fury: bool) -> (Engine, MinionId) {
+    let (mut e, _, token, z) = fury_game(vampire_with("OBF", 0));
+    let blocker = if fury { token } else { MinionId(0) };
+    hand(&mut e, 0, &["Elder Intervention"]);
+    hand(
+        &mut e,
+        1,
+        &[
+            "Faceless Night",
+            "Elder Impersonation",
+            "Cloak the Gathering",
+        ],
+    );
+    pick(&mut e, bleed(z));
+    pick(&mut e, block(blocker));
+    pick_when(&mut e, play(0, 1, z));
+    // The vampire's intercept 0 is short at stealth 1 already: seat 1's
+    // impulse after its play, passed.
+    if fury {
+        pick_when(&mut e, play(0, 0, z));
+        pick_when(&mut e, play(0, 0, z));
+    } else {
+        expect(&mut e, SeatId(1), WindowLabel::ActionBlock);
+        pick(&mut e, Choice::Pass);
+    }
+    (e, blocker)
+}
+
+// Unleash Hell's Fury and Elder Intervention [LSJ 19970707] [ANK 20230226]
+// "It is a Vampire with 0 blood while attempting to block. It cannot pay
+// blood costs to play cards (eg Elder Intervention)": short of the
+// stealth, the Fury is not offered the 1-blood reaction; a vampire short
+// alike is (rules-qa 93.3).
+#[test]
+fn the_fury_cannot_pay_for_elder_intervention() {
+    for fury in [true, false] {
+        let (mut e, blocker) = short_attempt(fury);
+        let req = expect(&mut e, SeatId(0), WindowLabel::ActionBlock);
+        let offered = req
+            .options
+            .iter()
+            .any(|o| matches!(o, Choice::Play { actor: Some(m), .. } if *m == blocker));
+        assert_eq!(offered, !fury, "{:?}", req.options);
+    }
+}
+
+// Unleash Hell's Fury and Mirror Walk [LSJ 20100301] [ANK 20220116] "If the
+// block is successful, the aggravated damage is inflicted and the card
+// burned even if the action is ended (e.g. Mirror Walk) before block
+// resolution", and [ANK 20210627] [ANK 20211207] [ANK 20220116] "effects
+// that trigger at the same moment (e.g. Mirror Walk) are still applied":
+// the bleed ends unbled, the bleeder takes the damage, the Fury burns
+// (rules-qa 93.4).
+#[test]
+fn mirror_walk_ends_the_action_the_fury_still_burns() {
+    let (mut e, card, token, z) = fury_game(vampire_with("THA", 0));
+    hand(&mut e, 1, &["Mirror Walk"]);
+    pick(&mut e, bleed(z));
+    pick(&mut e, block(token));
+    pick_when(&mut e, play(0, 1, z));
+    until(&mut e, SeatId(1), WindowLabel::MinionPhase);
+    assert!(e.state.minions[z.index()].in_torpor, "the damage");
+    assert!(!e.state.cards[card.index()].in_play);
+    assert!(e.state.seats[0]
+        .ash
+        .contains(&find_library("Unleash Hell's Fury")));
+    assert_eq!(pool(&e)[0], 10, "not bled");
+}
+
+// Unleash Hell's Fury and Crypt's Sons [ANK 20210627] [ANK 20211207] [ANK
+// 20220116] "If the action is blocked, no other effect can be used (e.g.
+// Crypt's Sons, Change of Target) before burning Unleash Hell's Fury and
+// inflicting aggravated damage", and [ANK 20220116] [ANK 20211207] [ANK
+// 20210627] [RTR 19991206] [LSJ 20091125] (triggered by block) its effect
+// "applied ... before any other card or effect can be used": the Anarch's
+// retainer is never offered; against a vampire's block it is (rules-qa
+// 93.5).
+#[test]
+fn crypts_sons_cannot_answer_the_furys_block() {
+    for fury in [true, false] {
+        let (mut e, card, token, z) = fury_game(of_sect(Sect::Anarch, 0));
+        let sons = in_play(&mut e, 1, "Crypt's Sons", Some(z));
+        e.state.cards[sons.index()].counters = 3;
+        pick(&mut e, bleed(z));
+        // A vampire's block: the retainer is offered before resolution.
+        let blocker = if fury { token } else { MinionId(0) };
+        pick(&mut e, block(blocker));
+        let burn = |o: &Choice| matches!(o, Choice::UseAbility { source: AbilitySource::Card(c), .. } if *c == sons);
+        if !fury {
+            assert!(
+                (0..20).any(|_| {
+                    let req = request(&mut e);
+                    let hit = req.options.iter().any(burn);
+                    e.choose(fallback(&req));
+                    hit
+                }),
+                "offered against a vampire's block"
+            );
+            continue;
+        }
+        never_offered_where(&mut e, SeatId(1), WindowLabel::MinionPhase, burn);
+        assert!(e.state.minions[z.index()].in_torpor);
+        assert!(!e.state.cards[card.index()].in_play);
+        assert_eq!(pool(&e)[0], 10);
+    }
+}
+
+// Unleash Hell's Fury [LSJ 20091203] "The burn option can be used if all
+// your infernal vampires are in torpor", and [LSJ 20100203-2] "You cannot
+// use the burn option if you meet the requirement, even if you already have
+// a copy of the card in play": Nergal in torpor, it is discarded at the
+// unlock phase; Nergal ready, with a Fury in play, it is not offered
+// (rules-qa 93.6).
+#[test]
+fn the_furys_burn_option_reads_ready_infernal_vampires() {
+    let mut e = game(2);
+    let n = e.add_minion(SeatId(0), find_card("Nergal"), 6, false);
+    e.add_minion(SeatId(0), plain("Brujah", 0), 4, false);
+    e.add_minion(SeatId(1), plain("Ventrue", 0), 4, false);
+    e.state.minions[n.index()].in_torpor = true;
+    hand(&mut e, 0, &["Unleash Hell's Fury"]);
+    let req = until(&mut e, SeatId(0), WindowLabel::UnlockAbilities);
+    assert!(
+        req.options.contains(&Choice::Discard(0)),
+        "{:?}",
+        req.options
+    );
+    let mut e = game(2);
+    e.add_minion(SeatId(0), find_card("Nergal"), 6, false);
+    e.add_minion(SeatId(0), plain("Brujah", 0), 4, false);
+    e.add_minion(SeatId(1), plain("Ventrue", 0), 4, false);
+    fury(&mut e, 0);
+    hand(&mut e, 0, &["Unleash Hell's Fury"]);
+    to_minion_phase(&mut e, SeatId(1));
+    never_offered_until(
+        &mut e,
+        SeatId(0),
+        WindowLabel::MinionPhase,
+        Choice::Discard(0),
+    );
+}
+
+// ---- A banished Great Beast (rules-qa Batch 93) -----------------------------
+
+/// Seat 1's Great Beast (9 blood, its card in play as its body) banished by
+/// Xaviar's Banishment (10 capacity, titled):
+/// the game, the Beast and its card.
+fn banished_beast() -> (Engine, MinionId, CardId) {
+    let mut e = game(2);
+    let a = e.add_minion(SeatId(0), find_card("Xaviar"), 4, false);
+    e.add_minion(SeatId(0), plain("Brujah", 0), 4, false);
+    e.add_minion(SeatId(1), plain("Ventrue", 0), 4, false);
+    let card = in_play(&mut e, 1, "Call the Great Beast", None);
+    e.state.minions.push(zvtes::state::Minion::new(
+        SeatId(1),
+        zvtes::state::MinionKind::GreatBeast {
+            card: find_library("Call the Great Beast"),
+            id: card,
+        },
+        9,
+    ));
+    let beast = MinionId(e.state.minions.len() as u32 - 1);
+    e.state.cards[card.index()].body = Some(beast);
+    hand(&mut e, 0, &["Banishment"]);
+    pick(&mut e, play(0, 0, a));
+    pick_when(&mut e, Choice::ChooseMinion(beast));
+    pick_when(&mut e, votes(a, true));
+    close_polling(&mut e);
+    (e, beast, card)
+}
+
+// Call the Great Beast [RTR 19990712] "If moved to the uncontrolled region
+// (eg. by Banishment), it stays a vampire and can be influenced": its 9
+// blood kept as counters, influenced out it returns as it left — the same
+// Great Beast, its card with it (rules-qa 25.1, 93.7).
+#[test]
+fn a_banished_great_beast_is_influenced_back() {
+    let (mut e, beast, card) = banished_beast();
+    assert!(!e.state.minions[beast.index()].in_play);
+    assert!(!e.state.cards[card.index()].in_play);
+    assert_eq!(e.state.seats[1].uncontrolled[0].counters, 9);
+    let req = until(&mut e, SeatId(1), WindowLabel::InfluenceTransfers);
+    assert!(req.options.contains(&Choice::InfluenceOut { slot: 0 }));
+    pick(&mut e, Choice::InfluenceOut { slot: 0 });
+    let v = &e.state.minions[beast.index()];
+    assert!(v.in_play && !v.locked && v.blood == 9);
+    assert!(e.state.cards[card.index()].in_play);
+    assert_eq!(e.state.capacity_of(beast), Some(9));
+    assert!(e.state.is_infernal(beast));
+}
+
+// Call the Great Beast [LSJ 20041201-2] "If it would be put into the crypt
+// for any reason, it is burned instead": banished, then Kaymakli Nightmares
+// moves the uncontrolled crypt cards to the crypts — the Great Beast burns,
+// its card to its owner's ash heap, its blood to the pool, none drawn in
+// its place (rules-qa 93.7).
+#[test]
+fn kaymakli_nightmares_burns_a_banished_great_beast() {
+    let (mut e, beast, _) = banished_beast();
+    let crypt = e.state.seats[1].crypt.len();
+    let before = pool(&e)[1];
+    hand(&mut e, 0, &["Kaymakli Nightmares"]);
+    until(&mut e, SeatId(0), WindowLabel::MasterPhase);
+    pick(&mut e, master_play(0));
+    request(&mut e);
+    assert!(e.state.seats[1].uncontrolled.is_empty());
+    assert_eq!(e.state.seats[1].crypt.len(), crypt);
+    assert!(e.state.seats[1]
+        .ash
+        .contains(&find_library("Call the Great Beast")));
+    assert_eq!(pool(&e)[1], before + 9);
+    assert!(!e.state.minions[beast.index()].in_play);
+}
+
+// ---- I am Legion's cancels, The Erciyes Fragments (rules-qa Batch 93) -------
+
+/// Nergal (seat 0, [DAI][OBF]) bleeds with Cloak the Gathering's stealth;
+/// seat 1's `blocker` attempts and plays its hand's first card, a reaction
+/// requiring Auspex (`reactions` its hand's first cards): the game, at seat
+/// 0's window as that card is played.
+fn legion_game(blocker: u16, reactions: &[&str]) -> (Engine, MinionId, MinionId) {
+    let mut e = game(2);
+    let n = e.add_minion(SeatId(0), find_card("Nergal"), 6, false);
+    e.add_minion(SeatId(0), plain("Brujah", 0), 4, false);
+    let z = e.add_minion(SeatId(1), blocker, 4, false);
+    hand(&mut e, 0, &["Cloak the Gathering", "I am Legion"]);
+    hand(&mut e, 1, reactions);
+    fill_hand(&mut e, 1);
+    e.state.seats[1].library = vec![find_library("Form of Mist"); 5].into();
+    pick(&mut e, bleed(n));
+    pick_when(&mut e, block(z));
+    pick_when(&mut e, play(0, 0, n));
+    pick_when(&mut e, play(0, 0, z));
+    (e, n, z)
+}
+
+// I am Legion [LSJ 20061207] [LSJ 20061013] "Cards are not replaced during
+// the 'as played' window. The cancelation must be played immediately: no
+// other effects can be used, except for wakes", and The Erciyes Fragments
+// [RTR 20040501] "Cannot be used when a card is played to draw a card that
+// would cancel it 'as it is played'": as Eagle's Sight is played, its
+// player is a card short and seat 0's Fragments are not offered; canceled,
+// the card is replaced after (rules-qa 60.19, 93.8).
+#[test]
+fn i_am_legions_cancel_comes_before_the_replacement_and_the_fragments() {
+    let (mut e, n, _) = legion_game(vampire_with("aus", 0), &["Eagle's Sight"]);
+    let full = e.state.hand_size(SeatId(1));
+    let frag = in_play(&mut e, 0, "Erciyes Fragments, The", None);
+    e.state.seats[1].ash = vec![find_library("Bum's Rush")].into();
+    let req = expect(&mut e, SeatId(0), WindowLabel::CardAsPlayed);
+    assert!(req.options.contains(&play(0, 1, n)), "{:?}", req.options);
+    assert!(uses(&req, frag.0).is_empty(), "{:?}", req.options);
+    assert_eq!(e.state.seats[1].hand.len(), full - 1, "not replaced yet");
+    pick(&mut e, play(0, 1, n));
+    // Nergal's blood off, declined: I am Legion paid from his blood.
+    expect(&mut e, SeatId(0), WindowLabel::PlayTerms);
+    pick(&mut e, Choice::Pass);
+    request(&mut e);
+    assert!(e.state.seats[1]
+        .ash
+        .contains(&find_library("Eagle's Sight")));
+    assert_eq!(e.state.seats[1].hand.len(), full, "replaced after");
+}
+
+// I am Legion [LSJ 20080630] [LSJ 20011023] "If the canceled card had a 'do
+// not replace until' clause ..., that clause is canceled as well and the
+// card is replaced normally": Read the Winds canceled, its player draws at
+// once, not after the action (rules-qa 93.8).
+#[test]
+fn i_am_legion_cancels_read_the_winds_replacement_clause() {
+    let both = CRYPT
+        .iter()
+        .enumerate()
+        .position(|(i, c)| {
+            c.disciplines.iter().any(|d| d.eq_ignore_ascii_case("ani"))
+                && c.disciplines.iter().any(|d| d.eq_ignore_ascii_case("aus"))
+                && cards::vampire(i as u16).is_none()
+        })
+        .expect("an [ani][aus] vampire") as u16;
+    for cancel in [false, true] {
+        let (mut e, n, _) = legion_game(both, &["Read the Winds", "Enhanced Senses"]);
+        let full = e.state.hand_size(SeatId(1));
+        if cancel {
+            pick_when(&mut e, play(0, 1, n));
+            expect(&mut e, SeatId(0), WindowLabel::PlayTerms);
+            pick(&mut e, Choice::Pass);
+        } else {
+            expect(&mut e, SeatId(0), WindowLabel::CardAsPlayed);
+            pick(&mut e, Choice::Pass);
+        }
+        // Seat 1's next play in the action: Enhanced Senses, or none needed.
+        let req = request(&mut e);
+        assert!(e.action().is_some(), "{req:?}");
+        let short = usize::from(!cancel);
+        assert_eq!(e.state.seats[1].hand.len(), full - short, "cancel {cancel}");
+    }
+}
+
+// I am Legion and The Erciyes Fragments [LSJ 20060106] "A card played 'as
+// if from hand' can be canceled 'as played'": seat 1 plays seat 0's Eagle's
+// Sight from its Fragments; I am Legion cancels it, and the card, burned,
+// is removed from the game — to its owner's removed cards (rules-qa
+// 60.19, 93.8).
+#[test]
+fn i_am_legion_cancels_a_card_played_from_the_fragments() {
+    let mut e = game(2);
+    let n = e.add_minion(SeatId(0), find_card("Nergal"), 6, false);
+    e.add_minion(SeatId(0), plain("Brujah", 0), 4, false);
+    let z = e.add_minion(SeatId(1), vampire_with("aus", 0), 4, false);
+    let frag = in_play(&mut e, 1, "Erciyes Fragments, The", None);
+    let sight = find_library("Eagle's Sight");
+    e.state.cards[frag.index()].stored = vec![sight].into();
+    e.state.cards[frag.index()].stored_owner = Some(SeatId(0));
+    hand(&mut e, 0, &["Cloak the Gathering", "I am Legion"]);
+    pick(&mut e, bleed(n));
+    pick_when(&mut e, block(z));
+    pick_when(&mut e, play(0, 0, n));
+    pick_when(&mut e, play(0, 0, z));
+    pick_when(&mut e, play(0, 1, n));
+    until(&mut e, SeatId(0), WindowLabel::MinionPhase);
+    assert!(e.state.cards[frag.index()].stored.is_empty());
+    assert!(e.state.seats[0].removed.contains(&sight));
+    assert!(!e.state.seats[1].ash.contains(&sight));
+    assert_eq!(pool(&e)[1], 10 - 3, "Nergal's bleed for 3");
+}
+
+// The Erciyes Fragments [ANK 20200616] "Can be used during an action, when
+// the controller has the opportunity to play an effect": in seat 1's bleed
+// of seat 0, seat 0 locks them as it is announced (rules-qa 60.19, 93.10).
+#[test]
+fn the_erciyes_fragments_lock_during_an_action() {
+    let mut e = game(2);
+    e.add_minion(SeatId(0), plain("Brujah", 0), 4, false);
+    let z = e.add_minion(SeatId(1), plain("Ventrue", 0), 4, false);
+    e.add_minion(SeatId(1), plain("Ventrue", 1), 4, false);
+    let frag = in_play(&mut e, 0, "Erciyes Fragments, The", None);
+    let rush = find_library("Bum's Rush");
+    e.state.seats[1].ash = vec![rush].into();
+    to_minion_phase(&mut e, SeatId(1));
+    pick(&mut e, bleed(z));
+    expect(&mut e, SeatId(0), WindowLabel::ActionAsAnnounced);
+    pick(&mut e, use_at(frag, 0, None, Target::None));
+    request(&mut e);
+    assert!(e.action().is_some());
+    assert_eq!(e.state.cards[frag.index()].stored, vec![rush]);
+}
+
+// ---- Nergal's reduction at resolution (rules-qa Batch 93) -------------------
+
+// Nergal [LSJ 20091021-2] "If he plays a action he can only pay for with
+// his ability, he has to use his ability when the action resolves (even if
+// a Deflection was played on a bleed)": at 1 blood, Propaganda (2 blood) is
+// his only with the reduction — taken at once, the one way to pay —; the
+// bleed redirected to seat 2 still costs him 1, and the reduction is spent:
+// his next card that turn is not offered it (rules-qa 60.7, 93.9).
+#[test]
+fn nergal_pays_a_deflected_propaganda_with_his_reduction() {
+    let mut e = game(3);
+    let n = e.add_minion(SeatId(0), find_card("Nergal"), 1, false);
+    e.add_minion(SeatId(0), plain("Brujah", 0), 4, false);
+    let d = e.add_minion(SeatId(1), vampire_with("dom", 0), 4, false);
+    e.add_minion(SeatId(2), plain("Ventrue", 0), 4, false);
+    hand(&mut e, 0, &["Propaganda", "Aire of Elation"]);
+    hand(&mut e, 1, &["Deflection"]);
+    pick(&mut e, play(0, 0, n));
+    pick_when(
+        &mut e,
+        Choice::Play {
+            card: 0,
+            mode: 0,
+            actor: Some(d),
+            target: Target::Seat(SeatId(2)),
+        },
+    );
+    until(&mut e, SeatId(0), WindowLabel::MinionPhase);
+    assert_eq!(blood(&e, n), 0);
+    // 1, Nergal's +2, Propaganda's +1.
+    assert_eq!(pool(&e), vec![10, 10, 10 - 4]);
+    let take = Choice::ResolvePrinted { minion: n };
+    nergal_bleeds_again(&mut e, n);
+    never_offered_until(&mut e, SeatId(0), WindowLabel::MinionPhase, take);
+}
+
+/// Nergal unlocked with 1 blood, bleeding again with his hand's Aire of
+/// Elation played: at its terms, if any.
+fn nergal_bleeds_again(e: &mut Engine, n: MinionId) {
+    let v = &mut e.state.minions[n.index()];
+    (v.locked, v.bled_this_turn, v.hunted, v.blood) = (false, false, false, 1);
+    pick(e, bleed(n));
+    pick_when(e, play(0, 0, n));
+}
+
+// Nergal [LSJ 20091021-2] "If he cannot pay for the action even with his
+// ability, his ability is not considered used for the action (even if it
+// was announced)": at 1 blood, Propaganda (2 blood) is his with the
+// reduction; his last blood on Aire of Elation leaves it unpayable — it
+// fizzles, seat 1 unbled —, and the reduction is still his: offered on his
+// next Aire (rules-qa 93.9).
+#[test]
+fn nergals_reduction_is_unspent_when_his_action_is_left_unpayable() {
+    let mut e = game(2);
+    let n = e.add_minion(SeatId(0), find_card("Nergal"), 1, false);
+    e.add_minion(SeatId(0), plain("Brujah", 0), 4, false);
+    e.add_minion(SeatId(1), plain("Ventrue", 0), 4, false);
+    hand(
+        &mut e,
+        0,
+        &["Propaganda", "Aire of Elation", "Aire of Elation"],
+    );
+    pick(&mut e, play(0, 0, n));
+    pick_when(&mut e, play(0, 0, n));
+    // Aire's cost: paid from his blood, not with the reduction.
+    expect(&mut e, SeatId(0), WindowLabel::PlayTerms);
+    pick(&mut e, Choice::Pass);
+    until(&mut e, SeatId(0), WindowLabel::MinionPhase);
+    assert_eq!(blood(&e, n), 0);
+    assert_eq!(pool(&e)[1], 10, "fizzled");
+    nergal_bleeds_again(&mut e, n);
+    let req = expect(&mut e, SeatId(0), WindowLabel::PlayTerms);
+    assert!(req.options.contains(&Choice::ResolvePrinted { minion: n }));
+}
+
+// Nergal [LSJ 20091021-2] "If a card he plays is cancelled as it played and
+// no cost is paid, his ability is not considered used for the turn": his
+// Aire of Elation, reduced, canceled by Direct Intervention (its cost not
+// paid); on his next bleed that turn, his next Aire is offered the
+// reduction again — not in the same bleed: one Aire a minion each action,
+// a canceled one counted (rules-qa 46.1; 60.7, 93.9).
+#[test]
+fn nergals_reduction_is_unspent_by_a_card_canceled_unpaid() {
+    let mut e = game(2);
+    let n = e.add_minion(SeatId(0), find_card("Nergal"), 6, false);
+    e.add_minion(SeatId(0), plain("Brujah", 0), 4, false);
+    e.add_minion(SeatId(1), plain("Ventrue", 0), 4, false);
+    hand(&mut e, 0, &["Aire of Elation", "Aire of Elation"]);
+    hand(&mut e, 1, &["Direct Intervention"]);
+    let take = Choice::ResolvePrinted { minion: n };
+    pick(&mut e, bleed(n));
+    pick_when(&mut e, play(0, 0, n));
+    expect(&mut e, SeatId(0), WindowLabel::PlayTerms);
+    pick(&mut e, take);
+    pick_when(&mut e, master_play(0));
+    until(&mut e, SeatId(0), WindowLabel::MinionPhase);
+    assert_eq!(blood(&e, n), 6, "the canceled Aire unpaid");
+    // Direct Intervention's pool, Nergal's bleed for 3.
+    assert_eq!(pool(&e)[1], 10 - 1 - 3);
+    nergal_bleeds_again(&mut e, n);
+    let req = expect(&mut e, SeatId(0), WindowLabel::PlayTerms);
+    assert!(req.options.contains(&take), "{:?}", req.options);
+}
+
+// Nergal's reduction on a political action card, paid as the referendum is
+// called: at 1 blood, Reckless Agitation (2 blood) is his only with it; the
+// referendum is called, his last blood paid (rules-qa 60.7, 93.9).
+#[test]
+fn nergal_pays_reckless_agitation_with_his_reduction() {
+    let mut e = game(3);
+    let n = e.add_minion(SeatId(0), find_card("Nergal"), 1, false);
+    e.add_minion(SeatId(0), plain("Brujah", 0), 4, false);
+    e.add_minion(SeatId(1), plain("Ventrue", 0), 4, false);
+    e.add_minion(SeatId(2), plain("Ventrue", 1), 4, false);
+    hand(&mut e, 0, &["Reckless Agitation"]);
+    pick(&mut e, play(0, 0, n));
+    to_referendum(&mut e);
+    assert!(e.referendum().is_some());
+    assert_eq!(blood(&e, n), 0);
+}
+
+// The Erciyes Fragments and Delaying Tactics [LSJ 20050322] [LSJ 20050324]
+// "If used to play a political action and Delaying Tactics is played, the
+// political action card goes to its owner's hand": Nergal plays seat 1's
+// Reckless Agitation from seat 0's Fragments; seat 1's Delaying Tactics
+// returns it to seat 1's hand (rules-qa 60.19).
+#[test]
+fn delaying_tactics_returns_the_fragments_card_to_its_owner() {
+    let mut e = game(3);
+    let n = e.add_minion(SeatId(0), find_card("Nergal"), 6, false);
+    e.add_minion(SeatId(0), plain("Brujah", 0), 4, false);
+    let z = e.add_minion(SeatId(1), plain("Ventrue", 0), 4, false);
+    e.add_minion(SeatId(2), plain("Ventrue", 1), 4, false);
+    let frag = in_play(&mut e, 0, "Erciyes Fragments, The", None);
+    let agitation = find_library("Reckless Agitation");
+    e.state.cards[frag.index()].stored = vec![agitation].into();
+    e.state.cards[frag.index()].stored_owner = Some(SeatId(1));
+    hand(&mut e, 1, &["Delaying Tactics"]);
+    pick(&mut e, play(0, 0, n));
+    to_referendum(&mut e);
+    pick_when(&mut e, play(0, 0, z));
+    until(&mut e, SeatId(0), WindowLabel::MinionPhase);
+    assert!(e.state.cards[frag.index()].stored.is_empty());
+    assert!(e.state.seats[1].hand.contains(&agitation));
+    assert!(!e.state.seats[0].hand.contains(&agitation));
+    assert!(!e.state.seats[1].removed.contains(&agitation));
+    assert!(
+        !e.state.minions[n.index()].locked,
+        "Delaying Tactics unlocks"
+    );
+}
+
+// The Erciyes Fragments and Sudario Refraction [LSJ 20090722] "If no copy
+// of a named card is in the ash heap upon resolution (eg. The Erciyes
+// Fragments was used to take it), the effect still resolves for the other
+// copies and the acting Methuselah discards 3 cards": seat 0 takes
+// Bonding, one of the three seat 1's Sudario named, onto its Fragments
+// during the action; the other two come back, 3 discarded (rules-qa
+// 93.10).
+#[test]
+fn sudario_refraction_resolves_without_the_card_the_fragments_took() {
+    let mut e = game(2);
+    e.add_minion(SeatId(0), plain("Brujah", 0), 4, false);
+    let a = e.add_minion(SeatId(1), plain("Giovanni", 0), 4, false);
+    e.add_minion(SeatId(1), plain("Ventrue", 0), 4, false);
+    let frag = in_play(&mut e, 0, "Erciyes Fragments, The", None);
+    to_minion_phase(&mut e, SeatId(1));
+    hand(&mut e, 1, &["Sudario Refraction"]);
+    let names = ["Bonding", "Conditioning", "Govern the Unaligned"];
+    e.state.seats[1].ash = names.iter().map(|n| find_library(n)).collect();
+    e.state.seats[1].library = vec![find_library("Deflection"); 10].into();
+    pick(&mut e, play(0, 0, a));
+    for n in &names[..2] {
+        pick(&mut e, Choice::FindCard(find_library(n)));
+    }
+    pick_when(&mut e, use_at(frag, 0, None, Target::None));
+    pick_when(&mut e, Choice::FindCard(find_library("Bonding")));
+    until(&mut e, SeatId(1), WindowLabel::MinionPhase);
+    let bonding = find_library("Bonding");
+    assert_eq!(e.state.cards[frag.index()].stored, vec![bonding]);
+    let s = &e.state.seats[1];
+    for n in &names[1..] {
+        let c = find_library(n);
+        assert!(s.hand.contains(&c) || s.library.contains(&c) || s.ash.contains(&c));
+    }
+    // Sudario itself and the 3 discarded.
+    assert_eq!(s.ash.len(), 1 + 3);
+}
+
+// The Erciyes Fragments [LSJ 20050118] "The card on it cannot be discarded
+// or burned to satisfy another effect (eg. Tension in the Ranks or using
+// political action cards for votes)": seat 1 calls a referendum; seat 0's
+// Fragments hold a political action card, its hand none — no vote from it
+// (rules-qa 93.10).
+#[test]
+fn the_fragments_card_is_no_political_card_to_burn_for_a_vote() {
+    for in_hand in [false, true] {
+        let mut e = game(3);
+        e.add_minion(SeatId(0), plain("Brujah", 0), 4, false);
+        let z = e.add_minion(SeatId(1), find_card("Nergal"), 6, false);
+        e.add_minion(SeatId(1), plain("Ventrue", 0), 4, false);
+        e.add_minion(SeatId(2), plain("Ventrue", 1), 4, false);
+        let frag = in_play(&mut e, 0, "Erciyes Fragments, The", None);
+        e.state.cards[frag.index()].stored = vec![find_library("Banishment")].into();
+        e.state.cards[frag.index()].stored_owner = Some(SeatId(1));
+        to_minion_phase(&mut e, SeatId(1));
+        if in_hand {
+            hand(&mut e, 0, &["Banishment"]);
+        }
+        hand(&mut e, 1, &["Reckless Agitation"]);
+        pick(&mut e, play(0, 0, z));
+        to_referendum(&mut e);
+        let vote = Choice::BurnForVote {
+            card: 0,
+            favor: false,
+        };
+        if in_hand {
+            assert!(offered_before(
+                &mut e,
+                vote,
+                SeatId(1),
+                WindowLabel::MinionPhase
+            ));
+        } else {
+            never_offered_where(&mut e, SeatId(1), WindowLabel::MinionPhase, |o| {
+                matches!(o, Choice::BurnForVote { .. })
+            });
+        }
+    }
+}
+
+// Nergal's reduction on a political action card paid early: Yawp Court
+// pays the action's cost before its combat (LSJ 20080201) — at 1 blood,
+// Reckless Agitation (2 blood) with the reduction; paid, the combat begins
+// (rules-qa 93.9).
+#[test]
+fn nergals_reduction_pays_reckless_agitation_before_yawp_courts_combat() {
+    let mut e = game(3);
+    let n = e.add_minion(SeatId(0), find_card("Nergal"), 1, false);
+    e.add_minion(SeatId(0), plain("Brujah", 0), 4, false);
+    let sabbat = e.add_minion(SeatId(1), of_sect(Sect::Sabbat, 0), 4, false);
+    e.add_minion(SeatId(2), plain("Ventrue", 1), 4, false);
+    let court = in_play(&mut e, 1, "Yawp Court", None);
+    hand(&mut e, 0, &["Reckless Agitation"]);
+    pick(&mut e, play(0, 0, n));
+    pick_when(&mut e, use_at(court, 0, Some(sabbat), Target::None));
+    assert_eq!(blood(&e, n), 0, "the cost first");
+    assert!(e.combat().is_some(), "Yawp Court's combat");
 }

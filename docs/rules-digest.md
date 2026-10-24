@@ -1240,7 +1240,9 @@ Advanced rules §1.7 (costs and payment), §1.8 (playing and canceling).
   card entering play from it is its owner's; a master is played with a
   master phase action; the card on the Fragments as they leave play burns
   to its owner's ash heap — its controller ousted, another Methuselah's card
-  on it goes to its owner's ash heap (60.19, 67.1).
+  on it goes to its owner's ash heap (60.19, 67.1). The card on it is no
+  card in hand (no vote, no discard); a card it took leaves Sudario
+  Refraction resolving for the others (93.10).
 - "Only one … each turn / per game": D27; "only one Flaming Candle can be
   played or equipped in a game" counts an equip via Contraband, a search or
   Vast Wealth, not a move from another minion (38.7, ANK 20221103).
@@ -1254,6 +1256,10 @@ Advanced rules §1.7 (costs and payment), §1.8 (playing and canceling).
   (Parijat's, 18.1, ANK 20260317, superseding ANK 20260216's Eagle's Sight
   example).
 - Burning one's last pool to cancel True Love's Face is not offered (18.2).
+- In the as-played window nothing but the cancel (or a wake) is used, the
+  canceled card replaced after; its "do not replace until" clause canceled
+  with it; a card played as if from hand can be canceled (I am Legion,
+  93.8).
 - Diana Iadanza cancels any reaction card as it is played during the
   referendum of a political action she performs; its cost is paid (51.8).
 - Delaying Tactics cancels a granted referendum (nothing to return to hand,
@@ -1328,13 +1334,15 @@ Advanced rules §1.7 (costs and payment), §1.8 (playing and canceling).
   Bourgeois, 41.13); Roger de Camden's is blood only (41.9); Regina Blake's
   blood is announced with the card like a reduction and burned as the cost
   is paid, only if something is left to pay (41.13).
-- Nergal's reduction is his choice, of the card he uses it on — announced
-  with that card, once each Methuselah's turn, spent only when that cost is
-  paid (60.7). Lord Tremere's Blood Sorcery reduction: any card requiring
-  [tha] he plays (60.5). Ragnar Nordstrom's: wherever he pays the card's
-  blood, combat cards included (42.5). Adana de Sforza's: 1 blood off a card
-  played as a combat card, never off a "burn blood" effect (62.2). Inyanga's
-  for recruiting an ally requiring a Gangrel (59.5).
+- Nergal's reduction is his choice, of the card he uses it on — announced with
+  that card, once each Methuselah's turn, spent only when that cost is paid
+  (60.7) — off a bleed or political action card's cost at the action's
+  resolution too, a redirected bleed included; left unpayable or canceled
+  unpaid, unspent (93.9). Lord Tremere's Blood Sorcery reduction: any card
+  requiring [tha] he plays (60.5). Ragnar Nordstrom's: wherever he pays the
+  card's blood, combat cards included (42.5). Adana de Sforza's: 1 blood off a
+  card played as a combat card, never off a "burn blood" effect (62.2).
+  Inyanga's for recruiting an ally requiring a Gangrel (59.5).
 - Surcharges: Unleashing the Bestial Soul [DOM]'s applies to the first
   reaction card paid for after it (23.4); Daria's and Marcellus's +1 are
   costs of the action (42.1, 42.6, 62.7, §8.3); Nergal (advanced)'s
@@ -1825,6 +1833,13 @@ Advanced rules §3.2 (stealth and intercept), §3.3 (blocking).
   block attempt (a 9-capacity infernal vampire, +2 intercept, 0 blood); its
   successful block ends the action at once — damage and burn, no combat,
   nothing played on it afterward; never locked (60.21).
+- The Fury against later plays: the same minion for every attempt (Elder
+  Impersonation fails it for good, 93.1); never locked, a locked Fury still
+  attempts (Faceless Night, 93.2); its intercept takes others' cards (KRCG
+  News Radio), it pays no blood cost, burned it is no minion (93.3);
+  Mirror Walk's end of the action and its damage at the same moment, both
+  apply (93.4); nothing before its damage and burn (Crypt's Sons, 93.5);
+  its burn option reads ready infernal vampires (93.6).
 - Dogged Pursuit [ANI]: the card goes on the vampire after resolution when
   it did not block, unless it already has one; its +1 intercept serves any
   later attempt of that vampire, burned then (30.4).
@@ -1838,9 +1853,6 @@ Advanced rules §3.2 (stealth and intercept), §3.3 (blocking).
 
 ### Open or contested
 
-- The Fury's block and later plays (Change of Target, Mirror Walk, Elder
-  Impersonation, KRCG News Radio, Tension in the Ranks): the ledger rows are
-  `blocked` (untested), the reading of 60.21 untested against them.
 
 ## 10. Action outcomes
 
@@ -3353,7 +3365,9 @@ retainers, traits, titles, trait changes).
 - Banishment: the vampire goes to its controller's uncontrolled region with
   its blood as counters; cards on it leave play but stay face down on it and
   come back (face up, unlocked) when it is re-influenced (5.7); a banished
-  vampire keeps everything, counters of any kind included (25.1). Pit of
+  vampire keeps everything, counters of any kind included (25.1); a
+  banished Great Beast too, and one that would go to the crypt burns
+  (Kaymakli Nightmares, 93.7). Pit of
   Contemplation's "owner's uncontrolled region": a temporarily controlled
   vampire goes to the region of the Methuselah it would return to; the move
   is Banishment's (27.7).
@@ -4346,6 +4360,12 @@ rules-qa batch.
   over LSJ 19970224 ("until his controller's next unlock phase"); the
   ledger row is test-backed by the owner's reading, its "burned or stolen"
   half tested, its timing overridden.
+- **K46** Unleash Hell's Fury: 60.21 (owner, 2026-10-09) — its successful
+  block ends the action at once, nothing played on it afterward (Change of
+  Target named) — over ANK 20210627's "other effects and modifiers can be
+  played after (e.g. Change of Target)"; those two ledger rows are `n/a:
+  superseded`, the ruling's first half (no effect before its damage and
+  burn) test-backed (93.5).
 
 ### 23.2 Within rules-qa
 
@@ -4600,23 +4620,13 @@ read, for the owner to confirm or correct:
 - 90.1–90.3, 90.5, 90.8–90.10 graded green or amber (90.4, 90.6, 90.7
   red, answered by the owner: 90.4 confirmed, 90.6 and 90.7 corrected).
 - 92.2, 92.3 graded green or amber (92.1 the owner's playtest ruling).
+- 93.1–93.10 graded green (settled by KRCG rulings and 60.7, 60.19, 60.21).
 - 49.6's several-holders question is moot (50.1: the Cog is unique).
 
 ### 24.2 Questions for a new rules-qa batch
 
 From §23: K11 (the "during" template, for the advanced rules), K19 (live
 grants).
-Also from the
-ledger, not yet a reading anywhere:
-
-- The Fury's block (60.21) against later plays: the `blocked:untested` rows
-  for Change of Target, Mirror Walk, Elder Impersonation, Faceless Night,
-  Elder Intervention, KRCG News Radio, Tension in the Ranks, Crypt's Sons.
-- The Erciyes Fragments: a political card played from them and Delaying
-  Tactics; the card on them not shown to other players (`blocked`).
-- Nergal's reduction at a redirected bleed's resolution; I am Legion's
-  cancel of a do-not-replace, limited or as-if-from-hand card; a banished
-  Great Beast (`blocked`).
 
 ### 24.3 Principles from the rulings and the advanced rules not in rules-qa
 
@@ -4708,7 +4718,7 @@ an owner ruling:
 Every rules-qa item, by batch, with the digest sections citing it: the
 section stating it and those cross-referring to it (§2 the default
 readings, §22 engine modeling, §23 the contradictions, §24 the open
-readings). 954 items, Batches 1–92 (44.11 was removed, replaced by Batch
+readings). 964 items, Batches 1–93 (44.11 was removed, replaced by Batch
 45). The index is derived from the citations: a bare `N.M` cites rules-qa
 item N.M in the section it appears in. A new rules-qa item gets its line in
 the section stating it, then its entry here: `python3
@@ -4883,12 +4893,12 @@ index or an item cited nowhere.
   §3.15,§4.3,§13.3
 - **60** — 60.1 §14.9,§22; 60.2 §5.5,§13.1,§19.3; 60.3
   §3.6,§3.18,§7.3,§15.2; 60.4 §3.8,§3.18,§15.2; 60.5 §3.12,§7.3,§14.1; 60.6
-  §2,§4.2,§14.1; 60.7 §4.2,§7.3; 60.8 §6.4,§14.3; 60.9 §18.1; 60.10 §8.1;
-  60.11 §3.13,§4.2,§12.4; 60.12 §9.2,§16.4; 60.13 §2,§3.13,§9.5,§14.5; 60.14
-  §13.5,§16.4; 60.15 §3.2,§4.5; 60.16 §2,§13.1; 60.17 §2,§8.1; 60.18
-  §2,§3.13,§14.4,§14.7,§23.4; 60.19 §3.9,§5.1,§7.1,§16.1,§17.1,§19.4; 60.20
-  §3.6,§4.2,§12.8,§14.7; 60.21 §3.2,§3.4,§3.6,§8.2,§9.6,§10.3,§14.5,§24.2;
-  60.22 §2,§5.3,§6.2,§23.2
+  §2,§4.2,§14.1; 60.7 §4.2,§7.3,§24.1; 60.8 §6.4,§14.3; 60.9 §18.1; 60.10
+  §8.1; 60.11 §3.13,§4.2,§12.4; 60.12 §9.2,§16.4; 60.13 §2,§3.13,§9.5,§14.5;
+  60.14 §13.5,§16.4; 60.15 §3.2,§4.5; 60.16 §2,§13.1; 60.17 §2,§8.1; 60.18
+  §2,§3.13,§14.4,§14.7,§23.4; 60.19 §3.9,§5.1,§7.1,§16.1,§17.1,§19.4,§24.1;
+  60.20 §3.6,§4.2,§12.8,§14.7; 60.21
+  §3.2,§3.4,§3.6,§8.2,§9.6,§10.3,§14.5,§23.1,§24.1; 60.22 §2,§5.3,§6.2,§23.2
 - **61** — 61.1 §12.12; 61.2 §3.3,§6.3,§11.1,§21.2
 - **62** — 62.1 §12.5; 62.2 §2,§3.8,§3.14,§7.3; 62.3 §2,§4.2,§9.1,§14.1;
   62.4 §2,§11.5,§14.4,§14.9,§23.2; 62.5 §6.2; 62.6 §13.5,§21.2; 62.7
@@ -5037,3 +5047,5 @@ index or an item cited nowhere.
 - **91** — 91.1 §18.5; 91.2 §18.5; 91.3 §18.5; 91.4 §18.5; 91.5 §18.5; 91.6
   §18.5; 91.7 §18.5; 91.8 §18.5
 - **92** — 92.1 §9.1,§24.1; 92.2 §9.1,§24.1; 92.3 §9.1,§24.1
+- **93** — 93.1 §9.6,§24.1; 93.2 §9.6; 93.3 §9.6; 93.4 §9.6; 93.5
+  §9.6,§23.1; 93.6 §9.6; 93.7 §14.6; 93.8 §7.2; 93.9 §7.3; 93.10 §7.1,§24.1

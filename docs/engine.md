@@ -1528,6 +1528,12 @@ sources to the engine's conventions.
   is announced as `PlayCtx::reducer` (`seat_reducers`, reading a named card
   too) and spent where the cost is paid (`reducer_off`, `spend_reducer`):
   the play, an equip from hand by a card, a found equipment.
+- Nergal's once-each-turn blood off (`Stat::BloodCostOffOncePerTurn`) is
+  announced as `PlayCtx::once_off` (`once_off_available`) and taken where
+  the cost is paid (`once_off_amount`, spent by `spend_once_cost_off` only
+  once paid): the play, a canceled card's paid cost, recruit, employ,
+  equip, other action cards, a bleed or political card (`card_blood_due`,
+  Yawp Court's early payment included). A new payment site takes it too.
 - Surcharges: `card_surcharge` (Discipline and event surcharges),
   `discipline_surcharge` (Libertas), `combat_card_surcharge` (Terror Frenzy,
   Djeneba), `torpid_surcharge`, Haven's +1 on masters targeting its minion;

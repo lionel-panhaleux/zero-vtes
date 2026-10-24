@@ -77,7 +77,7 @@ by the owner. Apply them to every new card; only a ruling overrides them.
 - **Directed / undirected, targeting, choosing** — 6.8, 17.2, 17.4, 20.1, 24.5, 26.3, 27.2, 32.5, 33.3, 34.8, 35.1, 38.2, 38.6, 39.4, 42.1, 57.10, 75.1, 77.12, 77.26, 77.27, 78.30, 78.36, 78.52, 89.3, 89.9
 - **When choices are made (play vs resolution vs use)** — 3.5, 6.7, 22.2, 26.8, 28.5, 31.2, 31.3, 32.11, 32.12, 33.4, 38.1
 - **Bleeds** — 18.4, 23.5, 24.1–24.4, 25.6, 30.5, 31.2, 32.2, 32.4, 32.8, 33.9, 34.4, 34.5, 39.5, 42.3, 42.7, 53.6, 53.8, 57.1, 57.2, 61.2, 76.12
-- **Stealth, intercept, blocks** — 1.3, 1.6, 3.2, 3.4, 8.1, 9.6, 15.2, 23.1, 24.5, 25.3, 25.5, 27.3, 30.1, 30.3, 30.4, 23.6, 34.1, 34.2, 35.1, 42.4, 42.8, 48.1, 48.3, 48.5, 48.6, 49.5, 50.4, 52.8, 53.1, 53.2, 53.3, 55.7, 66.2, 72.1–72.4, 73.8, 76.17, 77.18, 77.19, 77.20, 78.20, 78.28, 78.37, 78.53, 82.1, 82.2, 88.7, 89.6, 89.7, 89.16, 92.1–92.3
+- **Stealth, intercept, blocks** — 1.3, 1.6, 3.2, 3.4, 8.1, 9.6, 15.2, 23.1, 24.5, 25.3, 25.5, 27.3, 30.1, 30.3, 30.4, 23.6, 34.1, 34.2, 35.1, 42.4, 42.8, 48.1, 48.3, 48.5, 48.6, 49.5, 50.4, 52.8, 53.1, 53.2, 53.3, 55.7, 66.2, 72.1–72.4, 73.8, 76.17, 77.18, 77.19, 77.20, 78.20, 78.28, 78.37, 78.53, 82.1, 82.2, 88.7, 89.6, 89.7, 89.16, 92.1–92.3, 93.1–93.5
 - **Combat structure, strikes, maneuvers, presses** — 1.2, 4.1, 4.3, 4.4, 4.5, 10.1, 10.2, 10.4, 10.5, 14.1, 14.2, 19.5, 21.1, 22.1, 22.3, 26.2, 26.6, 26.7, 27.5, 29.7, 29.8, 29.9, 31.7, 33.6, 42.2, 47.2, 48.2, 48.4, 53.3, 54.4, 54.6, 54.7, 54.8, 55.1, 55.2, 55.8, 57.3, 57.4, 58.2, 58.17, 58.18, 59.2, 59.17, 60.11, 61.1, 62.1, 63.4, 63.6, 63.8, 75.1–75.3, 76.9, 76.10, 76.11, 77.9, 78.23, 78.32, 78.40, 88.10, 88.11, 89.6, 89.8, 89.25
 - **Frenzy cards** — 28.11, 29.5
 - **Damage, prevention, immunity** — 4.2, 10.3, 14.2, 21.3, 29.1, 29.2, 29.3, 29.4, 30.6, 38.3, 38.8, 40.9, 77.8, 77.21, 77.22, 77.23, 78.19, 78.33, 78.34, 78.38, 90.1
@@ -86,17 +86,17 @@ by the owner. Apply them to every new card; only a ruling overrides them.
 - **Titles** — 3.1, 13.2, 19.1, 19.2, 19.6, 32.9, 49.4, 52.5, 52.6, 52.9, 58.3, 58.11, 59.13, 59.14, 60.1, 76.1–76.4, 77.1, 77.2, 78.1, 78.7, 78.16, 91.6
 - **Contests, uniqueness** — 3.1, 7.1, 7.3, 7.5, 8.2, 11.2, 12.3, 19.1, 36.3, 38.7, 39.4, 40.1, 57.9, 58.5, 58.19, 59.13, 60.1, 60.9, 60.20, 76.2, 76.3, 85.32, 91.2–91.6
 - **Control, steals, ousts, removal from game** — 6.9, 7.5, 17.4, 25.1, 27.3, 27.4, 27.7, 28.13, 31.4, 31.5, 31.6, 33.5, 33.7, 38.4, 39.4, 42.7, 55.4, 55.6, 88.9, 90.4, 90.7, 90.10
-- **Costs and reductions** — 3.6, 5.9, 9.3, 18.1, 18.2, 23.4, 29.6, 27.6, 36.1–36.5, 38.5, 42.1, 42.2, 42.5, 42.6, 54.1, 58.12, 59.5, 60.5, 60.7, 77.24, 78.3, 78.17, 78.21, 89.3, 89.10, 89.11, 89.15, 89.24
-- **Replacement, draws, stored and held cards** — 5.5, 7.10, 8.2, 8.3, 8.4, 9.4, 9.5, 11.1–11.3, 12.1–12.5, 22.2, 37.1, 40.4, 53.4, 53.5, 73.1, 73.2, 77.35, 78.18, 78.26, 78.51, 88.8
+- **Costs and reductions** — 3.6, 5.9, 9.3, 18.1, 18.2, 23.4, 29.6, 27.6, 36.1–36.5, 38.5, 42.1, 42.2, 42.5, 42.6, 54.1, 58.12, 59.5, 60.5, 60.7, 77.24, 78.3, 78.17, 78.21, 89.3, 89.10, 89.11, 89.15, 89.24, 93.9
+- **Replacement, draws, stored and held cards** — 5.5, 7.10, 8.2, 8.3, 8.4, 9.4, 9.5, 11.1–11.3, 12.1–12.5, 22.2, 37.1, 40.4, 53.4, 53.5, 73.1, 73.2, 77.35, 78.18, 78.26, 78.51, 88.8, 93.8, 93.10
 - **Card destination (ash heap, limbo, lingering effects)** — 21.1, 22.1, 31.6, 46.4, 47.1
 - **Equipment and weapons** — 9.1–9.6, 10.1–10.5, 17.4, 18.3, 22.4, 29.7, 35.3, 38.4, 38.5, 38.7, 76.9, 76.10, 76.15, 76.16, 77.19, 77.29, 78.28, 78.42
 - **Allies, retainers, ghouls** — 22.2, 28.10, 29.2, 32.4, 32.11, 32.12, 32.13, 37.1, 40.10, 42.2, 42.9, 49.3, 50.6, 73.5, 73.6, 76.7, 76.8, 77.29, 88.3, 89.14, 89.15, 89.24, 90.2
 - **Locations, hunting grounds, locquipment** — 6.5, 7.2, 7.4, 17.4, 28.2, 28.6, 31.4, 34.7, 39.4, 49.5, 50.4, 51.4, 52.7, 54.1, 57.7, 73.3, 73.6, 77.16, 88.9, 89.10, 89.12
-- **Blood, capacity, uncontrolled region, banishment** — 5.7, 7.6, 25.1, 27.7, 28.1, 28.3, 28.4, 32.6, 40.7, 73.5, 90.5
+- **Blood, capacity, uncontrolled region, banishment** — 5.7, 7.6, 25.1, 27.7, 28.1, 28.3, 28.4, 32.6, 40.7, 73.5, 90.5, 93.7
 - **Torpor, rescue, diablerie, blood hunt** — 3.1, 3.6, 5.2, 5.8, 6.4, 16.2, 28.7, 38.2, 48.8, 81.1, 86.1, 88.4, 89.12, 89.20
 - **Hunting** — 6.5, 7.7, 17.3, 28.1, 28.8, 32.13, 40.2, 53.8, 72.1–72.5, 77.30, 89.1, 89.13, 89.26
 - **Master phase, master cards, out-of-turn** — 1.5, 3.3, 6.6, 7.5, 28.10, 32.3, 33.1, 33.8, 36.4, 49.6, 49.7, 50.1–50.3, 53.7, 57.8, 77.11, 77.27, 78.10, 78.48, 78.49
-- **Unlock phase, locking, stun** — 3.7, 6.1, 7.8, 16.5, 21.2, 25.5, 26.5, 31.1, 48.7, 54.2, 54.5, 58.4, 58.9, 59.3, 59.4, 60.6, 88.5
+- **Unlock phase, locking, stun** — 3.7, 6.1, 7.8, 16.5, 21.2, 25.5, 26.5, 31.1, 48.7, 54.2, 54.5, 58.4, 58.9, 59.3, 59.4, 60.6, 88.5, 93.6
 - **Discard phase, events** — 8.4, 15.2, 28.12, 33.8, 40.1–40.11, 54.5, 57.5, 57.6, 58.10, 89.17, 89.18, 90.6
 - **Conditions read live; card-text defaults** — 4.3, 9.1, 13.2, 18.4, 19.3, 28.2, 28.6, 29.11, 32.4, 32.7, 39.5, 49.5, 49.7, 73.7, 77.6, 77.13
 - **Corruption counters, multi-Discipline cards** — 25.1–25.6, 34.3, 35.2, 38.4, 52.1, 77.28
@@ -2300,3 +2300,25 @@ Each contradiction read against the KRCG rulings, the advanced rules and the rul
 **92.2** Faceless Night [OBF]'s "minions who attempt to block this action and fail become locked before action resolution" takes an attempt failed by such a bar (the minion attempted and failed; LSJ 20081202: one attempting before it is played cannot back out). Amber (LSJ 20081202, ANK 20171017). (Test faceless_night_locks_a_vampire_whose_attempt_daring_the_dawn_fails.)
 
 **92.3** The Kiss of Ra ("only usable when a vampire … attempts to block") never follows Daring the Dawn: played before, it bars the attempt; played into one, it fails it (92.1). Daring the Dawn's ledger row on the action canceled before resolution (ANK 20220401) stays `n/a` for The Kiss of Ra, reworded. Green.
+
+## Batch 93 — The ledger's questions with no reading yet (rules-digest §24.2): the Fury's block against later plays, The Erciyes Fragments, Nergal at resolution, I am Legion's cancels, a banished Great Beast: readings graded (Claude, 2026-10-24)
+
+**93.1** Unleash Hell's Fury and Elder Impersonation [OBF]: the Fury's attempt fails, no damage, the card stays in play, its token out of play again; the Fury is the same minion for every attempt, so it never attempts this action again (LSJ 20100210). Green. (Test elder_impersonation_fails_the_furys_attempt_for_good.)
+
+**93.2** Unleash Hell's Fury and Faceless Night [OBF]: the Fury's failed attempt locks nothing — the card is never locked (60.21) —, and a locked Fury card still attempts (LSJ 20100210). Green. (Test faceless_night_does_not_lock_the_fury.)
+
+**93.3** The Fury attempting is a 9-capacity infernal vampire with 0 blood: its intercept takes other cards as any blocker's, at the short attempt's window (KRCG News Radio, ANK 20211112-2; 82.1); it pays no blood cost (Elder Intervention, LSJ 19970707); burned, it is no minion (Tension in the Ranks, ANK 20230317). Green. (Tests krcg_news_radio_raises_the_furys_intercept, the_fury_cannot_pay_for_elder_intervention, the_fury_burning_is_no_minion_for_tension_in_the_ranks.)
+
+**93.4** Unleash Hell's Fury and Mirror Walk [THA]: Mirror Walk's end of the action before block resolution and the Fury's damage and burn trigger at the same moment: the action ends unbled, the acting minion still takes the damage and the Fury burns (LSJ 20100301, ANK 20210627, ANK 20211207, ANK 20220116). Green. (Test mirror_walk_ends_the_action_the_fury_still_burns.)
+
+**93.5** Unleash Hell's Fury's successful block: no effect before its damage and burn (Crypt's Sons' "continue the action as if unblocked" is never offered; ANK 20210627, ANK 20211207, ANK 20220116). What may be played after is 60.21's, the owner's over ANK 20210627 ("Other effects and modifiers can be played after (e.g. Change of Target)"): the action ends at once, nothing played on it; those ledger rows are `n/a: superseded` (rules-digest §23.1 K46). Green. (Test crypts_sons_cannot_answer_the_furys_block.)
+
+**93.6** Unleash Hell's Fury's burn option reads ready infernal vampires (33.8, 78.31): with its only infernal vampire in torpor it may be discarded (LSJ 20091203); with a ready one it may not, a Fury already in play notwithstanding (LSJ 20100203-2). Green. (Test the_furys_burn_option_reads_ready_infernal_vampires.)
+
+**93.7** A banished Great Beast stays a vampire in the uncontrolled region (RTR 19990712), its blood as counters and its card with it (25.1): influenced out, it returns as it left. A Great Beast that would go to the crypt burns instead (LSJ 20041201-2): Kaymakli Nightmares sends the banished one's card to its owner's ash heap, its counters to the pool, none drawn for it. The ledger's "not modeled" was stale: the banish and Kaymakli paths carried created vampires already. Green. (Tests a_banished_great_beast_is_influenced_back, kaymakli_nightmares_burns_a_banished_great_beast.)
+
+**93.8** I am Legion's cancel: in the as-played window, the reacting Methuselah has not replaced the card and nothing but the cancel (or a wake) is used — The Erciyes Fragments are not offered (LSJ 20061207, RTR 20040501; 60.19) —; the canceled card is replaced after; a canceled "do not replace until" card (Read the Winds) is replaced at once (LSJ 20080630); a card played from the Fragments can be canceled, and burned it is removed from the game to its owner's removed cards (LSJ 20060106; 60.19). Its limited-effect row is `n/a`: no reaction requiring Auspex in the pool is limited. Green. (Tests i_am_legions_cancel_comes_before_the_replacement_and_the_fragments, i_am_legion_cancels_read_the_winds_replacement_clause, i_am_legion_cancels_a_card_played_from_the_fragments.)
+
+**93.9** Nergal's reduction (60.7) is taken off a bleed or political action card's cost at the action's resolution, as off any action card's (a gap found on the way: those two paths, and a political cost paid early, ignored it, so a card payable only with it fizzled): Propaganda at 1 blood, redirected by Deflection, is paid with it (LSJ 20091021-2); a card left unpayable even with it does not spend it, nor does a card canceled unpaid (Direct Intervention). Green. (Tests nergal_pays_a_deflected_propaganda_with_his_reduction, nergal_pays_reckless_agitation_with_his_reduction, nergals_reduction_is_unspent_when_his_action_is_left_unpayable, nergals_reduction_is_unspent_by_a_card_canceled_unpaid.)
+
+**93.10** The card on The Erciyes Fragments is no card in hand: never burned for a vote nor discarded for another effect (LSJ 20050118); a named card the Fragments took leaves Sudario Refraction resolving for the others, 3 still discarded (LSJ 20090722); the Fragments lock at any impulse of an action (ANK 20200616; 60.19). Green. (Tests the_fragments_card_is_no_political_card_to_burn_for_a_vote, sudario_refraction_resolves_without_the_card_the_fragments_took, the_erciyes_fragments_lock_during_an_action, delaying_tactics_returns_the_fragments_card_to_its_owner.)

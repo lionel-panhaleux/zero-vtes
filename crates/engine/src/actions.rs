@@ -1999,6 +1999,21 @@ impl Engine {
         (pool, blood, used)
     }
 
+    /// The blood a bleed or political action card `play` costs as it is
+    /// paid, Nergal's reduction (the second value, spent with
+    /// `spend_once_cost_off` once paid: rules-qa 60.7, 93.9) and the
+    /// action's off, with the counters it takes.
+    pub(crate) fn card_blood_due(
+        &self,
+        a: &ActionCtx,
+        play: PlayCtx,
+    ) -> (u8, u8, Vec<(CardId, u8)>) {
+        let blood = self.card_blood(a.acting, play, play.x);
+        let once = self.once_off_amount(&play, blood);
+        let (_, blood, used) = self.reduced_cost_with(a, 0, blood - once);
+        (blood, once, used)
+    }
+
     /// A vampire's blood paying 1 of a `(pool, blood)` cost (Regina Blake),
     /// if it still has one and something is left to pay: the cost less it,
     /// and the payer, whose blood the caller burns as the cost is paid.
@@ -3505,14 +3520,14 @@ impl Engine {
         let Some(play) = a.card else {
             return true;
         };
-        let cost = self.card_blood(a.acting, play, play.x);
-        let (_, cost, used) = self.reduced_cost_with(a, 0, cost);
+        let (cost, once, used) = self.card_blood_due(a, play);
         let acting = a.acting;
         let paid = Cause::Cost(a.cause_source());
         if self.state.minions[acting.index()].blood < cost {
             return false;
         }
         self.caused(paid, |e| e.state.minions[acting.index()].blood -= cost);
+        self.spend_once_cost_off(&play, once);
         self.spend_counters(&used);
         self.action
             .as_mut()
@@ -4831,11 +4846,11 @@ impl Engine {
                 // paid now, unpayable by then the action fizzles (spec
                 // §1.7.1, rules-qa 3.6).
                 if let Some(play) = a.card {
-                    let (_, blood, used) =
-                        self.reduced_cost_with(&a, 0, self.card_blood(a.acting, play, play.x));
+                    let (blood, once, used) = self.card_blood_due(&a, play);
                     if self.state.minions[a.acting.index()].blood < blood {
                         return self.fizzle(a);
                     }
+                    self.spend_once_cost_off(&play, once);
                     self.spend_counters(&used);
                     self.paying(|e| e.state.minions[a.acting.index()].blood -= blood);
                 }
@@ -6359,21 +6374,21 @@ impl Engine {
                 // called if the acting minion is still ready (spec
                 // §3.7.5.1); NRA on resolution (rules-qa 1.4). A granted
                 // one has no card-play cost (spec §1.5).
-                let (mode, cost) = match (a.card, a.source) {
+                let (mode, (cost, once, used)) = match (a.card, a.source) {
                     (Some(play), _) => {
                         let def = cards::lookup(play.card).expect("definition");
                         (
                             &def.modes[play.mode as usize],
-                            self.card_blood(a.acting, play, play.x),
+                            self.card_blood_due(&a, play),
                         )
                     }
                     (None, Some(src)) => {
                         let ability = a.ability.expect("granted action's ability");
-                        (src.mode(&self.state, ability), 0)
+                        let (_, cost, used) = self.reduced_cost_with(&a, 0, 0);
+                        (src.mode(&self.state, ability), (cost, 0, used))
                     }
                     (None, None) => unreachable!("political action without a source"),
                 };
-                let (_, cost, used) = self.reduced_cost_with(&a, 0, cost);
                 let acting = a.acting;
                 self.state.minions[acting.index()].political_this_turn = true;
                 if !a.cost_paid_early {
@@ -6383,6 +6398,9 @@ impl Engine {
                         return self.fizzle(a);
                     }
                     self.paying(|e| e.state.minions[acting.index()].blood -= cost);
+                    if let Some(play) = a.card {
+                        self.spend_once_cost_off(&play, once);
+                    }
                     self.spend_counters(&used);
                 }
                 let referendum = mode
