@@ -179,6 +179,88 @@ fn every_option_s_key_names_what_it_is_about() {
     assert!(checked > 10_000, "{checked} options");
 }
 
+/// A card found by name says where it is (docs/protocol.md §7 `zone`):
+/// the library, hand or ash heap of the seat it is taken from, the card
+/// in it; none only for a card named without taking it (Master:
+/// Discipline) or one stored on a card. A library search, the seat's own
+/// ash heap and another seat's (Trochomancy) are each met.
+#[test]
+fn a_found_card_names_the_zone_it_is_in() {
+    use zvtes::decision::Choice;
+    use zvtes::draws::Interrupt;
+    use zvtes_api::ids::Zone;
+    let seeds: u64 = std::env::var("HOST_SEEDS").map_or(60, |s| s.parse().unwrap());
+    // Another seat's ash heap: Trochomancy's, added to the deck playing it.
+    let mut troch = zvtes_host::catalog()
+        .into_iter()
+        .find(|(_, d)| d.contains_key("102026"))
+        .expect("a deck with Trochomancy")
+        .1;
+    *troch.entry("102026".into()).or_default() += 8;
+    let troch = zvtes_host::deck::resolve(0, &troch).expect("Trochomancy's deck");
+    let lists = vec![(troch.crypt.as_slice(), troch.library.as_slice()); 4];
+    let mut met: HashMap<(Zone, bool), usize> = HashMap::new();
+    for seed in 1..=seeds + 12 {
+        let mut e = if seed <= seeds {
+            engine(seed)
+        } else {
+            Engine::with_lists(seed, &lists)
+        };
+        let mut agent = RandomLegal::new(seed);
+        for _ in 0..20_000 {
+            match e.run() {
+                Step::Over(_) => break,
+                Step::Decision(req) => {
+                    for c in &req.options {
+                        let Choice::FindCard(card) = *c else {
+                            continue;
+                        };
+                        let k = key(&e, &req, c, &EngineNames);
+                        let named = matches!(
+                            e.interrupt(),
+                            Some(
+                                Interrupt::NameMasterDiscipline { .. }
+                                    | Interrupt::StoredToLibraryTop { .. }
+                            )
+                        );
+                        let Some(z) = k.zone else {
+                            assert!(
+                                named,
+                                "seed {seed}, {:?}: {c:?} without its zone",
+                                req.window
+                            );
+                            continue;
+                        };
+                        let s = &e.state.seats[z.seat as usize];
+                        let cards = match z.zone {
+                            Zone::Library => &s.library,
+                            Zone::Hand => &s.hand,
+                            Zone::AshHeap => &s.ash,
+                            other => panic!("seed {seed}: {c:?} found in {other:?}"),
+                        };
+                        assert!(
+                            cards.contains(&card),
+                            "seed {seed}, {:?}: {c:?} not in {z:?}",
+                            req.window
+                        );
+                        *met.entry((z.zone, z.seat == req.seat.0)).or_default() += 1;
+                    }
+                    let pick = agent.choose(&req);
+                    e.choose(pick);
+                }
+            }
+        }
+    }
+    eprintln!("found cards by zone and own seat: {met:?}");
+    for want in [
+        (Zone::Library, true),
+        (Zone::AshHeap, true),
+        (Zone::AshHeap, false),
+    ] {
+        assert!(met.contains_key(&want), "{want:?} never met: {met:?}");
+    }
+}
+
 /// A pass on the seat's own block attempt says so (docs/protocol.md §7):
 /// `block` with its minion's copy, the decline (`declines`) while short
 /// of the stealth (rules-qa 82.1); every seat's, at random.

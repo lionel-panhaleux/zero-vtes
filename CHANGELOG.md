@@ -6,6 +6,15 @@ server runs.
 `python3 scripts/schema_compat.py` lists what a schema change adds or
 removes; its `--check` fails a removal without a major version.
 
+## 2.11.0
+
+`find_card`'s key names its `zone` again (§7; lost when the
+host replaced crates/protocol): the seat whose library (a search, a
+reorder), hand (one looked at, Goblinism's haven) or ash heap
+(Lenelle, The Erciyes Fragments, Trochomancy, Psychophagia, Sudario
+Refraction, …) the card is taken from; none for a card only named
+(Master: Discipline) or stored on a card. No field added or removed.
+
 ## 2.10.0
 
 Two-player games under VEKN's variant (§1); ids added, none removed:

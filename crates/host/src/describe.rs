@@ -221,6 +221,60 @@ fn library(c: u16) -> CardRef {
     }
 }
 
+/// Where the card a `Choice::FindCard` of `req` names is: the seat whose
+/// library, hand or ash heap it is taken from. None for a card named
+/// without taking it (Master: Discipline) or one stored on a card.
+fn found_in(e: &Engine, req: &DecisionRequest) -> Option<ZoneRef> {
+    use zvtes::cards::Terms;
+    use zvtes::decision::WindowLabel as W;
+    let at = |seat: SeatId, zone| Some(ZoneRef { seat: seat.0, zone });
+    if req.window == W::LibrarySearch {
+        return at(req.seat, Zone::Library);
+    }
+    match e.interrupt() {
+        Some(
+            Interrupt::Reorder { seat, .. }
+            | Interrupt::LibraryToHand { seat, .. }
+            | Interrupt::StoreSearch { seat, .. },
+        ) => return at(seat, Zone::Library),
+        Some(
+            Interrupt::DiscardFromHandOf { of: Some(seat), .. }
+            | Interrupt::PutFoundOn { seat, .. }
+            | Interrupt::StoreOwnHand { seat, .. },
+        ) => return at(seat, Zone::Hand),
+        Some(
+            Interrupt::RemoveFromAsh { of: seat, .. }
+            | Interrupt::AshurPicks { seat, .. }
+            | Interrupt::NameAshEquipment {
+                from: Some(seat), ..
+            }
+            | Interrupt::AllyFromAsh { seat, .. }
+            | Interrupt::StoreOwnAsh { seat, .. }
+            | Interrupt::NameOwnAshCard { seat, .. }
+            | Interrupt::NameAshPair { of: seat, .. },
+        ) => return at(seat, Zone::AshHeap),
+        Some(Interrupt::StorePreyAsh { seat, .. }) => return at(e.state.prey(seat), Zone::AshHeap),
+        Some(Interrupt::ExchangeAnarch { .. } | Interrupt::EntryRemoveOrBurn { .. }) => {
+            return at(req.seat, Zone::AshHeap)
+        }
+        Some(_) => return None,
+        None => {}
+    }
+    // Lenelle's exchange; Psychophagia's heap once chosen, Sudario
+    // Refraction's own.
+    if req.window == W::ActionExchange {
+        return at(req.seat, Zone::AshHeap);
+    }
+    if let Some(p) = e.play_terms() {
+        return at(p.ash.map_or(p.seat, |(s, _)| s), Zone::AshHeap);
+    }
+    match e.ability_terms()?.1.terms {
+        Some(Terms::AshCard) => at(req.seat, Zone::AshHeap),
+        Some(Terms::DirectedHandCard) => at(e.action()?.directed_seat(&e.state)?, Zone::Hand),
+        _ => None,
+    }
+}
+
 /// What taking `choice` does (docs/protocol.md §7): an ability's
 /// effects, a play's mode's, each naming whom it applies to by copy; a
 /// play choosing a second vampire after its target says its role.
@@ -1884,7 +1938,10 @@ pub fn key(e: &Engine, req: &DecisionRequest, choice: &Choice, names: &impl Name
             k.card = Some(x.hand(card));
             k.favor = Some(favor);
         }
-        Choice::FindCard(c) => k.card = Some(library(c)),
+        Choice::FindCard(c) => {
+            k.card = Some(library(c));
+            k.zone = found_in(e, req);
+        }
         Choice::TakeFrom { zone, card } => {
             k.card = Some(library(card));
             k.zone = Some(ZoneRef {
