@@ -18,7 +18,7 @@ is created by one request and played over one WebSocket. Every game is
 recorded, anonymously, and kept two years to train and test the engine
 (§11).
 
-Version **2.11.0**. The types: the models of the
+Version **2.12.0**. The types: the models of the
 [API reference](https://engine.krcg.org/docs), also as
 [JSON Schema](https://engine.krcg.org/schema.json) (2020-12) and
 [TypeScript](https://engine.krcg.org/protocol.ts).
@@ -161,7 +161,7 @@ asyncio.run(main())
 | What | Type | Notes |
 |---|---|---|
 | Seat | integer from 0 | seating order; prey is the next seat |
-| Card | `KrcgId` | KRCG card id ([vtes.json](https://static.krcg.org/data/vtes.json)); a deck lists ids as strings |
+| Card | `KrcgId` | KRCG card id ([vtes.json](https://static.krcg.org/data/vtes.json)); a deck lists ids as strings, or names (`GET /cards`, §10), recorded by ids |
 | Copy | `CopyId` | one physical card as the viewer follows it; a minion is its card's copy |
 | Decision | `DecisionNo` | decisions taken so far, all seats; answers name it |
 | Option | `index` | the engine's index in the pending decision |
@@ -671,13 +671,15 @@ its strikes, then ended; every card `resolved` or `canceled` told played
 | `GET /openapi.json`, `/schema.json`, `/protocol.ts` | the API reference's document, and the types as JSON Schema and TypeScript |
 | `GET /version` | protocol, engine commit, bot profiles offered, limits (seats, time limit, idle timeout) |
 | `GET /catalog` | the decklists the engine ships, `[name, list]`; `?seats=2`: VEKN's suggested 2-player decklists (the variant's, §1; its Tzimisce list, playing a card off its own list, left out) |
+| `GET /cards` | the cards the engine plays, `[id, name]`: KRCG id, and the name a decklist may give for it (a vampire whose name several carry with KRCG's suffix: `Theo Bell (G2)`, `Theo Bell (G6)`; `(ADV)` an advanced vampire) |
+| `POST /decks/check?seats=` | body: a decklist (`DeckList`, as a seat's `deck`); `{"playable": true}`, or the `SpecError` (400) a game of `seats` (default 4; 2: the two-player variant, §1) would refuse it with, its `seat` 0: `unsupported` naming each card outside the pool, `deck_size`, `two_player_deck`. A deck checked is not counted at `/admin/unsupported` |
 | `POST /games` | body: a `GameSpec` (one human seat); `{game, seat, token}`, or a `SpecError` (400). The deal's seed is the server's, 53 random bits (too many to try from a known opening hand): a spec's `seed` is kept only with the admin token (a playtest's fixed deal), at most `SEED_MAX` (2^53 − 1, exact as a JSON number), else `SpecError` `seed` (its `max`) |
 | `GET /games/{game}/ws` | WebSocket: one JSON command or message per text frame; the first command is `join` with the token. 404 to any request once the game has left the server (the idle timeout passed, after its end or with no command, or a server restart ended it), so a client whose socket will not reopen can `fetch` it to tell |
 | `GET /games/{game}/record` | the game's record (§11), `Authorization: Bearer <token>`, once the game is over (409 before: the record replayed would show the hidden cards) |
 | `GET /admin/games?since=&engine=&limit=` | the games recorded, oldest first: `id`, `engine`, `client`, `started`, `ended` (absent: going on the server now), `result`, `entries` (the operator's: `Authorization: Bearer <admin token>`) |
 | `GET /admin/games/{game}/record` | any game's record, as far as it went (the operator's) |
 | `GET /admin/feedback?since=&limit=` | the players' feedback, oldest first: `game`, `engine`, `at` (Unix ms), `decision`, `text` (the operator's) |
-| `GET /admin/unsupported` | the cards refused decks named (`SpecError` `unsupported`), counted: `[{id, count}]`, KRCG ids, the most asked first (ids and counts only; the operator's) |
+| `GET /admin/unsupported` | the cards refused decks named (`SpecError` `unsupported`), counted: `[{id, count}]`, KRCG ids, the most asked first (ids and counts only; the operator's; a card a deck named by name is not counted: the engine knows no name outside its pool) |
 
 No account: the token is the seat, never in a URL. Any page may play
 (`engine.krcg.org` allows every origin, the WebSocket's too): the
@@ -687,55 +689,51 @@ token is the gate, no cookie or credential rides a request.
 
 Every game served is recorded (`GameRecord`), and served to its seat
 once the game is over (§10): the spec with its seed (53 bits from 2.0.0,
-32 before; human names replaced), the bot profiles (weights' hash, temperature,
-seed, also at most `SEED_MAX`, a network's nudges by name), each decision answered — seat, time, option index, its key with
-the engine's copy numbers, by whom (`human`, `bot`, `order`, `auto`),
-the options shown when settings hid some, from 2.4.0 its window and the
-digest of the position it was taken on — undos (decision numbers then
-repeat from `to`: a reader drops what they take back), settings
-changes, refused commands, the players' feedback (at its decision), the
-result (with the turn the game ended on, `turns`; for a game a restart
-ended, the turn its record reads to) and any engine failure. A game
-going when its server restarts is resumed from its record, its entries
+32 before; human names replaced; its decks by KRCG ids, a card the
+request named by its id from 2.12.0), the bot profiles (weights' hash,
+temperature, seed, also at most `SEED_MAX`, a network's nudges by name), each
+decision answered — seat, time, option index, its key with the engine's copy
+numbers, by whom (`human`, `bot`, `order`, `auto`), the options shown when
+settings hid some, from 2.4.0 its window and the digest of the position it was
+taken on — undos (decision numbers then repeat from `to`: a reader drops what
+they take back), settings changes, refused commands, the players' feedback (at
+its decision), the result (with the turn the game ended on, `turns`; for a
+game a restart ended, the turn its record reads to) and any engine failure. A
+game going when its server restarts is resumed from its record, its entries
 kept (the record names the engine it started on); one the restart cannot
-resume is ended at the restart, `server_restart`: its victory points
-where its record reads to on the restarted server's engine, `failure`
-saying why when it does not read to its end (rules fixes change the
-engine, §14).
-A decision's `digest` is 16 hex digits of FNV-1a 64 over the position as
-KRCG ids, the same on every engine while the position is: for each seat
-in table order its pool, hand, library ash heap and crypt ash heap
-(sorted), library and crypt (bottom first), uncontrolled region (sorted,
-with counters; a banished created vampire by its library card), cards in
-play on no minion (sorted), and its minions in
-play (sorted, each with its blood, lock, torpor and the cards on it,
-sorted; contested and out-of-play ones included). An opaque hash: the
-record holds no hidden card in plain while the game runs. Its definition
-is frozen: changed, it would stop every record written since 2.4.0, so
-a new one is read by the record's `protocol`. A record read on a later
-engine stops at the first decision whose position differs (a rules
-change that moved hidden state with no decision, as a shuffle: the game
-read is no longer the game played, though its choices are still
-offered), or that was taken in a window other than the one asked (a
-window newly asked). A replay reads past the Passes recorded in a
-window the engine no longer asks when the decision after them is the
-one asked, in its window and position; a resumed game ends there
-instead, `server_restart`, as its decision numbers would no longer be
-the session's. The digest is strict: a fixed cost or gain stops the
-records it touches too.
-A record replays by index on its engine commit, and reads by key on a
-later engine (a key written before its kind's fields grew matches the
-option whose fields it has, alike: a bleed's before it named its seat; a
-record from before every block attempt was offered reads
-past the block windows its engine skipped; one from before rules-qa 82.1 (protocol
-before 1.9.0), whose engine reopened the block window at the acting
-Methuselah after an attempt failed short of the stealth, reads past the
-passes it recorded there; the engines from 22cf131 to it, never
-deployed, left no record read; one from before rules-qa 88.5, whose
-engine ordered Anarch Revolt's burn among the unlock-phase riders,
-reads past the rider orders the engine no longer asks, a last one too as
-the game ends before it). Kept two years, to train and
-test the engine; anonymous.
+resume is ended at the restart, `server_restart`: its victory points where its
+record reads to on the restarted server's engine, `failure` saying why when it
+does not read to its end (rules fixes change the engine, §14). A decision's
+`digest` is 16 hex digits of FNV-1a 64 over the position as KRCG ids, the same
+on every engine while the position is: for each seat in table order its pool,
+hand, library ash heap and crypt ash heap (sorted), library and crypt (bottom
+first), uncontrolled region (sorted, with counters; a banished created vampire
+by its library card), cards in play on no minion (sorted), and its minions in
+play (sorted, each with its blood, lock, torpor and the cards on it, sorted;
+contested and out-of-play ones included). An opaque hash: the record holds no
+hidden card in plain while the game runs. Its definition is frozen: changed,
+it would stop every record written since 2.4.0, so a new one is read by the
+record's `protocol`. A record read on a later engine stops at the first
+decision whose position differs (a rules change that moved hidden state with
+no decision, as a shuffle: the game read is no longer the game played, though
+its choices are still offered), or that was taken in a window other than the
+one asked (a window newly asked). A replay reads past the Passes recorded in a
+window the engine no longer asks when the decision after them is the one
+asked, in its window and position; a resumed game ends there instead,
+`server_restart`, as its decision numbers would no longer be the session's.
+The digest is strict: a fixed cost or gain stops the records it touches too. A
+record replays by index on its engine commit, and reads by key on a later
+engine (a key written before its kind's fields grew matches the option whose
+fields it has, alike: a bleed's before it named its seat; a record from before
+every block attempt was offered reads past the block windows its engine
+skipped; one from before rules-qa 82.1 (protocol before 1.9.0), whose engine
+reopened the block window at the acting Methuselah after an attempt failed
+short of the stealth, reads past the passes it recorded there; the engines
+from 22cf131 to it, never deployed, left no record read; one from before
+rules-qa 88.5, whose engine ordered Anarch Revolt's burn among the
+unlock-phase riders, reads past the rider orders the engine no longer asks, a
+last one too as the game ends before it). Kept two years, to train and test
+the engine; anonymous.
 
 ## 12. Open sets
 

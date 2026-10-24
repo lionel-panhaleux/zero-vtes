@@ -65,7 +65,8 @@ standing answers). Beyond those:
   id), and which cards it plays.
 - Undo across seats (JOL's admin rollback to a turn), once several humans sit.
 
-On the engine board: "A decklist checked without a game" (by ids or
-card names, the unplayable cards named; the pool listed). The other asks
-are held until a platform commits to plug in, then brought through
+Answered in protocol 2.12.0 (protocol.md §10): `POST /decks/check`
+checks a decklist, by ids or card names, without a game, naming the
+cards the engine does not play; `GET /cards` lists the pool. The other
+asks are held until a platform commits to plug in, then brought through
 `intake` (engine line, 2026-10-23).

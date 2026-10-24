@@ -30,7 +30,8 @@ fn game_id() -> Value {
 fn deck_list() -> Value {
     json!({
         "type": "object",
-        "description": "KRCG card id (a string) → copies.",
+        "description": "Card → copies: a KRCG card id (a string), or a card's name as \
+            `GET /cards` gives it.",
         "additionalProperties": {"type": "integer", "minimum": 0},
     })
 }
@@ -102,6 +103,61 @@ fn catalog() -> Value {
             },
             "example": [["Toreador (Fifth Edition)", {"201538": 2, "201540": 1, "100031": 2}]],
         }))},
+    })
+}
+
+fn cards() -> Value {
+    json!({
+        "tags": ["Server"],
+        "summary": "The cards",
+        "description": "The cards the engine plays, as `[id, name]` pairs: the KRCG id, \
+            and the name a decklist may give for it (a vampire whose name several carry \
+            with KRCG's suffix, its group and `ADV`).",
+        "operationId": "cards",
+        "responses": {"200": ok("The cards, the crypt then the library.", json!({
+            "type": "array",
+            "items": {
+                "type": "array",
+                "prefixItems": [
+                    {"type": "integer", "description": "The KRCG id."},
+                    {"type": "string", "description": "The name."},
+                ],
+                "minItems": 2, "maxItems": 2,
+            },
+            "example": [[200107, "Anson"], [201362, "Theo Bell (G2)"], [100029, "Aid from Bats"]],
+        }))},
+    })
+}
+
+fn check_deck() -> Value {
+    json!({
+        "tags": ["Server"],
+        "summary": "Check a deck",
+        "description": "Whether a game would take this deck: playable, or the `SpecError` \
+            `POST /games` would refuse it with (its `seat` 0): `unsupported` names each \
+            card outside the engine's pool, `deck_size` a deck too small to deal, \
+            `two_player_deck` (with `seats=2`) a deck outside VEKN's two-player variant.",
+        "operationId": "checkDeck",
+        "parameters": [{
+            "name": "seats", "in": "query", "required": false,
+            "description": "The game's seats (default 4); 2: the two-player variant's rules.",
+            "schema": {"type": "integer", "minimum": 2, "maximum": 6},
+        }],
+        "requestBody": {
+            "required": true,
+            "content": {"application/json": {
+                "schema": deck_list(),
+                "example": {"Anson": 4, "201362": 2, "Theo Bell (G6)": 2, "Aid from Bats": 7},
+            }},
+        },
+        "responses": {
+            "200": ok("The deck is playable.", json!({
+                "type": "object",
+                "required": ["playable"],
+                "properties": {"playable": {"const": true}},
+            })),
+            "400": ok("The deck is refused.", model("SpecError")),
+        },
     })
 }
 
@@ -234,6 +290,8 @@ pub fn json() -> String {
             "/games/{game}/record": {"get": record()},
             "/version": {"get": version()},
             "/catalog": {"get": catalog()},
+            "/cards": {"get": cards()},
+            "/decks/check": {"post": check_deck()},
             "/health": {"get": {
                 "tags": ["Server"],
                 "summary": "Health",

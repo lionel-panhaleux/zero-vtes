@@ -4,7 +4,9 @@ use std::collections::BTreeMap;
 
 use serde::{Deserialize, Serialize};
 
-/// A deck: KRCG id (as a string, JSON object keys) → copies.
+/// A deck: card → copies, a card by KRCG id (as a string, JSON object
+/// keys) or by name as `GET /cards` gives it (any case; from 2.12.0). A
+/// game records it by KRCG ids.
 pub type DeckList = BTreeMap<String, u32>;
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]

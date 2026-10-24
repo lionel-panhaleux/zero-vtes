@@ -152,6 +152,8 @@ async fn main() {
         .route("/health", get(|| async { "ok" }))
         .route("/version", get(version))
         .route("/catalog", get(catalog))
+        .route("/cards", get(cards))
+        .route("/decks/check", post(check_deck))
         .route("/games", post(create))
         .route("/games/{id}/ws", any(socket))
         .route("/games/{id}/record", get(record))
@@ -222,17 +224,39 @@ fn cors(origins: &Option<Vec<String>>) -> CorsLayer {
 }
 
 #[derive(serde::Deserialize)]
-struct CatalogQuery {
+struct SeatsQuery {
     seats: Option<u8>,
 }
 
 /// The decks a game of `seats` plays: VEKN's suggested two-player
 /// decklists for 2, else the decks the engine ships.
-async fn catalog(Query(q): Query<CatalogQuery>) -> Json<Vec<(String, zvtes_api::DeckList)>> {
+async fn catalog(Query(q): Query<SeatsQuery>) -> Json<Vec<(String, zvtes_api::DeckList)>> {
     Json(match q.seats {
         Some(2) => zvtes_host::two_player_catalog(),
         _ => zvtes_host::catalog(),
     })
+}
+
+/// The cards the engine plays: KRCG id, and the name a decklist may give.
+async fn cards() -> Json<Vec<(u32, String)>> {
+    Json(zvtes_host::cards())
+}
+
+/// A deck checked for a game of `seats` (4 when absent): playable, or the
+/// refusal `POST /games` would make. Not counted at `/admin/unsupported`:
+/// a platform checking its players' decks is no demand for a card.
+async fn check_deck(
+    Query(q): Query<SeatsQuery>,
+    Json(list): Json<zvtes_api::DeckList>,
+) -> Response {
+    let seats = q.seats.unwrap_or(4);
+    if !(2..=6).contains(&seats) {
+        return refuse(StatusCode::BAD_REQUEST, SpecError::Seats { n: seats });
+    }
+    match zvtes_host::check_deck(&list, seats as usize) {
+        Ok(()) => Json(json!({"playable": true})).into_response(),
+        Err(e) => refuse(StatusCode::BAD_REQUEST, e),
+    }
 }
 
 async fn version(State(app): State<Shared>) -> Json<serde_json::Value> {
@@ -644,12 +668,87 @@ mod tests {
     /// two-player lists (protocol.md §10).
     #[tokio::test]
     async fn the_catalog_serves_the_two_player_lists_when_asked() {
-        let all = catalog(Query(CatalogQuery { seats: None })).await.0;
-        let four = catalog(Query(CatalogQuery { seats: Some(4) })).await.0;
-        let two = catalog(Query(CatalogQuery { seats: Some(2) })).await.0;
+        let all = catalog(Query(SeatsQuery { seats: None })).await.0;
+        let four = catalog(Query(SeatsQuery { seats: Some(4) })).await.0;
+        let two = catalog(Query(SeatsQuery { seats: Some(2) })).await.0;
         assert_eq!(all, zvtes_host::catalog());
         assert_eq!(four, all);
         assert_eq!(two, zvtes_host::two_player_catalog());
         assert!(two.iter().all(|(name, _)| name.starts_with("2-player: ")));
+    }
+
+    async fn checked(
+        seats: Option<u8>,
+        list: zvtes_api::DeckList,
+    ) -> (StatusCode, serde_json::Value) {
+        let r = check_deck(Query(SeatsQuery { seats }), Json(list)).await;
+        let status = r.status();
+        let body = axum::body::to_bytes(r.into_body(), usize::MAX)
+            .await
+            .unwrap();
+        (status, serde_json::from_slice(&body).unwrap())
+    }
+
+    /// `POST /decks/check` (protocol.md §10): a precon playable, a card
+    /// outside the pool named, a list by card names resolved, a
+    /// two-player table's rules under `seats=2`.
+    #[tokio::test]
+    async fn a_deck_is_checked_without_a_game() {
+        let precon = zvtes_host::catalog()[0].1.clone();
+        assert_eq!(
+            checked(None, precon.clone()).await,
+            (StatusCode::OK, json!({"playable": true}))
+        );
+        let mut outside = precon.clone();
+        // Abandoning the Flesh, a card the engine does not play, by its id.
+        outside.insert("100005".into(), 1);
+        outside.insert("Not A Card".into(), 1);
+        assert_eq!(
+            checked(None, outside).await,
+            (
+                StatusCode::BAD_REQUEST,
+                json!({"error": "unsupported", "seat": 0, "cards": ["100005", "Not A Card"]})
+            )
+        );
+        let names: std::collections::HashMap<u32, String> =
+            zvtes_host::cards().into_iter().collect();
+        let by_name: zvtes_api::DeckList = precon
+            .iter()
+            .map(|(id, &n)| (names[&id.parse::<u32>().unwrap()].to_uppercase(), n))
+            .collect();
+        assert_eq!(
+            checked(None, by_name).await,
+            (StatusCode::OK, json!({"playable": true}))
+        );
+        let (status, body) = checked(Some(2), precon.clone()).await;
+        assert_eq!(
+            (status, &body["error"]),
+            (StatusCode::BAD_REQUEST, &json!("two_player_deck"))
+        );
+        let (status, body) = checked(Some(7), precon.clone()).await;
+        assert_eq!(
+            (status, body),
+            (StatusCode::BAD_REQUEST, json!({"error": "seats", "n": 7}))
+        );
+        let two = zvtes_host::two_player_catalog()[0].1.clone();
+        assert_eq!(
+            checked(Some(2), two).await,
+            (StatusCode::OK, json!({"playable": true}))
+        );
+    }
+
+    /// `GET /cards`: every card the engine plays, once, by the name a
+    /// decklist may give for it.
+    #[tokio::test]
+    async fn the_cards_are_listed_by_the_names_a_deck_takes() {
+        let all = cards().await.0;
+        let ids: std::collections::HashSet<u32> = all.iter().map(|&(id, _)| id).collect();
+        let names: std::collections::HashSet<&str> = all.iter().map(|(_, n)| n.as_str()).collect();
+        assert_eq!((ids.len(), names.len()), (all.len(), all.len()));
+        for (name, deck) in zvtes_host::catalog() {
+            for id in deck.keys() {
+                assert!(ids.contains(&id.parse().unwrap()), "{name}: {id}");
+            }
+        }
     }
 }

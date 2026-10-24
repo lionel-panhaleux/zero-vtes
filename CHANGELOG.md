@@ -6,6 +6,23 @@ server runs.
 `python3 scripts/schema_compat.py` lists what a schema change adds or
 removes; its `--check` fails a removal without a major version.
 
+## 2.12.0
+
+A decklist checked without a game (§10); routes added, no field or id
+removed:
+
+- `GET /cards`: the cards the engine plays, `[id, name]`.
+- `POST /decks/check?seats=`: a `DeckList`, answered `{"playable":
+  true}` or the `SpecError` (400) a game would refuse it with, its
+  `seat` 0.
+- A `DeckList` (a seat's `deck`, the check's body) names a card by KRCG
+  id or by its name as `/cards` gives it (any case): a vampire whose
+  name several carry with KRCG's suffix (`Theo Bell (G2)`, `(ADV)`). A
+  game records its decks by KRCG ids.
+- `SpecError` `unsupported` names a card as the list does; `deck_size`'s
+  doc says what it checks (a deal's 4 crypt and 7 library, a card past
+  255); `unknown_card` is documented as never sent.
+
 ## 2.11.0
 
 `find_card`'s key names its `zone` again (§7; lost when the

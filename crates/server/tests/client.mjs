@@ -2,8 +2,9 @@
 // (docs/protocol.md §2): POST /games, the WebSocket, `join` with the
 // token, answers by option index, a `feedback` mid-game, the record
 // refused mid-game and read at the end, its seed the server's, a deck
-// with a card outside the pool refused; with ZVTES_ADMIN_TOKEN, the feedback read from
-// /admin/feedback and the refused card counted at /admin/unsupported.
+// with a card outside the pool refused, a deck checked by its cards'
+// names (/cards, /decks/check); with ZVTES_ADMIN_TOKEN, the feedback read
+// from /admin/feedback and the refused card counted at /admin/unsupported.
 // `node crates/server/tests/client.mjs [http://127.0.0.1:8040]`
 const base = process.argv[2] ?? 'http://127.0.0.1:8040'
 const version = await (await fetch(`${base}/version`)).json()
@@ -36,6 +37,13 @@ if (process.env.ZVTES_ADMIN_TOKEN) {
     if (!demand.some(d => d.id == Number(outside) && d.count >= 1)) throw new Error('the refused card not counted')
     console.log(`demand: ${outside} counted (${demand.length} ids listed)`)
 }
+// A deck checked without a game, by its cards' names.
+const names = new Map(await (await fetch(`${base}/cards`)).json())
+const check = deck => fetch(`${base}/decks/check`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(deck) })
+const named = Object.fromEntries(Object.entries(spec.seats[0].deck).map(([id, n]) => [names.get(Number(id)), n]))
+if (!(await (await check(named)).json()).playable) throw new Error('a deck by names refused')
+const unplayable = await check({ ...named, [outside]: 1 })
+if (unplayable.status != 400 || !(await unplayable.text()).includes(outside)) throw new Error('a checked deck\'s unsupported card not named')
 const res = await fetch(`${base}/games`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(spec) })
 const { game, seat, token } = await res.json()
 console.log(`game ${game}, seat ${seat}`)

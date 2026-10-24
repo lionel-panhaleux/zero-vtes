@@ -39,5 +39,16 @@ pub fn two_player_catalog() -> Vec<(String, DeckList)> {
     deck::two_player_catalog()
 }
 
+/// A decklist checked for a game of `seats` alone: `Ok`, or the
+/// `SpecError` a game would refuse it with (its `seat` 0).
+pub fn check_deck(list: &DeckList, seats: usize) -> Result<(), zvtes_api::SpecError> {
+    deck::playable(0, list, seats).map(|_| ())
+}
+
+/// The cards the engine plays: (KRCG id, the name a decklist may give).
+pub fn cards() -> Vec<(u32, String)> {
+    deck::cards()
+}
+
 /// The engine's version: the commit this was built from.
 pub const ENGINE: &str = env!("ZVTES_ENGINE");

@@ -263,12 +263,15 @@ pub enum SpecError {
     Seats {
         n: u8,
     },
-    /// Cards outside the engine's pool, by KRCG id.
+    /// Cards outside the engine's pool, as the decklist names them (a
+    /// KRCG id, a name, or a vampire's name several carry without its
+    /// suffix).
     Unsupported {
         seat: Seat,
         cards: Vec<String>,
     },
-    /// A crypt under 12 cards or a library under 60 (or over 90).
+    /// A deck too small to deal (a crypt under 4 cards, a library under
+    /// 7), or a card counted past 255.
     DeckSize {
         seat: Seat,
         crypt: u32,
@@ -282,7 +285,8 @@ pub enum SpecError {
         cards: Vec<String>,
         library: u32,
     },
-    /// A card id that is no card.
+    /// Never sent: a card outside the pool, a card id that is no card
+    /// among them, is `unsupported`.
     UnknownCard {
         seat: Seat,
         id: String,
