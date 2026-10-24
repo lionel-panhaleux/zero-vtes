@@ -147,6 +147,7 @@ fn every_option_s_key_names_what_it_is_about() {
                                 k.target.is_some() && k.amount.is_some()
                             }
                             C::ChooseSeat(_) => k.target.is_some(),
+                            C::FollowPath { .. } => k.minion.is_some() && k.value.is_some(),
                             C::ChooseClan(_) | C::ChooseCircle(_) | C::ChooseDiscipline(_) => {
                                 k.value.is_some()
                             }

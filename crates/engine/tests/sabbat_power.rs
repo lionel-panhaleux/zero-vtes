@@ -1057,3 +1057,108 @@ fn unholy_sacrament_feeds_an_uncontrolled_titled_sabbat_vampire() {
     request(&mut e);
     assert_eq!(e.state.seats[0].uncontrolled[0].counters, 3);
 }
+
+// ---- Paths --------------------------------------------------------------------------
+
+// Black Chantry, 2025-06-12 (rules-qa 97.1, 97.2): in the influence phase,
+// a Sabbat vampire following no path burns 1 blood to follow one of the
+// four; a vampire following one, not Sabbat, or with no blood is offered
+// none; once followed, it is offered none again.
+#[test]
+fn a_sabbat_vampire_following_no_path_follows_one_for_a_blood() {
+    let mut e = game(3);
+    let hartmut = e.add_minion(SeatId(0), find_card("Hartmut Stover"), 3, false);
+    let pathed = e.add_minion(
+        SeatId(0),
+        find_card("Aaradhya, The Callous Tyrant"),
+        3,
+        false,
+    );
+    let ventrue = e.add_minion(SeatId(0), plain("Ventrue", 0), 3, false);
+    let dry = e.add_minion(SeatId(0), find_card("Styles Margs"), 0, true);
+    e.add_minion(SeatId(1), plain("Ventrue", 1), 3, false);
+    let req = until(&mut e, SeatId(0), WindowLabel::InfluenceTransfers);
+    let offered: Vec<(MinionId, u8)> = req
+        .options
+        .iter()
+        .filter_map(|o| match *o {
+            Choice::FollowPath { minion, path } => Some((minion, path)),
+            _ => None,
+        })
+        .collect();
+    assert_eq!(offered, (0..4).map(|p| (hartmut, p)).collect::<Vec<_>>());
+    for m in [pathed, ventrue, dry] {
+        assert!(offered.iter().all(|&(o, _)| o != m), "{m:?}");
+    }
+    let power = zvtes::state::SABBAT_PATHS
+        .iter()
+        .position(|&p| p == "Power and the Inner Voice")
+        .unwrap() as u8;
+    pick(
+        &mut e,
+        Choice::FollowPath {
+            minion: hartmut,
+            path: power,
+        },
+    );
+    assert_eq!(e.state.minions[hartmut.index()].blood, 2);
+    assert!(e.state.follows(hartmut, "Power and the Inner Voice"));
+    let req = request(&mut e);
+    assert!(!req
+        .options
+        .iter()
+        .any(|o| matches!(o, Choice::FollowPath { .. })));
+}
+
+// The four paths are the crypt's (Black Chantry, 2025-06-12).
+#[test]
+fn the_sabbat_paths_are_the_crypts() {
+    let mut printed: Vec<&str> = CRYPT.iter().filter_map(|c| c.path).collect();
+    printed.sort();
+    printed.dedup();
+    let mut paths = zvtes::state::SABBAT_PATHS.to_vec();
+    paths.sort();
+    assert_eq!(printed, paths);
+}
+
+// rules-qa 97.1, 97.4: a torpid Sabbat vampire with blood, and a library
+// card as a Sabbat vampire, follow a path as any.
+#[test]
+fn a_torpid_or_created_sabbat_vampire_follows_a_path() {
+    let mut e = game(3);
+    let torpid = e.add_minion(SeatId(0), find_card("Styles Margs"), 2, true);
+    let created = e.add_minion(SeatId(0), plain("Brujah", 0), 3, false);
+    let childe = find_library("Childe of the Revolution");
+    e.state
+        .cards
+        .push(CardInPlay::new(childe, SeatId(0), None, 0));
+    e.state.minions[created.index()].kind = zvtes::state::MinionKind::Created {
+        card: childe,
+        id: CardId(e.state.cards.len() as u32 - 1),
+        clan: Some("Brujah"),
+        sect: Sect::Sabbat,
+        born: &zvtes::state::NEWBORN,
+    };
+    e.add_minion(SeatId(1), plain("Ventrue", 1), 3, false);
+    let req = until(&mut e, SeatId(0), WindowLabel::InfluenceTransfers);
+    for m in [torpid, created] {
+        assert!(
+            req.options
+                .contains(&Choice::FollowPath { minion: m, path: 0 }),
+            "{m:?}"
+        );
+    }
+    pick(
+        &mut e,
+        Choice::FollowPath {
+            minion: created,
+            path: 1,
+        },
+    );
+    assert!(e.state.follows(created, zvtes::state::SABBAT_PATHS[1]));
+    let req = request(&mut e);
+    assert!(!req
+        .options
+        .iter()
+        .any(|o| matches!(o, Choice::FollowPath { minion, .. } if *minion == created)));
+}

@@ -2348,3 +2348,13 @@ Each contradiction read against the KRCG rulings, the advanced rules and the rul
 **95.4** The conditions are checked "when you would start your unlock phase": as the Methuselah's turn begins, before anything unlocks; met, the Methuselah leaves the game then and that turn is not played, the next Methuselah's begins. Any pool lost or spent (a gain after does not repair it: ANK 20180813), any blood a vampire of theirs loses or spends, or a minion of theirs entering combat before then breaks it; broken, it may be announced again in that unlock phase. Green. (Tests a_withdrawal_fails_on_a_pool_loss, a_withdrawal_fails_on_blood_spent, a_withdrawal_fails_on_combat, a_withdrawal_breaks_as_its_minion_enters_combat.)
 
 **95.5** A withdrawal is no oust: the predator gains neither victory point nor pool, the prey-ousted effects (Khabar: Glory, War of Ages) and "until a Methuselah is ousted" (Absimiliard's Army) do not follow; the Methuselah's cards leave the game as an ousted one's. Its half victory point is gained as any victory point is: a Life Boon remembering the Methuselah takes it (6.17 of docs/engine.md). The last Methuselah standing scores as after an oust. Amber. (Tests a_withdrawal_kept_a_round_scores_half_a_victory_point, a_life_boon_takes_a_withdrawals_half_point.)
+
+## Batch 97 — Sabbat paths followed in the influence phase (Black Chantry, "New Sabbat rules, terms and errata", 2025-06-12): readings graded (Claude, 2026-10-24)
+
+**97.1** "During your influence phase, a Sabbat vampire not following a Path can burn 1 blood to follow a Sabbat Path": any Sabbat vampire the active Methuselah controls in play, ready or in torpor (the text says a vampire, not a ready one), following no path and with a blood to burn. Amber. (Tests a_sabbat_vampire_following_no_path_follows_one_for_a_blood, a_torpid_or_created_sabbat_vampire_follows_a_path.)
+
+**97.2** Its player chooses any of the four paths; the blood burned is lost (a withdrawal breaks, 95.2); any number of vampires follow one in a phase, each once (one following a path is offered none: "only one Path"); no transfer spent. Green. (Test a_sabbat_vampire_following_no_path_follows_one_for_a_blood.)
+
+**97.3** The path a vampire follows, printed or followed since, is told as its trait; its benefits are a Sabbat vampire's only (49.7, "must be Sabbat to receive the benefits"). Green. (Test a_vampires_path_is_a_trait.)
+
+**97.4** A library card as a Sabbat vampire (a created vampire) follows a path as a crypt card does. Amber. (Test a_torpid_or_created_sabbat_vampire_follows_a_path.)

@@ -568,7 +568,10 @@ sources to the engine's conventions.
   Puppet Master's take) is the only offer and the phase cannot end before it; a
   minion unable to take it declares nothing (spec §3.9). Several mandatory
   actions are ordered by the acting Methuselah (rules-qa 17.2).
-- Influence: transfers, `Choice::Withdraw` (2 transfers: a counter back to pool),
+- Influence: `Choice::FollowPath` (rules-qa 97: a Sabbat vampire following
+  no path burns 1 blood to follow one of `state::SABBAT_PATHS`, its
+  `Minion::path_override`; no transfer spent), transfers, `Choice::Withdraw`
+  (2 transfers: a counter back to pool),
   crypt draw (4 transfers + 1 pool), influence-out, no voluntary self-contest;
   `Window::InfluencePhaseOwn` (once per phase), `Window::Transfers` (paid in
   transfers); `GameState::transfer_bonus`.

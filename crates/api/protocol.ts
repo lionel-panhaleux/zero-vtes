@@ -1,6 +1,6 @@
-/* zvtes protocol 2.13.0 (docs/protocol.md): generated from
+/* zvtes protocol 2.14.0 (docs/protocol.md): generated from
  * crates/api/schema.json by scripts/gen_ts.py, do not edit. */
-export const PROTOCOL_VERSION = '2.13.0'
+export const PROTOCOL_VERSION = '2.14.0'
 
 /**
  * A command as sent: an optional client id, echoed by an `error` it
@@ -1156,6 +1156,7 @@ export type OptionKind =
     | 'diablerise'
     | 'cancel_combat'
     | 'withdraw_from_game'
+    | 'follow_path'
     | 'unknown'
 
 /**
@@ -1625,6 +1626,10 @@ export type Trait =
     | 'scarce'
     | 'sterile'
     | 'seraph'
+    | 'path_of_caine'
+    | 'path_of_cathari'
+    | 'path_of_death_and_the_soul'
+    | 'path_of_power_and_the_inner_voice'
     | 'unknown'
 
 /**

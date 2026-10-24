@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "title": "zvtes protocol",
-  "version": "2.13.0",
+  "version": "2.14.0",
   "$defs": {
     "About": {
       "description": "What a choice is about (`Decision::about`): each field given where\nthe purpose (or the terms) has it (docs/protocol.md §5).",
@@ -3957,6 +3957,11 @@
           "const": "withdraw_from_game"
         },
         {
+          "description": "Burn 1 blood from a Sabbat vampire following no path for it to\nfollow one (§1): `minion`, the path its `value`.",
+          "type": "string",
+          "const": "follow_path"
+        },
+        {
           "description": "A value this reader does not know.",
           "type": "string",
           "const": "unknown"
@@ -5946,6 +5951,26 @@
           "description": "Seraph: a Black Hand trait (Tattoo Signal requires one).",
           "type": "string",
           "const": "seraph"
+        },
+        {
+          "description": "Follows the Path of Caine (printed, or followed since; its\nbenefits a Sabbat vampire's only).",
+          "type": "string",
+          "const": "path_of_caine"
+        },
+        {
+          "description": "Follows the Path of Cathari.",
+          "type": "string",
+          "const": "path_of_cathari"
+        },
+        {
+          "description": "Follows the Path of Death and the Soul.",
+          "type": "string",
+          "const": "path_of_death_and_the_soul"
+        },
+        {
+          "description": "Follows the Path of Power and the Inner Voice.",
+          "type": "string",
+          "const": "path_of_power_and_the_inner_voice"
         },
         {
           "description": "A value this reader does not know.",

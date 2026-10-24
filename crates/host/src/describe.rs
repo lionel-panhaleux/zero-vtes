@@ -2033,6 +2033,10 @@ pub fn key(e: &Engine, req: &DecisionRequest, choice: &Choice, names: &impl Name
         Choice::ChooseClan(v) | Choice::ChooseCircle(v) | Choice::ChooseDiscipline(v) => {
             k.value = Some(snake(v))
         }
+        Choice::FollowPath { minion, path } => {
+            k.minion = Some(x.minion(minion));
+            k.value = Some(snake(zvtes::state::SABBAT_PATHS[path as usize]));
+        }
         Choice::EmployFromHand { card, mode: m } => {
             k.card = Some(library(card));
             k.mode = Some(mode(card, m));
@@ -2047,6 +2051,7 @@ pub fn kind(c: &Choice) -> OptionKind {
         Choice::Pass => K::Pass,
         Choice::BurnEdge => K::EdgePool,
         Choice::WithdrawFromGame => K::WithdrawFromGame,
+        Choice::FollowPath { .. } => K::FollowPath,
         Choice::PayContest(_) => K::PayContest,
         Choice::YieldContest(_) => K::YieldContest,
         Choice::Play { .. } => K::Play,

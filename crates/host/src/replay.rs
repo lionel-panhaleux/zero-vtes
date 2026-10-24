@@ -88,10 +88,36 @@ pub struct Replay {
     /// failed short of the stealth: its recorded passes there are read past
     /// (`Reader::next`).
     reopens: bool,
-    /// Played before protocol 2.13.0, when no withdrawal was offered: a
-    /// window offering it beside a lone option (elided then) takes that
-    /// option unread (`Replay::elided`).
+    /// The options its engine did not offer yet (`Then`): a window with
+    /// one option besides them (elided then) takes it unread
+    /// (`Replay::elided`).
+    then: Then,
+}
+
+/// The choices a record's engine did not offer: a withdrawal before
+/// protocol 2.13.0, a path followed before 2.14.0.
+#[derive(Clone, Copy, Debug, Default)]
+pub(crate) struct Then {
     before_withdrawals: bool,
+    before_paths: bool,
+}
+
+impl Then {
+    fn of(protocol: &str) -> Then {
+        Then {
+            before_withdrawals: before(protocol, (2, 13)),
+            before_paths: before(protocol, (2, 14)),
+        }
+    }
+
+    /// `c` came after the record's engine.
+    fn unoffered(self, c: &Choice) -> bool {
+        match c {
+            Choice::WithdrawFromGame => self.before_withdrawals,
+            Choice::FollowPath { .. } => self.before_paths,
+            _ => false,
+        }
+    }
 }
 
 impl Replay {
@@ -129,7 +155,7 @@ impl Replay {
                 .collect(),
             elides: false,
             reopens: before(&record.protocol, (1, 9)),
-            before_withdrawals: before(&record.protocol, (2, 13)),
+            then: Then::of(&record.protocol),
         };
         let plain = replay.read(usize::MAX).1;
         replay.elides = true;
@@ -183,17 +209,16 @@ impl Replay {
 
     /// The Pass of a block window offering only attempts that cannot reach
     /// the stealth, in a record from an engine that elided it (`elides`),
-    /// or the lone option beside a withdrawal in a record from before it
-    /// (`before_withdrawals`): taken without reading a recorded decision.
+    /// or the lone option beside those a record's engine did not offer
+    /// (`then`): taken without reading a recorded decision.
     pub fn elided(&self, e: &Engine, req: &DecisionRequest) -> Option<usize> {
-        if self.before_withdrawals
-            && req.options.len() == 2
-            && req.options.contains(&Choice::WithdrawFromGame)
-        {
-            return req
-                .options
-                .iter()
-                .position(|o| *o != Choice::WithdrawFromGame);
+        let old: Vec<usize> = (0..req.options.len())
+            .filter(|&i| !self.then.unoffered(&req.options[i]))
+            .collect();
+        if let [only] = old[..] {
+            if old.len() < req.options.len() {
+                return Some(only);
+            }
         }
         if !self.elides || !e.futile_blocks(req) {
             return None;
@@ -294,7 +319,7 @@ impl Reader<'_> {
         // elided) is read past.
         while let Some(d) = self.replay.decisions.get(self.next) {
             if d.choice.kind != zvtes_api::ids::OptionKind::ResolveRider
-                || recorded_option(e, req, d, self.replay.before_withdrawals).is_ok()
+                || recorded_option(e, req, d, self.replay.then).is_ok()
             {
                 break;
             }
@@ -307,7 +332,7 @@ impl Reader<'_> {
         }
         let d = self.replay.decisions.get(self.next)?;
         self.next += 1;
-        Some(recorded_option(e, req, d, self.replay.before_withdrawals))
+        Some(recorded_option(e, req, d, self.replay.then))
     }
 }
 
@@ -363,14 +388,14 @@ pub(crate) fn recorded_option(
     e: &Engine,
     req: &DecisionRequest,
     d: &Recorded,
-    before_withdrawals: bool,
+    then: Then,
 ) -> Result<usize, String> {
     // A record by index alone (its keys unknown): the index, among the
-    // options of its time (no withdrawal before 2.13.0).
+    // options of its time (`Then`).
     if d.choice.kind == zvtes_api::ids::OptionKind::Unknown {
         let i = d.option as usize;
         let then: Vec<usize> = (0..req.options.len())
-            .filter(|&j| !(before_withdrawals && req.options[j] == Choice::WithdrawFromGame))
+            .filter(|&j| !then.unoffered(&req.options[j]))
             .collect();
         return if let Some(&i) = then.get(i) {
             Ok(i)

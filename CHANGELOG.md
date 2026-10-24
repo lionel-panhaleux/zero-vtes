@@ -6,6 +6,18 @@ server runs.
 `python3 scripts/schema_compat.py` lists what a schema change adds or
 removes; its `--check` fails a removal without a major version.
 
+## 2.14.0
+
+Sabbat paths followed (§1; rules-qa 97); ids added, none removed:
+
+- `OptionKind` `follow_path`: in its influence phase, a Methuselah's
+  Sabbat vampire following no path burns 1 blood to follow one; its key's
+  `minion`, the path its `value` (`caine`, `cathari`,
+  `death_and_the_soul`, `power_and_the_inner_voice`).
+- `Trait` `path_of_caine`, `path_of_cathari`, `path_of_death_and_the_soul`,
+  `path_of_power_and_the_inner_voice`: the path a vampire follows,
+  printed or followed since (the `traits` event tells a change).
+
 ## 2.13.0
 
 Tournament withdrawal (§1; rules-qa 95); ids and fields added, none

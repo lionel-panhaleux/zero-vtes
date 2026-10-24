@@ -321,13 +321,13 @@ impl Game {
                                 .then(|| zvtes_policy::chores::mask(&self.engine, &req))
                                 .flatten(),
                         );
-                        // Never a futile block attempt nor a withdrawal, as
+                        // Never a futile block attempt nor an untrained choice, as
                         // the server's bots (`zvtes_policy::reachable_blocks`,
-                        // `no_withdrawal`): the outermost.
+                        // `untrained`): the outermost.
                         let mask = zvtes_policy::combine(
                             zvtes_policy::combine(
                                 zvtes_policy::reachable_blocks(&self.engine, &req),
-                                zvtes_policy::no_withdrawal(&req),
+                                zvtes_policy::untrained(&req),
                             ),
                             mask,
                         );
@@ -1178,7 +1178,7 @@ fn futile_blocks(
 
 /// Unlock phases in a game replayed from its log (`replay`'s arguments)
 /// offering a withdrawal, and the withdrawals announced — the rollouts'
-/// mask (`zvtes_policy::no_withdrawal`) leaves the second at 0.
+/// mask (`zvtes_policy::untrained`) leaves the second at 0.
 #[pyfunction]
 #[pyo3(signature = (seed, decks, log, time_limit=zvtes::game::TURN_LIMIT))]
 fn withdrawals(seed: u64, decks: Vec<usize>, log: Vec<usize>, time_limit: u32) -> (u32, u32) {

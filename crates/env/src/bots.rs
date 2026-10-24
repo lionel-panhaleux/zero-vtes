@@ -333,6 +333,8 @@ impl Scripted {
             Choice::DrawCrypt if grow && seat.uncontrolled.len() <= 1 => 40,
             Choice::Transfer { .. } | Choice::DrawCrypt => -10,
             Choice::Withdraw { .. } => -50,
+            // A scripted style keeps its vampires' blood.
+            Choice::FollowPath { .. } => -5,
             _ => 0,
         }
     }

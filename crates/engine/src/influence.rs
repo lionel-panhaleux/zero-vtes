@@ -114,6 +114,14 @@ impl Engine {
                     .map(|i| Choice::Merge { slot: i as u8 }),
             );
         }
+        options.extend(
+            st.minions_of(s)
+                .filter(|&m| st.may_follow_path(m))
+                .flat_map(|minion| {
+                    (0..crate::state::SABBAT_PATHS.len() as u8)
+                        .map(move |path| Choice::FollowPath { minion, path })
+                }),
+        );
         options.extend(self.ability_options(s, Window::AnyImpulse));
         options.extend(self.ability_options(s, Window::InfluencePhaseOwn));
         // Abilities paid in transfers: while enough are left.
@@ -167,6 +175,13 @@ impl Engine {
                 seat.pool += 1;
                 seat.uncontrolled[*slot as usize].counters -= 1;
                 self.flow = Flow::Influence { left: left - 2 };
+            }
+            Choice::FollowPath { minion, path } => {
+                let cost = Cause::Cost(Source::Minion(*minion));
+                self.caused(cost, |e| e.state.lose_blood(*minion, 1));
+                self.state.minions[minion.index()].path_override =
+                    Some(crate::state::SABBAT_PATHS[*path as usize]);
+                self.flow = Flow::Influence { left };
             }
             Choice::DrawCrypt => {
                 let seat = &mut self.state.seats[s.index()];

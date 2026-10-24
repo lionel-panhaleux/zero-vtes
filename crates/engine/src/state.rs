@@ -496,7 +496,8 @@ pub struct Minion {
     /// The Great Beast's three Disciplines, superior.
     pub beast_disciplines: [Option<&'static str>; 3],
     /// The Sabbat path it follows when not the one printed on it (Black
-    /// Chantry, 2025-06-12: one path at a time); none in the pool sets it.
+    /// Chantry, 2025-06-12: one path at a time): one followed in an
+    /// influence phase (`Choice::FollowPath`).
     pub path_override: Option<&'static str>,
     /// "Must hunt this turn" (Childe of the Revolution): as a vampire with
     /// no blood, until it hunts or the turn ends.
@@ -780,6 +781,7 @@ impl Minion {
     pub fn path(&self) -> Option<&'static str> {
         match self.kind {
             MinionKind::Vampire(c) => self.path_override.or(CRYPT[c as usize].path),
+            _ if self.is_vampire() => self.path_override,
             _ => None,
         }
     }
@@ -1202,6 +1204,15 @@ impl Timed {
         }
     }
 }
+
+/// The Sabbat paths (Black Chantry, "New Sabbat rules, terms and errata",
+/// 2025-06-12), as the crypt names them.
+pub const SABBAT_PATHS: [&str; 4] = [
+    "Caine",
+    "Cathari",
+    "Death and the Soul",
+    "Power and the Inner Voice",
+];
 
 /// A withdrawal from the game (rulebook "Withdrawing from the Game"):
 /// announced in an unlock phase, broken by the Methuselah's pool or a
@@ -2178,6 +2189,17 @@ impl GameState {
                 v.disease = false;
             }
         }
+    }
+
+    /// `m` may follow a Sabbat path: a Sabbat vampire in play following
+    /// none, a blood to burn (Black Chantry 2025-06-12; rules-qa 97.1).
+    pub fn may_follow_path(&self, m: MinionId) -> bool {
+        let v = &self.minions[m.index()];
+        v.present()
+            && v.is_vampire()
+            && v.path().is_none()
+            && v.blood > 0
+            && self.sect_of(m) == Some(crate::crypt::Sect::Sabbat)
     }
 
     /// `s` may announce a withdrawal: the turn began with the library

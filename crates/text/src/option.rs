@@ -77,6 +77,11 @@ fn base(
     Some(match k.kind {
         K::EdgePool => "Gain 1 pool (the Edge)".into(),
         K::WithdrawFromGame => "Announce a withdrawal from the game".into(),
+        K::FollowPath => format!(
+            "Burn 1 blood: {} follows the Path of {}",
+            minion(k.minion),
+            path_name(k.value.as_deref()?)
+        ),
         K::TakeFrom => {
             let from = match k.zone.as_ref()?.zone {
                 Zone::Library => "the library",
@@ -918,6 +923,17 @@ fn ability_what(o: &OptionView, offered: &[OptionView], n: &Names) -> Option<Str
     } else {
         format!(": {l}")
     })
+}
+
+/// A Sabbat path's name, from its id.
+fn path_name(id: &str) -> &str {
+    match id {
+        "caine" => "Caine",
+        "cathari" => "Cathari",
+        "death_and_the_soul" => "Death and the Soul",
+        "power_and_the_inner_voice" => "Power and the Inner Voice",
+        other => other,
+    }
 }
 
 #[cfg(test)]

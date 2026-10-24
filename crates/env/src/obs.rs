@@ -767,9 +767,12 @@ fn option(
         Choice::BurnCorruptionToUnlock { minion } => {
             [57, minion_v(minion), ix.minion(minion), 0, 0]
         }
-        // WithdrawFromGame folded into 58, no schema change: offered in the
-        // unlock phase only, never beside a blocked leave-torpor's.
+        // WithdrawFromGame and FollowPath folded into 58, no schema change:
+        // offered in the unlock and the influence phase, never beside a
+        // blocked leave-torpor's nor each other (both masked for networks,
+        // `zvtes_policy::untrained`).
         Choice::Diablerise | Choice::WithdrawFromGame => [58, 0, 0, 0, 0],
+        Choice::FollowPath { minion, .. } => [58, minion_v(minion), ix.minion(minion), 0, 0],
     };
     (ids, f)
 }

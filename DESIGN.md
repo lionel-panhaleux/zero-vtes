@@ -537,7 +537,7 @@ Recorded so nobody mistakes them for oversights:
    2026-09-28; `Engine::time_limit`); VPs stored in half-points (`Seat.half_vps`); `GameState::game_win`
    = 2+ VP and a strict lead, ousted or not (a tie is a draw). Tournament
    withdrawal: 0.5 VP, an unlock-phase decision (rules-qa 95); network
-   seats never take it (`zvtes_policy::no_withdrawal`, in training and
+   seats never take it (`zvtes_policy::untrained`, in training and
    served), scripted styles score it under Pass, `random` plays any legal
    option.
 7. **Unlock-phase ordering** (rules-qa 3.7, 7.8): cards unlock first, unordered;
@@ -1924,10 +1924,9 @@ Still true today; "(verify)" marks items inferred from older notes.
   Orlando Oriundus's bar on other multipliers (no other multiplier);
   Shakar: the Hunt's "considered chosen" (read by no pool card);
   Abdelsobek's mummy (no mummy) and Onaedo's Otieno (not in the pool).
-- **Paths, deferred**: the influence-phase "burn 1 blood to follow a path"
-  for a Sabbat vampire following none (a new choice; in the pool only
-  Hartmut Stover and Styles Margs follow none), and paths in the
-  observations (the policy sees a vampire's sect, not its path).
+- **Paths in the observations**: the policy sees a vampire's sect, not its
+  path, and the networks never follow one (`zvtes_policy::untrained`): the
+  training board's "Paths in the observation".
 - **Mechanisms missing** (ledger `blocked:` rows name the rest): immunity
   to damage from a source.
 - **Known edges**:
@@ -1991,7 +1990,7 @@ Still true today; "(verify)" marks items inferred from older notes.
 - **P5 — community**: bot service, client adapter, human-ergonomics layer
   (its open items on the boards).
 
-Definitions: 954 library, 482 vampires; 2604 Rust tests, 60 Python tests
+Definitions: 954 library, 482 vampires; 2608 Rust tests, 60 Python tests
 
 ## Outlook: deck building (post-v1)
 

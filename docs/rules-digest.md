@@ -539,6 +539,10 @@ D11; the per-card readings: 32.7, 49.5, 69.2, 71.7, 68.10, 70.2, 73.7.
   Oblivion at the level played, or granted by a card requiring a Hecata
   (34.6).
 - A Sabbat path icon is a requirement, as a clan icon (49.7).
+- Paths followed: in its influence phase a Methuselah's Sabbat vampire
+  following no path, ready or in torpor, burns 1 blood to follow one of the
+  four (97.1), each once, no transfer spent (97.2); a created vampire too
+  (97.4); the path told as a trait, its benefits a Sabbat vampire's (97.3).
 - "If the referendum requires a titled vampire" reads any title requirement
   on the calling card or granted action (63.3).
 - Tremere Convocation: every Methuselah's Tremere, +1 stealth on actions
@@ -4736,7 +4740,7 @@ an owner ruling:
 Every rules-qa item, by batch, with the digest sections citing it: the
 section stating it and those cross-referring to it (§2 the default
 readings, §22 engine modeling, §23 the contradictions, §24 the open
-readings). 975 items, Batches 1–95 (44.11 was removed, replaced by Batch
+readings). 979 items, Batches 1–97 (44.11 was removed, replaced by Batch
 45). The index is derived from the citations: a bare `N.M` cites rules-qa
 item N.M in the section it appears in. A new rules-qa item gets its line in
 the section stating it, then its entry here: `python3
@@ -5071,3 +5075,4 @@ index or an item cited nowhere.
   §18.1
 - **95** — 95.1 §21.2,§24.1; 95.2 §21.2; 95.3 §21.2; 95.4 §21.2; 95.5
   §21.2,§24.1
+- **97** — 97.1 §3.12; 97.2 §3.12; 97.3 §3.12; 97.4 §3.12

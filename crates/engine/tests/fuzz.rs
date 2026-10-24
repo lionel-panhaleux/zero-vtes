@@ -383,6 +383,7 @@ fn kind_of(c: &Choice) -> &'static str {
         Choice::Pass => "pass",
         Choice::BurnEdge => "burn_edge",
         Choice::WithdrawFromGame => "withdraw_from_game",
+        Choice::FollowPath { .. } => "follow_path",
         Choice::PayContest(_) => "pay_contest",
         Choice::YieldContest(_) => "yield_contest",
         Choice::Play { .. } => "play",
@@ -545,27 +546,29 @@ fn play(seed: u64, start: &dyn Fn(u64) -> Engine) -> Played {
                     }
                 }
                 // A withdrawal (offered at most unlock phases once a
-                // fixture's library is empty) is taken on one seed in eight, with no
-                // draw; the others draw among the rest as before it existed,
-                // a lone option without a draw (the window elided then).
+                // fixture's library is empty) is taken on one seed in eight,
+                // a path (any legacy Sabbat vampire's) on another, with no
+                // draw; otherwise the draw is among the rest as before they
+                // existed, a lone option without a draw (elided then).
                 let withdraw = req
                     .options
                     .iter()
                     .position(|o| *o == Choice::WithdrawFromGame);
-                let idx = match withdraw {
-                    Some(w) if seed % 8 == 7 => w,
-                    Some(_) if req.options.len() == 2 => {
-                        (req.options[0] == Choice::WithdrawFromGame) as usize
-                    }
-                    Some(w) => {
-                        let j = agent.rng.below(req.options.len() - 1);
-                        if j >= w {
-                            j + 1
-                        } else {
-                            j
-                        }
-                    }
-                    None => agent.choose(&req),
+                let path = req
+                    .options
+                    .iter()
+                    .position(|o| matches!(o, Choice::FollowPath { .. }));
+                let late =
+                    |o: &Choice| matches!(o, Choice::WithdrawFromGame | Choice::FollowPath { .. });
+                let rest: Vec<usize> = (0..req.options.len())
+                    .filter(|&i| !late(&req.options[i]))
+                    .collect();
+                let idx = match (seed % 8, withdraw, path, rest.len()) {
+                    (7, Some(w), _, _) => w,
+                    (6, _, Some(p), _) => p,
+                    (.., n) if n == req.options.len() => agent.choose(&req),
+                    (.., 1) => rest[0],
+                    (.., n) => rest[agent.rng.below(n)],
                 };
                 if trace {
                     eprintln!(
@@ -2307,6 +2310,7 @@ fuzz_tests! {
             "Political Stranglehold",
         ],
         covers: &[
+            "follow_path",
             "play:Absolute Tyranny",
             "play:Black Forest Base",
             "play:Cardinal Benediction",
@@ -2666,6 +2670,7 @@ fuzz_tests! {
             "Double Deuce",
         ],
         covers: &[
+            "follow_path",
             "play:Auspex",
             "play:Conquer the Beast",
             "play:Ephor",
@@ -2728,6 +2733,7 @@ fuzz_tests! {
             "Unleash Hell's Fury",
         ],
         covers: &[
+            "follow_path",
             "play:Call the Great Beast",
             "play:Condemnation: Mute",
             "play:Erciyes Fragments, The",

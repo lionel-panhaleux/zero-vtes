@@ -18,7 +18,7 @@ is created by one request and played over one WebSocket. Every game is
 recorded, anonymously, and kept two years to train and test the engine
 (§11).
 
-Version **2.13.0**. The types: the models of the
+Version **2.14.0**. The types: the models of the
 [API reference](https://engine.krcg.org/docs), also as
 [JSON Schema](https://engine.krcg.org/schema.json) (2020-12) and
 [TypeScript](https://engine.krcg.org/protocol.ts).
@@ -42,6 +42,11 @@ Version **2.13.0**. The types: the models of the
   lost or spent, no blood a vampire of theirs loses or spends, no minion
   of theirs in combat — they leave the game with half a victory point,
   their predator gaining nothing (rules-qa 95; tournament rules).
+- In their influence phase, a Methuselah's Sabbat vampire following no
+  **path** may burn 1 blood to follow one (`follow_path`: its `minion`,
+  the path its `value`: `caine`, `cathari`, `death_and_the_soul`,
+  `power_and_the_inner_voice`); the path a vampire follows is its trait
+  (`path_of_…`, §6) (rules-qa 97; Black Chantry 2025-06-12).
 - The engine asks one **decision** at a time, of one seat: a list of
   **options**, every legal move, each a whole move (card, mode, actor,
   target). The seat answers with an option's `index`. Nothing else
@@ -296,8 +301,10 @@ the previous one, never the engine's state.
   `blood`, `capacity`, `locked`, `contested`, `title` (id), `owner`,
   `cards[]` (in play on it), `markers[]` (`kind`, `seat`, `n`, `card`),
   `traits[]` (`black_hand`, `infernal`, `red_list`, `blood_cursed`,
-  `scarce`, `sterile`, `seraph`: as they stand, Black Hand gained and
-  infernal made included; a Red List minion marked this turn carries a
+  `scarce`, `sterile`, `seraph`, `path_of_caine`, `path_of_cathari`,
+  `path_of_death_and_the_soul`, `path_of_power_and_the_inner_voice`: as
+  they stand, Black Hand gained, infernal made and a path followed
+  included; a Red List minion marked this turn carries a
   `red_list_mark` marker, its `seat` the marking Methuselah; a minion out
   of play with its cards, an `out_of_play` one; one contested yet in play,
   a `contested` one, its `contested` field false: a two-player game, §1).
@@ -365,22 +372,22 @@ seat 2; burn 2 pool to keep card 9.)
   (`declare_block`, `cast_votes`, `choose_minion`, `resolve_printed`,
   `burn_blood_from`, …); `transfer`, `withdraw`, `influence_out`,
   `merge` and `slot` their `slot` (the Great Beast's Discipline slot its
-  `value`); a combatant's choice (`hand_strike`, `round_strike`,
-  `use_maneuver`, `use_press`, `use_prevent`, `strike_combat_ends`,
-  `committed_strike`, `gain_strength`, `cancel_combat`) and the acting
-  minion's own (`continue_action`, `take_damage_after_resolution`) its
-  `actor`; `diablerise` the blocker diablerising as `actor`, the acting
-  vampire as `minion`; a card chosen (`discard`, `bottom`, `find_card`,
-  `take_from`, `resolve_rider`, `burn_in_play`, `burn_for_vote`, …) its
-  `card`; `set_x` and `pay_rescue` their `amount`; `allocate_to` and
-  `allocate_to_card` their `target` and `amount`; `choose_seat` its `target`;
-  `choose_clan`, `choose_circle`, `choose_discipline` their `value`;
-  `cast_edge`, `cast_card_vote` their `favor`; a contest's its `minion` or
-  `card`. The rest (`pass`, `edge_pool`, `withdraw_from_game`,
-  `burn_pool`, `draw_library`,
-  `draw_crypt`, `pay_block_toll`, `pay_to_cancel`, `burn_blood_to_avoid`) read
-  from their `effects` and the decision's `source` and `purpose`, which
-  `decided` repeats.
+  `value`); `follow_path` its `minion` and the path's `value`; a combatant's
+  choice (`hand_strike`, `round_strike`, `use_maneuver`, `use_press`,
+  `use_prevent`, `strike_combat_ends`, `committed_strike`, `gain_strength`,
+  `cancel_combat`) and the acting minion's own (`continue_action`,
+  `take_damage_after_resolution`) its `actor`; `diablerise` the blocker
+  diablerising as `actor`, the acting vampire as `minion`; a card chosen
+  (`discard`, `bottom`, `find_card`, `take_from`, `resolve_rider`,
+  `burn_in_play`, `burn_for_vote`, …) its `card`; `set_x` and `pay_rescue`
+  their `amount`; `allocate_to` and `allocate_to_card` their `target` and
+  `amount`; `choose_seat` its `target`; `choose_clan`, `choose_circle`,
+  `choose_discipline` their `value`; `cast_edge`, `cast_card_vote` their
+  `favor`; a contest's its `minion` or `card`. The rest (`pass`, `edge_pool`,
+  `withdraw_from_game`, `burn_pool`, `draw_library`, `draw_crypt`,
+  `pay_block_toll`, `pay_to_cancel`, `burn_blood_to_avoid`) read from their
+  `effects` and the decision's `source` and `purpose`, which `decided`
+  repeats.
 - **`effects`** — what taking it does: an ability's effects, a play's
   mode's, a cost, what a chosen Methuselah or minion gets. A curated
   vocabulary, not the engine's own effects: each

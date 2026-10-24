@@ -185,6 +185,15 @@ ids!(
         Sterile,
         /// Seraph: a Black Hand trait (Tattoo Signal requires one).
         Seraph,
+        /// Follows the Path of Caine (printed, or followed since; its
+        /// benefits a Sabbat vampire's only).
+        PathOfCaine,
+        /// Follows the Path of Cathari.
+        PathOfCathari,
+        /// Follows the Path of Death and the Soul.
+        PathOfDeathAndTheSoul,
+        /// Follows the Path of Power and the Inner Voice.
+        PathOfPowerAndTheInnerVoice,
     }
 );
 
@@ -340,6 +349,9 @@ ids!(
         CancelCombat,
         /// Announce a withdrawal from the game (§1).
         WithdrawFromGame,
+        /// Burn 1 blood from a Sabbat vampire following no path for it to
+        /// follow one (§1): `minion`, the path its `value`.
+        FollowPath,
     }
 );
 

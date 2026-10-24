@@ -648,14 +648,14 @@ pub fn idle_influence(e: &Engine, req: &DecisionRequest) -> bool {
         && req.options.contains(&Choice::DrawCrypt)
 }
 
-/// A withdrawal is not a network's choice: no run has trained with it (its
-/// observation folded into another kind, `obs::option`). `None` when not
-/// offered.
-pub fn no_withdrawal(req: &DecisionRequest) -> Option<Vec<bool>> {
+/// The choices no run has trained with (their observation folded into
+/// another kind, `obs::option`), never a network's: a withdrawal, a path
+/// followed. `None` when none is offered.
+pub fn untrained(req: &DecisionRequest) -> Option<Vec<bool>> {
     let mask: Vec<bool> = req
         .options
         .iter()
-        .map(|o| *o != Choice::WithdrawFromGame)
+        .map(|o| !matches!(o, Choice::WithdrawFromGame | Choice::FollowPath { .. }))
         .collect();
     mask.contains(&false).then_some(mask)
 }
@@ -754,7 +754,7 @@ impl Agent for NetAgent {
         // Options score independently (each against the context): the
         // masked ones change nothing of the others' logits.
         let mask = combine(
-            combine(reachable_blocks(engine, req), no_withdrawal(req)),
+            combine(reachable_blocks(engine, req), untrained(req)),
             combine(
                 politics::mask(engine, req),
                 self.chores.then(|| chores::mask(engine, req)).flatten(),

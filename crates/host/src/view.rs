@@ -603,7 +603,20 @@ fn traits(st: &zvtes::state::GameState, m: MinionId) -> Vec<Trait> {
     ]
     .into_iter()
     .filter_map(|(has, t)| has.then_some(t))
+    .chain(path(st.minions[m.index()].path()))
     .collect()
+}
+
+/// The trait of a Sabbat path, by its name (`SABBAT_PATHS`).
+fn path(name: Option<&str>) -> Option<Trait> {
+    let [caine, cathari, death, power] = zvtes::state::SABBAT_PATHS;
+    Some(match name? {
+        n if n == caine => Trait::PathOfCaine,
+        n if n == cathari => Trait::PathOfCathari,
+        n if n == death => Trait::PathOfDeathAndTheSoul,
+        n if n == power => Trait::PathOfPowerAndTheInnerVoice,
+        other => unreachable!("not a Sabbat path: {other}"),
+    })
 }
 
 /// The region a minion in play is in.
@@ -993,6 +1006,37 @@ mod tests {
         );
         let v = viewer.view(&e, &decks, &names);
         assert_eq!(numbered(&v), [None, Some(2), Some(3)], "kept");
+    }
+
+    /// A vampire's Sabbat path is a trait: printed, or followed since
+    /// (Black Chantry 2025-06-12; rules-qa 97.3).
+    #[test]
+    fn a_vampires_path_is_a_trait() {
+        let mut e = Engine::bare(2);
+        e.add_minion(
+            SeatId(0),
+            zvtes::state::find_card("Aaradhya, The Callous Tyrant"),
+            4,
+            false,
+        );
+        let hartmut = e.add_minion(
+            SeatId(0),
+            zvtes::state::find_card("Hartmut Stover"),
+            4,
+            false,
+        );
+        let names = vec!["a".to_string(), "b".to_string()];
+        let traits = |e: &Engine| {
+            let v = Viewer::new(Some(SeatId(1))).view(e, &Decks::dealt(e), &names);
+            let r = &v.seats[0].ready;
+            (r[0].traits.clone(), r[1].traits.clone())
+        };
+        assert_eq!(
+            traits(&e),
+            (vec![Trait::PathOfPowerAndTheInnerVoice], vec![])
+        );
+        e.state.minions[hartmut.index()].path_override = Some("Cathari");
+        assert_eq!(traits(&e).1, vec![Trait::PathOfCathari]);
     }
 
     // A minion's traits in every viewer's view, read live: a printed Black

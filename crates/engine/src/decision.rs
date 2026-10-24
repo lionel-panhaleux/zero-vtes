@@ -325,6 +325,12 @@ pub enum Choice {
     /// Announce a withdrawal from the game (rulebook "Withdrawing from the
     /// Game"): the library exhausted, the turn begun short of a full hand.
     WithdrawFromGame,
+    /// Burn 1 blood from a Sabbat vampire following no path for it to
+    /// follow `SABBAT_PATHS[path]` (Black Chantry 2025-06-12).
+    FollowPath {
+        minion: MinionId,
+        path: u8,
+    },
 }
 
 /// Where a card is taken from (`Choice::TakeFrom`).

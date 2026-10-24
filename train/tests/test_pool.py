@@ -66,7 +66,7 @@ def test_rollouts_never_attempt_a_futile_block():
 
 def test_rollouts_never_withdraw():
     """A withdrawal (rulebook "Withdrawing from the Game") is masked as the
-    server's bots mask it (`zvtes_policy::no_withdrawal`): offered once a
+    server's bots mask it (`zvtes_policy::untrained`): offered once a
     library runs out (the New Blood minis' small libraries do), never
     announced by a network seat."""
     pool = zvtes_py.GamePool(4, ["policy"] * 4, seed=13, keep_logs=True)
