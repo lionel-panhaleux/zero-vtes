@@ -136,6 +136,13 @@ not on any board; the owner brings each back:
   only, agreed with Thomas): #285 as it stands; the `engine-game`
   re-cut caught up with the fork's fixes after `a7515b1`, its controls
   commit carrying the Opportunities control (sc.md recipe).
+- Definitions exported as data (2026-10-24, held at the engine board's
+  top): every card's definition (modes, requirements, effects, windows)
+  as documented JSON with a schema, generated and `--check`ed. It needs
+  the engine's 51 definition types serialized: optional serde and
+  schemars behind a feature off by default (online-plan.md's engine has
+  no dependencies), or a converter of the derived `{:#?}` dump without a
+  typed schema.
 
 ## Later tracks
 
@@ -145,7 +152,7 @@ Named, not planned yet:
   the skills toward a "judge" bot, tested against players' rules
   questions on Discord and the official judges' answers. First inputs:
   the advanced-rules corrections (rules-digest §23) and the exported
-  definitions (engine board).
+  definitions (deferred above).
 - **Deck evaluation and deck building**: bot simulations to measure a
   deck's strength and weaknesses in a meta, advise, and build strong
   decks (DESIGN "Outlook: deck building": a co-evolved metagame,
