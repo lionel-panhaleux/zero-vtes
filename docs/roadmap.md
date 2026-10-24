@@ -42,8 +42,8 @@ What it still needs:
 4. **What players asked for**: the cards their refused decks named
    (`/admin/unsupported`) steering the next rounds (cards: Round 16).
 
-Not needed for the beta but in the same order: the first release tagged
-(engine, an ask to the owner), the demo video (platforms).
+Not needed for the beta: the demo video (platforms/sc.md "A fixed
+deal"; the owner records it).
 
 ## Objectives
 
@@ -144,7 +144,7 @@ Named, not planned yet:
 - **A judge bot**: improve `../vtes-advanced-rules`, the rules docs and
   the skills toward a "judge" bot, tested against players' rules
   questions on Discord and the official judges' answers. First inputs:
-  the advanced-rules corrections (cards board) and the exported
+  the advanced-rules corrections (rules-digest §23) and the exported
   definitions (engine board).
 - **Deck evaluation and deck building**: bot simulations to measure a
   deck's strength and weaknesses in a meta, advise, and build strong

@@ -14,8 +14,9 @@ description: >
 
 The engine stays tight only if every change is checked against it as a whole.
 The compiler and the definition-walking tests catch the mechanical part
-(docs/engine.md "What is enforced"); this review covers what needs judgement.
-It is not adversarial: "clean, nothing to change" is a normal outcome.
+(docs/engine.md §3, "Enforced and conventional"); this review covers what
+needs judgement. It is not adversarial: "clean, nothing to change" is a
+normal outcome.
 
 ## When
 
@@ -101,7 +102,7 @@ Pass this, with `<RANGE>` and `<WORKTREE>` filled in:
 >    variants' docs one or two lines, on the right variant.
 > 9. **The guide.** If the change adds or changes a mechanism, docs/engine.md
 >    says so in the right section; an enforced-vs-convention change updates
->    its "What is enforced" list.
+>    its §3 lists.
 > 10. **Outside the engine.** A new player-visible effect is mapped in
 >    `crates/host/src/effects.rs` (or is bookkeeping); `Choice` variants and
 >    their order unchanged, or the policy/host/text impact stated.

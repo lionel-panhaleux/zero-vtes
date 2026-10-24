@@ -11,7 +11,7 @@ could say is an engine-board line.
 
 A shrinking list (CLAUDE.md "Harness"): one line an ask, its done-condition
 and the docs it changes; done is deleted; order is priority; the only
-state is `[doing: <session>]`; waiting on a person is a dated follow-up.
+state is `[doing: <session>]`; waiting on a person is a dated ask.
 Order (owner, 2026-10-21: agreed with Thomas, the fork deployed on its
 own as a separate platform, bots only for now): what the community
 beta needs from the fork first, then the fork's remaining

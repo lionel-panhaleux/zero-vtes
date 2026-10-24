@@ -266,7 +266,36 @@ for history.
 | 6.1 | Diagnostic: `zvtes_py.replay_decisions` (a fork replay → per-decision encodings, options, choice, events) and `train/assess.py` (the human's choices the policy found least likely, agreement by window; the bots' sharpest falls in the critic's value with what happened between) | done; first game read |
 | 6.2 | Start positions: self-play continued from a human game's prefixes | todo |
 | 6.3 | Imitation term: cross-entropy on the human's choices beside PPO's loss, once there are dozens of games | todo |
-| 6.4 | The corpus: `data/replays/` (tracked; its README indexes each game: engine commit, seats' decks, bots, result) | done; 1 game |
+| 6.4 | The corpus: `data/records/` (tracked; its README indexes each game: engine commit, seats' decks, bots, result) | done; 1 game |
+
+## Checks
+
+- `cargo test --profile ci -q` covers the host and the renderer (default
+  members); `HOST_SEEDS=n` deepens `crates/host/tests/events.rs` (the
+  table kept from the events against each view, undo, allocations and
+  vote orders, every option and decision told), `HOST_SEED_FROM=n`
+  starts there, `HOST_REDUCE=1` names each view field the events missed
+  and `HOST_TRACE=1` prints the events and views; engine-side
+  allocation shapes in `tests/politics.rs` / `tests/precon.rs`;
+  `crates/host/tests/records.rs` reads the corpus whole.
+- `cargo clippy -p zvtes-server --all-targets --profile ci -- -D warnings`
+  and `cargo test -p zvtes-server --profile ci` (not a default member: a
+  restart resuming a game left going and ending a stale one, the games
+  left going ended when they cannot be, on the file store, and on Postgres
+  with `ZVTES_TEST_DATABASE_URL` naming a scratch database);
+  `scripts/check_ts.sh` (a game typed against `protocol.ts`); with a
+  server running (Node 22 or later, for its `WebSocket`), `node
+  crates/server/tests/client.mjs <url>` plays a game over HTTP and
+  WebSocket (its seed the server's, not the one it asks) and has a deck
+  with a card outside the pool refused (with `ZVTES_ADMIN_TOKEN`, its
+  feedback read back from `/admin/feedback`, the refused card counted at
+  `/admin/unsupported`, one spec dealt twice differently and the
+  operator's seed kept), `node crates/server/tests/load.mjs <url> <n>` n
+  at once, `node crates/server/tests/rejoin.mjs <url>` a seat joining
+  again (after its last `seq`, after an older one, afresh, on a second
+  socket taking the seat from the first). `uv run --script
+  scripts/minimal_client.py <url>` plays protocol §2's Python client
+  against it.
 
 ## Running the fork
 
