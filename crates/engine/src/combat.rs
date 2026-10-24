@@ -696,6 +696,11 @@ impl Side {
 pub struct CombatCtx {
     /// `sides[0]` is the acting minion's, `sides[1]` the opponent's.
     pub sides: [Side; 2],
+    /// The Methuselahs in the game clockwise from the acting one, as the
+    /// combat began (an ousted one dropped): every one is polled
+    /// (`poll`), Martyr's Resilience's prevention in this order (rules-qa
+    /// 29.1).
+    pub ring: Vec<SeatId>,
     /// Weapons whose strike resolution burned the opposing vampire (Sword
     /// of the Archangel).
     pub burned_by: Vec<CardId>,
@@ -848,6 +853,19 @@ pub struct CombatCtx {
     /// Cards put in play this round ("not usable the round it is put in
     /// play", Molotov Cocktail).
     pub placed_this_round: Vec<CardId>,
+}
+
+/// A combat window's order: the acting Methuselah, the defending one,
+/// then the others clockwise (rulebook "Combat": the impulse goes on to
+/// every Methuselah; rules-qa 87.28).
+fn poll(sides: &[Side; 2], ring: &[SeatId]) -> Vec<SeatId> {
+    let mut order = vec![sides[0].seat];
+    for &s in std::iter::once(&sides[1].seat).chain(ring) {
+        if !order.contains(&s) {
+            order.push(s);
+        }
+    }
+    order
 }
 
 impl CombatCtx {
@@ -1100,7 +1118,7 @@ impl CombatCtx {
     }
 
     fn order(&self) -> Vec<SeatId> {
-        vec![self.sides[0].seat, self.sides[1].seat]
+        poll(&self.sides, &self.ring)
     }
 
     fn fresh_window(&mut self, step: Step) {
@@ -1480,7 +1498,8 @@ impl Engine {
             }
             self.state.vampire_block_combat_turn = Some(self.state.turn);
         }
-        let order = vec![sides[0].seat, sides[1].seat];
+        let ring = self.state.clockwise_from(sides[0].seat);
+        let order = poll(&sides, &ring);
         self.state.combatants = Some([acting, opposing]);
         let st = &self.state;
         let held_at_block = if at_resolution {
@@ -1503,6 +1522,7 @@ impl Engine {
             .collect();
         self.combat = Some(CombatCtx {
             sides,
+            ring,
             anathema_seen,
             round: 1,
             step: Step::BeforeRange,
@@ -1891,11 +1911,12 @@ impl Engine {
             }
             _ => {
                 let seat = c.window.current()?;
-                let i = c.side_of(seat).expect("combatant seat");
                 let mut options = vec![Choice::Pass];
                 let mut mandatory = false;
-                match c.step {
-                    Step::DetermineRange
+                // A combatant's own options; any Methuselah's cards and
+                // abilities after.
+                match (c.step, c.side_of(seat)) {
+                    (Step::DetermineRange, Some(i))
                         if (c.sides[i].maneuvers > 0
                             || c.sides[i].combat_maneuvers > 0
                             || c.sides[i].maneuver_or_press > 0
@@ -1922,10 +1943,12 @@ impl Engine {
                     }
                     // Show of Force: the strength, before range is
                     // determined in the first round.
-                    Step::BeforeRange if c.round == 1 && c.sides[i].strength_option > 0 => {
+                    (Step::BeforeRange, Some(i))
+                        if c.round == 1 && c.sides[i].strength_option > 0 =>
+                    {
                         options.push(Choice::GainStrength);
                     }
-                    Step::Press
+                    (Step::Press, Some(i))
                         if c.last_press != Some(i)
                             && c.may_press(i)
                             && !c.end_press_barred(&self.state, i)
@@ -2273,10 +2296,10 @@ impl Engine {
         }
     }
 
-    /// A vampire's ability used from out of the combat on a minion in it
-    /// (Randall: `Actor::HostOutOfCombat`).
+    /// A vampire's or a card's ability used from out of the combat on it
+    /// (`Actor::HostOutOfCombat`).
     fn out_of_combat_ability(&self, o: &Choice) -> bool {
-        matches!(*o, Choice::UseAbility { source: s @ crate::cards::AbilitySource::Vampire(_), ability, .. }
+        matches!(*o, Choice::UseAbility { source: s, ability, .. }
             if s.mode(&self.state, ability).actor == crate::cards::Actor::HostOutOfCombat)
     }
 
@@ -2483,8 +2506,7 @@ impl Engine {
             if pending && !c.others_prevented {
                 c.others_prevented = true;
                 c.step = Step::OthersPrevent;
-                let order = self.state.clockwise_from(c.sides[0].seat);
-                c.window = OrderedWindow::new(order);
+                c.window = OrderedWindow::new(c.ring.clone());
                 return;
             }
         }

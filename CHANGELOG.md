@@ -6,6 +6,15 @@ server runs.
 `python3 scripts/schema_compat.py` lists what a schema change adds or
 removes; its `--check` fails a removal without a major version.
 
+## 2.15.0
+
+A combat's windows ask every Methuselah (rules-qa 98): the acting
+Methuselah, the defending one, then the others clockwise from the acting
+one, a Methuselah outside the combat offered what reaches a combat it is
+not in (Rötschreck, Abjure, Maman Boumba, its out-of-turn and "any time"
+effects). No field or id added or removed; a reader of a record from
+before 2.15.0 passes those windows unread.
+
 ## 2.14.1
 
 `GET /catalog?seats=2` lists VEKN's Tzimisce two-player decklist too: its

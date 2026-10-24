@@ -1952,3 +1952,39 @@ fn strike_with_conviction_strikes_with_the_gun_its_maneuver_committed() {
     to_window(&mut e, SeatId(1), WindowLabel::MinionPhase);
     assert_eq!(blood(&e, v), 5 - 3);
 }
+
+// rules-qa 87.28: Abjure ends any Methuselah's combat between a monster and
+// a mortal — a third Methuselah's imbued, out of the combat, polled after
+// both combatants' Methuselahs; the mortal another minion, a conviction.
+#[test]
+fn a_third_methuselahs_abjure_ends_another_pairs_combat() {
+    let mut e = game(3);
+    let other = imbued(&mut e, 0, "Jennifer \"Flame61\" Vidisania");
+    let abjure = on(&mut e, other, "Abjure");
+    e.add_minion(SeatId(0), plain("Brujah", 0), 4, false);
+    let v = e.add_minion(SeatId(1), plain("Ventrue", 0), 5, false);
+    e.add_minion(SeatId(1), plain("Ventrue", 1), 4, false);
+    let m = imbued(&mut e, 2, "Erick \"Shophet125\" Franco");
+    e.add_minion(SeatId(2), plain("Brujah", 1), 4, false);
+    hand(&mut e, 0, &["Second Sight"]);
+    blocked_by(&mut e, v, m);
+    let u = first_use(&mut e, zvtes::cards::AbilitySource::Card(abjure), 0);
+    let req = request(&mut e);
+    assert_eq!(
+        (req.seat, req.window),
+        (SeatId(0), WindowLabel::CombatBeforeRange)
+    );
+    pick(&mut e, u);
+    pick_when(
+        &mut e,
+        Choice::TakeFrom {
+            zone: Zone::Hand,
+            card: find_library("Second Sight"),
+        },
+    );
+    request(&mut e);
+    assert!(e.state.cards[abjure.index()].locked);
+    assert!(e.state.minions[other.index()].locked);
+    assert_eq!(convictions(&e, other), 1);
+    assert!(e.combat().is_none());
+}

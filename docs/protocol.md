@@ -18,7 +18,7 @@ is created by one request and played over one WebSocket. Every game is
 recorded, anonymously, and kept two years to train and test the engine
 (§11).
 
-Version **2.14.1**. The types: the models of the
+Version **2.15.0**. The types: the models of the
 [API reference](https://engine.krcg.org/docs), also as
 [JSON Schema](https://engine.krcg.org/schema.json) (2020-12) and
 [TypeScript](https://engine.krcg.org/protocol.ts).
@@ -47,6 +47,10 @@ Version **2.14.1**. The types: the models of the
   the path its `value`: `caine`, `cathari`, `death_and_the_soul`,
   `power_and_the_inner_voice`); the path a vampire follows is its trait
   (`path_of_…`, §6) (rules-qa 97; Black Chantry 2025-06-12).
+- A combat's windows ask every Methuselah in turn: the acting one, the
+  defending one, then the others clockwise from the acting one, a
+  Methuselah outside the combat offered only what reaches it (rules-qa
+  98; from 2.15.0).
 - The engine asks one **decision** at a time, of one seat: a list of
   **options**, every legal move, each a whole move (card, mode, actor,
   target). The seat answers with an option's `index`. Nothing else
@@ -753,7 +757,10 @@ short of the stealth, reads past the passes it recorded there; the engines
 from 22cf131 to it, never deployed, left no record read; one from before
 rules-qa 88.5, whose engine ordered Anarch Revolt's burn among the
 unlock-phase riders, reads past the rider orders the engine no longer asks, a
-last one too as the game ends before it). Kept two years, to train and test
+last one too as the game ends before it; one from before rules-qa 98
+(protocol before 2.15.0), whose engine polled the combatants' Methuselahs
+alone, passes unread a combat's ordered window asked of a Methuselah outside
+the combat). Kept two years, to train and test
 the engine; anonymous.
 
 ## 12. Open sets

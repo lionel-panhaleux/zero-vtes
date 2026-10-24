@@ -642,6 +642,7 @@ mod tests {
             | Actor::OpposingCombatant
             | Actor::ActingMinion
             | Actor::Host
+            | Actor::HostOutOfCombat
             | Actor::ForOwnCombatant
             | Actor::UnlockedOutOfCombat => vec![Card, Host, Play],
             Actor::ActingCandidate => vec![Host, Play],

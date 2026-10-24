@@ -1246,3 +1246,93 @@ fn parity_shift_pool_pays_for_a_life_boon() {
     assert!(!e.state.seats[1].ousted);
     assert_eq!((pool(&e, 0), pool(&e, 1), pool(&e, 2)), (2, 1, 2));
 }
+
+// rules-qa 94.1, 87.28: any Methuselah but the active one plays Rötschreck
+// — a third one, outside the combat, polled after both combatants'
+// Methuselahs.
+#[test]
+fn a_third_methuselah_plays_rotschreck() {
+    let mut e = Engine::bare(3);
+    e.state.turn = 4;
+    let a = e.add_minion(SeatId(0), plain("Brujah", &[], 0), 4, false);
+    e.add_minion(SeatId(0), plain("Brujah", &[], 1), 4, false);
+    let z = e.add_minion(SeatId(1), plain("Ventrue", &[], 0), 4, false);
+    e.add_minion(SeatId(1), plain("Ventrue", &[], 1), 4, false);
+    e.add_minion(SeatId(2), plain("Ventrue", &[], 2), 4, false);
+    let bow = in_play(&mut e, 0, "Ivory Bow", Some(a));
+    hand(&mut e, 2, &["Rötschreck"]);
+    pick(&mut e, bleed(a));
+    pick(&mut e, block(z));
+    let rot = play_at(0, 0, None, Target::Minion(z));
+    until(&mut e, SeatId(0), WindowLabel::CombatStrike);
+    pick(&mut e, use_at(bow, 0, None, Target::None));
+    let req = offering(&mut e, rot);
+    assert_eq!(
+        (req.seat, req.window),
+        (SeatId(2), WindowLabel::CombatBeforeResolution)
+    );
+    pick(&mut e, rot);
+    until(&mut e, SeatId(0), WindowLabel::MinionPhase);
+    assert_eq!((blood(&e, a), blood(&e, z)), (4, 4));
+    assert!(e.state.minions[z.index()].in_torpor);
+    let card = card_named(&e, "Rötschreck");
+    assert_eq!(e.state.cards[card.index()].host, Some(z));
+    assert!(e.state.seats[2].out_of_turn.is_some());
+}
+
+// rules-qa 98.1: the defending Methuselah is polled before the others —
+// seat 0's Bum's Rush on seat 2's vampire, whose Rötschreck comes before
+// seat 1's (clockwise, seat 1's first).
+#[test]
+fn the_defending_methuselah_is_polled_before_the_others() {
+    let mut e = Engine::bare(3);
+    e.state.turn = 4;
+    let a = e.add_minion(SeatId(0), plain("Ventrue", &[], 3), 4, false);
+    e.add_minion(SeatId(0), plain("Brujah", &[], 1), 4, false);
+    e.add_minion(SeatId(1), plain("Ventrue", &[], 0), 4, false);
+    let z = e.add_minion(SeatId(2), plain("Ventrue", &[], 1), 4, false);
+    e.add_minion(SeatId(2), plain("Ventrue", &[], 2), 4, false);
+    let bow = in_play(&mut e, 0, "Ivory Bow", Some(a));
+    hand(&mut e, 1, &["Rötschreck"]);
+    hand(&mut e, 2, &["Rötschreck"]);
+    hand(&mut e, 0, &["Bum's Rush"]);
+    pick(&mut e, play_at(0, 0, Some(a), Target::Minion(z)));
+    until(&mut e, SeatId(0), WindowLabel::CombatStrike);
+    pick(&mut e, use_at(bow, 0, None, Target::None));
+    let rot = play_at(0, 0, None, Target::Minion(z));
+    let req = offering(&mut e, rot);
+    assert_eq!(
+        (req.seat, req.window),
+        (SeatId(2), WindowLabel::CombatBeforeResolution)
+    );
+}
+
+// rules-qa 98.2, 15.2: a Methuselah outside the combat is not offered a
+// card's ability whose host is out of it — Blood Tears of Kephran on seat
+// 2's vampire, through seat 0's and seat 1's combat.
+#[test]
+fn a_card_on_a_minion_out_of_the_combat_is_not_offered_in_it() {
+    let mut e = Engine::bare(3);
+    e.state.turn = 4;
+    let a = e.add_minion(SeatId(0), plain("Brujah", &[], 0), 4, false);
+    e.add_minion(SeatId(0), plain("Brujah", &[], 1), 4, false);
+    let z = e.add_minion(SeatId(1), plain("Ventrue", &[], 0), 4, false);
+    e.add_minion(SeatId(1), plain("Ventrue", &[], 1), 4, false);
+    let w = e.add_minion(SeatId(2), plain("Ventrue", &[], 2), 4, false);
+    let tears = in_play(&mut e, 2, "Blood Tears of Kephran", Some(w));
+    pick(&mut e, bleed(a));
+    pick_when(&mut e, block(z));
+    // Until seat 0's minion phase again: no request in the combat offers it
+    // (with nothing else for seat 2 there, the combat asks it nothing).
+    loop {
+        let req = request(&mut e);
+        if (req.seat, req.window) == (SeatId(0), WindowLabel::MinionPhase) {
+            break;
+        }
+        let tears_offered = req.options.iter().any(|o| {
+            matches!(o, Choice::UseAbility { source: AbilitySource::Card(c), .. } if *c == tears)
+        });
+        assert!(!(e.combat().is_some() && tears_offered), "{req:?}");
+        e.choose(fallback(&req));
+    }
+}

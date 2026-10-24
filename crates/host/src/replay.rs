@@ -95,11 +95,13 @@ pub struct Replay {
 }
 
 /// The choices a record's engine did not offer: a withdrawal before
-/// protocol 2.13.0, a path followed before 2.14.0.
+/// protocol 2.13.0, a path followed before 2.14.0, a combat's window to a
+/// Methuselah outside it before 2.15.0.
 #[derive(Clone, Copy, Debug, Default)]
 pub(crate) struct Then {
     before_withdrawals: bool,
     before_paths: bool,
+    before_combat_poll: bool,
 }
 
 impl Then {
@@ -107,6 +109,7 @@ impl Then {
         Then {
             before_withdrawals: before(protocol, (2, 13)),
             before_paths: before(protocol, (2, 14)),
+            before_combat_poll: before(protocol, (2, 15)),
         }
     }
 
@@ -209,9 +212,13 @@ impl Replay {
 
     /// The Pass of a block window offering only attempts that cannot reach
     /// the stealth, in a record from an engine that elided it (`elides`),
-    /// or the lone option beside those a record's engine did not offer
-    /// (`then`): taken without reading a recorded decision.
+    /// the lone option beside those a record's engine did not offer, or a
+    /// combat window it never asked a Methuselah outside the combat
+    /// (`then`, `unasked`): taken without reading a recorded decision.
     pub fn elided(&self, e: &Engine, req: &DecisionRequest) -> Option<usize> {
+        if let Some(pass) = unasked(self.then, e, req) {
+            return Some(pass);
+        }
         let old: Vec<usize> = (0..req.options.len())
             .filter(|&i| !self.then.unoffered(&req.options[i]))
             .collect();
@@ -687,6 +694,27 @@ impl Replayer {
     }
 }
 
+/// The Pass of a combat's ordered window asked of a Methuselah outside the
+/// combat, in a record from before such windows were (`Then`): its
+/// interrupts and Martyr's Resilience's poll were asked then.
+fn unasked(then: Then, e: &Engine, req: &DecisionRequest) -> Option<usize> {
+    use zvtes::decision::WindowLabel as W;
+    let ordered = matches!(
+        req.window,
+        W::CombatBeforeRange
+            | W::CombatDetermineRange
+            | W::CombatBeforeStrikes
+            | W::CombatBeforeResolution
+            | W::CombatAdditionalStrikes
+            | W::CombatPress
+            | W::CombatEndOfRound
+    );
+    let outside = e.combat().is_some_and(|c| c.side_of(req.seat).is_none());
+    (then.before_combat_poll && ordered && outside)
+        .then(|| req.options.iter().position(|o| *o == Choice::Pass))
+        .flatten()
+}
+
 /// Whether the protocol version `v` ("1.8.0") is before `major.minor`.
 fn before(v: &str, (major, minor): (u32, u32)) -> bool {
     let mut parts = v.split('.').map(|p| p.parse::<u32>().unwrap_or(0));
@@ -730,5 +758,51 @@ mod covering {
             &bleed(7, Some(Target::Seat { seat: 2 })),
             &now
         ));
+    }
+}
+
+#[cfg(test)]
+mod then {
+    use super::*;
+    use zvtes::game::Step;
+    use zvtes::ids::SeatId;
+    use zvtes::state::find_card;
+
+    /// A record from before 2.15.0 passes unread a combat window asked of a
+    /// Methuselah outside the combat (rules-qa 98.1): seat 2's Maman Boumba,
+    /// polled in seat 0's and seat 1's combat.
+    #[test]
+    fn an_older_record_passes_a_non_combatants_combat_window() {
+        let mut e = Engine::bare(3);
+        e.state.turn = 4;
+        let a = e.add_minion(SeatId(0), find_card("Abraham DuSable"), 4, false);
+        e.add_minion(SeatId(0), find_card("Abraham Mellon"), 4, false);
+        let z = e.add_minion(SeatId(1), find_card("Abaddon"), 4, false);
+        e.add_minion(SeatId(1), find_card("Alexa Draper"), 4, false);
+        e.add_minion(SeatId(2), find_card("Maman Boumba"), 4, false);
+        let bleed = Choice::TakeAction {
+            minion: a,
+            action: zvtes::decision::ActionKind::Bleed,
+            target: None,
+        };
+        let block = Choice::DeclareBlock { minion: z };
+        let req = loop {
+            let Step::Decision(req) = e.run() else {
+                panic!("a decision");
+            };
+            if req.seat == SeatId(2)
+                && req.window == zvtes::decision::WindowLabel::CombatBeforeRange
+            {
+                break req;
+            }
+            let i = [bleed, block]
+                .iter()
+                .find_map(|w| req.options.iter().position(|o| o == w))
+                .unwrap_or(0);
+            e.choose(i);
+        };
+        let pass = req.options.iter().position(|o| *o == Choice::Pass);
+        assert_eq!(unasked(Then::of("2.14.0"), &e, &req), pass);
+        assert_eq!(unasked(Then::of("2.15.0"), &e, &req), None);
     }
 }

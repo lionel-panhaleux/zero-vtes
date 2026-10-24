@@ -6303,7 +6303,7 @@ impl Engine {
                     // Methuselah's vampire is theirs to use) — for the host,
                     // or, from out of the combat, for its controller's
                     // combatant (Underbridge Stray's press).
-                    Actor::Host | Actor::ForOwnCombatant => {
+                    Actor::Host | Actor::ForOwnCombatant | Actor::HostOutOfCombat => {
                         let for_own = ability.actor == Actor::ForOwnCombatant;
                         // An unhosted card works for its controller's
                         // combatant (Dance of the Dead).
@@ -6324,11 +6324,19 @@ impl Engine {
                         if !st.minions[host.index()].present() {
                             continue;
                         }
-                        // In combat, the host must be the seat's combatant —
-                        // or the seat have one, for its own combatant.
+                        // In combat, the host must be the seat's combatant
+                        // (rules-qa 15.2), or the seat have one, for its own
+                        // combatant; a host out of any Methuselah's combat
+                        // for `HostOutOfCombat` (Abjure, 98.2).
                         let placed = match self.combat.as_ref() {
                             Some(cb) if for_own => cb.side_of(seat).is_some(),
-                            Some(cb) => cb.side_of(seat) == cb.side_of_minion(host),
+                            Some(cb) if ability.actor == Actor::HostOutOfCombat => {
+                                cb.side_of_minion(host).is_none()
+                            }
+                            Some(cb) => {
+                                cb.side_of(seat).is_some()
+                                    && cb.side_of(seat) == cb.side_of_minion(host)
+                            }
                             None => !for_own,
                         };
                         if !placed || gate(None).is_none() {

@@ -427,8 +427,9 @@ pub enum WindowLabel {
     BottomCards,
     InfluenceTransfers,
     DiscardPhase,
-    /// Combat steps (rulebook "Combat Sequence"): ordered windows over the
-    /// two combatant seats, the acting minion's controller first.
+    /// Combat steps (rulebook "Combat Sequence"): ordered windows over every
+    /// Methuselah, the acting minion's controller, the opposing one's, then
+    /// the others clockwise (rules-qa 98.1).
     CombatBeforeRange,
     CombatDetermineRange,
     CombatBeforeStrikes,

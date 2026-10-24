@@ -2333,7 +2333,9 @@ round (rulebook "Combat").
 ### 12.1 Structure, sides, who plays
 
 - Impulse in combat: 1.2 (§5.1); the acting minion and the opposing one
-  (§3.21); a combat with no acting minion (1.2). Deep Song moves the acting
+  (§3.21), then every other Methuselah clockwise from the acting one
+  (98.1), offered what reaches a combat it is not in (98.2); a combat with
+  no acting minion (1.2). Deep Song moves the acting
   side (27.5); Hedonism's vampire is its queued combat's acting side (53.3);
   The Guardian's combat: the bleeder acts first (41.5).
 - A combatant no longer ready (burned, going to torpor) may play
@@ -4643,6 +4645,8 @@ read, for the owner to confirm or correct:
 - 92.2, 92.3 graded green or amber (92.1 the owner's playtest ruling).
 - 93.1–93.10 graded green (settled by KRCG rulings and 60.7, 60.19, 60.21).
 - 95.1–95.5 graded green or amber (the tournament withdrawal).
+- 97.1–97.4 graded green or amber (Sabbat paths followed).
+- 98.1, 98.2 graded amber (combat polled past the combatants).
 - 49.6's several-holders question is moot (50.1: the Cog is unique).
 
 ### 24.2 Questions for a new rules-qa batch
@@ -4740,7 +4744,7 @@ an owner ruling:
 Every rules-qa item, by batch, with the digest sections citing it: the
 section stating it and those cross-referring to it (§2 the default
 readings, §22 engine modeling, §23 the contradictions, §24 the open
-readings). 979 items, Batches 1–97 (44.11 was removed, replaced by Batch
+readings). 981 items, Batches 1–98 (44.11 was removed, replaced by Batch
 45). The index is derived from the citations: a bare `N.M` cites rules-qa
 item N.M in the section it appears in. A new rules-qa item gets its line in
 the section stating it, then its entry here: `python3
@@ -5075,4 +5079,5 @@ index or an item cited nowhere.
   §18.1
 - **95** — 95.1 §21.2,§24.1; 95.2 §21.2; 95.3 §21.2; 95.4 §21.2; 95.5
   §21.2,§24.1
-- **97** — 97.1 §3.12; 97.2 §3.12; 97.3 §3.12; 97.4 §3.12
+- **97** — 97.1 §3.12,§24.1; 97.2 §3.12; 97.3 §3.12; 97.4 §3.12,§24.1
+- **98** — 98.1 §12.1,§24.1; 98.2 §12.1,§24.1

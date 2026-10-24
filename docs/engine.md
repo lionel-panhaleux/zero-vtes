@@ -876,8 +876,15 @@ sources to the engine's conventions.
   simultaneous; steal before mend) → prevention (acting side first, spec
   §4.5.4) → damage at once → additional strikes → press (alternating) → end
   of round, shared with the would-end replacement point (spec §4.9.1). Each
-  ordered step is a two-seat window with impulse reset (rules-qa 1.2);
-  strike choice and prevention are single-seat offers. A combatant no longer
+  ordered step is a window with impulse reset (rules-qa 1.2) polling every
+  Methuselah: the acting one, the defending one, then the others clockwise
+  from the acting one (`CombatCtx::ring`, `poll`; rules-qa 98.1); a
+  combatant's own options (maneuver, press, Show of Force) its seat's
+  only; strike choice and prevention are single-seat offers, the others'
+  prevention (Martyr's Resilience) the ring's order (29.1). A non-combatant
+  is offered what its cards allow one outside the combat: a vampire's or a
+  card's ability only when its actor is `HostOutOfCombat` (Randall, Maman
+  Boumba, Abjure; 15.2, 98.2). A combatant no longer
   ready ends the round at once, the end-of-round window still opening
   (rulebook step 7). A card there put on the opposing minion carries
   `Requirement::OpponentPresent`: a burned one is no target (rules-qa 75.1).

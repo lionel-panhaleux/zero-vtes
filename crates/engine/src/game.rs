@@ -2640,6 +2640,11 @@ impl Engine {
     /// Rulebook "Ending the Game": all the cards the ousted Methuselah
     /// controls are removed from the game — with the layers they carried.
     fn remove_seat(&mut self, s: SeatId) {
+        // Polled no more in a combat going on.
+        if let Some(c) = self.combat.as_mut() {
+            c.ring.retain(|&o| o != s);
+            c.window.remove(s);
+        }
         {
             let seat = &mut self.state.seats[s.index()];
             seat.ousted = true;
@@ -3572,6 +3577,21 @@ mod tests {
             .library
             .push(crate::state::find_library("Form of Mist"));
         assert!(!e.state.may_announce_withdrawal(SeatId(0)));
+    }
+
+    /// An ousted Methuselah is polled no more in a combat going on
+    /// (rules-qa 98.1).
+    #[test]
+    fn an_ousted_methuselah_is_polled_no_more() {
+        let mut e = Engine::bare(3);
+        let a = e.add_minion(SeatId(0), find_card("Abraham DuSable"), 4, false);
+        let b = e.add_minion(SeatId(1), find_card("Abaddon"), 4, false);
+        e.start_combat(a, b);
+        assert_eq!(e.combat().expect("combat").ring.len(), 3);
+        e.remove_seat(SeatId(2));
+        let c = e.combat().expect("combat");
+        assert_eq!(c.ring, vec![SeatId(0), SeatId(1)]);
+        assert_eq!(c.window.current(), Some(SeatId(0)));
     }
 
     #[test]

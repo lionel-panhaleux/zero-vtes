@@ -2137,7 +2137,7 @@ Thirty-seven cards (20 imbued, 14 powers, 3 convictions) and the rules of the ru
 
 **87.27** Travis: the conviction named as the action is announced (RTR 20111202), burned at resolution, the action fizzling if it is gone. Green. (Test travis_names_his_conviction_and_pays_it_at_resolution.)
 
-**87.28** Abjure: any combat between a monster and a mortal, its imbued in it or not, incapacitated too (LSJ 20081016); locking both the imbued and the power; the conviction only when the mortal is another minion. Green. A combat of another Methuselah's minions only is not offered: the engine polls the combatants' Methuselahs alone in combat, where the rulebook's impulse goes on to every other Methuselah (an engine gap, on the engine board). (Tests abjure_ends_a_combat_between_a_monster_and_a_mortal, abjure_is_used_by_an_incapacitated_imbued.)
+**87.28** Abjure: any combat between a monster and a mortal, its imbued in it or not, incapacitated too (LSJ 20081016); locking both the imbued and the power; the conviction only when the mortal is another minion. Green. Any Methuselah's combat, a third one's imbued polled after the combatants' Methuselahs (98.1). (Tests abjure_ends_a_combat_between_a_monster_and_a_mortal, abjure_is_used_by_an_incapacitated_imbued, a_third_methuselahs_abjure_ends_another_pairs_combat.)
 
 **87.29** Champion: the action fails at once and the acting monster fights its imbued, the action going on until the combat ends (LSJ 20070217), failed, not blocked (LSJ 20070219), never during a block attempt (ANK 20260316). Green. (Tests champion_turns_a_monsters_action_into_a_combat_with_its_imbued, champion_is_not_used_during_a_block_attempt.)
 
@@ -2358,3 +2358,9 @@ Each contradiction read against the KRCG rulings, the advanced rules and the rul
 **97.3** The path a vampire follows, printed or followed since, is told as its trait; its benefits are a Sabbat vampire's only (49.7, "must be Sabbat to receive the benefits"). Green. (Test a_vampires_path_is_a_trait.)
 
 **97.4** A library card as a Sabbat vampire (a created vampire) follows a path as a crypt card does. Amber. (Test a_torpid_or_created_sabbat_vampire_follows_a_path.)
+
+## Batch 98 — Combat polled past the combatants (rulebook "Combat": the impulse goes on to every Methuselah; advanced rules: effects for a minion "not involved in the current combat"): readings graded (Claude, 2026-10-24)
+
+**98.1** Each ordered combat window polls every Methuselah in the game: the acting minion's, the opposing one's, then the others clockwise from the acting one; the others' prevention (Martyr's Resilience) keeps 29.1's order, every Methuselah clockwise from the acting one. An ousted one is polled no more. Amber (the order of the third Methuselahs: the rulebook says the impulse passes clockwise). (Tests a_third_methuselahs_abjure_ends_another_pairs_combat, a_third_methuselah_plays_rotschreck, the_defending_methuselah_is_polled_before_the_others, an_ousted_methuselah_is_polled_no_more.)
+
+**98.2** A Methuselah outside the combat is offered what a card allows one outside it: its cards and abilities whose text reaches a combat it is not in (Rötschreck, 94.1; Abjure, 87.28; Maman Boumba; Martyr's Resilience, 29.1), its own out-of-turn and "any time" effects; never a vampire's printed ability nor a card-in-play ability whose host is out of the combat, unless the ability says so (15.2, its reading for the combatants' Methuselahs extended to every Methuselah). Amber. (Tests a_third_methuselah_plays_rotschreck, a_third_methuselahs_abjure_ends_another_pairs_combat, a_card_on_a_minion_out_of_the_combat_is_not_offered_in_it.)

@@ -241,8 +241,9 @@ pub enum Actor {
     /// An unlocked vampire out of the combat, any Methuselah's (Martyr's
     /// Resilience; ANK 20181101), in torpor too (LSJ 20020416).
     UnlockedOutOfCombat,
-    /// The vampire whose text it is, out of the combat, acting on a minion
-    /// in it (Randall).
+    /// The vampire whose text it is, or a card's host, out of the combat,
+    /// acting on it: any Methuselah's combat (Randall, Maman Boumba,
+    /// Abjure; rules-qa 98.2).
     HostOutOfCombat,
     /// The prey of the controller of the vampire whose text it is, the
     /// vampire the host (Keith Moody).

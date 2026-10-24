@@ -29223,9 +29223,8 @@ const CONVICTION: ModeDef = ModeDef {
 /// between a monster and a mortal. If the mortal is a minion other than
 /// this imbued, you may move a conviction [1 CONVICTION] to this imbued from
 /// your hand or ash heap." Usable incapacitated (LSJ 20081016); the power
-/// locked with it (rulebook "Appendix: Imbued Rules" 3). Another
-/// Methuselah's combat is not offered: combat polls the combatants'
-/// Methuselahs only (rules-qa 87.28).
+/// locked with it (rulebook "Appendix: Imbued Rules" 3); in any
+/// Methuselah's combat (rules-qa 87.28).
 pub static ABJURE: CardDef = CardDef {
     name: "Abjure",
     modes: &[power(
@@ -29238,7 +29237,7 @@ pub static ABJURE: CardDef = CardDef {
     abilities: &[
         mode_of(
             &[Window::CombatBeforeRange],
-            Actor::ForOwnCombatant,
+            Actor::HostOutOfCombat,
             &[
                 Requirement::HostOutOfCombat,
                 Requirement::CombatMonsterVsMortal,
