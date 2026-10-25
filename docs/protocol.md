@@ -754,15 +754,17 @@ fields it has, alike: a bleed's before it named its seat; a record from before
 every block attempt was offered reads past the block windows its engine
 skipped; one from before rules-qa 82.1 (protocol before 1.9.0), whose engine
 reopened the block window at the acting Methuselah after an attempt failed
-short of the stealth, reads past the passes it recorded there; the engines
-from 22cf131 to it, never deployed, left no record read; one from before
-rules-qa 88.5, whose engine ordered Anarch Revolt's burn among the
-unlock-phase riders, reads past the rider orders the engine no longer asks, a
-last one too as the game ends before it; one from before rules-qa 98
+short of the stealth, reads past the passes it recorded there, and after a
+play there (read as the engine asks it) the round of passes that closed it;
+the engines from 22cf131 to it, never deployed, left no record read; one from
+before rules-qa 88.5, whose engine ordered Anarch Revolt's burn among the
+unlock-phase riders, reads past the rider orders the engine no longer offers
+by their key, a last one too as the game ends before it; one from before
+2.12.0 passes unread the burn option of a master card requiring a ready Seraph
+(Watchtower: Four Ride Forth), never offered then; one from before rules-qa 98
 (protocol before 2.15.0), whose engine polled the combatants' Methuselahs
 alone, passes unread a combat's ordered window asked of a Methuselah outside
-the combat). Kept two years, to train and test
-the engine; anonymous.
+the combat). Kept two years, to train and test the engine; anonymous.
 
 ## 12. Open sets
 

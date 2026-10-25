@@ -18,26 +18,35 @@ position an engine change moved (hidden state included), not only one
 whose options changed. Read one with `uv run python -m train.assess
 data/records/<file>.json [checkpoint]`, or `cargo run -p zvtes-host
 --profile ci --example replay -- <file>`; `crates/host/tests/records.rs`
-checks they all read whole.
+checks they read whole, or stop where `KNOWN_STOPS` says.
 
-A record is read back by key: a decision takes the option that is the
-recorded choice, whatever its index, so a game keeps reading when the
-engine changes the options it offers. A change in the rules the game met
-still stops it (the engine asks a decision the game never had, or no
-longer offers what was chosen) — but for the block windows offering only
-attempts that cannot reach the stealth, which an engine before rules-qa
-73.8 skipped, and the combat windows asked of a Methuselah outside the
-combat, which an engine before rules-qa 98 (protocol 2.15.0) never asked:
-a record reading further past them is read so (`Replay::elided`). A record a
-rules change stops for good (one from before 2.4.0, which records no
-windows, read past a window the engine no longer asks) is listed in
-`crates/host/tests/records.rs` (`KNOWN_STOPS`: the file, the decision, the
-change), asserted to stop exactly there: `…10-08T21-17-05` at decision 215,
-the second Wall of Filth its owner was offered (rules-qa 99.1). Each
-converted game names the engine commit its wasm was built from below — check
-out that commit to read it as it was played. These converted games carry
-neither their bots' nudges nor their turn count (the Bots column says the
-run); a server record does from protocol 1.7.0 on (`bots[].nudges`,
+A record is read back by key: a decision takes the option that is the recorded
+choice, whatever its index, so a game keeps reading when the engine changes
+the options it offers. A change in the rules the game met still stops it (the
+engine asks a decision the game never had, or no longer offers what was
+chosen) — but for what a record's engine did not ask, read past
+(`Replay::elided`, `Reader::next`): the block windows offering only attempts
+that cannot reach the stealth, which an engine before rules-qa 73.8 skipped;
+the block window an engine before rules-qa 82.1 reopened after an attempt
+failed short of the stealth, its passes through the blocker read past, and
+after a play there (read as the engine asks it) the round of passes that
+closed it; the unlock riders' order recorded for Anarch Revolt before rules-qa
+88.5, a rider the engine offers by its key only; and the options a record's
+protocol did not offer yet (`Then`: the burn option of a master card requiring
+a ready Seraph before 2.12.0, a withdrawal before 2.13.0, a path before
+2.14.0, the combat windows of a Methuselah outside the combat before 2.15.0,
+rules-qa 96's before 2.16.0). A record a rules change stops for good — it took
+a choice the rules now refuse (an attempt after its blocker's decline,
+rules-qa 82.1), or the change moved its hidden state (the library a
+diablerie's Discipline search shuffles, advanced rules 4), or, from before
+2.4.0, which records no windows, it is read past a window the engine no longer
+asks — is listed in `crates/host/tests/records.rs` (`KNOWN_STOPS`: the file,
+the decision, the change), asserted to stop exactly there: `…10-08T21-17-05`
+at decision 215, the second Wall of Filth its owner was offered (rules-qa
+99.1). Each converted game names the engine commit its wasm was built from
+below — check out that commit to read it as it was played. These converted
+games carry neither their bots' nudges nor their turn count (the Bots column
+says the run); a server record does from protocol 1.7.0 on (`bots[].nudges`,
 `result.turns`).
 
 | File (`.json`) | Engine | Seats (in order; the human's in bold) | Bots | Result |
@@ -81,12 +90,13 @@ its commit prefix, and its protocol):
 |---|---|---|---|---|
 | `d8ec2c01edab010d.json` | `237fd5d42a79` (protocol 2.4.0), 2026-10-19 | **Lasombra (Fifth Edition)**, Banu Haqim (Fifth Edition (Anarch)), Brujah (Fifth Edition (Anarch)), Ministry (Fifth Edition (Anarch)) | `df66d54badf3` (network, t 0.5) | the human 3 VP, Brujah (Fifth Edition (Anarch)) 1 VP, last standing; 2 undos |
 | `da59eaaa7e4abda6.json` | `1f616016b7cd` (protocol 2.6.0), 2026-10-22 | **Salubri (Fifth Edition (Companion))**, Tzimisce (Fifth Edition (Companion)), The Endless Dance (Thirtieth Anniversary), Toreador (Fifth Edition) | `a78e74292acb` (network, t 0.5) | the human 3 VP, The Endless Dance (Thirtieth Anniversary) 1 VP, last standing; 4 undos |
+| `57b15cfc6c44ad37.json` | `aa50ca0624fe` (protocol 1.0.0), 2026-10-15 | Brujah (Fifth Edition (Anarch)), **Path of Death (Sabbat V5)**, Path of Caine (Sabbat V5), Tzimisce (Fifth Edition (Companion)) | `7aaa9528fbf8` (network, t 0.5) | the human 3 VP, Tzimisce (Fifth Edition (Companion)) 1 VP, last standing |
+| `ec8d47141b6b38e9.json` | `c5d9f13c87e2` (protocol 1.2.0), 2026-10-15 | Ventrue (Fifth Edition), **Nosferatu (Fifth Edition)**, Malkavian (Fifth Edition), Tzimisce (Fifth Edition (Companion)) | `7aaa9528fbf8` (network, t 0.5) | the human 3 VP, Tzimisce (Fifth Edition (Companion)) 1 VP, last standing |
+| `5a98a36c86873c35.json` | `814c2a90030b` (protocol 2.10.0), 2026-10-24 | **custom**, Nosferatu (Fifth Edition), The Endless Dance (Thirtieth Anniversary), Hecata (Fifth Edition) | `a78e74292acb` (network, t 0.5) | the human 2 VP, Nosferatu (Fifth Edition) 2 VP, last standing; 6 undos |
 
-Every game here reads whole on the current engine
-(`crates/host/tests/records.rs`). A game a rules fix stops partway, or an
-unfinished one, is removed (owner, 2026-10-10, 2026-10-11); the removed
-games and where each stopped are in the history (`e5f8f54` and after). A
-record from before rules-qa 82.1 (protocol before 1.9.0) reads past the
-passes its engine recorded in the block window it reopened after an attempt
-failed short of the stealth; the engines from 22cf131 (the first 1.9.0) to
-8587a25, never deployed, left no record here.
+Every game here reads whole on the current engine, but those `KNOWN_STOPS`
+lists stop where it says (`crates/host/tests/records.rs`). A game a rules
+fix stops partway, or an unfinished one, is otherwise removed (owner,
+2026-10-10, 2026-10-11); the removed games and where each stopped are in
+the history (`e5f8f54` and after). The engines from 22cf131 (the first
+1.9.0) to 8587a25, never deployed, left no record here.

@@ -13,7 +13,7 @@
 use std::panic::{catch_unwind, AssertUnwindSafe};
 
 use zvtes::decision::{Choice, DecisionRequest};
-use zvtes::game::{self, Engine};
+use zvtes::game::{self, Engine, Reasked};
 use zvtes_api::ids::Window;
 use zvtes_api::message::EndReason;
 use zvtes_api::option::{ChoiceKey, OptionView};
@@ -98,13 +98,16 @@ pub struct Replay {
 /// protocol 2.13.0, a path followed before 2.14.0, a combat's window to a
 /// Methuselah outside it before 2.15.0; before 2.16.0 a wake in an action
 /// card's as-played window, Nergal's reduction at resolution, the Dual
-/// Form kept (rules-qa 96.1, 96.3, 96.4).
+/// Form kept (rules-qa 96.1, 96.3, 96.4); before 2.12.0 the burn option of
+/// a master card requiring a ready Seraph (Watchtower: Four Ride Forth,
+/// fixed within 2.11.0: no record of it after the fix met the card).
 #[derive(Clone, Copy, Debug, Default)]
 pub(crate) struct Then {
     before_withdrawals: bool,
     before_paths: bool,
     before_combat_poll: bool,
     before_batch_96: bool,
+    before_seraph_burn: bool,
 }
 
 impl Then {
@@ -114,6 +117,7 @@ impl Then {
             before_paths: before(protocol, (2, 14)),
             before_combat_poll: before(protocol, (2, 15)),
             before_batch_96: before(protocol, (2, 16)),
+            before_seraph_burn: before(protocol, (2, 12)),
         }
     }
 
@@ -123,6 +127,18 @@ impl Then {
         match c {
             Choice::WithdrawFromGame => self.before_withdrawals,
             Choice::FollowPath { .. } => self.before_paths,
+            Choice::Discard(i)
+                if self.before_seraph_burn
+                    && req.window == zvtes::decision::WindowLabel::UnlockAbilities =>
+            {
+                e.state.seats[req.seat.index()]
+                    .hand
+                    .get(*i as usize)
+                    .is_some_and(|&card| {
+                        zvtes::cards::trait_requirements(card)
+                            .any(|r| r == zvtes::cards::Requirement::ControlsReadySeraph)
+                    })
+            }
             Choice::ResolvePrinted { .. } if self.before_batch_96 => {
                 matches!(e.interrupt(), Some(I::ReductionAtResolution { .. }))
             }
@@ -276,6 +292,7 @@ impl Replay {
             replay: self,
             next: 0,
             declines: 0,
+            round: None,
         }
     }
 
@@ -322,12 +339,38 @@ pub struct Reader<'a> {
     /// The engine's short declines read past so far
     /// (`Engine::short_declines`).
     declines: usize,
+    /// A reopened block window's round a play interrupted (`Reader::next`).
+    round: Option<Vec<Reasked>>,
 }
 
 impl Reader<'_> {
     /// How many decisions were read.
     pub fn position(&self) -> usize {
         self.next
+    }
+
+    /// Read past the recorded passes of a reopened block window's `round`
+    /// (the seats asked again, in order, through the blocker), a seat not
+    /// asked again (no option left but the pass) skipped; a play by one of
+    /// them keeps the round, whole again from the acting seat, past the
+    /// play and its own decisions (a record before 1.9.0 has no windows to
+    /// tell them apart): the next passes by its seats close it.
+    fn read_round(&mut self, round: Vec<Reasked>) {
+        let mut at = 0;
+        while at < round.len() {
+            let Some(d) = self.replay.decisions.get(self.next) else {
+                return;
+            };
+            let Some(j) = round[at..].iter().position(|r| r.seat.0 == d.seat) else {
+                return;
+            };
+            if d.choice.kind != zvtes_api::ids::OptionKind::Pass {
+                self.round = Some(round);
+                return;
+            }
+            self.next += 1;
+            at += j + 1;
+        }
     }
 
     /// The option the record takes at the decision `req` asks (on `e`, as
@@ -338,23 +381,23 @@ impl Reader<'_> {
         // Before rules-qa 82.1, an attempt failed short of the stealth
         // reopened the block window at the acting Methuselah, the seats
         // through the blocker asked again (the blocker's pass its decline):
-        // their recorded passes there, right after it, are read past; a
-        // play there instead stops the record (the rules changed).
+        // their recorded passes there, right after it, are read past. A
+        // play there is read (the engine asks its seat, the window going
+        // on), and gave the impulse back to the acting Methuselah (1.2):
+        // the reopened window closed only on the round of passes after it.
+        if let Some(round) = self.round.take() {
+            self.read_round(round);
+        }
         let notes = e.short_declines.as_deref().unwrap_or_default();
         for asked in &notes[self.declines.min(notes.len())..] {
             // A seat offered only futile attempts was not asked before
             // rules-qa 73.8 either (`Replay::elided`).
-            for r in asked.iter().filter(|r| !(r.futile && self.replay.elides)) {
-                match self.replay.decisions.get(self.next) {
-                    Some(d)
-                        if d.seat == r.seat.0
-                            && d.choice.kind == zvtes_api::ids::OptionKind::Pass =>
-                    {
-                        self.next += 1;
-                    }
-                    _ => break,
-                }
-            }
+            let round = asked
+                .iter()
+                .filter(|r| !(r.futile && self.replay.elides))
+                .cloned()
+                .collect();
+            self.read_round(round);
         }
         self.declines = notes.len();
         // Before rules-qa 88.5, Anarch Revolt's burn was ordered among the
@@ -362,9 +405,7 @@ impl Reader<'_> {
         // engine no longer asks (the Revolt not offered, a lone rider
         // elided) is read past.
         while let Some(d) = self.replay.decisions.get(self.next) {
-            if d.choice.kind != zvtes_api::ids::OptionKind::ResolveRider
-                || recorded_option(e, req, d, self.replay.then).is_ok()
-            {
+            if d.choice.kind != zvtes_api::ids::OptionKind::ResolveRider || offered(e, req, d) {
                 break;
             }
             self.next += 1;
@@ -489,6 +530,15 @@ pub(crate) fn recorded_option(
     }
 }
 
+/// An option of `req` is `d`'s choice by its key (alike, or the fields an
+/// older key has): never by its recorded index alone.
+fn offered(e: &Engine, req: &DecisionRequest, d: &Recorded) -> bool {
+    req.options.iter().any(|c| {
+        let now = describe::key(e, req, c, &EngineNames);
+        now == d.choice || covers(&d.choice, &now)
+    })
+}
+
 /// Every field `recorded` sets, `now` sets alike.
 fn covers(recorded: &ChoiceKey, now: &ChoiceKey) -> bool {
     fn same<T: PartialEq>(r: &Option<T>, n: &Option<T>) -> bool {
@@ -549,8 +599,9 @@ pub enum Step {
 pub struct Replayer {
     replay: Replay,
     next: usize,
-    /// `Reader::declines`, kept between steps.
+    /// `Reader::declines` and `round`, kept between steps.
     declines: usize,
+    round: Option<Vec<Reasked>>,
     session: Session,
     viewer: Viewer,
     dealt: Decks,
@@ -575,6 +626,7 @@ impl Replayer {
             replay,
             next: 0,
             declines: 0,
+            round: None,
             session,
             viewer,
             dealt,
@@ -708,6 +760,7 @@ impl Replayer {
             replay: &self.replay,
             next: self.next,
             declines: self.declines,
+            round: self.round.clone(),
         };
         match reader.next(e, &req) {
             None => Step::Decision(read),
@@ -715,6 +768,7 @@ impl Replayer {
             Some(Ok(i)) => {
                 self.next = reader.next;
                 self.declines = reader.declines;
+                self.round = reader.round;
                 self.pending = Some(i);
                 read.chosen = Some(i);
                 read.entry = Some(self.replay.decisions[reader.next - 1].entry);
