@@ -696,6 +696,19 @@ pub fn cycling(e: &Engine, req: &DecisionRequest) -> bool {
         && req.options.iter().any(|o| matches!(o, Choice::Discard(_)))
 }
 
+/// The options a network seat may take (None: all): blocks it can
+/// reach, the kinds it was trained on, the default politics, and the
+/// chores never declined when `chores`.
+pub fn mask(e: &Engine, req: &DecisionRequest, chores: bool) -> Option<Vec<bool>> {
+    combine(
+        combine(reachable_blocks(e, req), untrained(req)),
+        combine(
+            politics::mask(e, req),
+            chores.then(|| chores::mask(e, req)).flatten(),
+        ),
+    )
+}
+
 /// The policy as a player: samples an option from the network's
 /// distribution, as training does (`train/ppo.py` `act`), with the nudges
 /// training plays with (`nudges`), sharpened by a temperature under 1
@@ -753,13 +766,7 @@ impl Agent for NetAgent {
         }
         // Options score independently (each against the context): the
         // masked ones change nothing of the others' logits.
-        let mask = combine(
-            combine(reachable_blocks(engine, req), untrained(req)),
-            combine(
-                politics::mask(engine, req),
-                self.chores.then(|| chores::mask(engine, req)).flatten(),
-            ),
-        );
+        let mask = mask(engine, req, self.chores);
         if let Some(m) = &mask {
             if let [only] = (0..m.len()).filter(|&i| m[i]).collect::<Vec<_>>()[..] {
                 return only;

@@ -1,5 +1,5 @@
-//! A position as a player reads it, for one seat (training board, "The
-//! critic against the position, measured"): the pools of the seat, its
+//! A position as a player reads it, for one seat (DESIGN §11.2 "The
+//! critic against the position"): the pools of the seat, its
 //! prey, its predator and the cross-table seats, the minions each side
 //! has ready to act or block, the lunge (an oust within reach). Hand-made
 //! features the critic's prediction is measured against
@@ -67,7 +67,7 @@ pub fn features(st: &GameState, s: SeatId) -> Vec<f32> {
         .unwrap_or(0);
     // The seats' positions as the context reads them (pools, minions,
     // sizes, the lunge both ways).
-    let at = |x: SeatId| zvtes_env::context::position(st, x);
+    let at = |x: SeatId| crate::context::position(st, x);
     let (own, of_prey, of_pred) = (at(s), at(prey), at(pred));
     let mut f = vec![
         own[0],

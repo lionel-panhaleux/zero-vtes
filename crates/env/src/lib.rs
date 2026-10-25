@@ -10,3 +10,4 @@ pub mod context;
 pub mod habits;
 pub mod obs;
 pub mod politics;
+pub mod position;

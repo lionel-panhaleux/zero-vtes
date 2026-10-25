@@ -1808,7 +1808,7 @@ training runs.
 - **The critic against the position** (owner with Tom, 2026-10-22: "some
   measure of the quality of the position", the pools of every seat, the
   lunge, the actions and blocks each side has). `train.position` (the
-  features: `zvtes_py.position_names`, `crates/py/src/position.rs`, for
+  features: `zvtes_py.position_names`, `crates/env/src/position.rs`, for
   the deciding seat: the pools of the seat, its prey, its predator and
   the cross-table seats, VPs, each side's ready, unlocked and torpid
   minions and the blood on the ready ones, hand, library, turn, the edge,
@@ -1897,6 +1897,71 @@ training runs.
   owner. The gap is broad — about 40% more A&B, every kind, and twice
   the prey's loss a turn, the owner's resource growing where the bot's
   shrinks — so a planning lever before a counter's.
+- **d16** (`runs/d16`, `../zero-vtes-d16` at `fed6d40`; 2026-10-25 → 26, 200
+  iterations, no panic, nothing truncated, ~290 s an iteration (rollout ~80,
+  update ~210), 7.6 minutes on average with the evaluations). The owner's
+  first p16 step (2026-10-25: "a bigger network distillation before we
+  launch p16"): a fresh network at d 192 and 4 layers (p14: 96 and 2)
+  distilled from p14@5280, `--teacher runs/p14/best.pt` — the learner plays
+  p14's tables (its deck mix, weak decks, starts and nudges), p14 labels the
+  decisions it reaches, the policy term KL(p14 ‖ learner); opponents
+  p14@5280 and p13@4740 frozen, evaluated every 10. KL 1.09 at the first
+  iteration, 0.26 at 20, 0.14 at 100, 0.13 from 160; against the frozen pair
+  0.27 / 0.18 VP a seat at 4 / 5 seats at 10, 0.99 / 0.93 at 100, **1.13 /
+  1.02 at 180** (best). Measured against p14 on `fed6d40` (`best.zvp`
+  `714054ed0ba2`): at one seat against three p14 (600 games) 0.92 VP a seat
+  (Brujah 1.50, Ministry 1.40 … The Endless Dance 0.30, Path of Cathari
+  0.50); `humanset` (the five, bots p14) agreement 47.6% against 51.4%, the
+  human's choice more probable (mean log-probability −1.54 against −1.76),
+  won from the owner's positions 126 / 300 against 126; the ledger (400
+  self-play games, d16 / p14, two standard errors ~0.04 on A&B, ~0.10 on R):
+  A&B a round 2.09 / 2.14 at 4 seats, 2.10 / 2.20 at 5, 1.72 / 1.73 on TWDA;
+  its prey's R per own turn −3.46 / −3.35, −3.54 / −3.59, −2.88 / −2.96.
+  p14's play in a network with room to grow, no gain of its own: **not
+  served**, p16's start (owner, 2026-10-27).
+- **Search in the minion phase** (the owner's second p16 step, 2026-10-25;
+  `crates/policy/examples/search.rs`): at each minion-phase choice of one
+  seat, p14's four favourite options each played out four times to the start
+  of the seat's next turn, every seat p14, scored by the position's
+  potential there (`runs/phi-p14.json`, "The critic against the position")
+  or the result, the best mean taken. 200 games at 4 seats (`Engine::new`'s
+  random V5 precons, a 75-turn limit, seeds 60,000 on), each played with the
+  seat (`g % 4`) searched and unsearched, p14's `best.zvp` everywhere, built
+  on 2026-10-25's main (`1aee487` to `2fc645e`); `search <p14.zvp>
+  runs/phi-p14.json 200 --k 4 --n 4 [--fair] [--ab W]`. A&B a round and the
+  prey's R are means of per-game ratios (not the ledger's ratio of totals),
+  ± two standard errors. Unsearched: VP a seat 1.15 ± 0.20, game wins 24%,
+  A&B a round 2.00 ± 0.12, its prey's R a turn −3.43 ± 0.30. Seeing the
+  hidden cards (an upper bound): 1.58 VP (paired +0.43 ± 0.25), 38%, A&B
+  2.15, −3.70. Fair (before each play-out, the others' hands dealt again
+  from their libraries, every library and crypt shuffled; their face-down
+  uncontrolled vampires and cards stored face down left as they are, which
+  can only favour search): 1.15 (+0.00 ± 0.24), 27%, 2.03, −3.18. With W
+  added a play-out for each A&B the seat makes in it (`--ab`, the owner's
+  "try the A&B leaf score too"), fair: W 0.05 1.13 VP (−0.02), A&B 2.18,
+  −3.15; W 0.15 1.22 (+0.07), 2.20, −3.36. The gain was the hidden cards';
+  the A&B term buys about 0.2 A&B a round (at the edge of two standard
+  errors, unpaired) of no more harm to the prey. Not a lever as it stands: a
+  play-out needs a better guess of the hidden cards than a fresh deal.
+- **p16, prepared** (owner, 2026-10-27: RL from d16). From d16@180 (the
+  seats' context read from the start), on main `6ad5083` (round 22's cards);
+  as p14 otherwise, the owner's games twice as often, no shaping, d16 for
+  p13 among the frozen opponents, 500 iterations (the paths absolute into
+  the main checkout's `runs/` at launch): `train.ppo --league true --out
+  runs/p16 --resume runs/d16/best.pt --d 192 --layers 4 --attention-budget
+  8000000 --opponents runs/p14/best.pt,runs/d16/best.pt --decks
+  precons,anniversary,sabbat,twda --bc data/records,data/server-records
+  --bc-coef 0.02 --bc-every 4 --bc-held-games H --bc-weak-weight 3
+  --bc-games-weight zero-vtes-replay=2 --starts
+  data/records,data/server-records --start-tables 0.25 --weak-decks
+  0,3,7,8,9,12,13 --weak-rate 0.35 --rescue-bonus 6 --bleed-bonus 4
+  --idle-bonus 3 --draw-bonus 7 --stuck-bonus 6 --nightmare-bonus 6 --lr
+  1e-4 --iterations 680 --eval-every 20 --bots-every 0`, H the five held
+  games (2026-10-11T12-31-56, 2026-10-11T15-45-47, 2026-10-12T21-02-13,
+  2026-10-12T21-50-21, e33fab34fee8ca4b, comma-joined). Judged against p14
+  by the ledger (the training skill's step 5): A&B a round and its prey's R
+  at 4 and 5 seats and on TWDA, decks, `humanset`; the bar the board's line
+  sets, A&B a round above p14's.
 - **Futile blocks on the E25 engine** (owner, 2026-10-15: before any
   redeploy). E25 (`97c4880`) offers every legal block attempt, those
   that cannot reach the stealth too (`Engine::block_can_reach`); no

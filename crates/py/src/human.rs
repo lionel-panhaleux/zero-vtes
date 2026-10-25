@@ -103,7 +103,7 @@ pub fn replay_decisions<'py>(
         put(py, &x, "critic_", encode_critic(r.engine(), req, v), false)?;
         x.set_item(
             "position",
-            crate::position::features(&r.engine().state, req.seat),
+            zvtes_env::position::features(&r.engine().state, req.seat),
         )?;
         Ok(x)
     };

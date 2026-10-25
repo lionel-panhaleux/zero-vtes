@@ -30,7 +30,7 @@ use zvtes_host::start::Start;
 use zvtes_policy::Nudges;
 
 mod human;
-mod position;
+use zvtes_env::position;
 
 /// Who plays a seat.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
