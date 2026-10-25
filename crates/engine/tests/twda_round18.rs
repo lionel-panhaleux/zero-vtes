@@ -1558,3 +1558,76 @@ fn the_admonitions_not_as_played_and_draws_what_there_is() {
     assert!(uses(&req, adm.0).is_empty());
     assert!(req.options.len() > 1);
 }
+
+// Storage Annex [LSJ 20001031] [PIB 20121220] "If it is stolen, the card on
+// it goes with it and the new controller will be able to take it in hand.
+// The card is returned to the owner's ash heap or library if it would be
+// moved to an ash heap or library": seat 1, the Annex's new controller,
+// takes seat 0's Dodge in hand, then discards it — to seat 0's ash heap
+// (owner, 2026-10-25: the hand card's owner kept by copy; rules-qa 96.2).
+#[test]
+fn a_card_taken_from_a_stolen_storage_annex_goes_back_to_its_owner() {
+    let mut e = game(2);
+    e.add_minion(SeatId(0), of_clan("Brujah", 4..=6), 4, false);
+    e.add_minion(SeatId(1), of_clan("Ventrue", 4..=6), 4, false);
+    let annex = in_play(&mut e, 0, "Storage Annex", None);
+    let dodge = find_library("Dodge");
+    e.state.cards[annex.index()].stored = vec![dodge].into();
+    e.state.cards[annex.index()].stored_owner = Some(SeatId(0));
+    e.state.cards[annex.index()].controller = SeatId(1);
+    hand(&mut e, 1, &["Leverage"]);
+    zvtes::copies::number_unnumbered(&mut e);
+    let req = to_window(&mut e, SeatId(1), WindowLabel::MasterPhase);
+    pick(&mut e, uses(&req, annex.0)[0]);
+    let req = until(&mut e, SeatId(1), WindowLabel::DiscardPhase);
+    let i = e.state.seats[1]
+        .hand
+        .iter()
+        .position(|&c| c == dodge)
+        .expect("in hand");
+    e.choose(index_of(&req, Choice::Discard(i as u8)));
+    request(&mut e);
+    assert!(
+        e.state.seats[0].ash.contains(&dodge),
+        "its owner's ash heap"
+    );
+    assert!(!e.state.seats[1].ash.contains(&dodge));
+}
+
+// Storage Annex [LSJ 20001031] [PIB 20121220], the card played by its taker:
+// seat 1 takes seat 0's Dreams of the Sphinx in hand from the stolen Annex
+// and plays it — seat 0's card in play; burned, to seat 0's ash heap
+// (rules-qa 96.2).
+#[test]
+fn a_card_played_from_a_stolen_storage_annex_is_still_its_owners() {
+    let mut e = game(2);
+    e.add_minion(SeatId(0), of_clan("Brujah", 4..=6), 4, false);
+    e.add_minion(SeatId(1), of_clan("Ventrue", 4..=6), 4, false);
+    let annex = in_play(&mut e, 0, "Storage Annex", None);
+    let dreams = find_library("Dreams of the Sphinx");
+    e.state.cards[annex.index()].stored = vec![dreams].into();
+    e.state.cards[annex.index()].stored_owner = Some(SeatId(0));
+    e.state.cards[annex.index()].controller = SeatId(1);
+    hand(&mut e, 1, &["Leverage"]);
+    zvtes::copies::number_unnumbered(&mut e);
+    let req = to_window(&mut e, SeatId(1), WindowLabel::MasterPhase);
+    pick(&mut e, uses(&req, annex.0)[0]);
+    request(&mut e);
+    let i = e.state.seats[1]
+        .hand
+        .iter()
+        .position(|&c| c == dreams)
+        .expect("in hand");
+    pick_when(&mut e, master_play(i as u8));
+    request(&mut e);
+    let id = e
+        .state
+        .cards
+        .iter()
+        .position(|c| c.in_play && c.card == dreams)
+        .expect("in play");
+    assert_eq!(e.state.cards[id].owner, SeatId(0), "its owner's card");
+    e.burn_card(CardId(id as u32));
+    assert!(e.state.seats[0].ash.contains(&dreams));
+    assert!(!e.state.seats[1].ash.contains(&dreams));
+}

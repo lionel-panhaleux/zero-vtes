@@ -184,6 +184,8 @@ pub fn purpose(i: &Interrupt) -> Purpose {
         I::MayPreventForBlood { .. } => Purpose::MayPreventForBlood,
         I::ShortfallPicks { .. } => Purpose::ShortfallPicks,
         I::MayUnlock { .. } => Purpose::MayUnlock,
+        I::ReductionAtResolution { .. } => Purpose::ReductionAtResolution,
+        I::DualFormKept { .. } => Purpose::DualFormKept,
         I::GiveCardTo { .. } => Purpose::GiveCardTo,
         I::NameAshPair { .. } => Purpose::NameAshPair,
         I::MayPutOn { .. } => Purpose::MayPutOn,

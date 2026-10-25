@@ -2368,3 +2368,63 @@ fn redistribution_moves_equipment_freely_and_blood_once_a_pair() {
     assert_eq!(e.state.cards[monocle.index()].host, Some(dorka));
     assert_eq!(e.state.cards[tears.index()].host, Some(dorka));
 }
+
+// Unwholesome Bond [LSJ 20050927] [ANK 20211113] "Angelo can be in the
+// 'unique circle of one' of any vampire, including another copy of himself.
+// Two uncontrolled Angelo are in different circles, an active Angelo has to
+// choose": Angelo's [SAN] is offered on an uncontrolled Angelo and on an
+// uncontrolled New Blood, each its own circle of one; the one chosen gets
+// the blood, not the other.
+#[test]
+fn unwholesome_bond_lets_angelo_feed_one_circle_of_one() {
+    let mut e = game(2);
+    let angelo = e.add_minion(SeatId(0), find_card("Angelo"), 4, false);
+    e.add_minion(SeatId(0), plain("Brujah", 0), 4, false);
+    e.add_minion(SeatId(1), plain("Ventrue", 0), 4, false);
+    e.state.seats[0].uncontrolled = ["Angelo", "New Blood"]
+        .iter()
+        .map(|n| zvtes::state::UncontrolledSlot {
+            card: find_card(n),
+            copy: Default::default(),
+            counters: 0,
+            banished: None,
+        })
+        .collect();
+    hand(&mut e, 0, &["Unwholesome Bond"]);
+    let req = request(&mut e);
+    assert!(req
+        .options
+        .contains(&play_at(0, 2, angelo, Target::Uncontrolled(1))));
+    e.choose(index_of(
+        &req,
+        play_at(0, 2, angelo, Target::Uncontrolled(0)),
+    ));
+    until(&mut e, SeatId(0), WindowLabel::MinionPhase);
+    assert_eq!(e.state.seats[0].uncontrolled[0].counters, 1);
+    assert_eq!(e.state.seats[0].uncontrolled[1].counters, 0);
+}
+
+// On the Qui Vive "they ignore the requirement to be unlocked for playing
+// reaction cards": in seat 0's bleed, seat 1's locked vampire wakes, then
+// cancels Bonding [dom] with Touch of Clarity (usable by an unlocked
+// vampire) — a card in play's ability is not (Yawp Court:
+// yawp_court_needs_an_unlocked_sabbat_vampire_not_a_woken_one; rules-qa
+// 96.4).
+#[test]
+fn a_woken_minion_plays_a_reaction_needing_it_unlocked() {
+    let mut e = game(2);
+    let a = e.add_minion(SeatId(0), vampire_with("dom", 0), 4, false);
+    e.add_minion(SeatId(0), plain("Brujah", 0), 4, false);
+    let t = e.add_minion(SeatId(1), plain("Ventrue", 0), 4, false);
+    superior(&mut e, t, "dem");
+    e.state.minions[t.index()].locked = true;
+    hand(&mut e, 0, &["Bonding"]);
+    hand(&mut e, 1, &["On the Qui Vive", "Touch of Clarity"]);
+    pick(&mut e, bleed(a));
+    pick_when(&mut e, play(0, 0, t));
+    pick_when(&mut e, play(0, 0, a));
+    let req = expect(&mut e, SeatId(1), WindowLabel::CardAsPlayed);
+    e.choose(index_of(&req, play(0, 0, t)));
+    until(&mut e, SeatId(0), WindowLabel::MinionPhase);
+    assert!(e.state.seats[0].ash.contains(&find_library("Bonding")));
+}

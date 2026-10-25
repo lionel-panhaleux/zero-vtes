@@ -1475,6 +1475,15 @@ pub struct GameState {
     /// The Methuselahs who burned corruption counters during the action
     /// under way, whoever's (Rise of the Fallen, rules-qa 77.28).
     pub corruption_burned: Vec<SeatId>,
+    /// Cards in a hand not their owner's, by copy, with the owner (a card
+    /// taken from a stolen Storage Annex): out of the hand, routed back to
+    /// the owner (`settle_foreign_cards`; LSJ 20001031, PIB 20121220; owner,
+    /// 2026-10-25: keyed by copy, rules-qa 96.2).
+    pub foreign: Vec<(crate::copies::Untracked<CopyId>, SeatId)>,
+    /// Minions woken in an action card's as-played window, before its
+    /// action is declared: woken for it once declared, dropped if it is not
+    /// (LSJ 20021011, rules-qa 2.4, 96.4).
+    pub pre_woken: Vec<MinionId>,
     /// The minion performing the action under way (Midget: "while Midget is
     /// acting").
     pub acting: Option<MinionId>,
@@ -3500,6 +3509,9 @@ impl GameState {
     /// announced but never shown (advanced rules §1.14.2).
     pub fn legal_view(&self, viewer: SeatId) -> GameState {
         let mut v = self.clone();
+        // The foreign cards' copies of another's hand would tell them.
+        v.foreign
+            .retain(|(c, _)| v.seats[viewer.index()].hand.copies().contains(&c.0));
         // Hidden cards keep no copy either: a copy would tell which card
         // it is, or where it went.
         let hide = |cards: &mut Pile| {
@@ -4069,6 +4081,17 @@ impl GameState {
             .sum()
     }
 
+    /// The vampires of Dual Form `root`'s set still in play, `root` included.
+    pub fn dual_set(&self, root: MinionId) -> Vec<MinionId> {
+        (0..self.minions.len())
+            .map(|i| MinionId(i as u32))
+            .filter(|&o| {
+                (o == root || self.minions[o.index()].dual_of == Some(root))
+                    && self.minions[o.index()].present()
+            })
+            .collect()
+    }
+
     /// Are `a` and `b` two Blood Brothers of the same circle? A vampire
     /// with no circle is in a circle of one (LSJ 20020609).
     pub fn same_circle(&self, a: MinionId, b: MinionId) -> bool {
@@ -4391,6 +4414,52 @@ impl GameState {
             })
             .map(|(i, _)| MinionId(i as u32))
             .collect()
+    }
+
+    /// A card that left a hand not its owner's (`foreign`): to its owner's
+    /// ash heap or library if it went to another's, its owner's card if it
+    /// went into play. The entry stays while the card is in a hand, stored
+    /// on a card or in flight (a play under way, in no pile yet), and goes
+    /// once it is found elsewhere.
+    pub fn settle_foreign_cards(&mut self) {
+        if self.foreign.is_empty() {
+            return;
+        }
+        let entries = std::mem::take(&mut self.foreign);
+        for (copy, owner) in entries {
+            let copy = copy.0;
+            let held = self.seats.iter().any(|s| s.hand.copies().contains(&copy))
+                || self.cards.iter().any(|c| c.stored.copies().contains(&copy));
+            let mut found = false;
+            for s in 0..self.seats.len() {
+                let seat = &self.seats[s];
+                if let Some(i) = seat.ash.copies().iter().position(|&c| c == copy) {
+                    found = true;
+                    if s != owner.index() {
+                        let (card, copy) = self.seats[s].ash.take(i);
+                        self.seats[owner.index()].ash.put(card, copy);
+                    }
+                } else if let Some(i) = seat.library.copies().iter().position(|&c| c == copy) {
+                    found = true;
+                    if s != owner.index() {
+                        let (card, copy) = self.seats[s].library.take(i);
+                        let at = i.min(self.seats[owner.index()].library.len());
+                        self.seats[owner.index()].library.put_at(at, card, copy);
+                    }
+                } else if seat.removed.copies().contains(&copy) {
+                    found = true;
+                }
+            }
+            for c in &mut self.cards {
+                if c.in_play && *c.copy == copy {
+                    c.owner = owner;
+                    found = true;
+                }
+            }
+            if held || !found {
+                self.foreign.push((crate::copies::Untracked(copy), owner));
+            }
+        }
     }
 
     /// FNV-1a over every field; used for replay equivalence.

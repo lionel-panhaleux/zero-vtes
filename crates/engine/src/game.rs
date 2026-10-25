@@ -851,6 +851,7 @@ impl Engine {
             self.state.settle_entries();
             self.settle_servitors();
             self.settle_hunts_to_torpor();
+            self.state.settle_foreign_cards();
             self.settle_interrupts();
             if self.interrupts.is_empty() {
                 self.settle_ousting();

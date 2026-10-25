@@ -2,6 +2,8 @@
 //! dealt in decklist order (independent of the seed) and carried through
 //! every zone. Bookkeeping for clients and records, never part of the
 //! game's identity: a `Pile` hashes its card ids alone, `Untracked` nothing.
+//! One rule reads them: a hand card's owner (`GameState::foreign`, rules-qa
+//! 96.2), skipped for a card with no copy.
 
 use std::hash::{Hash, Hasher};
 use std::ops::Deref;

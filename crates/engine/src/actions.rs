@@ -293,6 +293,10 @@ pub struct ActionCtx {
     pub blocker_was_unlocked: bool,
     /// The rescue's blood cost, set as it resolves (2, less discounts).
     pub rescue_cost: u8,
+    /// Nergal's reduction, declined as its card was announced, offered as
+    /// the card is left unpayable without it (LSJ 20091021-2, rules-qa
+    /// 96.3): asked once.
+    pub once_off_asked: bool,
     /// The part of the rescue's cost the acting vampire pays, chosen as the
     /// action is announced (rules-qa 48.8); the rescued vampire the rest.
     pub rescue_split: Option<u8>,
@@ -1349,7 +1353,10 @@ impl Engine {
             let at = order.len().min(2);
             order.insert(at, s);
         }
+        // Woken as its card was played (rules-qa 96.4).
+        let woken = std::mem::take(&mut self.state.pre_woken);
         self.action = Some(ActionCtx {
+            woken,
             seat,
             acting: minion,
             kind,
@@ -1997,6 +2004,75 @@ impl Engine {
             used.push((c, n));
         }
         (pool, blood, used)
+    }
+
+    /// An action card's cost as its action resolves: X read now (spec
+    /// §1.7.1), the surcharge, the printed reductions, Nergal's if chosen
+    /// (rules-qa 60.7) and the action's: X, the pool and blood due, Nergal's
+    /// blood off, the counters taken.
+    fn action_card_cost(
+        &self,
+        a: &ActionCtx,
+        play: PlayCtx,
+    ) -> (u8, i32, u8, u8, Vec<(CardId, u8)>) {
+        let def = cards::lookup(play.card).expect("definition");
+        let mode = &def.modes[play.mode as usize];
+        let x = cards::terms_x(&self.state, a.seat, play.card, mode).unwrap_or(play.x);
+        let mut pool = cards::pool_cost(&self.state, a.seat, play.card, play.target);
+        let mut blood = cards::blood_cost(&self.state, play.card, x)
+            + self.card_surcharge(a.acting, play.card, play.mode);
+        self.state
+            .printed_cost_off_x(a.acting, play.card, play.mode, x)
+            .apply(&mut pool, &mut blood);
+        let once = self.once_off_amount(&play, blood);
+        let (pool, cost, used) = self.reduced_cost_with(a, pool, blood - once);
+        (x, pool, cost, once, used)
+    }
+
+    /// Whether the action's card `play` can be paid as it resolves: an
+    /// action card's cost, a bleed or political card's blood; `None` for
+    /// another action.
+    fn action_card_payable(&self, a: &ActionCtx, play: PlayCtx) -> Option<bool> {
+        let blood = self.state.minions[a.acting.index()].blood;
+        match a.kind {
+            ActionKind::Card => {
+                let (_, pool, cost, ..) = self.action_card_cost(a, play);
+                Some(cost <= blood && pool <= self.state.seats[a.seat.index()].pool)
+            }
+            ActionKind::Bleed | ActionKind::Political => {
+                Some(self.card_blood_due(a, play).0 <= blood)
+            }
+            _ => None,
+        }
+    }
+
+    /// Nergal's reduction declined as the card was announced, the card now
+    /// unpayable without it and payable with it: offered (LSJ 20091021-2:
+    /// "if he lost a blood during the course of an action that he could
+    /// have paid for when announced"; rules-qa 96.3) — once.
+    fn offer_reduction_at_resolution(&mut self) -> bool {
+        let a = self.action.as_ref().expect("action context");
+        let Some(play) = a.card.filter(|p| !p.once_off) else {
+            return false;
+        };
+        let with = PlayCtx {
+            once_off: true,
+            ..play
+        };
+        if a.once_off_asked
+            || a.cost_paid_early
+            || !self.once_off_available(&play)
+            || self.action_card_payable(a, play) != Some(false)
+            || self.action_card_payable(a, with) != Some(true)
+        {
+            return false;
+        }
+        let (seat, minion) = (a.seat, a.acting);
+        self.action.as_mut().expect("action context").once_off_asked = true;
+        self.interrupts
+            .push(crate::draws::Interrupt::ReductionAtResolution { seat, minion });
+        self.flow = Flow::Action;
+        true
     }
 
     /// The blood a bleed or political action card `play` costs as it is
@@ -3212,7 +3288,7 @@ impl Engine {
                     // Mission [OBF]): it reached resolution, so NRA holds
                     // (ANK 20211015, RTR 20180719).
                     self.resolved_as(Outcome::Failed);
-                } else {
+                } else if !self.offer_reduction_at_resolution() {
                     let source = self.action.as_ref().expect("action").cause_source();
                     self.caused(Cause::Effect(source), Self::succeed);
                 }
@@ -4188,12 +4264,6 @@ impl Engine {
                     self.action = Some(a);
                     self.pay_block_toll(m, true);
                     return;
-                }
-            }
-            Effect::AllySkipsNextUnlock => {
-                let m = &mut self.state.minions[play.actor.expect("actor").index()];
-                if m.is_ally() {
-                    m.skip_unlock = true;
                 }
             }
             Effect::RedirectBleed | Effect::RedirectBleedToActingPrey => {
@@ -5402,16 +5472,7 @@ impl Engine {
                 let play = a.card.expect("action card");
                 let def = cards::lookup(play.card).expect("definition");
                 let mode = &def.modes[play.mode as usize];
-                let x = cards::terms_x(&self.state, seat, play.card, mode).unwrap_or(play.x);
-                let mut pool = cards::pool_cost(&self.state, seat, play.card, play.target);
-                let mut blood = cards::blood_cost(&self.state, play.card, x)
-                    + self.card_surcharge(a.acting, play.card, play.mode);
-                self.state
-                    .printed_cost_off_x(a.acting, play.card, play.mode, x)
-                    .apply(&mut pool, &mut blood);
-                let once = self.once_off_amount(&play, blood);
-                blood -= once;
-                let (pool, cost, used) = self.reduced_cost_with(&a, pool, blood);
+                let (x, pool, cost, once, used) = self.action_card_cost(&a, play);
                 if self.state.minions[a.acting.index()].blood < cost
                     || self.state.seats[seat.index()].pool < pool
                 {

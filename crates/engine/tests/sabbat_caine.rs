@@ -881,3 +881,22 @@ fn yawp_court_damage_comes_after_a_disarm() {
     assert!(e.state.minions[actor.index()].in_torpor);
     assert_eq!(blood(&e, sabbat), 4 - 1, "the hand strike only");
 }
+
+// Yawp Court's "a ready unlocked Sabbat vampire you control": a woken one
+// (On the Qui Vive "ignore the requirement to be unlocked for playing
+// reaction cards") does not qualify (rules-qa 96.4).
+#[test]
+fn yawp_court_needs_an_unlocked_sabbat_vampire_not_a_woken_one() {
+    let (mut e, actor, sabbat, court) = yawp_table(5);
+    e.state.minions[sabbat.index()].locked = true;
+    hand(&mut e, 0, &["Reckless Agitation"]);
+    hand(&mut e, 1, &["On the Qui Vive"]);
+    pick(&mut e, play(0, 0, actor));
+    pick_when(&mut e, play(0, 0, sabbat));
+    never_offered_until(
+        &mut e,
+        SeatId(0),
+        WindowLabel::MinionPhase,
+        use_at(court, 0, Some(sabbat), Target::None),
+    );
+}

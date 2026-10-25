@@ -447,6 +447,14 @@ impl Prompt<'_> {
                 self.minion()?
             ),
             P::MayUnlock => format!("{} can unlock", self.minion()?),
+            P::DualFormKept => format!(
+                "{}'s Dual Form set left the ready region: choose the one kept",
+                self.minion()?
+            ),
+            P::ReductionAtResolution => format!(
+                "{} can take 1 blood off the card's cost to pay it",
+                self.minion()?
+            ),
             P::GiveCardTo => format!("Choose who takes control of {}", self.card()?),
             P::MoveOffBurnedBearer => format!(
                 "{} is about to be burned: put {} on another minion?",
@@ -840,6 +848,8 @@ mod tests {
         BuyTitle,
         MoveForBlood,
         Redraw,
+        ReductionAtResolution,
+        DualFormKept,
     );
 
     /// Every purpose prompted, the sweeps' games reaching it or not.

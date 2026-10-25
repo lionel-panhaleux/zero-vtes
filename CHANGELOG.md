@@ -6,6 +6,22 @@ server runs.
 `python3 scripts/schema_compat.py` lists what a schema change adds or
 removes; its `--check` fails a removal without a major version.
 
+## 2.16.0
+
+The ledger's gaps (rules-qa 96); ids added, none removed:
+
+- `Purpose` `reduction_at_resolution`: Nergal's action card, announced
+  without his reduction and unpayable without it as it resolves — he may
+  take it (`resolve_printed`, or pass); `minion` is Nergal.
+- `Purpose` `dual_form_kept`: several of a Dual Form set left the ready
+  region at once — its controller chooses the one kept (`choose_minion`),
+  the others burned; `minion` is the set's original.
+- A locked minion's wake (On the Qui Vive, Eyes of Argus, Wake with
+  Evening's Freshness) is offered in another Methuselah's action card's
+  `card_as_played` window, before its action is declared, and lets it
+  cancel the card there (Rewind Time, Touch of Clarity). Replays of
+  records before 2.16.0 read these three as not offered.
+
 ## 2.15.1
 
 `ash_vampire`'s `zone` names the ash heap the vampire is taken from,

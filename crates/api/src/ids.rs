@@ -728,6 +728,13 @@ ids!(
         /// put on `minion` instead (`FindCard`), its cost paid, or kept
         /// (Pass).
         PutFoundOn,
+        /// Nergal: his action card, announced without his reduction and
+        /// unpayable now without it — `minion` may take it as it resolves
+        /// (`resolve_printed`, or pass).
+        ReductionAtResolution,
+        /// Dual Form: several of `minion`'s set left the ready region at
+        /// once — `seat` chooses the one kept, the others burned.
+        DualFormKept,
     }
 );
 ids!(

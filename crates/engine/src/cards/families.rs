@@ -203,7 +203,9 @@ impl Effect {
             | E::TaintTarget
             | E::StealTargetVampire
             | E::EmployNamed
-            | E::EquipNamed => (Family::Shared, false),
+            | E::EquipNamed
+            // A wake's ally rider, in an action or before it (rules-qa 96.4).
+            | E::AllySkipsNextUnlock => (Family::Shared, false),
             E::CounterToTarget(..)
             | E::BloodPerHostage
             | E::BurnTargetHostages
@@ -424,7 +426,6 @@ impl Effect {
             | E::VeilThins(..)
             | E::LockFailedBlockers
             | E::AttemptBlock
-            | E::AllySkipsNextUnlock
             | E::WakeTarget
             | E::BleedModX { .. }
             | E::YoungerIntercept(..)

@@ -411,7 +411,8 @@ type Source = (Option<u32>, Option<u32>);
 /// blood) — never by the English text (docs/protocol.md §7).
 #[test]
 fn an_ability_is_told_apart_from_its_siblings_by_data() {
-    let seeds: u32 = std::env::var("HOST_SEEDS").map_or(12, |s| s.parse().unwrap());
+    // A minion's ability is rare in these random games: 40 seeds.
+    let seeds: u32 = std::env::var("HOST_SEEDS").map_or(40, |s| s.parse().unwrap());
     let mut apart_offered = 0;
     each_decision(seeds, |seed, d| {
         // Each (source, ability) offered: its `apart`.
@@ -452,7 +453,8 @@ fn an_ability_is_told_apart_from_its_siblings_by_data() {
 /// — never an absent `actor` read as the Methuselah.
 #[test]
 fn an_abilitys_user_is_said() {
-    let seeds: u32 = std::env::var("HOST_SEEDS").map_or(12, |s| s.parse().unwrap());
+    // A minion's ability is rare in these random games: 40 seeds.
+    let seeds: u32 = std::env::var("HOST_SEEDS").map_or(40, |s| s.parse().unwrap());
     let (mut minion, mut methuselah) = (0, 0);
     each_decision(seeds, |seed, d| {
         for o in abilities(d) {

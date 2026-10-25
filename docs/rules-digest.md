@@ -429,7 +429,9 @@ below rely on these and do not repeat them.
 - A vampire in an uncontrolled region is out of play and no minion (69.6,
   28.3, §14.6); so is one Descent into Darkness puts out of play, with its
   cards (78.46). Dual Form's card is a created non-unique vampire, its
-  Disciplines fixed as it resolves, no title or trait copied (78.47).
+  Disciplines fixed as it resolves, no title or trait copied (78.47);
+  several of its set leaving the ready region at once, their controller
+  keeps one, the others burned (96.1).
 - "Werewolves you control" are allies of the Werewolf subtype (64.1);
   "animals (allies and retainers)" are those whose type line makes them
   animals (41.13); a "mage" or "demon" ally by its type line (41.8, 62.30,
@@ -916,7 +918,11 @@ simultaneous effects, §2.5 duration). The engine's window primitives are in
   only wakes and cancellations — not card abilities (2.4). Wakes need an
   action: an action card just played has opened it, and a wake there
   resolves before the played card's effect; outside an action, cancels
-  only (2.4, Rewind Time usable outside actions). True wakes (Wake with
+  only (2.4, Rewind Time usable outside actions). An action card's window,
+  its action not declared yet, admits a locked minion's wake (one with no
+  effect on the action to come), held until the action is declared, and
+  the woken minion's cancel; a woken minion meets "usable by an unlocked
+  vampire" (96.4). True wakes (Wake with
   Evening's Freshness, On the Qui Vive, Forced Awakening, Eyes of Argus
   [AUS], Shadow Sentinel) are; unlock-and-attempt reactions (Dogged
   Pursuit, Eyes of the Wild, Second Tradition's 2nd mode, Sense the Savage
@@ -1342,11 +1348,13 @@ Advanced rules §1.7 (costs and payment), §1.8 (playing and canceling).
   that card, once each Methuselah's turn, spent only when that cost is paid
   (60.7) — off a bleed or political action card's cost at the action's
   resolution too, a redirected bleed included; left unpayable or canceled
-  unpaid, unspent (93.9). Lord Tremere's Blood Sorcery reduction: any card
-  requiring [tha] he plays (60.5). Ragnar Nordstrom's: wherever he pays the
-  card's blood, combat cards included (42.5). Adana de Sforza's: 1 blood off a
-  card played as a combat card, never off a "burn blood" effect (62.2).
-  Inyanga's for recruiting an ally requiring a Gangrel (59.5).
+  unpaid, unspent (93.9); declined as announced and the card unpayable without
+  it as it resolves, offered there, once (96.3). Lord Tremere's Blood Sorcery
+  reduction: any card requiring [tha] he plays (60.5). Ragnar Nordstrom's:
+  wherever he pays the card's blood, combat cards included (42.5). Adana de
+  Sforza's: 1 blood off a card played as a combat card, never off a "burn
+  blood" effect (62.2). Inyanga's for recruiting an ally requiring a Gangrel
+  (59.5).
 - Surcharges: Unleashing the Bestial Soul [DOM]'s applies to the first
   reaction card paid for after it (23.4); Daria's and Marcellus's +1 are
   costs of the action (42.1, 42.6, 62.7, §8.3); Nergal (advanced)'s
@@ -3704,7 +3712,8 @@ readings (vampires, allies, library cards) no mechanism section states.
   Hidden Lurker (85.19); Improvised Flamethrower's backfire (85.20);
   Leverage (85.21); Nosferatu Justicar (85.22); NSA Trio (85.23);
   Sacrificial Lamb (85.24); The Secret Library of Alexandria (85.25); Shanty
-  Town Hunting Ground (85.26); Storage Annex (85.27); directed at another's
+  Town Hunting Ground (85.26); Storage Annex (85.27; its card taken in hand
+  still its owner's, 96.2); directed at another's
   minion (85.28); "your next discard phase" (85.29); Hatch put in play
   (85.30); found while testing (85.31, 85.33, 85.34).
 - Round 20's cards, each read in its rules-qa item: Harvest Rites spent by
@@ -4634,7 +4643,8 @@ read, for the owner to confirm or correct:
   amber or corrected (80.9; 80.4, 80.35, 80.37, 80.38, 80.41–80.43
   answered by the owner).
 - 84.5–84.40 graded green or amber (84.1–84.4 answered by the owner;
-  84.5's active Angelo a gap: his own circle of one).
+  84.5's active Angelo: his [SAN] circle of one built, 96.5; elsewhere his
+  own circle of one).
 - 85.3–85.34 graded green or amber (85.1 and 85.2 confirmed by the owner).
 - 87.8–87.41 graded green or amber (87.1–87.7, 87.42 and 87.43 red,
   answered by the owner: 87.42 and 87.43 corrected).
@@ -4645,6 +4655,8 @@ read, for the owner to confirm or correct:
 - 92.2, 92.3 graded green or amber (92.1 the owner's playtest ruling).
 - 93.1–93.10 graded green (settled by KRCG rulings and 60.7, 60.19, 60.21).
 - 95.1–95.5 graded green or amber (the tournament withdrawal).
+- 96.1, 96.4, 96.5 graded green or amber (96.2 and 96.3 answered by the
+  owner).
 - 97.1–97.4 graded green or amber (Sabbat paths followed).
 - 98.1, 98.2 graded amber (combat polled past the combatants).
 - 49.6's several-holders question is moot (50.1: the Cog is unique).
@@ -4744,7 +4756,7 @@ an owner ruling:
 Every rules-qa item, by batch, with the digest sections citing it: the
 section stating it and those cross-referring to it (§2 the default
 readings, §22 engine modeling, §23 the contradictions, §24 the open
-readings). 981 items, Batches 1–98 (44.11 was removed, replaced by Batch
+readings). 986 items, Batches 1–98 (44.11 was removed, replaced by Batch
 45). The index is derived from the citations: a bare `N.M` cites rules-qa
 item N.M in the section it appears in. A new rules-qa item gets its line in
 the section stating it, then its entry here: `python3
@@ -5079,5 +5091,7 @@ index or an item cited nowhere.
   §18.1
 - **95** — 95.1 §21.2,§24.1; 95.2 §21.2; 95.3 §21.2; 95.4 §21.2; 95.5
   §21.2,§24.1
+- **96** — 96.1 §3.6,§24.1; 96.2 §15.2,§24.1; 96.3 §7.3,§24.1; 96.4
+  §5.2,§24.1; 96.5 §24.1
 - **97** — 97.1 §3.12,§24.1; 97.2 §3.12; 97.3 §3.12; 97.4 §3.12,§24.1
 - **98** — 98.1 §12.1,§24.1; 98.2 §12.1,§24.1

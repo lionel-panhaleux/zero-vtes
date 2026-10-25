@@ -604,6 +604,15 @@ sources to the engine's conventions.
   canceled with it; a canceled limited bleed leaves the limit unused; cancelling
   abilities (The Vozhd of Gravesend) mark the play canceled as used
   (`as_played_apply`). Cancels by type/Discipline read the mode played.
+- An action card's as-played window, its action not declared yet
+  (`reacting_candidates` with no `ActionCtx`): a cancel by another's ready
+  minion, unlocked or woken; a wake by a locked one, only a wake with no
+  effect on the action (`as_played_action_card`: an action card at the
+  stack's bottom). The woken status waits in `GameState::pre_woken`, taken
+  into `ActionCtx::woken` as the action is declared, cleared when the stack
+  ends with none (canceled, an oust). A woken minion meets `ActorUnlocked`
+  for a reaction card only (`play_options`' `woken_reaction`; rules-qa
+  96.4).
 - A play's two ends, `resolve_play` (after its payment; an action card's
   end is its action's) and `settle_canceled`, are noted
   (`Note::Play`, `PlayNote`), which the host tells as `resolved` and
@@ -1257,8 +1266,10 @@ sources to the engine's conventions.
   Dual Form's copy (`Minion::copy_of`: capacity and the 34
   `cards::DISCIPLINE_KEYS` levels fixed at resolution; `capacity_less` on the
   original; `dual_of` links them, `burn_dual_forms` burns the rest as one
-  leaves ready, `about_to_leave_ready`); a minion's discipline level is
-  `own_printed_level` plus `granted_level`. Derange's `Minion::deranged`
+  leaves ready, `about_to_leave_ready`; several leaving at once,
+  `Interrupt::DualFormKept` keeps the one chosen, `GameState::dual_set`); a
+  minion's discipline level is `own_printed_level` plus `granted_level`.
+  Derange's `Minion::deranged`
   (clan and sect as played, read by `clan()` and `underlying_sect()`, moved
   with the card, cleared in `card_leaves_play`). Diabolic Lure's
   `Minion::pact` and `made_infernal` (read by `is_infernal` and
@@ -1311,7 +1322,9 @@ sources to the engine's conventions.
   `entered`, `effect_only`. Storage Annex stores a hand card as it is played
   (`Interrupt::StoreOwnHand`) and swaps one in its master phase
   (`Effect::SwapPickedWithStored`, in `ability_discards_done`, no
-  replacement).
+  replacement); another's card it puts in a hand is recorded by copy
+  (`GameState::foreign`) and routed back to its owner as it leaves the
+  hand (`settle_foreign_cards`, each `run`; rules-qa 96.2).
 - Riders (`Rider { hook, scope, requires, effects }`, `RiderScope::{Every,
   Controller, Others, Prey}`): requirements read at collection and at
   resolution (`rider_fires` again as a chosen rider resolves; an unmet rider
@@ -1558,6 +1571,10 @@ sources to the engine's conventions.
   once paid): the play, a canceled card's paid cost, recruit, employ,
   equip, other action cards, a bleed or political card (`card_blood_due`,
   Yawp Court's early payment included). A new payment site takes it too.
+  Declined and the card unpayable without it at its action's resolution,
+  `offer_reduction_at_resolution` (in `action_advance`, before `succeed`)
+  asks `Interrupt::ReductionAtResolution` once (`ActionCtx::once_off_asked`;
+  costs by `action_card_cost`, `action_card_payable`; rules-qa 96.3).
 - Surcharges: `card_surcharge` (Discipline and event surcharges),
   `discipline_surcharge` (Libertas), `combat_card_surcharge` (Terror Frenzy,
   Djeneba), `torpid_surcharge`, Haven's +1 on masters targeting its minion;

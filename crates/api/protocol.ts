@@ -1,6 +1,6 @@
-/* zvtes protocol 2.15.1 (docs/protocol.md): generated from
+/* zvtes protocol 2.16.0 (docs/protocol.md): generated from
  * crates/api/schema.json by scripts/gen_ts.py, do not edit. */
-export const PROTOCOL_VERSION = '2.15.1'
+export const PROTOCOL_VERSION = '2.16.0'
 
 /**
  * A command as sent: an optional client id, echoed by an `error` it
@@ -1347,6 +1347,8 @@ export type Purpose =
     | 'power_search'
     | 'may_cancel_combat'
     | 'put_found_on'
+    | 'reduction_at_resolution'
+    | 'dual_form_kept'
     | 'unknown'
 
 export type Range = 'close' | 'long' | 'unknown'

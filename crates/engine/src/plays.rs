@@ -643,25 +643,44 @@ impl Engine {
             // An action card as it is played, its action not declared yet:
             // a reacting minion's cancel of it (Touch of Clarity: "can be
             // used to cancel all action cards", ANK 20200813-2) — ready
-            // and unlocked, another Methuselah's.
+            // and unlocked or woken, another Methuselah's; a locked one's
+            // wake, for that cancel (LSJ 20021011, rules-qa 96.4).
             None if self.combat.is_none()
-                && mode
-                    .effects
-                    .iter()
-                    .any(|e| matches!(e, Effect::CancelPlayed { .. }))
                 && matches!(&self.flow, Flow::AsPlayed { stack, .. }
                     if stack.last().is_some_and(|p| p.ctx.seat != seat)) =>
             {
+                let cancel = mode
+                    .effects
+                    .iter()
+                    .any(|e| matches!(e, Effect::CancelPlayed { .. }));
+                // A wake with no effect on the action to come (not Forced
+                // Awakening's burn if it does not block).
+                let wake = mode.effects.contains(&Effect::Wake)
+                    && mode
+                        .effects
+                        .iter()
+                        .all(|e| matches!(e, Effect::Wake | Effect::AllySkipsNextUnlock))
+                    && self.as_played_action_card();
                 st.minions_of(seat)
                     .filter(|m| {
                         let v = &st.minions[m.index()];
-                        v.ready() && !v.locked && !v.expelled
+                        let unlocked = !v.locked || self.state.pre_woken.contains(m);
+                        v.ready() && !v.expelled && (cancel && unlocked || wake && v.locked)
                     })
                     .map(Some)
                     .collect()
             }
             _ => vec![],
         }
+    }
+
+    /// Is the card at the as-played stack's bottom an action card, its
+    /// action not declared yet (a wake's window: rules-qa 1.5, 2.4)?
+    fn as_played_action_card(&self) -> bool {
+        matches!(&self.flow, Flow::AsPlayed { stack, .. }
+        if stack.first().is_some_and(|p| {
+            LIBRARY[p.ctx.card as usize].types.contains(&CardType::Action)
+        }))
     }
 
     /// What `seat` may play or use at an impulse in `windows`: the cards,
@@ -1285,8 +1304,19 @@ impl Engine {
                         matches!(r, Requirement::ActorTitleIn(cs)
                             if cs.iter().any(|c| matches!(c, cards::TitleClass::Justicar | cards::TitleClass::Any)))
                     });
+                    // A woken minion ignores the requirement to be unlocked
+                    // for a reaction card (On the Qui Vive; Touch of
+                    // Clarity), before its action is declared too (rules-qa
+                    // 96.4).
+                    let woken_reaction = mode.actor == cards::Actor::ReactingMinion
+                        && LIBRARY[card as usize].types.contains(&CardType::Reaction)
+                        && actor.is_some_and(|m| {
+                            st.pre_woken.contains(&m)
+                                || action.is_some_and(|a| a.woken.contains(&m))
+                        });
                     if !mode.requires.iter().all(|&r| {
-                        (as_justicar
+                        (woken_reaction && r == Requirement::ActorUnlocked)
+                            || (as_justicar
                             && matches!(r, Requirement::ActorSectIn(ss) if ss.contains(&crate::crypt::Sect::Camarilla)))
                             || as_vampire.is_some_and(|g| match r {
                                 Requirement::ActorSectIn(ss) => ss.contains(&g.sect),
@@ -3504,6 +3534,7 @@ impl Engine {
         // resolved action card has opened its action instead.
         if self.ousted_during_play {
             self.ousted_during_play = false;
+            self.state.pre_woken.clear();
             return;
         }
         if declared_action {
@@ -3511,6 +3542,8 @@ impl Engine {
             return;
         }
         if stack.is_empty() {
+            // No action declared: a wake for it is gone.
+            self.state.pre_woken.clear();
             self.flow = *resume;
         } else {
             self.flow = Flow::AsPlayed { stack, resume };
@@ -5521,6 +5554,11 @@ impl Engine {
                     limited,
                 });
             }
+            // A wake in an action card's as-played window, its action not
+            // declared yet (rules-qa 96.4).
+            Effect::Wake if self.action.is_none() => {
+                self.state.pre_woken.push(ctx.actor.expect("waking minion"));
+            }
             e => match e.family() {
                 Family::Shared => self.apply_shared_effect(e, ctx, By::Play(*in_play)),
                 Family::Action => self.apply_action_effect(e, ctx),
@@ -5905,6 +5943,12 @@ impl Engine {
             Effect::UnlockTarget => {
                 if let Target::Minion(t) = ctx.target {
                     self.effect_unlock(t);
+                }
+            }
+            Effect::AllySkipsNextUnlock => {
+                let m = &mut self.state.minions[ctx.actor.expect("actor").index()];
+                if m.is_ally() {
+                    m.skip_unlock = true;
                 }
             }
             // In an action or out of one (Piper's Anarch in the master
@@ -8084,13 +8128,26 @@ impl Engine {
             let on = source.card();
             let i = picked[0] as usize;
             let (c, copy) = self.state.seats[seat.index()].hand.take(i);
+            // A card another Methuselah put there: theirs in this hand.
+            let put_by = self.state.cards[on.index()].stored_owner;
             for (k, kc) in self.state.cards[on.index()].stored.take_all() {
+                if let Some(o) = put_by.filter(|&o| o != seat && kc != crate::copies::CopyId::NONE)
+                {
+                    self.state.foreign.push((crate::copies::Untracked(kc), o));
+                }
                 self.state.seats[seat.index()].hand.put(k, kc);
             }
             self.state.cards[on.index()].stored.put(c, copy);
             // Stolen, its new controller's card returns to them (LSJ
-            // 20001031, PIB 20121220).
-            self.state.cards[on.index()].stored_owner = Some(seat);
+            // 20001031, PIB 20121220) — a card of another's put back, to
+            // its owner (rules-qa 96.2).
+            let owner = self
+                .state
+                .foreign
+                .iter()
+                .find(|(f, _)| f.0 == copy && copy != crate::copies::CopyId::NONE)
+                .map_or(seat, |&(_, o)| o);
+            self.state.cards[on.index()].stored_owner = Some(owner);
             self.flow = *resume;
             self.resolve_ability(source, ability, target, 0, seat, user);
             return;

@@ -440,6 +440,7 @@ fn asked(
         ),
         (P::DiablerieEquipment, K::ChooseCard) => role("moves")?,
         (P::MoveBetween, K::ChooseMinion) => role("receives")?,
+        (P::DualFormKept, K::ChooseMinion) => verb("Choose ", "Keep ")?,
         (P::MoveBetween, K::ChooseCard) => role("moves")?,
         (P::ChooseForCard, K::ChooseMinion) => {
             let e = has(EffectKind::Role)?;
@@ -483,6 +484,7 @@ fn asked(
             format!("Burn {} blood to prevent the damage", about?.n?)
         }
         (P::MayUnlock, K::ResolvePrinted) => "Unlock".into(),
+        (P::ReductionAtResolution, K::ResolvePrinted) => "Pay 1 blood less".into(),
         (P::EntryRemoveOrBurn, K::FindCard) => verb("Take ", "Remove ")?,
         (P::EntryRemoveOrBurn, K::AshVampire) => verb("Choose ", "Remove ")?,
         (P::CancelAttempt, K::ChooseMinion) => "Cancel the attempt".into(),
@@ -789,6 +791,7 @@ fn pass(
         P::MayGainHandSize => "Keep your hand size".into(),
         P::MayPreventForBlood => "Burn no blood".into(),
         P::MayUnlock => "Stay locked".into(),
+        P::ReductionAtResolution => "Let the card fizzle".into(),
         P::CancelAttempt => "Keep the attempt".into(),
         P::PoolForCard | P::LockForPool => "No pool".into(),
         P::StealForCorruption => "Don't steal".into(),
@@ -1071,6 +1074,7 @@ mod tests {
             P::MayGainHandSize,
             P::MayPreventForBlood,
             P::MayUnlock,
+            P::ReductionAtResolution,
             P::BloodOrBurned,
             P::BloodOrCamarilla,
             P::BuyTitle,

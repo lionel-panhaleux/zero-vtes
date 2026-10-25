@@ -1553,7 +1553,9 @@ pub fn about(e: &Engine, req: &DecisionRequest, names: &impl Names) -> Option<Ab
                 minion: m(from),
                 ..a()
             },
-            I::MayUnlock { minion, .. } => About {
+            I::MayUnlock { minion, .. }
+            | I::ReductionAtResolution { minion, .. }
+            | I::DualFormKept { root: minion, .. } => About {
                 minion: m(minion),
                 ..a()
             },

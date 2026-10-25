@@ -31,6 +31,22 @@ pub enum Interrupt {
         seat: SeatId,
         minion: crate::ids::MinionId,
     },
+    /// Dual Form: several of `root`'s set left the ready region at once —
+    /// `seat` keeps one of those still in play, the others burned
+    /// (rules-qa 96.1).
+    DualFormKept {
+        seat: SeatId,
+        root: crate::ids::MinionId,
+        /// The first of them leaving, the one an engine before 2.16.0 kept
+        /// (a replay's).
+        first: crate::ids::MinionId,
+    },
+    /// Nergal: his card, announced without his reduction, unpayable now
+    /// without it — he may take it (rules-qa 96.3).
+    ReductionAtResolution {
+        seat: SeatId,
+        minion: crate::ids::MinionId,
+    },
     /// Curse of Nitocris: `seat`, its controller, picks the Methuselah,
     /// any, who takes control of `card`.
     GiveCardTo { seat: SeatId, card: CardId },
@@ -651,6 +667,8 @@ impl Interrupt {
             | Interrupt::MayPreventForBlood { seat, .. }
             | Interrupt::ShortfallPicks { seat, .. }
             | Interrupt::MayUnlock { seat, .. }
+            | Interrupt::ReductionAtResolution { seat, .. }
+            | Interrupt::DualFormKept { seat, .. }
             | Interrupt::GiveCardTo { seat, .. }
             | Interrupt::StealUpTo { seat, .. }
             | Interrupt::MoveBloodUpTo { seat, .. }
@@ -1340,6 +1358,10 @@ impl Engine {
                 Interrupt::MayUnlock { minion, .. } => {
                     present(minion) && self.state.minions[minion.index()].locked
                 }
+                Interrupt::ReductionAtResolution { minion, .. } => {
+                    self.action.as_ref().is_some_and(|a| a.acting == minion)
+                }
+                Interrupt::DualFormKept { root, .. } => self.state.dual_set(root).len() > 1,
                 Interrupt::GiveCardTo { card, .. } => self.state.cards[card.index()].present(),
                 Interrupt::MayPreventForBlood { minion, n, .. } => {
                     present(minion)
@@ -2226,9 +2248,17 @@ impl Engine {
             Interrupt::MayGainPool { minion, .. }
             | Interrupt::MayGainHandSize { minion, .. }
             | Interrupt::MayPreventForBlood { minion, .. }
-            | Interrupt::MayUnlock { minion, .. } => (
+            | Interrupt::MayUnlock { minion, .. }
+            | Interrupt::ReductionAtResolution { minion, .. } => (
                 WindowLabel::ResolutionChoice,
                 vec![Choice::Pass, Choice::ResolvePrinted { minion }],
+            ),
+            Interrupt::DualFormKept { root, .. } => (
+                WindowLabel::ResolutionChoice,
+                st.dual_set(root)
+                    .into_iter()
+                    .map(Choice::ChooseMinion)
+                    .collect(),
             ),
             Interrupt::Redraw { .. } => {
                 (WindowLabel::Draw, vec![Choice::Pass, Choice::DrawLibrary])
@@ -2675,15 +2705,22 @@ impl Engine {
 
     /// Dual Form: a vampire or its copy leaving the ready region, the
     /// others of the set are burned, whatever chain they form (LSJ
-    /// 20050117); their burning does not burn it again.
+    /// 20050117); their burning does not burn it again. Several of the set
+    /// leaving at once (Edged Illusion [CHI]), their controller keeps one
+    /// of them, the others burned (`Interrupt::DualFormKept`, LSJ
+    /// 20050805; rules-qa 96.1).
     fn burn_dual_forms(&mut self, ms: &[crate::ids::MinionId]) {
+        let mut handled: Vec<crate::ids::MinionId> = Vec::new();
         for &m in ms {
             let st = &self.state;
-            if !st.minions[m.index()].ready() || st.linked_leaving.contains(&m) {
+            if !st.minions[m.index()].ready()
+                || st.linked_leaving.contains(&m)
+                || handled.contains(&m)
+            {
                 continue;
             }
             let root = st.minions[m.index()].dual_of.unwrap_or(m);
-            let others: Vec<crate::ids::MinionId> = (0..st.minions.len())
+            let set: Vec<crate::ids::MinionId> = (0..st.minions.len())
                 .map(|i| crate::ids::MinionId(i as u32))
                 .filter(|&o| {
                     o != m
@@ -2692,16 +2729,32 @@ impl Engine {
                         && !st.linked_leaving.contains(&o)
                 })
                 .collect();
+            let (together, others): (Vec<_>, Vec<_>) = set
+                .into_iter()
+                .partition(|o| ms.contains(o) && st.minions[o.index()].ready());
+            if !together.is_empty() {
+                handled.push(m);
+                handled.extend(&together);
+                let seat = st.minions[m.index()].owner;
+                self.interrupts.push(Interrupt::DualFormKept {
+                    seat,
+                    root,
+                    first: m,
+                });
+            }
             if others.is_empty() {
                 continue;
             }
             self.state.linked_leaving.push(m);
+            self.state.linked_leaving.extend(&together);
             for o in others {
                 if self.state.minions[o.index()].present() {
                     self.burn_minion(o);
                 }
             }
-            self.state.linked_leaving.retain(|&x| x != m);
+            self.state
+                .linked_leaving
+                .retain(|x| *x != m && !together.contains(x));
         }
     }
 
@@ -4351,6 +4404,20 @@ impl Engine {
                 self.interrupts.remove(0);
                 self.give_card_control(card, to);
             }
+            (Interrupt::DualFormKept { root, .. }, Choice::ChooseMinion(kept)) => {
+                self.interrupts.remove(0);
+                for c in self.state.dual_set(root) {
+                    if c != kept {
+                        self.burn_minion(c);
+                    }
+                }
+            }
+            (Interrupt::ReductionAtResolution { .. }, Choice::ResolvePrinted { .. }) => {
+                self.interrupts.remove(0);
+                if let Some(p) = self.action.as_mut().and_then(|a| a.card.as_mut()) {
+                    p.once_off = true;
+                }
+            }
             (Interrupt::MayUnlock { minion, .. }, Choice::ResolvePrinted { .. }) => {
                 self.interrupts.remove(0);
                 self.state
@@ -4375,7 +4442,8 @@ impl Engine {
                 | Interrupt::MayGainPool { .. }
                 | Interrupt::MayGainHandSize { .. }
                 | Interrupt::MayPreventForBlood { .. }
-                | Interrupt::MayUnlock { .. },
+                | Interrupt::MayUnlock { .. }
+                | Interrupt::ReductionAtResolution { .. },
                 Choice::Pass,
             ) => {
                 self.interrupts.remove(0);

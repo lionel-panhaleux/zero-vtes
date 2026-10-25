@@ -2653,3 +2653,91 @@ fn a_jimmy_dunn_burned_for_a_second_is_not_burned_by_the_action() {
         .iter()
         .any(|m| m.in_play && m.owner == SeatId(2) && m.name() == "Jimmy Dunn"));
 }
+
+// The Erciyes Fragments [ANK 20200523] "All other players can see which card
+// is selected from the ash heap": the card taken from the prey's ash heap
+// is in every other seat's view of the Fragments (`GameState::legal_view`),
+// face down as it is.
+#[test]
+fn the_erciyes_fragments_card_is_seen_by_every_player() {
+    let mut e = game(3);
+    e.add_minion(SeatId(0), plain("Brujah", 0), 4, false);
+    e.add_minion(SeatId(0), plain("Brujah", 1), 4, false);
+    e.add_minion(SeatId(1), plain("Ventrue", 0), 4, false);
+    e.add_minion(SeatId(2), plain("Ventrue", 1), 4, false);
+    let frag = in_play(&mut e, "Erciyes Fragments, The", 0, None);
+    let rush = find_library("Bum's Rush");
+    e.state.seats[1].ash = vec![rush].into();
+    pick(&mut e, ability(frag, 0, Target::None));
+    request(&mut e);
+    for viewer in [1, 2] {
+        let view = e.state.legal_view(SeatId(viewer));
+        assert_eq!(
+            view.cards[frag as usize].stored,
+            vec![rush],
+            "seat {viewer}"
+        );
+    }
+}
+
+// Dual Form [LSJ 20050805] "[PRO] If more than one go to torpor at the same
+// time (eg. from Edged Illusion), the controller chooses which one they
+// keep": a vampire and its copy, both empty and both under Pulled Fangs,
+// must hunt and go to torpor at once (Edged Illusion is not in the pool);
+// their controller keeps the copy, the original burns (rules-qa 96.1).
+#[test]
+fn dual_form_keeps_the_one_chosen_of_a_set_going_down_together() {
+    let mut e = game(2);
+    let a = e.add_minion(SeatId(0), plain("Gangrel", 0), 0, false);
+    let copy = e.add_minion(SeatId(0), plain("Gangrel", 1), 0, false);
+    e.state.minions[copy.index()].dual_of = Some(a);
+    e.add_minion(SeatId(0), plain("Brujah", 0), 4, false);
+    e.add_minion(SeatId(1), plain("Ventrue", 0), 4, false);
+    for m in [a, copy] {
+        equipped(&mut e, "Pulled Fangs", 1, Some(m), 0);
+    }
+    let req = until(&mut e, SeatId(0), WindowLabel::ResolutionChoice);
+    assert_eq!(
+        req.options,
+        vec![Choice::ChooseMinion(a), Choice::ChooseMinion(copy)]
+    );
+    e.choose(index_of(&req, Choice::ChooseMinion(copy)));
+    request(&mut e);
+    assert!(!e.state.minions[a.index()].in_play, "burned");
+    assert!(in_torpor(&e, copy), "kept");
+}
+
+// Rewind Time, Touch of Clarity [LSJ 20021011] "Cancelation must be
+// immediate: a wake can be used in the 'as played' window, but a reaction to
+// 'unlock and attempt to block' cannot": Govern the Unaligned played, seat
+// 1's locked vampire wakes (On the Qui Vive) in its as-played window — no
+// Eluding the Arms of Morpheus offered there — then cancels it; no bleed
+// (rules-qa 2.4, 96.4).
+#[test]
+fn a_wake_in_an_action_cards_as_played_window_lets_it_be_canceled() {
+    for (cancel, mode, disc) in [("Rewind Time", 1, "tem"), ("Touch of Clarity", 0, "dem")] {
+        let mut e = game(2);
+        let a = e.add_minion(SeatId(0), vampire_with("dom", 0), 4, false);
+        e.add_minion(SeatId(0), plain("Brujah", 0), 4, false);
+        let t = e.add_minion(SeatId(1), plain("Ventrue", 0), 4, false);
+        grant(&mut e, t, disc);
+        e.state.minions[t.index()].locked = true;
+        hand(&mut e, 0, &["Govern the Unaligned"]);
+        hand(
+            &mut e,
+            1,
+            &["On the Qui Vive", cancel, "Eluding the Arms of Morpheus"],
+        );
+        pick(&mut e, play(0, 0, a));
+        let req = expect(&mut e, SeatId(1), WindowLabel::CardAsPlayed);
+        assert_eq!(plays(&req), vec![play(0, 0, t)], "{cancel}: the wake only");
+        e.choose(index_of(&req, play(0, 0, t)));
+        let req = expect(&mut e, SeatId(1), WindowLabel::CardAsPlayed);
+        e.choose(index_of(&req, play(0, mode, t)));
+        until(&mut e, SeatId(0), WindowLabel::MinionPhase);
+        assert!(e.state.seats[0]
+            .ash
+            .contains(&find_library("Govern the Unaligned")));
+        assert_eq!(pool(&e)[1], 10, "{cancel}: canceled");
+    }
+}

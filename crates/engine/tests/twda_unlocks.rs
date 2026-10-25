@@ -4464,3 +4464,48 @@ fn nergals_reduction_pays_reckless_agitation_before_yawp_courts_combat() {
     assert_eq!(blood(&e, n), 0, "the cost first");
     assert!(e.combat().is_some(), "Yawp Court's combat");
 }
+
+// Nergal [LSJ 20091021-2] "If he lost a blood during the course of an action
+// that he could have paid for when announced, he can choose whether or not
+// to use his ability to be able to pay for it": at 2 blood, Propaganda (2)
+// announced without the reduction; his Aire of Elation (1) paid without it
+// too; at resolution, short a blood, he is offered it — taken, the bleed
+// lands; passed, Propaganda fizzles and the reduction stays his (owner,
+// 2026-10-25; rules-qa 96.3).
+#[test]
+fn nergal_may_take_his_reduction_at_resolution() {
+    for take in [true, false] {
+        let mut e = game(2);
+        let n = e.add_minion(SeatId(0), find_card("Nergal"), 2, false);
+        e.add_minion(SeatId(0), plain("Brujah", 0), 4, false);
+        e.add_minion(SeatId(1), plain("Ventrue", 0), 4, false);
+        hand(
+            &mut e,
+            0,
+            &["Propaganda", "Aire of Elation", "Aire of Elation"],
+        );
+        pick(&mut e, play(0, 0, n));
+        expect(&mut e, SeatId(0), WindowLabel::PlayTerms);
+        pick(&mut e, Choice::Pass);
+        pick_when(&mut e, play(0, 0, n));
+        expect(&mut e, SeatId(0), WindowLabel::PlayTerms);
+        pick(&mut e, Choice::Pass);
+        let req = until(&mut e, SeatId(0), WindowLabel::ResolutionChoice);
+        let reduce = Choice::ResolvePrinted { minion: n };
+        assert_eq!(req.options, vec![Choice::Pass, reduce]);
+        assert_eq!(blood(&e, n), 1);
+        e.choose(index_of(&req, if take { reduce } else { Choice::Pass }));
+        until(&mut e, SeatId(0), WindowLabel::MinionPhase);
+        if take {
+            assert_eq!(blood(&e, n), 0);
+            assert!(pool(&e)[1] < 10, "bled");
+        } else {
+            assert_eq!(blood(&e, n), 1);
+            assert_eq!(pool(&e)[1], 10, "fizzled");
+            // Still his: offered on his next card.
+            nergal_bleeds_again(&mut e, n);
+            let req = expect(&mut e, SeatId(0), WindowLabel::PlayTerms);
+            assert!(req.options.contains(&reduce));
+        }
+    }
+}

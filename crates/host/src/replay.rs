@@ -96,12 +96,15 @@ pub struct Replay {
 
 /// The choices a record's engine did not offer: a withdrawal before
 /// protocol 2.13.0, a path followed before 2.14.0, a combat's window to a
-/// Methuselah outside it before 2.15.0.
+/// Methuselah outside it before 2.15.0; before 2.16.0 a wake in an action
+/// card's as-played window, Nergal's reduction at resolution, the Dual
+/// Form kept (rules-qa 96.1, 96.3, 96.4).
 #[derive(Clone, Copy, Debug, Default)]
 pub(crate) struct Then {
     before_withdrawals: bool,
     before_paths: bool,
     before_combat_poll: bool,
+    before_batch_96: bool,
 }
 
 impl Then {
@@ -110,14 +113,48 @@ impl Then {
             before_withdrawals: before(protocol, (2, 13)),
             before_paths: before(protocol, (2, 14)),
             before_combat_poll: before(protocol, (2, 15)),
+            before_batch_96: before(protocol, (2, 16)),
         }
     }
 
-    /// `c` came after the record's engine.
-    fn unoffered(self, c: &Choice) -> bool {
+    /// `c`, offered in `req`, came after the record's engine.
+    fn unoffered(self, e: &Engine, req: &DecisionRequest, c: &Choice) -> bool {
+        use zvtes::draws::Interrupt as I;
         match c {
             Choice::WithdrawFromGame => self.before_withdrawals,
             Choice::FollowPath { .. } => self.before_paths,
+            Choice::ResolvePrinted { .. } if self.before_batch_96 => {
+                matches!(e.interrupt(), Some(I::ReductionAtResolution { .. }))
+            }
+            // The first leaving was kept.
+            Choice::ChooseMinion(m) if self.before_batch_96 => {
+                matches!(e.interrupt(), Some(I::DualFormKept { first, .. }) if first != *m)
+            }
+            Choice::Play {
+                card,
+                mode,
+                actor: Some(m),
+                ..
+            } if self.before_batch_96 => {
+                let Some(def) = e
+                    .virtual_hand(req.seat)
+                    .get(*card as usize)
+                    .and_then(|&(c, _)| zvtes::cards::lookup(c))
+                else {
+                    return false;
+                };
+                let mode = &def.modes[*mode as usize];
+                // A wake as an action card is played, before its action.
+                let wake = req.window == zvtes::decision::WindowLabel::CardAsPlayed
+                    && e.action().is_none()
+                    && mode.effects.contains(&zvtes::cards::Effect::Wake);
+                // A woken minion's reaction needing it unlocked.
+                let woken = e.state.minions[m.index()].locked
+                    && mode
+                        .requires
+                        .contains(&zvtes::cards::Requirement::ActorUnlocked);
+                wake || woken
+            }
             _ => false,
         }
     }
@@ -220,7 +257,7 @@ impl Replay {
             return Some(pass);
         }
         let old: Vec<usize> = (0..req.options.len())
-            .filter(|&i| !self.then.unoffered(&req.options[i]))
+            .filter(|&i| !self.then.unoffered(e, req, &req.options[i]))
             .collect();
         if let [only] = old[..] {
             if old.len() < req.options.len() {
@@ -402,7 +439,7 @@ pub(crate) fn recorded_option(
     if d.choice.kind == zvtes_api::ids::OptionKind::Unknown {
         let i = d.option as usize;
         let then: Vec<usize> = (0..req.options.len())
-            .filter(|&j| !then.unoffered(&req.options[j]))
+            .filter(|&j| !then.unoffered(e, req, &req.options[j]))
             .collect();
         return if let Some(&i) = then.get(i) {
             Ok(i)

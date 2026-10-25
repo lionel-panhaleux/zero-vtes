@@ -933,7 +933,10 @@ pub(crate) mod tests {
                 }
                 let Step::Decision(req) = step else { break };
                 let key = e.action().map(|a| (e.state.turn, a.acting));
-                if open.is_some_and(|(k, _, _)| key != Some(k)) {
+                // A rush card's as-played window comes before its action
+                // (a wake there, rules-qa 96.4): not its end.
+                let before_action = req.window == WindowLabel::CardAsPlayed && key.is_none();
+                if !before_action && open.is_some_and(|(k, _, _)| key != Some(k)) {
                     let (k, t, seen) = open.take().unwrap();
                     assert!(
                         seen.is_some(),
