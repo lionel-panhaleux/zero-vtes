@@ -18,7 +18,7 @@ is created by one request and played over one WebSocket. Every game is
 recorded, anonymously, and kept two years to train and test the engine
 (§11).
 
-Version **2.16.0**. The types: the models of the
+Version **2.16.2**. The types: the models of the
 [API reference](https://engine.krcg.org/docs), also as
 [JSON Schema](https://engine.krcg.org/schema.json) (2020-12) and
 [TypeScript](https://engine.krcg.org/protocol.ts).
@@ -501,25 +501,25 @@ seat 2; burn 2 pool to keep card 9.)
 Per human seat, in the spec (`player.settings`; fields left out take
 their default) and changed by `settings`:
 
-- `opportunities` (default `true`): `false` hides the options that
-  interrupt play out of their moment — a wake outside an action that
-  concerns the seat, as a card is played, or, while blocks are open,
-  outside the seat's own block moment (before the would-be blockers ahead
-  of it declined, after its own decline), or, in the blocks-declined
-  window, on anything but a bleed at the seat (Shadow Sentinel: to wake
-  and bounce it), or in a referendum, a block denial short of the
-  action's stealth, the acting seat's options other than the pass while the
-  attempt under way is short of it (the round is the blocker's and the
-  table's), a card or ability making a strike's damage aggravated (Claws
-  of the Dead, Crossbreaker) before the strikes are chosen when it is
-  usable once they are, an
-  any-time ability where nothing else is on offer, an ability that would gain
-  nothing now (legal all the same: burning the counters of a card that
-  has none, votes for a vampire that cannot vote, Gathii's reveal before
-  stealth is needed), a block attempt that cannot reach the action's
+- `opportunities` (default `true`): `false` hides the options that interrupt
+  play out of their moment — a wake outside an action that concerns the
+  seat, as a card is played (unless the woken minion could then cancel that
+  card: Rewind Time, Touch of Clarity), or, while blocks are open, outside
+  the seat's own block moment (before the would-be blockers ahead of it
+  declined, after its own decline), or, in the blocks-declined window, on
+  anything but a bleed at the seat (Shadow Sentinel: to wake and bounce it),
+  or in a referendum, a block denial short of the action's stealth, the
+  acting seat's options other than the pass while the attempt under way is
+  short of it (the round is the blocker's and the table's), a card or
+  ability making a strike's damage aggravated (Claws of the Dead,
+  Crossbreaker) before the strikes are chosen when it is usable once they
+  are, an any-time ability where nothing else is on offer, an ability that
+  would gain nothing now (legal all the same: burning the counters of a card
+  that has none, votes for a vampire that cannot vote, Gathii's reveal
+  before stealth is needed), a block attempt that cannot reach the action's
   stealth (every legal attempt is offered: with no intercept to gain, it
-  fails). A
-  decision left with a pass alone passes by itself (`auto_passed`).
+  fails). A decision left with a pass alone passes by itself
+  (`auto_passed`).
 - `views` (default `decisions`): `steps` adds the view to every `events`
   message — a client animating each move. Larger: compression
   (permessage-deflate) is on at the server.

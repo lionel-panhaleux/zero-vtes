@@ -6,6 +6,13 @@ server runs.
 `python3 scripts/schema_compat.py` lists what a schema change adds or
 removes; its `--check` fails a removal without a major version.
 
+## 2.16.2
+
+With `opportunities` off, a wake in a card's `card_as_played` window is
+shown when the woken minion could then cancel that card (Rewind Time,
+Touch of Clarity: 2.16.0's play), hidden otherwise as before (the owner,
+2026-10-25). No field or id changed.
+
 ## 2.16.0
 
 The ledger's gaps (rules-qa 96); ids added, none removed:

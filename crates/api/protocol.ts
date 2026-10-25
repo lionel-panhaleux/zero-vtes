@@ -1,6 +1,6 @@
-/* zvtes protocol 2.16.0 (docs/protocol.md): generated from
+/* zvtes protocol 2.16.2 (docs/protocol.md): generated from
  * crates/api/schema.json by scripts/gen_ts.py, do not edit. */
-export const PROTOCOL_VERSION = '2.16.0'
+export const PROTOCOL_VERSION = '2.16.2'
 
 /**
  * A command as sent: an optional client id, echoed by an `error` it

@@ -684,20 +684,24 @@ impl Session {
                 // undirected one of its prey or predator — never one
                 // directed at another seat (owner, 2026-10-11), nor as a
                 // card is played (owner, 2026-10-12: "more noise than
-                // usefulness") — and while blocks are open, only the seat's
-                // own block moment, not before the would-be blockers ahead
-                // of it declined nor after its own decline (owner,
-                // 2026-10-17: "really misleading, even though technically
-                // correct"); once blocks are declined, only on a bleed at
-                // the seat, to wake and bounce it (owner, 2026-10-19:
-                // "otherwise it's noise"); never in a referendum (owner,
-                // 2026-10-19: "many times during a referendum. Shouldn't").
+                // usefulness") unless the woken minion could then cancel
+                // it (`wake_cancels`) — and while blocks are open, only
+                // the seat's own block moment, not before the would-be
+                // blockers ahead of it declined nor after its own decline
+                // (owner, 2026-10-17: "really misleading, even though
+                // technically correct"); once blocks are declined, only on
+                // a bleed at the seat, to wake and bounce it (owner,
+                // 2026-10-19: "otherwise it's noise"); never in a
+                // referendum (owner, 2026-10-19: "many times during a
+                // referendum. Shouldn't").
+                if wakes && req.window == WindowLabel::CardAsPlayed {
+                    return Some(Opportunity::Wake(self.wake_cancels(req, c)));
+                }
                 let blocking = e.action().is_some_and(|a| {
                     matches!(a.state, ActionState::Open | ActionState::Attempt(_))
                 });
                 let declined = e.action().is_some_and(|a| a.state == ActionState::Declined);
-                let moment = req.window != WindowLabel::CardAsPlayed
-                    && e.referendum().is_none()
+                let moment = e.referendum().is_none()
                     && e.action().is_some_and(|a| match a.directed_seat(st) {
                         Some(target) => target == req.seat,
                         None => a.seat == st.prey(req.seat) || a.seat == st.predator(req.seat),
@@ -726,6 +730,57 @@ impl Session {
             }
             _ => None,
         }
+    }
+
+    /// The wake `c`, in a card's as-played window, lets the woken
+    /// minion cancel that card (rules-qa 96.4: Rewind Time, Touch of
+    /// Clarity): the seat is then offered a play canceling it (owner,
+    /// 2026-10-25).
+    fn wake_cancels(&self, req: &DecisionRequest, c: &Choice) -> bool {
+        let Some(i) = req.options.iter().position(|o| o == c) else {
+            return false;
+        };
+        // Held now: the replacement the wake draws as it is played is not
+        // known yet, and the wake shown would tell it.
+        let held: Vec<u16> = (self.engine.virtual_hand(req.seat).iter())
+            .map(|&(card, _)| card)
+            .collect();
+        let mut probe = self.engine.clone();
+        probe.choose(i);
+        // The other seats pass on the wake as it is played (its own
+        // as-played window): whether they could answer it is theirs.
+        let mut next = None;
+        for _ in 0..16 {
+            let Step::Decision(asked) = probe.run() else {
+                return false;
+            };
+            if asked.seat == req.seat {
+                next = Some(asked);
+                break;
+            }
+            let Some(pass) = asked.options.iter().position(|o| *o == Choice::Pass) else {
+                return false;
+            };
+            probe.choose(pass);
+        }
+        let Some(next) = next else {
+            return false;
+        };
+        next.window == WindowLabel::CardAsPlayed
+            && next.options.iter().any(|o| {
+                let Choice::Play { card, mode, .. } = *o else {
+                    return false;
+                };
+                let played = probe.virtual_hand(next.seat)[card as usize].0;
+                held.contains(&played)
+                    && zvtes::cards::lookup(played)
+                        .and_then(|d| d.modes.get(mode as usize))
+                        .is_some_and(|m| {
+                            m.effects
+                                .iter()
+                                .any(|f| matches!(f, Effect::CancelPlayed { .. }))
+                        })
+            })
     }
 
     /// `effects` deny the block attempt under way: needed only while the
@@ -1452,6 +1507,95 @@ mod tests {
         s.engine.state.seats[1].library.put(senses, CopyId::NONE);
         assert!(s.shown(&req).contains(&i), "it may reach: shown");
     }
+    /// A wake as an action card is played is shown with the opportunities
+    /// off only when the woken minion could then cancel the card (owner,
+    /// 2026-10-25; rules-qa 96.4): with Rewind Time in hand, not without,
+    /// nor with it the wake's replacement to come.
+    #[test]
+    fn a_wake_as_a_card_is_played_is_hidden_with_the_opportunities_off_unless_it_cancels() {
+        // A V5 vampire with `disc` and no printed text (no more decisions).
+        let with = |disc: &str| {
+            (0..zvtes::crypt::CRYPT.len() as u16)
+                .find(|&i| {
+                    zvtes::crypt::CRYPT[i as usize].disciplines.contains(&disc)
+                        && zvtes::cards::vampire(i).is_none()
+                })
+                .expect("a vampire")
+        };
+        // Rewind Time in hand; on the library alone, drawn as the wake's
+        // replacement: not yet the seat's to know of.
+        // A third seat able to answer the wake itself (Direct Intervention
+        // as it is played) changes nothing.
+        for (rewind, top, answer) in [
+            (true, false, false),
+            (true, false, true),
+            (false, false, false),
+            (false, true, false),
+        ] {
+            let (mut s, _) = session();
+            let mut e = Engine::bare(3);
+            if answer {
+                e.add_minion(SeatId(2), with("dom"), 4, false);
+                let di = find_library("Direct Intervention");
+                e.state.seats[2].hand.put(di, CopyId::NONE);
+            }
+            let a = e.add_minion(SeatId(0), with("dom"), 4, false);
+            e.add_minion(SeatId(0), find_card("Madison"), 4, false);
+            let t = e.add_minion(SeatId(1), with("dom"), 4, false);
+            // Temporis, for Rewind Time (a free beast slot).
+            let slots = &mut e.state.minions[t.index()].beast_disciplines;
+            *slots.iter_mut().find(|d| d.is_none()).expect("a free slot") = Some("tem");
+            e.state.minions[t.index()].locked = true;
+            let govern = find_library("Govern the Unaligned");
+            e.state.seats[0].hand.put(govern, CopyId::NONE);
+            let mut hand = vec!["On the Qui Vive", "Eluding the Arms of Morpheus"];
+            if rewind {
+                hand.push("Rewind Time");
+            }
+            for c in hand {
+                e.state.seats[1].hand.put(find_library(c), CopyId::NONE);
+            }
+            s.engine = e;
+            let Step::Decision(req) = s.engine.run() else {
+                panic!("a decision");
+            };
+            let i = req
+                .options
+                .iter()
+                .position(|o| matches!(o, Choice::Play { actor: Some(x), .. } if *x == a))
+                .expect("Govern the Unaligned offered");
+            s.engine.choose(i);
+            let Step::Decision(req) = s.engine.run() else {
+                panic!("a decision");
+            };
+            assert_eq!(
+                (req.seat, req.window),
+                (SeatId(1), WindowLabel::CardAsPlayed)
+            );
+            if top {
+                (s.engine.state.seats[1].library).put(find_library("Rewind Time"), CopyId::NONE);
+            }
+            let wake = req
+                .options
+                .iter()
+                .copied()
+                .find(|o| matches!(o, Choice::Play { actor: Some(x), .. } if *x == t))
+                .expect("On the Qui Vive offered");
+            if rewind {
+                let i = req.options.iter().position(|o| *o == wake).unwrap();
+                s.set_opportunities(true);
+                assert!(
+                    s.shown(&req).contains(&i),
+                    "shown with the opportunities on"
+                );
+                s.set_opportunities(false);
+                assert!(s.shown(&req).contains(&i), "the cancel to come: shown");
+            } else {
+                hidden_off(&mut s, &req, wake);
+            }
+        }
+    }
+
     /// Shown with the opportunities on, hidden with them off.
     fn hidden_off(s: &mut Session, req: &DecisionRequest, want: Choice) {
         let i = req
