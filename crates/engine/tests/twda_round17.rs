@@ -663,6 +663,12 @@ fn victor_pelletier_buys_a_title_and_yields_a_contest() {
     e.add_minion(SeatId(1), plain("Ventrue", 0), 4, false);
     influence_out(&mut e, find_card("Victor Pelletier"), 5);
     let pool = e.state.seats[0].pool;
+    let req = request(&mut e);
+    assert!(
+        req.options.contains(&Choice::SetX(1)),
+        "primogen beside an untitled vampire: {:?}",
+        req.options
+    );
     pick(&mut e, Choice::SetX(2));
     let v = e
         .state
@@ -2750,6 +2756,47 @@ fn victor_pelletier_is_not_offered_a_title_already_held() {
     e.add_minion(SeatId(1), plain("Ventrue", 0), 4, false);
     influence_out(&mut e, find_card("Victor Pelletier"), 5);
     assert!(!request(&mut e).options.contains(&Choice::SetX(2)));
+}
+
+// Rules-qa 100.2 (owner, 2026-10-25): no vampire printed with a unique
+// title his Methuselah claims already is influenced out — no voluntary
+// contest with oneself (advanced rules §1.13.1); another city's prince is.
+#[test]
+fn a_prince_of_a_city_already_held_is_not_influenced_out() {
+    use zvtes::crypt::Title;
+    let card = CRYPT
+        .iter()
+        .position(|c| c.title == Title::Prince("Paris"))
+        .expect("a Prince of Paris") as u16;
+    for (held, contested, offered) in [
+        (Title::Baron("Paris"), false, false),
+        (Title::Baron("Paris"), true, false),
+        (Title::Prince("Berlin"), false, true),
+    ] {
+        let mut e = game(2);
+        let p = e.add_minion(SeatId(0), plain("Brujah", 0), 4, false);
+        e.state.minions[p.index()].granted_title = Some(held);
+        // A contested copy still claims it as it returns (rules-qa 100.4).
+        e.add_minion(SeatId(0), plain("Brujah", 1), 4, false);
+        e.state.minions[p.index()].contested = contested;
+        e.add_minion(SeatId(1), plain("Ventrue", 0), 4, false);
+        e.state.seats[0]
+            .uncontrolled
+            .push(zvtes::state::UncontrolledSlot {
+                card,
+                copy: Default::default(),
+                counters: CRYPT[card as usize].capacity,
+                banished: None,
+            });
+        until(&mut e, SeatId(0), WindowLabel::InfluenceTransfers);
+        let slot = e.state.seats[0].uncontrolled.len() as u8 - 1;
+        let req = request(&mut e);
+        assert_eq!(
+            req.options.contains(&Choice::InfluenceOut { slot }),
+            offered,
+            "{held:?}, contested {contested}"
+        );
+    }
 }
 
 // Flight is read wherever it was gained (rules-qa 84.37): a Nosferatu's

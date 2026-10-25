@@ -121,10 +121,10 @@ fn two_contested_copies_keep_their_title() {
     }
 }
 
-// Another vampire claiming that title contests it by the rulebook: the two
-// copies and it, all three contesting (rules-qa 91.6).
+// Another vampire claiming that title is its Methuselah's own claim: no
+// second copy influenced out beside it (rules-qa 91.6, 100.2).
 #[test]
-fn another_claimant_contests_both_copies_title() {
+fn another_claimant_bars_a_second_copy_of_its_title() {
     let (prince, rival) = two_princes();
     let mut e = Engine::bare(2);
     e.state.format = Format::TwoPlayer;
@@ -141,9 +141,6 @@ fn another_claimant_contests_both_copies_title() {
     e.state.turn = 4;
     pick(&mut e, Choice::Pass);
     until(&mut e, SeatId(1), WindowLabel::InfluenceTransfers);
-    pick(&mut e, Choice::InfluenceOut { slot: 0 });
-    let copy = MinionId(e.state.minions.len() as u32 - 1);
-    for m in [MinionId(1), other, copy] {
-        assert!(e.state.minions[m.index()].title_contested, "{m:?}");
-    }
+    let req = request(&mut e);
+    assert!(!req.options.contains(&Choice::InfluenceOut { slot: 0 }));
 }

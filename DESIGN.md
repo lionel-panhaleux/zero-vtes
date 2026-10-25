@@ -1978,9 +1978,6 @@ Still true today; "(verify)" marks items inferred from older notes.
   - `ImmuneToDirectedActions` is read on card plays only
     (`GameState::immune_to_directed` in `plays.rs`): a granted or printed
     action requiring a Discipline would need it in `ability_targets` too.
-  - `Terms::XBlood` stops at the blood left after a fixed cost but not after a
-    surcharge (Terror Frenzy on Lightning Reflexes offers one X too many,
-    clamped at resolution). (verify)
   - Disarm's torpor is applied inside the card's resolution: a torpor rider
     ousting the active Methuselah there finishes the play's bookkeeping first.
   - True Love's Face's pay-to-cancel is not offered for a last pool (an oust in
@@ -1994,11 +1991,6 @@ Still true today; "(verify)" marks items inferred from older notes.
   - A cancelling ability marks the play canceled as it is used
     (`as_played_apply`); one with terms the user could back out of would need
     the mark after its terms.
-  - Self-contest of a unique title: a title card's terms may choose a
-    vampire of another Methuselah already holding the title (the incoming
-    card burned?; the caller's own is masked, rules-qa 76.2); Valerius
-    stealing Prince of a city whose baron his Methuselah controls is the same
-    case. (verify)
   - Directed actions name one Methuselah at most (`ActionCtx::directed_seats`);
     Shadow Cast's remembered-set test is written for several.
   - Rapid Change [PRO] and Wolf Claws [PRO] are covered by fuzz only.
@@ -2035,7 +2027,7 @@ Still true today; "(verify)" marks items inferred from older notes.
 - **P5 — community**: bot service, client adapter, human-ergonomics layer
   (its open items on the boards).
 
-Definitions: 954 library, 482 vampires; 2627 Rust tests, 62 Python tests
+Definitions: 954 library, 482 vampires; 2642 Rust tests, 62 Python tests
 
 ## Outlook: deck building (post-v1)
 

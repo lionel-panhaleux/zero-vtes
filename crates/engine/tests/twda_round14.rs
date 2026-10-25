@@ -1146,6 +1146,37 @@ fn osebo_kholo_titles_the_oldest_osebo_and_moves_on() {
     assert_eq!(e.state.title_of(idrissa), laibon);
 }
 
+// Osebo Kholo is not played while its player claims that Laibon title
+// (rules-qa 100.1: a contest with oneself); another Methuselah's holder,
+// it is (the two contest).
+#[test]
+fn osebo_kholo_is_not_played_beside_its_methuselahs_own_holder() {
+    let laibon = Title::Laibon {
+        name: "Osebo Kholo",
+        votes: 2,
+    };
+    for (holder, offered) in [(1, false), (0, true)] {
+        let mut e = game(2);
+        let caller = e.add_minion(SeatId(0), find_card("Tara"), 4, false);
+        let karen = e.add_minion(SeatId(0), find_card("Karen Suadela"), 4, false);
+        let titi = e.add_minion(SeatId(1), find_card("Titi Camara"), 3, false);
+        let idrissa = e.add_minion(SeatId(1), find_card("Idrissa"), 3, false);
+        let held = if holder == 1 { idrissa } else { karen };
+        e.state.minions[held.index()].granted_title = Some(laibon);
+        hand(&mut e, 0, &["Kine Resources Contested"]);
+        hand(&mut e, 1, &["Osebo Kholo"]);
+        pick(&mut e, play(0, 0, caller));
+        pick(&mut e, alloc(0, 3));
+        let req = until(&mut e, SeatId(1), WindowLabel::ReferendumPolling);
+        assert_eq!(
+            req.options.contains(&play(0, 1, titi)),
+            offered,
+            "holder seat {holder}: {:?}",
+            req.options
+        );
+    }
+}
+
 // Andrew Stuart: "As Andrew plays a card requiring Blood Sorcery [tha],
 // reveal the top card of your library. If it also requires Blood Sorcery,
 // the card played is canceled and Andrew burns 1 blood." Before anyone may

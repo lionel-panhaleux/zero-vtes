@@ -1705,7 +1705,8 @@ pub static TOMMASO_SFORZA: VampireDef = VampireDef {
 /// "If Valerius is Camarilla and not a prince, he can steal the title held
 /// by a prince as a Ⓓ action. +1 bleed." The prince loses the title and
 /// Valerius gains it (a title he held is lost: one title per vampire), a
-/// baron of the same city contesting it.
+/// baron of the same city contesting it — never his own Methuselah's
+/// (advanced rules §1.13.1; rules-qa 100.1).
 pub static VALERIUS: VampireDef = VampireDef {
     name: "Valerius",
     printed: &[own(Stat::Bleed, 1, &[])],
@@ -1721,6 +1722,9 @@ pub static VALERIUS: VampireDef = VampireDef {
                     R::TargetVampire,
                     R::NotControlled,
                     R::TargetTitleIn(&[TitleClass::Prince]),
+                    R::NoOwnClaimOfTargetTitle {
+                        besides_actor: true,
+                    },
                 ],
             ),
             &[
@@ -6411,12 +6415,16 @@ pub static DR_MORROW: VampireDef = VampireDef {
 
 static ZANE_REFERENDUM: ReferendumDef = ReferendumDef {
     terms: &[Term::ChooseMinions {
-        // Never his own controller's prince: no contest with oneself
-        // (advanced rules §1.13.1).
+        // Never his own controller's prince, nor a city his controller
+        // claims: no contest with oneself (advanced rules §1.13.1;
+        // rules-qa 100.1).
         filter: &[
             R::TargetVampire,
             R::NotControlled,
             R::TargetTitleIn(&[TitleClass::Prince]),
+            R::NoOwnClaimOfTargetTitle {
+                besides_actor: false,
+            },
         ],
         min: 1,
         max: 1,

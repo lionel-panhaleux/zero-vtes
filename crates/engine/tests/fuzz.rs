@@ -4441,8 +4441,25 @@ fuzz_tests! {
                     banished: None,
                 });
             }
+            // A Corpse Minion on each seat's first vampire: employed in play,
+            // its intercept came only on a contest with oneself (rules-qa
+            // 100.1) at 300 seeds.
+            for s in 0..e.state.seats.len() {
+                let owner = SeatId(s as u8);
+                if let Some(m) = (0..e.state.minions.len())
+                    .map(|i| zvtes::ids::MinionId(i as u32))
+                    .find(|m| e.state.minions[m.index()].owner == owner)
+                {
+                    e.state.cards.push(zvtes::state::CardInPlay::new(
+                        zvtes::state::find_library("Corpse Minion"),
+                        owner,
+                        Some(m),
+                        0,
+                    ));
+                }
+            }
         },
-        seeds: 120,
+        seeds: 240,
         ..BASE
     };
     /// Legacy cards for TWDA decks, round 16 (slice 16ab): the vampires.

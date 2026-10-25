@@ -1148,8 +1148,18 @@ sources to the engine's conventions.
   `Title::Independent { "Liaison", 4 }`, the younger claimant yielding.
 - No choice of a contest with oneself: a title card's terms skip the caller's
   own vampires while the caller claims the title (`Requirement::NoSelfContest`);
-  Zane's referendum (`RefEffect::CallerContestsChosenTitle`) gains the chosen
-  prince's very title, contested with its holder.
+  a card putting a title on one's own vampire is not played while one claims
+  it (`Requirement::NoOwnClaimOf`, by `title_key`: a city's three titles are
+  one); a title or a titled vampire is not taken nor influenced out while one's
+  own vampire claims a unique title it would contest
+  (`Requirement::NoOwnClaimOfTargetTitle`: Valerius, Graverobbing,
+  Chameleon, Form of Corruption, Zane's referendum; Victor Pelletier's
+  price; `Engine::corruption_steal_reached`: Cave
+  of Apples, Contagion; the influence phase's mask in `influence.rs`; all on
+  `GameState::seat_claims_title`); forced, the incoming title is lost
+  (`enter_title_contest`; rules-qa 100.1, 100.2). Zane's referendum
+  (`RefEffect::CallerContestsChosenTitle`) gains the chosen prince's very
+  title, contested with its holder.
 - Laibon titles: `Title::Laibon { name, votes }` (from `gen_crypt.py`;
   the host's title id `laibon`); Osebo Kholo moves as §6.2 says, gaining
   through `gain_title`.
@@ -1587,7 +1597,13 @@ sources to the engine's conventions.
   (`GameState::targeted_surcharge`, paid at resolution beside François
   Loehr's, an ally's such action not offered: `may_direct_at`). An ally
   combatant burned by paying
-  its last life for a card ends the combat (`pay_play_blood`).
+  its last life for a card ends the combat (`pay_play_blood`). A minion's
+  printed surcharge (Tom's, `CostOff::blood_extra`) is paid there too
+  (`printed_extra`).
+- One estimate of a card's cost as announced so far, surcharges in, printed
+  and announced reductions out (`play_cost`): the hand play's offer, the
+  pass while unaffordable (`affordable_with_discounts`) and the blood an X
+  may burn (`Terms::XBlood`). A new estimate site reads it.
 - Paying the last pool ousts: out of turn or from an ability, without passing the
   active turn (`pay_pool_for_ability`); a play whose effects already ousted its
   player does not oust again.

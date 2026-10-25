@@ -2254,6 +2254,26 @@ fn valerius_steals_a_princes_title() {
     );
 }
 
+// Rules-qa 100.1 (owner, 2026-10-25): Valerius never steals a title his
+// own Methuselah's baron of that city would contest — no choice of a
+// contest with oneself (advanced rules §1.13.1).
+#[test]
+fn valerius_cannot_steal_a_title_his_methuselahs_baron_contests() {
+    let mut e = Engine::bare(3);
+    let v = e.add_minion(SeatId(0), crypt("Valerius"), 5, false);
+    let b = e.add_minion(SeatId(0), plain("Ventrue", "", 0), 5, false);
+    e.state.minions[b.index()].granted_title = Some(Title::Baron("Pittsburgh"));
+    let p = e.add_minion(SeatId(1), crypt("Donny Kowalczyk"), 5, false);
+    let steal = Choice::UseAbility {
+        source: AbilitySource::Vampire(v),
+        ability: 0,
+        actor: Some(v),
+        target: Target::Minion(p),
+    };
+    let req = expect(&mut e, SeatId(0), WindowLabel::MinionPhase);
+    assert!(!req.options.contains(&steal));
+}
+
 // Valerius's stolen title is his without a card: contested by the Baron of
 // the same city (a prince and a baron of one city contest, rulebook
 // "Titles") and yielded, it is gone — no card to burn, no printed title
@@ -8081,6 +8101,69 @@ fn lightning_reflexes_burns_x_blood_for_x_additional_strikes() {
     assert_eq!(blood(&e, z), 5 - 3, "three hand strikes");
 }
 
+// Lightning Reflexes [CEL] under Terror Frenzy [ANI] ("combat cards cost
+// the opposing vampire +1 blood"): X up to the blood left after the card's
+// cost as paid, the surcharge included — no strike past the blood burned.
+#[test]
+fn lightning_reflexes_x_stops_at_the_blood_left_after_terror_frenzys_surcharge() {
+    let (mut e, a, z) = fight(
+        with(&["ANI"], 0),
+        &["Terror Frenzy"],
+        with(&["CEL"], 0),
+        &["Lightning Reflexes"],
+    );
+    pick_when(&mut e, play(0, 1, a));
+    pick_when(&mut e, play(0, 1, z));
+    let req = expect(&mut e, SeatId(1), WindowLabel::PlayTerms);
+    let left = blood(&e, z);
+    assert_eq!(req.options.last(), Some(&Choice::SetX(left - 2)));
+    pick(&mut e, Choice::SetX(left - 2));
+    until(&mut e, SeatId(0), WindowLabel::MinionPhase);
+    assert_eq!(blood(&e, z), 0, "cost, surcharge and X all burned");
+}
+
+// Whether a card is affordable before its reductions are announced reads
+// its cost as paid, the surcharges in (rules-qa 100.3): under Terror
+// Frenzy, Nergal's Skin of Steel (1 blood, +1) with 2 blood may go
+// unreduced; with 1, his once-a-turn blood off is no longer optional.
+#[test]
+fn a_surcharge_counts_before_nergal_announces_his_reduction() {
+    for (left, pass) in [(2, true), (1, false)] {
+        let (mut e, a, z) = fight(
+            with(&["ANI"], 0),
+            &["Terror Frenzy"],
+            zvtes::state::find_card("Nergal"),
+            &["Skin of Steel"],
+        );
+        e.state.minions[z.index()].blood = left;
+        pick_when(&mut e, play(0, 1, a));
+        let skin = |r: &DecisionRequest| {
+            r.options
+                .iter()
+                .find(|o| matches!(o, Choice::Play { card: 0, actor: Some(m), .. } if *m == z))
+                .copied()
+        };
+        let req = (0..20)
+            .map(|_| {
+                let r = request(&mut e);
+                if skin(&r).is_none() {
+                    e.choose(0);
+                }
+                r
+            })
+            .find(|r| skin(r).is_some())
+            .expect("Skin of Steel offered");
+        e.choose(index_of(&req, skin(&req).unwrap()));
+        let req = request(&mut e);
+        let terms = req.window == WindowLabel::PlayTerms && req.options.contains(&Choice::Pass);
+        assert_eq!(
+            terms, pass,
+            "{left} blood: {:?} {:?}",
+            req.window, req.options
+        );
+    }
+}
+
 // Wind Dance: "[THA] Strike: dodge, with 1 additional strike: dodge
 // (limited)." Both of the opposing minion's strikes are dodged, and no other
 // limited additional strike follows.
@@ -9789,6 +9872,25 @@ fn graverobbing_superior_steals_a_torpid_vampire_and_may_rescue_it() {
         );
         assert_eq!(e.state.card_controller(gun), SeatId(0));
         assert_eq!(blood(&e, a), if pay { 2 } else { 4 });
+    }
+}
+
+// Rules-qa 100.1 (owner, 2026-10-25): no Graverobbing of a torpid prince
+// whose title the robber's Methuselah claims already — no choice of a
+// contest with oneself (advanced rules §1.13.1); another city's is stolen.
+#[test]
+fn graverobbing_never_steals_a_title_its_methuselah_claims() {
+    for (city, offered) in [("Paris", false), ("Berlin", true)] {
+        let mut e = Engine::bare(3);
+        let a = e.add_minion(SeatId(0), with(&["dom"], 0), 4, false);
+        let p = e.add_minion(SeatId(0), plain("Brujah", "", 1), 4, false);
+        e.state.minions[p.index()].granted_title = Some(Title::Prince("Paris"));
+        let z = e.add_minion(SeatId(1), plain("Ventrue", "", 0), 1, true);
+        e.state.minions[z.index()].granted_title = Some(Title::Prince(city));
+        hand(&mut e, 0, &["Graverobbing"]);
+        let req = expect(&mut e, SeatId(0), WindowLabel::MinionPhase);
+        let rob = play_at(0, 0, Some(a), Target::Minion(z));
+        assert_eq!(req.options.contains(&rob), offered, "{city}");
     }
 }
 
@@ -11826,6 +11928,43 @@ fn cave_of_apples_corrupts_and_steals_at_capacity() {
     request(&mut e);
     let v = &e.state.minions[z.index()];
     assert_eq!((v.owner, v.corruption_of(SeatId(0))), (SeatId(0), 0));
+}
+
+// Cave of Apples' steal takes no vampire whose unique title its
+// Methuselah claims (rules-qa 100.1: a contest with oneself), the counter
+// put all the same; another city's prince is stolen.
+#[test]
+fn cave_of_apples_steals_no_title_its_methuselah_claims() {
+    for (city, stolen) in [("Paris", false), ("Berlin", true)] {
+        let mut e = Engine::bare(3);
+        let m = e.add_minion(
+            SeatId(0),
+            vampire(|c| c.clan == "Ministry" && c.capacity >= 7, 0),
+            4,
+            false,
+        );
+        let other = e.add_minion(SeatId(0), plain("Ventrue", "", 0), 4, false);
+        e.state.minions[other.index()].granted_title = Some(Title::Prince("Paris"));
+        let z = e.add_minion(SeatId(1), vampire(|c| c.capacity == 2, 0), 2, false);
+        e.state.minions[z.index()].granted_title = Some(Title::Prince(city));
+        let cave = location(&mut e, 0, "Cave of Apples");
+        e.state.minions[z.index()].add_corruption(SeatId(0), 1);
+        pick(&mut e, use_on(cave, 0, Some(m), Target::Minion(z)));
+        if stolen {
+            pick_when(&mut e, Choice::ChooseMinion(z));
+        } else {
+            never_offered_until(
+                &mut e,
+                SeatId(0),
+                WindowLabel::MinionPhase,
+                Choice::ChooseMinion(z),
+            );
+        }
+        request(&mut e);
+        let v = &e.state.minions[z.index()];
+        assert_eq!(v.owner == SeatId(0), stolen, "{city}");
+        assert_eq!(v.corruption_of(SeatId(0)), if stolen { 0 } else { 2 });
+    }
 }
 
 // British Museum: "+1 hand size. Minions you control can unlock after

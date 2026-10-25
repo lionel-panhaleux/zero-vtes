@@ -4315,6 +4315,26 @@ impl GameState {
         })
     }
 
+    /// Does a vampire of `s`'s other than `besides` claim a unique title
+    /// that would contest `t` (advanced rules §1.13.1: no contest with
+    /// oneself)? One out of play for now counts, a contested copy or under
+    /// Descent into Darkness: it contests the title as it returns (rules-qa
+    /// 7.1, 100.4).
+    pub fn seat_claims_title(&self, s: SeatId, t: Title, besides: Option<MinionId>) -> bool {
+        let Some(key) = title_key(t) else {
+            return false;
+        };
+        (0..self.minions.len())
+            .map(|i| MinionId(i as u32))
+            .any(|o| {
+                let v = &self.minions[o.index()];
+                v.owner == s
+                    && v.in_play
+                    && Some(o) != besides
+                    && title_key(self.claimed_title(o)) == Some(key)
+            })
+    }
+
     /// The title vampire `m` claims, contested or not: its title card's,
     /// a title gained without a card, or its printed one unless lost.
     pub fn claimed_title(&self, m: MinionId) -> Title {

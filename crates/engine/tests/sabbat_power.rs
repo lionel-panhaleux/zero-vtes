@@ -884,6 +884,43 @@ fn a_contested_regent_provides_no_action() {
     assert!(!req.options.contains(&enter));
 }
 
+// No contest with oneself (advanced rules §1.13.1; rules-qa 100.1): Regent
+// is not put on one's own vampire while another of one's own is the
+// regent; it is when another Methuselah's vampire is (the two contest).
+#[test]
+fn regent_is_not_played_beside_its_methuselahs_own_regent() {
+    let regents: Vec<u16> = CRYPT
+        .iter()
+        .enumerate()
+        .filter(|(_, c)| c.sect == Some(Sect::Sabbat) && c.capacity >= 8 && c.title == Title::None)
+        .map(|(i, _)| i as u16)
+        .take(2)
+        .collect();
+    for holder in [0, 1] {
+        let mut e = game(3);
+        let t = e.add_minion(SeatId(0), regents[0], 4, false);
+        let regent = e.add_minion(SeatId(holder), regents[1], 4, false);
+        e.add_minion(SeatId(2), plain("Brujah", 0), 4, false);
+        in_play(&mut e, holder, "Regent", Some(regent));
+        assert_eq!(e.state.title_of(regent), Title::Regent);
+        hand(&mut e, 0, &["Regent"]);
+        e.at_master_phase();
+        let second = Choice::Play {
+            card: 0,
+            mode: 0,
+            actor: None,
+            target: Target::Minion(t),
+        };
+        let req = request(&mut e);
+        assert_eq!(
+            req.options.contains(&second),
+            holder == 1,
+            "regent held by seat {holder}: {:?}",
+            req.options
+        );
+    }
+}
+
 // [ANK 20251125] [LSJ 20050221-2] Absolute Tyranny [POT][PRE]: "A vampire
 // can have net negative votes, but net negative votes do not subtract from
 // the total when votes are tallied": two copies (Aaradhya's modifier,

@@ -95,11 +95,12 @@ impl Engine {
                 options.push(Choice::Withdraw { slot: i });
             }
             // No voluntary self-contest, but Anarch Convert: he leaves as
-            // he enters, before any contest.
+            // he enters, before any contest; nor of a unique title the
+            // player claims already (owner, 2026-10-25: rules-qa 100.2).
             if slot.counters >= capacity
                 && (slot.card == crate::state::CREATED
-                    || !st.controls_copy(s, slot.card)
-                    || is_anarch_convert(slot.card))
+                    || (!st.controls_copy(s, slot.card) || is_anarch_convert(slot.card))
+                        && !st.seat_claims_title(s, CRYPT[slot.card as usize].title, None))
             {
                 options.push(Choice::InfluenceOut { slot: i });
             }

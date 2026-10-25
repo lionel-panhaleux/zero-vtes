@@ -376,7 +376,8 @@ impl Requirement {
             | R::TargetInfernal
             | R::TargetSubtypeIn(..)
             | R::TargetNotOfPredator
-            | R::NoSelfContest(..) => &[S::MinionTarget],
+            | R::NoSelfContest(..)
+            | R::NoOwnClaimOfTargetTitle { .. } => &[S::MinionTarget],
             R::TargetCirclelessBloodBrother => &[S::UncontrolledTarget],
             R::TargetImbued => &[S::MinionTarget, S::UncontrolledTarget],
             R::NotActingController

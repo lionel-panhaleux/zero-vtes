@@ -569,6 +569,31 @@ fn jack_locks_for_a_cheaper_location() {
     assert!(e.state.minions[jack.index()].locked);
 }
 
+// A master card's cost is checked with the reductions announced so far,
+// no minion playing it: with 1 pool, Channel 10 (2 pool) needs Jack's lock
+// or Baldesar's 1 off; Jack's announced, Baldesar's is no longer forced.
+#[test]
+fn a_location_announced_affordable_needs_no_second_reduction() {
+    let mut e = game(3);
+    let jack = torrance(&mut e, 0, "Jack", 3);
+    let baldesar = e.add_minion(SeatId(0), find_card("Baldesar Rossellini"), 8, false);
+    e.add_minion(SeatId(1), plain("Ventrue", 1), 4, false);
+    e.add_minion(SeatId(2), plain("Ventrue", 2), 4, false);
+    hand(&mut e, 0, &["Channel 10"]);
+    e.state.minions[jack.index()].in_torpor = true;
+    e.state.seats[0].pool = 1;
+    let req = until(&mut e, SeatId(0), WindowLabel::MasterPhase);
+    e.state.minions[jack.index()].locked = false;
+    e.choose(index_of(&req, master_play(0)));
+    let req = request(&mut e);
+    assert!(!req.options.contains(&Choice::Pass), "{:?}", req.options);
+    pick(&mut e, Choice::ResolvePrinted { minion: jack });
+    let req = request(&mut e);
+    let reducer = Choice::ResolvePrinted { minion: baldesar };
+    assert!(req.options.contains(&reducer), "{:?}", req.options);
+    assert!(req.options.contains(&Choice::Pass), "{:?}", req.options);
+}
+
 // Mark: "Mark gets +1 intercept when attempting to block a bleed action."
 // Seat 1's bleed at seat 0: his intercept is 1; seat 1's Zillah's Tears (a
 // +1 stealth undirected action): his 0 intercept cannot reach it (the
@@ -1415,6 +1440,37 @@ fn tom_pays_more_for_sanguinus() {
     pick(&mut e, play_at(0, 0, tom, Target::Minion(barry)));
     until(&mut e, SeatId(0), WindowLabel::MinionPhase);
     assert_eq!(blood(&e, tom), 1);
+}
+
+// Tom's surcharge counts before the play is offered and as a card that is
+// not an action card is paid (rules-qa 100.3): with 1 blood, no Hive Mind
+// (2 for him); his Octopod for Barry's combat costs him 2.
+#[test]
+fn toms_sanguinus_surcharge_bars_and_charges() {
+    for (left, offered) in [(1, false), (2, true)] {
+        let mut e = game(2);
+        let tom = chicago(&mut e, 0, "Tom", left);
+        let barry = chicago(&mut e, 0, "Barry", 4);
+        e.add_minion(SeatId(1), plain("Ventrue", 0), 4, false);
+        e.state.minions[barry.index()].locked = true;
+        hand(&mut e, 0, &["Hive Mind"]);
+        let hive = play_at(0, 0, tom, Target::Minion(barry));
+        assert_eq!(
+            request(&mut e).options.contains(&hive),
+            offered,
+            "{left} blood"
+        );
+    }
+    let mut e = game(2);
+    let tom = chicago(&mut e, 0, "Tom", 3);
+    let barry = chicago(&mut e, 0, "Barry", 4);
+    let z = e.add_minion(SeatId(1), plain("Ventrue", 0), 4, false);
+    hand(&mut e, 0, &["Octopod"]);
+    pick(&mut e, bleed(barry));
+    pick_when(&mut e, block(z));
+    pick_when(&mut e, play(0, 0, tom));
+    until(&mut e, SeatId(0), WindowLabel::MinionPhase);
+    assert_eq!(blood(&e, tom), 1, "1 blood, +1 for Tom");
 }
 
 // Major Boon: "Only usable if another Methuselah is being bled by a minion

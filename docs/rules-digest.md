@@ -596,6 +596,12 @@ one), 26.8 (younger than the acting vampire), 60.11, 60.13, 71.1.
 - A title card replaces a printed title for good (19.2).
 - No contest with oneself: a title card (and Zane's referendum) cannot
   choose a vampire whose controller already claims that title (76.2, 76.3).
+  Another Methuselah's title card passed on such a vampire: the incoming
+  title is lost, the holder's uncontested (100.1). No title card is played
+  (the Fee Stakes, Regent, Osebo Kholo), no prince chosen (Zane), no title
+  or titled vampire stolen (Valerius, Graverobbing) nor influenced out
+  while one's own vampire claims that unique title (100.1, 100.2), one
+  out of play for now included (100.4).
 - Shakar: the Hunt: the contract's combat against another Methuselah's
   minion only (17.3); "every Black Hand vampire is considered chosen" read
   by no pool card beyond its own action (inert); Gerald FitzGerald's Black
@@ -1368,7 +1374,9 @@ Advanced rules §1.7 (costs and payment), §1.8 (playing and canceling).
   played using a Discipline (38.4).
 - An X cost: X chosen as the card is played, halved (The Ankara Citadel)
   once chosen (70.17); Veil the Legions' X from 0 to the vampire's blood,
-  burned at resolution (23.6).
+  burned at resolution (23.6). A "burn X blood" beside a fixed cost: X up
+  to the blood left after that cost as paid, surcharges in (Terror Frenzy),
+  announced reductions out (100.3).
 - Split payments: Contraband's blood part chosen as the card is played
   (with the equipment's name), at most half the cost, pool the rest (29.6);
   The Gate of Acheron's payment one count of random ash heap cards, the
@@ -4012,6 +4020,8 @@ Advanced rules §1.13 (contests), §5.8 (titles).
   (Praxis Seizure: York, the Crusades) is not called while its player
   claims that title (85.32). Anarch Convert moved out beside a
   copy in play must use his ability (no voluntary self-contest, 57.9).
+  Titles likewise: none chosen, stolen or influenced out against one's own
+  claim; forced, the incoming title is lost (100.1, 100.2).
 - Unique cards on record: Shilmulo Tarot (11.2), Ravnos Cache (36.3),
   Camarilla Conclave (51.2), Enkil Cog (50.1), Zaire River Ferry (70.20). Not
   unique: Ashur Tablets — copies never contest, every copy in play counts;
@@ -4663,6 +4673,8 @@ read, for the owner to confirm or correct:
 - 97.1–97.4 graded green or amber (Sabbat paths followed).
 - 98.1, 98.2 graded amber (combat polled past the combatants).
 - 99.1–99.3 graded green (the owner's playtest: Wall of Filth).
+- 100.3 graded green, 100.4 amber (100.1 and 100.2 answered by the
+  owner).
 - 49.6's several-holders question is moot (50.1: the Cog is unique).
 
 ### 24.2 Questions for a new rules-qa batch
@@ -4760,7 +4772,7 @@ an owner ruling:
 Every rules-qa item, by batch, with the digest sections citing it: the
 section stating it and those cross-referring to it (§2 the default
 readings, §22 engine modeling, §23 the contradictions, §24 the open
-readings). 989 items, Batches 1–99 (44.11 was removed, replaced by Batch
+readings). 993 items, Batches 1–100 (44.11 was removed, replaced by Batch
 45). The index is derived from the citations: a bare `N.M` cites rules-qa
 item N.M in the section it appears in. A new rules-qa item gets its line in
 the section stating it, then its entry here: `python3
@@ -5100,3 +5112,5 @@ index or an item cited nowhere.
 - **97** — 97.1 §3.12,§24.1; 97.2 §3.12; 97.3 §3.12; 97.4 §3.12,§24.1
 - **98** — 98.1 §12.1,§24.1; 98.2 §12.1,§24.1
 - **99** — 99.1 §3.17,§24.1; 99.2 §3.17; 99.3 §3.17,§24.1
+- **100** — 100.1 §3.15,§18.1,§24.1; 100.2 §3.15,§18.1,§24.1; 100.3
+  §7.3,§24.1; 100.4 §3.15,§24.1

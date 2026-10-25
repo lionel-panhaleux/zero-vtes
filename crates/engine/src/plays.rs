@@ -1130,28 +1130,11 @@ impl Engine {
                             continue;
                         }
                         let x = cards::terms_x(st, seat, card, mode).unwrap_or(0);
-                        let blood = cards::blood_cost(st, card, x) + self.reaction_surcharge(card);
+                        let ctx = PlayCtx::new(seat, card, mi as u8, Some(m), Target::None, x);
                         // What announced reductions could take off (The
                         // Line, The Shard, Ravnos Carnival, Ravnos Cache).
-                        let potential = self.cost_potential(&PlayCtx::new(
-                            seat,
-                            card,
-                            mi as u8,
-                            Some(m),
-                            Target::None,
-                            x,
-                        ));
-                        // Less the minion's printed reductions (Roger de
-                        // Camden).
-                        let mut blood = blood
-                            + self.discipline_surcharge(m, card, mi as u8)
-                            + self.combat_card_surcharge(m, card, mi as u8);
-                        let mut pool = cards::pool_cost(st, seat, card, Target::None);
-                        st.printed_cost_off(m, card, mi as u8)
-                            .apply(&mut pool, &mut blood);
-                        // Charisma's discount, taken as the payment takes it
-                        // (off the pool cost if any, else the blood).
-                        reduce(&mut pool, &mut blood, recruit_off(st, mode, m));
+                        let potential = self.cost_potential(&ctx);
+                        let (_, blood) = self.play_cost(&ctx);
                         // A burn the card asks for, beyond its cost as paid
                         // (ANK 20210226).
                         let beyond = mode
@@ -1869,10 +1852,7 @@ impl Engine {
         let played_mode = &def.modes[ctx.mode as usize];
         // A card that plays another from hand (Piper, Contraband): the
         // reductions are for the card it names, once named.
-        let names = played_mode
-            .effects
-            .iter()
-            .any(|e| matches!(e, Effect::EmployNamed | Effect::EquipNamed));
+        let names = names_another(played_mode);
         let (card, mode) = match (names, ctx.named) {
             (true, None) => return Vec::new(),
             (true, Some((c, m))) => match cards::lookup(c) {
@@ -1982,12 +1962,8 @@ impl Engine {
     pub(crate) fn blood_payers(&self, ctx: &PlayCtx) -> Vec<MinionId> {
         let st = &self.state;
         // A card playing another (Piper, Contraband): the one it names.
-        let names = cards::lookup(ctx.card).is_some_and(|d| {
-            d.modes[ctx.mode as usize]
-                .effects
-                .iter()
-                .any(|e| matches!(e, Effect::EmployNamed | Effect::EquipNamed))
-        });
+        let names =
+            cards::lookup(ctx.card).is_some_and(|d| names_another(&d.modes[ctx.mode as usize]));
         let (card, mode, target) = match (names, ctx.named) {
             (true, None) => return Vec::new(),
             (true, Some((c, m))) => (c, m, ctx.actor.into()),
@@ -2170,6 +2146,8 @@ impl Engine {
     /// (British Museum's, then those announced: a searched equipment,
     /// rules-qa 38.5)? A pool cost paid down to 0 counts; with
     /// `pool_may_oust`, any pool cost does (Vast Wealth, RTR 19941109).
+    /// Equipment searched for only: no surcharge reaches it, unlike
+    /// `play_cost`'s.
     pub(crate) fn payable_with_potential(&self, ctx: &PlayCtx, pool_may_oust: bool) -> bool {
         let st = &self.state;
         let m = ctx.actor.expect("minion");
@@ -2186,17 +2164,7 @@ impl Engine {
     /// unaffordable card must announce them: LSJ 20090705)?
     fn affordable_with_discounts(&self, ctx: &PlayCtx) -> bool {
         let st = &self.state;
-        let off: u8 = ctx.discounts.iter().flatten().map(|&(_, n)| n).sum::<u8>()
-            + u8::from(ctx.blood_payer.is_some())
-            + u8::from(ctx.once_off)
-            + u8::from(ctx.locker.is_some())
-            + u8::from(ctx.reducer.is_some())
-            + ctx
-                .actor
-                .zip(cards::lookup(ctx.card))
-                .map_or(0, |(m, d)| recruit_off(st, &d.modes[ctx.mode as usize], m));
-        let blood = cards::blood_cost(st, ctx.card, ctx.x);
-        let pool = cards::pool_cost(st, ctx.seat, ctx.card, ctx.target);
+        let (pool, blood) = self.play_cost(ctx);
         // An ally has no blood to pay with, unless playing this card "as a
         // vampire".
         let have_blood = ctx.actor.map_or(u8::MAX, |m| {
@@ -2211,10 +2179,43 @@ impl Engine {
         });
         payable(
             (pool, blood),
-            off,
+            0,
             (st.seats[ctx.seat.index()].pool, have_blood),
             false,
         )
+    }
+
+    /// The pool and blood the card of `ctx` costs as announced so far: the
+    /// acting minion's surcharges in, its printed reductions, Charisma's and
+    /// the reductions announced with the card out. Not the payment itself:
+    /// `resolve_play` also adds a master card's surcharge (Secure Haven) and
+    /// reads the Shard's and Nergal's reductions as they stand then.
+    fn play_cost(&self, ctx: &PlayCtx) -> (i32, u8) {
+        let st = &self.state;
+        let mut pool = cards::pool_cost(st, ctx.seat, ctx.card, ctx.target);
+        let mut blood = cards::blood_cost(st, ctx.card, ctx.x);
+        let mut off = ctx.discounts.iter().flatten().map(|&(_, n)| n).sum::<u8>()
+            + u8::from(ctx.blood_payer.is_some())
+            + u8::from(ctx.once_off)
+            + u8::from(ctx.locker.is_some())
+            + u8::from(ctx.reducer.is_some());
+        if let Some(m) = ctx.actor {
+            blood += self.reaction_surcharge(ctx.card)
+                + self.discipline_surcharge(m, ctx.card, ctx.mode)
+                + self.combat_card_surcharge(m, ctx.card, ctx.mode);
+            let mode = &cards::lookup(ctx.card).expect("played card").modes[ctx.mode as usize];
+            // A card playing another from hand: its reductions are the
+            // named card's.
+            let names = names_another(mode);
+            if !names {
+                // The extra on before the reductions off, as paid.
+                blood = (blood + self.printed_extra(ctx))
+                    .saturating_sub(self.printed_off_play(ctx, &mut pool));
+            }
+            off += recruit_off(st, mode, m);
+        }
+        reduce(&mut pool, &mut blood, off);
+        (pool, blood)
     }
 
     pub(crate) fn cost_terms_apply(
@@ -2531,10 +2532,11 @@ impl Engine {
             }
             // X may exceed what is needed but never the actor's blood
             // (Hidden Strength rulings); a fixed blood cost besides
-            // (Lightning Reflexes [CEL]) is paid first.
+            // (Lightning Reflexes [CEL]) is paid first, as paid: Terror
+            // Frenzy's surcharge in, the reductions announced out.
             Some(Terms::XBlood) => {
                 let blood = self.state.minions[ctx.actor.expect("actor").index()].blood;
-                let fixed = cards::blood_cost(&self.state, ctx.card, 0);
+                let (_, fixed) = self.play_cost(ctx);
                 (0..=blood.saturating_sub(fixed))
                     .map(Choice::SetX)
                     .collect()
@@ -3568,12 +3570,8 @@ impl Engine {
             // Less the playing minion's printed reductions, as at resolution
             // (Roger de Camden, Ragnar Nordstrom) — not a card naming
             // another's (Piper): those are the named card's.
-            let names = cards::lookup(ctx.card).is_some_and(|d| {
-                d.modes[ctx.mode as usize]
-                    .effects
-                    .iter()
-                    .any(|e| matches!(e, Effect::EmployNamed | Effect::EquipNamed))
-            });
+            let names =
+                cards::lookup(ctx.card).is_some_and(|d| names_another(&d.modes[ctx.mode as usize]));
             let mut blood_off = if names {
                 0
             } else {
@@ -3754,6 +3752,23 @@ impl Engine {
         }
     }
 
+    /// The playing minion's printed surcharge on `ctx`'s card ("cards that
+    /// require Sanguinus cost Tom an additional blood"), not on a card
+    /// naming another's.
+    fn printed_extra(&self, ctx: &PlayCtx) -> u8 {
+        match ctx.actor {
+            Some(m)
+                if !cards::lookup(ctx.card)
+                    .is_some_and(|d| names_another(&d.modes[ctx.mode as usize])) =>
+            {
+                self.state
+                    .printed_cost_off_x(m, ctx.card, ctx.mode, ctx.x)
+                    .blood_extra
+            }
+            _ => 0,
+        }
+    }
+
     /// The blood (or, for an ally playing as a vampire, life) a card costs
     /// its player, surcharges included, less `blood_off`: true if that
     /// burned the ally paying it.
@@ -3769,7 +3784,8 @@ impl Engine {
         let blood = (cards::blood_cost(&self.state, ctx.card, ctx.x)
             + surcharge
             + self.discipline_surcharge(m, ctx.card, ctx.mode)
-            + self.combat_card_surcharge(m, ctx.card, ctx.mode))
+            + self.combat_card_surcharge(m, ctx.card, ctx.mode)
+            + self.printed_extra(ctx))
         .saturating_sub(blood_off);
         self.state.burn_blood(m, blood);
         let v = &mut self.state.minions[m.index()];
@@ -3859,10 +3875,7 @@ impl Engine {
         let mut blood_off = 0u8;
         // A card playing another from hand (Piper, Contraband): its
         // reductions are the named card's, taken as that card is paid.
-        let names = mode
-            .effects
-            .iter()
-            .any(|e| matches!(e, Effect::EmployNamed | Effect::EquipNamed));
+        let names = names_another(mode);
         // The playing minion's printed reductions (Roger de Camden).
         if !names {
             blood_off += self.printed_off_play(&ctx, &mut pool);
@@ -10961,6 +10974,14 @@ fn use_card(id: CardId, ai: usize, actor: Option<MinionId>, target: Target) -> C
         actor,
         target,
     }
+}
+
+/// A card playing another from hand (Piper, Contraband): the reductions
+/// and payers are the named card's.
+fn names_another(mode: &cards::ModeDef) -> bool {
+    mode.effects
+        .iter()
+        .any(|e| matches!(e, Effect::EmployNamed | Effect::EquipNamed))
 }
 
 /// Charisma's discount for `m` playing `mode`: a mode declaring a recruit

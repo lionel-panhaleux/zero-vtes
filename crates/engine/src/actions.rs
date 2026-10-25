@@ -1868,7 +1868,8 @@ impl Engine {
 
     /// `seat`'s corruption counters on `t` equal or exceed "their capacity
     /// or cost" (Cave of Apples, Contagion): a vampire's capacity, an
-    /// ally's printed cost (rules-qa 35.2).
+    /// ally's printed cost (rules-qa 35.2); and `t` claims no unique title
+    /// `seat` claims (no contest with oneself, rules-qa 100.1).
     pub(crate) fn corruption_steal_reached(&self, seat: SeatId, t: MinionId) -> bool {
         let v = &self.state.minions[t.index()];
         let need = match v.ally_id() {
@@ -1882,7 +1883,11 @@ impl Engine {
             }
             None => self.state.capacity_of(t).unwrap_or(u8::MAX),
         };
+        // No contest with oneself (rules-qa 100.1).
         v.corruption_of(seat) >= need
+            && !self
+                .state
+                .seat_claims_title(seat, self.state.claimed_title(t), None)
     }
 
     /// What `m` pays to attempt to block, (blood, library cards), if it

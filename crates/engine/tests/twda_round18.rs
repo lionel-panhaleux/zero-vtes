@@ -443,6 +443,36 @@ fn nosferatu_justicar_titles_a_camarilla_nosferatu() {
     assert!(!request(&mut e).options.contains(&play(0, 0, a)));
 }
 
+// Rules-qa 100.1 (owner, 2026-10-25): another Methuselah's Nosferatu
+// Justicar on a vampire whose controller claims that title already is a
+// contest with oneself forced on him: the incoming title is lost (advanced
+// rules §1.13.1, "the incoming copy is burned"), the holder's uncontested.
+#[test]
+fn a_justicar_title_forced_beside_its_holder_is_lost() {
+    use zvtes::crypt::{Sect, Title};
+    let mut e = game(2);
+    let a = e.add_minion(SeatId(0), of_clan("Brujah", 4..=6), 4, false);
+    e.add_minion(SeatId(0), of_clan("Brujah", 4..=6), 4, false);
+    let holder = e.add_minion(SeatId(1), of_clan("Ventrue", 4..=6), 4, false);
+    e.state.minions[holder.index()].granted_title = Some(Title::Justicar("Nosferatu"));
+    let n = e.add_minion(
+        SeatId(1),
+        textless(
+            |c| c.clan == "Nosferatu" && c.sect == Some(Sect::Camarilla),
+            0,
+        ),
+        4,
+        false,
+    );
+    hand(&mut e, 0, &["Nosferatu Justicar"]);
+    pass_referendum(&mut e, a);
+    until(&mut e, SeatId(0), WindowLabel::MinionPhase);
+    assert_eq!(e.state.title_of(n), Title::None);
+    assert!(e.state.title_card_on(n).is_none(), "the card burned");
+    assert_eq!(e.state.title_of(holder), Title::Justicar("Nosferatu"));
+    assert!(!e.state.minions[holder.index()].title_contested);
+}
+
 // ---- Bleeds and the Edge -------------------------------------------------------
 
 // Leverage: "Burn the Edge to get +1 bleed that does not count against the

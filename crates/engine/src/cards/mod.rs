@@ -1390,9 +1390,17 @@ pub enum Requirement {
     /// title already: no choice of a contest with oneself (advanced rules
     /// §1.13.1; Banu Haqim Justicar beside one's own Kasim Bayar).
     NoSelfContest(Title),
-    /// The player claims this title with none of its vampires: a card
-    /// putting it on its caller is no contest with oneself (advanced rules
-    /// §1.13.1; rules-qa 76.2; Praxis Seizure: York, the Crusades).
+    /// The unique title another Methuselah's target claims is claimed by no
+    /// vampire of the player's (but the actor, whose own title goes, with
+    /// `besides_actor`): taking it or the vampire is no contest with
+    /// oneself (advanced rules §1.13.1; rules-qa 100.1: Valerius,
+    /// Graverobbing).
+    NoOwnClaimOfTargetTitle {
+        besides_actor: bool,
+    },
+    /// The player claims this unique title (a city's by any of its titles)
+    /// with none of its vampires: a card putting it on one is no contest
+    /// with oneself (advanced rules §1.13.1; rules-qa 76.2, 100.1).
     NoOwnClaimOf(Title),
     /// The prey's ash heap holds two copies of a card (Giovanni del
     /// Georgio).
@@ -6817,6 +6825,7 @@ pub fn holds(
         | Requirement::TargetTitleIn(_)
         | Requirement::TargetTitle(_)
         | Requirement::NoSelfContest(_)
+        | Requirement::NoOwnClaimOfTargetTitle { .. }
         | Requirement::TargetTitleContested
         | Requirement::HostOutOfCombat
         | Requirement::OncePerTurn
@@ -7289,7 +7298,7 @@ pub fn holds(
         Requirement::OwnTurn => st.active == seat,
         Requirement::ActorMustHunt => actor.is_some_and(|m| st.must_hunt(m)),
         Requirement::DiscardPhaseActionLeft => st.seats[seat.index()].dpa > 0,
-        Requirement::NoOwnClaimOf(t) => !st.minions_of(seat).any(|m| st.claimed_title(m) == t),
+        Requirement::NoOwnClaimOf(t) => !st.seat_claims_title(seat, t, None),
         Requirement::NoActionAnnouncedThisTurn => !st.seats[seat.index()].acted_this_turn,
         Requirement::MasterCardPlayed => st.seats[seat.index()].master_played,
         Requirement::AshNotEmpty => !st.seats[seat.index()].ash.is_empty(),
@@ -7869,8 +7878,14 @@ pub fn holds_for_minion(
         }
         Requirement::TargetTitle(t) => st.title_of(m) == t,
         Requirement::TargetTitleContested => v.title_contested,
-        Requirement::NoSelfContest(t) => {
-            v.owner != seat || !st.minions_of(seat).any(|o| st.claimed_title(o) == t)
+        Requirement::NoSelfContest(t) => v.owner != seat || !st.seat_claims_title(seat, t, None),
+        Requirement::NoOwnClaimOfTargetTitle { besides_actor } => {
+            v.owner == seat
+                || !st.seat_claims_title(
+                    seat,
+                    st.claimed_title(m),
+                    acting.filter(|_| besides_actor),
+                )
         }
         Requirement::TargetSubtypeIn(labels) => st.ally_of(m, labels),
         Requirement::BleedTargetPoolAtMost(n) => action

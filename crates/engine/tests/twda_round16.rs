@@ -1386,6 +1386,42 @@ fn fee_stake_perth_titles_an_anarch_and_its_burn_weakens_other_titles() {
     assert_eq!(r.votes_of(&e.state, t), 2, "a baron: an Anarch title");
 }
 
+// No contest with oneself (advanced rules §1.13.1; rules-qa 100.1): a Fee
+// Stake is not played while its player's own vampire claims the city; it
+// is when another Methuselah's baron does (the two contest).
+#[test]
+fn fee_stake_perth_is_not_played_beside_its_methuselahs_own_baron() {
+    use zvtes::crypt::{Sect, Title};
+    let anarchs: Vec<u16> = CRYPT
+        .iter()
+        .enumerate()
+        .filter(|(i, c)| {
+            c.sect == Some(Sect::Anarch)
+                && c.capacity >= 5
+                && c.title == Title::None
+                && zvtes::cards::vampire(*i as u16).is_none()
+        })
+        .map(|(i, _)| i as u16)
+        .take(3)
+        .collect();
+    for holder in [0, 1] {
+        let mut e = game(3);
+        let t = e.add_minion(SeatId(0), anarchs[0], 4, false);
+        let baron = e.add_minion(SeatId(holder), anarchs[1], 4, false);
+        e.add_minion(SeatId(2), anarchs[2], 4, false);
+        in_play(&mut e, holder, "Fee Stake: Perth", Some(baron));
+        assert_eq!(e.state.title_of(baron), Title::Baron("Perth"));
+        hand(&mut e, 0, &["Fee Stake: Perth"]);
+        let req = request(&mut e);
+        assert_eq!(
+            req.options.contains(&play(0, 0, t)),
+            holder == 1,
+            "baron held by seat {holder}: {:?}",
+            req.options
+        );
+    }
+}
+
 // IR Goggles: "This minion gets an optional maneuver each combat."
 #[test]
 fn ir_goggles_give_a_maneuver_each_combat() {

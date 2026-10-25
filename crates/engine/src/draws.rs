@@ -2200,14 +2200,7 @@ impl Engine {
                     .chain(
                         offers
                             .iter()
-                            .filter(|&&(_, t)| {
-                                let key = crate::state::title_key(t);
-                                !self.state.minions_of(seat).any(|o| {
-                                    o != minion
-                                        && crate::state::title_key(self.state.claimed_title(o))
-                                            == key
-                                })
-                            })
+                            .filter(|&&(_, t)| !self.state.seat_claims_title(seat, t, Some(minion)))
                             .map(|&(n, _)| Choice::SetX(n)),
                     )
                     .collect(),

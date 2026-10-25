@@ -11338,6 +11338,9 @@ const GRAVEROBBING_TARGET: Option<TargetSpec> = target(
         Requirement::NotControlled,
         Requirement::TargetVampire,
         Requirement::TargetInTorpor,
+        Requirement::NoOwnClaimOfTargetTitle {
+            besides_actor: false,
+        },
     ],
 );
 
@@ -11611,7 +11614,8 @@ static FEE_STAKE_BURN: ReferendumDef = ReferendumDef {
 /// that referendum, non-Anarch titles are worth -1 vote." A contested
 /// title: the card face down, its action unusable (LSJ 20070808-2).
 macro_rules! fee_stake {
-    // No clan's vote when calling (Fee Stake: Perth).
+    // No clan's vote when calling (Fee Stake: Perth). Not while its player
+    // claims the city: a contest with oneself (rules-qa 100.1).
     ($name:ident, $printed:expr, $city:expr) => {
         pub static $name: CardDef = CardDef {
             name: $printed,
@@ -11619,6 +11623,7 @@ macro_rules! fee_stake {
                 &[
                     Requirement::ActorSectIn(&[Sect::Anarch]),
                     Requirement::ActorCapacityAtLeast(5),
+                    Requirement::NoOwnClaimOf(crate::crypt::Title::Baron($city)),
                 ],
                 None,
                 &[
@@ -11648,6 +11653,7 @@ macro_rules! fee_stake {
                 &[
                     Requirement::ActorSectIn(&[Sect::Anarch]),
                     Requirement::ActorCapacityAtLeast(5),
+                    Requirement::NoOwnClaimOf(crate::crypt::Title::Baron($city)),
                 ],
                 None,
                 &[
@@ -15090,7 +15096,8 @@ pub static ABSOLUTE_TYRANNY: CardDef = CardDef {
 /// diablerizes this vampire, move this card to the diablerist (before the
 /// blood hunt is called)." (1 pool.) Contested, the card is out of play and
 /// its action not usable (LSJ 20070808-2); the action requires a Sabbat
-/// vampire (LSJ 20080604), not one's own (rules-qa 17.3, 52.6).
+/// vampire (LSJ 20080604), not one's own (rules-qa 17.3, 52.6). Not played
+/// while its player claims the regent (rules-qa 100.1).
 pub static REGENT: CardDef = CardDef {
     name: "Regent",
     modes: &[ModeDef {
@@ -15106,7 +15113,7 @@ pub static REGENT: CardDef = CardDef {
         ..mode_of(
             &[Window::MasterPhase],
             Actor::Methuselah,
-            &[],
+            &[Requirement::NoOwnClaimOf(crate::crypt::Title::Regent)],
             &[
                 Effect::PutOnTarget,
                 Effect::RepresentsTitle(crate::crypt::Title::Regent),
@@ -22390,6 +22397,9 @@ pub static CHAMELEON: CardDef = CardDef {
                     Requirement::TargetVampire,
                     Requirement::Younger,
                     Requirement::TargetEnteredSinceYourLastMinionPhase,
+                    Requirement::NoOwnClaimOfTargetTitle {
+                        besides_actor: false,
+                    },
                 ],
             ),
             &[
@@ -24462,6 +24472,9 @@ const fn corruption_steal(version: &'static [Requirement], effects: &'static [Ef
                 Requirement::ControlledByPrey,
                 Requirement::NotControlled,
                 Requirement::TargetBloodAtMostCounters,
+                Requirement::NoOwnClaimOfTargetTitle {
+                    besides_actor: false,
+                },
             ],
         ),
         ..mode_of(&[Window::MasterPhase], Actor::Controller, version, effects)
@@ -24871,7 +24884,7 @@ pub static SUMMON_HISTORY: CardDef = CardDef {
 /// of) the oldest ready untitled Laibon Osebo (if any)." Not during a
 /// referendum passing automatically (PIB 20150105, LSJ 19980107: no polling
 /// step). As an action modifier by the acting vampire, a reaction by
-/// another.
+/// another; not while its player claims the title (rules-qa 100.1).
 pub static OSEBO_KHOLO: CardDef = CardDef {
     name: "Osebo Kholo",
     lines: &[0, 0],
@@ -24899,6 +24912,10 @@ const OSEBO_KHOLO_REQUIRES: &[Requirement] = &[
         clan: "Osebo",
         sect: Sect::Laibon,
     },
+    Requirement::NoOwnClaimOf(crate::crypt::Title::Laibon {
+        name: "Osebo Kholo",
+        votes: 2,
+    }),
 ];
 
 const OSEBO_KHOLO_REQUIRES_LOCKED: &[Requirement] = &[
@@ -24909,6 +24926,10 @@ const OSEBO_KHOLO_REQUIRES_LOCKED: &[Requirement] = &[
         clan: "Osebo",
         sect: Sect::Laibon,
     },
+    Requirement::NoOwnClaimOf(crate::crypt::Title::Laibon {
+        name: "Osebo Kholo",
+        votes: 2,
+    }),
 ];
 
 const OSEBO_KHOLO_EFFECTS: &[Effect] = &[
