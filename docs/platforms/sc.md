@@ -103,7 +103,12 @@ click draws). A searched stack opens by itself and stays open through
 the decisions searching it, then closes (`showSearch`, driver.ts;
 owner, 2026-10-24, Shroud of Decay's seven cards); a card found is one
 click, never confirmed, and the search's pass is in the panel too: the
-panel hides the central box.
+panel hides the central box. SC draws a card in a place it hides (a
+library, another's hand) face down unless it is revealed: a card the
+view gives an `id` there (a library searched, a hand a card reveals) is
+revealed to the viewer in SC's `revelations`, and no longer once a view
+leaves its `id` out (`know`, projection.ts; owner, 2026-10-26: Magic of
+the Smith's library opened face down).
 
 ## Where the owner plays
 
