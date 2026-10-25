@@ -70,8 +70,10 @@ Then:
 - **Advisory** findings: fixed in this change too, unless clearly outside
   its line (then `intake`, and the trailer says so); each recorded as a
   commit trailer.
-- After two rejection rounds, stop and take the disagreement to the
-  owner, compressed to the one decision it turns on.
+- A third round still blocking: stop and take it to the owner,
+  compressed to the one decision it turns on; three rounds that fail
+  point at the approach, not its details (owner, 2026-10-25). Blocking
+  rounds followed by one with no blocking finding need nobody: commit.
 
 ## 5. Commit
 

@@ -44,7 +44,7 @@ verdict. Do not hunt defects to justify the review. Check:
 6. **Scope growth.** Where the change is half-done (a second copy of a
    mechanism left beside the new one, a refactor stopped at one caller),
    require the rest now rather than a follow-up. First-round growth is
-   normal; a second round's should be exceptional, but a finding within
+   normal; a later round's should be exceptional, but a finding within
    the change's reach is still raised and fixed, whatever the round.
 7. **Tests.** Each behaviour change has a test at the engine's or the
    server's boundary that fails without it, tracing to a declared

@@ -98,8 +98,8 @@ with its board companion), as applied here:
   (execution: the top line done and landed as one change — code, its
   pages, the line deleted — then the `egress-reviewer` agent, fresh
   context, given the diff, the line and its pages only; findings
-  blocking or advisory, recorded as commit trailers; two rejection rounds
-  go to the owner; before it, `harness.py stale` finds the names the
+  blocking or advisory, recorded as commit trailers; a third round still
+  blocking goes to the owner; before it, `harness.py stale` finds the names the
   diff removed that a page or a comment still cites, and the added lines
   past the width); `upkeep` (every 20 deleted lines or monthly:
   eviction, wiki lint, the ratchet turning three advisories of a class
@@ -115,8 +115,8 @@ with its board companion), as applied here:
 - **Ask the owner only for**: rulings and paradigm choices (short options,
   a recommendation), scope changes, irreversible or outward-facing
   actions beyond the routine ones (commits, "Owner rules"; Z-main's
-  pushes, tags and deploys, "Sessions"), a review deadlocked
-  after two rounds. Everything else proceeds.
+  pushes, tags and deploys, "Sessions"), a review still blocking
+  after three rounds. Everything else proceeds.
 - **Where this repo departs from the pattern, and why**:
   - worktrees, not one shared branch: a training run pins its engine, and
     tables regenerated in the shared checkout broke a run's `uv sync`;
@@ -133,6 +133,9 @@ with its board companion), as applied here:
   - a line is placed by `intake` and reported, not held for the owner's
     acceptance: found work is tracked without waiting (the owner's
     findings rule); the owner sees it in the digest and the merge;
+  - three egress rounds before the owner, not two: rounds that block
+    and then one with no blocking finding need nobody; three that block
+    point at the approach (owner, 2026-10-25);
   - no hard limit on a board: the boards carry the owner's objectives'
     backlog, so the control is upkeep's size trend; a limit is the
     ratchet's to propose if the boards grow;
