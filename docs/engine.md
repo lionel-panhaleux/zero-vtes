@@ -286,8 +286,10 @@ hazards, from the engine review of 2026-10-14):
 - The `Interrupt` pay-or-suffer family (`PayOrBurn`, `BloodOrBurned`,
   `LockOrPay`, …) is one request/apply pair each: factored only once a
   round brings several more, keeping the `Choice` values.
-- `host/src/effects.rs` maps an effect for clients only where curated;
-  `unmapped_effects_by_family` lists the rest, informational.
+- `host/src/effects.rs` tells an effect to clients where curated (`add`)
+  and names every other one, by its family, in its untold arms: no `_` arm,
+  so a new `Effect` does not compile until told or listed untold (owner,
+  2026-10-25).
 - Card-name literals in engine code: three sites with a reason (Mithraic,
   Anarch Convert, Life Boon) and the Blood Brother circle checks; any other
   name or printed number belongs in `cards/defs.rs`.
@@ -359,8 +361,9 @@ hazards, from the engine review of 2026-10-14):
    recorded as a question in a new rules-qa batch; an issue met on the way
    is fixed in the change, or, clearly outside its line, goes through the
    `intake` skill (CLAUDE.md "Findings").
-9. **Elsewhere**: a player-visible effect may need a line in
-   `crates/host/src/effects.rs`; a new `Choice` kind needs its obs slot
+9. **Elsewhere**: a new effect is told in `crates/host/src/effects.rs` or
+   named in its untold arms (the host does not compile until it is); a new
+   `Choice` kind needs its obs slot
    (§6.21); the checks of CLAUDE.md "Working lessons" before calling it
    done.
 

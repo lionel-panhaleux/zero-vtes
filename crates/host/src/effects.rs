@@ -1,7 +1,8 @@
 //! The engine's effects as the contract's curated ones
 //! (`zvtes_api::option::Effect`, docs/protocol.md §7): what an ability
 //! or a card's mode does, each effect a kind, an amount, whom it applies
-//! to. Effects no option told (the engine's bookkeeping) are left out.
+//! to. The effects `add` does not tell (bookkeeping, markers, and effects
+//! no curated wording tells yet) are listed untold, by family.
 
 use zvtes::cards::Effect as E;
 use zvtes::combat::Range as R;
@@ -314,16 +315,569 @@ fn add(e: &E, w: Whom, when: Option<When>, out: &mut Vec<Effect>) {
                 "beyond_first_non_aggravated"
             },
         )),
-        _ => {}
+        // Told by no curated effect (docs/protocol.md §7), each named so
+        // that a new effect is told above or listed here, by its family
+        // (owner, 2026-10-25).
+        // Play (a card played resolving).
+        E::ActingBloodToNewUpTo(..)
+        | E::ActingControllerBurnsPool(..)
+        | E::ActorTakesAggravated { .. }
+        | E::AshurTablets
+        | E::AutoPassFirstSabbatReferendum
+        | E::BankBloodAmongUncontrolled { .. }
+        | E::BeastPresses { .. }
+        | E::BecomesAlly(..)
+        | E::BecomesVampire { .. }
+        | E::BloodToEachUncontrolledOfSect(..)
+        | E::BloodToTargetFull
+        | E::BloodToUncontrolledCircle
+        | E::BurnChosenInPlay
+        | E::BurnLibraryTop(..)
+        | E::BurnOthersLabeledOnTarget(..)
+        | E::BurnRangedWeaponsOnTarget { .. }
+        | E::ChooseActor
+        | E::ChooseOwnOfClan(..)
+        | E::ChooseSecondOfClan(..)
+        | E::ChooseTarget
+        | E::ChooseTermsMinion
+        | E::ConvictionOnTarget
+        | E::CountersFromActorCapacity
+        | E::CountersFromTargetCapacity
+        | E::CryptClanToUncontrolled(..)
+        | E::CryptTopToUncontrolled
+        | E::DerangeTarget
+        | E::DescendActor
+        | E::DiscardFromAllHands
+        | E::DiscardFromTargetHand
+        | E::DiseaseTarget
+        | E::DualFormCopy
+        | E::EnterWithCounters(..)
+        | E::EnterWithCountersPerOwnAnarch
+        | E::EnterWithCountersPerOwnClan(..)
+        | E::EntersLocked
+        | E::FourthCycle(..)
+        | E::FuryEnters
+        | E::GainPerUnlockedCircleMember
+        | E::GameOfMalkav
+        | E::GiveBoonPool
+        | E::GreatBeastAtEleven
+        | E::HoldTargetVampire
+        | E::If { .. }
+        | E::KaymakliNightmares
+        | E::LaibonOrCryptDraw(..)
+        | E::LastingOnActor
+        | E::Layer(..)
+        | E::LockPlayedCard
+        | E::MergeWithBase
+        | E::MorbidityTake(..)
+        | E::MoveBloodTargetToPoolX
+        | E::MoveBloodXToUncontrolledTarget
+        | E::NextReferendumPasses
+        | E::OwnReadyVampiresBloodToPool
+        | E::PetraResonance
+        | E::PoolToVampires
+        | E::PutInPlay
+        | E::PutOnActor
+        | E::PutOnActorNow
+        | E::PutOnActorNowStacking
+        | E::PutOnActorRemembering
+        | E::PutOnOpponent
+        | E::RedeemAshVampire
+        | E::RememberTargetSeatsVotes
+        | E::RemoveBleedTargetAshCards(..)
+        | E::RemovePreyAshToBurnPool { .. }
+        | E::RetainerToStartingLife
+        | E::RevealCryptTop { .. }
+        | E::RotschreckEndsCombat
+        | E::SearchLibraryToHand(..)
+        | E::SearchLibraryToHandOrHavenOnActor(..)
+        | E::SearchPutInPlayUpToX { .. }
+        | E::StealLocation
+        | E::StealTargetAlly
+        | E::StealTargetCard
+        | E::StolenToReadyForBlood(..)
+        | E::StoreFromOwnHand
+        | E::Stun
+        | E::SudarioRefraction
+        | E::TakeBleedForTarget
+        | E::TargetControllerBurnsPool(..)
+        | E::TargetSeatTakesCard
+        | E::TrainInUncontrolled { .. }
+        | E::TrapPresses
+        | E::UnlockActorIfClanCapacity { .. } => {}
+        // Shared (a play or an in-play ability).
+        E::ActorBecomesBlackHand
+        | E::ActorBecomesClan(..)
+        | E::ActorBloodToCapacity
+        | E::ActorLasting(..)
+        | E::AllySkipsNextUnlock
+        | E::BurnActorBlood(..)
+        | E::BurnEdge
+        | E::BurnRememberedContract
+        | E::BurnTargetCryptTop
+        | E::BurnTargetOnSecondAction
+        | E::CircleBloodMoves { .. }
+        | E::EmployNamed
+        | E::EquipNamed
+        | E::HandSizeUntilUnlock(..)
+        | E::LockActor
+        | E::LockOwnReadyOfClan(..)
+        | E::MayBleedAgainThisTurn
+        | E::PreyBurnsPool(..)
+        | E::RemoveTargetForPool
+        | E::SacrificeTarget
+        | E::StoreTopCards(..)
+        | E::TaintTarget
+        | E::TakeControlOfTargetUntilUnlock
+        | E::TargetBecomesBlackHand
+        | E::TargetBecomesRedList
+        | E::TargetBecomesSect(..)
+        | E::TargetRetainerBurnsLife(..)
+        | E::UnlockActorAtDiscard => {}
+        // Ability (an in-play ability used).
+        E::ActingControllerDiscardsAtRandom
+        | E::ActionCardToLibraryShuffled
+        | E::ActorTakesAnyAction
+        | E::AddInterceptX
+        | E::AddVotesX
+        | E::AtCountersBurnAndGain { .. }
+        | E::BleedToRemembered
+        | E::BloodToTargetX
+        | E::BurnSelfAtCounters(..)
+        | E::BurnSelfWithoutCounters
+        | E::BurnTargetHostages
+        | E::BurnUnlessControllerPays(..)
+        | E::CardChoosesTarget
+        | E::ChooseTargetThisTurn
+        | E::ContinuePressEachCombat
+        | E::DiscardAtRandom(..)
+        | E::EnterCombatWithActing
+        | E::ExchangeForAnarchCard
+        | E::FailsIntoCombatWithHost
+        | E::GainConviction { .. }
+        | E::GainMasterPhaseAction
+        | E::GhoulFromLibraryTop(..)
+        | E::GiveBloodToOthers
+        | E::GiveBloodToOwnAnarch
+        | E::HostAsIfUnlockedForAuspex
+        | E::HostBleedThisTurn(..)
+        | E::HostBloodToUncontrolledTarget(..)
+        | E::HostBurnLife(..)
+        | E::HostLeavesTorpor
+        | E::HostSuperiorChosenUntilMaster
+        | E::HostVotes(..)
+        | E::LeaveIncapacitated
+        | E::LockSelf
+        | E::LockTargetCard
+        | E::LookAtLibraryTop(..)
+        | E::MarkBleedToll
+        | E::MayCancelCombat
+        | E::MoveBetweenVampires(..)
+        | E::OthersHandSmallerIfSame(..)
+        | E::OutOfPlayHostGainsBlood(..)
+        | E::OwnClanBurnsBlood(..)
+        | E::PayPoolPerOtherEvent
+        | E::PeekHand
+        | E::PeekHandsOfReadyClan(..)
+        | E::PeekHostControllersHand
+        | E::PeekOpponentControllersHand
+        | E::PredatorTakesControl
+        | E::PreyUncontrolledBloodToPool(..)
+        | E::RaiseAllyWhenEmpty(..)
+        | E::RaiseNamedAllyFromAsh(..)
+        | E::RemoveCryptTopAnarch(..)
+        | E::RemoveOwnAshCards(..)
+        | E::ReturnHost { .. }
+        | E::RevealCryptTopForCopy { .. }
+        | E::RevealOwnHandToAll
+        | E::RevealTopCard { .. }
+        | E::SearchMageAlly
+        | E::ShuffleHandDrawUp
+        | E::SlaveTakesCombat
+        | E::SpendDiscardPhaseAction
+        | E::StealPoolFromBoonTarget
+        | E::StoreFromOwnAsh
+        | E::StoredToLibraryTop
+        | E::TakeBleedGain
+        | E::TakeControlOfHost
+        | E::TargetEntersCombatWithActing
+        | E::TargetHostControllerTakesControl
+        | E::TargetSeatDiscardsAtRandom(..)
+        | E::TargetSeatTakesSourceAlly
+        | E::TargetToUncontrolled
+        | E::ToggleLockTarget
+        | E::WatchDamagesActing(..)
+        | E::YawpCourtCombat => {}
+        // Action (the action underway).
+        E::ActionLayer(..)
+        | E::AggravatedHandsThisAction
+        | E::AlliesCannotBlock
+        | E::AnimalBoostIfSuccessful { .. }
+        | E::AttemptBlock
+        | E::AttemptFails
+        | E::AttemptFailsBarSeat
+        | E::AttemptingBurnsBlood(..)
+        | E::AttemptingToTorpor
+        | E::BarSectVotesInReferendum(..)
+        | E::BleedModX { .. }
+        | E::BleedPerPick
+        | E::BlockToll(..)
+        | E::BlockTollBlood(..)
+        | E::BlockerBurnsBloodOrLife(..)
+        | E::BurnActingMinion
+        | E::BurnForInterceptThisAction
+        | E::BurnIfNoBlock(..)
+        | E::CancelAction
+        | E::CircleIntercept { .. }
+        | E::ContinueAfterResolution
+        | E::ContinueUnblocked
+        | E::DamageAfterResolution(..)
+        | E::DawnOperation { .. }
+        | E::DeferReactionReplacement
+        | E::DistributeMargin { .. }
+        | E::EndActionIfBlocked
+        | E::EndBlockedAction
+        | E::EndBlockedActionLocked
+        | E::FailBlockForCorruption
+        | E::GainBloodPerMargin
+        | E::HuntBonusThisAction(..)
+        | E::IfBlocks(..)
+        | E::LockAttempting
+        | E::LockBlocker
+        | E::LockFailedBlockers
+        | E::LockIfNoBlock
+        | E::LockPicks
+        | E::MayCancelCombatIfBlocked
+        | E::NextReactionCosts(..)
+        | E::NoDisciplineCardsThisAction
+        | E::NoEdgeThisAction
+        | E::NoLockForBlock
+        | E::NoMoreModifiers
+        | E::NoUnlockThisAction
+        | E::PactCountersOnActing(..)
+        | E::PerfectClarity { .. }
+        | E::PicksBurnBlood
+        | E::PoolIfAttemptingDoesNotBlock
+        | E::PutOnActingIfBlocks
+        | E::PutOnActorIfBleedSuccessful
+        | E::PutOnActorIfNoBlock
+        | E::QueueCombatAfterBlock { .. }
+        | E::QueueCombatWithAttempting
+        | E::QueueCombatWithLast
+        | E::RedirectBleed
+        | E::RedirectBleedToActingPrey
+        | E::ReduceBleed(..)
+        | E::ReduceBleedToZero
+        | E::ReduceStealthToZero
+        | E::SmallMonstersCannotBlock { .. }
+        | E::StealthForNextActions
+        | E::StealthPerPick
+        | E::StrengthThisAction(..)
+        | E::StrikeTollIfBlocks(..)
+        | E::TakeOverAction
+        | E::TargetAttemptsBlock(..)
+        | E::TargetBurnsBloodForIntercept
+        | E::TargetCannotBlock
+        | E::TargetGainsActorGain
+        | E::TargetNoReactions
+        | E::Unblockable
+        | E::UnlockActingForActorBlood(..)
+        | E::UnlockActorIfSuccessful
+        | E::UnlockBlocker
+        | E::UnlockForBloodIfSuccessful(..)
+        | E::UnlockForCorruption(..)
+        | E::UnlockPicksIfSuccessful(..)
+        | E::VampireBlockToll(..)
+        | E::VampiresCannotBlock
+        | E::VeilThins(..)
+        | E::Wake
+        | E::WakeTarget
+        | E::YoungerIntercept(..) => {}
+        // Combat (the combat underway).
+        E::ActorBurnsBloodX
+        | E::AdditionalStrikeOnly { .. }
+        | E::AdditionalStrikes { .. }
+        | E::AdditionalStrikesEachRound(..)
+        | E::AdditionalStrikesX { .. }
+        | E::AggravatedHands
+        | E::AggravatedHandsThisCombat
+        | E::AggravatedStrike
+        | E::AimExtraDamage(..)
+        | E::BurnAfterCombat(..)
+        | E::BurnOpponentInsteadOfTorpor
+        | E::BurnOpposingAllyOnHit
+        | E::CloseManeuverForBlood(..)
+        | E::CloseSelfDamage(..)
+        | E::CombatEndsAfterStrike
+        | E::CombatManeuver
+        | E::ContinueAfterCombat { .. }
+        | E::ContinueFreeAfterCombat(..)
+        | E::ContinuePressThisRound
+        | E::CoordinateAttack { .. }
+        | E::DamageAfterCombatIfClose(..)
+        | E::DamageOpponentNow(..)
+        | E::DiscardChosenX(..)
+        | E::DisciplineStrikeDamageThisCombat { .. }
+        | E::DrawOutBeast { .. }
+        | E::EndPressThisRound
+        | E::EnvironmentalDamageThisRoundX
+        | E::ExtraDrawPerReplacementThisCombat
+        | E::FirstStrike
+        | E::FortitudeProofStrike
+        | E::FrenzyImmuneThisCombat
+        | E::FrenzyShield
+        | E::GainBloodLostByOpponent
+        | E::HalveOpposingStrikesThisCombat
+        | E::HandSizeThisCombat(..)
+        | E::HandStrikeDamageThisCombat(..)
+        | E::ManeuverForBlood(..)
+        | E::MayBurnToPreventInitialStrikes(..)
+        | E::NeverAggravatedStrike
+        | E::NewRound
+        | E::NextRoundClose
+        | E::NextRoundManeuver
+        | E::NullifyOpposingWeapons
+        | E::OnlyHandStrikes
+        | E::OpponentOpenHandThisCombat
+        | E::OpponentToTorpor
+        | E::OpposingBurnsBlood(..)
+        | E::OpposingCelerityMayBurnToPrevent(..)
+        | E::OpposingCombatCardsCost(..)
+        | E::OpposingControllerBurnsPool(..)
+        | E::OpposingNoCombatEndsThisRound
+        | E::OpposingNoDodgeThisRound
+        | E::OpposingNoInitialStrikeThisRound
+        | E::OpposingNoManeuverThisRound
+        | E::OpposingNoStrikeCardsThisCombat
+        | E::OpposingRestraint
+        | E::OpposingStrikeTollThisCombat(..)
+        | E::OpposingTakesMoreThisCombat(..)
+        | E::OptionalCloseManeuver
+        | E::OrgyOfBlood
+        | E::PlayCombatFromAsh
+        | E::PreRangeDamage(..)
+        | E::PressThisRound
+        | E::PreventHalfStrike
+        | E::PreventNonAggravatedEachRound(..)
+        | E::PutOnActorAfterCombat
+        | E::PutOnOpponentOnHit { .. }
+        | E::PutOnOpposingKeepControl
+        | E::PutOnSelfAsStrikeResolves
+        | E::QueueCombatWithOpponent
+        | E::ResolutionDamageThisRound(..)
+        | E::RoundStrike(..)
+        | E::SetStrength(..)
+        | E::ShieldFromOpposingStrike(..)
+        | E::StrengthThisRoundVotes
+        | E::StrikeOnceEachRound(..)
+        | E::StunAfterCombatIfClose
+        | E::UndodgeableStrike
+        | E::UnpreventableIfBlackHand
+        | E::WeatherDamage { .. } => {}
+        // Success (the action's success).
+        E::ActingGainsConviction
+        | E::ActingVampireTakesDamage(..)
+        | E::AllyFromAshLocked(..)
+        | E::AshCardToHandNamed
+        | E::AshCardToHandOnSuccess(..)
+        | E::AshVampireToUncontrolled
+        | E::BleedPoolCap(..)
+        | E::BloodHuntIfHuntGained
+        | E::BurnCorruptionFromTarget
+        | E::BurnPoolAtEndIfNotReady(..)
+        | E::CoagulateFromPicks { prevent: false }
+        | E::CorruptMinionOfTarget
+        | E::CorruptTargetMayStealAtCapacity
+        | E::EquipFirstFound
+        | E::ExchangeHandForAsh
+        | E::FledglingFromNamedMaster
+        | E::GainLiaison
+        | E::HeldVampireBecomesGargoyle
+        | E::HuntAt(..)
+        | E::InResultingCombat(..)
+        | E::LockHostSkipNextUnlock(..)
+        | E::LockMinionOfTarget
+        | E::MoveSourceToTarget
+        | E::PaidConvictionToTarget
+        | E::PayLife(..)
+        | E::PreyAshPairHunt(..)
+        | E::PreySlotToOwnSlot
+        | E::RemoveActorToBurnTarget
+        | E::RemoveAllSourceCounters
+        | E::RemoveUncontrolledForBlood(..)
+        | E::ReorderTop { .. }
+        | E::SearchArchetypeOntoActor
+        | E::SearchToHand { .. }
+        | E::StealBloodUpTo(..)
+        | E::StealTargetTitle
+        | E::TakeControlOfTargetUntilNextTurn
+        | E::TargetActsInCombat
+        | E::TargetMethuselahDiscards(..)
+        | E::TargetYieldsTitle
+        | E::TauntCombat(..)
+        | E::UnlockAtEndIfReady => {}
+        // Vote (the referendum underway).
+        E::Abstain { .. }
+        | E::ActingAbstains
+        | E::AddVotesAgainst(..)
+        | E::AddVotesPerReadySect(..)
+        | E::AddVotesXLinear { .. }
+        | E::BarNonCamarillaVotes
+        | E::BarNonSectVotes(..)
+        | E::CancelReferendum { .. }
+        | E::FailIfTitleRequired
+        | E::GrantVotes(..)
+        | E::GrantVotesAll(..)
+        | E::NextReferendumPassesIfPasses
+        | E::NotPathVotesMinus(..)
+        | E::PoisonPill
+        | E::PoolForVotesRound { .. }
+        | E::TallyPenaltyAgainst(..) => {}
+        // Entry (an ally or retainer entering play).
+        E::ActsWhenRecruited
+        | E::CannotGainLife
+        | E::EntryBurnAllyOrRetainer
+        | E::EntryRemoveFromAshOrBurn
+        | E::MayRepeatThisTurn
+        | E::UnlockRecruiterOnFirst
+        | E::Version(..) => {}
+        // Rider (a rider's hook).
+        E::ActingBurnsBloodOrLife(..)
+        | E::ActiveBurnsPoolFixedX
+        | E::AddCounterForEnteringClan(..)
+        | E::AnarchControllerMayBloodToUncontrolled(..)
+        | E::AnarchsBloodOrCamarillaAlliesBurn
+        | E::BleedOutcomeCounters
+        | E::BlockerControllerBurnsPool(..)
+        | E::BurnHostCryptTopOut
+        | E::BurnOfCrowdedClan
+        | E::BurnPoolOrNoTransfers(..)
+        | E::BurnPoolPerHuntingGround
+        | E::BurnPoolUnlessBurnVampire { .. }
+        | E::BurnSelfIfActiveControlsReadyCapacityOrTitled(..)
+        | E::BurnSelfUnlessPool(..)
+        | E::BurnSelfWithoutStored
+        | E::BurnsBloodOrIsBurnedOnEntry(..)
+        | E::BuyTitleOnEntry(..)
+        | E::ChooseCircleOnEntry
+        | E::ClearCounters
+        | E::CoinFlipActionFails
+        | E::ControllerChoosesMinionDamaged(..)
+        | E::ControllerGainsPoolIfPrey(..)
+        | E::CountersFromOwnBleed(..)
+        | E::CryptSearchOnEntry(..)
+        | E::DamageBledAnarchs(..)
+        | E::DamageHost(..)
+        | E::DamageUnbledThisTurn { .. }
+        | E::DistributeToUncontrolled { .. }
+        | E::DrawCryptOnEntry
+        | E::GoToTorpor
+        | E::HandSizeUntilDiscard(..)
+        | E::HostBloodToBy(..)
+        | E::HostBurnsBloodOrBurnedThenMoves(..)
+        | E::HostBurnsBloodOrIsBurned(..)
+        | E::HostBurnsBloodOrThisBurns(..)
+        | E::HostBurnsConviction(..)
+        | E::HostageOnTorpor(..)
+        | E::LockOldestOfClan(..)
+        | E::LockOrBurnPool(..)
+        | E::LockUnlessDiscard
+        | E::MayAddCounter
+        | E::MayGainPool(..)
+        | E::MayHandSizeOncePerTurn(..)
+        | E::MayLockForTorture
+        | E::MayMakeAnarchForCounter
+        | E::MayMoveOffBurnedBearer
+        | E::MayUnlockOncePerTurn
+        | E::NoEntryConviction
+        | E::OtherReadyImbuedDamaged(..)
+        | E::PassesToSect(..)
+        | E::PoolOrAshCardsPerCounter
+        | E::PoolOrBloodPerCounter
+        | E::PoolOrRandomCardsPerCounter
+        | E::PreyBurnsPoolPerTorpor
+        | E::PreyChoosesMinionDamaged(..)
+        | E::PreyPaysOrBurnsLocations(..)
+        | E::Purge { .. }
+        | E::RevealTopCancels { .. }
+        | E::SearchPowerOnEntry(..)
+        | E::SkipNextUnlock
+        | E::SoulGemDraw
+        | E::TheirControllerBurnsPool(..)
+        | E::TortureBurnPool(..)
+        | E::UnlockBurnPoolUnlessReady { .. } => {}
+        // Marker (read by name where offered, declared or played).
+        E::AdditionalStrikeWithSource
+        | E::AggravatedAgainstClan(..)
+        | E::AshCardToLibraryBottom
+        | E::BarCanceledThisTurn
+        | E::BearerAimStore
+        | E::BearerDamageOncePerCombat
+        | E::BecomesGun
+        | E::BecomesOnOpponent
+        | E::BecomesWeapon
+        | E::BleedIfTargetHasNoReadyUnlocked(..)
+        | E::BurnAfterStrike
+        | E::BurnAtActionEnd
+        | E::BurnAtCombatEnd
+        | E::BurnAtInfluencePerPreyReady
+        | E::BurnSourceOnDeclare
+        | E::BurnSourceOnResolution
+        | E::BurnedDamagesBearer(..)
+        | E::CancelShield
+        | E::CancelableByDiscardingCombat(..)
+        | E::CancelableForBlockerBlood(..)
+        | E::CancelableForPool(..)
+        | E::CancelableForPoolByTargetController(..)
+        | E::CanceledGetsMasterAction
+        | E::ClanBlocksItsBurn(..)
+        | E::ControllerGivesCard
+        | E::CountersClearOnNewBearer
+        | E::CountersPerDamage
+        | E::CryptForBloodIfBleedSuccessful(..)
+        | E::DiscardUnlockIfBleedSuccessful { .. }
+        | E::EmployRetainer { .. }
+        | E::EquipFromAnyAsh
+        | E::Frenzy
+        | E::ImmuneNonAggravated
+        | E::MandatoryAction
+        | E::MovesToOldestUntitled { .. }
+        | E::MovesToSabbatDiablerist
+        | E::NoOtherEquipmentBleed
+        | E::NotAgainstFlight
+        | E::NotTakenByDiablerie
+        | E::OpposingBurnsPoolIfOneReadyAfterCombat(..)
+        | E::PinnedWhileBearerReady
+        | E::PlayableFromStore(..)
+        | E::PoolWhenHostLeaves(..)
+        | E::PutOnActorIfOpposingNotReadyAfterCombat
+        | E::RechoosesOnControlChange
+        | E::RemovedAfterSuccessOrWithoutInfernal
+        | E::RemovedOncePlayed
+        | E::RepresentsTitle(..)
+        | E::RevealTopForCopy { .. }
+        | E::SameActionAs(..)
+        | E::SearchStore(..)
+        | E::SectInterceptThisAction(..)
+        | E::ShuffleSourceIntoLibrary
+        | E::StealthForClan { .. }
+        | E::StealthForTitled(..)
+        | E::StealthIfOwnTarget(..)
+        | E::StillYours
+        | E::StorePickedFromHand
+        | E::StoredRemovedWhenBurned
+        | E::SwapPickedWithStored
+        | E::TakeAnyAction
+        | E::TargetLocksReadyUnlocked
+        | E::TitledCannotBlock
+        | E::UnpreventableStrike => {}
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::collections::{BTreeMap, BTreeSet};
     use zvtes::cards::defs::DEFS;
-    use zvtes::cards::families::Family;
     use zvtes::cards::vampires::VAMPIRES;
 
     // Every prevention of the definitions is told as one (`Effect::prevents`,
@@ -346,41 +900,5 @@ mod tests {
             }
         }
         assert!(seen > 20, "{seen}");
-    }
-
-    // Informational: the effects of the definitions'
-    // modes and abilities no curated effect tells, by family (a marker is
-    // read by name, nothing to tell). See them with `cargo test -p
-    // zvtes-host unmapped -- --nocapture`.
-    #[test]
-    fn unmapped_effects_by_family() {
-        let mut unmapped: BTreeMap<String, BTreeSet<String>> = BTreeMap::new();
-        let modes = DEFS
-            .iter()
-            .flat_map(|d| d.modes.iter().chain(d.abilities))
-            .chain(VAMPIRES.iter().flat_map(|v| v.abilities.iter()));
-        let mut told = 0;
-        for m in modes {
-            for &e in m.effects {
-                if e.family() == Family::Marker {
-                    continue;
-                }
-                if curated(&[e], Whom::default()).is_empty() {
-                    let name = format!("{e:?}");
-                    let name = name.split(['(', ' ', '{']).next().unwrap_or_default();
-                    unmapped
-                        .entry(format!("{:?}", e.family()))
-                        .or_default()
-                        .insert(name.to_string());
-                } else {
-                    told += 1;
-                }
-            }
-        }
-        assert!(told > 0);
-        for (family, effects) in &unmapped {
-            let list: Vec<&str> = effects.iter().map(String::as_str).collect();
-            println!("{family} ({}): {}", effects.len(), list.join(", "));
-        }
     }
 }

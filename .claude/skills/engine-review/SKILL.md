@@ -104,7 +104,9 @@ Pass this, with `<RANGE>` and `<WORKTREE>` filled in:
 >    says so in the right section; an enforced-vs-convention change updates
 >    its §3 lists.
 > 10. **Outside the engine.** A new player-visible effect is mapped in
->    `crates/host/src/effects.rs` (or is bookkeeping); `Choice` variants and
+>    `crates/host/src/effects.rs`, not left in its untold arms by default
+>    (a place there is no proof of bookkeeping: many listed are untold
+>    yet); `Choice` variants and
 >    their order unchanged, or the policy/host/text impact stated.
 >
 > Report: a verdict line ("clean" / "N findings"), then findings ranked by
