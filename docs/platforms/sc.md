@@ -66,6 +66,11 @@ components, in `central/` or beside the SC components they belong with
 (`ui/ingame/EngineText.vue`; the fork's log, `rightColumn/EngineLog.vue`;
 the re-cut's `ui/components/EngineNotice.vue`). Engine-only display state
 lives in the engine store (`chips`, `limbo`), not on SC's synced `Card`.
+Cards stored on a card on a minion (Shilmulo Tarot's) are a pile of
+their own on the top row, each a name strip below the newest and in
+front, a new pile past the middle row, clear of the ready region's
+cards in torpor (`storedPilePosition`, projection.ts, fork 8a2ad17; owner,
+2026-10-25): in the minion's stack its cards hid them.
 
 The re-cut (`engine-game`) gives SC files hooks only: one `useEngineMode()`
 (`src/client/engine/mode.ts`), `useUIFeatures` flags
