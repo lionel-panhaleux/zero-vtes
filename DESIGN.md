@@ -515,6 +515,12 @@ M3 (0.17 M on the later midgame/5).
 - Engine step: µs-scale; a full 4p random-legal game in low single-digit ms.
 - Self-play: thousands of concurrent games per box, NN inference the bottleneck.
 - Full determinism under fixed `(seed, answers)` across platforms.
+- Measured (`cargo run -p zero-vtes-engine --release --example perf`, the
+  fastest of 5 batches; Apple M3, engine 8fcaaa3, 2026-10-25): a random
+  4-seat precon game about 5.3 ms (92 turns, most to the 100-turn limit,
+  520 decisions), 10 µs a decision: just above the game's low
+  single-digit target; on a machine busy with other builds, its efficiency
+  cores, up to 14 ms.
 
 ## 10. Explicit modeling decisions
 
