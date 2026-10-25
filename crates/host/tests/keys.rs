@@ -308,3 +308,53 @@ fn a_pass_on_its_own_attempt_tells_it() {
     eprintln!("passes on an own attempt: {short} short, {meets} meeting");
     assert!(short > 0 && meets > 0, "{short} short, {meets} meeting");
 }
+
+/// An ash heap's vampire names the ash heap it is in (docs/protocol.md §7):
+/// superior Shroud of Decay removing cards from the prey's ash heap, its
+/// vampires there offered as `ash_vampire` of the prey's seat (the owner's
+/// playtest, 2026-10-25).
+#[test]
+fn an_ash_vampire_names_the_ash_heap_it_is_in() {
+    use zvtes::cards::Target;
+    use zvtes::crypt::CRYPT;
+    use zvtes::decision::Choice;
+    use zvtes::ids::SeatId;
+    use zvtes::state::find_library;
+    use zvtes_api::ids::Zone;
+    let obl = CRYPT
+        .iter()
+        .position(|c| c.disciplines.contains(&"OBL") && !c.imbued)
+        .expect("a superior Oblivion vampire") as u16;
+    let mut e = Engine::bare(3);
+    let a = e.add_minion(SeatId(0), obl, 5, false);
+    e.add_minion(SeatId(0), 0, 4, false);
+    e.add_minion(SeatId(1), 1, 5, false);
+    e.state.seats[0].hand.push(find_library("Shroud of Decay"));
+    for _ in 0..7 {
+        e.state.seats[1].ash.push(find_library("Soak"));
+    }
+    e.state.seats[1].ash_crypt.push(2);
+    let shroud = Choice::Play {
+        card: 0,
+        mode: 1,
+        actor: Some(a),
+        target: Target::Seat(SeatId(1)),
+    };
+    let mut met = 0;
+    for _ in 0..40 {
+        let Step::Decision(req) = e.run() else { break };
+        for c in &req.options {
+            if let Choice::AshVampire(_) = c {
+                let z = key(&e, &req, c, &EngineNames).zone.expect("its zone");
+                assert_eq!((z.seat, z.zone), (1, Zone::AshHeap), "{c:?}");
+                met += 1;
+            }
+        }
+        let i = req.options.iter().position(|o| *o == shroud).unwrap_or(0);
+        e.choose(i);
+        if met > 0 {
+            break;
+        }
+    }
+    assert!(met > 0, "the prey's ash heap vampire offered");
+}

@@ -6,6 +6,13 @@ server runs.
 `python3 scripts/schema_compat.py` lists what a schema change adds or
 removes; its `--check` fails a removal without a major version.
 
+## 2.15.1
+
+`ash_vampire`'s `zone` names the ash heap the vampire is taken from,
+another seat's too (superior Shroud of Decay: the prey's), as §7 says; it
+named the chooser's own (the owner's playtest, 2026-10-25). No field or
+id changed.
+
 ## 2.15.0
 
 A combat's windows ask every Methuselah (rules-qa 98): the acting

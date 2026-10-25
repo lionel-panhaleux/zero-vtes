@@ -18,7 +18,7 @@ is created by one request and played over one WebSocket. Every game is
 recorded, anonymously, and kept two years to train and test the engine
 (§11).
 
-Version **2.15.0**. The types: the models of the
+Version **2.15.1**. The types: the models of the
 [API reference](https://engine.krcg.org/docs), also as
 [JSON Schema](https://engine.krcg.org/schema.json) (2020-12) and
 [TypeScript](https://engine.krcg.org/protocol.ts).
@@ -360,8 +360,9 @@ seat 2; burn 2 pool to keep card 9.)
   `amount`, `favor`, `blood`, `zone` (where a card taken or played
   is: `find_card`'s library, hand or ash heap and whose, none for a card
   only named, Master: Discipline, or stored on a card; `take_from`'s,
-  `ash_vampire`'s; the ash heap a card is played from, Spiritual
-  Guidance), `value`
+  `ash_vampire`'s, its crypt or the ash heap and whose (Shroud of Decay:
+  the prey's); the ash heap a card is played from, Spiritual Guidance),
+  `value`
   (a clan, Discipline or circle id), `ability`, `slot` (`{seat, slot}`:
   an uncontrolled vampire by its place in the view's `uncontrolled`, its
   card face down to the others — an option's `target` or `card` names

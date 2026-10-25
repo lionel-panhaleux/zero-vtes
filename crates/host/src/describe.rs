@@ -1986,9 +1986,18 @@ pub fn key(e: &Engine, req: &DecisionRequest, choice: &Choice, names: &impl Name
                 ) => e.state.seats[seat.index()].crypt.contains(&c),
                 _ => false,
             };
-            k.zone = Some(ZoneRef {
-                seat: req.seat.0,
-                zone: if crypt { Zone::Crypt } else { Zone::AshHeap },
+            // Else the ash heap it is taken from, another seat's too
+            // (Shroud of Decay: the prey's).
+            k.zone = Some(if crypt {
+                ZoneRef {
+                    seat: req.seat.0,
+                    zone: Zone::Crypt,
+                }
+            } else {
+                found_in(e, req).unwrap_or(ZoneRef {
+                    seat: req.seat.0,
+                    zone: Zone::AshHeap,
+                })
             });
         }
         Choice::DrawStored { card, stored } => {
