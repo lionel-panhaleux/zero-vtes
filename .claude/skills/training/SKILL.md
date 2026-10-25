@@ -43,6 +43,10 @@ runs" (every run's command, numbers and lessons), `docs/boards/training.md`.
    optimizer moments, once).
    No reward shaping: `--shaping` (a `train.position --phi` potential)
    was tried in p15 and cut its rushes (DESIGN §11.2 "p15").
+   A larger network starts from the served one by distillation
+   (`--teacher <ckpt> --d … --layers …`): the learner plays, the teacher
+   labels its decisions, the policy term is KL(teacher ‖ learner); then
+   measured as a run (steps 4 and 5) before any RL from it.
 2. **Launch** from a dedicated worktree at the launch commit
    (`git worktree add ../zero-vtes-pN <sha>`, `uv sync` there: a fresh
    `.venv` builds the extension at that commit; `--reinstall-package

@@ -78,6 +78,15 @@ class Config:
     # less Φ at its first decision, so the best play is unchanged.
     shaping: str = ""
     shaping_coef: float = 1.0
+    # Distillation (owner, 2026-10-25: a larger network from p14 before
+    # p16): with `teacher` (a checkpoint), the policy term is
+    # `distill_coef` × KL(teacher ‖ learner) on the learner's own decisions
+    # (it plays; the teacher labels what it reaches), in place of the
+    # clipped surrogate and the entropy bonus. The critic trains as ever,
+    # from the first iteration (no warmup: the policy's term needs no
+    # values).
+    teacher: str = ""
+    distill_coef: float = 1.0
     d: int = 96
     layers: int = 2
     # The observation the learner reads (`zvtes_env::obs::Version`): 2 adds
@@ -701,6 +710,17 @@ class Trainer:
             if "optimizer" in saved and same_shapes:
                 self.learner.opt.load_state_dict(saved["optimizer"])
             self.start = saved.get("iteration", 0) + 1
+        self.teacher = None
+        if cfg.teacher:
+            taught = torch.load(cfg.teacher, map_location=self.device)
+            tc = taught.get("config", {})
+            if tc.get("obs", 1) != cfg.obs:
+                raise ValueError(f"{cfg.teacher}: trained on observation {tc.get('obs', 1)}, not {cfg.obs}")
+            self.teacher = Policy(self.schema, d=tc.get("d", 96), layers=tc.get("layers", 2)).to(self.device)
+            self.teacher.load_state_dict(
+                remap_vocab(taught["model"], taught.get("vocab", self.vocab), self.vocab, self.teacher.state_dict())
+            )
+            self.teacher.eval()
         self.phi = None
         if cfg.shaping:
             phi = json.load(open(cfg.shaping))
@@ -738,6 +758,8 @@ class Trainer:
             )
             if saved and changed:
                 self.warmup = cfg.critic_warmup
+            if self.teacher is not None:
+                self.warmup = 0
         # The best selection evaluation so far (`best.pt`: against the bots
         # or the frozen opponents; kept across a resume into the same
         # directory).
@@ -1025,8 +1047,10 @@ class Trainer:
                 for part in self.chunks(samples, idx):
                     w = len(part) / len(idx)
                     rows = [samples[i][0] for i in part]
-                    logits, values = forward(learner.model, collate(rows, self.device))
-                    logits = logits.float() + collate_bias(rows, logits.shape[1], self.device)
+                    batch = collate(rows, self.device)
+                    logits, values = forward(learner.model, batch)
+                    bias = collate_bias(rows, logits.shape[1], self.device)
+                    logits = logits.float() + bias
                     if critic:
                         values = self.critic(*collate_critic(rows, self.device))
                     logp_all = torch.log_softmax(logits, -1)
@@ -1036,10 +1060,17 @@ class Trainer:
                     ad = torch.tensor(adv[part], device=self.device)
                     ret = torch.tensor([samples[i][4] for i in part], device=self.device)
                     ratio = torch.exp(logp - old)
-                    pg = -torch.min(ratio * ad, ratio.clamp(1 - cfg.clip, 1 + cfg.clip) * ad).mean()
                     vf = ((values - ret) ** 2).mean()
                     ent = -(logp_all.exp() * logp_all).sum(-1).mean()
-                    loss = pg + cfg.value_coef * vf - self.entropy_coef * ent
+                    if self.teacher is not None:
+                        with torch.no_grad():
+                            t = torch.log_softmax(forward(self.teacher, batch)[0].float() + bias, -1)
+                        # Padding: both at -1e9, the teacher's weight 0.
+                        pg = cfg.distill_coef * (t.exp() * (t - logp_all)).sum(-1).mean()
+                        loss = pg + cfg.value_coef * vf
+                    else:
+                        pg = -torch.min(ratio * ad, ratio.clamp(1 - cfg.clip, 1 + cfg.clip) * ad).mean()
+                        loss = pg + cfg.value_coef * vf - self.entropy_coef * ent
                     if warming:
                         loss = cfg.value_coef * vf
                     (w * loss).backward()
@@ -1067,7 +1098,7 @@ class Trainer:
         pg, vf, ent, kl, clipfrac = np.mean(losses, 0)
         # Of the last epoch: what the epochs add up to.
         last = np.mean(losses[-max(1, len(losses) // cfg.epochs) :], 0)
-        out = {"pg": pg, "vf": vf, "entropy": ent, "kl": last[3], "clipfrac": last[4]}
+        out = {"distill" if self.teacher is not None else "pg": pg, "vf": vf, "entropy": ent, "kl": last[3], "clipfrac": last[4]}
         if bc:
             out["bc_nll"] = float(np.mean(bc))
         return out
@@ -1204,7 +1235,7 @@ class Trainer:
             t2 = time.perf_counter()
             warming = self.warmup > 0
             self.warmup = max(0, self.warmup - 1)
-            if cfg.entropy_target > 0 and "entropy" in metrics and not warming:
+            if cfg.entropy_target > 0 and "entropy" in metrics and not warming and self.teacher is None:
                 up = metrics["entropy"] < cfg.entropy_target
                 self.entropy_coef *= cfg.entropy_step if up else 1 / cfg.entropy_step
                 self.entropy_coef = min(max(self.entropy_coef, 1e-3), 0.2)

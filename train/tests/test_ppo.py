@@ -12,7 +12,7 @@ import zvtes_py
 
 from train.league import EXP, EXPLOITER, FROZEN, League
 from train.model import remap_vocab
-from train.ppo import BIAS, CTX, HIDDEN, Config, Trainer, deck_index, end, eval_tables, games_weight, imitation, load_replays, made, sampling, step
+from train.ppo import BIAS, CTX, HIDDEN, Config, Trainer, collate, collate_bias, forward, deck_index, end, eval_tables, games_weight, imitation, load_replays, made, sampling, step
 
 
 def test_one_iteration(tmp_path):
@@ -550,3 +550,34 @@ def test_shaping_in_the_rollout(tmp_path):
     diff = rb - ra
     assert np.all(np.isclose(diff, 0, atol=1e-5) | np.isclose(diff, -c, atol=1e-5))
     assert np.isclose(diff, -c, atol=1e-5).any() and np.isclose(diff, 0, atol=1e-5).any()
+
+
+def test_distillation_draws_the_learner_to_its_teacher(tmp_path):
+    """`--teacher`: a wider learner trained on KL(teacher ‖ learner) over
+    its own decisions comes closer to the teacher's choices; a teacher
+    read on another observation is refused."""
+    small = dict(games=8, steps=24, iterations=1, epochs=1, minibatch=64, device="cpu",
+                 eval_every=1, eval_games=4, critic_warmup=0)
+    Trainer(Config(**small, d=32, layers=1, out=str(tmp_path / "teacher"))).run()
+    teacher = str(tmp_path / "teacher" / "model.pt")
+    trainer = Trainer(Config(**{**small, "epochs": 4, "critic_warmup": 5}, d=48, layers=2, teacher=teacher,
+                             out=str(tmp_path / "student")))
+    assert trainer.warmup == 0, "the policy term needs no values"
+    samples, _ = trainer.rollout()
+    samples = samples[0]
+
+    @torch.no_grad()
+    def kl():
+        rows = [s[0] for s in samples]
+        batch = collate(rows, trainer.device)
+        bias = collate_bias(rows, batch["opt_ids"].shape[1], trainer.device)
+        s = torch.log_softmax(forward(trainer.model, batch)[0] + bias, -1)
+        t = torch.log_softmax(forward(trainer.teacher, batch)[0] + bias, -1)
+        return float((t.exp() * (t - s)).sum(-1).mean())
+
+    before = kl()
+    out = trainer.update(trainer.learner, samples)
+    assert "distill" in out and "pg" not in out
+    assert kl() < 0.8 * before
+    with pytest.raises(ValueError):
+        Trainer(Config(**small, d=32, layers=1, obs=2, teacher=teacher, out=str(tmp_path / "other")))
