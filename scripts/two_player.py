@@ -37,6 +37,7 @@ ALIASES = {
     "fourth tradition: accounting": "Fourth Tradition: The Accounting",
     "gebeyehy abdu": "Gebeyehu Abdu",
     "golconda": "Golconda: Inner Peace",
+    "nesserian": "Neserian",
     "spirit's thouch, the": "Spirit's Touch",
 }
 

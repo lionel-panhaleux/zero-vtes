@@ -290,12 +290,11 @@ mod tests {
     }
 
     /// VEKN's suggested two-player lists are within its rules, every one
-    /// the engine plays (its Tzimisce list, playing Nesserian, neither on
-    /// its own list nor in the pool, excluded by `scripts/two_player.py`).
+    /// the engine plays.
     #[test]
     fn the_two_player_lists_are_legal() {
         let lists = two_player_catalog();
-        assert_eq!(lists.len(), 17);
+        assert_eq!(lists.len(), 18);
         for (name, list) in &lists {
             let r = resolve(0, list).expect(name);
             assert_eq!(two_player_legal(0, &r), Ok(()), "{name}");

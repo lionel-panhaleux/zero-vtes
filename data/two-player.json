@@ -1594,6 +1594,34 @@
    }
   },
   {
+   "name": "2-player: Tzimisce",
+   "source": "https://www.vekn.net/two-player-format/669-2-player-decklist-tzimisce",
+   "updated": "May 17, 2025",
+   "cards": {
+    "201665": 4,
+    "201667": 2,
+    "201678": 2,
+    "201669": 2,
+    "201690": 2,
+    "100698": 1,
+    "101104": 3,
+    "102180": 1,
+    "101698": 4,
+    "100515": 4,
+    "100600": 4,
+    "101978": 3,
+    "102255": 3,
+    "102223": 2,
+    "102256": 3,
+    "100863": 2,
+    "101321": 2,
+    "100230": 2,
+    "100301": 5,
+    "101262": 1,
+    "102266": 2
+   }
+  },
+  {
    "name": "2-player: Hecata",
    "source": "https://www.vekn.net/two-player-format/680-2-player-decklist-hecata",
    "updated": "June 14, 2025",
@@ -1792,14 +1820,5 @@
    }
   }
  ],
- "excluded": [
-  {
-   "name": "2-player: Tzimisce",
-   "source": "https://www.vekn.net/two-player-format/669-2-player-decklist-tzimisce",
-   "updated": "May 17, 2025",
-   "reasons": [
-    "not in the pool: Nesserian"
-   ]
-  }
- ]
+ "excluded": []
 }

@@ -6,6 +6,12 @@ server runs.
 `python3 scripts/schema_compat.py` lists what a schema change adds or
 removes; its `--check` fails a removal without a major version.
 
+## 2.14.1
+
+`GET /catalog?seats=2` lists VEKN's Tzimisce two-player decklist too: its
+"Nesserian" is Neserian (in the pool, on the variant's list), read by an
+alias; 18 lists. No field or id changed.
+
 ## 2.14.0
 
 Sabbat paths followed (§1; rules-qa 97); ids added, none removed:

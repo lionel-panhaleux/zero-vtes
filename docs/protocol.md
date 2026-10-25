@@ -18,7 +18,7 @@ is created by one request and played over one WebSocket. Every game is
 recorded, anonymously, and kept two years to train and test the engine
 (§11).
 
-Version **2.14.0**. The types: the models of the
+Version **2.14.1**. The types: the models of the
 [API reference](https://engine.krcg.org/docs), also as
 [JSON Schema](https://engine.krcg.org/schema.json) (2020-12) and
 [TypeScript](https://engine.krcg.org/protocol.ts).
@@ -691,7 +691,7 @@ its strikes, then ended; every card `resolved` or `canceled` told played
 | `GET /docs` | the API reference: this document, the routes and the types (its test requests are reads only) |
 | `GET /openapi.json`, `/schema.json`, `/protocol.ts` | the API reference's document, and the types as JSON Schema and TypeScript |
 | `GET /version` | protocol, engine commit, bot profiles offered, limits (seats, time limit, idle timeout) |
-| `GET /catalog` | the decklists the engine ships, `[name, list]`; `?seats=2`: VEKN's suggested 2-player decklists (the variant's, §1; its Tzimisce list, playing a card off its own list, left out) |
+| `GET /catalog` | the decklists the engine ships, `[name, list]`; `?seats=2`: VEKN's suggested 2-player decklists (the variant's, §1) |
 | `GET /cards` | the cards the engine plays, `[id, name]`: KRCG id, and the name a decklist may give for it (a vampire whose name several carry with KRCG's suffix: `Theo Bell (G2)`, `Theo Bell (G6)`; `(ADV)` an advanced vampire) |
 | `POST /decks/check?seats=` | body: a decklist (`DeckList`, as a seat's `deck`); `{"playable": true}`, or the `SpecError` (400) a game of `seats` (default 4; 2: the two-player variant, §1) would refuse it with, its `seat` 0: `unsupported` naming each card outside the pool, `deck_size`, `two_player_deck`. A deck checked is not counted at `/admin/unsupported` |
 | `POST /games` | body: a `GameSpec` (one human seat); `{game, seat, token}`, or a `SpecError` (400). The deal's seed is the server's, 53 random bits (too many to try from a known opening hand): a spec's `seed` is kept only with the admin token (a playtest's fixed deal), at most `SEED_MAX` (2^53 − 1, exact as a JSON number), else `SpecError` `seed` (its `max`) |
