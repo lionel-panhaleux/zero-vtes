@@ -356,9 +356,10 @@ league and the remaining-deck tokens included.
 - **Encoding sketch**: entity tokens (players with relative-seat encoding,
   minions, hand, in-play cards; since `obs::Version::V2` the ash heaps'
   contents and the last public choices, §11.2), transformer trunk, auto-regressive head over
-  options; reward = tournament scoring (VPs, GW), shaped from p15 by the
-  position's potential (§11.2 "p15, prepared"; the survival shaping first
-  sketched here, never built, dropped for it);
+  options; reward = tournament scoring (VPs, GW) — a potential-based
+  shaping by the position, tried in p15, cut the rushes and was dropped
+  (§11.2 "p15"; `--shaping` kept), as was the survival shaping first
+  sketched here;
   league = current agent + snapshots + exploiters + scripted bots, PFSP; decks ×
   seats sampled per episode; policy conditioned on own decklist identity.
 - **The seats' context** (owner with Tom, 2026-10-22/23: "a better view of
@@ -372,7 +373,8 @@ league and the remaining-deck tokens included.
   counted per round (`Engine::profiles`, `zvtes::profile`: the public
   choices by kind — cards played by type, bleeds, hunts, political
   actions, rushes, builds, blocks, strikes, stealth and intercept shown —
-  and the outcomes all see: blocks that land, pool bled) — what the
+  and the outcomes all see: actions declared, blocks that land,
+  hindrances, pool bled) — what the
   history's last 32 choices cannot hold. Public only (the legal view's
   encoding equals the full state's, `crates/env/tests/obs.rs`). The policy
   and the critic add it to the context token through a layer started at
@@ -1873,29 +1875,66 @@ training runs.
   blood +0.14, the pool +0.12, VPs +0.12; the lunge +0.04 in the third
   and +0.05 in the last, being lunged −0.04 in the last; the unlocked
   minions +0.03 to +0.04 (the actions and blocks left this turn).
-- **p15, prepared** (owner, 2026-10-22: the potential-based shaping, the
-  lever "The critic against the position" above points at). One change
-  from p14: `--shaping runs/phi-p14.json` (coefficient 1), Φ the linear
-  fit of the 26 position features over the whole game on p14@5280's
-  1,024 self-play games at `--gw-weight` 5 (`train.position --phi`; held
-  out, as good as the per-stage fits: 0.02 / 0.09 / 0.29 / 0.56 by
-  quarter; a VP +0.30, the seat's pool +0.58 a 30 pool, the blood on its
-  ready minions +0.41 a 20 blood, the prey's pool −0.32, the margin over
-  one's ready minions −0.35, the best other seat's 5 VPs −0.33). Each learner
-  decision gains Φ(next) − Φ(this) and the last −Φ(last) (γ 1): a game's
-  shaped return is its result less Φ at its first decision, so the best
-  play is unchanged (Ng 1999) while a rush that sends the prey's blocker
-  to torpor, or a bleed that brings the prey into reach, is rewarded as
-  it lands. The critic re-warms 10 iterations (its values move by −Φ).
-  From p14@5280 (served), opponents p14@5280 and p13@4740 frozen, to
-  5840; as p14 otherwise (the deck mix and imitation weight, nudges, lr,
-  entropy, `--bc-every 4`, the same five held out, the same starts and
-  imitation games), on main after round 19 and the contradictions round
-  (`df03761`; the Imbued in no training deck, the vocabulary remapped on
-  resume). Measured against
-  p14 as p14 was against p13: `decks.rs` per deck, `waste --by-deck`,
-  `humanset`, and `train.position` (whether the critic reads the first
-  half better).
+- **p15** (`runs/p15`, `../zero-vtes-p15` at `788eae4`; launched
+  2026-10-23, 5281 → 5840, no panic, nothing truncated, 100–200 s an
+  iteration on a machine shared with builds). From p14@5280 (served),
+  opponents p14@5280 and p13@4740 frozen; one change from p14:
+  `--shaping runs/phi-p14.json` (coefficient 1), Φ the linear fit of the
+  26 position features over the whole game on p14's 1,024 self-play games
+  ("The critic against the position" above: a VP +0.30, the seat's pool
+  +0.58 a 30 pool, the blood on its ready minions +0.41 a 20 blood, the
+  prey's pool −0.32), each learner decision gaining Φ(next) − Φ(this) and
+  the last −Φ(last) (γ 1, Ng 1999); the critic re-warmed 10 iterations.
+  Imitation 8,986 choices (`ec8d47141b6b38e9` read partway since round
+  20's Anarch Revolt change, left out). Scores (bests, against p14 and
+  p13): 1.77 at 5300, 1.91, 2.03, **2.09 at 5820**. Measured on `8fcaaa3`
+  against the served p14 (the training skill's step 4): at one seat
+  against three p14 (600 games) 1.03 VP a seat; `humanset` (the five,
+  bots p14) agreement 48.9% against p14's 51.4%, won from the owner's
+  positions 132 / 300 against 124; `waste`, beyond two standard errors:
+  worse — influence ended with a transfer or draw possible and none made
+  62% / 58% at 5 seats and 63% / 55% on TWDA, wakes with no block after
+  85% / 80% on TWDA, adjacent combats to torpor 10% / 13% on TWDA;
+  better — Wider View used 7–10% / 19–20%, rescues 3–6% / 2–4%. The
+  shaping cut the rushes instead of raising them (own turns with one
+  declared, p15 / p14: Brujah 24% / 41%, Hecata 33% / 56%, Salubri 5% /
+  21%, Banu Haqim 5% / 11%, Gangrel 1% / 8%; Tzimisce 26% / 18%) — Φ paid
+  at once for the blood a combat costs and only later for what it took —
+  and did not help the critic (with Φ added back, `train.position`:
+  self-play 0.03 / 0.09 / 0.29 / 0.64 by quarter against p14's −0.03 /
+  0.07 / 0.34 / 0.71). **Not served** (owner, 2026-10-25: it did not
+  improve as hoped); the shaping dropped. Exported `runs/p15/best.zvp`
+  (`ee41b58bef28`), kept.
+- **The impact ledger** (owner, 2026-10-25: "do the bot network improve
+  on getting more actions and more impactful meaningful actions? … missing
+  opportunities in many places"; runs are judged by it, not by single
+  counters). `waste`'s impact lines, per group: A&B a round — the seat's
+  actions declared, its blocks that landed and its hindrances (another
+  seat's action canceled, failed or ended unblocked, a bleed bounced or
+  cut to nothing, by its card: `zvtes::profile`), over its own turns, one
+  a round whatever its minions' number ("a single minion with a lot of
+  unlock … can produce equal A&B as multiple smaller minions"); a
+  reaction neither blocking nor hindering counts nothing; R = 2 × pool +
+  the blood on its minions (pool the more important), its own, its
+  prey's and its predator's change over its own turns; the hand: slots
+  and dead slots a round, A&B and the prey's R a hand slot a round, and
+  with `--cards` per card the rounds held, its plays a round held, its
+  cycles and its prey's R a round held — holding a card costs its rounds,
+  so cycling toward the right hand counts for it (owner: "cycling cards
+  to get a more appropriate hand is even more important than keeping
+  cards until they're really efficient"). A measure, not a reward (p15).
+  p14 (100 self-play games at 4 seats, and its seats in the owner's
+  records) against the owner (298 turns, against p5–p9's older bots):
+  A&B a round 2.13 / 3.03 (actions 1.70 / 2.32, blocks landed 0.37 /
+  0.57, hindrances 0.06 / 0.14); R over its own turns: its own −1.48 /
+  +0.79, its prey's −3.37 / −6.06, its predator's −1.02 / −2.51; dead
+  hand slots a round 1.10 / 0.87; a hand slot a round: A&B 0.31 / 0.41,
+  the prey's R −0.48 / −0.83; Govern the Unaligned played 0.42 / 0.89 a
+  round held, Telepathic Misdirection 0.18 / 0.24 (the bots' most held
+  card, 212 rounds against the owner's seats), Freak Drive 1.03 for the
+  owner. The gap is broad — about 40% more A&B, every kind, and twice
+  the prey's loss a turn, the owner's resource growing where the bot's
+  shrinks — so a planning lever before a counter's.
 - **Futile blocks on the E25 engine** (owner, 2026-10-15: before any
   redeploy). E25 (`97c4880`) offers every legal block attempt, those
   that cannot reach the stealth too (`Engine::block_can_reach`); no
@@ -1987,16 +2026,16 @@ Still true today; "(verify)" marks items inferred from older notes.
 ### 11.4 What remains
 
 - **P2 — full engine pool**: the deliverable above.
-- **P3 — training loop**: built (slice 14), the reward shaped by the
-  position's potential from p15 (§11.2); remaining: training long enough
-  to beat the bots, frozen snapshots on the ladder.
+- **P3 — training loop**: built (slice 14), runs judged by the impact
+  ledger (§11.2); remaining: training long enough to beat the bots,
+  frozen snapshots on the ladder.
 - **P4 — league & 5p**: the league, PFSP, 4- and 5-seat tables and seat
   sampling, the exploiter built (slice 15); remaining: evaluation vs humans
   (with the protocol server).
 - **P5 — community**: bot service, client adapter, human-ergonomics layer
   (its open items on the boards).
 
-Definitions: 954 library, 482 vampires; 2626 Rust tests, 60 Python tests
+Definitions: 954 library, 482 vampires; 2627 Rust tests, 61 Python tests
 
 ## Outlook: deck building (post-v1)
 

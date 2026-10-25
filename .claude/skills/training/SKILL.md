@@ -41,10 +41,8 @@ runs" (every run's command, numbers and lessons), `docs/boards/training.md`.
    The seats' context (DESIGN §5) is read by every network from p16 on: a
    checkpoint saved before it resumes with its layer at zero (and fresh
    optimizer moments, once).
-   The reward's shaping (`--shaping runs/phi-<run>.json`, from p15): the
-   position's potential, fitted by `train.position --phi` on the
-   previous best and the run's `--gw-weight`; a new fit or coefficient
-   re-warms the critic (compared by value, kept in the checkpoint).
+   No reward shaping: `--shaping` (a `train.position --phi` potential)
+   was tried in p15 and cut its rushes (DESIGN §11.2 "p15").
 2. **Launch** from a dedicated worktree at the launch commit
    (`git worktree add ../zero-vtes-pN <sha>`, `uv sync` there: a fresh
    `.venv` builds the extension at that commit; `--reinstall-package
@@ -71,24 +69,29 @@ runs" (every run's command, numbers and lessons), `docs/boards/training.md`.
    the served weights alike; `uv run python -m train.position runs/pN/best.pt
    --records data/records,data/server-records` for the critic against
    the position by stage (DESIGN §11.2 "The critic against the
-   position"). A "pN run" note in DESIGN §11.2 with the numbers.
-5. **Serve** (by the measure, owner 2026-10-23): a run is served when
-   step 4 shows it does not degrade the served weights and gains
-   somewhere. Not degrading, each within two standard errors: pN's VP a
-   seat against three of the served weights (`decks.rs`'s second
-   measure, 4 seats) at or above even, 1.0 (2·s/√n over its seats);
-   `humanset`'s agreement and wins from the positions, and `waste`'s
-   rates no worse than the served weights' (a rate's error
-   2·√(p(1−p)/n) over its n decisions): bleeds for nothing taken, wakes
-   with no block after, unlocks with no action after, a playable card
-   cycled while an unplayable one stayed, influence ended with a
-   transfer or draw possible and none made, Wider View used,
-   cross-table combats to torpor or burned (lower is better); rescues
-   taken, adjacent combats to torpor or burned (higher is better). A
-   gain: overall, or a niche one (a deck's VPs in `decks.rs`, a
-   `humanset` score), shown by a step-4 number against the served
-   weights. Z-train sends Z-main the numbers, which
-   DESIGN §11.2's "pN run" note records; a run that fails the
+   position"; a shaped critic's values with Φ added back). `waste`'s
+   impact lines are the run's measure (DESIGN §11.2 "The impact
+   ledger"): A&B a round and R's change over its own turns (its own, its
+   prey's, its predator's), at 4 and 5 seats and on TWDA decks, with
+   `--cards N` the hand's cards (plays a round held). A "pN run" note in
+   DESIGN §11.2 with the numbers.
+5. **Serve** (by the measure, owner 2026-10-23; the measure the impact
+   ledger, owner 2026-10-25: "remove all concerns about influence
+   idling, wakes and combat outcomes, and focus on … higher level
+   strategy"): a run is served when step 4 shows it does not degrade the
+   served weights and gains somewhere. Not degrading, each within two
+   standard errors: pN's VP a seat against three of the served weights
+   (`decks.rs`'s second measure, 4 seats) at or above even, 1.0 (2·s/√n
+   over its seats); `humanset`'s agreement and wins from the positions
+   (a rate's error 2·√(p(1−p)/n)); the ledger's A&B a round and its
+   prey's R over its own turns at 4 and 5 seats and on TWDA decks no
+   worse than the served weights' (`waste` prints each with its two
+   standard errors: the difference against both). `waste`'s other
+   counters are diagnostics, not the test. A gain: overall, or a niche
+   one (a deck's VPs in `decks.rs`, a `humanset` score, the ledger at a
+   table size), shown by a step-4 number against the served weights.
+   Z-train sends Z-main the numbers, which DESIGN §11.2's "pN run" note
+   records; a run that fails the
    not-degrading test goes to the owner instead. Z-main redeploys
    engine.krcg.org with
    `ZVTES_WEIGHTS` explicit (CLAUDE.md "Sessions": only Z-main deploys); name the served weights by their sha prefix in

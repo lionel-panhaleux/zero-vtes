@@ -1220,6 +1220,8 @@ impl Engine {
         card: Option<PlayCtx>,
         source: Option<cards::AbilitySource>,
     ) {
+        let owner = self.state.minions[minion.index()].owner;
+        self.profiles[owner.index()].add(crate::profile::Count::Actions, 1);
         self.state.minions[minion.index()].locked = true;
         self.state.action_serial += 1;
         self.state.corruption_burned.clear();
@@ -3823,6 +3825,16 @@ impl Engine {
         self.start_referendum(RefKind::BloodHunt { diablerist }, seat, None);
     }
 
+    /// `seat`'s card canceled, failed or bounced the action of `acting`:
+    /// a hindrance (`profile::Count::Hindrances`), unless the actor's own
+    /// (Spying Mission, Tangle Atropos' Hand). A blocked action ended is
+    /// the block's, counted as one.
+    pub(crate) fn hinder(&mut self, seat: SeatId, acting: SeatId) {
+        if seat != acting {
+            self.profiles[seat.index()].add(crate::profile::Count::Hindrances, 1);
+        }
+    }
+
     /// Effects of a modifier / reaction / master resolved during the action.
     pub(crate) fn apply_action_effect(&mut self, effect: Effect, play: &PlayCtx) {
         let mut a = self.action.take().expect("action context");
@@ -3941,6 +3953,7 @@ impl Engine {
             Effect::NextReactionCosts(n) => a.reaction_surcharge += n,
             // The bleed amount as it resolves; later increases still count.
             Effect::ReduceBleedToZero => {
+                self.hinder(play.seat, a.seat);
                 self.action = Some(a);
                 let n = self
                     .action
@@ -3951,12 +3964,20 @@ impl Engine {
                 a.bleed_reduce += n;
             }
             Effect::EndBlockedAction => {
+                if a.blocker.is_none() {
+                    self.hinder(play.seat, a.seat);
+                }
                 a.ended_early = true;
                 if !a.no_unlock {
                     self.state.unlock(a.acting);
                 }
             }
-            Effect::EndBlockedActionLocked => a.ended_early = true,
+            Effect::EndBlockedActionLocked => {
+                if a.blocker.is_none() {
+                    self.hinder(play.seat, a.seat);
+                }
+                a.ended_early = true;
+            }
             Effect::StealthForNextActions => {
                 let m = play.actor.expect("actor");
                 let x = play.x.min(self.state.minions[m.index()].blood);
@@ -3995,6 +4016,7 @@ impl Engine {
                 }
             }
             Effect::CancelAction => {
+                self.hinder(play.seat, a.seat);
                 a.attempt_failed(&self.state, true);
                 a.ended_early = true;
                 a.canceled = true;
@@ -4267,6 +4289,7 @@ impl Engine {
                 }
             }
             Effect::RedirectBleed | Effect::RedirectBleedToActingPrey => {
+                self.hinder(play.seat, a.seat);
                 let t = match (effect, play.target) {
                     (Effect::RedirectBleed, cards::Target::Seat(t)) => t,
                     (Effect::RedirectBleed, _) => unreachable!("redirect without a seat target"),
@@ -4287,7 +4310,10 @@ impl Engine {
                 a.fresh_window();
             }
             Effect::BurnActingMinion => burned = Some(a.acting),
-            Effect::ActionFails => a.failed = true,
+            Effect::ActionFails => {
+                self.hinder(play.seat, a.seat);
+                a.failed = true;
+            }
             Effect::ActionLayer(modifier) => {
                 self.state.layers.push(cards::Layer {
                     scope: Scope::Action,

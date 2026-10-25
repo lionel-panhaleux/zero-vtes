@@ -361,6 +361,9 @@ fn archon_investigation_needs_a_bleed_of_four_and_burns_the_bleeder() {
     assert_eq!(e.state.seats[1].pool, 27);
     assert!(!e.state.seats[0].has_edge);
     assert!(e.state.seats[1].out_of_turn.is_some());
+    // The bled seat's card failed the action: its hindrance.
+    use zvtes::profile::Count;
+    assert_eq!(e.profiles[1].get(Count::Hindrances), 1);
 }
 
 fn archon_sequence(t: &mut Table) -> Choice {

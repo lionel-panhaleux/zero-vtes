@@ -725,6 +725,9 @@ fn obedience_ends_an_action_entering_combat_with_an_older_vampire() {
         assert_eq!(e.state.seats[1].pool, 10, "no pool burned");
         assert_eq!(!e.state.minions[young.index()].locked, unlocked);
         assert!(!e.state.minions[old.index()].locked);
+        // Ended unblocked by the target's card: its seat's hindrance.
+        use zvtes::profile::Count;
+        assert_eq!(e.profiles[1].get(Count::Hindrances), 1);
     }
 
     // A locked target cannot play it, a reaction; neither can a vampire

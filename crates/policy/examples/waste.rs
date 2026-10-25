@@ -5,7 +5,7 @@
 //! profile and weights) and self-play of an exported network.
 //! `cargo run -p zvtes-policy --profile ci --example waste -- <policy.zvp>
 //! <games> [--t T] [--rescue B] [--pass B] [--reaction B] [--bleed B]
-//! [--idle B] [--seats N] [--twda] [--by-deck] [record.json | records dir]...`
+//! [--idle B] [--seats N] [--twda] [--by-deck] [--cards N] [record.json | records dir]...`
 //! (self-play at N seats, 4 by default, the precons or with `--twda` the
 //! TWDA decks, at temperature T, with those nudges:
 //! `zvtes_policy::Nudges`; none with 0 games, the policy then unread:
@@ -61,7 +61,22 @@
 //!   its minion fought, the cards it played, the combat cards it held as
 //!   the combat began, those with some held and none played, the blood
 //!   the opposing minion lost, whether it or its own went to torpor or
-//!   burned.
+//!   burned;
+//! - the impact ledger (owner, 2026-10-25: "do the bot network improve on
+//!   getting more actions and more impactful meaningful actions?"): A&B a
+//!   round (`zvtes::profile`: its actions declared, its blocks that landed
+//!   and its hindrances — a bleed bounced, an action canceled — over its
+//!   own turns, one a round, whatever its minions' number), and the
+//!   resource R = 2 × pool + the blood on its minions, its own, its
+//!   prey's and its predator's change over its own turns; and the hand
+//!   (owner: "cycling cards to get a more appropriate hand is even more
+//!   important than keeping cards until they're really efficient"): its
+//!   slots and dead slots a round (at its discard phases), and A&B and
+//!   its prey's R a hand slot a round; with `--cards`, per card: the
+//!   rounds it was held (its seat's hand as its turn began), played (and
+//!   a round held: its use), cycled, and its prey's R a round held (a
+//!   turn's change shared among the cards played in it: holding a card
+//!   costs its rounds; a reaction's worth is in A&B, not there).
 //!
 //! `--by-deck` splits every group by the seat's deck (a pool deck's name,
 //! "own list" for one matching none).
@@ -171,6 +186,64 @@ struct Counts {
     fight_damage: u64,
     fight_down: u64,
     fight_lost: u64,
+    /// The impact ledger: own turns, the profile's actions, blocks landed
+    /// and hindrances, and R's change over those turns [its own, its
+    /// prey's, its predator's].
+    own_turns: u64,
+    actions: u64,
+    landed: u64,
+    hindrances: u64,
+    resource: [i64; 3],
+    /// The ledger's means and their errors, seat-game by seat-game (a
+    /// game's turns are not independent): A&B, R's three changes.
+    ab_ratio: Ratio,
+    resource_ratio: [Ratio; 3],
+    /// Per card: [rounds held, played, cycled, its prey's R change].
+    cards: BTreeMap<u16, [f64; 4]>,
+}
+
+/// A ratio of totals over clusters (a seat's game: its count over its own
+/// turns), with its two standard errors by linearization.
+#[derive(Default, Debug)]
+struct Ratio {
+    n: f64,
+    x: f64,
+    t: f64,
+    xx: f64,
+    xt: f64,
+    tt: f64,
+}
+
+impl Ratio {
+    fn add(&mut self, x: f64, t: f64) {
+        self.n += 1.0;
+        self.x += x;
+        self.t += t;
+        self.xx += x * x;
+        self.xt += x * t;
+        self.tt += t * t;
+    }
+
+    /// The mean and two standard errors.
+    fn mean(&self) -> (f64, f64) {
+        if self.t == 0.0 {
+            return (0.0, 0.0);
+        }
+        let m = self.x / self.t;
+        let residuals = (self.xx - 2.0 * m * self.xt + m * m * self.tt).max(0.0);
+        let n = self.n.max(2.0);
+        (m, 2.0 * (residuals * n / (n - 1.0)).sqrt() / self.t)
+    }
+}
+
+/// A seat's resource: 2 × its pool + the blood (an ally's life) on its
+/// minions in play.
+fn resource(e: &Engine, s: SeatId) -> i64 {
+    let st = &e.state;
+    2 * st.seats[s.index()].pool as i64
+        + st.minions_of(s)
+            .map(|m| st.minions[m.index()].blood as i64)
+            .sum::<i64>()
 }
 
 fn is_wider(e: &Engine, o: &Choice) -> bool {
@@ -264,6 +337,16 @@ struct Watch {
     held: Vec<u64>,
     /// The minions that declared a bleed so far.
     bleeders: Vec<MinionId>,
+    /// The own turn under way: (turn, seat, its prey, its predator, their
+    /// resources as it began).
+    turn: Option<(u32, SeatId, SeatId, SeatId, [i64; 3])>,
+    /// The cards its seat played in that turn.
+    turn_plays: Vec<u16>,
+    /// Each seat's own turns in this game.
+    seat_turns: Vec<u64>,
+    /// Each seat's R changes over its own turns this game [own, prey's,
+    /// predator's].
+    seat_resource: Vec<[i64; 3]>,
 }
 
 /// A seat's prey (0) or cross-table (1) standing to the bleeder, and its pool.
@@ -308,6 +391,8 @@ impl Watch {
     fn new(groups: Vec<String>) -> Self {
         Watch {
             rush_turn: vec![None; groups.len()],
+            seat_turns: vec![0; groups.len()],
+            seat_resource: vec![[0; 3]; groups.len()],
             groups,
             ..Watch::default()
         }
@@ -328,6 +413,60 @@ impl Watch {
         self.settle(e, &notes, counts);
         for s in 0..self.groups.len() {
             self.end_turn(s, counts);
+        }
+        self.close_turn(e, counts);
+        use zvtes::profile::Count;
+        for (s, p) in e.profiles.iter().enumerate() {
+            let c = counts.entry(self.groups[s].clone()).or_default();
+            let ab = (p.get(Count::Actions) + p.get(Count::BlocksLanded) + p.get(Count::Hindrances))
+                as u64;
+            c.actions += p.get(Count::Actions) as u64;
+            c.landed += p.get(Count::BlocksLanded) as u64;
+            c.hindrances += p.get(Count::Hindrances) as u64;
+            let t = self.seat_turns[s] as f64;
+            if t > 0.0 {
+                c.ab_ratio.add(ab as f64, t);
+                for k in 0..3 {
+                    c.resource_ratio[k].add(self.seat_resource[s][k] as f64, t);
+                }
+            }
+        }
+    }
+
+    /// The ledger's own turn: closed when the game turn changes (R's
+    /// change over it to its seat's group), the next one opened.
+    fn track_turn(&mut self, e: &Engine, counts: &mut BTreeMap<String, Counts>) {
+        if self
+            .turn
+            .is_some_and(|(t, s, ..)| t == e.state.turn && s == e.state.active)
+        {
+            return;
+        }
+        self.close_turn(e, counts);
+        let s = e.state.active;
+        let (prey, pred) = (e.state.prey(s), e.state.predator(s));
+        let r = [resource(e, s), resource(e, prey), resource(e, pred)];
+        self.turn = Some((e.state.turn, s, prey, pred, r));
+        let c = counts.entry(self.groups[s.index()].clone()).or_default();
+        for &k in e.state.seats[s.index()].hand.iter() {
+            c.cards.entry(k).or_default()[0] += 1.0;
+        }
+    }
+
+    fn close_turn(&mut self, e: &Engine, counts: &mut BTreeMap<String, Counts>) {
+        if let Some((_, s, prey, pred, r)) = self.turn.take() {
+            let c = counts.entry(self.groups[s.index()].clone()).or_default();
+            c.own_turns += 1;
+            self.seat_turns[s.index()] += 1;
+            for (k, x) in [s, prey, pred].into_iter().enumerate() {
+                let d = resource(e, x) - r[k];
+                c.resource[k] += d;
+                self.seat_resource[s.index()][k] += d;
+            }
+            let share = (resource(e, prey) - r[1]) as f64 / self.turn_plays.len().max(1) as f64;
+            for k in self.turn_plays.drain(..) {
+                c.cards.entry(k).or_default()[3] += share;
+            }
         }
     }
 
@@ -539,9 +678,18 @@ impl Watch {
         notes: &[Note],
         counts: &mut BTreeMap<String, Counts>,
     ) {
+        self.track_turn(e, counts);
         let me = req.seat;
         let key = action_key(e);
         let o = req.options[chosen];
+        if let Choice::Play { card, .. } = o {
+            let k = e.playable_card(me, card);
+            let c = counts.entry(self.groups[me.index()].clone()).or_default();
+            c.cards.entry(k).or_default()[1] += 1.0;
+            if e.state.active == me {
+                self.turn_plays.push(k);
+            }
+        }
         let group = self.groups[me.index()].clone();
         let group = group.as_str();
         self.settle(e, notes, counts);
@@ -694,6 +842,7 @@ impl Watch {
                 if dead > 0 && playable(e, me, hand[i as usize]) {
                     c.kept_dead += 1;
                 }
+                c.cards.entry(hand[i as usize]).or_default()[2] += 1.0;
                 *c.cycled_types.entry(type_of(hand[i as usize])).or_default() += 1;
             }
             for &k in hand {
@@ -869,11 +1018,12 @@ fn self_play(path: &str, play: &SelfPlay, by_deck: bool, counts: &mut BTreeMap<S
 
 fn main() {
     let mut args = std::env::args().skip(1);
-    let usage = "usage: waste <policy.zvp> <games> [--t T] [--rescue B] [--pass B] [--reaction B] [--bleed B] [--idle B] [--draw B] [--stuck B] [--nightmare B] [--seats N] [--twda] [--by-deck] [record.json | records dir]... (`- 0`: the records only, no network)";
+    let usage = "usage: waste <policy.zvp> <games> [--t T] [--rescue B] [--pass B] [--reaction B] [--bleed B] [--idle B] [--draw B] [--stuck B] [--nightmare B] [--seats N] [--twda] [--by-deck] [--cards N] [record.json | records dir]... (`- 0`: the records only, no network)";
     let policy = args.next().expect(usage);
     let games: u64 = args.next().and_then(|n| n.parse().ok()).expect(usage);
     let (mut temperature, mut nudges, mut replays, mut seats, mut twda, mut by_deck) =
         (1.0, Nudges::default(), Vec::new(), 4, false, false);
+    let mut cards = 0;
     while let Some(a) = args.next() {
         let mut num = || {
             args.next()
@@ -893,6 +1043,7 @@ fn main() {
             "--seats" => seats = num() as u64,
             "--twda" => twda = true,
             "--by-deck" => by_deck = true,
+            "--cards" => cards = num() as usize,
             // A directory: its records (a harvest).
             _ => match std::fs::read_dir(&a) {
                 Ok(dir) => {
@@ -1012,6 +1163,49 @@ fn main() {
             c.bled[0] as f64 / c.bleeds.max(1) as f64,
             c.bled[1] as f64 / c.bleeds.max(1) as f64
         );
+        let turns = c.own_turns.max(1) as f64;
+        let (ab, ab_e) = c.ab_ratio.mean();
+        let [(own, own_e), (prey, prey_e), (pred, pred_e)] =
+            c.resource_ratio.each_ref().map(Ratio::mean);
+        println!(
+            "  impact: own turns {}; A&B a round {:.2} ±{:.2} (actions {:.2}, blocks landed {:.2}, hindrances {:.2}); R (2 pool + blood) over its own turns: its own {:+.2} ±{:.2}, its prey's {:+.2} ±{:.2}, its predator's {:+.2} ±{:.2}",
+            c.own_turns,
+            ab,
+            ab_e,
+            c.actions as f64 / turns,
+            c.landed as f64 / turns,
+            c.hindrances as f64 / turns,
+            own,
+            own_e,
+            prey,
+            prey_e,
+            pred,
+            pred_e
+        );
+        let slots = c.hand as f64 / c.discard_phases.max(1) as f64;
+        let slot_rounds = (slots * turns).max(1.0);
+        println!(
+            "  hand: {:.1} slots a round, {:.2} dead; a hand slot a round: A&B {:.3}, its prey's R {:+.3}",
+            slots,
+            c.dead as f64 / c.discard_phases.max(1) as f64,
+            (c.actions + c.landed + c.hindrances) as f64 / slot_rounds,
+            c.resource[1] as f64 / slot_rounds
+        );
+        if cards > 0 {
+            let mut rows: Vec<_> = c.cards.iter().collect();
+            rows.sort_by(|a, b| b.1[0].total_cmp(&a.1[0]));
+            for (&k, s) in rows.into_iter().take(cards) {
+                println!(
+                    "    {}: held {:.0} rounds, played {:.0} ({:.2} a round held), cycled {:.0}; its prey's R a round held {:+.2}",
+                    LIBRARY[k as usize].name,
+                    s[0],
+                    s[1],
+                    s[1] / s[0].max(1.0),
+                    s[2],
+                    s[3] / s[0].max(1.0)
+                );
+            }
+        }
         println!(
             "  Wider View's draw-and-remove offered {}, used {:.0}% (crypt then {:.1}, under 4 cards {:.0}%); uncontrolled vampires removed {}: blood on them {:.2}, one with less blood kept {:.0}%",
             c.wider_offered,

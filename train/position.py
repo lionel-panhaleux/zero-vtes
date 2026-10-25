@@ -122,6 +122,18 @@ def table(samples, over):
     return X, v, y, stage, games
 
 
+def unshaped(t, shaping):
+    """`table`'s arrays with the critic's values as predictions of the
+    result: a critic trained with shaping (`train.ppo --shaping`, the
+    checkpoint's `shaping`) learns the result less coef × Φ, so Φ goes
+    back on."""
+    if not shaping:
+        return t
+    X, v, y, stage, games = t
+    phi = X @ np.array(shaping["weights"]) + shaping["intercept"]
+    return X, v + shaping["coef"] * phi, y, stage, games
+
+
 def fit(X, y, ridge=1e-3):
     """Least squares with an intercept and a small ridge: the weights,
     intercept last."""
@@ -205,8 +217,9 @@ def main():
     policy, critic, cfg, _ = load(a.checkpoint)
     if critic is None:
         raise SystemExit("the checkpoint has no critic")
+    shaping = torch.load(a.checkpoint, map_location="cpu").get("shaping")
     samples, over, dropped = self_play(policy, critic, cfg, a.games, a.seats, a.seed, device_of(a.device), a.budget)
-    t = table(samples, over)
+    t = unshaped(table(samples, over), shaping)
     games = sorted(over)
     held = set(games[: len(games) * 3 // 10])
     train, test = split(t, held)
@@ -215,7 +228,7 @@ def main():
         paths = sorted(p for spec in a.records.split(",") for p in (glob.glob(os.path.join(spec, "*.json")) if os.path.isdir(spec) else [spec]))
         rs, ro = from_records(critic.cpu(), cfg, paths)
         if rs:
-            tests["human records"] = table(rs, ro)
+            tests["human records"] = unshaped(table(rs, ro), shaping)
     report = {"checkpoint": a.checkpoint, "games": len(over), "dropped": dropped, "decisions": len(samples)}
     report |= measure(train, tests)
     print(json.dumps(report, indent=1))

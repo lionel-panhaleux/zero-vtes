@@ -9,7 +9,7 @@ import torch
 import zvtes_py
 
 from train.model import Critic, Policy
-from train.position import STAGES, fit, measure, predict, r2, self_play, table
+from train.position import STAGES, fit, measure, predict, r2, self_play, table, unshaped
 from train.tests.test_assess import record, spec
 
 NAMES = zvtes_py.position_names()
@@ -86,3 +86,17 @@ def test_self_play_ends_on_truncated_games():
     X, v, y, stage, games = table(samples, over)
     assert X.shape == (len(samples), len(NAMES)) and np.isfinite(v).all()
     assert set(games) == set(over) and ((stage >= 0) & (stage <= 1.01)).all()
+
+
+def test_a_shaped_critic_is_read_with_its_potential():
+    # A critic trained with shaping learns the result less coef × Φ: the
+    # measure adds Φ back before comparing it with the result.
+    rng = np.random.default_rng(2)
+    X = rng.normal(size=(50, len(NAMES)))
+    w, b, coef = rng.normal(size=len(NAMES)), 0.3, 0.7
+    y = rng.normal(size=50)
+    v = y - coef * (X @ w + b)
+    t = (X, v, y, np.zeros(50), np.arange(50))
+    assert unshaped(t, None) is t
+    _, back, *_ = unshaped(t, {"weights": w.tolist(), "intercept": b, "coef": coef})
+    assert np.allclose(back, y)

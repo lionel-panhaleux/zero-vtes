@@ -2607,6 +2607,8 @@ impl Engine {
                 forbid_repeat,
             } => {
                 ctx.canceled = true;
+                let acting = self.action.as_ref().expect("political action").seat;
+                self.hinder(play.seat, acting);
                 let a = self.action.as_mut().expect("political action");
                 // The political action card returns to its owner's hand
                 // (before it is burned: LSJ 20050324) — not one removed

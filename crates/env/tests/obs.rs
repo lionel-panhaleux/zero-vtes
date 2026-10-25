@@ -238,6 +238,7 @@ fn game(what: &str, mut e: Engine, agents: &mut [Box<dyn Agent>], stats: &mut St
         // its identity.
         let before = e.history.clone();
         let profiles = e.profiles.clone();
+        let serial = e.state.action_serial;
         let choice = req.options[i];
         // What the profile should count, read apart from it.
         let rush = zvtes::profile::rush(&e, req.seat, &choice).is_some();
@@ -258,7 +259,24 @@ fn game(what: &str, mut e: Engine, agents: &mut [Box<dyn Agent>], stats: &mut St
             );
         } else {
             assert!(e.history == before, "{what}: {choice:?} recorded");
-            assert!(e.profiles == profiles, "{what}: {choice:?} counted");
+            // The Pass settling an action's terms declares it: its
+            // Actions count, public then, follows that Pass.
+            let declared = e.state.action_serial != serial;
+            let unseen = |p: &[profile::Profile]| -> Vec<_> {
+                p.iter()
+                    .map(|p| {
+                        let mut c = p.counts;
+                        if declared {
+                            c[profile::Count::Actions as usize] = 0;
+                        }
+                        c
+                    })
+                    .collect()
+            };
+            assert!(
+                unseen(&e.profiles) == unseen(&profiles),
+                "{what}: {choice:?} counted"
+            );
         }
         // A seat's profile counts its blocks, bleeds, strikes, rushes and
         // combat cards played, one each.

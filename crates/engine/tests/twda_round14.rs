@@ -1326,6 +1326,9 @@ fn tangle_atropos_hand_cancels_and_returns_the_card() {
     );
     assert!(e.state.seats[0].hand.contains(&hacking));
     assert_eq!(pool(&e, 1), 10);
+    // The actor's own cancel hinders no one.
+    use zvtes::profile::Count;
+    assert!(e.profiles.iter().all(|p| p.get(Count::Hindrances) == 0));
     let again = req
         .options
         .iter()

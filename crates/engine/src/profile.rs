@@ -1,7 +1,8 @@
 //! Each seat's public play over the whole game, counted (`Engine::profiles`;
 //! DESIGN §5 "The seats' context"): the choices `game::public_choice`
-//! lets every seat see, by kind, and the outcomes every seat sees (blocks
-//! that land, pool bled). The history keeps only the last few choices.
+//! lets every seat see, by kind, and the outcomes every seat sees (actions
+//! declared, blocks that land, hindrances, pool bled). The history keeps
+//! only the last few choices.
 
 use crate::cards::Effect;
 use crate::decision::{ActionKind, Choice};
@@ -34,10 +35,16 @@ pub enum Count {
     PoolBled,
     StealthShown,
     InterceptShown,
+    /// Every action declared (cards, abilities, the Red List hunt).
+    Actions,
+    /// Another seat's action hindered by a card this seat played: canceled,
+    /// failed, ended unblocked, a bleed bounced or cut to nothing
+    /// (`Engine::hinder`).
+    Hindrances,
 }
 
 /// `Count`'s names, by position.
-pub const PROFILE: [&str; 19] = [
+pub const PROFILE: [&str; 21] = [
     "plays_action",
     "plays_modifier",
     "plays_reaction",
@@ -57,9 +64,11 @@ pub const PROFILE: [&str; 19] = [
     "pool_bled",
     "stealth_shown",
     "intercept_shown",
+    "actions",
+    "hindrances",
 ];
 
-const _: () = assert!(PROFILE.len() == Count::InterceptShown as usize + 1 && PROFILE.len() <= 32);
+const _: () = assert!(PROFILE.len() == Count::Hindrances as usize + 1 && PROFILE.len() <= 32);
 
 /// A seat's counts (`Count`).
 #[derive(Clone, Debug, Default, PartialEq, Eq)]

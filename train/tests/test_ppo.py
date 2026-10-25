@@ -265,7 +265,7 @@ def test_nudges_fade(tmp_path):
 def test_imitation_holds_out_named_games():
     """p10 (the plan): the games named held out, the rest trained on; a
     name matching no game refused."""
-    a = "data/records/zero-vtes-replay-2026-10-08T21-17-05-603Z.json"
+    a = "data/records/zero-vtes-replay-2026-10-08T20-32-01-306Z.json"
     b = "data/records/zero-vtes-replay-2026-10-09T21-51-54-561Z.json"
     replays = load_replays(",".join([a, b]))
     train, held, names, _, _, _ = imitation(replays, 3, 8, ["2026-10-09T21-51"])
@@ -281,7 +281,7 @@ def test_imitation_leaves_out_a_game_read_partway(tmp_path):
     """A game the engine stops reading partway (a rules change since it was
     played) gives no choice, held out or not, and is named: imitation
     would otherwise train on its prefix and shrink the held-out set unseen."""
-    path = "data/records/zero-vtes-replay-2026-10-08T21-17-05-603Z.json"
+    path = "data/records/zero-vtes-replay-2026-10-08T20-32-01-306Z.json"
     game = json.loads(open(path).read())
     entries = made(game)
     entries[len(entries) // 2]["seat"] = (entries[len(entries) // 2]["seat"] + 1) % 4
@@ -304,8 +304,8 @@ def test_imitation_keeps_the_winners_shown_choices(tmp_path):
     leader recorded as winner or not), and an option the human's settings
     hid (the record's `shown`) gets no probability in the target, read from
     the entry each decision took (`replay_decisions`' `entry`): never by
-    position, which a pass read past shifts."""
-    path = "data/records/zero-vtes-replay-2026-10-08T21-17-05-603Z.json"
+    position, which a decision read past shifts."""
+    path = "data/records/zero-vtes-replay-2026-10-08T20-32-01-306Z.json"
     game = json.loads(open(path).read())
     human = game["result"]["winner"]
     assert human not in {b["seat"] for b in game["bots"]}
@@ -319,10 +319,11 @@ def test_imitation_keeps_the_winners_shown_choices(tmp_path):
         p = tmp_path / f"{name}.json"
         p.write_text(json.dumps({**game, "result": result}))
         assert imitation(load_replays(str(p)), 3, 0)[0] == [], name
-    # The human's last decision with three options or more, after a pass
-    # the reader reads past (the record's block window before rules-qa
-    # 82.1): its entry is not the n-th decision entry, so pairing by
-    # position would put its `shown` elsewhere. One option hidden.
+    # The human's last decision with three options or more, after a
+    # rider's order the reader reads past (Anarch Revolt's burn ordered
+    # among the unlock riders before rules-qa 88.5): its entry is not the
+    # n-th decision entry, so pairing by position would put its `shown`
+    # elsewhere. One option hidden.
     told = [d for d in zvtes_py.replay_decisions(open(path).read(), 3)["decisions"] if d["chosen"] is not None]
     entries = made(game)
     k = max(
@@ -366,7 +367,7 @@ def test_imitation_keeps_the_winners_shown_choices(tmp_path):
 def test_imitation_every_kth_minibatch(tmp_path):
     """`bc_every` k: the imitation term on every k-th minibatch (by the
     count of minibatches across epochs), at k times its weight."""
-    record = "data/records/zero-vtes-replay-2026-10-08T21-17-05-603Z.json"
+    record = "data/records/zero-vtes-replay-2026-10-08T20-32-01-306Z.json"
     small = dict(
         games=8, steps=32, iterations=1, epochs=2, minibatch=32, d=16, layers=1, device="cpu",
         eval_every=0, bc=record, bc_coef=0.1, bc_batch=8, critic_warmup=0,
@@ -400,8 +401,8 @@ def test_imitation_and_weak_decks(tmp_path):
         eval_every=1, eval_games=4, device="cpu", best_seeds=1,
     )
     Trainer(Config(**small, out=str(tmp_path / "old"))).run()
-    # Malkavian, Ravnos, Path of Caine (the owner), Toreador.
-    start = "data/records/zero-vtes-replay-2026-10-08T21-17-05-603Z.json"
+    # The owner at seat 2, on deck 28 (a weak deck here).
+    start = "data/records/zero-vtes-replay-2026-10-10T18-44-21-018Z.json"
     # The game recorded twice: early (a start of its decisions), then whole.
     game = json.loads(open(start).read())
     early = {**game, "entries": game["entries"][:100], "result": None}
@@ -413,7 +414,7 @@ def test_imitation_and_weak_decks(tmp_path):
         **small, out=str(tmp_path / "new"), league=True, opponents=str(tmp_path / "old" / "model.pt"),
         bc=",".join([start, "data/records/zero-vtes-replay-2026-10-09T21-51-54-561Z.json"]),
         bc_coef=0.1, bc_holdout=2, bc_batch=32,
-        weak_decks="32,5", weak_rate=0.5, starts=start, start_tables=0.3, bots_every=0, critic_warmup=0,
+        weak_decks="28,5", weak_rate=0.5, starts=start, start_tables=0.3, bots_every=0, critic_warmup=0,
         bc_weak_weight=3.0,
     )
     trainer = Trainer(cfg)
@@ -424,7 +425,7 @@ def test_imitation_and_weak_decks(tmp_path):
         if "start" in spec:
             assert spec["seats"].index("net:0") == 2
         elif "decks" in spec:
-            assert spec["decks"][spec["seats"].index("net:0")] in (32, 5)
+            assert spec["decks"][spec["seats"].index("net:0")] in (28, 5)
             assert sum(d is not None for d in spec["decks"]) == 1
     assert any("decks" in s for s in specs) and any("decks" not in s and "start" not in s for s in specs)
     trainer.run()
@@ -437,7 +438,7 @@ def test_imitation_draws_the_weak_decks_choices_more_often():
     """p14 (owner, 2026-10-21): each trained choice carries its winner's
     deck, and the minibatches draw a weak deck's choices `bc_weak_weight`
     times as often as the others."""
-    a = "data/records/zero-vtes-replay-2026-10-08T21-17-05-603Z.json"
+    a = "data/records/zero-vtes-replay-2026-10-08T20-32-01-306Z.json"
     b = "data/records/zero-vtes-replay-2026-10-12T21-50-21-712Z.json"
     replays = load_replays(",".join([a, b]))
     train, _, _, _, decks, sources = imitation(replays, 3, 0)
@@ -456,7 +457,7 @@ def test_the_owners_games_weighted(tmp_path):
     """The training board's "The owner's games weighted up in --bc": named
     games' winners drawn `W` times as often (no record names its player:
     a player's games named by game), times a weak deck's weight."""
-    a = "data/records/zero-vtes-replay-2026-10-08T21-17-05-603Z.json"
+    a = "data/records/zero-vtes-replay-2026-10-08T20-32-01-306Z.json"
     b = "data/records/d8ec2c01edab010d.json"
     replays = load_replays(",".join([a, b]))
     train, _, _, _, decks, sources = imitation(replays, 3, 0)

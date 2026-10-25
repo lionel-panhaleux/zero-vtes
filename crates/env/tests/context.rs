@@ -26,7 +26,7 @@ fn seat(ctx: &[f32], rel: usize) -> Vec<f32> {
 /// The context's names as p16 first trained on them: a trained network
 /// reads its columns by position, so these keep their order and a new
 /// feature comes after them.
-const NAMES: [&str; 60] = [
+const NAMES: [&str; 62] = [
     "present",
     "pool",
     "ousted",
@@ -87,6 +87,8 @@ const NAMES: [&str; 60] = [
     "pool_bled",
     "stealth_shown",
     "intercept_shown",
+    "actions",
+    "hindrances",
 ];
 
 #[test]
@@ -143,4 +145,41 @@ fn a_bleed_counts_its_pool_and_a_block_that_lands() {
     let p = &e.profiles[1];
     assert!(p.get(Count::Blocks) == 1 && p.get(Count::BlocksLanded) == 1);
     assert_eq!(e.profiles[0].get(Count::PoolBled), 0);
+}
+
+#[test]
+fn an_action_counts_and_a_bounce_hinders() {
+    // Seat 0 bleeds seat 1; seat 1 declines to block and bounces the bleed
+    // to seat 2 with Deflection: one action for seat 0, one hindrance for
+    // seat 1, the pool bled from seat 2.
+    use zvtes::cards::Target;
+    use zvtes::decision::{Choice, WindowLabel};
+    use zvtes::state::find_library;
+    let mut e = Engine::bare(3);
+    let a = e.add_minion(SeatId(0), find_card("Madison"), 6, false);
+    e.add_minion(SeatId(0), find_card("Crystal Lynn"), 6, false);
+    e.add_minion(SeatId(1), find_card("Donny Kowalczyk"), 6, false);
+    let c = e.add_minion(SeatId(1), find_card("Gelasia Fotiou"), 6, false);
+    e.add_minion(SeatId(2), find_card("Malachi"), 6, false);
+    e.state.turn = 4;
+    e.state.seats[1].hand.push(find_library("Deflection"));
+    to_minion_phase(&mut e, SeatId(0));
+    pick(&mut e, bleed(a));
+    pick(&mut e, zvtes::decision::Choice::Pass);
+    expect(&mut e, SeatId(1), WindowLabel::ActionBlocksDeclined);
+    pick(
+        &mut e,
+        Choice::Play {
+            card: 0,
+            mode: 0,
+            actor: Some(c),
+            target: Target::Seat(SeatId(2)),
+        },
+    );
+    pick(&mut e, Choice::Pass);
+    to_minion_phase(&mut e, SeatId(0));
+    assert_eq!(e.profiles[0].get(Count::Actions), 1);
+    assert_eq!(e.profiles[1].get(Count::Hindrances), 1);
+    assert_eq!(e.profiles[1].get(Count::Actions), 0);
+    assert_eq!(e.state.seats[2].pool, 29);
 }

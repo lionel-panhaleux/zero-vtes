@@ -70,10 +70,11 @@ def test_rollouts_never_withdraw():
     library runs out (the New Blood minis' small libraries do), never
     announced by a network seat."""
     pool = zvtes_py.GamePool(4, ["policy"] * 4, seed=13, keep_logs=True)
-    pool.queue([{"seats": ["net:0"] * 4, "decks": [14, 15, 16, 17]}] * 8)
+    # 16 games: the first 8 to end can all end before a library runs out.
+    pool.queue([{"seats": ["net:0"] * 4, "decks": [14, 15, 16, 17]}] * 16)
     rng = np.random.default_rng(13)
     done = []
-    while len(done) < 8:
+    while len(done) < 16:
         done += pool.act(random_actions(pool.observe(), rng))
     offered = 0
     for ep in done:
