@@ -4680,7 +4680,9 @@ impl Engine {
             }
             // "Put this card on this vampire" as the combat card resolves
             // (Wall of Filth): the card itself enters play, not the ash heap
-            // — one of its name a vampire, a second one to the ash heap;
+            // — one of its name a vampire: the play masked by the mode's
+            // own requirement (rules-qa 99.1), a second come by another
+            // route to the ash heap;
             // `LastingOnActor`: its effect alone, the card to the ash heap
             // (rules-qa 68.12).
             Effect::PutOnActorNow | Effect::PutOnActorNowStacking | Effect::LastingOnActor => {

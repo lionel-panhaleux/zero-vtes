@@ -4,6 +4,16 @@
 use zvtes_api::record::GameRecord;
 use zvtes_host::replay::{Replay, Replayer, Step};
 
+/// The records a rules change stops, where and why: each stops exactly at
+/// its decision (the change it met), every other reads whole. A record
+/// from before 2.4.0 records no windows, so a window the engine no longer
+/// asks cannot be read past (`replay::past`).
+const KNOWN_STOPS: &[(&str, u64, &str)] = &[(
+    "zero-vtes-replay-2026-10-08T21-17-05-603Z.json",
+    215,
+    "rules-qa 99.1: a vampire can have only one Wall of Filth",
+)];
+
 #[test]
 fn every_record_reads_whole() {
     let dir = concat!(env!("CARGO_MANIFEST_DIR"), "/../../data/records");
@@ -19,6 +29,8 @@ fn every_record_reads_whole() {
             serde_json::from_str(&std::fs::read_to_string(path).unwrap()).unwrap();
         let mut r = Replayer::new(&record).unwrap();
         let mut read = 0;
+        let name = path.file_name().unwrap().to_str().unwrap();
+        let known = KNOWN_STOPS.iter().find(|(f, ..)| *f == name);
         let over = loop {
             match r.step() {
                 Step::Decision(d) => {
@@ -34,9 +46,25 @@ fn every_record_reads_whole() {
                     r.take();
                 }
                 Step::Over { vp_halves, .. } => break Some(vp_halves),
-                Step::Stopped { why, .. } => panic!("{path:?}: stops after {read}: {why}"),
+                Step::Stopped { why, .. } => match known {
+                    Some((_, at, reason)) => {
+                        assert!(
+                            why.starts_with(&format!("decision {at}:")),
+                            "{path:?}: stops at another decision than {at} ({reason}): {why}"
+                        );
+                        break None;
+                    }
+                    None => panic!("{path:?}: stops after {read}: {why}"),
+                },
             }
         };
+        if let Some((_, at, reason)) = known {
+            assert!(
+                over.is_none() && r.position() < Replay::new(&record).unwrap().decisions.len(),
+                "{path:?}: reads past {at}, its known stop ({reason}): drop it from the list"
+            );
+            continue;
+        }
         // The recorded decisions an undo did not take back.
         let decisions = Replay::new(&record).unwrap().decisions.len();
         // Each of them read: taken, or a pass the block window an engine

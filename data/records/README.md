@@ -28,7 +28,12 @@ longer offers what was chosen) — but for the block windows offering only
 attempts that cannot reach the stealth, which an engine before rules-qa
 73.8 skipped, and the combat windows asked of a Methuselah outside the
 combat, which an engine before rules-qa 98 (protocol 2.15.0) never asked:
-a record reading further past them is read so (`Replay::elided`). Each
+a record reading further past them is read so (`Replay::elided`). A record a
+rules change stops for good (one from before 2.4.0, which records no
+windows, read past a window the engine no longer asks) is listed in
+`crates/host/tests/records.rs` (`KNOWN_STOPS`: the file, the decision, the
+change), asserted to stop exactly there: `…10-08T21-17-05` at decision 215,
+the second Wall of Filth its owner was offered (rules-qa 99.1). Each
 converted game names the engine commit its wasm was built from below — check
 out that commit to read it as it was played. These converted games carry
 neither their bots' nudges nor their turn count (the Bots column says the

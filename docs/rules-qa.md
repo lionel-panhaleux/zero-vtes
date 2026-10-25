@@ -89,7 +89,7 @@ by the owner. Apply them to every new card; only a ruling overrides them.
 - **Costs and reductions** — 3.6, 5.9, 9.3, 18.1, 18.2, 23.4, 29.6, 27.6, 36.1–36.5, 38.5, 42.1, 42.2, 42.5, 42.6, 54.1, 58.12, 59.5, 60.5, 60.7, 77.24, 78.3, 78.17, 78.21, 89.3, 89.10, 89.11, 89.15, 89.24, 93.9, 96.3
 - **Replacement, draws, stored and held cards** — 5.5, 7.10, 8.2, 8.3, 8.4, 9.4, 9.5, 11.1–11.3, 12.1–12.5, 22.2, 37.1, 40.4, 53.4, 53.5, 73.1, 73.2, 77.35, 78.18, 78.26, 78.51, 88.8, 93.8, 93.10, 96.2, 96.5
 - **Card destination (ash heap, limbo, lingering effects)** — 21.1, 22.1, 31.6, 46.4, 47.1
-- **Equipment and weapons** — 9.1–9.6, 10.1–10.5, 17.4, 18.3, 22.4, 29.7, 35.3, 38.4, 38.5, 38.7, 76.9, 76.10, 76.15, 76.16, 77.19, 77.29, 78.28, 78.42
+- **Equipment and weapons** — 9.1–9.6, 10.1–10.5, 17.4, 18.3, 22.4, 29.7, 35.3, 38.4, 38.5, 38.7, 76.9, 76.10, 76.15, 76.16, 77.19, 77.29, 78.28, 78.42, 99.1–99.3
 - **Allies, retainers, ghouls** — 22.2, 28.10, 29.2, 32.4, 32.11, 32.12, 32.13, 37.1, 40.10, 42.2, 42.9, 49.3, 50.6, 73.5, 73.6, 76.7, 76.8, 77.29, 88.3, 89.14, 89.15, 89.24, 90.2
 - **Locations, hunting grounds, locquipment** — 6.5, 7.2, 7.4, 17.4, 28.2, 28.6, 31.4, 34.7, 39.4, 49.5, 50.4, 51.4, 52.7, 54.1, 57.7, 73.3, 73.6, 77.16, 88.9, 89.10, 89.12, 94.4
 - **Blood, capacity, uncontrolled region, banishment** — 5.7, 7.6, 25.1, 27.7, 28.1, 28.3, 28.4, 32.6, 40.7, 73.5, 90.5, 93.7, 94.2, 94.3
@@ -2376,3 +2376,12 @@ Each contradiction read against the KRCG rulings, the advanced rules and the rul
 **98.1** Each ordered combat window polls every Methuselah in the game: the acting minion's, the opposing one's, then the others clockwise from the acting one; the others' prevention (Martyr's Resilience) keeps 29.1's order, every Methuselah clockwise from the acting one. An ousted one is polled no more. Amber (the order of the third Methuselahs: the rulebook says the impulse passes clockwise). (Tests a_third_methuselahs_abjure_ends_another_pairs_combat, a_third_methuselah_plays_rotschreck, the_defending_methuselah_is_polled_before_the_others, an_ousted_methuselah_is_polled_no_more.)
 
 **98.2** A Methuselah outside the combat is offered what a card allows one outside it: its cards and abilities whose text reaches a combat it is not in (Rötschreck, 94.1; Abjure, 87.28; Maman Boumba; Martyr's Resilience, 29.1), its own out-of-turn and "any time" effects; never a vampire's printed ability nor a card-in-play ability whose host is out of the combat, unless the ability says so (15.2, its reading for the combatants' Methuselahs extended to every Methuselah). Amber. (Tests a_third_methuselah_plays_rotschreck, a_third_methuselahs_abjure_ends_another_pairs_combat, a_card_on_a_minion_out_of_the_combat_is_not_offered_in_it.)
+
+## Batch 99 — "A vampire can have only one X" (the owner's playtest, Wall of Filth offered twice; the cards swept) (Claude, 2026-10-25)
+
+**99.1** A card put on its vampire as it is played, "a vampire can have only one" of it, is not played by one that has one: Wall of Filth (owner's playtest, 2026-10-25: "card text forbids that play"), as Divine Sign, Heart of the City and the others already were. Green. (Test wall_of_filth_is_not_offered_to_a_vampire_with_one.)
+
+**99.2** A card put on its vampire only after the play ("you can put this card on this vampire" after the action or the combat), one per vampire: still played, its other effects standing; a second is not put on — to the ash heap: Pillars Fall (enforced already by its one-per-vampire placement, `place_now`; now pinned by a test), as Dogged Pursuit [ANI] and Fever Pitch [FOR]/[PRE] (`may_put_held`). Green. (Test pillars_fall_does_not_stay_on_a_vampire_with_one.)
+
+**99.3** The sweep of the pool's "can have only one X" cards: the rest were enforced already — by the play's requirement (Divine Sign, Heart of the City, Kevlar Vest, Taking the Skin: Minion…), by placement (Dogged Pursuit, Fever Pitch, Pillars Fall), by the target (Alastor's referendum, Disarm and Pulled Fangs on the opposing vampire), by label (vehicles, archetypes, havens), per Methuselah (Augury of Doom, Form of Corruption, Raising the Portcullis); Vampiric Disease on a diseased vampire stays a legal no-op (25.5). Green.
+

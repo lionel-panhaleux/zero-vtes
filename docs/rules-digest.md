@@ -617,6 +617,9 @@ rulebook actions by kind and target for card texts (23.2). §8.5.
   weapons (17.4).
 - "Only one vehicle" / "only one haven": never a second, by any route
   (9.2, 17.4, 63.10, 70.20, 51.3).
+- "A vampire can have only one X": a card put on it as played is not
+  played by one that has one (Wall of Filth, 99.1); one put on after the
+  play is played, a second not put on (Pillars Fall, 99.2; the sweep, 99.3).
 - Put on (Alastor), not equipped: its layers, inferior, requirements
   ignored; nothing it does "as equipped", no lock (76.15).
 - A minion barred from using equipment loses the Disciplines its equipment
@@ -4659,6 +4662,7 @@ read, for the owner to confirm or correct:
   owner).
 - 97.1–97.4 graded green or amber (Sabbat paths followed).
 - 98.1, 98.2 graded amber (combat polled past the combatants).
+- 99.1–99.3 graded green (the owner's playtest: Wall of Filth).
 - 49.6's several-holders question is moot (50.1: the Cog is unique).
 
 ### 24.2 Questions for a new rules-qa batch
@@ -4756,7 +4760,7 @@ an owner ruling:
 Every rules-qa item, by batch, with the digest sections citing it: the
 section stating it and those cross-referring to it (§2 the default
 readings, §22 engine modeling, §23 the contradictions, §24 the open
-readings). 986 items, Batches 1–98 (44.11 was removed, replaced by Batch
+readings). 989 items, Batches 1–99 (44.11 was removed, replaced by Batch
 45). The index is derived from the citations: a bare `N.M` cites rules-qa
 item N.M in the section it appears in. A new rules-qa item gets its line in
 the section stating it, then its entry here: `python3
@@ -5095,3 +5099,4 @@ index or an item cited nowhere.
   §5.2,§24.1; 96.5 §24.1
 - **97** — 97.1 §3.12,§24.1; 97.2 §3.12; 97.3 §3.12; 97.4 §3.12,§24.1
 - **98** — 98.1 §12.1,§24.1; 98.2 §12.1,§24.1
+- **99** — 99.1 §3.17,§24.1; 99.2 §3.17; 99.3 §3.17,§24.1

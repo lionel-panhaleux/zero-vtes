@@ -900,3 +900,61 @@ fn yawp_court_needs_an_unlocked_sabbat_vampire_not_a_woken_one() {
         use_at(court, 0, Some(sabbat), Target::None),
     );
 }
+
+// Wall of Filth: "A vampire can have only one Wall of Filth" (owner's
+// playtest, 2026-10-25): with one on Lawbringer, a second is not offered
+// before range; without, it is (rules-qa 99.1).
+#[test]
+fn wall_of_filth_is_not_offered_to_a_vampire_with_one() {
+    for has_one in [true, false] {
+        let (mut e, lawbringer, z) = table(LAWBRINGER);
+        if has_one {
+            in_play(&mut e, 0, "Wall of Filth", Some(lawbringer));
+        }
+        hand(&mut e, 0, &["Wall of Filth"]);
+        bleed_blocked(&mut e, lawbringer, z);
+        let offered = offered_before(
+            &mut e,
+            play(0, 0, lawbringer),
+            SeatId(0),
+            WindowLabel::MinionPhase,
+        );
+        assert_eq!(offered, !has_one, "has one: {has_one}");
+    }
+}
+
+// Pillars Fall: "A vampire can have only one Pillars Fall": Lawbringer with
+// one wins a second's combat — the second goes to the ash heap, his bleed
+// still +1 (rules-qa 99.2; enforced by `place_now`'s one per vampire).
+#[test]
+fn pillars_fall_does_not_stay_on_a_vampire_with_one() {
+    let (mut e, lawbringer, z) = table(LAWBRINGER);
+    in_play(&mut e, 0, "Pillars Fall", Some(lawbringer));
+    e.state.minions[z.index()].blood = 0;
+    hand(&mut e, 0, &["Pillars Fall"]);
+    pick(
+        &mut e,
+        Choice::Play {
+            card: 0,
+            mode: 0,
+            actor: Some(lawbringer),
+            target: Target::Minion(z),
+        },
+    );
+    until(&mut e, SeatId(0), WindowLabel::MinionPhase);
+    assert!(!e.state.minions[z.index()].ready(), "the combat won");
+    let pillars = find_library("Pillars Fall");
+    let on = e
+        .state
+        .cards
+        .iter()
+        .filter(|c| c.in_play && c.card == pillars && c.host == Some(lawbringer))
+        .count();
+    assert_eq!(on, 1, "only one");
+    assert!(e.state.seats[0].ash.contains(&pillars));
+    assert_eq!(
+        e.state
+            .bearer_mod(lawbringer, Stat::Bleed, ActionKind::Bleed),
+        1
+    );
+}

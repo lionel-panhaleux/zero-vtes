@@ -16002,6 +16002,11 @@ pub static TWISTED_BLOODHOUND: CardDef = CardDef {
     ..CARD
 };
 
+/// "A vampire can have only one Wall of Filth": not played by one that has
+/// one (rules-qa 99.1).
+const WALL_OF_FILTH_ONE: &[Requirement] =
+    &[Requirement::ActorWithout(Holding::Named("Wall of Filth"))];
+
 /// "Only usable before range is determined. [pro] or [tha] Put this card on
 /// this vampire. This vampire can burn this card to prevent 2
 /// non-aggravated damage in combat. A vampire can have only one Wall of
@@ -16011,8 +16016,16 @@ pub static TWISTED_BLOODHOUND: CardDef = CardDef {
 pub static WALL_OF_FILTH: CardDef = CardDef {
     name: "Wall of Filth",
     modes: &[
-        combat(&[Window::CombatBeforeRange], &[], &[Effect::PutOnActorNow]),
-        combat(&[Window::CombatBeforeRange], &[], &[Effect::PutOnActorNow]),
+        combat(
+            &[Window::CombatBeforeRange],
+            WALL_OF_FILTH_ONE,
+            &[Effect::PutOnActorNow],
+        ),
+        combat(
+            &[Window::CombatBeforeRange],
+            WALL_OF_FILTH_ONE,
+            &[Effect::PutOnActorNow],
+        ),
     ],
     abilities: &[
         mode_of(
