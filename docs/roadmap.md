@@ -128,11 +128,10 @@ not on any board; the owner brings each back:
   commit carrying the Opportunities control (sc.md recipe).
 - Definitions exported as data (2026-10-24): every card's definition
   (modes, requirements, effects, windows) as documented JSON with a
-  schema, generated and `--check`ed. It needs
-  the engine's 51 definition types serialized: optional serde and
-  schemars behind a feature off by default (online-plan.md's engine has
-  no dependencies), or a converter of the derived `{:#?}` dump without a
-  typed schema.
+  schema, generated and `--check`ed. It needs the engine's 51 definition
+  types serialized: optional serde and schemars behind a feature off by
+  default (online-plan.md's engine has no dependencies), or a converter
+  of the derived `{:#?}` dump without a typed schema.
 
 ## Later tracks
 

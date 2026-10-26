@@ -215,8 +215,8 @@ hosts a window.
 - **Referendum**: terms (stepwise, factored) → polling (unordered votes + ordered
   plays; "before votes are cast" is a requirement inside polling, not a window
   — a political referendum opens with a pre-vote rotation for those cards,
-  the caller last: rules-qa 64.12)
-  → tally → the action's after-resolution window.
+  the caller last: rules-qa 64.12) → tally → the action's after-resolution
+  window.
 - **Diablerie / blood hunt**: one workflow whatever the entry path; the blood hunt
   is a restricted referendum (vote sources only, no cards, no terms) inside the
   diablerie action, the after-resolution window after it.
@@ -233,20 +233,19 @@ legality filter.
 - **Static data** (name, types, cost, disciplines, clan, capacity, group, title,
   requirements, burn option, ally body, labels) is generated from KRCG data —
   never hand-typed (`crypt.rs`, `library.rs`).
-- **Behavior**: a card is a set of
-  *modes* (its printed Discipline/type lines); a mode is
-  `ModeDef { windows, actor, requires, target, terms, waives_needed, limit,
-  effects }`; a `CardDef` adds in-play `abilities` (same shape), `riders`,
-  trifle/out-of-turn/delayed-replacement flags, and takes its printed cost from
-  the generated half. The **legality half** is a **closed data
+- **Behavior**: a card is a set of *modes* (its printed Discipline/type lines);
+  a mode is `ModeDef { windows, actor, requires, target, terms, waives_needed,
+  limit, effects }`; a `CardDef` adds in-play `abilities` (same shape),
+  `riders`, trifle/out-of-turn/delayed-replacement flags, and takes its printed
+  cost from the generated half. The **legality half** is a **closed data
   vocabulary** of named predicates evaluated by the engine — no card decides its
   own legality in custom code — so the mask is enumerated from data. The
   **execution half** is interpreted primitives (`Effect`, `RefEffect`) with
-  custom arms where needed. In-play abilities have the same shape with an in-play
-  source; continuous effects are layers; riders bind to named `Hook`s. Behavior
-  is authored as Rust data tables (`cards::defs`, `cards::vampires`) keyed by
-  printed name, checked by the compiler against the generated static half.
-  Numeric terms are stepwise sub-decisions at play (Villein) or at the
+  custom arms where needed. In-play abilities have the same shape with an
+  in-play source; continuous effects are layers; riders bind to named `Hook`s.
+  Behavior is authored as Rust data tables (`cards::defs`, `cards::vampires`)
+  keyed by printed name, checked by the compiler against the generated static
+  half. Numeric terms are stepwise sub-decisions at play (Villein) or at the
   referendum's terms step (rules-qa 3.5).
 - **Mask policy** (owner, rules-qa 4.3): the mask removes only what the rules or
   the card forbid — alternation, per-scope limits, "only when needed" (stealth/
@@ -336,17 +335,16 @@ the league and the remaining-deck tokens included.
   choices by kind — cards played by type, bleeds, hunts, political
   actions, rushes, builds, blocks, strikes, stealth and intercept shown —
   and the outcomes all see: actions declared, blocks that land,
-  hindrances, pool bled) — what the
-  history's last 32 choices cannot hold. Public only (the legal view's
-  encoding equals the full state's, `crates/env/tests/obs.rs`). The policy
-  and the critic add it to the context token through a layer started at
-  zero (`train/model.py`, `crates/policy`'s `Net`, `ctx.weight` in a
-  `.zvp`): a network saved before it plays unchanged, and its first resume
-  starts the optimizer's moments afresh. Laid out feature by feature,
-  each across the seats (`context::names`, owner): a feature
-  is appended at the end, never inserted (`crates/env/tests/context.rs`
-  pins the names), so an older layer reads it as zero columns at the end
-  (`remap_vocab`, `Net::load`).
+  hindrances, pool bled) — what the history's last 32 choices cannot hold.
+  Public only (the legal view's encoding equals the full state's,
+  `crates/env/tests/obs.rs`). The policy and the critic add it to the
+  context token through a layer started at zero (`train/model.py`,
+  `crates/policy`'s `Net`, `ctx.weight` in a `.zvp`): a network saved
+  before it plays unchanged, and its first resume starts the optimizer's
+  moments afresh. Laid out feature by feature, each across the seats
+  (`context::names`, owner): a feature is appended at the end, never
+  inserted (`crates/env/tests/context.rs` pins the names), so an older
+  layer reads it as zero columns at the end (`remap_vocab`, `Net::load`).
 
 ## 6. Window census (V5 pool)
 
@@ -383,15 +381,15 @@ engine edit on an Apple M3.
 provenance — hand-translated, not generated) filtered to the pool. Every row on an
 implemented card (`DEFS` or `VAMPIRES`) carries a `status`: `test:<fn>` (a
 `#[test]` under `crates/engine/tests/` whose comment cites the row's references;
-new ones in `tests/rulings.rs`), `blocked:<gap>` (a card or mechanism the engine
-lacks, revisited when it lands) or `n/a:<reason>` (not engine-observable, or the
-card is only the ruling's example). Rows on unimplemented vampires have no status
-yet. `scripts/rulings_v5.py --check data/rulings-v5.csv` verifies the ledger
-against the tests offline; regeneration keeps the statuses of unchanged rows and
-drops reworded ones as stale. The invariant is the ruling's assertion: a script is
+new ones in `tests/rulings.rs`) or `n/a:<reason>` (not engine-observable, or the
+card is only the ruling's example); never `blocked:`, a gap a ruling names being
+built with its card. Rows on unimplemented vampires have no status yet.
+`scripts/rulings_v5.py --check data/rulings-v5.csv` verifies the ledger against
+the tests offline; regeneration keeps the statuses of unchanged rows and drops
+reworded ones as stale. The invariant is the ruling's assertion: a script is
 corrected as a script (fixture, window order), but engine behavior is never bent
-to a script — a real divergence is fixed in the engine or the row is `blocked:`.
-Scenario tests are decision scripts using KRCG card names.
+to a script — a real divergence is fixed in the engine. Scenario tests are
+decision scripts using KRCG card names.
 
 ### 7.2 Property fuzzing
 
@@ -430,13 +428,13 @@ Direct Intervention out of turn, as-played cancels.
 (no extra runs): per seed the real decisions, final turn, VPs and state hash,
 and a checkpoint every 64 decisions — the low 32 bits of an FNV fold of each
 decision (window name, seat, option count, choice) and of the state hash at the
-checkpoint. A mismatch names the test, the
-first diverging seed (and how many differ) and the 64-decision range of its
-first divergence, with the command tracing it (`FUZZ_TRACE=1 SEED_FROM=n`,
-decisions numbered). An intended change re-blesses: `GOLDEN_BLESS=1 cargo test
---profile ci --test fuzz`; a missing file fails, a partial sweep (`SEED_FROM`)
-skips the check. Identical in every profile; the state hash is stable on
-64-bit little-endian targets (lengths hash as `usize`).
+checkpoint. A mismatch names the test, the first diverging seed (and how many
+differ) and the 64-decision range of its first divergence, with the command
+tracing it (`FUZZ_TRACE=1 SEED_FROM=n`, decisions numbered). An intended change
+re-blesses: `GOLDEN_BLESS=1 cargo test --profile ci --test fuzz`; a missing
+file fails, a partial sweep (`SEED_FROM`) skips the check. Identical in every
+profile; the state hash is stable on 64-bit little-endian targets (lengths hash
+as `usize`).
 
 ### 7.4 Coverage checklist
 
@@ -505,12 +503,11 @@ Recorded so nobody mistakes them for oversights:
    player turns (owner), checked at the turn boundary, 0.5 VP per
    survivor; training and evaluation tables draw 60–90 per game
    (owner; `Engine::time_limit`); VPs stored in half-points
-   (`Seat.half_vps`); `GameState::game_win`
-   = 2+ VP and a strict lead, ousted or not (a tie is a draw). Tournament
-   withdrawal: 0.5 VP, an unlock-phase decision (rules-qa 95); network
-   seats never take it (`zvtes_policy::untrained`, in training and
-   served), scripted styles score it under Pass, `random` plays any legal
-   option.
+   (`Seat.half_vps`); `GameState::game_win` = 2+ VP and a strict lead,
+   ousted or not (a tie is a draw). Tournament withdrawal: 0.5 VP, an
+   unlock-phase decision (rules-qa 95); network seats never take it
+   (`zvtes_policy::untrained`, in training and served), scripted styles
+   score it under Pass, `random` plays any legal option.
 7. **Unlock-phase ordering** (rules-qa 3.7, 7.8): cards unlock first, unordered;
    then one ordered window in which the active Methuselah settles their mandatory
    effects (contest upkeep and pending riders: `Pending::{Rider, Contest}`) in the
@@ -1937,8 +1934,7 @@ What the engine does not yet do or does only in part, true today.
 - **Paths in the observations**: the policy sees a vampire's sect, not its
   path, and the networks never follow one (`zvtes_policy::untrained`): the
   training board's "Paths in the observation".
-- **Mechanisms missing** (ledger `blocked:` rows name the rest): immunity
-  to damage from a source.
+- **Mechanisms missing**: immunity to damage from a source.
 - **Known edges**:
   - `ImmuneToDirectedActions` is read on card plays only
     (`GameState::immune_to_directed` in `plays.rs`): a granted or printed

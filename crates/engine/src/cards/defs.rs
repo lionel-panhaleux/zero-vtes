@@ -14034,14 +14034,14 @@ pub static ASHUR_TABLETS: CardDef = CardDef {
 /// as normal. During this vampire's next unlock phase, burn this card."
 /// On the vampire facing the damage, any Methuselah's (RTR 19980623; LSJ
 /// 20080821: the acting vampire, by the Yawp Court's player; rules-qa
-/// 94.1), once both strikes are
-/// declared, before they resolve (LSJ 19990217); a strike's damage only
-/// (ANK 20220114), effective at the range (RTR 19980928), dodged or not
-/// (LSJ 20011005), aggravated at its source (ANK 20200130-1). Combat ends
-/// at once: nothing resolves, no prevention, no second Rötschreck (LSJ
-/// 19990217); both minions still ready as it ends (LSJ 20070907); a
-/// combat that continues keeps the card on but no lock nor torpor (RTR
-/// 20020501). The unlock ban ends with the card (ANK 20191025).
+/// 94.1), once both strikes are declared, before they resolve (LSJ
+/// 19990217); a strike's damage only (ANK 20220114), effective at the
+/// range (RTR 19980928), dodged or not (LSJ 20011005), aggravated at its
+/// source (ANK 20200130-1). Combat ends at once: nothing resolves, no
+/// prevention, no second Rötschreck (LSJ 19990217); both minions still
+/// ready as it ends (LSJ 20070907); a combat that continues keeps the card
+/// on but no lock nor torpor (RTR 20020501). The unlock ban ends with the
+/// card (ANK 20191025).
 pub static ROTSCHRECK: CardDef = CardDef {
     name: "Rötschreck",
     out_of_turn: true,

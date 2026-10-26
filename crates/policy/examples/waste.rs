@@ -5,11 +5,11 @@
 //! profile and weights) and self-play of an exported network.
 //! `cargo run -p zvtes-policy --profile ci --example waste -- <policy.zvp>
 //! <games> [--t T] [--rescue B] [--pass B] [--reaction B] [--bleed B]
-//! [--idle B] [--seats N] [--twda] [--by-deck] [--cards N] [record.json | records dir]...`
-//! (self-play at N seats, 4 by default, the precons or with `--twda` the
-//! TWDA decks, at temperature T, with those nudges:
-//! `zvtes_policy::Nudges`; none with 0 games, the policy then unread:
-//! `waste - 0 data/server-records`). Per group:
+//! [--idle B] [--seats N] [--twda] [--by-deck] [--cards N]
+//! [record.json | records dir]...` (self-play at N seats, 4 by default,
+//! the precons or with `--twda` the TWDA decks, at temperature T, with
+//! those nudges: `zvtes_policy::Nudges`; none with 0 games, the policy
+//! then unread: `waste - 0 data/server-records`). Per group:
 //! - rescues of one's own vampire offered (minion-phase decisions) and
 //!   taken; bleeds for nothing (`zvtes_policy::empty_bleed`: Aggressive
 //!   Corpse's) offered and taken;

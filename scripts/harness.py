@@ -17,8 +17,12 @@ carrying an `Upkeep:` trailer.
     python3 scripts/harness.py stale <base>|<a>..<b>
         the names a change removes (code identifiers, headings, paths) that
         the pages, CLAUDE.md, the skills and the code's comments still cite,
-        and the lines it adds to a wrapped page past the width; `<base>`
-        alone compares the branch point with the working tree (ship step 3)
+        the lines it adds to a wrapped page or a whole-line comment past the
+        width, and the stub lines a reflow leaves; then, not failing, what to
+        re-read: each function whose body it changes with its doc unchanged,
+        each page line citing a function it changes or a variant it defines;
+        `<base>` alone compares the branch point with the working tree (ship
+        step 3)
 """
 
 import datetime
@@ -461,6 +465,258 @@ def too_wide(added, tree):
     return out
 
 
+LINE_COMMENT = re.compile(r"^\s*(///|//!|//)(?: |$)")
+HASH_COMMENT = re.compile(r"^\s*(#)(?: |$)")
+LIST_START = re.compile(r"^\s*(?:[-*+]|\d+[.)])\s")
+
+
+def comment_prefix(path, line):
+    """The line-comment marker a whole-line comment opens with, else None."""
+    pattern = LINE_COMMENT if path.endswith(SLASHES) else HASH_COMMENT
+    m = pattern.match(line) if is_code(path) else None
+    return m.group(1) if m else None
+
+
+def paragraphs(path, lines):
+    """Runs of (line number, line, its text without its marker) wrapped as
+    one paragraph: a page's prose or a quote's (`>` its marker), or a block
+    of whole-line comments sharing a marker. Fences, tables, headings, front
+    matter, list starts, blank lines (a bare marker too) and hard breaks end
+    a run."""
+    runs, run, fence, front = [], [], False, False
+    marker = None
+    for i, line in enumerate(lines, 1):
+        if is_page(path):
+            if i == 1 and line == "---":
+                front = True
+                continue
+            if front:
+                front = line != "---"
+                continue
+            quote = re.match(r"^\s*(>+) ?", line)
+            mark = quote.group(1) if quote else None
+            text = line[quote.end() :] if quote else line
+        else:
+            mark = comment_prefix(path, line)
+            text = line.split(mark, 1)[1] if mark else ""
+        if text.lstrip().startswith(("```", "~~~")):
+            fence = not fence
+        breaks = (
+            fence
+            or not text.strip()
+            or text.lstrip().startswith(("```", "~~~", "|", "#", "<"))
+            or mark != marker
+        )
+        if breaks or LIST_START.match(text):
+            if run:
+                runs.append(run)
+            run = []
+        marker = mark
+        if not breaks:
+            run.append((i, line, text))
+        if line.endswith(("  ", "\\")) and run:
+            runs.append(run)
+            run = []
+    if run:
+        runs.append(run)
+    return runs
+
+
+def stubs(added, tree):
+    """(path, line number) of each line a reflow left short, next to a line
+    the change adds, in a paragraph of three lines or more: not its last
+    line, under three quarters of the paragraph's second-longest line, the
+    next line's first word fitting on it."""
+    out = []
+    for path in sorted({p for p, _i, _t in added}):
+        if path in HISTORY or path.startswith(ONE_LINE) or not (
+            is_page(path) or is_code(path)
+        ):
+            continue
+        rows = {i for p, i, _t in added if p == path}
+        for run in paragraphs(path, tree.read(path).split("\n")):
+            if len(run) < 3:
+                continue
+            widths = sorted((len(t) for _i, t, _x in run), reverse=True)
+            for (i, line, _x), (j, _after, text) in zip(run, run[1:]):
+                if i not in rows and j not in rows:
+                    continue
+                # A code span is one word, never broken across lines: a
+                # line leaving one open is no stub.
+                if line.count("`") % 2:
+                    continue
+                rest = text.lstrip()
+                word = rest.split()[0]
+                if word.count("`") % 2:
+                    close = rest.find("`", word.find("`") + 1)
+                    word = rest if close < 0 else rest[: close + 1]
+                # A sentence ended before a break is a writer's choice.
+                if "://" in line + word or line.rstrip().endswith(tuple(".:;?!")):
+                    continue
+                if len(line) < widths[1] * 3 / 4 and len(line) + 1 + len(
+                    word
+                ) <= min(widths[0], WIDTH):
+                    out.append((path, i))
+    return out
+
+
+def wide_comments(added):
+    """(path, line number, columns) of each added whole-line comment past the
+    width."""
+    return [
+        (p, i, len(t))
+        for p, i, t in added
+        if len(t) > WIDTH and comment_prefix(p, t) and "://" not in t
+    ]
+
+
+RUST_FN = re.compile(
+    r"^(\s*)(?:pub(?:\([^)]*\))?\s+)?(?:const\s+)?(?:async\s+)?(?:unsafe\s+)?fn\s+(\w+)"
+)
+PY_DEF = re.compile(r"^(\s*)(?:async\s+)?def\s+(\w+)")
+RUST_ENUM = re.compile(r"^(\s*)(?:pub(?:\([^)]*\))?\s+)?enum\s+\w+")
+VARIANT = re.compile(r"^(\s+)([A-Z][A-Za-z0-9]+)\b\s*(?:[,({=]|$)")
+
+
+def functions(path, text):
+    """[(name, doc rows, body rows)] of each function in a Rust or Python
+    file, in order; a doc is the `///` lines over a Rust fn (attributes
+    between) or a Python def's docstring."""
+    lines = text.split("\n")
+    pattern = RUST_FN if path.endswith(".rs") else PY_DEF
+    out = []
+    for n, line in enumerate(lines, 1):
+        m = pattern.match(line)
+        if not m:
+            continue
+        indent = len(m.group(1))
+        end = n
+        # A one-line fn, or a trait's without a body, ends on its line.
+        one = path.endswith(".rs") and line.rstrip().endswith(("}", ";"))
+        for k in range(n + 1, 0 if one else len(lines) + 1):
+            row = lines[k - 1]
+            if not row.strip():
+                continue
+            if len(row) - len(row.lstrip()) <= indent and (
+                path.endswith(".py") or row.strip().startswith("}")
+            ):
+                end = k if path.endswith(".rs") else k - 1
+                break
+            end = k
+        doc = set()
+        if path.endswith(".rs"):
+            k = n - 1
+            while k >= 1 and lines[k - 1].strip().startswith(("///", "#[")):
+                if lines[k - 1].strip().startswith("///"):
+                    doc.add(k)
+                k -= 1
+        else:
+            k = n
+            while k <= end and not lines[k - 1].rstrip().endswith(":"):
+                k += 1
+            first = k + 1
+            if first <= end and lines[first - 1].strip().startswith(('"""', "'''")):
+                quote = lines[first - 1].strip()[:3]
+                last = first
+                while last <= end and not (
+                    lines[last - 1].rstrip().endswith(quote)
+                    and (last > first or lines[first - 1].strip().count(quote) > 1)
+                ):
+                    last += 1
+                doc = set(range(first, min(last, end) + 1))
+        out.append((m.group(2), doc, set(range(n, end + 1)) - doc))
+    return out
+
+
+def keyed(entries):
+    """{(name, occurrence): (doc, body)}: a name defined twice in a file (two
+    impls' `new`) is two functions."""
+    seen, out = {}, {}
+    for name, doc, body in entries:
+        seen[name] = seen.get(name, -1) + 1
+        out[(name, seen[name])] = (doc, body)
+    return out
+
+
+def variants(path, text, rows):
+    """The enum variants a Rust file defines on `rows`."""
+    lines = text.split("\n")
+    out = set()
+    for r in rows:
+        m = VARIANT.match(lines[r - 1]) if r <= len(lines) else None
+        if not m:
+            continue
+        for k in range(r - 1, 0, -1):
+            above = lines[k - 1]
+            if above.strip() and len(above) - len(above.lstrip()) < len(m.group(1)):
+                if RUST_ENUM.match(above):
+                    out.add(m.group(2))
+                break
+    return out
+
+
+def reread(start, end, tree, removed, added):
+    """What a change leaves to re-read: (path, line, note) of each function
+    whose body it changes with its doc unchanged, and of each page line
+    citing in backticks a function it changes or a variant it defines."""
+    changed = {}  # (path, (name, occurrence)) -> [body changed, doc changed]
+    names = set()
+    old = Tree(start)
+    for side, lines, at in (("old", removed, old), ("new", added, tree)):
+        by_path = {}
+        for path, row, _t in lines:
+            if path.endswith((".rs", ".py")):
+                by_path.setdefault(path, set()).add(row)
+        for path, rows in by_path.items():
+            text = at.read(path)
+            for key, (doc, body) in keyed(functions(path, text)).items():
+                hit = changed.setdefault((path, key), [False, False])
+                hit[0] |= bool(rows & body)
+                hit[1] |= bool(rows & doc)
+            if path.endswith(".rs"):
+                names |= variants(path, text, rows)
+    # A name defined more than once in the code (`main`, `new`) is no
+    # citation of this one.
+    defined = {}
+    code = [p for p in tree.paths if p.endswith((".rs", ".py"))]
+    tree.read_all(code)
+    for path in code:
+        pattern = RUST_FN if path.endswith(".rs") else PY_DEF
+        for line in tree.read(path).split("\n"):
+            if m := pattern.match(line):
+                defined[m.group(2)] = defined.get(m.group(2), 0) + 1
+    out = []
+    docs = {}
+    for (path, (name, nth)), (body, doc) in sorted(changed.items()):
+        if not body:
+            continue
+        if len(name) >= 4 and defined.get(name, 0) <= 1:
+            names.add(name)
+        if path not in docs:
+            docs[path] = (
+                keyed(functions(path, tree.read(path))) if path in tree.paths else {}
+            )
+        here = docs[path].get((name, nth))
+        if here and here[0] and not doc:
+            out.append((path, min(here[1]), f"fn {name}: body changed, doc unchanged"))
+    touched = {(p, i) for p, i, _t in added}
+    pages = [p for p in tree.paths if is_page(p) and p not in HISTORY]
+    tree.read_all(pages)
+    for path in pages:
+        for i, line in enumerate(tree.read(path).split("\n"), 1):
+            if (path, i) in touched or "`" not in line:
+                continue
+            # The token is the name: `f`, `f()`, `m::f`, `X::V`, `s.f`.
+            ticked = {
+                re.sub(r"\(.*$", "", t).replace("::", ".").split(".")[-1]
+                for t in TICKS.findall(line)
+                if re.fullmatch(r"[\w:.]+(?:\(.*\))?", t)
+            }
+            for n in sorted(ticked & names):
+                out.append((path, i, f"cites `{n}`, changed"))
+    return out
+
+
 def stale():
     if len(sys.argv) != 3:
         sys.exit(__doc__)
@@ -470,12 +726,20 @@ def stale():
     found = citations(removed_names(start, end, tree, removed), tree)
     for name, why, path, i in sorted(set(found), key=lambda f: (f[2], f[3])):
         print(f"{path}:{i}: {name} ({why})")
-    wide = too_wide(added, tree)
+    wide = too_wide(added, tree) + wide_comments(added)
     for path, i, columns in wide:
         print(f"{path}:{i}: {columns} columns, past {WIDTH}")
-    if not found and not wide:
-        print("no removed name cited, no added line past the width")
-    return 1 if found or wide else 0
+    short = stubs(added, tree)
+    for path, i in short:
+        print(f"{path}:{i}: a stub line (the next line's first word fits on it)")
+    if not found and not wide and not short:
+        print("no removed name cited, no added line past the width, no stub")
+    notes = reread(start, end, tree, removed, added)
+    if notes:
+        print(f"to re-read ({len(notes)}, not failing): still true after the change?")
+        for path, i, note in notes:
+            print(f"  {path}:{i}: {note}")
+    return 1 if found or wide or short else 0
 
 
 SHIP = ".claude/skills/ship/SKILL.md"

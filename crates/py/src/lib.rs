@@ -321,9 +321,10 @@ impl Game {
                                 .then(|| zvtes_policy::chores::mask(&self.engine, &req))
                                 .flatten(),
                         );
-                        // Never a futile block attempt nor an untrained choice, as
-                        // the server's bots (`zvtes_policy::reachable_blocks`,
-                        // `untrained`): the outermost.
+                        // Never a futile block attempt nor an untrained
+                        // choice, as the server's bots
+                        // (`zvtes_policy::reachable_blocks`, `untrained`):
+                        // the outermost.
                         let mask = zvtes_policy::combine(
                             zvtes_policy::combine(
                                 zvtes_policy::reachable_blocks(&self.engine, &req),

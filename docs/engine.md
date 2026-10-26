@@ -259,7 +259,7 @@ the moved seeds and decision ranges.
 
 **Enforced by scripts.** `scripts/rulings_v5.py --check
 data/rulings-v5.csv` (every ledger row on an implemented card backed:
-`test:` / `blocked:` / `n/a:`); `scripts/window_matrix.py --check
+`test:` / `n/a:`, never `blocked:`); `scripts/window_matrix.py --check
 data/window-matrix-reviewed.csv`; the
 generators' `--check` (`gen_crypt.py`, `gen_library.py`, `gen_twda.py`).
 
@@ -352,7 +352,8 @@ generators' `--check` (`gen_crypt.py`, `gen_library.py`, `gen_twda.py`).
    A test in `tests/rulings.rs` backs a ledger row; regressions go
    elsewhere.
 6. **Ledger**: each of the card's rows in `data/rulings-v5.csv` (CRLF)
-   gets `test:<fn>`, `blocked:<gap>` or `n/a:<reason>`; run the `--check`.
+   gets `test:<fn>` or `n/a:<reason>` (a gap is built, never `blocked:`);
+   run the `--check`.
 7. **Fuzz**: add the card to a fixture's `slice` and a `covers` key
    (`"play:<card>"`, `"ability:<name>"`, …) for what random play must
    reach; `seeds` about twice the seed where the last key first appears
@@ -365,9 +366,8 @@ generators' `--check` (`gen_crypt.py`, `gen_library.py`, `gen_twda.py`).
    `intake` skill (CLAUDE.md "Findings").
 9. **Elsewhere**: a new effect is told in `crates/host/src/effects.rs` or
    named in its untold arms (the host does not compile until it is); a new
-   `Choice` kind needs its obs slot
-   (§6.21); the checks of CLAUDE.md "Working lessons" before calling it
-   done.
+   `Choice` kind needs its obs slot (§6.21); the checks of CLAUDE.md
+   "Working lessons" before calling it done.
 
 ## 5. Comment policy
 
@@ -549,10 +549,9 @@ sources to the engine's conventions.
   ordered impulse sequence clockwise from the active Methuselah, who settles
   their mandatory effects (contest upkeep, every pending rider) in the order
   they choose, among their optional ones (the Edge's pool, a withdrawal
-  §6.17, abilities), and
-  cannot pass before; then the other seats' abilities. A contest with no
-  rival left is released and a forced yield settles at once: neither is a
-  decision.
+  §6.17, abilities), and cannot pass before; then the other seats'
+  abilities. A contest with no rival left is released and a forced yield
+  settles at once: neither is a decision.
 - Phase rotation (`Flow::PhaseRotation`, rules-qa 7.9): `resume` is the
   phase flow the impulse returns to when another seat plays an effect, and
   the phase to end when everyone passes. After the Enkil Cog's action
@@ -576,10 +575,10 @@ sources to the engine's conventions.
 - Influence: `Choice::FollowPath` (rules-qa 97: a Sabbat vampire following
   no path burns 1 blood to follow one of `state::SABBAT_PATHS`, its
   `Minion::path_override`; no transfer spent), transfers, `Choice::Withdraw`
-  (2 transfers: a counter back to pool),
-  crypt draw (4 transfers + 1 pool), influence-out, no voluntary self-contest;
-  `Window::InfluencePhaseOwn` (once per phase), `Window::Transfers` (paid in
-  transfers); `GameState::transfer_bonus`.
+  (2 transfers: a counter back to pool), crypt draw (4 transfers + 1 pool),
+  influence-out, no voluntary self-contest; `Window::InfluencePhaseOwn` (once
+  per phase), `Window::Transfers` (paid in transfers);
+  `GameState::transfer_bonus`.
 - Discard: one discard phase action (`Stat::DiscardPhaseActions` read as the
   phase begins, `Seat::granted_dpa`: Powerbase: Los Angeles's, used to
   discard a card requiring an Anarch or making a vampire Anarch, lets its
@@ -900,10 +899,10 @@ sources to the engine's conventions.
   prevention (Martyr's Resilience) the ring's order (29.1). A non-combatant
   is offered what its cards allow one outside the combat: a vampire's or a
   card's ability only when its actor is `HostOutOfCombat` (Randall, Maman
-  Boumba, Abjure; 15.2, 98.2). A combatant no longer
-  ready ends the round at once, the end-of-round window still opening
-  (rulebook step 7). A card there put on the opposing minion carries
-  `Requirement::OpponentPresent`: a burned one is no target (rules-qa 75.1).
+  Boumba, Abjure; 15.2, 98.2). A combatant no longer ready ends the round at
+  once, the end-of-round window still opening (rulebook step 7). A card
+  there put on the opposing minion carries `Requirement::OpponentPresent`: a
+  burned one is no target (rules-qa 75.1).
 - Only combat cards are played during combat — no modifiers, reactions or wakes
   (spec §4.1.3). A combat is part of its action: `Engine::action` and its layers
   stay in force.
@@ -1157,13 +1156,12 @@ sources to the engine's conventions.
   one); a title or a titled vampire is not taken nor influenced out while one's
   own vampire claims a unique title it would contest
   (`Requirement::NoOwnClaimOfTargetTitle`: Valerius, Graverobbing,
-  Chameleon, Form of Corruption, Zane's referendum; Victor Pelletier's
-  price; `Engine::corruption_steal_reached`: Cave
-  of Apples, Contagion; the influence phase's mask in `influence.rs`; all on
-  `GameState::seat_claims_title`); forced, the incoming title is lost
-  (`enter_title_contest`; rules-qa 100.1, 100.2). Zane's referendum
-  (`RefEffect::CallerContestsChosenTitle`) gains the chosen prince's very
-  title, contested with its holder.
+  Chameleon, Form of Corruption, Zane's referendum; Victor Pelletier's price;
+  `Engine::corruption_steal_reached`: Cave of Apples, Contagion; the influence
+  phase's mask in `influence.rs`; all on `GameState::seat_claims_title`);
+  forced, the incoming title is lost (`enter_title_contest`; rules-qa 100.1,
+  100.2). Zane's referendum (`RefEffect::CallerContestsChosenTitle`) gains the
+  chosen prince's very title, contested with its holder.
 - Laibon titles: `Title::Laibon { name, votes }` (from `gen_crypt.py`;
   the host's title id `laibon`); Osebo Kholo moves as §6.2 says, gaining
   through `gain_title`.
@@ -1286,13 +1284,12 @@ sources to the engine's conventions.
   leaves ready, `about_to_leave_ready`; several leaving at once,
   `Interrupt::DualFormKept` keeps the one chosen, `GameState::dual_set`); a
   minion's discipline level is `own_printed_level` plus `granted_level`.
-  Derange's `Minion::deranged`
-  (clan and sect as played, read by `clan()` and `underlying_sect()`, moved
-  with the card, cleared in `card_leaves_play`). Diabolic Lure's
-  `Minion::pact` and `made_infernal` (read by `is_infernal` and
-  `unlocks_as_infernal`). `GameState::immune_non_aggravated` (Tye Cooper) in
-  `apply_damage` and `damage_out_of_combat`; `GameState::is_seraph` reads the
-  crypt's Seraph trait.
+  Derange's `Minion::deranged` (clan and sect as played, read by `clan()` and
+  `underlying_sect()`, moved with the card, cleared in `card_leaves_play`).
+  Diabolic Lure's `Minion::pact` and `made_infernal` (read by `is_infernal`
+  and `unlocks_as_infernal`). `GameState::immune_non_aggravated` (Tye Cooper)
+  in `apply_damage` and `damage_out_of_combat`; `GameState::is_seraph` reads
+  the crypt's Seraph trait.
 
 - A ready titled vampire about to be burned or sent to torpor
   (`titled_leaving`, from `burn_minion` and `minions_to_torpor` only) is
@@ -1582,11 +1579,11 @@ sources to the engine's conventions.
   rules-qa 36.2) serve the payment (`take_discounts`, `reduced_cost_with`),
   the cost terms' pass (`play_cost`) and the offer (`with_potential`). Found
   or named cards take their reductions once chosen (`CostThen`,
-  `pay_named_discounts`, `payable_with_potential`). A
-  seat-wide once-a-turn reducer (Baldesar: `Stat::SeatCostOffOncePerTurn`)
-  is announced as `PlayCtx::reducer` (`seat_reducers`, reading a named card
-  too) and spent where the cost is paid (`reducer_off`, `spend_reducer`):
-  the play, an equip from hand by a card, a found equipment.
+  `pay_named_discounts`, `payable_with_potential`). A seat-wide once-a-turn
+  reducer (Baldesar: `Stat::SeatCostOffOncePerTurn`) is announced as
+  `PlayCtx::reducer` (`seat_reducers`, reading a named card too) and spent
+  where the cost is paid (`reducer_off`, `spend_reducer`): the play, an equip
+  from hand by a card, a found equipment.
 - Nergal's once-each-turn blood off (`Stat::BloodCostOffOncePerTurn`) is
   announced as `PlayCtx::once_off` (`once_off_available`) and taken where
   the cost is paid (`once_off_amount`, spent by `spend_once_cost_off` only
@@ -1605,10 +1602,9 @@ sources to the engine's conventions.
   Rubrics); Chanjelin Ward's blood on actions targeting its vampire
   (`GameState::targeted_surcharge`, paid at resolution beside François
   Loehr's, an ally's such action not offered: `may_direct_at`). An ally
-  combatant burned by paying
-  its last life for a card ends the combat (`pay_play_blood`). A minion's
-  printed surcharge (Tom's, `CostOff::blood_extra`) is paid there too
-  (`printed_extra`).
+  combatant burned by paying its last life for a card ends the combat
+  (`pay_play_blood`). A minion's printed surcharge (Tom's,
+  `CostOff::blood_extra`) is paid there too (`printed_extra`).
 - One estimate of a card's cost as announced so far, surcharges in, printed
   and announced reductions out (`play_cost`): the hand play's offer, the
   pass while unaffordable (`affordable_with_discounts`) and the blood an X

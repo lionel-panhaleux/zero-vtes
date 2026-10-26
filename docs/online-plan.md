@@ -65,19 +65,18 @@ commands stay off their dependencies.
   `openapi.json` and `protocol.ts` are generated from it (its `schema`
   example, `scripts/gen_ts.py`), checked in and `--check`ed; the server
   shows them at `/docs`.
-- **`host`**: options described as keys and effects
-  (`describe.rs`), narration as typed events (`narrate.rs`,
-  `events.rs`), views and the per-viewer copies (`view.rs`,
-  `numbering.rs`), decks by KRCG id and the catalog (`deck.rs`), the
-  human seat's ergonomics (undo, opportunities, allocations, vote
-  orders: `session.rs`; human-play.md "The host's human ergonomics"),
-  records and their reading (`replay.rs`), training starts from
-  records (`start.rs`). One entrypoint, `Game::handle(seat, In) ->
-  Vec<Out>`, emitting step by step; an injected `Clock`; a step budget
-  (an engine loop ends the game `engine_error`, recorded); a panic
-  caught per command ends it the same way. Bots through its `Bots`
-  trait, so no `policy` dependency; the scripted styles are its
-  `BUILT_IN`.
+- **`host`**: options described as keys and effects (`describe.rs`),
+  narration as typed events (`narrate.rs`, `events.rs`), views and the
+  per-viewer copies (`view.rs`, `numbering.rs`), decks by KRCG id and
+  the catalog (`deck.rs`), the human seat's ergonomics (undo,
+  opportunities, allocations, vote orders: `session.rs`; human-play.md
+  "The host's human ergonomics"), records and their reading
+  (`replay.rs`), training starts from records (`start.rs`). One
+  entrypoint, `Game::handle(seat, In) -> Vec<Out>`, emitting step by
+  step; an injected `Clock`; a step budget (an engine loop ends the
+  game `engine_error`, recorded); a panic caught per command ends it
+  the same way. Bots through its `Bots` trait, so no `policy`
+  dependency; the scripted styles are its `BUILT_IN`.
 - **`text`**: options, events, strikes, markers and prompts told from
   the data a client was sent alone, card names by a `Cards` trait,
   seats and minions by `Names`; the host's sweeps
@@ -219,7 +218,6 @@ components; client types from the schema (`protocol.ts`); the server
 client the only engine host; the notice saying games are recorded for 2
 years to improve the engine. For an upstream PR only: SC files given
 hooks only (the fork tests `GameType.Engine` inline), SC's `AGENTS.md` and
-checks. SC's layout is fixed, made to fit any
-window size: the engine's panels fit inside it, never a change to its
-constants (Thomas refused one). Precon list fixes go to VDB's
-`precon_decks.json`.
+checks. SC's layout is fixed, made to fit any window size: the engine's
+panels fit inside it, never a change to its constants (Thomas refused
+one). Precon list fixes go to VDB's `precon_decks.json`.

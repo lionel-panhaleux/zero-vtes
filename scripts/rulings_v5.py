@@ -9,8 +9,10 @@ tracks that (empty = not yet):
 
   test:<fn>        backed by `#[test] fn <fn>` under crates/engine/tests/,
                    whose doc comment cites the row's references
-  blocked:<gap>    needs a card or mechanism the engine does not have yet
   n/a:<reason>     not engine-observable, or the V5 card is incidental
+
+No `blocked:` status: a gap a ruling names is built with its card (six
+rulings sat unapplied behind `blocked:untested` rows until Batch 94).
 
 Regeneration keeps the statuses of unchanged rows (keyed on the full row
 text); a reworded ruling loses its status and is printed as stale, since it
@@ -20,9 +22,11 @@ Usage: python3 scripts/rulings_v5.py [path/to/vtes.json] > data/rulings-v5.csv
        python3 scripts/rulings_v5.py --check data/rulings-v5.csv
 
 `--check` (offline) verifies the ledger against the engine: every row on an
-implemented card (crates/engine/src/cards/defs.rs `DEFS`) has a status; every
-`test:` name is exactly one test function whose doc comment cites the
-references; every test in tests/rulings.rs backs at least one row.
+implemented card (crates/engine/src/cards/defs.rs `DEFS`) has a status, and
+no `blocked:` one; an `n/a:` row saying its mentioning card is "not in" the
+pool fails once that card is implemented; every `test:` name is exactly one
+test function whose doc comment cites the references; every test in
+tests/rulings.rs backs at least one row.
 """
 import csv
 import json
@@ -178,8 +182,17 @@ def check(path):
             elif refs not in found[name][1]:
                 print(f"{r['card']!r}: {name} ({found[name][0]}) does not cite {refs}")
                 bad += 1
-        elif not st.startswith(("blocked:", "n/a:")):
+        elif st.startswith("blocked:"):
+            print(f"{r['card']!r} {r['references']}: {st!r}: a ruling of an "
+                  "implemented card is a test, or n/a")
+            bad += 1
+        elif not st.startswith("n/a:"):
             print(f"{r['card']!r} {r['references']}: unknown status {st!r}")
+            bad += 1
+        elif (r["via"].startswith("mention in ") and "not in" in st
+              and r["via"][len("mention in "):] in cards):
+            print(f"{r['card']!r} {r['references']}: {st!r}, but "
+                  f"{r['via'][len('mention in '):]} is implemented now: test it")
             bad += 1
     for name, (fn, _) in found.items():
         if fn == "rulings.rs" and name not in used:

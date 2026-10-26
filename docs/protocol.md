@@ -356,31 +356,28 @@ seat 2; burn 2 pool to keep card 9.)
   `{"kind":"card","copy":n}`), `action`, `mode` (`index`, `line`,
   `disciplines` with levels, `card_type` for a multi-type card, `apart`:
   the effects setting it apart from the other modes its printed line
-  splits into, offered or not),
-  `amount`, `favor`, `blood`, `zone` (where a card taken or played
-  is: `find_card`'s library, hand or ash heap and whose, none for a card
-  only named, Master: Discipline, or stored on a card; `take_from`'s,
-  `ash_vampire`'s, its crypt or the ash heap and whose (Shroud of Decay:
-  the prey's); the ash heap a card is played from, Spiritual Guidance),
-  `value`
-  (a clan, Discipline or circle id), `ability`, `slot` (`{seat, slot}`:
-  an uncontrolled vampire by its place in the view's `uncontrolled`, its
-  card face down to the others — an option's `target` or `card` names
-  it only to who sees it). Two options of a
-  decision never share a key (copies alike in hand are one option: the
-  copy a `play` took is its `card_moves` into limbo, §9). Each
-  key names what its kind is about, so a log reads it without its
-  English (`crates/host/tests/keys.rs` holds the list): a `play` its
-  `card` and `mode`, a `use_ability` its `card` or `minion` and
-  `ability`, a `take_action` its `actor`, `action` and, a bleed, the
-  seat bled (`target`: the prey); a choice among minions its `minion`
+  splits into, offered or not), `amount`, `favor`, `blood`, `zone` (where a
+  card taken or played is: `find_card`'s library, hand or ash heap and whose,
+  none for a card only named, Master: Discipline, or stored on a card;
+  `take_from`'s, `ash_vampire`'s, its crypt or the ash heap and whose (Shroud
+  of Decay: the prey's); the ash heap a card is played from, Spiritual
+  Guidance), `value` (a clan, Discipline or circle id), `ability`, `slot`
+  (`{seat, slot}`: an uncontrolled vampire by its place in the view's
+  `uncontrolled`, its card face down to the others — an option's `target` or
+  `card` names it only to who sees it). Two options of a decision never share
+  a key (copies alike in hand are one option: the copy a `play` took is its
+  `card_moves` into limbo, §9). Each key names what its kind is about, so a
+  log reads it without its English (`crates/host/tests/keys.rs` holds the
+  list): a `play` its `card` and `mode`, a `use_ability` its `card` or
+  `minion` and `ability`, a `take_action` its `actor`, `action` and, a bleed,
+  the seat bled (`target`: the prey); a choice among minions its `minion`
   (`declare_block`, `cast_votes`, `choose_minion`, `resolve_printed`,
-  `burn_blood_from`, …); `transfer`, `withdraw`, `influence_out`,
-  `merge` and `slot` their `slot` (the Great Beast's Discipline slot its
-  `value`); `follow_path` its `minion` and the path's `value`; a combatant's
-  choice (`hand_strike`, `round_strike`, `use_maneuver`, `use_press`,
-  `use_prevent`, `strike_combat_ends`, `committed_strike`, `gain_strength`,
-  `cancel_combat`) and the acting minion's own (`continue_action`,
+  `burn_blood_from`, …); `transfer`, `withdraw`, `influence_out`, `merge` and
+  `slot` their `slot` (the Great Beast's Discipline slot its `value`);
+  `follow_path` its `minion` and the path's `value`; a combatant's choice
+  (`hand_strike`, `round_strike`, `use_maneuver`, `use_press`, `use_prevent`,
+  `strike_combat_ends`, `committed_strike`, `gain_strength`, `cancel_combat`)
+  and the acting minion's own (`continue_action`,
   `take_damage_after_resolution`) its `actor`; `diablerise` the blocker
   diablerising as `actor`, the acting vampire as `minion`; a card chosen
   (`discard`, `bottom`, `find_card`, `take_from`, `resolve_rider`,

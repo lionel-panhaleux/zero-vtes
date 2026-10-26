@@ -57,9 +57,14 @@ Before review, in the change itself:
 - the board line deleted (not marked done; git keeps it);
 - `python3 scripts/harness.py stale main` clean: no name the diff
   removes (an identifier, a heading, a path) still cited by a page, the
-  harness or a code comment, and no line it adds to a wrapped page past
-  80 columns; a hit is fixed, or, when the citation is right (a name
-  that lives on elsewhere), said in the commit.
+  harness or a code comment; no line it adds to a wrapped page or a
+  whole-line comment past 80 columns, nor a stub line next to a line it
+  adds (a paragraph or comment block of three lines or more); a hit is
+  fixed, or, when the citation is right (a name that lives on
+  elsewhere), said in the commit. Its re-read list (a function whose
+  body changed under an unchanged doc, a page line citing a changed
+  function or variant) is gone through: each still true after the
+  change, or fixed.
 
 ## 4. Egress review
 

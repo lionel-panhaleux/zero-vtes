@@ -1095,7 +1095,7 @@ fn unholy_sacrament_feeds_an_uncontrolled_titled_sabbat_vampire() {
     assert_eq!(e.state.seats[0].uncontrolled[0].counters, 3);
 }
 
-// ---- Paths --------------------------------------------------------------------------
+// ---- Paths ------------------------------------------------------------------
 
 // Black Chantry, 2025-06-12 (rules-qa 97.1, 97.2): in the influence phase,
 // a Sabbat vampire following no path burns 1 blood to follow one of the

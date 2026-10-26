@@ -59,7 +59,10 @@ CRLF: the csv module with `lineterminator="\r\n"`, or byte-wise.
 
 1. Its text and every KRCG ruling (`vtes.json`), and the
    `../vtes-advanced-rules` rulings YAML for its id (group rulings too).
-2. Its ledger rows (`data/rulings-v5.csv`): the rulings are the test plan.
+2. Its ledger rows (`data/rulings-v5.csv`), those mentioning it included
+   (`via`: `mention in <card>`): the rulings are the test plan, each row
+   `test:` or `n/a:` before the round lands (`--check` refuses `blocked:`;
+   six rulings sat unapplied behind `blocked:untested`, Batch 94).
 3. `docs/rules-digest.md` sections for the card's mechanisms, then the
    rules-qa items they cite.
 4. The closest existing definitions (an Explore subagent maps the round's

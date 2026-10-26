@@ -931,14 +931,14 @@ simultaneous effects, §2.5 duration). The engine's window primitives are in
   its action not declared yet, admits a locked minion's wake (one with no
   effect on the action to come), held until the action is declared, and
   the woken minion's cancel; a woken minion meets "usable by an unlocked
-  vampire" (96.4). True wakes (Wake with
-  Evening's Freshness, On the Qui Vive, Forced Awakening, Eyes of Argus
-  [AUS], Shadow Sentinel) are; unlock-and-attempt reactions (Dogged
-  Pursuit, Eyes of the Wild, Second Tradition's 2nd mode, Sense the Savage
-  Way [ANI], One With the Land [PRO], Organized Resistance) and plain
-  unlock reactions (Guard Dogs, Rat's Warning, Forced Vigilance [FOR]) are
-  not (2.4). A card played not in the normal fashion opens no as-played
-  window and cannot be canceled as played (advanced rules §1.8.2).
+  vampire" (96.4). True wakes (Wake with Evening's Freshness, On the Qui
+  Vive, Forced Awakening, Eyes of Argus [AUS], Shadow Sentinel) are;
+  unlock-and-attempt reactions (Dogged Pursuit, Eyes of the Wild, Second
+  Tradition's 2nd mode, Sense the Savage Way [ANI], One With the Land
+  [PRO], Organized Resistance) and plain unlock reactions (Guard Dogs,
+  Rat's Warning, Forced Vigilance [FOR]) are not (2.4). A card played not
+  in the normal fashion opens no as-played window and cannot be canceled
+  as played (advanced rules §1.8.2).
 - **As announced**: holds only effects whose text says so ("only usable as
   the action is announced", "as … announces": Seduction, Warsaw Station,
   Yoruba Shrine, Screamer's fail); an effect usable "during the action"
@@ -2354,9 +2354,9 @@ round (rulebook "Combat").
 - Impulse in combat: 1.2 (§5.1); the acting minion and the opposing one
   (§3.21), then every other Methuselah clockwise from the acting one
   (98.1), offered what reaches a combat it is not in (98.2); a combat with
-  no acting minion (1.2). Deep Song moves the acting
-  side (27.5); Hedonism's vampire is its queued combat's acting side (53.3);
-  The Guardian's combat: the bleeder acts first (41.5).
+  no acting minion (1.2). Deep Song moves the acting side (27.5); Hedonism's
+  vampire is its queued combat's acting side (53.3); The Guardian's combat:
+  the bleeder acts first (41.5).
 - A combatant no longer ready (burned, going to torpor) may play
   end-of-round combat cards unless the card excludes it (Taste of Vitae,
   Disarm), and no other combat window (4.5).
@@ -3347,11 +3347,10 @@ retainers, traits, titles, trait changes).
   blood, life over the printed life does not drain, aggravated damage costs
   life with no torpor, an effect sending it to torpor burns it (LSJ
   20060409): Vivienne Géroux's Daring the Dawn costs her 2 life (90.2).
-  Herald of Topheth plays [dai], [pot]
-  and [pre] cards as a capacity-5 Independent vampire; infernal (it does not
-  unlock as normal, 1 pool to unlock); its rush at another Methuselah's
-  minion; its life back to 5 at most, 1 each of its controller's unlock
-  phases (62.33).
+  Herald of Topheth plays [dai], [pot] and [pre] cards as a capacity-5
+  Independent vampire; infernal (it does not unlock as normal, 1 pool to
+  unlock); its rush at another Methuselah's minion; its life back to 5 at
+  most, 1 each of its controller's unlock phases (62.33).
 - Life moves: Sri Sansa, one move each unlock phase, either way, with a mage
   ally (Nephandus, Veneficti); "not to exceed their starting life" caps the
   ally only — blood moved to Sri above her capacity drains off; no move to
@@ -3396,11 +3395,10 @@ retainers, traits, titles, trait changes).
   come back (face up, unlocked) when it is re-influenced (5.7); a banished
   vampire keeps everything, counters of any kind included (25.1); a
   banished Great Beast too, and one that would go to the crypt burns
-  (Kaymakli Nightmares, 93.7). Pit of
-  Contemplation's "owner's uncontrolled region": a temporarily controlled
-  vampire goes to the region of the Methuselah it would return to; the move
-  is Banishment's (27.7). Its leave-ready effects first: Righteous Aura
-  burns, not kept on it (94.3).
+  (Kaymakli Nightmares, 93.7). Pit of Contemplation's "owner's uncontrolled
+  region": a temporarily controlled vampire goes to the region of the
+  Methuselah it would return to; the move is Banishment's (27.7). Its
+  leave-ready effects first: Righteous Aura burns, not kept on it (94.3).
 - Entering from the uncontrolled region: "comes into play" / "put in play
   from your uncontrolled region" = influenced out (58.12, 34.7). Anarch
   Convert: his ability applies as he is moved out (the pool's only way in);
@@ -3724,9 +3722,9 @@ readings (vampires, allies, library cards) no mechanism section states.
   Leverage (85.21); Nosferatu Justicar (85.22); NSA Trio (85.23);
   Sacrificial Lamb (85.24); The Secret Library of Alexandria (85.25); Shanty
   Town Hunting Ground (85.26); Storage Annex (85.27; its card taken in hand
-  still its owner's, 96.2); directed at another's
-  minion (85.28); "your next discard phase" (85.29); Hatch put in play
-  (85.30); found while testing (85.31, 85.33, 85.34).
+  still its owner's, 96.2); directed at another's minion (85.28); "your next
+  discard phase" (85.29); Hatch put in play (85.30); found while testing
+  (85.31, 85.33, 85.34).
 - Round 20's cards, each read in its rules-qa item: Harvest Rites spent by
   a hunt at capacity too (89.1, 89.13); Quincy's two actions kept across
   turns while both stay in play (89.2); Chanjelin Ward's blood on any target,

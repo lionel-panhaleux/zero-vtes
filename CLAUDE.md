@@ -27,9 +27,10 @@ Key facts:
   `scripts/window_matrix.py --check data/window-matrix-reviewed.csv`
   verifies the generator still reproduces it — keep both in sync.
 - `data/rulings-v5.csv`: the rulings-as-tests ledger (DESIGN §7.1) — every row
-  on an implemented card carries `test:<fn>` / `blocked:<gap>` / `n/a:<reason>`;
-  `scripts/rulings_v5.py --check data/rulings-v5.csv` verifies it against the
-  tests offline — keep both in sync (regeneration keeps the statuses).
+  on an implemented card carries `test:<fn>` / `n/a:<reason>` (never
+  `blocked:`); `scripts/rulings_v5.py --check data/rulings-v5.csv` verifies
+  it against the tests offline — keep both in sync (regeneration keeps the
+  statuses).
 - Card data source: https://static.krcg.org/data/vtes.json (the `v5/` dir there
   is a *schema* version, not the V5 format). Generated from it, never edited by
   hand: `scripts/gen_crypt.py` → `crypt.rs`, `scripts/gen_library.py` →
@@ -99,9 +100,10 @@ with its board companion), as applied here:
   pages, the line deleted — then the `egress-reviewer` agent, fresh
   context, given the diff, the line and its pages only; findings
   blocking or advisory, recorded as commit trailers; a third round still
-  blocking goes to the owner; before it, `harness.py stale` finds the names the
-  diff removed that a page or a comment still cites, and the added lines
-  past the width); `upkeep` (every 20 deleted lines or monthly:
+  blocking goes to the owner; before it, `harness.py stale` finds the
+  names the diff removed that a page or a comment still cites, the added
+  lines past the width and the stub lines a reflow leaves, and lists what
+  to re-read); `upkeep` (every 20 deleted lines or monthly:
   eviction, wiki lint, the ratchet turning three advisories of a class
   into a harness amendment). `scripts/harness.py` counts (size, line age,
   `due`, orphan pages) and checks (`stale`).
