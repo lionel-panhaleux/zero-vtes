@@ -1131,10 +1131,8 @@ impl Engine {
                         }
                         let x = cards::terms_x(st, seat, card, mode).unwrap_or(0);
                         let ctx = PlayCtx::new(seat, card, mi as u8, Some(m), Target::None, x);
-                        // What announced reductions could take off (The
-                        // Line, The Shard, Ravnos Carnival, Ravnos Cache).
-                        let potential = self.cost_potential(&ctx);
-                        let (_, blood) = self.play_cost(&ctx);
+                        let (pool, blood) = self.play_cost(&ctx);
+                        let (_, blood) = self.with_potential(&ctx, pool, blood, 0);
                         // A burn the card asks for, beyond its cost as paid
                         // (ANK 20210226).
                         let beyond = mode
@@ -1145,7 +1143,7 @@ impl Engine {
                                 _ => None,
                             })
                             .unwrap_or(0);
-                        if blood.saturating_sub(potential) + beyond > st.minions[m.index()].blood {
+                        if blood + beyond > st.minions[m.index()].blood {
                             continue;
                         }
                         // "This ally cannot have or use equipment or
@@ -1188,7 +1186,7 @@ impl Engine {
                             // (ANK 20230621), announced with the card (LSJ
                             // 20090705).
                             if !as_vampire
-                                && (blood.saturating_sub(toll).saturating_sub(potential) > 0
+                                && (blood.saturating_sub(toll) > 0
                                     || lib
                                         .types
                                         .contains(&crate::library::CardType::PoliticalAction))
@@ -1449,19 +1447,19 @@ impl Engine {
                                 .collect(),
                         },
                     };
-                    let discount = actor.map_or(0, |m| recruit_off(st, mode, m)) as i32;
+                    let discount = actor.map_or(0, |m| recruit_off(st, mode, m));
                     for target in targets {
-                        let potential = self
-                            .cost_potential(&PlayCtx::new(seat, card, mi as u8, actor, target, 0))
-                            as i32;
                         // Less the minion's printed reductions (Anne-Marie
                         // Bourgeois, Kuyén, Máddji).
                         let mut cost = cards::pool_cost(st, seat, card, target);
+                        let mut blood = cards::blood_cost(st, card, 0);
                         if let Some(m) = actor {
                             st.printed_cost_off(m, card, mi as u8)
-                                .apply(&mut cost, &mut cards::blood_cost(st, card, 0));
+                                .apply(&mut cost, &mut blood);
                         }
-                        if cost - discount - potential <= pool {
+                        let ctx = PlayCtx::new(seat, card, mi as u8, actor, target, 0);
+                        let (cost, _) = self.with_potential(&ctx, cost, blood, discount);
+                        if cost <= pool {
                             out.push(Choice::Play {
                                 card: hi as u8,
                                 mode: mi as u8,
@@ -2089,16 +2087,6 @@ impl Engine {
             .map_or(0, |&(_, n)| n)
     }
 
-    /// What the reductions could still take off `ctx`'s card (its
-    /// affordability as it is offered).
-    pub(crate) fn cost_potential(&self, ctx: &PlayCtx) -> u8 {
-        self.cost_sources(ctx).iter().map(|&(_, n)| n).sum::<u8>()
-            + u8::from(!self.blood_payers(ctx).is_empty())
-            + u8::from(self.once_off_available(ctx))
-            + u8::from(!self.location_lockers(ctx).is_empty())
-            + u8::from(!self.seat_reducers(ctx).is_empty())
-    }
-
     pub(crate) fn cost_terms_request(
         &self,
         ctx: &PlayCtx,
@@ -2151,13 +2139,37 @@ impl Engine {
     pub(crate) fn payable_with_potential(&self, ctx: &PlayCtx, pool_may_oust: bool) -> bool {
         let st = &self.state;
         let m = ctx.actor.expect("minion");
-        let off = self.cost_potential(ctx) + st.equip_discount(m, ctx.card);
         let mut blood = cards::blood_cost(st, ctx.card, ctx.x);
         let mut pool = cards::pool_cost(st, ctx.seat, ctx.card, ctx.target);
         st.printed_cost_off(m, ctx.card, ctx.mode)
             .apply(&mut pool, &mut blood);
+        let (pool, blood) = self.with_potential(ctx, pool, blood, st.equip_discount(m, ctx.card));
         let have = (st.seats[ctx.seat.index()].pool, st.minions[m.index()].blood);
-        payable((pool, blood), off, have, pool_may_oust)
+        payable((pool, blood), have, pool_may_oust)
+    }
+
+    /// `(pool, blood)` less every reduction `ctx`'s card may still take
+    /// (`Engine::reduced`), `either` more "blood or pool" besides: what it
+    /// costs at best, as it is offered.
+    pub(crate) fn with_potential(
+        &self,
+        ctx: &PlayCtx,
+        pool: i32,
+        blood: u8,
+        either: u8,
+    ) -> (i32, u8) {
+        let (more, blood_off, counters) = self.discount_offs(ctx.seat, self.cost_sources(ctx));
+        let either = either
+            + more
+            + u8::from(!self.location_lockers(ctx).is_empty())
+            + u8::from(!self.seat_reducers(ctx).is_empty());
+        let blood_off = blood_off + u8::from(self.once_off_available(ctx));
+        let (mut pool, mut blood, _) = self.reduced(pool, blood, (either, blood_off, &counters));
+        // A vampire's blood paying 1 of what is left (Regina Blake).
+        if !self.blood_payers(ctx).is_empty() {
+            reduce(&mut pool, &mut blood, 1);
+        }
+        (pool, blood)
     }
 
     /// Can the card's cost be paid with the reductions picked so far (an
@@ -2179,7 +2191,6 @@ impl Engine {
         });
         payable(
             (pool, blood),
-            0,
             (st.seats[ctx.seat.index()].pool, have_blood),
             false,
         )
@@ -2194,11 +2205,10 @@ impl Engine {
         let st = &self.state;
         let mut pool = cards::pool_cost(st, ctx.seat, ctx.card, ctx.target);
         let mut blood = cards::blood_cost(st, ctx.card, ctx.x);
-        let mut off = ctx.discounts.iter().flatten().map(|&(_, n)| n).sum::<u8>()
-            + u8::from(ctx.blood_payer.is_some())
-            + u8::from(ctx.once_off)
-            + u8::from(ctx.locker.is_some())
-            + u8::from(ctx.reducer.is_some());
+        let (mut either, blood_off, counters) =
+            self.discount_offs(ctx.seat, ctx.discounts.iter().flatten().copied());
+        either += u8::from(ctx.locker.is_some()) + u8::from(ctx.reducer.is_some());
+        let blood_off = blood_off + u8::from(ctx.once_off);
         if let Some(m) = ctx.actor {
             blood += self.reaction_surcharge(ctx.card)
                 + self.discipline_surcharge(m, ctx.card, ctx.mode)
@@ -2212,9 +2222,13 @@ impl Engine {
                 blood = (blood + self.printed_extra(ctx))
                     .saturating_sub(self.printed_off_play(ctx, &mut pool));
             }
-            off += recruit_off(st, mode, m);
+            either += recruit_off(st, mode, m);
         }
-        reduce(&mut pool, &mut blood, off);
+        let (mut pool, mut blood, _) = self.reduced(pool, blood, (either, blood_off, &counters));
+        // A vampire's blood paying 1 of what is left (Regina Blake).
+        if ctx.blood_payer.is_some() {
+            reduce(&mut pool, &mut blood, 1);
+        }
         (pool, blood)
     }
 
@@ -2305,25 +2319,8 @@ impl Engine {
                 .apply(&mut pool, &mut blood);
         }
         let (either, blood_off, counters) = self.take_discounts(ctx);
-        reduce(&mut pool, &mut blood, either);
-        blood = blood.saturating_sub(blood_off);
-        let mut used = Vec::new();
-        for (c, n) in counters {
-            let avail = n.min(self.state.cards[c.index()].counters);
-            let k = match self.state.cost_source_of(c) {
-                Some(cards::CostSource::Cache | cards::CostSource::Hackerspace) if pool > 0 => {
-                    let k = avail.min(pool as u8);
-                    pool -= k as i32;
-                    k
-                }
-                _ => {
-                    let k = avail.min(blood);
-                    blood -= k;
-                    k
-                }
-            };
-            used.push((c, k));
-        }
+        let (p, b, used) = self.reduced(pool, blood, (either, blood_off, &counters));
+        (pool, blood) = (p, b);
         self.spend_counters(&used);
         // A vampire's blood paying 1 of what is left (Regina Blake).
         if let Some(r) = self.blood_payment(ctx.blood_payer, &mut pool, &mut blood) {
@@ -3870,8 +3867,6 @@ impl Engine {
                 }
             }
         }
-        // The Shard, announced with a card that is not an action card:
-        // locked now (not if the card was canceled, ANK 20230620).
         let mut blood_off = 0u8;
         // A card playing another from hand (Piper, Contraband): its
         // reductions are the named card's, taken as that card is paid.
@@ -3884,32 +3879,17 @@ impl Engine {
             blood_off += once;
             self.spend_once_cost_off(&ctx, once);
         }
-        let mut focus_burned = Vec::new();
-        for (c, n) in ctx.discounts.into_iter().flatten().filter(|_| !names) {
-            let card = &self.state.cards[c.index()];
-            let (present, locked) = (card.present(), card.locked);
-            let source = self.state.cost_source_of(c);
-            if present
-                && !locked
-                && (source == Some(cards::CostSource::Shard)
-                    && self.state.seats[s.index()].has_edge
-                    || source == Some(cards::CostSource::SunsetStrip))
-            {
-                self.state.cards[c.index()].locked = true;
-                if pool > 0 {
-                    pool = (pool - n as i32).max(0);
-                } else {
-                    blood_off += n;
-                }
+        // The Shard and Sunset Strip locked, Focus the Blood burned, as the
+        // cost of a card that is no action is paid (not if it was canceled:
+        // ANK 20230620); no counters pay such a card.
+        if !names {
+            let (either, blood, _) = self.take_discounts(&ctx);
+            if pool > 0 {
+                pool = (pool - either as i32).max(0);
+            } else {
+                blood_off += either;
             }
-            // Focus the Blood: burned as the combat card's cost is paid.
-            if present && self.state.cost_source_of(c) == Some(cards::CostSource::FocusBlood) {
-                blood_off += n;
-                focus_burned.push(c);
-            }
-        }
-        for c in focus_burned {
-            self.burn_card_in_play(c);
+            blood_off += blood;
         }
         // A vampire's blood paying 1 of it (Regina Blake).
         if let Some(r) = ctx.blood_payer.filter(|_| !names) {
@@ -11031,15 +11011,15 @@ pub(crate) fn reduce(pool: &mut i32, blood: &mut u8, n: u8) {
     }
 }
 
-/// Is a cost of `(pool, blood)` payable out of `have`, `off` reducing it
-/// (`reduce`)? A pool cost paid down to 0 counts; with `pool_may_oust`, any
+/// Is a cost of `(pool, blood)`, reduced (`Engine::reduced`), payable out
+/// of `have`? A pool cost paid down to 0 counts; with `pool_may_oust`, any
 /// pool cost does.
-fn payable(cost: (i32, u8), off: u8, have: (i32, u8), pool_may_oust: bool) -> bool {
+fn payable(cost: (i32, u8), have: (i32, u8), pool_may_oust: bool) -> bool {
     let (pool, blood) = cost;
     if pool > 0 {
-        (pool_may_oust || (pool - off as i32).max(0) <= have.0) && blood <= have.1
+        (pool_may_oust || pool <= have.0) && blood <= have.1
     } else {
-        blood.saturating_sub(off) <= have.1
+        blood <= have.1
     }
 }
 

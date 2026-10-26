@@ -10951,6 +10951,78 @@ fn charisma_alone_pays_beside_a_cost_source() {
     );
 }
 
+/// Enhanced Coagulant's second mode on `host`: "Cards requiring a
+/// Discipline cost this vampire +1 blood."
+fn coagulated(e: &mut Engine, host: MinionId) {
+    let seat = e.state.minions[host.index()].owner.index() as u8;
+    let id = master_on(e, seat, "Enhanced Coagulant", host);
+    e.state.cards[id.index()].mode = 1;
+    e.state.layers.push(Layer {
+        scope: Scope::InPlay,
+        modifier: cards::Modifier::HostDisciplineCardsCost(1),
+        source: id,
+    });
+}
+
+// The cost terms' Pass reads the cost as it will be paid: Raven Spy (1
+// blood) with Enhanced Coagulant's +1 blood is paid by Kuyén's 1 blood
+// thanks to her printed "-1 blood or pool" on animals: Pass, nothing to
+// announce (LSJ 20090705: only an unaffordable card must); Raptor (2
+// blood) is not, until The Line is announced.
+#[test]
+fn the_cost_terms_pass_reads_printed_reductions_and_surcharges() {
+    for (card, pass) in [("Raven Spy", true), ("Raptor", false)] {
+        let mut e = Engine::bare(3);
+        let k = e.add_minion(SeatId(0), zvtes::state::find_card("Kuyén"), 1, false);
+        e.add_minion(SeatId(0), plain("", "", 0), 4, false);
+        e.add_minion(SeatId(1), plain("", "", 1), 4, false);
+        coagulated(&mut e, k);
+        let line = location(&mut e, 0, "Line, The");
+        // A second reduction on offer, so the window is asked.
+        location(&mut e, 0, "Shard, London, The");
+        e.state.seats[0].has_edge = true;
+        hand(&mut e, 0, &[card]);
+        pick(&mut e, play(0, 0, k));
+        let req = expect(&mut e, SeatId(0), WindowLabel::PlayTerms);
+        assert_eq!(req.options.contains(&Choice::Pass), pass, "{card}");
+        if pass {
+            continue;
+        }
+        pick(&mut e, Choice::ResolveRider { card: line.0 });
+        let req = expect(&mut e, SeatId(0), WindowLabel::PlayTerms);
+        assert!(req.options.contains(&Choice::Pass), "The Line pays it");
+    }
+}
+
+// The offer reads the reductions as the payment takes them: The Shard's 2
+// "pool or blood" go to Infernal Servitor's 1 pool first, leaving two
+// Enhanced Coagulants' 2 blood owed: not offered to a vampire with 1 blood,
+// though the Shard alone could have covered the blood (it was offered, then
+// left unpaid); offered at 2 blood.
+#[test]
+fn the_offer_takes_a_reduction_off_the_pool_first_as_paid() {
+    for held in [1, 2] {
+        let mut e = Engine::bare(3);
+        let v = e.add_minion(SeatId(0), plain("", "", 0), held, false);
+        e.add_minion(SeatId(0), plain("", "", 1), 4, false);
+        e.add_minion(SeatId(1), plain("", "", 2), 4, false);
+        e.state.minions[v.index()].made_infernal = true;
+        let slots = &mut e.state.minions[v.index()].beast_disciplines;
+        *slots.iter_mut().find(|d| d.is_none()).expect("a free slot") = Some("dai");
+        coagulated(&mut e, v);
+        coagulated(&mut e, v);
+        location(&mut e, 0, "Shard, London, The");
+        e.state.seats[0].has_edge = true;
+        hand(&mut e, 0, &["Infernal Servitor"]);
+        let req = request(&mut e);
+        assert_eq!(
+            req.options.contains(&play(0, 0, v)),
+            held == 2,
+            "{held} blood"
+        );
+    }
+}
+
 // Giant's Blood: "Only one Giant's Blood can be played in a game. Choose a
 // vampire. The chosen vampire gains enough blood to reach full capacity."
 // [LSJ 20061109] Not an uncontrolled one.

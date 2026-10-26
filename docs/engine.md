@@ -1573,9 +1573,14 @@ sources to the engine's conventions.
 - Reductions are announced with the card (`Flow::CostTerms`,
   `PlayCtx::discounts`, `CostSource`; no pass while unaffordable without them),
   locked at declaration (not if canceled as played) or at resolution for
-  non-action cards; paid through `reduced_cost_with` / `spend_counters` (counters
-  spent only as a cost is paid). Found or named cards take their reductions once
-  chosen (`CostThen`, `pay_named_discounts`, `payable_with_potential`). A
+  non-action cards; counters spent only as a cost is paid (`spend_counters`).
+  One classification (`discount_kind`: blood or pool, blood only, counters;
+  locked, burned) and one reckoning (`Engine::reduced`: "blood or pool"
+  first, then blood only, then each counter source for what it covers,
+  rules-qa 36.2) serve the payment (`take_discounts`, `reduced_cost_with`),
+  the cost terms' pass (`play_cost`) and the offer (`with_potential`). Found
+  or named cards take their reductions once chosen (`CostThen`,
+  `pay_named_discounts`, `payable_with_potential`). A
   seat-wide once-a-turn reducer (Baldesar: `Stat::SeatCostOffOncePerTurn`)
   is announced as `PlayCtx::reducer` (`seat_reducers`, reading a named card
   too) and spent where the cost is paid (`reducer_off`, `spend_reducer`):
@@ -1605,7 +1610,9 @@ sources to the engine's conventions.
 - One estimate of a card's cost as announced so far, surcharges in, printed
   and announced reductions out (`play_cost`): the hand play's offer, the
   pass while unaffordable (`affordable_with_discounts`) and the blood an X
-  may burn (`Terms::XBlood`). A new estimate site reads it.
+  may burn (`Terms::XBlood`); at best, the reductions still on offer out too
+  (`with_potential`): the offer, a pool card's and a minion's alike. A new
+  estimate site reads them.
 - Paying the last pool ousts: out of turn or from an ability, without passing the
   active turn (`pay_pool_for_ability`); a play whose effects already ousted its
   player does not oust again.

@@ -47,6 +47,24 @@ fn found_play(seat: SeatId, acting: MinionId, card: u16, copy: crate::copies::Co
     }
 }
 
+/// What a cost reduction takes off (`Engine::discount_kind`).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum Off {
+    /// Blood or pool: the pool if the cost has any (`plays::reduce`).
+    Either,
+    Blood,
+    /// Its counters, as the cost is paid (`Engine::reduced`).
+    Counters,
+}
+
+/// What becomes of a reduction's card as the cost is paid.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum Taken {
+    Lock,
+    Burned,
+    Kept,
+}
+
 /// How an action ended (owner, 2026-09-04): *fizzled* is successful but
 /// without effect, its cost unpayable at resolution; failed: Archon
 /// Investigation's "not successful".
@@ -1979,38 +1997,19 @@ impl Engine {
         }
     }
 
-    /// A card action's cost after its reductions: "blood or pool", blood
-    /// only, then counters (Ravnos Carnival, Ravnos Cache), with what each
-    /// counter source covers.
+    /// A card action's cost after its reductions (`reduced`), with what
+    /// each counter source covers.
     pub(crate) fn reduced_cost_with(
         &self,
         a: &ActionCtx,
         pool: i32,
         blood: u8,
     ) -> (i32, u8, Vec<(CardId, u8)>) {
-        let (mut pool, mut blood) = (pool, blood);
-        crate::plays::reduce(&mut pool, &mut blood, a.cost_reduction);
-        blood = blood.saturating_sub(a.blood_reduction);
-        let mut used = Vec::new();
-        for &(c, x) in &a.counter_payments {
-            let avail = x.min(self.state.cards[c.index()].counters);
-            let n = match self.state.cost_source_of(c) {
-                Some(cards::CostSource::Carnival(_)) => avail.min(blood),
-                Some(cards::CostSource::Cache | cards::CostSource::Hackerspace) if pool > 0 => {
-                    avail.min(pool as u8)
-                }
-                Some(cards::CostSource::Cache | cards::CostSource::Hackerspace) => avail.min(blood),
-                _ => 0,
-            };
-            match self.state.cost_source_of(c) {
-                Some(cards::CostSource::Cache | cards::CostSource::Hackerspace) if pool > 0 => {
-                    pool -= n as i32
-                }
-                _ => blood -= n,
-            }
-            used.push((c, n));
-        }
-        (pool, blood, used)
+        self.reduced(
+            pool,
+            blood,
+            (a.cost_reduction, a.blood_reduction, &a.counter_payments),
+        )
     }
 
     /// An action card's cost as its action resolves: X read now (spec
@@ -2148,54 +2147,99 @@ impl Engine {
         a.blood_payer = play.blood_payer;
     }
 
-    /// The reductions picked for `ctx`'s card, taken (The Line, The Shard
-    /// with the Edge, Ravnos Cache locked): ("blood or pool", blood only,
-    /// counters to spend as the cost is paid).
-    pub(crate) fn take_discounts(&mut self, ctx: &PlayCtx) -> (u8, u8, Vec<(CardId, u8)>) {
-        let (mut either, mut blood, mut counters) = (0, 0, Vec::new());
-        let mut burned = Vec::new();
-        for (c, n) in ctx.discounts.into_iter().flatten() {
-            let card = &self.state.cards[c.index()];
-            if !card.present() {
-                continue;
-            }
-            let lock = match self.state.cost_source_of(c) {
-                Some(cards::CostSource::Line) if !card.locked => {
-                    blood += n;
-                    true
-                }
-                Some(cards::CostSource::Shard)
-                    if !card.locked && self.state.seats[ctx.seat.index()].has_edge =>
-                {
-                    either += n;
-                    true
-                }
-                Some(cards::CostSource::Cache) if !card.locked => {
-                    counters.push((c, n));
-                    true
-                }
-                Some(cards::CostSource::SunsetStrip) if !card.locked => {
-                    either += n;
-                    true
-                }
-                Some(cards::CostSource::Carnival(_) | cards::CostSource::Hackerspace) => {
-                    counters.push((c, n));
-                    false
-                }
-                // Focus the Blood: burned as the cost is paid.
-                Some(cards::CostSource::FocusBlood) => {
-                    blood += n;
-                    burned.push(c);
-                    false
-                }
-                _ => false,
-            };
-            self.state.cards[c.index()].locked |= lock;
+    /// What an announced reduction takes off, if it still can (The Line and
+    /// Ravnos Cache unlocked, The Shard with the Edge): blood or pool, blood
+    /// only, or counters spent as the cost is paid; and how its card is
+    /// taken (locked, burned: Focus the Blood).
+    pub(crate) fn discount_kind(&self, seat: SeatId, c: CardId) -> Option<(Off, Taken)> {
+        use cards::CostSource as S;
+        let card = &self.state.cards[c.index()];
+        if !card.present() {
+            return None;
         }
-        for c in burned {
-            self.burn_card_in_play(c);
+        let free = !card.locked;
+        match self.state.cost_source_of(c)? {
+            S::Line if free => Some((Off::Blood, Taken::Lock)),
+            S::Shard if free && self.state.seats[seat.index()].has_edge => {
+                Some((Off::Either, Taken::Lock))
+            }
+            S::Cache if free => Some((Off::Counters, Taken::Lock)),
+            S::SunsetStrip if free => Some((Off::Either, Taken::Lock)),
+            S::Carnival(_) | S::Hackerspace => Some((Off::Counters, Taken::Kept)),
+            S::FocusBlood => Some((Off::Blood, Taken::Burned)),
+            _ => None,
+        }
+    }
+
+    /// `discounts` by what they take off (`discount_kind`): ("blood or
+    /// pool", blood only, counters).
+    pub(crate) fn discount_offs(
+        &self,
+        seat: SeatId,
+        discounts: impl IntoIterator<Item = (CardId, u8)>,
+    ) -> (u8, u8, Vec<(CardId, u8)>) {
+        let (mut either, mut blood, mut counters) = (0, 0, Vec::new());
+        for (c, n) in discounts {
+            match self.discount_kind(seat, c) {
+                Some((Off::Either, _)) => either += n,
+                Some((Off::Blood, _)) => blood += n,
+                Some((Off::Counters, _)) => counters.push((c, n)),
+                None => {}
+            }
         }
         (either, blood, counters)
+    }
+
+    /// The reductions picked for `ctx`'s card, taken (The Line, The Shard
+    /// with the Edge, Ravnos Cache locked; Focus the Blood burned):
+    /// `discount_offs`, the counters spent as the cost is paid.
+    pub(crate) fn take_discounts(&mut self, ctx: &PlayCtx) -> (u8, u8, Vec<(CardId, u8)>) {
+        let discounts: Vec<(CardId, u8)> = ctx.discounts.into_iter().flatten().collect();
+        let offs = self.discount_offs(ctx.seat, discounts.iter().copied());
+        for (c, _) in discounts {
+            match self.discount_kind(ctx.seat, c) {
+                Some((_, Taken::Lock)) => self.state.cards[c.index()].locked = true,
+                Some((_, Taken::Burned)) => self.burn_card_in_play(c),
+                _ => {}
+            }
+        }
+        offs
+    }
+
+    /// `(pool, blood)` after its reductions, as paid (rules-qa 36.2): "blood
+    /// or pool" first, then blood only, then each counter source for what it
+    /// covers (Ravnos Cache, Hackerspace: pool first; Ravnos Carnival: blood
+    /// only), with the counters each takes. The one reckoning of a cost: the
+    /// payment, the cost terms' pass (`play_cost`) and the play's offer
+    /// (`with_potential`).
+    pub(crate) fn reduced(
+        &self,
+        pool: i32,
+        blood: u8,
+        (either, blood_only, counters): (u8, u8, &[(CardId, u8)]),
+    ) -> (i32, u8, Vec<(CardId, u8)>) {
+        let (mut pool, mut blood) = (pool, blood);
+        crate::plays::reduce(&mut pool, &mut blood, either);
+        blood = blood.saturating_sub(blood_only);
+        let mut used = Vec::new();
+        for &(c, x) in counters {
+            let avail = x.min(self.state.cards[c.index()].counters);
+            let pool_first = matches!(
+                self.state.cost_source_of(c),
+                Some(cards::CostSource::Cache | cards::CostSource::Hackerspace)
+            ) && pool > 0;
+            let n = if pool_first {
+                let n = avail.min(pool as u8);
+                pool -= n as i32;
+                n
+            } else {
+                let n = avail.min(blood);
+                blood -= n;
+                n
+            };
+            used.push((c, n));
+        }
+        (pool, blood, used)
     }
 
     /// Note an attempt failed short of the stealth, `owner`'s decline, when
@@ -4783,8 +4827,14 @@ impl Engine {
                 let x =
                     cards::terms_x(&self.state, seat, lib, &def.modes[mode as usize]).unwrap_or(0);
                 let ctx = PlayCtx::new(seat, lib, mode, Some(m), target, x);
-                self.card_blood(m, ctx, x)
-                    .saturating_sub(self.cost_potential(&ctx))
+                // The printed reductions off both, as the payment reads them.
+                let mut pool = cards::pool_cost(&self.state, seat, lib, target);
+                let mut blood =
+                    cards::blood_cost(&self.state, lib, x) + self.card_surcharge(m, lib, mode);
+                self.state
+                    .printed_cost_off_x(m, lib, mode, x)
+                    .apply(&mut pool, &mut blood);
+                self.with_potential(&ctx, pool, blood, 0).1
             }
             Choice::UseAbility {
                 source, ability, ..
