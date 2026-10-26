@@ -443,8 +443,11 @@ controller, a game ends only with ≤1 Methuselah or at the time limit, step bud
 identical state hashes (every 4th seed; the goldens pin the rest). A fixture
 plays 100–300 seeds: about twice the seed where its last coverage key first
 appears (the midgame's at 163; the opening plays 300); `FUZZ_SEEDS=n` sweeps
-deeper. The cost is the engine itself (half of it `GameState::printed_mod` on
-the late tables), not the harness.
+deeper: weekly at `main`'s tip, with the host's `HOST_SEEDS`
+(`scripts/sweeps.py`, 600 and 400 seeds; Z-main's schedule, never beside a
+training run), its report in the main checkout's `data/sweeps/`, a failure
+through `intake` and its seed kept. The cost is the engine itself (half of it
+`GameState::printed_mod` on the late tables), not the harness.
 
 `tests/elision.rs`: elision's observational equivalence (§4.3), from the opening
 and three fuzz tables (`tests/common/tables.rs`), 100 seeds each. At every real

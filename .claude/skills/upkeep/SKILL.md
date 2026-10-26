@@ -44,6 +44,9 @@ The pages `docs/index.md` lists, plus CLAUDE.md and the skills:
   each cut to "what is" (git keeps the rest);
 - pages nothing cited or changed for 20 cycles, challenged: still
   standing knowledge, or merged into another page or deleted;
+- the weekly deep sweeps ran: a report a week in the main checkout's
+  `data/sweeps/` (`scripts/sweeps.py`, Z-main's schedule), each failure
+  through `intake`;
 - domain claims: sources still current (the KRCG data's date, the
   advanced-rules repo); rules-qa readings are the owner's and do not age,
   but a contradiction with a newer ruling goes to the digest's §23.
