@@ -20,4 +20,3 @@ for outside platforms and contributors, then the training layer split,
 the remaining mechanisms, the review leftovers, the harness.
 
 - **The deep sweeps' first report triaged**: Z-main runs `python3 scripts/sweeps.py` weekly from the main checkout (`FUZZ_SEEDS=600`, `HOST_SEEDS=400`), the first asked of Z-main 2026-10-26, to run once the d16 training run ends; each failure through `intake`, its seed kept in the sweep (`KEPT` in crates/host/tests/events.rs, a fixture's `seeds`). Done when the first report is triaged. Docs: none.
-- **Ask the owner whether to take three CLAUDE.md corrections** (upkeep, 2026-10-26; their text in b645982's message; the ratchet's three amendments taken and built): CLAUDE.md's training decks (the precons and DESIGN §3's), its online plan's order of work (the boards' and the roadmap's), its Harness counts with `ratchet`. Done when the owner has answered and each accepted correction is in CLAUDE.md. Docs: CLAUDE.md.

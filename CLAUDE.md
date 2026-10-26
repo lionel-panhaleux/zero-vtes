@@ -16,7 +16,8 @@ Key facts:
   generated, never hand-written.
 - v1 scope: full V5 engine pool (200 crypt, 425 library — all
   defined) plus owner-added legacy cards for TWDA decks (`ADDED_CARDS`,
-  appended after the V5 tables); training on the 14 full-size precon decklists (379 uniques). Stack: Rust engine + PyO3 + PyTorch training.
+  appended after the V5 tables); training on the precons and DESIGN §3's
+  decks. Stack: Rust engine + PyO3 + PyTorch training.
 - `docs/rules-qa.md`: the owner's rulings (a VEKN judge and author of the
   KRCG library/API), one line per item, with a topical index; code cites items
   as `rules-qa N.M` (never renumber). New questions go in a new batch at the
@@ -53,11 +54,11 @@ only, no engine; `docs/protocol.md`) ← `host` (engine → api, the
 ergonomics layer, one `handle(seat, In)` entrypoint) ← `server` (a thin
 shell), `text` (the optional English renderer, over api only); data
 first, copies per viewer; the Succubus Club fork served on its own,
-bots only (owner, 2026-10-21; contributions upstream deferred). The
-plan's settled list and order of work hold until the owner changes
-them. The fork plays on the server only (owner, 2026-10-14: the
-in-browser wasm engine is gone). Online play's work lands on `main`
-(from the lines' worktrees).
+bots only (owner, 2026-10-21; contributions upstream deferred).
+`online-plan.md`'s settled list holds until the owner changes it; the
+order of work is the boards' and the roadmap's. The fork plays on the
+server only (owner, 2026-10-14: the in-browser wasm engine is gone).
+Online play's work lands on `main` (from the lines' worktrees).
 
 Findings (owner, 2026-10-13, 2026-10-15): an issue met on the way (an
 engine bug, a choice offered twice, a rough edge, a stale page) or raised
@@ -106,7 +107,8 @@ with its board companion), as applied here:
   to re-read); `upkeep` (every 20 deleted lines or monthly:
   eviction, wiki lint, the ratchet turning three advisories of a class
   into a harness amendment). `scripts/harness.py` counts (size, line age,
-  `due`, orphan pages) and checks (`stale`).
+  `due`, orphan pages, the advisories by class: `ratchet`) and checks
+  (`stale`).
 - **Comments are for traps** (docs/engine.md "Comment policy"); no to-do
   comments (`tests/lint.rs`): found work is done now, in the change, or,
   clearly outside its line, goes through `intake`.
