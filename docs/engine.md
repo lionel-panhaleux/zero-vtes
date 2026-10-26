@@ -481,7 +481,10 @@ sources to the engine's conventions.
 
 - `Engine::run`: settle interrupts and a deferred oust, draw up, drain
   excess blood (`drain_all_excess`), release hostages and torture, then
-  request; single-option requests auto-apply.
+  request; single-option requests auto-apply. `Engine::elided_passes`,
+  kept for the record reader only (`None` otherwise), notes each lone
+  Pass so (its seat and window): a record's engine that offered the seat
+  more there asked it, and its Pass is read past.
 - Hand size is settled live both ways (rulebook "Drawing Cards": at once):
   discard-down whenever `hand_excess` > 0; draw-up (`settle_draw_up`)
   whenever a hand is below its size with a library to draw from, between

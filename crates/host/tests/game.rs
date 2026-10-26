@@ -1131,6 +1131,96 @@ fn a_pass_in_a_window_gone_is_read_past_and_a_window_newly_asked_stops() {
     assert_eq!(reads(&newer), (k, Some(why.clone()), Some(why)));
 }
 
+/// A Pass recorded by a seat a later engine elides there, its other
+/// options since refused (a second Wall of Filth before rules-qa 99.1), is
+/// read past; the same Pass by a seat it did not elide stops the record.
+#[test]
+fn a_pass_by_a_seat_now_elided_is_read_past() {
+    // A decision with a seat's lone Pass elided before it, not its own.
+    let (record, k, elided) = (2..)
+        .find_map(|seed| {
+            let record = midgame(seed, 30);
+            let replay = zvtes_host::replay::Replay::new(&record).unwrap();
+            let mut e = replay.deal();
+            let mut reader = replay.reader();
+            let mut seen = 0;
+            for k in 0.. {
+                let zvtes::game::Step::Decision(req) = e.run() else {
+                    return None;
+                };
+                let notes = e.elided_passes.as_deref().unwrap();
+                if let Some(&(seat, window)) = notes[seen..]
+                    .iter()
+                    .find(|(s, w)| *s != req.seat && *w == req.window)
+                {
+                    return Some((record, k, (seat.0, window)));
+                }
+                seen = notes.len();
+                let Some(Ok(i)) = reader.next(&e, &req) else {
+                    return None;
+                };
+                e.choose(i);
+            }
+            None
+        })
+        .unwrap();
+    let at = decision_entries(&record);
+    let pass = at
+        .iter()
+        .find_map(|&i| match &record.entries[i] {
+            Entry::Decision { choice, .. } if choice.kind == OptionKind::Pass => {
+                Some(choice.clone())
+            }
+            _ => None,
+        })
+        .expect("a pass");
+    let Entry::Decision {
+        decision,
+        seat,
+        window,
+        digest,
+        ..
+    } = record.entries[at[k]].clone()
+    else {
+        unreachable!()
+    };
+    assert_eq!(window, Some(zvtes_host::ids::window(elided.1)));
+    // A Pass there before the decision asked, as an older engine recorded
+    // it, every number after it one up.
+    let older = |by: u8| {
+        let mut older = record.clone();
+        for e in &mut older.entries[at[k]..] {
+            match e {
+                Entry::Decision { decision: n, .. } => *n += 1,
+                Entry::Undo { to, .. } => *to += 1,
+                _ => {}
+            }
+        }
+        older.entries.insert(
+            at[k],
+            Entry::Decision {
+                decision,
+                seat: by,
+                at: 0,
+                option: 0,
+                choice: pass.clone(),
+                by: zvtes_api::record::By::Bot,
+                forced: false,
+                shown: None,
+                window,
+                digest: digest.clone(),
+            },
+        );
+        older
+    };
+    let (read, stopped, _) = reads(&older(elided.0));
+    assert_eq!((read, stopped), (at.len(), None), "read past the Pass");
+    let other = (0..4).find(|&s| s != elided.0 && s != seat).unwrap();
+    let why = format!("decision {decision}: seat {seat} asked, the record's is seat {other}'s");
+    let (read, stopped, _) = reads(&older(other));
+    assert_eq!((read, stopped), (k, Some(why)), "a seat not elided");
+}
+
 /// The digest is stable (docs/protocol.md §11): a fixed deal's first
 /// decisions, pinned. It moves only when the position does (the four
 /// precons' lists, the dealing, the first turns' rules); its definition is

@@ -214,6 +214,12 @@ impl Session {
         self.engine.short_declines = Some(Vec::new());
     }
 
+    /// Keep the engine's elided Passes (`Engine::elided_passes`), for a
+    /// record read back.
+    pub(crate) fn keep_elided_passes(&mut self) {
+        self.engine.elided_passes = Some(Vec::new());
+    }
+
     pub fn engine(&self) -> &Engine {
         &self.engine
     }

@@ -251,12 +251,15 @@ impl Replay {
         }
         // The game goes on from here as any other (`Start::position`).
         e.short_declines = None;
+        e.elided_passes = None;
         (e, n, consumed)
     }
 
-    /// The game as dealt.
+    /// The game as dealt, keeping its elided Passes for the reader
+    /// (`Engine::elided_passes`).
     pub fn deal(&self) -> Engine {
         let mut e = deal(self.seed, self.time_limit, &self.decks);
+        e.elided_passes = Some(Vec::new());
         if self.reopens {
             e.short_declines = Some(Vec::new());
         }
@@ -292,6 +295,7 @@ impl Replay {
             replay: self,
             next: 0,
             declines: 0,
+            elided: 0,
             round: None,
         }
     }
@@ -339,6 +343,9 @@ pub struct Reader<'a> {
     /// The engine's short declines read past so far
     /// (`Engine::short_declines`).
     declines: usize,
+    /// The engine's elided Passes looked at so far
+    /// (`Engine::elided_passes`).
+    elided: usize,
     /// A reopened block window's round a play interrupted (`Reader::next`).
     round: Option<Vec<Reasked>>,
 }
@@ -389,7 +396,7 @@ impl Reader<'_> {
             self.read_round(round);
         }
         let notes = e.short_declines.as_deref().unwrap_or_default();
-        for asked in &notes[self.declines.min(notes.len())..] {
+        for asked in &notes[self.declines..] {
             // A seat offered only futile attempts was not asked before
             // rules-qa 73.8 either (`Replay::elided`).
             let round = asked
@@ -400,6 +407,25 @@ impl Reader<'_> {
             self.read_round(round);
         }
         self.declines = notes.len();
+        // A Pass recorded by a seat this engine elided in that window since
+        // the last decision is read past (a second Wall of Filth, refused
+        // by rules-qa 99.1, the seat left a lone Pass): as sure as the
+        // digest of the decision after it (`past`). Never the seat now
+        // asked: its Pass there may be this decision, the record's engine
+        // having elided it too.
+        let elided = e.elided_passes.as_deref().unwrap_or_default();
+        for &(seat, window) in &elided[self.elided..] {
+            let window = crate::ids::window(window);
+            if self.replay.decisions.get(self.next).is_some_and(|d| {
+                d.seat == seat.0
+                    && d.seat != req.seat.0
+                    && d.window == Some(window)
+                    && d.choice.kind == zvtes_api::ids::OptionKind::Pass
+            }) {
+                self.next += 1;
+            }
+        }
+        self.elided = elided.len();
         // Before rules-qa 88.5, Anarch Revolt's burn was ordered among the
         // unlock-phase riders: a rider's order recorded there that the
         // engine no longer asks (the Revolt not offered, a lone rider
@@ -599,8 +625,9 @@ pub enum Step {
 pub struct Replayer {
     replay: Replay,
     next: usize,
-    /// `Reader::declines` and `round`, kept between steps.
+    /// `Reader::declines`, `elided` and `round`, kept between steps.
     declines: usize,
+    elided: usize,
     round: Option<Vec<Reasked>>,
     session: Session,
     viewer: Viewer,
@@ -615,6 +642,7 @@ impl Replayer {
         let agents = (0..replay.seats()).map(|_| None).collect();
         let mut session =
             Session::new(replay.seed, replay.time_limit, replay.decks.clone(), agents);
+        session.keep_elided_passes();
         if replay.reopens {
             session.keep_short_declines();
         }
@@ -626,6 +654,7 @@ impl Replayer {
             replay,
             next: 0,
             declines: 0,
+            elided: 0,
             round: None,
             session,
             viewer,
@@ -760,6 +789,7 @@ impl Replayer {
             replay: &self.replay,
             next: self.next,
             declines: self.declines,
+            elided: self.elided,
             round: self.round.clone(),
         };
         match reader.next(e, &req) {
@@ -768,6 +798,7 @@ impl Replayer {
             Some(Ok(i)) => {
                 self.next = reader.next;
                 self.declines = reader.declines;
+                self.elided = reader.elided;
                 self.round = reader.round;
                 self.pending = Some(i);
                 read.chosen = Some(i);

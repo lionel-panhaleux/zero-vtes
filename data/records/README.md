@@ -31,23 +31,25 @@ the block window an engine before rules-qa 82.1 reopened after an attempt
 failed short of the stealth, its passes through the blocker read past, and
 after a play there (read as the engine asks it) the round of passes that
 closed it; the unlock riders' order recorded for Anarch Revolt before rules-qa
-88.5, a rider the engine offers by its key only; and the options a record's
+88.5, a rider the engine offers by its key only; the options a record's
 protocol did not offer yet (`Then`: the burn option of a master card requiring
 a ready Seraph before 2.12.0, a withdrawal before 2.13.0, a path before
 2.14.0, the combat windows of a Methuselah outside the combat before 2.15.0,
-rules-qa 96's before 2.16.0). A record a rules change stops for good — it took
-a choice the rules now refuse (an attempt after its blocker's decline,
-rules-qa 82.1), or the change moved its hidden state (the library a
-diablerie's Discipline search shuffles, advanced rules 4), or, from before
-2.4.0, which records no windows, it is read past a window the engine no longer
-asks — is listed in `crates/host/tests/records.rs` (`KNOWN_STOPS`: the file,
-the decision, the change), asserted to stop exactly there: `…10-08T21-17-05`
-at decision 215, the second Wall of Filth its owner was offered (rules-qa
-99.1). Each converted game names the engine commit its wasm was built from
-below — check out that commit to read it as it was played. These converted
-games carry neither their bots' nudges nor their turn count (the Bots column
-says the run); a server record does from protocol 1.7.0 on (`bots[].nudges`,
-`result.turns`).
+rules-qa 96's before 2.16.0); and a Pass recorded by a seat the engine now
+elides there (`Engine::elided_passes`; a second Wall of Filth, refused by
+rules-qa 99.1, left the seat a lone Pass), as sure as the digest after it. A
+record a rules change stops for good — it took a choice the rules now refuse
+(an attempt after its blocker's decline, rules-qa 82.1), or the change moved
+its hidden state (the library a diablerie's Discipline search shuffles,
+advanced rules 4), or, from before 2.4.0, which records no windows, it is read
+past a window the engine no longer asks — is listed in
+`crates/host/tests/records.rs` (`KNOWN_STOPS`: the file, the decision, the
+change), asserted to stop exactly there: `…10-08T21-17-05` at decision 215,
+the second Wall of Filth its owner was offered (rules-qa 99.1). Each converted
+game names the engine commit its wasm was built from below — check out that
+commit to read it as it was played. These converted games carry neither their
+bots' nudges nor their turn count (the Bots column says the run); a server
+record does from protocol 1.7.0 on (`bots[].nudges`, `result.turns`).
 
 | File (`.json`) | Engine | Seats (in order; the human's in bold) | Bots | Result |
 |---|---|---|---|---|

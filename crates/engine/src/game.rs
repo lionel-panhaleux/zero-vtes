@@ -258,6 +258,11 @@ pub struct Engine {
     /// (`Reasked`), for a record reader. `None`, the default, keeps
     /// nothing.
     pub short_declines: Option<Vec<Vec<Reasked>>>,
+    /// Each window `run` elided at a lone Pass, its seat and window, for a
+    /// record reader: an engine offering that seat more there asked it (a
+    /// second Wall of Filth before rules-qa 99.1). `None`, the default,
+    /// keeps nothing.
+    pub elided_passes: Option<Vec<(SeatId, WindowLabel)>>,
     /// A pair's strikes note waiting for the strike a first strike held
     /// back (`CombatCtx::held_strike`): one note a pair.
     pub(crate) held_note: Option<crate::combat::CombatNote>,
@@ -586,6 +591,7 @@ impl Engine {
             cause: None,
             interrupt_causes: Vec::new(),
             short_declines: None,
+            elided_passes: None,
             held_note: None,
             held_at: None,
             notes_drained: 0,
@@ -886,6 +892,11 @@ impl Engine {
                     );
                     if req.options.len() == 1 {
                         let choice = req.options[0];
+                        if let Some(notes) = self.elided_passes.as_mut() {
+                            if choice == Choice::Pass {
+                                notes.push((req.seat, req.window));
+                            }
+                        }
                         self.record(&req, &choice);
                         self.settle_ash_play(&req, &choice);
                         self.apply(&choice);
