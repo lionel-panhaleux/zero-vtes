@@ -2710,19 +2710,19 @@ impl Engine {
         if std::mem::take(&mut self.state.in_minion_phase) {
             self.release_held(Release::MinionPhaseEnd);
         }
-        // The end of the turn: the Red List marks lapse, Andre LeRoux's
-        // bleed too, Enkidu unlocks.
+        // The end of the turn: the Red List marks lapse, the bonuses until
+        // then too (Andre LeRoux's bleed), Enkidu unlocks.
         self.state.red_list_marks.clear();
         self.state.chosen_this_turn.clear();
         for i in 0..self.state.minions.len() {
-            self.state.minions[i].bleed_bonus_turn = 0;
             self.state.minions[i].next_action_stealth = 0;
+            let unlocks = self.state.minions[i].timed.iter().any(|&(l, until, _)| {
+                l == crate::cards::Lasting::UnlockAtEndOfTurn && until == Expiry::EndOfTurn
+            });
             self.state.minions[i]
                 .timed
                 .retain(|&(_, until, _)| until != Expiry::EndOfTurn);
-            if std::mem::take(&mut self.state.minions[i].unlock_end_of_turn)
-                && self.state.minions[i].present()
-            {
+            if unlocks && self.state.minions[i].present() {
                 self.state.unlock(MinionId(i as u32));
             }
         }

@@ -9010,8 +9010,12 @@ impl Engine {
                 }
                 Effect::HostBleedThisTurn(n) => {
                     if let Some(h) = host {
-                        let v = &mut self.state.minions[h.index()];
-                        v.bleed_bonus_turn = v.bleed_bonus_turn.saturating_add(n);
+                        let seat = self.state.active;
+                        self.state.minions[h.index()].timed.push((
+                            cards::Lasting::Bleed(n as i8),
+                            Expiry::EndOfTurn,
+                            seat,
+                        ));
                     }
                 }
                 // The Baron: the hands of those with a ready Giovanni.

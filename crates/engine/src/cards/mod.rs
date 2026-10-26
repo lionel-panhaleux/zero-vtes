@@ -2942,6 +2942,12 @@ pub enum Lasting {
     /// Its hand strikes' damage is aggravated (Mantle of the Bestial
     /// Majesty).
     AggravatedHands,
+    /// Bleed added (Andre LeRoux).
+    Bleed(i8),
+    /// Unlocks as `next_turn` sweeps it, pushed with `Expiry::EndOfTurn`
+    /// only (`GameState::unlock_at_end_of_turn`: Enkidu, The Noah's
+    /// employ, NRA PAC's equipping).
+    UnlockAtEndOfTurn,
 }
 
 /// Continuous-effect modifiers carried by layers.

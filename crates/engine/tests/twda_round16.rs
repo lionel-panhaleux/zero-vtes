@@ -436,7 +436,12 @@ fn night_moves_burns_one_pool_at_most() {
     e.add_minion(SeatId(0), plain("Brujah", 0), 4, false);
     e.add_minion(SeatId(1), plain("Ventrue", 0), 4, true);
     e.add_minion(SeatId(2), plain("Ventrue", 1), 4, true);
-    e.state.minions[n.index()].bleed_bonus_turn = 1;
+    let seat = e.state.active;
+    e.state.minions[n.index()].timed.push((
+        zvtes::cards::Lasting::Bleed(1),
+        zvtes::state::Expiry::EndOfTurn,
+        seat,
+    ));
     hand(&mut e, 0, &["Night Moves"]);
     pick(&mut e, play_at(0, 0, n, Target::Seat(SeatId(1))));
     until(&mut e, SeatId(1), WindowLabel::MinionPhase);
@@ -469,7 +474,12 @@ fn wrong_and_crosswise_reduces_a_bleed_by_two() {
     let a = e.add_minion(SeatId(0), plain("Brujah", 0), 4, false);
     e.add_minion(SeatId(0), plain("Brujah", 1), 4, false);
     let d = e.add_minion(SeatId(1), vampire_with("dem", 0), 4, false);
-    e.state.minions[a.index()].bleed_bonus_turn = 2;
+    let seat = e.state.active;
+    e.state.minions[a.index()].timed.push((
+        zvtes::cards::Lasting::Bleed(2),
+        zvtes::state::Expiry::EndOfTurn,
+        seat,
+    ));
     hand(&mut e, 1, &["Wrong and Crosswise"]);
     pick(&mut e, bleed(a));
     pick_when(&mut e, play(0, 0, d));
@@ -585,7 +595,10 @@ fn nra_pac_unlocks_a_search_equip_but_not_a_move_from_another_minion() {
     decline_futile(&mut e);
     until(&mut e, SeatId(0), WindowLabel::MinionPhase);
     assert_eq!(e.state.cards[vest.index()].host, Some(b));
-    assert!(!e.state.minions[b.index()].unlock_end_of_turn);
+    assert!(!e.state.minions[b.index()]
+        .timed
+        .iter()
+        .any(|&(l, ..)| l == zvtes::cards::Lasting::UnlockAtEndOfTurn));
     let card = e
         .state
         .cards
@@ -596,7 +609,10 @@ fn nra_pac_unlocks_a_search_equip_but_not_a_move_from_another_minion() {
     decline_futile(&mut e);
     pick_when(&mut e, Choice::FindCard(find_library("Kevlar Vest")));
     until(&mut e, SeatId(0), WindowLabel::MinionPhase);
-    assert!(e.state.minions[p.index()].unlock_end_of_turn);
+    assert!(e.state.minions[p.index()]
+        .timed
+        .iter()
+        .any(|&(l, ..)| l == zvtes::cards::Lasting::UnlockAtEndOfTurn));
 }
 
 // Smash and Grab: "[ani] Burn 2 life from an ally or retainer. [pot] Burn a

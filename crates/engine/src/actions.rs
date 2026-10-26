@@ -724,7 +724,7 @@ impl ActionCtx {
             .bleed_target
             .map_or(0, |t| st.bleed_against_mod(self.acting, t));
         let n = (st.base_bleed(self.acting) as i32
-            + st.minions[self.acting.index()].bleed_bonus_turn as i32
+            + st.lasting_bleed(self.acting)
             + against
             + self.bleed_mods as i32
             + self.conditional_bonus(st, cards::Stat::Bleed, None)
@@ -6670,7 +6670,7 @@ impl Engine {
                 .is_some()
         {
             let m = a.acting;
-            self.state.minions[m.index()].unlock_end_of_turn = true;
+            self.state.unlock_at_end_of_turn(m);
         }
         // The hands looked at during the action (SchreckNET).
         self.state.peeks.clear();
@@ -7120,7 +7120,7 @@ impl Engine {
                 crate::state::PrintedCtx::default(),
             ) > 0
         {
-            self.state.minions[acting.index()].unlock_end_of_turn = true;
+            self.state.unlock_at_end_of_turn(acting);
         }
         let life = def.modes[play.mode as usize]
             .effects

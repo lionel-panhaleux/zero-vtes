@@ -404,15 +404,11 @@ pub struct Minion {
     pub unlock_at_discard: bool,
     /// As `unlock_at_discard`, if then of this clan (Crusade: Istanbul).
     pub unlock_at_discard_if: Option<&'static str>,
-    /// Bleed added until the end of the turn (Andre LeRoux).
-    pub bleed_bonus_turn: u8,
     /// Became Black Hand in play (Mateusz Kazimirski).
     pub gained_black_hand: bool,
     /// Bonuses lasting until an expiry, the seat whose phase ends them
     /// (Dive into Madness [dem], Gear Up).
     pub timed: Vec<(crate::cards::Lasting, Expiry, SeatId)>,
-    /// Unlocks at the end of the turn (Enkidu, The Noah's employ).
-    pub unlock_end_of_turn: bool,
     /// Stealth its next action this turn gets, taken as it is declared
     /// (Tangle Atropos' Hand [TEM]).
     pub next_action_stealth: u8,
@@ -613,10 +609,8 @@ impl Minion {
             played_since_unlock: Vec::new(),
             unlock_at_discard: false,
             unlock_at_discard_if: None,
-            bleed_bonus_turn: 0,
             gained_black_hand: false,
             timed: Vec::new(),
-            unlock_end_of_turn: false,
             next_action_stealth: 0,
             chosen_circle: None,
             discard_unlock: None,
@@ -2230,7 +2224,7 @@ impl GameState {
             ..PrintedCtx::default()
         };
         (self.base_bleed(m) as i32
-            + self.minions[m.index()].bleed_bonus_turn as i32
+            + self.lasting_bleed(m)
             + self.bleed_against_mod(m, prey)
             + self.bearer_mod(m, Stat::Bleed, ActionKind::Bleed)
             + self.printed_mod(m, Stat::Bleed, ctx))
@@ -2245,10 +2239,37 @@ impl GameState {
             .fold((0, 0), |(st, sg), &(l, ..)| match l {
                 crate::cards::Lasting::Stealth(n) => (st + n as i32, sg),
                 crate::cards::Lasting::Strength(n) => (st, sg + n as i32),
-                crate::cards::Lasting::Superior(_) | crate::cards::Lasting::AggravatedHands => {
-                    (st, sg)
-                }
+                crate::cards::Lasting::Superior(_)
+                | crate::cards::Lasting::AggravatedHands
+                | crate::cards::Lasting::Bleed(_)
+                | crate::cards::Lasting::UnlockAtEndOfTurn => (st, sg),
             })
+    }
+
+    /// The bleed `m`'s lasting bonuses add (`Minion::timed`).
+    pub fn lasting_bleed(&self, m: MinionId) -> i32 {
+        self.minions[m.index()]
+            .timed
+            .iter()
+            .map(|&(l, ..)| match l {
+                crate::cards::Lasting::Bleed(n) => n as i32,
+                _ => 0,
+            })
+            .sum()
+    }
+
+    /// `m` unlocks at the end of the turn (`Lasting::UnlockAtEndOfTurn`).
+    pub fn unlock_at_end_of_turn(&mut self, m: MinionId) {
+        let seat = self.active;
+        let timed = &mut self.minions[m.index()].timed;
+        let entry = (
+            crate::cards::Lasting::UnlockAtEndOfTurn,
+            Expiry::EndOfTurn,
+            seat,
+        );
+        if !timed.contains(&entry) {
+            timed.push(entry);
+        }
     }
 
     /// Strength before modifiers (rulebook "Hand Strike": vampires have a

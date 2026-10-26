@@ -181,9 +181,19 @@ fn camaraderie_reduces_more_beside_the_circle() {
         let z = e.add_minion(SeatId(1), plain("Ventrue", 0), 4, false);
         e.add_minion(SeatId(1), plain("Ventrue", 1), 4, false);
         hand(&mut e, 0, &["Camaraderie"]);
-        e.state.minions[z.index()].bleed_bonus_turn = 3;
+        let seat = e.state.active;
+        e.state.minions[z.index()].timed.push((
+            zvtes::cards::Lasting::Bleed(3),
+            zvtes::state::Expiry::EndOfTurn,
+            seat,
+        ));
         until(&mut e, SeatId(1), WindowLabel::MinionPhase);
-        e.state.minions[z.index()].bleed_bonus_turn = 3;
+        let seat = e.state.active;
+        e.state.minions[z.index()].timed.push((
+            zvtes::cards::Lasting::Bleed(3),
+            zvtes::state::Expiry::EndOfTurn,
+            seat,
+        ));
         e.state.minions[b.index()].locked = !other_unlocked;
         pick(&mut e, bleed(z));
         let req = offering(&mut e, play(0, 0, a));
@@ -2101,7 +2111,10 @@ fn nra_pac_unlocks_equippers() {
     hand(&mut e, 0, &["Monocle of Clarity"]);
     pick(&mut e, play(0, 0, viri));
     decline_futile(&mut e);
-    assert!(e.state.minions[viri.index()].unlock_end_of_turn);
+    assert!(e.state.minions[viri.index()]
+        .timed
+        .iter()
+        .any(|&(l, ..)| l == zvtes::cards::Lasting::UnlockAtEndOfTurn));
     e.state.cards[pac.index()].in_play = false;
     until(&mut e, SeatId(1), WindowLabel::MinionPhase);
     assert!(!e.state.minions[viri.index()].locked);

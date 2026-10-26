@@ -169,8 +169,10 @@ fields (`combat_open_hand`, `no_transfers_next`, `transfers_next`,
 `mpa_next`, `veil_left`).
 
 **Timed minion bonuses.** `Minion::timed`: `(Lasting, Expiry, SeatId)`
-entries — `Lasting::{Stealth, Strength, Superior(discipline)}` — read by
-`GameState::lasting` (stealth, strength) and the Discipline level, swept
+entries — `Lasting::{Stealth, Strength, Superior(discipline), Bleed,
+AggravatedHands, UnlockAtEndOfTurn}` — read by `GameState::lasting`
+(stealth, strength), `lasting_bleed` (Andre LeRoux's bleed this turn), the
+Discipline level and the combat's hand strike damage (aggravated), swept
 beside `Seat::timed`: `EndOfTurn` in `next_turn`, `UnlockPhase` in
 `start_turn` and `MasterPhase` in `start_master_phase` for the seat
 recorded (the controller's, "until your unlock phase", Camarilla Vitae
@@ -179,8 +181,9 @@ flight, a superior Discipline for the round), `Round` and `Combat` for
 every minion in `GameState::leave_combat`, which every combat end passes
 through (a Psyche! or Coordinate Attacks combat next included). Not `Timed` (a numeric table,
 and a Discipline is not a number) nor a layer (`Scope` has no turn
-scope). Dive into Madness [dem], Gear Up. Folding `bleed_bonus_turn` and
-`unlock_end_of_turn` into it is an engine board line.
+scope). Dive into Madness [dem], Gear Up. An `UnlockAtEndOfTurn` entry
+(`GameState::unlock_at_end_of_turn`: Enkidu, The Noah's employ) unlocks its
+minion as `next_turn` sweeps it.
 
 **Layers.** `Layer { scope: InPlay | Action, modifier, source }` in
 `GameState::layers`, pushed by `Effect::Layer` / `Effect::ActionLayer` and
