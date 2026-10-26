@@ -3618,7 +3618,7 @@
         "type": "object"
       },
       "MarkerKind": {
-        "description": "Public state on a minion beyond blood and cards (completed with\nthe host, A3).",
+        "description": "Public state on a minion beyond blood and cards.",
         "oneOf": [
           {
             "enum": [
@@ -5027,7 +5027,7 @@
         "type": "object"
       },
       "Role": {
-        "description": "What a chosen minion or Methuselah becomes for the card choosing it\n(completed with the host, A3).",
+        "description": "What a chosen minion or Methuselah becomes for the card choosing it.",
         "oneOf": [
           {
             "const": "does_not_unlock",

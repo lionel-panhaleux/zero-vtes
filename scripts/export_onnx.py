@@ -1,4 +1,4 @@
-"""Export the policy network to ONNX (docs/human-play.md, slice 3).
+"""Export the policy network to ONNX (docs/online-plan.md "The bots").
 
     uv run --with onnx --with onnxscript --with onnxruntime \
         python scripts/export_onnx.py [runs/p4-critic/model.pt] --out /tmp/policy.onnx

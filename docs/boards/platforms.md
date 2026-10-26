@@ -4,8 +4,8 @@ Goal: the engine played where players already are, first Succubus Club,
 with guidance and never an unnatural advantage (roadmap objective C and
 the community beta). Skill: `sc-change`. Docs: `docs/platforms/sc.md`
 (Thomas's style, branches, PRs, recipes, traps),
-`docs/protocol.md` (all a platform reads), `docs/human-play.md` (how the
-first fork was built; its "Checks" and "Running the fork" are current).
+`docs/protocol.md` (all a platform reads), `docs/human-play.md` (the
+human seat, the fork's interface, "Checks" and "Running the fork").
 Platforms read the protocol only: a platform inferring what the protocol
 could say is an engine-board line.
 

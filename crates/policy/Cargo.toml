@@ -4,7 +4,7 @@ version = "0.0.1"
 edition = "2021"
 license = "MIT"
 
-# The trained policy's inference, by hand (docs/human-play.md slice 3): no
+# The trained policy's inference, by hand (docs/online-plan.md "The bots"): no
 # third-party dependency, so the bot runs wherever the engine does (a
 # server); the profiles a host offers beside it.
 # Mirrors `train/model.py`'s `Policy.forward` — keep them in step

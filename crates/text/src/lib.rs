@@ -1,4 +1,4 @@
-//! The contract in English: events (and options, A7) rendered from their
+//! The contract in English: events and options rendered from their
 //! data alone, with the names a client knows — card names by KRCG id
 //! (`Cards`), seats and minions from the views and events it was sent
 //! (`Names`). What the host sends with the `text` setting is this.

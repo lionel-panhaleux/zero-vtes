@@ -3,7 +3,8 @@
 //! events since applied (`reduce`); an action is told ended before the
 //! next is announced, a combat begun, its strikes, then ended. Every copy
 //! an event names is numbered; English only when the settings ask, and
-//! then what `zvtes_text` renders from the event's data (A7's oracle).
+//! then what `zvtes_text` renders from the event's data (the renderer's
+//! oracle).
 
 use std::collections::HashMap;
 

@@ -429,10 +429,10 @@ fn parity_shift_chooses_a_richer_methuselah_and_reallocates_a_shortfall() {
 }
 
 // `Engine::allocation`: the allocation under way whole, for a client's
-// menu (docs/human-play.md 2.12) — points left, recipients in the order
-// the decisions ask them, caps and the minimum of recipients; the terms'
-// allocation (Camarilla's Iron Fist: two or more Methuselahs), and a
-// shortfall's re-allocation (Parity Shift: capped by the terms).
+// menu (docs/protocol.md §7, `allocation`) — points left, recipients in
+// the order the decisions ask them, caps and the minimum of recipients;
+// the terms' allocation (Camarilla's Iron Fist: two or more Methuselahs),
+// and a shortfall's re-allocation (Parity Shift: capped by the terms).
 #[test]
 fn the_allocation_under_way_is_read_whole() {
     use zvtes::referendum::{Allocation, Recipient};

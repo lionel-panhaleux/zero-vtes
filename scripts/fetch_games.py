@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
-"""Pull the engine server's game records (docs/online-plan.md B4): the
-games recorded since a date, of an engine commit, each written as
+"""Pull the engine server's game records (docs/online-plan.md "Records and
+logging"): the games recorded since a date, of an engine commit, each written as
 `<out>/<game id>.json` — what training reads (`--bc`, `--starts`,
 `train.assess`) like the corpus (`data/records`). Records already pulled
 are kept unless the server has more of them (a game still going then).

@@ -1,280 +1,225 @@
-# Online play — plan (P6, 2026-10-13)
+# Online play: the architecture
 
-> Open items are lines of docs/boards/engine.md and docs/boards/platforms.md.
+The engine and its bots served online at `https://engine.krcg.org`, so
+the games other players play grow the testing vector without anyone
+exporting a replay. The contract a client reads is
+[`protocol.md`](protocol.md); this page is how it is built and served,
+and what the owner settled. Open work is in the boards
+([`boards/engine.md`](boards/engine.md),
+[`boards/platforms.md`](boards/platforms.md)) and the
+[roadmap](roadmap.md) (its ranking and "Deferred by the owner"): the
+order of work is theirs.
 
-The engine and its bots served online, so other players' games grow the
-testing vector without anyone exporting a replay. Five workstreams: the
-architecture and the contract (A); a multi-game server that logs every
-game, on frankfurt (B); Succubus Club (C): the fork its own platform on
-frankfurt, bots only, agreed with SC's author (D), the upstream PR
-deferred (roadmap "Deferred by the owner"); a demo video (E). Supersedes
-`docs/human-play.md` slice 5.
+## Settled
 
-The owner's frame (2026-10-13): the cleanest result, not the shortest
-path — clear boundaries, minimal dependencies, refactors welcome; what
-was built so far need not be preserved.
+The owner's (2026-10-13 unless dated), holding until the owner changes
+them:
 
-## Settled (owner, 2026-10-13)
-
-1. **The server is authoritative** for online games: the game runs on
-   our server, bots included; the browser is a client. Logging is a side
-   effect, hidden information stays hidden, one engine version serves
-   everyone and every game names its commit. (`crates/wasm` was to stay
-   for offline play; owner, 2026-10-14: removed, the server is the only
-   host — Succubus Club's in-browser engine went with it.)
-2. **v1 = one human + bots** per game; the API is per seat from day one
-   (multi-human additive, gated on a redaction audit).
+1. **The server is authoritative**: the game runs on the server, bots
+   included; a browser is a client. Logging is a side effect, hidden
+   information stays hidden, one engine version serves everyone and
+   every game names its commit. The server is the only host (owner,
+   2026-10-14: the in-browser wasm engine removed, Succubus Club's with
+   it).
+2. **One human and bots** a game; the API per seat from the start, so
+   several humans are additive, gated on a redaction audit (roadmap
+   "Deferred by the owner").
 3. **Domain**: `engine.krcg.org`.
-4. **Game logs in Postgres** on frankfurt (nightly restic backups).
-5. **Retention**: games kept 2 years for training — said in the client's
-   notice; a purge job in the server.
-6. **SC's author agreed** (2026-10-21): the fork is its own platform,
-   bots only for now; the upstream PR deferred.
-7. **Repo public** after the demo video (Order 5).
-8. **Copies per viewer** (no information leak), cards in hidden places
-   unnumbered; face-up cards labelled `nth` ("Embrace #2"). Engine copy
-   ids underneath.
-9. **Ids are snake_case strings.**
-10. **Data first**: the platform composes its display; English text is an
-    optional rendering (`text` setting), produced by a renderer that
-    reads only `api` types.
-11. **The only human ousted ends the game** (the bots do not play on).
-12. The Opus review of 2026-10-13 (contract, plan): every recommendation
-    adopted.
-
-## The host
-
-frankfurt: an OVH VPS, 6 vCPU / 12 GB, shared with archon beta and the
-forum (Discourse); pyinfra-deployed systemd units behind nginx and
-certbot, sops secrets, Alloy to Loki and Prometheus, Postgres 17 with
-nightly restic backups to Scaleway, UFW 22/80/443 only. The engine's
-Rust ships as a GitHub Actions release asset, never built there
-(`deploy/deploy.py`, port 8040); the Succubus Club fork is built there,
-niced, and served as a static site at sc-bot.krcg.org
-(`deploy/sc_bot.py`, server-setup's `spa` nginx site).
+4. **Game records in Postgres** on frankfurt, backed up nightly.
+5. **Retention**: games kept 2 years for training, as the client's
+   notice says; the server purges older ones.
+6. **Succubus Club**: the fork is its own platform, bots only for now,
+   agreed with SC's author (2026-10-21); the upstream PR deferred.
+7. **Copies per viewer** (no information leak), cards in hidden places
+   unnumbered; face-up cards labelled `nth` ("Embrace #2"); the engine's
+   copy ids underneath.
+8. **Ids are snake_case strings.**
+9. **Data first**: the platform composes its display; English text is
+   an optional rendering (the `text` setting), by a renderer that reads
+   only `api` types.
+10. **The only human ousted ends the game** (the bots do not play on).
+11. **Clean boundaries over the shortest path**: minimal dependencies
+    between crates, refactors welcome.
 
 ## Architecture
 
 ### Crates and dependencies
 
-```
-            api  (serde only; schemars behind a feature)
-           ↗  ↑  ↖
-engine ← host   text (api + card names: the English renderer)
-   ↑      ↑ ↖  ↗
-policy ───┴─ server (axum, tokio, sqlx: api + host + text + policy)
-   ↑
-   py (training: engine + policy + host's replayer)
+| Crate | Depends on | What |
+|---|---|---|
+| `engine` (lib `zvtes`) | nothing | the rules; `Agent: Send`; card copy ids, behaviour-neutral |
+| `env` | engine | between the engine and an agent: observations, habits, default politics, the scripted bots |
+| `api` | serde (schemars and serde_json behind `schema`) | the contract as types, no engine |
+| `text` | api | the English renderer |
+| `host` | engine, env, api, text | engine → api: a game behind the contract |
+| `policy` | engine, env, api, host | the network's inference and its bot profiles |
+| `server` | engine, api, host, policy (axum, tokio, sqlx) | a thin shell over the host |
+| `py` | engine, env, policy, api, host (pyo3) | training; human games through the host's `Replayer` |
 
-policy: engine + host + api (its profiles implement host's Bots)
-```
+`server` and `py` are not default workspace members: plain cargo
+commands stay off their dependencies.
 
-- **`engine`** — the rules, no dependencies. `Agent: Send`. Card copy
-  ids (A9), behaviour-neutral.
-- **`policy`** — inference (`Arc<Net>`, one copy of the weights for every
-  game) and the network **bot profiles** (weights, temperature, nudges, by
-  name: `profiles`), implementing `host`'s `Bots` trait (so it depends on
-  `host` and `api` too); the scripted styles stay in `host` (`BUILT_IN`).
-- **`api`** — the contract as types: `In`/`Command`, `Out`/`Message`,
-  `GameSpec`, `Settings`, `TableView`, `OptionView` (`ChoiceKey` +
-  `effects`), typed `Event`, `GameRecord`, errors, `PROTOCOL_VERSION`.
-  No engine. `schema.json`, `openapi.json` and `protocol.ts` are
-  generated from it (`schema` example, `scripts/gen_ts.py`), checked in,
-  `--check`ed; the server shows them at `/docs`.
-- **`host`** (what `protocol` becomes) — engine → api: describing options
-  as keys and effects, narration as typed events, views, per-viewer
-  copies and `nth`, decks by KRCG id and the catalog, the ergonomics
-  layer (undo, opportunities, allocations, vote orders), records and
-  their `Replayer`. One entrypoint, `Game::handle(seat, In) -> Vec<(seat,
-  Out)>`, emitting step by step; an injected clock and a step budget.
-  Bots through the `Bots` trait: no `policy` dependency.
-- **`text`** — the English renderer over `api` types and a card-name
-  table: `render(&OptionView)`, events, prompts. The owner-tuned wording
-  of `describe`/`purpose`/`narrate` re-expressed over data; their tests
-  (`tests/prompts.rs`) become its oracle, and prove the data complete.
-- **`server`** — a thin shell over `handle`.
-- **`py`** — training: `engine` + `policy`; human games through `host`'s
-  `Replayer` (engine, request, chosen index, key per decision).
+- **`api`**: `In`/`Command`, `Out`/`Message`, `GameSpec`, `Settings`,
+  `TableView`, `OptionView` (`ChoiceKey` + `effects`), typed `Event`,
+  `GameRecord`, errors, `PROTOCOL_VERSION`. `schema.json`,
+  `openapi.json` and `protocol.ts` are generated from it (its `schema`
+  example, `scripts/gen_ts.py`), checked in and `--check`ed; the server
+  shows them at `/docs`.
+- **`host`**: options described as keys and effects
+  (`describe.rs`), narration as typed events (`narrate.rs`,
+  `events.rs`), views and the per-viewer copies (`view.rs`,
+  `numbering.rs`), decks by KRCG id and the catalog (`deck.rs`), the
+  human seat's ergonomics (undo, opportunities, allocations, vote
+  orders: `session.rs`; human-play.md "The host's human ergonomics"),
+  records and their reading (`replay.rs`), training starts from
+  records (`start.rs`). One entrypoint, `Game::handle(seat, In) ->
+  Vec<Out>`, emitting step by step; an injected `Clock`; a step budget
+  (an engine loop ends the game `engine_error`, recorded); a panic
+  caught per command ends it the same way. Bots through its `Bots`
+  trait, so no `policy` dependency; the scripted styles are its
+  `BUILT_IN`.
+- **`text`**: options, events, strikes, markers and prompts told from
+  the data a client was sent alone, card names by a `Cards` trait,
+  seats and minions by `Names`; the host's sweeps
+  (`crates/host/tests/events.rs`) prove the data complete by telling
+  every option, decision and event of their games.
+- **`policy`**: inference (`Arc<Net>`, one copy of the weights for every
+  game) and the network bot profiles (`profiles`: weights, temperature,
+  nudges, by name), implementing `host`'s `Bots`.
 
 ### Message model: push
 
-Client → host (`In`: an optional `id` + a `Command`): `join {token?,
-after?}`, `answer`, `allocate`, `vote_all`, `undo {decision}`,
-`settings` (a patch), `leave`.
-
-Host → seat (`Out`: `seq`, `reply_to?` + a `Message`): `joined`,
-`events` (one step each: a decision and what followed, its first event
-`decided` / `auto_passed` / `undone`), `decision`, `over`, `error`.
-
+Client → host: an `In` (an optional `id` + a `Command`); host → seat: an
+`Out` (`seq`, `reply_to`? + a `Message`) — protocol §4 and §5.
 `handle` runs the bots up to the next human decision, emitting each
-step as it goes; the client paces the display. Reconnect = `join
-{after: seq}` from a per-seat buffer, else a fresh `joined`. A settings
-change resends the pending decision.
+step as it goes (an `events` message each); the client paces the
+display. A reconnect is `join {after: seq}` from a per-seat buffer,
+else a fresh `joined`. A settings change resends the pending decision.
 
 ### Contract rules
 
 - **Data first**: stable ids, keys, effects; `text` only on request.
 - **Per seat**: views, events, settings, undo, copies, redaction.
 - **Versioned**: `protocol` (semver) and `engine` (commit) in `joined`
-  and every record; unknown ids read as `unknown`.
+  and every record; unknown ids read as `unknown` (protocol §14).
 - **Views where read**: on `decision`, `over`, `joined`; on every step
-  with `views: steps` (SC's projection animates each move; WebSocket
-  compression on). Events a complete delta stream: view N with its
-  events is view N+1 (protocol.md §9, held on every decision's view).
+  with `views: steps` (a client animating each move). The events are a
+  complete delta stream: view N with its events is view N+1 (protocol
+  §9, held on every decision's view).
+
+### Contract tests
+
+`crates/host/tests/contract.rs`: every message and record of random
+games valid against `schema.json`, a game deterministic byte for byte,
+no message naming a card the seat was never shown; `scripts/check_ts.sh`
+types a game against `protocol.ts` (`tsc --strict`); keys unique
+(`keys.rs`), a record read by key as by index (`game.rs`, `records.rs`),
+an undo's view the view first sent (`events.rs`).
 
 ### The game record
 
-Versions, spec (human names replaced), bot profiles (weights' hash, a
-network's nudges), one entry per decision (seat, time, index,
-`ChoiceKey` with engine copies, by whom, the options shown when
-filtered), undos, settings, typed refusals, result (its end turn) and
-failure. Stored as entries appended (a
-`game_entries` table), not a growing JSONB rewrite. A one-shot
-converter brings the 30 corpus games over; `train/assess.py` and the
-replay example read records through `host`'s `Replayer`; the old reader
-goes. Release binaries and weights archived by tag and hash, so a record
-replays on its commit.
+Versions, the spec (human names replaced), the bot profiles (weights'
+hash, a network's nudges), one entry per decision (seat, time, index,
+`ChoiceKey` with the engine's copies, by whom, the options shown when
+filtered), undos, settings, typed refusals, feedback, the result (its
+end turn) and any failure (protocol §11). Stored as entries appended (a
+`game_entries` row each), not a JSONB document rewritten as it grows.
+`train/assess.py`, `zvtes_py.replay_decisions` and the host's `replay`
+example read records through `host`'s `Replay` / `Replayer`. The
+weights served are archived by hash on the host and the binaries are
+release assets by tag, so a record replays on its commit.
 
 ### Copies
 
-Engine (A9): each card copy numbered at the deal **in decklist order**
-(independent of the seed and the shuffle), carried beside the card in
-every zone (`{card, copy}`, no indirection); out of the state hash, the
-observations and the options' order. Acceptance: perft identical,
-observations bit-identical, goldens unchanged, the 30 corpus games
-replaying by index unchanged.
+Engine (`crates/engine/src/copies.rs`): each card copy numbered at the
+deal in seating, then decklist order (independent of the seed and the
+shuffle), carried beside the card in every zone (`{card, copy}`, no
+indirection); out of the state hash, the observations and the options'
+order.
 
-Host: per viewer, numbered places only (the table, face-up piles, the
-viewer's own hand); hidden places unnumbered; a card coming into sight
-takes a fresh number never used before for that viewer; `nth` the
-lowest free label among visible copies of that card from that deck.
-The map is part of the host's state (snapshotted with the engine for
-undo), events translated as they happen.
+Host: per viewer, numbered places only, a fresh number for a card coming
+into sight, `nth` the lowest free label (protocol §3). The numbering is
+part of the host's state, kept at each decision asked so an undo
+restores it; events are translated as they happen.
 
-## A. Architecture and contract (zero-vtes)
+### The bots
 
-| # | Item |
-|---|---|
-| A1 | `api` + `schema.json` + `protocol.ts` (`scripts/gen_ts.py`) + `docs/protocol.md` — done, reviewed (Opus, 2026-10-13) |
-| A1b | Thin end-to-end slice: `host::Game::handle` (join, answer, events per step, decision, over; data only, today's copies through an adapter), the `wasm` shell, `smoke.mjs` answering by index, a throwaway CLI client — done (2026-10-13): `crates/host` (`Game::handle`, `handle_json`: seq, rejoin, idempotent undo, settings resend, ousted human ends, record, panics caught, step budget, injected clock; today's session through `legacy.rs`), `tests/game.rs`; the wasm shell over `handle` and `smoke.mjs` (network bots: 14.9 ms a decision) |
-| A9 | Engine copy ids, behaviour-neutral (above) — in parallel with A1b — done (2026-10-13): `crates/engine/src/copies.rs` (`CopyId`, `Pile`, `Untracked`, `census`), dealt by `CopyCounter` in seating then decklist order; the fixture-only API behind the `fixtures` feature; fuzz checks conservation at every decision; goldens, perft and 1,000 random games' hashes unchanged; `Agent: Send` |
-| A2 | `host` whole: per-seat state, per-viewer copies and `nth`, undo by snapshots, settings, allocations, vote orders, `seq` buffer, step budget, injected clock. First test: two options of one decision never share a `ChoiceKey` |
-| A3 | Data first: option keys and `effects`, decision `source`, typed events, `Role` and `MarkerKind` completed — what `purpose.rs` and `narrate.rs` say in words |
-| A4 | `Bots` trait in `host`; profiles in `policy`; `Agent: Send`, `Arc<Net>` — done (2026-10-17): `Arc<Net>`; `Bots` in `host`, implemented by `zvtes_policy::profiles::Profiles` (the served `NETWORK` profile: temperature and nudges), which the server names and `examples/humanset.rs` reads |
-| A5 | Records + `Replayer`; corpus converter; `assess.py` and the replay example on records; `py` on `host` — done (2026-10-14): `host/src/replay.rs` (`Replay`: a record's deal and decisions, undos dropped, read by key, by index where a key is unknown; `Replayer`: told for a seat seeing all), `start.rs` (training starts from records); the 30 corpus games converted to `data/records` (read whole by the legacy reader, keyed by the engine's copies; `tests/records.rs` reads them all whole with their results); `zvtes_py.replay_decisions`, `train/assess.py`, `train/ppo.py` (`--bc`, `--starts`), `policy`'s waste example and `examples/replay.rs` on records |
-| A6 | Panics caught per command (`catch_unwind`; a panic hook for the backtrace, and for wasm where unwinding aborts) and a step budget (an engine loop): the game ends as `engine_error`, recorded |
-| A7 | `text` crate: the renderer over `api`; `tests/prompts.rs` as its oracle |
-| A8 | Contract tests over the session sweep: every message validates against `schema.json`; fixtures type-check against `protocol.ts`; no leak (no KRCG id or copy a seat could not see); keys unique; replay by index = by key; byte-identical transcripts (and protocol.md's transcript generated from one); undo restores the earlier view |
-| A10 | Redaction audit (multi-human gate, not v1): cards named from hand, `limbo`, `ActionView.card`, the "waiting on X" tell |
+The network bot is `crates/policy`: the forward pass of
+`train/model.py`'s `Policy` written by hand for one decision, so it
+costs no dependency (tract, the alternative, added 3.3–4.9 MB gzipped
+to the wasm build of the time) and the bot stays an engine `Agent`.
+Weights come as a `.zvp` file (`python -m train.export`);
+`train/tests/test_export.py` holds the Rust and Python forward passes
+equal, so a change to `Policy.forward` that `crates/policy` lacks fails
+it. A checkpoint older than the observation's features still loads but
+plays off its training. `scripts/export_onnx.py` is the ONNX export
+check. The server's network profile is `zvtes_policy::profiles::NETWORK`
+(temperature 0.5, the nudges its weights trained with); the scripted
+bots (`zvtes_env::bots`) are the host's `BUILT_IN` profiles.
 
-A2–A7 in order (2026-10-13): `legacy.rs` stays the oracle, replaced piece
-by piece, each piece differential-tested against today's output over the
-session sweep; then the adapter and `crates/protocol` go.
+## The server
 
-| # | Step | First test |
-|---|---|---|
-| A2a | `host::view`: `TableView` from `legal_view(viewer)` and engine copies through a per-viewer `Numbering` (fresh number on entering a numbered place from a hidden one, never reused; `nth` the lowest free among visible copies of that card from that deck); events' copies translated as each happens | over the sweep: no copy on a card in a hidden place, no wire copy reused per viewer, a card in sight keeps its number — done (2026-10-13): `host/src/view.rs` + `numbering.rs` (two passes: the copies in sight, then the numbering); `game.rs` test: the engine's view agrees with the session's at every decision (200 games, 8,658 decisions) and keeps the copy rules (13,604 copies) |
-| A2b | Undo by snapshot (`Engine: Clone` + the `Numbering` at each human decision), not replay from the deal | the view after an undo equals the view when that decision was first asked — done (2026-10-13): the session keeps the engine before each human decision undo may take back (cleared when a bot decides, 64 at most, else replayed; against bots since 2026-10-19, kept with the bots' copies, and no undo past 64: an engine clone late in a game is 20–30 KB, so 64 games of 64 about 120 MB, under the service's 3 GB), the host the numbering at each decision asked; `tests/events.rs`: every decision asked again is the view first sent (200 games, 1,152 undos); an undo takes back a command whole (F10) |
-| A3a | `ChoiceKey` from `Choice`, viewer-aware (wire key: viewer copies; record key: engine copies); `By::Auto` / `Order` from the engine | distinct options ⇒ distinct omniscient keys (copies alike in hand excepted) — done (2026-10-13): `host/src/describe.rs` (`key`, by a viewer's numbering or `EngineNames`); `tests/keys.rs`: no shared key over 306,528 decisions, 58 kinds; options shown keyed from the engine; records keyed by engine copies (a human's answer before it applies, each bot's as it decides through a recording wrapper — the host now makes every bot); `a_record_replays_by_key_as_by_index` (24 games) |
-| A3b | Typed events from `narrate`'s marks, per recipient | `session.rs`'s `Ends` invariants on the typed stream — done (2026-10-13): `narrate` emits `Fact`s in engine ids (marks from the engine and `census`, no view) beside the legacy lines; the session queues them with each decision taken marked; the host drains them after every view and names them by the viewer's numbering (`host/src/events.rs`; `Numbering::name`: in sight, just gone, or fresh); every change told, `text` where the legacy log tells it; the run before a decision or the end now told (F6). `tests/events.rs`: ends told, combat order, last pool/blood/torpor = the next view, every copy numbered (200 games, 115,948 events, 1,255 undos) |
-| A7 | `text` crate over `api` + card names, built now as the completeness proof | done: `crates/text` (`zvtes-text`, over `api` alone; card names by a `Cards` trait, seats and minions by `Names`, from the views and events a client was sent) tells options, events, strikes, markers and prompts from the data alone; the host sweeps (`tests/events.rs`) tell every option, decision and event of their games, and the crate's own tests every purpose (its decline too), every due, every marker kind |
-| A3c | `effects`, `source`, `Role`, `MarkerKind` completed until A7 matches | as A7 |
-| A2c | The rest of `Session` into `host`: opportunities filter (and `shown` in records), `allocate`, `vote_all`, catalog and deck checks (refuse counts over 255, not clamp); `py/human.rs` on `host`'s `Replayer` (A5) + the corpus converter; `crates/protocol` deleted once `tests/session.rs` and `prompts.rs` are ported or covered | the ported session sweep — the session in the host (2026-10-13): `host/src/session.rs` (the engine stepped: bots, standing vote orders, opportunities, allocations by probe, undo by snapshots), `narrate.rs` (facts, no words; a failed block attempt told when the action ends with it, the Edge changing hands), `deck.rs` (a count past 255 refused: F4); `game.rs` on it, the legacy adapter gone; text only from `zvtes-text` (every purpose rendered from `Decision.about`, every option and decision told and naming its cards over 2,000 games); 60 transcripts identical to the legacy-driven host's but for the additions. `crates/protocol` deleted (2026-10-14): its session tests covered by `host`'s (events, copy rules, keys, records, the transcript differential), its prompts by every option and decision told |
-| A8 | Contract tests | as listed above — done (2026-10-14): `crates/host/tests/contract.rs`: every message and record of 200 games valid against `schema.json` (`jsonschema`), a game deterministic byte for byte, another seat's hidden choices naming no card (the views' copy rules: `game.rs`), `scripts/check_ts.sh` (a game typed against `protocol.ts` with `tsc --strict`); keys unique (`keys.rs`), replay by key = by index (`game.rs`, `records.rs`), undo's view (`events.rs`) |
+`crates/server`: `GET /version`, `/catalog`, `/cards`, `POST
+/decks/check`, `POST /games` (one human seat, no bot-only games), the
+game's WebSocket (its first frame `join {token}`), its record, the
+admin routes (protocol §10). Each live game runs on its own thread,
+reached by a channel; the record streams to the store as the game goes.
+Its configuration, from the environment, is `crates/server/src/main.rs`'s
+header: live games (64), games an hour per address, the idle timeout,
+the time limit, commands a second, the page origins (empty: any, as
+`engine.krcg.org` runs), the admin token's SHA-256 (never the token).
+The live-games cap stands on the load test (`tests/load.mjs`): 64 games
+at once took about 3.5 MB each, far under the service's memory cap, and
+a real player takes minutes a game. A restart resumes the games left
+going from their records (protocol §2).
 
-Engine finding (A3a sweep, for the engine's owner): Helena's ability is
-offered twice, identically, in the block window (`tests/keys.rs`, seed 201
-of `HOST_SEEDS=600`): one choice listed twice, not two choices.
+## Records and logging
 
+Postgres `zvtes`: `games` (versions, spec, bot profiles, client, start,
+end, result, failure) and `game_entries` appended per command; without
+`ZVTES_DATABASE_URL`, JSON lines in a directory. On Postgres, a daily
+purge drops the games past the retention (730 days). The server's errors
+go to the journal (Loki `tag="zvtes"`). Records are pulled by the admin routes:
+`scripts/fetch_games.py` writes `data/server-records/<id>.json`, read by
+training like `data/records`; the daily harvest and its report are the
+training skill's ("Harvest"). On frankfurt, `sudo -u zvtes psql zvtes`
+(peer auth).
 
-## B. Server, logging, deploy (`crates/server`, `engine.krcg.org`)
+## Deploy
 
-| # | Item |
-|---|---|
-| B0 | Deploy stub early (with A1b): `/health`, `/version` on `engine.krcg.org` — DNS, TLS, WebSocket through nginx (read timeout, pings), pyinfra, the release asset |
-| B1 | `GET /version`, `GET /catalog`, `POST /games` (one human seat; no bot-only games), `GET /games/{id}/ws` (first frame `join {token}`; `Origin` checked), `GET /games/{id}/record` (`Authorization`) — done locally (`crates/server`, `tests/client.mjs` plays a game over HTTP + WebSocket) |
-| B2 | One task per game; engine steps on a bounded blocking pool; idle timeout (ended, recorded); `seq` buffer for rejoin — done: a thread per game, a live-games cap, idle timeout, `seq` buffer |
-| B3 | Postgres `zvtes`: `games` (versions, spec, bot profiles, client, start/end, result, failure) + `game_entries` appended per step; panics to the journal (Loki `tag="zvtes"`); 2-year purge — done: Postgres (`games`, `game_entries`, appended per command; checked on a scratch cluster) or JSON lines; daily purge at 730 days |
-| B4 | Corpus pull: an authenticated export → `scripts/fetch_games.py`, by engine commit — done (2026-10-14): `GET /admin/games` (since, engine) and `/admin/games/{id}/record` behind the admin token (the server holds its SHA-256: `ZVTES_ADMIN_SHA256` from `deploy/group_data/all.py`; the token in `~/.config/zvtes/admin_token`); `scripts/fetch_games.py --since … --engine … --finished` writes `data/server-records/<id>.json`, read by training like `data/records` (`--bc`, `--starts`, `train.assess`); checked on a scratch Postgres and the file store. On frankfurt: `sudo -u zvtes psql zvtes` (peer auth), `select id, engine, started, ended, result->'reason' from games order by started desc limit 20` |
-| B5 | Limits: games per IP, concurrent cap, frame size, spec caps (time limit, seats), commands rate (undo especially), step budget per command; WebSocket compression — done: games per address an hour, live games, time limit, commands a second, `Origin` and CORS by `ZVTES_ORIGINS` |
-| B6 | Weights beside the binary, hash recorded per game; release binaries and weights archived — done: the weights' SHA-256 in `/version` and each bot's record; archived by hash on the host |
-| B7 | Deploy per server-setup: GH Actions release asset (linux x86_64) on tag; `deploy/` (pyinfra): user, `/opt/zvtes`, `/etc/zvtes`, systemd on 127.0.0.1:8040 with `MemoryMax`/`CPUQuota` (the forum shares the box), `postgres_db`, `nginx_site` (its 60 s read timeout: the server pings every 30 s); `deploy_targets.py`; OPERATIONS.md row; DNS → 57.129.110.107 — done (2026-10-13): live on https://engine.krcg.org from `deploy/build.sh` (Docker) + pyinfra; Postgres, TLS, the network bots; `tests/client.mjs` plays a full game there and reads the stored record back; F11, F12 met on the way. A `v*` tag builds the release asset (`.github/workflows/release.yml`), which `deploy/release.py` fetches: `cd deploy && ZVTES_REPO=lionel-panhaleux/zero-vtes RELEASE_TAG=v<x.y.z> uv run --group deploy pyinfra inventory.py deploy.py -y` (the first, v1.9.0, 2026-10-18; it builds nothing on this machine, so a training run need not pause); `BUILD_DIR` (`deploy/build.sh`) is the fallback |
-| B8 | Load test: concurrent bot-only games, native inference timed; the cap set from it — done (2026-10-14): `crates/server/tests/load.mjs` (n games at once, network bots, a human answering at random as fast as messages come; the server allows no bot-only game). Release build on the owner's laptop: 1 game 1.7 s; 8 at once 6.7 s; 32 at once 15.1 s; 64 at once 17.8 s (26,862 messages, 2,525 human decisions), peak 235 MB (≈3.5 MB a game), none refused. A real player takes minutes a game: the default cap (64 live games) stays, well under frankfurt's `MemoryMax=3G` / `CPUQuota=400%` |
+frankfurt: an OVH VPS, 6 vCPU / 12 GB, shared with archon beta and the
+forum (Discourse); pyinfra-deployed systemd units behind nginx and
+certbot, sops secrets, Alloy to Loki and Prometheus, Postgres 17 with
+nightly restic backups to Scaleway, UFW 22/80/443 only. The engine's
+Rust ships as a GitHub Actions release asset on a `v*` tag
+(`.github/workflows/release.yml`), never built there: `deploy/deploy.py`
+(port 8040, `MemoryMax` 3G and `CPUQuota` 400% in
+`deploy/group_data/all.py`: the forum shares the box; the server pings
+every 30 s under nginx's read timeout) fetches it (`deploy/release.py`),
+`deploy/build.sh` the fallback:
 
-The pull and the report (B4), daily as one command: `python3
-scripts/harvest.py` from the shared checkout on `main`, clean (it
-refuses another branch or engine edits: the report caches the turns it
-replays from records before 1.7.0), both steps into the main checkout's
-`data/server-records/`.
-`python3 scripts/fetch_games.py --finished` pulls into
-`data/server-records/` (ignored) from the cursor
-`data/server-records/.since` (the newest game's start + 1, held back to a
-game still going, a day at most; `--since` overrides it, an `--engine`
-pull leaves it); `python3 scripts/games_report.py [dir]` then writes
-`<dir>/reports/<date>.md` (the games first read that day, each listed:
-client, engine, weights, bots, decks in seat order by catalog name, VPs,
-winner, turns, end, decisions) and `<dir>/reports/total.md` (by engine,
-weights and table size; human win rate and VP a seat by bot profile and
-weights; the decks humans win with and the bot decks that lose; the
-notable human games with their replay command). It counts the finished
-games with a human seat apart from the abandoned, short, test-script
-(`client.mjs`, `load.mjs`) and failed ones; the turns come from the
-record (`result.turns`, protocol 1.7.0 on), or, for an older one, from
-replaying it once (`--no-turns` skips that), cached in
-`<dir>/reports/index.json`.
+```
+cd deploy && ZVTES_REPO=lionel-panhaleux/zero-vtes RELEASE_TAG=v<x.y.z> \
+  uv run --group deploy pyinfra inventory.py deploy.py -y
+```
 
-## C. Succubus Club
+Nothing is built on this machine, so a training run need not pause.
+The Succubus Club fork is built on the box, niced, and served as a
+static site at `https://sc-bot.krcg.org` (`deploy/sc_bot.py`,
+server-setup's `spa` nginx site; human-play.md "Running the fork").
+Z-main deploys (CLAUDE.md "Sessions").
 
-The fork is served as its own platform, bots only, at
-`https://sc-bot.krcg.org` (human-play.md "Running the fork");
-what follows is the shape of the deferred upstream PR (roadmap
-"Deferred by the owner"), the notice and the layout rules holding for
-the fork too.
+## Succubus Club
 
-Fresh branch off upstream `dev` (every PR targets `dev`, Thomas's ask),
-re-cut (not rebased) from the fork.
-
-- Engine code in `src/client/engine/` and `Engine*.vue` components (in
-  `central/` or beside the SC components they belong with); SC files
-  get hooks only, through `useUIFeatures` flags (TrainBot's pattern), one
-  `useEngineMode()`, one `<EngineCentral/>`.
-- Client types generated from the schema; `RemoteEngineHost` (wss, the
-  engine URL in config, resync on reconnect) as the PR's only host.
-- `AGENTS.md` (no `border-radius` / `box-shadow`, no `!`), prettier /
-  eslint / vue-tsc, upstream's commit style (short imperative subjects).
-- Engine mode's notice: games recorded for 2 years to improve the engine.
-
-Precon list fixes go to VDB's `precon_decks.json`. SC's layout is fixed,
-made to fit any window size: the engine's panels fit inside it, never a
-change to its constants (Thomas refused one).
-
-Engine PR (~7 commits): mode + UI flags + generic bits; the client
-(types, `RemoteEngineHost`); projection, driver, setup, menu entry,
-notice; gestures; table interaction; central box; controls (Pass,
-Opportunities).
-
-## E. Demo video
-
-A storyboard and a fast-track seed (drafted here) showing: deck pick, the
-glows and staging of a play, an action with a block and a combat, a
-referendum with "all votes one way", the bots' narration, the
-Opportunities switch, undo, the game record. Recorded by the owner on
-the fork's public URL, a few minutes, captioned.
-
-## Order
-
-The fork plays on the server since 2026-10-14 (the wasm module and the
-fork's in-browser host removed, owner); `p6-online` merged into `main`
-the same day (rebased; its earlier tip tagged
-`p6-online-pre-rebase-2026-10-14`, the commits the server's first records
-name). Work continues on `main`; `crates/py` builds and trains
-throughout.
-
-1. A1 (done) → A1b (the thin slice) with A9 and B0 in parallel.
-2. A2–A7 (the host whole, data first, records, bots, the renderer) →
-   A8 (contract tests).
-3. B1–B6 locally → B7 (deploy) → B8.
-4. The fork served as its own platform, bots only, at
-   `https://sc-bot.krcg.org`; owner games online.
-5. E (video) → repo public.
-6. A10 → multi-human, later.
+The fork is served as its own platform, bots only; its working log is
+[`platforms/sc.md`](platforms/sc.md) (its integration's shape, branches,
+the deferred upstream PR #285 and its re-cut). Holding for the fork and
+for any upstream PR: engine code in `src/client/engine/` and `Engine*.vue`
+components; client types from the schema (`protocol.ts`); the server
+client the only engine host; the notice saying games are recorded for 2
+years to improve the engine. For an upstream PR only: SC files given
+hooks only (the fork tests `GameType.Engine` inline), SC's `AGENTS.md` and
+checks. SC's layout is fixed, made to fit any
+window size: the engine's panels fit inside it, never a change to its
+constants (Thomas refused one). Precon list fixes go to VDB's
+`precon_decks.json`.

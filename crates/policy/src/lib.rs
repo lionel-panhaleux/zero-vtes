@@ -1,4 +1,4 @@
-//! The trained policy's inference (docs/human-play.md slice 3): the forward
+//! The trained policy's inference (docs/online-plan.md "The bots"): the forward
 //! pass of `train/model.py`'s `Policy`, written by hand for one decision —
 //! no padding, no batch — and an [`Agent`] sampling from it. The network is
 //! small and fixed in form (embeddings, pre-norm transformer layers with a

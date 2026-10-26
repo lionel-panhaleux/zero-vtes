@@ -27,9 +27,12 @@ reasoning journeys live in a task and die with it, git keeping them.
 - [`protocol.md`](protocol.md): the contract between the server and its
   clients (semver; embedded in `crates/api/openapi.json`).
 - [`online-plan.md`](online-plan.md): the online architecture as built
-  (`api` ← `host` ← `server`, `text`).
-- [`human-play.md`](human-play.md): how the first fork was built; its
-  "Checks" and "Running the fork".
+  and the owner's settled list: the crates and their dependencies, the
+  contract's rules and tests, records, copies, the bots, the server,
+  logging, deploy.
+- [`human-play.md`](human-play.md): the human seat: its settled
+  decisions, the host's ergonomics beyond the protocol, the fork's
+  interface, "Checks" and "Running the fork".
 - [`../data/records/README.md`](../data/records/README.md): the curated
   game records.
 

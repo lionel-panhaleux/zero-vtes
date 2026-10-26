@@ -1,6 +1,6 @@
 //! Options in English (docs/protocol.md §7): from the option's key and
 //! effects, the window it is offered in and the names the client knows.
-//! `None`: a kind not rendered yet (A7 ratchets kind by kind).
+//! `None`: a kind not rendered, or an option missing what its text needs.
 
 use zvtes_api::ids::{ActionKind, OptionKind as K, Purpose, Role, Window, Zone};
 use zvtes_api::message::About;

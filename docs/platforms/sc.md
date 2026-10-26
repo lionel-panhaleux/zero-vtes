@@ -59,7 +59,7 @@ something reaches us from Thomas or a PR moves.
   document of how the bots are trained, for a data scientist (written
   by Z-play from DESIGN §11.2, the owner has it, 2026-10-21).
 
-## The integration's shape (online-plan §C, the owner's)
+## The integration's shape (the owner's)
 
 Both branches: engine code in `src/client/engine/` and `Engine*.vue`
 components, in `central/` or beside the SC components they belong with

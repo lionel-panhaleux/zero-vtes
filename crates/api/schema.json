@@ -3620,7 +3620,7 @@
       ]
     },
     "MarkerKind": {
-      "description": "Public state on a minion beyond blood and cards (completed with\nthe host, A3).",
+      "description": "Public state on a minion beyond blood and cards.",
       "oneOf": [
         {
           "type": "string",
@@ -5029,7 +5029,7 @@
       ]
     },
     "Role": {
-      "description": "What a chosen minion or Methuselah becomes for the card choosing it\n(completed with the host, A3).",
+      "description": "What a chosen minion or Methuselah becomes for the card choosing it.",
       "oneOf": [
         {
           "description": "Does not unlock as normal (Toreador Grand Ball's first).",

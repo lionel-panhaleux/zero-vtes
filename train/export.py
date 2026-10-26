@@ -1,5 +1,5 @@
 """A checkpoint's policy as a `.zvp` file: what `zvtes-policy` loads to play
-outside Python (the browser bot, docs/human-play.md slice 3).
+outside Python (the server's bots, docs/online-plan.md "The bots").
 
 `uv run python -m train.export runs/<name>/best.pt policy.zvp`
 

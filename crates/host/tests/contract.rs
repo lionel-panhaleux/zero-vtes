@@ -1,7 +1,8 @@
-//! The contract held over random games (docs/online-plan.md A8): every
-//! message validates against `schema.json` (records too); a game is
-//! deterministic (the same spec and commands, the same messages, byte
-//! for byte); no message names a card the seat was never shown.
+//! The contract held over random games (docs/online-plan.md "Contract
+//! tests"): every message validates against `schema.json` (records too);
+//! a game is deterministic (the same spec and commands, the same
+//! messages, byte for byte); no message names a card the seat was never
+//! shown.
 
 use serde_json::{json, Value};
 use zvtes_api::ids::OptionKind;

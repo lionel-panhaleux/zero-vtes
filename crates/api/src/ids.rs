@@ -738,8 +738,7 @@ ids!(
     }
 );
 ids!(
-    /// What a chosen minion or Methuselah becomes for the card choosing it
-    /// (completed with the host, A3).
+    /// What a chosen minion or Methuselah becomes for the card choosing it.
     Role {
         /// Does not unlock as normal (Toreador Grand Ball's first).
         DoesNotUnlock,
@@ -757,8 +756,7 @@ ids!(
 );
 
 ids!(
-    /// Public state on a minion beyond blood and cards (completed with
-    /// the host, A3).
+    /// Public state on a minion beyond blood and cards.
     MarkerKind {
         /// Corruption counters (`seat`: whose, `n`).
         Corruption,

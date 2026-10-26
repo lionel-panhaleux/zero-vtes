@@ -4,9 +4,9 @@ version = "0.1.0"
 edition = "2021"
 license = "MIT"
 
-# The engine served (docs/protocol.md §10, docs/online-plan.md B): games
-# over HTTP + WebSocket, every game recorded. Not a default member: its
-# dependencies stay out of the engine's builds.
+# The engine served (docs/protocol.md §10, docs/online-plan.md "The
+# server"): games over HTTP + WebSocket, every game recorded. Not a
+# default member: its dependencies stay out of the engine's builds.
 [[bin]]
 name = "zvtes-server"
 path = "src/main.rs"

@@ -1011,10 +1011,7 @@ export type Marker = {
     text?: string | null
 }
 
-/**
- * Public state on a minion beyond blood and cards (completed with
- * the host, A3).
- */
+/** Public state on a minion beyond blood and cards. */
 export type MarkerKind = 
     | 'hostage'
     | 'nightmare'
@@ -1378,10 +1375,7 @@ export type ReferendumView = {
     votes_for: number
 }
 
-/**
- * What a chosen minion or Methuselah becomes for the card choosing it
- * (completed with the host, A3).
- */
+/** What a chosen minion or Methuselah becomes for the card choosing it. */
 export type Role = 
     | 'does_not_unlock'
     | 'unblockable_non_bleed'

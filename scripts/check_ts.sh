@@ -1,8 +1,8 @@
 #!/bin/sh
 # The contract's messages and a record typed against crates/api/protocol.ts
-# (docs/online-plan.md A8): a game written as a TypeScript fixture by the
-# schema test, checked with tsc --strict. TSC: a TypeScript compiler (the
-# Succubus Club checkout's by default).
+# (docs/online-plan.md "Contract tests"): a game written as a TypeScript
+# fixture by the schema test, checked with tsc --strict. TSC: a TypeScript
+# compiler (the Succubus Club checkout's by default).
 set -e
 TSC=${TSC:-../succubus-club/node_modules/.bin/tsc}
 DIR=$(mktemp -d)

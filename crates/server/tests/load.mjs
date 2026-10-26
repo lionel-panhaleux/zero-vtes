@@ -1,4 +1,4 @@
-// A load test (docs/online-plan.md B8): `n` games at once against a
+// A load test (docs/online-plan.md "The server"): `n` games at once against a
 // running zvtes-server, each a human answering at random as fast as the
 // messages come and three bots (the network profile when served).
 // `node crates/server/tests/load.mjs [http://127.0.0.1:8040] [n]`

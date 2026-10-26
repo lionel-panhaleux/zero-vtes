@@ -1,4 +1,4 @@
-"""The engine served on frankfurt (docs/online-plan.md B7), the
+"""The engine served on frankfurt (docs/online-plan.md "Deploy"), the
 server-setup way: a system user, the binary from a release (release.py),
 the policy weights archived by hash, Postgres by peer auth (no secret),
 a systemd unit, nginx + TLS for engine.krcg.org.
