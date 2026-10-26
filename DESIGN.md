@@ -1977,7 +1977,7 @@ What the engine does not yet do or does only in part, true today.
 - No printed sterile baron exists, so Childe of the Revolution's sterile
   mask is tested on a sterile vampire made a baron (Effie Lowery).
 
-### 11.4 What remains
+### 11.4 The phases
 
 - **P2 — full engine pool**: every V5 card defined; legacy cards come in
   through the cards line (§3).

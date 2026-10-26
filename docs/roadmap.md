@@ -4,8 +4,7 @@ The objectives, how to rank work across lines, the near milestone, and
 what the owner has put off. The work itself is on four boards, one per
 line of work (CLAUDE.md "Lines of work"): [cards](boards/cards.md),
 [engine](boards/engine.md), [training](boards/training.md),
-[platforms](boards/platforms.md). Below, "engine: Records complete" names
-the engine board's line by its ask.
+[platforms](boards/platforms.md).
 
 ## Ranking
 
@@ -26,21 +25,12 @@ good enough to beta test with players of the community.
 Testers play at `https://sc-bot.krcg.org`, the fork as its own platform,
 bots only (agreed with Thomas, owner 2026-10-21).
 
-What it still needs:
-
-1. **The best bot served**: each run measured against the served weights
-   and served if it improves on them without degrading them, a niche
-   gain enough (owner, 2026-10-23; training skill "Serve").
-   Training: its run's line.
-2. **Feedback intake**: a "report a problem" from inside the game (the
-   protocol's `feedback`, stored with the record at its decision;
-   platforms: "Report a problem"), plus the channel the fork's notice
-   names (its GitHub issues); the `intake` skill triages it.
-3. **Known rough edges fixed**: the panel overflow (platforms: The
-   referendum and action panels); Sniper Rifle and strike-only prevention
-   (cards).
-4. **What players asked for**: the cards their refused decks named
-   (`/admin/unsupported`) steering the next rounds (cards: Round 16).
+What it still needs: **the best bot served**, each run measured against
+the served weights and served if it improves on them without degrading
+them, a niche gain enough (owner, 2026-10-23; training skill "Serve").
+Training: its run's line. Players' reports (the protocol's `feedback`,
+the fork's GitHub issues) come in through `intake`; the cards refused
+decks name (`/admin/unsupported`) steer the cards rounds (add-cards §1).
 
 Not needed for the beta: the demo video (platforms/sc.md "A fixed
 deal"; the owner records it).
@@ -136,9 +126,9 @@ not on any board; the owner brings each back:
   only, agreed with Thomas): #285 as it stands; the `engine-game`
   re-cut caught up with the fork's fixes after `a7515b1`, its controls
   commit carrying the Opportunities control (sc.md recipe).
-- Definitions exported as data (2026-10-24, held at the engine board's
-  top): every card's definition (modes, requirements, effects, windows)
-  as documented JSON with a schema, generated and `--check`ed. It needs
+- Definitions exported as data (2026-10-24): every card's definition
+  (modes, requirements, effects, windows) as documented JSON with a
+  schema, generated and `--check`ed. It needs
   the engine's 51 definition types serialized: optional serde and
   schemars behind a feature off by default (online-plan.md's engine has
   no dependencies), or a converter of the derived `{:#?}` dump without a

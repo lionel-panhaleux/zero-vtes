@@ -39,7 +39,7 @@ holds the architecture and the decisions that hold.
 With Rust stable:
 
 ```sh
-cargo test --profile ci -q                # the default members: engine, api, host, text, policy
+cargo test --profile ci -q                # the default members: engine, api, env, host, text, policy
 cargo run --profile ci --example replay -p zvtes-host -- data/records/<file>.json
 ```
 

@@ -41,7 +41,7 @@ list; refusing a line at the door is cheaper than evicting it later.
    boundaries (the line that does it, the crate, the contract) so an agent
    holds each in context; never split to defer. Work for another line is
    that line's board, ordered after what it waits on ("after the engine
-   board's 'Feedback intake'").
+   board's '<its ask>'").
 5. **Doc-impact.** Name the pages the work will change, or "none" when
    nothing standing changes.
 6. **Waiting is a date.** Work waiting on a person is a dated ask ("Ask
@@ -79,5 +79,7 @@ each report's game, engine and decision, its record replayed with
 notes; the upkeep's lint and ratchet proposals; GitHub issues and pull
 requests (`gh issue list`, `gh pr list`: Z-main reads them, as
 CONTRIBUTING.md promises outsiders; an outside pull request gets the
-`egress-reviewer` before the owner merges it). Each goes through the
-steps above; a source's raw notes are not kept once triaged.
+`egress-reviewer` before the owner merges it); the fork's issues, where
+its notice and Report dialog send players (`gh issue list -R
+lionel-panhaleux/succubus-club`: Z-main and Z-succubus). Each goes
+through the steps above; a source's raw notes are not kept once triaged.

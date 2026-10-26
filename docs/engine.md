@@ -263,8 +263,7 @@ data/rulings-v5.csv` (every ledger row on an implemented card backed:
 data/window-matrix-reviewed.csv`; the
 generators' `--check` (`gen_crypt.py`, `gen_library.py`, `gen_twda.py`).
 
-**Still convention** (what the refactor left of the review's recurring
-hazards, from the engine review of 2026-10-14):
+**Still convention** (recurring hazards no check enforces):
 
 - A `Rider`-family effect, or a shared one at a new hook: the families test
   checks its position, not that the hook's site handles it; a site not
@@ -1074,7 +1073,7 @@ sources to the engine's conventions.
   choices and `pay_strike_tolls` before resolution; a toll the minion
   cannot pay leaves `strike_request` only `Pass` and strike cards.
   Strike bars for a combat or a round (Lapse's
-  `OpposingNoManeuverThisRound`/`NoInitialStrikeThisRound`, Thoughts
+  `OpposingNoManeuverThisRound`/`OpposingNoInitialStrikeThisRound`, Thoughts
   Betrayed's `OpposingNoStrikeCardsThisCombat`), the strike's card and mode
   (`Side::strike_play`: Increased Strength's Potence strikes), Rockheart's
   `halve_strikes`; per-round extra damage adds up (`environmental_round`,

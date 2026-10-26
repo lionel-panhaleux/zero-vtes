@@ -68,8 +68,9 @@ git log <last-upkeep>..HEAD --format=%B | grep -E '^Grading-missed:'
 Three of a class (or three owner corrections of one kind, a rule the
 owner restated, a reviewer finding that keeps coming back) earn an
 amendment: a CLAUDE.md rule, a skill line, an egress charter line, a lint
-test (`crates/engine/tests/lint.rs`), a default reading. Propose each as
-an engine-board line through `intake`; the owner accepts it.
+test (`crates/engine/tests/lint.rs`), a default reading. Propose them to
+the owner in the digest, their text in the pass's commit message, tracked
+by one dated ask on the engine board; each accepted one becomes its line.
 
 ## 4. The frame (monthly)
 
