@@ -287,12 +287,13 @@ def endpoints(spec):
 
 
 def diff_lines(start, end):
-    """(removed, added): (path, line) removed, (path, line number, line) added."""
+    """(removed, added): (path, old line number, line) removed, (path, line
+    number, line) added."""
     args = ["diff", "-U0", "--no-color", "--no-ext-diff", "-M", start]
     args += [end] if end else []
     removed, added = [], []
     old = new = None
-    row = 0
+    row = orow = 0
     for line in git(*args).split("\n"):
         if line.startswith("--- "):
             old = line[6:] if line.startswith("--- a/") else None
@@ -300,8 +301,10 @@ def diff_lines(start, end):
             new = line[6:] if line.startswith("+++ b/") else None
         elif line.startswith("@@"):
             row = int(re.search(r"\+(\d+)", line).group(1))
+            orow = int(re.search(r"-(\d+)", line).group(1))
         elif line.startswith("-") and old:
-            removed.append((old, line[1:]))
+            removed.append((old, orow, line[1:]))
+            orow += 1
         elif line.startswith("+") and new:
             added.append((new, row, line[1:]))
             row += 1
@@ -342,9 +345,16 @@ def removed_names(start, end, tree, removed):
     for path in code_files:
         for code, _comment in split_comments(path, tree.read(path)):
             corpus.update(WORD.findall(code))
-    for path, line in removed:
+    # A removed line read within its old file, where a docstring is seen
+    # whole: its words are no code names.
+    old = Tree(start)
+    old.read_all({p for p, _row, _line in removed if is_code(p)})
+    olds = {}
+    for path, row, _line in removed:
         if is_code(path):
-            code = STRING.sub("", split_comments(path, line)[0][0])
+            if path not in olds:
+                olds[path] = split_comments(path, old.read(path))
+            code = STRING.sub("", olds[path][row - 1][0])
             for name in WORD.findall(code):
                 if len(name) >= 4 and name not in corpus:
                     names[("word", name)] = "gone from the code"
@@ -359,7 +369,7 @@ def removed_names(start, end, tree, removed):
             gone_paths.append(parts[1])
         elif parts[0] == "D":
             gone_paths.append(parts[1])
-    for path, line in removed:
+    for path, _row, line in removed:
         if path.endswith(".md") and (m := HEADING.match(line)):
             now = heading_texts(tree.read(renames.get(path, path)))
             bare = re.sub(r"^§?[\d.]+\s+", "", m.group(1))

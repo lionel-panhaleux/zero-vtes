@@ -45,6 +45,10 @@ completed.
 Before review, in the change itself:
 
 - the code and its tests, the CLAUDE.md checks green;
+- for each behaviour the change writes into a standing page (a rule, a
+  guarantee, a "never"), a test that fails without it, shown so: a stub
+  probe (the behaviour removed or broken, the test failing, then
+  restored), named in the commit message;
 - each page the line named updated, or the commit says why none moved;
 - the board line deleted (not marked done; git keeps it);
 - `python3 scripts/harness.py stale main` clean: no name the diff
@@ -56,13 +60,14 @@ Before review, in the change itself:
 ## 4. Egress review
 
 Spawn the `egress-reviewer` agent (`.claude/agents/egress-reviewer.md`)
-with, and only with: the diff's range and worktree, the board line's text
-as it was, the doc-impact pages, and the test files the diff touches
-(`git diff --stat <range> -- '*tests*' '*test_*'`). Not the conversation:
-a fresh reader sees what the author's context hides. A diff touching
-`crates/engine/src` (generated tables aside) also gets the
-`engine-review` charter: pass the skill's checklist in the same prompt,
-or run that skill's reviewer alongside.
+with, and only with: the diff's range and worktree, the board line's
+text as it was, the doc-impact pages, the test files the diff touches
+(`git diff --stat <range> -- '*tests*' '*test_*'`), and the stub probe
+of each behaviour the change writes into a standing page (the test, what
+was broken). Not the conversation: a fresh reader sees what the author's
+context hides. A diff touching `crates/engine/src` (generated tables
+aside) also gets the `engine-review` charter: pass the skill's checklist
+in the same prompt, or run that skill's reviewer alongside.
 
 Then:
 

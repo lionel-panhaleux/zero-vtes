@@ -372,8 +372,8 @@ hazards, from the engine review of 2026-10-14):
 
 ## 5. Comment policy
 
-The owner's policy (2026-10-14, applied to the engine in one pass). Code
-comments are limited to:
+The owner's policy (2026-10-14, applied to the engine in one pass), for
+every crate and script (owner, 2026-10-22). Code comments are limited to:
 
 - (a) the card's printed text on its definition (every vampire ends with
   all its text, CLAUDE.md);
