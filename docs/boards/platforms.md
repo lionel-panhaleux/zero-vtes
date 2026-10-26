@@ -16,3 +16,5 @@ Order (owner, 2026-10-21: agreed with Thomas, the fork deployed on its
 own as a separate platform, bots only for now): what the community
 beta needs from the fork first, then the fork's remaining
 interface items, then other platforms.
+
+- **A "Teach the bot" tab on the deck screen**: the owner's idea (2026-10-26): beside the fork's preconstructed decks (`DeckPanel.vue`), the recent TWDA decks the served bot plays worst, weakest first, each with its event, date and the bot's measure, one line saying why ("The bot plays these decks worst: show it how"); a pick is the player's deck as a precon is, the bots' decks unchanged. After the engine board's "The decks the bot needs taught, served". Done when a game with a listed deck plays on sc-bot and the owner has seen the tab. Docs: `docs/platforms/sc.md`.
