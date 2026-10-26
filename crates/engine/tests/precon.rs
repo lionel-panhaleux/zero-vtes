@@ -6256,6 +6256,9 @@ fn the_racks_stolen_vampire_is_fed_at_its_new_controllers_choice() {
     pick(&mut e, feed);
     request(&mut e);
     assert_eq!(blood(&e, a), 4);
+    // Never in its new controller's own unlock phase.
+    until(&mut e, SeatId(0), WindowLabel::MinionPhase);
+    never_offered_until(&mut e, SeatId(1), WindowLabel::MinionPhase, feed);
 }
 
 // Powerbase: Los Angeles: "During your discard phase, you can lock this

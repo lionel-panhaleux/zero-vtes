@@ -5562,17 +5562,8 @@ impl Engine {
                                 )
                             })
                     }
-                    (Some(spec), Target::Card(c)) => {
-                        self.card_target_qualifies(seat, spec, Some(a.acting), c)
-                    }
-                    (Some(spec), Target::Uncontrolled(i)) => {
-                        self.uncontrolled_target_qualifies(seat, spec, Some(a.acting), i as usize)
-                    }
-                    (Some(spec), Target::Seat(t)) => spec
-                        .filter
-                        .iter()
-                        .all(|&r| cards::holds_for_seat(r, &self.state, seat, Some(&a), t)),
-                    _ => true,
+                    (Some(spec), t) => self.target_still_qualifies(seat, spec, &a, t),
+                    (None, _) => true,
                 }
                     // The Edge it burns no longer its player's: nothing
                     // happens (Inside Dirt; Patsy's rules-qa 58.11).
@@ -5947,10 +5938,8 @@ impl Engine {
                     (Target::Minion(t), Some(spec)) => {
                         self.minion_target_qualifies(seat, spec, Some(acting), t)
                     }
-                    (Target::Card(c), Some(spec)) => {
-                        self.card_target_qualifies(seat, spec, Some(acting), c)
-                    }
-                    _ => true,
+                    (t, Some(spec)) => self.target_still_qualifies(seat, spec, &a, t),
+                    (_, None) => true,
                 };
                 // An action an equipment grants its bearer fizzles once the
                 // equipment left it (Talbot's Chainsaw; RTR 19960221).

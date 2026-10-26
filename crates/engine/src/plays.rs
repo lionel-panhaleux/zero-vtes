@@ -7018,6 +7018,29 @@ impl Engine {
             })
     }
 
+    /// Does an action's card, uncontrolled or Methuselah target still meet
+    /// its filter as the action resolves: an action card's and a granted
+    /// action's alike (each path reads a minion target itself)?
+    pub(crate) fn target_still_qualifies(
+        &self,
+        seat: SeatId,
+        spec: TargetSpec,
+        a: &crate::actions::ActionCtx,
+        target: Target,
+    ) -> bool {
+        match target {
+            Target::Card(c) => self.card_target_qualifies(seat, spec, Some(a.acting), c),
+            Target::Uncontrolled(i) => {
+                self.uncontrolled_target_qualifies(seat, spec, Some(a.acting), i as usize)
+            }
+            Target::Seat(t) => spec
+                .filter
+                .iter()
+                .all(|&r| cards::holds_for_seat(r, &self.state, seat, Some(a), t)),
+            Target::Minion(_) | Target::None => true,
+        }
+    }
+
     /// Does the vampire in slot `i` of the seat's uncontrolled region
     /// qualify as the target of `actor`'s card or ability? Read again at
     /// resolution.

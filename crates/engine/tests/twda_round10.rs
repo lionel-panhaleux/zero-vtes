@@ -228,6 +228,23 @@ fn malabranca_takes_a_pool_from_a_richer_prey() {
     }
 }
 
+// Malabranca: the condition read live (CLAUDE.md "Owner rules"): a prey no
+// longer richer as the action resolves (its pool spent meanwhile) gives
+// nothing, the action fizzling as an action card's would.
+#[test]
+fn malabranca_fizzles_once_the_prey_is_no_longer_richer() {
+    let mut e = game(2);
+    e.state.seats[0].pool = 6;
+    let m = e.add_minion(SeatId(0), find_card("Malabranca"), 4, false);
+    e.add_minion(SeatId(0), plain("Brujah", 0), 4, false);
+    e.add_minion(SeatId(1), plain("Ventrue", 0), 4, false);
+    pick(&mut e, printed(m, 0, Target::Seat(SeatId(1))));
+    request(&mut e);
+    e.state.seats[1].pool = 5;
+    until(&mut e, SeatId(0), WindowLabel::MinionPhase);
+    assert_eq!(pool(&e)[..2], [6, 5]);
+}
+
 // Hardestadt (G4): "+1 bleed. +2 strength." His bleed burns 2 pool.
 #[test]
 fn hardestadt_bleeds_for_two() {

@@ -712,7 +712,9 @@ sources to the engine's conventions.
   acting minion leaving skips it (`action_windows`).
   Damage "after resolution" is ordered there by the acting Methuselah.
 - Resolution: costs paid then; targets re-read — gone or illegal → fizzle, paid
-  (card actions) or successful with no effect (granted actions, spec §3.4.1). An
+  (card actions) or successful with no effect (granted actions, spec §3.4.1);
+  a card, uncontrolled or Methuselah target by `target_still_qualifies` on
+  both paths, a minion by each (an ability's reads its host). An
   action whose acting minion left play fails. A bleed target ousted before
   resolution: fizzled, no pool, no Edge. A **successful bleed** is one of 1+;
   only it takes the Edge (`ActionCtx.bleed_successful`), burned instead under
