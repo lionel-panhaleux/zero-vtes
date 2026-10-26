@@ -1936,17 +1936,14 @@ What the engine does not yet do or does only in part, true today.
   training board's "Paths in the observation".
 - **Mechanisms missing**: immunity to damage from a source.
 - **Known edges**:
-  - `ImmuneToDirectedActions` is read on card plays only
-    (`GameState::immune_to_directed` in `plays.rs`): a granted or printed
-    action requiring a Discipline would need it in `ability_targets` too.
-  - `Effect::PoolToHostBlood` ousts through `oust_and_pass`, assuming the user is
-    the active seat — true for Blood Doll; route through `oust` when a
-    pool-paying untimed ability reaches a non-active seat.
-  - A cancelling ability marks the play canceled as it is used
-    (`as_played_apply`); one with terms the user could back out of would need
-    the mark after its terms.
-  - Directed actions name one Methuselah at most (`ActionCtx::directed_seats`);
-    Shadow Cast's remembered-set test is written for several.
+  - Waiting for a pool card (none reaches them):
+    `ImmuneToDirectedActions` (Aggressive Corpse) is read on card plays only
+    (`GameState::immune_to_directed` in `plays.rs`), no granted or printed
+    directed action requiring Dominate or Presence existing;
+    `Effect::PoolToHostBlood` ousts through `oust_and_pass`, its users (Blood
+    Doll's master phase, Vessel's own unlock phase) the active seat; a
+    cancelling ability marks the play canceled as it is used
+    (`as_played_apply`), none having terms its user could back out of.
   - Wolf Claws [PRO] is covered by fuzz only.
   - Decisions are unbounded within an action: `TURN_LIMIT` bounds turns, but
     the rulebook allows block re-attempts as often as wished. A failed
@@ -1974,7 +1971,7 @@ What the engine does not yet do or does only in part, true today.
 
 The objectives still open are the roadmap's (`docs/roadmap.md`).
 
-Definitions: 954 library, 482 vampires; 2654 Rust tests, 62 Python tests
+Definitions: 954 library, 482 vampires; 2655 Rust tests, 62 Python tests
 
 ## Outlook: deck building (post-v1)
 

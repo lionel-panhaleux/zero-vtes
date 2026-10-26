@@ -1302,6 +1302,26 @@ fn taunt_the_caged_beast_pits_prey_against_predator() {
     assert_eq!(blood(&e, p), (4 - 1 + 4).min(cap));
 }
 
+// Shadow Cast [OBL] remembering a set of two Methuselahs: Taunt the Caged
+// Beast, directed at both (rules-qa 71.21), is "an action directed at the
+// same set of Methuselahs" — its stealth offered against the prey's block.
+#[test]
+fn shadow_cast_matches_an_action_directed_at_two_methuselahs() {
+    let (mut e, a, p, _) = taunt_table();
+    e.state.cards.push(CardInPlay {
+        by: Some(a),
+        against: zvtes::ids::SeatSet::single(SeatId(1)).with(SeatId(2)),
+        ..CardInPlay::new(find_library("Shadow Cast"), SeatId(0), Some(a), 1)
+    });
+    let cast = CardId(e.state.cards.len() as u32 - 1);
+    pick(&mut e, play_at(0, 1, a, Target::Minion(p)));
+    let burn = use_at(cast, 0, None, Target::None);
+    let block = Choice::DeclareBlock { minion: p };
+    pick_when(&mut e, block);
+    let req = offering(&mut e, burn);
+    assert_eq!(req.seat, SeatId(0));
+}
+
 // Taunt the Caged Beast [ANI]: not with only one other Methuselah.
 #[test]
 fn taunt_the_caged_beast_needs_a_predator_besides_the_prey() {
