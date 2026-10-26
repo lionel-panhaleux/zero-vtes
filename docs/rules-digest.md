@@ -97,8 +97,8 @@ effect then failing — a block attempt so paid fails, a combat it is in ends
 and is ousted (38.5, 33.2, 36.3, 58.4, 71.2). An ally's last life paid as
 its own action's cost leaves the action resolving in full, then it burns
 (LSJ 20080512, advanced rules §5.5.3; 88.3). A payment the payer does not
-have is not offered. The one exception on record: burning one's last pool
-to cancel True Love's Face is not offered (18.2).
+have is not offered. Burning one's last pool to cancel True Love's Face is
+offered too (101.3, revising 18.2).
 
 **D4. Limits and caps read on the words they qualify**, no further: "not to
 exceed their starting life" caps allies only; "once each round" is one use
@@ -1274,7 +1274,9 @@ Advanced rules §1.7 (costs and payment), §1.8 (playing and canceling).
   §1.8.3); a canceled card pays no toll paid as the forcing card resolves
   (Parijat's, 18.1, ANK 20260317, superseding ANK 20260216's Eagle's Sight
   example).
-- Burning one's last pool to cancel True Love's Face is not offered (18.2).
+- Canceled, its cost still paid: the reductions announced with it are taken
+  as that cost is paid (Focus the Blood burned, Regina Blake's blood,
+  Baldesar's, Jack's lock), not the lock-type locations (101.1, 36.1).
 - In the as-played window nothing but the cancel (or a wake) is used, the
   canceled card replaced after; its "do not replace until" clause canceled
   with it; a card played as if from hand can be canceled (I am Legion,
@@ -4259,7 +4261,13 @@ Advanced rules §6.5 (pool, the Edge and ousting).
 ### 21.1 Ousting
 
 - A Methuselah at 0 pool or below is ousted; a cost may oust its payer (D3).
-  Paying one's last pool to vote ousts and casts nothing (33.2).
+  Paying one's last pool to vote ousts and casts nothing (33.2); to cancel
+  a card as it is played, the card is canceled (True Love's Face, Golconda;
+  101.3, revising 18.2): polled no more, the game over with one left; to
+  give another's minion intercept (KRCG News Radio), ousted with the card
+  before it is given (101.3) — a Life Boon's deferral aside, the effect
+  that ran the pool out finishing first (45.1). A torpor ousting the active
+  Methuselah inside a play ousts at once, the turn passing (101.2).
 - Life Boon's decision point: when a Methuselah's pool reaches 0 or below,
   the oust waits while a Methuselah holding Life Boon may save them: each
   holder in turn, clockwise from the active Methuselah, never the active one
@@ -4288,7 +4296,6 @@ Advanced rules §6.5 (pool, the Edge and ousting).
   controlled minions removed (27.4, 28.13); corruption counters stay (25.1);
   stored cards to their owners (67.1). Aelswith and Terrifying Visage's
   blocker oust (53.1).
-- Burning one's last pool to cancel True Love's Face is not offered (18.2).
 
 ### 21.2 Victory points, game end
 
@@ -4673,6 +4680,7 @@ read, for the owner to confirm or correct:
 - 99.1–99.3 graded green (the owner's playtest: Wall of Filth).
 - 100.3 graded green, 100.4 amber (100.1 and 100.2 answered by the
   owner).
+- 101.2 graded green (101.1 and 101.3 answered by the owner).
 - 49.6's several-holders question is moot (50.1: the Cog is unique).
 
 ### 24.2 Questions for a new rules-qa batch
@@ -4770,7 +4778,7 @@ an owner ruling:
 Every rules-qa item, by batch, with the digest sections citing it: the
 section stating it and those cross-referring to it (§2 the default
 readings, §22 engine modeling, §23 the contradictions, §24 the open
-readings). 993 items, Batches 1–100 (44.11 was removed, replaced by Batch
+readings). 996 items, Batches 1–101 (44.11 was removed, replaced by Batch
 45). The index is derived from the citations: a bare `N.M` cites rules-qa
 item N.M in the section it appears in. A new rules-qa item gets its line in
 the section stating it, then its entry here: `python3
@@ -4819,7 +4827,7 @@ index or an item cited nowhere.
   §2,§3.4,§5.3,§6.3,§8.7; 17.3
   §3.1,§3.2,§3.4,§3.15,§9.1,§10.2,§10.5,§11.2,§11.8,§15.1; 17.4
   §2,§3.2,§3.4,§3.5,§3.7,§3.12,§3.17,§4.4,§8.1,§10.2,§11.5,§14.1,§14.4,§15.1,§16.1,§17.3,§23.2,§23.5
-- **18** — 18.1 §7.2,§9.4,§23.1; 18.2 §2,§7.2,§21.1; 18.3 §4.6,§12.13; 18.4
+- **18** — 18.1 §7.2,§9.4,§23.1; 18.2 §2,§21.1; 18.3 §4.6,§12.13; 18.4
   §2,§4.3,§11.1
 - **19** — 19.1 §18.3,§23.5; 19.2 §3.15,§18.4; 19.3 §2,§4.3,§13.2,§23.3;
   19.4 §13.2,§21.3; 19.5 §12.6,§12.12; 19.6 §18.4
@@ -4868,7 +4876,7 @@ index or an item cited nowhere.
 - **35** — 35.1 §2,§3.5,§8.2,§16.1; 35.2
   §5.4,§7.3,§12.4,§14.4,§14.11,§16.1,§16.7; 35.3 §4.2,§11.3; 35.4
   §10.2,§13.3
-- **36** — 36.1 §5.2,§7.3,§16.7; 36.2 §7.3; 36.3 §2,§4.2,§18.1; 36.4
+- **36** — 36.1 §5.2,§7.2,§7.3,§16.7; 36.2 §7.3; 36.3 §2,§4.2,§18.1; 36.4
   §2,§4.2; 36.5 §2,§6.4,§7.3,§11.4
 - **37** — 37.1 §4.2,§11.4,§19.1
 - **38** — 38.1 §2,§8.1; 38.2 §3.4,§8.1; 38.3 §4.6,§12.8,§23.2; 38.4
@@ -5112,3 +5120,4 @@ index or an item cited nowhere.
 - **99** — 99.1 §3.17,§24.1; 99.2 §3.17; 99.3 §3.17,§24.1
 - **100** — 100.1 §3.15,§18.1,§24.1; 100.2 §3.15,§18.1,§24.1; 100.3
   §7.3,§24.1; 100.4 §3.15,§24.1
+- **101** — 101.1 §7.2,§24.1; 101.2 §21.1,§24.1; 101.3 §2,§21.1,§24.1

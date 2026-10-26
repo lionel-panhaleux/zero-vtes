@@ -45,6 +45,19 @@ fn in_play(e: &mut Engine, seat: u8, name: &str, host: Option<MinionId>) -> Card
     id
 }
 
+/// An anarch with Celerity, no printed-text definition.
+fn anarch_with_celerity() -> u16 {
+    CRYPT
+        .iter()
+        .enumerate()
+        .position(|(i, c)| {
+            c.sect == Some(zvtes::crypt::Sect::Anarch)
+                && c.disciplines.contains(&"cel")
+                && zvtes::cards::vampire(i as u16).is_none()
+        })
+        .expect("an anarch with Celerity") as u16
+}
+
 /// `m` gets `disc` at superior level (the fixture's Great Beast slot).
 fn superior(e: &mut Engine, m: MinionId, disc: &'static str) {
     let slots = &mut e.state.minions[m.index()].beast_disciplines;
@@ -2338,15 +2351,7 @@ fn groundfighting_cancels_superior_thoughts_betrayed() {
     let mut e = game(2);
     let a = e.add_minion(SeatId(0), vampire_with("DOM", 0), 8, false);
     e.add_minion(SeatId(0), plain("Brujah", 0), 4, false);
-    let anarch = CRYPT
-        .iter()
-        .enumerate()
-        .position(|(i, c)| {
-            c.sect == Some(zvtes::crypt::Sect::Anarch)
-                && c.disciplines.contains(&"cel")
-                && zvtes::cards::vampire(i as u16).is_none()
-        })
-        .expect("an anarch with Celerity") as u16;
+    let anarch = anarch_with_celerity();
     let z = e.add_minion(SeatId(1), anarch, 6, false);
     hand(&mut e, 0, &["Thoughts Betrayed"]);
     hand(&mut e, 1, &["Groundfighting", "Side Strike"]);
@@ -2359,6 +2364,72 @@ fn groundfighting_cancels_superior_thoughts_betrayed() {
         .ash
         .contains(&find_library("Thoughts Betrayed")));
     offering(&mut e, play(0, 0, z));
+}
+
+// A canceled card whose cost is still paid takes the reductions announced
+// with it as it is paid (rules-qa 101.1): superior Thoughts Betrayed (2
+// blood), announced with Focus the Blood and canceled by Groundfighting,
+// costs 1 and burns the Focus.
+#[test]
+fn a_canceled_card_still_paid_takes_its_announced_reduction() {
+    let mut e = game(2);
+    let a = e.add_minion(SeatId(0), of_clan("Banu Haqim", 6..=11), 3, false);
+    superior(&mut e, a, "DOM");
+    e.add_minion(SeatId(0), plain("Brujah", 0), 4, false);
+    let anarch = anarch_with_celerity();
+    let z = e.add_minion(SeatId(1), anarch, 6, false);
+    hand(&mut e, 0, &["Focus the Blood", "Thoughts Betrayed"]);
+    hand(&mut e, 1, &["Groundfighting", "Side Strike"]);
+    pick(&mut e, bleed(a));
+    pick_when(&mut e, block(z));
+    pick_when(&mut e, play(0, 0, a));
+    request(&mut e);
+    let focus = e
+        .state
+        .cards
+        .iter()
+        .position(|c| c.card == find_library("Focus the Blood") && c.in_play)
+        .map(|i| zvtes::state::CardId(i as u32))
+        .expect("Focus the Blood in play");
+    assert_eq!(blood(&e, a), 4);
+    pick_when(&mut e, play(0, 1, a));
+    pick_when(&mut e, Choice::ResolveRider { card: focus.0 });
+    pick_when(&mut e, play(0, 1, z));
+    request(&mut e);
+    assert!(e.state.seats[0]
+        .ash
+        .contains(&find_library("Thoughts Betrayed")));
+    assert_eq!(blood(&e, a), 3, "2 blood, 1 off");
+    assert!(!e.state.cards[focus.index()].in_play, "the Focus burned");
+}
+
+// Not The Shard: announced with superior Thoughts Betrayed and the card
+// canceled by Groundfighting, its cost paid in full and the Shard left
+// unlocked — never locked by a card canceled as played (rules-qa 101.1,
+// 36.1; ANK 20230620).
+#[test]
+fn a_canceled_card_still_paid_locks_no_shard() {
+    let mut e = game(2);
+    let a = e.add_minion(SeatId(0), of_clan("Banu Haqim", 6..=11), 4, false);
+    superior(&mut e, a, "DOM");
+    e.add_minion(SeatId(0), plain("Brujah", 0), 4, false);
+    let anarch = anarch_with_celerity();
+    let z = e.add_minion(SeatId(1), anarch, 6, false);
+    let shard = in_play(&mut e, 0, "Shard, London, The", None);
+    e.state.seats[0].has_edge = true;
+    hand(&mut e, 0, &["Thoughts Betrayed"]);
+    hand(&mut e, 1, &["Groundfighting", "Side Strike"]);
+    pick(&mut e, bleed(a));
+    pick_when(&mut e, block(z));
+    pick_when(&mut e, play(0, 1, a));
+    pick_when(&mut e, Choice::ResolveRider { card: shard.0 });
+    pick_when(&mut e, play(0, 1, z));
+    request(&mut e);
+    assert!(e.state.seats[0]
+        .ash
+        .contains(&find_library("Thoughts Betrayed")));
+    assert_eq!(blood(&e, a), 2, "2 blood, the Shard not taken");
+    assert!(!e.state.cards[shard.index()].locked);
 }
 
 // [LSJ 20081120-2] Heroic Might's "strikes it provides are Potence

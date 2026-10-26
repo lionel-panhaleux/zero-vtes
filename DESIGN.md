@@ -1939,13 +1939,6 @@ What the engine does not yet do or does only in part, true today.
   - `ImmuneToDirectedActions` is read on card plays only
     (`GameState::immune_to_directed` in `plays.rs`): a granted or printed
     action requiring a Discipline would need it in `ability_targets` too.
-  - Disarm's torpor is applied inside the card's resolution: a torpor rider
-    ousting the active Methuselah there finishes the play's bookkeeping first.
-  - True Love's Face's pay-to-cancel is not offered for a last pool (an oust in
-    the middle of a play).
-  - A canceled card whose cost "is still paid" (Meditative Grove) takes the
-    player's printed reductions but not Regina Blake's announced blood
-    (`settle_canceled`).
   - `Effect::PoolToHostBlood` ousts through `oust_and_pass`, assuming the user is
     the active seat — true for Blood Doll; route through `oust` when a
     pool-paying untimed ability reaches a non-active seat.
@@ -1962,10 +1955,6 @@ What the engine does not yet do or does only in part, true today.
     blood moved; still, a driver with a deterministic policy (the P3 greedy
     evaluation, a human client) keeps a decision budget; the scripted bots
     remember their attempts.
-- A deferred oust (Life Boon) lets the effect that ran the pool out finish
-  first: windows of an action or referendum under way may still list the
-  Methuselah about to be ousted until the Boon decision (fuzzed by
-  `random_games_with_legacy_additions…`, not proven for every flow).
 - Legacy additions partly covered by tests only through code paths: a
   Rötschreck range check (a strike ineffective at the range), Powerbase:
   Savannah with Deep Song's acting target, Saatet-ta's stealth and intercept
@@ -1985,7 +1974,7 @@ What the engine does not yet do or does only in part, true today.
 
 The objectives still open are the roadmap's (`docs/roadmap.md`).
 
-Definitions: 954 library, 482 vampires; 2645 Rust tests, 62 Python tests
+Definitions: 954 library, 482 vampires; 2654 Rust tests, 62 Python tests
 
 ## Outlook: deck building (post-v1)
 

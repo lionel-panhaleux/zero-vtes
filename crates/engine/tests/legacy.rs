@@ -1059,6 +1059,49 @@ fn a_declined_life_boon_lets_the_oust_apply() {
     assert!(e.state.seats[2].hand.contains(&find_library("Life Boon")));
 }
 
+// A deferred oust in the middle of an action (docs/engine.md §6.17): the Boon
+// decision is the very next one after the effect that ran the pool out —
+// no window of the action lists the Methuselah about to be ousted — and,
+// declined, the oust applies before the action goes on: never asked again.
+#[test]
+fn a_deferred_oust_mid_action_lists_its_methuselah_in_no_window() {
+    let mut e = Engine::bare(3);
+    e.state.turn = 4;
+    let a = e.add_minion(
+        SeatId(0),
+        vampire(|c| c.capacity >= 5 && c.disciplines.contains(&"OBF"), 0),
+        4,
+        false,
+    );
+    e.add_minion(SeatId(0), plain("Brujah", &[], 1), 4, false);
+    e.state.seats[1].pool = 1;
+    e.state.seats[2].pool = 10;
+    hand(&mut e, 0, &["Spying Mission"]);
+    hand(&mut e, 1, &["Direct Intervention"]);
+    hand(&mut e, 2, &["Life Boon"]);
+    pick(&mut e, bleed(a));
+    pick_when(&mut e, play_at(0, 1, Some(a), Target::None));
+    pick_when(&mut e, play_at(0, 0, None, Target::None));
+    let req = request(&mut e);
+    assert_eq!(
+        (req.seat, req.window),
+        (SeatId(2), WindowLabel::ResolutionChoice)
+    );
+    assert!(req
+        .options
+        .contains(&play_at(0, 0, None, Target::Seat(SeatId(1)))));
+    pick(&mut e, Choice::Pass);
+    loop {
+        let req = request(&mut e);
+        assert!(e.state.seats[1].ousted);
+        assert_ne!(req.seat, SeatId(1), "{:?}", req.window);
+        if req.seat == SeatId(0) && req.window == WindowLabel::MinionPhase {
+            break;
+        }
+        e.choose(0);
+    }
+}
+
 // No Boon on one's own turn (out-of-turn), none without the pool to give
 // (1 kept): the oust applies at once, no decision.
 #[test]

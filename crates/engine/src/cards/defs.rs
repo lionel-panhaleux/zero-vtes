@@ -9777,8 +9777,8 @@ pub static KRCG_NEWS_RADIO: CardDef = CardDef {
             requires: &[
                 Requirement::CardUnlocked,
                 Requirement::OthersAttemptNeedsIntercept,
-                // Not burning a last pool this way (as True Love's Face).
-                Requirement::PoolAtLeast(2),
+                // A last pool too: a cost (Default readings; rules-qa 101.3).
+                Requirement::PoolAtLeast(1),
             ],
             target: None,
             terms: None,

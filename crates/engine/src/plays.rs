@@ -3029,8 +3029,8 @@ impl Engine {
         let mut options = vec![Choice::Pass];
         options.extend(self.play_options(seat, &[Window::CardAsPlayed], Some(&top.ctx)));
         // "The blocking minion's controller can burn 1 pool to cancel this
-        // card as it is played" (True Love's Face [OBF][PRE]). Burning a
-        // last pool this way is not offered (an oust mid-play: DESIGN).
+        // card as it is played" (True Love's Face [OBF][PRE]): a last pool
+        // too, a cost (Default readings; rules-qa 101.3).
         if let Some(n) = cards::lookup(top.ctx.card).and_then(|d| {
             d.modes[top.ctx.mode as usize]
                 .effects
@@ -3046,7 +3046,7 @@ impl Engine {
                 }
                 _ => None,
             });
-            if blocker_seat == Some(seat) && self.state.seats[seat.index()].pool > n as i32 {
+            if blocker_seat == Some(seat) && self.state.seats[seat.index()].pool >= n as i32 {
                 options.push(Choice::PayToCancel);
             }
         }
@@ -3087,7 +3087,7 @@ impl Engine {
             top.ctx.target,
         ) {
             if self.state.minions[t.index()].owner == seat
-                && self.state.seats[seat.index()].pool > n as i32
+                && self.state.seats[seat.index()].pool >= n as i32
             {
                 options.push(Choice::PayToCancel);
             }
@@ -3378,9 +3378,12 @@ impl Engine {
                     card: top.ctx.card,
                     copy: *top.ctx.copy,
                 });
-                self.caused(canceled, |e| {
-                    e.state.seats[seat.index()].lose_pool(n as i32)
-                });
+                self.caused(canceled, |e| e.pay_pool_for_ability(seat, n as i32));
+                // Its last pool, one Methuselah left: the game over, not
+                // resumed (Golconda's cancel has no action to end it).
+                if self.state.living() <= 1 {
+                    return;
+                }
                 self.flow = Flow::AsPlayed { stack, resume };
             }
             other => unreachable!("illegal as-played choice {other:?}"),
@@ -3553,7 +3556,8 @@ impl Engine {
     /// replaced (§1.9.3), not from a Fleshforge Chamber (rules-qa 37.1).
     /// Costs are paid at resolution (§1.7.1): only a "still paid" cancel
     /// (Meditative Grove) pays a non-action card's now, surcharges included
-    /// (ANK 20260216).
+    /// (ANK 20260216), the reductions announced with it taken (rules-qa
+    /// 101.1).
     fn settle_canceled(&mut self, ctx: PlayCtx, cost_paid: bool) {
         self.note_play(&ctx, true, true);
         let action_card = cards::lookup(ctx.card).is_some_and(|d| {
@@ -3587,6 +3591,9 @@ impl Engine {
                 copy: *ctx.copy,
             });
             self.caused(canceled, |e| {
+                if !names {
+                    e.take_announced(&ctx, &mut pool, &mut blood_off, true);
+                }
                 e.state.seats[ctx.seat.index()].lose_pool(pool.max(0));
                 e.pay_play_blood(&ctx, blood_off);
             });
@@ -3729,6 +3736,69 @@ impl Engine {
             self.state
                 .turn_uses
                 .push(crate::state::once_cost_off_key(m));
+        }
+    }
+
+    /// The reductions announced with `ctx`'s card, one naming no other
+    /// (Piper's are the named card's), taken as its cost is paid (`pool`,
+    /// `blood_off`): at resolution, or for a card canceled with its cost
+    /// still paid (`canceled`; rules-qa 101.1), then without the lock-type
+    /// locations, never locked by a canceled card (`Taken::Lock`: The Shard,
+    /// Sunset Strip; ANK 20230620).
+    fn take_announced(
+        &mut self,
+        ctx: &PlayCtx,
+        pool: &mut i32,
+        blood_off: &mut u8,
+        canceled: bool,
+    ) {
+        let mut ctx = *ctx;
+        if canceled {
+            let seat = ctx.seat;
+            for d in &mut ctx.discounts {
+                let lock = d.is_some_and(|(c, _)| {
+                    matches!(
+                        self.discount_kind(seat, c),
+                        Some((_, crate::actions::Taken::Lock))
+                    )
+                });
+                if lock {
+                    *d = None;
+                }
+            }
+        }
+        // The Shard and Sunset Strip locked, Focus the Blood burned; no
+        // counters pay a card that is no action.
+        let (either, blood, _) = self.take_discounts(&ctx);
+        if *pool > 0 {
+            *pool = (*pool - either as i32).max(0);
+        } else {
+            *blood_off += either;
+        }
+        *blood_off += blood;
+        // A vampire's blood paying 1 of it (Regina Blake).
+        if let Some(r) = ctx.blood_payer {
+            let before = cards::blood_cost(&self.state, ctx.card, ctx.x).saturating_sub(*blood_off);
+            let mut blood = before;
+            if let Some(r) = self.blood_payment(Some(r), pool, &mut blood) {
+                self.state.lose_blood(r, 1);
+                *blood_off += before - blood;
+            }
+        }
+        // Baldesar: 1 off, if still ready.
+        let mut blood = cards::blood_cost(&self.state, ctx.card, ctx.x).saturating_sub(*blood_off);
+        let before = blood;
+        if self.reducer_off(&ctx, pool, &mut blood) {
+            *blood_off += before - blood;
+            self.spend_reducer(&ctx);
+        }
+        // Jack: locked for 1 pool off, if still unlocked.
+        if let Some(j) = ctx.locker {
+            let v = &self.state.minions[j.index()];
+            if v.in_play && !v.locked {
+                self.state.minions[j.index()].locked = true;
+                *pool = (*pool - 1).max(0);
+            }
         }
     }
 
@@ -3878,45 +3948,7 @@ impl Engine {
             let once = self.once_off_amount(&ctx, blood);
             blood_off += once;
             self.spend_once_cost_off(&ctx, once);
-        }
-        // The Shard and Sunset Strip locked, Focus the Blood burned, as the
-        // cost of a card that is no action is paid (not if it was canceled:
-        // ANK 20230620); no counters pay such a card.
-        if !names {
-            let (either, blood, _) = self.take_discounts(&ctx);
-            if pool > 0 {
-                pool = (pool - either as i32).max(0);
-            } else {
-                blood_off += either;
-            }
-            blood_off += blood;
-        }
-        // A vampire's blood paying 1 of it (Regina Blake).
-        if let Some(r) = ctx.blood_payer.filter(|_| !names) {
-            let before = cards::blood_cost(&self.state, ctx.card, ctx.x).saturating_sub(blood_off);
-            let mut blood = before;
-            if let Some(r) = self.blood_payment(Some(r), &mut pool, &mut blood) {
-                self.state.lose_blood(r, 1);
-                blood_off += before - blood;
-            }
-        }
-        // Baldesar: 1 off, if still ready.
-        if !names {
-            let mut blood =
-                cards::blood_cost(&self.state, ctx.card, ctx.x).saturating_sub(blood_off);
-            let before = blood;
-            if self.reducer_off(&ctx, &mut pool, &mut blood) {
-                blood_off += before - blood;
-                self.spend_reducer(&ctx);
-            }
-        }
-        // Jack: locked for 1 pool off, if still unlocked.
-        if let Some(j) = ctx.locker.filter(|_| !names) {
-            let v = &self.state.minions[j.index()];
-            if v.in_play && !v.locked {
-                self.state.minions[j.index()].locked = true;
-                pool = (pool - 1).max(0);
-            }
+            self.take_announced(&ctx, &mut pool, &mut blood_off, false);
         }
         self.state.seats[s.index()].lose_pool(pool);
         if pool > 0 {

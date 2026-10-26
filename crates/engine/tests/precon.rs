@@ -1693,6 +1693,56 @@ fn true_loves_face_fails_the_attempt_unless_its_blocker_pays_to_cancel_it() {
     }
 }
 
+// True Love's Face's cancel paid with a last pool (a cost, Default
+// readings): the blocker's Methuselah is ousted, its predator takes the VP,
+// and the bleed has no one left to bleed.
+#[test]
+fn true_loves_face_cancel_may_cost_a_last_pool() {
+    let mut e = Engine::bare(3);
+    let a = e.add_minion(SeatId(0), vampire(|c| has(c, &["OBF", "PRE"]), 0), 4, false);
+    e.add_minion(SeatId(0), plain("Brujah", "", 1), 4, false);
+    let z = e.add_minion(SeatId(1), plain("Ventrue", "", 0), 4, false);
+    e.add_minion(SeatId(2), plain("Toreador", "", 0), 4, false);
+    e.state.seats[1].pool = 1;
+    hand(&mut e, 0, &["True Love's Face"]);
+    pick(&mut e, action(a, ActionKind::Bleed));
+    pick_when(&mut e, Choice::DeclareBlock { minion: z });
+    pick_when(&mut e, play(0, 1, a));
+    pick(&mut e, Choice::PayToCancel);
+    // Polled no more: no window of the play or the action asks seat 1.
+    loop {
+        let req = request(&mut e);
+        assert_ne!(req.seat, SeatId(1), "{:?}", req.window);
+        if req.seat == SeatId(0) && req.window == WindowLabel::MinionPhase {
+            break;
+        }
+        e.choose(0);
+    }
+    assert!(e.state.seats[1].ousted);
+    assert_eq!(e.state.seats[0].half_vps, 2, "the oust's VP");
+    assert_eq!(e.state.seats[0].pool, 30 + 6, "and its 6 pool");
+    assert_eq!(e.state.seats[2].pool, 30, "no one else bled");
+    assert!(e.state.minions[a.index()].locked);
+}
+
+// Two Methuselahs: the blocker's last pool paid for the cancel ousts them,
+// and the game is over at once (rules-qa 101.3).
+#[test]
+fn a_last_pool_cancel_ends_a_two_player_game() {
+    let mut e = Engine::bare(2);
+    let a = e.add_minion(SeatId(0), vampire(|c| has(c, &["OBF", "PRE"]), 0), 4, false);
+    e.add_minion(SeatId(0), plain("Brujah", "", 1), 4, false);
+    let z = e.add_minion(SeatId(1), plain("Ventrue", "", 0), 4, false);
+    e.state.seats[1].pool = 1;
+    hand(&mut e, 0, &["True Love's Face"]);
+    pick(&mut e, action(a, ActionKind::Bleed));
+    pick_when(&mut e, Choice::DeclareBlock { minion: z });
+    pick_when(&mut e, play(0, 1, a));
+    pick(&mut e, Choice::PayToCancel);
+    assert!(matches!(e.run(), zvtes::game::Step::Over(_)));
+    assert!(e.state.seats[1].ousted);
+}
+
 // [LSJ 20031121-2] Where the Veil Thins [OBL]: "minions without Oblivion
 // must burn 1 blood to attempt to block" — "A minion previously attempting
 // to block can resign his attempt and pay no blood." A new attempt pays.
@@ -7543,6 +7593,29 @@ fn krcg_news_radio_pays_for_another_methuselahs_intercept() {
     }
 }
 
+// KRCG News Radio's 1 pool for another's intercept may be a last pool: a
+// cost (Default readings; rules-qa 101.3) — its player ousted with the
+// card before the intercept is given, as a last pool paid to vote casts
+// nothing (33.2): the bleed goes through.
+#[test]
+fn krcg_news_radio_may_cost_a_last_pool() {
+    let mut e = Engine::bare(4);
+    let a = e.add_minion(SeatId(0), plain("", "", 0), 3, false);
+    e.add_minion(SeatId(0), plain("", "", 1), 4, false);
+    let z = e.add_minion(SeatId(1), plain("", "", 2), 4, false);
+    e.add_minion(SeatId(2), plain("", "", 3), 4, false);
+    e.add_minion(SeatId(3), plain("", "", 4), 4, false);
+    location(&mut e, 2, "KRCG News Radio");
+    e.state.seats[2].pool = 1;
+    hand(&mut e, 0, &["Anarchist Uprising"]);
+    pick(&mut e, play(0, 0, a));
+    pick_when(&mut e, Choice::DeclareBlock { minion: z });
+    pick_when(&mut e, use_on(CardId(0), 1, None, Target::None));
+    until(&mut e, SeatId(0), WindowLabel::MinionPhase);
+    assert!(e.state.seats[2].ousted);
+    assert_eq!(e.last_outcome, Some(zvtes::actions::Outcome::Successful));
+}
+
 // Carver's Meat Packing and Storage: "After a vampire with capacity 3 or
 // less goes to torpor, put 1 hostage counter on them. Vampires with any
 // hostage counters cannot be moved to the ready region or be diablerized.
@@ -8448,6 +8521,42 @@ fn weather_control_superior_grows_each_round() {
         "1 + 2 weather, two hand strikes"
     );
     assert_eq!(blood(&e, z), zs - 3 - 2);
+}
+
+// Disarm's torpor ousting the active Methuselah inside the play: Fame on
+// the acting vampire burns its controller's last 3 pool as the blocker's
+// Disarm sends it to torpor; the oust is the active seat's, its predator's
+// VP, the turn passes, and the Disarm on the removed vampire is removed
+// from the game with it (rules-qa 101.2).
+#[test]
+fn a_disarm_whose_torpor_ousts_the_active_methuselah() {
+    let mut e = Engine::bare(3);
+    let a = e.add_minion(SeatId(0), plain("Ventrue", "", 0), 5, false);
+    e.add_minion(SeatId(0), plain("Ventrue", "", 1), 5, false);
+    let z = e.add_minion(SeatId(1), with(&["pot"], 0), 5, false);
+    e.add_minion(SeatId(2), plain("Toreador", "", 0), 5, false);
+    e.state
+        .cards
+        .push(CardInPlay::new(find_library("Fame"), SeatId(0), Some(a), 0));
+    e.state.seats[0].pool = 3;
+    hand(&mut e, 1, &["Slam", "Disarm"]);
+    pick(&mut e, action(a, ActionKind::Bleed));
+    pick_when(&mut e, Choice::DeclareBlock { minion: z });
+    pick_when(&mut e, play(0, 0, z)); // Slam: hand strike at +2
+    pick_when(&mut e, play(0, 0, z)); // Disarm
+    let req = until(&mut e, SeatId(1), WindowLabel::MinionPhase);
+    assert!(e.state.seats[0].ousted);
+    assert_eq!(e.state.seats[2].half_vps, 2, "the predator's VP");
+    assert_eq!(
+        (req.seat, e.state.active),
+        (SeatId(1), SeatId(1)),
+        "the turn passed"
+    );
+    let disarm = find_library("Disarm");
+    // Controlled by the ousted Methuselah on their vampire, removed with
+    // it, not burned (ANK 20180408, as Charnas the Imp).
+    assert!(e.state.seats[1].removed.contains(&disarm));
+    assert!(!e.state.seats[1].ash.contains(&disarm));
 }
 
 // Disarm: "Only usable at close range at the end of a round during which
@@ -11096,6 +11205,47 @@ fn golconda_removes_an_elder_for_its_capacity_in_pool() {
             assert_eq!(e.state.seats[1].ash, vec![find_library("Monster")]);
         }
     }
+}
+
+// Golconda's 2 pool to cancel may be the target's controller's last: a
+// cost (Default readings; rules-qa 101.3) — they are ousted, the card
+// canceled.
+#[test]
+fn golconda_cancel_may_cost_a_last_pool() {
+    let mut e = Engine::bare(3);
+    e.add_minion(SeatId(0), plain("", "", 0), 4, false);
+    let z = e.add_minion(SeatId(1), crypt("\"Mother\" Anja Giovanni"), 4, false);
+    e.add_minion(SeatId(2), plain("", "", 1), 4, false);
+    e.state.seats[1].pool = 2;
+    hand(&mut e, 0, &["Golconda: Inner Peace"]);
+    e.at_master_phase();
+    pick(&mut e, play_at(0, 0, None, Target::Minion(z)));
+    let req = expect(&mut e, SeatId(1), WindowLabel::CardAsPlayed);
+    assert!(req.options.contains(&Choice::PayToCancel));
+    pick(&mut e, Choice::PayToCancel);
+    request(&mut e);
+    assert!(e.state.seats[1].ousted);
+    assert_eq!(
+        e.state.seats[1].removed_crypt,
+        Vec::<u16>::new(),
+        "canceled: the vampire leaves with its Methuselah, not by Golconda"
+    );
+}
+
+// Two Methuselahs, no action under way: Golconda canceled with the
+// target's controller's last 2 pool ends the game (rules-qa 101.3).
+#[test]
+fn a_last_pool_golconda_cancel_ends_a_two_player_game() {
+    let mut e = Engine::bare(2);
+    e.add_minion(SeatId(0), plain("", "", 0), 4, false);
+    let z = e.add_minion(SeatId(1), crypt("\"Mother\" Anja Giovanni"), 4, false);
+    e.state.seats[1].pool = 2;
+    hand(&mut e, 0, &["Golconda: Inner Peace"]);
+    e.at_master_phase();
+    pick(&mut e, play_at(0, 0, None, Target::Minion(z)));
+    pick_when(&mut e, Choice::PayToCancel);
+    assert!(matches!(e.run(), zvtes::game::Step::Over(_)));
+    assert!(e.state.seats[1].ousted);
 }
 
 // Grooming the Protégé: "Move up to 3 blood from a ready vampire you control

@@ -2701,6 +2701,8 @@ impl Engine {
                         && ab.windows.contains(&Window::ActionStealthIntercept)
                         && ab.requires.iter().all(|&r| match r {
                             cards::Requirement::YourAttemptNeedsIntercept => controller == seat,
+                            // More than its pool cost: a last pool paid gives
+                            // no intercept (rules-qa 101.3).
                             cards::Requirement::OthersAttemptNeedsIntercept => {
                                 controller != seat
                                     && st.seats[controller.index()].pool

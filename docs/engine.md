@@ -1605,6 +1605,13 @@ sources to the engine's conventions.
   combatant burned by paying its last life for a card ends the combat
   (`pay_play_blood`). A minion's printed surcharge (Tom's,
   `CostOff::blood_extra`) is paid there too (`printed_extra`).
+- The reductions announced with a card are taken as its cost is paid by
+  one helper (`take_announced`): at resolution (`resolve_play`) and for a
+  card canceled with its cost still paid (`settle_canceled`, without the
+  lock-type locations: rules-qa 101.1).
+- A pool cost paid out of turn (True Love's Face's and Golconda's cancels,
+  KRCG News Radio's intercept) may be a last pool, paid by
+  `pay_pool_for_ability` (rules-qa 101.3).
 - One estimate of a card's cost as announced so far, surcharges in, printed
   and announced reductions out (`play_cost`): the hand play's offer, the
   pass while unaffordable (`affordable_with_discounts`) and the blood an X
@@ -1653,7 +1660,10 @@ sources to the engine's conventions.
   in flight. `settle_ousting` then drops the saved and ousts the rest
   (`oust_now`), settling what the oust interrupts (`after_deferred_oust`:
   `combat_ousts`, the turn passing, the action's order). With no Boon in an
-  eligible hand the oust applies at once, as before.
+  eligible hand the oust applies at once, as before. Served before the
+  flow's own request, the Boon decision lets no window of the action or
+  referendum under way list the Methuselah about to be ousted, but the
+  Boon's own play (its as-played window: not ousted yet).
 - `oust_and_pass` returns whether the oust applied: its callers return (the
   turn passed) only then, else go on as if the pool had not run out.
   A cost the acting Methuselah pays for their action goes through
