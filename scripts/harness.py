@@ -11,6 +11,9 @@ carrying an `Upkeep:` trailer.
     python3 scripts/harness.py age       each line's cycles since it was touched
     python3 scripts/harness.py due       whether an upkeep pass is due
     python3 scripts/harness.py orphans   docs pages docs/index.md does not reach
+    python3 scripts/harness.py ratchet   the advisory trailers since the last
+        upkeep by class (the ship skill's "Advisory classes"), three of a
+        kind marked, and the slugs no class lists
     python3 scripts/harness.py stale <base>|<a>..<b>
         the names a change removes (code identifiers, headings, paths) that
         the pages, CLAUDE.md, the skills and the code's comments still cite,
@@ -475,6 +478,60 @@ def stale():
     return 1 if found or wide else 0
 
 
+SHIP = ".claude/skills/ship/SKILL.md"
+
+
+def classes():
+    """(exact, prefixes): each slug, each `prefix-*`, to its class, from the
+    ship skill's "Advisory classes" (a class's line: its slug first)."""
+    text = (ROOT / SHIP).read_text()
+    part = text.split("### Advisory classes", 1)[1]
+    exact, prefixes = {}, {}
+    kind = None
+    for line in part.split("\n"):
+        if line.startswith("- `"):
+            kind = re.match(r"- `([^`]+)`", line).group(1)
+        elif not (kind and line.startswith("  ")):
+            # The list ends at its first line that is not a class's.
+            if exact and line.strip():
+                break
+            kind = None
+            continue
+        for slug in re.findall(r"`([^`]+)`", line):
+            if slug.endswith("*"):
+                prefixes[slug[:-1]] = kind
+            else:
+                exact[slug] = kind
+    return exact, prefixes
+
+
+def classify(slug, exact, prefixes):
+    if slug in exact:
+        return exact[slug]
+    hits = [p for p in prefixes if slug.startswith(p)]
+    return prefixes[max(hits, key=len)] if hits else None
+
+
+def ratchet():
+    commits = board_commits()
+    since = commits[last_upkeep(commits)][0] if commits else None
+    log = git("log", "--format=%B", f"{since}..HEAD" if since else "HEAD")
+    exact, prefixes = classes()
+    counts, unlisted = {}, {}
+    for line in log.splitlines():
+        if m := re.match(r"^Advisory: ([a-z0-9-]+)", line):
+            kind = classify(m.group(1), exact, prefixes)
+            if kind:
+                counts[kind] = counts.get(kind, 0) + 1
+            else:
+                unlisted[m.group(1)] = unlisted.get(m.group(1), 0) + 1
+    print(f"advisories since {since[:7] if since else 'the start'}, by class:")
+    for kind, n in sorted(counts.items(), key=lambda kv: (-kv[1], kv[0])):
+        print(f"{n:>4}  {kind}{'  three of a kind' if n >= 3 else ''}")
+    if unlisted:
+        print("no class lists:", ", ".join(f"{k} ({n})" for k, n in sorted(unlisted.items())))
+
+
 if __name__ == "__main__":
     cmd = sys.argv[1] if len(sys.argv) > 1 else ""
     commands = {
@@ -482,6 +539,7 @@ if __name__ == "__main__":
         "age": age,
         "due": due,
         "orphans": orphans,
+        "ratchet": ratchet,
         "stale": stale,
     }
     if cmd not in commands:

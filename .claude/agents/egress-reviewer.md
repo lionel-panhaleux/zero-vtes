@@ -51,20 +51,22 @@ verdict. Do not hunt defects to justify the review. Check:
    require the rest now rather than a follow-up. First-round growth is
    normal; a later round's should be exceptional, but a finding within
    the change's reach is still raised and fixed, whatever the round.
-7. **Tests.** Each behaviour change has a test at the engine's or the
-   server's boundary that fails without it, tracing to a declared
-   behaviour (a ledger row, a rules-qa item, a protocol rule, a board
-   line); each behaviour the change writes into a standing page has one,
-   its stub probe (the behaviour broken, the test failing) given in the
-   hand-off and named in the commit message. A test weakened or deleted
-   is blocking unless the declared behaviour changed (say which). Goldens
+7. **Tests.** (The Succubus Club fork has no test suite: a behaviour of
+   the fork alone is checked by reading and vue-tsc, as the commit says.)
+   Each behaviour change has a test at the engine's or the server's
+   boundary that fails without it, tracing to a declared behaviour (a
+   ledger row, a rules-qa item, a protocol rule, a board line); each
+   behaviour the change writes into a standing page has one, its stub
+   probe (the behaviour broken, the test failing) given in the hand-off
+   and named in the commit message. A test weakened or deleted is
+   blocking unless the declared behaviour changed (say which). Goldens
    moved only as the commit explains.
 
 Report: a verdict line ("looks good" / "N blocking, M advisory"), then
 each finding with file:line, what, why (the charter item, rule or page),
 the fix, and **blocking** (a charter violation) or **advisory**
-(recorded, not gating) with a short kebab-case class ("stale-doc",
-"shallow-module", "test-weakened", "narrating-comment", "half-done").
+(recorded, not gating) with a class from the ship skill's "Advisory
+classes" (the nearest; a new one proposed when none fits).
 Anything within reach of the change (its code, its pages, its tests) is
 a finding the author fixes in it, however minor. Separately, and only
 for what clearly lies outside the line (work for another line: code

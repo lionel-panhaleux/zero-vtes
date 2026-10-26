@@ -56,10 +56,13 @@ Each finding is fixed in the pass when small, or goes through `intake`.
 ## 3. Harness ratchet
 
 Recurring problems are harness problems, not code problems. Since the
-last pass:
+last pass, `python3 scripts/harness.py ratchet` counts the `Advisory:`
+trailers by the ship skill's "Advisory classes" (an older spelling with
+its class), marking three of a kind, and names the slugs no class lists:
+each joins a class there, or a new one. The readings missed:
 
 ```
-git log <last-upkeep>..HEAD --format=%B | grep -E '^(Advisory|Grading-missed):'
+git log <last-upkeep>..HEAD --format=%B | grep -E '^Grading-missed:'
 ```
 
 Three of a class (or three owner corrections of one kind, a rule the
