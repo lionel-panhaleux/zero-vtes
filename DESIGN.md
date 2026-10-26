@@ -1944,7 +1944,6 @@ What the engine does not yet do or does only in part, true today.
     Doll's master phase, Vessel's own unlock phase) the active seat; a
     cancelling ability marks the play canceled as it is used
     (`as_played_apply`), none having terms its user could back out of.
-  - Wolf Claws [PRO] is covered by fuzz only.
   - Decisions are unbounded within an action: `TURN_LIMIT` bounds turns, but
     the rulebook allows block re-attempts as often as wished. A failed
     attempt is not offered again in the same situation (rules-qa 48.6,
@@ -1952,10 +1951,6 @@ What the engine does not yet do or does only in part, true today.
     blood moved; still, a driver with a deterministic policy (the P3 greedy
     evaluation, a human client) keeps a decision budget; the scripted bots
     remember their attempts.
-- Legacy additions partly covered by tests only through code paths: a
-  Rötschreck range check (a strike ineffective at the range), Powerbase:
-  Savannah with Deep Song's acting target, Saatet-ta's stealth and intercept
-  locks, Carlton's strike and dodge.
 - No printed sterile baron exists, so Childe of the Revolution's sterile
   mask is tested on a sterile vampire made a baron (Effie Lowery).
 
@@ -1971,7 +1966,7 @@ What the engine does not yet do or does only in part, true today.
 
 The objectives still open are the roadmap's (`docs/roadmap.md`).
 
-Definitions: 954 library, 482 vampires; 2656 Rust tests, 62 Python tests
+Definitions: 954 library, 482 vampires; 2660 Rust tests, 62 Python tests
 
 ## Outlook: deck building (post-v1)
 

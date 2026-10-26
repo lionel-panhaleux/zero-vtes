@@ -485,10 +485,7 @@ fn saatet_ta_locks_for_a_follower_and_shuffles_back_when_burned() {
     let s = e.add_ally(SeatId(0), find_library("Saatet-ta"));
     // As if recruited this turn: still usable.
     e.state.minions[s.index()].recruited = true;
-    let card = match e.state.minions[s.index()].kind {
-        zvtes::state::MinionKind::Ally { id, .. } => id,
-        _ => unreachable!(),
-    };
+    let card = ally_card(&e, s);
     // Not for a non-Follower's bleed.
     pick(&mut e, bleed(other));
     never_offered_where(
@@ -513,6 +510,53 @@ fn saatet_ta_locks_for_a_follower_and_shuffles_back_when_burned() {
     assert!(!e.state.seats[0].ash.contains(&find_library("Saatet-ta")));
 }
 
+// Saatet-ta's other two locks: +1 stealth to a Follower's action (its bleed
+// past a block), +1 intercept to a Follower's block (a hunt's +1 stealth
+// met).
+#[test]
+fn saatet_ta_locks_for_a_followers_stealth_or_intercept() {
+    // Stealth: the Follower bleeds, the prey's vampire attempts to block.
+    let mut e = Engine::bare(3);
+    e.state.turn = 4;
+    let a = e.add_minion(SeatId(0), plain("Ministry", &[], 0), 4, false);
+    e.add_minion(SeatId(0), plain("Brujah", &[], 1), 4, false);
+    let z = e.add_minion(SeatId(1), plain("Ventrue", &[], 0), 4, false);
+    let s = e.add_ally(SeatId(0), find_library("Saatet-ta"));
+    let card = ally_card(&e, s);
+    pick(&mut e, bleed(a));
+    pick_when(&mut e, block(z));
+    pick_when(&mut e, use_at(card, 0, None, Target::None));
+    until(&mut e, SeatId(0), WindowLabel::MinionPhase);
+    assert!(e.state.minions[s.index()].locked);
+    assert_eq!(pool(&e, 1), 30 - 1, "the bleed went through");
+    // Intercept: seat 1's vampire hunts (+1 stealth); seat 0, its
+    // predator, blocks with the Follower.
+    let mut e = Engine::bare(3);
+    e.state.turn = 4;
+    e.add_minion(SeatId(0), plain("Brujah", &[], 1), 4, false);
+    let f = e.add_minion(SeatId(0), plain("Ministry", &[], 0), 4, false);
+    let s = e.add_ally(SeatId(0), find_library("Saatet-ta"));
+    let card = ally_card(&e, s);
+    let h = e.add_minion(SeatId(1), plain("Ventrue", &[], 0), 0, false);
+    e.add_minion(SeatId(1), plain("Ventrue", &[], 1), 4, false);
+    // Its hunt, forced with no blood, taken at once on seat 1's turn.
+    let req = offering(&mut e, block(f));
+    assert_eq!(e.action().map(|a| a.acting), Some(h));
+    e.choose(req.options.iter().position(|o| *o == block(f)).unwrap());
+    pick_when(&mut e, use_at(card, 1, None, Target::None));
+    request(&mut e);
+    assert!(e.state.minions[s.index()].locked);
+    assert_eq!(e.last_outcome, Some(zvtes::actions::Outcome::Blocked));
+}
+
+/// The library card of ally `m`.
+fn ally_card(e: &Engine, m: MinionId) -> CardId {
+    match e.state.minions[m.index()].kind {
+        zvtes::state::MinionKind::Ally { id, .. } => id,
+        _ => unreachable!(),
+    }
+}
+
 // ---- Carlton Van Wyk ------------------------------------------------------------
 
 // Carlton Van Wyk: "Carlton can strike: 1R damage. Once each combat, he can
@@ -534,10 +578,7 @@ fn carlton_van_wyk_burns_a_recent_diablerist() {
     let this = e.state.seats[0].this_turn;
     e.state.minions[recent.index()].diablerie_turn = Some(this);
     e.state.minions[old.index()].diablerie_turn = Some(e.state.seats[0].previous_turn);
-    let card = match e.state.minions[carlton.index()].kind {
-        zvtes::state::MinionKind::Ally { id, .. } => id,
-        _ => unreachable!(),
-    };
+    let card = ally_card(&e, carlton);
     let burn = |t| use_at(card, 2, None, Target::Minion(t));
     let req = to_window(&mut e, SeatId(0), WindowLabel::DiscardPhase);
     assert!(req.options.contains(&burn(recent)));
@@ -563,6 +604,31 @@ fn carlton_van_wyk_intercepts_vampires() {
     let carlton = e.add_ally(SeatId(2), find_library("Carlton Van Wyk"));
     let req = expect(&mut e, SeatId(2), WindowLabel::ActionBlock);
     assert!(req.options.contains(&block(carlton)));
+}
+
+// Carlton's strikes: 1R damage, or a dodge (once each combat). Blocking a
+// bloodless vampire's hunt, his 1R sends it to torpor; his dodge takes its
+// hand strike.
+#[test]
+fn carlton_van_wyk_strikes_or_dodges() {
+    for dodge in [false, true] {
+        let mut e = Engine::bare(3);
+        e.state.turn = 4;
+        let a = e.add_minion(SeatId(0), plain("Brujah", &[], 0), 0, false);
+        e.add_minion(SeatId(0), plain("Brujah", &[], 1), 4, false);
+        let carlton = e.add_ally(SeatId(2), find_library("Carlton Van Wyk"));
+        let card = ally_card(&e, carlton);
+        let life = e.state.minions[carlton.index()].blood;
+        pick_when(&mut e, block(carlton));
+        pick_when(&mut e, use_at(card, u8::from(dodge), None, Target::None));
+        until(&mut e, SeatId(0), WindowLabel::MinionPhase);
+        if dodge {
+            assert_eq!(e.state.minions[carlton.index()].blood, life, "dodged");
+            assert!(!e.state.minions[a.index()].in_torpor);
+        } else {
+            assert!(e.state.minions[a.index()].in_torpor, "1R on no blood");
+        }
+    }
 }
 
 // ---- Jake Washington --------------------------------------------------------------
@@ -837,14 +903,44 @@ fn rotschreck_ends_combat_against_an_aggravated_strike() {
 }
 
 // Not against a strike that inflicts no aggravated damage (a hand strike),
-// nor against non-strike damage (ANK 20220114), nor at a range the damage
-// is not effective at (RTR 19980928).
-// Rulings: [ANK 20220114]; [RTR 19980928] [ANK 20211102]; [ANK 20200130-1].
+// nor against non-strike damage (ANK 20220114).
+// Rulings: [ANK 20220114]; [ANK 20200130-1].
 #[test]
 fn rotschreck_needs_an_effective_aggravated_strike() {
     let (mut e, _, z, _) = bow_bleed();
     let rot = play_at(0, 0, None, Target::Minion(z));
     never_offered_until(&mut e, SeatId(0), WindowLabel::MinionPhase, rot);
+}
+
+// Rötschreck answers aggravated damage effective at the range (RTR
+// 19980928): Wolf Claws' aggravated hand strike at close range, not once
+// the blocker's Shadow Shift [OBL] took the combat to long range, where
+// hands do nothing.
+// Rulings: [RTR 19980928] [ANK 20211102].
+#[test]
+fn rotschreck_answers_an_aggravated_strike_only_at_its_range() {
+    for long in [false, true] {
+        let mut e = Engine::bare(2);
+        e.state.turn = 4;
+        let a = e.add_minion(SeatId(0), plain("", &["pro"], 0), 4, false);
+        e.add_minion(SeatId(0), plain("Brujah", &[], 1), 4, false);
+        let z = e.add_minion(SeatId(1), plain("", &["OBL"], 0), 4, false);
+        e.add_minion(SeatId(1), plain("Ventrue", &[], 1), 4, false);
+        hand(&mut e, 0, &["Wolf Claws"]);
+        hand(&mut e, 1, &["Rötschreck", "Shadow Shift"]);
+        pick(&mut e, bleed(a));
+        pick(&mut e, block(z));
+        if long {
+            pick_when(&mut e, play_at(1, 1, Some(z), Target::None));
+        }
+        pick_when(&mut e, play_at(0, 0, Some(a), Target::None));
+        let rot = play_at(0, 0, None, Target::Minion(z));
+        if long {
+            never_offered_until(&mut e, SeatId(0), WindowLabel::MinionPhase, rot);
+        } else {
+            offering(&mut e, rot);
+        }
+    }
 }
 
 // Rötschreck under Dawn Operation ("all damage inflicted on vampires during

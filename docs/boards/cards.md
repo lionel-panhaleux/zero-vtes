@@ -28,4 +28,3 @@ ship skill's scope rule). Rounds go set by set when the decks' metric
 stops paying (owner, 2026-10-15: "fine with switching to a set-by-set mode
 when you feel it's best").
 
-- **Tests for cards covered by fuzz or code paths only**: Wolf Claws [PRO], Rötschreck's range check, Powerbase: Savannah with Deep Song's target, Saatet-ta's stealth and intercept locks, Carlton Van Wyk's strike and dodge. Done when each has a test and DESIGN §11.3's legacy-additions list is empty. Docs: DESIGN §11.3.

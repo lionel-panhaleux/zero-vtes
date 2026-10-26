@@ -8046,6 +8046,17 @@ fn living_manse_ends_a_combat_under_form_of_the_bat() {
     assert_eq!(blood(&e, z), 5, "no strike");
 }
 
+// Wolf Claws [PRO]: "Press." (1 blood.) Played at the press step, it
+// presses: a second round of hand strikes.
+#[test]
+fn wolf_claws_superior_presses_to_a_second_round() {
+    let (mut e, a, z) = fight(plain("", "PRO", 0), &["Wolf Claws"], plain("", "", 1), &[]);
+    pick_when(&mut e, play(0, 1, a));
+    until(&mut e, SeatId(0), WindowLabel::MinionPhase);
+    assert_eq!(blood(&e, a), 5 - 1 - 2, "its cost and two hand strikes");
+    assert_eq!(blood(&e, z), 5 - 2, "two rounds");
+}
+
 // ---- Combat cards, wave 2 (slice 11s) --------------------------------------
 
 // No Trace: "[obf] Only usable at long range. Strike: combat ends. [OBF]
