@@ -11,11 +11,17 @@ reasoning journeys live in a task and die with it, git keeping them.
 - [`../README.md`](../README.md) and [`../CONTRIBUTING.md`](../CONTRIBUTING.md):
   the way in for outsiders: what is here, a quick start, how a change is
   made; [`../CHANGELOG.md`](../CHANGELOG.md): every protocol version.
-- [`../DESIGN.md`](../DESIGN.md): what the engine and the agent are: scope
-  (§3), the engine's architecture (§4), the RL surface (§5), the window
-  census (§6), testing (§7), the community surface (§8), performance
-  targets (§9), modeling decisions (§10), phasing and the training runs
-  (§11), the glossary, the resolved questions.
+- [`../DESIGN.md`](../DESIGN.md): what the engine and the agent are and
+  the decisions that hold: the vision and prior art (§1–2), the pool and
+  the training decks (§3), the engine's architecture (§4: decision
+  requests, the two window primitives, elision, the workflows, cards as
+  data, the state), the RL surface (§5: the legal view, the observations,
+  the seats' context), the window census (§6), testing (§7: rulings as
+  tests, fuzzing, goldens, perft), the community surface (§8), performance
+  targets (§9), modeling decisions (§10), the slices by id (§11.1), the
+  training runs (§11.2), the open gaps (§11.3), the phases and the count
+  line (§11.4); then the deck-building outlook, the glossary, the resolved
+  questions and the rules Q&A process.
 - [`engine.md`](engine.md): the engine guide: dispatch, what is enforced,
   adding a card, the comment policy, the reference by mechanism.
 - [`protocol.md`](protocol.md): the contract between the server and its
