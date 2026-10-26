@@ -316,3 +316,9 @@ its skill and its task notes.
   build, deep fuzz sweep or deploy build while one runs (a release build's
   memory pressure killed p12, 2026-10-17); the `ci`-profile checks are
   fine.
+- The sessions share one machine and one repository: no `git stash` in a
+  worktree (one stash list for every worktree: Z-train's and Z-add's
+  crossed, 2026-10-25; copy files under the job tmp instead), and a
+  process killed by its worktree's path (`pkill -f <worktree>/target`),
+  never by a generic pattern (`pkill -f 'cargo test'` stops every
+  session's runs).
