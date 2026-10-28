@@ -4343,7 +4343,7 @@ impl Engine {
                             );
                         }
                     }
-                    MinionPurpose::UnlockAnarch => self.state.unlock(m),
+                    MinionPurpose::UnlockAnarch => self.unlock_minion(m),
                     MinionPurpose::BurnBloodOfClan(_) => self.state.lose_blood(m, 1),
                     MinionPurpose::Corrupt => v.add_corruption(seat, 1),
                     // Capacity 6 or more: that Methuselah ignores it for the

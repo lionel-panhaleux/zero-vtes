@@ -5060,7 +5060,6 @@ fuzz_tests! {
             "ability:Chanjelin Ward",
             "ability:Guarded Rubrics",
             "ability:Watchtower: Four Ride Forth",
-            "cancel_combat",
         ],
         setup: |e, _| {
             let has = |c: &CryptCard, d: &str| c.disciplines.iter().any(|x| x.eq_ignore_ascii_case(d));
@@ -5107,6 +5106,18 @@ fuzz_tests! {
             );
         },
         seeds: 80,
+        ..BASE
+    };
+    /// Legacy cards, round 20 (slice 16af): Stone Travel [MYT]'s cancel of
+    /// the combat a block begins, the Kiasyd alone (rare at round 20a's
+    /// table).
+    random_games_with_twda_round_20c_hold_invariants_and_replay: Fixture {
+        slice: &["Stone Travel"],
+        covers: &["cancel_combat"],
+        setup: |e, _| {
+            per_seat(e, |c| c.clan == "Kiasyd", 4);
+        },
+        seeds: 12,
         ..BASE
     };
     /// Legacy cards, round 21 (slice 16ag): Nights of Reckoning's cards,
@@ -5250,6 +5261,74 @@ fuzz_tests! {
             per_seat(e, |c| c.clan == "Pander", 4);
         },
         seeds: 100,
+        ..BASE
+    };
+    /// Round 22 (slice 16ah): Anarch Unbound's library cards and its
+    /// Anarchs' abilities, with vehicles and an Anarch's intercept.
+    random_games_with_twda_round_22a_hold_invariants_and_replay: Fixture {
+        slice: &[
+            "Field Training",
+            "Illegalism",
+            "Netwar",
+            "Red Question, The",
+            "Zephyr",
+            // Partners: vehicles for Vulture, an Anarch's master card for
+            // Salvador, an intercept the sect change reads.
+            "Sport Bike",
+            "Learjet",
+            "Anarch Free Press, The",
+            "Protection Racket",
+        ],
+        covers: &[
+            "play:Field Training",
+            "play:Illegalism",
+            "play:Netwar",
+            "play:Red Question, The",
+            "play:Zephyr",
+            "ability:Javier Montoya",
+            "ability:Daliah",
+            "ability:Vulture",
+        ],
+        setup: |e, _| {
+            named(
+                e,
+                &[
+                    "Daliah",
+                    "Gengis",
+                    "Javier Montoya",
+                    "Jenna Cross",
+                    "Salvador Garcia",
+                    "Vulture",
+                    "Marguerite Foccart",
+                    "Boss Callihan",
+                ],
+            );
+            per_seat(e, |c| c.sect == Some(zvtes::crypt::Sect::Camarilla), 4);
+        },
+        seeds: 8,
+        ..BASE
+    };
+    /// Round 22 (slice 16ah): Victor Gerard and Philip van Vermeer IV
+    /// playing as a Camarilla vampire, a prince and a Ventrue.
+    random_games_with_twda_round_22b_hold_invariants_and_replay: Fixture {
+        slice: &[
+            "Justicar Retribution",
+            "Second Tradition: Domain",
+            "Ventrue Headquarters",
+            "Political Ally",
+        ],
+        covers: &[
+            "play:Justicar Retribution",
+            "play:Ventrue Headquarters",
+        ],
+        setup: |e, _| {
+            named(
+                e,
+                &["Victor Gerard", "Philip van Vermeer IV", "Boss Callihan"],
+            );
+            per_seat(e, |c| c.sect == Some(zvtes::crypt::Sect::Sabbat), 4);
+        },
+        seeds: 8,
         ..BASE
     };
 }

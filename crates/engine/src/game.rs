@@ -682,6 +682,41 @@ impl Engine {
         self.start_master_phase();
     }
 
+    /// Unlock `m`: a disease counter's blood burned as it unlocks, told as
+    /// the disease's whatever unlocks it (Vampiric Disease).
+    pub(crate) fn unlock_minion(&mut self, m: MinionId) {
+        let v = &self.state.minions[m.index()];
+        if v.locked && v.disease {
+            let disease = Cause::Effect(Source::Rule(Rule::Disease));
+            self.caused(disease, |e| e.state.unlock(m));
+        } else {
+            self.state.unlock(m);
+        }
+    }
+
+    /// A card burning "if this vampire changes sect" whose host is no
+    /// longer of the sect it made it: read live, an override landing too
+    /// (Field Training, The Red Question; LSJ 20100811).
+    fn settle_sect_bound(&mut self) {
+        let st = &self.state;
+        let due: Vec<CardId> = st
+            .layers
+            .iter()
+            .filter_map(|l| match l.modifier {
+                cards::Modifier::SectBound(sect) if st.layer_active(l) => {
+                    let c = &st.cards[l.source.index()];
+                    c.host
+                        .filter(|&h| c.in_play && st.sect_of(h) != Some(sect))
+                        .map(|_| l.source)
+                }
+                _ => None,
+            })
+            .collect();
+        for id in due {
+            self.burn_card_in_play(id);
+        }
+    }
+
     /// `m` becomes Anarch (the Become Anarch action, Anarch Convert, Gilbert
     /// Duane, Twilight Camp): an Anarch already stays one, nothing arrives.
     pub(crate) fn make_anarch(&mut self, m: MinionId) {
@@ -860,6 +895,7 @@ impl Engine {
             self.state.settle_entries();
             self.settle_servitors();
             self.settle_hunts_to_torpor();
+            self.settle_sect_bound();
             self.state.settle_foreign_cards();
             self.settle_interrupts();
             if self.interrupts.is_empty() {
@@ -1897,7 +1933,7 @@ impl Engine {
     /// it (`ActionCtx::no_unlock`).
     pub(crate) fn effect_unlock(&mut self, m: MinionId) {
         if !self.action.as_ref().is_some_and(|a| a.no_unlock) {
-            self.state.unlock(m);
+            self.unlock_minion(m);
         }
     }
 
@@ -2008,6 +2044,15 @@ impl Engine {
         for m in &mut self.state.minions {
             if m.deranged.is_some_and(|(.., d)| d == id) {
                 m.deranged = None;
+            }
+        }
+        // Field Training's, The Red Question's sect change ends with the
+        // card, unless another replaced it (owner, 2026-10-28: rules-qa
+        // 104.3).
+        if let (Some((before, wrote)), Some(h)) = (c.sect_change.take(), c.host) {
+            let v = &mut self.state.minions[h.index()];
+            if v.sect_override == Some(wrote) {
+                v.sect_override = before;
             }
         }
         let c = &mut self.state.cards[id.index()];
@@ -2431,7 +2476,7 @@ impl Engine {
             let clan = v.unlock_at_discard_if.take();
             if std::mem::take(&mut v.unlock_at_discard) | clan.is_some_and(|c| v.clan() == Some(c))
             {
-                self.state.unlock(MinionId(i as u32));
+                self.unlock_minion(MinionId(i as u32));
             }
         }
         self.flow = Flow::Discard;
@@ -2744,7 +2789,7 @@ impl Engine {
                 .timed
                 .retain(|&(_, until, _)| until != Expiry::EndOfTurn);
             if unlocks && self.state.minions[i].present() {
-                self.state.unlock(MinionId(i as u32));
+                self.unlock_minion(MinionId(i as u32));
             }
         }
         if self.state.turn >= self.time_limit {
@@ -2914,8 +2959,7 @@ impl Engine {
             // minion (advanced rules §5.2.2).
             let substitutes = self.state.counter_instead_of_unlock(id);
             if substitutes.is_empty() {
-                let disease = Cause::Effect(Source::Rule(Rule::Disease));
-                self.caused(disease, |e| e.state.unlock(id));
+                self.unlock_minion(id);
                 continue;
             }
             for c in substitutes {
@@ -3094,7 +3138,7 @@ mod tests {
     #[test]
     fn crypt_data_is_complete() {
         // The 200 V5 vampires, then the owner's legacy additions.
-        assert_eq!(CRYPT.len(), 735);
+        assert_eq!(CRYPT.len(), 758);
         assert_eq!(PRECONS.len(), 14);
         for (name, list) in PRECONS.iter() {
             let n: u32 = list.iter().map(|&(_, k)| k as u32).sum();

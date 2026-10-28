@@ -160,6 +160,7 @@ impl Effect {
             | E::SearchPutInPlayUpToX { .. } => (Family::Play, false),
             E::TargetLeavesTorpor
             | E::PeekNeighborHands
+            | E::PeekActingControllersHand
             | E::AshToLibraryTop { .. }
             | E::ActorLooksAtLibraryTop(..)
             | E::TargetLeavesIncapacitated
@@ -192,6 +193,7 @@ impl Effect {
             | E::HandSizeUntilUnlock(..)
             | E::ActorLasting(..)
             | E::TargetBecomesSect(..)
+            | E::ActorBecomesSect(..)
             | E::ActorBecomesBlackHand
             | E::RemoveTargetForPool
             | E::BurnEdge

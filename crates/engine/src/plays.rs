@@ -1303,15 +1303,6 @@ impl Engine {
                             }
                         }
                     }
-                    // Karl Schrekt: a card whose title requirement he meets
-                    // as a justicar sees a titled Camarilla vampire (owner,
-                    // 2026-10-09: rules-qa 59.14).
-                    let as_justicar = actor.is_some_and(|m| {
-                        st.printed_mod(m, cards::Stat::PlaysAsJusticar, Default::default()) > 0
-                    }) && mode.requires.iter().any(|r| {
-                        matches!(r, Requirement::ActorTitleIn(cs)
-                            if cs.iter().any(|c| matches!(c, cards::TitleClass::Justicar | cards::TitleClass::Any)))
-                    });
                     // A woken minion ignores the requirement to be unlocked
                     // for a reaction card (On the Qui Vive; Touch of
                     // Clarity), before its action is declared too (rules-qa
@@ -1324,8 +1315,7 @@ impl Engine {
                         });
                     if !mode.requires.iter().all(|&r| {
                         (woken_reaction && r == Requirement::ActorUnlocked)
-                            || (as_justicar
-                            && matches!(r, Requirement::ActorSectIn(ss) if ss.contains(&crate::crypt::Sect::Camarilla)))
+                            || actor.is_some_and(|m| cards::plays_as_sect_or_title(st, m, mode, r))
                             || as_vampire.is_some_and(|g| match r {
                                 Requirement::ActorSectIn(ss) => ss.contains(&g.sect),
                                 Requirement::ActorCapacityAtLeast(n) => g.capacity >= n,
@@ -1422,6 +1412,10 @@ impl Engine {
                                             {
                                                 st.meets_clan(id, &[c], actor != Some(id))
                                             }
+                                            // "Another minion you control"
+                                            // than the one playing it
+                                            // (Netwar).
+                                            Requirement::OtherThanPlayer => actor != Some(id),
                                             Requirement::TargetFacesAggravatedStrike => {
                                                 combat.is_some_and(|c| {
                                                     c.side_of_minion(id).is_some_and(|i| {
@@ -2194,8 +2188,9 @@ impl Engine {
     }
 
     /// `(pool, blood)` less every reduction `ctx`'s card may still take
-    /// (`Engine::reduced`), `either` more "blood or pool" besides: what it
-    /// costs at best, as it is offered.
+    /// (`Engine::reduced`), `either` more "blood or pool" besides, with the
+    /// payer's surcharge on what is left (Jenna Cross) and Regina Blake's
+    /// payment off it: what it costs at best, as it is offered.
     pub(crate) fn with_potential(
         &self,
         ctx: &PlayCtx,
@@ -2210,6 +2205,9 @@ impl Engine {
             + u8::from(!self.seat_reducers(ctx).is_empty());
         let blood_off = blood_off + u8::from(self.once_off_available(ctx));
         let (mut pool, mut blood, _) = self.reduced(pool, blood, (either, blood_off, &counters));
+        if let Some(m) = ctx.actor {
+            blood = self.blood_if_any(m, ctx.card, ctx.mode, blood);
+        }
         // A vampire's blood paying 1 of what is left (Regina Blake).
         if !self.blood_payers(ctx).is_empty() {
             reduce(&mut pool, &mut blood, 1);
@@ -2270,6 +2268,10 @@ impl Engine {
             either += recruit_off(st, mode, m);
         }
         let (mut pool, mut blood, _) = self.reduced(pool, blood, (either, blood_off, &counters));
+        if let Some(m) = ctx.actor {
+            let (card, mode) = ctx.named.unwrap_or((ctx.card, ctx.mode));
+            blood = self.blood_if_any(m, card, mode, blood);
+        }
         // A vampire's blood paying 1 of what is left (Regina Blake).
         if ctx.blood_payer.is_some() {
             reduce(&mut pool, &mut blood, 1);
@@ -2367,7 +2369,12 @@ impl Engine {
         let (p, b, used) = self.reduced(pool, blood, (either, blood_off, &counters));
         (pool, blood) = (p, b);
         self.spend_counters(&used);
-        // A vampire's blood paying 1 of what is left (Regina Blake).
+        // Jenna Cross's surcharge, then a vampire's blood paying 1 of what
+        // is left (Regina Blake: a payment, not a reduction).
+        if let Some(m) = ctx.actor {
+            let (card, mode) = ctx.named.unwrap_or((ctx.card, ctx.mode));
+            blood = self.blood_if_any(m, card, mode, blood);
+        }
         if let Some(r) = self.blood_payment(ctx.blood_payer, &mut pool, &mut blood) {
             self.state.lose_blood(r, 1);
         }
@@ -2684,10 +2691,10 @@ impl Engine {
             },
             // Sanguine Instruction: the actor's superior Disciplines the
             // target lacks at superior.
-            Some(Terms::SuperiorDiscipline) => {
+            Some(terms @ (Terms::SuperiorDiscipline | Terms::ActorSuperiorDiscipline)) => {
                 let m = ctx.actor.expect("actor");
                 let t = match ctx.target {
-                    Target::Minion(t) => Some(t),
+                    Target::Minion(t) if terms == Terms::SuperiorDiscipline => Some(t),
                     _ => None,
                 };
                 crate::state::disciplines()
@@ -3916,6 +3923,7 @@ impl Engine {
             + self.combat_card_surcharge(m, ctx.card, ctx.mode)
             + self.printed_extra(ctx))
         .saturating_sub(blood_off);
+        let blood = self.blood_if_any(m, ctx.card, ctx.mode, blood);
         self.state.burn_blood(m, blood);
         let v = &mut self.state.minions[m.index()];
         if blood > 0 && v.is_ally() && v.blood == 0 {
@@ -4445,7 +4453,7 @@ impl Engine {
             // action's own rule not barring an "unlock this vampire").
             Effect::MergeWithBase => {
                 let m = ctx.actor.expect("actor");
-                self.state.unlock(m);
+                self.unlock_minion(m);
                 self.interrupts
                     .push(Interrupt::BaseSearch { seat: s, minion: m });
             }
@@ -4680,7 +4688,7 @@ impl Engine {
                         .clan()
                         .is_some_and(|c| clans.contains(&c))
                     {
-                        self.state.unlock(m);
+                        self.unlock_minion(m);
                     }
                 }
             }
@@ -5445,7 +5453,7 @@ impl Engine {
                             false
                         };
                         if unlock {
-                            self.state.unlock(acting);
+                            self.unlock_minion(acting);
                         }
                         if successful {
                             self.successful_hunt_riders(acting);
@@ -5720,6 +5728,11 @@ impl Engine {
         match effect {
             Effect::BurnEdge => self.state.seats[ctx.seat.index()].has_edge = false,
             Effect::BurnActorBlood(n) => self.state.burn_blood(ctx.actor.expect("actor"), n),
+            Effect::PeekActingControllersHand => {
+                if let Some(t) = self.action.as_ref().map(|a| a.seat) {
+                    self.peek(ctx.seat, t);
+                }
+            }
             Effect::PeekNeighborHands => {
                 let (pred, prey) = (self.state.predator(ctx.seat), self.state.prey(ctx.seat));
                 self.peek(ctx.seat, pred);
@@ -5937,14 +5950,24 @@ impl Engine {
                     self.state.minions[m.index()].gained_black_hand = true;
                 }
             }
-            Effect::TargetBecomesSect(sect) => {
-                if let Target::Minion(t) = ctx.target {
-                    if self.state.minions[t.index()].present() {
-                        if sect == crate::crypt::Sect::Anarch {
-                            self.make_anarch(t);
-                        } else {
-                            self.state.minions[t.index()].sect_override = Some(sect);
+            Effect::TargetBecomesSect(sect) | Effect::ActorBecomesSect(sect) => {
+                let who = match (effect, ctx.target) {
+                    (Effect::ActorBecomesSect(_), _) => ctx.actor,
+                    (_, Target::Minion(t)) => Some(t),
+                    _ => None,
+                };
+                if let Some(t) = who.filter(|t| self.state.minions[t.index()].present()) {
+                    // The card put on it holds the change (rules-qa 104.3).
+                    if let By::Play(Some(id)) = by {
+                        if self.state.cards[id.index()].host == Some(t) {
+                            let before = self.state.minions[t.index()].sect_override;
+                            self.state.cards[id.index()].sect_change = Some((before, sect));
                         }
+                    }
+                    if sect == crate::crypt::Sect::Anarch {
+                        self.make_anarch(t);
+                    } else {
+                        self.state.minions[t.index()].sect_override = Some(sect);
                     }
                 }
             }
@@ -6243,7 +6266,7 @@ impl Engine {
                     .take()
                     .map_or(0, |(_, n)| n);
                 self.state.lose_blood(*minion, paid);
-                self.state.unlock(*minion);
+                self.unlock_minion(*minion);
                 self.flow = Flow::Discard;
             }
             Choice::Discard(i) => {
@@ -7142,6 +7165,8 @@ impl Engine {
         st.minions[id.index()].present()
             && !(spec.filter.contains(&cards::Requirement::NotHost) && Some(id) == host)
             && !(spec.filter.contains(&cards::Requirement::TargetIsHost) && Some(id) != host)
+            && !(spec.filter.contains(&cards::Requirement::YoungerThanHost)
+                && !host.is_some_and(|h| st.younger_than(id, h)))
             && !(spec
                 .filter
                 .contains(&cards::Requirement::TargetChosenByHostThisTurn)
@@ -7486,9 +7511,29 @@ impl Engine {
             + c.sides[i].imprisoned_toll(mode_strike(card, mode))
     }
 
+    /// `blood` left to pay for `card` once every reduction is off, with
+    /// the payer's surcharge on any (Jenna Cross: her player orders the
+    /// reductions first, ANK 20200709).
+    pub(crate) fn blood_if_any(&self, actor: MinionId, card: u16, mode: u8, blood: u8) -> u8 {
+        if blood == 0 {
+            return 0;
+        }
+        let ctx = crate::state::PrintedCtx {
+            card: Some((card, mode)),
+            ..Default::default()
+        };
+        blood
+            + self
+                .state
+                .printed_mod(actor, cards::Stat::BloodCostMoreIfAny, ctx)
+                .max(0) as u8
+    }
+
     /// The blood a card with no pool cost to pay (a bleed or political
     /// action card) costs `actor` as it is paid: its cost with X, its
-    /// surcharges, less the actor's printed reductions (Roger de Camden).
+    /// surcharges, less the actor's printed reductions (Roger de Camden);
+    /// Jenna Cross's added after the action's reductions
+    /// (`card_blood_due`).
     pub(crate) fn card_blood(&self, actor: MinionId, play: PlayCtx, x: u8) -> u8 {
         let mut blood = cards::blood_cost(&self.state, play.card, x)
             + self.card_surcharge(actor, play.card, play.mode);
@@ -9836,9 +9881,10 @@ impl Engine {
                     && !st.minions_of(seat).any(|m| {
                         let v = &st.minions[m.index()];
                         // Ready minions only (owner, 2026-09-26: rules-qa
-                        // 33.8).
+                        // 33.8), torpid ones too for The Red Question.
                         let master = lib.types.contains(&CardType::Master);
-                        v.ready()
+                        let torpid = cards::lookup(card).is_some_and(|d| d.burn_option_torpid);
+                        (v.ready() || torpid && v.in_torpor && v.in_play)
                             && (lib.clans.is_empty() || st.meets_clan(m, lib.clans, master))
                             && (lib.disciplines.is_empty()
                                 || lib.disciplines.iter().any(|d| st.has_discipline(m, d)))
@@ -9939,7 +9985,7 @@ impl Engine {
                 let s = self.state.active;
                 let infernal = Cause::Cost(Source::Minion(*minion));
                 self.caused(infernal, |e| e.state.seats[s.index()].lose_pool(1));
-                self.state.unlock(*minion);
+                self.unlock_minion(*minion);
                 if self.state.seats[s.index()].pool <= 0 && self.oust_and_pass(s) {
                     return;
                 }
@@ -10725,8 +10771,9 @@ impl Engine {
                                 && !v.bleeds.iter().any(|&(t, _, _)| t == st.turn)
                         })
                         .collect();
+                    let card = Cause::Effect(crate::notes::Source::Card(id));
                     for m in hit {
-                        self.damage_out_of_combat(m, n, false);
+                        self.caused(card, |e| e.damage_out_of_combat(m, n, false));
                     }
                 }
                 other => self.apply_rider_effect(id, other, Hook::DiscardPhase),

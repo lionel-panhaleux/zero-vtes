@@ -8,11 +8,29 @@ use zvtes_host::replay::{Replay, Replayer, Step};
 /// its decision (the change it met), every other reads whole. A record
 /// from before 2.4.0 records no windows, so a window the engine no longer
 /// asks cannot be read past (`replay::past`).
-const KNOWN_STOPS: &[(&str, u64, &str)] = &[(
-    "zero-vtes-replay-2026-10-08T21-17-05-603Z.json",
-    215,
-    "rules-qa 99.1: a vampire can have only one Wall of Filth",
-)];
+const KNOWN_STOPS: &[(&str, u64, &str)] = &[
+    (
+        "zero-vtes-replay-2026-10-08T21-17-05-603Z.json",
+        215,
+        "rules-qa 99.1: a vampire can have only one Wall of Filth",
+    ),
+    ("d8ec2c01edab010d.json", 307, STEALTH_COUNTED),
+    (
+        "zero-vtes-replay-2026-10-04T15-55-52-662Z.json",
+        77,
+        STEALTH_COUNTED,
+    ),
+    (
+        "zero-vtes-replay-2026-10-11T12-31-56-022Z.json",
+        79,
+        STEALTH_COUNTED,
+    ),
+];
+
+/// Played before a bleed card's printed stealth counted (The Platinum
+/// Protocol [obf]): a block attempt is now short of it, its Methuselah
+/// asked again.
+const STEALTH_COUNTED: &str = "a bleed card's printed stealth counted";
 
 #[test]
 fn every_record_reads_whole() {
@@ -197,10 +215,8 @@ fn an_older_key_reads_by_the_fields_it_has() {
 /// `a_record_stops_where_its_position_differs`).
 #[test]
 fn the_corpus_digests_are_checked() {
-    let path = concat!(
-        env!("CARGO_MANIFEST_DIR"),
-        "/../../data/records/d8ec2c01edab010d.json"
-    );
+    const GAME: &str = "d8ec2c01edab010d.json";
+    let path = format!("{}/../../data/records/{GAME}", env!("CARGO_MANIFEST_DIR"));
     let mut v: serde_json::Value =
         serde_json::from_str(&std::fs::read_to_string(path).unwrap()).unwrap();
     let record: GameRecord = serde_json::from_value(v.clone()).unwrap();
@@ -209,8 +225,17 @@ fn the_corpus_digests_are_checked() {
         kept.iter().all(|d| d.digest.is_some()),
         "every decision has its digest"
     );
-    // A decision past the undos, as the replay reads them.
-    let at = kept.len() - 20;
+    // A decision past the undos, as the replay reads them, before its
+    // known stop (`KNOWN_STOPS`).
+    let stop = KNOWN_STOPS
+        .iter()
+        .find(|(f, ..)| *f == GAME)
+        .map_or(u64::MAX, |&(_, at, _)| at);
+    let at = kept
+        .iter()
+        .position(|d| d.decision >= stop)
+        .unwrap_or(kept.len())
+        - 20;
     v["entries"][kept[at].entry]["digest"] = serde_json::json!("0000000000000000");
     let moved: GameRecord = serde_json::from_value(v).unwrap();
     let mut r = Replayer::new(&moved).unwrap();

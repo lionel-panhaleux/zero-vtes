@@ -16,12 +16,13 @@ spec = importlib.util.spec_from_file_location("promote", REPO / "scripts/promote
 promote = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(promote)
 
-GAME = "d8ec2c01edab010d"
+GAME = "5a98a36c86873c35"
 RECORD = json.loads((REPO / f"data/records/{GAME}.json").read_text())
-# The four decks as the server's catalog names them (no network).
-NAMES = ["Lasombra (Fifth Edition)", "Banu Haqim (Fifth Edition (Anarch))",
-         "Brujah (Fifth Edition (Anarch))", "Ministry (Fifth Edition (Anarch))"]
-CATALOG = [(n, promote.games_report.clean(s["deck"])) for n, s in zip(NAMES, RECORD["spec"]["seats"])]
+# The three bots' decks as the server's catalog names them (no network);
+# the human's deck is custom.
+NAMES = [None, "Nosferatu (Fifth Edition)", "The Endless Dance (Thirtieth Anniversary)",
+         "Hecata (Fifth Edition)"]
+CATALOG = [(n, promote.games_report.clean(s["deck"])) for n, s in zip(NAMES, RECORD["spec"]["seats"]) if n]
 
 
 def changed(f):

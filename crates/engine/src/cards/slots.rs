@@ -169,6 +169,7 @@ impl Requirement {
             | R::ActorCalledReferendum
             | R::ActorActing
             | R::ActionSuccessful
+            | R::ActionNotFizzled
             | R::RescuedFromTorpor
             | R::ActorDiablerised
             | R::ActingOtherController
@@ -225,7 +226,6 @@ impl Requirement {
             | R::NoSuperiorVeilThisTurn
             | R::StrikeDamagePending
             | R::NoReactionPlayed
-            | R::BlockerTitleIn(..)
             | R::BlockerOwnAnarch
             | R::BlockerOwn
             | R::BlockerReadyAfterItsCombat
@@ -456,6 +456,7 @@ impl Requirement {
             R::ActorSectIn(..) => &[S::Play, S::MinionTarget, S::UncontrolledTarget, S::Printed],
             R::IsBleed
             | R::ActorVampire
+            | R::ActorHasSuperior
             | R::ActorImbued
             | R::ActorConvictionAtLeast(..)
             | R::IsHunt
@@ -565,6 +566,12 @@ impl Requirement {
             | R::CanAttemptBlockAnyone
             | R::MayBeLocked => &[S::Engine(Site::PlayOptions)],
             R::BlockedByOlder => &[S::Engine(Site::VampireRider(Hook::HostBlocked))],
+            R::BlockerTitleIn(..) => &[
+                S::Play,
+                S::Rider,
+                S::Engine(Site::CardRider(Hook::HostBlocked)),
+                S::Engine(Site::VampireRider(Hook::HostBlocked)),
+            ],
             R::BledControlsReadyTitled => {
                 &[S::Engine(Site::VampireRider(Hook::OwnBleedSuccessful))]
             }
@@ -581,6 +588,8 @@ impl Requirement {
                 S::Engine(Site::AbilityGateCard),
             ],
             R::OwnMinionPhase => &[S::Engine(Site::AbilityWindow)],
+            R::OtherThanPlayer => &[S::Engine(Site::PlayTarget)],
+            R::YoungerThanHost => &[S::Engine(Site::AbilityTargets)],
             R::PlayedStrikeByOpponent => &[S::Engine(Site::PlayOptions), S::Engine(Site::AsPlayed)],
             R::HostAttempting | R::HostOutOfCombat => &[S::Engine(Site::AbilityGate)],
             R::CanAttemptBlock => &[

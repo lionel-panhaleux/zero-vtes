@@ -816,6 +816,11 @@ limit:
   uses (ANK 20201028), the in-play effect of such a card too (PIB 20150306),
   never a Black Hand requirement (a trait, §3.15); each card reads the sect
   or title it lets him pass as, its referendum terms included (77.2).
+- Philip van Vermeer IV plays as a Ventrue (Lady Scarlett's shape), never
+  through Piper (104.16). Victor Gerard meets a Camarilla requirement, and
+  a prince's while a baron, on the play and as its action resolves, never
+  for the card's effects in play; no prince's votes (104.17); a baron Victor
+  is "a titled Camarilla vampire" (104.18).
 - My Kin Against the World: a Laibon acting vampire may choose younger
   Laibon of any clan; Abombwe goes on a Laibon or a vampire with Protean —
   their Laibon clauses are live, Laibon being in the pool (77.34,
@@ -829,6 +834,8 @@ limit:
   subset, each effect applying (Break the Bonds, The Platinum Protocol, LSJ
   20011204-3); Outside the Hourglass: a choice with an "outferior" option
   (25.2).
+- Illegalism: any non-empty set of [cel], [chi], [pre]; [cel]'s unlock on a
+  bleed for 1 or more (104.4).
 - "[pot] or [pre]" on one line (Sabbat V5) is either Discipline at that
   level, one mode (52.1): Dominant Personality, Magnetic Authority,
   Relentlessness, Unthinkable Humiliation.
@@ -1408,6 +1415,10 @@ Advanced rules §1.7 (costs and payment), §1.8 (playing and canceling).
   locquipment's too (LSJ 20080109) (80.6). Menele (ADV): 1 fewer blood on
   minion cards (60.3) while any Methuselah's Helena is ready, read as paid
   (80.7).
+- Jenna Cross: +1 blood once every reduction is off and blood is left
+  (ANK 20200709) (104.14). Salvador Garcia: cards requiring an Anarch or a
+  baron, 1 off an Anarch's blood or pool (the pool first), a master card's
+  pool; never in torpor (104.15).
 
 ## 8. Actions
 
@@ -1546,6 +1557,9 @@ actions), §3.9 (mandatory actions), §3.10 (changing the acting minion).
   all, game-wide, a turn being one player's turn (23.6).
 - The Khabar: Community's "+1 stealth when bleeding": during bleed actions
   only (33.9).
+- A bleed action card's "+1 stealth action" is the action's stealth from
+  its announcement (Illegalism [chi], The Platinum Protocol [obf], Night
+  Moves) (104.5).
 
 ### 8.5 No repeat action (NRA)
 
@@ -1645,6 +1659,11 @@ Advanced rules §3.2 (stealth and intercept), §3.3 (blocking).
   and predator's (6.8, §8.2). A rush's target's controller alone (17.3).
 - Unlocked or woken (2.4, §14.1); locked minions attempt only with a card
   saying so (forced attempts, 42.8).
+- Netwar: [aus] after the target's block decision, [chi] another minion
+  that can block this action unlocked and attempting (an attempting one
+  too; Ambush's target unlocked still blocks), [dem] to the player's
+  attempting minion when needed (104.6). Boss Callihan's -1 intercept
+  against an acting Sabbat vampire, read live (104.10).
 - Card readings: Anneke's Methuselah is an eligible blocker against any
   action by a vampire of another Methuselah, for her alone; her other
   restrictions stand — Seduction, her Methuselah's decline, allies acting
@@ -1934,6 +1953,10 @@ Vocabulary: §3.2.
 - Gear Up [nec]: the card named at declaration (LSJ 20010627) gone from the
   ash heap as the action resolves — the Anarch still unlocks, nothing is
   fetched; resolve as much as you can (owner, 2026-10-15) (74.3).
+- An action card's sect or title requirement is read again as the action
+  succeeds: The Red Question made its vampire Anarch, a Camarilla-only
+  action fizzles (ANK 20210124); one playing as such still meets it
+  (104.7).
 
 ### 10.3 Failed, ended, canceled
 
@@ -1964,6 +1987,8 @@ Vocabulary: §3.2.
   its combat; an action ended by Change of Target or Mirror Walk (no card
   may be played there, RTR 20180719, but Daring the Dawn's damage is taken
   there); a failed action (ANK 20221205) (23.3, 5.8). Exceptions: §3.2.
+- Zephyr: after a blocked or failed action, never a fizzled one; from
+  torpor too; [cel]'s unlock at the end of the turn (104.9).
 - "After action resolution" cards on a bleed open whether it succeeded or
   not, a fizzle included, not after a block (Gifts From Hereafter: the
   vampire's 1 blood paid then, as the ally unlocks, 55.5).
@@ -3501,6 +3526,11 @@ retainers, traits, titles, trait changes).
   (69.14); Twilight Camp's sect lasts (34.7); merged sect (69.5); a created
   vampire's sect (32.6). Advanced rules §5.9 (actual change, temporary
   override).
+- Field Training, The Red Question: the actual change (LSJ 20100811), the
+  card burned on any later change or an override landing; the change ends
+  with the card, the earlier sect back once the override leaves (owner,
+  104.3); The Red Question no action making its vampire Anarch, read live
+  (104.7).
 - Paths: 49.7 (§4.4). Circles (Blood Brothers): a vampire with no circle is
   in a circle of one (LSJ 20020609); New Blood: "choose any circle" — a
   circle printed in the crypt (Mexico City, Torrance, Kiev, Chicago,
@@ -3636,6 +3666,12 @@ readings (vampires, allies, library cards) no mechanism section states.
   Methuselah bled, the +1 once each action (102.4). Faerie Wards: directed at
   its player, [MYT] leaving an infernal its paid unlock, none during a block
   attempt (102.5).
+- Round 22's cards: Field Training's Discipline and vampire chosen as
+  played, its level no capacity (104.1); Daliah once each combat as it
+  begins (104.11); Gengis's skipped unlock, the title read as he is blocked
+  (104.12); Javier Montoya's younger than him, any Methuselah's (104.13);
+  Vulture's unfizzled vehicle equip, once each turn (104.19); [MERGED] text
+  inert without the base card (104.20).
 - Alabástrom: once per turn, any other ready Gargoyle (16.6); Flight read
   since 84.37.
 - Valkyrie: "unless /Brunhilde/ is ready" — any ready Brunhilde in play, any
@@ -3968,6 +4004,8 @@ cards), §1.10 (burn and removal), §6.3 (control of a card in play).
   Seraph, 33.8): Legacy, Unleash Hell's Fury, Veneficti, Tattoo Signal and
   Watchtower: Four Ride Forth are burnable only without a ready minion
   meeting it (78.31).
+- The Red Question: its non-titled non-Anarch requirement read as a trait;
+  a torpid such vampire bars it too (LSJ 20091204) (104.8).
 
 ## 17. Control and ownership
 
@@ -4698,6 +4736,9 @@ read, for the owner to confirm or correct:
 - 90.1–90.3, 90.5, 90.8–90.10 graded green or amber (90.4, 90.6, 90.7
   red, answered by the owner: 90.4 confirmed, 90.6 and 90.7 corrected).
 - 92.2, 92.3 graded green or amber (92.1 the owner's playtest ruling).
+- 104.1, 104.2, 104.4–104.7, 104.9–104.17, 104.19, 104.20 graded green or
+  amber (104.3, 104.8, 104.18 red, answered by the owner: 104.3 corrected,
+  104.8 and 104.18 confirmed).
 - 93.1–93.10 graded green (settled by KRCG rulings and 60.7, 60.19, 60.21).
 - 95.1–95.5 graded green or amber (the tournament withdrawal).
 - 96.1, 96.4, 96.5 graded green or amber (96.2 and 96.3 answered by the
@@ -4809,7 +4850,7 @@ an owner ruling:
 Every rules-qa item, by batch, with the digest sections citing it: the
 section stating it and those cross-referring to it (§2 the default
 readings, §22 engine modeling, §23 the contradictions, §24 the open
-readings). 1028 items, Batches 1–103 (44.11 was removed, replaced by Batch
+readings). 1048 items, Batches 1–104 (44.11 was removed, replaced by Batch
 45). The index is derived from the citations: a bare `N.M` cites rules-qa
 item N.M in the section it appears in. A new rules-qa item gets its line in
 the section stating it, then its entry here: `python3
@@ -5161,3 +5202,8 @@ index or an item cited nowhere.
   §14.12; 102.26 §14.12,§24.1
 - **103** — 103.1 §14.12,§24.1; 103.2 §14.12,§24.1; 103.3 §14.12,§24.1;
   103.4 §14.12; 103.5 §14.12,§24.1; 103.6 §14.12,§24.1
+- **104** — 104.1 §15.2,§24.1; 104.2 §24.1; 104.3 §14.10,§24.1; 104.4
+  §4.5,§24.1; 104.5 §8.4; 104.6 §9.1; 104.7 §10.2,§14.10,§24.1; 104.8
+  §16.8,§24.1; 104.9 §10.4,§24.1; 104.10 §9.1; 104.11 §15.2; 104.12 §15.2;
+  104.13 §15.2; 104.14 §7.3; 104.15 §7.3; 104.16 §4.4; 104.17 §4.4,§24.1;
+  104.18 §4.4,§24.1; 104.19 §15.2,§24.1; 104.20 §15.2,§24.1

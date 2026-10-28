@@ -1788,7 +1788,7 @@ pub static PARIJAT: VampireDef = VampireDef {
     ..VAMP
 };
 
-pub static VAMPIRES: [&VampireDef; 486] = [
+pub static VAMPIRES: [&VampireDef; 496] = [
     &JOSEF_VON_BAUREN,
     &GABRIELLE_DI_RIGHETTI,
     &HAROLD_TANNER,
@@ -2275,6 +2275,16 @@ pub static VAMPIRES: [&VampireDef; 486] = [
     &JULIA_PRIMA,
     &KASSIYM_MALIKHAIR,
     &MARCONIUS,
+    &BOSS_CALLIHAN,
+    &DALIAH,
+    &GENGIS,
+    &JAVIER_MONTOYA,
+    &JENNA_CROSS,
+    &MARGUERITE_FOCCART,
+    &PHILIP_VAN_VERMEER_IV,
+    &SALVADOR_GARCIA,
+    &VICTOR_GERARD,
+    &VULTURE,
 ];
 
 /// "Anarch Baron of Miami: During your influence phase, Gilbert can burn 1
@@ -7009,7 +7019,8 @@ pub static SUHAILAH: VampireDef = VampireDef {
 };
 
 /// "Sabbat: Synner-G can unlock after successfully equipping with an
-/// electronic equipment from your hand." Keegan's shape.
+/// electronic equipment from your hand." Keegan's shape; a fizzled equip
+/// equipped nothing.
 pub static SYNNER_G: VampireDef = VampireDef {
     name: "Synner-G",
     abilities: &[mode_of(
@@ -7017,7 +7028,7 @@ pub static SYNNER_G: VampireDef = VampireDef {
         Actor::Host,
         &[
             R::ActorActing,
-            R::ActionSuccessful,
+            R::ActionNotFizzled,
             R::IsEquipLabeledFromHand(Label::Electronic),
             R::HostLocked,
         ],
@@ -9167,6 +9178,197 @@ pub static QUINCY_THE_TRAPPER: VampireDef = VampireDef {
             Effect::BurnTargetOnSecondAction,
         ],
     )],
+    ..VAMP
+};
+
+// ---- Round 22: Anthology and Anarch Unbound -------------------------------
+//
+// Cao Nguyen ("Sabbat."), Desiree Narayan, Irena ("Anarch."), Dhita
+// Choudhair, Domenic Giovanni, Dr. Lawrence Mayhew, Shahara al-Rashwa
+// ("Independent.") and Flavia ("Independent: Blood cursed.", a crypt
+// trait) print no other text. Dancin' Dana, Louis Fortier, Sundown and Zack
+// North (ADV, "Anarch.") and Sarrasine (ADV, "Camarilla Prince of
+// Sydney.") print only [MERGED] text: their base cards are not in the
+// pool, so no merge, the [MERGED] text never applies (nor Boss Callihan's,
+// Gengis's, Javier's or Marguerite's below).
+
+/// "Anarch: Callihan gets -1 intercept against Sabbat vampires. [MERGED]
+/// Baron of New York." The acting minion's sect read live; an ally has none.
+pub static BOSS_CALLIHAN: VampireDef = VampireDef {
+    name: "Boss Callihan",
+    adv: true,
+    printed: &[own(
+        Stat::Intercept,
+        -1,
+        &[R::OpponentSectIn(&[Sect::Sabbat])],
+    )],
+    ..VAMP
+};
+
+/// "Anarch: After Daliah enters combat, she can gain 1 blood." Once each
+/// combat she is in, as it begins; at capacity a legal no-op (the excess
+/// drains).
+pub static DALIAH: VampireDef = VampireDef {
+    name: "Daliah",
+    abilities: &[ability(
+        &[Window::CombatBeforeRange],
+        Actor::Host,
+        &[R::FirstRound],
+        Limit::PerCombat,
+        &[Effect::AddHostBlood(1)],
+    )],
+    ..VAMP
+};
+
+/// "Anarch: If Gengis is blocked by a titled vampire, he does not unlock as
+/// normal during your next unlock phase. [MERGED] Gengis gets +1 level of
+/// Auspex [aus] and Celerity [cel]." The blocker's title read as it blocks;
+/// an unlock effect still unlocks him.
+pub static GENGIS: VampireDef = VampireDef {
+    name: "Gengis",
+    adv: true,
+    riders: &[Rider {
+        hook: Hook::HostBlocked,
+        scope: RiderScope::Every,
+        requires: &[R::BlockerTitleIn(&[TitleClass::Any])],
+        effects: &[Effect::SkipNextUnlock],
+    }],
+    ..VAMP
+};
+
+/// "Anarch: During your minion phase, Javier can burn 1 blood to unlock a
+/// younger ready Anarch. [MERGED] Baron of Barcelona." Any Methuselah's
+/// Anarch, younger than Javier, not the acting minion; once in the phase,
+/// in torpor or locked too (Dónal O'Connor's template); an unlocked one a
+/// legal no-op.
+pub static JAVIER_MONTOYA: VampireDef = VampireDef {
+    name: "Javier Montoya",
+    adv: true,
+    abilities: &[ModeDef {
+        target: target(
+            TargetKind::Minion,
+            &[
+                R::TargetVampire,
+                R::ActorReady,
+                R::TargetAnarch,
+                R::YoungerThanHost,
+            ],
+        ),
+        limit: Some(Limit::PerTurn),
+        ..mode_of(
+            &[Window::AnyImpulse],
+            Actor::Host,
+            &[R::OwnMinionPhase, R::HostBloodAtLeast(1)],
+            &[Effect::HostBurnBlood(1), Effect::UnlockTarget],
+        )
+    }],
+    ..VAMP
+};
+
+/// "Anarch: Cards that cost blood cost Jenna 1 additional blood to play.
+/// Sterile." Once every reduction is taken off, if blood is left to pay
+/// (ANK 20200709: her player orders a reduction first); sterile is the
+/// crypt card's trait.
+pub static JENNA_CROSS: VampireDef = VampireDef {
+    name: "Jenna Cross",
+    printed: &[own(Stat::BloodCostMoreIfAny, 1, &[])],
+    ..VAMP
+};
+
+/// "Anarch: Marguerite gets +1 strength in combat with a titled vampire.
+/// [MERGED] +1 strength." Roy's shape, the title read live.
+pub static MARGUERITE_FOCCART: VampireDef = VampireDef {
+    name: "Marguerite Foccart",
+    adv: true,
+    printed: &[own(Stat::Strength, 1, &[R::OpponentTitled])],
+    ..VAMP
+};
+
+/// "Anarch: You and Philip can play cards requiring a Ventrue as if he
+/// were a Ventrue." Lady Scarlett Churchill's shape: his cards and his
+/// Methuselah's, played normally; the card's effects in play do not take
+/// him for one (LSJ 20050119, LSJ 20101013).
+pub static PHILIP_VAN_VERMEER_IV: VampireDef = VampireDef {
+    name: "Philip van Vermeer IV",
+    plays_as: Some(PlaysAs {
+        clan: "Ventrue",
+        methuselah: true,
+    }),
+    ..VAMP
+};
+
+/// "Anarch: While Salvador is ready, cards requiring an Anarch cost you and
+/// Anarchs you control 1 fewer blood or pool." A baron's card included (LSJ
+/// 20080603: `Label::RequiresAnarch`); an Anarch's card off its blood or
+/// pool, a master card off the pool; locked too, never in torpor.
+pub static SALVADOR_GARCIA: VampireDef = VampireDef {
+    name: "Salvador Garcia",
+    printed: &[
+        own(Stat::CostOff, 1, SALVADOR_ANARCH_CARD),
+        Printed {
+            stat: Stat::CostOff,
+            n: 1,
+            to: PrintedTo::OthersControlled,
+            per: Per::One,
+            requires: SALVADOR_ANARCH_CARD,
+        },
+        own(
+            Stat::SeatCostOff,
+            1,
+            &[
+                R::ThisVampireReady,
+                R::PlayedCard(CardFilter::HasLabel(Label::RequiresAnarch)),
+            ],
+        ),
+    ],
+    ..VAMP
+};
+
+const SALVADOR_ANARCH_CARD: &[R] = &[
+    R::ThisVampireReady,
+    R::ActorSectIn(&[Sect::Anarch]),
+    R::PlayedCard(CardFilter::HasLabel(Label::RequiresAnarch)),
+];
+
+/// "Anarch: You and Victor can play cards requiring a Camarilla vampire as
+/// if Victor were a Camarilla vampire. While Victor is a Baron, you and
+/// Victor can play cards requiring a Prince as if Victor were a Prince."
+/// The card's own requirements, played normally (LSJ 20050119); its effects
+/// in play do not take him for one (LSJ 20101013); no prince's votes (ANK
+/// 20231221).
+pub static VICTOR_GERARD: VampireDef = VampireDef {
+    name: "Victor Gerard",
+    printed: &[
+        own(Stat::PlaysAsCamarilla, 1, &[]),
+        own(
+            Stat::PlaysAsPrince,
+            1,
+            &[R::ActorTitleIn(&[TitleClass::Baron])],
+        ),
+    ],
+    ..VAMP
+};
+
+/// "Anarch: Once each turn, an Anarch you control can unlock after
+/// successfully equipping with a vehicle from your hand." Synner-G's shape
+/// for any of his Methuselah's Anarchs, Vulture locked or in torpor too;
+/// once in each Methuselah's turn (ANK 20180719-4).
+pub static VULTURE: VampireDef = VampireDef {
+    name: "Vulture",
+    abilities: &[ModeDef {
+        limit: Some(Limit::PerTurn),
+        ..mode_of(
+            &[Window::ActionAfterResolution],
+            Actor::Host,
+            &[
+                R::OwnActing,
+                R::ActingSectIn(&[Sect::Anarch]),
+                R::ActionNotFizzled,
+                R::IsEquipLabeledFromHand(Label::Vehicle),
+            ],
+            &[Effect::UnlockActing],
+        )
+    }],
     ..VAMP
 };
 

@@ -2405,6 +2405,7 @@ impl Engine {
     /// Effects of a modifier / reaction resolved during the polling step.
     pub(crate) fn apply_vote_effect(&mut self, effect: cards::Effect, play: &cards::PlayCtx) {
         let mut ctx = self.referendum.take().expect("referendum context");
+        let mut unlock = None;
         match effect {
             cards::Effect::AddVotes(_)
             | cards::Effect::AddVotesPerReadySect(_)
@@ -2643,11 +2644,14 @@ impl Engine {
                         .push(id);
                 }
                 if unlock_acting && !a.no_unlock {
-                    self.state.unlock(a.acting);
+                    unlock = Some(a.acting);
                 }
             }
             other => unreachable!("not a referendum effect: {other:?}"),
         }
         self.referendum = Some(ctx);
+        if let Some(m) = unlock {
+            self.unlock_minion(m);
+        }
     }
 }

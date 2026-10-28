@@ -635,6 +635,18 @@ pub enum Stat {
     GehennaImmune,
     /// Any positive total: plays cards as a justicar (Karl Schrekt).
     PlaysAsJusticar,
+    /// Any positive total: it and its Methuselah play cards requiring a
+    /// Camarilla vampire as if it were one (Victor Gerard).
+    PlaysAsCamarilla,
+    /// Any positive total: it and its Methuselah play cards requiring a
+    /// prince as if it were one (Victor Gerard, while a baron).
+    PlaysAsPrince,
+    /// Blood a card it plays costs more once every reduction leaves blood
+    /// to pay: its player orders them so (Jenna Cross; ANK 20200709).
+    BloodCostMoreIfAny,
+    /// Pool off a master card its Methuselah plays, read by the printed
+    /// predicates (Salvador Garcia).
+    SeatCostOff,
     /// Any positive total: it cannot play the card in the mode read
     /// (Nehemiah: cards requiring Celerity; LSJ 20050322-2).
     CannotPlay,
@@ -953,6 +965,9 @@ pub enum Requirement {
     HandHas(CardFilter, u8),
     /// The actor is a vampire, not an ally.
     ActorVampire,
+    /// The actor has a Discipline at superior to choose (Field Training:
+    /// ANK 20180731-2).
+    ActorHasSuperior,
     /// The actor is an imbued (a power: rulebook "Appendix: Imbued Rules"
     /// 3).
     ActorImbued,
@@ -1304,6 +1319,9 @@ pub enum Requirement {
     /// The current action succeeded, read after resolution; a fizzled
     /// action counts (ANK 20220218).
     ActionSuccessful,
+    /// The current action did not fizzle: its effect happened ("after
+    /// successfully equipping", Synner-G, Vulture).
+    ActionNotFizzled,
     /// The action successfully rescued a vampire from torpor, not one that
     /// fizzled (Ritual Goblet).
     RescuedFromTorpor,
@@ -1469,6 +1487,12 @@ pub enum Requirement {
     TargetNotSuperior(&'static str),
     /// The target is another minion than the one acting.
     OtherThanActor,
+    /// The target is another minion than the one playing the card
+    /// (Netwar).
+    OtherThanPlayer,
+    /// The target is younger than the vampire whose ability it is, not
+    /// the acting minion (Javier Montoya).
+    YoungerThanHost,
     /// This card in play entered before the current turn (Puppet Master
     /// [DOM]).
     EnteredBeforeThisTurn,
@@ -2940,6 +2964,9 @@ pub enum Terms {
     /// A superior Discipline of the actor's the target lacks at superior
     /// (Sanguine Instruction; `PlayCtx::discipline`).
     SuperiorDiscipline,
+    /// Any superior Discipline of the actor's (Field Training: a target
+    /// already superior gains nothing, a legal no-op).
+    ActorSuperiorDiscipline,
     /// Any Discipline the target lacks at superior (Spontaneous Power;
     /// `PlayCtx::discipline`).
     AnyDiscipline,
@@ -3147,6 +3174,13 @@ pub enum Modifier {
     /// The bearer vampire gets +1 level of the Discipline, no capacity,
     /// nothing on an ally (Ritual Goblet).
     BearerDisciplineLevel(&'static str),
+    /// As `BearerDisciplineLevel`, of the Discipline chosen as the card
+    /// was played (`CardInPlay::discipline`: Field Training).
+    BearerChosenDisciplineLevel,
+    /// The card burns once its host's sect is no longer this one, read
+    /// live: a change of the actual sect or an override over it (Field
+    /// Training, The Red Question; LSJ 20100811).
+    SectBound(Sect),
     /// The bearer vampire gets a level of the Discipline its counters reach
     /// in this order, one each, no capacity (Seal of Veddartha: dom, dom,
     /// for, for; LSJ 20070320-2).
@@ -3764,6 +3798,9 @@ pub enum Effect {
     /// As `PeekHand`, the hand of the host's controller (Iris Bennett's
     /// older blocker).
     PeekHostControllersHand,
+    /// As `PeekHand`, the hand of the acting minion's controller (Netwar
+    /// [aus]).
+    PeekActingControllersHand,
     /// Unlock the acting minion of the clan if its capacity is n or more,
     /// read at resolution (SchreckNET).
     UnlockActorIfClanCapacity { clan: &'static str, n: u8 },
@@ -5263,6 +5300,9 @@ pub enum Effect {
     /// The target vampire changes sect to this one (Chameleon: Anarch;
     /// Leila Monroe: Sabbat).
     TargetBecomesSect(Sect),
+    /// The acting vampire changes sect to this one (The Red Question:
+    /// Anarch).
+    ActorBecomesSect(Sect),
     /// The target vampire is chosen by the ability's vampire this turn
     /// (`GameState::chosen_this_turn`, Lucinde, Alastor G7).
     ChooseTargetThisTurn,
@@ -5960,6 +6000,7 @@ pub const CARD: CardDef = CardDef {
     riders: &[],
     cheaper_for: None,
     lines: &[],
+    burn_option_torpid: false,
 };
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
@@ -5983,6 +6024,9 @@ pub struct CardDef {
     /// The printed line (`LIBRARY` mode) of each mode, where the definition
     /// splits a printed choice; empty: the same index.
     pub lines: &'static [u8],
+    /// A torpid minion meeting its requirement bars its burn option too
+    /// (The Red Question: LSJ 20091204, over rules-qa 33.8's ready one).
+    pub burn_option_torpid: bool,
 }
 
 /// An ally matching one of `of` (any, if empty): the allies an ash heap
@@ -6219,6 +6263,32 @@ pub fn played_action_card_targets(st: &GameState, seat: SeatId, p: &PlayCtx) -> 
     }
 }
 
+/// `m` meets requirement `r` of the card it plays in `mode` as if it were
+/// a Camarilla vampire or a prince (Victor Gerard), or a justicar (Karl
+/// Schrekt: a card whose title requirement he meets so sees a titled
+/// Camarilla vampire; owner, 2026-10-09: rules-qa 59.14): read on the play
+/// and as its action resolves, never by the card's effects in play (LSJ
+/// 20101013), so not in `holds`.
+pub fn plays_as_sect_or_title(st: &GameState, m: MinionId, mode: &ModeDef, r: Requirement) -> bool {
+    let has = |stat| st.printed_mod(m, stat, crate::state::PrintedCtx::default()) > 0;
+    let as_justicar = || {
+        has(Stat::PlaysAsJusticar)
+            && mode.requires.iter().any(|r| {
+                matches!(r, Requirement::ActorTitleIn(cs)
+                    if cs.iter().any(|c| matches!(c, TitleClass::Justicar | TitleClass::Any)))
+            })
+    };
+    match r {
+        Requirement::ActorSectIn(sects) => {
+            sects.contains(&Sect::Camarilla) && (has(Stat::PlaysAsCamarilla) || as_justicar())
+        }
+        Requirement::ActorTitleIn(classes) => {
+            classes.contains(&TitleClass::Prince) && has(Stat::PlaysAsPrince)
+        }
+        _ => false,
+    }
+}
+
 /// `m` meets the mode's sect or title requirement as if (Vlad Tepes; ANK
 /// 20201028).
 pub fn meets_as_if(st: &GameState, m: MinionId, mode: &ModeDef) -> bool {
@@ -6373,8 +6443,9 @@ pub struct VampireDef {
 
 /// The printed trait a card requires of its minion, beyond clan and
 /// Discipline ("Requires a Seraph", "an infernal vampire", "an unmerged
-/// advanced vampire"), or a master card's "requires a ready Seraph": its
-/// first mode's (the burn option, rules-qa 33.8).
+/// advanced vampire", a sect, "non-titled": The Red Question), or a master
+/// card's "requires a ready Seraph": its first mode's (the burn option,
+/// rules-qa 33.8, 104.8).
 pub fn trait_requirements(card: u16) -> impl Iterator<Item = Requirement> {
     lookup(card)
         .and_then(|d| d.modes.first())
@@ -6388,6 +6459,8 @@ pub fn trait_requirements(card: u16) -> impl Iterator<Item = Requirement> {
                     | Requirement::ActorInfernal
                     | Requirement::ActorUnmergedAdvanced
                     | Requirement::ControlsReadySeraph
+                    | Requirement::ActorUntitled
+                    | Requirement::ActorSectIn(_)
             )
         })
 }
@@ -6928,6 +7001,11 @@ pub fn holds(
             .minions_of(seat)
             .any(|m| st.title_of(m) == crate::crypt::Title::Prince(city)),
         Requirement::ActorVampire => actor.is_some_and(|m| !st.minions[m.index()].is_ally()),
+        Requirement::ActorHasSuperior => actor.is_some_and(|m| {
+            crate::state::disciplines()
+                .into_iter()
+                .any(|d| st.discipline_level(m, d) == 2)
+        }),
         // "Changeling allies can burn this location" (Black Forest Base).
         Requirement::ActorSubtype(l) => actor.is_some_and(|m| st.has_subtype(m, l)),
         Requirement::ActorImbued => actor.is_some_and(|m| st.minions[m.index()].is_imbued()),
@@ -7222,6 +7300,9 @@ pub fn holds(
                 Some(crate::actions::Outcome::Successful | crate::actions::Outcome::Fizzled)
             )
         }),
+        Requirement::ActionNotFizzled => {
+            action.is_some_and(|a| a.outcome == Some(crate::actions::Outcome::Successful))
+        }
         Requirement::ActionDirected => action.is_some_and(|a| a.directed_seat(st).is_some()),
         Requirement::ActorDiablerised => action
             .zip(actor)
@@ -7281,6 +7362,8 @@ pub fn holds(
         // Target predicates (`holds_for_minion`).
         Requirement::ControlledByDirectedSeat
         | Requirement::NotHost
+        | Requirement::OtherThanPlayer
+        | Requirement::YoungerThanHost
         | Requirement::TargetClan(_)
         | Requirement::PredatorsPredator
         | Requirement::TargetPrey
@@ -8488,6 +8571,17 @@ pub fn pool_cost(st: &GameState, payer: SeatId, card: u16, target: Target) -> i3
         if def.types.contains(&CardType::Master) {
             cost += st.master_surcharge_on(m, payer);
         }
+    }
+    // A master card its Methuselah's vampire reduces (Salvador Garcia).
+    if def.types.contains(&CardType::Master) {
+        let ctx = crate::state::PrintedCtx {
+            card: Some((card, 0)),
+            ..Default::default()
+        };
+        cost -= st
+            .minions_of(payer)
+            .map(|m| st.printed_mod(m, Stat::SeatCostOff, ctx).max(0))
+            .sum::<i32>();
     }
     cost.max(0)
 }

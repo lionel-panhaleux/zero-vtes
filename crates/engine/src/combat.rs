@@ -3108,6 +3108,7 @@ impl Engine {
             .filter(|&i| !barred[i] && matches!(strikes[i], Some(StrikeKind::CombatEnds { .. })))
             .collect();
         if !ends.is_empty() {
+            let mut unlocks = Vec::new();
             for i in ends {
                 let Some(StrikeKind::CombatEnds { unlock }) = strikes[i] else {
                     unreachable!()
@@ -3117,7 +3118,7 @@ impl Engine {
                     // "Unlock this vampire before combat ends": resolves with
                     // the strike, so it survives a continued combat (spec
                     // §4.9.2).
-                    self.state.unlock(m);
+                    unlocks.push(m);
                 }
                 // Catatonic Fear [PRE]: at close range, not dodged (LSJ
                 // 19980526).
@@ -3174,6 +3175,9 @@ impl Engine {
             for s in &mut c.sides {
                 s.set_strike(None);
                 s.strike_at = None;
+            }
+            for m in unlocks {
+                self.unlock_minion(m);
             }
             // Combat ended before the other strike resolved: a card to be
             // put in play as it lands stays in the ash heap.

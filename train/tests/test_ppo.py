@@ -458,7 +458,7 @@ def test_the_owners_games_weighted(tmp_path):
     games' winners drawn `W` times as often (no record names its player:
     a player's games named by game), times a weak deck's weight."""
     a = "data/records/zero-vtes-replay-2026-10-08T20-32-01-306Z.json"
-    b = "data/records/d8ec2c01edab010d.json"
+    b = "data/records/57b15cfc6c44ad37.json"
     replays = load_replays(",".join([a, b]))
     train, _, _, _, decks, sources = imitation(replays, 3, 0)
     assert len(sources) == len(train) and set(sources) == {pathlib.Path(a).name, pathlib.Path(b).name}

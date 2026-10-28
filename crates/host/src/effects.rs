@@ -434,6 +434,7 @@ fn add(e: &E, w: Whom, when: Option<When>, out: &mut Vec<Effect>) {
         | E::LockOwnReadyOfClan(..)
         | E::MayBleedAgainThisTurn
         | E::PeekNeighborHands
+        | E::PeekActingControllersHand
         | E::PreyBurnsPool(..)
         | E::RemoveTargetForPool
         | E::SacrificeTarget
@@ -443,6 +444,7 @@ fn add(e: &E, w: Whom, when: Option<When>, out: &mut Vec<Effect>) {
         | E::TargetBecomesBlackHand
         | E::TargetBecomesRedList
         | E::TargetBecomesSect(..)
+        | E::ActorBecomesSect(..)
         | E::TargetRetainerBurnsLife(..)
         | E::UnlockActorAtDiscard => {}
         // Ability (an in-play ability used).

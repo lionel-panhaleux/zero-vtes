@@ -2631,7 +2631,7 @@ pub static VOTER_CAPTIVATION: CardDef = CardDef {
     ..CARD
 };
 
-pub static DEFS: [&CardDef; 977] = [
+pub static DEFS: [&CardDef; 982] = [
     &TAUNT_THE_CAGED_BEAST,
     &PETRA_RESONANCE,
     &WAITING_GAME,
@@ -3609,6 +3609,11 @@ pub static DEFS: [&CardDef; 977] = [
     &UNITY,
     &ANGEL_OF_BERLIN,
     &BLOOD_CULT_AWARENESS_NETWORK,
+    &FIELD_TRAINING,
+    &ILLEGALISM,
+    &NETWAR,
+    &THE_RED_QUESTION,
+    &ZEPHYR,
 ];
 
 // ---- Cards in play with riders and granted actions -------------------------
@@ -31304,6 +31309,216 @@ pub static GOBLINISM: CardDef = CardDef {
                 Effect::AddStealth(1),
                 Effect::SearchLibraryToHandOrHavenOnActor(CardFilter::Location),
             ],
+        ),
+    ],
+    ..CARD
+};
+
+// ---- Round 22: Anthology and Anarch Unbound -------------------------------
+
+/// "+1 stealth action. Requires an Anarch. Unlock this vampire, choose a
+/// Discipline they have at superior, and put this card on another ready
+/// non-titled vampire you control. The attached vampire is considered
+/// Anarch and gets +1 level of the chosen Discipline. If the attached
+/// vampire changes sect, burn this card. A vampire can have only one Field
+/// Training." (1 blood.) The Discipline the acting vampire's, chosen as it
+/// is played (ANK 20180731-2; Sanguine Instruction's terms); the vampire
+/// chosen then too. An actual sect change, burning the card once its sect
+/// changes again or an override lands (LSJ 20100811); the level adds no
+/// capacity.
+pub static FIELD_TRAINING: CardDef = CardDef {
+    name: "Field Training",
+    modes: &[ModeDef {
+        terms: Some(Terms::ActorSuperiorDiscipline),
+        ..action_at(
+            &[ANARCH, Requirement::ActorHasSuperior],
+            target(
+                TargetKind::Minion,
+                &[
+                    Requirement::TargetVampire,
+                    Requirement::Controlled,
+                    Requirement::ActorReady,
+                    Requirement::OtherThanActor,
+                    Requirement::TargetUntitled,
+                    Requirement::TargetWithout(Holding::Named("Field Training")),
+                ],
+            ),
+            &[
+                Effect::DeclareAction(ActionKind::Card),
+                Effect::AddStealth(1),
+                Effect::UnlockActor,
+                Effect::PutOnTarget,
+                Effect::TargetBecomesSect(Sect::Anarch),
+                Effect::Layer(Modifier::BearerChosenDisciplineLevel),
+                Effect::Layer(Modifier::SectBound(Sect::Anarch)),
+            ],
+        )
+    }],
+    ..CARD
+};
+
+/// "Requires an Anarch. More than one Discipline can be used to play this
+/// card. Ⓓ Bleed. [cel] Unlock this Anarch if the bleed is successful. [chi]
+/// This is a +1 stealth action. [pre] The bleed is with +1 bleed." Modes:
+/// [cel], [chi], [pre], then each larger set (The Platinum Protocol's); the
+/// unlock on a bleed for 1 or more, a redirected one included.
+pub static ILLEGALISM: CardDef = CardDef {
+    name: "Illegalism",
+    modes: &[
+        anarch_bleed(
+            None,
+            &[Effect::DeclareAction(ActionKind::Bleed), ILLEGALISM_UNLOCK],
+        ),
+        anarch_bleed(
+            None,
+            &[
+                Effect::DeclareAction(ActionKind::Bleed),
+                Effect::AddStealth(1),
+            ],
+        ),
+        anarch_bleed(
+            None,
+            &[Effect::DeclareAction(ActionKind::Bleed), PLUS_ONE_BLEED],
+        ),
+        anarch_bleed(
+            None,
+            &[
+                Effect::DeclareAction(ActionKind::Bleed),
+                ILLEGALISM_UNLOCK,
+                Effect::AddStealth(1),
+            ],
+        ),
+        anarch_bleed(
+            None,
+            &[
+                Effect::DeclareAction(ActionKind::Bleed),
+                ILLEGALISM_UNLOCK,
+                PLUS_ONE_BLEED,
+            ],
+        ),
+        anarch_bleed(
+            None,
+            &[
+                Effect::DeclareAction(ActionKind::Bleed),
+                Effect::AddStealth(1),
+                PLUS_ONE_BLEED,
+            ],
+        ),
+        anarch_bleed(
+            None,
+            &[
+                Effect::DeclareAction(ActionKind::Bleed),
+                ILLEGALISM_UNLOCK,
+                Effect::AddStealth(1),
+                PLUS_ONE_BLEED,
+            ],
+        ),
+    ],
+    ..CARD
+};
+
+const ILLEGALISM_UNLOCK: Effect = Effect::IfBleedSuccessful(&[Effect::UnlockActor]);
+
+/// "Requires an Anarch. [aus] Look at the acting Methuselah's hand. [chi]
+/// Choose another ready minion you control. The chosen minion unlocks and
+/// attempts to block. [dem] Give another minion you control +1 intercept."
+/// [aus] after the target's block decision (LSJ 20100507, ANK
+/// 20210131-1); [chi] the forced attempt keeps the blocking restrictions
+/// (ANK 20180623, LSJ 20010714-2), Organized Resistance's shape; [dem] to
+/// the minion of yours attempting to block, when needed.
+pub static NETWAR: CardDef = CardDef {
+    name: "Netwar",
+    modes: &[
+        mode_of(
+            &[Window::ReactionDuringAction],
+            Actor::ReactingMinion,
+            &[ANARCH],
+            &[Effect::PeekActingControllersHand],
+        ),
+        ModeDef {
+            target: target(
+                TargetKind::Minion,
+                &[
+                    Requirement::Controlled,
+                    Requirement::ActorReady,
+                    Requirement::OtherThanPlayer,
+                    Requirement::CanAttemptBlock,
+                ],
+            ),
+            waives_needed: true,
+            ..mode_of(
+                &[Window::ReactionUnlockAttempt],
+                Actor::ReactingMinion,
+                &[ANARCH],
+                &[Effect::TargetAttemptsBlock(0)],
+            )
+        },
+        mode_of(
+            &[Window::ActionStealthIntercept],
+            Actor::ReactingMinion,
+            &[
+                ANARCH,
+                Requirement::YourAttemptNeedsIntercept,
+                Requirement::ActorNotBlocking,
+            ],
+            &[Effect::AttemptingIntercept(1)],
+        ),
+    ],
+    ..CARD
+};
+
+/// "Requires a non-titled non-Anarch vampire. Put this card on this
+/// vampire. This vampire is considered Anarch. Burn this card if this
+/// vampire changes sect." (1 blood; burn option.) An actual sect change
+/// (LSJ 20100811), live for the action's requirements (ANK 20210124), not
+/// an action making the vampire Anarch (ANK 20180125); its burn option
+/// barred by a torpid such vampire too (LSJ 20091204).
+pub static THE_RED_QUESTION: CardDef = CardDef {
+    name: "Red Question, The",
+    modes: &[mode_of(
+        &[Window::ActionDuring],
+        Actor::ActingMinion,
+        &[
+            Requirement::ActorVampire,
+            Requirement::ActorUntitled,
+            Requirement::ActorSectIn(&[
+                Sect::Camarilla,
+                Sect::Sabbat,
+                Sect::Independent,
+                Sect::Laibon,
+            ]),
+        ],
+        &[
+            Effect::PutOnActor,
+            Effect::ActorBecomesSect(Sect::Anarch),
+            Effect::Layer(Modifier::SectBound(Sect::Anarch)),
+        ],
+    )],
+    burn_option_torpid: true,
+    ..CARD
+};
+
+/// "Only usable after resolution of an unsuccessful action. [cel] Unlock
+/// this vampire at the end of the turn. [CEL] Unlock this vampire." Blocked
+/// or failed (RTR 20180719), never fizzled (ANK 20220218); after any
+/// combat, from torpor too (LSJ 20030130); [cel] in torpor too.
+pub static ZEPHYR: CardDef = CardDef {
+    name: "Zephyr",
+    modes: &[
+        mode_of(
+            &[Window::ActionAfterResolution],
+            Actor::ActingMinion,
+            &[Requirement::ActionUnsuccessful],
+            &[Effect::ActorLasting(
+                Lasting::UnlockAtEndOfTurn,
+                Expiry::EndOfTurn,
+            )],
+        ),
+        mode_of(
+            &[Window::ActionAfterResolution],
+            Actor::ActingMinion,
+            &[Requirement::ActionUnsuccessful],
+            &[Effect::UnlockActor],
         ),
     ],
     ..CARD

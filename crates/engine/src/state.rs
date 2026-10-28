@@ -924,6 +924,10 @@ pub struct CardInPlay {
     /// The Discipline it was played for (Sanguine Instruction:
     /// `Modifier::ChosenDisciplineLevel`).
     pub discipline: Option<&'static str>,
+    /// The sect its host had and the sect it wrote (Field Training, The Red
+    /// Question): the change ends with the card, unless another replaced
+    /// it since (owner, 2026-10-28: rules-qa 104.3).
+    pub sect_change: Option<(Option<crate::crypt::Sect>, crate::crypt::Sect)>,
     /// The vampires it chose, kept through their leaving play and coming
     /// back (advanced rules 6.4.3; The Rack, Toreador Grand Ball).
     pub chosen: Vec<MinionId>,
@@ -976,6 +980,7 @@ impl CardInPlay {
             fixed_x: 0,
             spent_turn: 0,
             discipline: None,
+            sect_change: None,
             chosen: Vec::new(),
             training: false,
         }
@@ -1833,15 +1838,22 @@ impl GameState {
         let equipped = self
             .layers
             .iter()
-            .filter(|l| match l.modifier {
-                Modifier::BearerDisciplineLevel(g) => {
+            .filter(|l| {
+                let g = match l.modifier {
+                    Modifier::BearerDisciplineLevel(g) => Some(g),
+                    // Field Training: the Discipline chosen as played.
+                    Modifier::BearerChosenDisciplineLevel => {
+                        self.cards[l.source.index()].discipline
+                    }
+                    _ => None,
+                };
+                g.is_some_and(|g| {
                     !barred
                         && self.layer_active(l)
                         && g.eq_ignore_ascii_case(d)
                         && self.cards[l.source.index()].host == Some(m)
                         && self.minions[m.index()].is_vampire()
-                }
-                _ => false,
+                })
             })
             .count() as u8;
         let levels = cards::vampire_of(&self.minions[m.index()]).map_or(0, |v| {
@@ -2198,6 +2210,8 @@ impl GameState {
     /// Unlock a locked `m`; a disease counter burns 1 blood, else itself
     /// (Vampiric Disease; any unlock, ANK 20221210-2; an unlocked minion or
     /// one entering play is not unlocked, ANK 20170227, LSJ 20060213).
+    /// Engine code calls `Engine::unlock_minion`, which tells the
+    /// disease's blood with its cause.
     pub fn unlock(&mut self, m: MinionId) {
         let v = &mut self.minions[m.index()];
         if !v.locked {

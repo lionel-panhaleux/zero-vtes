@@ -30,7 +30,7 @@ fn from() -> u32 {
 /// a vampire banished and back between two views (45), one influenced into a
 /// contest (81), a unique ally played into one (95), a crypt card come with
 /// counters (111), a contested minion's cards (118), a merge (119), training
-/// counters (152), a vampire moved within its uncontrolled region (555), two
+/// counters (152), a vampire moved within its uncontrolled region (342), two
 /// Methuselahs ousted at once (239), a unique card put into a contest (299), a
 /// vampire's excess drained in one (380), an action's intercept changed between
 /// two views (103), a play canceled as it is announced (88: Andrew Stuart), a
@@ -38,10 +38,11 @@ fn from() -> u32 {
 /// Essence); and the causes a deeper sweep found missing: Camarilla Threat's
 /// discard toll (294), blood to an uncontrolled vampire (375), a diablerie
 /// in a torpor block (411), Yawp Court's yawp (591), a burn to prevent
-/// (728), a rider fired as its bearer blocks (913).
-const KEPT: [u32; 25] = [
-    45, 70, 81, 88, 95, 103, 104, 111, 118, 119, 132, 152, 172, 219, 239, 294, 299, 346, 375, 380,
-    411, 555, 591, 728, 913,
+/// (728), a rider fired as its bearer blocks (913), a diseased vampire's
+/// paid infernal unlock (504), a discard-phase rider's damage (579).
+const KEPT: [u32; 27] = [
+    45, 70, 81, 88, 95, 103, 104, 111, 118, 119, 132, 152, 172, 219, 239, 294, 299, 342, 346, 375,
+    380, 411, 504, 579, 591, 728, 913,
 ];
 
 /// The sweep's seeds: `HOST_SEED_FROM` to `HOST_SEEDS` (40), the kept

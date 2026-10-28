@@ -503,7 +503,9 @@ sources to the engine's conventions.
   (impulse reset / polling commitment). Hand cards timed so are offered with
   them (`any_impulse_options`: Angel of Berlin, rules-qa 103.6). A starving
   vampire's forced hunt is offered beside untimed abilities, not instead.
-- Two settle steps run beside the interrupts: `settle_moving_titles`
+- Three settle steps run beside the interrupts: `settle_sect_bound` (a
+  card in play with `Modifier::SectBound` burns once its host's live sect
+  is another: Field Training, The Red Question), `settle_moving_titles`
   (Osebo Kholo's standing move, marked by `Effect::MovesToOldestUntitled`;
   a tie among the oldest is `Interrupt::MoveCardToOldest`, the card's
   controller's) and `settle_burn_to_prevent` (Superior Mettle's offer each
@@ -645,6 +647,11 @@ sources to the engine's conventions.
 - A play canceled as it opens (Andrew Stuart: `Hook::HostPlaysCard` →
   `Effect::RevealTopCancels`; Two Wrongs) settles at once in
   `open_as_played`, with no as-played window.
+- Karl Schrekt (`Stat::PlaysAsJusticar`, his Camarilla requirement) and
+  Victor Gerard (`Stat::PlaysAsCamarilla`, `Stat::PlaysAsPrince`) meet a
+  card's requirement through `cards::plays_as_sect_or_title`, read on the
+  play and as its action resolves (`card_traits_lapsed`), never in `holds`:
+  the card's effects in play do not take them for one (LSJ 20101013).
 - Vlad Tepes (`Stat::MeetsSectAndTitleRequirements`,
   `GameState::meets_sect_and_title_requirements`) holds `ActorSectIn` and
   `ActorTitleIn` for what he plays or uses; a referendum's terms are read
@@ -660,7 +667,9 @@ sources to the engine's conventions.
   (`actor_candidates`: a blood hunt's diablerist plays nothing after
   resolution). The burn option reads a card's printed trait requirement
   (`cards::trait_requirements`: a Seraph, an infernal or an unmerged
-  advanced vampire, a master card's `ControlsReadySeraph`).
+  advanced vampire, a master card's `ControlsReadySeraph`, a sect or an
+  untitled one), from a ready minion, a torpid one too where the card says
+  so (`CardDef::burn_option_torpid`: The Red Question, rules-qa 104.8).
   `GameState::master_surcharge_on` folds Walker Grimes's
   `Stat::MasterTargetingCostsYou` into the haven surcharge. Skidmark's
   `Stat::HoldsReplacementsWhileActing` (`holds_replacements_of`) holds every
@@ -687,7 +696,8 @@ sources to the engine's conventions.
   `Card`, `Equip`/`EquipFrom`/`EquipFound`, `Recruit`/`Employ`, `BurnCard`,
   `StealCard`, `Ability` (granted by a card in play or printed on a vampire;
   checked by `ability_gate`, `may_take_granted` inside it). A granted action
-  has only its printed stealth (rules-qa 6.2).
+  has only its printed stealth (rules-qa 6.2); an action card its printed
+  stealth (`printed_stealth`), a bleed card's too (rules-qa 104.5).
 - Steals: every steal of a card in play (`Effect::StealTarget*`,
   `StealLocation`) carries `Requirement::NotControlled` in its target, even
   where the text does not print "another Methuselah's": one cannot steal
@@ -720,6 +730,8 @@ sources to the engine's conventions.
   Damage "after resolution" is ordered there by the acting Methuselah.
 - Resolution: costs paid then; targets re-read — gone or illegal → fizzle, paid
   (card actions) or successful with no effect (granted actions, spec §3.4.1);
+  an action card's sect or title requirement re-read as it succeeds
+  (`card_traits_lapsed`: The Red Question's Anarch, rules-qa 104.7);
   a card, uncontrolled or Methuselah target by `target_still_qualifies` on
   both paths, a minion by each (an ability's reads its host). An
   action whose acting minion left play fails. A bleed target ousted before
@@ -1308,7 +1320,12 @@ sources to the engine's conventions.
   `Interrupt::DualFormKept` keeps the one chosen, `GameState::dual_set`); a
   minion's discipline level is `own_printed_level` plus `granted_level`.
   Derange's `Minion::deranged` (clan and sect as played, read by `clan()` and
-  `underlying_sect()`, moved with the card, cleared in `card_leaves_play`).
+  `underlying_sect()`, moved with the card, cleared in `card_leaves_play`)
+  over `sect_override`, the actual sect a card or action wrote
+  (`TargetBecomesSect`, `ActorBecomesSect`); a card put on the vampire that
+  wrote it holds the change (`CardInPlay::sect_change`), undone as the card
+  leaves play unless another change replaced it (rules-qa 104.3). Every unlock goes through
+  `Engine::unlock_minion`, a disease counter's blood told as the disease's.
   Diabolic Lure's `Minion::pact` and `made_infernal` (read by `is_infernal`
   and `unlocks_as_infernal`). `GameState::immune_non_aggravated` (Tye Cooper)
   in `apply_damage` and `damage_out_of_combat`; `GameState::is_seraph` reads
@@ -1637,7 +1654,11 @@ sources to the engine's conventions.
   `GameState::vampire_making_taxed`, read live in `stealth` and
   `succeed`). An ally combatant burned by paying its last life for a card
   ends the combat (`pay_play_blood`). A minion's printed surcharge (Tom's,
-  `CostOff::blood_extra`) is paid there too (`printed_extra`).
+  `CostOff::blood_extra`) is paid there too (`printed_extra`); Jenna
+  Cross's is added last, on blood left after every reduction
+  (`Stat::BloodCostMoreIfAny`, `Engine::blood_if_any` on each card-blood
+  path). A master card's pool reduction from its Methuselah's vampire
+  (`Stat::SeatCostOff`: Salvador Garcia) is in `cards::pool_cost`.
 - The reductions announced with a card are taken as its cost is paid by
   one helper (`take_announced`): at resolution (`resolve_play`) and for a
   card canceled with its cost still paid (`settle_canceled`, without the

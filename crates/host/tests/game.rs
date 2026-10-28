@@ -365,10 +365,13 @@ fn feedback_is_recorded_at_its_decision() {
     assert!(matches!(outs[0].message, Message::Noted { .. }));
 }
 
-/// Plays `seeds` games with the text off, the human answering at random,
+/// Plays the games of `seeds` with the text off, the human answering at random,
 /// and hands each of its decisions to `f` (its seed and the decision).
-fn each_decision(seeds: u32, mut f: impl FnMut(u32, &zvtes_api::Decision)) {
-    for seed in 1..=seeds {
+fn each_decision(
+    seeds: impl IntoIterator<Item = u32>,
+    mut f: impl FnMut(u32, &zvtes_api::Decision),
+) {
+    for seed in seeds {
         let settings = Settings {
             text: false,
             ..Settings::default()
@@ -414,7 +417,7 @@ fn an_ability_is_told_apart_from_its_siblings_by_data() {
     // A minion's ability is rare in these random games: 40 seeds.
     let seeds: u32 = std::env::var("HOST_SEEDS").map_or(40, |s| s.parse().unwrap());
     let mut apart_offered = 0;
-    each_decision(seeds, |seed, d| {
+    each_decision(1..=seeds, |seed, d| {
         // Each (source, ability) offered: its `apart`.
         let mut seen: Vec<(Source, u8, &[Effect])> = Vec::new();
         for o in abilities(d) {
@@ -457,7 +460,7 @@ fn an_abilitys_user_is_said() {
     // 47, 90 seeds.
     let seeds: u32 = std::env::var("HOST_SEEDS").map_or(90, |s| s.parse().unwrap());
     let (mut minion, mut methuselah) = (0, 0);
-    each_decision(seeds, |seed, d| {
+    each_decision(1..=seeds, |seed, d| {
         for o in abilities(d) {
             match (o.user, o.key.actor) {
                 (Some(User::Minion { copy }), Some(a)) => {
@@ -487,48 +490,52 @@ fn an_abilitys_user_is_said() {
 /// `due`, each naming a minion or card its options act on — a vampire
 /// that must hunt first, with a hunt on offer (rules-qa 17.2) — and one
 /// offering `pass` none; never inferred from the missing pass. The first
-/// forced hunt the human meets is seed 115 or so (a lone hunt elides).
+/// forced hunt the human meets is seed 383 (a lone hunt elides), kept past
+/// the sweep.
 #[test]
 fn a_minion_phase_without_a_pass_says_why() {
     let seeds: u32 = std::env::var("HOST_SEEDS").map_or(230, |s| s.parse().unwrap());
     let mut hunts = 0;
-    each_decision(seeds, |seed, d| {
-        if d.window != zvtes_api::ids::Window::MinionPhase {
-            assert!(d.due.is_empty(), "seed {seed}: due outside a minion phase");
-            return;
-        }
-        let pass = d.options.iter().any(|o| o.key.kind == OptionKind::Pass);
-        assert_eq!(
-            pass,
-            d.due.is_empty(),
-            "seed {seed}: {:?} {:?}",
-            d.due,
-            d.options
-        );
-        for due in &d.due {
-            let acts = |o: &&zvtes_api::option::OptionView| {
-                [
-                    o.key.actor,
-                    o.key.minion,
-                    o.key.card.as_ref().and_then(|c| c.copy),
-                ]
-                .contains(&Some(due.copy))
-            };
-            assert!(
-                d.options.iter().any(|o| acts(&o)),
-                "seed {seed}: {due:?} acts on nothing"
-            );
-            if due.kind == DueKind::Hunt {
-                assert!(
-                    d.options.iter().any(|o| o.key.actor == Some(due.copy)
-                        && (o.key.action == Some(ActionKind::Hunt)
-                            || o.effects.iter().any(|e| e.kind == EffectKind::Hunt))),
-                    "seed {seed}: {due:?} has no hunt"
-                );
-                hunts += 1;
+    each_decision(
+        (1..=seeds).chain([383].into_iter().filter(|&k| k > seeds)),
+        |seed, d| {
+            if d.window != zvtes_api::ids::Window::MinionPhase {
+                assert!(d.due.is_empty(), "seed {seed}: due outside a minion phase");
+                return;
             }
-        }
-    });
+            let pass = d.options.iter().any(|o| o.key.kind == OptionKind::Pass);
+            assert_eq!(
+                pass,
+                d.due.is_empty(),
+                "seed {seed}: {:?} {:?}",
+                d.due,
+                d.options
+            );
+            for due in &d.due {
+                let acts = |o: &&zvtes_api::option::OptionView| {
+                    [
+                        o.key.actor,
+                        o.key.minion,
+                        o.key.card.as_ref().and_then(|c| c.copy),
+                    ]
+                    .contains(&Some(due.copy))
+                };
+                assert!(
+                    d.options.iter().any(|o| acts(&o)),
+                    "seed {seed}: {due:?} acts on nothing"
+                );
+                if due.kind == DueKind::Hunt {
+                    assert!(
+                        d.options.iter().any(|o| o.key.actor == Some(due.copy)
+                            && (o.key.action == Some(ActionKind::Hunt)
+                                || o.effects.iter().any(|e| e.kind == EffectKind::Hunt))),
+                        "seed {seed}: {due:?} has no hunt"
+                    );
+                    hunts += 1;
+                }
+            }
+        },
+    );
     assert!(hunts > 0, "no forced hunt met");
 }
 
@@ -545,7 +552,7 @@ fn minions_of_one_name_are_told_apart_and_markers_named() {
     let seeds: u32 = std::env::var("HOST_SEEDS").map_or(40, |s| s.parse().unwrap());
     let (mut seconds, mut markers) = (0, 0);
     let mut kept: HashMap<(u32, u32), Option<u8>> = HashMap::new();
-    each_decision(seeds, |seed, d| {
+    each_decision(1..=seeds, |seed, d| {
         let mut names: Vec<(&str, Option<u8>)> = Vec::new();
         for s in &d.view.seats {
             for m in s.minions() {

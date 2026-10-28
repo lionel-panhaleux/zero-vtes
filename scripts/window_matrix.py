@@ -1286,6 +1286,39 @@ ADDED_BATCHES = [
         200760: "Kassiym Malikhair (G2)",
         200914: "Marconius (G2)",
     },
+    # Round 22 (slice 16ah): Anthology and Anarch Unbound completed, the
+    # decks metric at nine cards or more a recent deck (owner, 2026-10-28:
+    # "Switch to sets").
+    {
+        100725: "Field Training",
+        100952: "Illegalism",
+        101275: "Netwar",
+        101575: "The Red Question",
+        102205: "Zephyr",
+        200213: "Boss Callihan (G3 ADV)",
+        200241: "Cao Nguyen (G6)",
+        200308: "Daliah (G4)",
+        200314: "Dancin' Dana (G1 ADV)",
+        200338: "Desiree Narayan, Anarch Historian (G6)",
+        200341: "Dhita Choudhair (G6)",
+        200356: "Domenic Giovanni (G6)",
+        200380: "Dr. Lawrence Mayhew (G5)",
+        200469: "Flavia, Avenging Angel (G6)",
+        200503: "Gengis (G3 ADV)",
+        200640: "Irena (G5)",
+        200681: "Javier Montoya (G2 ADV)",
+        200688: "Jenna Cross (G4)",
+        200863: "Louis Fortier (G4 ADV)",
+        200921: "Marguerite Foccart (G4 ADV)",
+        201121: "Philip van Vermeer IV (G2)",
+        201226: "Salvador Garcia (G4)",
+        201243: "Sarrasine (G2 ADV)",
+        201272: "Shahara al-Rashwa (G6)",
+        201326: "Sundown (G3 ADV)",
+        201439: "Victor Gerard (G2)",
+        201460: "Vulture (G2)",
+        201499: "Zack North (G1 ADV)",
+    },
 ]
 ADDED_CARDS = {k: v for batch in ADDED_BATCHES for k, v in batch.items()}
 
