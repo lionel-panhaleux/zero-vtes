@@ -67,7 +67,7 @@ by the owner. Apply them to every new card; only a ruling overrides them.
 ## Index
 
 - **Untimed abilities** — 7.7, 29.10, 15.2 (Kalinda)
-- **Legacy additions for TWDA decks** — 44.1–44.10, 57.1–57.10, 58.1–58.20, 59.1–59.19, 60.1–60.22, 62.2–62.31, 62.33, 63.1–63.17, 64.1–64.12, 65.1–65.3, 67.1–67.7, 68.1–68.17, 69.1–69.15, 70.1–70.22, 71.1–71.27, 74.1–74.13, 76.1–76.25, 77.1–77.35, 78.1–78.49, 78.54, 79.3, 80.1–80.45, 84.1–84.40, 85.1–85.34, 89.1–89.26, 102.1–102.26, 103.1–103.6, 104.1–104.20
+- **Legacy additions for TWDA decks** — 44.1–44.10, 57.1–57.10, 58.1–58.20, 59.1–59.19, 60.1–60.22, 62.2–62.31, 62.33, 63.1–63.17, 64.1–64.12, 65.1–65.3, 67.1–67.7, 68.1–68.17, 69.1–69.15, 70.1–70.22, 71.1–71.27, 74.1–74.13, 76.1–76.25, 77.1–77.35, 78.1–78.49, 78.54, 79.3, 80.1–80.45, 84.1–84.40, 85.1–85.34, 89.1–89.26, 102.1–102.26, 103.1–103.6, 104.1–104.20, 105.1–105.6
 - **Ousts, Life Boon's decision point** — 45.1–45.8, 88.2
 - **Impulse, sequencing, windows** — 1.2, 1.3, 1.5, 2.1, 2.2, 2.3, 2.4, 3.7, 4.1, 5.3, 7.7, 7.8, 7.9, 23.3, 24.2, 26.5, 66.1, 96.4
 - **Mandatory effects and their ordering** — 6.1, 6.4, 7.8, 7.9, 17.2, 27.1, 28.9, 32.10, 40.5, 88.5
@@ -2512,3 +2512,17 @@ Each contradiction read against the KRCG rulings, the advanced rules and the rul
 **104.19** Vulture: Synner-G's shape for any Anarch of his Methuselah's equipping a vehicle from hand by an equip action that did not fizzle (`Requirement::ActionNotFizzled`, Synner-G's too: a fizzled equip equips nothing), the Anarch read as it unlocks; once in each Methuselah's turn (ANK 20180719-4), Vulture locked or in torpor too. Amber (Synner-G's precedent). (Tests vulture_unlocks_an_anarch_equipping_a_vehicle, vulture_unlocks_once_each_turn.)
 
 **104.20** The advanced vampires' [MERGED] text never applies, their base cards not in the pool (Dancin' Dana, Louis Fortier, Sundown, Zack North, Sarrasine; Boss Callihan's, Gengis's, Javier Montoya's and Marguerite Foccart's [MERGED] clauses): Brunhilde's precedent. Green. (Test boss_callihan_has_less_intercept_against_sabbat.)
+
+## Batch 105 — Round 22 reviewed: its egress rounds' edges and a fresh audit (the cards board) (Claude, 2026-10-28)
+
+**105.1** Thirst's blood burned after a minion phase is told with its cause, the event (`Engine::thirst`; found reviewing round 22). Green. (Test thirst_tells_its_blood_burn.)
+
+**105.2** A bearer's Discipline level is barred with its equipment only when its card is an equipment (Ritual Goblet's): Field Training's and Blood Buff's stay while a combat bars the vampire's equipment (Drawing Out the Beast, Form of the Bat's rider, a frenzy card) — the fresh audit and the egress review: the modifier, not the card, decided it. Green. (Test field_training_keeps_its_level_with_equipment_barred.)
+
+**105.3** Salvador Garcia's "cost you": a card requiring an Anarch played by a non-Anarch of his Methuselah's (Vlad Tepes meeting the requirement) costs 1 fewer pool, its blood unreduced — 104.15's minion half read on the payer: an Anarch's blood or pool, "you"'s pool. Amber (the text's "you"; the fresh audit). (Test salvador_garcia_reduces_a_non_anarchs_pool_cost.)
+
+**105.4** Netwar [chi] on an undirected action: the prey's (or predator's) Anarch plays it, another of its player's minions unlocked to attempt (104.6). Green. (Test netwar_forces_a_block_of_an_undirected_action.)
+
+**105.5** Daliah's gain once each combat: a second combat in one action (Psyche! [CEL]) offers it again (104.11; LSJ 20021213: a new combat). Green. (Test daliah_gains_again_in_a_second_combat.)
+
+**105.6** Two edges no pool card reaches: Jenna Cross's surcharge against Regina Blake's payment outside an action (Regina pays for location cards, a vampire plays location equipment by an equip action only, there ordered as 104.14 says); Victor Gerard's "you" on a master card's requirement other than a sect or title one (no pool master card requires a Camarilla vampire or a prince but Papillon, whose baron he meets). Green. (Tests jenna_cross_pays_her_surcharge_beside_regina_blakes_blood, victor_gerard_plays_camarilla_and_prince_cards.)

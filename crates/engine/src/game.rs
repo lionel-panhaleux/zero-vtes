@@ -2314,9 +2314,9 @@ impl Engine {
     /// not hunt this turn burns 1 blood (an unsuccessful hunt counts, LSJ
     /// 20050727).
     fn thirst(&mut self) {
-        if self.state.global(crate::cards::Modifier::Thirst).is_none() {
+        let Some(thirst) = self.state.global(crate::cards::Modifier::Thirst) else {
             return;
-        }
+        };
         let n = self.state.gehenna_in_play();
         let s = self.state.active;
         let ms: Vec<MinionId> = self.state.minions_of(s).collect();
@@ -2328,7 +2328,8 @@ impl Engine {
                 && (self.state.capacity_of(m).unwrap_or(0) as usize) < n
                 && !self.state.gehenna_immune(m)
             {
-                self.state.burn_blood(m, 1);
+                let card = Cause::Effect(Source::Card(thirst));
+                self.caused(card, |e| e.state.burn_blood(m, 1));
             }
         }
     }

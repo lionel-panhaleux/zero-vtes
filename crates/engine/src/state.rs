@@ -1833,9 +1833,10 @@ impl GameState {
             .discipline_grants(m)
             .filter(|g| g.eq_ignore_ascii_case(d))
             .count() as u8;
-        // An equipment's level ("this vampire gets +1 level", Ritual
-        // Goblet): no capacity with it, and nothing on an ally.
-        let equipped = self
+        // A card's level on its bearer ("this vampire gets +1 level": Ritual
+        // Goblet, Field Training, Blood Buff): no capacity with it, and
+        // nothing on an ally.
+        let borne = self
             .layers
             .iter()
             .filter(|l| {
@@ -1848,7 +1849,14 @@ impl GameState {
                     _ => None,
                 };
                 g.is_some_and(|g| {
-                    !barred
+                    // Barred with the equipment only when its card is one
+                    // (not Field Training's, Blood Buff's: rules-qa 105.2).
+                    let equipment = || {
+                        LIBRARY[self.cards[l.source.index()].card as usize]
+                            .types
+                            .contains(&CardType::Equipment)
+                    };
+                    !(barred && equipment())
                         && self.layer_active(l)
                         && g.eq_ignore_ascii_case(d)
                         && self.cards[l.source.index()].host == Some(m)
@@ -1883,7 +1891,7 @@ impl GameState {
                 _ => 0,
             })
             .sum::<u8>();
-        let granted = granted + equipped + levels + counted;
+        let granted = granted + borne + levels + counted;
         (printed + granted).min(2)
     }
 

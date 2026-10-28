@@ -1276,3 +1276,137 @@ fn jenna_cross_pays_her_surcharge_beside_regina_blakes_blood() {
     assert!(on(&e, "Catacombs", j).is_some(), "equipped");
     assert_eq!((blood(&e, j), blood(&e, regina)), (3, 2));
 }
+
+// Thirst's blood burned after the minion phase is told with its cause, the
+// event (rules-qa 105.1).
+#[test]
+fn thirst_tells_its_blood_burn() {
+    let mut e = game(2);
+    let v = e.add_minion(SeatId(0), plain("Brujah", 0), 4, false);
+    e.add_minion(SeatId(1), plain("Ventrue", 0), 4, false);
+    let thirst = in_play_with_layers(&mut e, 1, "Thirst", None);
+    // More Gehenna events in play than its capacity: a vampire not
+    // hunting burns.
+    for _ in 0..9 {
+        in_play(&mut e, 1, "Thirst", None);
+    }
+    let cap = e.state.capacity_of(v).unwrap();
+    assert!((cap as usize) < e.state.gehenna_in_play(), "capacity {cap}");
+    e.notes = Some(Vec::new());
+    let before = e.table();
+    until(&mut e, SeatId(1), WindowLabel::MinionPhase);
+    let changes = noted_changes(&mut e, before);
+    let burned: Vec<_> = changes
+        .iter()
+        .filter(|(_, at, d)| *at == Err(v) && *d == -1)
+        .collect();
+    assert!(!burned.is_empty(), "{changes:?}");
+    for (cause, ..) in burned {
+        assert_eq!(
+            *cause,
+            Some(zvtes::notes::Cause::Effect(zvtes::notes::Source::Card(
+                thirst
+            ))),
+            "{changes:?}"
+        );
+    }
+}
+
+// Netwar [chi] on an undirected action: offered to the prey's Anarch (the
+// prey may block a hunt), another of the prey's minions unlocked to
+// attempt.
+#[test]
+fn netwar_forces_a_block_of_an_undirected_action() {
+    let mut e = game(3);
+    let h = e.add_minion(SeatId(0), plain("Brujah", 0), 4, false);
+    e.add_minion(SeatId(0), plain("Brujah", 1), 4, false);
+    let r = made_anarch(&mut e, 1, &["chi"], 0);
+    let b = e.add_minion(SeatId(1), plain("Ventrue", 0), 4, false);
+    e.state.minions[b.index()].locked = true;
+    e.add_minion(SeatId(2), plain("Ventrue", 1), 4, false);
+    e.notes = Some(Vec::new());
+    hand(&mut e, 1, &["Netwar"]);
+    pick(&mut e, action(h, zvtes::decision::ActionKind::Hunt));
+    pick_when(&mut e, play_at(0, 1, Some(r), Target::Minion(b)));
+    until(&mut e, SeatId(0), WindowLabel::MinionPhase);
+    // Unlocked to attempt; the hunt's +1 stealth beats its attempt.
+    assert!(!e.state.minions[b.index()].locked, "unlocked to block");
+    assert!(noted_combats(&mut e).is_empty());
+}
+
+// Daliah's gain once each combat she enters: the second combat Psyche!
+// queues in the same action offers it again ([LSJ 20021213]: a new
+// combat).
+#[test]
+fn daliah_gains_again_in_a_second_combat() {
+    let mut e = game(2);
+    let a = e.add_minion(SeatId(1), vampire_with("CEL", 0), 6, false);
+    e.add_minion(SeatId(1), plain("Brujah", 0), 4, false);
+    let d = e.add_minion(SeatId(0), find_card("Daliah"), 2, false);
+    e.add_minion(SeatId(0), plain("Ventrue", 0), 4, false);
+    hand(&mut e, 1, &["Psyche!"]);
+    until(&mut e, SeatId(1), WindowLabel::MinionPhase);
+    pick(&mut e, bleed(a));
+    pick_when(&mut e, block(d));
+    let gain = |e: &mut Engine| {
+        let req = until(e, SeatId(0), WindowLabel::CombatBeforeRange);
+        let c = ability_of(&req, d).expect("Daliah's gain offered");
+        e.choose(index_of(&req, c));
+    };
+    gain(&mut e);
+    pick_when(&mut e, play(0, 1, a));
+    // Offered again in the queued combat (`gain` expects it).
+    gain(&mut e);
+}
+
+// A level from a card that is no equipment stays while its vampire's
+// equipment is barred in a combat (Drawing Out the Beast): Field Training's
+// and Blood Buff's (rules-qa 105.2).
+#[test]
+fn field_training_keeps_its_level_with_equipment_barred() {
+    let mut e = game(3);
+    let x = e.add_minion(SeatId(0), vampire_with("ani", 0), 1, false);
+    e.add_minion(SeatId(0), plain("Brujah", 1), 4, false);
+    let z = e.add_minion(SeatId(1), vampire_with("cel", 0), 6, false);
+    e.add_minion(SeatId(2), plain("Brujah", 2), 4, false);
+    // Made Anarch by its Field Training (the card burns otherwise).
+    e.state.minions[z.index()].sect_override = Some(Sect::Anarch);
+    let ft = in_play_with_layers(&mut e, 1, "Field Training", Some(z));
+    e.state.cards[ft.index()].discipline = Some("pot");
+    in_play_with_layers(&mut e, 1, "Blood Buff", Some(z));
+    let levels = |e: &Engine| {
+        (
+            e.state.discipline_level(z, "pot"),
+            e.state.discipline_level(z, "san"),
+        )
+    };
+    let before = levels(&e);
+    assert_eq!(before, (1, 1), "the vampire has neither");
+    hand(&mut e, 0, &["Drawing Out the Beast"]);
+    hand(&mut e, 1, &["Side Strike"]);
+    pick(&mut e, bleed(x));
+    pick_when(&mut e, block(z));
+    pick_when(&mut e, play(0, 0, x));
+    until(&mut e, SeatId(1), WindowLabel::CombatStrike);
+    assert!(e.state.equipment_barred.contains(&z), "barred");
+    assert_eq!(levels(&e), before);
+}
+
+// Salvador Garcia's "cost you": a card requiring an Anarch a non-Anarch of
+// his Methuselah's plays (Vlad Tepes meeting the requirement) costs 1
+// fewer pool — Vivienne Géroux free (rules-qa 105.3).
+#[test]
+fn salvador_garcia_reduces_a_non_anarchs_pool_cost() {
+    for salvador in [true, false] {
+        let mut e = game(2);
+        let vlad = e.add_minion(SeatId(0), find_card("Vlad Tepes"), 6, false);
+        if salvador {
+            e.add_minion(SeatId(0), find_card("Salvador Garcia"), 4, false);
+        }
+        e.add_minion(SeatId(1), plain("Ventrue", 0), 4, false);
+        hand(&mut e, 0, &["Vivienne Géroux"]);
+        pick(&mut e, play(0, 0, vlad));
+        until(&mut e, SeatId(0), WindowLabel::MinionPhase);
+        assert_eq!(e.state.seats[0].pool, if salvador { 10 } else { 9 });
+    }
+}

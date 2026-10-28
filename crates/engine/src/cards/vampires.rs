@@ -9300,7 +9300,8 @@ pub static PHILIP_VAN_VERMEER_IV: VampireDef = VampireDef {
 /// "Anarch: While Salvador is ready, cards requiring an Anarch cost you and
 /// Anarchs you control 1 fewer blood or pool." A baron's card included (LSJ
 /// 20080603: `Label::RequiresAnarch`); an Anarch's card off its blood or
-/// pool, a master card off the pool; locked too, never in torpor.
+/// pool, a master card's or a non-Anarch's off the pool ("you"); locked
+/// too, never in torpor.
 pub static SALVADOR_GARCIA: VampireDef = VampireDef {
     name: "Salvador Garcia",
     printed: &[
@@ -9311,6 +9312,24 @@ pub static SALVADOR_GARCIA: VampireDef = VampireDef {
             to: PrintedTo::OthersControlled,
             per: Per::One,
             requires: SALVADOR_ANARCH_CARD,
+        },
+        // "Cost you": the pool of a card a non-Anarch of his Methuselah's
+        // plays (Vlad Tepes meeting the requirement; rules-qa 105.3).
+        Printed {
+            stat: Stat::PoolCostOff,
+            n: 1,
+            to: PrintedTo::OthersControlled,
+            per: Per::One,
+            requires: &[
+                R::ThisVampireReady,
+                R::ActorSectIn(&[
+                    Sect::Camarilla,
+                    Sect::Sabbat,
+                    Sect::Independent,
+                    Sect::Laibon,
+                ]),
+                R::PlayedCard(CardFilter::HasLabel(Label::RequiresAnarch)),
+            ],
         },
         own(
             Stat::SeatCostOff,

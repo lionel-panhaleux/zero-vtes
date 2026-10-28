@@ -1416,9 +1416,10 @@ Advanced rules §1.7 (costs and payment), §1.8 (playing and canceling).
   minion cards (60.3) while any Methuselah's Helena is ready, read as paid
   (80.7).
 - Jenna Cross: +1 blood once every reduction is off and blood is left
-  (ANK 20200709) (104.14). Salvador Garcia: cards requiring an Anarch or a
-  baron, 1 off an Anarch's blood or pool (the pool first), a master card's
-  pool; never in torpor (104.15).
+  (ANK 20200709) (104.14), before Regina Blake's payment; outside an action
+  no pool card reaches the two (105.6). Salvador Garcia: cards requiring an
+  Anarch or a baron, 1 off an Anarch's blood or pool (the pool first), a
+  master card's or a non-Anarch's pool; never in torpor (104.15, 105.3).
 
 ## 8. Actions
 
@@ -1659,11 +1660,12 @@ Advanced rules §3.2 (stealth and intercept), §3.3 (blocking).
   and predator's (6.8, §8.2). A rush's target's controller alone (17.3).
 - Unlocked or woken (2.4, §14.1); locked minions attempt only with a card
   saying so (forced attempts, 42.8).
-- Netwar: [aus] after the target's block decision, [chi] another minion
-  that can block this action unlocked and attempting (an attempting one
-  too; Ambush's target unlocked still blocks), [dem] to the player's
-  attempting minion when needed (104.6). Boss Callihan's -1 intercept
-  against an acting Sabbat vampire, read live (104.10).
+- Netwar: [aus] after the target's block decision, [chi] another minion that
+  can block this action unlocked and attempting (an attempting one too;
+  Ambush's target unlocked still blocks), [dem] to the player's attempting
+  minion when needed (104.6), on an undirected action too (105.4). Boss
+  Callihan's -1 intercept against an acting Sabbat vampire, read live
+  (104.10).
 - Card readings: Anneke's Methuselah is an eligible blocker against any
   action by a vampire of another Methuselah, for her alone; her other
   restrictions stand — Seduction, her Methuselah's decline, allies acting
@@ -3666,12 +3668,13 @@ readings (vampires, allies, library cards) no mechanism section states.
   Methuselah bled, the +1 once each action (102.4). Faerie Wards: directed at
   its player, [MYT] leaving an infernal its paid unlock, none during a block
   attempt (102.5).
-- Round 22's cards: Field Training's Discipline and vampire chosen as
-  played, its level no capacity (104.1); Daliah once each combat as it
-  begins (104.11); Gengis's skipped unlock, the title read as he is blocked
-  (104.12); Javier Montoya's younger than him, any Methuselah's (104.13);
-  Vulture's unfizzled vehicle equip, once each turn (104.19); [MERGED] text
-  inert without the base card (104.20).
+- Round 22's cards: Field Training's Discipline and vampire chosen as played,
+  its level no capacity, kept with equipment barred (104.1, 105.2); Thirst's
+  burn told with its cause (105.1); Daliah once each combat as it begins, a
+  second combat in the action too (104.11, 105.5); Gengis's skipped unlock,
+  the title read as he is blocked (104.12); Javier Montoya's younger than him,
+  any Methuselah's (104.13); Vulture's unfizzled vehicle equip, once each turn
+  (104.19); [MERGED] text inert without the base card (104.20).
 - Alabástrom: once per turn, any other ready Gargoyle (16.6); Flight read
   since 84.37.
 - Valkyrie: "unless /Brunhilde/ is ready" — any ready Brunhilde in play, any
@@ -4739,6 +4742,7 @@ read, for the owner to confirm or correct:
 - 104.1, 104.2, 104.4–104.7, 104.9–104.17, 104.19, 104.20 graded green or
   amber (104.3, 104.8, 104.18 red, answered by the owner: 104.3 corrected,
   104.8 and 104.18 confirmed).
+- 105.1–105.6 graded green or amber.
 - 93.1–93.10 graded green (settled by KRCG rulings and 60.7, 60.19, 60.21).
 - 95.1–95.5 graded green or amber (the tournament withdrawal).
 - 96.1, 96.4, 96.5 graded green or amber (96.2 and 96.3 answered by the
@@ -4850,7 +4854,7 @@ an owner ruling:
 Every rules-qa item, by batch, with the digest sections citing it: the
 section stating it and those cross-referring to it (§2 the default
 readings, §22 engine modeling, §23 the contradictions, §24 the open
-readings). 1048 items, Batches 1–104 (44.11 was removed, replaced by Batch
+readings). 1054 items, Batches 1–105 (44.11 was removed, replaced by Batch
 45). The index is derived from the citations: a bare `N.M` cites rules-qa
 item N.M in the section it appears in. A new rules-qa item gets its line in
 the section stating it, then its entry here: `python3
@@ -5207,3 +5211,5 @@ index or an item cited nowhere.
   §16.8,§24.1; 104.9 §10.4,§24.1; 104.10 §9.1; 104.11 §15.2; 104.12 §15.2;
   104.13 §15.2; 104.14 §7.3; 104.15 §7.3; 104.16 §4.4; 104.17 §4.4,§24.1;
   104.18 §4.4,§24.1; 104.19 §15.2,§24.1; 104.20 §15.2,§24.1
+- **105** — 105.1 §15.2,§24.1; 105.2 §15.2; 105.3 §7.3; 105.4 §9.1; 105.5
+  §15.2; 105.6 §7.3,§24.1
