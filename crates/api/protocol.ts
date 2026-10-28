@@ -1,6 +1,6 @@
-/* zvtes protocol 2.16.2 (docs/protocol.md): generated from
+/* zvtes protocol 2.17.0 (docs/protocol.md): generated from
  * crates/api/schema.json by scripts/gen_ts.py, do not edit. */
-export const PROTOCOL_VERSION = '2.16.2'
+export const PROTOCOL_VERSION = '2.17.0'
 
 /**
  * A command as sent: an optional client id, echoed by an `error` it
@@ -1339,6 +1339,7 @@ export type Purpose =
     | 'redraw'
     | 'gain_conviction'
     | 'burn_convictions'
+    | 'x_convictions'
     | 'avenge_imbued'
     | 'name_conviction'
     | 'power_search'
@@ -1346,6 +1347,8 @@ export type Purpose =
     | 'put_found_on'
     | 'reduction_at_resolution'
     | 'dual_form_kept'
+    | 'ash_to_library_top'
+    | 'cut_library'
     | 'unknown'
 
 export type Range = 'close' | 'long' | 'unknown'

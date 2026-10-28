@@ -1788,7 +1788,7 @@ pub static PARIJAT: VampireDef = VampireDef {
     ..VAMP
 };
 
-pub static VAMPIRES: [&VampireDef; 482] = [
+pub static VAMPIRES: [&VampireDef; 486] = [
     &JOSEF_VON_BAUREN,
     &GABRIELLE_DI_RIGHETTI,
     &HAROLD_TANNER,
@@ -2271,6 +2271,10 @@ pub static VAMPIRES: [&VampireDef; 482] = [
     &PHERYDIMA,
     &RODERICK_PHILLIPS_MARCH,
     &QUINCY_THE_TRAPPER,
+    &BARTHOLOMEW,
+    &JULIA_PRIMA,
+    &KASSIYM_MALIKHAIR,
+    &MARCONIUS,
 ];
 
 /// "Anarch Baron of Miami: During your influence phase, Gilbert can burn 1
@@ -9028,6 +9032,77 @@ pub static THE_ARCADIAN: VampireDef = VampireDef {
             ],
         )
     }],
+    ..VAMP
+};
+
+/// "Sabbat: If Bartholomew is unlocked at the beginning of your turn, you
+/// gain 1 pool from the blood bank." Read as the turn begins, before the
+/// unlock phase unlocks him; in torpor too.
+pub static BARTHOLOMEW: VampireDef = VampireDef {
+    name: "Bartholomew",
+    printed: &[own(Stat::PoolAtTurnStart, 1, &[R::HostUnlocked])],
+    ..VAMP
+};
+
+/// "Sabbat: Julia can bleed any Methuselah as a Ⓓ action. Once each action,
+/// Julia can burn 1 blood to get +1 bleed." The Methuselah chosen as the
+/// action is announced; the +1 during her bleed, before resolution (ANK
+/// 20231124, LSJ 19970718).
+pub static JULIA_PRIMA: VampireDef = VampireDef {
+    name: "Julia Prima",
+    abilities: &[
+        ModeDef {
+            target: Some(TargetSpec {
+                kind: TargetKind::Seat,
+                filter: &[R::NotSelf],
+            }),
+            ..mode_of(
+                &[Window::ActionDeclare],
+                Actor::Host,
+                &[],
+                &[Effect::DeclareAction(ActionKind::Bleed)],
+            )
+        },
+        ModeDef {
+            limit: Some(Limit::PerAction),
+            ..mode_of(
+                &[Window::ActionDuring],
+                Actor::Host,
+                &[R::ActorActing, R::IsBleed, R::HostBloodAtLeast(1)],
+                &[Effect::HostBurnBlood(1), bleed(1, false)],
+            )
+        },
+    ],
+    ..VAMP
+};
+
+/// "Sabbat: During your unlock phase, you can move 1 blood from Kassiym to
+/// any ready Pander." Any Methuselah's.
+pub static KASSIYM_MALIKHAIR: VampireDef = VampireDef {
+    name: "Kassiym Malikhair",
+    abilities: &[ModeDef {
+        target: target(
+            TargetKind::Minion,
+            &[R::TargetVampire, R::ActorReady, R::TargetClan("Pander")],
+        ),
+        ..mode_of(
+            &[Window::UnlockPhaseOwn],
+            Actor::Host,
+            &[R::HostBloodAtLeast(1)],
+            &[Effect::HostBloodToTarget(1)],
+        )
+    }],
+    ..VAMP
+};
+
+/// "Sabbat Archbishop of Strasbourg: Cards requiring Mytherceria [myt] cost
+/// Marconius 1 less blood. +1 strength." The title generated.
+pub static MARCONIUS: VampireDef = VampireDef {
+    name: "Marconius",
+    printed: &[
+        own(Stat::BloodCostOff, 1, &[R::PlayedRequiresDiscipline("myt")]),
+        own(Stat::Strength, 1, &[]),
+    ],
     ..VAMP
 };
 

@@ -159,6 +159,10 @@ impl Effect {
             | E::DrawCryptBloodIfBlackHand(..)
             | E::SearchPutInPlayUpToX { .. } => (Family::Play, false),
             E::TargetLeavesTorpor
+            | E::PeekNeighborHands
+            | E::AshToLibraryTop { .. }
+            | E::ActorLooksAtLibraryTop(..)
+            | E::TargetLeavesIncapacitated
             | E::BloodToActing(..)
             | E::PreyBurnsPool(..)
             | E::GainPool(..)
@@ -229,6 +233,7 @@ impl Effect {
             | E::SpendMasterPhaseAction
             | E::LockSelf
             | E::BurnConviction(..)
+            | E::BurnTargetConviction(..)
             | E::FailsIntoCombatWithHost
             | E::PeekOpponentControllersHand
             | E::MayCancelCombat
@@ -362,6 +367,7 @@ impl Effect {
             | E::RedirectBleedToActingPrey
             | E::BurnActingMinion
             | E::ActionFails
+            | E::ActingSkipsNextUnlock
             | E::DeferReactionReplacement
             | E::EndActionIfBlocked
             | E::MayCancelCombatIfBlocked
@@ -447,6 +453,9 @@ impl Effect {
             | E::EnvironmentalDamage { .. }
             | E::UndodgeableStrike
             | E::AggravatedStrike
+            | E::BurnElectronicOnCombatants
+            | E::CleaveWeapon
+            | E::Expiate
             | E::FirstStrike
             | E::BurnOpponentInsteadOfTorpor
             | E::PutOnOpponentOnHit { .. }
@@ -490,6 +499,8 @@ impl Effect {
             | E::EndPressThisRound
             | E::OpposingBurnsBlood(..)
             | E::OpposingNoManeuverThisRound
+            | E::OpposingImprisoned
+            | E::ReflectsDamageThisCombat
             | E::OpposingNoInitialStrikeThisRound
             | E::OpposingNoStrikeCardsThisCombat
             | E::EnvironmentalDamageThisRound(..)
@@ -585,12 +596,14 @@ impl Effect {
             | E::GainLiaison
             | E::SearchEquip(..)
             | E::SearchEquipFree(..)
+            | E::SearchEquipForTarget
             | E::SearchArchetypeOntoActor
             | E::FledglingFromNamedMaster
             | E::HeldVampireBecomesGargoyle
             | E::SearchToHand { .. }
             | E::RemoveAllSourceCounters
             | E::EnterCombatWithTarget
+            | E::EnterCombatWithRandomPreyMonster
             | E::TargetYieldsTitle
             | E::AshCardToHandNamed
             | E::AshCardToHandOnSuccess(..)
@@ -710,6 +723,7 @@ impl Effect {
             | E::PlayableFromStore(..)
             | E::StoredRemovedWhenBurned
             | E::BarCanceledThisTurn
+            | E::BarCanceledForActorThisTurn
             | E::CancelShield
             | E::RemovedOncePlayed
             | E::CancelableForBlockerBlood(..)
@@ -753,10 +767,13 @@ impl Effect {
             | E::ControllerGivesCard
             | E::ClanBlocksItsBurn(..)
             | E::ImmuneNonAggravated
+            | E::ConvictionCost(..)
             | E::Frenzy => (Family::Marker, false),
             // Read when the strike resolves (`resolve_strikes`), with
             // `PutOnActorNow` (Inner Essence).
             E::AggravatedAgainstClan(..)
+            | E::ImbuedStrikesPlusX
+            | E::SparedByCleave
             | E::BurnAtCombatEnd
             | E::BurnAtActionEnd
             | E::BearerDamageOncePerCombat

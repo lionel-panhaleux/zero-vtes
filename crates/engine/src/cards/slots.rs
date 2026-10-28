@@ -177,6 +177,8 @@ impl Requirement {
             | R::NoActionUnderway
             | R::ActionUnderway
             | R::ControlsReadyVampires(..)
+            | R::ControlsReadyImbued
+            | R::ReadyImbuedInPlay
             | R::ActingSectIn(..)
             | R::DirectedHandNotEmpty
             | R::YourAttemptNeedsIntercept
@@ -278,6 +280,7 @@ impl Requirement {
             | R::AttemptingVampireWithout(..)
             | R::PlayedCardIsMinionCard
             | R::PlayedByPredatorOrPrey
+            | R::PlayedByMonster
             | R::ActorBloodAtLeast(..)
             | R::ActorNotSterile
             | R::ActiveIsPrey
@@ -335,6 +338,8 @@ impl Requirement {
             | R::TargetAllyNotOf(..)
             | R::TargetOtherCopyControlled
             | R::TargetInTorpor
+            | R::TargetIncapacitated
+            | R::TargetConvictionAtLeast(..)
             | R::TargetRedList
             | R::TargetNotBlackHand
             | R::TargetNotRedList
@@ -451,6 +456,7 @@ impl Requirement {
             R::IsBleed
             | R::ActorVampire
             | R::ActorImbued
+            | R::ActorConvictionAtLeast(..)
             | R::IsHunt
             | R::RulebookHunt
             | R::IsDiablerie

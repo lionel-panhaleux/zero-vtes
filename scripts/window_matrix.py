@@ -1254,6 +1254,38 @@ ADDED_BATCHES = [
         201161: "Randel, The Coward (G4)",
         201195: "Roderick Phillips March (G4)",
     },
+    # Round 21 (slice 16ag): the last step paying in recent TWDA decks (Faerie
+    # Wards and four G2 vampires) and Nights of Reckoning completed, the first
+    # set-by-set round (owner, 2026-10-26: "Step 1 + Nights of Reckoning").
+    {
+        100067: "Angel of Berlin",
+        100075: "Antithesis",
+        100110: "Augur",
+        100198: "Blood Cult Awareness Network",
+        100234: "Bond",
+        100248: "Break the Code",
+        100348: "The Church of Vindicated Faith",
+        100358: "Cleave",
+        100474: "The Crusader Sword",
+        100534: "Determine",
+        100674: "Expiate",
+        100690: "Faerie Wards",
+        100963: "Imprison",
+        100982: "Inflict",
+        101115: "Living Wood Staff",
+        101118: "Lock",
+        101231: "Moise Kasavubu",
+        101257: "Muse of Flame",
+        101518: "Punish",
+        101653: "The Rose Foundation",
+        101812: "Smite",
+        102074: "Unity",
+        102119: "Vigil: The Thin Line",
+        200172: "Bartholomew (G2)",
+        200734: "Julia Prima (G2)",
+        200760: "Kassiym Malikhair (G2)",
+        200914: "Marconius (G2)",
+    },
 ]
 ADDED_CARDS = {k: v for batch in ADDED_BATCHES for k, v in batch.items()}
 
@@ -1421,6 +1453,9 @@ COMBAT_TIMING = [
     (r"\bgrapple\b|before strikes are chosen", "COMBAT_BEFORE_STRIKES"),
     (r"additional strike", "COMBAT_ADDITIONAL_STRIKE"),
     (r"\bstrike(, ranged)?:", "COMBAT_STRIKE_DECLARATION"),
+    # Played as a strike ("put this card on the opposing vampire as a hand
+    # strike": Punish [COMBAT]).
+    (r"\bas a (hand )?strike\b", "COMBAT_STRIKE_DECLARATION"),
     (r"\bprevent\b", "COMBAT_DAMAGE_PREVENTION"),
     (r"\bpress\b", "COMBAT_PRESS"),
     (r"end of (the |a |this )?round", "COMBAT_END_OF_ROUND"),
@@ -1552,6 +1587,11 @@ REACTION_TIMING = [
     # "Only usable if this vampire blocks, before block resolution"
     # (Diabolic Lure [dai]).
     (r"if this \w+ blocks\b[^.]{0,40}?before block resolution", "ACTION_BLOCKED"),
+    # "Not usable during combat" with no other timing (Angel of Berlin):
+    # any time in an action, and after a successful block before its
+    # combat (LSJ 20060410).
+    (r"\bnot usable during combat\.", "REACTION_DURING_ACTION"),
+    (r"\bnot usable during combat\.", "ACTION_BLOCKED"),
     # An out-of-turn master triggered by the opposing strike (Rötschreck).
     (r"attempts to inflict aggravated damage", "COMBAT_BEFORE_RESOLUTION"),
     # An out-of-turn master saving a Methuselah from an oust (Life Boon).
@@ -1589,6 +1629,8 @@ FLAGS = [
     (r"cancel [^.]{0,160}?as it is (being )?played"
      r"|as the opposing minion plays a card[\s\S]{0,300}?the played card is canceled", "cancel_as_played"),
     (r"change the target of the bleed", "bounce"),
+    # "The monster is now bleeding your predator's predator" (Determine).
+    (r"\bis now bleeding\b", "bounce"),
     (r"would (draw|replace) a card[^.]*instead", "draw_replacement"),
     (r"play cards from this (location|card) as if from (your )?hand", "alt_hand_source"),
 ]
@@ -1631,7 +1673,8 @@ def split_modes(text):
     pre = " ".join(preamble)
     out = []
     for t, raw, ls in modes:
-        for part in re.split(r"(?<=\.)\s+(?=Also usable )", " ".join(ls)):
+        # "Or play when …": a second use, its own timing (Determine).
+        for part in re.split(r"(?<=\.)\s+(?=Also usable |Or play when )", " ".join(ls)):
             out.append((t, raw, part))
     return pre, out
 

@@ -245,6 +245,7 @@ fn found_in(e: &Engine, req: &DecisionRequest) -> Option<ZoneRef> {
         Some(
             Interrupt::RemoveFromAsh { of: seat, .. }
             | Interrupt::AshurPicks { seat, .. }
+            | Interrupt::AshToLibraryTop { seat, .. }
             | Interrupt::NameAshEquipment {
                 from: Some(seat), ..
             }
@@ -632,6 +633,12 @@ fn asked(x: &Ctx<impl Names>, i: Interrupt, choice: &Choice) -> Vec<Effect> {
             P::BurnOfCrowdedClan => chosen(EffectKind::Burn),
             P::OldestHuntingGround(_) => n(1, chosen(EffectKind::Blood)),
             P::Damage(d) | P::DamageImbued { n: d, .. } => n(d as i32, chosen(EffectKind::Damage)),
+        }],
+        // Unity: on top of the library.
+        (Interrupt::AshToLibraryTop { .. }, Choice::FindCard(c)) => vec![Effect {
+            card: library(c),
+            to: Some(Zone::Library),
+            ..Effect::new(EffectKind::Move)
         }],
         // Ashur Tablets: to the hand, then into the library.
         (Interrupt::AshurPicks { to_library, .. }, Choice::FindCard(c)) => vec![Effect {
@@ -1400,6 +1407,18 @@ pub fn about(e: &Engine, req: &DecisionRequest, names: &impl Names) -> Option<Ab
                 minion: m(minion),
                 ..a()
             },
+            I::AshToLibraryTop { left, .. } => About {
+                n: Some(left),
+                ..a()
+            },
+            I::CutLibrary { .. } => a(),
+            I::XConvictions {
+                minion, card: c, ..
+            } => About {
+                minion: m(minion),
+                card: card(c),
+                ..a()
+            },
             I::AshurPicks {
                 left, to_library, ..
             } => About {
@@ -1607,6 +1626,10 @@ pub fn about(e: &Engine, req: &DecisionRequest, names: &impl Names) -> Option<Ab
                     },
                     Terms::XBlood | Terms::XBloodIn { .. } => About {
                         detail: detail("x_blood"),
+                        ..a()
+                    },
+                    Terms::XConvictions => About {
+                        detail: detail("x_convictions"),
                         ..a()
                     },
                     Terms::UpToMargin(_) => About {

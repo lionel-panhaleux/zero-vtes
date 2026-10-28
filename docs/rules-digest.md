@@ -3580,6 +3580,23 @@ retainers, traits, titles, trait changes).
   React with Conviction (87.37), Second Sight (87.38), Strike with Conviction
   (87.39; its weapon strike any weapon's own, 87.41, after that gun's maneuver
   too, 87.42); found by the tests (87.40).
+- A played card's "[n CONVICTION]" is its cost: paid with its blood (a
+  canceled card's too), an action card's named as announced and burned at
+  resolution, gone then a fizzle; a mode's own bracket that mode's cost;
+  "[X CONVICTION]" on an equipment announced from 0, paid as it resolves,
+  kept on the card (102.1). The creed reads as a clan, for masters too (a
+  ready Defender, a ready Visionary), the virtues as Disciplines, an
+  icon-less virtue card requiring its virtue (102.2). "Requires a ready
+  imbued": a master's or event's player controls one; an ally's recruiter
+  is one (102.3).
+- The Nights of Reckoning cards: Antithesis (102.6), The Church of
+  Vindicated Faith (102.7), Break the Code (102.8), Punish (102.9), Bond
+  (102.10), Augur (102.11), Muse of Flame (102.12), Smite (102.13), Imprison
+  (102.14), Inflict (102.15), Determine (102.16), The Rose Foundation
+  (102.17), Vigil: The Thin Line (102.18), The Crusader Sword (102.19),
+  Cleave (102.20), Expiate (102.21), Lock (102.22), Moise Kasavubu
+  (102.23), Unity (102.24), Angel of Berlin (102.25), Blood Cult Awareness
+  Network (102.26).
 
 ## 15. Vampires' printed text; other card readings
 
@@ -3609,6 +3626,11 @@ readings (vampires, allies, library cards) no mechanism section states.
 
 ### 15.2 Card readings not stated elsewhere
 
+- Bartholomew, Kassiym Malikhair, Marconius, Julia Prima: read as the turn
+  begins; any Methuselah's Pander; cards played with [myt]; another
+  Methuselah bled, the +1 once each action (102.4). Faerie Wards: directed at
+  its player, [MYT] leaving an infernal its paid unlock, none during a block
+  attempt (102.5).
 - Alabástrom: once per turn, any other ready Gargoyle (16.6); Flight read
   since 84.37.
 - Valkyrie: "unless /Brunhilde/ is ready" — any ready Brunhilde in play, any
@@ -4681,6 +4703,8 @@ read, for the owner to confirm or correct:
 - 100.3 graded green, 100.4 amber (100.1 and 100.2 answered by the
   owner).
 - 101.2 graded green (101.1 and 101.3 answered by the owner).
+- 102.1–102.8, 102.10, 102.12–102.14, 102.16–102.26 graded green or amber
+  (round 21's cards; 102.9, 102.11, 102.15 answered by the owner).
 - 49.6's several-holders question is moot (50.1: the Cog is unique).
 
 ### 24.2 Questions for a new rules-qa batch
@@ -4778,7 +4802,7 @@ an owner ruling:
 Every rules-qa item, by batch, with the digest sections citing it: the
 section stating it and those cross-referring to it (§2 the default
 readings, §22 engine modeling, §23 the contradictions, §24 the open
-readings). 996 items, Batches 1–101 (44.11 was removed, replaced by Batch
+readings). 1022 items, Batches 1–102 (44.11 was removed, replaced by Batch
 45). The index is derived from the citations: a bare `N.M` cites rules-qa
 item N.M in the section it appears in. A new rules-qa item gets its line in
 the section stating it, then its entry here: `python3
@@ -5121,3 +5145,10 @@ index or an item cited nowhere.
 - **100** — 100.1 §3.15,§18.1,§24.1; 100.2 §3.15,§18.1,§24.1; 100.3
   §7.3,§24.1; 100.4 §3.15,§24.1
 - **101** — 101.1 §7.2,§24.1; 101.2 §21.1,§24.1; 101.3 §2,§21.1,§24.1
+- **102** — 102.1 §14.12,§24.1; 102.2 §14.12; 102.3 §14.12; 102.4 §15.2;
+  102.5 §15.2; 102.6 §14.12; 102.7 §14.12; 102.8 §14.12,§24.1; 102.9
+  §14.12,§24.1; 102.10 §14.12,§24.1; 102.11 §14.12,§24.1; 102.12
+  §14.12,§24.1; 102.13 §14.12; 102.14 §14.12,§24.1; 102.15 §14.12,§24.1;
+  102.16 §14.12,§24.1; 102.17 §14.12; 102.18 §14.12; 102.19 §14.12; 102.20
+  §14.12; 102.21 §14.12; 102.22 §14.12; 102.23 §14.12; 102.24 §14.12; 102.25
+  §14.12; 102.26 §14.12,§24.1

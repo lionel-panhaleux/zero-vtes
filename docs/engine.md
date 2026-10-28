@@ -702,7 +702,9 @@ sources to the engine's conventions.
 - Directedness is `ActionCtx::directed_seat`: bleed target; rescue/diablerie of
   another's vampire; a minion, seat or card target's controller unless the acting
   Methuselah (a card target never makes the action directed at its minion). The
-  Ⓓ icon is only a reminder (rules-qa 17.4, 20.1). `GameState::may_direct_at`
+  Ⓓ icon is only a reminder (rules-qa 17.4, 20.1). An action at hands
+  is directed at their Methuselahs (`directed_seats`: Vaticination's every
+  hand; Augur's predator and prey, rules-qa 102.11). `GameState::may_direct_at`
   (Shadow Cloak, Secure Haven) filters directed actions of every kind.
 - Windows: as-announced (acting Methuselah, then others: `ReactionAsAnnounced`)
   → block loop (`ActionBlockAttempt`, `ReactionUnlock`,
@@ -1003,6 +1005,13 @@ sources to the engine's conventions.
   Ossian's first-round freeze is `Side::frozen_round`, set by
   `Engine::freeze_auspex_foes` as the combat begins and as each card is
   played, read by `CombatCtx::allows`, `may_maneuver` and `begin_pair`.
+  `may_maneuver` reads the state live: The Crusader Sword's bar on an
+  imbued's opposing vampires (`Modifier::OpposingVampiresNoCloseManeuver`).
+  The round's imbued cards: `Side::imprisoned` (copies adding their toll,
+  `toll_for`), `reflects` (Inflict), `burns_electronic` (Smite),
+  `cleaved_hit` (Cleave's damage past an immunity; `ActionCtx::cleaved`, the
+  +1 in `strike_hit`), `expiate` (`expiate_burns` as a press step begins,
+  `CombatCtx::prev_close`; the conviction as the combat ends).
   `Modifier::AdditionalStrikeEachRound` (Renegade Garou) adds a mandatory
   strike after the first pair, in the limited slot. Torrent's "continues as
   if unblocked" is `Side::continue_free` → `ActionCtx::continue_free`, taken
@@ -1197,32 +1206,42 @@ sources to the engine's conventions.
   "Burn n blood" lands on an ally as life (`GameState::burn_blood_or_life`,
   rules-qa 73.5); as an ability's blood cost an ally never pays it (advanced
   rules 5.5.1, `ability_gate`).
-- **Imbued** (`MinionKind::Imbued(crypt)`, rulebook "Appendix: Imbued
-  Rules"; rules-digest §14.12): crypt cards influenced like vampires, in
-  play an ally (`is_ally`, `is_imbued`) with its text in `VAMPIRES`: life =
-  cost (the counters influenced in), 1 strength, 1 bleed; creed as clan,
-  virtues as Disciplines (`printed_disciplines`, `has_disciplines`),
-  excluded from the clan and Discipline vocabularies. A Mortal
-  (`GameState::is_mortal`, `ally_of`: the Mortal-label readers take it);
-  `is_monster` is a vampire or an ally neither mortal nor animal. At its
-  last life `Engine::lifeless` incapacitates it (`incapacitate`:
-  `Minion::incapacitated`, out of `ready()`, `Hook::HostIncapacitated`
-  riders) where any other ally burns; the host and api show it as its
-  own region (`Zone::Incapacitated`). It leaves by `Engine::recover` (+1
-  life), through `vampires::RECOVER` (3 conviction, its own unlock phase)
-  or `RECOVER_GRANTED` (Jennie). Burning one is `ActionKind::BurnImbued`
-  (D, its equipment taken; `Interrupt::AvengeImbued` per ready imbued).
-  Convictions (`GameState::convictions`) are cards on it, played in the
-  unlock phase (`Window::UnlockConviction`, once per imbued:
+- **Imbued** (`MinionKind::Imbued(crypt)`, rulebook "Appendix: Imbued Rules";
+  rules-digest §14.12): crypt cards influenced like vampires, in play an ally
+  (`is_ally`, `is_imbued`) with its text in `VAMPIRES`: life = cost (the
+  counters influenced in), 1 strength, 1 bleed; creed as clan, virtues as
+  Disciplines (`printed_disciplines`, `has_disciplines`), excluded from the clan
+  and Discipline vocabularies. A Mortal (`GameState::is_mortal`, `ally_of`: the
+  Mortal-label readers take it); `is_monster` is a vampire or an ally neither
+  mortal nor animal. At its last life `Engine::lifeless` incapacitates it
+  (`incapacitate`: `Minion::incapacitated`, out of `ready()`,
+  `Hook::HostIncapacitated` riders) where any other ally burns; the host and api
+  show it as its own region (`Zone::Incapacitated`). It leaves by
+  `Engine::recover` (+1 life), through `vampires::RECOVER` (3 conviction, its
+  own unlock phase) or `RECOVER_GRANTED` (Jennie). Burning one is
+  `ActionKind::BurnImbued` (D, its equipment taken; `Interrupt::AvengeImbued`
+  per ready imbued). Convictions (`GameState::convictions`) are cards on it,
+  played in the unlock phase (`Window::UnlockConviction`, once per imbued:
   `Minion::conviction_played`), from the hand or the ash heap
   (`GameState::unlock_phase` adds the ash heap's to the virtual hand as
   `state::ASH_UNLOCK`), at most 5. Entering play it gains one
-  (`Interrupt::GainConviction`, unless `Effect::NoEntryConviction`). A
-  "[n CONVICTION]" cost: `Effect::BurnConviction(n)` on abilities
+  (`Interrupt::GainConviction`, unless `Effect::NoEntryConviction`). A "[n
+  CONVICTION]" cost: `Effect::BurnConviction(n)` on abilities
   (`Interrupt::BurnConvictions`), `PayConviction` on granted actions
-  (`Interrupt::NameConviction` at declaration, paid at resolution: gone,
-  the action fizzles). Powers: `ActionKind::Power` (+1 stealth; success
-  puts it on the actor, unlocked; a second copy fizzles).
+  (`Interrupt::NameConviction` at declaration, paid at resolution: gone, the
+  action fizzles). A played card's "[n CONVICTION]" is `cards::conviction_cost`
+  (the library's `conviction_cost`, else a mode's `Effect::ConvictionCost`; X
+  from `Terms::XConvictions`): an offer needs an imbued holding them; a
+  non-action card pays it with its blood (`pay_play_conviction`, a canceled one
+  too), an action card names it at declaration and burns it at resolution, an
+  equipment burns X as its equip resolves and keeps X in `CardInPlay::fixed_x`,
+  one found or named asks its X a conviction at a time (`ask_x_convictions`,
+  `Interrupt::XConvictions`) (rules-qa 102.1). The creed reads as a clan
+  (`GameState::clan_or_creed`, in `meets_clan`), a virtue card printed without
+  its icon gets its virtue as tags (`gen_library.py`; 102.2);
+  `Requirement::ControlsReadyImbued`, `ReadyImbuedInPlay` (102.3). Powers:
+  `ActionKind::Power` (+1 stealth; success puts it on the actor, unlocked; a
+  second copy fizzles).
 - **Created vampires** (`MinionKind::Created`: Childe of the Revolution, Waters of
   Duat): 1-capacity, sire's clan, printed or sire's sect, no Discipline or title;
   their card is the body. **Tokens** (`MinionKind::Token`: Absimiliard's Army):
@@ -1526,6 +1545,10 @@ sources to the engine's conventions.
 - Draw alternatives (`Hook::WouldDraw`): a choice per card drawn (rules-qa 9.4);
   beside Visit from the Capuchin a replacement is the Capuchin's counter or a
   stored card.
+- Moise Kasavubu's search equips the action's target (`SearchEquipForTarget`)
+  and offers the hand too (`Flow::LibrarySearch::hand`: `EmployFromHand`,
+  the library unshuffled). Unity's picks: `Interrupt::AshToLibraryTop`, then
+  `CutLibrary` (`Choice::SetX`: the top n to the bottom).
 - Searches (`Flow::LibrarySearch`, `Interrupt::DisciplineSearch`, `SearchStore`,
   `SearchToHand`) pick by card, not position, at resolution (spec §1.14.1), and
   shuffle with the engine's `Rng`; an equipment search offers only what could
@@ -1604,9 +1627,15 @@ sources to the engine's conventions.
   Methuselah's, `while_host_ready` only while its bearer is ready (Guarded
   Rubrics); Chanjelin Ward's blood on actions targeting its vampire
   (`GameState::targeted_surcharge`, paid at resolution beside François
-  Loehr's, an ally's such action not offered: `may_direct_at`). An ally
-  combatant burned by paying its last life for a card ends the combat
-  (`pay_play_blood`). A minion's printed surcharge (Tom's,
+  Loehr's, an ally's such action not offered: `may_direct_at`); Lock's
+  blood or life on a monster's action at its minion
+  (`targeted_monster_surcharge`) and on its minion's attempts
+  (`Engine::burn_to_attempt`, in `declare_action` and `pay_block_toll`:
+  what it has if short); Blood Cult Awareness Network's −1 stealth and
+  blood or life on an action making a vampire (`ActionCtx::makes_vampires`,
+  `GameState::vampire_making_taxed`, read live in `stealth` and
+  `succeed`). An ally combatant burned by paying its last life for a card
+  ends the combat (`pay_play_blood`). A minion's printed surcharge (Tom's,
   `CostOff::blood_extra`) is paid there too (`printed_extra`).
 - The reductions announced with a card are taken as its cost is paid by
   one helper (`take_announced`): at resolution (`resolve_play`) and for a
@@ -1643,11 +1672,12 @@ sources to the engine's conventions.
   game per player (`GameState::once_played`), controlled by its player.
   `Requirement::GehennaInPlay` is checked as played only (PIB 20121031);
   `Modifier::NoGehennaEvents` bars Gehenna plays; `Hook::GehennaPlayed`.
-- Global layers read live: `capacity_ceiling` (Wormwood), `SectFallen`,
+- Global layers read live: `VampireMakingTaxed` (Blood Cult Awareness Network,
+  while a ready imbued is in play), `capacity_ceiling` (Wormwood), `SectFallen`,
   `OnlyMustHunt`, `torpid_surcharge`. Timed effects: The Uncoiling's burn due in
-  its controller's discard phase (`Engine::discard_dues`, read live; one
-  played in a discard phase is due in it, rules-qa 57.5), Thirst as the
-  minion phase ends, FBI's damage as the combat ends (`CombatCtx::fbi_damage`).
+  its controller's discard phase (`Engine::discard_dues`, read live; one played
+  in a discard phase is due in it, rules-qa 57.5), Thirst as the minion phase
+  ends, FBI's damage as the combat ends (`CombatCtx::fbi_damage`).
 
 ### 6.17 Ousts and Life Boon
 

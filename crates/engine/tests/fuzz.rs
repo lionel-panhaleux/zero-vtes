@@ -5109,4 +5109,147 @@ fuzz_tests! {
         seeds: 80,
         ..BASE
     };
+    /// Legacy cards, round 21 (slice 16ag): Nights of Reckoning's cards,
+    /// the imbued against vampires, convictions to pay their costs, the
+    /// Embrace for Blood Cult Awareness Network.
+    random_games_with_twda_round_21a_hold_invariants_and_replay: Fixture {
+        slice: &[
+            "Antithesis",
+            "Augur",
+            "Angel of Berlin",
+            "Blood Cult Awareness Network",
+            "Bond",
+            "Break the Code",
+            "Church of Vindicated Faith, The",
+            "Cleave",
+            "Crusader Sword, The",
+            "Determine",
+            "Expiate",
+            "Imprison",
+            "Inflict",
+            "Living Wood Staff",
+            "Lock",
+            "Moise Kasavubu",
+            "Muse of Flame",
+            "Punish",
+            "Rose Foundation, The",
+            "Smite",
+            "Unity",
+            "Vigil: The Thin Line",
+            // Partners: convictions to pay with, equipment for Moise and
+            // Angel of Berlin, a vampire-making action for the Network.
+            "React with Conviction",
+            "Strike with Conviction",
+            "Embrace, The",
+        ],
+        covers: &[
+            "play:Antithesis",
+            "play:Augur",
+            "play:Angel of Berlin",
+            "play:Blood Cult Awareness Network",
+            "play:Bond",
+            "play:Break the Code",
+            "play:Church of Vindicated Faith, The",
+            "play:Cleave",
+            "play:Crusader Sword, The",
+            "play:Determine",
+            "play:Expiate",
+            "play:Imprison",
+            "play:Inflict",
+            "play:Living Wood Staff",
+            "play:Lock",
+            "play:Moise Kasavubu",
+            "play:Muse of Flame",
+            "play:Punish",
+            "play:Rose Foundation, The",
+            "play:Smite",
+            "play:Unity",
+            "play:Vigil: The Thin Line",
+            "ability:Crusader Sword, The",
+            "ability:Living Wood Staff",
+            "ability:Cleave",
+            "ability:Lock",
+            "ability:Moise Kasavubu",
+            "ability:Unity",
+            "ability:Vigil: The Thin Line",
+            "ability:Rose Foundation, The",
+            "ability:Church of Vindicated Faith, The",
+            "ability:Break the Code",
+        ],
+        setup: |e, _| {
+            named(
+                e,
+                &[
+                    "Anna \"Dictatrix11\" Suljic",
+                    "Earl \"Shaka74\" Deams",
+                    "Jack \"Hannibal137\" Harmon",
+                    "Jennifer \"Flame61\" Vidisania",
+                    "John \"Cop90\" O'Malley",
+                    "Lupe \"Cabbie22\" Droin",
+                    "Paul \"Sixofswords29\" Moreton",
+                    "Pedro Cortez",
+                    "Inez \"Nurse216\" Villagrande",
+                ],
+            );
+            per_seat(e, |c| !c.imbued && c.capacity >= 5, 4);
+            // Convictions for Smite and Expiate; an imbued in each
+            // uncontrolled region for The Church of Vindicated Faith.
+            let conviction = zvtes::state::find_library("React with Conviction");
+            for i in 0..e.state.minions.len() {
+                let m = &e.state.minions[i];
+                if m.in_play && m.is_imbued() {
+                    let owner = m.owner;
+                    for _ in 0..5 {
+                        e.state.cards.push(zvtes::state::CardInPlay::new(
+                            conviction,
+                            owner,
+                            Some(MinionId(i as u32)),
+                            0,
+                        ));
+                    }
+                }
+            }
+            // One incapacitated, for Bond.
+            if let Some(i) = e.state.minions.iter().position(|m| m.in_play && m.is_imbued()) {
+                e.state.minions[i].incapacitated = true;
+                e.state.minions[i].blood = 0;
+            }
+            let spare = find_card("Peter \"Outback295\" Rophail");
+            for s in 0..4 {
+                e.state.seats[s].uncontrolled.push(zvtes::state::UncontrolledSlot {
+                    card: spare,
+                    copy: Default::default(),
+                    counters: 1,
+                    banished: None,
+                });
+            }
+        },
+        seeds: 300,
+        ..BASE
+    };
+    /// Legacy cards, round 21 (slice 16ag): the Kiasyd and Faerie Wards.
+    random_games_with_twda_round_21b_hold_invariants_and_replay: Fixture {
+        slice: &["Faerie Wards", "Kevlar Vest", "Dodge"],
+        covers: &[
+            "play:Faerie Wards",
+            "ability:Julia Prima",
+            "ability:Kassiym Malikhair",
+        ],
+        setup: |e, _| {
+            named(
+                e,
+                &[
+                    "Bartholomew",
+                    "Julia Prima",
+                    "Kassiym Malikhair",
+                    "Marconius",
+                    "Winterlich",
+                    "Isanwayen",
+                ],
+            );
+            per_seat(e, |c| c.clan == "Pander", 4);
+        },
+        seeds: 100,
+        ..BASE
+    };
 }

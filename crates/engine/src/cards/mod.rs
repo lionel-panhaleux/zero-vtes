@@ -386,6 +386,10 @@ pub enum CardFilter {
     /// strength 1, LSJ 20020821) is neither aggravated nor 4 or more; its
     /// cost is checked against the state (`equippable_from_hand`).
     ConcealableWeapon,
+    /// A card that requires an imbued, a creed or a virtue: a power or a
+    /// conviction, a card of a creed or a virtue (the crypt's imbued's),
+    /// or one a mode of which requires an imbued (Unity).
+    RequiresImbued,
 }
 
 impl CardFilter {
@@ -419,6 +423,7 @@ impl CardFilter {
                     && c.labels.contains(&crate::library::Label::Location)
             }
             CardFilter::MeleeWeapon => melee_strike(card).is_some(),
+            CardFilter::RequiresImbued => requires_imbued(card),
             CardFilter::HasLabel(l) => c.labels.contains(&l),
             CardFilter::Clan(k) => c.clans.contains(&k),
             CardFilter::Named(n) => c.name == n,
@@ -692,6 +697,10 @@ pub enum Stat {
     /// n more master phase actions, its requirements read as the master
     /// phase starts (Cybele: "if unlocked at the start").
     MasterPhaseActionAtStart,
+    /// n pool from the bank as its controller's turn begins, its
+    /// requirements read then, before any unlock (Bartholomew: "if
+    /// unlocked at the beginning of your turn").
+    PoolAtTurnStart,
     /// Master cards targeting it cost its controller n more pool (Walker
     /// Grimes; `GameState::master_surcharge_on`).
     MasterTargetingCostsYou,
@@ -1050,6 +1059,13 @@ pub enum Requirement {
     CryptNotEmpty,
     /// The target vampire is in torpor.
     TargetInTorpor,
+    /// The target imbued is incapacitated (Bond).
+    TargetIncapacitated,
+    /// The target imbued holds n conviction cards or more (The Rose
+    /// Foundation).
+    TargetConvictionAtLeast(u8),
+    /// The acting imbued holds n conviction cards or more (Expiate).
+    ActorConvictionAtLeast(u8),
     /// The target vampire has hostage counters.
     TargetHostage,
     /// This card was not played before in this game.
@@ -1313,6 +1329,12 @@ pub enum Requirement {
     ActionUnderway,
     /// The player controls n ready vampires or more.
     ControlsReadyVampires(u8),
+    /// "Requires a ready imbued": the player controls one (Angel of
+    /// Berlin, The Church of Vindicated Faith, Moise Kasavubu).
+    ControlsReadyImbued,
+    /// "Requires a ready imbued in play": any Methuselah's (Blood Cult
+    /// Awareness Network).
+    ReadyImbuedInPlay,
     /// The acting minion belongs to one of these sects.
     ActingSectIn(&'static [Sect]),
     /// The Methuselah the action is directed at has cards in hand.
@@ -1968,6 +1990,8 @@ pub enum Requirement {
     /// The card being played is played by the actor's predator or prey
     /// (Wash).
     PlayedByPredatorOrPrey,
+    /// The card being played is played by a monster (Determine).
+    PlayedByMonster,
     /// The actor has at least n blood, an effect burning it (ANK 20210226);
     /// on a card played, beyond its cost as paid (`play_options`).
     ActorBloodAtLeast(u8),
@@ -2830,6 +2854,9 @@ pub enum Terms {
     /// X in `min..=max`, paid in blood, never above the actor's (Monkey
     /// Wrench).
     XBloodIn { min: u8, max: u8 },
+    /// X convictions, 0 up to the actor's (Living Wood Staff; X never
+    /// below 0, LSJ 20030502).
+    XConvictions,
     /// Up to n of the votes the referendum passed by (Voter Captivation
     /// [PRE]).
     UpToMargin(u8),
@@ -2970,8 +2997,8 @@ pub enum Modifier {
     /// The host gets n intercept against acting vampires (Carlton Van Wyk).
     HostInterceptVsVampires(i8),
     /// The host cannot hunt; made to hunt, it goes to torpor instead
-    /// (Pulled Fangs).
-    HostHuntsToTorpor,
+    /// (Pulled Fangs), locked first with `lock` (Antithesis).
+    HostHuntsToTorpor { lock: bool },
     /// An ally opposing the host vampire in combat, about to burn, is stolen
     /// and locked, with n life if none (The Book of Going Forth by Night).
     HostStealsOpposingAllyOnBurn(u8),
@@ -2987,6 +3014,15 @@ pub enum Modifier {
     /// Every imbued gets +1 intercept blocking a monster, once whatever the
     /// copies, not with The Unmasking's (Illuminate).
     ImbuedInterceptVsMonsters,
+    /// Every imbued gets n intercept attempting to block a monster
+    /// (Break the Code: -1).
+    ImbuedInterceptVsMonstersMod(i8),
+    /// The host cannot gain blood; blood it would gain goes to the bank
+    /// (Punish).
+    HostCannotGainBlood,
+    /// Vampires opposing the bearer, if it is imbued, cannot maneuver to
+    /// close range (The Crusader Sword).
+    OpposingVampiresNoCloseManeuver,
     /// Intercept this action for monsters (Hide, Second Sight).
     MonsterInterceptMod(i8),
     /// The host is a Mithraic Mysteries member (Mithraic Cultist).
@@ -3305,6 +3341,17 @@ pub enum Modifier {
     /// pays it, 73.5). Not `Stat::TargetedCostsBlood` (François Loehr's:
     /// directed actions only, blood or life).
     TargetedCostsBlood(u8),
+    /// Other Methuselahs' actions targeting the host cost monsters n more
+    /// blood or life, paid as they resolve; a non-monster pays none (Lock).
+    TargetedCostsMonsters(u8),
+    /// While any ready imbued is in play, an action to put a vampire or a
+    /// ghoul in play or to add counters to an uncontrolled vampire gets -1
+    /// stealth and costs an additional blood or life (Blood Cult Awareness
+    /// Network; `ActionCtx::makes_vampires`).
+    VampireMakingTaxed,
+    /// The host, a monster, burns n blood or life as it attempts an action
+    /// or a block; short, what it has (Lock).
+    HostBurnsToAttempt(u8),
     /// Only allies of this subtype may block the bearer's undirected hunts
     /// (Ravager: changelings).
     OnlySubtypeBlocksUndirectedHunts(crate::library::Label),
@@ -3553,6 +3600,15 @@ pub enum Effect {
     /// The host imbued leaves the incapacitated region and gains 1 life up
     /// to its starting life (rulebook "Appendix: Imbued Rules" 5).
     LeaveIncapacitated,
+    /// On success, a monster of the targeted prey's, torpid too, at random,
+    /// enters combat with the acting minion (Muse of Flame).
+    EnterCombatWithRandomPreyMonster,
+    /// As `LeaveIncapacitated`, the target imbued (Bond).
+    TargetLeavesIncapacitated,
+    /// "[n CONVICTION]" from the target imbued, its player choosing which
+    /// (The Rose Foundation: "burn a conviction from a ready imbued you
+    /// control").
+    BurnTargetConviction(u8),
     /// A granted action "that costs 1 conviction" (every card's is 1): named
     /// as announced, the acting imbued's, burned at resolution (Travis,
     /// John; RTR 20111202).
@@ -3696,6 +3752,11 @@ pub enum Effect {
     /// The target seat's hand is visible to the user until the current
     /// action ends (SchreckNET).
     PeekHand,
+    /// The player sees their predator's and prey's hands until the action
+    /// ends (Augur).
+    PeekNeighborHands,
+    /// The player looks at the top n cards of their library (Augur).
+    ActorLooksAtLibraryTop(u8),
     /// As `PeekHand`, the hand of the host's controller (Iris Bennett's
     /// older blocker).
     PeekHostControllersHand,
@@ -3835,6 +3896,9 @@ pub enum Effect {
     BurnActingMinion,
     /// The action is not successful.
     ActionFails,
+    /// The acting minion does not unlock as normal during its next unlock
+    /// phase, by a card played on the action (Faerie Wards [MYT]).
+    ActingSkipsNextUnlock,
     /// Reaction cards are not replaced until the end of the action.
     DeferReactionReplacement,
     /// If this action is blocked, lock the blocking minion and end the
@@ -4085,8 +4149,12 @@ pub enum Effect {
     /// Strike rider: undodgeable; a dodge may still be played, to no effect
     /// (Dust Up [ani]; LSJ 20030902-2).
     UndodgeableStrike,
-    /// Strike rider: hand strike, aggravated (Sculpt the Flesh [pro]).
+    /// Strike rider: the strike aggravated, a hand strike (Sculpt the Flesh
+    /// [pro]) or a ranged strength one (Smite).
     AggravatedStrike,
+    /// Strike rider: as it resolves, dodged or not, the electronic
+    /// equipment on both combatants burns (Smite).
+    BurnElectronicOnCombatants,
     /// The chosen strike resolves before a normal one (Donnybrook [obf];
     /// rulebook "First Strike"), after a strike: combat ends; a dodge still
     /// protects.
@@ -4602,6 +4670,22 @@ pub enum Effect {
     /// Weapon strike rider: aggravated damage against the clan, read as the
     /// strike lands (Banshee Ironwail).
     AggravatedAgainstClan(&'static str),
+    /// Weapon strike rider: an imbued striking with it inflicts +X, the X
+    /// it was equipped with (Living Wood Staff).
+    ImbuedStrikesPlusX,
+    /// "[n CONVICTION]" printed in one mode: that mode's cost
+    /// (`conviction_cost`; Cleave).
+    ConvictionCost(u8),
+    /// Expiate on this imbued: two rounds in a row at close range, it
+    /// still ready and holding 5 convictions, burns it and the opposing
+    /// monster as the second round's press step begins; else a
+    /// conviction burned as the combat ends.
+    Expiate,
+    /// The melee weapon chosen (a card target) or this card, put on the
+    /// actor just before, is cleaved for the action (Cleave).
+    CleaveWeapon,
+    /// Weapon rider: Cleave does not burn it (Living Wood Staff).
+    SparedByCleave,
     /// After a two-card discard cost, the same two (the use's X is 1) shrink
     /// each other hand size by n to their next unlock (Babalawo Alafin).
     OthersHandSmallerIfSame(u8),
@@ -4695,6 +4779,14 @@ pub enum Effect {
     /// The opposing minion cannot maneuver this round, a strike's maneuver
     /// included (Lapse [tem]).
     OpposingNoManeuverThisRound,
+    /// For the rest of the combat, the opposing minion cannot maneuver or
+    /// press to continue, and its strikes but "combat ends" cost it 1 more
+    /// blood or life (Imprison).
+    OpposingImprisoned,
+    /// For the rest of the combat, the damage this minion takes from hand
+    /// strikes, melee weapon strikes and retainers is inflicted on the
+    /// striker or the retainer too, prevented or not (Inflict).
+    ReflectsDamageThisCombat,
     /// The opposing minion cannot strike in this round's initial strike
     /// step, its strike's maneuver included; additional strikes stay
     /// (Lapse [TEM]; LSJ 20001126).
@@ -4813,6 +4905,9 @@ pub enum Effect {
     /// The card it cancels cannot be played again this turn (Dark
     /// Influences).
     BarCanceledThisTurn,
+    /// The minion that played the card it cancels cannot play that card
+    /// again this turn (Determine).
+    BarCanceledForActorThisTurn,
     /// A shield read as a cancel is played: the next cancel of another
     /// Methuselah's minion card is canceled instead (Dark Influences;
     /// `Engine::open_as_played`).
@@ -4966,6 +5061,18 @@ pub enum Effect {
     /// `SearchEquip` equipped at no cost (Lambach: Eye of Hazimel); still
     /// an equip action (TOM 19960130).
     SearchEquipFree(&'static [CardFilter]),
+    /// On success, search the library (shuffled afterward) or the hand for
+    /// an equipment the target can equip and equip it, its cost paid as
+    /// normal (Moise Kasavubu).
+    SearchEquipForTarget,
+    /// Move n cards of the filter from the user's ash heap to the top of
+    /// their library, one at a time; then, with `cut`, they may cut their
+    /// library once (Unity).
+    AshToLibraryTop {
+        n: u8,
+        filter: CardFilter,
+        cut: bool,
+    },
     /// The card burned by its granted action, the acting minion, if a
     /// vampire, takes n unpreventable environmental damage (The Path of
     /// Bone).
@@ -5881,6 +5988,31 @@ pub fn ash_ally(card: u16, of: &[CardFilter]) -> bool {
         && (of.is_empty() || of.iter().any(|f| f.matches(card)))
 }
 
+/// `CardFilter::RequiresImbued`.
+pub fn requires_imbued(card: u16) -> bool {
+    let c = &LIBRARY[card as usize];
+    let imbued = || crate::crypt::CRYPT.iter().filter(|v| v.imbued);
+    c.types
+        .iter()
+        .any(|t| matches!(t, CardType::Power | CardType::Conviction))
+        || c.clans.iter().any(|k| imbued().any(|v| v.clan == *k))
+        || c.disciplines
+            .iter()
+            .any(|d| imbued().any(|v| v.disciplines.iter().any(|vd| vd.eq_ignore_ascii_case(d))))
+        || lookup(card).is_some_and(|d| {
+            d.modes.iter().any(|m| {
+                m.requires.iter().any(|r| {
+                    matches!(
+                        r,
+                        Requirement::ActorImbued
+                            | Requirement::ControlsReadyImbued
+                            | Requirement::ReadyImbuedInPlay
+                    )
+                })
+            })
+        })
+}
+
 /// A melee weapon's printed strike (Anticipation): its `Melee` strike
 /// ability, if any.
 pub fn melee_strike(card: u16) -> Option<(usize, StrikeKind)> {
@@ -6553,6 +6685,9 @@ pub fn holds(
                 !t.contains(&CardType::Master) && !t.contains(&CardType::Event)
             })
         }
+        Requirement::PlayedByMonster => {
+            played.is_some_and(|p| p.actor.is_some_and(|m| st.is_monster(m)))
+        }
         Requirement::PlayedByPredatorOrPrey => played.is_some_and(|p| {
             p.seat != seat && (p.seat == st.predator(seat) || p.seat == st.prey(seat))
         }),
@@ -6734,6 +6869,8 @@ pub fn holds(
                     .any(|&c| LIBRARY[c as usize].types.contains(&CardType::Ally))
         }),
         Requirement::TargetInTorpor
+        | Requirement::TargetIncapacitated
+        | Requirement::TargetConvictionAtLeast(_)
         | Requirement::ControlledByPrey
         | Requirement::TargetSectNot(_)
         | Requirement::TargetRedList
@@ -6789,6 +6926,9 @@ pub fn holds(
         // "Changeling allies can burn this location" (Black Forest Base).
         Requirement::ActorSubtype(l) => actor.is_some_and(|m| st.has_subtype(m, l)),
         Requirement::ActorImbued => actor.is_some_and(|m| st.minions[m.index()].is_imbued()),
+        Requirement::ActorConvictionAtLeast(n) => {
+            actor.is_some_and(|m| st.convictions(m).len() >= n as usize)
+        }
         Requirement::HandHas(f, n) => st.hand_picks(seat, f).len() >= n as usize,
         Requirement::HostLocked
         | Requirement::HostDidNotHunt
@@ -7123,6 +7263,10 @@ pub fn holds(
                 .count()
                 >= n as usize
         }
+        Requirement::ControlsReadyImbued => st
+            .minions_of(seat)
+            .any(|m| st.minions[m.index()].ready() && st.minions[m.index()].is_imbued()),
+        Requirement::ReadyImbuedInPlay => st.ready_imbued_in_play(),
         Requirement::ActingSectIn(sects) => {
             action.is_some_and(|a| st.sect_of(a.acting).is_some_and(|s| sects.contains(&s)))
         }
@@ -7262,7 +7406,7 @@ pub fn holds(
             combat.is_some_and(|cb| cb.sides.iter().any(|s| s.seat == seat))
         }
         Requirement::AttemptingClan(c) => action.is_some_and(|a| match a.state {
-            ActionState::Attempt(m) => st.minions[m.index()].clan() == Some(c),
+            ActionState::Attempt(m) => st.clan_or_creed(m) == Some(c),
             _ => false,
         }),
         // Any minion's: in combat the opponent burned it (LSJ 20090922); by
@@ -7862,6 +8006,8 @@ pub fn holds_for_minion(
         // A hostage cannot be moved to the ready region (Carver's Meat
         // Packing and Storage): no effect can target it to.
         Requirement::TargetInTorpor => v.in_torpor && v.hostage == 0,
+        Requirement::TargetIncapacitated => v.incapacitated,
+        Requirement::TargetConvictionAtLeast(n) => st.convictions(m).len() >= n as usize,
         Requirement::TargetHostage => v.hostage > 0,
         Requirement::ControlledByPrey => v.owner == st.prey(seat),
         Requirement::TargetClanNotIn(clans) => v.clan().is_some_and(|c| !clans.contains(&c)),
@@ -8347,6 +8493,25 @@ impl From<Option<MinionId>> for Target {
             Some(m) => Target::Minion(m),
             None => Target::None,
         }
+    }
+}
+
+/// The convictions "[n CONVICTION]" printed as the card's cost: burned from
+/// the imbued playing it (rules-qa 87.10, 102.1); X as chosen.
+pub fn conviction_cost(card: u16, mode: u8, x: u8) -> u8 {
+    match LIBRARY[card as usize].conviction_cost {
+        // A mode's own (Cleave).
+        Cost::None => lookup(card)
+            .and_then(|d| d.modes.get(mode as usize))
+            .and_then(|m| {
+                m.effects.iter().find_map(|e| match e {
+                    Effect::ConvictionCost(n) => Some(*n),
+                    _ => None,
+                })
+            })
+            .unwrap_or(0),
+        Cost::Fixed(n) => n,
+        Cost::X => x,
     }
 }
 

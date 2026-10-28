@@ -18,7 +18,7 @@ is created by one request and played over one WebSocket. Every game is
 recorded, anonymously, and kept two years to train and test the engine
 (§11).
 
-Version **2.16.2**. The types: the models of the
+Version **2.17.0**. The types: the models of the
 [API reference](https://engine.krcg.org/docs), also as
 [JSON Schema](https://engine.krcg.org/schema.json) (2020-12) and
 [TypeScript](https://engine.krcg.org/protocol.ts).
@@ -249,33 +249,36 @@ of effect choice the engine asks). The purpose says the verb
 parameters, each option's `effects` give them (`minion_of`: what the
 chosen minion gets — `lock`, `unlock`, `corruption`, `blood`, `damage`,
 `burn`, a card `move`d onto it; `ashur_picks`: `move` `to` the hand or
-the library; `blood_or_burned`: the blood paid, or what burns on a
-pass); a secret pick (`secret_number`, Game of Malkav) is told to the
-other seats without its amount or effects, its `index` 0. `about` holds the particulars a prompt names, beyond the
-purpose, the source and the options: `n` (how many: still to pay, at
-most, to discard), `m` (a second amount), `cap`, `seat` (whose
-minions, ash heap or hand), `minion` and `to` (the minions blood moves
-between, a block attempt's; `margin_blood`: the recipient its pass
-skips), `card` (named or in play), `clan` (or a
-circle), and `detail`, what sets it apart within its purpose (`minion_of`:
-`lock`, `lock_vampires`, `corrupt`…; a terms window: `blood_range`
-(from `minion`, to `to` or else the pool), `x_blood`, `discard`,
-`discard_any`, `put_on_source` (a card from the hand put on the
-source), `cost_reductions`, `cost_counters` (how many of `card`'s),
-an ability's count by what it counts — `count` (cards drawn, as many
-then to the library's bottom), `blood_on_target` (on `minion`),
-`hand_to_bottom`, `discard_at_random` (from `seat`'s hand) —, a rider
-paid unit by unit by its units — `pool_or_blood`, `pool_or_hand_cards`,
-`pool_or_ash_cards`, `pool_or_burn` (or the source burned) —,
-`burn_allocated`, `gains_pool`…).
-A client tells its prompt from these alone, as the server's English
-rendering (the `text` setting) does. `due` says why a minion phase
-offers no `pass`: what it must do before it ends,
-each `{kind, copy}` — `hunt` (a vampire with no blood, or one a card
-says must hunt, hunts before any other action: rules-qa 17.2; other
-minions' actions wait), `action` (a vampire's printed mandatory action,
-Elen Kamjian's bleed), `take_control` (the card taking control of its
-host this phase, Puppet Master); empty whenever `pass` is offered.
+the library; `ash_to_library_top`: `move` `to` the library's top,
+`cut_library`: `set_x` the cards cut from the top to the bottom;
+`x_convictions`: a conviction burned (`burn_in_play`) for `card`'s X;
+`blood_or_burned`: the blood paid, or what burns on a pass); a secret
+pick (`secret_number`, Game of Malkav) is told to the other seats
+without its amount or effects, its `index` 0. `about` holds the
+particulars a prompt names, beyond the purpose, the source and the
+options: `n` (how many: still to pay, at most, to discard), `m` (a
+second amount), `cap`, `seat` (whose minions, ash heap or hand),
+`minion` and `to` (the minions blood moves between, a block attempt's;
+`margin_blood`: the recipient its pass skips), `card` (named or in
+play), `clan` (or a circle), and `detail`, what sets it apart within its
+purpose (`minion_of`: `lock`, `lock_vampires`, `corrupt`…; a terms
+window: `blood_range` (from `minion`, to `to` or else the pool),
+`x_blood`, `x_convictions`, `discard`, `discard_any`, `put_on_source` (a
+card from the hand put on the source), `cost_reductions`,
+`cost_counters` (how many of `card`'s), an ability's count by what it
+counts — `count` (cards drawn, as many then to the library's bottom),
+`blood_on_target` (on `minion`), `hand_to_bottom`, `discard_at_random`
+(from `seat`'s hand) —, a rider paid unit by unit by its units —
+`pool_or_blood`, `pool_or_hand_cards`, `pool_or_ash_cards`,
+`pool_or_burn` (or the source burned) —, `burn_allocated`,
+`gains_pool`…). A client tells its prompt from these alone, as the
+server's English rendering (the `text` setting) does. `due` says why a
+minion phase offers no `pass`: what it must do before it ends, each
+`{kind, copy}` — `hunt` (a vampire with no blood, or one a card says
+must hunt, hunts before any other action: rules-qa 17.2; other minions'
+actions wait), `action` (a vampire's printed mandatory action, Elen
+Kamjian's bleed), `take_control` (the card taking control of its host
+this phase, Puppet Master); empty whenever `pass` is offered.
 
 ## 6. The view
 

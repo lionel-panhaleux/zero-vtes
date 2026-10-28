@@ -213,6 +213,9 @@ def generate(cards):
     out.append("    pub clans: &'static [&'static str],")
     out.append("    pub blood_cost: Cost,")
     out.append("    pub pool_cost: Cost,")
+    out.append("    /// \"[n CONVICTION]\" printed as the card's cost: burned from the")
+    out.append("    /// imbued playing it (KRCG `conviction_cost`).")
+    out.append("    pub conviction_cost: Cost,")
     out.append("    pub burn_option: bool,")
     out.append("    /// Combo card: every listed discipline is required (KRCG `combo`).")
     out.append("    pub combo: bool,")
@@ -239,6 +242,7 @@ def generate(cards):
         out.append(f"        clans: &[{clans}],")
         out.append(f"        blood_cost: {cost(c.get('blood_cost'))},")
         out.append(f"        pool_cost: {cost(c.get('pool_cost'))},")
+        out.append(f"        conviction_cost: {cost(c.get('conviction_cost'))},")
         out.append(f"        burn_option: {'true' if c.get('burn_option') else 'false'},")
         out.append(f"        combo: {'true' if c.get('combo') else 'false'},")
         labels = ", ".join("Label::" + l for l in labels_of(c["card_text"]))
@@ -246,6 +250,12 @@ def generate(cards):
         out.append(f"        body: {body_of(c)},")
         out.append("        modes: &[")
         modes = modes_for(c)
+        # A card no mode of which prints one of its Disciplines (the
+        # imbued's icon-less virtue cards from Nights of Reckoning on:
+        # Smite): every mode requires them.
+        discs = {d.lower() for d in c.get("disciplines", [])}
+        if discs and not any(t.lower() in discs for m in modes for t in m[0]):
+            modes = [(list(c["disciplines"]) + list(t), w, f) for t, w, f in modes]
         if "MultiDiscipline" in labels_of(c["card_text"]):
             modes = multi_modes(modes)
         for tags, wins, flags in modes:

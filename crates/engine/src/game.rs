@@ -141,6 +141,9 @@ pub(crate) enum Flow {
         free: bool,
         /// A master archetype put on `minion` (Guide and Mentor).
         archetype: bool,
+        /// The hand searched too, an equipment from it offered as
+        /// `EmployFromHand` (Moise Kasavubu).
+        hand: bool,
     },
     /// The cards an exchange action names as it is announced (Lenelle):
     /// the ash card, then the hand card.
@@ -1122,7 +1125,8 @@ impl Engine {
                 to_hand,
                 free,
                 archetype: false,
-            } => Some(self.search_request(*minion, equip, to_hand.map(|(f, _)| f), *free)),
+                hand,
+            } => Some(self.search_request(*minion, equip, to_hand.map(|(f, _)| f), *free, *hand)),
             Flow::LibrarySearch {
                 minion,
                 archetype: true,
@@ -1434,10 +1438,11 @@ impl Engine {
                     minion,
                     to_hand,
                     free,
+                    hand,
                     ..
                 },
                 c,
-            ) => self.search_apply(minion, to_hand, free, c),
+            ) => self.search_apply(minion, to_hand, free, hand, c),
             (Flow::Exchange { ash }, c) => self.exchange_apply(ash, c),
             (Flow::Action, c) => self.action_apply(c),
             (Flow::Combat, c) => self.combat_apply(c),
@@ -2198,8 +2203,8 @@ impl Engine {
         true
     }
 
-    /// Pulled Fangs: in its controller's minion phase, a ready unlocked
-    /// bearer that must hunt goes to torpor instead, read live.
+    /// Pulled Fangs, Antithesis: in its controller's minion phase, a ready
+    /// unlocked bearer that must hunt goes to torpor instead, read live.
     fn settle_hunts_to_torpor(&mut self) {
         if !matches!(self.flow, Flow::MinionPhase) || self.action.is_some() || self.combat.is_some()
         {
@@ -2209,8 +2214,13 @@ impl Engine {
         let due: Vec<MinionId> = st
             .ready_unlocked(st.active)
             .into_iter()
-            .filter(|&m| st.must_hunt(m) && st.bears(m, crate::cards::Modifier::HostHuntsToTorpor))
+            .filter(|&m| st.must_hunt(m) && st.hunts_to_torpor(m).is_some())
             .collect();
+        for &m in &due {
+            if self.state.hunts_to_torpor(m) == Some(true) {
+                self.state.minions[m.index()].locked = true;
+            }
+        }
         if !due.is_empty() {
             self.minions_to_torpor(&due);
         }
@@ -2795,6 +2805,7 @@ impl Engine {
         }
         self.state.turn_played.clear();
         self.state.barred_this_turn.clear();
+        self.state.barred_for_minion.clear();
         self.state.turn_plays.clear();
         for seat in &mut self.state.seats {
             seat.auto_pass_pending = false;
@@ -2858,6 +2869,25 @@ impl Engine {
             if m.owner == s && m.in_play {
                 m.played_since_unlock.clear();
             }
+        }
+        // "If Bartholomew is unlocked at the beginning of your turn, you gain
+        // 1 pool": read before anything unlocks.
+        let gains: Vec<(MinionId, i32)> = self
+            .state
+            .minions_of(s)
+            .map(|m| {
+                let n = self.state.printed_mod(
+                    m,
+                    cards::Stat::PoolAtTurnStart,
+                    crate::state::PrintedCtx::default(),
+                );
+                (m, n)
+            })
+            .filter(|&(_, n)| n > 0)
+            .collect();
+        for (m, n) in gains {
+            let gain = Cause::Effect(Source::Minion(m));
+            self.caused(gain, |e| e.state.seats[s.index()].pool += n);
         }
         // Unlock phase: the active seat's minions unlock (torpor included).
         for i in 0..self.state.minions.len() {
@@ -3064,7 +3094,7 @@ mod tests {
     #[test]
     fn crypt_data_is_complete() {
         // The 200 V5 vampires, then the owner's legacy additions.
-        assert_eq!(CRYPT.len(), 731);
+        assert_eq!(CRYPT.len(), 735);
         assert_eq!(PRECONS.len(), 14);
         for (name, list) in PRECONS.iter() {
             let n: u32 = list.iter().map(|&(_, k)| k as u32).sum();

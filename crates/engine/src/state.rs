@@ -761,7 +761,8 @@ impl Minion {
         match self.kind {
             MinionKind::Vampire(c) => Some(CRYPT[c as usize].clan),
             MinionKind::Created { clan, .. } => clan,
-            // Clanless; an imbued's creed is `GameState::creed`.
+            // Clanless; an imbued's creed is `GameState::creed`, a card's
+            // clan requirement matched by it (`clan_or_creed`).
             MinionKind::Imbued(_)
             | MinionKind::Ally { .. }
             | MinionKind::Token { .. }
@@ -917,7 +918,8 @@ pub struct CardInPlay {
     /// Recruit).
     pub held_vampire: Option<(u16, Untracked<CopyId>, SeatId)>,
     /// A number the card wrote as it was played, fixed (Leadership
-    /// Vacuum's X; advanced rules §2.5.3).
+    /// Vacuum's X; an equipment's X: Living Wood Staff; advanced rules
+    /// §2.5.3).
     pub fixed_x: u8,
     /// The Discipline it was played for (Sanguine Instruction:
     /// `Modifier::ChosenDisciplineLevel`).
@@ -1421,6 +1423,9 @@ pub struct GameState {
     /// The cards that cannot be played again this turn (Dark Influences:
     /// "That card cannot be played again this turn"), by LIBRARY index.
     pub barred_this_turn: Vec<u16>,
+    /// A minion's card it cannot play again this turn (Determine: "that
+    /// monster cannot play the same action card again this turn").
+    pub barred_for_minion: Vec<(MinionId, u16)>,
     /// Cards each minion played this turn under `Limit::PerTurn` (Forced
     /// March).
     pub turn_plays: Vec<(MinionId, u16)>,
@@ -1720,6 +1725,17 @@ impl GameState {
         }
     }
 
+    /// Any Methuselah's ready imbued in play (Blood Cult Awareness Network).
+    pub fn ready_imbued_in_play(&self) -> bool {
+        self.minions.iter().any(|v| v.ready() && v.is_imbued())
+    }
+
+    /// Blood Cult Awareness Network in play with a ready imbued: its card.
+    pub fn vampire_making_taxed(&self) -> Option<CardId> {
+        self.global(Modifier::VampireMakingTaxed)
+            .filter(|_| self.ready_imbued_in_play())
+    }
+
     /// Is a card in play giving this modifier (an event's global effect)?
     pub fn global(&self, modifier: Modifier) -> Option<CardId> {
         self.in_play_layers()
@@ -1927,7 +1943,8 @@ impl GameState {
     /// for an ally — none for one that cannot gain life.
     pub fn cap_blood(&self, m: MinionId, blood: u8) -> u8 {
         let v = &self.minions[m.index()];
-        if v.no_life_gain {
+        // "Cannot gain blood; any blood gained goes to the bank" (Punish).
+        if v.no_life_gain || self.bears(m, Modifier::HostCannotGainBlood) {
             return blood.min(v.blood);
         }
         match self.capacity_of(m) {
@@ -1940,7 +1957,8 @@ impl GameState {
     /// never below what it already has.
     pub fn cap_starting(&self, m: MinionId, blood: u8) -> u8 {
         let v = &self.minions[m.index()];
-        if v.no_life_gain {
+        // "Cannot gain blood; any blood gained goes to the bank" (Punish).
+        if v.no_life_gain || self.bears(m, Modifier::HostCannotGainBlood) {
             return blood.min(v.blood);
         }
         let start = match v.kind {
@@ -2357,12 +2375,27 @@ impl GameState {
         total
     }
 
+    /// An imbued's creed, printed as its clan (rules-qa 87.8): what a card
+    /// requiring a creed reads (Unity: Visionary; rules-qa 102.2).
+    pub fn creed(&self, m: MinionId) -> Option<&'static str> {
+        match self.minions[m.index()].kind {
+            MinionKind::Imbued(c) => Some(CRYPT[c as usize].clan),
+            _ => None,
+        }
+    }
+
+    /// A vampire's clan or an imbued's creed: what a clan or creed
+    /// requirement matches.
+    pub fn clan_or_creed(&self, m: MinionId) -> Option<&'static str> {
+        self.minions[m.index()].clan().or_else(|| self.creed(m))
+    }
+
     /// Does `m` (or with `by_methuselah` its Methuselah) meet a clan
     /// requirement to play a card: its clan or a printed "as if" (Abraham
     /// Mellon, Lady Scarlett). Plays only (LSJ 20050119; LSJ 20101013).
     pub fn meets_clan(&self, m: MinionId, clans: &[&str], by_methuselah: bool) -> bool {
         let v = &self.minions[m.index()];
-        v.clan().is_some_and(|c| clans.contains(&c))
+        self.clan_or_creed(m).is_some_and(|c| clans.contains(&c))
             || v.present()
                 && cards::vampire_of(v)
                     .and_then(|d| d.plays_as)
@@ -2373,10 +2406,7 @@ impl GameState {
     /// one playing as the clan, ANK 20220816-2).
     pub fn of_card_clan(&self, m: MinionId, card: u16) -> bool {
         let clans = LIBRARY[card as usize].clans;
-        clans.is_empty()
-            || self.minions[m.index()]
-                .clan()
-                .is_some_and(|c| clans.contains(&c))
+        clans.is_empty() || self.clan_or_creed(m).is_some_and(|c| clans.contains(&c))
     }
 
     /// What `m`'s printed text takes off the cost of `card` in `mode` that
@@ -2770,14 +2800,15 @@ impl GameState {
     }
 
     /// The pool a discard phase action to discard a card costs, over its
-    /// action: 1 for each Camarilla Threat in play, anyone's.
-    pub fn discard_toll(&self) -> u8 {
+    /// action, by the card asking it: 1 for each Camarilla Threat in play,
+    /// anyone's.
+    pub fn discard_tolls(&self) -> Vec<(CardId, u8)> {
         self.in_play_layers()
-            .map(|l| match l.modifier {
-                Modifier::DiscardActionCostsPool(n) => n,
-                _ => 0,
+            .filter_map(|l| match l.modifier {
+                Modifier::DiscardActionCostsPool(n) if n > 0 => Some((l.source, n)),
+                _ => None,
             })
-            .sum()
+            .collect()
     }
 
     /// `s` is the Methuselah a Meddling of Semsith in play chose: no
@@ -3219,6 +3250,26 @@ impl GameState {
                 _ => 0,
             })
             .sum()
+    }
+
+    /// The extra blood or life other Methuselahs' monsters' actions
+    /// targeting `m` cost `seat`, and the card asking it (Lock).
+    pub fn targeted_monster_surcharge(&self, m: MinionId, seat: SeatId) -> Option<(u8, CardId)> {
+        self.borne(m).find_map(|l| match l.modifier {
+            Modifier::TargetedCostsMonsters(n) if self.card_controller(l.source) != seat => {
+                Some((n, l.source))
+            }
+            _ => None,
+        })
+    }
+
+    /// What `m` burns as it attempts an action or a block, and the card
+    /// asking it (Lock: one a minion).
+    pub fn attempt_burn(&self, m: MinionId) -> Option<(u8, CardId)> {
+        self.borne(m).find_map(|l| match l.modifier {
+            Modifier::HostBurnsToAttempt(n) => Some((n, l.source)),
+            _ => None,
+        })
     }
 
     /// Can `actor` perform an action directed at `m` (Shadow Cloak [OBL],
@@ -3775,10 +3826,21 @@ impl GameState {
         self.bears(m, Modifier::UndodgeableStrikes)
     }
 
+    /// Made to hunt, `m` goes to torpor instead (Pulled Fangs), locked first
+    /// if `Some(true)` (Antithesis, whose lock holds beside Pulled Fangs).
+    pub fn hunts_to_torpor(&self, m: MinionId) -> Option<bool> {
+        self.borne(m)
+            .filter_map(|l| match l.modifier {
+                Modifier::HostHuntsToTorpor { lock } => Some(lock),
+                _ => None,
+            })
+            .max()
+    }
+
     /// `m` does not hunt as normal (Week of Nightmares: its clan).
     pub fn cannot_hunt(&self, m: MinionId) -> bool {
         let clan = self.minions[m.index()].clan();
-        self.bears(m, Modifier::HostHuntsToTorpor)
+        self.hunts_to_torpor(m).is_some()
             || self.bears(m, Modifier::HostCannotHunt)
             || self.in_play_layers().any(|l| match l.modifier {
                 Modifier::ClanCannotHunt(c) => Some(c) == clan,

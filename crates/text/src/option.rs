@@ -474,6 +474,8 @@ fn asked(
         (P::MayAddCounter, K::ResolveRider) => format!("Add 1 counter to {}", named()?),
         (P::MayTorture, K::ResolveRider) => "Lock The Path of Lilith: a torture counter".into(),
         (P::MayGainPool, K::ResolvePrinted) => format!("Gain {} pool", about?.n?),
+        (P::AshToLibraryTop, K::FindCard) => format!("{} on top of your library", card()),
+        (P::CutLibrary, K::SetX) => format!("Cut {} cards to the bottom", k.amount?),
         (P::BuyTitle, K::SetX) => {
             let pool = o.effects.iter().find(|e| e.cost)?.n?.unsigned_abs();
             let title = o.effects.iter().find_map(|e| e.detail.as_deref())?;
@@ -768,6 +770,8 @@ fn pass(
         // Ashur Tablets: to the hand first, then into the library.
         P::AshurPicks if detail == Some("to_library") => "No more".into(),
         P::AshurPicks => "None to your hand".into(),
+        P::CutLibrary => "Do not cut".into(),
+        P::XConvictions => "No more".into(),
         // A distribution walks the recipients: the pass skips this one.
         P::MarginBlood => match about.and_then(|a| a.minion) {
             Some(m) => format!("No blood to {}", n.minion_bare(m)),

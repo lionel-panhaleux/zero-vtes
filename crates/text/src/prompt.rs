@@ -312,6 +312,16 @@ impl Prompt<'_> {
                 ),
                 _ => "Choose the card in your ash heap to put in your hand".into(),
             },
+            P::AshToLibraryTop => format!(
+                "Choose {} more ash heap cards requiring an imbued to put on top of your library",
+                a.n?
+            ),
+            P::CutLibrary => "You can cut your library once".into(),
+            P::XConvictions => format!(
+                "{}: burn a conviction to add 1 to {}'s X?",
+                self.minion()?,
+                self.card()?
+            ),
             P::BecomesAnarch => "Choose a non-titled vampire of yours to become Anarch".into(),
             P::LockOrPay => format!("Lock {} or burn {} pool", self.card()?, a.n?),
             P::LibraryToHand => "Choose a card in your library to put in your hand".into(),
@@ -534,6 +544,7 @@ impl Prompt<'_> {
                 },
                 "up_to_target_blood" => format!("how much blood to take from {}", self.minion()?),
                 "x_blood" => "X, paid in blood".into(),
+                "x_convictions" => "X, paid in convictions".into(),
                 "up_to_margin" => "how much blood moves to your pool".into(),
                 "boon_pool" => "how much pool to give".into(),
                 "burn_named" => format!("which {} to burn", self.card()?),
@@ -850,6 +861,9 @@ mod tests {
         Redraw,
         ReductionAtResolution,
         DualFormKept,
+        AshToLibraryTop,
+        CutLibrary,
+        XConvictions,
     );
 
     /// Every purpose prompted, the sweeps' games reaching it or not.

@@ -710,6 +710,11 @@ ids!(
         /// "[n CONVICTION]": imbued `minion` burns its conviction cards one
         /// at a time, `seat` choosing which (`BurnInPlay`) when they differ.
         BurnConvictions,
+        /// "[X CONVICTION]" on an equipment found or named rather than played
+        /// (Living Wood Staff through Moise Kasavubu, Angel of Berlin):
+        /// imbued `minion` burns its convictions one at a time for `card`'s
+        /// X (`BurnInPlay`), a pass stopping.
+        XConvictions,
         /// An incapacitated imbued burned: ready imbued `minion` may burn a
         /// conviction (`BurnInPlay`) for 1 unpreventable damage to `to`.
         AvengeImbued,
@@ -735,6 +740,13 @@ ids!(
         /// Dual Form: several of `minion`'s set left the ready region at
         /// once — `seat` chooses the one kept, the others burned.
         DualFormKept,
+        /// Unity: `n` more cards requiring an imbued, a creed or a virtue
+        /// moved one at a time from `seat`'s ash heap to the top of their
+        /// library (`find_card`).
+        AshToLibraryTop,
+        /// Unity: `seat` may cut their library once, `set_x` the cards
+        /// moved from the top to the bottom (a pass: no cut).
+        CutLibrary,
     }
 );
 ids!(

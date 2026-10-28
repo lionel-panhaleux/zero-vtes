@@ -125,6 +125,9 @@ fn add(e: &E, w: Whom, when: Option<When>, out: &mut Vec<Effect>) {
             "from_pool",
         )),
         E::BurnConviction(v) => push(cost(detail(on(n(K::Burn, i(v)), On::Host), "conviction"))),
+        E::BurnTargetConviction(v) => {
+            push(cost(detail(on(n(K::Burn, i(v)), On::Target), "conviction")))
+        }
         E::PayConviction => push(cost(detail(on(n(K::Burn, 1), On::Actor), "conviction"))),
         E::TargetBurnsBlood(v) => push(on(n(K::Blood, -i(v)), On::Target)),
         E::TargetBloodToPool(v) => push(detail(on(n(K::Blood, -i(v)), On::Target), "to_pool")),
@@ -252,6 +255,9 @@ fn add(e: &E, w: Whom, when: Option<When>, out: &mut Vec<Effect>) {
         E::FailReferendum => push(detail(of(K::Fails), "referendum")),
         E::CancelPlayed { .. } => push(of(K::Cancel)),
         E::TargetLeavesTorpor => push(detail(on(of(K::Move), On::Target), "leaves_torpor")),
+        E::TargetLeavesIncapacitated => {
+            push(detail(on(of(K::Move), On::Target), "leaves_incapacitated"))
+        }
         E::GiveToPrey => push(detail(on(of(K::Move), On::Prey), "give")),
         E::StoreFromPreyAsh => push(detail(on(of(K::Move), On::Prey), "from_ash_heap")),
         E::CryptNamedToUncontrolled(name) => push(Effect {
@@ -275,7 +281,9 @@ fn add(e: &E, w: Whom, when: Option<When>, out: &mut Vec<Effect>) {
         E::SpendMasterPhaseAction => push(cost(detail(n(K::Action, -1), "master_phase"))),
         E::HuntAction => push(of(K::Hunt)),
         E::HandSizeBonusUntilEndOfTurn(v) => push(n(K::HandSize, i(v))),
-        E::SearchEquip(_) | E::SearchEquipFree(_) => push(detail(of(K::Search), "equipment")),
+        E::SearchEquip(_) | E::SearchEquipFree(_) | E::SearchEquipForTarget => {
+            push(detail(of(K::Search), "equipment"))
+        }
         E::DrawThenBottom => push(detail(of(K::Draw), "then_bottom")),
         E::DrawCryptThenRemove => push(detail(of(K::Draw), "crypt_then_remove")),
         E::DrawCryptBloodIfBlackHand(v) => push(detail(n(K::Draw, i(v)), "crypt_black_hand")),
@@ -410,7 +418,9 @@ fn add(e: &E, w: Whom, when: Option<When>, out: &mut Vec<Effect>) {
         | E::ActorBecomesClan(..)
         | E::ActorBloodToCapacity
         | E::ActorLasting(..)
+        | E::ActorLooksAtLibraryTop(..)
         | E::AllySkipsNextUnlock
+        | E::AshToLibraryTop { .. }
         | E::BurnActorBlood(..)
         | E::BurnEdge
         | E::BurnRememberedContract
@@ -423,6 +433,7 @@ fn add(e: &E, w: Whom, when: Option<When>, out: &mut Vec<Effect>) {
         | E::LockActor
         | E::LockOwnReadyOfClan(..)
         | E::MayBleedAgainThisTurn
+        | E::PeekNeighborHands
         | E::PreyBurnsPool(..)
         | E::RemoveTargetForPool
         | E::SacrificeTarget
@@ -509,7 +520,8 @@ fn add(e: &E, w: Whom, when: Option<When>, out: &mut Vec<Effect>) {
         | E::WatchDamagesActing(..)
         | E::YawpCourtCombat => {}
         // Action (the action underway).
-        E::ActionLayer(..)
+        E::ActingSkipsNextUnlock
+        | E::ActionLayer(..)
         | E::AggravatedHandsThisAction
         | E::AlliesCannotBlock
         | E::AnimalBoostIfSuccessful { .. }
@@ -604,8 +616,10 @@ fn add(e: &E, w: Whom, when: Option<When>, out: &mut Vec<Effect>) {
         | E::AggravatedStrike
         | E::AimExtraDamage(..)
         | E::BurnAfterCombat(..)
+        | E::BurnElectronicOnCombatants
         | E::BurnOpponentInsteadOfTorpor
         | E::BurnOpposingAllyOnHit
+        | E::CleaveWeapon
         | E::CloseManeuverForBlood(..)
         | E::CloseSelfDamage(..)
         | E::CombatEndsAfterStrike
@@ -621,6 +635,7 @@ fn add(e: &E, w: Whom, when: Option<When>, out: &mut Vec<Effect>) {
         | E::DrawOutBeast { .. }
         | E::EndPressThisRound
         | E::EnvironmentalDamageThisRoundX
+        | E::Expiate
         | E::ExtraDrawPerReplacementThisCombat
         | E::FirstStrike
         | E::FortitudeProofStrike
@@ -644,6 +659,7 @@ fn add(e: &E, w: Whom, when: Option<When>, out: &mut Vec<Effect>) {
         | E::OpposingCelerityMayBurnToPrevent(..)
         | E::OpposingCombatCardsCost(..)
         | E::OpposingControllerBurnsPool(..)
+        | E::OpposingImprisoned
         | E::OpposingNoCombatEndsThisRound
         | E::OpposingNoDodgeThisRound
         | E::OpposingNoInitialStrikeThisRound
@@ -664,6 +680,7 @@ fn add(e: &E, w: Whom, when: Option<When>, out: &mut Vec<Effect>) {
         | E::PutOnOpposingKeepControl
         | E::PutOnSelfAsStrikeResolves
         | E::QueueCombatWithOpponent
+        | E::ReflectsDamageThisCombat
         | E::ResolutionDamageThisRound(..)
         | E::RoundStrike(..)
         | E::SetStrength(..)
@@ -688,6 +705,7 @@ fn add(e: &E, w: Whom, when: Option<When>, out: &mut Vec<Effect>) {
         | E::CoagulateFromPicks { prevent: false }
         | E::CorruptMinionOfTarget
         | E::CorruptTargetMayStealAtCapacity
+        | E::EnterCombatWithRandomPreyMonster
         | E::EquipFirstFound
         | E::ExchangeHandForAsh
         | E::FledglingFromNamedMaster
@@ -811,6 +829,7 @@ fn add(e: &E, w: Whom, when: Option<When>, out: &mut Vec<Effect>) {
         | E::AggravatedAgainstClan(..)
         | E::AshCardToLibraryBottom
         | E::BarCanceledThisTurn
+        | E::BarCanceledForActorThisTurn
         | E::BearerAimStore
         | E::BearerDamageOncePerCombat
         | E::BecomesGun
@@ -832,6 +851,7 @@ fn add(e: &E, w: Whom, when: Option<When>, out: &mut Vec<Effect>) {
         | E::CanceledGetsMasterAction
         | E::ClanBlocksItsBurn(..)
         | E::ControllerGivesCard
+        | E::ConvictionCost(..)
         | E::CountersClearOnNewBearer
         | E::CountersPerDamage
         | E::CryptForBloodIfBleedSuccessful(..)
@@ -839,6 +859,7 @@ fn add(e: &E, w: Whom, when: Option<When>, out: &mut Vec<Effect>) {
         | E::EmployRetainer { .. }
         | E::EquipFromAnyAsh
         | E::Frenzy
+        | E::ImbuedStrikesPlusX
         | E::ImmuneNonAggravated
         | E::MandatoryAction
         | E::MovesToOldestUntitled { .. }
@@ -860,6 +881,7 @@ fn add(e: &E, w: Whom, when: Option<When>, out: &mut Vec<Effect>) {
         | E::SearchStore(..)
         | E::SectInterceptThisAction(..)
         | E::ShuffleSourceIntoLibrary
+        | E::SparedByCleave
         | E::StealthForClan { .. }
         | E::StealthForTitled(..)
         | E::StealthIfOwnTarget(..)

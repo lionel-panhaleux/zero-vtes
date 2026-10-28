@@ -23,22 +23,25 @@ fn from() -> u32 {
     std::env::var("HOST_SEED_FROM").map_or(1, |s| s.parse().unwrap())
 }
 
-/// Seeds past the default a deeper sweep failed on (`HOST_SEEDS=400`),
-/// kept: a banished created vampire (70), Mask of a Thousand Faces (132),
-/// Victor Pelletier's price (172), the strikes shown after an undo (219),
-/// Spiritual Guidance's play from the ash heap (346); and the table kept
-/// from the events: a vampire banished and back between two views (45),
-/// one influenced into a contest (81), a unique ally played into one
-/// (95), a crypt card come with counters (111), a contested minion's
-/// cards (118), a merge (119), training counters (152), Kaymakli
-/// Nightmares' reshuffle (154), two Methuselahs ousted at once (239), a
-/// unique card put into a contest (299), a vampire's excess drained in
-/// one (380), an action's intercept changed between two views (103), a
-/// play canceled as it is announced (88: Andrew Stuart), a cost reduced
-/// by a lasting effect whose card is in the ash heap (104: Inner
-/// Essence).
-const KEPT: [u32; 19] = [
-    45, 70, 81, 88, 95, 103, 104, 111, 118, 119, 132, 152, 154, 172, 219, 239, 299, 346, 380,
+/// Seeds past the default a deeper sweep failed on (`HOST_SEEDS=400`), kept: a
+/// banished created vampire (70), Mask of a Thousand Faces (132), Victor
+/// Pelletier's price (172), the strikes shown after an undo (219), Spiritual
+/// Guidance's play from the ash heap (346); and the table kept from the events:
+/// a vampire banished and back between two views (45), one influenced into a
+/// contest (81), a unique ally played into one (95), a crypt card come with
+/// counters (111), a contested minion's cards (118), a merge (119), training
+/// counters (152), a vampire moved within its uncontrolled region (555), two
+/// Methuselahs ousted at once (239), a unique card put into a contest (299), a
+/// vampire's excess drained in one (380), an action's intercept changed between
+/// two views (103), a play canceled as it is announced (88: Andrew Stuart), a
+/// cost reduced by a lasting effect whose card is in the ash heap (104: Inner
+/// Essence); and the causes a deeper sweep found missing: Camarilla Threat's
+/// discard toll (294), blood to an uncontrolled vampire (375), a diablerie
+/// in a torpor block (411), Yawp Court's yawp (591), a burn to prevent
+/// (728), a rider fired as its bearer blocks (913).
+const KEPT: [u32; 25] = [
+    45, 70, 81, 88, 95, 103, 104, 111, 118, 119, 132, 152, 172, 219, 239, 294, 299, 346, 375, 380,
+    411, 555, 591, 728, 913,
 ];
 
 /// The sweep's seeds: `HOST_SEED_FROM` to `HOST_SEEDS` (40), the kept

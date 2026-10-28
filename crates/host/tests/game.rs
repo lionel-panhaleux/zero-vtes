@@ -453,8 +453,9 @@ fn an_ability_is_told_apart_from_its_siblings_by_data() {
 /// — never an absent `actor` read as the Methuselah.
 #[test]
 fn an_abilitys_user_is_said() {
-    // A minion's ability is rare in these random games: 40 seeds.
-    let seeds: u32 = std::env::var("HOST_SEEDS").map_or(40, |s| s.parse().unwrap());
+    // A minion's ability is rare in these random games: the first at seed
+    // 47, 90 seeds.
+    let seeds: u32 = std::env::var("HOST_SEEDS").map_or(90, |s| s.parse().unwrap());
     let (mut minion, mut methuselah) = (0, 0);
     each_decision(seeds, |seed, d| {
         for o in abilities(d) {

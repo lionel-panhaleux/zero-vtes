@@ -9,11 +9,11 @@ Docs: `docs/engine.md` (§2–5, the reference by mechanism),
 and the ledger; a rulebook mechanism no card carries is on the engine board.
 
 Pool (`scripts/coverage.py`, KRCG `vtes.json` of 2026-06-30; 2 crypt and
-18 library cards banned, out of scope, owner 2026-10-14): crypt 731 of
-1,783 (41.0%), library 954 of 2,346 (40.7%); the Imbued, Powers and
-Convictions all in (round 19); 76 of 109 sets complete. TWDA decks in the
-pool 644 of 4,538, kept 166; recent (2025+) 302 of 476 in the pool, kept
-102 (round 20's larger-event versions displaced four 2025 ones). Demand
+18 library cards banned, out of scope, owner 2026-10-14): crypt 735 of
+1,783 (41.2%), library 977 of 2,346 (41.6%); the Imbued, Powers and
+Convictions all in (round 19), Nights of Reckoning complete (round 21); 77
+of 109 sets complete. TWDA decks in the pool 651 of 4,538, kept 168;
+recent (2025+) 304 of 476 in the pool, kept 103. Demand
 (the server's counts to 2026-10-23): every card asked for in the pool
 since round 20; 299999 (asked 12 times) is a client's placeholder, no card.
 VEKN's two-player allowed list all in the pool (round 20).

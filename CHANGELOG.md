@@ -6,6 +6,23 @@ server runs.
 `python3 scripts/schema_compat.py` lists what a schema change adds or
 removes; its `--check` fails a removal without a major version.
 
+## 2.17.0
+
+Round 21's cards (rules-qa Batch 102); ids added, none removed:
+
+- `Purpose` `ash_to_library_top` (Unity): `n` more cards requiring an
+  imbued moved one at a time from `seat`'s ash heap to the top of their
+  library (`find_card`); `cut_library`: a cut of `seat`'s library, `set_x`
+  the cards moved from the top to the bottom, a pass none;
+  `x_convictions`: a found or named "[X CONVICTION]" equipment's X paid a
+  conviction at a time (`burn_in_play`), a pass stopping (Living Wood
+  Staff through Moise Kasavubu or Angel of Berlin).
+- Details: a terms window's `x_convictions` (X paid in convictions: Living
+  Wood Staff); an effect's `leaves_incapacitated` (Bond: the target leaves
+  the incapacitated region).
+- A `library_search` window may offer `employ_from_hand`: an equipment
+  from the hand instead of the library (Moise Kasavubu).
+
 ## 2.16.2
 
 With `opportunities` off, a wake in a card's `card_as_played` window is

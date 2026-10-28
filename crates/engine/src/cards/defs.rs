@@ -2631,7 +2631,7 @@ pub static VOTER_CAPTIVATION: CardDef = CardDef {
     ..CARD
 };
 
-pub static DEFS: [&CardDef; 954] = [
+pub static DEFS: [&CardDef; 977] = [
     &TAUNT_THE_CAGED_BEAST,
     &PETRA_RESONANCE,
     &WAITING_GAME,
@@ -3586,6 +3586,29 @@ pub static DEFS: [&CardDef; 954] = [
     &WATCHTOWER_FOUR_RIDE_FORTH,
     &NOCTURN,
     &GOBLINISM,
+    &FAERIE_WARDS,
+    &ANTITHESIS,
+    &THE_CHURCH_OF_VINDICATED_FAITH,
+    &BREAK_THE_CODE,
+    &PUNISH,
+    &BOND,
+    &AUGUR,
+    &MUSE_OF_FLAME,
+    &SMITE,
+    &IMPRISON,
+    &INFLICT,
+    &DETERMINE,
+    &THE_ROSE_FOUNDATION,
+    &VIGIL_THE_THIN_LINE,
+    &THE_CRUSADER_SWORD,
+    &LIVING_WOOD_STAFF,
+    &CLEAVE,
+    &EXPIATE,
+    &LOCK,
+    &MOISE_KASAVUBU,
+    &UNITY,
+    &ANGEL_OF_BERLIN,
+    &BLOOD_CULT_AWARENESS_NETWORK,
 ];
 
 // ---- Cards in play with riders and granted actions -------------------------
@@ -4697,6 +4720,303 @@ pub static IVORY_BOW: CardDef = CardDef {
     ..CARD
 };
 
+/// "Unique melee weapon. Strength+1 aggravated damage each strike. Only
+/// usable by a minion with True Faith or an imbued. Vampires opposing this
+/// minion with True Faith or this imbued cannot use maneuvers to go to
+/// close range." No True Faith in the pool. Equipped by any minion (LSJ
+/// 20030607); the bar holds while an imbued bears it.
+pub static THE_CRUSADER_SWORD: CardDef = CardDef {
+    name: "Crusader Sword, The",
+    modes: &[ModeDef {
+        effects: &[
+            Effect::DeclareAction(ActionKind::Equip),
+            Effect::Layer(Modifier::OpposingVampiresNoCloseManeuver),
+        ],
+        ..EQUIP
+    }],
+    abilities: &[weapon_strike(
+        &[Requirement::ActorImbued],
+        &[Effect::Strike(StrikeKind::Melee {
+            bonus: 1,
+            aggravated: true,
+        })],
+    )],
+    ..CARD
+};
+
+/// "Unique melee weapon. Strength damage each strike. Imbued inflict +X
+/// damage each strike with this weapon. Using Cleave with this weapon will
+/// not burn this weapon." (Avenger; X conviction.) X chosen as announced,
+/// 0 allowed (LSJ 20030502), paid as it resolves and kept on the card;
+/// equipped from its bearer by anyone (ANK 20180719-3). Cleave reads its
+/// name.
+pub static LIVING_WOOD_STAFF: CardDef = CardDef {
+    name: "Living Wood Staff",
+    modes: &[ModeDef {
+        terms: Some(Terms::XConvictions),
+        ..EQUIP
+    }],
+    abilities: &[weapon_strike(
+        &[],
+        &[
+            Effect::Strike(StrikeKind::Melee {
+                bonus: 0,
+                aggravated: false,
+            }),
+            Effect::ImbuedStrikesPlusX,
+            Effect::SparedByCleave,
+        ],
+    )],
+    ..CARD
+};
+
+const CLEAVE_WEAPON: Option<TargetSpec> = target(
+    TargetKind::Card,
+    &[
+        Requirement::TargetCard(CardFilter::MeleeWeapon),
+        Requirement::TargetOnActor,
+    ],
+);
+
+/// "[ven] Choose a melee weapon this imbued has or spend 1 conviction [1
+/// CONVICTION] to put this card on this imbued to represent a melee weapon
+/// that does strength damage each strike. This melee weapon inflicts +1
+/// additional damage this action. If the opposing minion is (or becomes)
+/// immune to non-aggravated damage, he or she loses that immunity for
+/// handling damage from this weapon. Burn the melee weapon at the end of
+/// the action." No printed timing: any time in combat (rules-qa 2.2). The
+/// +1 is the strike's own damage (TOM 19960225), for the action (LSJ
+/// 20060412); put on as a weapon it is an equipment (LSJ 20060608); a
+/// weapon out of play as the action ends stays (LSJ 20100211-2).
+pub static CLEAVE: CardDef = CardDef {
+    name: "Cleave",
+    modes: &[
+        ModeDef {
+            target: CLEAVE_WEAPON,
+            ..combat(
+                &[Window::CombatUntimed],
+                &[Requirement::ActorImbued],
+                &[Effect::CleaveWeapon],
+            )
+        },
+        combat(
+            &[Window::CombatUntimed],
+            &[Requirement::ActorImbued],
+            &[
+                Effect::ConvictionCost(1),
+                Effect::PutOnActor,
+                Effect::BecomesWeapon,
+                Effect::CleaveWeapon,
+            ],
+        ),
+    ],
+    abilities: &[weapon_strike(
+        &[],
+        &[Effect::Strike(StrikeKind::Melee {
+            bonus: 0,
+            aggravated: false,
+        })],
+    )],
+    lines: &[0, 0],
+    ..CARD
+};
+
+/// "[mar] Requires an imbued with 5 conviction [5 CONVICTION]. Only usable
+/// before range is determined on the first round. If two consecutive
+/// rounds of combat occur at close range and this imbued remains ready,
+/// this imbued burns 5 conviction [5 CONVICTION] during the press step of
+/// that second round to burn himself or herself and the opposing monster.
+/// Otherwise, this imbued burns 1 conviction [1 CONVICTION] when combat
+/// ends." Not if the combat ends before that press step (LSJ 20010312,
+/// LSJ 20001027); the 5 a requirement, not a cost.
+pub static EXPIATE: CardDef = CardDef {
+    name: "Expiate",
+    modes: &[combat(
+        &[Window::CombatBeforeRange],
+        &[
+            Requirement::ActorImbued,
+            Requirement::FirstRound,
+            Requirement::ActorConvictionAtLeast(5),
+        ],
+        &[Effect::Expiate],
+    )],
+    ..CARD
+};
+
+/// "[def] This action is at +1 stealth if it is undirected. Put this card
+/// on any minion. Other Methuselahs' actions targeting this minion cost
+/// monsters an additional blood or life. If this minion is a monster, he or
+/// she burns a blood or life when he or she attempts an action or a block.
+/// This minion may burn this card as an action. A minion can have only one
+/// Lock." Controlled by the host's Methuselah; any one target is enough
+/// (LSJ 20080809-2, RTR 20081119).
+pub static LOCK: CardDef = CardDef {
+    name: "Lock",
+    modes: &[action_at(
+        &[],
+        target(
+            TargetKind::Minion,
+            &[Requirement::TargetWithout(Holding::Named("Lock"))],
+        ),
+        &[
+            Effect::DeclareAction(ActionKind::Card),
+            Effect::StealthIfOwnTarget(1),
+            Effect::PutOnTarget,
+            Effect::Layer(Modifier::TargetedCostsMonsters(1)),
+            Effect::Layer(Modifier::HostBurnsToAttempt(1)),
+        ],
+    )],
+    abilities: &[mode_of(
+        &[Window::ActionDeclare],
+        Actor::Host,
+        &[],
+        &[
+            Effect::DeclareAction(ActionKind::BurnCard),
+            Effect::BurnSource,
+        ],
+    )],
+    ..CARD
+};
+
+/// "Unique mortal with 1 life. 0 strength, 0 bleed. Requires a ready
+/// imbued. Moise may strike for 2R damage. He may take a +1 stealth action
+/// to search your library (shuffle afterward) or hand for an equipment and
+/// move it to any ready imbued you control (that imbued must meet the
+/// requirements and pay the cost as normal)." (2 pool.) Recruited by a
+/// ready imbued: a minion card's requirement is its player's (rulebook
+/// "Requirements"). The imbued chosen as the action is announced
+/// (choices at declaration), its own action (undirected); the equipment
+/// found at success, as Magic of the Smith's.
+pub static MOISE_KASAVUBU: CardDef = CardDef {
+    name: "Moise Kasavubu",
+    modes: &[ModeDef {
+        requires: &[Requirement::ActorImbued],
+        ..recruit(&[Effect::DeclareAction(ActionKind::Recruit)])
+    }],
+    abilities: &[
+        mode_of(
+            &[Window::CombatStrikeDeclaration],
+            Actor::Host,
+            &[],
+            &[Effect::Strike(StrikeKind::Damage {
+                n: 2,
+                ranged: true,
+                aggravated: false,
+            })],
+        ),
+        printed_action(
+            target(
+                TargetKind::Minion,
+                &[
+                    Requirement::Controlled,
+                    Requirement::TargetImbued,
+                    Requirement::ActorReady,
+                ],
+            ),
+            &[
+                Effect::DeclareAction(ActionKind::Ability),
+                Effect::AddStealth(1),
+                Effect::SearchEquipForTarget,
+            ],
+        ),
+    ],
+    ..CARD
+};
+
+/// "Master: unique hunter-list. Lock this card and burn 1 pool to move two
+/// cards that require an imbued (or a creed or a virtue) from your ash
+/// heap to the top of your library. You may then cut your library once."
+/// (Visionary.) No printed timing: any time its controller holds the
+/// impulse, as a location's lock ability; fewer than two there, what there
+/// is; the cut any number of cards (LSJ 20060413).
+pub static UNITY: CardDef = CardDef {
+    name: "Unity",
+    modes: &[mode_of(
+        &[Window::MasterPhase],
+        Actor::Methuselah,
+        &[],
+        &[Effect::PutInPlay],
+    )],
+    abilities: &[mode_of(
+        &[Window::AnyImpulse],
+        Actor::Controller,
+        &[Requirement::CardUnlocked, Requirement::PoolAtLeast(1)],
+        &[
+            Effect::LockSelf,
+            Effect::PayPool(1),
+            Effect::AshToLibraryTop {
+                n: 2,
+                filter: CardFilter::RequiresImbued,
+                cut: true,
+            },
+        ],
+    )],
+    ..CARD
+};
+
+/// "Master: out-of-turn. Requires a ready imbued. Unlock an imbued, or
+/// equip a ready imbued you control with an equipment from your hand
+/// (requirements must be met; pay cost as normal). Not usable during
+/// combat." Another Methuselah's turn only (rulebook "Out-of-turn"); after
+/// a successful block too, before combat (LSJ 20060410); not an action:
+/// the equipment's requirements alone, no action reduction (LSJ 20100725,
+/// LSJ 20090115-1), nor the second equip of section 3 (LSJ 20080815); not
+/// played by a minion (ANK 20201229).
+pub static ANGEL_OF_BERLIN: CardDef = CardDef {
+    name: "Angel of Berlin",
+    out_of_turn: true,
+    modes: &[
+        ModeDef {
+            target: target(TargetKind::Minion, &[Requirement::TargetImbued]),
+            ..mode_of(
+                &[Window::ReactionDuringAction, Window::ActionBlocked],
+                Actor::Methuselah,
+                &[Requirement::NotOwnTurn, Requirement::ControlsReadyImbued],
+                &[Effect::UnlockTarget],
+            )
+        },
+        ModeDef {
+            target: target(
+                TargetKind::Minion,
+                &[
+                    Requirement::Controlled,
+                    Requirement::TargetImbued,
+                    Requirement::ActorReady,
+                ],
+            ),
+            terms: Some(Terms::EquipFromHand {
+                filter: CardFilter::Any,
+                blood_share: false,
+            }),
+            ..mode_of(
+                &[Window::ReactionDuringAction, Window::ActionBlocked],
+                Actor::Methuselah,
+                &[Requirement::NotOwnTurn, Requirement::ControlsReadyImbued],
+                &[Effect::EquipNamed],
+            )
+        },
+    ],
+    lines: &[0, 0],
+    ..CARD
+};
+
+/// "Inquisition. Requires a ready imbued in play. Whenever there are any
+/// ready imbued in play, any action to put a vampire or ghoul in play or to
+/// add counters to an uncontrolled vampire gets -1 stealth and costs an
+/// additional blood or life." Read live; conditional counters too (LSJ
+/// 20060414, ANK 20240118-2).
+pub static BLOOD_CULT_AWARENESS_NETWORK: CardDef = CardDef {
+    name: "Blood Cult Awareness Network",
+    modes: &[event(
+        &[Requirement::ReadyImbuedInPlay],
+        &[
+            Effect::PutInPlay,
+            Effect::Layer(Modifier::VampireMakingTaxed),
+        ],
+    )],
+    ..CARD
+};
+
 /// "Unique melee weapon. Strike: strength+1 aggravated damage." (Tzimisce.)
 /// Equipping from hand needs a Tzimisce; taken from another minion it
 /// needs none (ANK 20180719-3), and the strike names no clan.
@@ -5382,6 +5702,54 @@ pub static TELEPATHIC_MISDIRECTION: CardDef = CardDef {
     ..CARD
 };
 
+/// "[viz] [1 CONVICTION] Play when a monster controlled by your predator is
+/// bleeding you, after blocks are declined. Lock this reacting imbued. The
+/// monster is now bleeding your predator's predator. Or play when a monster
+/// controlled by your predator or prey plays an action card. Lock this
+/// reacting imbued and cancel that action card as it is played (no cost is
+/// paid, and the monster doesn't lock). That monster cannot play the same
+/// action card again this turn." The cancel played at once, wakes alone
+/// before it (LSJ 20061207, 20021011); any action card, an employ, recruit
+/// or political one included (ANK 20200813-2), one played from the hand
+/// (RTR 20001020); the canceled card still played (ANK 20190104).
+pub static DETERMINE: CardDef = CardDef {
+    name: "Determine",
+    modes: &[
+        ModeDef {
+            target: target(TargetKind::Seat, &[Requirement::PredatorsPredator]),
+            ..mode_of(
+                &[Window::ActionBlocksDeclined],
+                Actor::ReactingMinion,
+                &[
+                    Requirement::MayBeLocked,
+                    Requirement::DirectedAtYou,
+                    Requirement::IsBleed,
+                    Requirement::BlocksDeclined,
+                    Requirement::ActingByPredator,
+                    Requirement::ActingMonster,
+                ],
+                &[Effect::LockActor, Effect::RedirectBleed],
+            )
+        },
+        mode_of(
+            &[Window::CardAsPlayed],
+            Actor::ReactingMinion,
+            &[
+                Requirement::MayBeLocked,
+                Requirement::PlayedCardType(CardType::Action),
+                Requirement::PlayedByPredatorOrPrey,
+                Requirement::PlayedByMonster,
+            ],
+            &[
+                Effect::LockActor,
+                Effect::CancelPlayed { refund: true },
+                Effect::BarCanceledForActorThisTurn,
+            ],
+        ),
+    ],
+    ..CARD
+};
+
 /// "Requires a baron. Only usable if a minion is bleeding you, after
 /// blocks are declined. Lock this reacting vampire. Change the target of
 /// the bleed to another Methuselah other than the acting minion's
@@ -5728,6 +6096,28 @@ macro_rules! stealth_location {
         };
     };
 }
+
+/// "Master: unique hunter-list. Put this card in play. Lock this card to
+/// give a Defender +1 intercept when a monster is acting." (Defender.) Any
+/// Methuselah's Defender attempting to block (D11), while intercept is
+/// needed (Market Square's shape); the creed read as a clan (rules-qa
+/// 102.2).
+pub static VIGIL_THE_THIN_LINE: CardDef = CardDef {
+    name: "Vigil: The Thin Line",
+    modes: &[master_in_play(&[], &[Effect::PutInPlay])],
+    abilities: &[mode_of(
+        &[Window::ActionStealthIntercept],
+        Actor::Controller,
+        &[
+            Requirement::CardUnlocked,
+            Requirement::ActingMonster,
+            Requirement::AnyAttemptNeedsIntercept,
+            Requirement::AttemptingClan("Defender"),
+        ],
+        &[Effect::LockSelf, Effect::AttemptingIntercept(1)],
+    )],
+    ..CARD
+};
 
 stealth_location!(
     THE_LABYRINTH,
@@ -9665,6 +10055,34 @@ pub static PIPER: CardDef = CardDef {
     ..CARD
 };
 
+/// "Master: unique location. Requires a ready imbued. When an imbued
+/// successfully performs an action, lock this card to move 1 blood from the
+/// blood bank to an imbued in your uncontrolled region." Any Methuselah's
+/// imbued; after the action's resolution.
+pub static THE_CHURCH_OF_VINDICATED_FAITH: CardDef = CardDef {
+    name: "Church of Vindicated Faith, The",
+    modes: &[mode_of(
+        &[Window::MasterPhase],
+        Actor::Methuselah,
+        &[Requirement::ControlsReadyImbued],
+        &[Effect::PutInPlay],
+    )],
+    abilities: &[ModeDef {
+        target: target(TargetKind::Uncontrolled, &[Requirement::TargetImbued]),
+        ..mode_of(
+            &[Window::ActionAfterResolution],
+            Actor::Controller,
+            &[
+                Requirement::CardUnlocked,
+                Requirement::ActionSuccessful,
+                Requirement::ActingImbued,
+            ],
+            &[Effect::LockSelf, Effect::BloodToUncontrolledTarget(1)],
+        )
+    }],
+    ..CARD
+};
+
 /// "Unique location. You can lock this card as a Nosferatu announces an
 /// undirected action; after action resolution, if that action was
 /// successful, unlock the acting Nosferatu. You can burn this card (even
@@ -11939,6 +12357,73 @@ const fn burn_this_by(requires: &'static [Requirement]) -> ModeDef {
         ],
     }
 }
+
+/// A ready imbued its player controls with a conviction to burn (The Rose
+/// Foundation's cost).
+const ROSE_IMBUED: Option<TargetSpec> = target(
+    TargetKind::Minion,
+    &[
+        Requirement::Controlled,
+        Requirement::TargetImbued,
+        Requirement::ActorReady,
+        Requirement::TargetConvictionAtLeast(1),
+    ],
+);
+
+/// "Master: unique location. Lock this location and burn a conviction [1
+/// CONVICTION] from a ready imbued you control to reduce a bleed against
+/// you by one or to gain two votes in a referendum." The votes for or
+/// against, in the polling step.
+pub static THE_ROSE_FOUNDATION: CardDef = CardDef {
+    name: "Rose Foundation, The",
+    modes: &[LOCATION],
+    abilities: &[
+        ModeDef {
+            target: ROSE_IMBUED,
+            ..mode_of(
+                &[Window::ReactionDuringAction],
+                Actor::Controller,
+                &[
+                    Requirement::CardUnlocked,
+                    Requirement::DirectedAtYou,
+                    Requirement::IsBleed,
+                ],
+                &[
+                    Effect::LockSelf,
+                    Effect::BurnTargetConviction(1),
+                    Effect::ReduceBleed(1),
+                ],
+            )
+        },
+        ModeDef {
+            target: ROSE_IMBUED,
+            ..mode_of(
+                &[Window::Referendum],
+                Actor::Controller,
+                &[Requirement::CardUnlocked, Requirement::AnyPollingStep],
+                &[
+                    Effect::LockSelf,
+                    Effect::BurnTargetConviction(1),
+                    Effect::MethuselahVotes { n: 2, favor: true },
+                ],
+            )
+        },
+        ModeDef {
+            target: ROSE_IMBUED,
+            ..mode_of(
+                &[Window::Referendum],
+                Actor::Controller,
+                &[Requirement::CardUnlocked, Requirement::AnyPollingStep],
+                &[
+                    Effect::LockSelf,
+                    Effect::BurnTargetConviction(1),
+                    Effect::MethuselahVotes { n: 2, favor: false },
+                ],
+            )
+        },
+    ],
+    ..CARD
+};
 
 /// "Unique location. During your master phase, you can lock this card to
 /// get +1 master phase action." (2 pool.)
@@ -17824,6 +18309,81 @@ pub static LIQUIDATION: CardDef = CardDef {
     ..CARD
 };
 
+/// "Gehenna. Imbued get -1 intercept when attempting to block monsters. A
+/// ready monster can enter combat with an imbued as a Ⓓ action." Any
+/// Methuselah's monster, another Methuselah's imbued (rules-qa 17.3).
+pub static BREAK_THE_CODE: CardDef = CardDef {
+    name: "Break the Code",
+    modes: &[event(
+        &[],
+        &[
+            Effect::PutInPlay,
+            Effect::Layer(Modifier::ImbuedInterceptVsMonstersMod(-1)),
+        ],
+    )],
+    abilities: &[ModeDef {
+        target: target(
+            TargetKind::Minion,
+            &[
+                Requirement::TargetImbued,
+                Requirement::NotControlled,
+                Requirement::ActorReady,
+            ],
+        ),
+        ..mode_of(
+            &[Window::ActionDeclare],
+            Actor::ActingCandidate,
+            &[Requirement::ActorMonster],
+            &[
+                Effect::DeclareAction(ActionKind::Ability),
+                Effect::EnterCombatWithTarget,
+            ],
+        )
+    }],
+    ..CARD
+};
+
+/// "[ACTION] +1 stealth action. Ⓓ Put this card on a vampire. You still
+/// control this card. The vampire with this card cannot gain blood. Any
+/// blood he or she gains goes to the blood bank instead. Burn this card
+/// during your next unlock phase. [COMBAT] As [ACTION] above, but put this
+/// card on the opposing vampire as a hand strike (at strength damage)
+/// instead." (Redemption.) As a strike, the card goes on as it lands (as
+/// Sculpt the Flesh [PRO]); burned in its player's unlock phase.
+pub static PUNISH: CardDef = CardDef {
+    name: "Punish",
+    modes: &[
+        action_at(
+            &[],
+            target(TargetKind::Minion, &[Requirement::TargetVampire]),
+            &[
+                Effect::DeclareAction(ActionKind::Card),
+                Effect::AddStealth(1),
+                Effect::PutOnTarget,
+                Effect::StillYours,
+                Effect::Layer(Modifier::HostCannotGainBlood),
+            ],
+        ),
+        combat(
+            &[Window::CombatStrikeDeclaration],
+            &[Requirement::OpponentVampire],
+            &[
+                Effect::Strike(StrikeKind::Hand { bonus: 0 }),
+                Effect::PutOnOpponentOnHit { counters: 0 },
+                Effect::StillYours,
+                Effect::Layer(Modifier::HostCannotGainBlood),
+            ],
+        ),
+    ],
+    riders: &[Rider {
+        hook: Hook::UnlockPhase,
+        scope: RiderScope::Controller,
+        requires: &[],
+        effects: &[Effect::BurnSelf],
+    }],
+    ..CARD
+};
+
 /// "Gehenna. Do not replace until your next discard phase. Allies get +1
 /// intercept against vampires." Every Methuselah's allies; a Gehenna-immune
 /// acting vampire does not escape it (LSJ 20081120-2).
@@ -18479,6 +19039,55 @@ pub static ABACTOR: CardDef = CardDef {
             Effect::BloodHuntIfHuntGained,
         ],
     )],
+    ..CARD
+};
+
+/// "Only usable if an ally or younger vampire is taking an action directed
+/// at you (or a card you control). [aus] +2 intercept. [myt] The action
+/// fails. Lock this reacting vampire. [MYT] As [myt] above, and the acting
+/// minion does not unlock as normal during their next unlock phase." (2
+/// blood.) An action at a minion or a card you control is directed at you;
+/// "younger" than the reacting vampire. Not while a block is attempted or
+/// made (ANK 20260316, LSJ 20041022); failed, it was not blocked (LSJ
+/// 20070219) and reached resolution (ANK 20211015, RTR 20180719).
+pub static FAERIE_WARDS: CardDef = CardDef {
+    name: "Faerie Wards",
+    modes: &[
+        intercept(
+            &[
+                Requirement::InterceptNeeded,
+                Requirement::DirectedAtYou,
+                Requirement::ActingAllyOrYounger,
+            ],
+            &[Effect::AddIntercept(2)],
+        ),
+        mode_of(
+            &[Window::ReactionDuringAction],
+            Actor::ReactingMinion,
+            &[
+                Requirement::MayBeLocked,
+                Requirement::DirectedAtYou,
+                Requirement::ActingAllyOrYounger,
+                Requirement::NoBlockAttempt,
+            ],
+            &[Effect::LockActor, Effect::ActionFails],
+        ),
+        mode_of(
+            &[Window::ReactionDuringAction],
+            Actor::ReactingMinion,
+            &[
+                Requirement::MayBeLocked,
+                Requirement::DirectedAtYou,
+                Requirement::ActingAllyOrYounger,
+                Requirement::NoBlockAttempt,
+            ],
+            &[
+                Effect::LockActor,
+                Effect::ActionFails,
+                Effect::ActingSkipsNextUnlock,
+            ],
+        ),
+    ],
     ..CARD
 };
 
@@ -23002,6 +23611,45 @@ pub static THE_STATUS_PERFECTUS: CardDef = CardDef {
     ..CARD
 };
 
+/// "[viz] [1 CONVICTION] +1 stealth action. Look at the hands of your
+/// predator and prey and at the top three cards of your library. This
+/// acting imbued unlocks at the end of the action." The conviction named as
+/// the action is announced, burned as it resolves (rules-qa 102.1); its
+/// effects, the unlock included, on success (Big Game's).
+pub static AUGUR: CardDef = CardDef {
+    name: "Augur",
+    modes: &[action_at(
+        &[],
+        None,
+        &[
+            Effect::DeclareAction(ActionKind::Card),
+            Effect::AddStealth(1),
+            Effect::PeekNeighborHands,
+            Effect::ActorLooksAtLibraryTop(3),
+            Effect::UnlockAtEndIfReady,
+        ],
+    )],
+    ..CARD
+};
+
+/// "[ven] +2 stealth action. Ⓓ If this action is successful, choose a
+/// monster controlled by your prey at random. This imbued enters combat
+/// with the chosen monster." Directed at the prey; any monster it
+/// controls, torpid too (D28), chosen as the action succeeds.
+pub static MUSE_OF_FLAME: CardDef = CardDef {
+    name: "Muse of Flame",
+    modes: &[action_at(
+        &[],
+        target(TargetKind::Seat, &[Requirement::TargetPrey]),
+        &[
+            Effect::DeclareAction(ActionKind::Card),
+            Effect::AddStealth(2),
+            Effect::EnterCombatWithRandomPreyMonster,
+        ],
+    )],
+    ..CARD
+};
+
 /// "Master. Search your library for a Gehenna event card. Show it to all
 /// players and add it to your hand. Discard down to your hand size
 /// afterward. Only one Fortschritt Library may be played per game." The
@@ -23858,6 +24506,40 @@ pub static DIVINE_SIGN: CardDef = CardDef {
     ..CARD
 };
 
+/// "[jud] +3 stealth action. Ⓓ Put this card on a non-Sabbat vampire with
+/// capacity less than 8. The vampire with this card cannot hunt. If he or
+/// she must hunt, he or she locks and goes to torpor instead. Burn this card
+/// during this vampire's discard phase." Pulled Fangs' torpor, locked
+/// first; the card its vampire's controller's, burned in their discard
+/// phase.
+pub static ANTITHESIS: CardDef = CardDef {
+    name: "Antithesis",
+    modes: &[action_at(
+        &[],
+        target(
+            TargetKind::Minion,
+            &[
+                Requirement::TargetVampire,
+                Requirement::TargetSectNot(Sect::Sabbat),
+                Requirement::TargetCapacityAtMost(7),
+            ],
+        ),
+        &[
+            Effect::DeclareAction(ActionKind::Card),
+            Effect::AddStealth(3),
+            Effect::PutOnTarget,
+            Effect::Layer(Modifier::HostHuntsToTorpor { lock: true }),
+        ],
+    )],
+    riders: &[Rider {
+        hook: Hook::DiscardPhase,
+        scope: RiderScope::Controller,
+        requires: &[],
+        effects: &[Effect::BurnSelf],
+    }],
+    ..CARD
+};
+
 /// "Only usable at close range at the end of a round during which this
 /// minion successfully inflicted more damage than the opposing vampire.
 /// Not usable by a minion being burned or going to torpor. Put this card on
@@ -23882,7 +24564,7 @@ pub static PULLED_FANGS: CardDef = CardDef {
         ],
         &[
             Effect::PutOnOpponent,
-            Effect::Layer(Modifier::HostHuntsToTorpor),
+            Effect::Layer(Modifier::HostHuntsToTorpor { lock: false }),
             Effect::DamageOpponentNow(1),
         ],
     )],
@@ -27564,6 +28246,25 @@ pub static COLD_AURA: CardDef = CardDef {
     ..CARD
 };
 
+/// "[ven] [3 CONVICTION] Strike: strength+1 aggravated ranged damage. Even
+/// if the strike is dodged, burn any electronic equipment (e.g., IR
+/// Goggles, Laptop Computer, or Phased Motion Detector) on either
+/// combatant." The convictions its cost (rules-qa 102.1); the burn as the
+/// strike resolves.
+pub static SMITE: CardDef = CardDef {
+    name: "Smite",
+    modes: &[combat(
+        &[Window::CombatStrikeDeclaration],
+        &[],
+        &[
+            Effect::Strike(StrikeKind::RangedStrength { bonus: 1 }),
+            Effect::AggravatedStrike,
+            Effect::BurnElectronicOnCombatants,
+        ],
+    )],
+    ..CARD
+};
+
 /// "Unique melee weapon. Strike: strength+1 damage. If the opposing minion
 /// is a werewolf, the bearer can make a ranged strike to burn 4 life from
 /// that werewolf." Life burned, not damage (no prevention); a strike,
@@ -28269,6 +28970,40 @@ pub static GIANNA_DI_CANNETO: CardDef = CardDef {
             &[Effect::LockHost, Effect::ResolutionDamageThisRound(1)],
         ),
     ],
+    ..CARD
+};
+
+/// "[jud] [2 CONVICTION] Only usable before range is determined. For the
+/// remainder of combat, the opposing monster cannot maneuver or press to
+/// continue, and strikes other than strikes to end combat cost the opposing
+/// monster an additional blood or life." A strike granted later pays too
+/// (LSJ 20090529), paid as declared, an ally's last life burning it (LSJ
+/// 20090703); a strike card's cost, reductions applying (LSJ 20070829-1);
+/// one committed earlier may be declined (LSJ 20071017). No frenzy:
+/// Tranquility Shield leaves it.
+pub static IMPRISON: CardDef = CardDef {
+    name: "Imprison",
+    modes: &[combat(
+        &[Window::CombatBeforeRange],
+        &[Requirement::OpponentMonster],
+        &[Effect::OpposingImprisoned],
+    )],
+    ..CARD
+};
+
+/// "[mar] [1 CONVICTION] Only usable before range is determined. For the
+/// remainder of combat, the amount of damage inflicted on this imbued by
+/// hand strikes, melee weapon strikes, or retainers is also inflicted on
+/// the striking minion or damage-dealing retainer, even if this imbued
+/// prevents the damage." The striker's share as it is inflicted, its
+/// aggravation kept.
+pub static INFLICT: CardDef = CardDef {
+    name: "Inflict",
+    modes: &[combat(
+        &[Window::CombatBeforeRange],
+        &[],
+        &[Effect::ReflectsDamageThisCombat],
+    )],
     ..CARD
 };
 
@@ -29521,6 +30256,27 @@ pub static HIDE: CardDef = CardDef {
             ],
         ),
     ],
+    ..CARD
+};
+
+/// "[inn] +1 stealth action. Move an incapacitated imbued to his or her
+/// controller's ready region. That imbued gains a life (not to exceed his
+/// or her starting amount)." Any Methuselah's imbued; the life the one an
+/// imbued gains leaving the region, no more (LSJ 20091118).
+pub static BOND: CardDef = CardDef {
+    name: "Bond",
+    modes: &[action_at(
+        &[],
+        target(
+            TargetKind::Minion,
+            &[Requirement::TargetImbued, Requirement::TargetIncapacitated],
+        ),
+        &[
+            Effect::DeclareAction(ActionKind::Card),
+            Effect::AddStealth(1),
+            Effect::TargetLeavesIncapacitated,
+        ],
+    )],
     ..CARD
 };
 

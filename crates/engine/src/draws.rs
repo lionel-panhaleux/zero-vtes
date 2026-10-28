@@ -31,6 +31,16 @@ pub enum Interrupt {
         seat: SeatId,
         minion: crate::ids::MinionId,
     },
+    /// `left` cards of the filter moved one at a time from `seat`'s ash
+    /// heap to the top of their library (Unity).
+    AshToLibraryTop {
+        seat: SeatId,
+        left: u8,
+        filter: crate::cards::CardFilter,
+    },
+    /// `seat` may cut their library once: the top n cards to the bottom
+    /// (Unity; any n, LSJ 20060413).
+    CutLibrary { seat: SeatId },
     /// Dual Form: several of `root`'s set left the ready region at once —
     /// `seat` keeps one of those still in play, the others burned
     /// (rules-qa 96.1).
@@ -326,6 +336,15 @@ pub enum Interrupt {
         minion: crate::ids::MinionId,
         n: u8,
     },
+    /// "[X CONVICTION]" on an equipment found or named rather than played
+    /// (Living Wood Staff through Moise Kasavubu or Angel of Berlin): `seat`
+    /// burns `minion`'s convictions one at a time, each adding 1 to the
+    /// card's X; a pass stops.
+    XConvictions {
+        seat: SeatId,
+        minion: crate::ids::MinionId,
+        card: CardId,
+    },
     /// An imbued gains a conviction card from the player's hand or ash
     /// heap, `library` too (shuffled after), or none (rulebook "Appendix:
     /// Imbued Rules" 2: as it enters play with none; Erick, Leaf, Abjure).
@@ -397,6 +416,8 @@ pub enum Interrupt {
         clan: Option<&'static str>,
         n: u8,
         may: bool,
+        /// What the counters are told added by.
+        cause: crate::notes::Cause,
     },
     /// Antediluvian Awakening: `BurnPool` pays, `ChooseMinion` burns a
     /// capacity `cap`+ vampire and the card.
@@ -658,6 +679,7 @@ impl Interrupt {
             | Interrupt::AllySearch { seat, .. }
             | Interrupt::GainConviction { seat, .. }
             | Interrupt::BurnConvictions { seat, .. }
+            | Interrupt::XConvictions { seat, .. }
             | Interrupt::AvengeImbued { seat, .. }
             | Interrupt::NameConviction { seat, .. }
             | Interrupt::PowerSearch { seat, .. }
@@ -667,6 +689,8 @@ impl Interrupt {
             | Interrupt::MayPreventForBlood { seat, .. }
             | Interrupt::ShortfallPicks { seat, .. }
             | Interrupt::MayUnlock { seat, .. }
+            | Interrupt::AshToLibraryTop { seat, .. }
+            | Interrupt::CutLibrary { seat }
             | Interrupt::ReductionAtResolution { seat, .. }
             | Interrupt::DualFormKept { seat, .. }
             | Interrupt::GiveCardTo { seat, .. }
@@ -1189,6 +1213,15 @@ impl Engine {
                     self.interrupts.remove(0);
                     continue;
                 }
+                Interrupt::XConvictions { minion, card, .. } => {
+                    if self.state.convictions(minion).is_empty()
+                        || !self.state.cards[card.index()].present()
+                    {
+                        self.interrupts.remove(0);
+                        continue;
+                    }
+                    return;
+                }
                 Interrupt::BurnConvictions { minion, n, .. } => {
                     let held = self.state.convictions(minion);
                     if n == 0 || held.is_empty() {
@@ -1362,6 +1395,14 @@ impl Engine {
                     self.action.as_ref().is_some_and(|a| a.acting == minion)
                 }
                 Interrupt::DualFormKept { root, .. } => self.state.dual_set(root).len() > 1,
+                Interrupt::AshToLibraryTop { seat, left, filter } => {
+                    left > 0
+                        && self.state.seats[seat.index()]
+                            .ash
+                            .iter()
+                            .any(|&c| filter.matches(c))
+                }
+                Interrupt::CutLibrary { seat } => self.state.seats[seat.index()].library.len() > 1,
                 Interrupt::GiveCardTo { card, .. } => self.state.cards[card.index()].present(),
                 Interrupt::MayPreventForBlood { minion, n, .. } => {
                     present(minion)
@@ -1888,6 +1929,11 @@ impl Engine {
                 let options = self.conviction_choices(minion);
                 (WindowLabel::ResolutionChoice, options)
             }
+            Interrupt::XConvictions { minion, .. } => {
+                let mut options = vec![Choice::Pass];
+                options.extend(self.conviction_choices(minion));
+                (WindowLabel::ResolutionChoice, options)
+            }
             Interrupt::GainConviction { library, .. } => (
                 if library {
                     WindowLabel::LibrarySearch
@@ -2245,6 +2291,19 @@ impl Engine {
             | Interrupt::ReductionAtResolution { minion, .. } => (
                 WindowLabel::ResolutionChoice,
                 vec![Choice::Pass, Choice::ResolvePrinted { minion }],
+            ),
+            Interrupt::AshToLibraryTop { seat, filter, .. } => (
+                WindowLabel::ResolutionChoice,
+                distinct(&st.seats[seat.index()].ash, |c| filter.matches(c))
+                    .into_iter()
+                    .map(Choice::FindCard)
+                    .collect(),
+            ),
+            Interrupt::CutLibrary { seat } => (
+                WindowLabel::ResolutionChoice,
+                std::iter::once(Choice::Pass)
+                    .chain((1..st.seats[seat.index()].library.len()).map(|n| Choice::SetX(n as u8)))
+                    .collect(),
             ),
             Interrupt::DualFormKept { root, .. } => (
                 WindowLabel::ResolutionChoice,
@@ -3596,9 +3655,9 @@ impl Engine {
                 self.interrupts.remove(0);
                 self.make_anarch(m);
             }
-            (Interrupt::UncontrolledBlood { n, .. }, Choice::Slot(i)) => {
+            (Interrupt::UncontrolledBlood { n, cause, .. }, Choice::Slot(i)) => {
                 self.interrupts.remove(0);
-                self.state.add_uncontrolled_blood(s, i as usize, n);
+                self.caused(cause, |e| e.state.add_uncontrolled_blood(s, i as usize, n));
             }
             (Interrupt::UncontrolledBlood { .. }, Choice::Pass) => {
                 self.interrupts.remove(0);
@@ -3874,6 +3933,14 @@ impl Engine {
                         self.damage_out_of_combat(acting, 1, false);
                     }
                 }
+            }
+            (Interrupt::XConvictions { .. }, Choice::Pass) => {
+                self.interrupts.remove(0);
+            }
+            (Interrupt::XConvictions { card: x, .. }, Choice::BurnInPlay { card }) => {
+                self.burn_card_in_play(CardId(card));
+                let c = &mut self.state.cards[x.index()];
+                c.fixed_x = c.fixed_x.saturating_add(1);
             }
             (Interrupt::BurnConvictions { .. }, Choice::BurnInPlay { card }) => {
                 self.burn_card_in_play(CardId(card));
@@ -4396,6 +4463,27 @@ impl Engine {
             (Interrupt::GiveCardTo { card, .. }, Choice::ChooseSeat(to)) => {
                 self.interrupts.remove(0);
                 self.give_card_control(card, to);
+            }
+            (Interrupt::AshToLibraryTop { seat, left, filter }, Choice::FindCard(card)) => {
+                let st = &mut self.state.seats[seat.index()];
+                let (card, copy) = st.ash.take_card(card).expect("in the ash heap");
+                st.library.put(card, copy);
+                self.interrupts[0] = Interrupt::AshToLibraryTop {
+                    seat,
+                    left: left - 1,
+                    filter,
+                };
+            }
+            (Interrupt::CutLibrary { .. }, Choice::Pass) => {
+                self.interrupts.remove(0);
+            }
+            (Interrupt::CutLibrary { seat }, Choice::SetX(n)) => {
+                self.interrupts.remove(0);
+                let library = &mut self.state.seats[seat.index()].library;
+                let top = library.take_from(library.len() - n as usize);
+                let rest = library.take_all();
+                library.put_all(top.pairs().collect::<Vec<_>>());
+                library.put_all(rest);
             }
             (Interrupt::DualFormKept { root, .. }, Choice::ChooseMinion(kept)) => {
                 self.interrupts.remove(0);

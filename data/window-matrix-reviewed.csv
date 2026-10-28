@@ -775,7 +775,7 @@ id,name,types,disciplines,in_precon,windows,flags,needs_review,review
 101235,Molotov Cocktail,Combat,,no,COMBAT_STRIKE_DECLARATION,,,ok
 101931,Talbot's Chainsaw,Equipment,,no,ACTION_DECLARE_EQUIP,in_play_action,,ok
 101963,Thadius Zho,Ally,,no,ACTION_DECLARE_RECRUIT,in_play_action,,ok
-102052,Two Wrongs,Master,,no,ACTION_BLOCKS_DECLINED,out_of_turn;trifle,,ok
+102052,Two Wrongs,Master,,no,ACTION_BLOCKS_DECLINED,out_of_turn;trifle;bounce,,ok
 102075,University Hunting Ground,Master,,no,MASTER_PHASE,,,ok
 102268,Banu Haqim Justicar,Political Action,,no,ACTION_DECLARE_POLITICAL,,,ok
 102272,Lasombra Justicar,Political Action,,no,ACTION_DECLARE_POLITICAL,,,ok
@@ -953,3 +953,26 @@ id,name,types,disciplines,in_precon,windows,flags,needs_review,review
 102156,Watchtower: Four Ride Forth,Master,,no,MASTER_PHASE,,,ok
 100713,Fee Stake: Corte,Action,,no,ACTION_DECLARE,in_play_action,,ok
 100714,Fee Stake: Los Angeles,Action,,no,ACTION_DECLARE,in_play_action,,ok
+100067,Angel of Berlin,Master,,no,REACTION_DURING_ACTION;ACTION_BLOCKED,out_of_turn,
+100075,Antithesis,Action,jud,no,ACTION_DECLARE,,
+100110,Augur,Action,viz,no,ACTION_DECLARE,,
+100198,Blood Cult Awareness Network,Event,,no,DISCARD_PHASE,,
+100234,Bond,Action,inn,no,ACTION_DECLARE,,
+100248,Break the Code,Event,,no,DISCARD_PHASE,in_play_action,
+100358,Cleave,Combat,ven,no,COMBAT_UNTIMED,,
+100534,Determine,Reaction,viz,no,ACTION_BLOCKS_DECLINED;CARD_AS_PLAYED,cancel_as_played;bounce,
+100674,Expiate,Combat,mar,no,COMBAT_BEFORE_RANGE,,
+100690,Faerie Wards,Reaction,myt/aus,no,ACTION_STEALTH_INTERCEPT;REACTION_DURING_ACTION,,
+100963,Imprison,Combat,jud,no,COMBAT_BEFORE_RANGE,,
+100982,Inflict,Combat,mar,no,COMBAT_BEFORE_RANGE,,
+101115,Living Wood Staff,Equipment,,no,ACTION_DECLARE_EQUIP,,
+101118,Lock,Action,def,no,ACTION_DECLARE,in_play_action,
+101231,Moise Kasavubu,Ally,,no,ACTION_DECLARE_RECRUIT,,
+101257,Muse of Flame,Action,ven,no,ACTION_DECLARE,randomness,
+101518,Punish,Action/Combat,red,no,ACTION_DECLARE;COMBAT_STRIKE_DECLARATION,,
+101812,Smite,Combat,ven,no,COMBAT_STRIKE_DECLARATION,,
+100348,The Church of Vindicated Faith,Master,,no,MASTER_PHASE,,
+100474,The Crusader Sword,Equipment,,no,ACTION_DECLARE_EQUIP,,
+101653,The Rose Foundation,Master,,no,MASTER_PHASE,,
+102074,Unity,Master,,no,MASTER_PHASE,,
+102119,Vigil: The Thin Line,Master,,no,MASTER_PHASE,,

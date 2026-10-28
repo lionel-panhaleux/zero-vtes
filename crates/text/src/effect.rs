@@ -181,6 +181,7 @@ pub fn part(e: &Effect, names: &Names) -> Option<String> {
         K::Cancel => "cancel the card".into(),
         K::Move => match d {
             Some("leaves_torpor") => "the target leaves torpor".into(),
+            Some("leaves_incapacitated") => "the target leaves the incapacitated region".into(),
             Some("give") => "give to prey".into(),
             Some("from_ash_heap") => "take from prey's ash heap".into(),
             Some("political_from_ash_heap") => "a political action card to hand".into(),

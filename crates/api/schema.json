@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "title": "zvtes protocol",
-  "version": "2.16.2",
+  "version": "2.17.0",
   "$defs": {
     "About": {
       "description": "What a choice is about (`Decision::about`): each field given where\nthe purpose (or the terms) has it (docs/protocol.md §5).",
@@ -4845,6 +4845,11 @@
           "const": "burn_convictions"
         },
         {
+          "description": "\"[X CONVICTION]\" on an equipment found or named rather than played\n(Living Wood Staff through Moise Kasavubu, Angel of Berlin):\nimbued `minion` burns its convictions one at a time for `card`'s\nX (`BurnInPlay`), a pass stopping.",
+          "type": "string",
+          "const": "x_convictions"
+        },
+        {
           "description": "An incapacitated imbued burned: ready imbued `minion` may burn a\nconviction (`BurnInPlay`) for 1 unpreventable damage to `to`.",
           "type": "string",
           "const": "avenge_imbued"
@@ -4878,6 +4883,16 @@
           "description": "Dual Form: several of `minion`'s set left the ready region at\nonce — `seat` chooses the one kept, the others burned.",
           "type": "string",
           "const": "dual_form_kept"
+        },
+        {
+          "description": "Unity: `n` more cards requiring an imbued, a creed or a virtue\nmoved one at a time from `seat`'s ash heap to the top of their\nlibrary (`find_card`).",
+          "type": "string",
+          "const": "ash_to_library_top"
+        },
+        {
+          "description": "Unity: `seat` may cut their library once, `set_x` the cards\nmoved from the top to the bottom (a pass: no cut).",
+          "type": "string",
+          "const": "cut_library"
         },
         {
           "description": "A value this reader does not know.",
