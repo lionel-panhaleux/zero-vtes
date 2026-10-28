@@ -500,8 +500,9 @@ sources to the engine's conventions.
 - `Window::AnyImpulse` (untimed "you can lock this card" abilities) is offered
   wherever a seat holds the impulse — phases, unlock rotation, action/combat
   windows, polling — never in as-played or terms windows; using one is an effect
-  (impulse reset / polling commitment). A starving vampire's forced hunt is
-  offered beside untimed abilities, not instead.
+  (impulse reset / polling commitment). Hand cards timed so are offered with
+  them (`any_impulse_options`: Angel of Berlin, rules-qa 103.6). A starving
+  vampire's forced hunt is offered beside untimed abilities, not instead.
 - Two settle steps run beside the interrupts: `settle_moving_titles`
   (Osebo Kholo's standing move, marked by `Effect::MovesToOldestUntitled`;
   a tie among the oldest is `Interrupt::MoveCardToOldest`, the card's

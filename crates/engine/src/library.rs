@@ -23367,7 +23367,7 @@ pub static LIBRARY: [LibraryCard; 977] = [
         modes: &[
             Mode {
                 tags: &[],
-                windows: &["REACTION_DURING_ACTION", "ACTION_BLOCKED"],
+                windows: &["ANY_IMPULSE"],
                 flags: &["out_of_turn"],
             },
         ],

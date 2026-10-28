@@ -3596,7 +3596,12 @@ retainers, traits, titles, trait changes).
   (102.17), Vigil: The Thin Line (102.18), The Crusader Sword (102.19),
   Cleave (102.20), Expiate (102.21), Lock (102.22), Moise Kasavubu
   (102.23), Unity (102.24), Angel of Berlin (102.25), Blood Cult Awareness
-  Network (102.26).
+  Network (102.26). Reviewed: any one target, a second one too, for Lock
+  and Chanjelin Ward (103.1); the Network on Summon History [TEM], not its
+  [tem] nor Graverobbing (103.2); Determine on every action card (103.3);
+  Punish on every gain, moves included (103.4); Julia Prima not at her
+  prey (103.5); Angel of Berlin at any impulse in another's turn, outside
+  combat (103.6).
 
 ## 15. Vampires' printed text; other card readings
 
@@ -4705,6 +4710,8 @@ read, for the owner to confirm or correct:
 - 101.2 graded green (101.1 and 101.3 answered by the owner).
 - 102.1–102.8, 102.10, 102.12–102.14, 102.16–102.26 graded green or amber
   (round 21's cards; 102.9, 102.11, 102.15 answered by the owner).
+- 103.1, 103.3–103.5 graded green, 103.2 amber (round 21 reviewed; 103.6
+  answered by the owner).
 - 49.6's several-holders question is moot (50.1: the Cog is unique).
 
 ### 24.2 Questions for a new rules-qa batch
@@ -4802,7 +4809,7 @@ an owner ruling:
 Every rules-qa item, by batch, with the digest sections citing it: the
 section stating it and those cross-referring to it (§2 the default
 readings, §22 engine modeling, §23 the contradictions, §24 the open
-readings). 1022 items, Batches 1–102 (44.11 was removed, replaced by Batch
+readings). 1028 items, Batches 1–103 (44.11 was removed, replaced by Batch
 45). The index is derived from the citations: a bare `N.M` cites rules-qa
 item N.M in the section it appears in. A new rules-qa item gets its line in
 the section stating it, then its entry here: `python3
@@ -5152,3 +5159,5 @@ index or an item cited nowhere.
   102.16 §14.12,§24.1; 102.17 §14.12; 102.18 §14.12; 102.19 §14.12; 102.20
   §14.12; 102.21 §14.12; 102.22 §14.12; 102.23 §14.12; 102.24 §14.12; 102.25
   §14.12; 102.26 §14.12,§24.1
+- **103** — 103.1 §14.12,§24.1; 103.2 §14.12,§24.1; 103.3 §14.12,§24.1;
+  103.4 §14.12; 103.5 §14.12,§24.1; 103.6 §14.12,§24.1

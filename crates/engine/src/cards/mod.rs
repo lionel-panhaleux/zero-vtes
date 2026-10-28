@@ -187,6 +187,7 @@ impl Window {
             "COMBAT_BEFORE_RESOLUTION" => CombatBeforeResolution,
             "OUSTING" => Ousting,
             "READY_TITLED_LEFT" => ReadyTitledLeft,
+            "ANY_IMPULSE" => AnyImpulse,
             _ => return None,
         })
     }
@@ -872,6 +873,9 @@ pub enum Requirement {
     NotActingController,
     /// Target seat is not the player.
     NotSelf,
+    /// Target seat is not the player's prey: a bleed at the prey is the
+    /// plain bleed already offered (Julia Prima's "any Methuselah").
+    NotPrey,
     /// The card being played (as-played context) is a master card.
     PlayedCardIsMaster,
     /// The card being played was played by another Methuselah.
@@ -6645,6 +6649,7 @@ pub fn holds(
         | Requirement::BloodAtLeast(_)
         | Requirement::NotActingController
         | Requirement::NotSelf
+        | Requirement::NotPrey
         | Requirement::HasCastVotes
         | Requirement::NotAbstaining
         | Requirement::NotControlled
@@ -6749,7 +6754,7 @@ pub fn holds(
                 && st.sect_of(a.acting) == Some(sect)
         }),
         Requirement::TargetOfActingOfSect(sect) => action.is_some_and(|a| {
-            actor.is_some_and(|m| a.target_minion() == Some(m))
+            actor.is_some_and(|m| a.target_minions().any(|t| t == m))
                 && a.directed_seat(st).is_some()
                 && st.minions[a.acting.index()].is_vampire()
                 && st.sect_of(a.acting) == Some(sect)
@@ -7335,7 +7340,7 @@ pub fn holds(
         | Requirement::HostUsedDisciplines(_) => true, // engine-checked
         Requirement::DirectedAtYourReadyClan(clan) => action.is_some_and(|a| {
             a.directed_seat(st).is_some()
-                && a.target_minion().is_some_and(|m| {
+                && a.target_minions().any(|m| {
                     let v = &st.minions[m.index()];
                     v.owner == seat && v.ready() && v.clan() == Some(clan)
                 })
@@ -7490,9 +7495,7 @@ pub fn holds(
         }),
         Requirement::DirectedAtYourMinion => action.is_some_and(|a| {
             a.directed_seats(st).contains(seat)
-                && a.target_minion()
-                    .into_iter()
-                    .chain(a.second_target())
+                && a.target_minions()
                     .any(|m| st.minions[m.index()].owner == seat)
         }),
         Requirement::DirectedAtYourCard(filters) => action.is_some_and(|a| {
@@ -8113,6 +8116,7 @@ pub fn holds_for_seat(
     match req {
         Requirement::NotActingController => action.is_some_and(|a| a.seat != t),
         Requirement::NotSelf => t != seat,
+        Requirement::NotPrey => t != st.prey(seat),
         Requirement::PredatorsPredator => t == st.predator(st.predator(seat)),
         Requirement::TargetPrey => t == st.prey(seat),
         Requirement::TargetPredatorOrPrey => t == st.prey(seat) || t == st.predator(seat),
@@ -8209,7 +8213,8 @@ pub fn holds_for_card(
             c.bearer().is_none_or(|h| holds_for_host(req, st, h))
         }
         Requirement::ActionTargetsHost => action.is_some_and(|a| {
-            a.directed_seat(st).is_some() && c.host.is_some() && a.target_minion() == c.host
+            a.directed_seat(st).is_some()
+                && c.host.is_some_and(|h| a.target_minions().any(|t| t == h))
         }),
         Requirement::HostOutOfPlay => c.host.is_some_and(|h| {
             let v = &st.minions[h.index()];

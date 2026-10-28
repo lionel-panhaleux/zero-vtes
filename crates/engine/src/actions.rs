@@ -952,6 +952,12 @@ impl ActionCtx {
         }
     }
 
+    /// Every minion the action targets, a second target too (Taunt the
+    /// Caged Beast).
+    pub fn target_minions(&self) -> impl Iterator<Item = MinionId> {
+        self.target_minion().into_iter().chain(self.second_target())
+    }
+
     /// An action at every Methuselah's hand (Vaticination).
     fn at_every_hand(&self) -> bool {
         self.card_effects().contains(&Effect::DiscardFromAllHands)
@@ -991,6 +997,7 @@ impl ActionCtx {
                 | Effect::BloodToEachUncontrolledOfSect(..)
                 | Effect::AnarchControllerMayBloodToUncontrolled(_)
                 | Effect::GhoulFromLibraryTop(_)
+                | Effect::SearchPutInPlayUpToX { vampire: true }
                 | Effect::BecomesVampire { .. }
                 | Effect::FledglingFromNamedMaster
                 | Effect::HeldVampireBecomesGargoyle => true,
@@ -5061,11 +5068,12 @@ impl Engine {
                 self.lifeless(acting);
             }
         }
-        // Lock: a monster's blood or life, on any target (LSJ 20080809-2);
-        // paid with the cost, unpayable it fizzles (rules-qa 3.6).
+        // Lock: a monster's blood or life, any one target enough (LSJ
+        // 20080809-2); paid with the cost, unpayable it fizzles (rules-qa
+        // 3.6).
         if let Some((n, lock)) = a
-            .target_minion()
-            .and_then(|t| self.state.targeted_monster_surcharge(t, seat))
+            .target_minions()
+            .find_map(|t| self.state.targeted_monster_surcharge(t, seat))
             .filter(|_| self.state.is_monster(a.acting))
         {
             let acting = a.acting;
@@ -5079,20 +5087,22 @@ impl Engine {
                 self.lifeless(acting);
             }
         }
-        // Chanjelin Ward: blood only, on any target (LSJ 20080809-2); paid
-        // with the cost, unpayable it fizzles (rules-qa 3.6).
-        if let Some(t) = a.target_minion() {
-            let n = self.state.targeted_surcharge(t, seat);
-            if n > 0 {
-                let acting = a.acting;
-                if self.state.minions[acting.index()].is_ally()
-                    || self.state.minions[acting.index()].blood < n
-                {
-                    self.mark_resolved(acting, a.kind);
-                    return self.fizzle(a);
-                }
-                self.paying(|e| e.state.lose_blood(acting, n));
+        // Chanjelin Ward: blood only, any one target enough (LSJ
+        // 20080809-2); paid with the cost, unpayable it fizzles (rules-qa
+        // 3.6).
+        if let Some(n) = a
+            .target_minions()
+            .map(|t| self.state.targeted_surcharge(t, seat))
+            .find(|&n| n > 0)
+        {
+            let acting = a.acting;
+            if self.state.minions[acting.index()].is_ally()
+                || self.state.minions[acting.index()].blood < n
+            {
+                self.mark_resolved(acting, a.kind);
+                return self.fizzle(a);
             }
+            self.paying(|e| e.state.lose_blood(acting, n));
         }
         // Ambrosio Luis Monçada: paid with the cost; his own Methuselah's
         // action is not directed (LSJ 20030214-2).
@@ -8179,7 +8189,7 @@ impl Engine {
             let (forced, _) =
                 self.mandatory_split(s, &self.ability_options(s, Window::ActionDeclare));
             options.extend(forced);
-            options.extend(self.ability_options(s, Window::AnyImpulse));
+            options.extend(self.any_impulse_options(s));
             return options;
         }
         let mut options = vec![Choice::Pass];
@@ -8344,7 +8354,7 @@ impl Engine {
             _ => true,
         });
         options.extend(declared);
-        options.extend(self.ability_options(s, Window::AnyImpulse));
+        options.extend(self.any_impulse_options(s));
         // "During your next minion phase, burn this card to … take control"
         // (Puppet Master [DOM]): at any point of it (LSJ 20001201), but the
         // phase cannot end before.
@@ -8523,7 +8533,7 @@ impl Engine {
     fn mandatory_actions(&self, s: SeatId, mut options: Vec<Choice>) -> Vec<Choice> {
         let (mut forced, stuck) = self.mandatory_split(s, &options);
         if !forced.is_empty() {
-            forced.extend(self.ability_options(s, Window::AnyImpulse));
+            forced.extend(self.any_impulse_options(s));
             return forced;
         }
         options.retain(|o| {

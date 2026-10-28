@@ -123,7 +123,7 @@ impl Engine {
                         .map(move |path| Choice::FollowPath { minion, path })
                 }),
         );
-        options.extend(self.ability_options(s, Window::AnyImpulse));
+        options.extend(self.any_impulse_options(s));
         options.extend(self.ability_options(s, Window::InfluencePhaseOwn));
         // Abilities paid in transfers: while enough are left.
         options.extend(

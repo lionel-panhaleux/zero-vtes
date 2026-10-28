@@ -953,7 +953,7 @@ id,name,types,disciplines,in_precon,windows,flags,needs_review,review
 102156,Watchtower: Four Ride Forth,Master,,no,MASTER_PHASE,,,ok
 100713,Fee Stake: Corte,Action,,no,ACTION_DECLARE,in_play_action,,ok
 100714,Fee Stake: Los Angeles,Action,,no,ACTION_DECLARE,in_play_action,,ok
-100067,Angel of Berlin,Master,,no,REACTION_DURING_ACTION;ACTION_BLOCKED,out_of_turn,
+100067,Angel of Berlin,Master,,no,ANY_IMPULSE,out_of_turn,
 100075,Antithesis,Action,jud,no,ACTION_DECLARE,,
 100110,Augur,Action,viz,no,ACTION_DECLARE,,
 100198,Blood Cult Awareness Network,Event,,no,DISCARD_PHASE,,

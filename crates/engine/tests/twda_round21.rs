@@ -1805,3 +1805,245 @@ fn living_wood_staff_equipped_by_angel_of_berlin_asks_its_x() {
     assert_eq!(staff.fixed_x, 1);
     assert!(!e.state.cards[held[0].index()].in_play, "its conviction");
 }
+
+// Rulings: [LSJ 20080809-2] [RTR 20081119].
+// Lock on an action's second target: any one target is enough (rules-qa
+// 102.22, 103.1) — Taunt the Caged Beast [ANI] at the prey's vampire and the
+// predator's, Lock on the predator's: the acting vampire pays a blood more.
+#[test]
+fn lock_reads_an_actions_second_target() {
+    let mut paid = Vec::new();
+    for lock in [false, true] {
+        let mut e = game(3);
+        let a = e.add_minion(
+            SeatId(0),
+            crypt_vampire(|c| c.disciplines.contains(&"ANI"), 0),
+            6,
+            false,
+        );
+        e.add_minion(SeatId(0), plain("Brujah", 0), 4, false);
+        let p = e.add_minion(SeatId(1), plain("Ventrue", 0), 4, false);
+        let q = e.add_minion(SeatId(2), plain("Toreador", 0), 4, false);
+        if lock {
+            equipped(&mut e, "Lock", q);
+        }
+        hand(&mut e, 0, &["Taunt the Caged Beast"]);
+        pick(&mut e, play_at(0, 1, Some(a), Target::Minion(p)));
+        until(&mut e, SeatId(0), WindowLabel::MinionPhase);
+        paid.push(blood(&e, a));
+    }
+    assert_eq!(paid[0], paid[1] + 1, "{paid:?}");
+}
+
+// Blood Cult Awareness Network on Summon History [TEM], "put that vampire
+// in play" (rules-qa 102.26, 103.2): a blood more, X = 1 either way.
+#[test]
+fn blood_cult_awareness_network_taxes_summon_historys_vampire() {
+    let mut paid = Vec::new();
+    for tax in [false, true] {
+        let mut e = game(2);
+        let a = e.add_minion(
+            SeatId(0),
+            CRYPT
+                .iter()
+                .position(|c| !c.imbued && c.disciplines.contains(&"TEM"))
+                .expect("a superior Temporis vampire") as u16,
+            6,
+            false,
+        );
+        e.add_minion(SeatId(0), plain("Brujah", 0), 4, false);
+        e.add_minion(SeatId(1), plain("Ventrue", 0), 4, false);
+        imbued(&mut e, 1, "Jack \"Hannibal137\" Harmon");
+        if tax {
+            taxed(&mut e, 1);
+        }
+        hand(&mut e, 0, &["Summon History"]);
+        pick(&mut e, play_at(0, 1, Some(a), Target::None));
+        pick_when(&mut e, Choice::SetX(1));
+        until(&mut e, SeatId(1), WindowLabel::MinionPhase);
+        paid.push(blood(&e, a));
+    }
+    assert_eq!(paid[0], paid[1] + 1, "{paid:?}");
+}
+
+// Rulings: [ANK 20200813-2].
+// Determine cancels any action card, a recruit-ally card too (rules-qa
+// 102.16, 103.3): the prey's Carlton Van Wyk canceled as played, no pool paid,
+// its vampire unlocked.
+#[test]
+fn determine_cancels_a_recruit_ally_card() {
+    let mut e = game(3);
+    let paul = imbued(&mut e, 0, "Paul \"Sixofswords29\" Moreton");
+    e.add_minion(SeatId(0), plain("Brujah", 0), 4, false);
+    let v = e.add_minion(SeatId(1), plain("Ventrue", 0), 4, false);
+    e.add_minion(SeatId(1), plain("Ventrue", 1), 4, false);
+    e.add_minion(SeatId(2), plain("Toreador", 0), 4, false);
+    convictions(&mut e, paul, 1);
+    hand(&mut e, 0, &["Determine"]);
+    hand(&mut e, 1, &["Carlton Van Wyk"]);
+    until(&mut e, SeatId(1), WindowLabel::MinionPhase);
+    let allies = e.state.minions.len();
+    pick(&mut e, play_at(0, 0, Some(v), Target::None));
+    pick_when(&mut e, play_at(0, 1, Some(paul), Target::None));
+    until(&mut e, SeatId(1), WindowLabel::MinionPhase);
+    assert_eq!(e.state.minions.len(), allies, "no ally recruited");
+    assert_eq!(e.state.seats[1].pool, 10, "no cost paid");
+    assert!(
+        !e.state.minions[v.index()].locked,
+        "the monster does not lock"
+    );
+}
+
+// Punish's "cannot gain blood" on every gain (rules-qa 102.9, 103.4): a
+// Punished vampire's Blood Doll moves its pool to the bank, no blood gained.
+#[test]
+fn punish_bars_blood_from_a_blood_doll() {
+    let mut e = game(2);
+    let v = e.add_minion(SeatId(0), plain("Ventrue", 0), 2, false);
+    e.add_minion(SeatId(0), plain("Brujah", 0), 4, false);
+    e.add_minion(SeatId(1), plain("Ventrue", 1), 4, false);
+    let doll = in_play(&mut e, 0, "Blood Doll", Some(v));
+    equipped(&mut e, "Punish", v);
+    e.at_master_phase();
+    pick_when(&mut e, use_on(doll, 1, Target::None));
+    request(&mut e);
+    assert_eq!(e.state.seats[0].pool, 10 - 1);
+    assert_eq!(blood(&e, v), 2, "no blood gained");
+}
+
+// Julia Prima's "bleed any Methuselah" is not offered at her prey: the
+// plain bleed is (no choice offered twice; rules-qa 103.5).
+#[test]
+fn julia_prima_bleeds_another_methuselah_than_her_prey() {
+    let mut e = game(3);
+    let julia = e.add_minion(SeatId(0), find_card("Julia Prima"), 5, false);
+    e.add_minion(SeatId(0), plain("Brujah", 0), 4, false);
+    e.add_minion(SeatId(1), plain("Ventrue", 0), 4, false);
+    e.add_minion(SeatId(2), plain("Toreador", 0), 4, false);
+    let req = request(&mut e);
+    assert!(req.options.contains(&bleed(julia)));
+    assert!(!req
+        .options
+        .contains(&own_at(julia, 0, Target::Seat(SeatId(1)))));
+    assert!(req
+        .options
+        .contains(&own_at(julia, 0, Target::Seat(SeatId(2)))));
+}
+
+// Kassiym Malikhair's blood moved to a Punished Pander goes to the bank
+// (rules-qa 102.9, 103.4): Kassiym loses it, the Pander gains nothing.
+#[test]
+fn kassiym_malikhairs_blood_to_a_punished_pander_goes_to_the_bank() {
+    let mut e = game(2);
+    let k = e.add_minion(SeatId(0), find_card("Kassiym Malikhair"), 4, false);
+    e.add_minion(SeatId(0), plain("Brujah", 0), 4, false);
+    let pander = e.add_minion(SeatId(1), of_clan("Pander", 0), 2, false);
+    e.add_minion(SeatId(1), plain("Ventrue", 0), 4, false);
+    // Seat 0's Punish ("you still control"), burned in seat 0's next unlock.
+    let punish = in_play(&mut e, 0, "Punish", Some(pander));
+    e.state.layers.push(zvtes::cards::Layer {
+        scope: zvtes::cards::Scope::InPlay,
+        modifier: zvtes::cards::Modifier::HostCannotGainBlood,
+        source: punish,
+    });
+    until(&mut e, SeatId(1), WindowLabel::MinionPhase);
+    pick_when(&mut e, own_on(k, 0, Target::Minion(pander)));
+    request(&mut e);
+    assert_eq!((blood(&e, k), blood(&e, pander)), (3, 2));
+}
+
+// Angel of Berlin any time its player holds the impulse in another
+// Methuselah's turn, outside combat (owner, rules-qa 103.6): not offered in
+// the combat of the imbued's block; after it, as the predator ends its
+// minion phase, it unlocks the imbued.
+#[test]
+fn angel_of_berlin_is_played_between_actions_not_in_combat() {
+    let mut e = game(2);
+    let jack = imbued(&mut e, 0, "Jack \"Hannibal137\" Harmon");
+    e.add_minion(SeatId(0), plain("Brujah", 0), 4, false);
+    let z = e.add_minion(SeatId(1), plain("Ventrue", 0), 4, false);
+    e.add_minion(SeatId(1), plain("Ventrue", 1), 4, false);
+    hand(&mut e, 0, &["Angel of Berlin"]);
+    until(&mut e, SeatId(1), WindowLabel::MinionPhase);
+    pick(&mut e, bleed(z));
+    pick_when(&mut e, block(jack));
+    let req = until(&mut e, SeatId(0), WindowLabel::CombatDetermineRange);
+    assert!(
+        !req.options
+            .iter()
+            .any(|o| matches!(o, Choice::Play { card: 0, .. })),
+        "not in combat: {:?}",
+        req.options
+    );
+    until(&mut e, SeatId(1), WindowLabel::MinionPhase);
+    assert!(e.state.minions[jack.index()].locked, "locked by its block");
+    pick(&mut e, Choice::Pass);
+    pick_when(&mut e, play_at(0, 0, None, Target::Minion(jack)));
+    request(&mut e);
+    assert!(
+        !e.state.minions[jack.index()].locked,
+        "unlocked between actions"
+    );
+}
+
+// Angel of Berlin in another Methuselah's unlock phase (rules-qa 103.6):
+// played from its player's hand, not the active one's (the fuzz).
+#[test]
+fn angel_of_berlin_is_played_in_another_methuselahs_unlock_phase() {
+    let mut e = game(2);
+    let jack = imbued(&mut e, 0, "Jack \"Hannibal137\" Harmon");
+    e.add_minion(SeatId(0), plain("Brujah", 0), 4, false);
+    e.add_minion(SeatId(1), plain("Ventrue", 0), 4, false);
+    e.add_minion(SeatId(1), plain("Ventrue", 1), 4, false);
+    hand(&mut e, 0, &["Angel of Berlin"]);
+    hand(&mut e, 1, &["Pursuit"]);
+    e.state.minions[jack.index()].locked = true;
+    let req = until(&mut e, SeatId(0), WindowLabel::UnlockAbilities);
+    assert_eq!(e.state.active, SeatId(1), "the predator's unlock phase");
+    let angel = play_at(0, 0, None, Target::Minion(jack));
+    assert!(req.options.contains(&angel), "{:?}", req.options);
+    pick(&mut e, angel);
+    request(&mut e);
+    assert!(!e.state.minions[jack.index()].locked, "unlocked");
+    assert_eq!(
+        e.state.seats[1].hand.to_cards(),
+        vec![find_library("Pursuit")]
+    );
+}
+
+// "Directed at" a second target too (rules-qa 103.1): Taunt the Caged
+// Beast at the prey's vampire and Edward Vignes, the predator's — Edward's
+// "an action directed at Edward" ability offered.
+#[test]
+fn edward_vignes_reads_an_actions_second_target() {
+    let mut e = game(3);
+    let a = e.add_minion(
+        SeatId(0),
+        crypt_vampire(|c| c.disciplines.contains(&"ANI"), 0),
+        6,
+        false,
+    );
+    e.add_minion(SeatId(0), plain("Brujah", 0), 4, false);
+    let p = e.add_minion(SeatId(1), plain("Ventrue", 0), 4, false);
+    let edward = e.add_minion(SeatId(2), find_card("Edward Vignes"), 4, false);
+    hand(&mut e, 0, &["Taunt the Caged Beast"]);
+    hand(&mut e, 2, &["Deflection"]);
+    pick(&mut e, play_at(0, 1, Some(a), Target::Minion(p)));
+    let mut offered = false;
+    for _ in 0..30 {
+        let req = request(&mut e);
+        if req.window == WindowLabel::MinionPhase {
+            break;
+        }
+        if req.seat == SeatId(2)
+            && req.options.iter().any(|o| {
+                matches!(o, Choice::UseAbility { source: AbilitySource::Vampire(m), .. } if *m == edward)
+            })
+        {
+            offered = true;
+            break;
+        }
+        e.choose(fallback(&req));
+    }
+    assert!(offered, "Edward's ability against the action at him");
+}

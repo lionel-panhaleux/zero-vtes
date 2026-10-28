@@ -1107,7 +1107,7 @@ impl Engine {
                     &[Window::Referendum, Window::Wake]
                 };
                 options.extend(self.play_options(seat, windows, None));
-                options.extend(self.ability_options(seat, Window::AnyImpulse));
+                options.extend(self.any_impulse_options(seat));
                 WindowLabel::ReferendumPolling
             }
         };

@@ -689,6 +689,15 @@ impl Engine {
         }))
     }
 
+    /// What `seat` may use or play whenever it holds the impulse: the
+    /// untimed abilities of cards in play and the cards timed so (Angel of
+    /// Berlin, rules-qa 103.6).
+    pub(crate) fn any_impulse_options(&self, seat: SeatId) -> Vec<Choice> {
+        let mut out = self.ability_options(seat, Window::AnyImpulse);
+        out.extend(self.play_options(seat, &[Window::AnyImpulse], None));
+        out
+    }
+
     /// What `seat` may play or use at an impulse in `windows`: the cards,
     /// the abilities of cards in play timed like them (Bowl of Convergence
     /// [AUS] on a block attempt), and the untimed abilities.
@@ -697,7 +706,7 @@ impl Engine {
         for &w in windows {
             out.extend(self.ability_options(seat, w));
         }
-        out.extend(self.ability_options(seat, Window::AnyImpulse));
+        out.extend(self.any_impulse_options(seat));
         out
     }
 
@@ -1561,7 +1570,7 @@ impl Engine {
         // "During their master phase" abilities of cards in play (Blood
         // Doll): no master phase action spent; and the untimed ones.
         options.extend(self.ability_options(s, Window::MasterPhase));
-        options.extend(self.ability_options(s, Window::AnyImpulse));
+        options.extend(self.any_impulse_options(s));
         // A mandatory effect due (Brujah Debate): ordered among the rest,
         // no passing before it (rules-qa 33.1, 40.5).
         let due = self.master_dues();
@@ -6197,7 +6206,7 @@ impl Engine {
         // those spending a discard phase action (Ayse Dhanial).
         options.extend(self.ability_options(s, Window::DiscardPhase));
         options.extend(self.ability_options(s, Window::DiscardPhaseAction));
-        options.extend(self.ability_options(s, Window::AnyImpulse));
+        options.extend(self.any_impulse_options(s));
         DecisionRequest::new(s, WindowLabel::DiscardPhase, options)
     }
 
@@ -6843,10 +6852,11 @@ impl Engine {
                         .is_some_and(|a| st.minions[a.acting.index()].clan() == clan)
             }
             // "An action directed at Edward" (Edward Vignes).
-            (R::ActionTargetsHost, AbilitySource::Vampire(h)) => self
-                .action
-                .as_ref()
-                .is_some_and(|a| a.directed_seat(st).is_some() && a.target_minion() == Some(h)),
+            (R::ActionTargetsHost, AbilitySource::Vampire(h)) => {
+                self.action.as_ref().is_some_and(|a| {
+                    a.directed_seat(st).is_some() && a.target_minions().any(|t| t == h)
+                })
+            }
             // "Each older Toreador" (Mustafa).
             (R::ActorOlderThanHost, AbilitySource::Vampire(h)) => {
                 u.actor.is_some_and(|a| st.younger_than(h, a))
@@ -8799,8 +8809,9 @@ impl Engine {
                 Effect::OutOfPlayHostGainsBlood(n) => {
                     if let Some(h) = self.state.cards[source.card().index()].host {
                         let cap = self.state.capacity_of(h).unwrap_or(u8::MAX);
-                        let v = &mut self.state.minions[h.index()];
-                        v.raise_blood((v.blood + n).min(cap.max(v.blood)));
+                        let v = &self.state.minions[h.index()];
+                        let b = (v.blood + n).min(cap.max(v.blood));
+                        self.state.set_blood(h, b);
                     }
                 }
                 Effect::ReturnHost { unlocked } => {
@@ -8934,15 +8945,21 @@ impl Engine {
                     let was = self.state.minions[t.index()].blood;
                     let now = self.state.cap_starting(t, was.saturating_add(n.min(have)));
                     self.state.set_blood(t, now);
-                    self.state.lose_blood(h, now - was);
+                    // Moved to a vampire that cannot gain it: to the bank.
+                    let moved = if self.state.cannot_gain_blood(t) {
+                        n.min(have)
+                    } else {
+                        now - was
+                    };
+                    self.state.lose_blood(h, moved);
                 }
                 // Blood above the host's capacity drains off as the engine
                 // settles (rules-qa 41.8).
                 Effect::TargetBloodToHost(n) => {
                     let (h, t) = (host.expect("host"), target.minion());
                     let give = n.min(self.state.minions[t.index()].blood);
-                    let v = &mut self.state.minions[h.index()];
-                    v.raise_blood(v.blood.saturating_add(give));
+                    let b = self.state.minions[h.index()].blood.saturating_add(give);
+                    self.state.set_blood(h, b);
                     self.state.lose_blood(t, give);
                     let v = &self.state.minions[t.index()];
                     if v.is_ally() && v.blood == 0 {
@@ -9789,7 +9806,7 @@ impl Engine {
             options.extend(self.ability_options(seat, Window::UnlockPhaseOwn));
             options.extend(self.play_options(seat, &[Window::UnlockConviction], None));
         }
-        options.extend(self.ability_options(seat, Window::AnyImpulse));
+        options.extend(self.any_impulse_options(seat));
         options.extend(self.burn_option_discards(seat));
         Some(DecisionRequest::new(
             seat,
@@ -9886,15 +9903,16 @@ impl Engine {
                 }
                 window.play();
             }
-            // A conviction played on an imbued, from hand or ash heap.
+            // A conviction played on an imbued, from hand or ash heap; or a
+            // card of the seat holding the impulse (Angel of Berlin).
             Choice::Play {
                 card,
                 mode,
                 actor,
                 target,
             } => {
+                let s = window.current().expect("impulse holder");
                 window.play();
-                let s = self.state.active;
                 let resume = Flow::Abilities {
                     window,
                     pending,
@@ -10780,7 +10798,7 @@ impl Engine {
         };
         if pending.is_empty() {
             options.push(Choice::Pass);
-            options.extend(self.ability_options(seat, Window::AnyImpulse));
+            options.extend(self.any_impulse_options(seat));
             if matches!(resume, Flow::Discard) {
                 options.extend(self.ability_options(seat, Window::OthersDiscardPhase));
             }
@@ -10846,6 +10864,18 @@ impl Engine {
                 if !self.use_ability(seat, *source, *ability, *actor, *target, phase.clone()) {
                     self.flow = phase;
                 }
+            }
+            // A card played (Angel of Berlin), the impulse back after it.
+            Choice::Play {
+                card,
+                mode,
+                actor,
+                target,
+            } => {
+                let seat = window.current().expect("impulse holder");
+                let phase = *resume;
+                self.flow = phase.clone();
+                self.announce_play(seat, *card, *mode, *actor, *target, phase);
             }
             other => unreachable!("illegal phase-rotation choice {other:?}"),
         }

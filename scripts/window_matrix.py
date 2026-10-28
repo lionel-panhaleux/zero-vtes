@@ -1588,10 +1588,9 @@ REACTION_TIMING = [
     # (Diabolic Lure [dai]).
     (r"if this \w+ blocks\b[^.]{0,40}?before block resolution", "ACTION_BLOCKED"),
     # "Not usable during combat" with no other timing (Angel of Berlin):
-    # any time in an action, and after a successful block before its
-    # combat (LSJ 20060410).
-    (r"\bnot usable during combat\.", "REACTION_DURING_ACTION"),
-    (r"\bnot usable during combat\.", "ACTION_BLOCKED"),
+    # any time its player holds the impulse, outside combat (owner,
+    # rules-qa 103.6).
+    (r"\bnot usable during combat\.", "ANY_IMPULSE"),
     # An out-of-turn master triggered by the opposing strike (Rötschreck).
     (r"attempts to inflict aggravated damage", "COMBAT_BEFORE_RESOLUTION"),
     # An out-of-turn master saving a Methuselah from an oust (Life Boon).

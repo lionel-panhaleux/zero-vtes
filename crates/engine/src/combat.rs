@@ -1716,7 +1716,7 @@ impl Engine {
                 }
             }
         }
-        options.extend(self.ability_options(seat, Window::AnyImpulse));
+        options.extend(self.any_impulse_options(seat));
         if let Some(i) = retainers {
             options = self.with_retainer_targets(i, options);
         }

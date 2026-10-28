@@ -1939,14 +1939,16 @@ impl GameState {
         self.capacity_of(m).is_none_or(|c| c < than)
     }
 
+    /// "Cannot gain blood; any blood gained goes to the bank" (Punish),
+    /// "cannot gain life": every gain lost, moved blood included, as
+    /// `set_blood` refuses it.
+    pub fn cannot_gain_blood(&self, m: MinionId) -> bool {
+        self.minions[m.index()].no_life_gain || self.bears(m, Modifier::HostCannotGainBlood)
+    }
+
     /// Blood `m` may hold of `blood` gained: capped at capacity, unlimited
-    /// for an ally — none for one that cannot gain life.
+    /// for an ally.
     pub fn cap_blood(&self, m: MinionId, blood: u8) -> u8 {
-        let v = &self.minions[m.index()];
-        // "Cannot gain blood; any blood gained goes to the bank" (Punish).
-        if v.no_life_gain || self.bears(m, Modifier::HostCannotGainBlood) {
-            return blood.min(v.blood);
-        }
         match self.capacity_of(m) {
             Some(c) => blood.min(c),
             None => blood,
@@ -1957,10 +1959,6 @@ impl GameState {
     /// never below what it already has.
     pub fn cap_starting(&self, m: MinionId, blood: u8) -> u8 {
         let v = &self.minions[m.index()];
-        // "Cannot gain blood; any blood gained goes to the bank" (Punish).
-        if v.no_life_gain || self.bears(m, Modifier::HostCannotGainBlood) {
-            return blood.min(v.blood);
-        }
         let start = match v.kind {
             MinionKind::Ally { body, .. } => body.life,
             _ => self.capacity_of(m).unwrap_or(0),
@@ -1981,6 +1979,9 @@ impl GameState {
         let old = self.minions[m.index()].blood;
         if b < old {
             self.lose_blood(m, old - b);
+            return;
+        }
+        if b > old && self.cannot_gain_blood(m) {
             return;
         }
         self.minions[m.index()].blood = b;

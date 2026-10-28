@@ -9054,7 +9054,7 @@ pub static JULIA_PRIMA: VampireDef = VampireDef {
         ModeDef {
             target: Some(TargetSpec {
                 kind: TargetKind::Seat,
-                filter: &[R::NotSelf],
+                filter: &[R::NotSelf, R::NotPrey],
             }),
             ..mode_of(
                 &[Window::ActionDeclare],

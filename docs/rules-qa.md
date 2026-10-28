@@ -67,7 +67,7 @@ by the owner. Apply them to every new card; only a ruling overrides them.
 ## Index
 
 - **Untimed abilities** — 7.7, 29.10, 15.2 (Kalinda)
-- **Legacy additions for TWDA decks** — 44.1–44.10, 57.1–57.10, 58.1–58.20, 59.1–59.19, 60.1–60.22, 62.2–62.31, 62.33, 63.1–63.17, 64.1–64.12, 65.1–65.3, 67.1–67.7, 68.1–68.17, 69.1–69.15, 70.1–70.22, 71.1–71.27, 74.1–74.13, 76.1–76.25, 77.1–77.35, 78.1–78.49, 78.54, 79.3, 80.1–80.45, 84.1–84.40, 85.1–85.34, 89.1–89.26, 102.1–102.26
+- **Legacy additions for TWDA decks** — 44.1–44.10, 57.1–57.10, 58.1–58.20, 59.1–59.19, 60.1–60.22, 62.2–62.31, 62.33, 63.1–63.17, 64.1–64.12, 65.1–65.3, 67.1–67.7, 68.1–68.17, 69.1–69.15, 70.1–70.22, 71.1–71.27, 74.1–74.13, 76.1–76.25, 77.1–77.35, 78.1–78.49, 78.54, 79.3, 80.1–80.45, 84.1–84.40, 85.1–85.34, 89.1–89.26, 102.1–102.26, 103.1–103.6
 - **Ousts, Life Boon's decision point** — 45.1–45.8, 88.2
 - **Impulse, sequencing, windows** — 1.2, 1.3, 1.5, 2.1, 2.2, 2.3, 2.4, 3.7, 4.1, 5.3, 7.7, 7.8, 7.9, 23.3, 24.2, 26.5, 66.1, 96.4
 - **Mandatory effects and their ordering** — 6.1, 6.4, 7.8, 7.9, 17.2, 27.1, 28.9, 32.10, 40.5, 88.5
@@ -2453,6 +2453,20 @@ Each contradiction read against the KRCG rulings, the advanced rules and the rul
 
 **102.24** Unity: used whenever its controller holds the impulse, as a location's lock ability; lock and 1 pool; two cards requiring an imbued, a creed or a virtue (powers, convictions, creed and virtue cards, cards a mode of which requires an imbued: `CardFilter::RequiresImbued`, read from the crypt's imbued), fewer if fewer; then a cut of any number of cards, or none (LSJ 20060413). Amber. (Test unity_moves_two_imbued_cards_to_the_library_top_then_may_cut.)
 
-**102.25** Angel of Berlin: another Methuselah's turn only, during an action or after a successful block before its combat (LSJ 20060410), never in combat; unlocks any imbued, or equips its player's ready imbued from hand — not an action, not played by the minion (LSJ 20100725, LSJ 20080815, LSJ 20090115-1, ANK 20201229). Green. (Test angel_of_berlin_unlocks_or_equips_an_imbued_out_of_turn.)
+**102.25** Angel of Berlin (its timing superseded by 103.6): another Methuselah's turn only, during an action or after a successful block before its combat (LSJ 20060410), never in combat; unlocks any imbued, or equips its player's ready imbued from hand — not an action, not played by the minion (LSJ 20100725, LSJ 20080815, LSJ 20090115-1, ANK 20201229). Green. (Test angel_of_berlin_unlocks_or_equips_an_imbued_out_of_turn.)
 
 **102.26** Blood Cult Awareness Network: while any ready imbued is in play, read live, an action to put a vampire or a ghoul in play (The Embrace, Raw Recruit's Gargoyle, Call the Great Beast's 11th counter, a ghoul's recruit or employ) or to add counters to an uncontrolled vampire, conditionally too (Feast of the Soul's Secrets, LSJ 20060414) gets −1 stealth and costs 1 more blood or life as it resolves (a blocked one pays none, D20); Web of Knives Recruit's is not one (LSJ 20060616-2). Green. (Tests blood_cult_awareness_network_taxes_actions_making_vampires, blood_cult_awareness_network_taxes_conditional_uncontrolled_counters, blood_cult_awareness_network_leaves_web_of_knives_recruit_alone, blood_cult_awareness_network_taxes_the_great_beasts_eleventh_counter, blood_cult_awareness_network_taxes_raw_recruits_gargoyle.)
+
+## Batch 103 — Round 21 reviewed: the egress rounds' edges and a fresh audit (the cards board; owner, 2026-10-28: 103.6) (Claude, 2026-10-28)
+
+**103.1** "Any one target is enough" (LSJ 20080809-2, RTR 20081119): Lock's and Chanjelin Ward's surcharges read every minion an action targets, a second target too (Taunt the Caged Beast's predator's vampire: `ActionCtx::target_minions`), paid once; so do the other readers of an action "directed at" a minion (Edward Vignes, Yoruba Shrine's ready Banu Haqim, an action at a minion by a vampire of a sect: the egress review). Green. (Tests lock_reads_an_actions_second_target, edward_vignes_reads_an_actions_second_target.)
+
+**103.2** Blood Cult Awareness Network's actions (102.26), the pool read through: Summon History [TEM], putting a vampire in play, is taxed; its [tem] (an ally, retainer or equipment found, maybe a ghoul) is not, the card unknown as the action is announced; Graverobbing [DOM]'s move to the ready region is not, the vampire already in play (in torpor). Amber (the conditional counters' ruling, LSJ 20060414, read narrowly). (Test blood_cult_awareness_network_taxes_summon_historys_vampire.)
+
+**103.3** Determine's cancel takes any action card — action, political action, ally, equipment, retainer (ANK 20200813-2; the fresh audit: only `CardType::Action` was matched). Green. (Test determine_cancels_a_recruit_ally_card.)
+
+**103.4** Punish's "cannot gain blood" (102.9) holds on every gain, blood moved included: `GameState::set_blood` refuses a gain to a minion that cannot gain blood (`cannot_gain_blood`), every gain routed through it (a target's blood to its host, Descent into Darkness's, Third Tradition: Progeny's move, now recorded as gains too): a Blood Doll's pool moved to the bank, Kassiym Malikhair's blood to a Punished Pander lost to the bank (the fresh audit). Green. (Tests punish_bars_blood_from_a_blood_doll, kassiym_malikhairs_blood_to_a_punished_pander_goes_to_the_bank.)
+
+**103.5** Julia Prima's "bleed any Methuselah" is not offered at her prey: the plain bleed is that choice already (the owner's findings rule: no choice offered twice). Green. (Test julia_prima_bleeds_another_methuselah_than_her_prey.)
+
+**103.6** Supersedes 102.25's timing: Angel of Berlin is played any time its player holds the impulse in another Methuselah's turn — between actions, in another phase's rotation, during an action, after a successful block before its combat (LSJ 20060410) — never in combat (the text bars only combat; `Window::AnyImpulse` for hand cards, `any_impulse_options`). Owner (2026-10-28). (Tests angel_of_berlin_is_played_between_actions_not_in_combat, angel_of_berlin_is_played_in_another_methuselahs_unlock_phase, angel_of_berlin_unlocks_or_equips_an_imbued_out_of_turn.)

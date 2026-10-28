@@ -4957,8 +4957,9 @@ pub static UNITY: CardDef = CardDef {
 /// "Master: out-of-turn. Requires a ready imbued. Unlock an imbued, or
 /// equip a ready imbued you control with an equipment from your hand
 /// (requirements must be met; pay cost as normal). Not usable during
-/// combat." Another Methuselah's turn only (rulebook "Out-of-turn"); after
-/// a successful block too, before combat (LSJ 20060410); not an action:
+/// combat." Any time its player holds the impulse in another Methuselah's
+/// turn, outside combat (owner, rules-qa 103.6), after a successful block
+/// before combat too (LSJ 20060410); not an action:
 /// the equipment's requirements alone, no action reduction (LSJ 20100725,
 /// LSJ 20090115-1), nor the second equip of section 3 (LSJ 20080815); not
 /// played by a minion (ANK 20201229).
@@ -4969,9 +4970,13 @@ pub static ANGEL_OF_BERLIN: CardDef = CardDef {
         ModeDef {
             target: target(TargetKind::Minion, &[Requirement::TargetImbued]),
             ..mode_of(
-                &[Window::ReactionDuringAction, Window::ActionBlocked],
+                &[Window::AnyImpulse],
                 Actor::Methuselah,
-                &[Requirement::NotOwnTurn, Requirement::ControlsReadyImbued],
+                &[
+                    Requirement::NotOwnTurn,
+                    Requirement::NotInCombat,
+                    Requirement::ControlsReadyImbued,
+                ],
                 &[Effect::UnlockTarget],
             )
         },
@@ -4989,9 +4994,13 @@ pub static ANGEL_OF_BERLIN: CardDef = CardDef {
                 blood_share: false,
             }),
             ..mode_of(
-                &[Window::ReactionDuringAction, Window::ActionBlocked],
+                &[Window::AnyImpulse],
                 Actor::Methuselah,
-                &[Requirement::NotOwnTurn, Requirement::ControlsReadyImbued],
+                &[
+                    Requirement::NotOwnTurn,
+                    Requirement::NotInCombat,
+                    Requirement::ControlsReadyImbued,
+                ],
                 &[Effect::EquipNamed],
             )
         },
@@ -5736,7 +5745,7 @@ pub static DETERMINE: CardDef = CardDef {
             Actor::ReactingMinion,
             &[
                 Requirement::MayBeLocked,
-                Requirement::PlayedCardType(CardType::Action),
+                Requirement::PlayedCard(CardFilter::ActionCard),
                 Requirement::PlayedByPredatorOrPrey,
                 Requirement::PlayedByMonster,
             ],
@@ -28995,8 +29004,8 @@ pub static IMPRISON: CardDef = CardDef {
 /// remainder of combat, the amount of damage inflicted on this imbued by
 /// hand strikes, melee weapon strikes, or retainers is also inflicted on
 /// the striking minion or damage-dealing retainer, even if this imbued
-/// prevents the damage." The striker's share as it is inflicted, its
-/// aggravation kept.
+/// prevents the damage." The amount, as normal damage (owner, rules-qa
+/// 102.15).
 pub static INFLICT: CardDef = CardDef {
     name: "Inflict",
     modes: &[combat(

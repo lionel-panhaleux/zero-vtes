@@ -3878,7 +3878,8 @@ impl Engine {
                 self.interrupts.remove(0);
                 let n = n.min(self.state.minions[from.index()].blood);
                 self.state.lose_blood(from, n);
-                self.state.minions[to.index()].blood += n;
+                let b = self.state.minions[to.index()].blood + n;
+                self.state.set_blood(to, b);
             }
             (Interrupt::StealUpTo { from, to, .. }, Choice::SetX(n)) => {
                 self.interrupts.remove(0);

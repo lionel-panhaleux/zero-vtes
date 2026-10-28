@@ -387,6 +387,7 @@ impl Requirement {
             R::TargetImbued => &[S::MinionTarget, S::UncontrolledTarget],
             R::NotActingController
             | R::NotSelf
+            | R::NotPrey
             | R::TargetPoolMoreThanYours
             | R::TargetSeatOusting
             | R::TargetSeatLostTitled
