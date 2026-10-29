@@ -2,6 +2,7 @@
 self-play, and the league (one learner seat, the exploiter, snapshots and
 bots at 4- and 5-seat tables)."""
 
+import importlib.util
 import json
 import pathlib
 
@@ -12,7 +13,7 @@ import zvtes_py
 
 from train.league import EXP, EXPLOITER, FROZEN, League
 from train.model import remap_vocab
-from train.ppo import BIAS, CTX, HIDDEN, Config, Trainer, collate, collate_bias, forward, deck_index, end, eval_tables, games_weight, imitation, load_replays, made, sampling, step
+from train.ppo import BIAS, CTX, HIDDEN, TEST_CLIENTS, Config, Trainer, collate, collate_bias, forward, deck_index, end, eval_tables, games_weight, imitation, load_replays, made, sampling, step
 
 
 def test_one_iteration(tmp_path):
@@ -581,3 +582,40 @@ def test_distillation_draws_the_learner_to_its_teacher(tmp_path):
     assert kl() < 0.8 * before
     with pytest.raises(ValueError):
         Trainer(Config(**small, d=32, layers=1, obs=2, teacher=teacher, out=str(tmp_path / "other")))
+
+
+def test_starts_and_imitation_read_only_players_games(tmp_path):
+    """`--starts` and `--bc` over a harvest (owner, 2026-10-29: "unfinished
+    game records are really of no use"): an abandoned, an unfinished, a
+    bots-only and a test client's game are left out — the pool refuses the
+    shortest; a test client's human seat (Succubus Club's demo replays the
+    network) is never imitated — and the players' game played out starts
+    tables."""
+    whole = json.loads(open("data/records/zero-vtes-replay-2026-10-04T12-09-51-567Z.json").read())
+    # Four other games (one game recorded twice is read once).
+    a, b, c, d = (json.loads(open(f"data/records/zero-vtes-replay-{t}.json").read()) for t in (
+        "2026-10-04T19-47-18-904Z", "2026-10-05T06-24-53-391Z", "2026-10-05T21-14-26-429Z",
+        "2026-10-08T20-32-01-306Z"))
+    bots = {**c["spec"], "seats": [{**s, "player": {"type": "bot", "profile": "network"}} for s in c["spec"]["seats"]]}
+    starts = tmp_path / "harvest"
+    starts.mkdir()
+    for name, game in (
+        ("whole", whole),
+        ("unfinished", {**a, "entries": a["entries"][:3], "result": None}),
+        ("abandoned", {**b, "result": {**b["result"], "reason": {"type": "abandoned", "seat": 0}}}),
+        ("bots", {**c, "spec": bots}),
+        ("demo", {**d, "spec": {**d["spec"], "client": "succubus-club-demo"}}),
+    ):
+        (starts / f"{name}.json").write_text(json.dumps(game))
+    with pytest.raises(ValueError, match="reads only"):
+        zvtes_py.GamePool(1, ["policy"] * 4, seed=0, replays=[(starts / "unfinished.json").read_text()])
+    trainer = Trainer(Config(games=4, steps=4, d=16, layers=1, device="cpu", out=str(tmp_path / "t"),
+                             starts=str(starts), start_tables=0.5))
+    assert [p.name for p, _, _ in trainer.starts] == ["whole.json"]
+    assert imitation(load_replays(str(starts / "demo.json")), 3, 0)[0] == []
+    assert imitation(load_replays("data/records/zero-vtes-replay-2026-10-08T20-32-01-306Z.json"), 3, 0)[0]
+    # The report's test clients are the trainer's.
+    spec = importlib.util.spec_from_file_location("games_report", "scripts/games_report.py")
+    report = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(report)
+    assert report.TEST_CLIENTS == TEST_CLIENTS

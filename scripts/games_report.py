@@ -41,6 +41,7 @@ REPO = pathlib.Path(__file__).resolve().parent.parent
 # The clients whose games are not players' (`spec.client`): the server's
 # test scripts, and Succubus Club's demo games (a fixed deal, the human
 # seat replaying the served network's own moves; Z-succubus, 2026-10-23).
+# `train/ppo.py` keeps the same tuple (its tests hold them equal).
 TEST_CLIENTS = ("client.mjs", "load.mjs", "succubus-club-demo")
 CATALOG_URL = "https://engine.krcg.org/catalog"
 SMALL = 10  # samples below this are marked

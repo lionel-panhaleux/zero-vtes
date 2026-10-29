@@ -1958,10 +1958,15 @@ training runs.
   --idle-bonus 3 --draw-bonus 7 --stuck-bonus 6 --nightmare-bonus 6 --lr
   1e-4 --iterations 680 --eval-every 20 --bots-every 0`, H the five held
   games (2026-10-11T12-31-56, 2026-10-11T15-45-47, 2026-10-12T21-02-13,
-  2026-10-12T21-50-21, e33fab34fee8ca4b, comma-joined). Judged against p14
-  by the ledger (the training skill's step 5): A&B a round and its prey's R
-  at 4 and 5 seats and on TWDA, decks, `humanset`; the bar the board's line
-  sets, A&B a round above p14's.
+  2026-10-12T21-50-21, e33fab34fee8ca4b, comma-joined). Launched 2026-10-29
+  from `../zero-vtes-p16` at `a4d184d`, before the trainer read players'
+  games only: `--starts` as the list of the 150 harvested games the pool
+  reads (49 abandoned, unfinished or test clients' games read under 10
+  decisions), and imitation over the raw harvest, two Succubus Club demo
+  games among its targets (their human seat replays the network). Judged
+  against p14 by the ledger (the training skill's step 5): A&B a round and
+  its prey's R at 4 and 5 seats and on TWDA, decks, `humanset`; the bar the
+  board's line sets, A&B a round above p14's.
 - **Futile blocks on the E25 engine** (owner, 2026-10-15: before any
   redeploy). E25 (`97c4880`) offers every legal block attempt, those
   that cannot reach the stealth too (`Engine::block_can_reach`); no
@@ -2031,7 +2036,7 @@ What the engine does not yet do or does only in part, true today.
 
 The objectives still open are the roadmap's (`docs/roadmap.md`).
 
-Definitions: 982 library, 496 vampires; 2772 Rust tests, 62 Python tests
+Definitions: 982 library, 496 vampires; 2772 Rust tests, 63 Python tests
 
 ## Outlook: deck building (post-v1)
 

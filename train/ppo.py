@@ -206,8 +206,9 @@ class Config:
     nudge_until: int = 0
     # Starts (owner, 2026-10-04): the share of training tables begun from a
     # decision of one of the games in `starts` (a directory of records or
-    # comma-separated files; `zvtes_protocol::start`), the learner at a
-    # random seat, the libraries and crypts shuffled again.
+    # comma-separated files, players' games read, `players_game`;
+    # `zvtes_protocol::start`), the learner at a random seat, the libraries
+    # and crypts shuffled again.
     starts: str = ""
     start_tables: float = 0.0
     # Imitation (owner, 2026-10-10, the p9 plan; AlphaStar's recipe: RL
@@ -566,6 +567,22 @@ DECK_INDEX = None
 # `scripts/promote.py`'s).
 PLAYED_OUT = {"last_standing", "time_limit"}
 
+# The clients whose games are not players' (`spec.client`): as
+# `scripts/games_report.py`'s `TEST_CLIENTS` (the server's test scripts,
+# Succubus Club's demo games, whose human seat replays the network).
+TEST_CLIENTS = ("client.mjs", "load.mjs", "succubus-club-demo")
+
+
+def players_game(record):
+    """Whether a record (parsed) is a players' game played out: last
+    standing or the time limit (`PLAYED_OUT`), a human seat, not a test
+    client's — what the training reads (owner, 2026-10-29: "unfinished
+    game records are really of no use")."""
+    reason = ((record.get("result") or {}).get("reason") or {}).get("type")
+    spec = record["spec"]
+    human = any(s["player"]["type"] == "human" for s in spec["seats"])
+    return reason in PLAYED_OUT and human and spec.get("client") not in TEST_CLIENTS
+
 # The bias of an option the human was not shown (their settings hid it):
 # no probability in the imitation target.
 HIDDEN = -1e9
@@ -574,9 +591,9 @@ HIDDEN = -1e9
 def imitation(replays, obs, holdout, games=()):
     """The choices of the human who won, in `replays` (owner, 2026-10-15:
     "only imitate games where the human actually won at the end" — a
-    strong bot, and not every human is good; a game played out,
-    `PLAYED_OUT`: an abandoned or cut-short one gives nothing, its leader
-    recorded as winner or not), with an
+    strong bot, and not every human is good; a players' game played out,
+    `players_game`: an abandoned, cut-short or test client's one gives
+    nothing, its leader recorded as winner or not), with an
     alternative among the options they were shown (a record's `shown`: the
     others, hidden by their settings, get the bias `HIDDEN`, else 0) — rows
     as the rollout's, and the option chosen: (trained, held out), every
@@ -605,7 +622,7 @@ def imitation(replays, obs, holdout, games=()):
             names.append(path.name)
         record = json.loads(text)
         result = record.get("result") or {}
-        winner = result.get("winner") if (result.get("reason") or {}).get("type") in PLAYED_OUT else None
+        winner = result.get("winner") if players_game(record) else None
         deck = deck_index(record["spec"]["seats"][winner]) if winner is not None else None
         for d in game["decisions"]:
             if d["chosen"] is None or d["seat"] != winner or d["seat"] not in game["humans"]:
@@ -816,7 +833,14 @@ class Trainer:
                 f"deck families: precons, anniversary, sabbat, twda (got {cfg.decks!r})"
             )
         self.decks = [i for f in names for i in families[f]]
-        self.starts = load_replays(cfg.starts)
+        # Players' games only (`players_game`): a harvest also holds
+        # abandoned, unfinished and test clients' games, kept for its
+        # report; those left out, and named.
+        self.starts, unfinished = [], []
+        for r in load_replays(cfg.starts):
+            (self.starts if players_game(json.loads(r[1])) else unfinished).append(r)
+        if unfinished:
+            print(json.dumps({"starts_left_out": [p.name for p, _, _ in unfinished]}), flush=True)
         # Each start's seats' pool decks (None: a human's own list).
         self.start_decks = [
             [deck_index(s) for s in json.loads(text)["spec"]["seats"]] for _, text, _ in self.starts

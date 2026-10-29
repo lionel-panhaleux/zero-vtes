@@ -176,40 +176,36 @@ runs" (every run's command, numbers and lessons), `docs/boards/training.md`.
   text: `--allow-text` once the owner has read them). A promoted game is
   in `data/records` and in the harvest list both; the trainer reads it
   once (`load_replays` keeps a game listed twice once).
-- **Use**: train on `data/records` (curated) plus an explicit list or a
-  filtered copy of harvested games, never the raw `data/server-records`
-  directory (`--bc`/`--starts` read every `*.json` there: bot-only,
-  abandoned and short games as starts, every stranger who won as an
-  imitation target). The list: the harvested games the report
-  counts (`games_report.py`'s docstring has the rule), written by
-  `python3 scripts/games_report.py --list <file>` in the shared checkout
-  on `main`, after the harvest (its defaults: from a worktree the list is
-  empty and records before 1.7.0 would cache that worktree's engine's
-  turns; not with `--no-turns`, which counts those games short), as
-  absolute paths,
-  comma-separated: `--bc data/records,$(cat <file>)`, the same for
-  `--starts`. Imitation's cost: `--bc-every 4` puts its term on every 4th
-  minibatch at 4× the weight (~14% of an iteration, DESIGN §11.2 "Faster
-  iterations"; from p13). Imitation (`--bc`) keeps only the human who won (owner,
-  2026-10-15: the bot is strong and not every human is good; only a game
-  played out, last standing or the time limit: a lost, unfinished or
-  abandoned one gives nothing, its leader recorded as winner or not), among the options they were shown (a
-  record's `shown`, read from the entry each decision took,
-  `replay_decisions`' `entry`, never by position: a pass the reader reads
-  past shifts it; those their settings hid get no probability, so
-  Opportunities off is fine); held-out games named with
-  `--bc-held-games` (it matches parts of file names: game ids for harvested
-  files, timestamps in `data/records`), never every Nth; `--bc-weak-weight
-  W` draws the choices of a winner on a `--weak-decks` deck W times as
-  often (the first line logs them, `bc_weak`); `--bc-games-weight
-  part=W,…` those of named games (parts of file names; the first part a
-  name holds) W times, the deck's and the game's weights multiplied
-  (`bc_games`): the owner's games, `zero-vtes-replay` (the 24
-  converted fork games, all the owner's) and a harvested one by its id —
-  no record names its player. Starts from
-  recorded positions (`--starts`). Weakness mining: a recurring bad choice
-  becomes a `waste` counter first, a nudge only if it persists and the owner
-  agrees (the owner prefers emergent fixes).
+- **Use**: `--bc` and `--starts` over `data/records` (curated) and the
+  harvest directory `data/server-records`: the trainer reads only players'
+  games (`train/ppo.py` `players_game`: played out, a human seat, not a test
+  client's — owner, 2026-10-29: "unfinished game records are really of no
+  use"), and names the starts it left out (`starts_left_out`); the files
+  stay for the report's counts. The report's list (`python3
+  scripts/games_report.py --list <file>` in the shared checkout on `main`,
+  after the harvest; `--bc data/records,$(cat <file>)`) also drops its
+  "short" games (under `--min-rounds` rounds). Imitation's cost: `--bc-every
+  4` puts its term on every 4th minibatch at 4× the weight (~14% of an
+  iteration, DESIGN §11.2 "Faster iterations"; from p13). Imitation (`--bc`)
+  keeps only the human who won (owner, 2026-10-15: the bot is strong and not
+  every human is good; only a game played out, last standing or the time
+  limit: a lost, unfinished or abandoned one gives nothing, its leader
+  recorded as winner or not), among the options they were shown (a record's
+  `shown`, read from the entry each decision took, `replay_decisions`'
+  `entry`, never by position: a pass the reader reads past shifts it; those
+  their settings hid get no probability, so Opportunities off is fine);
+  held-out games named with `--bc-held-games` (it matches parts of file
+  names: game ids for harvested files, timestamps in `data/records`), never
+  every Nth; `--bc-weak-weight W` draws the choices of a winner on a
+  `--weak-decks` deck W times as often (the first line logs them,
+  `bc_weak`); `--bc-games-weight part=W,…` those of named games (parts of
+  file names; the first part a name holds) W times, the deck's and the
+  game's weights multiplied (`bc_games`): the owner's games,
+  `zero-vtes-replay` (the 24 converted fork games, all the owner's) and a
+  harvested one by its id — no record names its player. Starts from recorded
+  positions (`--starts`). Weakness mining: a recurring bad choice becomes a
+  `waste` counter first, a nudge only if it persists and the owner agrees
+  (the owner prefers emergent fixes).
 
 ## Rules
 
