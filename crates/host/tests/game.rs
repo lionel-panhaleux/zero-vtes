@@ -734,6 +734,75 @@ fn a_game_resumed_from_its_record_plays_on_as_it_was() {
     );
 }
 
+/// An undo to a decision a setting now passes (the opportunities turned
+/// off since it was answered): the record's undo first, its `to` the
+/// decision undone to, the decisions the game took on from it after
+/// (docs/protocol.md §11: the numbers repeat from `to`), so the record
+/// replays and resumes as the game went.
+#[test]
+fn an_undo_to_a_decision_now_passed_resumes_as_it_was() {
+    let opportunities = |on| {
+        cmd(Command::Settings(SettingsPatch {
+            opportunities: Some(on),
+            ..SettingsPatch::default()
+        }))
+    };
+    let found = (1..=200).find_map(|seed| {
+        let mut g = game(seed, Settings::default());
+        let human = g.human();
+        let mut rng = Rng(seed as u64 * 7 + 1);
+        // The decision pending after a command (asked again when it sent
+        // none).
+        let send = |g: &mut Game, c: In| {
+            let outs = g.handle(human, c);
+            pending(&outs)
+                .cloned()
+                .or_else(|| pending(&g.handle(human, join())).cloned())
+        };
+        let mut d = send(&mut g, join())?;
+        for _ in 0..200 {
+            let option = d.options[rng.below(d.options.len())].index;
+            let answer = Command::Answer {
+                decision: d.decision,
+                option,
+            };
+            send(&mut g, cmd(answer))?;
+            let b = send(&mut g, opportunities(false))?;
+            // Now and then: most decisions are played on.
+            if b.undo && b.decision != d.decision && rng.below(3) == 0 {
+                let decision = b.decision;
+                let outs = g.handle(human, cmd(Command::Undo { decision }));
+                let told = outs.iter().find_map(|o| match &o.message {
+                    Message::Events { events, .. } => events.iter().find_map(|e| match e.kind {
+                        zvtes_api::EventKind::Undone { to, .. } => Some(to),
+                        _ => None,
+                    }),
+                    _ => None,
+                });
+                let after = pending(&outs)
+                    .cloned()
+                    .or_else(|| pending(&g.handle(human, join())).cloned())?;
+                if after.decision > d.decision {
+                    // The client drops what it was shown from there too.
+                    assert_eq!(told, Some(d.decision), "seed {seed}: the undone event");
+                    return Some((g, d.decision));
+                }
+            }
+            d = send(&mut g, opportunities(true))?;
+        }
+        None
+    });
+    let (g, n) = found.expect("an undo to a decision now passed");
+    let record = g.record().clone();
+    let undone = record.entries.iter().rev().find_map(|e| match e {
+        Entry::Undo { to, .. } => Some(*to),
+        _ => None,
+    });
+    assert_eq!(undone, Some(n), "the undo's decision");
+    let (_, stopped, resumed) = reads(&record);
+    assert_eq!((stopped, resumed), (None, None), "replayed and resumed");
+}
+
 /// A vote order (`vote_all`) and an allocation answered whole
 /// (`allocate`) resume as they were taken: the resumed game at the same
 /// decision, its undo where the original's is, and on as the original

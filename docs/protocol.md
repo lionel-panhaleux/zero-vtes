@@ -18,7 +18,7 @@ is created by one request and played over one WebSocket. Every game is
 recorded, anonymously, and kept two years to train and test the engine
 (§11).
 
-Version **2.17.0**. The types: the models of the
+Version **2.17.1**. The types: the models of the
 [API reference](https://engine.krcg.org/docs), also as
 [JSON Schema](https://engine.krcg.org/schema.json) (2020-12) and
 [TypeScript](https://engine.krcg.org/protocol.ts).
@@ -721,8 +721,9 @@ temperature, seed, also at most `SEED_MAX`, a network's nudges by name), each
 decision answered — seat, time, option index, its key with the engine's copy
 numbers, by whom (`human`, `bot`, `order`, `auto`), the options shown when
 settings hid some, from 2.4.0 its window and the digest of the position it was
-taken on — undos (decision numbers then repeat from `to`: a reader drops what
-they take back), settings changes, refused commands, the players' feedback (at
+taken on — undos (recorded before the decisions the game takes on from them,
+decision numbers then repeating from `to`: a reader drops what they take
+back), settings changes, refused commands, the players' feedback (at
 its decision), the result (with the turn the game ended on, `turns`; for a
 game a restart ended, the turn its record reads to) and any engine failure. A
 game going when its server restarts is resumed from its record, its entries

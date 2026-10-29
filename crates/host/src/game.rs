@@ -356,8 +356,12 @@ impl Game {
                 }
                 Entry::Undo { to, .. } => {
                     let decision = g.session.decision();
+                    let at = g.record.entries.len();
                     send(&mut g, Command::Undo { decision });
-                    if g.session.decision() != to {
+                    // Its own entry first, then what the game took on from
+                    // it (read from the record's entries after it).
+                    if !matches!(g.record.entries.get(at), Some(Entry::Undo { to: t, .. }) if *t == to)
+                    {
                         return Err(format!("an undo to decision {to} went elsewhere"));
                     }
                 }
@@ -791,19 +795,21 @@ impl Game {
                         // The client drops what it was shown since: the
                         // view after the undo is its table.
                         self.last_view = None;
-                        let at = self.session.decision();
-                        let _ = self.numberings.split_off(&(at + 1));
-                        if let Some((n, names)) = self.numberings.get(&at) {
+                        let to = self.session.decision();
+                        let _ = self.numberings.split_off(&(to + 1));
+                        if let Some((n, names)) = self.numberings.get(&to) {
                             self.viewer.numbering.restore(n);
                             self.viewer.names = names.clone();
                         }
-                        let mut m = self.advance();
-                        let to = self.pending.as_ref().map_or(pending, |d| d.decision);
+                        // Recorded before what the game takes on from it:
+                        // the human's decision a setting now passes, the
+                        // bots after it (their numbers repeating from `to`).
                         self.record.entries.push(Entry::Undo {
                             seat: self.human,
                             at: self.at(),
                             to,
                         });
+                        let mut m = self.advance();
                         m.insert(0, self.events(vec![undone(self.human, to)], None));
                         m
                     }

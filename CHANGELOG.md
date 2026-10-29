@@ -6,6 +6,16 @@ server runs.
 `python3 scripts/schema_compat.py` lists what a schema change adds or
 removes; its `--check` fails a removal without a major version.
 
+## 2.17.1
+
+An undo is recorded before the decisions the game takes on from it, its
+`to` the decision undone to (§11: the numbers repeat from it), the
+`undone` event's `to` likewise. They differed when the game took the
+decision undone to itself (a setting changed since passing it, then the
+bots): the undo was recorded after those decisions, `to` the next pending
+one, and such a record neither replayed nor resumed. No field or id
+changed.
+
 ## 2.17.0
 
 Round 21's cards (rules-qa Batch 102); ids added, none removed:
