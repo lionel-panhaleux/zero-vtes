@@ -2031,7 +2031,7 @@ What the engine does not yet do or does only in part, true today.
 
 The objectives still open are the roadmap's (`docs/roadmap.md`).
 
-Definitions: 982 library, 496 vampires; 2769 Rust tests, 62 Python tests
+Definitions: 982 library, 496 vampires; 2771 Rust tests, 62 Python tests
 
 ## Outlook: deck building (post-v1)
 

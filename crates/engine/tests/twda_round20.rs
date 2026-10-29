@@ -1215,6 +1215,30 @@ fn goblinism_finds_a_location_and_may_put_a_haven_on() {
     }
 }
 
+// Goblinism [MYT]'s haven put on with the last pool: its Methuselah ousted,
+// the turn passing.
+#[test]
+fn goblinism_putting_a_haven_on_with_the_last_pool_ousts() {
+    let mut e = game(3);
+    let a = e.add_minion(SeatId(0), find_card("Pherydima"), 6, false);
+    e.add_minion(SeatId(1), of_clan("Ventrue", 0), 4, false);
+    e.add_minion(SeatId(2), of_clan("Ventrue", 1), 4, false);
+    e.state.seats[0].pool = 1;
+    hand(&mut e, 0, &["Goblinism"]);
+    let haven = find_library("Secure Haven");
+    e.state.seats[0].library.push(haven);
+    for _ in 0..10 {
+        e.state.seats[0].library.push(find_library("Dodge"));
+    }
+    pick(&mut e, play(0, 2, a));
+    pick_when(&mut e, Choice::FindCard(haven));
+    let req = expect(&mut e, SeatId(0), WindowLabel::ResolutionChoice);
+    e.choose(index_of(&req, Choice::FindCard(haven)));
+    request(&mut e);
+    assert!(e.state.seats[0].ousted, "ousted");
+    assert_ne!(e.state.active, SeatId(0), "the turn passed");
+}
+
 // Chanjelin Ward: on a vampire you control, only one a vampire (a mask
 // as played).
 #[test]

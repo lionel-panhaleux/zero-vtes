@@ -1672,9 +1672,11 @@ sources to the engine's conventions.
   may burn (`Terms::XBlood`); at best, the reductions still on offer out too
   (`with_potential`): the offer, a pool card's and a minion's alike. A new
   estimate site reads them.
-- Paying the last pool ousts: out of turn or from an ability, without passing the
-  active turn (`pay_pool_for_ability`); a play whose effects already ousted its
-  player does not oust again.
+- Paying the last pool ousts at once, out of turn or from an ability, the
+  turn passing only if it was the payer's (`pay_pool_for_ability`; a card an
+  ability equips or employs from hand, White Lily's weapon, no play
+  resolving it: `oust_if_out` after it); a play whose effects already ousted
+  its player does not oust again.
 - `CostSource::FocusBlood`: a card on its host, burned as the host pays a
   card played as a combat card, 1 blood off (taken in the non-action
   payment beside The Shard). Concealed Weapon's "cannot cost 3 or more

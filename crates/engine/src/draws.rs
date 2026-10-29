@@ -5059,6 +5059,9 @@ impl Engine {
         self.note_pool_burned(seat);
         let placed = crate::state::CardInPlay::entering(card, copy, seat, Some(minion), 0);
         self.place_now(placed, crate::plays::ModeLayers::Push, false);
+        if pool > 0 && self.state.seats[seat.index()].pool <= 0 {
+            self.acting_pool_out(seat);
+        }
     }
 }
 

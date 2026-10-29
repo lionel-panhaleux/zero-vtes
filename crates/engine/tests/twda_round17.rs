@@ -588,6 +588,45 @@ fn white_lily_equips_a_weapon_from_hand_before_range() {
     assert!(!req.options.contains(&own(w, 0)), "once each combat");
 }
 
+// White Lily's weapon paid with her Methuselah's last pool in another's
+// turn: ousted at once, the turn going on (no play resolves to oust her).
+#[test]
+fn white_lily_paying_the_last_pool_out_of_turn_ousts() {
+    let mut e = game(3);
+    let a = e.add_minion(SeatId(0), plain("Brujah", 0), 4, false);
+    e.add_minion(SeatId(0), plain("Brujah", 1), 4, false);
+    let w = e.add_minion(SeatId(1), find_card("White Lily"), 8, false);
+    e.add_minion(SeatId(2), plain("Ventrue", 0), 4, false);
+    e.state.seats[1].pool = 1;
+    hand(&mut e, 1, &["Desert Eagle"]);
+    pick(&mut e, bleed(a));
+    pick_when(&mut e, block(w));
+    until(&mut e, SeatId(1), WindowLabel::CombatBeforeRange);
+    pick(&mut e, own(w, 0));
+    request(&mut e);
+    assert!(e.state.seats[1].ousted, "ousted");
+    assert_eq!(e.state.active, SeatId(0), "the turn goes on");
+}
+
+// The same on her Methuselah's own turn: ousted, the turn passing.
+#[test]
+fn white_lily_paying_the_last_pool_on_her_turn_ousts_and_passes() {
+    let mut e = game(3);
+    let w = e.add_minion(SeatId(0), find_card("White Lily"), 8, false);
+    e.add_minion(SeatId(0), plain("Brujah", 1), 4, false);
+    let z = e.add_minion(SeatId(1), plain("Ventrue", 0), 4, false);
+    e.add_minion(SeatId(2), plain("Ventrue", 1), 4, false);
+    e.state.seats[0].pool = 1;
+    hand(&mut e, 0, &["Desert Eagle"]);
+    pick(&mut e, bleed(w));
+    pick_when(&mut e, block(z));
+    until(&mut e, SeatId(0), WindowLabel::CombatBeforeRange);
+    pick(&mut e, own(w, 0));
+    request(&mut e);
+    assert!(e.state.seats[0].ousted, "ousted");
+    assert_ne!(e.state.active, SeatId(0), "the turn passed");
+}
+
 #[test]
 fn fatima_needs_a_weapon_in_hand() {
     let mut e = game(2);

@@ -194,6 +194,13 @@ fn invariants(e: &Engine, totals: &[usize], seed: u64, window: WindowLabel) {
             s.pool >= 0 || s.oust_pending,
             "negative pool at seat {i} (seed {seed})"
         );
+        // At 0 only while ousted or about to be: the last pool paid ousts
+        // at once, so a seat left at 0 shows a payment no oust followed.
+        assert!(
+            s.pool > 0 || s.ousted || s.oust_pending,
+            "a living seat at 0 pool: seat {i} (seed {seed}, decision {}, {window:?})",
+            e.log.len()
+        );
         if s.ousted {
             assert_eq!(s.pool, 0, "ousted seat {i} kept pool (seed {seed})");
             assert!(!s.has_edge, "ousted seat {i} kept the Edge (seed {seed})");
@@ -4755,7 +4762,9 @@ fuzz_tests! {
             per_seat(e, |c| c.clan == "Tremere", 4);
             per_seat(e, |c| c.clan == "Werewolf" || c.clan == "Gargoyle", 4);
         },
-        seeds: 150,
+        // Seed 156: White Lily paying her Methuselah's last pool in
+        // another's turn.
+        seeds: 157,
         ..BASE
     };
     /// Legacy cards, round 18 (slice 16ad): the library cards.

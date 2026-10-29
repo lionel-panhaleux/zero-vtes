@@ -5025,7 +5025,8 @@ impl Engine {
                         copy: crate::copies::Untracked(copy),
                         ..PlayCtx::new(s, card, mode, Some(m), Target::Minion(m), 0)
                     };
-                    // Paid down to 0 pool: ousted as the play resolves.
+                    // Paid down to 0 pool: ousted by the caller
+                    // (`resolve_play`; `resolve_ability_now` for an ability).
                     let id = self.put_equipment(s, m, play);
                     self.ask_x_convictions(s, m, id);
                     self.replace(s, 1, None);
@@ -5105,8 +5106,9 @@ impl Engine {
                     self.recruits_or_employs_riders(m);
                     self.replace(s, 1, None);
                     // Paid down to 0 on one's own turn (Piper): ousted, the
-                    // turn passed with it; out of turn, `resolve_play`
-                    // ousts them and the turn goes on.
+                    // turn passed with it; out of turn, the caller ousts
+                    // them and the turn goes on (`resolve_play`;
+                    // `resolve_ability_now` for an ability).
                     if pool > 0 && self.state.seats[s.index()].pool == 0 && s == self.state.active {
                         self.oust_and_pass(s);
                     }
@@ -9716,7 +9718,12 @@ impl Engine {
                 // Nosferatu Bestial: the named retainer employed, not an
                 // action (LSJ 20080815).
                 Effect::EmployNamed | Effect::EquipNamed => {
-                    self.apply_card_effect(*e, &ctx, &mut None)
+                    self.apply_card_effect(*e, &ctx, &mut None);
+                    // No play resolves to oust a user it paid down to 0
+                    // (`resolve_play`): White Lily's weapon.
+                    if !self.state.seats[ctx.seat.index()].ousted {
+                        self.oust_if_out(ctx.seat);
+                    }
                 }
                 Effect::RemoveOwnAshCards(n) => self.interrupts.push(Interrupt::RemoveFromAsh {
                     seat: ctx.seat,
