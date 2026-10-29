@@ -1206,6 +1206,7 @@ impl ActionCtx {
                 _ => None,
             },
             calling: None,
+            target_minions: [self.target_minion(), self.second_target()],
         }
     }
 

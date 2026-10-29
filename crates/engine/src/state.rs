@@ -154,6 +154,8 @@ pub struct PrintedCtx {
     pub target_card: Option<u16>,
     /// The vampire calling the referendum votes are read in (Maldavis).
     pub calling: Option<MinionId>,
+    /// The minions the action targets (Delizbieta of the Dark Eyes).
+    pub target_minions: [Option<MinionId>; 2],
 }
 
 impl PrintedCtx {
@@ -1032,9 +1034,22 @@ pub fn vampire_card(c: u16) -> bool {
     !CRYPT[c as usize].imbued
 }
 
-/// A virtual-hand source in the ash heap, no card in play.
+/// The virtual-hand source of a card played from `seat`'s ash heap by
+/// another Methuselah (Vestgeir): no card in play.
+pub fn ash_of(seat: SeatId) -> CardId {
+    CardId(u32::MAX - 2 - u32::from(seat.0))
+}
+
+/// The seat whose ash heap `from` is, played from by another Methuselah
+/// (`ash_of`).
+pub fn others_ash(from: CardId) -> Option<SeatId> {
+    let k = (u32::MAX - 2).checked_sub(from.0)?;
+    (k < 16).then_some(SeatId(k as u8))
+}
+
+/// A virtual-hand source in an ash heap, no card in play.
 pub fn from_ash(from: CardId) -> bool {
-    from == ASH_PLAY || from == ASH_UNLOCK
+    from == ASH_PLAY || from == ASH_UNLOCK || others_ash(from).is_some()
 }
 
 impl CardId {
@@ -1353,6 +1368,14 @@ pub struct Seat {
     /// Of `held`, the cards Learjet's bearer played as the acting minion:
     /// an extra draw each as it comes due (PIB 20110718).
     pub learjet_held: Held,
+    /// Of `held`, the cards whose replacement may instead take the card
+    /// back from the ash heap, with when they come due (Steely Tenacity;
+    /// `Interrupt::RetakeFromAsh`).
+    pub retakes: Vec<(Release, u16, crate::copies::CopyId)>,
+    /// The hand cards an action card being resolved may take, those in hand
+    /// before its replacement was drawn (Gift of Proteus, PIB 20150428);
+    /// one taken, one fewer.
+    pub earmarked: Vec<u16>,
     /// "Do not replace as long as this card is in play" (The Uncoiling):
     /// replaced as it leaves play, even burned (LSJ 20080805).
     pub held_in_play: Vec<CardId>,
@@ -1373,14 +1396,19 @@ pub struct Seat {
     /// Political actions the seat's minions cannot perform again this
     /// turn (Delaying Tactics; LSJ 20020201).
     pub forbidden_political: Vec<ActionId>,
+    /// Lost pool since the engine last settled it (Conniver;
+    /// `Engine::settle_pool_losses`).
+    pub lost_pool: bool,
 }
 
 impl Seat {
     /// Lose or spend `n` pool (a negative `n` gains), the one way pool goes
-    /// down (`tests/lint.rs`): it breaks a withdrawal.
+    /// down (`tests/lint.rs`): it breaks a withdrawal and flags
+    /// `lost_pool` (Conniver).
     pub fn lose_pool(&mut self, n: i32) {
         self.pool -= n;
         if n > 0 {
+            self.lost_pool = true;
             self.withdrawal.r#break();
         }
     }
@@ -1483,6 +1511,9 @@ pub struct GameState {
     /// Hands looked at, (viewer, seat), until the current action ends
     /// (SchreckNET: "look at any Methuselah's hand").
     pub peeks: Vec<(SeatId, SeatId)>,
+    /// Seats that used a discard phase action, its replacement drawn once
+    /// the phase's rotation is back (Count Jocalo's look).
+    pub discard_actions_used: Vec<SeatId>,
     /// Donatello Giovanni's marks: (the chosen vampire, Donatello), until
     /// his controller's next unlock phase.
     pub bleed_tolls: Vec<(MinionId, MinionId)>,
@@ -2438,7 +2469,10 @@ impl GameState {
             || v.present()
                 && cards::vampire_of(v)
                     .and_then(|d| d.plays_as)
-                    .is_some_and(|p| clans.contains(&p.clan) && (p.methuselah || !by_methuselah))
+                    .is_some_and(|p| {
+                        p.clans.iter().any(|c| clans.contains(c))
+                            && (p.methuselah || !by_methuselah)
+                    })
     }
 
     /// Is `m` itself of the clan `card` requires (its effects in play; not
@@ -2591,6 +2625,7 @@ impl GameState {
             R::IsHunt => ctx.is_hunt(),
             R::RulebookHunt => ctx.kind == Some(ActionKind::Hunt),
             R::IsDiablerie => ctx.kind == Some(ActionKind::Diablerie),
+            R::IsEmploy => ctx.kind == Some(ActionKind::Employ),
             R::IsRecruitOrEmploy => {
                 matches!(ctx.kind, Some(ActionKind::Recruit | ActionKind::Employ))
             }
@@ -2672,6 +2707,15 @@ impl GameState {
             R::OwnReadyNamed(name) => self.ready_named(name, Some(src.owner)),
             R::IsPolitical => ctx.kind == Some(ActionKind::Political),
             R::OpponentClan(c) => opp.and_then(|o| o.clan()) == Some(c),
+            R::OpponentNamed(n) => opp.is_some_and(|o| o.name() == n),
+            R::ActorOfOtherMethuselah => me.owner != src.owner,
+            R::DirectedAtYourClan(clan) => {
+                ctx.directed == Some(true)
+                    && ctx.target_minions.iter().flatten().any(|&m| {
+                        let v = &self.minions[m.index()];
+                        v.owner == src.owner && v.clan() == Some(clan)
+                    })
+            }
             R::OpponentRedList => ctx.opponent.is_some_and(|o| self.is_red_list(o)),
             // "In combat with a werewolf" (Mark Decker): an ally of the
             // subtype.
@@ -2921,6 +2965,11 @@ impl GameState {
             for (i, &m) in pair.iter().enumerate() {
                 if self.minions[pair[1 - i].index()].owner == s {
                     size -= self.combat_hand_penalty(m) as i32;
+                }
+                // Nar-Sheptha.
+                if self.minions[m.index()].owner == s {
+                    let n: u8 = sum_n!(self.hosted(m), Modifier::HandSizeInCombat);
+                    size += n as i32;
                 }
             }
         }
@@ -3227,6 +3276,25 @@ impl GameState {
                     if clan.is_some_and(|c| cs.contains(&c)))
             })
             .count() as i32
+    }
+
+    /// The votes `m`'s cards give it in a referendum `caller` called, while
+    /// both are of the card's clan and `m` untitled (Skaald).
+    pub fn caller_clan_votes(&self, m: MinionId, caller: Option<MinionId>) -> i32 {
+        let clan = self.minions[m.index()].clan();
+        let caller_clan = caller.and_then(|c| self.minions[c.index()].clan());
+        self.borne(m)
+            .map(|l| match l.modifier {
+                Modifier::HostVotesWhenCallerOfClan { clan: c, n }
+                    if clan == Some(c)
+                        && caller_clan == Some(c)
+                        && self.title_of(m) == crate::crypt::Title::None =>
+                {
+                    i32::from(n)
+                }
+                _ => 0,
+            })
+            .sum()
     }
 
     /// The layers reading who a bleed is against (Tier of Souls [ANI],
@@ -3707,6 +3775,20 @@ impl GameState {
         sum_n!(self.hosted(m), Modifier::OpponentHandSizeInCombat)
     }
 
+    /// The combatants in combat order, acting first: `acting`'s opponent
+    /// first while `acting` alone has Nar-Sheptha (ANK 20211022).
+    pub fn combat_order(&self, acting: MinionId, opposing: MinionId) -> [MinionId; 2] {
+        let gives = |m: MinionId| {
+            self.hosted(m)
+                .any(|l| l.modifier == Modifier::OpponentActsInCombat)
+        };
+        if gives(acting) && !gives(opposing) {
+            [opposing, acting]
+        } else {
+            [acting, opposing]
+        }
+    }
+
     /// `m` cannot have or use equipment or retainers (Bone Shambler's own
     /// text): it takes none, by any means.
     pub fn no_equipment_or_retainers(&self, m: MinionId) -> bool {
@@ -4128,6 +4210,24 @@ impl GameState {
                     && LIBRARY[c.card as usize].labels.contains(&Label::Location)
             })
             .count()
+    }
+
+    /// Where in `seat`'s ash heap `card` is: its copy `copy` when tracked,
+    /// else any copy of it (Steely Tenacity's retake).
+    pub fn ash_index(&self, seat: SeatId, card: u16, copy: crate::copies::CopyId) -> Option<usize> {
+        let ash = &self.seats[seat.index()].ash;
+        let cards: Vec<u16> = ash.iter().copied().collect();
+        (0..cards.len()).rev().find(|&k| {
+            cards[k] == card && (copy == crate::copies::CopyId::NONE || ash.copy(k) == copy)
+        })
+    }
+
+    /// The top card of `seat`'s library has type `t` (Weirding Stone).
+    pub fn library_top_is(&self, seat: SeatId, t: CardType) -> bool {
+        self.seats[seat.index()]
+            .library
+            .last()
+            .is_some_and(|&c| crate::library::LIBRARY[c as usize].types.contains(&t))
     }
 
     /// Gehenna events in play (uncontested, not a lingering effect).

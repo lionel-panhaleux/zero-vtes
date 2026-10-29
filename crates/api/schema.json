@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "title": "zvtes protocol",
-  "version": "2.18.0",
+  "version": "2.19.0",
   "$defs": {
     "About": {
       "description": "What a choice is about (`Decision::about`): each field given where\nthe purpose (or the terms) has it (docs/protocol.md §5).",
@@ -2147,7 +2147,7 @@
               "minimum": 0
             },
             "zone": {
-              "description": "`library`: the top of the looking seat's own library, top first\n(Anna \"Dictatrix11\" Suljic); absent, the hand.",
+              "description": "`library`: the top of `seat`'s library, top first — the looking\nseat's own (Anna \"Dictatrix11\" Suljic) or the active Methuselah's\n(Weirding Stone); absent, the hand.",
               "anyOf": [
                 {
                   "$ref": "#/$defs/Zone"
@@ -4846,7 +4846,7 @@
           "const": "name_ash_equipment"
         },
         {
-          "description": "Storage Annex as it is played: the card of the hand put face\ndown on `card` (`find_card`), replaced.",
+          "description": "A card of the hand put face down on `card` (`find_card`):\nStorage Annex's one as it is played, replaced; Gift of Proteus's\nannounced number as its action resolves, one at a time (`n` left),\nnot replaced.",
           "type": "string",
           "const": "store_own_hand"
         },
@@ -4924,6 +4924,21 @@
           "description": "Unity: `seat` may cut their library once, `set_x` the cards\nmoved from the top to the bottom (a pass: no cut).",
           "type": "string",
           "const": "cut_library"
+        },
+        {
+          "description": "Steely Tenacity: `seat` replaces the card by taking it back from\ntheir ash heap (`find_card`) or by drawing (`draw_library`).",
+          "type": "string",
+          "const": "retake_from_ash"
+        },
+        {
+          "description": "Conniver: `seat` may lock the card for 1 blood from the bank on\nits vampire (`resolve_rider`), or pass.",
+          "type": "string",
+          "const": "may_lock_for_blood"
+        },
+        {
+          "description": "Weirding Stone: the master card looked at on the active\nMethuselah's library, burned for blood of the card's bearer\n(`resolve_rider`, `n` the blood), or pass.",
+          "type": "string",
+          "const": "may_burn_looked_master"
         },
         {
           "description": "A value this reader does not know.",

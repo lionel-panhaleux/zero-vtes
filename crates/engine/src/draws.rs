@@ -139,8 +139,17 @@ pub enum Interrupt {
     /// Maabara: a library card of `seat`'s ash heap moved onto `card`.
     StoreOwnAsh { seat: SeatId, card: CardId },
     /// Storage Annex as it is played: a card of `seat`'s hand put face down
-    /// on `card`, replaced.
-    StoreOwnHand { seat: SeatId, card: CardId },
+    /// on `card`, replaced; Gift of Proteus: `left` cards of the filter, one
+    /// at a time, not replaced.
+    StoreOwnHand {
+        seat: SeatId,
+        card: CardId,
+        left: u8,
+        of: crate::cards::CardFilter,
+        replace: bool,
+        /// Only the action's `earmarked` cards (Gift of Proteus).
+        earmarked: bool,
+    },
     /// Maabara: a card on `card` moved to the top of `seat`'s library.
     StoredToLibraryTop { seat: SeatId, card: CardId },
     /// Waiting Game: an anarch burns 1 blood (`BurnBloodToAvoid`) or
@@ -273,6 +282,19 @@ pub enum Interrupt {
     /// Learjet: `seat` may draw an additional card (`DrawLibrary`), the
     /// hand then discarded down; or pass.
     MayDrawExtra { seat: SeatId },
+    /// Steely Tenacity: `seat` replaces `card` by taking it from its ash
+    /// heap (`FindCard`) or by drawing (`DrawLibrary`); then the next such
+    /// card due `at`, else the `rest` of its replacements due and the
+    /// `draws` chosen so far, drawn at once.
+    RetakeFromAsh {
+        seat: SeatId,
+        card: u16,
+        copy: crate::copies::CopyId,
+        rest: u8,
+        draws: u8,
+        except: Option<crate::state::CardId>,
+        at: crate::state::Release,
+    },
     /// Infernal Pursuit [CEL]: one replacement and its `extra` draws, then
     /// as many discards, before the next (ANK 20180925-1).
     PursuitDraw { seat: SeatId, extra: u8 },
@@ -560,6 +582,13 @@ pub enum Interrupt {
         card: CardId,
         minion: MinionId,
     },
+    /// Weirding Stone: the master card `seat` looked at on the active
+    /// Methuselah's library, burned for `n` blood of `card`'s bearer
+    /// (`ResolveRider`), or pass.
+    MayBurnLookedMaster { seat: SeatId, card: CardId, n: u8 },
+    /// Conniver: `seat` may lock `card` to move 1 blood from the bank to
+    /// its vampire (`ResolveRider`), or pass.
+    MayLockForBlood { seat: SeatId, card: CardId },
     /// Matasuntha's optional "gain n pool": `ResolvePrinted` or Pass.
     MayGainPool {
         seat: SeatId,
@@ -698,6 +727,7 @@ impl Interrupt {
             | Interrupt::MoveBloodUpTo { seat, .. }
             | Interrupt::PurgePick { seat, .. }
             | Interrupt::MayDrawExtra { seat }
+            | Interrupt::RetakeFromAsh { seat, .. }
             | Interrupt::PursuitDraw { seat, .. }
             | Interrupt::PursuitDiscard { seat, .. }
             | Interrupt::RemoveUncontrolled { seat }
@@ -739,6 +769,8 @@ impl Interrupt {
             | Interrupt::MayAddCounter { seat, .. }
             | Interrupt::MayStoreAim { seat, .. }
             | Interrupt::MayTorture { seat, .. }
+            | Interrupt::MayLockForBlood { seat, .. }
+            | Interrupt::MayBurnLookedMaster { seat, .. }
             | Interrupt::MayGainPool { seat, .. }
             | Interrupt::MayGainHandSize { seat, .. }
             | Interrupt::BuyTitle { seat, .. }
@@ -785,6 +817,21 @@ impl Engine {
             );
         }
         out
+    }
+
+    /// The distinct cards of `seat`'s hand matching `of` a store may take:
+    /// with `earmarked`, among the seat's earmarked ones (Gift of Proteus,
+    /// PIB 20150428).
+    pub(crate) fn store_candidates(
+        &self,
+        seat: SeatId,
+        of: crate::cards::CardFilter,
+        earmarked: bool,
+    ) -> Vec<u16> {
+        let marks = &self.state.seats[seat.index()].earmarked;
+        crate::state::distinct(&self.state.seats[seat.index()].hand, |c| {
+            of.matches(c) && (!earmarked || marks.contains(&c))
+        })
     }
 
     /// The card whose `WouldReplace` rider takes a replacement of `s`
@@ -1141,6 +1188,9 @@ impl Engine {
                 Interrupt::MayDrawExtra { seat } => {
                     !self.state.seats[seat.index()].library.is_empty()
                 }
+                // A single option (the card left the ash heap) is elided:
+                // the draw still happens.
+                Interrupt::RetakeFromAsh { .. } => true,
                 // "Replace and draw extra cards individually …, discarding
                 // each time X cards (where X is the number of extra cards
                 // you drew)" (ANK 20180925-1).
@@ -1324,9 +1374,15 @@ impl Engine {
                     self.state.cards[card.index()].present()
                         && !self.state.seats[seat.index()].ash.is_empty()
                 }
-                Interrupt::StoreOwnHand { seat, card } => {
+                Interrupt::StoreOwnHand {
+                    seat,
+                    card,
+                    of,
+                    earmarked,
+                    ..
+                } => {
                     self.state.cards[card.index()].present()
-                        && !self.state.seats[seat.index()].hand.is_empty()
+                        && !self.store_candidates(seat, of, earmarked).is_empty()
                 }
                 Interrupt::StoredToLibraryTop { card, .. } => {
                     self.state.cards[card.index()].present()
@@ -1356,6 +1412,19 @@ impl Engine {
                 Interrupt::MayTorture { card, minion, .. } => {
                     let c = &self.state.cards[card.index()];
                     c.present() && !c.locked && present(minion)
+                }
+                Interrupt::MayLockForBlood { card, .. } => {
+                    let c = &self.state.cards[card.index()];
+                    c.present() && !c.locked && c.host.is_some_and(present)
+                }
+                Interrupt::MayBurnLookedMaster { card, n, .. } => {
+                    let st = &self.state;
+                    let c = &st.cards[card.index()];
+                    c.present()
+                        && c.host.is_some_and(|h| {
+                            st.minions[h.index()].is_vampire() && st.minions[h.index()].blood >= n
+                        })
+                        && st.library_top_is(st.active, crate::library::CardType::Master)
                 }
                 Interrupt::MayGainPool { seat, .. } => !self.state.seats[seat.index()].ousted,
                 Interrupt::ReadyTitledLeft { seat, of } => {
@@ -1882,6 +1951,15 @@ impl Engine {
             Interrupt::MayDrawExtra { .. } => {
                 (WindowLabel::Draw, vec![Choice::Pass, Choice::DrawLibrary])
             }
+            Interrupt::RetakeFromAsh {
+                seat, card, copy, ..
+            } => {
+                let mut options = vec![Choice::DrawLibrary];
+                if self.state.ash_index(seat, card, copy).is_some() {
+                    options.push(Choice::FindCard(card));
+                }
+                (WindowLabel::Draw, options)
+            }
             Interrupt::PursuitDraw { .. } => unreachable!("settled without a decision"),
             Interrupt::PursuitDiscard { .. } => (WindowLabel::DiscardDown, self.discard_choices(s)),
             Interrupt::PurgePick { of, host, .. } => (
@@ -2280,6 +2358,8 @@ impl Engine {
             ),
             Interrupt::MayAddCounter { card, .. }
             | Interrupt::MayTorture { card, .. }
+            | Interrupt::MayLockForBlood { card, .. }
+            | Interrupt::MayBurnLookedMaster { card, .. }
             | Interrupt::MayStoreAim { store: card, .. } => (
                 WindowLabel::ResolutionChoice,
                 vec![Choice::Pass, Choice::ResolveRider { card: card.0 }],
@@ -2363,9 +2443,14 @@ impl Engine {
                     .map(Choice::FindCard)
                     .collect(),
             ),
-            Interrupt::StoreOwnHand { seat, .. } => (
+            Interrupt::StoreOwnHand {
+                seat,
+                of,
+                earmarked,
+                ..
+            } => (
                 WindowLabel::ResolutionChoice,
-                crate::state::distinct(&st.seats[seat.index()].hand, |_| true)
+                self.store_candidates(seat, of, earmarked)
                     .into_iter()
                     .map(Choice::FindCard)
                     .collect(),
@@ -3730,14 +3815,47 @@ impl Engine {
                 let (_, copy) = ash.take(i);
                 self.state.cards[on.index()].stored.put(card, copy);
             }
-            (Interrupt::StoreOwnHand { seat, card: on }, Choice::FindCard(card)) => {
+            (
+                Interrupt::StoreOwnHand {
+                    seat,
+                    card: on,
+                    left,
+                    of,
+                    replace,
+                    earmarked,
+                },
+                Choice::FindCard(card),
+            ) => {
                 self.interrupts.remove(0);
+                if earmarked {
+                    let marks = &mut self.state.seats[seat.index()].earmarked;
+                    let k = marks.iter().position(|&c| c == card).expect("earmarked");
+                    marks.swap_remove(k);
+                }
                 let hand = &mut self.state.seats[seat.index()].hand;
                 let i = hand.iter().rposition(|&c| c == card).expect("in hand");
                 let (_, copy) = hand.take(i);
                 self.state.cards[on.index()].stored.put(card, copy);
                 self.state.cards[on.index()].stored_owner = Some(seat);
-                self.replace(seat, 1, None);
+                if replace {
+                    self.replace(seat, 1, None);
+                }
+                if earmarked && left <= 1 {
+                    self.state.seats[seat.index()].earmarked.clear();
+                }
+                if left > 1 {
+                    self.interrupts.insert(
+                        0,
+                        Interrupt::StoreOwnHand {
+                            seat,
+                            card: on,
+                            left: left - 1,
+                            of,
+                            replace,
+                            earmarked,
+                        },
+                    );
+                }
             }
             (Interrupt::StoredToLibraryTop { seat, card: on }, Choice::FindCard(card)) => {
                 self.interrupts.remove(0);
@@ -3865,6 +3983,44 @@ impl Engine {
             }
             (Interrupt::MayDrawExtra { .. }, Choice::Pass) => {
                 self.interrupts.remove(0);
+            }
+            (
+                Interrupt::RetakeFromAsh {
+                    seat,
+                    card,
+                    copy,
+                    rest,
+                    draws,
+                    except,
+                    at,
+                },
+                choice,
+            ) => {
+                self.interrupts.remove(0);
+                let mut draws = draws;
+                match self.state.ash_index(seat, card, copy) {
+                    Some(k) if choice == Choice::FindCard(card) => {
+                        let s = &mut self.state.seats[seat.index()];
+                        let (card, copy) = s.ash.take(k);
+                        s.hand.put(card, copy);
+                    }
+                    _ => draws += 1,
+                }
+                match self.next_retake(seat, at) {
+                    Some((next, copy)) => self.interrupts.insert(
+                        0,
+                        Interrupt::RetakeFromAsh {
+                            seat,
+                            card: next,
+                            copy,
+                            rest: rest - 1,
+                            draws,
+                            except,
+                            at,
+                        },
+                    ),
+                    None => self.replace(seat, (rest + draws) as usize, except),
+                }
             }
             (Interrupt::PurgePick { host, .. }, Choice::ChooseMinion(m)) => {
                 self.interrupts.remove(0);
@@ -4518,6 +4674,8 @@ impl Engine {
                 | Interrupt::MayAddCounter { .. }
                 | Interrupt::MayStoreAim { .. }
                 | Interrupt::MayTorture { .. }
+                | Interrupt::MayLockForBlood { .. }
+                | Interrupt::MayBurnLookedMaster { .. }
                 | Interrupt::MayGainPool { .. }
                 | Interrupt::MayGainHandSize { .. }
                 | Interrupt::MayPreventForBlood { .. }
@@ -4545,6 +4703,24 @@ impl Engine {
             (Interrupt::MayAddCounter { card, .. }, Choice::ResolveRider { .. }) => {
                 self.interrupts.remove(0);
                 self.state.cards[card.index()].counters += 1;
+            }
+            // Its rider's effects, as the definition gives them.
+            (Interrupt::MayLockForBlood { card, .. }, Choice::ResolveRider { .. }) => {
+                self.interrupts.remove(0);
+                let def = cards::lookup(self.state.cards[card.index()].card).expect("definition");
+                let by = Cause::Effect(Source::Card(card));
+                for r in def.riders.iter().filter(|r| r.hook == Hook::PreyLosesPool) {
+                    for &e in r.effects {
+                        self.caused(by, |en| en.apply_rider_effect(card, e, Hook::PreyLosesPool));
+                    }
+                }
+            }
+            (Interrupt::MayBurnLookedMaster { card, n, .. }, Choice::ResolveRider { .. }) => {
+                self.interrupts.remove(0);
+                let host = self.state.cards[card.index()].host.expect("a bearer");
+                let by = Cause::Effect(Source::Card(card));
+                self.caused(by, |e| e.state.burn_blood(host, n));
+                self.burn_library_top(self.state.active, 1);
             }
             (Interrupt::MayTorture { card, minion, .. }, Choice::ResolveRider { .. }) => {
                 self.interrupts.remove(0);

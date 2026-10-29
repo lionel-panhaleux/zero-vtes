@@ -246,6 +246,7 @@ fn found_in(e: &Engine, req: &DecisionRequest) -> Option<ZoneRef> {
             Interrupt::RemoveFromAsh { of: seat, .. }
             | Interrupt::AshurPicks { seat, .. }
             | Interrupt::AshToLibraryTop { seat, .. }
+            | Interrupt::RetakeFromAsh { seat, .. }
             | Interrupt::NameAshEquipment {
                 from: Some(seat), ..
             }
@@ -648,6 +649,12 @@ fn asked(x: &Ctx<impl Names>, i: Interrupt, choice: &Choice) -> Vec<Effect> {
             } else {
                 Zone::Hand
             }),
+            ..Effect::new(EffectKind::Move)
+        }],
+        // Steely Tenacity: back to the hand.
+        (Interrupt::RetakeFromAsh { .. }, Choice::FindCard(c)) => vec![Effect {
+            card: library(c),
+            to: Some(Zone::Hand),
             ..Effect::new(EffectKind::Move)
         }],
         (Interrupt::ExchangeAnarch { ash: Some(c), .. }, Choice::Discard(_)) => vec![Effect {
@@ -1412,6 +1419,19 @@ pub fn about(e: &Engine, req: &DecisionRequest, names: &impl Names) -> Option<Ab
                 ..a()
             },
             I::CutLibrary { .. } => a(),
+            I::MayBurnLookedMaster { card: c, n, .. } => About {
+                card: card(c),
+                n: Some(n),
+                ..a()
+            },
+            I::MayLockForBlood { card: c, .. } => About {
+                card: card(c),
+                ..a()
+            },
+            I::RetakeFromAsh { card: c, .. } => About {
+                card: named(c),
+                ..a()
+            },
             I::XConvictions {
                 minion, card: c, ..
             } => About {
@@ -1488,9 +1508,13 @@ pub fn about(e: &Engine, req: &DecisionRequest, names: &impl Names) -> Option<Ab
             I::MayAddCounter { card: c, .. }
             | I::StorePreyAsh { card: c, .. }
             | I::StoreOwnAsh { card: c, .. }
-            | I::StoreOwnHand { card: c, .. }
             | I::StoredToLibraryTop { card: c, .. } => About {
                 card: card(c),
+                ..a()
+            },
+            I::StoreOwnHand { card: c, left, .. } => About {
+                card: card(c),
+                n: Some(left),
                 ..a()
             },
             I::NameMasterDiscipline { .. } => a(),
@@ -1905,10 +1929,11 @@ pub fn key(e: &Engine, req: &DecisionRequest, choice: &Choice, names: &impl Name
             k.card = Some(r);
             let (played, from) = e.virtual_hand(req.seat)[card as usize];
             k.mode = Some(mode(played, m));
-            // Spiritual Guidance, a conviction: played from the ash heap.
-            if from.is_some_and(zvtes::state::from_ash) {
+            // Spiritual Guidance, a conviction: played from the ash heap;
+            // Vestgeir: from another Methuselah's.
+            if let Some(f) = from.filter(|&f| zvtes::state::from_ash(f)) {
                 k.zone = Some(ZoneRef {
-                    seat: req.seat.0,
+                    seat: zvtes::state::others_ash(f).unwrap_or(req.seat).0,
                     zone: Zone::AshHeap,
                 });
             }

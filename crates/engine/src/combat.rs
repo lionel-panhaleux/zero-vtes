@@ -278,6 +278,9 @@ pub struct Side {
     /// Kiss of Cathari [OBF]/[PRE]: its strike stuns the opposing minion
     /// after combat, at close range and not dodged.
     pub after_stun_rider: bool,
+    /// Serpent's Numbing Kiss [PRE][SER]: its strike puts the card on the
+    /// opposing minion after combat, at close range and not dodged.
+    pub after_put_rider: Option<Held>,
     /// Oubliette [OBT]: its strike makes the opposing minion burn n blood
     /// or life after combat, at any range, not dodged.
     pub after_burn_rider: Option<u8>,
@@ -377,6 +380,11 @@ pub struct Side {
     pub first_round_press: u8,
     /// "+n strength that combat" (Kasim Bayar), kept each round.
     pub strength_mods: u8,
+    /// "-n strength this combat" from the opposing side (Blight).
+    pub strength_minus: u8,
+    /// This combat, no additional strikes and no press to continue (Blight
+    /// [NEC]): additional-strike cards not offered, none used.
+    pub no_additional_strikes: bool,
     /// Riders of the chosen strike (Blood Rage, Soul Burn), fired as it
     /// lands: `Effect::FortitudeProofStrike`, `NullifyOpposingWeapons`.
     pub fortitude_proof: bool,
@@ -673,6 +681,8 @@ impl Side {
         *self = Self {
             strength_set: self.strength_set,
             strength_mods: self.strength_mods,
+            strength_minus: self.strength_minus,
+            no_additional_strikes: self.no_additional_strikes,
             combat_damage: self.combat_damage,
             combat_maneuvers: self.combat_maneuvers,
             combat_presses: self.combat_presses,
@@ -753,6 +763,9 @@ pub struct CombatCtx {
     /// (`poll`), Martyr's Resilience's prevention in this order (rules-qa
     /// 29.1).
     pub ring: Vec<SeatId>,
+    /// The combatants as the combat began, acting first, before Nar-Sheptha
+    /// (`GameState::combat_order`; `Engine::reorder_combat`).
+    pub natural: [MinionId; 2],
     /// Weapons whose strike resolution burned the opposing vampire (Sword
     /// of the Archangel).
     pub burned_by: Vec<CardId>,
@@ -865,6 +878,9 @@ pub struct CombatCtx {
     pub after_combat_damage: Vec<(MinionId, u8, MinionId)>,
     /// Kiss of Cathari [OBF]/[PRE]: the minions stunned after combat ends.
     pub after_combat_stun: Vec<MinionId>,
+    /// Serpent's Numbing Kiss [PRE][SER]: the cards put on these minions
+    /// after combat ends, their strikers burning 1 blood.
+    pub after_combat_put: Vec<(Held, MinionId)>,
     /// Oubliette [OBT]: blood or life burned after combat ends, not damage
     /// (LSJ 20080226).
     pub after_combat_burn: Vec<(MinionId, u8, MinionId)>,
@@ -923,6 +939,18 @@ fn poll(sides: &[Side; 2], ring: &[SeatId]) -> Vec<SeatId> {
 }
 
 impl CombatCtx {
+    /// "The acting vampire" of this combat for the action `a`: the one
+    /// considered acting (side 0: Deep Song's target, Nar-Sheptha's
+    /// opponent) in a combat of its acting minion, else that minion
+    /// (Coordinate Attacks' Blood Brother's combat; rules-qa 106.11).
+    pub fn acting_in(&self, a: &crate::actions::ActionCtx) -> MinionId {
+        if self.natural.contains(&a.acting) {
+            self.sides[0].minion
+        } else {
+            a.acting
+        }
+    }
+
     pub fn side_of(&self, seat: SeatId) -> Option<usize> {
         self.sides.iter().position(|s| s.seat == seat)
     }
@@ -993,9 +1021,8 @@ impl CombatCtx {
         let bearer = action.map_or(0, |a| {
             st.bearer_mod_in(s.minion, cards::Stat::Strength, a.kind, a.card_hunt)
         });
-        (s.strength(st.base_strength(s.minion)) as i32
-            + action_bonus
-            + s.strength_mods as i32
+        (s.strength(st.base_strength(s.minion)) as i32 + action_bonus + s.strength_mods as i32
+            - s.strength_minus as i32
             + s.frenzy_strength as i32
             + bearer
             + st.strength_against(s.minion, self.sides[1 - i].minion)
@@ -1405,11 +1432,15 @@ impl CombatCtx {
             Effect::AdditionalStrikes { limited: true, .. }
             | Effect::AdditionalStrikesX { limited: true }
             | Effect::AdditionalStrikeOnly { limited: true, .. } => {
-                !self.sides[side].limited_used && self.sides[side].additional == 0
+                !self.sides[side].limited_used
+                    && self.sides[side].additional == 0
+                    && !self.sides[side].no_additional_strikes
             }
             Effect::AdditionalStrikes { .. }
             | Effect::AdditionalStrikesX { .. }
-            | Effect::AdditionalStrikeOnly { .. } => self.sides[side].additional == 0,
+            | Effect::AdditionalStrikeOnly { .. } => {
+                self.sides[side].additional == 0 && !self.sides[side].no_additional_strikes
+            }
             Effect::Strike(k) if self.only_hand_strikes => matches!(k, StrikeKind::Hand { .. }),
             _ => true,
         })
@@ -1521,6 +1552,8 @@ impl Engine {
     }
 
     fn begin_combat(&mut self, acting: MinionId, opposing: MinionId, at_resolution: bool) {
+        let natural = [acting, opposing];
+        let [first, second] = self.state.combat_order(acting, opposing);
         // "None of your minions enter combat" (rulebook "Withdrawing from
         // the Game").
         for m in [acting, opposing] {
@@ -1529,8 +1562,8 @@ impl Engine {
         }
         let st = &self.state;
         let mut sides = [
-            Side::new(acting, st.minions[acting.index()].owner),
-            Side::new(opposing, st.minions[opposing.index()].owner),
+            Side::new(first, st.minions[first.index()].owner),
+            Side::new(second, st.minions[second.index()].owner),
         ];
         for s in &mut sides {
             s.mandatory_press = st
@@ -1575,7 +1608,7 @@ impl Engine {
         }
         let ring = self.state.clockwise_from(sides[0].seat);
         let order = poll(&sides, &ring);
-        self.state.combatants = Some([acting, opposing]);
+        self.state.combatants = Some([first, second]);
         let st = &self.state;
         let held_at_block = if at_resolution {
             Vec::new()
@@ -1583,8 +1616,8 @@ impl Engine {
             st.equipment_on(opposing)
         };
         let anathema_seen = [
-            self.state.minions[acting.index()].blood,
-            self.state.minions[opposing.index()].blood,
+            self.state.minions[first.index()].blood,
+            self.state.minions[second.index()].blood,
         ];
         let contracts = (0..st.cards.len())
             .map(|k| CardId(k as u32))
@@ -1598,6 +1631,7 @@ impl Engine {
         self.combat = Some(CombatCtx {
             sides,
             ring,
+            natural,
             anathema_seen,
             round: 1,
             step: Step::BeforeRange,
@@ -2415,6 +2449,19 @@ impl Engine {
     pub(crate) fn combat_advance(&mut self) {
         self.flow = Flow::Combat;
         let step = self.combat.as_ref().expect("combat context").step;
+        // Nar-Sheptha gone since: the usual order before the next step
+        // (owner, 2026-10-29: "swap back at the burn").
+        if matches!(
+            step,
+            Step::BeforeRange
+                | Step::DetermineRange
+                | Step::BeforeStrikes
+                | Step::AdditionalStrikes
+                | Step::Press
+                | Step::EndOfRound
+        ) {
+            self.reorder_combat();
+        }
         let c = self.combat.as_mut().expect("combat context");
         match step {
             Step::BeforeRange => {
@@ -2475,7 +2522,10 @@ impl Engine {
                 self.after_prevention_or_next();
             }
             Step::AdditionalStrikes => {
-                if c.sides.iter().any(|s| s.additional > 0) {
+                if c.sides
+                    .iter()
+                    .any(|s| s.additional > 0 && !s.no_additional_strikes)
+                {
                     c.begin_pair();
                 } else {
                     // Drawing Out the Beast [ANI]: its damage as the press
@@ -2700,6 +2750,8 @@ impl Engine {
             c.sides[i].additional += c.sides[i].strikes_each_round.max(1);
             c.sides[i].limited_used = true;
         }
+        self.reorder_combat();
+        let c = self.combat.as_mut().expect("combat context");
         // After every pair, the normal one and each additional one, a new
         // chance to gain additional strikes (rules-qa 48.2); the window
         // closes into the next additional pair, if any, else the press.
@@ -3141,6 +3193,12 @@ impl Engine {
                     && !matches!(strikes[1 - i], Some(StrikeKind::Dodge))
                 {
                     c.after_combat_stun.push(c.sides[1 - i].minion);
+                }
+                if let Some(h) = c.sides[i].after_put_rider.take() {
+                    if c.range == Range::Close && !matches!(strikes[1 - i], Some(StrikeKind::Dodge))
+                    {
+                        c.after_combat_put.push((h, c.sides[1 - i].minion));
+                    }
                 }
                 // Oubliette [OBT]: even at long range, not dodged (LSJ
                 // 19980526).
@@ -3851,6 +3909,7 @@ impl Engine {
             c.after_combat_damage.clear();
             c.after_combat_stun.clear();
             c.after_combat_burn.clear();
+            c.after_combat_put.clear();
         }
     }
 
@@ -4047,6 +4106,42 @@ impl Engine {
         false
     }
 
+    /// The combat's acting side re-read (`GameState::combat_order`): with
+    /// Nar-Sheptha gone, the acting minion is the usual one again at once,
+    /// for the rest of the combat (ANK 20211022). Read where no step names
+    /// a side: as such a step advances, after each pair of strikes, as a
+    /// round begins.
+    fn reorder_combat(&mut self) {
+        let natural = self.combat.as_ref().expect("combat context").natural;
+        let order = self.state.combat_order(natural[0], natural[1]);
+        let c = self.combat.as_mut().expect("combat context");
+        if c.sides[0].minion != order[0] {
+            // Everything indexed by side follows it.
+            c.sides.swap(0, 1);
+            c.anathema_seen.swap(0, 1);
+            let flip = |i: &mut usize| *i = 1 - *i;
+            c.last_maneuver.iter_mut().for_each(flip);
+            c.last_press.iter_mut().for_each(flip);
+            c.press_toll.iter_mut().for_each(flip);
+            if let Some((i, _)) = c.held_strike.as_mut() {
+                flip(i);
+            }
+            if let Some((_, i, _)) = c.coordinate.as_mut() {
+                flip(i);
+            }
+            for (_, t) in &mut c.traps {
+                if let Some((i, _)) = t.as_mut() {
+                    flip(i);
+                }
+            }
+            let first = c.sides[0].seat;
+            if let Some(k) = c.ring.iter().position(|&s| s == first) {
+                c.ring.rotate_left(k);
+            }
+            self.state.combatants = Some(order);
+        }
+    }
+
     fn new_round(&mut self) {
         // The combat continues: after-combat effects are lost (RTR
         // 20020501).
@@ -4054,6 +4149,7 @@ impl Engine {
         for m in &mut self.state.minions {
             m.timed.retain(|&(_, until, _)| until != Expiry::Round);
         }
+        self.reorder_combat();
         let c = self.combat.as_mut().expect("combat context");
         c.prev_close = c.range == Range::Close;
         c.round += 1;
@@ -4155,8 +4251,9 @@ impl Engine {
         // Psyche! [CEL]: the new combat, both minions ready; this one's
         // after-combat effects lost, continuations included (RTR 20020501),
         // not its unlocks (LSJ 19980109).
+        // Its natural order: Nar-Sheptha's re-read in the new combat.
         if let Some(c) = ended.as_ref().filter(|c| c.psyche) {
-            let [x, y] = c.sides.each_ref().map(|s| s.minion);
+            let [x, y] = c.natural;
             let ready = |m: MinionId| self.state.minions[m.index()].ready();
             if ready(x) && ready(y) {
                 if let Some(a) = self.action.as_mut() {
@@ -4227,7 +4324,11 @@ impl Engine {
         // burned.
         let fbi = ended.as_ref().map_or(0, |c| c.fbi_damage);
         if fbi > 0 {
-            if let Some(acting) = self.action.as_ref().map(|a| a.acting) {
+            let acting = ended
+                .as_ref()
+                .zip(self.action.as_ref())
+                .map(|(c, a)| c.acting_in(a));
+            if let Some(acting) = acting {
                 if self.state.minions[acting.index()].present() {
                     let by = match ended.as_ref().and_then(|c| c.fbi_card) {
                         Some(f) => Source::Card(f),
@@ -4254,7 +4355,7 @@ impl Engine {
         // Who fought, for "after a combat involving this vampire ends"
         // (Monster).
         if let (Some(c), Some(a)) = (ended.as_ref(), self.action.as_mut()) {
-            a.last_combat = Some([c.sides[0].minion, c.sides[1].minion]);
+            a.last_combat = Some(c.natural);
             a.last_contracts = c.contracts.clone();
         }
         // "After combat ends, put this card on this vampire" (Pass Through
@@ -4281,6 +4382,19 @@ impl Engine {
                 if v.is_ally() && v.blood == 0 {
                     self.lifeless(m);
                 }
+            }
+        }
+        // Serpent's Numbing Kiss [PRE][SER]: the blood burned is mandatory
+        // (ANK 20180420-2); locked again if unlocked meanwhile (LSJ
+        // 20040601).
+        for (h, on) in ended.iter().flat_map(|c| c.after_combat_put.clone()) {
+            if self.state.minions[h.minion.index()].present() {
+                let by = Cause::Effect(Source::Minion(h.minion));
+                self.caused(by, |e| e.state.burn_blood(h.minion, 1));
+            }
+            if self.state.minions[on.index()].present() {
+                self.place_held(h, on);
+                self.state.minions[on.index()].locked = true;
             }
         }
         for m in ended.iter().flat_map(|c| c.after_combat_stun.clone()) {
@@ -5099,6 +5213,12 @@ impl Engine {
             }
             Effect::SetStrength(n) => c.sides[i].strength_set = Some(n),
             Effect::StrengthThisCombat(n) => c.sides[i].strength_mods += n,
+            Effect::OpposingStrengthMinus(n) => c.sides[1 - i].strength_minus += n,
+            Effect::OpposingNoAdditionalStrikes => {
+                let o = &mut c.sides[1 - i];
+                o.no_additional_strikes = true;
+                o.no_continue_press = true;
+            }
             Effect::AggravatedHands => c.sides[i].aggravated_hands = true,
             Effect::AggravatedHandsThisCombat => {
                 c.sides[i].aggravated_hands = true;
@@ -5156,6 +5276,9 @@ impl Engine {
             }
             Effect::DamageAfterCombatIfClose(n) => c.sides[i].after_damage_rider = Some(n),
             Effect::StunAfterCombatIfClose => c.sides[i].after_stun_rider = true,
+            Effect::PutOnOpponentAfterCombatIfClose => {
+                c.sides[i].after_put_rider = Some(Held::from_play(play, actor, 0));
+            }
             // Hunting the Quarry [cel]/[tha]: on the opposing minion as the
             // combat ends, its player keeping control.
             Effect::PutOnOpposingKeepControl => {
@@ -5196,7 +5319,7 @@ impl CombatCtx {
                 s.chosen = true;
             } else if self.pair == 0 {
                 s.chosen = false;
-            } else if s.additional > 0 {
+            } else if s.additional > 0 && !s.no_additional_strikes {
                 s.additional -= 1;
                 s.chosen = false;
             } else {

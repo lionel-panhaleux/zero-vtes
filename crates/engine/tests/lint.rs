@@ -236,6 +236,10 @@ const DURING_ONCE_ELSEWHERE: &[(&str, &str)] = &[
         "ALAN_SOVEREIGN_ADV",
         "inert: no investment card in the pool, his base card absent",
     ),
+    (
+        "AL_ASHRAD",
+        "a standing permission: every first-round strike requiring Blood Sorcery",
+    ),
     ("BEAST_MELD", "a prevention allowance counted down"),
     (
         "BUSINESS_PRESSURE",

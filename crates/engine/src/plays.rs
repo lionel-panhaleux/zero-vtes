@@ -307,14 +307,16 @@ impl Engine {
             } else {
                 seat.held[at] = 0;
                 seat.learjet_held[at] = 0;
+                seat.retakes.retain(|&(r, _, _)| r != at);
             }
         }
     }
 
-    /// Seat `s`'s replacements held until `at`, plus `also`, drawn now;
-    /// then Learjet's extra draw for each one its bearer played (PIB
-    /// 20110718), waiting with them if the Meddling holds them again
-    /// (rules-qa 73.1).
+    /// Seat `s`'s replacements held until `at`, plus `also`, drawn now —
+    /// deferred whole to `Interrupt::RetakeFromAsh` when a Steely Tenacity
+    /// among them may come back from the ash heap; then Learjet's extra
+    /// draw for each one its bearer played (PIB 20110718), waiting with them
+    /// if the Meddling holds them again (rules-qa 73.1).
     pub(crate) fn replace_held(
         &mut self,
         s: SeatId,
@@ -326,9 +328,35 @@ impl Engine {
         let n = std::mem::take(&mut seat.held[at]);
         let jet = std::mem::take(&mut seat.learjet_held[at]).min(n);
         let meddled = seat.held[Release::MinionPhaseEnd];
-        self.replace(s, n as usize + also, except);
+        // Steely Tenacity: a card still in the ash heap may be taken back
+        // instead, before anything is drawn (no draw-up first).
+        let held_again = n > 0 && self.state.in_minion_phase && self.state.meddled(s);
+        let retake = if held_again {
+            None
+        } else {
+            self.next_retake(s, at)
+        };
+        match retake {
+            Some((card, copy)) => self.interrupts.push(Interrupt::RetakeFromAsh {
+                seat: s,
+                card,
+                copy,
+                rest: (n as usize + also - 1) as u8,
+                draws: 0,
+                except,
+                at,
+            }),
+            None => self.replace(s, n as usize + also, except),
+        }
         let seat = &mut self.state.seats[s.index()];
         if seat.held[Release::MinionPhaseEnd] > meddled {
+            // The Meddling holds them again: the retakes wait with them
+            // (LSJ 20100527).
+            for r in &mut seat.retakes {
+                if r.0 == at {
+                    r.0 = Release::MinionPhaseEnd;
+                }
+            }
             let later = &mut seat.learjet_held[Release::MinionPhaseEnd];
             *later = (*later + jet).min(seat.held[Release::MinionPhaseEnd]);
         } else {
@@ -336,6 +364,28 @@ impl Engine {
                 self.offer_extra_draw(s);
             }
         }
+    }
+
+    /// The next of seat `s`'s cards due at `at` that may be taken back from
+    /// the ash heap (Steely Tenacity), out of `Seat::retakes`; those no
+    /// longer there dropped, drawn for instead.
+    pub(crate) fn next_retake(
+        &mut self,
+        s: SeatId,
+        at: Release,
+    ) -> Option<(u16, crate::copies::CopyId)> {
+        let st = &self.state;
+        let kept: Vec<_> = st.seats[s.index()]
+            .retakes
+            .iter()
+            .copied()
+            .filter(|&(r, c, copy)| r != at || st.ash_index(s, c, copy).is_some())
+            .collect();
+        let seat = &mut self.state.seats[s.index()];
+        seat.retakes = kept;
+        let k = seat.retakes.iter().position(|&(r, _, _)| r == at)?;
+        let (_, card, copy) = seat.retakes.remove(k);
+        Some((card, copy))
     }
 
     /// `n` cards of `seat`'s hand to the ash heap at random, one at a time.
@@ -1313,8 +1363,17 @@ impl Engine {
                             st.pre_woken.contains(&m)
                                 || action.is_some_and(|a| a.woken.contains(&m))
                         });
+                    // Al-Ashrad: a strike played with Blood Sorcery in the
+                    // first round.
+                    let sorcery_first_round = actor.is_some_and(|m| {
+                        st.printed_mod(m, cards::Stat::FirstRoundSorceryStrikes, Default::default())
+                            > 0
+                    }) && played_disciplines(card, mi as u8)
+                        .iter()
+                        .any(|d| d.eq_ignore_ascii_case("tha"));
                     if !mode.requires.iter().all(|&r| {
                         (woken_reaction && r == Requirement::ActorUnlocked)
+                            || (sorcery_first_round && r == Requirement::NotFirstRound)
                             || actor.is_some_and(|m| cards::plays_as_sect_or_title(st, m, mode, r))
                             || as_vampire.is_some_and(|g| match r {
                                 Requirement::ActorSectIn(ss) => ss.contains(&g.sect),
@@ -1517,14 +1576,30 @@ impl Engine {
                 .filter(|&loc| !crate::state::from_ash(loc))
                 .and_then(|loc| {
                     let c = &st.cards[loc.index()];
-                    cards::lookup(c.card)?.modes[0]
-                        .effects
-                        .contains(&Effect::BearerAimStore)
+                    let e = cards::lookup(c.card)?.modes[0].effects;
+                    (e.contains(&Effect::BearerAimStore) || e.contains(&Effect::BearerStore))
                         .then(|| c.bearer())
                         .flatten()
                 })
         };
+        // Vestgeir's own plays.
+        let from_others = |i: usize| {
+            virtual_hand[i]
+                .1
+                .is_some_and(|f| crate::state::others_ash(f).is_some())
+        };
         out.retain(|o| match *o {
+            Choice::Play { card, actor, .. }
+                if card as usize >= hand_len && from_others(card as usize) =>
+            {
+                actor.is_some_and(|m| {
+                    st.printed_mod(
+                        m,
+                        cards::Stat::PlaysPoliticalFromOthersAsh,
+                        Default::default(),
+                    ) > 0
+                })
+            }
             Choice::Play { card, actor, .. }
                 if card as usize >= hand_len && store_bearer(card as usize).is_some() =>
             {
@@ -1695,10 +1770,23 @@ impl Engine {
                 let k = seat.ash.iter().position(|&c| c == card).expect("ash card");
                 seat.ash.take(k).1
             }
+            Some(loc) if crate::state::others_ash(loc).is_some() => {
+                let o = crate::state::others_ash(loc).expect("an ash heap");
+                let seat = &mut self.state.seats[o.index()];
+                let k = seat.ash.iter().position(|&c| c == card).expect("ash card");
+                seat.ash.take(k).1
+            }
             Some(loc) => {
                 let stored = &mut self.state.cards[loc.index()].stored;
                 let k = stored.iter().position(|&c| c == card).expect("stored card");
-                stored.take(k).1
+                let copy = stored.take(k).1;
+                // Gift of Proteus: "burn this card if it has no cards on it".
+                let gift = cards::lookup(self.state.cards[loc.index()].card)
+                    .is_some_and(|d| d.modes[0].effects.contains(&Effect::BearerStore));
+                if gift && self.state.cards[loc.index()].stored.is_empty() {
+                    self.burn_card_in_play(loc);
+                }
+                copy
             }
         };
         let def = cards::lookup(card).expect("played card has a definition");
@@ -1831,8 +1919,9 @@ impl Engine {
         }
     }
 
-    /// The cards `seat` may play: its hand, then the cards on its
-    /// Fleshforge Chambers (with the location they sit on).
+    /// The cards `seat` may play: its hand, then the cards on its stores
+    /// (with the card they sit on: Fleshforge Chamber, Gift of Proteus) and
+    /// in ash heaps (`ASH_UNLOCK`, `ASH_PLAY`, Vestgeir's `ash_of`).
     pub fn virtual_hand(&self, seat: SeatId) -> Vec<(u16, Option<CardId>)> {
         let st = &self.state;
         let mut out: Vec<(u16, Option<CardId>)> = st.seats[seat.index()]
@@ -1845,10 +1934,14 @@ impl Engine {
             if c.present()
                 && st.card_controller(id) == seat
                 && cards::lookup(c.card).is_some_and(|d| {
-                    d.modes[0]
-                        .effects
-                        .iter()
-                        .any(|e| matches!(e, Effect::PlayableFromStore(_) | Effect::BearerAimStore))
+                    d.modes[0].effects.iter().any(|e| {
+                        matches!(
+                            e,
+                            Effect::PlayableFromStore(_)
+                                | Effect::BearerAimStore
+                                | Effect::BearerStore
+                        )
+                    })
                 })
             {
                 out.extend(c.stored.iter().map(|&s| (s, Some(id))));
@@ -1864,6 +1957,31 @@ impl Engine {
                 .into_iter()
                 .map(|c| (c, Some(crate::state::ASH_UNLOCK))),
             );
+        }
+        // Vestgeir: other Methuselahs' political action cards, one per name
+        // and heap.
+        let vestgeir = st.minions_of(seat).any(|m| {
+            st.printed_mod(
+                m,
+                cards::Stat::PlaysPoliticalFromOthersAsh,
+                Default::default(),
+            ) > 0
+        });
+        if vestgeir {
+            for o in (0..st.seats.len())
+                .map(|i| SeatId(i as u8))
+                .filter(|&o| o != seat)
+            {
+                out.extend(
+                    crate::state::distinct(&st.seats[o.index()].ash, |c| {
+                        LIBRARY[c as usize]
+                            .types
+                            .contains(&CardType::PoliticalAction)
+                    })
+                    .into_iter()
+                    .map(|c| (c, Some(crate::state::ash_of(o)))),
+                );
+            }
         }
         // Spiritual Guidance: the ash heap's combat cards, one per name.
         if st.seats[seat.index()].ash_combat_play {
@@ -2616,6 +2734,12 @@ impl Engine {
                 })
                 .map(Choice::ChooseMinion)
                 .collect(),
+            Some(Terms::OwnAllyOfSubtype(labels)) => self
+                .state
+                .minions_of(ctx.seat)
+                .filter(|&m| self.state.ally_of(m, labels))
+                .map(Choice::ChooseMinion)
+                .collect(),
             Some(Terms::OwnOfClan { clan, other }) => self
                 .state
                 .minions_of(ctx.seat)
@@ -2718,6 +2842,14 @@ impl Engine {
                     .collect()
             }
             // Slake the Thirst: each amount the actor gained, by one effect.
+            Some(Terms::HandCards(of)) => {
+                let n = self.state.seats[ctx.seat.index()]
+                    .hand
+                    .iter()
+                    .filter(|&&c| of.matches(c))
+                    .count() as u8;
+                (0..=n).map(Choice::SetX).collect()
+            }
             Some(Terms::ActorGain) => {
                 let m = ctx.actor.expect("actor");
                 let mut amounts: Vec<u8> = self
@@ -3725,19 +3857,23 @@ impl Engine {
 
     /// The owner of a card played by `seat` from `from` (The Erciyes
     /// Fragments: the prey's card stays its owner's — its removal and its
-    /// return to hand, rules-qa 60.19).
+    /// return to hand, rules-qa 60.19; Vestgeir's from another's ash heap).
     pub(crate) fn played_card_owner(&self, seat: SeatId, from: Option<CardId>) -> SeatId {
+        if let Some(o) = from.and_then(crate::state::others_ash) {
+            return o;
+        }
         from.filter(|&f| !crate::state::from_ash(f))
             .and_then(|f| self.state.cards[f.index()].stored_owner)
             .unwrap_or(seat)
     }
 
     /// Was a card played from a store whose cards are removed instead of
-    /// burned (The Erciyes Fragments)?
+    /// burned (The Erciyes Fragments; another's ash heap: Vestgeir)?
     pub(crate) fn played_from_removing_store(&self, from: Option<CardId>) -> bool {
         // Spiritual Guidance: "if that card would be burned, instead remove
         // it from the game".
-        if from == Some(crate::state::ASH_PLAY) {
+        if from == Some(crate::state::ASH_PLAY) || from.and_then(crate::state::others_ash).is_some()
+        {
             return true;
         }
         from.filter(|&f| !crate::state::from_ash(f))
@@ -3962,6 +4098,24 @@ impl Engine {
             .find(|e| matches!(e, Effect::DeclareAction(_)))
         {
             let actor = ctx.actor.expect("acting minion");
+            // Gift of Proteus: the cards it may take, before the
+            // replacement is drawn (PIB 20150428).
+            let earmarked: Vec<u16> = mode
+                .effects
+                .iter()
+                .find_map(|e| match e {
+                    Effect::StoreFromHandX(of) => Some(*of),
+                    _ => None,
+                })
+                .map(|of| {
+                    self.state.seats[s.index()]
+                        .hand
+                        .iter()
+                        .copied()
+                        .filter(|&c| of.matches(c))
+                        .collect()
+                })
+                .unwrap_or_default();
             // Not from the hand (Fleshforge Chamber): nothing to replace.
             // Blood Weakens holds a Discipline action card until its action
             // ends (LSJ 20080809; rules-qa 40.4); Bum's Rush's "after this
@@ -3971,7 +4125,12 @@ impl Engine {
                 if def.delayed_replacement == Some(Until::EndOfAction)
                     || self.holds_replacements_of(actor)
                 {
-                    self.state.seats[s.index()].held[Release::EndOfAction] += 1;
+                    let seat = &mut self.state.seats[s.index()];
+                    seat.held[Release::EndOfAction] += 1;
+                    if def.retake_from_ash {
+                        seat.retakes
+                            .push((Release::EndOfAction, ctx.card, *ctx.copy));
+                    }
                 } else if self.weakened_card(&ctx) {
                     self.hold_weakened(s, None);
                 } else {
@@ -3979,6 +4138,7 @@ impl Engine {
                 }
             }
             self.declare_action(actor, *kind, None, Some(ctx), None);
+            self.state.seats[s.index()].earmarked = earmarked;
             // An action card's conviction, named as it is announced (RTR
             // 20111202), burned as the action resolves (rules-qa 102.1); an
             // equipment's are paid as it resolves, like its blood.
@@ -4051,7 +4211,9 @@ impl Engine {
         let held = mode.effects.iter().any(|e| {
             matches!(
                 e,
-                Effect::PutOnOpponentOnHit { .. } | Effect::PutOnActorAfterCombat
+                Effect::PutOnOpponentOnHit { .. }
+                    | Effect::PutOnActorAfterCombat
+                    | Effect::PutOnOpponentAfterCombatIfClose
             )
         });
         let outer = self.begin_cause(Cause::Effect(played));
@@ -4185,7 +4347,13 @@ impl Engine {
             // The replacement waits on the condition, not on the card: a
             // burned card still waits (LSJ 20080805).
             Some(u) => match (u.release(), in_play) {
-                (Some(at), _) => self.state.seats[s.index()].held[at] += 1,
+                (Some(at), _) => {
+                    let seat = &mut self.state.seats[s.index()];
+                    seat.held[at] += 1;
+                    if def.retake_from_ash {
+                        seat.retakes.push((at, ctx.card, *ctx.copy));
+                    }
+                }
                 // "As long as this card is in play".
                 (None, Some(id)) => self.state.seats[s.index()].held_in_play.push(id),
                 (None, None) => self.replace(s, 1, None),
@@ -5188,7 +5356,29 @@ impl Engine {
                 self.interrupts.push(Interrupt::StoreOwnHand {
                     seat: ctx.seat,
                     card,
+                    left: 1,
+                    of: cards::CardFilter::Any,
+                    replace: true,
+                    earmarked: false,
                 });
+            }
+            // None to put there, it burns at once ("if it has no cards on
+            // it").
+            Effect::StoreFromHandX(of) => {
+                let card = in_play.expect("a card that entered play");
+                if ctx.x > 0 && !self.store_candidates(ctx.seat, of, true).is_empty() {
+                    self.interrupts.push(Interrupt::StoreOwnHand {
+                        seat: ctx.seat,
+                        card,
+                        left: ctx.x,
+                        of,
+                        replace: false,
+                        earmarked: true,
+                    });
+                } else {
+                    self.state.seats[s.index()].earmarked.clear();
+                    self.burn_card_in_play(card);
+                }
             }
             Effect::UnlockActorIfClanCapacity { clan, n } => {
                 if let Some(m) = ctx.actor {
@@ -5255,7 +5445,7 @@ impl Engine {
                     }
                 }
             }
-            Effect::EnterWithCountersPerOwnClan(clans) => {
+            Effect::EnterWithCountersPerOwn { clans, allies } => {
                 let id = in_play.expect("counters on a card that entered play");
                 let n = self
                     .state
@@ -5264,6 +5454,7 @@ impl Engine {
                         self.state.minions[m.index()]
                             .clan()
                             .is_some_and(|c| clans.contains(&c))
+                            || self.state.ally_of(m, allies)
                     })
                     .count();
                 self.state.cards[id.index()].counters = n.min(u8::MAX as usize) as u8;
@@ -5742,7 +5933,7 @@ impl Engine {
                     self.peek(ctx.seat, prey);
                 }
             }
-            Effect::ActorLooksAtLibraryTop(n) => self.look_library_top(ctx.seat, n),
+            Effect::ActorLooksAtLibraryTop(n) => self.look_library_top(ctx.seat, ctx.seat, n),
             Effect::AshToLibraryTop { n, filter, cut } => {
                 let seat = ctx.seat;
                 self.interrupts
@@ -5949,6 +6140,14 @@ impl Engine {
                     self.state.minions[m.index()].gained_black_hand = true;
                 }
             }
+            Effect::UnlockChosen => {
+                if let Some(m) = ctx
+                    .chosen
+                    .filter(|m| self.state.minions[m.index()].present())
+                {
+                    self.unlock_minion(m);
+                }
+            }
             Effect::TargetBecomesSect(sect) | Effect::ActorBecomesSect(sect) => {
                 let who = match (effect, ctx.target) {
                     (Effect::ActorBecomesSect(_), _) => ctx.actor,
@@ -5975,6 +6174,15 @@ impl Engine {
                     self.state.minions[m.index()]
                         .timed
                         .push((l, until, ctx.seat));
+                }
+            }
+            Effect::TargetLasting(l, until) => {
+                if let Target::Minion(m) = ctx.target {
+                    if self.state.minions[m.index()].present() {
+                        self.state.minions[m.index()]
+                            .timed
+                            .push((l, until, ctx.seat));
+                    }
                 }
             }
             // The target of a master card (Life in the City) or the
@@ -6283,6 +6491,7 @@ impl Engine {
                     seat.granted_dpa -= 1;
                 }
                 seat.dpa -= 1;
+                self.state.discard_actions_used.push(s);
                 // Port Authority: drawn back before unlocking (ANK
                 // 20200129).
                 if self
@@ -6373,6 +6582,7 @@ impl Engine {
                 }
                 seat.dpa -= 1;
                 seat.event_played = true;
+                self.state.discard_actions_used.push(s);
                 self.announce_play(s, *card, *mode, *actor, *target, Flow::Discard);
             }
             other => unreachable!("illegal discard choice {other:?}"),
@@ -7545,8 +7755,10 @@ impl Engine {
     /// What `actor`'s card costs more (mode `mode`), action cards paid at
     /// resolution included: "cards requiring a Discipline cost this
     /// vampire +n blood" (Enhanced Coagulant become: played using one,
-    /// rules-qa 38.4), redirecting a bleed (Narrow Minds), superior
-    /// (The Slow Withering), played in torpor (Torpid Blood).
+    /// rules-qa 38.4), redirecting a bleed (Narrow Minds), reducing or
+    /// redirecting the bleed of the current action's card (Suspension of
+    /// Disbelief), superior (The Slow Withering), played in torpor (Torpid
+    /// Blood).
     pub(crate) fn card_surcharge(&self, actor: MinionId, card: u16, mode: u8) -> u8 {
         let st = &self.state;
         let tags = played_disciplines(card, mode);
@@ -7557,7 +7769,32 @@ impl Engine {
         let v = &st.minions[actor.index()];
         let def = cards::lookup(card);
         let effects = def.map_or(&[][..], |d| d.modes[mode as usize].effects);
-        st.in_play_layers()
+        // Suspension of Disbelief [CHI]: its bleed's reducers and redirects.
+        let bleed_change = effects.iter().any(|e| {
+            matches!(
+                e,
+                Effect::RedirectBleed
+                    | Effect::ReduceBleed(_)
+                    | Effect::ReduceBleedX
+                    | Effect::ReduceBleedToZero
+            )
+        });
+        let suspension: u8 = self
+            .action
+            .as_ref()
+            .and_then(|a| a.card)
+            .filter(|_| bleed_change)
+            .and_then(|p| cards::lookup(p.card).map(|d| d.modes[p.mode as usize].effects))
+            .map_or(0, |es| {
+                es.iter()
+                    .map(|e| match e {
+                        Effect::BleedChangeCardsCost(n) => *n,
+                        _ => 0,
+                    })
+                    .sum()
+            });
+        suspension
+            + st.in_play_layers()
             .map(|l| match l.modifier {
                 cards::Modifier::HostDisciplineCardsCost(n)
                     if disc && st.cards[l.source.index()].host == Some(actor) =>
@@ -8714,7 +8951,17 @@ impl Engine {
                         self.damage_out_of_combat(o, n, false);
                     }
                 }
-                Effect::LookAtLibraryTop(n) => self.look_library_top(seat, n),
+                Effect::LookAtLibraryTop(n) => self.look_library_top(seat, seat, n),
+                Effect::LookAtTurnLibraryTop => {
+                    self.look_library_top(seat, self.state.active, 1);
+                }
+                // Asked only on a master its vampire can pay for (the
+                // interrupt's own check).
+                Effect::MayBurnLookedMaster(n) => {
+                    let card = source.card();
+                    self.interrupts
+                        .push(crate::draws::Interrupt::MayBurnLookedMaster { seat, card, n });
+                }
                 Effect::GainConviction { library } => {
                     let minion = host.expect("an imbued host");
                     self.interrupts
@@ -9332,7 +9579,10 @@ impl Engine {
                     self.discard_at_random(s, k);
                     self.replace(s, k, None);
                 }
-                Effect::SpendDiscardPhaseAction => self.state.seats[ctx.seat.index()].dpa -= 1,
+                Effect::SpendDiscardPhaseAction => {
+                    self.state.seats[ctx.seat.index()].dpa -= 1;
+                    self.state.discard_actions_used.push(ctx.seat);
+                }
                 Effect::GrantDiscardAction => {
                     let seat = &mut self.state.seats[ctx.seat.index()];
                     seat.dpa += 1;
@@ -10650,6 +10900,12 @@ impl Engine {
                     self.burn_card_in_play(id);
                 }
             }
+            Effect::LockSelf => self.lock_card(id),
+            Effect::AddHostBlood(n) => {
+                if let Some(h) = self.state.cards[id.index()].bearer() {
+                    self.state.gain_blood(h, n);
+                }
+            }
             other => unreachable!("not a {hook:?} rider effect: {other:?}"),
         }
     }
@@ -11002,6 +11258,23 @@ impl Engine {
                                 by = by.or(Some(Source::Minion(subject)));
                             }
                             other => unreachable!("not a torpor rider effect: {other:?}"),
+                        }
+                    }
+                }
+            }
+            // Printed on the subject leaving (Bez Dunsirn: its controller
+            // discards at random, then replaces).
+            if hook == Hook::ReadyMinionBurnedOrTorpor {
+                for r in self.printed_riders(subject, Hook::HostLeftReady, None) {
+                    for e in r.effects {
+                        match *e {
+                            Effect::DiscardAtRandom(n) => {
+                                let hand = self.state.seats[controller.index()].hand.len();
+                                let k = (n as usize).min(hand);
+                                self.discard_at_random(controller, k);
+                                self.replace(controller, k, None);
+                            }
+                            other => unreachable!("not a left-ready rider effect: {other:?}"),
                         }
                     }
                 }

@@ -107,6 +107,7 @@ impl Requirement {
             | R::BleedSuccessful
             | R::BleedAmountAtLeast(..)
             | R::BlocksDeclined
+            | R::AfterBlocksDeclined
             | R::StealthNeeded
             | R::InterceptNeeded
             | R::LockedActor
@@ -366,6 +367,7 @@ impl Requirement {
             | R::TargetEnteredSinceYourLastMinionPhase
             | R::TargetEnteredInYourLastInfluencePhase
             | R::TargetAllyOrCapacityAtMost(..)
+            | R::TargetControllerPoolAtMost(..)
             | R::ControlledByPredator
             | R::ControlledByActive
             | R::TargetOtherCopy
@@ -417,6 +419,9 @@ impl Requirement {
             | R::ThisVampireReady
             | R::ActorGraftedAlly
             | R::OpponentClan(..)
+            | R::OpponentNamed(..)
+            | R::ActorOfOtherMethuselah
+            | R::DirectedAtYourClan(..)
             | R::OpponentYounger
             | R::OpponentOlder
             | R::OpponentAllyOrYounger
@@ -463,6 +468,7 @@ impl Requirement {
             | R::RulebookHunt
             | R::IsDiablerie
             | R::IsRecruitOrEmploy
+            | R::IsEmploy
             | R::IsEquipWeaponFromHand
             | R::ActionEntersCombat
             | R::ActionPutsVampireInPlay

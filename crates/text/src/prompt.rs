@@ -229,6 +229,15 @@ impl Prompt<'_> {
                 "{}: you can draw an additional card (discard afterward)",
                 self.card()?
             ),
+            P::MayBurnLookedMaster => format!(
+                "{}: the top card is a master; you can burn {} blood to burn it",
+                self.card()?,
+                a.n?
+            ),
+            P::MayLockForBlood => format!(
+                "{}: you can lock it to move 1 blood from the blood bank to its vampire",
+                self.card()?
+            ),
             P::MayTorture => format!(
                 "The Path of Lilith: you can lock it to put a torture counter on {}",
                 self.minion()?
@@ -317,6 +326,10 @@ impl Prompt<'_> {
                 a.n?
             ),
             P::CutLibrary => "You can cut your library once".into(),
+            P::RetakeFromAsh => format!(
+                "{}: replace it by taking it back from your ash heap, or draw",
+                self.card()?
+            ),
             P::XConvictions => format!(
                 "{}: burn a conviction to add 1 to {}'s X?",
                 self.minion()?,
@@ -863,6 +876,9 @@ mod tests {
         DualFormKept,
         AshToLibraryTop,
         CutLibrary,
+        RetakeFromAsh,
+        MayLockForBlood,
+        MayBurnLookedMaster,
         XConvictions,
     );
 

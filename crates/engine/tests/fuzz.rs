@@ -5340,4 +5340,107 @@ fuzz_tests! {
         seeds: 8,
         ..BASE
     };
+    /// Round 23 (slice 16ai): The Unaligned's combat and bleed cards, Gift
+    /// of Proteus and Nar-Sheptha, with strikes and stealth to meet them.
+    random_games_with_twda_round_23a_hold_invariants_and_replay: Fixture {
+        slice: &[
+            "Hall of Mirrors",
+            "Blight",
+            "Serpent's Numbing Kiss",
+            "Steely Tenacity",
+            "Suspension of Disbelief",
+            "Ophidian Gaze",
+            "Gift of Proteus",
+            "Nar-Sheptha",
+            // Partners: strikes Hall of Mirrors cancels, Protean cards for
+            // the Gift, a redirect Suspension taxes.
+            "Body Flare",
+            "Wolf Claws",
+            "Form of Mist",
+            "Deflection",
+        ],
+        covers: &[
+            "play:Hall of Mirrors",
+            "play:Blight",
+            "play:Serpent's Numbing Kiss",
+            "play:Steely Tenacity",
+            "play:Suspension of Disbelief",
+            "play:Ophidian Gaze",
+            "play:Gift of Proteus",
+            "play:Nar-Sheptha",
+            "ability:Glycon",
+        ],
+        setup: |e, _| {
+            named(
+                e,
+                &[
+                    "Delizbieta of the Dark Eyes",
+                    "Count Jocalo",
+                    "Rosa Hernández",
+                    "Abid bin Haji, Scholar of Mirrors",
+                    "Iago Castille",
+                    "Legba",
+                    "Art Morgan",
+                    "Madeleine Giovanni",
+                    "Glycon",
+                    "Karmenita Yoryari",
+                ],
+            );
+            per_seat(e, |c| c.sect == Some(zvtes::crypt::Sect::Anarch), 4);
+        },
+        seeds: 8,
+        ..BASE
+    };
+    /// Round 23 (slice 16ai): The Unaligned's politics and masters, its
+    /// Giovanni and Followers of Set, Vestgeir.
+    random_games_with_twda_round_23b_hold_invariants_and_replay: Fixture {
+        slice: &[
+            "Velvet Tongue",
+            "Skaald",
+            "From a Sinking Ship",
+            "Conniver",
+            "Weirding Stone",
+            "In Memory of the Two Lands",
+            "Funeral Wake",
+            // Partners: a referendum to vote in, a mummy and a wraith, Auspex
+            // cards for Rebekah.
+            "Ancilla Empowerment",
+            "Saatet-ta",
+            "Screamer",
+            "Eyes of Argus",
+        ],
+        covers: &[
+            "play:Velvet Tongue",
+            "play:Skaald",
+            "play:From a Sinking Ship",
+            "play:Conniver",
+            "play:Weirding Stone",
+            "play:In Memory of the Two Lands",
+            "play:Funeral Wake",
+            "ability:Enzo Giovanni, Pentex Board of Directors",
+            "ability:Rebekah",
+            "ability:Lupo Giovanni",
+            "ability:Weirding Stone",
+        ],
+        setup: |e, _| {
+            named(
+                e,
+                &[
+                    "Legba",
+                    "Elizabeth Dimitros",
+                    "Enzo Giovanni, Pentex Board of Directors",
+                    "Rebekah",
+                    "Imanna",
+                    "Vestgeir",
+                    "Lupo Giovanni",
+                    "Lisandro Giovanni",
+                    "Rosa Hernández",
+                    "Dr. Sutton Gassaway",
+                    "Bez Dunsirn",
+                ],
+            );
+        },
+        seeds: 36,
+        ..BASE
+    };
 }

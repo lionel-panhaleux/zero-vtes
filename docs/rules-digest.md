@@ -3675,6 +3675,20 @@ readings (vampires, allies, library cards) no mechanism section states.
   the title read as he is blocked (104.12); Javier Montoya's younger than him,
   any Methuselah's (104.13); Vulture's unfizzled vehicle equip, once each turn
   (104.19); [MERGED] text inert without the base card (104.20).
+- Round 23's cards: Hall of Mirrors' blood an effect (106.1); Ophidian Gaze
+  after the action succeeded too (106.2); From a Sinking Ship read live,
+  once a game (106.3); Funeral Wake by a locked vampire (106.4); Blight for
+  the combat, no additional strike card (106.5); In Memory's counters as it
+  enters, one use each action (106.6); Gift of Proteus' cards earmarked
+  before its replacement (106.7); Nar-Sheptha's hand size and combat order,
+  over Deep Song, reverting at once, FBI reading that order (106.8, 106.9,
+  106.10, 106.11); Serpent's Numbing Kiss after combat, not dodged (106.12);
+  Skaald's votes read live (106.13); Steely Tenacity taken back as its
+  action ends (106.14); Suspension of Disbelief's surcharge on any minion
+  card changing the bleed (106.15); Velvet Tongue's live bar (106.16);
+  Weirding Stone's burn on a master only (106.17); Conniver on any pool lost
+  (106.18); the printed vampires (106.19), Lisandro's two clans (106.20),
+  the abilities (106.21); Vestgeir's plays from another's ash heap (106.22).
 - Alabástrom: once per turn, any other ready Gargoyle (16.6); Flight read
   since 84.37.
 - Valkyrie: "unless /Brunhilde/ is ready" — any ready Brunhilde in play, any
@@ -4743,6 +4757,8 @@ read, for the owner to confirm or correct:
   amber (104.3, 104.8, 104.18 red, answered by the owner: 104.3 corrected,
   104.8 and 104.18 confirmed).
 - 105.1–105.6 graded green or amber.
+- 106.1–106.9, 106.11–106.17, 106.19–106.22 graded green or amber
+  (106.10 and 106.18 red, confirmed by the owner).
 - 93.1–93.10 graded green (settled by KRCG rulings and 60.7, 60.19, 60.21).
 - 95.1–95.5 graded green or amber (the tournament withdrawal).
 - 96.1, 96.4, 96.5 graded green or amber (96.2 and 96.3 answered by the
@@ -4854,7 +4870,7 @@ an owner ruling:
 Every rules-qa item, by batch, with the digest sections citing it: the
 section stating it and those cross-referring to it (§2 the default
 readings, §22 engine modeling, §23 the contradictions, §24 the open
-readings). 1054 items, Batches 1–105 (44.11 was removed, replaced by Batch
+readings). 1076 items, Batches 1–106 (44.11 was removed, replaced by Batch
 45). The index is derived from the citations: a bare `N.M` cites rules-qa
 item N.M in the section it appears in. A new rules-qa item gets its line in
 the section stating it, then its entry here: `python3
@@ -5213,3 +5229,8 @@ index or an item cited nowhere.
   104.18 §4.4,§24.1; 104.19 §15.2,§24.1; 104.20 §15.2,§24.1
 - **105** — 105.1 §15.2,§24.1; 105.2 §15.2; 105.3 §7.3; 105.4 §9.1; 105.5
   §15.2; 105.6 §7.3,§24.1
+- **106** — 106.1 §15.2,§24.1; 106.2 §15.2; 106.3 §15.2; 106.4 §15.2; 106.5
+  §15.2; 106.6 §15.2; 106.7 §15.2; 106.8 §15.2; 106.9 §15.2,§24.1; 106.10
+  §15.2,§24.1; 106.11 §15.2,§24.1; 106.12 §15.2; 106.13 §15.2; 106.14 §15.2;
+  106.15 §15.2; 106.16 §15.2; 106.17 §15.2,§24.1; 106.18 §15.2,§24.1; 106.19
+  §15.2,§24.1; 106.20 §15.2; 106.21 §15.2; 106.22 §15.2,§24.1

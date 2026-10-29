@@ -177,7 +177,7 @@ pub static ABRAHAM_MELLON: VampireDef = VampireDef {
     name: "Abraham Mellon",
     printed: &[own(Stat::HandSize, 1, &[R::ThisVampireReady])],
     plays_as: Some(PlaysAs {
-        clan: "Tremere",
+        clans: &["Tremere"],
         methuselah: false,
     }),
     ..VAMP
@@ -991,7 +991,7 @@ pub static KUYEN: VampireDef = VampireDef {
 pub static LADY_SCARLETT_CHURCHILL: VampireDef = VampireDef {
     name: "Lady Scarlett Churchill",
     plays_as: Some(PlaysAs {
-        clan: "Toreador",
+        clans: &["Toreador"],
         methuselah: true,
     }),
     ..VAMP
@@ -1788,7 +1788,7 @@ pub static PARIJAT: VampireDef = VampireDef {
     ..VAMP
 };
 
-pub static VAMPIRES: [&VampireDef; 496] = [
+pub static VAMPIRES: [&VampireDef; 516] = [
     &JOSEF_VON_BAUREN,
     &GABRIELLE_DI_RIGHETTI,
     &HAROLD_TANNER,
@@ -2285,6 +2285,26 @@ pub static VAMPIRES: [&VampireDef; 496] = [
     &SALVADOR_GARCIA,
     &VICTOR_GERARD,
     &VULTURE,
+    &ADRI_THE_SEEKER,
+    &ART_MORGAN,
+    &ENZO_GIOVANNI,
+    &GLYCON,
+    &IAGO_CASTILLE,
+    &IMANNA,
+    &IVAN_KRENYENKO,
+    &KARMENITA_YORYARI,
+    &LUPO_GIOVANNI,
+    &MADELEINE_GIOVANNI,
+    &REBEKAH,
+    &ELIZABETH_DIMITROS,
+    &ROSA_HERNANDEZ,
+    &DELIZBIETA,
+    &LISANDRO_GIOVANNI,
+    &AL_ASHRAD,
+    &COUNT_JOCALO,
+    &BEZ_DUNSIRN,
+    &LEGBA,
+    &VESTGEIR,
 ];
 
 /// "Anarch Baron of Miami: During your influence phase, Gilbert can burn 1
@@ -6025,7 +6045,7 @@ pub static FRONDATOR: VampireDef = VampireDef {
 pub static GEM_GHASTLY: VampireDef = VampireDef {
     name: "Gem Ghastly",
     plays_as: Some(PlaysAs {
-        clan: "Ventrue",
+        clans: &["Ventrue"],
         methuselah: true,
     }),
     ..VAMP
@@ -9291,7 +9311,7 @@ pub static MARGUERITE_FOCCART: VampireDef = VampireDef {
 pub static PHILIP_VAN_VERMEER_IV: VampireDef = VampireDef {
     name: "Philip van Vermeer IV",
     plays_as: Some(PlaysAs {
-        clan: "Ventrue",
+        clans: &["Ventrue"],
         methuselah: true,
     }),
     ..VAMP
@@ -9388,6 +9408,304 @@ pub static VULTURE: VampireDef = VampireDef {
             &[Effect::UnlockActing],
         )
     }],
+    ..VAMP
+};
+
+// ---- Round 23: The Unaligned -----------------------------------------------
+//
+// C.J., Dr. Sutton Gassaway, Malcolm, Sanjay Chakrabarti ("Independent."),
+// Missy Shillingford ("Sabbat Archbishop of Pittsburgh."), Abid bin Haji and
+// Enam ("Camarilla: Blood cursed.", a crypt trait) print no other text.
+
+/// "Independent: Adri gets +1 intercept against Followers of Set." The
+/// acting minion's clan (Ministry, the V5 name), read live.
+pub static ADRI_THE_SEEKER: VampireDef = VampireDef {
+    name: "Adri, The Seeker",
+    printed: &[own(Stat::Intercept, 1, &[R::OpponentClan("Ministry")])],
+    ..VAMP
+};
+
+/// "Independent: Rosa gets +1 stealth when employing retainers." On her
+/// employ actions, whatever employs (a card's employ too).
+pub static ROSA_HERNANDEZ: VampireDef = VampireDef {
+    name: "Rosa Hernández",
+    printed: &[own(Stat::Stealth, 1, &[R::IsEmploy])],
+    ..VAMP
+};
+
+/// "Independent: Delizbieta gets +1 intercept during actions directed at a
+/// Ravnos you control." An action targeting one, in torpor too; not a
+/// bleed at her Methuselah.
+pub static DELIZBIETA: VampireDef = VampireDef {
+    name: "Delizbieta of the Dark Eyes",
+    printed: &[own(Stat::Intercept, 1, &[R::DirectedAtYourClan("Ravnos")])],
+    ..VAMP
+};
+
+/// "Independent: You and Lisandro can play cards requiring a Samedi or a
+/// Ventrue antitribu as if he were of that required clan. +1 stealth." Lady
+/// Scarlett Churchill's shape with two clans: played normally (LSJ
+/// 20050119), never for the card's effects in play (LSJ 20101013).
+pub static LISANDRO_GIOVANNI: VampireDef = VampireDef {
+    name: "Lisandro Giovanni",
+    printed: &[own(Stat::Stealth, 1, &[])],
+    plays_as: Some(PlaysAs {
+        clans: &["Samedi", "Ventrue antitribu"],
+        methuselah: true,
+    }),
+    ..VAMP
+};
+
+/// "Camarilla: During the first round of combat, Al-Ashrad can use strikes
+/// requiring Blood Sorcery [tha] that are not usable during the first
+/// round. Blood cursed. [MERGED] Assamite Inner Circle: +1 bleed." Played
+/// with Blood Sorcery (rules-qa 38.4); his base card is not in the pool:
+/// the [MERGED] text never applies.
+pub static AL_ASHRAD: VampireDef = VampireDef {
+    name: "Al-Ashrad, Amr of Alamut",
+    adv: true,
+    printed: &[own(Stat::FirstRoundSorceryStrikes, 1, &[])],
+    ..VAMP
+};
+
+/// "Independent: If Jocalo is ready after your predator or prey uses a
+/// discard phase action, you can look at that Methuselah's hand (after the
+/// replacement card is drawn, if any). +1 bleed. +1 hand size." Each
+/// discard phase action, its event's play included; +1 bleed and hand size
+/// in torpor too (no "if ready").
+pub static COUNT_JOCALO: VampireDef = VampireDef {
+    name: "Count Jocalo",
+    printed: &[
+        own(Stat::LooksAfterDiscardAction, 1, &[]),
+        own(Stat::Bleed, 1, &[]),
+        own(Stat::HandSize, 1, &[]),
+    ],
+    ..VAMP
+};
+
+/// "Independent: After Bez leaves the ready region, discard 2 cards at
+/// random." Burned or sent to torpor; his controller's hand, then replaced
+/// (Ruxandra's discard at once, ANK 20230404).
+pub static BEZ_DUNSIRN: VampireDef = VampireDef {
+    name: "Bez Dunsirn",
+    riders: &[Rider {
+        hook: Hook::HostLeftReady,
+        scope: RiderScope::Every,
+        requires: &[],
+        effects: &[Effect::DiscardAtRandom(2)],
+    }],
+    ..VAMP
+};
+
+/// "Sabbat Archbishop of Port-au-Prince: Followers of Set controlled by
+/// other Methuselahs cannot cast votes or ballots in referendums called by
+/// Legba." Ministry, the V5 name, read live; their votes of every source.
+pub static LEGBA: VampireDef = VampireDef {
+    name: "Legba",
+    printed: &[Printed {
+        stat: Stat::CastsNoVotesInCallersReferendum,
+        n: 1,
+        to: PrintedTo::Opponent,
+        per: Per::One,
+        requires: &[R::ActorClan("Ministry"), R::ActorOfOtherMethuselah],
+    }],
+    ..VAMP
+};
+
+/// "Independent: /Hesha Ruhadze/ cannot block Elizabeth." Any version,
+/// any Methuselah's (Aisling Sturbridge's shape).
+pub static ELIZABETH_DIMITROS: VampireDef = VampireDef {
+    name: "Elizabeth Dimitros",
+    printed: &[own(
+        Stat::CannotBeBlockedBy,
+        1,
+        &[R::OpponentNamed("Hesha Ruhadze")],
+    )],
+    ..VAMP
+};
+
+/// "Camarilla primogen: If Art is ready during your minion phase, you can
+/// unlock a werewolf you control." Once in the phase, locked too (Lord
+/// Tremere's template); an unlocked one a legal no-op.
+pub static ART_MORGAN: VampireDef = VampireDef {
+    name: "Art Morgan",
+    abilities: &[ModeDef {
+        target: target(
+            TargetKind::Minion,
+            &[R::Controlled, R::TargetSubtypeIn(&[Label::Werewolf])],
+        ),
+        limit: Some(Limit::PerTurn),
+        ..mode_of(
+            &[Window::AnyImpulse],
+            Actor::Host,
+            &[R::OwnMinionPhase, R::HostReady],
+            &[Effect::UnlockTarget],
+        )
+    }],
+    ..VAMP
+};
+
+/// "Independent: During the polling step of any political action, Enzo can
+/// burn 1 blood to get +4 votes against the referendum. [MERGED] If a
+/// referendum fails, your prey burns 1 pool." Once a referendum, locked
+/// too (ANK 20220705). His base card is not in the pool: the [MERGED] text
+/// never applies.
+pub static ENZO_GIOVANNI: VampireDef = VampireDef {
+    name: "Enzo Giovanni, Pentex Board of Directors",
+    adv: true,
+    abilities: &[ability(
+        &[Window::Referendum],
+        Actor::Host,
+        &[R::PollingStep, R::HostBloodAtLeast(1)],
+        Limit::PerReferendum,
+        &[Effect::HostBurnBlood(1), Effect::AddVotesAgainst(4)],
+    )],
+    ..VAMP
+};
+
+/// "Independent: Glycon can enter combat with a locked minion as a Ⓓ
+/// action." Another Methuselah's ready minion; unlocked by the resolution,
+/// the action fizzles.
+pub static GLYCON: VampireDef = VampireDef {
+    name: "Glycon",
+    abilities: &[enter_combat(&[
+        R::NotControlled,
+        R::ActorReady,
+        R::TargetLocked,
+    ])],
+    ..VAMP
+};
+
+/// "Sabbat: +1 intercept."
+pub static IAGO_CASTILLE: VampireDef = VampireDef {
+    name: "Iago Castille",
+    printed: &[own(Stat::Intercept, 1, &[])],
+    ..VAMP
+};
+
+/// "Independent. 1 vote (titled): Imanna gets +1 vote in referendums she
+/// calls. Blood cursed." The +1 is not her title's.
+pub static IMANNA: VampireDef = VampireDef {
+    name: "Imanna",
+    printed: &[own(Stat::Votes, 1, &[R::SourceCalledReferendum])],
+    ..VAMP
+};
+
+/// "Independent: Equipment costs Ivan 2 fewer blood or pool to equip. +1
+/// bleed. [MERGED] +1 strength." Off whichever the equipment costs (Kuyén's
+/// `CostOff`); his base card is not in the pool: no [MERGED] strength.
+pub static IVAN_KRENYENKO: VampireDef = VampireDef {
+    name: "Ivan Krenyenko",
+    adv: true,
+    printed: &[
+        own(
+            Stat::CostOff,
+            2,
+            &[R::PlayedCard(CardFilter::Type(CardType::Equipment))],
+        ),
+        own(Stat::Bleed, 1, &[]),
+    ],
+    ..VAMP
+};
+
+/// "Sabbat Archbishop of Lisbon: Karmenita can burn an equipment or a
+/// location as a Ⓓ action that costs 1 blood." Any Methuselah's, her own
+/// undirected; Diego Giovanni's shape.
+pub static KARMENITA_YORYARI: VampireDef = VampireDef {
+    name: "Karmenita Yoryari",
+    abilities: &[ModeDef {
+        requires: &[R::ActorBloodAtLeast(1)],
+        ..printed_action(
+            Some(TargetSpec {
+                kind: TargetKind::Card,
+                filter: &[R::AnyOf(&[
+                    &[R::TargetCard(CardFilter::Location)],
+                    &[R::TargetCard(CardFilter::Type(CardType::Equipment))],
+                ])],
+            }),
+            &[
+                Effect::DeclareAction(ActionKind::Ability),
+                Effect::PayBlood(1),
+                Effect::BurnTargetCard,
+            ],
+        )
+    }],
+    ..VAMP
+};
+
+/// "Independent: If Lupo is ready during your unlock phase, another ready
+/// Giovanni you control can gain 1 blood." Once each unlock phase (rules-qa
+/// 6.6).
+pub static LUPO_GIOVANNI: VampireDef = VampireDef {
+    name: "Lupo Giovanni",
+    abilities: &[ModeDef {
+        target: target(
+            TargetKind::Minion,
+            &[
+                R::Controlled,
+                R::ActorReady,
+                R::ActorClan("Giovanni"),
+                R::NotHost,
+            ],
+        ),
+        ..mode_of(
+            &[Window::UnlockPhaseOwn],
+            Actor::Host,
+            &[R::HostReady],
+            &[Effect::BloodToTarget(1)],
+        )
+    }],
+    ..VAMP
+};
+
+/// "Independent: After a minion in combat with Madeleine leaves the ready
+/// region, their controller burns 1 pool." Egidia Arrú's rider.
+pub static MADELEINE_GIOVANNI: VampireDef = VampireDef {
+    name: "Madeleine Giovanni",
+    riders: &[Rider {
+        hook: Hook::CombatOpponentLeftReady,
+        scope: RiderScope::Every,
+        requires: &[],
+        effects: &[Effect::TheirControllerBurnsPool(1)],
+    }],
+    ..VAMP
+};
+
+/// "Camarilla Prince of Athens: During the polling step of any referendum,
+/// Rebekah can discard a card requiring Auspex [aus] to get +2 votes. Blood
+/// cursed." Once a referendum (Modius's shape), a blood hunt's too.
+pub static REBEKAH: VampireDef = VampireDef {
+    name: "Rebekah",
+    abilities: &[ModeDef {
+        terms: Some(Terms::Discard {
+            n: 1,
+            of: CardFilter::Discipline("aus"),
+        }),
+        limit: Some(Limit::PerReferendum),
+        ..mode_of(
+            &[Window::Referendum],
+            Actor::Host,
+            &[
+                R::AnyPollingStep,
+                R::HandHas(CardFilter::Discipline("aus"), 1),
+            ],
+            &[Effect::AddVotes(2)],
+        )
+    }],
+    ..VAMP
+};
+
+/// "Sabbat priscus: Vestgeir can play a political action card from another
+/// Methuselah's ash heap as if it were in your hand; when that card would
+/// be burned, instead remove it from the game. +1 bleed." The card stays
+/// its owner's, removed to their removed cards (as The Erciyes Fragments',
+/// rules-qa 60.19); played from there, not replaced.
+pub static VESTGEIR: VampireDef = VampireDef {
+    name: "Vestgeir",
+    printed: &[
+        own(Stat::PlaysPoliticalFromOthersAsh, 1, &[]),
+        own(Stat::Bleed, 1, &[]),
+    ],
     ..VAMP
 };
 

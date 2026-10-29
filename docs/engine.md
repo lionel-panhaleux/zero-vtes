@@ -503,14 +503,18 @@ sources to the engine's conventions.
   (impulse reset / polling commitment). Hand cards timed so are offered with
   them (`any_impulse_options`: Angel of Berlin, rules-qa 103.6). A starving
   vampire's forced hunt is offered beside untimed abilities, not instead.
-- Three settle steps run beside the interrupts: `settle_sect_bound` (a
+- Settle steps run beside the interrupts: `settle_sect_bound` (a
   card in play with `Modifier::SectBound` burns once its host's live sect
   is another: Field Training, The Red Question), `settle_moving_titles`
   (Osebo Kholo's standing move, marked by `Effect::MovesToOldestUntitled`;
   a tie among the oldest is `Interrupt::MoveCardToOldest`, the card's
   controller's) and `settle_burn_to_prevent` (Superior Mettle's offer each
   later round, `Side::burn_to_prevent` and `burn_to_prevent_asked`,
-  `Interrupt::MayPreventForBlood`).
+  `Interrupt::MayPreventForBlood`), `settle_discard_looks` (Count Jocalo:
+  `GameState::discard_actions_used`, pushed at the discard phase action's
+  spend sites) and `settle_pool_losses` (Conniver: `Seat::lose_pool` flags
+  `Seat::lost_pool`, every loss a cost included; `Hook::PreyLosesPool`'s
+  cards offered `Interrupt::MayLockForBlood`).
 - A hand over size waits for no pending choice but a draw's own
   (`Engine::discards_first`, read in `raw_request` and `apply`).
 - The notes (`notes.rs`; `Engine::notes`, `None` by default: training,
@@ -592,8 +596,9 @@ sources to the engine's conventions.
   impulse leaves the active Methuselah. The end-of-turn hand size
   (`Seat::timed`, `Expiry::EndOfTurn`) ends at the end of the turn.
 - "During X, do Y" abilities are once per that phase per copy (`phase_uses`,
-  rules-qa 6.6); an ability spending a resource with no "during" clause
-  (`DiscardPhaseAction`, `Transfers`) is limited only by the resource.
+  rules-qa 6.6; a copy's modes share it); an ability spending a resource
+  with no "during" clause (`DiscardPhaseAction`, `Transfers`) is limited only
+  by the resource.
 - A temporarily controlled minion returns through `return_temporary`: its
   owner set back first, then removed if that Methuselah is ousted (the
   taker's cards on it burn, `remove_minion`). Malkavian Dementia's
@@ -1102,6 +1107,20 @@ sources to the engine's conventions.
   (`Side::strike_play`: Increased Strength's Potence strikes), Rockheart's
   `halve_strikes`; per-round extra damage adds up (`environmental_round`,
   `resolution_damage`).
+- The acting side: `sides[0]`, ordered as the combat begins by
+  `GameState::combat_order` (Nar-Sheptha's `Modifier::OpponentActsInCombat`
+  over Deep Song's order) from `CombatCtx::natural`, the pair as it began
+  (what queues a new combat starts from it: Psyche!, `last_combat`).
+  `reorder_combat` re-reads it as each step naming no side advances, after
+  each pair of strikes and at `new_round` (Nar-Sheptha gone, at once),
+  everything indexed by side swapping with the sides. "The acting minion
+  in combat" reads `sides[0]` in a combat of the action's acting minion
+  (`CombatCtx::acting_in`: FBI Special Affairs Division, Powerbase:
+  Savannah), `ActionCtx::acting` otherwise. Blight's `Side::strength_minus`
+  and `no_additional_strikes` outlast the round; Serpent's Numbing Kiss's
+  `after_put_rider` becomes `CombatCtx::after_combat_put`, placed (and the
+  striker's blood burned) as the combat ends, lost if it continues
+  (`discard_held`).
 
 ### 6.8 Referendums
 
@@ -1141,6 +1160,10 @@ sources to the engine's conventions.
   blood `Interrupt::ShortfallPicks`; `TermsState::term_start` keeps a term's
   picks apart from an earlier term's. A cast turned by another's effect pays
   no vote toll (`vampire_cast`'s `first`).
+- Velvet Tongue's `ReferendumCtx::corrupted_barred` is read by `may_vote`,
+  live: a minion corrupted after voting loses its votes. Skaald's
+  `Modifier::HostVotesWhenCallerOfClan` reads the caller in `votes_of`
+  (`GameState::caller_clan_votes`).
 
 ### 6.9 Contests and titles
 
@@ -1376,7 +1399,8 @@ sources to the engine's conventions.
   cards held on it, burned with it to `stored_owner`'s ash heap if set:
   The Erciyes Fragments' prey, Storage Annex's last storer), `counters`,
   `entered`, `effect_only`. Storage Annex stores a hand card as it is played
-  (`Interrupt::StoreOwnHand`) and swaps one in its master phase
+  (`Interrupt::StoreOwnHand`: `left`, `of`, `replace` — Gift of Proteus'
+  several, unreplaced) and swaps one in its master phase
   (`Effect::SwapPickedWithStored`, in `ability_discards_done`, no
   replacement); another's card it puts in a hand is recorded by copy
   (`GameState::foreign`) and routed back to its owner as it leaves the
@@ -1610,6 +1634,25 @@ sources to the engine's conventions.
   replacement (`Modifier::DiscardActionReplacesAtUnlock`: the discard phase
   action's card held to the Methuselah's next unlock phase, drawn before
   anything unlocks).
+- A held card replaced "instead from the ash heap" (Steely Tenacity,
+  `CardDef::retake_from_ash`): `Seat::retakes` records it with its
+  `Release` and copy; `replace_held` then defers the whole draw to
+  `Interrupt::RetakeFromAsh` (`FindCard` while that copy is in the ash
+  heap, or `DrawLibrary`), each due card in turn (`next_retake`), the
+  draws chosen made at once after the last; re-keyed to `MinionPhaseEnd`
+  when the Meddling holds the draw. A canceled card never reaches the hold.
+- A look, then a choice on what was seen (Weirding Stone): the ability's
+  `Effect::LookAtTurnLibraryTop` then `Effect::MayBurnLookedMaster`, which
+  asks `Interrupt::MayBurnLookedMaster` only on a master — no option shows
+  the card before the look.
+- Cards played from another Methuselah's ash heap (Vestgeir,
+  `Stat::PlaysPoliticalFromOthersAsh`): `state::ash_of(seat)` sources in the
+  virtual hand (`others_ash`), the card its owner's and removed instead of
+  burned (`played_card_owner`, `played_from_removing_store`).
+- Gift of Proteus: `Effect::BearerStore` (its bearer's plays only, burned
+  once empty) and `Effect::StoreFromHandX` with `Terms::HandCards`, among
+  the cards earmarked as the action is declared, before its replacement
+  (`Seat::earmarked`; `Interrupt::StoreOwnHand`'s `earmarked`).
 
 ### 6.15 Costs and reductions
 
@@ -1640,7 +1683,9 @@ sources to the engine's conventions.
   `offer_reduction_at_resolution` (in `action_advance`, before `succeed`)
   asks `Interrupt::ReductionAtResolution` once (`ActionCtx::once_off_asked`;
   costs by `action_card_cost`, `action_card_payable`; rules-qa 96.3).
-- Surcharges: `card_surcharge` (Discipline and event surcharges),
+- Surcharges: `card_surcharge` (Discipline and event surcharges; Suspension
+  of Disbelief's `Effect::BleedChangeCardsCost`, a marker read on the
+  current action's card for the minion cards reducing or redirecting it),
   `discipline_surcharge` (Libertas), `combat_card_surcharge` (Terror Frenzy,
   Djeneba), `torpid_surcharge`, Haven's +1 on masters targeting its minion;
   Daria's on the action (`action_toll`); a label's pool surcharge, every

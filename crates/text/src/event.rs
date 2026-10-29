@@ -99,13 +99,18 @@ pub fn event(e: &EventKind, n: &Names) -> Option<String> {
                 n.card(card)
             )
         }
+        // Its own library or another's (Weirding Stone): named either way.
         EventKind::Looked {
+            seat,
             zone: Some(_),
             cards,
-            ..
         } => {
             let names: Vec<String> = cards.iter().map(|c| n.card(c)).collect();
-            format!("You look at the top of your library: {}", names.join(", "))
+            format!(
+                "You look at the top of {}'s library: {}",
+                n.seat(*seat),
+                names.join(", ")
+            )
         }
         EventKind::Looked { seat, cards, .. } => {
             let names: Vec<String> = cards.iter().map(|c| n.card(c)).collect();
@@ -509,6 +514,22 @@ mod tests {
         assert_eq!(line(1, 1), lucian(" (1 damage)"));
         assert_eq!(line(1, 0), lucian(" (1 damage besides the strike)"));
         assert_eq!(line(0, 0), lucian(""));
+    }
+
+    // A look at a library names whose (Weirding Stone: another seat's).
+    #[test]
+    fn a_library_look_names_whose() {
+        let cards = Two;
+        let n = Names::new(&cards);
+        let e = EventKind::Looked {
+            seat: 1,
+            cards: vec![card(2, None)],
+            zone: Some(zvtes_api::ids::Zone::Library),
+        };
+        assert_eq!(
+            super::event(&e, &n).expect("told"),
+            "You look at the top of Seat 2's library: Torn Signpost"
+        );
     }
 
     // A lasting effect whose card is in the ash heap (`effect`) is told as

@@ -358,3 +358,32 @@ fn an_ash_vampire_names_the_ash_heap_it_is_in() {
     }
     assert!(met > 0, "the prey's ash heap vampire offered");
 }
+
+/// Vestgeir's play from another Methuselah's ash heap names that heap,
+/// not his player's (docs/protocol.md §8's `zone`).
+#[test]
+fn a_play_from_another_ash_heap_names_whose() {
+    use zvtes::decision::Choice;
+    use zvtes::ids::SeatId;
+    use zvtes::state::{find_card, find_library};
+    use zvtes_api::ids::Zone;
+    let mut e = Engine::bare(2);
+    e.add_minion(SeatId(0), find_card("Vestgeir"), 10, false);
+    e.add_minion(SeatId(0), 0, 4, false);
+    e.add_minion(SeatId(1), 1, 4, false);
+    e.state.seats[1]
+        .ash
+        .push(find_library("Ancilla Empowerment"));
+    let Step::Decision(req) = e.run() else {
+        panic!("a decision")
+    };
+    let from_ash = req
+        .options
+        .iter()
+        .find(|c| matches!(c, Choice::Play { .. }))
+        .expect("the play from seat 1's ash heap");
+    let z = key(&e, &req, from_ash, &EngineNames)
+        .zone
+        .expect("its zone");
+    assert_eq!((z.seat, z.zone), (1, Zone::AshHeap));
+}

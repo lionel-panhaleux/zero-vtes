@@ -1,6 +1,6 @@
-/* zvtes protocol 2.18.0 (docs/protocol.md): generated from
+/* zvtes protocol 2.19.0 (docs/protocol.md): generated from
  * crates/api/schema.json by scripts/gen_ts.py, do not edit. */
-export const PROTOCOL_VERSION = '2.18.0'
+export const PROTOCOL_VERSION = '2.19.0'
 
 /**
  * A command as sent: an optional client id, echoed by an `error` it
@@ -740,8 +740,9 @@ export type Event = {
         kind: 'looked'
         seat: number
         /**
-         * `library`: the top of the looking seat's own library, top first
-         * (Anna "Dictatrix11" Suljic); absent, the hand.
+         * `library`: the top of `seat`'s library, top first — the looking
+         * seat's own (Anna "Dictatrix11" Suljic) or the active Methuselah's
+         * (Weirding Stone); absent, the hand.
          */
         zone?: Zone | null
     }
@@ -1355,6 +1356,9 @@ export type Purpose =
     | 'dual_form_kept'
     | 'ash_to_library_top'
     | 'cut_library'
+    | 'retake_from_ash'
+    | 'may_lock_for_blood'
+    | 'may_burn_looked_master'
     | 'unknown'
 
 export type Range = 'close' | 'long' | 'unknown'

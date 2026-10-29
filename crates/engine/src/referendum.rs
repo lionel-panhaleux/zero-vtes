@@ -201,6 +201,8 @@ pub struct ReferendumCtx {
     pub pre_vote: bool,
     /// Made to fail (Yoruba Shrine): no tally.
     pub forced_fail: bool,
+    /// Corrupted minions cast no votes or ballots (Velvet Tongue [SER]).
+    pub corrupted_barred: bool,
     /// Malkavian Rider Clause: the players whose next referendum passes
     /// automatically if this one passes.
     pub rider_clauses: Vec<SeatId>,
@@ -271,11 +273,13 @@ impl ReferendumCtx {
                     crate::crypt::Title::None | crate::crypt::Title::Baron(_)
                 ),
         );
-        let calling = if self.calling == Some(m) {
+        let own_call = if self.calling == Some(m) {
             st.calling_votes(m)
         } else {
             0
         };
+        // Skaald: the caller's clan.
+        let calling = own_call + st.caller_clan_votes(m, self.calling);
         // "+1 vote after a Methuselah burns the Edge for a vote" (Tyler
         // McGill).
         let edge = if (0..st.seats.len()).any(|s| self.spent(Source::Edge(SeatId(s as u8)))) {
@@ -312,6 +316,18 @@ impl ReferendumCtx {
             && !v.expelled
             && !self.abstaining.contains(&m)
             && !st.bears(m, crate::cards::Modifier::CastsNoVotes)
+            && !(self.corrupted_barred && v.corruption.iter().any(|&(_, n)| n > 0))
+            // Printed on the calling vampire (Legba).
+            && !self.calling.is_some_and(|c| {
+                st.printed_mod(
+                    m,
+                    crate::cards::Stat::CastsNoVotesInCallersReferendum,
+                    crate::state::PrintedCtx {
+                        opponent: Some(c),
+                        ..Default::default()
+                    },
+                ) > 0
+            })
             && st.sect_of(m).is_some_and(|s| {
                 self.only_sect.is_none_or(|o| s == o) && self.barred_sect != Some(s)
             })
@@ -522,6 +538,7 @@ impl Engine {
             auto_pass: false,
             pre_vote: kind == RefKind::Political,
             forced_fail: false,
+            corrupted_barred: false,
             rider_clauses: Vec::new(),
             scorn: 0,
             poison: Vec::new(),
@@ -2520,6 +2537,11 @@ impl Engine {
                 self.state.burn_blood(t, burn);
             }
             cards::Effect::TallyPenaltyAgainst(n) => ctx.scorn += n,
+            cards::Effect::BarCorruptedVotes => ctx.corrupted_barred = true,
+            cards::Effect::CorruptTarget => {
+                let t = play.target.minion();
+                self.state.minions[t.index()].add_corruption(play.seat, 1);
+            }
             cards::Effect::BarNonCamarillaVotes => ctx.only_sect = Some(Sect::Camarilla),
             cards::Effect::NextReferendumPassesIfPasses => ctx.rider_clauses.push(play.seat),
             cards::Effect::BarNonSectVotes(sect) => ctx.only_sect = Some(sect),

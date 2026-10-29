@@ -458,9 +458,10 @@ impl Engine {
         }
     }
 
-    /// `seat` looks at the top `n` cards of its library, noted for a
-    /// narrator to tell it alone.
-    pub(crate) fn look_library_top(&mut self, seat: SeatId, n: u8) {
+    /// `viewer` looks at the top `n` cards of `seat`'s library (its own, or
+    /// the active Methuselah's: Weirding Stone), noted for a narrator to
+    /// tell it alone.
+    pub(crate) fn look_library_top(&mut self, viewer: SeatId, seat: SeatId, n: u8) {
         if self.notes.is_some() {
             let cards = self.state.seats[seat.index()]
                 .library
@@ -470,7 +471,7 @@ impl Engine {
                 .copied()
                 .collect();
             self.push_note(crate::notes::Note::Look(Look {
-                viewer: seat,
+                viewer,
                 seat,
                 cards,
                 library: true,
@@ -694,6 +695,59 @@ impl Engine {
         }
     }
 
+    /// Conniver: a Methuselah's prey lost pool on a turn neither's — its
+    /// player may lock it for 1 blood on its vampire.
+    fn settle_pool_losses(&mut self) {
+        let lost: Vec<SeatId> = (0..self.state.seats.len())
+            .map(|i| SeatId(i as u8))
+            .filter(|s| std::mem::take(&mut self.state.seats[s.index()].lost_pool))
+            .collect();
+        let active = self.state.active;
+        for s in lost.into_iter().filter(|&s| s != active) {
+            for (id, _) in self.fired_riders(Hook::PreyLosesPool, &HookAt::ANY) {
+                let c = &self.state.cards[id.index()];
+                let seat = self.state.card_controller(id);
+                if !c.locked
+                    && seat != active
+                    && self.state.prey(seat) == s
+                    && !self.state.seats[seat.index()].ousted
+                {
+                    self.interrupts
+                        .push(Interrupt::MayLockForBlood { seat, card: id });
+                }
+            }
+        }
+    }
+
+    /// Count Jocalo: once a discard phase action is done (the phase's
+    /// rotation back, its replacement drawn), his ready controller looks at
+    /// the hand of the predator or prey who used it.
+    fn settle_discard_looks(&mut self) {
+        if self.state.discard_actions_used.is_empty() || !matches!(self.flow, Flow::Discard) {
+            return;
+        }
+        for s in std::mem::take(&mut self.state.discard_actions_used) {
+            let viewers: Vec<SeatId> = (0..self.state.seats.len())
+                .map(|i| SeatId(i as u8))
+                .filter(|&o| {
+                    o != s
+                        && (self.state.predator(o) == s || self.state.prey(o) == s)
+                        && self.state.minions_of(o).any(|m| {
+                            self.state.minions[m.index()].ready()
+                                && self.state.printed_mod(
+                                    m,
+                                    cards::Stat::LooksAfterDiscardAction,
+                                    Default::default(),
+                                ) > 0
+                        })
+                })
+                .collect();
+            for o in viewers {
+                self.peek(o, s);
+            }
+        }
+    }
+
     /// A card burning "if this vampire changes sect" whose host is no
     /// longer of the sect it made it: read live, an override landing too
     /// (Field Training, The Red Question; LSJ 20100811).
@@ -896,6 +950,8 @@ impl Engine {
             self.settle_servitors();
             self.settle_hunts_to_torpor();
             self.settle_sect_bound();
+            self.settle_discard_looks();
+            self.settle_pool_losses();
             self.state.settle_foreign_cards();
             self.settle_interrupts();
             if self.interrupts.is_empty() {
@@ -1603,9 +1659,14 @@ impl Engine {
             }
         }
         // FBI Special Affairs Division: an ally burned in combat with the
-        // acting vampire (not an ally acting as one, ANK 20180913-2).
+        // acting vampire, the one considered acting in the combat (not an
+        // ally made the acting minion by Nar-Sheptha, ANK 20180913-2).
         if self.state.minions[m.index()].is_ally() {
-            let acting = self.action.as_ref().map(|a| a.acting);
+            let acting = self
+                .combat
+                .as_ref()
+                .zip(self.action.as_ref())
+                .map(|(c, a)| c.acting_in(a));
             let fbi = self.state.ally_burned_in_combat();
             if let (Some(c), Some(a), Some((f, damage, _))) = (self.combat.as_mut(), acting, fbi) {
                 let pair = [c.sides[0].minion, c.sides[1].minion];
@@ -3139,7 +3200,7 @@ mod tests {
     #[test]
     fn crypt_data_is_complete() {
         // The 200 V5 vampires, then the owner's legacy additions.
-        assert_eq!(CRYPT.len(), 758);
+        assert_eq!(CRYPT.len(), 785);
         assert_eq!(PRECONS.len(), 14);
         for (name, list) in PRECONS.iter() {
             let n: u32 = list.iter().map(|&(_, k)| k as u32).sum();

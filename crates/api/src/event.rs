@@ -83,8 +83,9 @@ pub enum EventKind {
     Looked {
         seat: Seat,
         cards: Vec<Card>,
-        /// `library`: the top of the looking seat's own library, top first
-        /// (Anna "Dictatrix11" Suljic); absent, the hand.
+        /// `library`: the top of `seat`'s library, top first — the looking
+        /// seat's own (Anna "Dictatrix11" Suljic) or the active Methuselah's
+        /// (Weirding Stone); absent, the hand.
         #[serde(default, skip_serializing_if = "Option::is_none")]
         zone: Option<crate::ids::Zone>,
     },

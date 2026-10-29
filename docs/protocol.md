@@ -243,7 +243,7 @@ A JSON object with `seq`, `reply_to`? and a `type`:
 … 41: the schema's `Window`). `source` is the card whose terms or effect
 the decision chooses, when it is one (a play's or an action's terms, a
 referendum's): the options' `effects` say what each choice gets.
-`purpose` is what an effect asks the choice for, when one does (88 ids,
+`purpose` is what an effect asks the choice for, when one does (104 ids,
 the schema's `Purpose`: `pay_or_burn`, `store_search`…, one per kind
 of effect choice the engine asks). The purpose says the verb
 (`remove_uncontrolled`: the slot chosen is removed); where it has
@@ -252,6 +252,11 @@ chosen minion gets — `lock`, `unlock`, `corruption`, `blood`, `damage`,
 `burn`, a card `move`d onto it; `ashur_picks`: `move` `to` the hand or
 the library; `ash_to_library_top`: `move` `to` the library's top,
 `cut_library`: `set_x` the cards cut from the top to the bottom;
+`retake_from_ash`: `move` `to` the hand (the card taken back) or a
+draw; `may_lock_for_blood`: `resolve_rider` the lock;
+`may_burn_looked_master`: `resolve_rider` the burn, `about.n` the blood —
+asked only on a master, so its `decided` tells every seat a master was
+seen on that library (accepted: the look itself is the looker's alone);
 `x_convictions`: a conviction burned (`burn_in_play`) for `card`'s X;
 `blood_or_burned`: the blood paid, or what burns on a pass); a secret
 pick (`secret_number`, Game of Malkav) is told to the other seats
@@ -364,36 +369,36 @@ seat 2; burn 2 pool to keep card 9.)
   card taken or played is: `find_card`'s library, hand or ash heap and whose,
   none for a card only named, Master: Discipline, or stored on a card;
   `take_from`'s, `ash_vampire`'s, its crypt or the ash heap and whose (Shroud
-  of Decay: the prey's); the ash heap a card is played from, Spiritual
-  Guidance), `value` (a clan, Discipline or circle id), `ability`, `slot`
-  (`{seat, slot}`: an uncontrolled vampire by its place in the view's
-  `uncontrolled`, its card face down to the others — an option's `target` or
-  `card` names it only to who sees it). Two options of a decision never share
-  a key (copies alike in hand are one option: the copy a `play` took is its
-  `card_moves` into limbo, §9). Each key names what its kind is about, so a
-  log reads it without its English (`crates/host/tests/keys.rs` holds the
-  list): a `play` its `card` and `mode`, a `use_ability` its `card` or
-  `minion` and `ability`, a `take_action` its `actor`, `action` and, a bleed,
-  the seat bled (`target`: the prey); a choice among minions its `minion`
-  (`declare_block`, `cast_votes`, `choose_minion`, `resolve_printed`,
-  `burn_blood_from`, …); `transfer`, `withdraw`, `influence_out`, `merge` and
-  `slot` their `slot` (the Great Beast's Discipline slot its `value`);
-  `follow_path` its `minion` and the path's `value`; a combatant's choice
-  (`hand_strike`, `round_strike`, `use_maneuver`, `use_press`, `use_prevent`,
-  `strike_combat_ends`, `committed_strike`, `gain_strength`, `cancel_combat`)
-  and the acting minion's own (`continue_action`,
-  `take_damage_after_resolution`) its `actor`; `diablerise` the blocker
-  diablerising as `actor`, the acting vampire as `minion`; a card chosen
-  (`discard`, `bottom`, `find_card`, `take_from`, `resolve_rider`,
-  `burn_in_play`, `burn_for_vote`, …) its `card`; `set_x` and `pay_rescue`
-  their `amount`; `allocate_to` and `allocate_to_card` their `target` and
-  `amount`; `choose_seat` its `target`; `choose_clan`, `choose_circle`,
-  `choose_discipline` their `value`; `cast_edge`, `cast_card_vote` their
-  `favor`; a contest's its `minion` or `card`. The rest (`pass`, `edge_pool`,
-  `withdraw_from_game`, `burn_pool`, `draw_library`, `draw_crypt`,
-  `pay_block_toll`, `pay_to_cancel`, `burn_blood_to_avoid`) read from their
-  `effects` and the decision's `source` and `purpose`, which `decided`
-  repeats.
+  of Decay: the prey's); the ash heap a card is played from and whose,
+  Spiritual Guidance's own, Vestgeir's another Methuselah's), `value` (a
+  clan, Discipline or circle id), `ability`, `slot` (`{seat, slot}`: an
+  uncontrolled vampire by its place in the view's `uncontrolled`, its card
+  face down to the others — an option's `target` or `card` names it only to
+  who sees it). Two options of a decision never share a key (copies alike in
+  hand are one option: the copy a `play` took is its `card_moves` into limbo,
+  §9). Each key names what its kind is about, so a log reads it without its
+  English (`crates/host/tests/keys.rs` holds the list): a `play` its `card`
+  and `mode`, a `use_ability` its `card` or `minion` and `ability`, a
+  `take_action` its `actor`, `action` and, a bleed, the seat bled (`target`:
+  the prey); a choice among minions its `minion` (`declare_block`,
+  `cast_votes`, `choose_minion`, `resolve_printed`, `burn_blood_from`, …);
+  `transfer`, `withdraw`, `influence_out`, `merge` and `slot` their `slot`
+  (the Great Beast's Discipline slot its `value`); `follow_path` its `minion`
+  and the path's `value`; a combatant's choice (`hand_strike`, `round_strike`,
+  `use_maneuver`, `use_press`, `use_prevent`, `strike_combat_ends`,
+  `committed_strike`, `gain_strength`, `cancel_combat`) and the acting
+  minion's own (`continue_action`, `take_damage_after_resolution`) its
+  `actor`; `diablerise` the blocker diablerising as `actor`, the acting
+  vampire as `minion`; a card chosen (`discard`, `bottom`, `find_card`,
+  `take_from`, `resolve_rider`, `burn_in_play`, `burn_for_vote`, …) its
+  `card`; `set_x` and `pay_rescue` their `amount`; `allocate_to` and
+  `allocate_to_card` their `target` and `amount`; `choose_seat` its `target`;
+  `choose_clan`, `choose_circle`, `choose_discipline` their `value`;
+  `cast_edge`, `cast_card_vote` their `favor`; a contest's its `minion` or
+  `card`. The rest (`pass`, `edge_pool`, `withdraw_from_game`, `burn_pool`,
+  `draw_library`, `draw_crypt`, `pay_block_toll`, `pay_to_cancel`,
+  `burn_blood_to_avoid`) read from their `effects` and the decision's `source`
+  and `purpose`, which `decided` repeats.
 - **`effects`** — what taking it does: an ability's effects, a play's
   mode's, a cost, what a chosen Methuselah or minion gets. A curated
   vocabulary, not the engine's own effects: each
@@ -564,7 +569,7 @@ heap (a marker on its minion, §6), no copy of its own.
 | `draw` | `seat`, `n`, `crypt` |
 | `revealed` | `seat`, `card` (its `id`, `crypt`; no number): a card of a crypt or library an effect revealed to all (a top card, a search's find) |
 | `hand` | `seat`, `open`, `cards`: `seat`'s hand as this seat sees it now, told as it turns face up (`open`) or face down for it (an open hand: Aura Reading, Revelations; a look), after the moves of its step: each card's face with its copy number, or its back; while open, a card moving into it is told with its face |
-| `looked` | `seat`, `cards` (their `id`s; no number), `zone`?: `seat`'s hand as it stood when an effect let this seat look at it (SchreckNET, Vaticination), told to the looking seat only; `zone: library`, the top of its own library, top first (Anna "Dictatrix11" Suljic) |
+| `looked` | `seat`, `cards` (their `id`s; no number), `zone`?: `seat`'s hand as it stood when an effect let this seat look at it (SchreckNET, Vaticination), told to the looking seat only; `zone: library`, the top of `seat`'s library, top first: its own (Anna "Dictatrix11" Suljic) or the active Methuselah's (Weirding Stone) |
 | `resolved` | `seat`, `card`, `effects`? (the options' vocabulary, §7, `on` as it applies): a card played resolved — what its mode does (none when it takes no effect: its payer burned paying), the changes it makes told by the events after it, so its `pool`, `blood` and `life` effects at once are not among `effects` (their events follow, the card their `cause`; one that comes later, its `when` set, stays); an action card's end is its `action_ends` |
 | `canceled` | `seat`, `card`: a card played canceled (still played: to the ash heap) |
 | `pool` | `seat`, `delta`, `pool`, `cause`? |

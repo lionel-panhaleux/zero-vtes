@@ -6,6 +6,23 @@ server runs.
 `python3 scripts/schema_compat.py` lists what a schema change adds or
 removes; its `--check` fails a removal without a major version.
 
+## 2.19.0
+
+Round 23's cards (rules-qa Batch 106); ids added, none removed:
+
+- `Purpose` `retake_from_ash` (Steely Tenacity): `seat` replaces the card
+  by taking it back from their ash heap (`find_card`) or by drawing
+  (`draw_library`); `may_lock_for_blood` (Conniver): `seat` may lock the
+  card for 1 blood from the bank on its vampire (`resolve_rider`), or pass;
+  `may_burn_looked_master` (Weirding Stone): the master card just looked at
+  on the active Methuselah's library burned for `n` blood of the card's
+  bearer (`resolve_rider`), or pass.
+- `store_own_hand` asked for Gift of Proteus too: its announced number one
+  at a time (`about.n` left), not replaced.
+- `looked` with `zone: library` may be another seat's library (Weirding
+  Stone: the active Methuselah's), its `seat` that library's; a play from
+  another Methuselah's ash heap (Vestgeir) names that heap in its `zone`.
+
 ## 2.18.0
 
 The events miss no view path (the deep sweep's seven, engine board); an

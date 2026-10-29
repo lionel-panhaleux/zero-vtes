@@ -463,6 +463,7 @@ fn lam_into_fortitude_commits_its_strike_at_the_maneuver() {
 // damage inherits all of the properties of the base damage": the [pot]
 // strike with Righteous Blade is the Blade's — strength+1 at +2 — and its
 // continue press comes with it.
+// Rulings: [TOM 19960521].
 #[test]
 fn lam_into_uses_a_melee_weapon_strike_with_its_riders() {
     let (mut e, a, x) = lam_table(anarch(&["pot"], &["for", "vic"]));

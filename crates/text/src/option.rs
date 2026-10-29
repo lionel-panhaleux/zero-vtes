@@ -472,9 +472,13 @@ fn asked(
             format!("Move {} onto Light Intensifying Goggles", named()?)
         }
         (P::MayAddCounter, K::ResolveRider) => format!("Add 1 counter to {}", named()?),
+        (P::MayLockForBlood, K::ResolveRider) => "Lock it: 1 blood".into(),
+        (P::MayBurnLookedMaster, K::ResolveRider) => "Burn blood to burn the master card".into(),
         (P::MayTorture, K::ResolveRider) => "Lock The Path of Lilith: a torture counter".into(),
         (P::MayGainPool, K::ResolvePrinted) => format!("Gain {} pool", about?.n?),
         (P::AshToLibraryTop, K::FindCard) => format!("{} on top of your library", card()),
+        (P::RetakeFromAsh, K::FindCard) => format!("Take {} back from your ash heap", card()),
+        (P::RetakeFromAsh, K::DrawLibrary) => format!("Draw instead of taking {} back", named()?),
         (P::CutLibrary, K::SetX) => format!("Cut {} cards to the bottom", k.amount?),
         (P::BuyTitle, K::SetX) => {
             let pool = o.effects.iter().find(|e| e.cost)?.n?.unsigned_abs();
@@ -790,6 +794,8 @@ fn pass(
         P::PutFoundOn => format!("Keep {} in your hand", named()?),
         P::MayAddCounter => "Add no counter".into(),
         P::MayTorture => "No torture counter".into(),
+        P::MayLockForBlood => "Leave it unlocked".into(),
+        P::MayBurnLookedMaster => "Leave the card on the library".into(),
         P::MayGainPool => "Gain no pool".into(),
         P::BuyTitle => "Buy no title".into(),
         P::MayGainHandSize => "Keep your hand size".into(),
@@ -1075,6 +1081,8 @@ mod tests {
             P::PoolForCard,
             P::MayStoreAim,
             P::MayTorture,
+            P::MayLockForBlood,
+            P::MayBurnLookedMaster,
             P::MayGainHandSize,
             P::MayPreventForBlood,
             P::MayUnlock,

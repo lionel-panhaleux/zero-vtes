@@ -58,6 +58,7 @@ LABELS = [
     ("Zombie", r"^(unique )?zombie with"),
     ("Wraith", r"^(unique )?wraith with"),
     ("Werewolf", r"^(unique )?werewolf with"),
+    ("Mummy", r"^(unique )?mummy with"),
     ("Mage", r"^(unique )?mage with"),
     ("Demon", r"^(unique )?demon with"),
     ("Changeling", r"^(unique )?changeling with"),

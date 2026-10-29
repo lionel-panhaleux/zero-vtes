@@ -361,7 +361,7 @@ fn add(e: &E, w: Whom, when: Option<When>, out: &mut Vec<Effect>) {
         | E::DualFormCopy
         | E::EnterWithCounters(..)
         | E::EnterWithCountersPerOwnAnarch
-        | E::EnterWithCountersPerOwnClan(..)
+        | E::EnterWithCountersPerOwn { .. }
         | E::EntersLocked
         | E::FourthCycle(..)
         | E::FuryEnters
@@ -405,6 +405,7 @@ fn add(e: &E, w: Whom, when: Option<When>, out: &mut Vec<Effect>) {
         | E::StealTargetCard
         | E::StolenToReadyForBlood(..)
         | E::StoreFromOwnHand
+        | E::StoreFromHandX(..)
         | E::Stun
         | E::SudarioRefraction
         | E::TakeBleedForTarget
@@ -445,6 +446,8 @@ fn add(e: &E, w: Whom, when: Option<When>, out: &mut Vec<Effect>) {
         | E::TargetBecomesRedList
         | E::TargetBecomesSect(..)
         | E::ActorBecomesSect(..)
+        | E::TargetLasting(..)
+        | E::UnlockChosen
         | E::TargetRetainerBurnsLife(..)
         | E::UnlockActorAtDiscard => {}
         // Ability (an in-play ability used).
@@ -483,6 +486,8 @@ fn add(e: &E, w: Whom, when: Option<When>, out: &mut Vec<Effect>) {
         | E::LockSelf
         | E::LockTargetCard
         | E::LookAtLibraryTop(..)
+        | E::LookAtTurnLibraryTop
+        | E::MayBurnLookedMaster(..)
         | E::MarkBleedToll
         | E::MayCancelCombat
         | E::MoveBetweenVampires(..)
@@ -609,6 +614,8 @@ fn add(e: &E, w: Whom, when: Option<When>, out: &mut Vec<Effect>) {
         | E::YoungerIntercept(..) => {}
         // Combat (the combat underway).
         E::ActorBurnsBloodX
+        | E::OpposingNoAdditionalStrikes
+        | E::OpposingStrengthMinus(..)
         | E::AdditionalStrikeOnly { .. }
         | E::AdditionalStrikes { .. }
         | E::AdditionalStrikesEachRound(..)
@@ -690,6 +697,7 @@ fn add(e: &E, w: Whom, when: Option<When>, out: &mut Vec<Effect>) {
         | E::StrengthThisRoundVotes
         | E::StrikeOnceEachRound(..)
         | E::StunAfterCombatIfClose
+        | E::PutOnOpponentAfterCombatIfClose
         | E::UndodgeableStrike
         | E::UnpreventableIfBlackHand
         | E::WeatherDamage { .. } => {}
@@ -743,6 +751,8 @@ fn add(e: &E, w: Whom, when: Option<When>, out: &mut Vec<Effect>) {
         | E::AddVotesPerReadySect(..)
         | E::AddVotesXLinear { .. }
         | E::BarNonCamarillaVotes
+        | E::BarCorruptedVotes
+        | E::CorruptTarget
         | E::BarNonSectVotes(..)
         | E::CancelReferendum { .. }
         | E::FailIfTitleRequired
@@ -828,11 +838,13 @@ fn add(e: &E, w: Whom, when: Option<When>, out: &mut Vec<Effect>) {
         | E::UnlockBurnPoolUnlessReady { .. } => {}
         // Marker (read by name where offered, declared or played).
         E::AdditionalStrikeWithSource
+        | E::BleedChangeCardsCost(..)
         | E::AggravatedAgainstClan(..)
         | E::AshCardToLibraryBottom
         | E::BarCanceledThisTurn
         | E::BarCanceledForActorThisTurn
         | E::BearerAimStore
+        | E::BearerStore
         | E::BearerDamageOncePerCombat
         | E::BecomesGun
         | E::BecomesOnOpponent

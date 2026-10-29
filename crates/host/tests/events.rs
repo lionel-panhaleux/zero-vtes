@@ -30,10 +30,10 @@ fn from() -> u32 {
 /// a vampire banished and back between two views (45), one influenced into a
 /// contest (81), a unique ally played into one (95), a crypt card come with
 /// counters (111), a contested minion's cards (118), a merge (119), training
-/// counters (152), a vampire moved within its uncontrolled region (342), two
+/// counters (152), a vampire moved within its uncontrolled region (154), two
 /// Methuselahs ousted at once (239), a unique card put into a contest (299), a
 /// vampire's excess drained in one (380), an action's intercept changed between
-/// two views (103), a play canceled as it is announced (88: Andrew Stuart), a
+/// two views (109), a play canceled as it is announced (88: Andrew Stuart), a
 /// cost reduced by a lasting effect whose card is in the ash heap (104: Inner
 /// Essence); and the causes a deeper sweep found missing: Camarilla Threat's
 /// discard toll (294), blood to an uncontrolled vampire (375), a diablerie
@@ -46,8 +46,8 @@ fn from() -> u32 {
 /// (474, 933: Disarm), an open hand (1111: Aura Reading), cards into one
 /// (106), one closed with a card leaving it in the same step (910, 929).
 const KEPT: [u32; 37] = [
-    45, 70, 81, 88, 95, 99, 103, 104, 106, 111, 114, 118, 119, 132, 152, 172, 219, 239, 286, 294,
-    299, 300, 342, 346, 375, 380, 411, 474, 504, 579, 591, 728, 910, 913, 929, 933, 1111,
+    45, 70, 81, 88, 95, 99, 104, 106, 109, 111, 114, 118, 119, 132, 152, 154, 172, 219, 239, 286,
+    294, 299, 300, 346, 375, 380, 411, 474, 504, 579, 591, 728, 910, 913, 929, 933, 1111,
 ];
 
 /// The sweep's seeds: `HOST_SEED_FROM` to `HOST_SEEDS` (40), the kept

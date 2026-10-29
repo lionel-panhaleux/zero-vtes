@@ -686,8 +686,10 @@ ids!(
         /// then the card (`find_card`; `seat`: that heap, `detail`:
         /// `named`).
         NameAshEquipment,
-        /// Storage Annex as it is played: the card of the hand put face
-        /// down on `card` (`find_card`), replaced.
+        /// A card of the hand put face down on `card` (`find_card`):
+        /// Storage Annex's one as it is played, replaced; Gift of Proteus's
+        /// announced number as its action resolves, one at a time (`n` left),
+        /// not replaced.
         StoreOwnHand,
         /// "When it enters play, you may pay n pool to make it <title>"
         /// (Victor Pelletier, `minion`): `SetX(n)` pays n pool for the title
@@ -747,6 +749,16 @@ ids!(
         /// Unity: `seat` may cut their library once, `set_x` the cards
         /// moved from the top to the bottom (a pass: no cut).
         CutLibrary,
+        /// Steely Tenacity: `seat` replaces the card by taking it back from
+        /// their ash heap (`find_card`) or by drawing (`draw_library`).
+        RetakeFromAsh,
+        /// Conniver: `seat` may lock the card for 1 blood from the bank on
+        /// its vampire (`resolve_rider`), or pass.
+        MayLockForBlood,
+        /// Weirding Stone: the master card looked at on the active
+        /// Methuselah's library, burned for blood of the card's bearer
+        /// (`resolve_rider`, `n` the blood), or pass.
+        MayBurnLookedMaster,
     }
 );
 ids!(

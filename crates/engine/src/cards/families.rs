@@ -87,6 +87,7 @@ impl Effect {
             | E::EnterWithCounters(..)
             | E::EntersLocked
             | E::StoreFromOwnHand
+            | E::StoreFromHandX(..)
             | E::UnlockActorIfClanCapacity { .. }
             | E::MoveBloodTargetToPoolX
             | E::Layer(..)
@@ -114,7 +115,7 @@ impl Effect {
             | E::MoveBloodXToUncontrolledTarget
             | E::HoldTargetVampire
             | E::RememberTargetSeatsVotes
-            | E::EnterWithCountersPerOwnClan(..)
+            | E::EnterWithCountersPerOwn { .. }
             | E::EnterWithCountersPerOwnAnarch
             | E::CryptClanToUncontrolled(..)
             | E::BankBloodAmongUncontrolled { .. }
@@ -192,8 +193,10 @@ impl Effect {
             | E::StoreTopCards(..)
             | E::HandSizeUntilUnlock(..)
             | E::ActorLasting(..)
+            | E::TargetLasting(..)
             | E::TargetBecomesSect(..)
             | E::ActorBecomesSect(..)
+            | E::UnlockChosen
             | E::ActorBecomesBlackHand
             | E::RemoveTargetForPool
             | E::BurnEdge
@@ -241,6 +244,8 @@ impl Effect {
             | E::MayCancelCombat
             | E::DamageOpponentByStrength
             | E::LookAtLibraryTop(..)
+            | E::LookAtTurnLibraryTop
+            | E::MayBurnLookedMaster(..)
             | E::GainConviction { .. }
             | E::LeaveIncapacitated
             | E::SpendDiscardPhaseAction
@@ -448,6 +453,8 @@ impl Effect {
             | E::NextRoundManeuver
             | E::AdditionalStrikes { .. }
             | E::SetStrength(..)
+            | E::OpposingStrengthMinus(..)
+            | E::OpposingNoAdditionalStrikes
             | E::AggravatedHands
             | E::AggravatedHandsThisCombat
             | E::FortitudeProofStrike
@@ -530,6 +537,7 @@ impl Effect {
             | E::ContinueAfterCombat { .. }
             | E::DamageAfterCombatIfClose(..)
             | E::StunAfterCombatIfClose
+            | E::PutOnOpponentAfterCombatIfClose
             | E::SetRange(..)
             | E::ImmuneStrikeNonAggravated
             | E::ImmuneEffectNonAggravated
@@ -573,6 +581,8 @@ impl Effect {
             | E::AddVotesAgainst(..)
             | E::TallyPenaltyAgainst(..)
             | E::BarNonCamarillaVotes
+            | E::BarCorruptedVotes
+            | E::CorruptTarget
             | E::NextReferendumPassesIfPasses
             | E::CancelReferendum { .. } => (Family::Vote, false),
             E::UnlockAtEndIfReady
@@ -714,7 +724,8 @@ impl Effect {
             | E::TakeAnyAction
             | E::MandatoryAction
             | E::CallReferendum(..)
-            | E::SameActionAs(..) => (Family::Marker, false),
+            | E::SameActionAs(..)
+            | E::BleedChangeCardsCost(..) => (Family::Marker, false),
             // Read as the card is played: what cancels it, what it cancels,
             // where it is played from (`as_played_request`, `resolve_play`,
             // `cancel_shield`, `virtual_hand`).
@@ -754,7 +765,8 @@ impl Effect {
             | E::RemovedAfterSuccessOrWithoutInfernal
             | E::StillYours
             | E::CountersClearOnNewBearer
-            | E::BearerAimStore => (Family::Marker, false),
+            | E::BearerAimStore
+            | E::BearerStore => (Family::Marker, false),
             // Read as the combat begins (Abuse of Power, Pillars Fall), as the
             // action is declared (Fiendish Tongue), as the bleed lands
             // (Enthrall), by `frenzy_on`, and as the action succeeds.
