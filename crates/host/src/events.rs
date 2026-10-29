@@ -129,8 +129,11 @@ impl Namer<'_> {
             Place::Card { id, stored: true } => {
                 (Zone::Stored, Some(self.in_play(CardId(id)).copy?))
             }
-            // An ally: a minion.
-            Place::Card { id, .. } if st.cards[id as usize].body.is_some() => (minion, None),
+            // An ally: a minion. A card become one this step (Call the Great
+            // Beast) is still on its old host in `at`: told in play there.
+            Place::Card { id, .. } if st.cards[id as usize].body.is_some() && at.on.is_none() => {
+                (minion, None)
+            }
             Place::Card { .. } => (Zone::InPlay, at.on.map(|m| self.minion(m))),
             // A merged vampire's base card: on the minion it is now.
             Place::Minion { id, merged: true } => (minion, Some(self.minion(MinionId(id)))),
@@ -335,6 +338,32 @@ impl Namer<'_> {
                 copy: self.copy(what)?,
                 seat: seat.0,
             },
+            // Told the viewers it turned face up or down for.
+            Fact::HandSeen { seat, seen, cards } => {
+                let bit = 1 << self.viewer.seat?.0;
+                if seen[0] & bit == seen[1] & bit {
+                    return None;
+                }
+                let shown = seen[1] & bit != 0;
+                let cards = cards
+                    .into_iter()
+                    .map(|(copy, card)| match shown {
+                        true => self.card(copy, card, false),
+                        false => Card {
+                            copy: None,
+                            id: None,
+                            crypt: false,
+                            nth: None,
+                            numbered: None,
+                        },
+                    })
+                    .collect();
+                EventKind::Hand {
+                    seat: seat.0,
+                    open: shown,
+                    cards,
+                }
+            }
             Fact::Capacity { minion, capacity } => EventKind::Capacity {
                 minion: self.minion(minion),
                 capacity,

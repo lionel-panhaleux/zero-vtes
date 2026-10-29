@@ -88,6 +88,15 @@ pub enum EventKind {
         #[serde(default, skip_serializing_if = "Option::is_none")]
         zone: Option<crate::ids::Zone>,
     },
+    /// `seat`'s hand as the viewer sees it now, told as it turns face up
+    /// (`open`) or face down for them (an open hand: Aura Reading,
+    /// Revelations; a look): each card's face with its copy number, or its
+    /// back. While open, a card moving into it is told with its face.
+    Hand {
+        seat: Seat,
+        open: bool,
+        cards: Vec<Card>,
+    },
     /// A card played resolved: what its mode does (the options' curated
     /// vocabulary, docs/protocol.md §7, `on` as it applies).
     Resolved {

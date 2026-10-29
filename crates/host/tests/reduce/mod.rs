@@ -3,7 +3,7 @@
 //! place's order the next view's to show, and a search's cards in its
 //! seat's library the decision's.
 
-use std::collections::{BTreeMap, HashMap};
+use std::collections::{BTreeMap, HashMap, HashSet};
 
 use zvtes_api::event::{EventKind, ZoneRef};
 use zvtes_api::ids::{MinionKind, Phase, Zone};
@@ -37,6 +37,11 @@ pub struct Table {
     /// Cards told onto a minion or a banished vampire not on the table
     /// yet (it comes next in the same step).
     waiting: HashMap<u32, Vec<Item>>,
+    /// The other seats' hands open to the viewer (`hand`): a card moving
+    /// in keeps its face.
+    pub open: HashSet<u8>,
+    /// The cards told moving into an open hand, their faces kept.
+    pub into_open: usize,
     cards: &'static dyn zvtes_text::Cards,
 }
 
@@ -62,11 +67,24 @@ fn same(had: &Card, told: &Card) -> bool {
 }
 
 impl Table {
-    pub fn new(v: TableView) -> Table {
+    /// The table a view shows, its open hands those whose faces it shows
+    /// (an empty one as `open` had it: no face tells).
+    pub fn new(v: TableView, open: &HashSet<u8>) -> Table {
+        let open = v
+            .seats
+            .iter()
+            .filter(|s| match s.hand.is_empty() {
+                true => open.contains(&s.seat),
+                false => Some(s.seat) != v.viewer && s.hand.iter().any(|c| c.id.is_some()),
+            })
+            .map(|s| s.seat)
+            .collect();
         Table {
             v,
             kinds: HashMap::new(),
             waiting: HashMap::new(),
+            open,
+            into_open: 0,
             cards: zvtes_host::cards::cards(),
         }
     }
@@ -74,7 +92,8 @@ impl Table {
     fn hides(&self, r: &ZoneRef) -> bool {
         match r.zone {
             Zone::Library | Zone::Crypt => true,
-            Zone::Hand | Zone::Uncontrolled => r.on.is_none() && Some(r.seat) != self.v.viewer,
+            Zone::Hand => Some(r.seat) != self.v.viewer && !self.open.contains(&r.seat),
+            Zone::Uncontrolled => r.on.is_none() && Some(r.seat) != self.v.viewer,
             _ => false,
         }
     }
@@ -182,6 +201,13 @@ impl Table {
     fn put(&mut self, from: &ZoneRef, r: &ZoneRef, told: Card, item: Option<Item>) {
         let card = if self.hides(r) { back(told) } else { told };
         let s = r.seat as usize;
+        // An ousted Methuselah's places are out of the game: gone.
+        if self.v.seats[s].ousted {
+            return;
+        }
+        if r.zone == Zone::Hand && self.open.contains(&r.seat) && card.id.is_some() {
+            self.into_open += 1;
+        }
         let in_play = |item: Option<Item>| match item {
             Some(Item::InPlay(c)) => InPlayView { card, ..c },
             // Its place's holder's, else told by `controller` after.
@@ -456,6 +482,7 @@ impl Table {
                 if let Some(m) = self.minion_mut(*c) {
                     m.contested = true;
                     m.title = None;
+                    m.capacity = None;
                     m.card.numbered = card.numbered;
                 } else if let Some(x) = self.in_play_mut(*c).filter(|_| !on_contested) {
                     x.contested = true;
@@ -515,6 +542,13 @@ impl Table {
                 if let Some(c) = self.in_play_mut(*copy) {
                     c.controller = *seat;
                 }
+            }
+            EventKind::Hand { seat, open, cards } => {
+                self.v.seats[*seat as usize].hand = cards.clone();
+                match open {
+                    true => self.open.insert(*seat),
+                    false => self.open.remove(seat),
+                };
             }
             EventKind::Capacity { minion, capacity } => {
                 if let Some(m) = self.minion_mut(*minion) {

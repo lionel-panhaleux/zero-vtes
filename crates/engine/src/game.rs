@@ -1693,7 +1693,7 @@ impl Engine {
             // A burned vampire goes to its owner's ash heap, whoever
             // controls it (an ally's card goes with the cards on it, below).
             if let Some(card) = v.crypt_card() {
-                let owner = v.origin.or(v.temp_from).unwrap_or(v.owner);
+                let owner = v.owner_seat();
                 if let Some(n) = capuchin {
                     let controller = v.owner;
                     self.state.seats[owner.index()].uncontrolled.push(
@@ -1718,7 +1718,7 @@ impl Engine {
             // Absimiliard's Army's ghoul: burned, then removed from the game
             // (LSJ 20090920).
             if let crate::state::MinionKind::Token { card, .. } = v.kind {
-                let owner = v.origin.or(v.temp_from).unwrap_or(v.owner);
+                let owner = v.owner_seat();
                 self.state.seats[owner.index()].removed.put(card, *v.copy);
             }
         }
@@ -2124,7 +2124,7 @@ impl Engine {
             } = v.kind
             {
                 if source == id && v.in_play {
-                    let owner = v.origin.or(v.temp_from).unwrap_or(v.owner);
+                    let owner = v.owner_seat();
                     let v = &mut self.state.minions[i];
                     v.in_play = false;
                     v.clear_blood();
@@ -2238,7 +2238,7 @@ impl Engine {
         };
         let to = st.minions[opp.index()].owner;
         let v = &mut self.state.minions[m.index()];
-        v.owner = to;
+        v.take_for_good(to);
         v.locked = true;
         v.raise_blood(v.blood.max(life));
         self.enter_card_contest(m);

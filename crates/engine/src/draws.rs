@@ -3050,7 +3050,7 @@ impl Engine {
         // An ally's card: the ally changes hands (Vivienne Géroux), and
         // enters any contest of its name.
         if let Some(m) = self.state.cards[card.index()].body {
-            self.state.minions[m.index()].owner = seat;
+            self.state.minions[m.index()].take_for_good(seat);
             self.enter_card_contest(m);
         }
         let def = cards::lookup(self.state.cards[card.index()].card);
@@ -3504,10 +3504,7 @@ impl Engine {
                 self.state.burn_corruption(minion, s, n, s);
                 let v = &mut self.state.minions[minion.index()];
                 if v.owner != s {
-                    let origin = v.origin.or(v.temp_from).unwrap_or(v.owner);
-                    v.origin = (origin != s).then_some(origin);
-                    v.temp_from = None;
-                    v.owner = s;
+                    v.take_for_good(s);
                     if v.is_ally() {
                         self.enter_card_contest(minion);
                     } else {

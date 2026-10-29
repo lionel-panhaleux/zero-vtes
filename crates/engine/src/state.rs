@@ -455,8 +455,9 @@ pub struct Minion {
     /// The temporary control ends as its controller's next unlock phase
     /// begins, not at a turn's end (Malkavian Dementia).
     pub temp_until_unlock: bool,
-    /// The vampire's owner, when its control changed for good
-    /// (Graverobbing): its ash heap is the owner's.
+    /// The minion's owner, when its control changed for good
+    /// (`take_for_good`: Graverobbing, Entrancement): its ash heap is the
+    /// owner's.
     pub origin: Option<SeatId>,
     /// A sect a card made it (Twilight Camp: "make that vampire Anarch").
     pub sect_override: Option<Sect>,
@@ -537,6 +538,21 @@ impl ActionId {
 }
 
 impl Minion {
+    /// The Methuselah whose ash heap it goes to: its owner, whoever
+    /// controls it now (`origin`, `temp_from`).
+    pub fn owner_seat(&self) -> SeatId {
+        self.origin.or(self.temp_from).unwrap_or(self.owner)
+    }
+
+    /// Controlled by `s` for good: its owner kept (`origin`, its ash heap
+    /// the owner's), a temporary control over.
+    pub fn take_for_good(&mut self, s: SeatId) {
+        let origin = self.owner_seat();
+        self.origin = (origin != s).then_some(origin);
+        self.temp_from = None;
+        self.owner = s;
+    }
+
     /// May it bleed this turn: under the once-a-turn cap, or with a bleed
     /// past it (rules-qa 1.4; Taking the Skin: Minion)?
     pub fn may_bleed(&self) -> bool {

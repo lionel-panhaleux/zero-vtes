@@ -569,7 +569,9 @@ impl Build<'_> {
             kind,
             name: crate::cards::printed(m.name()),
             blood: m.blood,
-            capacity: st.capacity_of(id),
+            // Out of play in a contest, the cards on it too: told again as
+            // it comes back (§9).
+            capacity: st.capacity_of(id).filter(|_| !m.contested),
             locked: m.locked,
             contested: m.contested,
             title: if m.is_vampire() {
@@ -577,7 +579,7 @@ impl Build<'_> {
             } else {
                 None
             },
-            owner: m.origin.filter(|&o| o != m.owner).map(|o| o.0),
+            owner: Some(m.owner_seat()).filter(|&o| o != m.owner).map(|o| o.0),
             cards: (0..st.cards.len())
                 .filter(|&c| shown_card(st, c) && st.cards[c].host == Some(id))
                 .map(|c| self.in_play(c))

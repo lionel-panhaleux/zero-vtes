@@ -107,6 +107,14 @@ pub enum Fact {
         minion: MinionId,
         capacity: Option<u8>,
     },
+    /// `seat`'s hand seen by other Methuselahs (`Ledger::hands_seen`),
+    /// before and now, and its cards as the ledger found them (a later
+    /// move of the same step told after).
+    HandSeen {
+        seat: SeatId,
+        seen: [u8; 2],
+        cards: Vec<(CopyId, u16)>,
+    },
     Title {
         minion: MinionId,
         title: zvtes::crypt::Title,
@@ -430,11 +438,13 @@ fn spot(e: &Engine, l: &Ledger, p: Place, copy: CopyId) -> Spot {
                 l.cards.get(c.index()).copied().flatten(),
                 e.state.cards[c.index()].body,
             ) {
-                (_, Some(m)) => at(minion(m), None),
-                (Some(card), None) => match card.host {
+                // A card in the ledger was no minion yet (one become a
+                // minion since: Call the Great Beast).
+                (Some(card), _) => match card.host {
                     Some(m) => at((minion(m).0, crate::view::Region::Ready), Some(m)),
                     None => at((card.controller, crate::view::Region::Ready), None),
                 },
+                (None, Some(m)) => at(minion(m), None),
                 (None, None) => at(
                     (e.state.card_controller(c), crate::view::Region::Ready),
                     e.state.cards[c.index()].host,
@@ -740,6 +750,33 @@ pub(crate) fn changes(
                 tell(out, fact, told);
                 cards_in.push(c);
             }
+            // Become a minion (Call the Great Beast): it stays, its entry
+            // told with the minions; moved from its place to the minion's
+            // (the census names both by the card).
+            (Some(_), None)
+                if e.state.cards[i]
+                    .body
+                    .is_some_and(|m| e.state.minions[m.index()].present()) =>
+            {
+                let card = &e.state.cards[i];
+                let at = Place::Card {
+                    id: c.0,
+                    stored: false,
+                };
+                let fact = Fact::Zoned {
+                    copy: *card.copy,
+                    card: card.card,
+                    crypt: false,
+                    from: at,
+                    to: at,
+                    at: [
+                        spot(e, before, at, *card.copy),
+                        spot(e, after, at, *card.copy),
+                    ],
+                    slots: [None; 2],
+                };
+                tell(out, fact, false);
+            }
             (Some(_), None) => {
                 let card = &e.state.cards[i];
                 let fact = Fact::CardLeaves {
@@ -846,11 +883,13 @@ pub(crate) fn changes(
             continue;
         };
         // An ousted Methuselah's places are out of the game (the view has
-        // none): a card going to an earlier ousted owner's is not told.
+        // none): nothing moving among them is told, nor a card going with
+        // a Methuselah ousted now (`ousted` tells it); one leaving a live
+        // place for an earlier ousted owner's is (Disarm burned: gone from
+        // the table, §9).
         if from == to
-            || [from, to]
-                .iter()
-                .any(|&p| seat(p).is_some_and(|s| gone(s) || after.ousted[s.index()]))
+            || seat(from).is_some_and(|s| after.ousted[s.index()])
+            || seat(to).is_some_and(gone)
         {
             continue;
         }
@@ -929,6 +968,25 @@ pub(crate) fn changes(
                 to: at,
                 at: [spot(e, before, at, copy), spot(e, after, at, copy)],
                 slots: [Some(j as u8), Some(i as u8)],
+            };
+            tell(out, fact, false);
+        }
+    }
+    // A hand turned face up or down, told after the moves: the hand the
+    // events built so far is the one it shows.
+    for (s, (&was, &now)) in before.hands_seen.iter().zip(&after.hands_seen).enumerate() {
+        if was != now && !after.ousted[s] {
+            let seat = SeatId(s as u8);
+            let cards = after
+                .census
+                .iter()
+                .filter(|&&(_, _, p)| p == Place::Zone(s as u8, "hand"))
+                .map(|&(c, card, _)| (c, card))
+                .collect();
+            let fact = Fact::HandSeen {
+                seat,
+                seen: [was, now],
+                cards,
             };
             tell(out, fact, false);
         }

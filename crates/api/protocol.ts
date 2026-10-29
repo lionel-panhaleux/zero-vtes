@@ -1,6 +1,6 @@
-/* zvtes protocol 2.17.1 (docs/protocol.md): generated from
+/* zvtes protocol 2.18.0 (docs/protocol.md): generated from
  * crates/api/schema.json by scripts/gen_ts.py, do not edit. */
-export const PROTOCOL_VERSION = '2.17.1'
+export const PROTOCOL_VERSION = '2.18.0'
 
 /**
  * A command as sent: an optional client id, echoed by an `error` it
@@ -744,6 +744,12 @@ export type Event = {
          * (Anna "Dictatrix11" Suljic); absent, the hand.
          */
         zone?: Zone | null
+    }
+    | {
+        cards: Card[]
+        kind: 'hand'
+        open: boolean
+        seat: number
     }
     | {
         card: Card

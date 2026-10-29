@@ -1317,6 +1317,8 @@ fn entrancement_steals_an_ally_with_its_retainers_directed_at_its_controller() {
     let id = e.state.minions[pa.index()].ally_id().unwrap();
     assert_eq!(e.state.card_controller(id), SeatId(0));
     assert_eq!(e.state.seats[0].ash, vec![find_library("Entrancement")]);
+    // Stolen for good, its owner kept (the view's `owner`).
+    assert_eq!(e.state.minions[pa.index()].origin, Some(SeatId(2)));
 }
 
 #[test]

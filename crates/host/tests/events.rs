@@ -39,10 +39,15 @@ fn from() -> u32 {
 /// discard toll (294), blood to an uncontrolled vampire (375), a diablerie
 /// in a torpor block (411), Yawp Court's yawp (591), a burn to prevent
 /// (728), a rider fired as its bearer blocks (913), a diseased vampire's
-/// paid infernal unlock (504), a discard-phase rider's damage (579).
-const KEPT: [u32; 27] = [
-    45, 70, 81, 88, 95, 103, 104, 111, 118, 119, 132, 152, 172, 219, 239, 294, 299, 342, 346, 375,
-    380, 411, 504, 579, 591, 728, 913,
+/// paid infernal unlock (504), a discard-phase rider's damage (579); and
+/// the view paths the events missed: an ally stolen for good (99, 300:
+/// Entrancement), a contested vampire's capacity (114, 286), Call the Great
+/// Beast become a vampire (300), a card burned to an ousted owner's ash heap
+/// (474, 933: Disarm), an open hand (1111: Aura Reading), cards into one
+/// (106), one closed with a card leaving it in the same step (910, 929).
+const KEPT: [u32; 37] = [
+    45, 70, 81, 88, 95, 99, 103, 104, 106, 111, 114, 118, 119, 132, 152, 172, 219, 239, 286, 294,
+    299, 300, 342, 346, 375, 380, 411, 474, 504, 579, 591, 728, 910, 913, 929, 933, 1111,
 ];
 
 /// The sweep's seeds: `HOST_SEED_FROM` to `HOST_SEEDS` (40), the kept
@@ -286,6 +291,8 @@ struct Stream {
     unreduced: std::collections::BTreeMap<String, (usize, String)>,
     unordered: std::collections::BTreeMap<&'static str, usize>,
     reduced: usize,
+    /// Cards told moving into a hand open to the viewer (`Table::into_open`).
+    into_open: usize,
     /// Per kind of state, its changes between two decisions' views.
     changes: std::collections::BTreeMap<String, usize>,
 }
@@ -835,6 +842,7 @@ impl Stream {
         if std::env::var_os("HOST_TRACE").is_some() {
             eprintln!("view {} {at}", self.seed);
         }
+        let mut open = Default::default();
         if let Some(mut t) = self.table.take() {
             if over {
                 t.v.phase = zvtes_api::ids::Phase::Over;
@@ -842,6 +850,7 @@ impl Stream {
             }
             let missed = reduce::check(&mut t.v, v, &mut self.unordered);
             self.reduced += 1;
+            self.into_open += t.into_open;
             for (path, example) in missed {
                 if std::env::var_os("HOST_REDUCE").is_some() {
                     eprintln!("seed {} {at}: {path}: {example}", self.seed);
@@ -852,8 +861,9 @@ impl Stream {
                     e.1 = format!("seed {} {at}: {example}", self.seed);
                 }
             }
+            open = t.open;
         }
-        self.table = Some(reduce::Table::new(v.clone()));
+        self.table = Some(reduce::Table::new(v.clone(), &open));
     }
 
     /// The view shows the action the events told under way, if any.
@@ -956,7 +966,7 @@ impl Stream {
                     self.view(&over.view, "over")
                 }
                 Message::Joined(j) => {
-                    self.table = Some(reduce::Table::new(j.view.clone()));
+                    self.table = Some(reduce::Table::new(j.view.clone(), &Default::default()));
                     self.view(&j.view, "joined")
                 }
                 _ => {}
@@ -1005,6 +1015,7 @@ fn the_events_tell_what_the_views_show() {
     let mut moved = [0; 3];
     let mut reasked = 0;
     let mut incapacitated = 0;
+    let mut into_open = 0;
     let (mut unreduced, mut unordered, mut reduced) = (
         std::collections::BTreeMap::new(),
         std::collections::BTreeMap::new(),
@@ -1063,6 +1074,7 @@ fn the_events_tell_what_the_views_show() {
             unreduced: Default::default(),
             unordered: Default::default(),
             reduced: 0,
+            into_open: 0,
             changes: Default::default(),
         };
         let mut outs = g.handle(
@@ -1183,6 +1195,10 @@ fn the_events_tell_what_the_views_show() {
         contested += s.contested;
         misses.extend(s.misses.into_iter().map(|m| (seed, m)));
         reduced += s.reduced;
+        if s.into_open > 0 && std::env::var_os("HOST_REDUCE").is_some() {
+            eprintln!("seed {seed}: {} into an open hand", s.into_open);
+        }
+        into_open += s.into_open;
         for (k, (n, ex)) in s.unreduced {
             let e = unreduced.entry(k).or_insert((0, ex));
             e.0 += n;
@@ -1257,6 +1273,8 @@ fn the_events_tell_what_the_views_show() {
     // Each decision's view is the last one with the events since applied
     // (`HOST_REDUCE=1` names each miss), a place's order the view's.
     eprintln!("{reduced} views kept from the events; places in another order: {unordered:?}");
+    // A card into a hand open to the viewer keeps its face (`hand`).
+    assert!(into_open > 0 || from() != 1, "no card into an open hand");
     // An uncontrolled region's order told too (`slot`): the counters an
     // event names by place are on the vampire the view shows there.
     assert!(

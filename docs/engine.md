@@ -1268,7 +1268,9 @@ sources to the engine's conventions.
   `minions_to_torpor`, both through `leave_riders` batching pool losses. Burned
   vampires reach the ash heap (`Seat.ash_crypt`; its owner's, `Minion::origin`,
   even under stolen control).
-- Control: permanent steal (`StealTargetVampire`), temporary
+- Control: permanent (`Minion::take_for_good`: its owner kept as `origin`,
+  a temporary control over; every steal for good, a vampire's or an
+  ally's, Form of Corruption's, an ally's card given), temporary
   (`Minion.temp_from`, `Engine::take_control`: returns at the end of the taker's
   turn, removed if its Methuselah was ousted). Banishment (`Engine::banish`:
   Banishment, Pit of Contemplation) keeps the vampire's blood as counters in

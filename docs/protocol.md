@@ -18,7 +18,7 @@ is created by one request and played over one WebSocket. Every game is
 recorded, anonymously, and kept two years to train and test the engine
 (§11).
 
-Version **2.17.1**. The types: the models of the
+Version **2.18.0**. The types: the models of the
 [API reference](https://engine.krcg.org/docs), also as
 [JSON Schema](https://engine.krcg.org/schema.json) (2020-12) and
 [TypeScript](https://engine.krcg.org/protocol.ts).
@@ -181,25 +181,26 @@ asyncio.run(main())
 | Decision | `DecisionNo` | decisions taken so far, all seats; answers name it |
 | Option | `index` | the engine's index in the pending decision |
 
-**Copies.** Cards are numbered where the viewer can follow them: on the
-table (minions, cards in play and stored on them, the viewer's own
-uncontrolled vampires; another seat's face down ones are backs), in face-up piles (ash heaps, removed, limbo) and in the
-viewer's own hand (another seat's while a card reveals it). A card in a
-hidden place — another seat's hand, any library or crypt — has no
-number: a card back, `{}`; one an effect reveals from a library or a
-crypt (a top card: Mesu Bedshet, Petra Resonance, Andrew Stuart; a
-search's find the card says to reveal: Sakhar, Disciple of Lazarus) is
-told to every seat by a `revealed` event, its `id` without a number;
-another seat's hand an effect lets the seat look at (SchreckNET,
-Vaticination) is told to that seat alone by a `looked` event, the cards
-as they stood, ids without numbers (the look lasts while the action
-does). A card coming into
-a numbered place from a hidden one takes a fresh number, never used
-before for this viewer, once a view has shown it out of sight; one out
-of sight and back between two views keeps its number (its moves in and
-out told: the same physical copy, nothing more). So a number tells
-nothing the card's face and its moves do not. Two seats may number the same card differently; records use the
-engine's own numbers.
+**Copies.** Cards are numbered where the viewer can follow them: on the table
+(minions, cards in play and stored on them, the viewer's own uncontrolled
+vampires; another seat's face down ones are backs), in face-up piles (ash
+heaps, removed, limbo) and in the viewer's own hand (another seat's while a
+card reveals it). A card in a hidden place — another seat's hand, any library
+or crypt — has no number: a card back, `{}`; one an effect reveals from a
+library or a crypt (a top card: Mesu Bedshet, Petra Resonance, Andrew Stuart;
+a search's find the card says to reveal: Sakhar, Disciple of Lazarus) is told
+to every seat by a `revealed` event, its `id` without a number; another seat's
+hand an effect lets the seat look at (SchreckNET, Vaticination) is told to
+that seat alone by a `looked` event, the cards as they stood, ids without
+numbers (the look lasts while the action does); a `hand` event tells another
+seat's hand turning face up or down for the viewer (an open hand, a look),
+each card's number while it is open. A card coming into a numbered place from
+a hidden one takes a fresh number, never used before for this viewer, once a
+view has shown it out of sight; one out of sight and back between two views
+keeps its number (its moves in and out told: the same physical copy, nothing
+more). So a number tells nothing the card's face and its moves do not. Two
+seats may number the same card differently; records use the engine's own
+numbers.
 
 **Labels.** A card whose face the viewer sees carries `nth`: its label
 among the copies of that card from the same deck ("Embrace #2"), the
@@ -562,6 +563,7 @@ heap (a marker on its minion, §6), no copy of its own.
 | `transfers` | `left`: the active seat's transfers left, as its influence phase begins and at each change |
 | `draw` | `seat`, `n`, `crypt` |
 | `revealed` | `seat`, `card` (its `id`, `crypt`; no number): a card of a crypt or library an effect revealed to all (a top card, a search's find) |
+| `hand` | `seat`, `open`, `cards`: `seat`'s hand as this seat sees it now, told as it turns face up (`open`) or face down for it (an open hand: Aura Reading, Revelations; a look), after the moves of its step: each card's face with its copy number, or its back; while open, a card moving into it is told with its face |
 | `looked` | `seat`, `cards` (their `id`s; no number), `zone`?: `seat`'s hand as it stood when an effect let this seat look at it (SchreckNET, Vaticination), told to the looking seat only; `zone: library`, the top of its own library, top first (Anna "Dictatrix11" Suljic) |
 | `resolved` | `seat`, `card`, `effects`? (the options' vocabulary, §7, `on` as it applies): a card played resolved — what its mode does (none when it takes no effect: its payer burned paying), the changes it makes told by the events after it, so its `pool`, `blood` and `life` effects at once are not among `effects` (their events follow, the card their `cause`; one that comes later, its `when` set, stays); an action card's end is its `action_ends` |
 | `canceled` | `seat`, `card`: a card played canceled (still played: to the ash heap) |
@@ -632,18 +634,18 @@ applied in order, is the next decision's (`over`'s too) — the host's
 tests hold every view to it. What it applies:
 
 - each card's place by its `card_moves` (a reducer reads those; `draw`,
-  `enters_play`, `leaves_play`, `moves` and `resolved` tell the same
-  moves for a log, in words): a card told into a place goes last (into
-  an uncontrolled region, at its `slot`: the region's order is the
-  events', which `counters` name places by); it keeps its state from
-  place to place (a slot its counters, a card in play its own, a minion
-  its own), a hidden place shows it as a back;
-  an uncontrolled vampire comes into play with its counters as blood, a
-  minion or card leaving play into the uncontrolled region is banished
-  there (face up), a minion taken keeps its `owner`, a card onto a
-  minion is in its `cards`; a merge makes the minion the base vampire's
-  under the advanced card (the advanced card's counters burned), its
-  `numbered` the move's;
+  `enters_play`, `leaves_play`, `moves` and `resolved` tell the same moves for
+  a log, in words): a card told into a place goes last (into an uncontrolled
+  region, at its `slot`: the region's order is the events', which `counters`
+  name places by); it keeps its state from place to place (a slot its
+  counters, a card in play its own, a minion its own), a hidden place (a
+  library, a crypt, another seat's hand but while a `hand` event told it
+  `open`) shows it as a back, its face told or not; an uncontrolled vampire
+  comes into play with its counters as blood, a minion or card leaving play
+  into the uncontrolled region is banished there (face up), a minion taken
+  keeps its `owner`, a card onto a minion is in its `cards`; a merge makes the
+  minion the base vampire's under the advanced card (the advanced card's
+  counters burned), its `numbered` the move's;
 - a minion or card coming into play (or back from a contest, or into
   one at once) has what it brought (a vampire its counters, a minion
   back its own blood, else nothing; unlocked; a card its place's holder
@@ -652,25 +654,27 @@ tests hold every view to it. What it applies:
   minion's `capacity`, `title`, `markers` and `traits` as the view
   finds them (its name is its card's, its kind its `enters_play`'s, its
   `numbered` its move's or its `enters_play`'s);
-- a contest: `leaves_play` `contested` puts a minion out of play there
-  (no title while it lasts) or a card in its own contest (`contested`;
-  the cards on a contested minion are out of play with it, unmarked),
-  told after its move when it comes into the contest at once (a second
-  copy influenced out, a unique card played); `enters_play` ends it;
-- the rest by the event of its field: `pool`, `blood`, `torpor` (ready
-  or in torpor), `incapacitated` (ready or incapacitated), `locked` (a card or minion in a contest too),
-  `counters` (a card's, in training too; a slot by its place),
-  `controller`, `capacity`, `title`, `markers`, `traits`,
-  `victory_points`, `edge`, `turn` (its unlock phase) and `phase`,
-  `transfers` (none once a phase begins), a decision's number after
-  `decided` and `auto_passed`, and the action, combat and referendum
-  under way: `*_state` to set it, `action_ends`, `combat_ends`,
-  `referendum_ends` to end it; `over`'s view the phase `over`;
+- a contest: `leaves_play` `contested` puts a minion out of play there (no
+  title nor capacity while it lasts) or a card in its own contest
+  (`contested`; the cards on a contested minion are out of play with it,
+  unmarked), told after its move when it comes into the contest at once (a
+  second copy influenced out, a unique card played); `enters_play` ends it;
+- the rest by the event of its field: `pool`, `blood`, `torpor` (ready or in
+  torpor), `incapacitated` (ready or incapacitated), `locked` (a card or
+  minion in a contest too), `counters` (a card's, in training too; a slot by
+  its place), `controller`, `capacity`, `title`, `markers`, `traits`, `hand`
+  (a hand turned face up or down for the viewer), `victory_points`, `edge`,
+  `turn` (its unlock phase) and `phase`, `transfers` (none once a phase
+  begins), a decision's number after `decided` and `auto_passed`, and the
+  action, combat and referendum under way: `*_state` to set it, `action_ends`,
+  `combat_ends`, `referendum_ends` to end it; `over`'s view the phase `over`;
 - what follows from other events: prey and predator from the seats
   `ousted` or `withdrew` (each seat's next still in the game, a gone
   one's too), every card of a seat `ousted` or `withdrew` gone from its
-  places (its own and those it controlled on others' minions); a
-  `withdrew` seat's `ousted`, `withdrew` true and `withdrawing` false.
+  places (its own and those it controlled on others' minions), a card
+  moved into such a seat's place since gone too (burned to its ousted
+  owner's ash heap); a `withdrew` seat's `ousted`, `withdrew` true and
+  `withdrawing` false.
 
 Where a card sits within its place is the next view's to show (a minion
 out of torpor, a card come into play); so are the cards a search shows

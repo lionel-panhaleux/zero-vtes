@@ -4972,7 +4972,7 @@ impl Engine {
             Effect::StealTargetAlly => {
                 if let Target::Minion(m) = ctx.target {
                     if self.state.minions[m.index()].present() {
-                        self.state.minions[m.index()].owner = s;
+                        self.state.minions[m.index()].take_for_good(s);
                         self.enter_card_contest(m);
                     }
                 }
@@ -5809,10 +5809,7 @@ impl Engine {
                 let (t, s) = (ctx.target.minion(), ctx.seat);
                 let v = &mut self.state.minions[t.index()];
                 if v.present() && v.owner != s {
-                    let origin = v.origin.or(v.temp_from).unwrap_or(v.owner);
-                    v.origin = (origin != s).then_some(origin);
-                    v.temp_from = None;
-                    v.owner = s;
+                    v.take_for_good(s);
                     self.enter_title_contest(t);
                 }
             }
@@ -5837,7 +5834,7 @@ impl Engine {
                     let cap = self.state.capacity_of(t).unwrap_or(0);
                     let v = &self.state.minions[t.index()];
                     let controller = v.owner;
-                    let owner = v.origin.or(v.temp_from).unwrap_or(controller);
+                    let owner = v.owner_seat();
                     let card = v.crypt_card();
                     let copy = *v.copy;
                     // The cards on it are burned as it leaves play (advanced

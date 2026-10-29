@@ -67,6 +67,7 @@ pub fn event(e: &EventKind, n: &Names) -> Option<String> {
         | EventKind::Counters { .. }
         | EventKind::Controller { .. }
         | EventKind::Capacity { .. }
+        | EventKind::Hand { .. }
         | EventKind::Title { .. }
         | EventKind::Markers { .. }
         | EventKind::Traits { .. }

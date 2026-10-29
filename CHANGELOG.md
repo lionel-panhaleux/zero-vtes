@@ -6,6 +6,28 @@ server runs.
 `python3 scripts/schema_compat.py` lists what a schema change adds or
 removes; its `--check` fails a removal without a major version.
 
+## 2.18.0
+
+The events miss no view path (the deep sweep's seven, engine board); an
+event added, none removed:
+
+- `hand` (`seat`, `open`, `cards`): a hand as the viewer sees it now,
+  told as it turns face up or down for them (an open hand: Aura Reading,
+  Revelations; a look), after its step's moves; while open, a card
+  moving into it is told with its face. Its faces were the views' alone
+  before.
+- A minion's `owner` (the Methuselah whose ash heap it goes to, when
+  not its controller): an ally stolen for good (Entrancement) and a
+  minion under temporary control show it; neither did.
+- A minion out of play in a contest has no `capacity` in the views (its
+  title neither, as before); told again as it comes back.
+- A card burned to an earlier ousted owner's ash heap (Disarm) is told
+  moving there (`card_moves`): gone from the table (§9); it was told
+  leaving play only.
+- Call the Great Beast become a vampire is told as a move from its
+  vampire to the ready region, after its `enters_play`; it was told
+  leaving play.
+
 ## 2.17.1
 
 An undo is recorded before the decisions the game takes on from it, its
