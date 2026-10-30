@@ -1943,7 +1943,7 @@ training runs.
   the A&B term buys about 0.2 A&B a round (at the edge of two standard
   errors, unpaired) of no more harm to the prey. Not a lever as it stands: a
   play-out needs a better guess of the hidden cards than a fresh deal.
-- **p16, prepared** (owner, 2026-10-27: RL from d16). From d16@180 (the
+- **p16** (owner, 2026-10-27: RL from d16). From d16@180 (the
   seats' context read from the start), on main `6ad5083` (round 22's cards);
   as p14 otherwise, the owner's games twice as often, no shaping, d16 for
   p13 among the frozen opponents, 500 iterations (the paths absolute into
@@ -1966,7 +1966,14 @@ training runs.
   games among its targets (their human seat replays the network). Judged
   against p14 by the ledger (the training skill's step 5): A&B a round and
   its prey's R at 4 and 5 seats and on TWDA, decks, `humanset`; the bar the
-  board's line sets, A&B a round above p14's.
+  board's line sets, A&B a round above p14's. Stopped at iteration 478 of
+  680 (owner, 2026-10-30: the machine's resources, going nowhere), not
+  served, not measured against p14 on the ledger. Its best stayed its
+  first evaluation, iteration 200 (1.067 on the mean of the selection
+  score against p14 and d16, 0.84 and 0.76 VP a seat at 4 and 5 seats);
+  later ones ran 0.61–0.87 and 0.51–0.74. Imitation memorised: on the means
+  of the first and last 20 logged iterations, accuracy on the trained human
+  choices 0.64 → 0.78, on the held-out games 0.57 → 0.50.
 - **Futile blocks on the E25 engine** (owner, 2026-10-15: before any
   redeploy). E25 (`97c4880`) offers every legal block attempt, those
   that cannot reach the stealth too (`Engine::block_can_reach`); no
