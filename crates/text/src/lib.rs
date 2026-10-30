@@ -11,7 +11,8 @@ mod prompt;
 use std::collections::HashMap;
 
 use zvtes_api::event::EventKind;
-use zvtes_api::ids::{CopyId, KrcgId, MinionKind, Seat};
+use zvtes_api::event::ZoneRef;
+use zvtes_api::ids::{CopyId, KrcgId, MinionKind, Seat, Zone};
 use zvtes_api::view::{ActionView, Card, ReferendumView, TableView};
 
 pub use effect::{label, part, parts};
@@ -22,6 +23,11 @@ pub use prompt::prompt;
 /// Card names by KRCG id: the client's card database.
 pub trait Cards {
     fn name(&self, id: KrcgId) -> Option<&str>;
+    /// A vampire whose printed name others share, by KRCG's suffix (a
+    /// decklist's name: "Helena (ADV)", "Theo Bell (G2)"); else its name.
+    fn full_name(&self, id: KrcgId) -> Option<&str> {
+        self.name(id)
+    }
     /// A clan, Discipline or circle by its snake_case id, as printed
     /// ("gangrel_antitribu": "Gangrel antitribu"); `None`: title case.
     fn value(&self, id: &str) -> Option<&str> {
@@ -126,15 +132,25 @@ impl<'a> Names<'a> {
             }
             for (i, u) in s.uncontrolled.iter().enumerate() {
                 if let Some(copy) = u.card.copy {
-                    // Two copies of one vampire there: each by its number.
+                    // Two copies of one vampire there: each by its number;
+                    // two vampires of one name, by their decklist names
+                    // (Helena and Helena (ADV)).
                     let twin = s
                         .uncontrolled
                         .iter()
                         .filter(|o| o.card.id.is_some() && o.card.id == u.card.id)
                         .count()
                         > 1;
+                    let namesake = s.uncontrolled.iter().any(|o| {
+                        o.card.id.is_some_and(|id| Some(id) != u.card.id)
+                            && self.card(&o.card) == self.card(&u.card)
+                    });
                     let name = match (u.card.id, u.card.nth) {
                         (Some(_), Some(k)) if twin => format!("{} ({k})", self.card(&u.card)),
+                        (Some(id), _) if namesake => self
+                            .cards
+                            .full_name(id)
+                            .map_or_else(|| self.card(&u.card), str::to_string),
                         (Some(_), _) => self.card(&u.card),
                         (None, _) => format!("uncontrolled vampire #{}", i + 1),
                     };
@@ -171,6 +187,27 @@ impl<'a> Names<'a> {
             if let Some(c) = card.copy {
                 if !self.minions.contains_key(&c) {
                     let name = minion_name(*kind, &self.card(card));
+                    self.numbered(c, name, card.numbered);
+                }
+            }
+            return;
+        }
+        // A minion come into play by its move alone (an advanced vampire
+        // merged: Helena (ADV)), named before a view shows it.
+        if let EventKind::CardMoves {
+            card,
+            to:
+                ZoneRef {
+                    zone: Zone::Ready | Zone::Torpor | Zone::Incapacitated,
+                    on: None,
+                    ..
+                },
+            ..
+        } = e
+        {
+            if let (Some(c), Some(_)) = (card.copy, card.id) {
+                if !self.minions.contains_key(&c) {
+                    let name = self.card(card);
                     self.numbered(c, name, card.numbered);
                 }
             }
@@ -298,9 +335,12 @@ impl<'a> Names<'a> {
             .join(" ")
     }
 
+    /// A minion by copy; a card in play acting as one (Unleash Hell's
+    /// Fury blocking) by its card's name.
     pub fn minion(&self, c: CopyId) -> String {
         self.minions
             .get(&c)
+            .or(self.table.get(&c))
             .cloned()
             .unwrap_or_else(|| "a minion".into())
     }

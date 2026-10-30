@@ -483,7 +483,10 @@ impl Namer<'_> {
                     (_, Some(Outcome::Fizzled)) => ActionOutcome::Fizzles,
                     (_, None) => ActionOutcome::Ends,
                 },
-                blocker: blocker.map(|m| self.minion(m)),
+                // Out of the game with its ousted Methuselah: none.
+                blocker: blocker
+                    .filter(|&m| !st.seats[st.minions[m.index()].owner.index()].ousted)
+                    .map(|m| self.minion(m)),
             },
             Fact::ReferendumEnds {
                 passed,

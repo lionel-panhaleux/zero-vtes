@@ -960,6 +960,34 @@ mod tests {
             .expect("a vampire")
     }
 
+    // Two uncontrolled vampires of one printed name, two cards (Helena and
+    // Helena (ADV)), are told apart in the text by their decklist names.
+    #[test]
+    fn namesakes_uncontrolled_are_named_apart() {
+        let mut e = Engine::bare(2);
+        for (i, id) in [200586, 200587].into_iter().enumerate() {
+            e.state.seats[0]
+                .uncontrolled
+                .push(zvtes::state::UncontrolledSlot {
+                    card: crypt(|c| c.id == id),
+                    copy: zvtes::copies::Untracked(zvtes::copies::CopyId(i as u16 + 1)),
+                    counters: 0,
+                    banished: None,
+                });
+        }
+        let names = vec!["a".to_string(), "b".to_string()];
+        let decks = Decks::dealt(&e);
+        let v = Viewer::new(Some(SeatId(0))).view(&e, &decks, &names);
+        let mut n = zvtes_text::Names::new(crate::cards::cards());
+        n.see(&v);
+        let told: Vec<String> = v.seats[0]
+            .uncontrolled
+            .iter()
+            .map(|u| n.copy(u.card.copy.expect("seen")))
+            .collect();
+        assert_eq!(told, ["Helena", "Helena (ADV)"]);
+    }
+
     // Minions of one name told apart (docs/protocol.md §3): the second and
     // third of a name numbered in table order, whatever their seat, kept in
     // a later view. Markers are data: a hostage's count, a lasting effect's

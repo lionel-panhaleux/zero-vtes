@@ -1999,6 +1999,34 @@ fn vozhd_of_juiz_de_fora_meets_animalism_for_pack_alpha_and_its_raven_spy() {
     assert!(e.state.seats[1].hand.is_empty());
 }
 
+// The blocker's Methuselah ousted before range by a combat card's cost
+// (Pack Alpha employing a Dog Pack with the last pool): the combat ends at
+// once, no end-of-round window, the action blocked (rules-qa 45.4).
+#[test]
+fn a_blockers_methuselah_ousted_mid_combat_ends_the_combat() {
+    let mut e = Engine::bare(3);
+    let a = e.add_minion(SeatId(0), plain("Brujah", 0), 4, false);
+    e.add_minion(SeatId(0), plain("Brujah", 1), 4, false);
+    let b = e.add_minion(SeatId(1), plain("Gangrel", 0), 4, false);
+    e.add_minion(SeatId(2), plain("Ventrue", 0), 4, false);
+    hand(&mut e, 0, &["Taste of Vitae"]);
+    hand(&mut e, 1, &["Pack Alpha", "Dog Pack"]);
+    e.state.seats[1].pool = 2;
+    pick(&mut e, action(a, ActionKind::Bleed));
+    pick_when(&mut e, Choice::DeclareBlock { minion: b });
+    pick_when(&mut e, play(0, 0, b));
+    // At once, no end-of-round window (rules-qa 45.4): its card unoffered.
+    never_offered_where(&mut e, SeatId(0), WindowLabel::MinionPhase, |c| {
+        matches!(c, Choice::Play { card: 0, .. })
+    });
+    assert!(e.state.seats[1].ousted, "ousted");
+    assert!(
+        e.combat().is_none() && e.action().is_none(),
+        "the combat and the action ended"
+    );
+    assert_eq!(blood(&e, a), 4, "no strike resolved");
+}
+
 #[test]
 fn vozhd_of_juiz_de_fora_takes_a_tzimisces_blood_as_life_up_to_its_starting_life() {
     let (mut e, t, vozhd, id) = juiz();

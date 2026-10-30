@@ -64,6 +64,19 @@ fn id_of(key: &str) -> Option<u32> {
     }
 }
 
+/// KRCG's suffix for a vampire whose name others carry: its group when
+/// they are of others (`G2`), `ADV` an advanced one.
+pub fn suffix(c: &zvtes::crypt::CryptCard) -> Option<String> {
+    let mut suffix = Vec::new();
+    if CRYPT.iter().any(|o| o.name == c.name && o.group != c.group) {
+        suffix.push(format!("G{}", c.group));
+    }
+    if c.adv {
+        suffix.push("ADV".to_string());
+    }
+    (!suffix.is_empty()).then(|| suffix.join(" "))
+}
+
 /// A suffix's group: `G2`.
 fn group(token: &str) -> Option<u8> {
     token.strip_prefix(['G', 'g'])?.parse().ok()
@@ -72,18 +85,9 @@ fn group(token: &str) -> Option<u8> {
 /// The cards the engine plays (`GET /cards`): KRCG id and the name a
 /// decklist may give for it, the crypt then the library.
 pub fn cards() -> Vec<(u32, String)> {
-    let crypt = CRYPT.iter().map(|c| {
-        let mut suffix = Vec::new();
-        if CRYPT.iter().any(|o| o.name == c.name && o.group != c.group) {
-            suffix.push(format!("G{}", c.group));
-        }
-        if c.adv {
-            suffix.push("ADV".to_string());
-        }
-        match suffix.is_empty() {
-            true => (c.id, c.name.to_string()),
-            false => (c.id, format!("{} ({})", c.name, suffix.join(" "))),
-        }
+    let crypt = CRYPT.iter().map(|c| match suffix(c) {
+        None => (c.id, c.name.to_string()),
+        Some(s) => (c.id, format!("{} ({s})", c.name)),
     });
     let library = LIBRARY.iter().map(|c| (c.id, c.name.to_string()));
     crypt.chain(library).collect()

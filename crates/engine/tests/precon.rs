@@ -10849,27 +10849,37 @@ fn ferraille_votes_once_a_turn_for_or_against() {
 }
 
 // Oxford University, England: "You can lock this card and burn X pool during
-// the polling step of a political action to get +2X votes."
+// the polling step of a political action to get +2X votes." [LSJ 20081105]
+// The pool burned ousting its Methuselah: no votes.
 #[test]
 fn oxford_university_buys_two_votes_a_pool() {
-    let mut e = Engine::bare(3);
-    let a = e.add_minion(SeatId(0), anarch(0), 4, false);
-    e.add_minion(SeatId(1), plain("Brujah", "", 1), 4, false);
-    e.add_minion(SeatId(2), plain("", "", 2), 4, false);
-    let o = location(&mut e, 1, "Oxford University, England");
-    hand(&mut e, 0, &["Anarchist Uprising"]);
-    pick(&mut e, play(0, 0, a));
-    pick_when(&mut e, use_on(o, 1, None, Target::None));
-    let req = expect(&mut e, SeatId(1), WindowLabel::PlayTerms);
-    assert_eq!(req.options.len(), 30, "X up to the pool");
-    pick(&mut e, Choice::SetX(3));
-    request(&mut e);
-    let r = e.referendum().expect("referendum");
-    assert!(r
-        .records
-        .iter()
-        .any(|v| v.seat == SeatId(1) && !v.favor && v.n == 6));
-    assert_eq!(pool(&e, 1), 27);
+    for ousted in [false, true] {
+        let mut e = Engine::bare(3);
+        let a = e.add_minion(SeatId(0), anarch(0), 4, false);
+        e.add_minion(SeatId(1), plain("Brujah", "", 1), 4, false);
+        e.add_minion(SeatId(2), plain("", "", 2), 4, false);
+        let o = location(&mut e, 1, "Oxford University, England");
+        if ousted {
+            e.state.seats[1].pool = 3;
+        }
+        hand(&mut e, 0, &["Anarchist Uprising"]);
+        pick(&mut e, play(0, 0, a));
+        pick_when(&mut e, use_on(o, 1, None, Target::None));
+        let req = expect(&mut e, SeatId(1), WindowLabel::PlayTerms);
+        assert_eq!(req.options.len(), pool(&e, 1) as usize, "X up to the pool");
+        pick(&mut e, Choice::SetX(3));
+        request(&mut e);
+        let r = e.referendum().expect("referendum");
+        let voted = r
+            .records
+            .iter()
+            .any(|v| v.seat == SeatId(1) && !v.favor && v.n == 6);
+        assert_eq!(voted, !ousted, "ousted {ousted}");
+        assert_eq!(e.state.seats[1].ousted, ousted);
+        if !ousted {
+            assert_eq!(pool(&e, 1), 27);
+        }
+    }
 }
 
 // The Black Throne: "You can lock this card during the polling step of any
@@ -12841,6 +12851,26 @@ fn michael_harris_sets_the_range_once_a_round_for_a_pool() {
         (5, 3),
         "long range: no hand strikes"
     );
+}
+
+// Michael Harris's last pool paid to set the range: his Methuselah ousted,
+// the combat ends at once, no end-of-round window (rules-qa 45.4).
+#[test]
+fn michael_harris_paying_the_last_pool_ends_the_combat() {
+    let mut e = Engine::bare(3);
+    let a = e.add_minion(SeatId(0), plain("Ventrue", "", 0), 5, false);
+    e.add_minion(SeatId(0), plain("Brujah", "", 0), 5, false);
+    let (mh, card) = antigen(&mut e, 1, "Michael Harris, the Incinerator");
+    hand(&mut e, 0, &["Taste of Vitae"]);
+    e.state.seats[1].pool = 1;
+    bleed_blocked(&mut e, a, mh);
+    pick_when(&mut e, card_ability(card, 2));
+    never_offered_where(&mut e, SeatId(0), WindowLabel::MinionPhase, |c| {
+        matches!(c, Choice::Play { card: 0, .. })
+    });
+    assert!(e.state.seats[1].ousted, "ousted");
+    assert!(e.combat().is_none(), "the combat ended");
+    assert_eq!(blood(&e, a), 5, "no strike resolved");
 }
 
 // Valerie Diaz: "If Valerie is in combat with a vampire, you can burn 1

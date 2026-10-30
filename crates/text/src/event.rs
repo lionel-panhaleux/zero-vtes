@@ -460,6 +460,41 @@ mod tests {
         }
     }
 
+    // A minion come into play by its move alone (an advanced vampire
+    // merged) is named before a view shows it; a card in play acting as a
+    // minion (Unleash Hell's Fury blocking), by its card.
+    #[test]
+    fn a_minion_moved_into_play_or_a_card_acting_as_one_is_named() {
+        use zvtes_api::event::ZoneRef;
+        use zvtes_api::ids::Zone;
+        let cards = Two;
+        let mut n = Names::new(&cards);
+        let at = |zone, slot| ZoneRef {
+            seat: 0,
+            zone,
+            on: None,
+            slot,
+        };
+        n.hear(&EventKind::CardMoves {
+            card: Card {
+                crypt: true,
+                numbered: Some(2),
+                ..card(1, Some(7))
+            },
+            from: at(Zone::Uncontrolled, Some(0)),
+            to: at(Zone::Ready, None),
+        });
+        assert_eq!(n.minion(7), "Lucian (2)");
+        n.hear(&EventKind::EntersPlay {
+            card: card(2, Some(9)),
+            seat: 0,
+            on: None,
+            minion: None,
+            effect: false,
+        });
+        assert_eq!(n.minion(9), "Torn Signpost");
+    }
+
     // A round's line keeps the strike's damage apart from the rest (its
     // retainers' and environmental damage): strike-only prevention covers
     // the strike's only.

@@ -1088,6 +1088,88 @@ mod tests {
         (told, view)
     }
 
+    /// A blocker whose Methuselah a combat card's cost ousted (Pack Alpha
+    /// employing a Dog Pack with the last pool) is named nowhere after: the
+    /// action's end tells no blocker, no view an unnumbered one.
+    #[test]
+    fn a_blocker_ousted_with_its_methuselah_is_told_as_none() {
+        let (mut s, _) = session();
+        let vampire = |clan: &str, disc: &str| {
+            (0..zvtes::crypt::CRYPT.len() as u16)
+                .find(|&i| {
+                    let c = &zvtes::crypt::CRYPT[i as usize];
+                    c.clan == clan
+                        && c.capacity >= 4
+                        && c.disciplines.contains(&disc)
+                        && zvtes::cards::vampire(i).is_none()
+                })
+                .expect("a vampire")
+        };
+        let mut e = Engine::bare(3);
+        let a = e.add_minion(SeatId(0), vampire("Brujah", "pot"), 4, false);
+        e.add_minion(SeatId(0), vampire("Brujah", "pot"), 4, false);
+        let b = e.add_minion(SeatId(1), vampire("Gangrel", "ani"), 4, false);
+        e.add_minion(SeatId(2), vampire("Ventrue", "dom"), 4, false);
+        for name in ["Pack Alpha", "Dog Pack"] {
+            e.state.seats[1].hand.push(find_library(name));
+        }
+        e.state.seats[1].pool = 2;
+        for (i, m) in e.state.minions.iter_mut().enumerate() {
+            m.copy = zvtes::copies::Untracked(CopyId(i as u16 + 1));
+        }
+        e.notes = Some(Vec::new());
+        s.engine = e;
+        s.observe(false);
+        let names = vec![String::new(); 3];
+        let mut v = crate::view::Viewer::new(None);
+        v.view(&s.engine, &s.dealt, &names);
+        let mut told = Vec::new();
+        for _ in 0..40 {
+            let Step::Decision(req) = s.engine.run() else {
+                panic!("a decision");
+            };
+            s.observe(true);
+            told.extend(
+                s.take_told()
+                    .iter()
+                    .filter_map(|t| v.event(&s.engine, &s.dealt, t)),
+            );
+            let view = v.view(&s.engine, &s.dealt, &names);
+            assert!(
+                view.action
+                    .as_ref()
+                    .is_none_or(|x| x.blocker != Some(u32::MAX)),
+                "an unnumbered blocker shown"
+            );
+            if s.engine.state.seats[1].ousted && s.engine.action().is_none() {
+                break;
+            }
+            let at = |c: &Choice| req.options.iter().position(|o| o == c);
+            let i = at(&Choice::TakeAction {
+                minion: a,
+                action: ActionKind::Bleed,
+                target: None,
+            })
+            .or_else(|| at(&Choice::DeclareBlock { minion: b }))
+            .or_else(|| {
+                req.options.iter().position(|o| {
+                    matches!(o, Choice::Play { card: 0, mode: 0, actor: Some(m), .. } if *m == b)
+                })
+            });
+            s.engine
+                .choose(i.or_else(|| at(&Choice::Pass)).unwrap_or(0));
+        }
+        assert!(s.engine.state.seats[1].ousted, "ousted");
+        let end = told
+            .iter()
+            .find_map(|t| match t {
+                EventKind::ActionEnds { blocker, .. } => Some(*blocker),
+                _ => None,
+            })
+            .expect("the action told ended");
+        assert_eq!(end, None, "no blocker named");
+    }
+
     /// A withdrawal kept is told `withdrawal_announced` then `withdrew`,
     /// never `ousted`; the view shows the seat out of the game, withdrawn
     /// (protocol.md §9; rules-qa 95.4, 95.5).

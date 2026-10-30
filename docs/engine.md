@@ -923,9 +923,12 @@ sources to the engine's conventions.
   is offered what its cards allow one outside the combat: a vampire's or a
   card's ability only when its actor is `HostOutOfCombat` (Randall, Maman
   Boumba, Abjure; 15.2, 98.2). A combatant no longer ready ends the round at
-  once, the end-of-round window still opening (rulebook step 7). A card
-  there put on the opposing minion carries `Requirement::OpponentPresent`: a
-  burned one is no target (rules-qa 75.1).
+  once, the end-of-round window still opening (rulebook step 7). Its
+  Methuselah ousted, by a combat effect or a cost (a play's out of turn,
+  `oust_if_out`), ends the combat at once, no end-of-round window
+  (`combat_ousts`; DESIGN §10.8, rules-qa 45.4). A card there put on the
+  opposing minion carries `Requirement::OpponentPresent`: a burned one is no
+  target (rules-qa 75.1).
 - Only combat cards are played during combat — no modifiers, reactions or wakes
   (spec §4.1.3). A combat is part of its action: `Engine::action` and its layers
   stay in force.

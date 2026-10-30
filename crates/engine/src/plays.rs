@@ -4429,6 +4429,11 @@ impl Engine {
                         a.order.retain(|&o| o != s);
                         a.window.remove(s);
                     }
+                    // A combatant's: the combat ends at once, the play's
+                    // flow with it (rules-qa 45.4: Pack Alpha's employ).
+                    if self.combat.is_some() && self.combat_ousts() {
+                        self.ousted_during_play = true;
+                    }
                 }
             }
         } else if self.state.seats[self.state.active.index()].ousted {
@@ -7987,7 +7992,8 @@ impl Engine {
     /// Use an in-play ability, `seat` the one that chose to. Returns true
     /// when the flow moved on: a granted action was declared, or the user
     /// paid themselves out (`PoolToHostBlood` at 1 pool: ousted, the turn
-    /// passed) — callers must not restore their flow then.
+    /// passed, or a combat of theirs ended) — callers must not restore
+    /// their flow then.
     pub(crate) fn use_ability(
         &mut self,
         seat: SeatId,
@@ -8798,8 +8804,8 @@ impl Engine {
     }
 
     /// Resolve an in-play ability's effects (its terms, if any, chosen:
-    /// `x` for a count). Returns true when the flow moved on (the user
-    /// ousted).
+    /// `x` for a count). Returns true when the flow moved on: the turn
+    /// passed or the combat ended.
     fn resolve_ability(
         &mut self,
         source: AbilitySource,
@@ -9064,13 +9070,13 @@ impl Engine {
                 }
                 // An ability's pool cost ("lock this location and burn 1
                 // pool"), paid down to 0: its user is ousted, nothing more
-                // resolves (Michael Harris's range, its combat gone); the
-                // active Methuselah's oust passed the turn.
+                // resolves (Michael Harris's range, its combat gone; no
+                // votes, Ferraille, LSJ 20081105); the active Methuselah's
+                // oust passed the turn.
                 Effect::PayPool(n) => {
-                    let active = self.state.active;
-                    self.pay_pool_for_ability(ctx.seat, n as i32);
+                    let moved = self.pay_pool_for_ability(ctx.seat, n as i32);
                     if self.state.seats[ctx.seat.index()].ousted {
-                        return ctx.seat == active;
+                        return moved;
                     }
                 }
                 Effect::ExchangeForAnarchCard => {
@@ -9689,9 +9695,8 @@ impl Engine {
                         });
                     }
                 }
-                // No votes once the cost ousted the user (LSJ 20081105).
                 Effect::MethuselahVotes { n, favor } => {
-                    if !self.state.seats[ctx.seat.index()].ousted && self.referendum.is_some() {
+                    if self.referendum.is_some() {
                         self.methuselah_votes(source.card(), ctx.seat, n, favor)
                     }
                 }
@@ -9868,7 +9873,14 @@ impl Engine {
                 Effect::CryptNamedToUncontrolled(name) => {
                     self.crypt_named_to_uncontrolled(ctx.seat, name)
                 }
-                Effect::PayPoolX => self.pay_pool_for_ability(ctx.seat, ctx.x as i32),
+                // Nothing more once the cost ousted the user: no votes
+                // (Oxford University, LSJ 20081105).
+                Effect::PayPoolX => {
+                    let moved = self.pay_pool_for_ability(ctx.seat, ctx.x as i32);
+                    if self.state.seats[ctx.seat.index()].ousted {
+                        return moved;
+                    }
+                }
                 Effect::GhoulFromLibraryTop(body) => {
                     if let Some((card, copy)) =
                         self.state.seats[ctx.seat.index()].library.take_top()
@@ -9940,9 +9952,8 @@ impl Engine {
                     let n = self.state.other_events(source.card()) as i32;
                     self.pay_pool_for_ability(ctx.seat, n);
                 }
-                // No votes once the cost ousted the user (LSJ 20081105).
                 Effect::MethuselahVotesX { per, favor } => {
-                    if !self.state.seats[ctx.seat.index()].ousted && self.referendum.is_some() {
+                    if self.referendum.is_some() {
                         self.methuselah_votes(source.card(), ctx.seat, per * ctx.x, favor)
                     }
                 }
@@ -10007,25 +10018,30 @@ impl Engine {
     }
 
     /// An ability's pool cost, paid down to 0: its user is ousted — on
-    /// their turn the turn passes, else it goes on without them.
-    pub(crate) fn pay_pool_for_ability(&mut self, seat: SeatId, n: i32) {
+    /// their turn the turn passes, else it goes on without them. Whether
+    /// the flow moved on (`oust_if_out`).
+    pub(crate) fn pay_pool_for_ability(&mut self, seat: SeatId, n: i32) -> bool {
         self.paying(|e| e.state.seats[seat.index()].lose_pool(n));
         if n > 0 {
             self.note_pool_burned(seat);
         }
-        self.oust_if_out(seat);
+        self.oust_if_out(seat)
     }
 
     /// Out of pool by an ability or an effect of its own: ousted at once,
-    /// the turn passing if it was the active Methuselah's.
-    pub(crate) fn oust_if_out(&mut self, seat: SeatId) {
-        if self.state.seats[seat.index()].pool <= 0 {
-            if seat == self.state.active {
-                self.oust_and_pass(seat);
-            } else {
-                self.oust(seat);
-            }
+    /// the turn passing if it was the active Methuselah's, a combat of its
+    /// minion ending (`combat_ousts`). Whether the flow moved on: the turn
+    /// passed or the combat ended.
+    pub(crate) fn oust_if_out(&mut self, seat: SeatId) -> bool {
+        if self.state.seats[seat.index()].pool > 0 {
+            return false;
         }
+        if seat == self.state.active {
+            return self.oust_and_pass(seat);
+        }
+        self.oust(seat);
+        // A combatant's: the combat ends at once (rules-qa 45.4).
+        self.combat.is_some() && self.combat_ousts()
     }
 
     /// The unlock-phase riders printed on vampire `m` due in its
