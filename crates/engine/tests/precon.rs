@@ -6685,6 +6685,30 @@ fn haven_uncovered_opens_its_vampire_to_combat_until_it_burns_it() {
     assert!(!e.state.cards[haven.index()].in_play);
 }
 
+// I am Legion's pool, an action's after a combat it began (a rush): told
+// by the action, as after a bleed.
+#[test]
+fn i_am_legion_after_a_rush_gains_under_the_action() {
+    let mut e = Engine::bare(3);
+    let n = e.add_minion(SeatId(0), zvtes::state::find_card("Nergal"), 6, false);
+    e.add_minion(SeatId(0), plain("", "", 1), 4, false);
+    let z = e.add_minion(SeatId(1), plain("", "", 2), 4, false);
+    e.add_minion(SeatId(1), plain("", "", 3), 4, false);
+    let haven = master_on(&mut e, 0, "Haven Uncovered", z);
+    hand(&mut e, 0, &["I am Legion"]);
+    let before = pool(&e, 0);
+    e.notes = Some(Vec::new());
+    pick(&mut e, use_on(haven, 0, Some(n), Target::Minion(z)));
+    pick_when(&mut e, play(0, 3, n));
+    until(&mut e, SeatId(0), WindowLabel::MinionPhase);
+    assert_eq!(pool(&e, 0), before + 1);
+    use zvtes::notes::{Cause, Source};
+    assert_eq!(
+        pool_gain_causes(&mut e, 0),
+        [Some(Cause::Effect(Source::Card(haven)))]
+    );
+}
+
 // Chantry: "You can lock this card and burn 1 pool or 1 blood from a ready
 // Tremere you control during your master phase to move a Tremere from
 // torpor to their controller's ready region."

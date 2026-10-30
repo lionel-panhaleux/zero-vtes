@@ -46,10 +46,10 @@ fn from() -> u32 {
 /// (474, 933: Disarm), an open hand (1111: Aura Reading), cards into one
 /// (106), one closed with a card leaving it in the same step (910, 929); and
 /// a line naming no minion: an advanced vampire merged before a view (332:
-/// Helena (ADV)).
-const KEPT: [u32; 38] = [
+/// Helena (ADV)); and Anathema's pool (392).
+const KEPT: [u32; 39] = [
     45, 70, 81, 88, 95, 99, 104, 106, 109, 111, 114, 118, 119, 132, 152, 154, 172, 219, 239, 286,
-    294, 299, 300, 332, 346, 375, 380, 411, 474, 504, 579, 591, 728, 910, 913, 929, 933, 1111,
+    294, 299, 300, 332, 346, 375, 380, 392, 411, 474, 504, 579, 591, 728, 910, 913, 929, 933, 1111,
 ];
 
 /// The sweep's seeds: `HOST_SEED_FROM` to `HOST_SEEDS` (40), the kept

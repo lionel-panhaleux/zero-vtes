@@ -435,6 +435,20 @@ fn noted<T>(e: &mut Engine, f: impl Fn(zvtes::notes::Note) -> Option<T>) -> Vec<
         .collect()
 }
 
+/// The cause noted with each rise of `seat`'s pool since notes were kept.
+pub fn pool_gain_causes(e: &mut Engine, seat: usize) -> Vec<Option<zvtes::notes::Cause>> {
+    let last = std::cell::Cell::new(None);
+    noted(e, |n| match n {
+        zvtes::notes::Note::Ledger { ledger, cause } => {
+            let pool = ledger.pools[seat];
+            let rose = last.get().is_some_and(|l| pool > l);
+            last.set(Some(pool));
+            rose.then_some(cause)
+        }
+        _ => None,
+    })
+}
+
 pub fn noted_combats(e: &mut Engine) -> Vec<zvtes::combat::CombatNote> {
     use zvtes::notes::Note;
     noted(e, |n| {

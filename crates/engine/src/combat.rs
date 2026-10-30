@@ -2908,15 +2908,17 @@ impl Engine {
                 && v.blood == 0
                 && v.present()
                 && v.is_vampire()
-                && st.hosts(m, cards::Modifier::Anathema)
             {
-                fired = Some(i);
+                fired = st
+                    .hosted(m)
+                    .find(|l| l.modifier == cards::Modifier::Anathema)
+                    .map(|l| (i, l.source));
             }
         }
         let seen = std::array::from_fn(|i| st.minions[c.sides[i].minion.index()].blood);
         let c = self.combat.as_mut().expect("combat context");
         c.anathema_seen = seen;
-        let Some(i) = fired else {
+        let Some((i, anathema)) = fired else {
             return;
         };
         let (m, opp) = (c.sides[i].minion, c.sides[1 - i].minion);
@@ -2924,7 +2926,8 @@ impl Engine {
         let cap = self.state.capacity_of(m).unwrap_or(0);
         self.burn_minion(m);
         if !self.state.seats[gainer.index()].ousted {
-            self.state.seats[gainer.index()].pool += cap as i32;
+            let gain = Cause::Effect(Source::Card(anathema));
+            self.caused(gain, |e| e.state.seats[gainer.index()].pool += cap as i32);
         }
         if let Some(c) = self.combat.as_mut() {
             if !c.both_ready(&self.state) {

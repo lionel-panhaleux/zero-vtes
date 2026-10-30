@@ -3695,10 +3695,13 @@ impl Engine {
         }
         if let Some(a) = self.action.as_mut() {
             a.queued_combat = None;
-            // I am Legion: after resolution, the action successful.
+            // I am Legion: after resolution, the action successful; its own
+            // cause, this reached after a combat under none.
             let n = std::mem::take(&mut a.pool_if_successful);
-            if successful && n > 0 && !self.state.seats[a.seat.index()].ousted {
-                self.state.seats[a.seat.index()].pool += n as i32;
+            let (seat, source) = (a.seat, a.cause_source());
+            if successful && n > 0 && !self.state.seats[seat.index()].ousted {
+                let gain = Cause::Effect(source);
+                self.caused(gain, |e| e.state.seats[seat.index()].pool += n as i32);
             }
         }
         self.bleed_ends_riders();

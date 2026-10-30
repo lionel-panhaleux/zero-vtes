@@ -9,6 +9,7 @@ use zvtes::crypt::CRYPT;
 use zvtes::decision::{ActionKind, Choice, WindowLabel};
 use zvtes::game::Engine;
 use zvtes::ids::{MinionId, SeatId};
+use zvtes::notes::{Cause, Source};
 use zvtes::state::{find_card, find_library, CardId, CardInPlay, PrintedCtx, Release};
 
 mod common;
@@ -994,12 +995,18 @@ fn anathema_burns_a_vampire_reduced_to_zero_not_one_at_zero() {
         let z = e.add_minion(SeatId(1), plain("Ventrue", 0), start, false);
         in_play(&mut e, 1, "Anathema", Some(z));
         let cap = e.state.capacity_of(z).unwrap() as i32;
+        e.notes = Some(Vec::new());
         pick(&mut e, bleed(a));
         pick_when(&mut e, block(z));
         until(&mut e, SeatId(0), WindowLabel::MinionPhase);
+        let causes = pool_gain_causes(&mut e, 0);
         if start == 1 {
             assert!(!e.state.minions[z.index()].in_play, "burned");
             assert_eq!(pool(&e)[0], 10 + cap);
+            assert!(
+                matches!(causes[..], [Some(Cause::Effect(Source::Card(_)))]),
+                "by the card: {causes:?}"
+            );
         } else {
             assert!(e.state.minions[z.index()].in_torpor, "torpor, not burned");
             assert_eq!(pool(&e)[0], 10);
