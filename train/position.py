@@ -1,6 +1,5 @@
-"""The critic against the position (training board, "The critic against
-the position, measured"; DESIGN §11.2): how well the omniscient critic
-predicts a seat's result — (VPs + `gw_weight` × win) / 5, the reward it
+"""The critic against the position (DESIGN §11.2): how well the omniscient
+critic predicts a seat's result — (VPs + `gw_weight` × win) / 5, the reward it
 learns — at a quarter, half and three quarters of the game, against a
 linear fit of hand-made position features (`zvtes_py.position_names`:
 the pools of the seat, its prey and predator, the minions each side has
@@ -13,26 +12,28 @@ the human records.
 """
 
 import argparse
+import dataclasses
 import glob
 import json
 import os
+from types import SimpleNamespace
 
 import numpy as np
 import torch
 import zvtes_py
 
 from train.assess import load
-from train.ppo import Config, act, collate_critic, device_of, rewards, shaped
+from train.ppo import Config, act, collate_critic, device_of, nudges, rewards, shaped
 
 STAGES = ((0.0, 0.25), (0.25, 0.5), (0.5, 0.75), (0.75, 1.01))
 CRITIC_KEYS = [f"critic_{a}_{b}" for a in ("tok", "deck") for b in ("ids", "f", "n")] + ["ctx"]
 
 
-@torch.no_grad()
-def self_play(policy, critic, cfg, games, seats, seed, device, budget=20_000):
-    """Every decision of `games` self-play games: (game, seat, features,
-    critic value); per game its turns and per-seat targets; the games
-    dropped (a panic, or truncated at `budget` decisions)."""
+def trained_pool(cfg, games, seats, seed, budget):
+    """`games` self-play games at the settings the checkpoint (`cfg`, its
+    config) trained on. A pool's defaults are no politics, no chores and no
+    nudges: games the network never met, which the critic reads far worse
+    in the first half (DESIGN §11.2 "The critic against the position")."""
     families = dict(zvtes_py.deck_families())
     decks = [d for f in cfg.get("decks", "precons").split(",") for d in families[f.strip()]]
     tables = [{"seats": ["net:0"] * (seats or 4 + g % 2)} for g in range(games)]
@@ -45,7 +46,20 @@ def self_play(policy, critic, cfg, games, seats, seed, device, budget=20_000):
         budget=budget,
         critic=True,
         obs=cfg.get("obs", 1),
+        politics=cfg.get("politics", Config.politics),
+        chores=cfg.get("chores", Config.chores),
     )
+    settings = SimpleNamespace(**dataclasses.asdict(Config()) | cfg)
+    pool.nudges = nudges(settings, cfg.get("iteration", 0))
+    return pool
+
+
+@torch.no_grad()
+def self_play(policy, critic, cfg, games, seats, seed, device, budget=20_000):
+    """Every decision of `games` self-play games: (game, seat, features,
+    critic value); per game its turns and per-seat targets; the games
+    dropped (a panic, or truncated at `budget` decisions)."""
+    pool = trained_pool(cfg, games, seats, seed, budget)
     # Refilled, so a row stays its slot's (`observe` reads every game);
     # the games past the queued ones are not counted.
     policy, critic = policy.to(device), critic.to(device)

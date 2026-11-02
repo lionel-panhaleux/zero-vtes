@@ -13,7 +13,7 @@ import zvtes_py
 
 from train.league import EXP, EXPLOITER, FROZEN, League
 from train.model import remap_vocab
-from train.ppo import BIAS, CTX, HIDDEN, TEST_CLIENTS, Config, Trainer, collate, collate_bias, forward, deck_index, end, eval_tables, games_weight, imitation, load_replays, made, sampling, step
+from train.ppo import BIAS, CTX, HIDDEN, TEST_CLIENTS, Config, Trainer, collate, collate_bias, forward, deck_index, end, eval_tables, games_weight, imitation, load_replays, made, sampling, step, rewards
 
 
 def test_one_iteration(tmp_path):
@@ -240,6 +240,19 @@ def test_habit_seats_and_starts(tmp_path):
     assert set(row["habits"]) == {"rescue", "burn", "diablerie", "keep", "reaction"}
     assert "starts" in row
     assert set(row["pfsp"]) <= {"old@1", "old@1+habits"}
+
+
+def test_a_held_out_game_starts_no_table(tmp_path):
+    """`--bc-held-games`: what `humanset` scores a network on stays out of
+    the starts as it stays out of imitation."""
+    harvest = tmp_path / "harvest"
+    harvest.mkdir()
+    for name, t in (("kept", "2026-10-04T19-47-18-904Z"), ("held", "2026-10-05T06-24-53-391Z")):
+        (harvest / f"{name}.json").write_text(open(f"data/records/zero-vtes-replay-{t}.json").read())
+    cfg = dict(games=4, steps=4, d=16, layers=1, device="cpu", starts=str(harvest), start_tables=0.5)
+    assert len(Trainer(Config(**cfg, out=str(tmp_path / "all"))).starts) == 2
+    trainer = Trainer(Config(**cfg, out=str(tmp_path / "t"), bc_held_games="held"))
+    assert [p.name for p, _, _ in trainer.starts] == ["kept.json"]
 
 
 def test_habit_seats_need_frozen_opponents(tmp_path):
@@ -501,10 +514,16 @@ def test_shaping_telescopes():
             assert abs(chain[0][4] - 0.7 * (phi[1] - phi[0])) < 1e-9
 
 
+def test_a_game_win_weighs_five_vps_by_default():
+    # p9-p15's reward (owner, 2026-10-10): a launch omitting the flag keeps it.
+    ep = {"half_vps": [6, 2, 0, 0]}
+    assert np.allclose(rewards(ep, Config().gw_weight), [8 / 5, 1 / 5, 0, 0])
+
+
 def test_shaping_trains(tmp_path):
     names = zvtes_py.position_names()
     rng = np.random.default_rng(4)
-    phi = {"names": names, "weights": rng.normal(size=len(names)).tolist(), "intercept": 0.1, "gw_weight": 2.0}
+    phi = {"names": names, "weights": rng.normal(size=len(names)).tolist(), "intercept": 0.1, "gw_weight": 5.0}
     (tmp_path / "phi.json").write_text(json.dumps(phi))
     small = dict(games=8, steps=24, iterations=1, epochs=1, minibatch=64, d=32, layers=1,
                  eval_every=1, eval_games=4, device="cpu", critic_warmup=0)
@@ -525,7 +544,7 @@ def test_shaping_trains(tmp_path):
     same = Trainer(Config(**{**vars(cfg), "out": str(tmp_path / "same"), "critic_warmup": 3,
                              "shaping": str(tmp_path / "copy.json"), "resume": str(tmp_path / "run" / "model.pt")}))
     assert same.warmup == 0
-    for bad in ({**phi, "gw_weight": 5.0}, {**phi, "names": names[::-1]}):
+    for bad in ({**phi, "gw_weight": 2.0}, {**phi, "names": names[::-1]}):
         (tmp_path / "bad.json").write_text(json.dumps(bad))
         with pytest.raises(ValueError):
             Trainer(Config(**small, out=str(tmp_path / "bad"), shaping=str(tmp_path / "bad.json")))
@@ -538,7 +557,7 @@ def test_shaping_in_the_rollout(tmp_path):
     # chain is still open (bootstrapped).
     names = zvtes_py.position_names()
     c = 0.37
-    phi = {"names": names, "weights": [0.0] * len(names), "intercept": c, "gw_weight": 2.0}
+    phi = {"names": names, "weights": [0.0] * len(names), "intercept": c, "gw_weight": 5.0}
     (tmp_path / "phi.json").write_text(json.dumps(phi))
     small = dict(games=8, steps=160, d=32, layers=1, device="cpu", critic_warmup=0, lam=1.0, budget=60)
     plain = Trainer(Config(**small, out=str(tmp_path / "plain")))

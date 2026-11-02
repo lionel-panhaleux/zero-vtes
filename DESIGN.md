@@ -719,25 +719,29 @@ training runs.
   the context and mean tokens. PPO: without the league one network plays
   every seat of 4- and 5-seat tables; a trained seat's decisions form its
   chain, rewarded at the end by (VPs + `gw_weight` × game win) / 5
-  (`gw_weight` 2 since the second league run: tournament ranking puts game
-  wins first; 1 before); entropy bonus 0.02 (0.01 before; 0.03 made the entropy climb, 0.62 → 0.89 in 30 iterations, with every evaluation flat or down), adaptive since the TWDA run: scaled ×1.1 or ÷1.1 after each update toward `entropy_target` 0.65 (every run peaked against the bots near 0.64 and declined under ~0.6), within [0.001, 0.2], kept in the checkpoint; truncated
-  rollouts bootstrap from a chain's last decision, carried to the next
-  rollout. Evaluation samples the learner at every seat and, for each,
-  every distinct order of the opponents around it (`eval_tables`; before
-  2026-09-28 the order was fixed and only rotated, so at 4 seats the wall
-  always sat across the table: the starting checkpoint measured 0.60 VP /
-  12.5% game wins against aggro/wall/aggro that way, 1.09 / 24% with the
-  orders mixed — the earlier "plateau" was largely the seating), and counts
-  exactly the queued games (not the first to finish, which favored short
-  games): `vs_random` (four random seats; three before the second league
+  (`gw_weight` 5 since p9, d16 and p16 at 2 by omission; 2 from the second
+  league run: tournament ranking puts game wins first; 1 before); entropy bonus
+  0.02 (0.01 before; 0.03 made the entropy climb, 0.62 → 0.89 in 30 iterations,
+  with every evaluation flat or down), adaptive since the TWDA run: scaled ×1.1
+  or ÷1.1 after each update toward `entropy_target` 0.65 (every run peaked
+  against the bots near 0.64 and declined under ~0.6), within [0.001, 0.2],
+  kept in the checkpoint; truncated rollouts bootstrap from a chain's last
+  decision, carried to the next rollout. Evaluation samples the learner at
+  every seat and, for each, every distinct order of the opponents around it
+  (`eval_tables`; before 2026-09-28 the order was fixed and only rotated, so at
+  4 seats the wall always sat across the table: the starting checkpoint
+  measured 0.60 VP / 12.5% game wins against aggro/wall/aggro that way, 1.09 /
+  24% with the orders mixed — the earlier "plateau" was largely the seating),
+  and counts exactly the queued games (not the first to finish, which favored
+  short games): `vs_random` (four random seats; three before the second league
   run), `vs_bots4` (aggro/wall/aggro, the earlier `vs_bots`), `vs_bots5`
-  (aggro/wall/aggro/wall), `vs_snapshot` (four copies of the latest
-  snapshot), 256 games each (96 before: one snapshot measured 0.44–0.76 VP
-  against aggro/wall/aggro over six evaluation seeds). A pool game that
-  reaches an empty request panics with its seed, decks and log (the
-  engine's own check is a debug assertion) — how training found rules-qa
-  43.1. Game-win benchmarks at a 5-seat table (owner): over 16% is
-  already very good, over 30% very strong, close to 50% top level.
+  (aggro/wall/aggro/wall), `vs_snapshot` (four copies of the latest snapshot),
+  256 games each (96 before: one snapshot measured 0.44–0.76 VP against
+  aggro/wall/aggro over six evaluation seeds). A pool game that reaches an
+  empty request panics with its seed, decks and log (the engine's own check is
+  a debug assertion) — how training found rules-qa 43.1. Game-win benchmarks at
+  a 5-seat table (owner): over 16% is already very good, over 30% very strong,
+  close to 50% top level.
 - The league (`--league true`, `train/league.py`; revised after the first
   league run, owner 2026-09-28): each new table is 4 or 5 seats, one the
   learner's (`net:0`), with `--exploiter true` one the exploiter's
@@ -786,12 +790,18 @@ training runs.
   (chunks of 8 minibatches sorted, then shuffled: every sample once an
   epoch). Measured A/B under the same load: 1.4–1.5× faster; minibatch
   1024 is the fastest (512 and 2048 slower, 4096 exhausts GPU memory).
-- Evaluation against humans: the harvest report's human win rate by weights (`scripts/games_report.py`),
-  and the positions where a human beat the bot (`examples/humanset.rs`:
-  games a human won, played out and never trained on; per network the
-  agreement with the human's choices, and from a quarter, half and three
-  quarters of each game the network in the human's seat against the
-  served bots, its wins).
+- Evaluation against humans: the harvest report's human win rate by weights
+  (`scripts/games_report.py`), and the positions where a human beat the bot
+  (`examples/humanset.rs`: games a human won, played out and never trained on;
+  `--bc-held-games` holds them out of the starts too since 2026-11-02, before
+  which p10 to p16 began tables from them, p13 from four of its five (their
+  logs' `starts` lines): a quarter of a run's tables began in the starts, about
+  330 tables a game for p14 and 60 for p16, at a decision past the first fifth,
+  the learner at any seat, so their `humanset` scores read games they trained
+  from, and a network resumed from them keeps that: the wins newer than its
+  ancestors' starts are the clean ones; per network the agreement with the
+  human's choices, and from a quarter, half and three quarters of each game the
+  network in the human's seat against the served bots, its wins).
 - First run (2026-09-27, defaults, 140 iterations ≈ 2.3M decisions, ~1 h on
   the M3): against three random seats 0.71 VP a game at iteration 10 (random
   level: 0.73), 1.86 at 40, 2.7 at 50, then ~2.9–3.1 VPs and 72–77% game wins
@@ -1623,116 +1633,109 @@ training runs.
   merge (`243bf6b`: the wasm gone, bot settings in
   `crates/server/src/games.rs`).
 - **p11** (`runs/p11`, `../zero-vtes-p11` at `45debc9`, round 11's cards;
-  2026-10-14 to 10-16, 3841 → 4400). The question (owner): until a seat
-  is ousted, damage between cross-table seats "only benefits the bouncing
-  prey" — accept the block, keep the combat harmless, yet oust a
-  threatening cross-table seat — so restraint should emerge, not be
-  nudged; it pays only once both sides learn it, which frozen opponents
-  never do: `--partner-rate 0.5` (a second learner across the table on
-  half the league tables, ~22k samples an iteration instead of ~15.5k;
-  13–17 GB resident, cycling within each iteration, no leak). No weak
-  decks (owner: p10's per-deck order matches the players' sense of
-  strength); Wider View (findings E7) left to emerge (owner: no nudge).
-  From p10@3840, opponents p9@3400 and p10@3840 frozen, the rest as p10:
-  `--lr 1e-4 --entropy-coef 0.048 --gw-weight 5 --decks
-  precons,anniversary,sabbat,twda --starts data/records --start-tables
-  0.25`, nudges rescue 6 bleed 4 idle 3 draw 7 stuck 6 nightmare 6
-  (`--nudge-until 0`), `--bc data/records --bc-coef 0.02`, the five
-  held-out games named, `--bots-every 0`. Scores (re-measured bests):
-  1.93 at 3860, 2.13, 2.30, 2.38, **2.67 at 4340** (4 seats 1.34 VP a
-  seat, 0.32 game wins; 5 seats 1.11, 0.21); win shares against p9 0.50
-  → 0.55, against p10 0.47 → 0.54; held-out imitation 0.50 → 0.44 (the
-  RL pulls off the owner's style). `waste` on `45debc9`, adjacent /
-  cross-table while no seat is ousted, p10@3840 → p11@3980 → p11@4340, 160
-  games: blood the opposing minion lost a combat, 4 seats 0.95 / 1.19 →
-  1.04 / 1.22 → 0.95 / 1.21, 5 seats 0.98 / 1.18 → 0.98 / 1.37 → 0.95 /
-  1.29; sent to torpor or burned, 4 seats 11% / 19% → 9% / 13%; pool a
-  bleed took from a cross-table seat 0.14 → 0.18 (its prey 1.36 → 1.21):
+  2026-10-14 to 10-16, 3841 → 4400). The question (owner): until a seat is
+  ousted, damage between cross-table seats "only benefits the bouncing prey" —
+  accept the block, keep the combat harmless, yet oust a threatening
+  cross-table seat — so restraint should emerge, not be nudged; it pays only
+  once both sides learn it, which frozen opponents never do: `--partner-rate
+  0.5` (a second learner across the table on half the league tables, ~22k
+  samples an iteration instead of ~15.5k; 13–17 GB resident, cycling within
+  each iteration, no leak). No weak decks (owner: p10's per-deck order matches
+  the players' sense of strength); Wider View (findings E7) left to emerge
+  (owner: no nudge). From p10@3840, opponents p9@3400 and p10@3840 frozen, the
+  rest as p10: `--lr 1e-4 --entropy-coef 0.048 --gw-weight 5 --decks
+  precons,anniversary,sabbat,twda --starts data/records --start-tables 0.25`,
+  nudges rescue 6 bleed 4 idle 3 draw 7 stuck 6 nightmare 6 (`--nudge-until
+  0`), `--bc data/records --bc-coef 0.02`, the five held-out games named,
+  `--bots-every 0`. Scores (re-measured bests): 1.93 at 3860, 2.13, 2.30, 2.38,
+  **2.67 at 4340** (4 seats 1.34 VP a seat, 0.32 game wins; 5 seats 1.11,
+  0.21); win shares against p9 0.50 → 0.55, against p10 0.47 → 0.54; held-out
+  imitation 0.50 → 0.44 (the RL pulls off the owner's style). `waste` on
+  `45debc9`, adjacent / cross-table while no seat is ousted, p10@3840 →
+  p11@3980 → p11@4340, 160 games: blood the opposing minion lost a combat, 4
+  seats 0.95 / 1.19 → 1.04 / 1.22 → 0.95 / 1.21, 5 seats 0.98 / 1.18 → 0.98 /
+  1.37 → 0.95 / 1.29; sent to torpor or burned, 4 seats 11% / 19% → 9% / 13%;
+  pool a bleed took from a cross-table seat 0.14 → 0.18 (its prey 1.36 → 1.21):
   **no restraint emerged** — pairing alone does not teach it. Wider View
-  (draw-and-remove taken, of the offers): precons 39% → 16%, TWDA 29% →
-  15%; with under 4 crypt cards 26% → 8–15% (the owner 12%, none):
-  **learned without a nudge**. With the server's nudges (24 games):
-  stuck transfers 2.9% (p10 4.9%), own nightmares 0 of 13, rescues 42%,
-  crypt draws 5% (the owner 11%), cycling 86%, a playable card cycled
-  while an unplayable stays 34%, wakes with no block 86%, unlocks with no
-  action 43%. Per deck (`decks.rs`, 600 games a measure, self-play VP a
-  seat / at one seat against three p10): Malkavian 1.54 / 1.80, Ravnos
-  1.42 / 1.23, Ministry 1.37 / 1.50, Hecata 1.20 / 1.53 …; the lowest
-  Salubri 0.56 / 0.77, Path of Cathari 0.58 / 0.23, Gangrel 0.64 / 0.62,
-  Nosferatu 0.65 / 0.57, Path of Death 0.69 / 1.13; against three p10
-  0.99 VP a seat on average. Exported `runs/p11/best.zvp` (sha256
-  `b9035931a527`); served on engine.krcg.org since the 1.6.0 deploy
-  (owner, 2026-10-16), kept at 1.8.0 over p12, replaced by p13
-  (2026-10-19); the previous `runs/served-prev-2026-10-16-p10at3840.zvp`
-  (`7aaa9528fbf8`). The positions where the owner beat the bot
-  (`humanset`, the five held-out games, the bots p10 as served, 20 games a
-  position): p10 / p11 agree with 46.1% / 45.3% of the owner's 1,309
-  choices; won from a quarter in 33% / 43%, halfway 52% / 54%, three
-  quarters in 91% / 83% (±10 at 100 games); from …T15-45-47's first two
-  positions neither ever wins (0 of 40), where the owner came back.
-  Humans against p10 (the harvest, 14 games): 11 won
-  (79%), 2.79 VP a seat, the bots 0.33 — p11's bar; against p11 on its first served day (2026-10-17, 7
-  games) 4 seats of 7 (57%), 1.86 VP a seat, the bots 0.43 (a small
-  sample).
-- **p12** (`runs/p12`, `../zero-vtes-p12` at `cb3b4a6`, round 13's cards,
-  E25 with the futile-block mask; launched 2026-10-16, 4341 → 4842 of a planned 4900). From
-  p11@4340, opponents p10@3840 and p11@4340 frozen; imitation winners
-  only (owner, 2026-10-15) over `data/records` and the 15 harvested games
-  played out (8,381 choices, 3,058 harvested; the same five held out),
-  the same games as starts; the rest as p11 (`--partner-rate 0.5`, the
-  nudges, no weak decks). Stopped at 4842 (2026-10-17, killed by memory
-  pressure under a parallel release build: no traceback; the owner chose
-  to evaluate the best rather than resume). Scores (re-measured bests,
-  against p10 and p11): 1.84 at 4360, 2.06, 2.16, 2.19, 2.40, **2.51 at
-  4800** (4 seats 1.19 VP a seat, 0.29 game wins; 5 seats 1.21, 0.25);
-  win share against p11 only 0.48 → 0.50. Held-out imitation 0.54 at 4360, 0.51 at 4800
-  (p11's 0.44 at its end: the winners-only imitation holds the owner's
-  style). **Not
-  served**: it does not beat p11 (owner's rule). Measured against p11 on
-  `cb3b4a6`: at one seat against three p11 (`decks.rs`, 600 games) 0.88
-  VP a seat (~2 standard errors under even; Malkavian 1.80, Path of Power
-  1.50 …; Banu Haqim and The Endless Dance 0.27, Nosferatu 0.33);
-  `humanset` (the five held-out games, bots p11 as served): agreement
-  50.2% against p11's 45.3%, won from the owner's positions 162 / 300
-  against 166 (a quarter in 35% / 34%, halfway 41% / 53%, three quarters
-  86% / 79%); Wider View regressed — taken at 27–30% of the offers on the
-  precons (p11 16%), 20% on TWDA decks (13%), under 4 crypt cards 15–21%
-  (7–12%); cross-table minions sent to torpor at 4 seats 23% (p11 13%;
-  adjacent 11% / 9%), the pool a bleed takes from a cross-table seat
-  0.15 (0.18). Exported `runs/p12/best.zvp` (`2dbb922666c9`), kept. Settled for p13
-  (owner, 2026-10-17): the pairing off (two runs, no cross-table
-  restraint, ~25–30% of an iteration); from p11@4340, not p12; Wider
-  View still without a nudge (from p11, which had learned it).
-- **p13** (`runs/p13`, `../zero-vtes-p13` at `331ce66`, rules-qa 82.1's
-  block loop; launched 2026-10-18, 4341 → 4900). From p11@4340 (owner,
-  2026-10-17), opponents p11@4340 and p12@4800 frozen; no pairing;
-  `--bc-every 4`; imitation winners only over `data/records` and 17
-  harvested games (7,052 choices; held out 1,349 in five games: four of
-  `data/records`, `e33fab34fee8ca4b`), the 20 harvested games as starts;
-  nudges, lr and entropy as p12. Nine harvested games left out of
-  imitation and the held-out set, six since 82.1 (a block window the old
-  engines reopened) and three drifted earlier (a second intercept burn
-  under one grant, rules-qa 79.1; diableries of an older vampire whose
-  master search shuffles, 7d7d339, rules-qa 86.1); four of them kept as
+  (draw-and-remove taken, of the offers): precons 39% → 16%, TWDA 29% → 15%;
+  with under 4 crypt cards 26% → 8–15% (the owner 12%, none): **learned without
+  a nudge**. With the server's nudges (24 games): stuck transfers 2.9% (p10
+  4.9%), own nightmares 0 of 13, rescues 42%, crypt draws 5% (the owner 11%),
+  cycling 86%, a playable card cycled while an unplayable stays 34%, wakes with
+  no block 86%, unlocks with no action 43%. Per deck (`decks.rs`, 600 games a
+  measure, self-play VP a seat / at one seat against three p10): Malkavian 1.54
+  / 1.80, Ravnos 1.42 / 1.23, Ministry 1.37 / 1.50, Hecata 1.20 / 1.53 …; the
+  lowest Salubri 0.56 / 0.77, Path of Cathari 0.58 / 0.23, Gangrel 0.64 / 0.62,
+  Nosferatu 0.65 / 0.57, Path of Death 0.69 / 1.13; against three p10 0.99 VP a
+  seat on average. Exported `runs/p11/best.zvp` (sha256 `b9035931a527`); served
+  on engine.krcg.org since the 1.6.0 deploy (owner, 2026-10-16), kept at 1.8.0
+  over p12, replaced by p13 (2026-10-19); the previous
+  `runs/served-prev-2026-10-16-p10at3840.zvp` (`7aaa9528fbf8`). The positions
+  where the owner beat the bot (`humanset`, the five held-out games, starts of
+  this run too, the bots p10 as served, 20 games a position): p10 / p11 agree
+  with 46.1% / 45.3% of the owner's 1,309 choices; won from a quarter in 33% /
+  43%, halfway 52% / 54%, three quarters in 91% / 83% (±10 at 100 games); from
+  …T15-45-47's first two positions neither ever wins (0 of 40), where the owner
+  came back. Humans against p10 (the harvest, 14 games): 11 won (79%), 2.79 VP
+  a seat, the bots 0.33 — p11's bar; against p11 on its first served day
+  (2026-10-17, 7 games) 4 seats of 7 (57%), 1.86 VP a seat, the bots 0.43 (a
+  small sample).
+- **p12** (`runs/p12`, `../zero-vtes-p12` at `cb3b4a6`, round 13's cards, E25
+  with the futile-block mask; launched 2026-10-16, 4341 → 4842 of a planned
+  4900). From p11@4340, opponents p10@3840 and p11@4340 frozen; imitation
+  winners only (owner, 2026-10-15) over `data/records` and the 15 harvested
+  games played out (8,381 choices, 3,058 harvested; the same five held out),
+  the same games as starts; the rest as p11 (`--partner-rate 0.5`, the nudges,
+  no weak decks). Stopped at 4842 (2026-10-17, killed by memory pressure under
+  a parallel release build: no traceback; the owner chose to evaluate the best
+  rather than resume). Scores (re-measured bests, against p10 and p11): 1.84 at
+  4360, 2.06, 2.16, 2.19, 2.40, **2.51 at 4800** (4 seats 1.19 VP a seat, 0.29
+  game wins; 5 seats 1.21, 0.25); win share against p11 only 0.48 → 0.50.
+  Held-out imitation 0.54 at 4360, 0.51 at 4800 (p11's 0.44 at its end: the
+  winners-only imitation holds the owner's style). **Not served**: it does not
+  beat p11 (owner's rule). Measured against p11 on `cb3b4a6`: at one seat
+  against three p11 (`decks.rs`, 600 games) 0.88 VP a seat (~2 standard errors
+  under even; Malkavian 1.80, Path of Power 1.50 …; Banu Haqim and The Endless
+  Dance 0.27, Nosferatu 0.33); `humanset` (the five held-out games, starts of
+  this run too, bots p11 as served): agreement 50.2% against p11's 45.3%, won
+  from the owner's positions 162 / 300 against 166 (a quarter in 35% / 34%,
+  halfway 41% / 53%, three quarters 86% / 79%); Wider View regressed — taken at
+  27–30% of the offers on the precons (p11 16%), 20% on TWDA decks (13%), under
+  4 crypt cards 15–21% (7–12%); cross-table minions sent to torpor at 4 seats
+  23% (p11 13%; adjacent 11% / 9%), the pool a bleed takes from a cross-table
+  seat 0.15 (0.18). Exported `runs/p12/best.zvp` (`2dbb922666c9`), kept.
+  Settled for p13 (owner, 2026-10-17): the pairing off (two runs, no
+  cross-table restraint, ~25–30% of an iteration); from p11@4340, not p12;
+  Wider View still without a nudge (from p11, which had learned it).
+- **p13** (`runs/p13`, `../zero-vtes-p13` at `331ce66`, rules-qa 82.1's block
+  loop; launched 2026-10-18, 4341 → 4900). From p11@4340 (owner, 2026-10-17),
+  opponents p11@4340 and p12@4800 frozen; no pairing; `--bc-every 4`; imitation
+  winners only over `data/records` and 17 harvested games (7,052 choices; held
+  out 1,349 in five games: four of `data/records`, `e33fab34fee8ca4b`), the 20
+  harvested games as starts; nudges, lr and entropy as p12. Nine harvested
+  games left out of imitation and the held-out set, six since 82.1 (a block
+  window the old engines reopened) and three drifted earlier (a second
+  intercept burn under one grant, rules-qa 79.1; diableries of an older vampire
+  whose master search shuffles, 7d7d339, rules-qa 86.1); four of them kept as
   starts (their readable prefixes), five dropped; ~105–115 s an iteration.
-  Scores (bests, against p11 and p12): 1.80 at 4360, 1.81, 1.89, 1.95,
-  2.00, 2.09, **2.30 at 4740** (4 seats 1.25 VP a seat, 0.27 game wins; 5
-  seats 1.19, 0.23), then 2.11–2.20; held-out imitation 0.52 → 0.54 at
-  4440, 0.47 at 4740. Seventeen games hit a Dual Form panic on a clanless
-  vampire (seven in training, dropped; ten in evaluations; fixed in round
-  16). Measured on `331ce66`: at one seat against three p11 (600 games)
-  0.97 VP a seat (self-play 0.99: even within a standard error; Lasombra
-  1.60, Reign of Stanislava 1.53 …; Nosferatu 0.20, Path of Cathari 0.30);
-  `humanset` (the five, bots p11 as served): agreement 47.1% against p11's
-  44.8%, won 139 / 300 against 125 (a quarter in 40% / 25%, halfway 33% /
-  39%, three quarters 66% / 61%); Wider View back to 11–15% (p11 15–16%),
-  wakes with no block after 80–86% (p11 79–86%); influence phases with no
-  ready minion and no transfer or crypt draw on the precons 59–75% (p11
-  85–93%), on TWDA decks 67% (58%); at the served settings transfers onto
-  a duplicate unique 60% (68%) and bleeds for nothing 6.6% (3.9%).
-  **Served** (owner, 2026-10-19: even with p11 head to head, better from
-  the owner's positions), `runs/p13/best.zvp` (`df66d54badf3`), the
-  previous `runs/served-prev-2026-10-19-p11at4340.zvp` (`b9035931a527`).
+  Scores (bests, against p11 and p12): 1.80 at 4360, 1.81, 1.89, 1.95, 2.00,
+  2.09, **2.30 at 4740** (4 seats 1.25 VP a seat, 0.27 game wins; 5 seats 1.19,
+  0.23), then 2.11–2.20; held-out imitation 0.52 → 0.54 at 4440, 0.47 at 4740.
+  Seventeen games hit a Dual Form panic on a clanless vampire (seven in
+  training, dropped; ten in evaluations; fixed in round 16). Measured on
+  `331ce66`: at one seat against three p11 (600 games) 0.97 VP a seat
+  (self-play 0.99: even within a standard error; Lasombra 1.60, Reign of
+  Stanislava 1.53 …; Nosferatu 0.20, Path of Cathari 0.30); `humanset` (the
+  five, four of them starts of this run; bots p11 as served): agreement 47.1%
+  against p11's 44.8%, won 139 / 300 against 125 (a quarter in 40% / 25%,
+  halfway 33% / 39%, three quarters 66% / 61%); Wider View back to 11–15% (p11
+  15–16%), wakes with no block after 80–86% (p11 79–86%); influence phases with
+  no ready minion and no transfer or crypt draw on the precons 59–75% (p11
+  85–93%), on TWDA decks 67% (58%); at the served settings transfers onto a
+  duplicate unique 60% (68%) and bleeds for nothing 6.6% (3.9%). **Served**
+  (owner, 2026-10-19: even with p11 head to head, better from the owner's
+  positions), `runs/p13/best.zvp` (`df66d54badf3`), the previous
+  `runs/served-prev-2026-10-19-p11at4340.zvp` (`b9035931a527`).
 - **Combat play by deck** (owner, 2026-10-20, the training board's "Rush
   and wall play": "What matters is they have specific actions and
   reactions to enter combat and they need their combat to be played
@@ -1765,108 +1768,106 @@ training runs.
   `331ce66`, p13 at one seat against three p11, 30 seats a deck):
   Nosferatu 0.20, Banu Haqim 0.37, Hecata 0.77, Salubri 0.90, Tzimisce
   0.93, Brujah 0.97, Gangrel 1.13 (mean 0.97); in self-play 0.61 to 0.93.
-- **p14** (`runs/p14`, `../zero-vtes-p14` at `10b4369`; launched
-  2026-10-21, 4741 → 5300, ~111 s an iteration, no panic, nothing
-  truncated). The owner's lever of 2026-10-21 for "Combat play by deck"
-  above: the deck mix and an imitation weight toward the rush and wall
-  decks, no wake nudge. From p13@4740 (served), opponents p13@4740 and
-  p11@4340 frozen; as p13 otherwise (no pairing, the nudges, lr, entropy,
-  `--bc-every 4`, the same five held out). The learner's seat on one of
-  Hecata, Nosferatu, Banu Haqim, Brujah, Gangrel, Salubri, Tzimisce
-  (`--weak-decks 0,3,7,8,9,12,13`) on 35% of the league tables
-  (`--weak-rate 0.35`), its opponents from the whole pool, and in a start
-  at a seat playing one. Imitation over `data/records` and the 26
-  harvested games that read whole (of the 35 counted): 9,231 choices,
-  3,263 on those decks (none on Banu Haqim), drawn 3 times as often
-  (`--bc-weak-weight 3`). Scores (bests, against p13 and p11): 1.70 at
-  4760, 1.88, 1.97, 1.98, 1.98, 2.03, 2.05, 2.10 at 5120, **2.13 at
-  5280** (4 seats 1.01 VP a seat, 0.24 game wins; 5 seats 1.04, 0.22);
-  held-out imitation
-  0.49 → 0.52. Measured on `10b4369`, p13 alongside on the same engine:
-  at one seat against three p13 (600 games) 1.00 VP a seat, even; on the
-  seven decks Brujah 1.43, Hecata 0.87, Tzimisce 0.93, Gangrel 0.83,
-  Nosferatu 0.57, Banu Haqim 0.40, Salubri 0.40 (p13 against p11: 0.97,
-  0.77, 0.93, 1.13, 0.20, 0.37, 0.90; 30 seats a deck, a standard error
-  ~0.2). `humanset` (the five, bots p11 as in p13's measure): agreement
-  51.3% against p13's 47.1%, won from the owner's positions 140 / 300 against
-  139 (a quarter in 36% / 40%, halfway 33% / 33%, three quarters 71% /
-  66%). `waste --by-deck` (400 self-play games, p14 / p13): own turns with
-  a rush offered and one declared Brujah 41% / 29%, Hecata 56% / 42%,
-  Gangrel 8% / 4%, Nosferatu 4% / 4%, Banu Haqim 11% / 16%, Salubri 21% /
-  26%, Tzimisce 16% / 29%; the opposing minion to torpor or burned within
-  3 points of p13 on every deck (Banu Haqim 12%, Tzimisce 16%, Hecata 16%,
-  Salubri 19%, Gangrel 22%, Nosferatu 26%, Brujah 36%); wakes with no
-  block after 75–88% (p13 77–88%); targets and holding back as p13. The
-  lever moved the rushes of the decks that already rushed (Brujah,
-  Hecata) and none of the combats' outcomes: the rush decks still seldom
-  rush, and their combats still seldom put the opposing minion down.
-  Regressed as p12 did: Wider View taken at 18–23% of the offers (p13
-  12–14%), cross-table minions sent to torpor at 4 seats 16% (p13 10%).
-  **Served** (owner, 2026-10-22: at least even with p13, its behaviour
-  maybe better), `runs/p14/best.zvp` (`a78e74292acb`), the previous
+- **p14** (`runs/p14`, `../zero-vtes-p14` at `10b4369`; launched 2026-10-21,
+  4741 → 5300, ~111 s an iteration, no panic, nothing truncated). The owner's
+  lever of 2026-10-21 for "Combat play by deck" above: the deck mix and an
+  imitation weight toward the rush and wall decks, no wake nudge. From p13@4740
+  (served), opponents p13@4740 and p11@4340 frozen; as p13 otherwise (no
+  pairing, the nudges, lr, entropy, `--bc-every 4`, the same five held out).
+  The learner's seat on one of Hecata, Nosferatu, Banu Haqim, Brujah, Gangrel,
+  Salubri, Tzimisce (`--weak-decks 0,3,7,8,9,12,13`) on 35% of the league
+  tables (`--weak-rate 0.35`), its opponents from the whole pool, and in a
+  start at a seat playing one. Imitation over `data/records` and the 26
+  harvested games that read whole (of the 35 counted): 9,231 choices, 3,263 on
+  those decks (none on Banu Haqim), drawn 3 times as often (`--bc-weak-weight
+  3`). Scores (bests, against p13 and p11): 1.70 at 4760, 1.88, 1.97, 1.98,
+  1.98, 2.03, 2.05, 2.10 at 5120, **2.13 at 5280** (4 seats 1.01 VP a seat,
+  0.24 game wins; 5 seats 1.04, 0.22); held-out imitation 0.49 → 0.52. Measured
+  on `10b4369`, p13 alongside on the same engine: at one seat against three p13
+  (600 games) 1.00 VP a seat, even; on the seven decks Brujah 1.43, Hecata
+  0.87, Tzimisce 0.93, Gangrel 0.83, Nosferatu 0.57, Banu Haqim 0.40, Salubri
+  0.40 (p13 against p11: 0.97, 0.77, 0.93, 1.13, 0.20, 0.37, 0.90; 30 seats a
+  deck, a standard error ~0.2). `humanset` (the five, all of them starts of
+  this run; bots p11 as in p13's measure): agreement 51.3% against p13's 47.1%,
+  won from the owner's positions 140 / 300 against 139 (a quarter in 36% / 40%,
+  halfway 33% / 33%, three quarters 71% / 66%). `waste --by-deck` (400
+  self-play games, p14 / p13): own turns with a rush offered and one declared
+  Brujah 41% / 29%, Hecata 56% / 42%, Gangrel 8% / 4%, Nosferatu 4% / 4%, Banu
+  Haqim 11% / 16%, Salubri 21% / 26%, Tzimisce 16% / 29%; the opposing minion
+  to torpor or burned within 3 points of p13 on every deck (Banu Haqim 12%,
+  Tzimisce 16%, Hecata 16%, Salubri 19%, Gangrel 22%, Nosferatu 26%, Brujah
+  36%); wakes with no block after 75–88% (p13 77–88%); targets and holding back
+  as p13. The lever moved the rushes of the decks that already rushed (Brujah,
+  Hecata) and none of the combats' outcomes: the rush decks still seldom rush,
+  and their combats still seldom put the opposing minion down. Regressed as p12
+  did: Wider View taken at 18–23% of the offers (p13 12–14%), cross-table
+  minions sent to torpor at 4 seats 16% (p13 10%). **Served** (owner,
+  2026-10-22: at least even with p13, its behaviour maybe better),
+  `runs/p14/best.zvp` (`a78e74292acb`), the previous
   `runs/served-prev-2026-10-22-p13at4740.zvp` (`df66d54badf3`).
 - **The critic against the position** (owner with Tom, 2026-10-22: "some
-  measure of the quality of the position", the pools of every seat, the
-  lunge, the actions and blocks each side has). `train.position` (the
-  features: `zvtes_py.position_names`, `crates/env/src/position.rs`, for
-  the deciding seat: the pools of the seat, its prey, its predator and
-  the cross-table seats, VPs, each side's ready, unlocked and torpid
-  minions and the blood on the ready ones, hand, library, turn, the edge,
-  the lunge — a bleed of one a ready minion reaching the prey's pool, or
-  the predator's reaching one's own): on 1,024 self-play games of
-  p14@5280 (every seat its policy, 4 and 5 seats alternating, 578,503
-  decisions), the explained variance of each seat's result ((VPs + 5 ×
-  win) / 5, the critic's target) by the decision's share of the game,
-  for the critic as it is, a linear fit of the 26 features per stage
+  measure of the quality of the position", the pools of every seat, the lunge,
+  the actions and blocks each side has). `train.position` (the features:
+  `zvtes_py.position_names`, `crates/env/src/position.rs`, for the deciding
+  seat: the pools of the seat, its prey, its predator and the cross-table
+  seats, VPs, each side's ready, unlocked and torpid minions and the blood on
+  the ready ones, hand, library, turn, the edge, the lunge — a bleed of one a
+  ready minion reaching the prey's pool, or the predator's reaching one's own):
+  on 1,024 self-play games of p14@5280 (every seat its policy, 4 and 5 seats
+  alternating, 578,503 decisions), the explained variance of each seat's result
+  ((VPs + 5 × win) / 5, the critic's target) by the decision's share of the
+  game, for the critic as it is, a linear fit of the 26 features per stage
   (fitted on 70% of the games, scored on the others) and both together.
-  Self-play: the first quarter −0.03 / 0.02 / 0.08, the second 0.07 /
-  0.09 / 0.17, the third 0.34 / 0.29 / 0.38, the last 0.71 / 0.57 /
-  0.72; the human records (`data/records` and the harvest, read whole,
-  28,554 decisions, the self-play fit): −0.13 / −0.03 / −0.05, −0.01 /
-  −0.09 / −0.04, 0.23 / 0.10 / 0.21, 0.66 / 0.47 / 0.66. Through the
-  first half the critic predicts almost nothing, no better than the
-  features, and the two together double it in the second quarter: the
-  critic does not read all the position holds there, so the first half's
-  advantages rest on a near-constant baseline; from the third quarter it
-  reads more than the features. On the humans' games it is worse early
-  (their play is not the self-play it learned). The features' weights (a
-  standard deviation each, the result's scale): in the second quarter the
-  seat's pool +0.10, the blood on its ready minions +0.08, the prey's
-  pool −0.07 and its margin over one's ready minions −0.08, the
-  predator's ready blood −0.05, the prey's −0.05; in the third the ready
-  blood +0.14, the pool +0.12, VPs +0.12; the lunge +0.04 in the third
-  and +0.05 in the last, being lunged −0.04 in the last; the unlocked
-  minions +0.03 to +0.04 (the actions and blocks left this turn).
-- **p15** (`runs/p15`, `../zero-vtes-p15` at `788eae4`; launched
-  2026-10-23, 5281 → 5840, no panic, nothing truncated, 100–200 s an
-  iteration on a machine shared with builds). From p14@5280 (served),
-  opponents p14@5280 and p13@4740 frozen; one change from p14:
-  `--shaping runs/phi-p14.json` (coefficient 1), Φ the linear fit of the
-  26 position features over the whole game on p14's 1,024 self-play games
-  ("The critic against the position" above: a VP +0.30, the seat's pool
-  +0.58 a 30 pool, the blood on its ready minions +0.41 a 20 blood, the
-  prey's pool −0.32), each learner decision gaining Φ(next) − Φ(this) and
+  Self-play: the first quarter −0.03 / 0.02 / 0.08, the second 0.07 / 0.09 /
+  0.17, the third 0.34 / 0.29 / 0.38, the last 0.71 / 0.57 / 0.72; the human
+  records (`data/records` and the harvest, read whole, 28,554 decisions, the
+  self-play fit): −0.13 / −0.03 / −0.05, −0.01 / −0.09 / −0.04, 0.23 / 0.10 /
+  0.21, 0.66 / 0.47 / 0.66. The 1,024 self-play games were played without
+  politics, chores or nudges, a pool's defaults, which the network never
+  trained on; `runs/phi-p14.json` (p15's Φ, the search's leaf) is fitted on
+  them, and p15's reading below compares two such measures. At training's
+  settings (`train.position` plays them since 2026-11-02; p14@5280, 500 games,
+  the same seed, 30% held out): the critic 0.16 / 0.17 / 0.37 / 0.68 against
+  0.02 / 0.11 / 0.30 / 0.72 at the defaults (on `a4d184d`), the features 0.01 /
+  0.09 / 0.26 / 0.58, both 0.19 / 0.22 / 0.39 / 0.69; over 3,000 games it never
+  trained on, the critic 0.16 / 0.21 / 0.39 / 0.72, the seat's deck alone 0.05
+  / 0.08 / 0.11 / 0.07. The critic reads more than the features at every stage,
+  and the first half it seemed not to read was the tool's. On the humans' games
+  it is worse early (their play is not the self-play it learned). The features'
+  weights (a standard deviation each, the result's scale): in the second
+  quarter the seat's pool +0.10, the blood on its ready minions +0.08, the
+  prey's pool −0.07 and its margin over one's ready minions −0.08, the
+  predator's ready blood −0.05, the prey's −0.05; in the third the ready blood
+  +0.14, the pool +0.12, VPs +0.12; the lunge +0.04 in the third and +0.05 in
+  the last, being lunged −0.04 in the last; the unlocked minions +0.03 to +0.04
+  (the actions and blocks left this turn).
+- **p15** (`runs/p15`, `../zero-vtes-p15` at `788eae4`; launched 2026-10-23,
+  5281 → 5840, no panic, nothing truncated, 100–200 s an iteration on a machine
+  shared with builds). From p14@5280 (served), opponents p14@5280 and p13@4740
+  frozen; one change from p14: `--shaping runs/phi-p14.json` (coefficient 1), Φ
+  the linear fit of the 26 position features over the whole game on p14's 1,024
+  self-play games ("The critic against the position" above: a VP +0.30, the
+  seat's pool +0.58 a 30 pool, the blood on its ready minions +0.41 a 20 blood,
+  the prey's pool −0.32), each learner decision gaining Φ(next) − Φ(this) and
   the last −Φ(last) (γ 1, Ng 1999); the critic re-warmed 10 iterations.
-  Imitation 8,986 choices (`ec8d47141b6b38e9` read partway since round
-  20's Anarch Revolt change, left out). Scores (bests, against p14 and
-  p13): 1.77 at 5300, 1.91, 2.03, **2.09 at 5820**. Measured on `8fcaaa3`
-  against the served p14 (the training skill's step 4): at one seat
-  against three p14 (600 games) 1.03 VP a seat; `humanset` (the five,
-  bots p14) agreement 48.9% against p14's 51.4%, won from the owner's
-  positions 132 / 300 against 124; `waste`, beyond two standard errors:
-  worse — influence ended with a transfer or draw possible and none made
-  62% / 58% at 5 seats and 63% / 55% on TWDA, wakes with no block after
-  85% / 80% on TWDA, adjacent combats to torpor 10% / 13% on TWDA;
-  better — Wider View used 7–10% / 19–20%, rescues 3–6% / 2–4%. The
-  shaping cut the rushes instead of raising them (own turns with one
-  declared, p15 / p14: Brujah 24% / 41%, Hecata 33% / 56%, Salubri 5% /
-  21%, Banu Haqim 5% / 11%, Gangrel 1% / 8%; Tzimisce 26% / 18%) — Φ paid
-  at once for the blood a combat costs and only later for what it took —
-  and did not help the critic (with Φ added back, `train.position`:
-  self-play 0.03 / 0.09 / 0.29 / 0.64 by quarter against p14's −0.03 /
-  0.07 / 0.34 / 0.71). **Not served** (owner, 2026-10-25: it did not
-  improve as hoped); the shaping dropped. Exported `runs/p15/best.zvp`
-  (`ee41b58bef28`), kept.
+  Imitation 8,986 choices (`ec8d47141b6b38e9` read partway since round 20's
+  Anarch Revolt change, left out). Scores (bests, against p14 and p13): 1.77 at
+  5300, 1.91, 2.03, **2.09 at 5820**. Measured on `8fcaaa3` against the served
+  p14 (the training skill's step 4): at one seat against three p14 (600 games)
+  1.03 VP a seat; `humanset` (the five, starts of this run too, bots p14)
+  agreement 48.9% against p14's 51.4%, won from the owner's positions 132 / 300
+  against 124; `waste`, beyond two standard errors: worse — influence ended
+  with a transfer or draw possible and none made 62% / 58% at 5 seats and 63% /
+  55% on TWDA, wakes with no block after 85% / 80% on TWDA, adjacent combats to
+  torpor 10% / 13% on TWDA; better — Wider View used 7–10% / 19–20%, rescues
+  3–6% / 2–4%. The shaping cut the rushes instead of raising them (own turns
+  with one declared, p15 / p14: Brujah 24% / 41%, Hecata 33% / 56%, Salubri 5%
+  / 21%, Banu Haqim 5% / 11%, Gangrel 1% / 8%; Tzimisce 26% / 18%) — Φ paid at
+  once for the blood a combat costs and only later for what it took — and did
+  not help the critic (with Φ added back, `train.position`: self-play 0.03 /
+  0.09 / 0.29 / 0.64 by quarter against p14's −0.03 / 0.07 / 0.34 / 0.71).
+  **Not served** (owner, 2026-10-25: it did not improve as hoped); the shaping
+  dropped. Exported `runs/p15/best.zvp` (`ee41b58bef28`), kept.
 - **The impact ledger** (owner, 2026-10-25: "do the bot network improve
   on getting more actions and more impactful meaningful actions? … missing
   opportunities in many places"; runs are judged by it, not by single
@@ -1899,53 +1900,82 @@ training runs.
   shrinks — so a planning lever before a counter's.
 - **d16** (`runs/d16`, `../zero-vtes-d16` at `fed6d40`; 2026-10-25 → 26, 200
   iterations, no panic, nothing truncated, ~290 s an iteration (rollout ~80,
-  update ~210), 7.6 minutes on average with the evaluations). The owner's
-  first p16 step (2026-10-25: "a bigger network distillation before we
-  launch p16"): a fresh network at d 192 and 4 layers (p14: 96 and 2)
-  distilled from p14@5280, `--teacher runs/p14/best.pt` — the learner plays
-  p14's tables (its deck mix, weak decks, starts and nudges), p14 labels the
-  decisions it reaches, the policy term KL(p14 ‖ learner); opponents
-  p14@5280 and p13@4740 frozen, evaluated every 10. KL 1.09 at the first
-  iteration, 0.26 at 20, 0.14 at 100, 0.13 from 160; against the frozen pair
-  0.27 / 0.18 VP a seat at 4 / 5 seats at 10, 0.99 / 0.93 at 100, **1.13 /
-  1.02 at 180** (best). Measured against p14 on `fed6d40` (`best.zvp`
-  `714054ed0ba2`): at one seat against three p14 (600 games) 0.92 VP a seat
-  (Brujah 1.50, Ministry 1.40 … The Endless Dance 0.30, Path of Cathari
-  0.50); `humanset` (the five, bots p14) agreement 47.6% against 51.4%, the
-  human's choice more probable (mean log-probability −1.54 against −1.76),
-  won from the owner's positions 126 / 300 against 126; the ledger (400
-  self-play games, d16 / p14, two standard errors ~0.04 on A&B, ~0.10 on R):
-  A&B a round 2.09 / 2.14 at 4 seats, 2.10 / 2.20 at 5, 1.72 / 1.73 on TWDA;
-  its prey's R per own turn −3.46 / −3.35, −3.54 / −3.59, −2.88 / −2.96.
-  p14's play in a network with room to grow, no gain of its own: **not
-  served**, p16's start (owner, 2026-10-27).
+  update ~210), 7.6 minutes on average with the evaluations). The owner's first
+  p16 step (2026-10-25: "a bigger network distillation before we launch p16"):
+  a fresh network at d 192 and 4 layers (p14: 96 and 2) distilled from
+  p14@5280, `--teacher runs/p14/best.pt` — the learner plays p14's tables (its
+  deck mix, weak decks, starts and nudges), p14 labels the decisions it
+  reaches, the policy term KL(p14 ‖ learner); opponents p14@5280 and p13@4740
+  frozen, evaluated every 10. KL 1.09 at the first iteration, 0.26 at 20, 0.14
+  at 100, 0.13 from 160; against the frozen pair 0.27 / 0.18 VP a seat at 4 / 5
+  seats at 10, 0.99 / 0.93 at 100, **1.13 / 1.02 at 180** (best). Measured
+  against p14 on `fed6d40` (`best.zvp` `714054ed0ba2`): at one seat against
+  three p14 (600 games) 0.92 VP a seat (Brujah 1.50, Ministry 1.40 … The
+  Endless Dance 0.30, Path of Cathari 0.50); `humanset` (the five, among its
+  starts, bots p14) agreement 47.6% against 51.4%, the human's choice more
+  probable (mean log-probability −1.54 against −1.76), won from the owner's
+  positions 126 / 300 against 126; the ledger (400 self-play games, d16 / p14,
+  two standard errors ~0.04 on A&B, ~0.10 on R): A&B a round 2.09 / 2.14 at 4
+  seats, 2.10 / 2.20 at 5, 1.72 / 1.73 on TWDA; its prey's R per own turn −3.46
+  / −3.35, −3.54 / −3.59, −2.88 / −2.96. p14's play in a network with room to
+  grow, no gain of its own: **not served**, p16's start (owner, 2026-10-27).
 - **Search in the minion phase** (the owner's second p16 step, 2026-10-25;
-  `crates/policy/examples/search.rs`): at each minion-phase choice of one
-  seat, p14's four favourite options each played out four times to the start
-  of the seat's next turn, every seat p14, scored by the position's
-  potential there (`runs/phi-p14.json`, "The critic against the position")
-  or the result, the best mean taken. 200 games at 4 seats (`Engine::new`'s
-  random V5 precons, a 75-turn limit, seeds 60,000 on), each played with the
-  seat (`g % 4`) searched and unsearched, p14's `best.zvp` everywhere, built
-  on 2026-10-25's main (`1aee487` to `2fc645e`); `search <p14.zvp>
-  runs/phi-p14.json 200 --k 4 --n 4 [--fair] [--ab W]`. A&B a round and the
-  prey's R are means of per-game ratios (not the ledger's ratio of totals),
-  ± two standard errors. Unsearched: VP a seat 1.15 ± 0.20, game wins 24%,
-  A&B a round 2.00 ± 0.12, its prey's R a turn −3.43 ± 0.30. Seeing the
-  hidden cards (an upper bound): 1.58 VP (paired +0.43 ± 0.25), 38%, A&B
-  2.15, −3.70. Fair (before each play-out, the others' hands dealt again
-  from their libraries, every library and crypt shuffled; their face-down
-  uncontrolled vampires and cards stored face down left as they are, which
-  can only favour search): 1.15 (+0.00 ± 0.24), 27%, 2.03, −3.18. With W
-  added a play-out for each A&B the seat makes in it (`--ab`, the owner's
-  "try the A&B leaf score too"), fair: W 0.05 1.13 VP (−0.02), A&B 2.18,
-  −3.15; W 0.15 1.22 (+0.07), 2.20, −3.36. The gain was the hidden cards';
-  the A&B term buys about 0.2 A&B a round (at the edge of two standard
-  errors, unpaired) of no more harm to the prey. Not a lever as it stands: a
-  play-out needs a better guess of the hidden cards than a fresh deal.
+  dropped by the owner, 2026-11-02, its example with it, in git): at each
+  minion-phase choice of one seat, p14's four favourite options each played out
+  four times to the start of the seat's next turn, every seat p14, scored by
+  the position's potential there (`runs/phi-p14.json`, "The critic against the
+  position") or the result, the best mean taken. 200 games at 4 seats
+  (`Engine::new`'s random V5 precons, a 75-turn limit, seeds 60,000 on), each
+  played with the seat (`g % 4`) searched and unsearched, p14's `best.zvp`
+  everywhere, built on 2026-10-25's main (`1aee487` to `2fc645e`). A&B a round
+  and the prey's R are means of per-game ratios (not the ledger's ratio of
+  totals), ± two standard errors. Unsearched: VP a seat 1.15 ± 0.20, game wins
+  24%, A&B a round 2.00 ± 0.12, its prey's R a turn −3.43 ± 0.30. Seeing the
+  hidden cards (the true deal, what it buys this search): 1.58 VP (paired +0.43
+  ± 0.25), 38%, A&B 2.15, −3.70. The "fair" deal (before each play-out, the
+  others' hands dealt again from their libraries, every library and crypt
+  shuffled; their face-down uncontrolled vampires and cards stored face down
+  left as they are): 1.15 (+0.00 ± 0.24), 27%, 2.03, −3.18. With W added a
+  play-out for each A&B the seat makes in it (`--ab`, the owner's "try the A&B
+  leaf score too"), on that deal: W 0.05 1.13 VP (−0.02), A&B 2.18, −3.15; W
+  0.15 1.22 (+0.07), 2.20, −3.36: about 0.2 A&B a round (at the edge of two
+  standard errors, unpaired) of no more harm to the prey. Those options were
+  compared on independent deals, at temperature 1 with no nudges, a game's end
+  scored with the win at 2 against a potential fitted at 5; and the "fair" deal
+  leaks, reading what a seat may not: the others' true cards, only shuffled,
+  their face-down vampires and stored cards, the engine's random stream.
+  Compared on the same deals and seeds at the served settings (200 games,
+  `8de7bf8`, 3 options, 8 worlds, the favourite kept unless another's paired
+  gain passes a standard error), it read +0.29 ± 0.25 VP, wins 24% → 30%, its
+  prey's R −0.49 ± 0.31. The measure that stands (2026-11-02, the owner's word
+  through Z-main; `runs/search-2026-11-02/`, its README; engine `946fd78` with
+  an `Engine::reseed` accessor, no rule changed; p14 `a78e74292acb`;
+  `rust/searchf.rs`; its leaf `runs/phi-p14.json`), the same settings on what
+  the seat may know: each world is built from `GameState::legal_view`, so no
+  hidden card can reach it, the seat's own library and crypt shuffled, each
+  other seat's hidden cards from one TWDA decklist drawn by the likelihood of
+  the cards it has shown (none of the V5 precons the tables play), a new random
+  stream. Two engines with one legal view and different hidden cards scored bit
+  for bit alike at all of 380 positions; the "fair" deal at 12, its pick moved
+  at 145. 400 games on new seeds: VP 1.03 → 1.13 (+0.10 ± 0.17), wins 24.0% →
+  25.2% (+1.2 ± 5.2), its prey's R −0.11 ± 0.22, none told from zero; A&B +0.08
+  ± 0.07, past two errors, +3.8%, one of four measures. `humanset` (four of the
+  five held-out games, one no longer reads, all of them starts of p14's run; 20
+  games a position, bots p14): won 94 → 111 of 240 (+7.1% ± 5.9; a quarter in
+  18% → 28%, halfway 38% → 40%, three quarters 63% → 71%), VP +0.21 ± 0.16;
+  those errors count 240 games, and four human games stand behind them, not
+  significant game by game. It overrode the favourite at 31% of 7,305
+  decisions, about what chance gives at that margin (0.25–0.32, estimated). A
+  play-out assumes the opponents play p14, exact at these tables, not against a
+  human. 400 paired games took 2 h 38 on 8 shared threads: up to ~10
+  CPU-seconds for each of the ~18 searched decisions a seat makes a game.
+  Dropped by the owner (2026-11-02): not served, no stricter margin, no run on
+  it.
 - **p16** (owner, 2026-10-27: RL from d16). From d16@180 (the
   seats' context read from the start), on main `6ad5083` (round 22's cards);
-  as p14 otherwise, the owner's games twice as often, no shaping, d16 for
+  as p14 but `gw_weight`, left at the default of the time by omission (2,
+  d16 too; 5 from p9 to p15, and the default since): another reward and
+  selection score. The owner's games twice as often, no shaping, d16 for
   p13 among the frozen opponents, 500 iterations (the paths absolute into
   the main checkout's `runs/` at launch): `train.ppo --league true --out
   runs/p16 --resume runs/d16/best.pt --d 192 --layers 4 --attention-budget
@@ -1973,7 +2003,61 @@ training runs.
   score against p14 and d16, 0.84 and 0.76 VP a seat at 4 and 5 seats);
   later ones ran 0.61–0.87 and 0.51–0.74. Imitation memorised: on the means
   of the first and last 20 logged iterations, accuracy on the trained human
-  choices 0.64 → 0.78, on the held-out games 0.57 → 0.50.
+  choices 0.64 → 0.78, on the held-out games 0.57 → 0.50. At the same
+  learning rate it moved the policy about twice as far as p14 (kl 0.021 and
+  0.011 at 1e-4). No evidence against a larger network, or for one.
+- **Where p14 stands** (2026-11-02, the owner's question after p16;
+  `runs/search-2026-11-02/`, its README: commands, engines, raw results; ± two
+  standard errors). Strength: p14 at one seat against three, 500 games at the
+  served settings: p8 1.49 ± 0.14 VP, 36% wins; p10 1.11 ± 0.13, 25%; p13 0.93
+  ± 0.12, 22% (temperature 1, no nudges: p8 1.22, 29%; p10 1.12, 25%). With the
+  head-to-heads above (p11 0.99, p12 0.88, p13 0.97, p14 1.00, p15 1.03) and
+  the humans' wins (p10 11 of 14, p11 13 of 19, p14 26 of 33), strength has not
+  measurably moved since p10. A run's rising score is mostly recovery: even is
+  2.125; p14 read 1.70 at its first evaluation and came back as its learning
+  rate tapered (means by third 1.87, 1.94, 2.02), p13 and p15 alike. What the
+  gradient says, and how little four folds can: 3,000 self-play games of
+  p14@5280 at training's settings, on `a4d184d`; each advantage estimator's
+  gradient on four folds sharing no game, which tells signal from noise; Monte
+  Carlo (the result − V) unbiased but weak, its signal 1.9 standard errors on
+  the six pairs of folds; a shuffled control reading zero. Most of the signal
+  is "more decisive" (cosine −0.80 to −0.92 with the entropy gradient, by
+  estimator): the adaptive bonus cancels that by design, and the served
+  temperature cashes it (0.5 against 1, no nudges: 1.17 ± 0.13 VP). With that
+  out, Monte Carlo's signal leans away from the imitation term (read on 14,831
+  choices, p14 imitated 9,231) on all four folds (−2.9 standard errors on 3
+  degrees of freedom, p ≈ 0.07, its size unmeasured; −0.7 at λ 0.95, the two
+  not told apart). Beyond those two directions Monte Carlo finds nothing but
+  has no power there; training's own estimator keeps 34% of its signal (2.8
+  standard errors), and the forces do not sum to zero (1.11 of the signal's
+  length): no fixed point is shown, and the plateau rests on the measures
+  above. The usable share of a fold's gradient reads 0.10 today, 0.23 at λ 0.8
+  on whole games, 0.09 at 0.95, 0.06 at 0.99, 0.03 Monte Carlo; leaving a fold
+  out moves it 0.03–0.33 today and 0.01–0.78 at 0.8, and reverses the order
+  once: four folds do not rank λ. The game's result enters none of the first
+  quarter's advantages and 28% of the last's. A critic trained on the results
+  (warm from p14, 2,500 games) gains 0.02 explained variance at best, then
+  overfits; a second head on the ledger two rounds on gains nothing more.
+  Imitation memorises: 0.89 accuracy on trained choices, 0.52 held out at p14's
+  end, the held-out loss rising through every run from p10 to p16; d16,
+  distilled from p14 with no imitation of its own, gives the humans' choices
+  more probability (−1.54 / −1.76) and makes them its favourite less (47.6% /
+  51.4%). Rules laid on p14 unretrained (paired, 500 games, each ± 0.16): a
+  block whenever one is reachable and the action is directed at the seat −0.10
+  VP, every reachable block −0.18, the last unlocked minion kept home with 3
+  ready −0.20, the first and third −0.22. Which choices pay, crudely (the
+  result − V against the window's mean, by kind and third of the game, the
+  state not controlled beyond V): nothing above +0.06; an ability used at a
+  strike −0.10, in the influence phase −0.06 to −0.09, an action taken late in
+  the minion phase −0.04 (6.5 standard errors, 56% of that window). The ledger
+  (13,490 seats): seats that win make 3.6 A&B a round, the others 1.9, so A&B
+  rises with winning, and p14's rates reach the owner's 3.03 at a two-thirds
+  share of winners. Own and prey's R explain 0.18 and 0.34 of the result's
+  variance in the last two quarters, A&B 0.03 and 0.07, blocks landed and
+  hindrances nothing. Humans at p14's tables (28 games): level on actions,
+  ready vampires and blocks landed through round 6; blood ahead from rounds 4–5
+  (11.3 / 8.8 at round 5, custom decks unaccounted); blocks landed 1.5 times
+  theirs at round 7 and twice from round 8 (21, 18 and 12 human seats).
 - **Futile blocks on the E25 engine** (owner, 2026-10-15: before any
   redeploy). E25 (`97c4880`) offers every legal block attempt, those
   that cannot reach the stealth too (`Engine::block_can_reach`); no

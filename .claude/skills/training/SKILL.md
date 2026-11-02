@@ -68,9 +68,12 @@ runs" (every run's command, numbers and lessons), `docs/boards/training.md`.
    per deck and pN against three of the served weights (and three pPREV
    when pPREV was not served); `humanset` (`cargo run -p zvtes-policy --profile
    ci --example humanset -- <pN.zvp> <served bots.zvp> 20 <records>`) on the
-   human wins no network trained on — the run's `--bc-held-games`;
-   hold out new harvested wins the same way to grow the set — for pN and
-   the served weights alike; `uv run python -m train.position runs/pN/best.pt
+   wins of the run's `--bc-held-games`, held out of its imitation and its
+   starts — a resumed network keeps what its ancestors trained on, and every
+   network to date, the served p14 too, began tables from the five, so report
+   the wins newer than the served weights' starts apart; hold out new
+   harvested wins the same way to grow the set — for pN and the served
+   weights alike; `uv run python -m train.position runs/pN/best.pt
    --records data/records,data/server-records` for the critic against
    the position by stage (DESIGN §11.2 "The critic against the
    position"; a shaped critic's values with Φ added back). `waste`'s
@@ -194,13 +197,13 @@ runs" (every run's command, numbers and lessons), `docs/boards/training.md`.
   `shown`, read from the entry each decision took, `replay_decisions`'
   `entry`, never by position: a pass the reader reads past shifts it; those
   their settings hid get no probability, so Opportunities off is fine);
-  held-out games named with `--bc-held-games` (it matches parts of file
-  names: game ids for harvested files, timestamps in `data/records`), never
-  every Nth; `--bc-weak-weight W` draws the choices of a winner on a
-  `--weak-decks` deck W times as often (the first line logs them,
-  `bc_weak`); `--bc-games-weight part=W,…` those of named games (parts of
-  file names; the first part a name holds) W times, the deck's and the
-  game's weights multiplied (`bc_games`): the owner's games,
+  held-out games named with `--bc-held-games`, out of imitation and of the
+  starts (it matches parts of file names: game ids for harvested files,
+  timestamps in `data/records`), never every Nth; `--bc-weak-weight W` draws
+  the choices of a winner on a `--weak-decks` deck W times as often (the
+  first line logs them, `bc_weak`); `--bc-games-weight part=W,…` those of
+  named games (parts of file names; the first part a name holds) W times,
+  the deck's and the game's weights multiplied (`bc_games`): the owner's games,
   `zero-vtes-replay` (the 24 converted fork games, all the owner's) and a
   harvested one by its id — no record names its player. Starts from recorded
   positions (`--starts`). Weakness mining: a recurring bad choice becomes a

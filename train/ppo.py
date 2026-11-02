@@ -68,8 +68,9 @@ class Config:
     # game wins first). p9 runs at 5 (owner, 2026-10-10: "penalize doing
     # only 1vp and not winning": ousting a prey then dying earned half a
     # 3-VP win's reward at 2; win-only would leave ~70% of the games
-    # without a gradient).
-    gw_weight: float = 2.0
+    # without a gradient). The default since p16 ran at the old one, 2, by
+    # omission: a different reward and selection score from p9-p15's.
+    gw_weight: float = 5.0
     # Potential-based shaping (DESIGN §11.2 "The critic against the
     # position"): a `train.position --phi` file, Φ a linear fit of the
     # deciding seat's position (`zvtes_py.position_names`) to its result;
@@ -216,7 +217,7 @@ class Config:
     # the cross-entropy of the policy (its own logits, no nudge) on
     # `bc_batch` of the humans' choices with an alternative, from the
     # records in `bc` (as `starts`). Every `bc_holdout`-th game (0: none)
-    # is held out: its loss is logged, never trained on (overfitting).
+    # is held out: its loss is logged, never imitated (overfitting).
     # `bc_held_games` (comma-separated parts of file names, the p10 plan:
     # games never trained on, for an honest held-out) holds those out
     # instead.
@@ -230,6 +231,8 @@ class Config:
     # (DESIGN §11.2 "Faster iterations", 2026-10-16).
     bc_every: int = 1
     bc_holdout: int = 8
+    # Held out of the starts too: a game a network began tables from is not
+    # one it never trained on.
     bc_held_games: str = ""
     # Weak decks (deck indices, comma-separated; owner, 2026-10-10, the p9
     # plan): the learner's seat is given one of them on `weak_rate` of
@@ -835,12 +838,14 @@ class Trainer:
         self.decks = [i for f in names for i in families[f]]
         # Players' games only (`players_game`): a harvest also holds
         # abandoned, unfinished and test clients' games, kept for its
-        # report; those left out, and named.
-        self.starts, unfinished = [], []
+        # report; those and the held-out games left out, and named.
+        self.starts, left_out = [], []
+        held = [g.strip() for g in cfg.bc_held_games.split(",") if g.strip()]
         for r in load_replays(cfg.starts):
-            (self.starts if players_game(json.loads(r[1])) else unfinished).append(r)
-        if unfinished:
-            print(json.dumps({"starts_left_out": [p.name for p, _, _ in unfinished]}), flush=True)
+            usable = players_game(json.loads(r[1])) and not any(part in r[0].name for part in held)
+            (self.starts if usable else left_out).append(r)
+        if left_out:
+            print(json.dumps({"starts_left_out": [p.name for p, _, _ in left_out]}), flush=True)
         # Each start's seats' pool decks (None: a human's own list).
         self.start_decks = [
             [deck_index(s) for s in json.loads(text)["spec"]["seats"]] for _, text, _ in self.starts
@@ -852,7 +857,7 @@ class Trainer:
                 load_replays(cfg.bc),
                 cfg.obs,
                 cfg.bc_holdout,
-                [g.strip() for g in cfg.bc_held_games.split(",") if g.strip()],
+                held,
             )
             if not self.bc:
                 raise ValueError("--bc-coef needs --bc replays with human choices")

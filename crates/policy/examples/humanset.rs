@@ -1,7 +1,9 @@
 //! The positions where a human beat the bot (the training board's
 //! evaluation set): games a human won, played out (last standing or the
-//! time limit), read whole by this engine, never trained on — a run's
-//! `--bc-held-games`, in `data/records` and harvested. Two scores for a
+//! time limit), read whole by this engine, a run's `--bc-held-games`, out
+//! of its imitation and its starts, in `data/records` and harvested; a
+//! resumed network keeps what its ancestors trained on (every one to date,
+//! the served p14 too, began tables from the first five). Two scores for a
 //! network:
 //! - agreement: at each of the winner's decisions with an alternative, the
 //!   network's favourite (its plain logits, no nudge or mask, as imitation

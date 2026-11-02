@@ -1,6 +1,6 @@
 """The position a seat reads (`GamePool.positions`, `replay_decisions`'
-`position`) and the measure against the critic (`train.position`; the
-training board's "The critic against the position, measured")."""
+`position`) and the measure against the critic (`train.position`; DESIGN
+§11.2 "The critic against the position")."""
 
 import json
 
@@ -9,7 +9,7 @@ import torch
 import zvtes_py
 
 from train.model import Critic, Policy
-from train.position import STAGES, fit, measure, predict, r2, self_play, table, unshaped
+from train.position import STAGES, fit, measure, predict, r2, self_play, table, trained_pool, unshaped
 from train.tests.test_assess import record, spec
 
 NAMES = zvtes_py.position_names()
@@ -86,6 +86,45 @@ def test_self_play_ends_on_truncated_games():
     X, v, y, stage, games = table(samples, over)
     assert X.shape == (len(samples), len(NAMES)) and np.isfinite(v).all()
     assert set(games) == set(over) and ((stage >= 0) & (stage <= 1.01)).all()
+
+
+def test_the_measure_plays_as_training_played():
+    # The same random answers in the measure's pool and in one built with
+    # training's settings give the same decisions; a pool's defaults do not.
+    cfg = {"obs": 3, "decks": "precons", "bleed_bonus": 4.0, "draw_bonus": 7.0, "iteration": 12, "nudge_until": 24}
+
+    def played(pool):
+        rng = np.random.default_rng(7)
+        out = []
+        for _ in range(600):
+            obs = pool.observe()
+            out.append((obs["opt_n"].tolist(), float(obs["opt_bias"].sum())))
+            pool.act([int(rng.integers(n)) for n in obs["opt_n"]])
+        return out
+
+    families = dict(zvtes_py.deck_families())
+    bare = dict(seed=9, decks=families["precons"], budget=20_000, critic=True, obs=3)
+    measured = trained_pool(cfg, 6, 4, 9, 20_000)
+    assert measured.nudges["bleed"] == 2.0 and measured.nudges["draw"] == 3.5, "halfway through their fade"
+    direct = zvtes_py.GamePool(6, ["net:0"] * 4, politics=True, chores=True,
+                               tables=[{"seats": ["net:0"] * 4}] * 6, **bare)
+    direct.nudges = measured.nudges
+    default = zvtes_py.GamePool(6, ["net:0"] * 4, tables=[{"seats": ["net:0"] * 4}] * 6, **bare)
+    trained = played(measured)
+    assert trained == played(direct)
+    assert trained != played(default)
+
+
+def test_self_play_measures_at_those_settings():
+    # `self_play` plays the checkpoint's settings: with them off, the same
+    # seeds are other games.
+    schema = json.loads(zvtes_py.schema())
+    torch.manual_seed(0)
+    policy, critic = Policy(schema, d=32, layers=1).eval(), Critic(schema, d=32, layers=1).eval()
+    on = {"obs": 3, "decks": "precons"}
+    off = {**on, "politics": False, "chores": False}
+    played = [self_play(policy, critic, c, 1, 4, 1, torch.device("cpu"))[0] for c in (on, on, off)]
+    assert len(played[0]) == len(played[1]) != len(played[2])
 
 
 def test_a_shaped_critic_is_read_with_its_potential():
