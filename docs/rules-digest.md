@@ -3898,11 +3898,12 @@ cards), §1.10 (burn and removal), §6.3 (control of a card in play).
   a search finding none, and as its last card is drawn (11.3); replaced
   before its search, so its replacement is never one of the cards put on it
   (12.4).
-- Learjet: "a card this minion played as an acting minion" is any card the
-  bearer plays while acting in the action, its combats' cards and a
-  canceled card included; the extra draw offered after the normal
-  replacement is drawn (LSJ 20050224-4), and with a delayed replacement when
-  that one comes due (PIB 20110718); a vehicle (63.10); 73.1, 73.2 (§19.2).
+- Learjet: "a card this minion played as an acting minion" is the action
+  card and any card the bearer plays while acting in the action, its combats'
+  cards and a card canceled in the action included, not a canceled action
+  card; the extra draw offered after the normal replacement is drawn (LSJ
+  20050224-4), and with a delayed replacement when that one comes due (PIB
+  20110718); a vehicle (63.10); 73.1, 73.2 (§19.2).
 - The Signet of King Saul (59.15); Anachronism (64.2); Enhanced Coagulant
   (38.4); weapons (§12.13); Kaymakli Fragment (71.23); Monocle of Clarity:
   its question changes no game state, the equip action alone (68.11).
@@ -4264,8 +4265,10 @@ Advanced rules §1.9 (replacement), §6.8 (hand, draw and discard).
   Semsith holds again brings its extra draw at the minion phase's end with
   it; the draw is keyed to the replacement, so it is offered even if Learjet
   or its bearer left play meanwhile (73.1). The action card its bearer plays
-  to take an action brings no extra draw: "replacing the action card is not
-  done during the action, but before" (73.2, owner 2026-10-14).
+  brings it too: not canceled, it begins its action at once and is replaced
+  in it, before the as-announced window; canceled, no action began and none
+  comes (73.2, the Rules Director through the owner, 2026-11-02). Read: a
+  Steely Tenacity taken back brings none, nothing drawn (73.2).
 - Infernal Pursuit (63.11, §12.15). Constant Revolution (LSJ 20090618): the
   random cards go all at once ("no replace" = not one at a time, capped by
   hand size, the rest from pool), then the hand is drawn back up (7.10).

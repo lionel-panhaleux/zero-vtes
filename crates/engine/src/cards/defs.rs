@@ -19564,11 +19564,11 @@ pub static BALTIMORE_PURGE: CardDef = CardDef {
 
 /// "Vehicle. Each time you draw to replace a card this minion played as an
 /// acting minion, you may draw an additional card (discard afterward). A
-/// minion may have only one vehicle." (1 pool.) Every card the bearer plays
-/// while acting in the action — its combats included, a canceled one too
-/// —; a delayed replacement brings its extra card when it is drawn (PIB
-/// 20110718); optional, after the normal replacement is seen (LSJ
-/// 20050224-4).
+/// minion may have only one vehicle." (1 pool.) The action card (a canceled
+/// one not: rules-qa 73.2) and every card the bearer plays while acting in
+/// the action — its combats included, a canceled one too —; a delayed
+/// replacement brings its extra card when it is drawn (PIB 20110718);
+/// optional, after the normal replacement is seen (LSJ 20050224-4).
 pub static LEARJET: CardDef = CardDef {
     name: "Learjet",
     modes: &[mode_of(

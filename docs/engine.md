@@ -1620,12 +1620,13 @@ sources to the engine's conventions.
 - Extra draws on replacement: Learjet's (`Modifier::ExtraDrawOnReplace`,
   `Interrupt::MayDrawExtra` after the replacement, `Seat::learjet_held`
   for a delayed one, offered by `Engine::replace_held` at every release,
-  carried with a replacement the Meddling holds again; rules-qa 73.1; an
-  action card the bearer plays brings none, replaced before the action,
-  73.2) and Infernal Pursuit's (`Seat::timed`'s `TimedStat::ExtraDraws`,
-  ending with the combat; read in `Engine::replace`; several cards
-  replaced at once go one at a time, `Interrupt::PursuitDraw` then
-  `PursuitDiscard`, rules-qa 63.11).
+  carried with a replacement the Meddling holds again; rules-qa 73.1; the
+  action card brings it, its action begun as it is replaced, a canceled
+  one none, `learjet_play`'s `begun`, 73.2; a Steely Tenacity taken back
+  none, `Interrupt::RetakeFromAsh`'s `jet`) and Infernal Pursuit's
+  (`Seat::timed`'s `TimedStat::ExtraDraws`, ending with the combat; read
+  in `Engine::replace`; several cards replaced at once go one at a time,
+  `Interrupt::PursuitDraw` then `PursuitDiscard`, rules-qa 63.11).
 - Summon History (`Effect::SearchPutInPlayUpToX`, `Interrupt::PutInPlaySearch`,
   `put_in_play_finds`; the host shows the crypt as the `AshVampire` zone): the
   card put in play, a vampire through `influence::vampire_entered` (shared

@@ -14,7 +14,9 @@ use crate::game::{Engine, Flow, Pending};
 use crate::ids::{MinionId, SeatId};
 use crate::library::{CardType, Label, LIBRARY};
 use crate::notes::{Cause, Rule, Source};
-use crate::state::{distinct, ActionId, CardId, CardInPlay, Expiry, OutOfTurn, Release, TimedStat};
+use crate::state::{
+    distinct, ActionId, CardId, CardInPlay, Expiry, Held, OutOfTurn, Release, TimedStat,
+};
 use crate::window::OrderedWindow;
 
 /// The once-per-phase key of an in-play ability: the copy, or the copy and
@@ -266,8 +268,10 @@ impl Engine {
     }
 
     /// A card played by Learjet's bearer as the acting minion (its action's
-    /// modifiers, combat cards in its combats; a canceled one too).
-    fn learjet_play(&self, ctx: &PlayCtx) -> bool {
+    /// modifiers, combat cards in its combats; a canceled one too). `begun`:
+    /// `ctx` is the action card, its action begun as it is replaced; canceled,
+    /// no action began (rules-qa 73.2).
+    fn learjet_play(&self, ctx: &PlayCtx, begun: bool) -> bool {
         // Ira Rivers: any card of his requiring Auspex.
         let printed = |m: MinionId| {
             let pctx = crate::state::PrintedCtx {
@@ -280,12 +284,25 @@ impl Engine {
         };
         ctx.actor.is_some_and(|m| {
             printed(m)
-                || self.action.as_ref().is_some_and(|a| a.acting == m)
+                || (begun || self.action.as_ref().is_some_and(|a| a.acting == m))
                     && self
                         .state
                         .borne(m)
                         .any(|l| l.modifier == cards::Modifier::ExtraDrawOnReplace)
         })
+    }
+
+    /// Learjet's draw for a card of `s` just replaced, or with its
+    /// replacement if that was held (PIB 20110718); `held_before` as it
+    /// stood before it.
+    fn offer_extra_draw_after(&mut self, s: SeatId, held_before: Held) {
+        let seat = &mut self.state.seats[s.index()];
+        let after = seat.held;
+        if after.total() > held_before.total() {
+            seat.learjet_held.add_diff(held_before, after);
+        } else {
+            self.offer_extra_draw(s);
+        }
     }
 
     /// The end of the action (or of the turn it could not outlive): the
@@ -314,9 +331,10 @@ impl Engine {
 
     /// Seat `s`'s replacements held until `at`, plus `also`, drawn now —
     /// deferred whole to `Interrupt::RetakeFromAsh` when a Steely Tenacity
-    /// among them may come back from the ash heap; then Learjet's extra
-    /// draw for each one its bearer played (PIB 20110718), waiting with them
-    /// if the Meddling holds them again (rules-qa 73.1).
+    /// among them may come back from the ash heap, Learjet's draws with it;
+    /// then Learjet's extra draw for each one its bearer played (PIB
+    /// 20110718), waiting with them if the Meddling holds them again
+    /// (rules-qa 73.1).
     pub(crate) fn replace_held(
         &mut self,
         s: SeatId,
@@ -336,18 +354,20 @@ impl Engine {
         } else {
             self.next_retake(s, at)
         };
-        match retake {
-            Some((card, copy)) => self.interrupts.push(Interrupt::RetakeFromAsh {
+        if let Some((card, copy)) = retake {
+            self.interrupts.push(Interrupt::RetakeFromAsh {
                 seat: s,
                 card,
                 copy,
                 rest: (n as usize + also - 1) as u8,
                 draws: 0,
+                jet,
                 except,
                 at,
-            }),
-            None => self.replace(s, n as usize + also, except),
+            });
+            return;
         }
+        self.replace(s, n as usize + also, except);
         let seat = &mut self.state.seats[s.index()];
         if seat.held[Release::MinionPhaseEnd] > meddled {
             // The Meddling holds them again: the retakes wait with them
@@ -3803,9 +3823,10 @@ impl Engine {
             self.offer_aim_store(&ctx);
         }
         if ctx.from.is_none() {
+            let held_before = self.state.seats[ctx.seat.index()].held;
             self.replace(ctx.seat, 1, None);
-            if self.learjet_play(&ctx) {
-                self.offer_extra_draw(ctx.seat);
+            if self.learjet_play(&ctx, false) {
+                self.offer_extra_draw_after(ctx.seat, held_before);
             }
         }
         // Victor Donaldson: his Methuselah's canceled card back to the
@@ -4122,6 +4143,8 @@ impl Engine {
             // action" too, after every combat and after-resolution effect
             // (LSJ 20001120, LSJ 20101021).
             if ctx.from.is_none() {
+                let learjet = self.learjet_play(&ctx, true);
+                let held_before = self.state.seats[s.index()].held;
                 if def.delayed_replacement == Some(Until::EndOfAction)
                     || self.holds_replacements_of(actor)
                 {
@@ -4135,6 +4158,9 @@ impl Engine {
                     self.hold_weakened(s, None);
                 } else {
                     self.replace(s, 1, None);
+                }
+                if learjet {
+                    self.offer_extra_draw_after(s, held_before);
                 }
             }
             self.declare_action(actor, *kind, None, Some(ctx), None);
@@ -4337,9 +4363,8 @@ impl Engine {
                 .as_ref()
                 .is_some_and(|a| a.defer_reaction_replacement);
         // Learjet: this play's replacement, now or when it comes due.
-        let learjet = self.learjet_play(&ctx);
+        let learjet = self.learjet_play(&ctx, false);
         let held_before = self.state.seats[s.index()].held;
-        let in_play_before = self.state.seats[s.index()].held_in_play.len();
         // The card's own "do not replace until" clause outlasts an
         // end-of-action deferral (spec §1.9.2: the longest delay wins).
         match def.delayed_replacement {
@@ -4374,13 +4399,7 @@ impl Engine {
             None => self.replace(s, 1, in_play),
         }
         if learjet && ctx.from.is_none() {
-            let seat = &mut self.state.seats[s.index()];
-            let after = seat.held;
-            if after.total() > held_before.total() {
-                seat.learjet_held.add_diff(held_before, after);
-            } else if seat.held_in_play.len() == in_play_before {
-                self.offer_extra_draw(s);
-            }
+            self.offer_extra_draw_after(s, held_before);
         }
         // A forced attempt's library toll, once the card is replaced (ANK
         // 20260317).

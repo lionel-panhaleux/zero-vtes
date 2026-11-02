@@ -2236,6 +2236,23 @@ fn ira_rivers_watches_politics_and_draws_on_auspex() {
     );
 }
 
+// "When Ira plays a card that requires Auspex": an action card too.
+#[test]
+fn ira_rivers_draws_on_an_auspex_action_card() {
+    let mut e = game(2);
+    let ira = e.add_minion(SeatId(0), find_card("Ira Rivers"), 4, false);
+    e.add_minion(SeatId(0), plain("Brujah", 1), 4, false);
+    e.add_minion(SeatId(1), plain("Ventrue", 0), 4, false);
+    hand(&mut e, 0, &["Revelations"]);
+    fill_hand(&mut e, 0);
+    e.state.seats[0].library = vec![find_library("Bonding"); 5].into();
+    pick(&mut e, play_at(0, 0, ira, Target::Seat(SeatId(1))));
+    assert_eq!(
+        expect(&mut e, SeatId(0), WindowLabel::Draw).options,
+        vec![Choice::Pass, Choice::DrawLibrary]
+    );
+}
+
 // Joaquin Murietta: "At long range, his strikes with guns are at +1
 // damage." [RTR 19970630] [TOM 19960225] "Additional damage inherits all
 // of the properties of the base damage." [RTR 19960221] "Adding damage to

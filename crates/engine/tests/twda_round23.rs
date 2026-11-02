@@ -1367,6 +1367,46 @@ fn steely_tenacity_replacement_edges() {
     assert!(req.options.contains(&Choice::FindCard(steely)));
 }
 
+/// Learjet: "each time you draw to replace": Steely Tenacity, its action
+/// card held until the action ends, brings the extra card if drawn for, none
+/// taken back from the ash heap (rules-qa 73.2, 106.14).
+#[test]
+fn steely_tenacity_taken_back_brings_no_learjet_draw() {
+    let steely = find_library("Steely Tenacity");
+    for retake in [true, false] {
+        let mut e = game(2);
+        let a = e.add_minion(SeatId(0), anarch(&["dom"], 0), 4, false);
+        e.add_minion(SeatId(0), clan("Ventrue", 0), 4, false);
+        e.add_minion(SeatId(1), clan("Brujah", 0), 4, false);
+        e.add_minion(SeatId(1), clan("Brujah", 1), 4, false);
+        in_play_with_layers(&mut e, 0, "Learjet", Some(a));
+        let mut cards = vec!["Steely Tenacity"];
+        cards.extend(["Form of Mist"; 6]);
+        hand(&mut e, 0, &cards);
+        e.state.seats[0]
+            .library
+            .extend([find_library("Deflection"); 3]);
+        pick(&mut e, play(0, 2, a));
+        let req = until(&mut e, SeatId(0), WindowLabel::Draw);
+        assert!(req.options.contains(&Choice::FindCard(steely)));
+        if retake {
+            pick(&mut e, Choice::FindCard(steely));
+            never_offered_until(
+                &mut e,
+                SeatId(0),
+                WindowLabel::MinionPhase,
+                Choice::DrawLibrary,
+            );
+        } else {
+            pick(&mut e, Choice::DrawLibrary);
+            assert_eq!(
+                expect(&mut e, SeatId(0), WindowLabel::Draw).options,
+                vec![Choice::Pass, Choice::DrawLibrary]
+            );
+        }
+    }
+}
+
 /// Steely Tenacity [ani] canceled as played by Hall of Mirrors [CHI]: its
 /// replacement clauses canceled with it, replaced at once (LSJ 20080630).
 // Rulings: [LSJ 20011023] [LSJ 20080630]; [LSJ 20080630] [LSJ 20011023].

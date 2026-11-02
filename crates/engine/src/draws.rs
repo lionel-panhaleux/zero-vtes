@@ -285,13 +285,15 @@ pub enum Interrupt {
     /// Steely Tenacity: `seat` replaces `card` by taking it from its ash
     /// heap (`FindCard`) or by drawing (`DrawLibrary`); then the next such
     /// card due `at`, else the `rest` of its replacements due and the
-    /// `draws` chosen so far, drawn at once.
+    /// `draws` chosen so far, drawn at once, with up to `jet` of Learjet's
+    /// draws: "each time you draw to replace", none for a card taken back.
     RetakeFromAsh {
         seat: SeatId,
         card: u16,
         copy: crate::copies::CopyId,
         rest: u8,
         draws: u8,
+        jet: u8,
         except: Option<crate::state::CardId>,
         at: crate::state::Release,
     },
@@ -3987,6 +3989,7 @@ impl Engine {
                     copy,
                     rest,
                     draws,
+                    jet,
                     except,
                     at,
                 },
@@ -4011,11 +4014,17 @@ impl Engine {
                             copy,
                             rest: rest - 1,
                             draws,
+                            jet,
                             except,
                             at,
                         },
                     ),
-                    None => self.replace(seat, (rest + draws) as usize, except),
+                    None => {
+                        self.replace(seat, (rest + draws) as usize, except);
+                        for _ in 0..jet.min(rest + draws) {
+                            self.offer_extra_draw(seat);
+                        }
+                    }
                 }
             }
             (Interrupt::PurgePick { host, .. }, Choice::ChooseMinion(m)) => {

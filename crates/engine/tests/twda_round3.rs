@@ -1145,17 +1145,101 @@ fn learjet_game(disc: &'static str) -> (Engine, MinionId, MinionId) {
     (e, a, z)
 }
 
-// The action card the bearer plays to take its action is replaced before
-// the action, not during it: no extra card (owner, 2026-10-14: rules-qa
-// 73.2). Govern the Unaligned's bleed, the hand drawn back to 7.
+// The action card, not canceled, begins its action and is replaced in it:
+// the extra card comes first, nobody else acting yet, the bleed unresolved
+// (owner, 2026-11-02: rules-qa 73.2). Govern the Unaligned's bleed; a
+// political action card alike.
 #[test]
-fn learjet_offers_no_extra_card_for_the_action_card_itself() {
+fn learjet_offers_an_extra_card_for_the_action_card_itself() {
+    for take in [false, true] {
+        let (mut e, a, _) = learjet_game("dom");
+        stacked(&mut e, &["Govern the Unaligned"], 4);
+        pick(&mut e, play(0, 0, a));
+        let req = expect(&mut e, SeatId(0), WindowLabel::Draw);
+        assert_eq!(req.options, vec![Choice::Pass, Choice::DrawLibrary]);
+        assert_eq!(e.state.seats[0].hand.len(), 7, "the replacement seen");
+        assert_eq!(pool(&e)[1], 10, "the action not resolved");
+        assert!(e.state.minions[a.index()].locked, "the action begun");
+        if take {
+            pick(&mut e, Choice::DrawLibrary);
+            expect(&mut e, SeatId(0), WindowLabel::DiscardDown);
+            assert_eq!(e.state.seats[0].hand.len(), 8);
+            pick(&mut e, Choice::Discard(0));
+        } else {
+            pick(&mut e, Choice::Pass);
+        }
+        assert_eq!(extra_draws_until(&mut e, minion_phase), 0, "only the one");
+        assert_eq!(e.state.seats[0].hand.len(), 7);
+        assert_ne!(pool(&e)[1], 10, "the bleed went on");
+    }
+    let (mut e, a, _) = learjet_game("dom");
+    stacked(&mut e, &["Kine Resources Contested"], 4);
+    pick(&mut e, play(0, 0, a));
+    assert_eq!(
+        expect(&mut e, SeatId(0), WindowLabel::Draw).options,
+        vec![Choice::Pass, Choice::DrawLibrary]
+    );
+}
+
+// Canceled as played, no action began (the card's "does not lock", rules-qa
+// 1.4, 71.10): the action card is replaced with no extra card (73.2).
+#[test]
+fn learjet_offers_no_extra_card_for_a_canceled_action_card() {
     let (mut e, a, _) = learjet_game("dom");
     stacked(&mut e, &["Govern the Unaligned"], 4);
+    hand(&mut e, 1, &["Direct Intervention"]);
     pick(&mut e, play(0, 0, a));
+    pick_when(
+        &mut e,
+        Choice::Play {
+            card: 0,
+            mode: 0,
+            actor: None,
+            target: Target::None,
+        },
+    );
     assert_eq!(extra_draws_until(&mut e, minion_phase), 0);
-    assert_eq!(e.state.seats[0].hand.len(), 7, "the replacement drawn");
+    assert_eq!(e.state.seats[0].hand.len(), 7, "replaced");
+    assert!(!e.state.minions[a.index()].locked, "no action");
     assert_eq!(e.state.seats[0].learjet_held.total(), 0);
+}
+
+// A modifier canceled in the action is still a card the bearer played as
+// the acting minion (rules-qa 63.10): the action had begun.
+#[test]
+fn learjet_offers_an_extra_card_for_a_canceled_modifier() {
+    let (mut e, a, _) = learjet_game("dom");
+    stacked(&mut e, &["Conditioning"], 4);
+    hand(&mut e, 1, &["Direct Intervention"]);
+    pick(&mut e, bleed(a));
+    pick_when(&mut e, play(0, 0, a));
+    pick_when(
+        &mut e,
+        Choice::Play {
+            card: 0,
+            mode: 0,
+            actor: None,
+            target: Target::None,
+        },
+    );
+    assert_eq!(
+        expect(&mut e, SeatId(0), WindowLabel::Draw).options,
+        vec![Choice::Pass, Choice::DrawLibrary]
+    );
+}
+
+// An action card's replacement held by Blood Weakens (rules-qa 40.4) brings
+// its extra card with it, as the action ends (73.1, 73.2).
+#[test]
+fn learjet_offers_the_extra_card_of_a_held_action_card_as_the_action_ends() {
+    let (mut e, a, _) = learjet_game("dom");
+    in_play(&mut e, 1, "Blood Weakens", None);
+    stacked(&mut e, &["Govern the Unaligned"], 4);
+    pick(&mut e, play(0, 0, a));
+    let req = until(&mut e, SeatId(0), WindowLabel::Draw);
+    assert_eq!(req.options, vec![Choice::Pass, Choice::DrawLibrary]);
+    assert_ne!(pool(&e)[1], 10, "after the action");
+    assert_eq!(e.state.seats[0].hand.len(), 7, "the replacement seen");
 }
 
 // [PIB 20110718] "the additional card is drawn when the replacement is
@@ -1259,6 +1343,36 @@ fn learjet_extra_card_waits_with_a_replacement_held_again_by_the_meddling() {
     let n = extra_draws_until(&mut e, |e, _| e.state.turn > turn);
     assert_eq!(n, 1, "as the minion phase ends");
     assert_eq!(e.state.seats[0].learjet_held.total(), 0);
+}
+
+// A card canceled in the action, its replacement held by The Meddling of
+// Semsith: the extra card waits with it (rules-qa 73.1, 63.10).
+#[test]
+fn learjet_extra_card_of_a_canceled_card_waits_with_the_meddling() {
+    let (mut e, a, _) = learjet_game("dom");
+    let meddling = in_play(&mut e, 1, "Meddling of Semsith, The", None);
+    e.state.cards[meddling.index()].against = zvtes::ids::SeatSet::single(SeatId(0));
+    stacked(&mut e, &["Conditioning"], 4);
+    hand(&mut e, 1, &["Direct Intervention"]);
+    pick(&mut e, bleed(a));
+    pick_when(&mut e, play(0, 0, a));
+    pick_when(
+        &mut e,
+        Choice::Play {
+            card: 0,
+            mode: 0,
+            actor: None,
+            target: Target::None,
+        },
+    );
+    assert_eq!(
+        extra_draws_until(&mut e, minion_phase),
+        0,
+        "not replaced yet"
+    );
+    let turn = e.state.turn;
+    let n = extra_draws_until(&mut e, |e, _| e.state.turn > turn);
+    assert_eq!(n, 1, "as the minion phase ends");
 }
 
 // ---- Concealed Weapon --------------------------------------------------------------
