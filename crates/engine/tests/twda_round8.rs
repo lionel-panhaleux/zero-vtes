@@ -836,6 +836,92 @@ fn coordinate_attacks_sends_the_next_one_in() {
     assert_eq!(c.sides[zi].no_strike_cards_round, Some(1));
 }
 
+/// Ilse bleeds into seat 1's Ventrue (8 blood), both Torrances under
+/// Raptor [ANI], seat 1 holding 7 cards over 5: at Coordinate Attacks.
+fn raptor_on_a_circle(e: &mut Engine, own: &[&str]) -> MinionId {
+    let ilse = torrance(e, 0, "Ilse", 6);
+    let karl = torrance(e, 0, "Karl", 6);
+    superior(e, karl, "tha");
+    superior(e, karl, "cel");
+    hermana(e, 0, 4);
+    let z = e.add_minion(SeatId(1), plain("Ventrue", 0), 8, false);
+    let raptor = find_library("Raptor");
+    for m in [ilse, karl] {
+        e.state
+            .cards
+            .push(CardInPlay::new(raptor, SeatId(0), Some(m), 1));
+        let source = CardId(e.state.cards.len() as u32 - 1);
+        for effect in cards::lookup(raptor).expect("definition").modes[1].effects {
+            if let cards::Effect::Layer(modifier) = effect {
+                e.state.layers.push(cards::Layer {
+                    scope: cards::Scope::InPlay,
+                    modifier: *modifier,
+                    source,
+                });
+            }
+        }
+    }
+    hand(e, 0, own);
+    hand(e, 1, &["Bonding"; 7]);
+    e.state.seats[1].library = vec![find_library("Bonding"); 5].into();
+    blocked_bleed(e, ilse, z);
+    karl
+}
+
+// [LSJ 20030530] A fresh combat against Raptor [ANI]: its opponent draws up
+// and discards again (spec §6.8.1), the new combat begun in the step the
+// first one ended.
+#[test]
+fn coordinate_attacks_redraws_and_discards_again_under_raptor() {
+    let mut e = game(2);
+    let karl = raptor_on_a_circle(&mut e, &["Coordinate Attacks", "Theft of Vitae"]);
+    let req = offering(&mut e, play(0, 0, karl));
+    assert_eq!(e.state.seats[1].ash.len(), 1, "the first combat's discard");
+    e.choose(index_of(&req, play(0, 0, karl)));
+    until(&mut e, SeatId(0), WindowLabel::CombatStrike);
+    assert_eq!(e.state.seats[1].library.len(), 4, "drawn up between them");
+    assert_eq!(e.state.seats[1].ash.len(), 2, "discarded again");
+}
+
+// Psyche! [CEL] with neither combatant the acting minion: no window before
+// the new combat (rules-qa 88.10), the same draw and discard (spec §6.8.1).
+#[test]
+fn psyche_without_the_acting_minion_redraws_and_discards_again_under_raptor() {
+    let mut e = game(2);
+    let own = ["Coordinate Attacks", "Theft of Vitae", "Psyche!"];
+    let karl = raptor_on_a_circle(&mut e, &own);
+    let req = offering(&mut e, play(0, 0, karl));
+    e.choose(index_of(&req, play(0, 0, karl)));
+    let req = offering(&mut e, play(1, 1, karl));
+    assert_eq!(e.state.seats[1].library.len(), 4);
+    e.choose(index_of(&req, play(1, 1, karl)));
+    until(&mut e, SeatId(0), WindowLabel::CombatStrike);
+    assert_eq!(e.state.seats[1].library.len(), 3, "drawn up between them");
+    assert_eq!(e.state.seats[1].ash.len(), 3, "discarded again");
+}
+
+// A draw alternative at that restart: the choice comes though the size is
+// lowered again by then (rules-qa 9.4), one card, then the discard.
+#[test]
+fn a_restarted_combat_keeps_the_draw_choice_under_raptor() {
+    let mut e = game(2);
+    let cache = find_library("Black Market Cache");
+    e.state
+        .cards
+        .push(CardInPlay::new(cache, SeatId(1), None, 0));
+    let id = e.state.cards.len() - 1;
+    e.state.cards[id].stored = vec![find_library("Kevlar Vest")].into();
+    let karl = raptor_on_a_circle(&mut e, &["Coordinate Attacks", "Theft of Vitae"]);
+    let req = offering(&mut e, play(0, 0, karl));
+    e.choose(index_of(&req, play(0, 0, karl)));
+    let req = request(&mut e);
+    assert_eq!((req.seat, req.window), (SeatId(1), WindowLabel::Draw));
+    pick(&mut e, Choice::DrawLibrary);
+    until(&mut e, SeatId(0), WindowLabel::CombatStrike);
+    assert_eq!(e.state.seats[1].library.len(), 4);
+    assert_eq!(e.state.seats[1].ash.len(), 2, "discarded again");
+}
+
 // Unwholesome Bond: "+1 stealth action. [san] This vampire gains X+1 blood,
 // where X is the number of ready, unlocked Blood Brothers of the same
 // circle as the acting vampire. [SAN] Add 1 blood from the blood bank to

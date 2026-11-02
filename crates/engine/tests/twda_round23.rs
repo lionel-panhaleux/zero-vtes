@@ -1600,6 +1600,28 @@ fn nar_sheptha_hand_size_in_a_queued_combat() {
     assert_eq!(e.state.hand_size(SeatId(0)), 9);
 }
 
+/// Nar-Sheptha's +2 hand size draws as the combat begins, at the first
+/// strike, not at the next card replaced; the discard comes as it ends
+/// (advanced rules §6.8.1).
+#[test]
+fn nar_sheptha_draws_up_at_once() {
+    let mut e = game(2);
+    let a = e.add_minion(SeatId(0), clan("Ventrue", 0), 6, false);
+    e.add_minion(SeatId(0), clan("Ventrue", 1), 4, false);
+    let b = e.add_minion(SeatId(1), clan("Brujah", 0), 6, false);
+    e.add_minion(SeatId(1), clan("Brujah", 1), 4, false);
+    in_play_with_layers(&mut e, 0, "Nar-Sheptha", Some(a));
+    hand(&mut e, 0, &["Majesty"; 7]);
+    e.state.seats[0].library = vec![find_library("Majesty"); 5].into();
+    pick(&mut e, bleed(a));
+    pick_when(&mut e, block(b));
+    until(&mut e, SeatId(0), WindowLabel::CombatStrike);
+    assert_eq!(e.state.hand_size(SeatId(0)), 9);
+    assert_eq!(e.state.seats[0].hand.len(), 9);
+    until(&mut e, SeatId(0), WindowLabel::MinionPhase);
+    assert_eq!(e.state.seats[0].hand.len(), 7, "discarded as it ends");
+}
+
 /// FBI Special Affairs Division: an ally made the acting minion by
 /// Nar-Sheptha, burned in combat, triggers nothing (ANK 20180913-2).
 // Rulings: [ANK 20180913-2].

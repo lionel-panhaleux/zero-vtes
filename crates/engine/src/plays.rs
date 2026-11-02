@@ -207,6 +207,20 @@ impl Engine {
         }
     }
 
+    /// `n` cards drawn for a hand size risen (`settle_hand_rises`).
+    pub(crate) fn draw_rise(&mut self, s: SeatId, n: usize) {
+        if self.draws_interrupt(s) {
+            self.interrupts.push(Interrupt::DrawRise {
+                seat: s,
+                left: n as u8,
+            });
+            return;
+        }
+        for _ in 0..n {
+            self.draw_top(s);
+        }
+    }
+
     /// Replace `n` cards that left `s`'s hand, `except` this card's own
     /// rider (spec §6.8.3; rules-qa 8.3, 9.4; ANK 20200905).
     pub(crate) fn replace(&mut self, s: SeatId, n: usize, except: Option<CardId>) {

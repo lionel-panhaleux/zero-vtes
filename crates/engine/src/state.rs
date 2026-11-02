@@ -1379,6 +1379,9 @@ pub struct Seat {
     /// "Do not replace as long as this card is in play" (The Uncoiling):
     /// replaced as it leaves play, even burned (LSJ 20080805).
     pub held_in_play: Vec<CardId>,
+    /// The hand size last settled (`Engine::settle_hand_rises`), `None`
+    /// before the first read: a memory of a live read, not hashed.
+    pub settled_hand_size: crate::copies::Untracked<Option<usize>>,
     /// An event card was put in play this discard phase (rulebook: no more
     /// than one per phase).
     pub event_played: bool,

@@ -111,7 +111,7 @@ pub fn purpose(i: &Interrupt) -> Purpose {
         I::LockOrDiscard { .. } => Purpose::LockOrDiscard,
         I::BloodOrBurned { .. } => Purpose::BloodOrBurned,
         I::Replacement { .. } => Purpose::Replacement,
-        I::DrawUp { .. } => Purpose::DrawUp,
+        I::DrawUp { .. } | I::DrawRise { .. } => Purpose::DrawUp,
         I::Draws { .. } => Purpose::Draws,
         I::Bottom { .. } => Purpose::Bottom,
         I::StoreSearch { .. } => Purpose::StoreSearch,

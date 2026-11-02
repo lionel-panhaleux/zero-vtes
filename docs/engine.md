@@ -480,17 +480,21 @@ sources to the engine's conventions.
 `game.rs`, `draws.rs`.
 
 - `Engine::run`: settle interrupts and a deferred oust, draw up, drain
-  excess blood (`drain_all_excess`), release hostages and torture, then
-  request; single-option requests auto-apply. `Engine::elided_passes`,
-  kept for the record reader only (`None` otherwise), notes each lone
-  Pass so (its seat and window): a record's engine that offered the seat
-  more there asked it, and its Pass is read past.
+  excess blood (`drain_all_excess`), release hostages and torture, settle
+  a hand size risen, then request; single-option requests auto-apply.
+  `Engine::elided_passes`, kept for the record reader only (`None`
+  otherwise), notes each lone Pass so (its seat and window): a record's
+  engine that offered the seat more there asked it, and its Pass is read
+  past.
 - Hand size is settled live both ways (rulebook "Drawing Cards": at once):
   discard-down whenever `hand_excess` > 0; draw-up (`settle_draw_up`)
   whenever a hand is below its size with a library to draw from, between
   plays only (no interrupt, ousting, action, combat or referendum; a phase
-  flow), so a card played but not yet replaced is never drawn for early.
-  `GameState::hand_load` counts the hand, `held` and `held_in_play`.
+  flow), so a card played but not yet replaced is never drawn for early;
+  a hand size risen draws at once, in an action or a combat too, by the
+  rise alone (`settle_hand_rises`, spec §6.8.1: Nar-Sheptha, Raptor's
+  opponent as a combat ends). `GameState::hand_load` counts the hand,
+  `held` and `held_in_play`.
 - A choice owed by a specific player in the middle of a resolution is an
   `Interrupt` (`Engine.interrupts`), served in order before any other decision:
   discard-down, draw alternatives, replacement treatment, entry effects
@@ -1585,10 +1589,10 @@ sources to the engine's conventions.
   itself ("a card other than this card"), then the hand drawn up; an empty
   library replaces nothing (and nothing burns instead, rules-qa 8.3). Visit
   from the Capuchin burns a counter instead of drawing, the hand size
-  shrinking with it. A hand-size increase only draws up
-  (`draw_up`). The Meddling of Semsith holds replacements made during a
-  minion phase until it ends (`Release::MinionPhaseEnd`), or until it leaves
-  play (`release_unmeddled`, rules-qa 88.8).
+  shrinking with it. A hand-size increase is no replacement: it draws by
+  `settle_hand_rises`. The Meddling of Semsith holds replacements made
+  during a minion phase until it ends (`Release::MinionPhaseEnd`), or until
+  it leaves play (`release_unmeddled`, rules-qa 88.8).
 - Draw alternatives (`Hook::WouldDraw`): a choice per card drawn (rules-qa 9.4);
   beside Visit from the Capuchin a replacement is the Capuchin's counter or a
   stored card.

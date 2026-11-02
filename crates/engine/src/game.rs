@@ -964,6 +964,9 @@ impl Engine {
             self.caused(capacity, |e| e.state.drain_all_excess());
             self.state.release_hostages();
             self.state.release_torture();
+            if self.interrupts.is_empty() && self.ousting.is_none() && self.settle_hand_rises() {
+                continue;
+            }
             if matches!(self.flow, Flow::GameOver) {
                 // An action the game's end cut short ends with it.
                 self.drop_action();
@@ -1098,6 +1101,34 @@ impl Engine {
             .find(|&s| !st.seats[s.index()].hand.is_empty() && st.hand_excess(s) > 0)
     }
 
+    /// A hand size risen draws at once, in an action or a combat too (spec
+    /// §6.8.1): by the rise alone, a hand short of its size then may be
+    /// short of a card in flight, not drawn for early. A combat left for
+    /// another in one step calls it itself: to this read, the size lowered
+    /// again never rose (Raptor [ANI]; LSJ 20030530). True when the draw was
+    /// queued as a draw choice.
+    pub(crate) fn settle_hand_rises(&mut self) -> bool {
+        if matches!(self.flow, Flow::GameOver) {
+            return false;
+        }
+        let queued = self.interrupts.len();
+        for s in self.state.clockwise_from(self.state.active) {
+            let size = self.state.hand_size(s);
+            let seen = self.state.seats[s.index()]
+                .settled_hand_size
+                .0
+                .replace(size)
+                .unwrap_or(size);
+            let rise = size
+                .saturating_sub(seen)
+                .min(size.saturating_sub(self.state.hand_load(s)));
+            if rise > 0 {
+                self.draw_rise(s, rise);
+            }
+        }
+        self.interrupts.len() > queued
+    }
+
     /// Draw up a hand below its hand size (rulebook "Drawing Cards"),
     /// between plays only: a card not yet replaced is never drawn for early.
     /// True when a draw-up was queued as a draw choice.
@@ -1121,10 +1152,7 @@ impl Engine {
         }
         for s in self.state.clockwise_from(self.state.active) {
             let seat = &self.state.seats[s.index()];
-            if seat.ousted
-                || seat.library.is_empty()
-                || self.state.hand_load(s) >= self.state.hand_size(s)
-            {
+            if seat.library.is_empty() || self.state.hand_load(s) >= self.state.hand_size(s) {
                 continue;
             }
             self.draw_up(s);

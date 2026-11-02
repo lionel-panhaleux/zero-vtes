@@ -8,7 +8,7 @@ use zvtes::decision::{Choice, WindowLabel};
 use zvtes::game::Engine;
 use zvtes::ids::{MinionId, SeatId};
 use zvtes::library::LIBRARY;
-use zvtes::state::{find_card, find_library};
+use zvtes::state::{find_card, find_library, Expiry, TimedStat};
 
 mod common;
 use common::*;
@@ -305,6 +305,33 @@ fn a_card_held_while_in_play_counts_against_the_hand_size() {
         "replaced as it leaves play"
     );
     assert_eq!(e.state.seats[0].library.len(), 4);
+}
+
+// A hand size risen while a played card waits to be replaced (spec §6.8.1)
+// draws the rise and no more: the replacement is the card's, not drawn for
+// early, and no discard down follows it.
+#[test]
+fn a_hand_size_risen_is_not_drawn_for_a_card_in_flight() {
+    let mut e = table();
+    let tap = find_library("Minion Tap");
+    let size = e.state.hand_size(SeatId(0));
+    e.state.seats[0].hand = vec![find_library("Form of Mist"); size - 1].into();
+    e.state.seats[0].hand.push(tap);
+    e.state.seats[0].library = vec![find_library("AK-47"); 5].into();
+    e.state.seats[1].hand.push(find_library("Sudden Reversal"));
+    pick(&mut e, play(size as u8 - 1, MinionId(0)));
+    pick(&mut e, Choice::SetX(1));
+    expect(&mut e, SeatId(1), WindowLabel::CardAsPlayed);
+    e.state.seats[0]
+        .timed
+        .add(TimedStat::HandSize, Expiry::EndOfTurn, 1);
+    request(&mut e);
+    assert_eq!(e.state.seats[0].hand.len(), size, "the rise, at once");
+    pick(&mut e, Choice::Pass);
+    expect(&mut e, SeatId(0), WindowLabel::MinionPhase);
+    assert_eq!(e.state.seats[0].hand.len(), size + 1);
+    assert_eq!(e.state.seats[0].ash, vec![tap], "no discard down");
+    assert_eq!(e.state.seats[0].library.len(), 3);
 }
 
 // A narrator is told how a play finished (`Note::Play`), in order:

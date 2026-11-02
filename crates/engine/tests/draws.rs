@@ -10,7 +10,7 @@ use zvtes::crypt::CRYPT;
 use zvtes::decision::{Choice, WindowLabel};
 use zvtes::game::{Contest, Engine};
 use zvtes::ids::{MinionId, SeatId};
-use zvtes::state::{find_library, CardId, CardInPlay};
+use zvtes::state::{find_library, CardId, CardInPlay, Expiry, TimedStat};
 
 mod common;
 use common::*;
@@ -170,6 +170,75 @@ fn black_market_cache_is_replaced_before_storing_non_unique_equipment() {
         req.options,
         vec![Choice::DrawLibrary, stored(cache, "Kevlar Vest")]
     );
+}
+
+// A hand size risen with a draw alternative in play: one choice a card of
+// the rise, none for the card in flight (spec §6.8.1; rules-qa 9.4).
+#[test]
+fn a_hand_size_risen_offers_the_rise_alone_as_draw_choices() {
+    let (mut e, a, _) = table();
+    let cache = put(&mut e, "Black Market Cache", 0, None);
+    e.state.cards[cache as usize].stored = cards(&["Kevlar Vest"]).into();
+    e.add_minion(SeatId(1), of_clan("Ventrue", 0), 4, false);
+    let mut seven = ["Form of Mist"; 7];
+    seven[6] = "Minion Tap";
+    hand(&mut e, &seven);
+    library(&mut e, &["AK-47"; 5]);
+    e.state.seats[1].hand.push(find_library("Sudden Reversal"));
+    e.at_master_phase();
+    pick(
+        &mut e,
+        Choice::Play {
+            card: 6,
+            mode: 0,
+            actor: None,
+            target: Target::Minion(a),
+        },
+    );
+    pick(&mut e, Choice::SetX(1));
+    expect(&mut e, SeatId(1), WindowLabel::CardAsPlayed);
+    e.state.seats[0]
+        .timed
+        .add(TimedStat::HandSize, Expiry::EndOfTurn, 1);
+    expect(&mut e, SeatId(0), WindowLabel::Draw);
+    pick(&mut e, Choice::DrawLibrary);
+    expect(&mut e, SeatId(1), WindowLabel::CardAsPlayed);
+    assert_eq!(e.state.seats[0].hand.len(), 7);
+}
+
+// Each card of a rise is its own choice while a card remains to draw: a
+// stored card taken leaves the library's for the next (rules-qa 9.4).
+#[test]
+fn a_hand_size_risen_draws_past_a_stored_card_taken() {
+    let (mut e, a, _) = table();
+    let cache = put(&mut e, "Black Market Cache", 0, None);
+    e.state.cards[cache as usize].stored = cards(&["Kevlar Vest"]).into();
+    e.add_minion(SeatId(1), of_clan("Ventrue", 0), 4, false);
+    let mut seven = ["Form of Mist"; 7];
+    seven[6] = "Minion Tap";
+    hand(&mut e, &seven);
+    library(&mut e, &["AK-47"]);
+    e.state.seats[1].hand.push(find_library("Sudden Reversal"));
+    e.at_master_phase();
+    pick(
+        &mut e,
+        Choice::Play {
+            card: 6,
+            mode: 0,
+            actor: None,
+            target: Target::Minion(a),
+        },
+    );
+    pick(&mut e, Choice::SetX(1));
+    expect(&mut e, SeatId(1), WindowLabel::CardAsPlayed);
+    e.state.seats[0]
+        .timed
+        .add(TimedStat::HandSize, Expiry::EndOfTurn, 2);
+    expect(&mut e, SeatId(0), WindowLabel::Draw);
+    pick(&mut e, stored(cache, "Kevlar Vest"));
+    expect(&mut e, SeatId(1), WindowLabel::CardAsPlayed);
+    assert_eq!(e.state.seats[0].library.len(), 0, "the library's too");
+    assert_eq!(e.state.seats[0].hand.len(), 8);
 }
 
 // Black Market Cache: a search finding nothing leaves the location without

@@ -172,6 +172,9 @@ pub enum Interrupt {
     /// Draw up to hand size, each card from the library or a draw
     /// alternative.
     DrawUp { seat: SeatId },
+    /// A hand size risen: `left` cards still to draw, each so. A count, not
+    /// a read of the size: a combat begun meanwhile may lower it again.
+    DrawRise { seat: SeatId, left: u8 },
     /// Heart of Nizchetus: `left` cards still to draw, `drawn` so far; the
     /// same number then goes to the bottom of the library.
     Draws { seat: SeatId, left: u8, drawn: u8 },
@@ -689,6 +692,7 @@ impl Interrupt {
             | Interrupt::BloodOrCamarilla { seat, .. }
             | Interrupt::Replacement { seat, .. }
             | Interrupt::DrawUp { seat }
+            | Interrupt::DrawRise { seat, .. }
             | Interrupt::Redraw { seat, .. }
             | Interrupt::Draws { seat, .. }
             | Interrupt::Bottom { seat, .. }
@@ -875,7 +879,7 @@ impl Engine {
         }
     }
 
-    fn draw_top(&mut self, s: SeatId) {
+    pub(crate) fn draw_top(&mut self, s: SeatId) {
         let seat = &mut self.state.seats[s.index()];
         if let Some((c, copy)) = seat.library.take_top() {
             seat.hand.put(c, copy);
@@ -998,6 +1002,20 @@ impl Engine {
                             self.apply_replacement_rider(id);
                             continue;
                         }
+                    }
+                }
+                Interrupt::DrawRise { left, .. } => {
+                    if left == 0 || empty {
+                        false
+                    } else if choice {
+                        true
+                    } else {
+                        self.draw_top(s);
+                        self.interrupts[0] = Interrupt::DrawRise {
+                            seat: s,
+                            left: left - 1,
+                        };
+                        continue;
                     }
                 }
                 Interrupt::DrawUp { .. } => {
@@ -1720,7 +1738,7 @@ impl Engine {
                 options.extend(self.draw_alternatives(s));
                 (WindowLabel::Draw, options)
             }
-            Interrupt::DrawUp { .. } | Interrupt::Draws { .. } => {
+            Interrupt::DrawUp { .. } | Interrupt::DrawRise { .. } | Interrupt::Draws { .. } => {
                 let mut options = vec![Choice::DrawLibrary];
                 options.extend(self.draw_alternatives(s));
                 (WindowLabel::Draw, options)
@@ -4253,6 +4271,17 @@ impl Engine {
             (Interrupt::DrawUp { .. }, Choice::DrawLibrary) => self.draw_top(s),
             (Interrupt::DrawUp { .. }, Choice::DrawStored { card, stored }) => {
                 self.take_stored(s, card, stored)
+            }
+            (Interrupt::DrawRise { left, .. }, c) => {
+                match c {
+                    Choice::DrawLibrary => self.draw_top(s),
+                    Choice::DrawStored { card, stored } => self.take_stored(s, card, stored),
+                    other => unreachable!("illegal draw choice {other:?}"),
+                }
+                self.interrupts[0] = Interrupt::DrawRise {
+                    seat: s,
+                    left: left - 1,
+                };
             }
             (Interrupt::Draws { left, drawn, .. }, c) => {
                 match c {

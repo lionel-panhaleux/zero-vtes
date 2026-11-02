@@ -1566,6 +1566,7 @@ pub fn about(e: &Engine, req: &DecisionRequest, names: &impl Names) -> Option<Ab
             },
             I::Replacement { .. }
             | I::DrawUp { .. }
+            | I::DrawRise { .. }
             | I::RemoveUncontrolled { .. }
             | I::BecomesAnarch { .. }
             | I::AllyFromAsh { .. }

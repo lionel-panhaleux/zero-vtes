@@ -4266,19 +4266,7 @@ impl Engine {
                 }
                 let (at_resolution, after_resolution, queued, yawp) =
                     (c.at_resolution, c.after_resolution, c.queued, c.yawp);
-                // A hand size this combat lowered comes back between the
-                // combats: drawn up, discarded again as the new one begins
-                // (Raptor [ANI]; LSJ 20030530).
-                let lowered: Vec<SeatId> = (0..2)
-                    .filter(|&i| self.state.combat_hand_penalty(c.sides[1 - i].minion) > 0)
-                    .map(|i| c.sides[i].seat)
-                    .collect();
                 self.state.leave_combat();
-                for s in lowered {
-                    if !self.state.seats[s.index()].ousted {
-                        self.draw_up(s);
-                    }
-                }
                 let next = PsycheNext {
                     pair: [x, y],
                     at_resolution,
@@ -4295,6 +4283,7 @@ impl Engine {
                     self.flow = Flow::Action;
                     return;
                 }
+                self.settle_hand_rises();
                 self.begin_psyche_combat(next);
                 return;
             }
@@ -4310,6 +4299,7 @@ impl Engine {
             if ready(m) && ready(opposing) && !self.state.minions[m.index()].locked {
                 let at_resolution = c.at_resolution;
                 self.state.leave_combat();
+                self.settle_hand_rises();
                 self.state.minions[m.index()].locked = true;
                 let (x, y) = if i == 0 { (m, opposing) } else { (opposing, m) };
                 self.begin_combat(x, y, at_resolution);
@@ -4493,17 +4483,6 @@ impl Engine {
                 }
             }
         }
-        // A hand size the combat lowered comes back: that Methuselah draws
-        // up (Raptor [ANI]; LSJ 20030530).
-        let lowered: Vec<SeatId> = ended
-            .iter()
-            .flat_map(|c| {
-                (0..2).filter_map(|i| {
-                    (self.state.combat_hand_penalty(c.sides[1 - i].minion) > 0)
-                        .then_some(c.sides[i].seat)
-                })
-            })
-            .collect();
         self.state.leave_combat();
         if let Some((m, clan, n)) = ended.as_ref().and_then(|c| c.won_uncontrolled_blood) {
             let c = ended.as_ref().expect("combat");
@@ -4518,11 +4497,6 @@ impl Engine {
                         may: false,
                         cause: Cause::Effect(Source::Minion(m)),
                     });
-            }
-        }
-        for s in lowered {
-            if !self.state.seats[s.index()].ousted {
-                self.draw_up(s);
             }
         }
         let yawp = ended.as_ref().and_then(|c| {
