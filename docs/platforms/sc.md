@@ -195,10 +195,11 @@ becomes of it is the owner's word.
   `joined` (seats, the view) and the pending decision, and the table is
   built from that view as from any other (the projection creates the
   cards it has not seen). The seat is forgotten when the game ends, when
-  the user leaves it (`close`) and when the server answers 404 (an
-  `EngineGone` alert on the menu, as for an `over` refusal); a server out
-  of reach, or a socket dropped before `joined`, keeps it, so a later
-  refresh tries again.
+  the user leaves it (`close`, which sends `leave`: a table left stays
+  live until the idle timeout otherwise, and holds a deploy) and when the
+  server answers 404 (an `EngineGone` alert on the menu, as for an `over`
+  refusal); a server out of reach, or a socket dropped before `joined`,
+  keeps it, so a later refresh tries again.
 - A duplicated tab copies `sessionStorage`, seat included: its join
   takes the seat (protocol 1.4.0) and the older tab gets `seat_taken`,
   says the game plays in another tab (`EngineTaken`) and never joins
