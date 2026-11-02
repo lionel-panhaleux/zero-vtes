@@ -116,6 +116,15 @@ class Config:
     # bots are too bad to matter").
     bots_every: int = 50
     eval_games: int = 256
+    # Games an evaluation plays from the held-out human wins
+    # (`Trainer.evaluate_held`); 0: none.
+    held_games: int = 0
+    # The frozen seats' temperature, and in evaluation the learner's too:
+    # the served bot's plays what humans meet (1: as trained). The learner
+    # still samples at 1 in training: its log-probabilities are PPO's.
+    served_temperature: float = 1.0
+    # A checkpoint kept per evaluation (`it-N.pt`), beside `best.pt`.
+    keep_evals: bool = False
     budget: int = 20_000
     device: str = "auto"
     out: str = "runs/ppo"
@@ -212,6 +221,10 @@ class Config:
     # and crypts shuffled again.
     starts: str = ""
     start_tables: float = 0.0
+    # The starts narrowed to the humans' wins, the learner in the winner's
+    # seat (owner, 2026-11-02, p17: where playing like the human pays
+    # against these bots, which self-play's tables never show).
+    start_winner: bool = False
     # Imitation (owner, 2026-10-10, the p9 plan; AlphaStar's recipe: RL
     # leads, the human term guides): each PPO minibatch adds `bc_coef` ×
     # the cross-entropy of the policy (its own logits, no nudge) on
@@ -469,9 +482,10 @@ def eval_tables(opponents, games):
 
 
 @torch.no_grad()
-def act(nets, obs, device, rng):
-    """Sample every row's option from its network (`obs["agent"]` → `nets`):
-    actions, their log-probabilities and the values."""
+def act(nets, obs, device, rng, temperature=None):
+    """Sample every row's option from its network (`obs["agent"]` → `nets`),
+    at its `temperature` ({agent: t}, 1 for one not named; after the nudges,
+    as `NetAgent`): actions, their log-probabilities and the values."""
     b = len(obs["tok_n"])
     actions, logp, values = np.zeros(b, np.int64), np.zeros(b), np.zeros(b, np.float32)
     for agent in np.unique(obs["agent"]):
@@ -481,6 +495,8 @@ def act(nets, obs, device, rng):
         logits, v = logits[: len(idx), : obs["opt_ids"].shape[1]], v[: len(idx)]
         # The nudges: part of the distribution sampled and trained.
         logits = logits.float() + torch.from_numpy(obs["opt_bias"][idx]).to(logits.device)
+        if temperature:
+            logits = logits / temperature.get(int(agent), 1.0)
         probs = torch.softmax(logits.float(), -1).cpu().numpy().astype(np.float64)
         probs /= probs.sum(1, keepdims=True)
         a = np.array([rng.choice(len(p), p=p) for p in probs])
@@ -585,6 +601,20 @@ def players_game(record):
     spec = record["spec"]
     human = any(s["player"]["type"] == "human" for s in spec["seats"])
     return reason in PLAYED_OUT and human and spec.get("client") not in TEST_CLIENTS
+
+
+def start_won(ep):
+    """Whether the learner won a finished game begun from a start."""
+    return "start" in ep and bool(scores(ep)[1][ep["seats"].index("net:0")])
+
+
+def human_winner(record):
+    """The seat of the human who won a players' game, else None."""
+    winner = (record.get("result") or {}).get("winner")
+    if winner is None or not players_game(record):
+        return None
+    return winner if record["spec"]["seats"][winner]["player"]["type"] == "human" else None
+
 
 # The bias of an option the human was not shown (their settings hid it):
 # no probability in the imitation target.
@@ -839,13 +869,28 @@ class Trainer:
         # Players' games only (`players_game`): a harvest also holds
         # abandoned, unfinished and test clients' games, kept for its
         # report; those and the held-out games left out, and named.
-        self.starts, left_out = [], []
-        held = [g.strip() for g in cfg.bc_held_games.split(",") if g.strip()]
+        self.starts, self.start_winners, left_out = [], [], []
+        # The held-out human wins: ((path, text, seats), the winner's seat).
+        self.held_starts = []
+        held_parts = [g.strip() for g in cfg.bc_held_games.split(",") if g.strip()]
         for r in load_replays(cfg.starts):
-            usable = players_game(json.loads(r[1])) and not any(part in r[0].name for part in held)
-            (self.starts if usable else left_out).append(r)
+            record = json.loads(r[1])
+            winner = human_winner(record)
+            if not players_game(record) or (cfg.start_winner and winner is None):
+                left_out.append(r)
+            elif any(part in r[0].name for part in held_parts):
+                left_out.append(r)
+                if winner is not None:
+                    self.held_starts.append((r, winner))
+            else:
+                self.starts.append(r)
+                self.start_winners.append(winner)
         if left_out:
             print(json.dumps({"starts_left_out": [p.name for p, _, _ in left_out]}), flush=True)
+        if cfg.held_games and not (cfg.opponents and self.held_starts):
+            raise ValueError("--held-games needs --opponents and held-out human wins among --starts")
+        if self.held_starts:
+            print(json.dumps({"held_starts": [r[0].name for r, _ in self.held_starts]}), flush=True)
         # Each start's seats' pool decks (None: a human's own list).
         self.start_decks = [
             [deck_index(s) for s in json.loads(text)["spec"]["seats"]] for _, text, _ in self.starts
@@ -857,7 +902,7 @@ class Trainer:
                 load_replays(cfg.bc),
                 cfg.obs,
                 cfg.bc_holdout,
-                held,
+                held_parts,
             )
             if not self.bc:
                 raise ValueError("--bc-coef needs --bc replays with human choices")
@@ -909,13 +954,24 @@ class Trainer:
             return {0: self.model}
         return self.league.nets(self.model, self.exploiter.model if self.exploiter else None)
 
+    def temperatures(self, evaluating):
+        """`act`'s temperatures (`Config.served_temperature`): the frozen
+        seats', and in evaluation every network's."""
+        t = self.cfg.served_temperature
+        if t == 1:
+            return None
+        trained = {learner.agent for learner in self.learners()}
+        return {a: t for a in self.nets() if evaluating or a not in trained}
+
     def spec(self):
         start, n, at = None, None, None
         if self.starts and self.rng.random() < self.cfg.start_tables:
             start = int(self.rng.integers(len(self.starts)))
             n = self.starts[start][2]
             weak = [s for s, d in enumerate(self.start_decks[start]) if d in self.weak]
-            if weak:
+            if self.cfg.start_winner:
+                at = self.start_winners[start]
+            elif weak:
                 at = int(self.rng.choice(weak))
         if self.league:
             spec = self.league.spec(n, at)
@@ -932,13 +988,13 @@ class Trainer:
     def rollout(self):
         """Play `steps` pool steps; each learner's transitions with their
         advantages and returns, and episode statistics."""
-        stats = {"episodes": 0, "truncated": 0, "turns": 0, "starts": 0, "panics": 0}
+        stats = {"episodes": 0, "truncated": 0, "turns": 0, "starts": 0, "start_won": 0, "panics": 0}
         by_agent = {lr.agent: lr for lr in self.learners()}
         closed = {a: [] for a in by_agent}
         self.pool.queue([self.spec() for _ in range(self.cfg.games)])
         for _ in range(self.cfg.steps):
             obs = self.pool.observe()
-            actions, logp, values = act(self.nets(), obs, self.device, self.rng)
+            actions, logp, values = act(self.nets(), obs, self.device, self.rng, self.temperatures(False))
             if self.critic is not None:
                 values = self.critic_values(obs, values)
             phi = self.potentials(obs)
@@ -961,6 +1017,7 @@ class Trainer:
                 stats["truncated"] += ep["truncated"]
                 stats["turns"] += ep["turns"]
                 stats["starts"] += "start" in ep
+                stats["start_won"] += start_won(ep)
                 if self.league:
                     self.league.record(ep, scores(ep)[0])
                 r = rewards(ep, self.cfg.gw_weight)
@@ -1166,12 +1223,34 @@ class Trainer:
         order of the opponents around it, in turn (a fixed order would, at
         4 seats, always sit the same opponent across the table)."""
         tables = [{"seats": seats} for seats in eval_tables(opponents, games)]
-        # Every game at once, none after (`refill`): the network's batches
-        # as wide as they can be, no throwaway game in them.
-        pool = zvtes_py.GamePool(
-            games,
+        return self.played(self.eval_pool(tables, 10_000 + 1_000 * seed), games, seed)
+
+    def held_tables(self, games):
+        """`games` tables from the held-out human wins, taken in turn, the
+        learner in the winner's seat."""
+        tables = []
+        for g in range(games):
+            i = g % len(self.held_starts)
+            (_, _, n), winner = self.held_starts[i]
+            tables.append({**self.league.spec(n, winner), "start": i})
+        return tables
+
+    def evaluate_held(self, games, seed=0):
+        """The learner's mean VPs and game-win rate from the held-out human
+        wins (`held_tables`), each game from a decision of its last four
+        fifths, the libraries and crypts shuffled (`GamePool`'s starts):
+        out of this run's imitation and starts (`Config.bc_held_games`)."""
+        replays = [r[1] for r, _ in self.held_starts]
+        return self.played(self.eval_pool(self.held_tables(games), 20_000 + 1_000 * seed, replays), games, seed)
+
+    def eval_pool(self, tables, seed, replays=()):
+        """An evaluation's pool over `tables`. Every game at once, none
+        after (`refill`): the network's batches as wide as they can be, no
+        throwaway game in them."""
+        return zvtes_py.GamePool(
+            len(tables),
             tables[0]["seats"],
-            seed=10_000 + 1_000 * seed + self.cfg.seed,
+            seed=seed + self.cfg.seed,
             decks=self.decks,
             budget=self.cfg.budget,
             tables=tables,
@@ -1180,16 +1259,23 @@ class Trainer:
             net_obs=self.net_obs,
             politics=self.cfg.politics,
             chores=self.cfg.chores,
+            replays=list(replays),
             habits=self.cfg.habits,
             refill=False,
         )
+
+    def played(self, pool, games, seed):
+        """`games` queued games of an evaluation pool played out: the
+        learner's mean VPs and game-win rate, the games truncated, and
+        from a start its wins and games by start."""
         pool.nudges = self.pool.nudges
         rng = np.random.default_rng(seed)
         vps, wins, done, truncated = [], 0, 0, 0
+        by_start = {}
         # The queued tables are games 0..games-1; later ones (the default
         # table, once the queue runs out) are not counted.
         while done < games:
-            actions, _, _ = act(self.nets(), pool.observe(), self.device, rng)
+            actions, _, _ = act(self.nets(), pool.observe(), self.device, rng, self.temperatures(True))
             for ep in pool.act(actions.tolist()):
                 if ep["game"] >= games:
                     continue
@@ -1200,7 +1286,12 @@ class Trainer:
                     if kind == "net:0":
                         vps.append(float(v[s]))
                         wins += bool(w[s])
-        return {"vps": round(float(np.mean(vps)), 3), "gw": round(wins / games, 3), "truncated": truncated}
+                        if "start" in ep:
+                            tally = by_start.setdefault(ep["start"][0], [0, 0])
+                            tally[0] += bool(w[s])
+                            tally[1] += 1
+        out = {"vps": round(float(np.mean(vps)), 3), "gw": round(wins / games, 3), "truncated": truncated}
+        return out | ({"by_start": {str(k): by_start[k] for k in sorted(by_start)}} if by_start else {})
 
     def checkpoint(self, it):
         saved = {
@@ -1316,6 +1407,8 @@ class Trainer:
                         punish = [[k + HABITS for k in t] for t in sel]
                         row["vs_habits4"] = self.evaluate(punish[0], cfg.eval_games)
                         row["vs_habits5"] = self.evaluate(punish[1], cfg.eval_games)
+                    if cfg.held_games:
+                        row["vs_held"] = self.evaluate_held(cfg.held_games)
                     row["pfsp"] = {
                         label(k, self.league.frozen_labels): round(v, 2)
                         for k, v in sorted(self.league.p.items())
@@ -1352,6 +1445,8 @@ class Trainer:
                 saved = self.checkpoint(it)
                 if better:
                     torch.save(saved, self.out / "best.pt")
+                if cfg.keep_evals:
+                    torch.save(saved, self.out / f"it-{it}.pt")
             self.release()
             print(json.dumps(row), flush=True)
             log.write(json.dumps(row) + "\n")

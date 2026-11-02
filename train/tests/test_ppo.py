@@ -13,7 +13,10 @@ import zvtes_py
 
 from train.league import EXP, EXPLOITER, FROZEN, League
 from train.model import remap_vocab
-from train.ppo import BIAS, CTX, HIDDEN, TEST_CLIENTS, Config, Trainer, collate, collate_bias, forward, deck_index, end, eval_tables, games_weight, imitation, load_replays, made, sampling, step, rewards
+from train.ppo import (
+    BIAS, CTX, FIELDS, HIDDEN, TEST_CLIENTS, Config, Trainer, act, batch_of, collate, collate_bias, deck_index, end,
+    eval_tables, forward, games_weight, imitation, load_replays, made, rewards, sampling, shaped, start_won, step,
+)
 
 
 def test_one_iteration(tmp_path):
@@ -240,6 +243,128 @@ def test_habit_seats_and_starts(tmp_path):
     assert set(row["habits"]) == {"rescue", "burn", "diablerie", "keep", "reaction"}
     assert "starts" in row
     assert set(row["pfsp"]) <= {"old@1", "old@1+habits"}
+
+
+def test_starts_from_the_human_wins_in_the_winners_seat(tmp_path):
+    """`--start-winner`: only the humans' wins start tables, the learner in
+    the winner's seat; `--bc-held-games` keeps games out of the starts and
+    `--held-games` evaluates from them, game by game."""
+    a, b, c, d = (json.loads(open(f"data/records/zero-vtes-replay-{t}.json").read()) for t in (
+        "2026-10-04T12-09-51-567Z", "2026-10-04T19-47-18-904Z", "2026-10-05T06-24-53-391Z",
+        "2026-10-08T20-32-01-306Z"))
+    human = [i for i, s in enumerate(b["spec"]["seats"]) if s["player"]["type"] == "human"][0]
+    bot = (human + 1) % len(b["spec"]["seats"])
+    harvest = tmp_path / "harvest"
+    harvest.mkdir()
+    lost = {**b, "result": {**b["result"], "winner": bot}}
+    for name, game in (("won", a), ("lost", lost), ("held-a", c), ("held-b", d)):
+        (harvest / f"{name}.json").write_text(json.dumps(game))
+    small = dict(games=8, steps=160, iterations=1, epochs=1, minibatch=64, d=32, layers=1,
+                 eval_every=1, eval_games=4, device="cpu", best_seeds=1)
+    Trainer(Config(**{**small, "steps": 16}, out=str(tmp_path / "old"))).run()
+    run = dict(league=True, opponents=str(tmp_path / "old" / "model.pt"), starts=str(harvest),
+               start_tables=1.0, bc_held_games="held")
+    plain = Trainer(Config(**small, out=str(tmp_path / "plain"), **run))
+    assert [p.name for p, _, _ in plain.starts] == ["lost.json", "won.json"], "a held-out game is no start"
+    cfg = Config(**small, out=str(tmp_path / "new"), **run, start_winner=True, held_games=4, keep_evals=True)
+    trainer = Trainer(cfg)
+    assert [p.name for p, _, _ in trainer.starts] == ["won.json"]
+    winners = [c["result"]["winner"], d["result"]["winner"]]
+    assert [(r[0].name, w) for r, w in trainer.held_starts] == list(zip(["held-a.json", "held-b.json"], winners))
+    for spec in (trainer.spec() for _ in range(8)):
+        assert spec["start"] == 0 and spec["seats"][a["result"]["winner"]] == "net:0"
+        assert spec["seats"].count("net:0") == 1
+    for g, table in enumerate(trainer.held_tables(4)):
+        assert table["start"] == g % 2 and table["seats"][winners[g % 2]] == "net:0"
+        assert table["seats"].count("net:0") == 1
+    trainer.run()
+    row = json.loads(open(tmp_path / "new" / "metrics.jsonl").read().splitlines()[-1])
+    assert row["vs_held"].keys() == {"vps", "gw", "truncated", "by_start"}
+    assert {k: v[1] for k, v in row["vs_held"]["by_start"].items()} == {"0": 2, "1": 2}
+    assert 0 < row["start_won"] <= row["starts"]
+    assert (tmp_path / "new" / "it-1.pt").exists()
+    for bad in (dict(league=True, opponents=run["opponents"]), dict(starts=str(harvest), bc_held_games="held")):
+        with pytest.raises(ValueError):
+            Trainer(Config(**small, out=str(tmp_path / "bad"), held_games=4, **bad))
+
+
+def test_start_won_is_the_learners_win():
+    ep = {"start": (0, 10), "seats": [f"net:{FROZEN}", "net:0", f"net:{FROZEN}", f"net:{FROZEN}"], "half_vps": [0, 6, 2, 0]}
+    assert start_won(ep)
+    assert not start_won({**ep, "half_vps": [6, 0, 2, 0]}), "another seat's"
+    assert not start_won({k: v for k, v in ep.items() if k != "start"}), "a game from the deal"
+
+
+def served_trainers(tmp_path, t, steps=16):
+    """Two trainers with one pool and different action seeds, the frozen
+    seats at temperature `t`."""
+    small = dict(games=8, steps=steps, iterations=1, epochs=1, minibatch=64, d=32, layers=1,
+                 eval_every=1, eval_games=4, device="cpu", best_seeds=1, budget=3000)
+    Trainer(Config(**small, out=str(tmp_path / "old"))).run()
+    out = []
+    for k in (1, 2):
+        trainer = Trainer(Config(**small, out=str(tmp_path / f"new{t}{k}"), league=True, served_temperature=t,
+                                 opponents=str(tmp_path / "old" / "model.pt")))
+        trainer.rng = np.random.default_rng(k)
+        out.append(trainer)
+    return out
+
+
+def test_the_served_temperature_in_rollouts(tmp_path):
+    """Frozen seats sample at `--served-temperature` in the rollout, the
+    learner at 1. The learner's choices made certain, near zero the same games
+    stand after a few steps whatever the action seed; at 1 the frozen seats'
+    sampling parts them, and near zero the learner's own sampling does.
+    (Later on, two options scored alike keep sampling at any temperature.)"""
+    def after(t, certain=True):
+        out = []
+        for trainer in served_trainers(tmp_path, t, steps=8):
+            if certain:
+                with torch.no_grad():
+                    trainer.model.score[-1].weight.mul_(1e4)
+            trainer.rollout()
+            out.append(trainer.pool.observe()["tok_ids"])
+        return out
+
+    assert np.array_equal(*after(1e-3))
+    assert not np.array_equal(*after(1.0))
+    assert not np.array_equal(*after(1e-3, certain=False))
+
+
+def test_the_served_temperature_in_evaluation(tmp_path):
+    """Every seat, the learner too, plays at `--served-temperature` in
+    evaluation: near zero the same tables end alike whatever the action seed."""
+    def results(t):
+        trainer = served_trainers(tmp_path, t)[0]
+        tables = [{"seats": seats} for seats in eval_tables([f"net:{FROZEN}"] * 3, 8)]
+        return [json.dumps(trainer.played(trainer.eval_pool(tables, 0), 8, seed)) for seed in (1, 2, 3)]
+
+    assert len(set(results(1e-3))) == 1
+    assert len(set(results(1.0))) > 1
+
+
+def test_the_served_temperature(tmp_path):
+    """`act` divides after the nudges; `temperatures` names the frozen seats
+    in training and every seat in evaluation."""
+    small = dict(games=8, steps=16, iterations=1, epochs=1, minibatch=64, d=32, layers=1,
+                 eval_every=1, eval_games=4, device="cpu", best_seeds=1)
+    Trainer(Config(**small, out=str(tmp_path / "old"))).run()
+    trainer = Trainer(Config(**small, out=str(tmp_path / "new"), league=True, served_temperature=0.5,
+                             opponents=str(tmp_path / "old" / "model.pt")))
+    assert trainer.temperatures(False) == {FROZEN: 0.5}
+    assert trainer.temperatures(True) == {0: 0.5, FROZEN: 0.5}
+    assert Trainer(Config(**small, out=str(tmp_path / "t1"))).temperatures(True) is None
+    model, obs = trainer.model, trainer.pool.observe()
+    obs["agent"] = np.zeros_like(obs["agent"])
+    batch = batch_of(shaped({k: obs[k] for k in (*FIELDS, "tok_n", "opt_n", "deck_n", "ctx")}, np.arange(len(obs["tok_n"]))),
+                     trainer.device)
+    with torch.no_grad():
+        logits = forward(model, batch)[0][: len(obs["tok_n"]), : obs["opt_ids"].shape[1]].float()
+    logits = logits + torch.from_numpy(obs["opt_bias"])
+    best, lp_best, _ = act({0: model}, obs, trainer.device, np.random.default_rng(1), {0: 1e-4})
+    assert (best == logits.argmax(1).numpy()).all() and np.allclose(lp_best, 0, atol=1e-6)
+    _, lp, _ = act({0: model}, obs, trainer.device, np.random.default_rng(1))
+    assert (lp < -1e-3).any(), "at 1 the same options are sampled from their distribution"
 
 
 def test_a_held_out_game_starts_no_table(tmp_path):

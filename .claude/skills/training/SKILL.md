@@ -203,12 +203,17 @@ runs" (every run's command, numbers and lessons), `docs/boards/training.md`.
   the choices of a winner on a `--weak-decks` deck W times as often (the
   first line logs them, `bc_weak`); `--bc-games-weight part=W,…` those of
   named games (parts of file names; the first part a name holds) W times,
-  the deck's and the game's weights multiplied (`bc_games`): the owner's games,
-  `zero-vtes-replay` (the 24 converted fork games, all the owner's) and a
-  harvested one by its id — no record names its player. Starts from recorded
-  positions (`--starts`). Weakness mining: a recurring bad choice becomes a
-  `waste` counter first, a nudge only if it persists and the owner agrees
-  (the owner prefers emergent fixes).
+  the deck's and the game's weights multiplied (`bc_games`): the owner's
+  games, `zero-vtes-replay` (the 24 converted fork games, all the owner's)
+  and a harvested one by its id — no record names its player. Starts from
+  recorded positions (`--starts`); `--start-winner` narrows them to the
+  humans' wins, the learner in the winner's seat; `--held-games N` evaluates
+  from the held-out wins (`vs_held`, by game); `start_won` logs the starts'
+  wins; `--served-temperature` sets the frozen seats, and every seat in
+  evaluation, at the served bot's; `--keep-evals` keeps a checkpoint per
+  evaluation. Weakness mining: a recurring bad choice becomes a `waste`
+  counter first, a nudge only if it persists and the owner agrees (the owner
+  prefers emergent fixes).
 
 ## Rules
 
