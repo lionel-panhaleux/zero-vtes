@@ -6,6 +6,31 @@ server runs.
 `python3 scripts/schema_compat.py` lists what a schema change adds or
 removes; its `--check` fails a removal without a major version.
 
+## 2.20.0
+
+Round 24's cards (rules-qa Batch 107); ids added, none removed:
+
+- `Purpose` `burn_blood_to_anarch` (Jack Drake): the vampire just put in
+  play may burn a blood to become Anarch (`choose_minion`), or pass;
+  `swap_equip_from_prey` (Topaz): an equipment of the prey's hand instead of
+  the one being equipped (`find_card`), or pass to equip it; `may_join_combat`
+  (Marie-Pierre): `minion` locks to enter combat with the opposing minion
+  (`choose_minion`), or pass; `may_new_combat` (Haven Hunting): the card
+  burned for another combat (`resolve_rider`), or pass; `gain_victim_discipline`
+  (Cloak of Blood): `choose_discipline`, or pass; `burn_or_fail` (Detect
+  Authority, Drink the Blood of Ahriman): `minion` burns blood
+  (`burn_blood_to_avoid`) or, passing, the action fails or `card` burns;
+  `prey_slot_half` (The World's a Canvas): `slot`; `choose_card_circle`
+  (Achilles' Heel): `choose_circle`; `award_trophy` (the Red List rule):
+  `find_card`, `resolve_rider`, or pass; `take_chosen` (Trophy: Chosen):
+  `resolve_rider`, or pass to burn it; `move_clot` (Blade Clot):
+  `resolve_rider`, or pass; `clot_fate`: `minion` burns (`choose_minion`) or
+  goes to torpor (pass).
+- `minion_of` details `blind_spot`, `lock_other_anarch`, `burn_ally_up_to`
+  (`n` the bleed), `heal_host` and `move_onto_any`.
+- `may_draw_extra`: `about` names what brings the draw, a card (Learjet) or a
+  minion (Ira Rivers, Duality), and may be asked twice for one card.
+
 ## 2.19.0
 
 Round 23's cards (rules-qa Batch 106); ids added, none removed:

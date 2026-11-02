@@ -1,6 +1,6 @@
-/* zvtes protocol 2.19.0 (docs/protocol.md): generated from
+/* zvtes protocol 2.20.0 (docs/protocol.md): generated from
  * crates/api/schema.json by scripts/gen_ts.py, do not edit. */
-export const PROTOCOL_VERSION = '2.19.0'
+export const PROTOCOL_VERSION = '2.20.0'
 
 /**
  * A command as sent: an optional client id, echoed by an `error` it
@@ -1304,6 +1304,18 @@ export type Purpose =
     | 'lock_for_pool'
     | 'steal_for_corruption'
     | 'make_anarch'
+    | 'burn_blood_to_anarch'
+    | 'gain_victim_discipline'
+    | 'may_join_combat'
+    | 'move_clot'
+    | 'clot_fate'
+    | 'award_trophy'
+    | 'take_chosen'
+    | 'choose_card_circle'
+    | 'burn_or_fail'
+    | 'prey_slot_half'
+    | 'may_new_combat'
+    | 'swap_equip_from_prey'
     | 'ashur_picks'
     | 'becomes_anarch'
     | 'anarch_convert'

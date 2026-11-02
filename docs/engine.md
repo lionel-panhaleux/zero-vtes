@@ -147,14 +147,14 @@ ash heap (after combat, on a hit): an effect-only stand-in
 (`CardInPlay::effect_only`; rules-qa 21.1, 47.1). `enter_play` is the
 primitive under both.
 
-**Held and Release.** `state::Release` names the moments held replacements
-are drawn; `Held` is `[u8; Release::COUNT]` indexed by it (`Seat::held`,
-and `Seat::learjet_held` for Learjet's extra draws). `Until` is the
-definitions' vocabulary (`CardDef::delayed_replacement`); `Until::release`
-maps it to a `Release`, `LeavesPlay` to none (`Seat::held_in_play`: a list
-of cards). `Weakens`, `MasterPhase`, `MinionPhaseEnd` are engine delays.
-Every release goes through `Engine::replace_held` (`release_held` loops it
-over the seats).
+**Held and Release.** `state::Release` names the moments held replacements are
+drawn; `Held` is `[u8; Release::COUNT]` indexed by it (`Seat::held`;
+`Seat::held_draws`: the extra draws waiting, by source and card). `Until` is
+the definitions' vocabulary (`CardDef::delayed_replacement`); `Until::release`
+maps it to a `Release`, `LeavesPlay` to none (`Seat::held_in_play`: a list of
+cards). `Weakens`, `MasterPhase`, `MinionPhaseEnd` are engine delays. Every
+release goes through `Engine::replace_held` (`release_held` loops it over the
+seats).
 
 **Timed seat modifiers.** `Seat::timed` (`state::Timed`): an amount per
 `TimedStat` (`HandSize`, `HuntStealth`, `ExtraDraws`) until each `Expiry`
@@ -849,6 +849,16 @@ sources to the engine's conventions.
   read by Mask of a Thousand Faces. `burn_blocking_clan` lets a clan block
   the burn of its card (Madness Network). `GameState::predator_keeping`
   keeps an acting seat ousted mid-action as the predator it was.
+- A diablerie by card (Cloak of Blood, Stealing Years):
+  `DeclareAction(ActionKind::Diablerie)`, the card's target the victim, its
+  printed stealth read like any action card's; `diablerie_card_text` applies
+  what the card adds as the rulebook steps end, `diablerie_card_votes` its
+  votes as `ReferendumCtx::bonus`. Red List victims: `red_list_burned`.
+- A card's action toll (Enrage [PRE], `Modifier::HostActionToll`) joins the
+  printed one in `action_toll`: masked as announced, paid at resolution,
+  hunts and combat entries free; `ActionCtx::tolled` burns after the action.
+- Acting fails on a burn (`Interrupt::BurnOrFail`): not blocked; the same
+  interrupt with `card` burns the card instead (Drink the Blood of Ahriman).
 
 ### 6.6 Block loop
 
@@ -1128,6 +1138,20 @@ sources to the engine's conventions.
   `after_put_rider` becomes `CombatCtx::after_combat_put`, placed (and the
   striker's blood burned) as the combat ends, lost if it continues
   (`discard_held`).
+- Offers as a combat ends (`end_combat`, resumed by their answers): Haven
+  Hunting's new combat (`Interrupt::MayNewCombat`, `c.psyche`), Marie-Pierre's
+  entry (`Interrupt::MayJoinCombat`, `c.coordinate` with `c.joined`). Each is
+  asked once (`again_asked`, `join_asked`).
+- `resolve_strikes` queues what lands that needs the engine
+  (`CombatCtx::landed`, applied by `apply_landed`): Liquefy's burn, Elixir's
+  stand-in. Liquefy [VIC]'s strike is a stand-in's ability
+  (`CombatCtx::stand_ins`); its diablerie follows `close_combat`, the
+  after-combat window skipped. Topaz's swap waits on
+  `Interrupt::SwapEquipFromPrey` before the equipment enters
+  (`equip_from_hand`).
+- Blood Turnip moves as a combat begins (`turnips_move`); clot counters
+  (`Minion::clots`) move on hand or melee damage (`Interrupt::MoveClot`) and
+  bite in `start_unlock_effects`.
 
 ### 6.8 Referendums
 
@@ -1463,6 +1487,13 @@ sources to the engine's conventions.
 - Curse of Nitocris passes with the Edge (`Effect::TargetSeatTakesCard`,
   `ControllerGivesCard`, `Interrupt::GiveCardTo`). Arcanum Chapterhouse's
   `Effect::BurnPoolPerHuntingGround` with `RiderScope::PredatorOrPrey`.
+- A stand-in (`effect_only`, no copy) keeps an effect a burned card leaves
+  behind: Elixir of Distillation's mode 1, with an unsatisfiable requirement
+  rather than empty windows: an empty mode means `became`, and suppresses the
+  card's abilities.
+- Trophies (`Effect::Trophy`, `cards::is_trophy`): in play by a master phase
+  action, no effect until awarded (`Interrupt::AwardTrophy`, the Red List
+  rule; `Interrupt::TakeChosen`).
 
 ### 6.12 Printed vampire text
 
@@ -1621,15 +1652,19 @@ sources to the engine's conventions.
   it in play, not recruited. A crypt draw a card gives (Enthrall [OBF]) is
   offered after its resolution as `Choice::DrawCrypt`, none from an empty
   crypt.
-- Extra draws on replacement: Learjet's (`Modifier::ExtraDrawOnReplace`,
-  `Interrupt::MayDrawExtra` after the replacement, `Seat::learjet_held`
-  for a delayed one, offered by `Engine::replace_held` at every release,
-  carried with a replacement the Meddling holds again; rules-qa 73.1; the
-  action card brings it, its action begun as it is replaced, a canceled
-  one none, `learjet_play`'s `begun`, 73.2; a Steely Tenacity taken back
-  none, `Interrupt::RetakeFromAsh`'s `jet`) and Infernal Pursuit's
-  (`Seat::timed`'s `TimedStat::ExtraDraws`, ending with the combat; read
-  in `Engine::replace`; several cards replaced at once go one at a time,
+- Extra draws: `Engine::extra_draws` lists one card's, each source its own
+  (`draws::DrawSource`, `Interrupt::MayDrawExtra` naming it): Ira Rivers's on
+  the play (`Stat::ExtraDrawOnPlay`, under Capuchin or a delay too), Learjet's
+  (`Modifier::ExtraDrawOnReplace`) and Duality's (`Stat::ExtraDrawOnReplace`)
+  with a replacement that draws: none if Visit from the Capuchin takes it
+  (`replacements_taken`; deferred, `Interrupt::Replacement` drops the offer),
+  delayed in `Seat::held_draws`, offered by `Engine::replace_held` at every
+  release, carried with a replacement the Meddling holds again; rules-qa
+  73.1; the action card brings it, its action begun as it is replaced, a
+  canceled one none, `extra_draws`' `begun`, 73.2; a Steely Tenacity taken
+  back none, `Interrupt::RetakeFromAsh`'s `jet`. Infernal Pursuit's
+  (`Seat::timed`'s `TimedStat::ExtraDraws`, ending with the combat; read in
+  `Engine::replace`; several cards replaced at once go one at a time,
   `Interrupt::PursuitDraw` then `PursuitDiscard`, rules-qa 63.11).
 - Summon History (`Effect::SearchPutInPlayUpToX`, `Interrupt::PutInPlaySearch`,
   `put_in_play_finds`; the host shows the crypt as the `AshVampire` zone): the
@@ -1661,6 +1696,10 @@ sources to the engine's conventions.
   once empty) and `Effect::StoreFromHandX` with `Terms::HandCards`, among
   the cards earmarked as the action is declared, before its replacement
   (`Seat::earmarked`; `Interrupt::StoreOwnHand`'s `earmarked`).
+- A vampire holding replacements while unlocked (Hagar Stone,
+  `Release::WhileUnlocked`): read live, as a vampire locks in dozens of ways
+  (`settle_unlocked_holds` in `run`), the turn's end releasing them; a shorter
+  delay carries into it in `release_held` (the longest wins).
 
 ### 6.15 Costs and reductions
 

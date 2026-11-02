@@ -4843,7 +4843,7 @@ fuzz_tests! {
             per_seat(e, |c| has(c, "pro") && has(c, "ser"), 4);
             per_seat(e, |c| has(c, "pot") || has(c, "dai"), 4);
         },
-        seeds: 10,
+        seeds: 20,
         ..BASE
     };
     /// Legacy cards, round 18 (slice 16ad): the vampires.
@@ -5336,6 +5336,76 @@ fuzz_tests! {
                 &["Victor Gerard", "Philip van Vermeer IV", "Boss Callihan"],
             );
             per_seat(e, |c| c.sect == Some(zvtes::crypt::Sect::Sabbat), 4);
+        },
+        seeds: 8,
+        ..BASE
+    };
+    /// Round 24 (slice 16aj): the sets' combat, bleed and equip cards, with
+    /// strikes, hunts and diablerie to meet them.
+    random_games_with_twda_round_24a_hold_invariants_and_replay: Fixture {
+        slice: &[
+            "Necrosis",
+            "Shoulder Drop",
+            "Baseball Bat",
+            "Anonymous Freight",
+            "Inevitability of the Void",
+            "Unleash the Hounds",
+            "Keystone Kine",
+            "Enrage",
+            "Liquefy the Mortal Coil",
+            "Touch of Pain",
+            "Sanguinary Wind",
+            // Partners: strikes and equipment to play.
+            "Body Flare",
+            "Kevlar Vest",
+            "Deflection",
+        ],
+        covers: &[
+            "play:Necrosis",
+            "play:Baseball Bat",
+            "play:Anonymous Freight",
+            "play:Enrage",
+        ],
+        setup: |e, _| {
+            named(
+                e,
+                &[
+                    "Hagar Stone",
+                    "Topaz",
+                    "Jack Drake",
+                    "Calvin Cleaver",
+                    "Marie-Pierre",
+                ],
+            );
+            per_seat(e, |c| c.sect == Some(zvtes::crypt::Sect::Anarch), 4);
+        },
+        seeds: 8,
+        ..BASE
+    };
+    /// Round 24 (slice 16aj): the sets' politics, masters and combat-entry
+    /// cards.
+    random_games_with_twda_round_24b_hold_invariants_and_replay: Fixture {
+        slice: &[
+            "Exclusion Principle",
+            "Tribunal Judgment",
+            "Framing an Ancient Grudge",
+            "Blind Spot",
+            "Blood Turnip",
+            "Haven Hunting",
+            "Framing, The",
+            "Follow the Blood",
+            "Power of All",
+            "No Confidence",
+            "Prison of the Mind",
+            "Eccentric Billionaire",
+        ],
+        covers: &[
+            "play:Exclusion Principle",
+            "play:Blood Turnip",
+            "play:Haven Hunting",
+        ],
+        setup: |e, _| {
+            per_seat(e, |c| c.sect == Some(zvtes::crypt::Sect::Anarch), 4);
         },
         seeds: 8,
         ..BASE

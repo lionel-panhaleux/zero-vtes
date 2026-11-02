@@ -321,13 +321,15 @@ impl Engine {
             return;
         }
         // Victor Pelletier: "if his title would be contested, he
-        // immediately yields instead of contesting".
+        // immediately yields instead of contesting"; a vampire under two No
+        // Confidence too (LSJ 20080602).
         let yields = |e: &Self, v: MinionId| {
             e.state.printed_mod(
                 v,
                 crate::cards::Stat::YieldsTitleInsteadOfContest,
                 crate::state::PrintedCtx::default(),
             ) > 0
+                || e.state.title_benefit_lost(v)
         };
         if yields(self, m) {
             self.lose_title(m);

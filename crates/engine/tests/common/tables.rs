@@ -356,6 +356,8 @@ pub fn table(seed: u64, slice: &[&str], extra: &[&str]) -> Engine {
     // reached without waiting for random play to bring it out and keep it.
     if seed % 2 == 1 {
         e.state.cards.push(CardInPlay {
+            on_slot: None,
+            chosen_circle: None,
             card: find_library("Smiling Jack, The Anarch"),
             copy: Default::default(),
             owner: SeatId(rng.below(4) as u8),

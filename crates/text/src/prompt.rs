@@ -171,6 +171,13 @@ impl Prompt<'_> {
                 let of = self.of()?;
                 match self.detail()? {
                     "lock" => format!("You can lock a minion {of}"),
+                    "move_onto_any" => format!("Choose any minion to get {}", self.card()?),
+                    "heal_host" => "You can have a ready Anarch burn 1 blood to add 1 life".into(),
+                    "burn_ally_up_to" => format!("You can burn an ally {of}"),
+                    "lock_other_anarch" => "Choose another ready Anarch of yours to lock".into(),
+                    "blind_spot" => {
+                        format!("Choose a minion {of} that cannot block or react to that vampire")
+                    }
                     "corrupt" => format!("Choose a minion {of} to get a corruption counter"),
                     "lock_vampires" => format!("Lock up to two vampires {of}"),
                     "unlock_anarch" => "You can unlock a ready Anarch of yours".into(),
@@ -227,7 +234,7 @@ impl Prompt<'_> {
             ),
             P::MayDrawExtra => format!(
                 "{}: you can draw an additional card (discard afterward)",
-                self.card()?
+                self.card().or_else(|| self.minion())?
             ),
             P::MayBurnLookedMaster => format!(
                 "{}: the top card is a master; you can burn {} blood to burn it",
@@ -309,6 +316,35 @@ impl Prompt<'_> {
                 "You can burn the corruption counters on {} to steal it",
                 self.minion()?
             ),
+            P::SwapEquipFromPrey => format!(
+                "{} can take an equipment from your prey's hand instead",
+                self.minion()?
+            ),
+            P::MayNewCombat => format!(
+                "You can burn {} to have the combatants begin another combat",
+                self.card()?
+            ),
+            P::AwardTrophy => format!("You can award a trophy to {}", self.minion()?),
+            P::TakeChosen => format!("{} can take {} or burn it", self.minion()?, self.card()?),
+            P::MoveClot => format!("You can move a clot counter to {}", self.minion()?),
+            P::ClotFate => format!("{} burns or goes to torpor", self.minion()?),
+            P::ChooseCardCircle => format!("Choose a circle for {}", self.card()?),
+            P::BurnOrFail => match self.card() {
+                Some(c) => format!("{} can burn blood or {c} burns", self.minion()?),
+                None => format!("{} can burn blood or the action fails", self.minion()?),
+            },
+            P::PreySlotHalf => "Choose a crypt card of your prey's to burn half its blood".into(),
+            P::MayJoinCombat => format!(
+                "{} can lock to enter combat with the opposing minion",
+                self.minion()?
+            ),
+            P::GainVictimDiscipline => format!(
+                "{} can gain a level of a Discipline the victim had",
+                self.minion()?
+            ),
+            P::BurnBloodToAnarch => {
+                format!("{} can burn 1 blood to become Anarch", self.minion()?)
+            }
             P::MakeAnarch => format!(
                 "You can burn 1 blood from {} to make {} Anarch",
                 self.card()?,
@@ -698,6 +734,11 @@ mod tests {
         match p {
             Purpose::MinionOf => &[
                 Some("lock"),
+                Some("blind_spot"),
+                Some("lock_other_anarch"),
+                Some("burn_ally_up_to"),
+                Some("heal_host"),
+                Some("move_onto_any"),
                 Some("corrupt"),
                 Some("lock_vampires"),
                 Some("unlock_anarch"),
@@ -832,6 +873,18 @@ mod tests {
         LockForPool,
         StealForCorruption,
         MakeAnarch,
+        BurnBloodToAnarch,
+        SwapEquipFromPrey,
+        GainVictimDiscipline,
+        MayJoinCombat,
+        ChooseCardCircle,
+        MoveClot,
+        ClotFate,
+        AwardTrophy,
+        TakeChosen,
+        BurnOrFail,
+        PreySlotHalf,
+        MayNewCombat,
         AshurPicks,
         BecomesAnarch,
         AnarchConvert,

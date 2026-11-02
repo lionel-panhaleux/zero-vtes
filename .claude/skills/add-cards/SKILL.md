@@ -32,19 +32,14 @@ https://engine.krcg.org/admin/unsupported > demand.json`, run by whoever
 holds the token, never printed). Its summary goes in the cards board's
 header at the round's end.
 
-The owner's metric (2026-10-14): recent (2025+) TWDA decks entering the
-*kept* corpus. `python3 scripts/round_choice.py <vtes.json> --twda
-<twda.json> [--set NAME]… [--steps 15] [--bundle 8] [--demand
-<counts.json>]` simulates `gen_twda.py`'s rules over the tables extended in
-memory: the ceiling first (every recent deck's missing cards at once: more
-cards can displace kept decks, `VERSIONS`, `SAME_CRYPT`, `SAME_LIBRARY`),
-then the greedy steps (the bundle adding the most recent kept decks per new
-card: kept, recent kept, the cost per recent deck), each `--set`'s missing
-cards alone and together (set by set, owner 2026-10-15), and the asked ids
-among them. Present the steps (round 11 ~2 cards a deck, round 12 ~5–6:
-diminishing returns are the owner's cut signal) and let the owner pick the
-cut; `--cut N` then prints the chosen ids (the sets' and the first N
-steps').
+A round is whole sets (owner, 2026-10-30: "we are now working set by set
+and stopped running twda analysis to decide what cards to add"; promos
+skipped): offer the owner the incomplete sets from `--sets` and let the
+owner pick. `python3 scripts/round_choice.py <vtes.json> --twda
+<twda.json> --set NAME… --steps 0 --cut 0` prints the chosen sets' missing
+ids and what `gen_twda.py`'s rules keep with them (kept, recent kept: a
+set's versions can displace kept decks, `VERSIONS`, `SAME_CRYPT`,
+`SAME_LIBRARY`), for the board's header, not the choice.
 Count cards by id, never by splitting names on commas. Then add the round
 to `ADDED_BATCHES` in `scripts/window_matrix.py` (the owner's words in a
 comment) and regenerate `crypt.rs`, `library.rs`, `twda.rs`; check the

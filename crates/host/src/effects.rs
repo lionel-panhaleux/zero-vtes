@@ -153,6 +153,7 @@ fn add(e: &E, w: Whom, when: Option<When>, out: &mut Vec<Effect>) {
             ..detail(of(K::Move), "action_card")
         }),
         E::BloodToActing(v) => push(on(n(K::Blood, i(v)), On::Acting)),
+        E::DamageActing(v) => push(on(n(K::Damage, i(v)), On::Acting)),
         E::BloodToChosen(v) | E::HuntingGroundBlood(v) => push(on(n(K::Blood, i(v)), On::Chosen)),
         E::BloodToTargetToStart(_) => push(detail(on(of(K::Blood), On::Target), "to_start")),
         E::BloodPerHostage => push(detail(n(K::Blood, 1), "per_hostage")),
@@ -176,6 +177,21 @@ fn add(e: &E, w: Whom, when: Option<When>, out: &mut Vec<Effect>) {
         E::BurnSelf | E::BurnSource => push(on(of(K::Burn), On::Card)),
         E::BurnTargetCard => push(detail(on(of(K::Burn), On::Target), "card")),
         E::BurnTargetMinion => push(on(of(K::Burn), On::Target)),
+        E::TargetLosesTitle => push(detail(on(of(K::Burn), On::Target), "title")),
+        E::PlayerBurnsPool(v) => push(n(K::Pool, -i(v))),
+        E::ActorGainsBlood(v) => push(n(K::Blood, i(v))),
+        E::BurnPreyAllyUpToBleed => push(detail(of(K::Burn), "prey_ally")),
+        E::ActingBurnsOrFails(v) => push(detail(n(K::Fails, i(v)), "unless_blood")),
+        E::FollowActing { .. } => push(detail(of(K::Lock), "enters_combat")),
+        E::LockOtherAnarch => push(detail(of(K::Lock), "other_anarch")),
+        E::BurnHalfPreySlot => push(detail(of(K::Blood), "half_of_prey_slot")),
+        E::MergeWithAdvanced => push(detail(of(K::Move), "merge_advanced")),
+        E::SplitBloodGain => push(detail(n(K::Blood, 1), "split_gain")),
+        E::ClanCoalition(..) => push(detail(n(K::Votes, 1), "coalition")),
+        E::ChooseBlindSpot
+        | E::ChooseTargetByAbility
+        | E::DirectedAtSourceController
+        | E::ChooseCardCircle => {}
         E::AddStealth(v) => push(n(K::Stealth, i(v))),
         E::ReduceStealth(v) => push(n(K::Stealth, -i(v))),
         E::HuntStealthUntilUnlock(v) => push(detail(n(K::Stealth, i(v)), "on_hunts")),
@@ -276,6 +292,9 @@ fn add(e: &E, w: Whom, when: Option<When>, out: &mut Vec<Effect>) {
         }),
         E::NonCamarillaVotesMinus(v) => push(detail(n(K::Votes, -i(v)), "non_camarilla")),
         E::TargetVotesPerCounter => push(detail(n(K::Votes, 1), "per_counter")),
+        E::TargetVotes(v) => push(on(n(K::Votes, i(v)), On::Target)),
+        E::BurnBledLibraryTop(v) => push(detail(n(K::Burn, i(v)), "library_top")),
+        E::LookAtLibraryTopPerGehenna => {}
         E::CallReferendum(_) => push(of(K::Referendum)),
         E::GrantDiscardAction => push(detail(n(K::Action, 1), "discard_phase")),
         E::SpendMasterPhaseAction => push(cost(detail(n(K::Action, -1), "master_phase"))),
@@ -540,6 +559,8 @@ fn add(e: &E, w: Whom, when: Option<When>, out: &mut Vec<Effect>) {
         | E::BarSectVotesInReferendum(..)
         | E::BleedModX { .. }
         | E::BleedPerPick
+        | E::BleedPerTargetAshTens
+        | E::BleedPerEnslavingReady
         | E::BlockToll(..)
         | E::BlockTollBlood(..)
         | E::BlockerBurnsBloodOrLife(..)
@@ -589,6 +610,7 @@ fn add(e: &E, w: Whom, when: Option<When>, out: &mut Vec<Effect>) {
         | E::ReduceBleedToZero
         | E::ReduceStealthToZero
         | E::SmallMonstersCannotBlock { .. }
+        | E::SmallNonInfernalCannotBlock(..)
         | E::StealthForNextActions
         | E::StealthPerPick
         | E::StrengthThisAction(..)
@@ -638,6 +660,12 @@ fn add(e: &E, w: Whom, when: Option<When>, out: &mut Vec<Effect>) {
         | E::ContinuePressThisRound
         | E::CoordinateAttack { .. }
         | E::DamageAfterCombatIfClose(..)
+        | E::PressDamageIfClose(..)
+        | E::LiquefyOnHit(..)
+        | E::DistillOnHit(..)
+        | E::StrikeDiablerizesNextRound
+        | E::DiablerizeOnHit
+        | E::GrappleDamage(..)
         | E::DamageOpponentNow(..)
         | E::DiscardChosenX(..)
         | E::DisciplineStrikeDamageThisCombat { .. }
@@ -699,6 +727,16 @@ fn add(e: &E, w: Whom, when: Option<When>, out: &mut Vec<Effect>) {
         | E::StunAfterCombatIfClose
         | E::PutOnOpponentAfterCombatIfClose
         | E::UndodgeableStrike
+        | E::UndirectedAction
+        | E::EquipActionUnlocksEndOfTurn
+        | E::NamedEquipOff(..)
+        | E::Trophy
+        | E::TrophyBlood(..)
+        | E::GainVictimDiscipline
+        | E::BloodHuntVotesForDiablerist(..)
+        | E::BloodHuntVotesForAnarchs(..)
+        | E::UndodgeableThisRound
+        | E::DamageAfterCombat(..)
         | E::UnpreventableIfBlackHand
         | E::WeatherDamage { .. } => {}
         // Success (the action's success).
@@ -817,6 +855,13 @@ fn add(e: &E, w: Whom, when: Option<When>, out: &mut Vec<Effect>) {
         | E::MayHandSizeOncePerTurn(..)
         | E::MayLockForTorture
         | E::MayMakeAnarchForCounter
+        | E::MayJoinCombat(..)
+        | E::BurnPoolPerGehennaOrSelf
+        | E::ClearChosen
+        | E::AnarchMayHealHost
+        | E::HostBurnsBloodOrBurnSelf(..)
+        | E::FramesBlocker
+        | E::MayBurnForNewCombat
         | E::MayMoveOffBurnedBearer
         | E::MayUnlockOncePerTurn
         | E::NoEntryConviction

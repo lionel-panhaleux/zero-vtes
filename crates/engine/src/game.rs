@@ -677,6 +677,11 @@ impl Engine {
         self.burn_card_in_play(id);
     }
 
+    /// Test fixture: the turn passes now, as an oust passes it mid-combat.
+    pub fn at_next_turn(&mut self) {
+        self.next_turn();
+    }
+
     /// Test fixture: position the game at the active seat's master phase
     /// (master phase actions granted per rules-qa 3.3).
     pub fn at_master_phase(&mut self) {
@@ -698,9 +703,14 @@ impl Engine {
     /// Conniver: a Methuselah's prey lost pool on a turn neither's — its
     /// player may lock it for 1 blood on its vampire.
     fn settle_pool_losses(&mut self) {
+        // A loss whose oust waits on a Life Boon settles once the oust
+        // does: saved, still the prey; ousted, no longer (rules-qa 106.18).
         let lost: Vec<SeatId> = (0..self.state.seats.len())
             .map(|i| SeatId(i as u8))
-            .filter(|s| std::mem::take(&mut self.state.seats[s.index()].lost_pool))
+            .filter(|s| {
+                let seat = &mut self.state.seats[s.index()];
+                !seat.oust_pending && std::mem::take(&mut seat.lost_pool)
+            })
             .collect();
         let active = self.state.active;
         for s in lost.into_iter().filter(|&s| s != active) {
@@ -757,6 +767,21 @@ impl Engine {
             .layers
             .iter()
             .filter_map(|l| match l.modifier {
+                cards::Modifier::ChosenBound if st.layer_active(l) => {
+                    let c = &st.cards[l.source.index()];
+                    (c.in_play
+                        && c.chosen
+                            .first()
+                            .is_some_and(|&m| !st.minions[m.index()].ready()))
+                    .then_some(l.source)
+                }
+                cards::Modifier::SeraphBound if st.layer_active(l) => {
+                    let owner = st.card_controller(l.source);
+                    let seraph = st
+                        .minions_of(owner)
+                        .any(|m| st.minions[m.index()].ready() && st.is_seraph(m));
+                    (!seraph && st.cards[l.source.index()].in_play).then_some(l.source)
+                }
                 cards::Modifier::SectBound(sect) if st.layer_active(l) => {
                     let c = &st.cards[l.source.index()];
                     c.host
@@ -855,6 +880,11 @@ impl Engine {
         }
         let mut out = Vec::new();
         walk(&self.flow, &mut out);
+        // Topaz's equipment, waiting on her swap.
+        out.extend(self.interrupts.iter().filter_map(|i| match i {
+            Interrupt::SwapEquipFromPrey { play, .. } => Some(play),
+            _ => None,
+        }));
         out
     }
 
@@ -951,6 +981,7 @@ impl Engine {
             self.settle_hunts_to_torpor();
             self.settle_sect_bound();
             self.settle_discard_looks();
+            self.settle_unlocked_holds();
             self.settle_pool_losses();
             self.state.settle_foreign_cards();
             self.settle_interrupts();
@@ -1588,6 +1619,19 @@ impl Engine {
     /// card in play, whoever controls it, spec §1.15), those read as the
     /// phase ends as they pass (88.5), then the others'.
     pub(crate) fn start_unlock_effects(&mut self) {
+        // Blade Clot: an ally cannot go to torpor, it burns (LSJ 20080612-3).
+        let s = self.state.active;
+        for m in self.state.minions_of(s).collect::<Vec<_>>() {
+            let v = &self.state.minions[m.index()];
+            if v.clots > 0 {
+                if v.is_ally() {
+                    self.burn_minion(m);
+                } else {
+                    self.interrupts
+                        .push(crate::draws::Interrupt::ClotFate { seat: s, minion: m });
+                }
+            }
+        }
         self.state.unlock_phase = true;
         let s = self.state.active;
         for seat in &mut self.state.seats {
@@ -2884,6 +2928,7 @@ impl Engine {
         // The end of the turn: the Red List marks lapse, the bonuses until
         // then too (Andre LeRoux's bleed), Enkidu unlocks.
         self.state.red_list_marks.clear();
+        self.state.blind_spots.clear();
         self.state.chosen_this_turn.clear();
         for i in 0..self.state.minions.len() {
             self.state.minions[i].next_action_stealth = 0;
@@ -2918,6 +2963,9 @@ impl Engine {
             self.note(crate::combat::CombatNote::Ends {
                 minions: c.sides.each_ref().map(|s| s.minion),
             });
+            for id in c.stand_ins {
+                self.burn_card_in_play(id);
+            }
         }
         self.state.leave_combat();
         self.referendum = None;
@@ -2957,6 +3005,7 @@ impl Engine {
         self.state.barred_this_turn.clear();
         self.state.barred_for_minion.clear();
         self.state.turn_plays.clear();
+        self.state.turn_successes.clear();
         for seat in &mut self.state.seats {
             seat.auto_pass_pending = false;
             seat.auto_pass_next = false;
@@ -3243,7 +3292,7 @@ mod tests {
     #[test]
     fn crypt_data_is_complete() {
         // The 200 V5 vampires, then the owner's legacy additions.
-        assert_eq!(CRYPT.len(), 785);
+        assert_eq!(CRYPT.len(), 829);
         assert_eq!(PRECONS.len(), 14);
         for (name, list) in PRECONS.iter() {
             let n: u32 = list.iter().map(|&(_, k)| k as u32).sum();

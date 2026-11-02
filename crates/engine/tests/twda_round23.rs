@@ -217,6 +217,37 @@ fn delizbieta_intercepts_for_a_ravnos_targeted() {
     assert_eq!(e.state.printed_mod(d, Stat::Intercept, at(None)), 0);
 }
 
+/// Delizbieta in a real action: Bum's Rush at her Methuselah's ready
+/// Ravnos, +1 intercept as she may block; at another vampire, none.
+#[test]
+fn delizbieta_intercepts_against_a_rush_at_a_ravnos() {
+    for at_ravnos in [true, false] {
+        let mut e = game(2);
+        let d = e.add_minion(
+            SeatId(0),
+            find_card("Delizbieta of the Dark Eyes"),
+            4,
+            false,
+        );
+        let r = e.add_minion(SeatId(0), clan("Ravnos", 0), 4, false);
+        let b = e.add_minion(SeatId(0), clan("Brujah", 0), 4, false);
+        let a = e.add_minion(SeatId(1), clan("Toreador", 0), 4, false);
+        e.add_minion(SeatId(1), clan("Toreador", 1), 4, false);
+        until(&mut e, SeatId(1), WindowLabel::MinionPhase);
+        hand(&mut e, 1, &["Bum's Rush"]);
+        let t = if at_ravnos { r } else { b };
+        pick(&mut e, play_at(0, 0, Some(a), Target::Minion(t)));
+        let req = request(&mut e);
+        assert_eq!(req.window, WindowLabel::ActionBlock);
+        let intercept = e.action().expect("the rush").intercept_of(&e.state, d);
+        assert_eq!(
+            intercept,
+            i32::from(at_ravnos),
+            "at the Ravnos: {at_ravnos}"
+        );
+    }
+}
+
 // Elizabeth Dimitros: "/Hesha Ruhadze/ cannot block Elizabeth." Any Hesha.
 #[test]
 fn hesha_cannot_block_elizabeth_dimitros() {
@@ -351,6 +382,37 @@ fn glycon_enters_combat_with_a_locked_minion() {
     assert!(!req.options.contains(&rush(u)));
 }
 
+/// Glycon's target unlocked before the action resolves: no longer a legal
+/// target, the action fizzles, no combat; still locked, combat.
+#[test]
+fn glycon_fizzles_on_an_unlocked_target() {
+    for unlock in [false, true] {
+        let mut e = game(2);
+        let g = e.add_minion(SeatId(0), find_card("Glycon"), 4, false);
+        e.add_minion(SeatId(0), clan("Brujah", 0), 4, false);
+        let l = e.add_minion(SeatId(1), clan("Ventrue", 0), 4, false);
+        e.state.minions[l.index()].locked = true;
+        e.add_minion(SeatId(1), clan("Ventrue", 1), 4, false);
+        pick(
+            &mut e,
+            Choice::UseAbility {
+                source: AbilitySource::Vampire(g),
+                ability: 0,
+                actor: Some(g),
+                target: Target::Minion(l),
+            },
+        );
+        request(&mut e);
+        if unlock {
+            e.state.minions[l.index()].locked = false;
+        }
+        until(&mut e, SeatId(0), WindowLabel::MinionPhase);
+        // Hand strikes landed only if they fought.
+        let fought = e.state.minions[l.index()].blood < 4;
+        assert_eq!(fought, !unlock, "unlocked: {unlock}");
+    }
+}
+
 // Karmenita Yoryari: "can burn an equipment or a location as a Ⓓ action
 // that costs 1 blood."
 #[test]
@@ -437,6 +499,33 @@ fn bez_dunsirn_discards_two_as_he_leaves_ready() {
     assert_eq!(ash, 2, "two discarded");
 }
 
+/// Bez Dunsirn banished (Banishment): he leaves the ready region by
+/// another route than burning or torpor, his discard still due (advanced
+/// rules §6.4.4; rules-qa 107).
+#[test]
+fn bez_dunsirn_discards_two_as_he_is_banished() {
+    let mut e = game(2);
+    let caller = e.add_minion(SeatId(0), of_sect(Sect::Camarilla, &[], 0), 6, false);
+    e.state.minions[caller.index()].granted_title = Some(Title::Votes(3));
+    e.add_minion(SeatId(0), clan("Brujah", 1), 4, false);
+    let bez = e.add_minion(SeatId(1), find_card("Bez Dunsirn"), 2, false);
+    e.add_minion(SeatId(1), clan("Ventrue", 0), 4, false);
+    hand(&mut e, 0, &["Banishment"]);
+    hand(&mut e, 1, &["Kevlar Vest", "Kevlar Vest", "Kevlar Vest"]);
+    // The only younger ready vampire: the choice elided.
+    pick(&mut e, play(0, 0, caller));
+    pick_when(&mut e, votes(caller, true));
+    close_polling(&mut e);
+    until(&mut e, SeatId(0), WindowLabel::MinionPhase);
+    assert!(!e.state.minions[bez.index()].in_play, "banished");
+    let ash = e.state.seats[1]
+        .ash
+        .iter()
+        .filter(|&&c| c == find_library("Kevlar Vest"))
+        .count();
+    assert_eq!(ash, 2, "two discarded");
+}
+
 // Count Jocalo: after his prey uses a discard phase action, his Methuselah
 // looks at that hand. +1 bleed, +1 hand size.
 #[test]
@@ -461,6 +550,34 @@ fn count_jocalo_looks_after_a_discard_phase_action() {
     );
 }
 
+/// Count Jocalo at a table of four: his predator's discard phase action is
+/// looked at, a cross-table Methuselah's is not, nor any while he is in
+/// torpor ("ready").
+#[test]
+fn count_jocalo_looks_only_at_his_predator_and_prey_while_ready() {
+    for (discarder, torpor, looked) in [(0u8, false, true), (3, false, false), (0, true, false)] {
+        let mut e = game(4);
+        for s in 0..4u8 {
+            if s == 1 {
+                e.add_minion(SeatId(1), find_card("Count Jocalo"), 4, torpor);
+            } else {
+                e.add_minion(SeatId(s), clan("Brujah", s as usize), 4, false);
+            }
+            e.add_minion(SeatId(s), clan("Ventrue", s as usize), 4, false);
+        }
+        until(&mut e, SeatId(discarder), WindowLabel::MinionPhase);
+        hand(&mut e, discarder, &["Kevlar Vest"]);
+        e.notes = Some(Vec::new());
+        pick_when(&mut e, Choice::Discard(0));
+        request(&mut e);
+        let looks = noted_looks(&mut e);
+        let seen = looks
+            .iter()
+            .any(|l| l.viewer == SeatId(1) && l.seat == SeatId(discarder) && !l.library);
+        assert_eq!(seen, looked, "seat {discarder}, torpor {torpor}: {looks:?}");
+    }
+}
+
 // Rebekah: "During the polling step of any referendum, Rebekah can discard
 // a card requiring Auspex to get +2 votes." Enzo Giovanni: "burn 1 blood to
 // get +4 votes against the referendum."
@@ -477,8 +594,11 @@ fn rebekah_and_enzo_buy_votes() {
         4,
         false,
     );
+    // Locked, they still may (ANK 20220705).
+    e.state.minions[r.index()].locked = true;
+    e.state.minions[enzo.index()].locked = true;
     hand(&mut e, 0, &["Ancilla Empowerment"]);
-    hand(&mut e, 1, &["Eagle's Sight"]);
+    hand(&mut e, 1, &["Eagle's Sight", "Eagle's Sight"]);
     pick(&mut e, play(0, 0, caller));
     to_referendum(&mut e);
     pick_when(&mut e, own(r, 0));
@@ -488,6 +608,50 @@ fn rebekah_and_enzo_buy_votes() {
     assert!(rf.bonus.contains(&(r, 2)), "{:?}", rf.bonus);
     assert!(rf.bonus.contains(&(enzo, 4)) && rf.forced_against.contains(&enzo));
     assert_eq!(e.state.minions[enzo.index()].blood, 3);
+    // Once a referendum each, an Auspex card still in hand.
+    never_offered_where(&mut e, SeatId(0), WindowLabel::MinionPhase, |o| {
+        *o == own(r, 0) || *o == own(enzo, 0)
+    });
+}
+
+/// Enzo Giovanni: his votes against join no cast in favor (rules-qa 107):
+/// cast in favor first, the ability is not offered; not cast, it is.
+#[test]
+fn votes_against_join_no_cast_in_favor() {
+    let name = "Enzo Giovanni, Pentex Board of Directors";
+    for favor in [true, false] {
+        let mut e = game(2);
+        let caller = e.add_minion(SeatId(0), clan("Brujah", 0), 4, false);
+        e.add_minion(SeatId(0), clan("Brujah", 1), 4, false);
+        let v = e.add_minion(SeatId(1), find_card(name), 4, false);
+        e.add_minion(SeatId(1), clan("Ventrue", 1), 4, false);
+        e.state.minions[v.index()].granted_title = Some(Title::Votes(1));
+        hand(&mut e, 0, &["Ancilla Empowerment"]);
+        pick(&mut e, play(0, 0, caller));
+        to_referendum(&mut e);
+        let mut cast = !favor;
+        let mut offered = false;
+        for _ in 0..40 {
+            let req = request(&mut e);
+            if req.window != WindowLabel::ReferendumPolling {
+                break;
+            }
+            if !cast && req.options.contains(&votes(v, true)) {
+                e.choose(
+                    req.options
+                        .iter()
+                        .position(|o| *o == votes(v, true))
+                        .unwrap(),
+                );
+                cast = true;
+                continue;
+            }
+            offered |= cast && req.options.contains(&own(v, 0));
+            e.choose(fallback(&req));
+        }
+        assert!(cast);
+        assert_eq!(offered, !favor, "cast in favor: {favor}");
+    }
 }
 
 // Legba: "Followers of Set controlled by other Methuselahs cannot cast
@@ -545,6 +709,34 @@ fn hall_of_mirrors_cancels_a_strike_card() {
         plays.iter().any(|p| p.card == side && p.canceled),
         "{plays:?}"
     );
+}
+
+/// Hall of Mirrors [CHI]: 1 blood burned; its striker chooses another
+/// strike, a second Hall at superior not playable that combat.
+// Rulings: [ANK 20190104].
+#[test]
+fn hall_of_mirrors_burns_a_blood_once_each_combat() {
+    let mut e = game(2);
+    let a = e.add_minion(SeatId(0), vampire_with("CEL", 0), 6, false);
+    e.add_minion(SeatId(0), clan("Brujah", 0), 4, false);
+    let b = e.add_minion(SeatId(1), vampire_with("CHI", 0), 6, false);
+    e.add_minion(SeatId(1), clan("Ventrue", 1), 4, false);
+    hand(&mut e, 0, &["Side Strike", "Side Strike"]);
+    hand(&mut e, 1, &["Hall of Mirrors", "Hall of Mirrors"]);
+    pick(&mut e, bleed(a));
+    pick_when(&mut e, block(b));
+    pick_when(&mut e, play(0, 0, a));
+    let before = e.state.minions[b.index()].blood;
+    pick_when(&mut e, play(0, 1, b));
+    request(&mut e);
+    assert_eq!(
+        e.state.minions[b.index()].blood,
+        before - 1,
+        "1 blood burned"
+    );
+    pick_when(&mut e, play(0, 0, a));
+    let req = request(&mut e);
+    assert!(!req.options.contains(&play(0, 1, b)), "{:?}", req.options);
 }
 
 // Ophidian Gaze: "[pre][ser] Reduce a bleed against you by 2."
@@ -1011,6 +1203,51 @@ fn conniver_profits_from_the_prey_losing_pool() {
     assert_ne!(request(&mut e).seat, SeatId(0), "locked: no more");
 }
 
+/// Conniver: a bleed bounced to its prey (Deflection) on a third
+/// Methuselah's turn takes the prey's last pool, the oust waiting on
+/// Conniver's own player's Life Boon: declined, the prey is ousted, no
+/// offer; saved, offered (106.18).
+#[test]
+fn conniver_waits_on_the_preys_life_boon() {
+    for save in [false, true] {
+        let mut e = game(3);
+        let v = e.add_minion(SeatId(0), superior("DOM", 0), 4, false);
+        e.add_minion(SeatId(0), clan("Ventrue", 1), 4, false);
+        e.add_minion(SeatId(1), clan("Brujah", 0), 4, false);
+        e.add_minion(SeatId(1), clan("Brujah", 1), 4, false);
+        let a = e.add_minion(SeatId(2), clan("Toreador", 0), 4, false);
+        e.add_minion(SeatId(2), clan("Toreador", 1), 4, false);
+        let conniver = in_play(&mut e, 0, "Conniver", Some(v));
+        let lock = Choice::ResolveRider { card: conniver.0 };
+        until(&mut e, SeatId(2), WindowLabel::MinionPhase);
+        e.state.seats[1].pool = 1;
+        hand(&mut e, 0, &["Deflection", "Life Boon"]);
+        pick(&mut e, bleed(a));
+        // [DOM] Deflection: the bleed bounced to seat 0's prey, unlocked.
+        pick_when(&mut e, play_at(0, 1, Some(v), Target::Seat(SeatId(1))));
+        let boon = play_at(0, 0, None, Target::Seat(SeatId(1)));
+        loop {
+            let req = request(&mut e);
+            assert!(!req.options.contains(&lock), "not before the Boon");
+            if req.options.contains(&boon) {
+                break;
+            }
+            e.choose(fallback(&req));
+        }
+        if save {
+            pick(&mut e, boon);
+            pick_when(&mut e, Choice::SetX(1));
+            pick_when(&mut e, lock);
+            assert!(!e.state.seats[1].ousted);
+            assert!(e.state.cards[conniver.index()].locked);
+        } else {
+            pick(&mut e, Choice::Pass);
+            never_offered_until(&mut e, SeatId(2), WindowLabel::MinionPhase, lock);
+            assert!(e.state.seats[1].ousted);
+        }
+    }
+}
+
 /// Vestgeir: a political action card of another Methuselah's ash heap,
 /// played as if from hand (his only), then removed from the game, its
 /// owner's, instead of burned.
@@ -1137,6 +1374,36 @@ fn blight_weakens_and_bars_additional_strikes() {
         6,
         "no damage at strength 0"
     );
+}
+
+/// Blight: without it the opposing Blur is offered; with two in hand, the
+/// second is not ("only one Blight each combat").
+#[test]
+fn blight_once_each_combat_and_blur_otherwise() {
+    for blight in [false, true] {
+        let mut e = game(2);
+        let a = e.add_minion(SeatId(0), superior("NEC", 0), 6, false);
+        e.add_minion(SeatId(0), clan("Ventrue", 0), 4, false);
+        let b = e.add_minion(SeatId(1), with_discs(&["cel"]), 4, false);
+        e.add_minion(SeatId(1), clan("Brujah", 1), 4, false);
+        if blight {
+            hand(&mut e, 0, &["Blight", "Blight"]);
+        }
+        hand(&mut e, 1, &["Blur"]);
+        pick(&mut e, bleed(a));
+        pick_when(&mut e, block(b));
+        if blight {
+            pick_when(&mut e, play(0, 1, a));
+            never_offered_where(
+                &mut e,
+                SeatId(0),
+                WindowLabel::MinionPhase,
+                |o| matches!(o, Choice::Play { actor: Some(m), .. } if *m == a),
+            );
+        } else {
+            pick_when(&mut e, play(0, 0, b));
+        }
+    }
 }
 
 /// In Memory of the Two Lands: a counter per Follower of Set and mummy of
@@ -1519,6 +1786,52 @@ fn gift_of_proteus_takes_what_is_left() {
     assert_eq!(stored, vec![find_library("Wolf Claws")]);
 }
 
+/// Gift of Proteus: its one announced card spent before resolution (Form
+/// of Mist continuing the blocked action), the copy drawn as its
+/// replacement is not the card announced: none goes on it, it burns (PIB
+/// 20150428).
+// Rulings: [PIB 20150428].
+#[test]
+fn gift_of_proteus_takes_no_copy_drawn_since() {
+    let bearer = gangrels(4)
+        .into_iter()
+        .find(|&i| CRYPT[i as usize].disciplines.contains(&"PRO"))
+        .expect("a Gangrel with superior Protean");
+    let mut e = game(2);
+    let a = e.add_minion(SeatId(0), bearer, 6, false);
+    e.add_minion(SeatId(0), clan("Ventrue", 0), 4, false);
+    let b = e.add_minion(SeatId(1), find_card("Iago Castille"), 4, false);
+    e.add_minion(SeatId(1), clan("Brujah", 1), 4, false);
+    let mut cards = vec!["Gift of Proteus", "Form of Mist"];
+    cards.extend(["Deflection"; 4]);
+    hand(&mut e, 0, &cards);
+    let mist = find_library("Form of Mist");
+    // The Gift's replacement a Deflection, the Form of Mist's a Form of Mist.
+    e.state.seats[0]
+        .library
+        .extend([mist, find_library("Deflection")]);
+    zvtes::copies::number_unnumbered(&mut e);
+    pick(&mut e, play(0, 0, a));
+    pick(&mut e, Choice::SetX(1));
+    pick_when(&mut e, block(b));
+    let i = e.state.seats[0]
+        .hand
+        .iter()
+        .position(|&c| c == mist)
+        .unwrap() as u8;
+    pick_when(&mut e, play(i, 1, a));
+    pick_when(&mut e, Choice::ContinueAction);
+    until(&mut e, SeatId(0), WindowLabel::MinionPhase);
+    assert!(on(&e, "Gift of Proteus", a).is_none(), "burned");
+    assert!(e.state.seats[0]
+        .ash
+        .contains(&find_library("Gift of Proteus")));
+    assert_eq!(
+        e.state.seats[0].hand.iter().filter(|&&c| c == mist).count(),
+        1
+    );
+}
+
 /// Nar-Sheptha over Deep Song (ANK 20211022): Deep Song's target with her
 /// leaves the Deep Song player the acting minion; without her, the target.
 // Rulings: [ANK 20211022].
@@ -1668,6 +1981,7 @@ fn gift_of_proteus_ignores_its_replacement() {
     hand(&mut e, 0, &cards);
     let mist = find_library("Form of Mist");
     e.state.seats[0].library.extend([mist]);
+    zvtes::copies::number_unnumbered(&mut e);
     pick(&mut e, play(0, 0, a));
     pick(&mut e, Choice::SetX(1));
     never_offered_until(
@@ -1783,35 +2097,39 @@ fn funeral_wake_superior_unlocks_two() {
 }
 
 /// In Memory of the Two Lands: its strength mode on the acting mummy uses
-/// the action's one use, the bleed mode then not offered; burned once its
-/// last counter is spent.
+/// the action's one use, the bleed mode then not offered with a counter
+/// still on it; burned once its last counter is spent.
 #[test]
 fn in_memory_of_the_two_lands_one_use_an_action() {
-    let mut e = game(2);
-    let mummy = e.add_ally(SeatId(0), find_library("Saatet-ta"));
-    e.add_minion(SeatId(0), clan("Ventrue", 0), 4, false);
-    e.add_minion(SeatId(1), clan("Brujah", 0), 4, false);
-    e.add_minion(SeatId(1), clan("Brujah", 1), 4, false);
-    let card = in_play(&mut e, 0, "In Memory of the Two Lands", None);
-    e.state.cards[card.index()].counters = 1;
-    let use_of = |ability, target| Choice::UseAbility {
-        source: AbilitySource::Card(card),
-        ability,
-        actor: None,
-        target,
-    };
-    pick(&mut e, bleed(mummy));
-    pick_when(&mut e, use_of(1, Target::Minion(mummy)));
-    never_offered_until(
-        &mut e,
-        SeatId(0),
-        WindowLabel::MinionPhase,
-        use_of(0, Target::None),
-    );
-    assert!(
-        !e.state.cards[card.index()].in_play,
-        "no counter left: burned"
-    );
+    for counters in [2, 1] {
+        let mut e = game(2);
+        let mummy = e.add_ally(SeatId(0), find_library("Saatet-ta"));
+        e.add_minion(SeatId(0), clan("Ventrue", 0), 4, false);
+        e.add_minion(SeatId(1), clan("Brujah", 0), 4, false);
+        e.add_minion(SeatId(1), clan("Brujah", 1), 4, false);
+        let card = in_play(&mut e, 0, "In Memory of the Two Lands", None);
+        e.state.cards[card.index()].counters = counters;
+        let use_of = |ability, target| Choice::UseAbility {
+            source: AbilitySource::Card(card),
+            ability,
+            actor: None,
+            target,
+        };
+        pick(&mut e, bleed(mummy));
+        pick_when(&mut e, use_of(1, Target::Minion(mummy)));
+        never_offered_until(
+            &mut e,
+            SeatId(0),
+            WindowLabel::MinionPhase,
+            use_of(0, Target::None),
+        );
+        let c = &e.state.cards[card.index()];
+        if counters == 2 {
+            assert!(c.in_play && c.counters == 1, "one spent");
+        } else {
+            assert!(!c.in_play, "no counter left: burned");
+        }
+    }
 }
 
 /// From a Sinking Ship on an ally: taken, as a vampire is (106.3).

@@ -275,6 +275,8 @@ pub struct Side {
     /// Catatonic Fear [PRE] rider, armed by the play, fired by the strike:
     /// n unpreventable damage on the opposing minion after combat.
     pub after_damage_rider: Option<u8>,
+    /// `after_damage_rider` at any range (Arianne, The Conqueror).
+    pub after_damage_any: bool,
     /// Kiss of Cathari [OBF]/[PRE]: its strike stuns the opposing minion
     /// after combat, at close range and not dodged.
     pub after_stun_rider: bool,
@@ -415,6 +417,8 @@ pub struct Side {
     /// minion as it lands (`held`).
     pub undodgeable_strike: bool,
     pub aggravated_strike: bool,
+    /// Its strikes this round cannot be dodged (Sanguinary Wind).
+    pub undodgeable_round: bool,
     /// The aim decision after this side's strike was chosen was passed
     /// (an aim is played on top of the chosen strike, owner 2026-10-11).
     pub aim_declined: bool,
@@ -498,6 +502,24 @@ pub struct Side {
     pub no_end_press: bool,
     pub frenzy_strength: u8,
     pub press_damage: u8,
+    /// Necrosis [THN] landed: that much more, this round's press step only.
+    pub press_damage_round: u8,
+    /// Its last strike was a hand strike (Shoulder Drop).
+    pub hand_struck: bool,
+    /// Its last strike was with a melee weapon (Blade Clot).
+    pub melee_struck: bool,
+    /// That strike inflicted damage (Shoulder Drop).
+    pub hand_landed: bool,
+    /// The blood Liquefy the Mortal Coil [vic] burns as its strike lands.
+    pub liquefy_rider: Option<u8>,
+    /// Elixir of Distillation's strike is on.
+    pub distill_rider: Option<u8>,
+    /// The round its initial strike may diablerize (Liquefy [VIC]).
+    pub diablerie_round: Option<u8>,
+    /// That strike is on.
+    pub diablerie_rider: bool,
+    /// Necrosis [THN]'s, until its strike resolves.
+    pub press_damage_rider: Option<u8>,
     /// This minion cannot maneuver this combat (Ni Dieu ni Maître [ani]).
     pub no_maneuver: bool,
     /// Imprison, copies: for the rest of the combat, no maneuver, no press
@@ -686,6 +708,7 @@ impl Side {
             combat_damage: self.combat_damage,
             combat_maneuvers: self.combat_maneuvers,
             combat_presses: self.combat_presses,
+            diablerie_round: self.diablerie_round,
             long_maneuvers: self.long_maneuvers,
             combat_continue_presses: self.combat_continue_presses,
             no_combat_ends_round: self.no_combat_ends_round,
@@ -752,6 +775,16 @@ impl Side {
     pub fn strength(&self, base: u8) -> u8 {
         self.strength_set.unwrap_or(base)
     }
+}
+
+/// A strike effect landed (`CombatCtx::landed`).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Landed {
+    /// Liquefy the Mortal Coil [vic]: that blood from that vampire.
+    Liquefy(MinionId, u8),
+    /// Elixir of Distillation: that vampire and blood, if it landed, that
+    /// weapon.
+    Distill(Option<(MinionId, u8)>, CardId),
 }
 
 #[derive(Clone, Debug, Default)]
@@ -894,6 +927,18 @@ pub struct CombatCtx {
     /// with the opposing minion as this one ends, in place of side `.1`'s
     /// minion, with an optional maneuver the first round if `.2`.
     pub coordinate: Option<(MinionId, usize, bool)>,
+    /// The vampire taking that place is Marie-Pierre's, no strike barred.
+    pub joined: bool,
+    /// Marie-Pierre's offer made: the combat's end resumes past it.
+    pub join_asked: bool,
+    /// Haven Hunting's offers made, by side.
+    pub again_asked: [bool; 2],
+    /// Stand-ins that last the combat (Liquefy [VIC]).
+    pub stand_ins: Vec<CardId>,
+    /// Strike effects landed, applied once the strikes have resolved.
+    pub landed: Vec<Landed>,
+    /// Liquefy [VIC]: the diablerie the combat ends with.
+    pub diablerie: Option<(MinionId, MinionId)>,
     /// Abuse of Power: at the end of the combat, if only one combatant is
     /// ready, the controller of the other burns n pool.
     pub one_ready_burn: Option<(u8, Source)>,
@@ -1059,6 +1104,7 @@ impl CombatCtx {
                 n: (strength + bonus + s.hand_damage_bonus).saturating_sub(less),
                 aggravated: s.aggravated_hands
                     || printed
+                    || st.printed_mod(s.minion, cards::Stat::AggravatedHandStrikes, ctx) > 0
                     || s.aggravated_strike
                     || st.minions[s.minion.index()]
                         .timed
@@ -1067,6 +1113,9 @@ impl CombatCtx {
                     || action.is_some_and(|a| a.aggravated_hands && a.acting == s.minion),
             },
             StrikeKind::Melee { bonus, aggravated } => {
+                let bonus = bonus
+                    + st.printed_mod(s.minion, cards::Stat::MeleeDamage, ctx)
+                        .max(0) as u8;
                 // "Damage inflicted on a Kiasyd by this weapon is
                 // aggravated" (Banshee Ironwail).
                 let against = st.minions[opp.index()].clan();
@@ -1210,7 +1259,10 @@ impl CombatCtx {
 
     /// The end-of-round window, combat about to end (spec §4.9.1).
     pub fn would_end(&self) -> bool {
-        self.step == Step::EndOfRound && !self.press_continue && !self.continued
+        self.step == Step::EndOfRound
+            && !self.press_continue
+            && !self.continued
+            && self.diablerie.is_none()
     }
 
     fn order(&self) -> Vec<SeatId> {
@@ -1565,7 +1617,8 @@ impl Engine {
             Side::new(first, st.minions[first.index()].owner),
             Side::new(second, st.minions[second.index()].owner),
         ];
-        for s in &mut sides {
+        for (i, s) in sides.iter_mut().enumerate() {
+            let opponent = if i == 0 { second } else { first };
             s.mandatory_press = st
                 .printed_mod(
                     s.minion,
@@ -1577,8 +1630,22 @@ impl Engine {
             s.combat_maneuvers += st.clan_combat_maneuvers(s.minion);
             // "1 optional press each combat" (Serhat Gunde; Dread Mastiff
             // [ANI] on its employer).
-            s.combat_presses += st.combat_presses_of(s.minion);
+            s.combat_presses += st.combat_presses_of(s.minion, opponent);
             s.first_round_press = st.first_round_presses_of(s.minion);
+            s.environmental_close += st
+                .printed_mod(
+                    s.minion,
+                    crate::cards::Stat::EnvironmentalClose,
+                    crate::state::PrintedCtx::default(),
+                )
+                .max(0) as u8;
+            s.presses += st
+                .printed_mod(
+                    s.minion,
+                    crate::cards::Stat::FirstRoundPress,
+                    crate::state::PrintedCtx::default(),
+                )
+                .max(0) as u8;
             // Barred from combat ends for the action (Mind of the Wilds).
             s.no_combat_ends_combat = self
                 .action
@@ -1646,6 +1713,48 @@ impl Engine {
             minions: [acting, opposing],
         });
         self.freeze_auspex_foes();
+        self.turnips_move([acting, opposing]);
+    }
+
+    /// Blood Turnip: each moves with 1 blood or life, converted to the
+    /// opposing minion's (LSJ 20080704); an Anarch gets the blood and moves
+    /// the card, which must move (LSJ 20080704).
+    fn turnips_move(&mut self, pair: [MinionId; 2]) {
+        // Read for both first: one moved is not moved back.
+        let turnips: Vec<(MinionId, MinionId, CardId)> = (0..2)
+            .flat_map(|i| {
+                let (from, to) = (pair[i], pair[1 - i]);
+                self.state
+                    .borne(from)
+                    .filter(|l| l.modifier == cards::Modifier::MovesAsCombatBegins)
+                    .map(move |l| (from, to, l.source))
+                    .collect::<Vec<_>>()
+            })
+            .collect();
+        for (from, to, card) in turnips {
+            if self.state.minions[from.index()].blood > 0 {
+                let moved = Cause::Effect(Source::Card(card));
+                let last = self.caused(moved, |e| {
+                    let last = e.state.burn_blood_or_life(from, 1);
+                    let b = e.state.minions[to.index()].blood + 1;
+                    e.state.set_blood(to, b);
+                    last
+                });
+                if last {
+                    self.lifeless(from);
+                }
+            }
+            if self.state.sect_of(to) == Some(crate::crypt::Sect::Anarch) {
+                let seat = self.state.minions[to.index()].owner;
+                self.interrupts.push(crate::draws::Interrupt::MinionOf {
+                    seat,
+                    of: seat,
+                    purpose: crate::draws::MinionPurpose::MoveOntoAny(card, to),
+                });
+            } else {
+                self.state.set_host(card, to);
+            }
+        }
     }
 
     /// Ossian: in the first round, a vampire opposing him that played a
@@ -2982,11 +3091,14 @@ impl Engine {
     /// True when the flow moved on (an oust).
     fn press_step_damage(&mut self) -> bool {
         let c = self.combat.as_mut().expect("combat context");
-        if c.sides.iter().all(|s| s.press_damage == 0) {
+        if c.sides
+            .iter()
+            .all(|s| s.press_damage == 0 && s.press_damage_round == 0)
+        {
             return false;
         }
         for s in &mut c.sides {
-            s.unpreventable += s.press_damage;
+            s.unpreventable += s.press_damage + s.press_damage_round;
         }
         self.apply_damage()
     }
@@ -3061,6 +3173,7 @@ impl Engine {
         let at = self.note_at();
         let strikes = Cause::Effect(Source::Rule(Rule::Strikes));
         self.caused(strikes, Self::resolve_strikes);
+        self.apply_landed();
         // Still in combat (an oust may have ended it).
         let (Some((strikes, told, pending, unpreventable)), Some(c)) =
             (before, self.combat.as_ref())
@@ -3150,6 +3263,46 @@ impl Engine {
     fn resolve_strikes(&mut self) {
         let c = self.combat.as_mut().expect("combat context");
         let strikes = [c.sides[0].strike, c.sides[1].strike];
+        for (side, strike) in c.sides.iter_mut().zip(strikes) {
+            side.hand_struck = matches!(strike, Some(StrikeKind::Hand { .. }));
+            side.melee_struck = matches!(strike, Some(StrikeKind::Melee { .. }));
+            side.hand_landed = false;
+        }
+        // Drink the Blood of Ahriman: inflicted, even if prevented.
+        let scorched: Vec<CardId> = (0..2)
+            .filter(|&i| {
+                matches!(
+                    strikes[i],
+                    Some(StrikeKind::Damage {
+                        ranged: true,
+                        aggravated: true,
+                        ..
+                    })
+                ) && !matches!(strikes[1 - i], Some(StrikeKind::Dodge))
+            })
+            .flat_map(|i| {
+                self.state
+                    .borne(c.sides[1 - i].minion)
+                    .filter(|l| l.modifier == cards::Modifier::BurnedByRangedAggravated)
+                    .map(|l| l.source)
+            })
+            .collect();
+        for id in scorched {
+            self.burn_card_in_play(id);
+        }
+        let c = self.combat.as_mut().expect("combat context");
+        // Necrosis [THN]: at close range, not dodged, the opposing vampire
+        // only; lost if the combat ends first (no press step).
+        for i in 0..2 {
+            if let Some(n) = c.sides[i].press_damage_rider.take() {
+                if c.range == Range::Close
+                    && !matches!(strikes[1 - i], Some(StrikeKind::Dodge))
+                    && self.state.minions[c.sides[1 - i].minion.index()].is_vampire()
+                {
+                    c.sides[1 - i].press_damage_round += n;
+                }
+            }
+        }
         // A combat ends strike against a minion whose retainer bars it has
         // no effect (Dog Pack put on it after the strike was chosen, ANK
         // 20190412).
@@ -3178,7 +3331,8 @@ impl Engine {
                 // Catatonic Fear [PRE]: at close range, not dodged (LSJ
                 // 19980526).
                 if let Some(n) = c.sides[i].after_damage_rider.take() {
-                    if c.range == Range::Close && !matches!(strikes[1 - i], Some(StrikeKind::Dodge))
+                    if (c.range == Range::Close || c.sides[i].after_damage_any)
+                        && !matches!(strikes[1 - i], Some(StrikeKind::Dodge))
                     {
                         // A strike's damage after combat: reduced too (LSJ
                         // 20080630), and raised by Dam the Heart's River
@@ -3273,7 +3427,8 @@ impl Engine {
             let j = 1 - i;
             let dodged = strikes[j] == Some(StrikeKind::Dodge)
                 && !self.state.undodgeable(c.sides[i].minion)
-                && !c.sides[i].undodgeable_strike;
+                && !c.sides[i].undodgeable_strike
+                && !c.sides[i].undodgeable_round;
             let burned = c.sides[i].strike_weapon.filter(|w| {
                 let wc = &self.state.cards[w.index()];
                 !dodged
@@ -3293,14 +3448,15 @@ impl Engine {
         }
         let c = self.combat.as_mut().expect("combat context");
         // A strike from a card no longer on the striker has no effect (spec
-        // §4.10.4).
+        // §4.10.4); a card on nobody strikes for whoever uses it (Watchtower:
+        // The Wolves Feed).
         let st = &self.state;
         let mut strikes: [Option<StrikeKind>; 2] = std::array::from_fn(|i| {
             let s = &c.sides[i];
             match s.strike_source {
                 Some(w)
                     if !(st.cards[w.index()].present()
-                        && st.cards[w.index()].bearer() == Some(s.minion)) =>
+                        && st.cards[w.index()].bearer().is_none_or(|b| b == s.minion)) =>
                 {
                     None
                 }
@@ -3437,6 +3593,7 @@ impl Engine {
             strikes[1 - i] == Some(StrikeKind::Dodge)
                 && !st.undodgeable(c.sides[i].minion)
                 && !c.sides[i].undodgeable_strike
+                && !c.sides[i].undodgeable_round
         });
         // Does the strike land — in range, not dodged, not aimed at a
         // retainer?
@@ -3466,6 +3623,26 @@ impl Engine {
                 }
         });
         for (i, &landed) in lands.iter().enumerate() {
+            let (m, foe) = (c.sides[i].minion, c.sides[1 - i].minion);
+            if let Some(n) = c.sides[i].liquefy_rider.take().filter(|_| landed) {
+                if st.minions[foe.index()].is_ally() {
+                    c.sides[1 - i].sent_to_torpor = true;
+                } else if st.younger_than(foe, m) {
+                    c.landed.push(Landed::Liquefy(foe, n));
+                }
+            }
+            // Burned after use, dodged too; a no-op on an ally.
+            if let Some(n) = c.sides[i].distill_rider.take() {
+                if let Some(w) = c.sides[i].strike_source {
+                    let on = landed && st.minions[foe.index()].is_vampire();
+                    c.landed.push(Landed::Distill(on.then_some((foe, n)), w));
+                }
+            }
+            if std::mem::take(&mut c.sides[i].diablerie_rider) && landed && st.younger_than(foe, m)
+            {
+                c.diablerie = Some((m, foe));
+                c.round_over = true;
+            }
             if std::mem::take(&mut c.sides[i].burns_ally_on_hit)
                 && landed
                 && st.minions[c.sides[1 - i].minion.index()].is_ally()
@@ -3925,6 +4102,7 @@ impl Engine {
     }
 
     fn apply_damage_now(&mut self) -> bool {
+        let mut clots = Vec::new();
         // Immune to non-aggravated damage: none inflicted (Tye Cooper).
         let c = self.combat.as_mut().expect("combat context");
         for s in &mut c.sides {
@@ -4001,6 +4179,14 @@ impl Engine {
             c.sides[i].combat_damage = c.sides[i].combat_damage.saturating_add(d);
             c.sides[i].strike_damage = Damage::default();
             c.sides[1 - i].inflicted_round += from_strikes;
+            c.sides[1 - i].hand_landed |= from_strikes > 0 && c.sides[1 - i].hand_struck;
+            if from_strikes > 0 && (c.sides[1 - i].hand_struck || c.sides[1 - i].melee_struck) {
+                clots.push((
+                    c.sides[1 - i].seat,
+                    c.sides[1 - i].minion,
+                    c.sides[i].minion,
+                ));
+            }
         }
         let mut wounded = Vec::new();
         let mut burned = Vec::new();
@@ -4058,7 +4244,35 @@ impl Engine {
         }
         // Burns and torpors land at once, their riders with them (rules-qa
         // 6.4): a Methuselah may be ousted here.
+        for (seat, striker, to) in clots {
+            if self.state.sect_of(striker) == Some(crate::crypt::Sect::Anarch) {
+                let sources: Vec<CardId> = self
+                    .state
+                    .cards
+                    .iter()
+                    .enumerate()
+                    .filter_map(|(i, card)| {
+                        let id = CardId(i as u32);
+                        (card.present()
+                            && card.counters > 0
+                            && self.state.card_controller(id) == seat
+                            && self.state.layers.iter().any(|l| {
+                                l.source == id && l.modifier == cards::Modifier::MovesClotsOnHit
+                            }))
+                        .then_some(id)
+                    })
+                    .collect();
+                for card in sources {
+                    self.interrupts
+                        .push(crate::draws::Interrupt::MoveClot { seat, card, to });
+                }
+            }
+        }
         for &m in &burned {
+            let by = self.combat.as_ref().and_then(|c| c.opponent_of(m));
+            if let Some(by) = by {
+                self.red_list_burned(by, m);
+            }
             self.burn_minion(m);
         }
         self.incapacitate(&lifeless);
@@ -4220,9 +4434,162 @@ impl Engine {
         c.fresh_window(Step::EndOfRound);
     }
 
+    /// What strikes landed that burns blood or cards, after they resolved.
+    fn apply_landed(&mut self) {
+        let Some(c) = self.combat.as_mut() else {
+            return;
+        };
+        let mut end = false;
+        for l in std::mem::take(&mut c.landed) {
+            match l {
+                Landed::Liquefy(v, n) => {
+                    self.state.burn_blood(v, n);
+                    end |= self.state.minions[v.index()].blood == 0;
+                }
+                Landed::Distill(v, weapon) => {
+                    let card = self.state.cards[weapon.index()].card;
+                    self.burn_card_in_play(weapon);
+                    let Some((v, n)) = v else { continue };
+                    self.state.burn_blood(v, n);
+                    let owner = self.state.minions[v.index()].owner;
+                    let mut stand_in = crate::state::CardInPlay::entering(
+                        card,
+                        crate::copies::CopyId::NONE,
+                        owner,
+                        Some(v),
+                        1,
+                    );
+                    stand_in.effect_only = true;
+                    self.place_now(stand_in, crate::plays::ModeLayers::Push, false);
+                }
+            }
+        }
+        if end {
+            self.end_combat_now();
+        }
+    }
+
+    /// Haven Hunting: both combatants ready, an Anarch among them, no
+    /// combat queued (RTR 20020501): the end waits for its controller.
+    fn offer_new_combat(&mut self) -> bool {
+        let Some(c) = self.combat.as_ref() else {
+            return false;
+        };
+        let st = &self.state;
+        if c.psyche || c.coordinate.is_some() || c.diablerie.is_some() || !c.both_ready(st) {
+            return false;
+        }
+        let hook = crate::cards::Hook::OwnAnarchCombatEnded;
+        let offer = (0..2).filter(|&i| !c.again_asked[i]).find_map(|i| {
+            let s = &c.sides[i];
+            (st.sect_of(s.minion) == Some(crate::crypt::Sect::Anarch))
+                .then(|| self.fired_riders(hook, &crate::plays::HookAt::of(s.seat)))
+                .and_then(|r| r.into_iter().next())
+                .map(|(card, _)| (i, s.seat, card))
+        });
+        let Some((i, seat, card)) = offer else {
+            return false;
+        };
+        self.combat.as_mut().expect("combat context").again_asked[i] = true;
+        self.interrupts
+            .push(crate::draws::Interrupt::MayNewCombat { seat, card });
+        true
+    }
+
+    /// A vampire may enter combat with the opposing minion as this combat
+    /// of its controller's clanmate ends (Marie-Pierre; ANK 20180928-2: after
+    /// "would end" effects, before after-combat ones): the end waits for
+    /// the answer.
+    fn offer_join_combat(&mut self) -> bool {
+        let Some(c) = self.combat.as_ref().filter(|c| {
+            !c.join_asked && !c.psyche && c.coordinate.is_none() && c.diablerie.is_none()
+        }) else {
+            return false;
+        };
+        let st = &self.state;
+        let mut offer = None;
+        for i in 0..2 {
+            let (seat, fought) = (c.sides[i].seat, c.sides[i].minion);
+            let opposing = c.sides[1 - i].minion;
+            if st.seats[seat.index()].ousted
+                || st.seats[c.sides[1 - i].seat.index()].ousted
+                || !st.minions[opposing.index()].ready()
+            {
+                continue;
+            }
+            for m in st.minions_of(seat) {
+                let v = &st.minions[m.index()];
+                if m == fought || !v.ready() || v.locked {
+                    continue;
+                }
+                let joins = self
+                    .printed_riders(m, crate::cards::Hook::OwnClanCombatEnded, None)
+                    .iter()
+                    .flat_map(|r| r.effects)
+                    .any(|e| {
+                        matches!(*e, Effect::MayJoinCombat(clan)
+                        if st.minions[fought.index()].clan() == Some(clan))
+                    });
+                if joins && offer.is_none() {
+                    offer = Some((seat, m, i));
+                }
+            }
+        }
+        self.combat.as_mut().expect("combat context").join_asked = true;
+        let Some((seat, minion, side)) = offer else {
+            return false;
+        };
+        self.interrupts
+            .push(crate::draws::Interrupt::MayJoinCombat {
+                seat,
+                minion,
+                side: side as u8,
+            });
+        true
+    }
+
     /// Combat over: back to the action's after-combat window (a combat
     /// begun at resolution then to after resolution, rules-qa 17.3).
-    fn end_combat(&mut self) {
+    pub(crate) fn end_combat(&mut self) {
+        if self.offer_new_combat() || self.offer_join_combat() {
+            return;
+        }
+        let diablerie = self.combat.as_mut().and_then(|c| c.diablerie.take());
+        let stand_ins = self
+            .combat
+            .as_mut()
+            .map_or(Vec::new(), |c| std::mem::take(&mut c.stand_ins));
+        for id in stand_ins {
+            self.burn_card_in_play(id);
+        }
+        self.close_combat();
+        // Liquefy [VIC]: what the combat's end leaves stands, the diablerie
+        // follows it, if both are still there.
+        if let Some((d, v)) = diablerie {
+            if self.action.is_some()
+                && self.state.minions[d.index()].ready()
+                && self.state.minions[v.index()].present()
+            {
+                // What the after-combat window's close settles: it is
+                // skipped, the blood hunt following (rules-qa 107.30).
+                if let Some(a) = self.action.as_mut().filter(|a| !a.resolved) {
+                    let failed = a.failed && a.blocked_by.is_empty();
+                    a.continued = false;
+                    a.continue_free = false;
+                    a.outcome = a.outcome.or(Some(if failed {
+                        crate::actions::Outcome::Failed
+                    } else {
+                        crate::actions::Outcome::Blocked
+                    }));
+                }
+                let rule = Cause::Effect(Source::Rule(Rule::Diablerie));
+                self.caused(rule, |e| e.diablerise(d, v));
+                self.after_diablerie(d, v);
+            }
+        }
+    }
+
+    fn close_combat(&mut self) {
         let ended = self.combat.take();
         // Yawp Court reads the acting vampire as the combat ends, before a
         // Rötschreck's torpor (LSJ 20080821).
@@ -4305,7 +4672,9 @@ impl Engine {
                 self.begin_combat(x, y, at_resolution);
                 let n = self.combat.as_mut().expect("the new combat");
                 n.held_at_block.clear();
-                n.sides[1 - i].no_strike_cards_round = Some(1);
+                if !c.joined {
+                    n.sides[1 - i].no_strike_cards_round = Some(1);
+                }
                 if maneuver {
                     n.sides[i].maneuvers += 1;
                 }
@@ -4982,6 +5351,7 @@ impl Engine {
                 }
             }
             Effect::UndodgeableStrike => c.sides[i].undodgeable_strike = true,
+            Effect::UndodgeableThisRound => c.sides[i].undodgeable_round = true,
             Effect::AggravatedStrike => c.sides[i].aggravated_strike = true,
             Effect::BurnElectronicOnCombatants => c.sides[i].burns_electronic = true,
             Effect::Expiate => c.sides[i].expiate += 1,
@@ -5252,6 +5622,41 @@ impl Engine {
                 c.sides[i].continue_rider = Some((blood, stealth));
             }
             Effect::DamageAfterCombatIfClose(n) => c.sides[i].after_damage_rider = Some(n),
+            Effect::PressDamageIfClose(n) => c.sides[i].press_damage_rider = Some(n),
+            Effect::LiquefyOnHit(n) => c.sides[i].liquefy_rider = Some(n),
+            Effect::DistillOnHit(n) => c.sides[i].distill_rider = Some(n),
+            Effect::DiablerizeOnHit => c.sides[i].diablerie_rider = true,
+            Effect::StrikeDiablerizesNextRound => {
+                c.sides[i].no_strike_round = Some(c.round);
+                c.sides[i].diablerie_round = Some(c.round + 1);
+                let mut stand_in = crate::state::CardInPlay::entering(
+                    play.card,
+                    crate::copies::CopyId::NONE,
+                    play.seat,
+                    Some(actor),
+                    play.mode,
+                );
+                stand_in.effect_only = true;
+                if let Some(id) = self.place_now(stand_in, crate::plays::ModeLayers::Push, false) {
+                    self.combat
+                        .as_mut()
+                        .expect("combat context")
+                        .stand_ins
+                        .push(id);
+                }
+            }
+            // After strike resolution, its prevention as any damage's.
+            Effect::GrappleDamage(n) => {
+                c.sides[i].hand_landed = false;
+                c.sides[1 - i].no_press_round = true;
+                c.sides[1 - i].pending.add(n, false);
+                c.sides[1 - i].preventing = true;
+                self.after_prevention_or_next();
+            }
+            Effect::DamageAfterCombat(n) => {
+                c.sides[i].after_damage_rider = Some(n);
+                c.sides[i].after_damage_any = true;
+            }
             Effect::StunAfterCombatIfClose => c.sides[i].after_stun_rider = true,
             Effect::PutOnOpponentAfterCombatIfClose => {
                 c.sides[i].after_put_rider = Some(Held::from_play(play, actor, 0));

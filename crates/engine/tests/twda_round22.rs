@@ -849,8 +849,9 @@ fn salvador_garcia_reduces_cards_requiring_an_anarch() {
 // Victor Gerard: "You and Victor can play cards requiring a Camarilla
 // vampire as if Victor were a Camarilla vampire. While Victor is a Baron,
 // you and Victor can play cards requiring a Prince as if Victor were a
-// Prince." A baron: a titled Camarilla vampire's political action, a
-// prince's reaction; not a baron, neither. The prince's votes not his
+// Prince." A baron: a prince's reaction; not a baron, not that. A titled
+// Camarilla vampire's political action never: as Camarilla his baron's
+// title is dormant (owner, rules-qa 104.18). The prince's votes not his
 // (ANK 20231221); his sect untouched beyond the card (LSJ 20101013).
 // Rulings: [LSJ 20101013] [ANK 20190228] [ANK 20200705-2] [LSJ 20070708]
 // [RTR 20070707].
@@ -871,14 +872,9 @@ fn victor_gerard_plays_camarilla_and_prince_cards() {
             &["Justicar Retribution", "Camarilla's Iron Fist"],
         );
         let req = request(&mut e);
-        // A Camarilla vampire's card always; a titled one's as a baron.
+        // A Camarilla vampire's card always; a titled one's never.
         assert!(req.options.contains(&play(0, 0, v)), "{:?}", req.options);
-        assert_eq!(
-            req.options.contains(&play(1, 0, v)),
-            baron,
-            "{:?}",
-            req.options
-        );
+        assert!(!req.options.contains(&play(1, 0, v)), "{:?}", req.options);
         assert_eq!(e.state.title_of(v) != Title::None, baron);
         // Victor stays Anarch: the requirement met for the card only.
         assert_eq!(e.state.sect_of(v), Some(Sect::Anarch));

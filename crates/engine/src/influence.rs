@@ -330,7 +330,31 @@ impl Engine {
     /// effects, then any contest (influenced out, or put in play: Summon
     /// History); `forced`: another copy already controlled.
     pub(crate) fn vampire_entered(&mut self, s: SeatId, m: MinionId, card: u16, forced: bool) {
+        for c in &mut self.state.cards {
+            if c.in_play && c.owner == s && c.on_slot == Some(card) {
+                c.on_slot = None;
+                c.host = Some(m);
+            }
+        }
         self.entered_play_riders(m);
+        // Jack Drake, whichever way it came out of the uncontrolled region.
+        let turned = (0..self.state.minions.len())
+            .map(|i| MinionId(i as u32))
+            .any(|o| {
+                let v = &self.state.minions[o.index()];
+                v.owner == s
+                    && v.present()
+                    && self.state.younger_than(m, o)
+                    && self.state.printed_mod(
+                        o,
+                        crate::cards::Stat::YoungerEntrantsMayTurnAnarch,
+                        crate::state::PrintedCtx::default(),
+                    ) > 0
+            });
+        if turned {
+            self.interrupts
+                .push(crate::draws::Interrupt::BurnBloodToAnarch { seat: s, minion: m });
+        }
         // An Anarch entering play: counted first, the Convert's
         // ability next (Hackerspace, ANK 20210410).
         if self.state.sect_of(m) == Some(crate::crypt::Sect::Anarch) {
@@ -457,6 +481,43 @@ impl Engine {
                 && v.vampire()
                     .is_some_and(|o| o.name == c.name && o.adv != c.adv)
         })
+    }
+
+    /// Epiphany: `m`'s advanced version, from `s`'s crypt, uncontrolled
+    /// region or ash heap in that order, merged with it; none, no effect.
+    pub(crate) fn merge_with_advanced(&mut self, s: SeatId, m: crate::ids::MinionId) {
+        let name = CRYPT[self.state.minions[m.index()]
+            .crypt_card()
+            .expect("a vampire") as usize]
+            .name;
+        let advanced = |c: u16| CRYPT[c as usize].adv && CRYPT[c as usize].name == name;
+        let mut blood = 0;
+        let seat = &mut self.state.seats[s.index()];
+        let found = if let Some(i) = seat.crypt.iter().position(|&c| advanced(c)) {
+            Some(seat.crypt.take(i))
+        } else if let Some(i) = seat
+            .uncontrolled
+            .iter()
+            .position(|u| advanced(u.card) && u.banished.is_none())
+        {
+            let slot = seat.uncontrolled.remove(i);
+            blood = slot.counters;
+            Some((slot.card, *slot.copy))
+        } else {
+            seat.ash_crypt
+                .iter()
+                .position(|&c| advanced(c))
+                .map(|i| seat.ash_crypt.take(i))
+        };
+        self.state.seats[s.index()].crypt.shuffle(&mut self.rng);
+        if let Some((card, copy)) = found {
+            self.merge(m, card, copy);
+            let merge = Cause::Effect(Source::Minion(m));
+            self.caused(merge, |e| {
+                let b = e.state.minions[m.index()].blood + blood;
+                e.state.set_blood(m, b);
+            });
+        }
     }
 
     /// Merge `m` with crypt card `card` (rulebook "Advanced"): the advanced

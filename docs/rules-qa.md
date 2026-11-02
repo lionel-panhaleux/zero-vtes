@@ -2507,7 +2507,7 @@ Each contradiction read against the KRCG rulings, the advanced rules and the rul
 
 **104.17** Victor Gerard: a card requiring a Camarilla vampire, and while a baron one requiring a prince, as he or his Methuselah plays it (`Stat::PlaysAsCamarilla`, `Stat::PlaysAsPrince`, read on the play and as its action succeeds, never by the card's effects in play: LSJ 20101013), the Camarilla gone too (ANK 20230503, LSJ 20050124); no prince's votes (ANK 20231221); he stays Anarch. Green. (Tests victor_gerard_plays_camarilla_and_prince_cards, victor_gerard_plays_camarilla_cards_with_no_camarilla.)
 
-**104.18** Victor Gerard as a baron meets "a titled Camarilla vampire" (Camarilla's Iron Fist): Camarilla by his first sentence, titled by his baron's title (the second reader would not, low). Red, confirmed by the owner (2026-10-28). (Test victor_gerard_plays_camarilla_and_prince_cards.)
+**104.18** Victor Gerard as a baron does not meet "a titled Camarilla vampire" (Camarilla's Iron Fist): playing the card as a Camarilla vampire leaves his baron's title dormant, a baron being Anarch (`cards::title_dormant_as_camarilla`; an off-sect title is none, as 104.7), and his prince impersonation (104.17) stays. Owner (2026-10-30): "No, playing the card as a Camarilla vampire makes his Baron title dormant (since it requires to be Anarch to be Baron) so Iron Fist does not see him as titled." Red, overturned by the owner (2026-10-30). (Test victor_gerard_plays_camarilla_and_prince_cards.)
 
 **104.19** Vulture: Synner-G's shape for any Anarch of his Methuselah's equipping a vehicle from hand by an equip action that did not fizzle (`Requirement::ActionNotFizzled`, Synner-G's too: a fizzled equip equips nothing), the Anarch read as it unlocks; once in each Methuselah's turn (ANK 20180719-4), Vulture locked or in torpor too. Amber (Synner-G's precedent). (Tests vulture_unlocks_an_anarch_equipping_a_vehicle, vulture_unlocks_once_each_turn.)
 
@@ -2572,6 +2572,76 @@ Each contradiction read against the KRCG rulings, the advanced rules and the rul
 **106.21** The Unaligned's vampire abilities: Art Morgan unlocks a werewolf ally of his Methuselah's; Glycon enters combat with a locked minion, fizzling if it is unlocked at resolution; Karmenita burns an equipment or location (1 blood); Lupo, ready, feeds another ready Giovanni once each unlock phase; Madeleine's tax once per minion leaving the ready region in combat with her; Rebekah and Enzo once each referendum, locked too (ANK 20220705), Rebekah's a blood hunt's too, Enzo's a political action's; Bez discards 2 at random after leaving the ready region by burning or torpor (not a control change), then draws; Count Jocalo looks after each of his predator's or prey's discard phase actions; Al-Ashrad's first-round permission every Blood Sorcery strike; Legba bars other Methuselahs' Ministry vampires' votes in her referendums. Green. (Tests art_morgan_unlocks_a_werewolf, glycon_enters_combat_with_a_locked_minion, karmenita_burns_an_equipment, lupo_giovanni_feeds_another_giovanni, madeleine_giovanni_taxes_a_minion_sent_to_torpor, rebekah_and_enzo_buy_votes, bez_dunsirn_discards_two_as_he_leaves_ready, count_jocalo_looks_after_a_discard_phase_action, al_ashrad_strikes_with_walk_of_flame_in_the_first_round, legba_bars_other_methuselahs_followers_of_set.)
 
 **106.22** Vestgeir plays a political action card from another Methuselah's ash heap as if from hand, he alone; the card stays its owner's, removed to their removed cards instead of burned (as The Erciyes Fragments', 60.19), not replaced. Amber (60.19). (Test vestgeir_plays_politics_from_another_ash_heap.)
+
+## Batch 107 — Round 24: Lost Kindred, Twilight Rebellion and Sword of Caine completed, 103 cards (the cards board; owner, 2026-10-30: "Lost Kindred, Twilight Rebellion and Sword of Caine"; 107.6, 107.20, 107.25, 107.29, 107.30, 107.32, 107.34) (Claude, 2026-11-02)
+
+**107.1** Round 24 is whole sets, no TWDA analysis, promos skipped (owner, 2026-10-30). Round 23's review findings are fixed in it: Gift of Proteus's alike copies (the play takes the oldest, announced first), Enzo's votes, Bez banished, Glycon's fizzle, Delizbieta's rush, Jocalo with four players, Hall of Mirrors, Blight, In Memory (`twda_round23.rs`).
+
+**107.2** Correction: 106.19's Adri reads allies of the clan, allies being clanless by the card's line; 106.21's Bez reads any route out of ready. Conniver counts a bounced bleed (owner, 2026-10-30), its test built on a Deflection bounce. Maman Boumba is Imbued: Enzo's fix does not reach her, no change needed.
+
+**107.3** Hagar Stone holds his Methuselah's replacements live while present and unlocked, on any card played in their turn; a shorter delay carries into his (LSJ 20070320-1), Blood Weakens, after-combat and end-of-action alike; held cards count against the hand size (ANK 20180318). Amber: burned, what he held is replaced at once, the clause gone with him.
+
+**107.4** Jack Drake asks any younger vampire leaving the uncontrolled region, by influence or otherwise, wherever he is in play, torpor included. Green on the card's words, amber on torpor.
+
+**107.5** Calvin Cleaver's second action is any Methuselah's anarch, once in each player's turn (ANK 20180719-4), directed when it is another's Calvin. Amber: blood added past capacity capped.
+
+**107.6** Topaz (owner, 2026-11-02): the swap is offered before the original enters: "instead", so no entry effect of it happens; taken, it goes to the ash heap (`topaz_swap_keeps_the_original_out_of_play`). Requirements and costs of the taken card do not apply (LSJ 20080702-4), a second vehicle barred (the card's limit, not a requirement); the prey does not replace.
+
+**107.7** Marie-Pierre's offer precedes after-combat effects, which are lost, unlocks kept (LSJ 19980109); not with a combat queued. She is not acting (ANK 20180929).
+
+**107.8** Extra draws: Learjet's and Duality's come with a replacement that draws, none under Visit from the Capuchin (`learjet_brings_nothing_for_a_replacement_capuchin_takes`), a delayed one's waiting per card (`two_sources_on_one_delayed_replacement_keep_both_draws`); Ira Rivers's on the play, at once, even with a delayed replacement; each source its own draw, caps read narrowly. Offers name their source. Amber on Ira's timing.
+
+**107.9** Anonymous Freight and Children of Stone [tha] are equip actions of the named equipment (TOM 19960130): a Baseball Bat's delay and unlock hold of that action; its requirements are not the action's (ANK 20180817). Children's [vis]/[VIS] find nothing: Razor Bat and Stone Dog are outside the pool, and employing what they find comes with those cards.
+
+**107.10** Inevitability of the Void and Unleash the Hounds read live, through a redirect. [VIS] by a crypt vampire: a created Gargoyle is not unique.
+
+**107.11** Necrosis [THN]'s damage needs close range and no dodge (ANK 20200517), on a vampire; lost if the combat ends first.
+
+**107.12** Cloak of Blood and Stealing Years diablerize by card: a Discipline the victim printed; the anarch votes go to anarchs ready as the blood hunt starts (amber: not live).
+
+**107.13** Shoulder Drop plays in the additional-strike step, its damage preventable as any. Blind Spot's second minion is chosen as the card resolves, younger than the first.
+
+**107.14** Prison of the Mind: each burn action directed at the card's controller, by any vampires, three in all. Follow the Blood's maneuver or press is named as played (amber).
+
+**107.15** The Framing goes on the anarch when its action succeeds, so it answers a later block; no combat if the blocker and the chosen minion cannot fight (same Methuselah, not ready).
+
+**107.16** Haven Hunting is asked of each side's controller in turn, not with a combat queued (RTR 20020501).
+
+**107.17** Power of All and Watchtower: The Wolves Feed cancel with the cost paid (ANK 20260216); Power of All's second anarch is chosen as it cancels.
+
+**107.18** Praetorian Backer and Black Hand Emissary need a Seraph actor. The Emissary's move is directed at the card's controller. Backer burns as soon as no ready Seraph remains.
+
+**107.19** Keystone Kine [cel] gains on the action's success, a bleed of 0 too; [obf] reads the prey, even after a redirect.
+
+**107.20** Detect Authority [ani]: a minion or location; it fails, not blocked (LSJ 20070219). Final Loosening [aus] (owner, 2026-11-02): any blood gain of the acting vampire: its next gain this action, of any kind, is 1, the reacting Anarch gaining 1 too (`final_loosening_splits_any_gain`). Amber: played at reaction timing, before the gain, a card with no gain coming is wasted.
+
+**107.21** Their Master's Voice by a locked or unlocked vampire; no gargoyle creature ally in the pool.
+
+**107.22** The World's a Canvas [dom]: the crypt card is picked at resolution (amber, against choices at declaration); half rounded down.
+
+**107.23** Enrage [PRE]'s 2 blood is an action toll (as Daria's, 42.1): masked if unpayable with the action's own cost (ANK 20180327), paid at resolution, so a blocked or canceled action pays nothing (LSJ 20090208); copies add; hunts and combat entries free. Played on the actor, it waits for its next action.
+
+**107.24** Drink the Blood of Ahriman: the unlock choice is the controller's (ANK 20220503); only a ranged aggravated strike burns it, even prevented, not dodged (amber).
+
+**107.25** Joseph Pander's granted combat lives on the card: burned, it is lost (amber). Grey Thorne: cel or pot, not both (ANK 20180731-1); healed by any Methuselah's ready anarch, that anarch's controller choosing, each asked from the active Methuselah clockwise (owner, 2026-11-02; `grey_thorne_is_healed_by_any_methuselahs_anarch`).
+
+**107.26** Epiphany takes the advanced version from crypt, uncontrolled region, then ash heap (amber: no choice), bringing a slot's blood.
+
+**107.27** No Confidence: two lose the title's benefit, a contested one yielded (LSJ 20080602); each burns as the acting vampire it remembers leaves the ready region.
+
+**107.28** Unexpected Coalition: each copy judged on its own player. Tribunal Judgment reads the latest referendum's votes as cast, ballots aside, by a turn count over live seats.
+
+**107.29** Blood Turnip (owner, 2026-11-02): an anarch moves it onto any minion, that anarch's controller choosing, not the anarch itself (`blood_turnip_goes_on_any_minion`); a last life moved burns the ally.
+
+**107.30** Liquefy the Mortal Coil [VIC] (owner, 2026-11-02): next round's initial strike can be the diablerie, a real choice beside any other (`liquefy_superior_strike_is_a_choice`), a stand-in on the vampire offering it until the combat ends; it ends the combat, no would-end play nor offer, what the combat's end leaves standing, the after-combat window skipped for the diablerie's, a blocked action still blocked; [vic] lands or does nothing. Elixir of Distillation burns after its strike even dodged, a no-op on an ally; each reduction its own lock (amber).
+
+**107.31** Achilles' Heel's circle is chosen as it enters. Blade Clot reads the victim's capacity as diablerized, one move per copy; a rescue by an older vampire burns them all (PIB 20150122).
+
+**107.32** Trophies (reversing 67.5's scoping): put in play by a master phase action, awarded for a Red List minion burned in combat, by a Ⓓ action or diablerie, from hand, library, ash heap or play. Trophy: Chosen (owner, 2026-11-02): a vampire Black Hand as it took the card is a Seraph only while the card is on it (`trophy_chosen_makes_a_seraph_only_while_on_it`). Eccentric Billionaire locks as the card is announced, the same effect as at the payment (amber). Seraph's Second needs a ready Seraph, so not from torpor.
+
+**107.33** Touch of Pain's out-of-combat damage and Census Taker reading any Methuselah are amber; Ophidian Gaze's PlayedCardType stays as 106.2 left it.
+
+**107.34** Blessings of the Loa (owner, 2026-11-02): "for each vampire in torpor they control" reads the prey (`blessings_of_the_loa_counts_your_preys_torpor`).
 
 ## Batch 108 — The events' deep sweep: a reading graded (the engine board) (Claude, 2026-10-30)
 

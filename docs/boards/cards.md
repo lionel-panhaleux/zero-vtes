@@ -9,12 +9,13 @@ Docs: `docs/engine.md` (§2–5, the reference by mechanism),
 and the ledger; a rulebook mechanism no card carries is on the engine board.
 
 Pool (`scripts/coverage.py`, KRCG `vtes.json` of 2026-06-30; 2 crypt and
-18 library cards banned, out of scope, owner 2026-10-14): crypt 785 of
-1,783 (44.0%), library 997 of 2,346 (42.5%); the Imbued, Powers and
+18 library cards banned, out of scope, owner 2026-10-14): crypt 829 of
+1,783 (46.5%), library 1,056 of 2,346 (45.0%); the Imbued, Powers and
 Convictions all in (round 19), Nights of Reckoning complete (round 21),
 Anthology and Anarch Unbound complete (round 22, set by set), The Unaligned
-complete (round 23); 80 of 109 sets complete. TWDA decks in the pool 713
-of 4,538, kept 169; recent (2025+) 326 of 476 in the pool, kept 101 (two
+complete (round 23), Lost Kindred, Twilight Rebellion and Sword of Caine
+complete (round 24); 83 of 109 sets complete. TWDA decks in the pool 744
+of 4,538, kept 171; recent (2025+) 331 of 476 in the pool, kept 98 (two
 sets' versions displace a few kept decks). Demand
 (the server's counts to 2026-10-23): every card asked for in the pool
 since round 20; 299999 (asked 12 times) is a client's placeholder, no card.
@@ -26,7 +27,6 @@ state is `[doing: <session>]`. Order (owner, 2026-10-15: "you're supposed
 to add cards"): wrong behaviour in cards already defined first (beta games
 meet them), then a round of cards, then one review line before the next
 round; the cleanup lines ride with the rounds that meet their cards (the
-ship skill's scope rule). Rounds go set by set when the decks' metric
-stops paying (owner, 2026-10-15: "fine with switching to a set-by-set mode
-when you feel it's best").
-
+ship skill's scope rule). Rounds go set by set, the owner picking the
+sets; the TWDA analysis no longer chooses the cards, and promos are
+skipped (owner, 2026-10-30).

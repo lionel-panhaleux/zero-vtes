@@ -167,6 +167,8 @@ pub struct ReferendumCtx {
     pub records: Vec<VoteRecord>,
     /// Vote bonuses granted to vampires that have not cast yet.
     pub bonus: Vec<(MinionId, u8)>,
+    /// Unexpected Coalition's vampire, and the clan voting with it.
+    pub coalition: Vec<(MinionId, &'static str, Vec<MinionId>)>,
     /// Vote grants in force this referendum (the calling card's, all
     /// Methuselahs'; a card in play's, its Methuselah's), read live.
     pub grants: Vec<(Option<SeatId>, cards::VoteGrant)>,
@@ -422,6 +424,31 @@ impl ReferendumCtx {
                 (f, a + r.ballots as u32)
             }
         });
+        // Unexpected Coalition: its votes count only if the clan stands
+        // together behind its vampire, abstaining losing them too.
+        for (who, clan, gave) in &self.coalition {
+            let of_clan = |m: MinionId| st.minions[m.index()].clan() == Some(*clan);
+            let voted =
+                self.records
+                    .iter()
+                    .filter(|r| !r.canceled)
+                    .filter_map(|r| match r.source {
+                        Source::Vampire(m) if of_clan(m) => Some((m, r.favor)),
+                        _ => None,
+                    });
+            let side = voted.clone().find(|v| v.0 == *who).map(|v| v.1);
+            if side.is_none() || voted.clone().any(|v| Some(v.1) != side) {
+                for (m, favor) in voted {
+                    if gave.contains(&m) {
+                        if favor {
+                            f = f.saturating_sub(1);
+                        } else {
+                            a = a.saturating_sub(1);
+                        }
+                    }
+                }
+            }
+        }
         match ballots.0.cmp(&ballots.1) {
             std::cmp::Ordering::Greater => f += 3,
             std::cmp::Ordering::Less => a += 3,
@@ -510,6 +537,7 @@ impl Engine {
     ) {
         let order = self.state.clockwise_from(caller);
         let mut ctx = ReferendumCtx {
+            coalition: Vec::new(),
             calling: match kind {
                 RefKind::Political => self.action.as_ref().map(|a| a.acting),
                 RefKind::BloodHunt { .. } => None,
@@ -1475,6 +1503,17 @@ impl Engine {
         debug_assert!(ctx.step == RefStep::Polling && ctx.window.is_closed());
         let (favor, against) = ctx.tally(&self.state);
         let passed = (favor > against || ctx.auto_pass) && !ctx.forced_fail;
+        let votes: Vec<(MinionId, u8)> = ctx
+            .records
+            .iter()
+            .filter(|r| !r.canceled)
+            .filter_map(|r| match r.source {
+                Source::Vampire(m) => Some((m, r.n)),
+                _ => None,
+            })
+            .collect();
+        let turn = self.state.turn;
+        self.state.cast_votes_before = std::mem::replace(&mut self.state.cast_votes, (turn, votes));
         // Malkavian Rider Clause: no "this turn" — until it is used.
         if passed {
             for &s in &ctx.rider_clauses {
@@ -1858,8 +1897,21 @@ impl Engine {
                 | RefEffect::ChosenTakesChosenCard
                 | RefEffect::RemoveChosen
                 | RefEffect::ChosenVampireTakesChosenCard
-                | RefEffect::ChosenShuffleFromAsh(_) => {}
+                | RefEffect::ChosenShuffleFromAsh(_)
+                | RefEffect::ChosenDamagedByItsVotes => {}
                 RefEffect::CallerGainsPool(n) => gain[ctx.caller.index()] += n as i32,
+                RefEffect::PoolPerReadySect(sects) => {
+                    for (i, v) in self.state.minions.iter().enumerate() {
+                        let m = MinionId(i as u32);
+                        if v.is_vampire()
+                            && v.ready()
+                            && self.state.sect_of(m).is_some_and(|s| sects.contains(&s))
+                            && !self.state.seats[v.owner.index()].ousted
+                        {
+                            gain[v.owner.index()] += 1;
+                        }
+                    }
+                }
                 RefEffect::BloodToChosenEach
                 | RefEffect::MoveDistributedFromFirst
                 | RefEffect::CallerHandSizeForGame(_)
@@ -1941,6 +1993,19 @@ impl Engine {
                     {
                         self.state.gain_blood(crate::ids::MinionId(i as u32), 1);
                     }
+                }
+            }
+            RefEffect::ChosenDamagedByItsVotes => {
+                let m = ctx.terms.minions[0];
+                let n = self
+                    .state
+                    .cast_votes_before
+                    .1
+                    .iter()
+                    .find(|v| v.0 == m)
+                    .map_or(0, |v| v.1);
+                if self.state.minions[m.index()].present() && n > 0 {
+                    self.damage_out_of_combat(m, n, false);
                 }
             }
             RefEffect::Banish => {
@@ -2248,7 +2313,8 @@ impl Engine {
         // It leaves the ready region (Slaughtering the Herd [DOM]): its
         // cards burned so (Righteous Aura, ANK 20180511-1) while still in
         // play, before the rest go out of play with it.
-        if self.state.minions[m.index()].ready() {
+        let was_ready = self.state.minions[m.index()].ready();
+        if was_ready {
             self.by_left_ready(m);
         }
         let v = &mut self.state.minions[m.index()];
@@ -2277,6 +2343,10 @@ impl Engine {
                     cards: on,
                 }),
             });
+        if was_ready {
+            let controller = self.state.minions[m.index()].owner;
+            self.printed_left_ready(m, controller);
+        }
     }
 
     /// The acting Methuselah was ousted during their action: on their turn
@@ -2424,6 +2494,26 @@ impl Engine {
         let mut ctx = self.referendum.take().expect("referendum context");
         let mut unlock = None;
         match effect {
+            cards::Effect::ClanCoalition(clan) => {
+                let who = play.actor.expect("voting minion");
+                let mut gave = Vec::new();
+                for i in 0..self.state.minions.len() {
+                    let m = MinionId(i as u32);
+                    let v = &self.state.minions[i];
+                    if v.ready() && v.is_vampire() && v.clan() == Some(clan) {
+                        gave.push(m);
+                        match ctx
+                            .records
+                            .iter_mut()
+                            .find(|r| r.source == Source::Vampire(m) && !r.canceled)
+                        {
+                            Some(r) => r.n += 1,
+                            None => ctx.bonus.push((m, 1)),
+                        }
+                    }
+                }
+                ctx.coalition.push((who, clan, gave));
+            }
             cards::Effect::AddVotes(_)
             | cards::Effect::AddVotesPerReadySect(_)
             | cards::Effect::AddVotesXLinear { .. } => {

@@ -70,6 +70,7 @@ impl Effect {
             | E::ChooseOwnOfClan(..)
             | E::ChooseTermsMinion
             | E::ChooseTarget
+            | E::ChooseCardCircle
             | E::ChooseActor
             | E::RevealCryptTop { .. }
             | E::BecomesAlly(..)
@@ -186,6 +187,15 @@ impl Effect {
             | E::UnlockTarget
             | E::LockTarget
             | E::BurnTargetMinion
+            | E::TargetLosesTitle
+            | E::MergeWithAdvanced
+            | E::BurnHalfPreySlot
+            | E::ActorGainsBlood(..)
+            | E::BurnPreyAllyUpToBleed
+            | E::LockOtherAnarch
+            | E::FollowActing { .. }
+            | E::ChooseBlindSpot
+            | E::PlayerBurnsPool(..)
             | E::BurnTargetOnSecondAction
             | E::SacrificeTarget
             | E::CircleBloodMoves { .. }
@@ -199,6 +209,10 @@ impl Effect {
             | E::UnlockChosen
             | E::ActorBecomesBlackHand
             | E::RemoveTargetForPool
+            | E::RemoveOwnAshCards(..)
+            | E::UnlockActing
+            | E::BurnBledLibraryTop(..)
+            | E::LookAtLibraryTopPerGehenna
             | E::BurnEdge
             | E::TargetBecomesBlackHand
             | E::RemoveCryptTop
@@ -267,6 +281,7 @@ impl Effect {
             | E::HostBloodToTarget(..)
             | E::HostBloodToUncontrolledTarget(..)
             | E::ChooseTargetThisTurn
+            | E::ChooseTargetByAbility
             | E::TargetBloodToHost(..)
             | E::EnterCombatWithActing
             | E::TargetEntersCombatWithActing
@@ -307,7 +322,6 @@ impl Effect {
             | E::PoolToTargetBlood(..)
             | E::CounterToTargetBlood
             | E::CryptNamedToUncontrolled(..)
-            | E::UnlockActing
             | E::ReduceActionBlood(..)
             | E::PayActionWithCountersX
             | E::PoolToCounterPlusBank { .. }
@@ -337,6 +351,7 @@ impl Effect {
             | E::DiscardAtRandom(..)
             | E::ContinuePressEachCombat
             | E::TargetVotesPerCounter
+            | E::TargetVotes(..)
             | E::ToggleLockTarget
             | E::HuntStealthUntilUnlock(..)
             | E::DrawThenBottom
@@ -345,7 +360,6 @@ impl Effect {
             | E::PreyPoolToCounter(..)
             | E::MethuselahVotes { .. }
             | E::TakeControlOfHost
-            | E::RemoveOwnAshCards(..)
             | E::UnlockHost
             | E::ActionCardToLibraryShuffled
             | E::ReturnHost { .. }
@@ -362,6 +376,7 @@ impl Effect {
             | E::Wake
             | E::VampiresCannotBlock
             | E::SmallMonstersCannotBlock { .. }
+            | E::SmallNonInfernalCannotBlock(..)
             | E::DamageAfterResolution(..)
             | E::TargetCannotBlock
             | E::NoUnlockThisAction
@@ -373,7 +388,10 @@ impl Effect {
             | E::RedirectBleed
             | E::RedirectBleedToActingPrey
             | E::BurnActingMinion
+            | E::DamageActing(..)
             | E::ActionFails
+            | E::ActingBurnsOrFails(..)
+            | E::SplitBloodGain
             | E::ActingSkipsNextUnlock
             | E::DeferReactionReplacement
             | E::EndActionIfBlocked
@@ -409,6 +427,8 @@ impl Effect {
             | E::UnlockPicksIfSuccessful(..)
             | E::PicksBurnBlood
             | E::BleedPerPick
+            | E::BleedPerTargetAshTens
+            | E::BleedPerEnslavingReady
             | E::CircleIntercept { .. }
             | E::NoDisciplineCardsThisAction
             | E::NoEdgeThisAction
@@ -461,6 +481,8 @@ impl Effect {
             | E::NullifyOpposingWeapons
             | E::EnvironmentalDamage { .. }
             | E::UndodgeableStrike
+            | E::UndodgeableThisRound
+            | E::DamageAfterCombat(..)
             | E::AggravatedStrike
             | E::BurnElectronicOnCombatants
             | E::CleaveWeapon
@@ -536,6 +558,12 @@ impl Effect {
             | E::BurnAfterCombat(..)
             | E::ContinueAfterCombat { .. }
             | E::DamageAfterCombatIfClose(..)
+            | E::PressDamageIfClose(..)
+            | E::LiquefyOnHit(..)
+            | E::DistillOnHit(..)
+            | E::StrikeDiablerizesNextRound
+            | E::DiablerizeOnHit
+            | E::GrappleDamage(..)
             | E::StunAfterCombatIfClose
             | E::PutOnOpponentAfterCombatIfClose
             | E::SetRange(..)
@@ -572,6 +600,7 @@ impl Effect {
             | E::BarNonSectVotes(..)
             | E::PoolForVotesRound { .. }
             | E::AddVotes(..)
+            | E::ClanCoalition(..)
             | E::GrantVotes(..)
             | E::GrantVotesAll(..)
             | E::PoisonPill
@@ -672,6 +701,13 @@ impl Effect {
             | E::PreyBurnsPoolPerTorpor
             | E::MayAddCounter
             | E::MayMakeAnarchForCounter
+            | E::MayJoinCombat(..)
+            | E::BurnPoolPerGehennaOrSelf
+            | E::ClearChosen
+            | E::AnarchMayHealHost
+            | E::HostBurnsBloodOrBurnSelf(..)
+            | E::FramesBlocker
+            | E::MayBurnForNewCombat
             | E::AddCounterForEnteringClan(..)
             | E::ActiveBurnsPoolFixedX
             | E::BurnSelfIfActiveControlsReadyCapacityOrTitled(..)
@@ -766,7 +802,16 @@ impl Effect {
             | E::StillYours
             | E::CountersClearOnNewBearer
             | E::BearerAimStore
-            | E::BearerStore => (Family::Marker, false),
+            | E::BearerStore
+            | E::UndirectedAction
+            | E::DirectedAtSourceController
+            | E::EquipActionUnlocksEndOfTurn
+            | E::NamedEquipOff(..)
+            | E::Trophy
+            | E::TrophyBlood(..)
+            | E::GainVictimDiscipline
+            | E::BloodHuntVotesForDiablerist(..)
+            | E::BloodHuntVotesForAnarchs(..) => (Family::Marker, false),
             // Read as the combat begins (Abuse of Power, Pillars Fall), as the
             // action is declared (Fiendish Tongue), as the bleed lands
             // (Enthrall), by `frenzy_on`, and as the action succeeds.

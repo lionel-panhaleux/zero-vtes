@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "title": "zvtes protocol",
-  "version": "2.19.0",
+  "version": "2.20.0",
   "$defs": {
     "About": {
       "description": "What a choice is about (`Decision::about`): each field given where\nthe purpose (or the terms) has it (docs/protocol.md §5).",
@@ -4596,7 +4596,7 @@
           "const": "discipline_search"
         },
         {
-          "description": "Learjet: `seat` may draw an additional card (`DrawLibrary`), the\nhand then discarded down; or pass.",
+          "description": "Learjet, Ira Rivers, Duality: `seat` may draw an additional card\n(`DrawLibrary`), the hand then discarded down; or pass.",
           "type": "string",
           "const": "may_draw_extra"
         },
@@ -4664,6 +4664,66 @@
           "description": "\"You can burn 1 blood from this card to make that vampire Anarch\"\n(Twilight Camp).",
           "type": "string",
           "const": "make_anarch"
+        },
+        {
+          "description": "\"That vampire may burn a blood to become anarch\" (Jack Drake).",
+          "type": "string",
+          "const": "burn_blood_to_anarch"
+        },
+        {
+          "description": "`minion` may gain a level of a Discipline its victim had (Cloak of\nBlood): `choose_discipline`, or pass.",
+          "type": "string",
+          "const": "gain_victim_discipline"
+        },
+        {
+          "description": "`minion` may lock to enter combat with the opposing minion as\nthe combat ends (Marie-Pierre): `choose_minion`, or pass.",
+          "type": "string",
+          "const": "may_join_combat"
+        },
+        {
+          "description": "A clot counter may move from the card to `minion` (Blade Clot):\n`resolve_rider`, or pass.",
+          "type": "string",
+          "const": "move_clot"
+        },
+        {
+          "description": "`minion`, with a clot counter, burns (`choose_minion`) or goes to\ntorpor (pass).",
+          "type": "string",
+          "const": "clot_fate"
+        },
+        {
+          "description": "A vampire burned a Red List minion: `seat` may award it a trophy\n(`find_card`, `resolve_rider`), or pass.",
+          "type": "string",
+          "const": "award_trophy"
+        },
+        {
+          "description": "The trophy moved to `minion`: its effect (`resolve_rider`), or\nburned instead (pass).",
+          "type": "string",
+          "const": "take_chosen"
+        },
+        {
+          "description": "The circle for the card as it enters (Achilles' Heel):\n`choose_circle`.",
+          "type": "string",
+          "const": "choose_card_circle"
+        },
+        {
+          "description": "`minion` may burn blood or the action fails (Detect Authority):\n`burn_blood_to_avoid`, or pass.",
+          "type": "string",
+          "const": "burn_or_fail"
+        },
+        {
+          "description": "`seat` picks a crypt card in the prey's uncontrolled region to\nburn half its blood (The World's a Canvas): `slot`.",
+          "type": "string",
+          "const": "prey_slot_half"
+        },
+        {
+          "description": "The combat ending, the card may burn for another combat of the\ntwo (Haven Hunting): `resolve_rider`, or pass.",
+          "type": "string",
+          "const": "may_new_combat"
+        },
+        {
+          "description": "`seat`, looking at their prey's hand, may take an equipment from\nit instead of the one `minion` is equipping (Topaz): `find_card`,\nor pass.",
+          "type": "string",
+          "const": "swap_equip_from_prey"
         },
         {
           "description": "Ashur Tablets' picks from `seat`'s ash heap: first the card to hand\n(a pass chooses none), then up to `left` more shuffled into the\nlibrary (a pass stops), `to_library` once the hand card is chosen.",

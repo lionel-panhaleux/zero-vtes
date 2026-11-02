@@ -1201,7 +1201,7 @@ fn learjet_offers_no_extra_card_for_a_canceled_action_card() {
     assert_eq!(extra_draws_until(&mut e, minion_phase), 0);
     assert_eq!(e.state.seats[0].hand.len(), 7, "replaced");
     assert!(!e.state.minions[a.index()].locked, "no action");
-    assert_eq!(e.state.seats[0].learjet_held.total(), 0);
+    assert_eq!(e.state.seats[0].held_draws.len(), 0);
 }
 
 // A modifier canceled in the action is still a card the bearer played as
@@ -1261,7 +1261,7 @@ fn learjet_offers_its_extra_card_with_a_replacement_held_until_the_unlock_phase(
         n, 1,
         "with the replacement, as seat 0's unlock phase begins"
     );
-    assert_eq!(e.state.seats[0].learjet_held.total(), 0);
+    assert_eq!(e.state.seats[0].held_draws.len(), 0);
 }
 
 // Mirror Walk's replacement at seat 0's next discard phase, the extra card
@@ -1284,7 +1284,7 @@ fn learjet_offers_its_extra_card_with_a_replacement_held_until_the_discard_phase
         n, 1,
         "with the replacement, as seat 0's discard phase begins"
     );
-    assert_eq!(e.state.seats[0].learjet_held.total(), 0);
+    assert_eq!(e.state.seats[0].held_draws.len(), 0);
 }
 
 // Blood Weakens: Conditioning's replacement held until the action ends or
@@ -1308,7 +1308,7 @@ fn learjet_offers_the_extra_cards_of_replacements_drawn_as_the_hand_empties() {
     pick_when(&mut e, play(0, 0, a)); // Conditioning, held
     request(&mut e);
     assert_eq!(e.state.seats[0].hand.len(), 1);
-    assert_eq!(e.state.seats[0].learjet_held.total(), 1);
+    assert_eq!(e.state.seats[0].held_draws.len(), 1);
     pick_when(&mut e, block(z));
     pick_when(&mut e, play(0, 0, a)); // Cloak the Gathering, the hand empty
     request(&mut e);
@@ -1319,7 +1319,7 @@ fn learjet_offers_the_extra_cards_of_replacements_drawn_as_the_hand_empties() {
     );
     assert_eq!(e.state.seats[0].held.total(), 0);
     assert_eq!(extra_draws_until(&mut e, minion_phase), 2);
-    assert_eq!(e.state.seats[0].learjet_held.total(), 0);
+    assert_eq!(e.state.seats[0].held_draws.len(), 0);
 }
 
 // The Meddling of Semsith holds the replacements Blood Weakens releases at
@@ -1342,7 +1342,7 @@ fn learjet_extra_card_waits_with_a_replacement_held_again_by_the_meddling() {
     let turn = e.state.turn;
     let n = extra_draws_until(&mut e, |e, _| e.state.turn > turn);
     assert_eq!(n, 1, "as the minion phase ends");
-    assert_eq!(e.state.seats[0].learjet_held.total(), 0);
+    assert_eq!(e.state.seats[0].held_draws.len(), 0);
 }
 
 // A card canceled in the action, its replacement held by The Meddling of

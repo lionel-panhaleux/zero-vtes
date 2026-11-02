@@ -1365,6 +1365,114 @@ ADDED_BATCHES = [
         201233: "Sanjay Chakrabarti (G6)",
         201437: "Vestgeir (G6)",
     },
+    # Round 24 (slice 16aj): Lost Kindred, Twilight Rebellion and Sword of
+    # Caine completed (owner, 2026-10-30: "we'll skip promos, so let's go
+    # with Lost Kindred, Twilight Rebellion and Sword of Caine").
+    {
+        100017: "Achilles' Heel",
+        100072: "Anonymous Freight",
+        100137: "Baseball Bat",
+        100167: "Black Hand Emissary",
+        100174: "Blade Clot",
+        100175: "Blade of Bellona",
+        100180: "Blessed Blade",
+        100186: "Blessings of the Loa",
+        100188: "Blind Spot",
+        100216: "Blood Turnip",
+        100275: "Cadet",
+        100314: "Census Taker",
+        100340: "Children of Stone",
+        100360: "Cloak of Blood",
+        100532: "Detect Authority",
+        100589: "Drink the Blood of Ahriman",
+        100590: "Drop Point Network",
+        100607: "Eccentric Billionaire",
+        100627: "Elixir of Distillation",
+        100639: "Empowering the Puppet King",
+        100647: "Enrage",
+        100655: "Epiphany",
+        100671: "Exclusion Principle",
+        100691: "Failsafe",
+        100730: "Final Loosening",
+        100757: "Follow the Blood",
+        100786: "The Framing",
+        100787: "Framing an Ancient Grudge",
+        100858: "Grey Thorne",
+        100896: "Haven Hunting",
+        100974: "Inevitability of the Void",
+        101024: "Joseph Pander",
+        101041: "Keystone Kine",
+        101111: "Liquefy the Mortal Coil",
+        101258: "Mustajib",
+        101268: "Necrosis",
+        101290: "No Confidence",
+        101304: "Notorious Brutality",
+        101428: "Power of All",
+        101446: "Praetorian Backer",
+        101489: "Prison of the Mind",
+        101595: "Relentless Reaper",
+        101678: "Sanguinary Wind",
+        101724: "Seraph's Second",
+        101759: "Shattering",
+        101771: "Shoulder Drop",
+        101866: "Stealing Years",
+        101967: "Their Master's Voice",
+        101999: "Touch of Pain",
+        102022: "Tribunal Judgment",
+        102027: "Trophy: Chosen",
+        102043: "Truth in Ink",
+        102070: "Unexpected Coalition",
+        102077: "Unleash the Hounds",
+        102107: "Vengeful Spirit",
+        102112: "Vermin Channel",
+        102158: "Watchtower: The Wolves Feed",
+        102193: "The World's a Canvas",
+        102209: "Zip Line",
+        200087: "Andy (G4)",
+        200093: "Angelique (G6)",
+        200109: "Antoine, The Lost (G4)",
+        200133: "Arianne, The Conqueror (G5)",
+        200146: "Ash Harrison (G5)",
+        200238: "Calvin Cleaver (G4)",
+        200246: "Carmen (G5)",
+        200255: "Castiel (G3)",
+        200264: "Chalcedony (G6)",
+        200283: "Clifton Derrik (G4)",
+        200347: "Dirk (G4)",
+        200454: "Fairuza (G5)",
+        200496: "Gatjil Munyarryun (G5)",
+        200560: "Hagar Stone (G5)",
+        200563: "Handsome Dan (G6)",
+        200580: "Hecate (G5)",
+        200655: "Jack Drake (G4)",
+        200685: "Jean Lisle (G6)",
+        200781: "Khurshid (G6)",
+        200806: "Laecanus (G4)",
+        200808: "Lailah (G6)",
+        200837: "Lin Jun (G4)",
+        200862: "Louis Fortier (G4)",
+        200908: "Mambo Jeanne (G6)",
+        200919: "Marge Khan (G5)",
+        200920: "Marguerite Foccart (G4)",
+        200928: "Marie-Pierre (G6)",
+        200983: "Michaela (G5)",
+        200998: "Mister Schwartz (G6)",
+        201032: "Nails (G4)",
+        201062: "Nizzam al-Latif (G5)",
+        201069: "Nuriel (G6)",
+        201083: "Ondine \"Boudicca\" Sinclair (G5)",
+        201133: "Preston Varrick (G4)",
+        201166: "Rashid Stockton (G5)",
+        201181: "Reverend Adams (G4 ADV)",
+        201255: "Sean Rycek (G4)",
+        201271: "Shaggydog (G5)",
+        201279: "Sheela Na Gig (G5)",
+        201315: "Stephen Bateson (G5)",
+        201342: "Tarautas (G4)",
+        201376: "Toby (G4)",
+        201382: "Topaz (G4)",
+        201510: "Zubeida (G5)",
+    },
 ]
 ADDED_CARDS = {k: v for batch in ADDED_BATCHES for k, v in batch.items()}
 
@@ -1495,6 +1603,8 @@ RIDERS = [
     r"with an optional (maneuver|press)\b[^.;]*",
     r"with \d additional strikes?\b[^.]*",
     r"\d maneuver or press",
+    # Damage in the press step, no play there (Necrosis [THN]).
+    r"during the press step this round[^.]*",
     r"(cannot|can't) [^.]*",                              # "cannot maneuver…, press…"
     r"can (also )?strike(, ranged)?:[^.]*",                          # granted strike ability
     r"(can|could) prevent \d[^.]*",                       # granted prevention
@@ -1530,6 +1640,8 @@ COMBAT_TIMING = [
     (r"as this minion chooses a strike|when choosing a strike", "COMBAT_STRIKE_DECLARATION"),
     (r"\bmaneuver\b", "COMBAT_DETERMINE_RANGE"),
     (r"\bgrapple\b|before strikes are chosen", "COMBAT_BEFORE_STRIKES"),
+    # "Usable after strikes have been chosen" (Sanguinary Wind [CEL]).
+    (r"usable after strikes have been chosen", "COMBAT_BEFORE_RESOLUTION"),
     (r"additional strike", "COMBAT_ADDITIONAL_STRIKE"),
     (r"\bstrike(, ranged)?:", "COMBAT_STRIKE_DECLARATION"),
     # Played as a strike ("put this card on the opposing vampire as a hand
@@ -1606,6 +1718,12 @@ MODIFIER_TIMING = [
     (r"\busable after combat\b", "ACTION_AFTER_COMBAT"),
     (r"would be successful", "ACTION_WOULD_BE_SUCCESSFUL"),
     (r"only usable after (the )?(action )?resol", "ACTION_AFTER_RESOLUTION"),
+    # "Play after resolving a successful action" (No Confidence).
+    (r"play after resolving a successful action", "ACTION_AFTER_RESOLUTION"),
+    # "… is acting, after resolution" (Seraph's Second).
+    (r"is acting, after resolution", "ACTION_AFTER_RESOLUTION"),
+    # "Only usable when this anarch diablerizes" (Blade Clot).
+    (r"when this anarch diablerizes", "ACTION_AFTER_DIABLERIE"),
     # "Only usable after a successful directed action" (Marked Path).
     (r"only usable after a successful (directed )?action", "ACTION_AFTER_RESOLUTION"),
     # "Only usable on a successful referendum" (Cryptic Rider): after the
@@ -1653,6 +1771,9 @@ REACTION_TIMING = [
     # "Only usable if a minion controlled by your predator successfully
     # bleeds you" (Burnt Offerings [AUS]): the bleed resolved.
     (r"successfully bleeds you", "ACTION_AFTER_RESOLUTION"),
+    # "Play after resolution" (Touch of Pain); "… is successful, after
+    # resolution" (Follow the Blood).
+    (r"play after resolution|successful, after resolution", "ACTION_AFTER_RESOLUTION"),
     # "Only usable if this vampire is about to enter combat with an acting
     # … vampire" (Obedience): the block made, before its resolution; or the
     # blocks declined, before the combat the action begins (owner,
@@ -1781,6 +1902,13 @@ def classify_mode(mtype, text, as_above=False):
     # (Coordinate Attacks): the would-end moment alone.
     if mtype == "Combat" and re.search(r"combat is about to end", text, re.I):
         hits = ["COMBAT_WOULD_END"]
+    # "Play when you successfully inflict damage from a hand strike"
+    # (Shoulder Drop), a grapple timed after the strike.
+    if mtype == "Combat" and re.search(r"inflict damage from a hand strike", text, re.I):
+        hits = ["COMBAT_ADDITIONAL_STRIKE"]
+    # Blade Clot's combat half: timed by the diablerie, no combat step.
+    if mtype == "Combat" and re.search(r"when this anarch diablerizes", text, re.I):
+        hits = ["ACTION_AFTER_DIABLERIE"]
     if "ACTION_AFTER_COMBAT" in hits:
         hits = [w for w in hits if w != "REACTION_UNLOCK"]
     if hits:

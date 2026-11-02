@@ -130,6 +130,7 @@ impl<N: Names> Ctx<'_, N> {
             ) => seat,
             Some(
                 Interrupt::PreySlotToPool { of, .. }
+                | Interrupt::PreySlotHalf { of, .. }
                 | Interrupt::NameSlotPair { of, from: None, .. },
             ) => of,
             _ => self.seat,
@@ -618,7 +619,14 @@ fn asked(x: &Ctx<impl Names>, i: Interrupt, choice: &Choice) -> Vec<Effect> {
     let library = |c: u16| Some(LIBRARY[c as usize].id);
     match (i, *choice) {
         (Interrupt::MinionOf { purpose, .. }, Choice::ChooseMinion(_)) => vec![match purpose {
-            P::Lock | P::LockVampire => chosen(EffectKind::Lock),
+            P::Lock | P::LockVampire | P::LockOtherAnarch(_) => chosen(EffectKind::Lock),
+            P::BurnAllyUpTo(_) => chosen(EffectKind::Burn),
+            P::HealHost(_) => n(-1, chosen(EffectKind::Blood)),
+            P::MoveOntoAny(..) => chosen(EffectKind::Move),
+            P::BlindSpot(_) => Effect {
+                detail: Some("blind_spot".into()),
+                ..chosen(EffectKind::Lock)
+            },
             P::LockOldest(_) => Effect {
                 detail: Some("oldest".into()),
                 ..chosen(EffectKind::Lock)
@@ -1261,6 +1269,15 @@ pub fn about(e: &Engine, req: &DecisionRequest, names: &impl Names) -> Option<Ab
             | I::PowerSearch { minion, .. }
             | I::MayCancelCombat { minion, .. }
             | I::StealForCorruption { minion, .. }
+            | I::BurnBloodToAnarch { minion, .. }
+            | I::ClotFate { minion, .. }
+            | I::AwardTrophy { minion, .. }
+            | I::BurnOrFail {
+                minion, card: None, ..
+            }
+            | I::GainVictimDiscipline { minion, .. }
+            | I::MayJoinCombat { minion, .. }
+            | I::SwapEquipFromPrey { minion, .. }
             | I::ChooseCircle { minion, .. }
             | I::BaseSearch { minion, .. }
             | I::MayTorture { minion, .. }
@@ -1277,6 +1294,11 @@ pub fn about(e: &Engine, req: &DecisionRequest, names: &impl Names) -> Option<Ab
             I::MinionOf { of, purpose, .. } => {
                 let (d, clan, c, n) = match purpose {
                     P::Lock => ("lock", None, None, None),
+                    P::BurnAllyUpTo(k) => ("burn_ally_up_to", None, None, Some(k)),
+                    P::HealHost(_) => ("heal_host", None, None, None),
+                    P::MoveOntoAny(c, _) => ("move_onto_any", None, card(c), None),
+                    P::LockOtherAnarch(_) => ("lock_other_anarch", None, None, None),
+                    P::BlindSpot(_) => ("blind_spot", None, None, None),
                     P::Corrupt => ("corrupt", None, None, None),
                     P::LockVampire => ("lock_vampires", None, None, None),
                     P::UnlockAnarch => ("unlock_anarch", None, None, None),
@@ -1312,7 +1334,9 @@ pub fn about(e: &Engine, req: &DecisionRequest, names: &impl Names) -> Option<Ab
                 seat: of.map(|s| s.0),
                 ..a()
             },
-            I::PreySlotToPool { of, .. } | I::NameAshPair { of, .. } => About {
+            I::PreySlotToPool { of, .. }
+            | I::PreySlotHalf { of, .. }
+            | I::NameAshPair { of, .. } => About {
                 seat: Some(of.0),
                 ..a()
             },
@@ -1339,9 +1363,15 @@ pub fn about(e: &Engine, req: &DecisionRequest, names: &impl Names) -> Option<Ab
                 n: Some(left),
                 ..a()
             },
-            I::MayDrawExtra { .. } => About {
-                card: by_name("Learjet"),
-                ..a()
+            I::MayDrawExtra { source, .. } => match source {
+                zvtes::draws::DrawSource::Learjet => About {
+                    card: by_name("Learjet"),
+                    ..a()
+                },
+                zvtes::draws::DrawSource::Vampire(v) => About {
+                    minion: m(v),
+                    ..a()
+                },
             },
             I::PursuitDraw { .. } => About {
                 card: by_name("Infernal Pursuit"),
@@ -1400,6 +1430,27 @@ pub fn about(e: &Engine, req: &DecisionRequest, names: &impl Names) -> Option<Ab
             }
             I::ExchangeAnarch { ash, .. } => About {
                 card: ash.and_then(named),
+                ..a()
+            },
+            I::TakeChosen {
+                minion, card: c, ..
+            }
+            | I::BurnOrFail {
+                minion,
+                card: Some(c),
+                ..
+            } => About {
+                minion: m(minion),
+                card: card(c),
+                ..a()
+            },
+            I::MoveClot { card: c, to, .. } => About {
+                card: card(c),
+                minion: m(to),
+                ..a()
+            },
+            I::MayNewCombat { card: c, .. } | I::ChooseCardCircle { card: c, .. } => About {
+                card: card(c),
                 ..a()
             },
             I::PoolForCard { card: c, n, .. } | I::LockForPool { card: c, n, .. } => About {

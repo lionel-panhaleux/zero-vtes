@@ -819,8 +819,8 @@ limit:
 - Philip van Vermeer IV plays as a Ventrue (Lady Scarlett's shape), never
   through Piper (104.16). Victor Gerard meets a Camarilla requirement, and
   a prince's while a baron, on the play and as its action resolves, never
-  for the card's effects in play; no prince's votes (104.17); a baron Victor
-  is "a titled Camarilla vampire" (104.18).
+  for the card's effects in play; no prince's votes (104.17); as Camarilla
+  his baron's title is dormant: he is no "titled Camarilla vampire" (104.18).
 - My Kin Against the World: a Laibon acting vampire may choose younger
   Laibon of any clan; Abombwe goes on a Laibon or a vampire with Protean —
   their Laibon clauses are live, Laibon being in the pool (77.34,
@@ -3675,6 +3675,20 @@ readings (vampires, allies, library cards) no mechanism section states.
   the title read as he is blocked (104.12); Javier Montoya's younger than him,
   any Methuselah's (104.13); Vulture's unfizzled vehicle equip, once each turn
   (104.19); [MERGED] text inert without the base card (104.20).
+- Round 24's cards: sets whole, promos out, round 23's review fixed in it
+  (107.1, 107.2). Held replacements read live, the longest delay winning
+  (107.3); extra draws by source, keyed to the draw or the play, per card
+  (107.8). Younger entrants, Calvin's blood across Methuselahs, Topaz's swap,
+  Marie-Pierre after a clanmate (107.4, 107.5, 107.6, 107.7). Equip actions of
+  a named card, their terms holding (107.9); bleeds read live (107.10);
+  press-step damage (107.11); diablerie by card (107.12); grapples after the
+  strike and turn bars (107.13); burn counters and combat swaps (107.14,
+  107.15, 107.16); cancels with the cost paid (107.17); Seraph actors
+  (107.18); anarch actions (107.19, 107.20, 107.21, 107.22); action tolls,
+  Daria's mechanism (107.23); unlock upkeep and burn triggers (107.24, 107.25,
+  107.26); titles and tallies (107.27, 107.28); moved cards, strikes,
+  stand-ins (107.29, 107.30, 107.31); trophies by the Red List rule (107.32);
+  ambers on record (107.33); Blessings of the Loa (107.34).
 - Round 23's cards: Hall of Mirrors' blood an effect (106.1); Ophidian Gaze
   after the action succeeded too (106.2); From a Sinking Ship read live,
   once a game (106.3); Funeral Wake by a locked vampire (106.4); Blight for
@@ -4458,7 +4472,7 @@ mixed item is stated in its section.
 - Scoping: Lilith's Blessing banned and removed (57.8); Monocle of Clarity's
   question changes no state (68.11); New Blood's circle first left unmodeled
   (67.6, superseded by 68.1); bare traits with no card reading them yet
-  (Red List on Ossian, 64.6; trophies, 67.5; Flight until 84.37); "no tenant"
+  (Red List on Ossian, 64.6; Flight until 84.37); "no tenant"
   clauses (Abraham Mellon's minion clause, 41.1; Elysium, 44.7; a justicar
   requirement in play, 59.14; no mage ally, 41.8, superseded by 62.31; no
   demon or zombie retainer, 62.30, 55.6; no ammo card, 64.10; the G2 advanced
@@ -4759,7 +4773,8 @@ read, for the owner to confirm or correct:
 - 92.2, 92.3 graded green or amber (92.1 the owner's playtest ruling).
 - 104.1, 104.2, 104.4–104.7, 104.9–104.17, 104.19, 104.20 graded green or
   amber (104.3, 104.8, 104.18 red, answered by the owner: 104.3 corrected,
-  104.8 and 104.18 confirmed).
+  104.8 confirmed; 104.18 confirmed, then overturned by the owner,
+  2026-10-30).
 - 105.1–105.6 graded green or amber.
 - 106.1–106.9, 106.11–106.17, 106.19–106.22 graded green or amber
   (106.10 and 106.18 red, confirmed by the owner).
@@ -4869,12 +4884,18 @@ an owner ruling:
   ash heap (§3.6.1); a provided action is not an action card (§3.8.2); a
   minion burned in combat is burned by its opponent (§5.4.1).
 
+- Batch 107's reds, the owner's, each flipped: Topaz's swap before entry
+  (107.6); Final Loosening [aus] on any gain (107.20); Grey Thorne and Blood
+  Turnip across Methuselahs (107.25, 107.29); Liquefy [VIC]'s strike a choice
+  (107.30); Trophy: Chosen's Seraph while on it (107.32); Blessings of the
+  Loa's prey (107.34).
+
 ## 25. Index of rules-qa items
 
 Every rules-qa item, by batch, with the digest sections citing it: the
 section stating it and those cross-referring to it (§2 the default
 readings, §22 engine modeling, §23 the contradictions, §24 the open
-readings). 1077 items, Batches 1–108 (44.11 was removed, replaced by Batch
+readings). 1111 items, Batches 1–108 (44.11 was removed, replaced by Batch
 45). The index is derived from the citations: a bare `N.M` cites rules-qa
 item N.M in the section it appears in. A new rules-qa item gets its line in
 the section stating it, then its entry here: `python3
@@ -5084,7 +5105,7 @@ index or an item cited nowhere.
 - **65** — 65.1 §12.12,§12.15,§23.4; 65.2 §10.4,§12.7; 65.3 §6.1,§15.2
 - **66** — 66.1 §2,§5.2,§9.2; 66.2 §9.4,§22,§23.2
 - **67** — 67.1 §3.9,§7.1,§17.1,§21.1,§22; 67.2 §14.5; 67.3 §11.1; 67.4
-  §7.1; 67.5 §3.14,§8.3,§8.6,§11.8,§14.10,§22; 67.6 §14.10,§22,§23.2; 67.7
+  §7.1; 67.5 §3.14,§8.3,§8.6,§11.8,§14.10; 67.6 §14.10,§22,§23.2; 67.7
   §3.14,§3.18,§8.1
 - **68** — 68.1 §14.6,§14.10,§22,§23.2; 68.2 §5.2,§11.7,§14.4,§23.3; 68.3
   §14.3; 68.4 §12.1,§12.9; 68.5 §2,§15.2; 68.6 §5.5,§11.8,§14.4; 68.7 §15.2;
@@ -5238,4 +5259,12 @@ index or an item cited nowhere.
   §15.2,§24.1; 106.11 §15.2,§24.1; 106.12 §15.2; 106.13 §15.2; 106.14 §15.2;
   106.15 §15.2; 106.16 §15.2; 106.17 §15.2,§24.1; 106.18 §15.2,§24.1; 106.19
   §15.2,§24.1; 106.20 §15.2; 106.21 §15.2; 106.22 §15.2,§24.1
+- **107** — 107.1 §15.2; 107.2 §15.2; 107.3 §15.2; 107.4 §15.2; 107.5 §15.2;
+  107.6 §15.2,§24.3; 107.7 §15.2; 107.8 §15.2; 107.9 §15.2; 107.10 §15.2;
+  107.11 §15.2; 107.12 §15.2; 107.13 §15.2; 107.14 §15.2; 107.15 §15.2;
+  107.16 §15.2; 107.17 §15.2; 107.18 §15.2; 107.19 §15.2; 107.20
+  §15.2,§24.3; 107.21 §15.2; 107.22 §15.2; 107.23 §15.2; 107.24 §15.2;
+  107.25 §15.2,§24.3; 107.26 §15.2; 107.27 §15.2; 107.28 §15.2; 107.29
+  §15.2,§24.3; 107.30 §15.2,§24.3; 107.31 §15.2; 107.32 §15.2,§24.3; 107.33
+  §15.2; 107.34 §15.2,§24.3
 - **108** — 108.1 §18.2

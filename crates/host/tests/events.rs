@@ -36,23 +36,23 @@ fn from() -> u32 {
 /// two views (109), a play canceled as it is announced (88: Andrew Stuart), a
 /// cost reduced by a lasting effect whose card is in the ash heap (104: Inner
 /// Essence); and the causes a deeper sweep found missing: Camarilla Threat's
-/// discard toll (294), blood to an uncontrolled vampire (375), a diablerie
-/// in a torpor block (411), Yawp Court's yawp (591), a burn to prevent
-/// (728), a rider fired as its bearer blocks (913), a diseased vampire's
-/// paid infernal unlock (504), a discard-phase rider's damage (579); and
-/// the view paths the events missed: an ally stolen for good (99, 300:
-/// Entrancement), a contested vampire's capacity (114, 286), Call the Great
-/// Beast become a vampire (300), a card burned to an ousted owner's ash heap
-/// (474, 933: Disarm), an open hand (1111: Aura Reading), cards into one
-/// (106), one closed with a card leaving it in the same step (910, 929); and
-/// a line naming no minion: an advanced vampire merged before a view (332:
-/// Helena (ADV)), Anathema's pool (392); and a contested vampire keeping its
-/// excess (386), a created vampire removed (516: Golconda), a marker gone
-/// as a vampire returns (695: Descent into Darkness).
-const KEPT: [u32; 42] = [
-    45, 70, 81, 88, 95, 99, 104, 106, 109, 111, 114, 118, 119, 132, 152, 154, 172, 219, 239, 286,
-    294, 299, 300, 332, 346, 375, 380, 386, 392, 411, 474, 504, 516, 579, 591, 695, 728, 910, 913,
-    929, 933, 1111,
+/// discard toll (294), blood to an uncontrolled vampire (375), a diablerie in a
+/// torpor block (411), Yawp Court's yawp (591), a burn to prevent (728), a
+/// rider fired as its bearer blocks (913), a diseased vampire's paid infernal
+/// unlock (504), a discard-phase rider's damage (579); and the view paths the
+/// events missed: an ally stolen for good (99, 300: Entrancement), a contested
+/// vampire's capacity (114, 286), Call the Great Beast become a vampire (300),
+/// a card burned to an ousted owner's ash heap (474, 933: Disarm), an open hand
+/// (1111: Aura Reading), cards into one (106, 135), one closed with a card
+/// leaving it in the same step (910, 929); and a line naming no minion: an
+/// advanced vampire merged before a view (332: Helena (ADV)), Anathema's pool
+/// (392); and a contested vampire keeping its excess (386), a created vampire
+/// removed (516: Golconda), a marker gone as a vampire returns (695: Descent
+/// into Darkness).
+const KEPT: [u32; 43] = [
+    45, 70, 81, 88, 95, 99, 104, 106, 109, 111, 114, 118, 119, 132, 135, 152, 154, 172, 219, 239,
+    286, 294, 299, 300, 332, 346, 375, 380, 386, 392, 411, 474, 504, 516, 579, 591, 695, 728, 910,
+    913, 929, 933, 1111,
 ];
 
 /// The sweep's seeds: `HOST_SEED_FROM` to `HOST_SEEDS` (40), the kept
@@ -1592,4 +1592,49 @@ fn changed(a: &TableView, b: &TableView) -> Vec<(String, String)> {
         .filter(|&(k, x)| b.get(k).is_some_and(|y| y != x))
         .map(|(k, _)| k.clone())
         .collect()
+}
+
+/// An extra draw's offer names what brings it, a vampire's text or Learjet.
+#[test]
+fn an_extra_draw_names_its_source() {
+    use zvtes::cards::Target;
+    use zvtes::decision::Choice;
+    use zvtes::game::{Engine, Step};
+    use zvtes::ids::SeatId;
+    use zvtes::state::{find_card, find_library};
+    let mut e = Engine::bare(2);
+    e.state.turn = 4;
+    for s in &mut e.state.seats {
+        s.pool = 10;
+    }
+    e.add_minion(SeatId(0), find_card("Ira Rivers"), 4, false);
+    let other = e.add_minion(SeatId(0), find_card("Hagar Stone"), 4, false);
+    e.state.minions[other.index()].in_torpor = true;
+    e.add_minion(SeatId(1), find_card("Topaz"), 4, false);
+    e.state.seats[0].hand.push(find_library("Revelations"));
+    e.state.seats[0].library = vec![find_library("Bonding"); 9].into();
+    let Step::Decision(req) = e.run() else {
+        panic!("a decision")
+    };
+    let play = req
+        .options
+        .iter()
+        .position(|o| {
+            matches!(
+                o,
+                Choice::Play {
+                    target: Target::Seat(_),
+                    ..
+                }
+            )
+        })
+        .expect("Revelations on offer");
+    e.choose(play);
+    let Step::Decision(req) = e.run() else {
+        panic!("a decision")
+    };
+    let about =
+        zvtes_host::describe::about(&e, &req, &zvtes_host::describe::EngineNames).expect("told");
+    assert!(about.card.is_none(), "not Learjet: {about:?}");
+    assert!(about.minion.is_some(), "Ira: {about:?}");
 }

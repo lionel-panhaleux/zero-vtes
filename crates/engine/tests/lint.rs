@@ -232,6 +232,7 @@ fn no_todo_in_code() {
 /// with how it is once all the same. An entry no longer flagged fails as
 /// stale.
 const DURING_ONCE_ELSEWHERE: &[(&str, &str)] = &[
+    ("GREY_THORNE", "an unlock phase rider, offered once a phase"),
     (
         "ALAN_SOVEREIGN_ADV",
         "inert: no investment card in the pool, his base card absent",
@@ -279,6 +280,7 @@ const DURING_ONCE_ELSEWHERE: &[(&str, &str)] = &[
         "PRECOGNITION",
         "a per-round prevention granted by the block",
     ),
+    ("SHEELA_NA_GIG", "a lock cost: once while she is unlocked"),
     ("SHOW_OF_FORCE", "its strength option taken once"),
     (
         "SPECTRAL_SERVITOR",

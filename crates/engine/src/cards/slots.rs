@@ -79,7 +79,6 @@ impl Requirement {
         use Slot as S;
         match self {
             R::ActorNotClan(..)
-            | R::ActorNotBlackHand
             | R::AttemptingCapacityAtLeast(..)
             | R::AttemptingAllyOrYounger
             | R::AttemptingYoungerVampire
@@ -164,6 +163,16 @@ impl Requirement {
             | R::NoContinuePress
             | R::ActorHasBlocked
             | R::ActorCapacityAtLeast(..)
+            | R::ActorCanDiablerize
+            | R::DiablerieStrikeRound
+            | R::CombatOpponentYounger
+            | R::ActorCryptVampire
+            | R::DiablerizedCapacityAtLeast(_)
+            | R::ActorUnmergedBase
+            | R::DirectedAtOwnClan(_)
+            | R::ActingIsAlly
+            | R::ControlsOtherUnlockedAnarch
+            | R::HandStrikeInflicted
             | R::PollingStep
             | R::ActorNotForcedYet
             | R::AnyPollingStep
@@ -182,6 +191,10 @@ impl Requirement {
             | R::ControlsReadyImbued
             | R::ReadyImbuedInPlay
             | R::ActingSectIn(..)
+            | R::ActingBlackHand
+            | R::ActingNotBlackHand
+            | R::ActingNotSeraph
+            | R::AttemptingBlackHand
             | R::DirectedHandNotEmpty
             | R::YourAttemptNeedsIntercept
             | R::OtherActingClan(..)
@@ -298,7 +311,9 @@ impl Requirement {
             | R::IsEquipLabeledFromHand(..)
             | R::ControlsReadyBlackHand
             | R::ControlsReadySeraph => &[S::Play],
-            R::ActorBlackHand | R::ActorTitleNotIn(..) => &[S::Play, S::MinionTarget],
+            R::ActorBlackHand | R::ActorSlave | R::ActorTitleNotIn(..) => {
+                &[S::Play, S::MinionTarget]
+            }
             R::HostBelowCapacity
             | R::HostControllerPoolAtLeast(..)
             | R::HostBloodAtLeast(..)
@@ -427,7 +442,6 @@ impl Requirement {
             | R::OpponentAllyOrYounger
             | R::OpponentTitled
             | R::ActorCorruptedBySource
-            | R::PoolAtMost(..)
             | R::ControlsLocation
             | R::ControlsNoLocation
             | R::ControlsVampireNamed(..)
@@ -445,6 +459,12 @@ impl Requirement {
             | R::OtherNonHuntAction
             | R::TargetSeatControlsReadyClan { .. }
             | R::TargetSeatControlsReadySect { .. }
+            | R::TargetSeatControlsReadyAlly
+            | R::TargetSeatControlsReadyMinion
+            | R::TargetSeatNoReadyCapacityAbove(..)
+            | R::SourceInTorpor
+            | R::ActorOfSourcesPredator
+            | R::ActorHasDiscipline(..)
             | R::OpponentInfernal
             | R::OpponentRedList
             | R::TargetSeatControlsNoReadySect(..)
@@ -455,6 +475,7 @@ impl Requirement {
             | R::SourceTitleIn(..) => &[S::Printed],
             R::ActiveControlsNonSect(..) | R::ActiveIsAgainst => &[S::Rider],
             R::ActorReady | R::BleedTargetPoolAtMost(..) => &[S::Play, S::MinionTarget],
+            R::PoolAtMost(..) => &[S::Play, S::Printed],
             R::AnyOf(..) => &[S::Play, S::MinionTarget, S::CardTarget, S::Printed],
             R::ActorTitleIn(..) | R::ActorClan(..) => &[S::Play, S::MinionTarget, S::Printed],
             R::ActorSubtype(..) => &[S::Play, S::Printed],
@@ -485,7 +506,6 @@ impl Requirement {
             | R::ActorUntitled
             | R::ActorFollowsNoPath
             | R::ActorNotRedList
-            | R::ActorSlave
             | R::ActorFoughtItsContractsMinion
             | R::OpponentSubtype(..)
             | R::ReadyNamed(..)
@@ -523,6 +543,10 @@ impl Requirement {
             R::TargetCapacityAtLeast(..)
             | R::SameClanAsActor
             | R::Younger
+            | R::TargetAtActionsEnd
+            | R::TargetCastVotes
+            | R::TargetSect(_)
+            | R::TargetOlder
             | R::TargetTitleIn(..)
             | R::TargetTitle(..)
             | R::TargetSameCircle { .. }
@@ -530,7 +554,10 @@ impl Requirement {
             // A card's host or a vampire's own (Dive into Madness, Mustafa).
             R::ActorOlderThanHost => &[S::Engine(Site::AbilityGate)],
             R::ActingOfHostsMasterClan => &[S::Engine(Site::AbilityGate)],
-            R::ActingIsHost => &[
+            R::ActorNotBlackHand => &[S::Play, S::MinionTarget, S::UncontrolledTarget],
+            R::TargetActedSuccessfully => &[S::MinionTarget],
+            R::SlotWithout(..) => &[S::UncontrolledTarget],
+            R::ActingIsHost | R::HostNotInvolved => &[
                 S::Engine(Site::AbilityGateCard),
                 S::Engine(Site::AbilityGate),
             ],
@@ -662,13 +689,14 @@ mod tests {
                 vec![Card, Play]
             }
             Actor::AnyReadyVampire
+            | Actor::Combatant
             | Actor::OpposingCombatant
             | Actor::ActingMinion
             | Actor::Host
             | Actor::HostOutOfCombat
             | Actor::ForOwnCombatant
             | Actor::UnlockedOutOfCombat => vec![Card, Host, Play],
-            Actor::ActingCandidate => vec![Host, Play],
+            Actor::ActingCandidate | Actor::AnyMethuselahsMinion => vec![Host, Play],
             _ => return None,
         };
         readers.extend(GATE);

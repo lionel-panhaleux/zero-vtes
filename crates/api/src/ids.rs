@@ -497,8 +497,8 @@ ids!(
         /// (Childe of the Revolution), or on the diablerist of an older
         /// vampire (advanced rules 4): put on, not played.
         DisciplineSearch,
-        /// Learjet: `seat` may draw an additional card (`DrawLibrary`), the
-        /// hand then discarded down; or pass.
+        /// Learjet, Ira Rivers, Duality: `seat` may draw an additional card
+        /// (`DrawLibrary`), the hand then discarded down; or pass.
         MayDrawExtra,
         /// Infernal Pursuit [CEL], several cards replaced at once: one
         /// replacement of `seat`'s and its `extra` additional cards, then as
@@ -542,6 +542,42 @@ ids!(
         /// "You can burn 1 blood from this card to make that vampire Anarch"
         /// (Twilight Camp).
         MakeAnarch,
+        /// "That vampire may burn a blood to become anarch" (Jack Drake).
+        BurnBloodToAnarch,
+        /// `minion` may gain a level of a Discipline its victim had (Cloak of
+        /// Blood): `choose_discipline`, or pass.
+        GainVictimDiscipline,
+        /// `minion` may lock to enter combat with the opposing minion as
+        /// the combat ends (Marie-Pierre): `choose_minion`, or pass.
+        MayJoinCombat,
+        /// A clot counter may move from the card to `minion` (Blade Clot):
+        /// `resolve_rider`, or pass.
+        MoveClot,
+        /// `minion`, with a clot counter, burns (`choose_minion`) or goes to
+        /// torpor (pass).
+        ClotFate,
+        /// A vampire burned a Red List minion: `seat` may award it a trophy
+        /// (`find_card`, `resolve_rider`), or pass.
+        AwardTrophy,
+        /// The trophy moved to `minion`: its effect (`resolve_rider`), or
+        /// burned instead (pass).
+        TakeChosen,
+        /// The circle for the card as it enters (Achilles' Heel):
+        /// `choose_circle`.
+        ChooseCardCircle,
+        /// `minion` may burn blood or the action fails (Detect Authority):
+        /// `burn_blood_to_avoid`, or pass.
+        BurnOrFail,
+        /// `seat` picks a crypt card in the prey's uncontrolled region to
+        /// burn half its blood (The World's a Canvas): `slot`.
+        PreySlotHalf,
+        /// The combat ending, the card may burn for another combat of the
+        /// two (Haven Hunting): `resolve_rider`, or pass.
+        MayNewCombat,
+        /// `seat`, looking at their prey's hand, may take an equipment from
+        /// it instead of the one `minion` is equipping (Topaz): `find_card`,
+        /// or pass.
+        SwapEquipFromPrey,
         /// Ashur Tablets' picks from `seat`'s ash heap: first the card to hand
         /// (a pass chooses none), then up to `left` more shuffled into the
         /// library (a pass stops), `to_library` once the hand card is chosen.
