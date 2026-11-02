@@ -6014,38 +6014,22 @@ impl Engine {
             // Inner Peace, Khobar Towers).
             Effect::RemoveTargetForPool => {
                 let t = ctx.target.minion();
-                if let Some(card) = self.state.minions[t.index()].kind.ally_card() {
-                    if self.state.minions[t.index()].present() {
-                        let lib = &LIBRARY[card as usize];
-                        let x = match (lib.pool_cost, lib.blood_cost) {
-                            (crate::library::Cost::Fixed(n), _)
-                            | (_, crate::library::Cost::Fixed(n)) => n,
-                            _ => 0,
-                        };
-                        let controller = self.state.minions[t.index()].owner;
-                        self.remove_ally_from_game(t);
-                        self.state.seats[controller.index()].pool += x as i32;
-                    }
-                } else if self.state.minions[t.index()].present() {
-                    let cap = self.state.capacity_of(t).unwrap_or(0);
-                    let v = &self.state.minions[t.index()];
+                let v = &self.state.minions[t.index()];
+                if v.present() {
                     let controller = v.owner;
-                    let owner = v.owner_seat();
-                    let card = v.crypt_card();
-                    let copy = *v.copy;
-                    // The cards on it are burned as it leaves play (advanced
-                    // rules §1.12.1), its owner's too.
-                    for ci in 0..self.state.cards.len() {
-                        let c = &self.state.cards[ci];
-                        if c.in_play && c.host == Some(t) {
-                            self.burn_card_in_play(CardId(ci as u32));
+                    let x = match v.kind.ally_card() {
+                        Some(card) => {
+                            let lib = &LIBRARY[card as usize];
+                            match (lib.pool_cost, lib.blood_cost) {
+                                (crate::library::Cost::Fixed(n), _)
+                                | (_, crate::library::Cost::Fixed(n)) => n,
+                                _ => 0,
+                            }
                         }
-                    }
-                    self.remove_minion(t);
-                    if let Some(c) = card {
-                        self.state.seats[owner.index()].removed_crypt.put(c, copy);
-                    }
-                    self.state.seats[controller.index()].pool += cap as i32;
+                        None => self.state.capacity_of(t).unwrap_or(0),
+                    };
+                    self.remove_from_game(t);
+                    self.state.seats[controller.index()].pool += x as i32;
                 }
             }
             Effect::HandSizeUntilUnlock(n) => {

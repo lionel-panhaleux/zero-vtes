@@ -290,6 +290,26 @@ fn carfax_abbey_second_pick_needs_a_baron_and_another_anarch() {
     assert_eq!(abilities(&req), vec![feed(carfax, 0, anita)]);
 }
 
+// Blood above capacity drains off a vampire in play (advanced rules 5.1.1):
+// contested, out of play, it keeps it (the card raising its capacity out of
+// play with it; rules-qa 108.1).
+#[test]
+fn a_contested_vampire_keeps_blood_above_its_capacity() {
+    let mut e = Engine::bare(2);
+    let m = e.add_minion(SeatId(0), plain("Ventrue", 0), 4, false);
+    e.add_minion(SeatId(0), plain("Brujah", 0), 4, false);
+    e.add_minion(SeatId(1), plain("Brujah", 1), 4, false);
+    let over = e.state.capacity_of(m).unwrap() + 1;
+    e.state.minions[m.index()].blood = over;
+    e.state.minions[m.index()].contested = true;
+    request(&mut e);
+    assert_eq!(blood(&e, m), over);
+    // Back, nothing raising its capacity: it drains.
+    e.state.minions[m.index()].contested = false;
+    request(&mut e);
+    assert_eq!(blood(&e, m), over - 1);
+}
+
 // The cards on a contested vampire are out of play with it (rulebook
 // "Contested Cards", advanced rules §1.13.3, §6.4.1; rules-qa 7.3, 83.1):
 // Baltimore Purge's unlock rider is not offered and Laptop Computer's +1

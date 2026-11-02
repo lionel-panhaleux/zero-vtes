@@ -2067,7 +2067,7 @@ impl Engine {
             RefEffect::RemoveChosen => {
                 let m = ctx.terms.minions[0];
                 if self.state.minions[m.index()].present() {
-                    self.remove_ally_from_game(m);
+                    self.remove_from_game(m);
                 }
             }
             RefEffect::PutOnChosen { .. } | RefEffect::PutOnCaller { .. } => {

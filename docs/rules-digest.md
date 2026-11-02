@@ -4122,7 +4122,8 @@ Advanced rules §1.13 (contests), §5.8 (titles).
   the contest resolves in its favor (7.3). A contested vampire's bonuses do
   not apply (13.2, 58.1); a contested torpid vampire stays in torpor (3.1). A
   contested location is out of play and cannot be chosen (39.4). A
-  contested Elder Library's hand size ends (8.2).
+  contested Elder Library's hand size ends (8.2). A contested vampire keeps
+  its blood above capacity until it returns (108.1).
 - The cards on a contested vampire are out of play with it, as a set-aside
   vampire's (advanced rules §1.13.3, §6.4.1): no rider, layer or ability of
   theirs applies (Baltimore Purge, Laptop Computer); a unique one among them
@@ -4870,7 +4871,7 @@ an owner ruling:
 Every rules-qa item, by batch, with the digest sections citing it: the
 section stating it and those cross-referring to it (§2 the default
 readings, §22 engine modeling, §23 the contradictions, §24 the open
-readings). 1076 items, Batches 1–106 (44.11 was removed, replaced by Batch
+readings). 1077 items, Batches 1–108 (44.11 was removed, replaced by Batch
 45). The index is derived from the citations: a bare `N.M` cites rules-qa
 item N.M in the section it appears in. A new rules-qa item gets its line in
 the section stating it, then its entry here: `python3
@@ -5234,3 +5235,4 @@ index or an item cited nowhere.
   §15.2,§24.1; 106.11 §15.2,§24.1; 106.12 §15.2; 106.13 §15.2; 106.14 §15.2;
   106.15 §15.2; 106.16 §15.2; 106.17 §15.2,§24.1; 106.18 §15.2,§24.1; 106.19
   §15.2,§24.1; 106.20 §15.2; 106.21 §15.2; 106.22 §15.2,§24.1
+- **108** — 108.1 §18.2

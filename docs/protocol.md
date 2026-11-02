@@ -585,8 +585,8 @@ heap (a marker on its minion, §6), no copy of its own.
 | `controller` | `copy`, `seat`: a minion or a card in play now controlled by `seat` (a minion taken, The Coven's predator) |
 | `capacity` | `minion`, `capacity`?: a minion's capacity now |
 | `title` | `minion`, `title`? (absent: none): a vampire's title now |
-| `markers` | `minion`, `markers` (§6's): a minion's markers now, told when they changed since the last view (a Red List mark, a counter of a kind; a lasting effect, its card told entering play too) |
-| `traits` | `minion`, `traits` (§6's): a minion's traits now, told when they changed since the last view (Black Hand gained, made Red List or infernal) |
+| `markers` | `minion`, `markers` (§6's): a minion's markers now, told when they changed since the last view, or as it returns to play (a Red List mark, a counter of a kind; a lasting effect, its card told entering play too) |
+| `traits` | `minion`, `traits` (§6's): a minion's traits now, told when they changed since the last view, or as it returns to play (Black Hand gained, made Red List or infernal) |
 | `victory_points` | `seat`, `vp_halves`: a Methuselah's victory points now, told when they changed since the last view (an oust's predator, as the table stood before the Methuselahs ousted at once; the last standing; a survivor at the time limit) |
 | `ousted` | `seat` |
 | `withdrawal_announced` | `seat`: a withdrawal announced (§1) |

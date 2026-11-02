@@ -11252,6 +11252,135 @@ fn golconda_removes_an_elder_for_its_capacity_in_pool() {
     }
 }
 
+// Golconda on a created vampire: the Great Beast's card, its body, leaves
+// play with it, removed from the game.
+#[test]
+fn golconda_removes_a_great_beast_with_its_card() {
+    let mut e = Engine::bare(3);
+    e.add_minion(SeatId(0), plain("", "", 0), 4, false);
+    e.add_minion(SeatId(1), plain("", "", 1), 4, false);
+    let card = find_library("Call the Great Beast");
+    e.state
+        .cards
+        .push(CardInPlay::new(card, SeatId(1), None, 0));
+    let id = CardId(e.state.cards.len() as u32 - 1);
+    let beast = MinionId(e.state.minions.len() as u32);
+    e.state.minions.push(zvtes::state::Minion::new(
+        SeatId(1),
+        zvtes::state::MinionKind::GreatBeast { card, id },
+        9,
+    ));
+    e.state.cards[id.index()].body = Some(beast);
+    hand(&mut e, 0, &["Golconda: Inner Peace"]);
+    e.at_master_phase();
+    pick(&mut e, play_at(0, 0, None, Target::Minion(beast)));
+    pick(&mut e, Choice::Pass);
+    request(&mut e);
+    assert!(!e.state.minions[beast.index()].in_play);
+    assert!(!e.state.cards[id.index()].in_play, "its card out of play");
+    assert_eq!(e.state.seats[1].removed, vec![card], "removed");
+    assert_eq!(pool(&e, 1), 30 + 9);
+}
+
+// Golconda on a stolen vampire: its controller gains the pool, its owner
+// keeps the card (`Minion::owner_seat`).
+#[test]
+fn golconda_on_a_stolen_vampire_pays_the_controller_removes_for_the_owner() {
+    let mut e = Engine::bare(3);
+    e.add_minion(SeatId(0), plain("", "", 0), 4, false);
+    let big = crypt("\"Mother\" Anja Giovanni");
+    let z = e.add_minion(SeatId(1), big, 4, false);
+    e.add_minion(SeatId(2), plain("", "", 3), 4, false);
+    e.state.minions[z.index()].take_for_good(SeatId(2));
+    hand(&mut e, 0, &["Golconda: Inner Peace"]);
+    e.at_master_phase();
+    pick(&mut e, play_at(0, 0, None, Target::Minion(z)));
+    pick(&mut e, Choice::Pass);
+    request(&mut e);
+    assert_eq!(e.state.seats[1].removed_crypt, vec![big], "the owner's");
+    assert_eq!(pool(&e, 2), 30 + CRYPT[big as usize].capacity as i32);
+    assert_eq!(pool(&e, 1), 30);
+}
+
+// Merged, a vampire is two cards (rulebook "Advanced"): both leave the game.
+#[test]
+fn golconda_removes_a_merged_vampire_with_both_cards() {
+    let mut e = Engine::bare(3);
+    e.add_minion(SeatId(0), plain("", "", 0), 4, false);
+    let big = crypt("\"Mother\" Anja Giovanni");
+    let base = crypt("Gilbert Duane");
+    let z = e.add_minion(SeatId(1), big, 4, false);
+    e.add_minion(SeatId(2), plain("", "", 3), 4, false);
+    e.state.minions[z.index()].merged = Some(base);
+    hand(&mut e, 0, &["Golconda: Inner Peace"]);
+    e.at_master_phase();
+    pick(&mut e, play_at(0, 0, None, Target::Minion(z)));
+    pick(&mut e, Choice::Pass);
+    request(&mut e);
+    assert_eq!(e.state.seats[1].removed_crypt, vec![big, base]);
+}
+
+// Removed by Golconda, a vampire leaves the ready region: its Priority
+// Contract's controller may burn it for its pool, the card still on it as
+// it is about to leave.
+#[test]
+fn golconda_lets_a_priority_contract_pay() {
+    let mut e = Engine::bare(3);
+    let h = e.add_minion(
+        SeatId(0),
+        vampire(|c| c.clan == "Banu Haqim" && c.title == Title::None, 0),
+        4,
+        false,
+    );
+    let z = e.add_minion(SeatId(1), crypt("\"Mother\" Anja Giovanni"), 4, false);
+    e.add_minion(SeatId(2), plain("", "", 3), 4, false);
+    let pc = master_on(&mut e, 0, "Priority Contract", z);
+    e.state.cards[pc.index()].chosen = vec![h];
+    hand(&mut e, 0, &["Golconda: Inner Peace"]);
+    e.at_master_phase();
+    pick(&mut e, play_at(0, 0, None, Target::Minion(z)));
+    pick(&mut e, Choice::Pass);
+    let before = pool(&e, 0);
+    pick_when(&mut e, Choice::ResolveRider { card: pc.0 });
+    request(&mut e);
+    assert!(!e.state.minions[z.index()].in_play);
+    assert_eq!(pool(&e, 0), before + 3, "the contract's pool");
+    assert!(!e.state.cards[pc.index()].in_play, "the contract burned");
+    assert!(e.state.seats[0]
+        .ash
+        .contains(&find_library("Priority Contract")));
+}
+
+// A created vampire under temporary control, its owner ousted meanwhile:
+// removed as it would return (ANK 20181110), its card, its body, with it.
+#[test]
+fn a_great_beast_returning_to_an_ousted_owner_is_removed_with_its_card() {
+    let mut e = Engine::bare(3);
+    e.add_minion(SeatId(0), plain("", "", 0), 4, false);
+    e.add_minion(SeatId(0), plain("", "", 1), 4, false);
+    e.add_minion(SeatId(2), plain("", "", 2), 4, false);
+    let card = find_library("Call the Great Beast");
+    e.state
+        .cards
+        .push(CardInPlay::new(card, SeatId(1), None, 0));
+    let id = CardId(e.state.cards.len() as u32 - 1);
+    let beast = MinionId(e.state.minions.len() as u32);
+    let mut m = zvtes::state::Minion::new(
+        SeatId(0),
+        zvtes::state::MinionKind::GreatBeast { card, id },
+        9,
+    );
+    m.temp_from = Some(SeatId(1));
+    e.state.minions.push(m);
+    e.state.cards[id.index()].body = Some(beast);
+    e.state.seats[1].ousted = true;
+    e.state.seats[1].set_pool(0);
+    until(&mut e, SeatId(2), WindowLabel::MinionPhase);
+    assert!(!e.state.minions[beast.index()].in_play);
+    assert!(!e.state.cards[id.index()].in_play, "its card out of play");
+    assert_eq!(e.state.seats[1].removed, vec![card], "removed");
+}
+
 // Golconda's 2 pool to cancel may be the target's controller's last: a
 // cost (Default readings; rules-qa 101.3) — they are ousted, the card
 // canceled.

@@ -2049,13 +2049,24 @@ impl Engine {
         self.card_leaves_play(id, true);
     }
 
-    /// Remove an ally from the game (Permanent Vacation): its card to its
-    /// owner's removed cards, the cards on it burned; not burned, so no
-    /// burn rider fires.
-    pub(crate) fn remove_ally_from_game(&mut self, m: MinionId) {
+    /// Remove a minion from the game (Permanent Vacation, Golconda): its
+    /// card to its owner's removed cards (a vampire's, a crypt card; an
+    /// ally's or a created vampire's, its body), the cards on it burned;
+    /// not burned, so no burn rider fires.
+    pub(crate) fn remove_from_game(&mut self, m: MinionId) {
         self.about_to_leave_ready(&[m]);
-        self.state.minions[m.index()].in_play = false;
-        self.state.minions[m.index()].corruption.clear();
+        let v = &mut self.state.minions[m.index()];
+        v.in_play = false;
+        v.corruption.clear();
+        if let Some(c) = v.crypt_card() {
+            let (owner, copy) = (v.owner_seat(), *v.copy);
+            let merged = v.merged.map(|base| (base, *v.merged_copy));
+            let removed = &mut self.state.seats[owner.index()].removed_crypt;
+            removed.put(c, copy);
+            if let Some((base, base_copy)) = merged {
+                removed.put(base, base_copy);
+            }
+        }
         for ci in 0..self.state.cards.len() {
             let c = &self.state.cards[ci];
             if !c.in_play {
@@ -2745,9 +2756,11 @@ impl Engine {
         self.last_standing();
     }
 
-    /// A minion removed from the game (not burned: nothing triggers), the
-    /// cards on it with it — burned to their owners' ash heaps if another
-    /// Methuselah's (as an ousted Methuselah's minions, spec §1.10).
+    /// A minion out of the game with its Methuselah (a temporary control
+    /// returning to an ousted one; not burned: nothing triggers), the cards
+    /// on it with it — burned to their owners' ash heaps if another
+    /// Methuselah's (as an ousted Methuselah's minions, spec §1.10);
+    /// otherwise `remove_from_game`.
     pub(crate) fn remove_minion(&mut self, m: MinionId) {
         self.about_to_leave_ready(&[m]);
         let v = &mut self.state.minions[m.index()];
@@ -2756,7 +2769,9 @@ impl Engine {
         let owner = v.owner;
         for ci in 0..self.state.cards.len() {
             let c = &self.state.cards[ci];
-            if c.in_play && c.host == Some(m) {
+            if c.in_play && c.body == Some(m) {
+                self.card_leaves_play(CardId(ci as u32), true);
+            } else if c.in_play && c.host == Some(m) {
                 if c.owner == owner {
                     self.state.cards[ci].in_play = false;
                 } else {

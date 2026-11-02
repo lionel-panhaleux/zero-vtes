@@ -2128,8 +2128,9 @@ impl GameState {
         }
     }
 
-    /// Blood above capacity drains off every vampire in play (advanced
-    /// rules 5.1.1); out of play, a vampire keeps it.
+    /// Blood above capacity drains off every vampire in play; out of play,
+    /// a vampire keeps it (advanced rules 5.1.1's uncontrolled vampire;
+    /// rules-qa 108.1).
     pub fn drain_all_excess(&mut self) {
         for i in 0..self.minions.len() {
             let m = MinionId(i as u32);
@@ -2138,10 +2139,7 @@ impl GameState {
             // one, nothing to read — unless Wormwood ceils it.
             let ceiled =
                 self.capacity_ceiling().is_some_and(|x| v.blood > x) && !self.gehenna_immune(m);
-            if !v.in_play
-                || v.out_of_play
-                || v.printed_capacity().is_none_or(|p| v.blood <= p) && !ceiled
-            {
+            if !v.present() || v.printed_capacity().is_none_or(|p| v.blood <= p) && !ceiled {
                 continue;
             }
             if let Some(c) = self.capacity_of(m) {

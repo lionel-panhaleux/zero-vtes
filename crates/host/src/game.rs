@@ -1336,11 +1336,13 @@ impl Game {
                         let title = Some(title);
                         state.push(EventKind::Title { minion, title });
                     }
-                    if !m.markers.is_empty() {
+                    // On a return, every list: an empty one too (an
+                    // `out_of_play` marker gone).
+                    if b.is_some() || !m.markers.is_empty() {
                         let markers = m.markers.clone();
                         state.push(EventKind::Markers { minion, markers });
                     }
-                    if !m.traits.is_empty() {
+                    if b.is_some() || !m.traits.is_empty() {
                         let traits = m.traits.clone();
                         state.push(EventKind::Traits { minion, traits });
                     }
@@ -1700,7 +1702,7 @@ mod tests {
                     out.extend(c.stored.iter().map(|x| (*x, false)));
                 }
             }
-            for c in &s.in_play {
+            for c in s.in_play.iter().chain(&s.training) {
                 out.push((c.card, false));
                 out.extend(c.stored.iter().map(|x| (*x, false)));
             }
@@ -1767,7 +1769,8 @@ mod tests {
     #[test]
     fn the_views_keep_the_copy_rules() {
         let seeds: u32 = std::env::var("HOST_SEEDS").map_or(16, |s| s.parse().unwrap());
-        for seed in 1..=seeds {
+        // 355: a card in training, in sight.
+        for seed in (1..=seeds).chain([355].into_iter().filter(|&s| s > seeds)) {
             let mut g = game(seed.into());
             let human = g.human();
             let mut outs = g.handle(

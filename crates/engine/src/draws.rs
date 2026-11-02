@@ -3702,11 +3702,7 @@ impl Engine {
             ) => {
                 // Removed from the game, the cards on him with him (none
                 // yet: he is entering play).
-                self.remove_minion(convert);
-                if let Some(card) = self.state.minions[convert.index()].crypt_card() {
-                    let copy = *self.state.minions[convert.index()].copy;
-                    self.state.seats[seat.index()].removed_crypt.put(card, copy);
-                }
+                self.remove_from_game(convert);
                 self.make_anarch(m);
                 self.interrupts[0] = Interrupt::AnarchConvert {
                     seat,

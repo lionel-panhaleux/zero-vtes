@@ -6584,7 +6584,7 @@ impl Engine {
                                 _ => {}
                             }
                             if self.state.minions[acting.index()].in_play {
-                                self.remove_ally_from_game(acting);
+                                self.remove_from_game(acting);
                             }
                         }
                         Effect::PaidConvictionToTarget => {
@@ -7187,7 +7187,7 @@ impl Engine {
             let m = a.acting;
             let successful = matches!(a.outcome, Some(Outcome::Successful | Outcome::Fizzled));
             if successful && self.state.minions[m.index()].present() && self.servitor(m) {
-                self.remove_ally_from_game(m);
+                self.remove_from_game(m);
             }
         }
         self.last_outcome = self.action.as_ref().and_then(|a| a.outcome);
@@ -7232,7 +7232,7 @@ impl Engine {
             })
             .collect();
         for m in gone {
-            self.remove_ally_from_game(m);
+            self.remove_from_game(m);
         }
     }
 

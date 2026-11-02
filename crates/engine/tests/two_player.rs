@@ -52,6 +52,19 @@ fn contested_copy(card: u16) -> (Engine, MinionId) {
     (e, copy)
 }
 
+// A contested crypt card stays in play here: blood above its capacity drains
+// as any other's (rules-qa 108.1).
+#[test]
+fn a_two_player_contested_vampire_drains_its_excess() {
+    let (mut e, copy) = contested_copy(plain("Brujah", 0));
+    request(&mut e);
+    assert!(e.state.minions[copy.index()].contested_in_play);
+    let cap = e.state.capacity_of(copy).unwrap();
+    e.state.minions[copy.index()].blood = cap + 1;
+    request(&mut e);
+    assert_eq!(blood(&e, copy), cap);
+}
+
 // "Control of the card is being contested … (contested crypt cards are no
 // longer out of play)": both copies in play and usable; 1 pool in each of
 // the controller's unlock phases, or yielded and burned; the contest over
