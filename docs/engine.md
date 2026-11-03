@@ -1331,7 +1331,11 @@ sources to the engine's conventions.
   the uncontrolled region, the cards in play on it (not those burned from
   it; a created vampire's own card included) face down with it, out of play
   until it returns as the arena entry it left (`UncontrolledSlot.banished`,
-  rules-qa 25.1).
+  rules-qa 25.1). A card on an uncontrolled vampire (Cadet) holds its slot's
+  index, `CardInPlay::on_slot`: a slot leaves the region only through
+  `GameState::take_slot`, which hands back the cards on it (onto the
+  vampire it enters as or merges into, or burned, `Engine::burn_slot`) and
+  moves the later ones' index down (rules-qa 107.31).
 - Per-minion markers: `corruption` (per Methuselah; kept through torpor, control
   change, banishment; cleared when burned/removed), `hostage` (Carver's Meat
   Packing and Storage: while any, no move to the ready region nor

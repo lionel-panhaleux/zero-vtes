@@ -997,34 +997,34 @@ impl Engine {
     /// What `seat` may award: trophies in its hand, library or ash heap, and
     /// those it has in play, not awarded yet.
     fn trophy_options(&self, seat: SeatId) -> Vec<Choice> {
+        use crate::decision::Zone;
         let st = &self.state;
         let s = &st.seats[seat.index()];
-        let mut names: Vec<u16> = s
-            .hand
-            .iter()
-            .chain(s.library.iter())
-            .chain(s.ash.iter())
-            .copied()
-            .filter(|&c| crate::cards::is_trophy(c))
-            .collect();
-        names.sort_unstable();
-        names.dedup();
-        names
-            .into_iter()
-            .map(Choice::FindCard)
-            .chain(
-                st.cards
-                    .iter()
-                    .enumerate()
-                    .filter(|(i, c)| {
-                        c.present()
-                            && c.host.is_none()
-                            && crate::cards::is_trophy(c.card)
-                            && st.card_controller(CardId(*i as u32)) == seat
-                    })
-                    .map(|(i, _)| Choice::ResolveRider { card: i as u32 }),
-            )
-            .collect()
+        // By zone: the player picks where it comes from (rulebook "Red List").
+        [
+            (Zone::Hand, &s.hand),
+            (Zone::Library, &s.library),
+            (Zone::AshHeap, &s.ash),
+        ]
+        .into_iter()
+        .flat_map(|(zone, pile)| {
+            distinct(pile, crate::cards::is_trophy)
+                .into_iter()
+                .map(move |card| Choice::TakeFrom { zone, card })
+        })
+        .chain(
+            st.cards
+                .iter()
+                .enumerate()
+                .filter(|(i, c)| {
+                    c.present()
+                        && c.host.is_none()
+                        && crate::cards::is_trophy(c.card)
+                        && st.card_controller(CardId(*i as u32)) == seat
+                })
+                .map(|(i, _)| Choice::ResolveRider { card: i as u32 }),
+        )
+        .collect()
     }
 
     /// A deferred replacement taken by a rider: no draw, so no extra one:
@@ -3492,10 +3492,20 @@ impl Engine {
         }
     }
 
+    /// Take `seat`'s uncontrolled slot `i` out of the game: the cards on it
+    /// burn.
+    pub(crate) fn burn_slot(&mut self, seat: SeatId, i: usize) -> crate::state::UncontrolledSlot {
+        let (slot, on) = self.state.take_slot(seat, i);
+        for c in on {
+            self.burn_card_in_play(c);
+        }
+        slot
+    }
+
     /// Remove `seat`'s uncontrolled vampire `i` from the game, its counters
     /// to the bank; a banished one's cards burn with it.
     pub(crate) fn remove_uncontrolled(&mut self, seat: SeatId, i: usize) {
-        let slot = self.state.seats[seat.index()].uncontrolled.remove(i);
+        let slot = self.burn_slot(seat, i);
         if let Some(b) = slot.banished {
             for c in b.cards {
                 let copy = *self.state.cards[c.index()].copy;
@@ -5436,7 +5446,10 @@ impl Engine {
                         }
                     }
                     Choice::Slot(i) => {
-                        let slot = sv.uncontrolled.remove(i as usize);
+                        let (slot, on) = self.state.take_slot(seat, i as usize);
+                        for c in on {
+                            self.state.cards[c.index()].host = Some(minion);
+                        }
                         Some((slot.card, *slot.copy))
                     }
                     _ => None,
@@ -5481,24 +5494,23 @@ impl Engine {
                     },
                 );
             }
-            (Interrupt::AwardTrophy { seat, minion }, Choice::FindCard(card)) => {
+            (Interrupt::AwardTrophy { seat, minion }, Choice::TakeFrom { zone, card }) => {
+                use crate::decision::Zone;
                 self.interrupts.remove(0);
                 let st = &mut self.state.seats[seat.index()];
-                let (card, copy, from_hand) =
-                    if let Some(i) = st.hand.iter().position(|&c| c == card) {
-                        let (c, k) = st.hand.take(i);
-                        (c, k, true)
-                    } else if let Some(i) = st.library.iter().rposition(|&c| c == card) {
-                        let (c, k) = st.library.take(i);
-                        (c, k, false)
-                    } else {
-                        let i = st.ash.iter().position(|&c| c == card).expect("found");
-                        let (c, k) = st.ash.take(i);
-                        (c, k, false)
-                    };
-                self.state.seats[seat.index()]
-                    .library
-                    .shuffle(&mut self.rng);
+                let pile = match zone {
+                    Zone::Hand => &mut st.hand,
+                    Zone::Library => &mut st.library,
+                    Zone::AshHeap => &mut st.ash,
+                };
+                let i = pile.iter().rposition(|&c| c == card).expect("found");
+                let (card, copy) = pile.take(i);
+                // Reshuffle a library searched (rulebook "Red List").
+                if zone == Zone::Library {
+                    self.state.seats[seat.index()]
+                        .library
+                        .shuffle(&mut self.rng);
+                }
                 let entering =
                     crate::state::CardInPlay::entering(card, copy, seat, Some(minion), 0);
                 if let Some(id) = self.place_now(entering, crate::plays::ModeLayers::Push, false) {
@@ -5511,7 +5523,8 @@ impl Engine {
                         },
                     );
                 }
-                if from_hand {
+                // Back up before the blood hunt, not when the action ends.
+                if zone == Zone::Hand {
                     self.draw_up(seat);
                 }
             }

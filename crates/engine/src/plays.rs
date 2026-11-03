@@ -5308,9 +5308,7 @@ impl Engine {
                 // modes (`ActorWithout`, `TargetWithout`: Heart of the City,
                 // Secure Haven), masked as the card is played.
                 let on_slot = match (effect, ctx.target) {
-                    (Effect::PutOnTarget, Target::Uncontrolled(i)) => {
-                        Some(self.state.seats[s.index()].uncontrolled[i as usize].card)
-                    }
+                    (Effect::PutOnTarget, Target::Uncontrolled(i)) => Some(i),
                     _ => None,
                 };
                 *in_play = self.place_now(
@@ -5698,7 +5696,8 @@ impl Engine {
             // out.
             Effect::KaymakliNightmares => {
                 for t in self.state.clockwise_from(s) {
-                    let slots = std::mem::take(&mut self.state.seats[t.index()].uncontrolled);
+                    let n_slots = self.state.seats[t.index()].uncontrolled.len();
+                    let slots: Vec<_> = (0..n_slots).map(|_| self.burn_slot(t, 0)).collect();
                     let mut n = 0;
                     for slot in slots {
                         self.state.seats[t.index()].pool += slot.counters as i32;

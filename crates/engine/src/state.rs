@@ -889,9 +889,10 @@ impl Minion {
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct CardInPlay {
     pub card: u16,
-    /// On this crypt card in its owner's uncontrolled region, its host once
-    /// it enters play (Cadet).
-    pub on_slot: Option<u16>,
+    /// On this slot of its owner's uncontrolled region (an index, kept as
+    /// slots before it leave: `GameState::take_slot`), its host once the
+    /// vampire enters play (Cadet). Two copies of one vampire are two slots.
+    pub on_slot: Option<u8>,
     /// Its copy (`copies`): the card that entered play.
     pub copy: Untracked<CopyId>,
     /// The Methuselah who played it: where it goes when it leaves play.
@@ -3112,6 +3113,28 @@ impl GameState {
                 _ => 0,
             })
             .sum()
+    }
+
+    /// Take `seat`'s uncontrolled slot `i` out of the region, with the cards
+    /// on it, unhosted now; those on later slots follow their index down.
+    /// Every removal goes through it: a slot taken otherwise leaves its
+    /// cards on the next one.
+    pub fn take_slot(&mut self, seat: SeatId, i: usize) -> (UncontrolledSlot, Vec<CardId>) {
+        let slot = self.seats[seat.index()].uncontrolled.remove(i);
+        let mut on = Vec::new();
+        for (k, c) in self.cards.iter_mut().enumerate() {
+            match c.on_slot {
+                Some(j) if c.in_play && c.owner == seat && j as usize == i => {
+                    c.on_slot = None;
+                    on.push(CardId(k as u32));
+                }
+                Some(j) if c.in_play && c.owner == seat && j as usize > i => {
+                    c.on_slot = Some(j - 1);
+                }
+                _ => {}
+            }
+        }
+        (slot, on)
     }
 
     /// A vampire of `s`'s present and unlocked, holding replacements (Hagar

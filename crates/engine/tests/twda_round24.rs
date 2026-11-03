@@ -1125,7 +1125,7 @@ fn cadet_makes_a_controlled_sabbat_vampire_black_hand() {
         .find(|&c| e.state.cards[c.index()].card == find_library("Cadet"))
         .expect("in play");
     placed(&e, c);
-    assert_eq!(e.state.cards[c.index()].on_slot, Some(v));
+    assert_eq!(e.state.cards[c.index()].on_slot, Some(0));
     pick_when(&mut e, Choice::InfluenceOut { slot: 0 });
     request(&mut e);
     let m = e.state.cards[c.index()].host.expect("on the vampire");
@@ -2371,7 +2371,13 @@ fn trophy_chosen_rewards_a_red_list_kill() {
             target: Some(v),
         },
     );
-    pick_when(&mut e, Choice::FindCard(trophy));
+    pick_when(
+        &mut e,
+        Choice::TakeFrom {
+            zone: zvtes::decision::Zone::Hand,
+            card: trophy,
+        },
+    );
     let card = on(&e, "Trophy: Chosen", a).expect("on the vampire");
     pick(&mut e, Choice::ResolveRider { card: card.0 });
     request(&mut e);
@@ -2574,6 +2580,8 @@ fn reverend_adams_advanced_looks_by_the_gehenna_cards() {
             request(&mut e);
             let looks = noted_looks(&mut e);
             assert_eq!(looks.len(), 1, "{looks:?}");
+            let req = expect(&mut e, SeatId(0), WindowLabel::MasterPhase);
+            assert!(!req.options.contains(&own(r, 0)), "once in the phase");
         }
     }
 }
@@ -4274,7 +4282,13 @@ fn trophy_chosen_burned_instead_does_nothing() {
                 target: Some(v),
             },
         );
-        pick_when(&mut e, Choice::FindCard(find_library("Trophy: Chosen")));
+        pick_when(
+            &mut e,
+            Choice::TakeFrom {
+                zone: zvtes::decision::Zone::Hand,
+                card: find_library("Trophy: Chosen"),
+            },
+        );
         let card = on(&e, "Trophy: Chosen", a).expect("on the vampire");
         if take {
             pick(&mut e, Choice::ResolveRider { card: card.0 });
@@ -4629,7 +4643,13 @@ fn trophy_chosen_makes_a_seraph_only_while_on_it() {
             target: Some(v),
         },
     );
-    pick_when(&mut e, Choice::FindCard(find_library("Trophy: Chosen")));
+    pick_when(
+        &mut e,
+        Choice::TakeFrom {
+            zone: zvtes::decision::Zone::Hand,
+            card: find_library("Trophy: Chosen"),
+        },
+    );
     let card = on(&e, "Trophy: Chosen", a).expect("on the vampire");
     pick(&mut e, Choice::ResolveRider { card: card.0 });
     request(&mut e);
@@ -4730,4 +4750,203 @@ fn grey_thorne_asks_from_the_active_methuselah() {
     request(&mut e);
     assert_eq!(e.state.minions[g.index()].blood, 2);
     assert_eq!(blood(&e, early), 4, "healed once, by the first asked");
+}
+
+/// Cadet with two copies of one vampire uncontrolled: it stays with its own
+/// copy as the other is influenced out, and the other may get one too.
+#[test]
+fn cadet_keeps_to_its_own_copy() {
+    let v = of_sect(Sect::Sabbat, &[], 0);
+    let mut e = game(2);
+    e.add_minion(SeatId(0), clan("Brujah", 0), 4, false);
+    e.add_minion(SeatId(0), clan("Brujah", 1), 4, false);
+    e.add_minion(SeatId(1), clan("Ventrue", 0), 4, false);
+    e.add_minion(SeatId(1), clan("Ventrue", 1), 4, false);
+    for _ in 0..2 {
+        e.state.seats[0]
+            .uncontrolled
+            .push(zvtes::state::UncontrolledSlot {
+                card: v,
+                copy: Default::default(),
+                counters: CRYPT[v as usize].capacity,
+                banished: None,
+            });
+    }
+    hand(&mut e, 0, &["Cadet", "Cadet"]);
+    until(&mut e, SeatId(0), WindowLabel::MasterPhase);
+    pick(&mut e, play_at(0, 0, None, Target::Uncontrolled(1)));
+    let req = request(&mut e);
+    assert!(
+        req.options
+            .contains(&play_at(0, 0, None, Target::Uncontrolled(0))),
+        "the other copy may get one"
+    );
+    let c = (0..e.state.cards.len())
+        .map(|i| CardId(i as u32))
+        .find(|&c| e.state.cards[c.index()].card == find_library("Cadet"))
+        .expect("in play");
+    pick_when(&mut e, Choice::InfluenceOut { slot: 0 });
+    request(&mut e);
+    assert_eq!(e.state.cards[c.index()].host, None, "not on the other copy");
+    assert_eq!(
+        e.state.cards[c.index()].on_slot,
+        Some(0),
+        "its slot, moved up"
+    );
+}
+
+/// Cadet's slot merged into the vampire in play (rulebook "Advanced": 4
+/// transfers and 1 pool): Cadet goes with it, onto the merged vampire,
+/// the slot after it moving up.
+#[test]
+fn cadet_follows_its_slot_merged() {
+    let named = |adv: bool| {
+        (0..CRYPT.len() as u16)
+            .find(|&c| CRYPT[c as usize].name == "Appolonius" && CRYPT[c as usize].adv == adv)
+            .expect("Appolonius")
+    };
+    let mut e = game(2);
+    let ap = e.add_minion(SeatId(0), named(false), 5, false);
+    e.add_minion(SeatId(1), clan("Ventrue", 0), 4, false);
+    for card in [named(true), of_sect(Sect::Sabbat, &[], 0)] {
+        e.state.seats[0]
+            .uncontrolled
+            .push(zvtes::state::UncontrolledSlot {
+                card,
+                copy: Default::default(),
+                counters: 3,
+                banished: None,
+            });
+    }
+    let on_merged = in_play(&mut e, 0, "Cadet", None);
+    let on_next = in_play(&mut e, 0, "Cadet", None);
+    e.state.cards[on_merged.index()].on_slot = Some(0);
+    e.state.cards[on_next.index()].on_slot = Some(1);
+    let req = to_window(&mut e, SeatId(0), WindowLabel::InfluenceTransfers);
+    e.choose(index_of(&req, Choice::Merge { slot: 0 }));
+    let c = &e.state.cards[on_merged.index()];
+    assert_eq!((c.in_play, c.host, c.on_slot), (true, Some(ap), None));
+    let c = &e.state.cards[on_next.index()];
+    assert_eq!((c.host, c.on_slot), (None, Some(0)), "its slot, moved up");
+}
+
+/// Kaymakli Nightmares: "any cards on them are burned": a Cadet on an
+/// uncontrolled vampire too, to its owner's ash heap.
+#[test]
+fn cadet_burns_with_its_slot_reshuffled() {
+    let mut e = game(2);
+    e.add_minion(SeatId(0), clan("Brujah", 0), 4, false);
+    e.add_minion(SeatId(0), clan("Brujah", 1), 4, false);
+    e.add_minion(SeatId(1), clan("Ventrue", 0), 4, false);
+    e.state.seats[1]
+        .uncontrolled
+        .push(zvtes::state::UncontrolledSlot {
+            card: of_sect(Sect::Sabbat, &[], 0),
+            copy: Default::default(),
+            counters: 0,
+            banished: None,
+        });
+    let c = in_play(&mut e, 1, "Cadet", None);
+    e.state.cards[c.index()].on_slot = Some(0);
+    hand(&mut e, 0, &["Kaymakli Nightmares"]);
+    to_window(&mut e, SeatId(1), WindowLabel::MinionPhase);
+    to_window(&mut e, SeatId(0), WindowLabel::MasterPhase);
+    let k = (e.state.seats[0].hand.len() - 1) as u8;
+    pick(&mut e, master_play(k));
+    request(&mut e);
+    assert!(!e.state.cards[c.index()].in_play);
+    assert!(e.state.seats[1].ash.contains(&find_library("Cadet")));
+}
+
+/// A trophy is taken from the zone its player picks: from the library, the
+/// copy in hand stays and the hand draws nothing.
+#[test]
+fn a_trophy_comes_from_the_zone_picked() {
+    let red = (0..CRYPT.len() as u16)
+        .find(|&c| CRYPT[c as usize].red_list)
+        .expect("a Red List vampire");
+    let mut e = game(2);
+    let a = e.add_minion(SeatId(0), clan("Brujah", 0), 4, false);
+    e.add_minion(SeatId(0), clan("Brujah", 1), 4, false);
+    let v = e.add_minion(SeatId(1), red, 2, true);
+    e.add_minion(SeatId(1), clan("Ventrue", 1), 4, false);
+    let trophy = find_library("Trophy: Chosen");
+    hand(&mut e, 0, &["Trophy: Chosen"]);
+    let mut library = vec![trophy];
+    library.extend([find_library("Bonding"); 12]);
+    e.state.seats[0].library = library.into();
+    pick(
+        &mut e,
+        Choice::TakeAction {
+            minion: a,
+            action: ActionKind::Diablerie,
+            target: Some(v),
+        },
+    );
+    let from_library = Choice::TakeFrom {
+        zone: zvtes::decision::Zone::Library,
+        card: trophy,
+    };
+    let req = offering(&mut e, from_library);
+    assert!(req.options.contains(&Choice::TakeFrom {
+        zone: zvtes::decision::Zone::Hand,
+        card: trophy,
+    }));
+    pick(&mut e, from_library);
+    assert!(
+        e.state.seats[0].hand.contains(&trophy),
+        "the hand's copy stays"
+    );
+    assert_eq!(e.state.seats[0].hand.len(), 7, "no draw");
+    assert!(!e.state.seats[0].library.contains(&trophy));
+}
+
+/// A trophy taken from the hand: the hand is back up before the blood
+/// hunt, the action not over; the library, not searched, keeps its order
+/// (the diablerie's own search shuffles it after).
+#[test]
+fn a_trophy_from_hand_draws_back_up_at_once() {
+    let red = (0..CRYPT.len() as u16)
+        .find(|&c| CRYPT[c as usize].red_list)
+        .expect("a Red List vampire");
+    let mut e = game(2);
+    let a = e.add_minion(SeatId(0), clan("Brujah", 0), 4, false);
+    e.add_minion(SeatId(0), clan("Brujah", 1), 4, false);
+    let v = e.add_minion(SeatId(1), red, 2, true);
+    let prince = (0..CRYPT.len() as u16)
+        .find(|&c| {
+            let v = &CRYPT[c as usize];
+            matches!(v.title, Title::Prince(_)) && zvtes::cards::vampire(c).is_none()
+        })
+        .expect("a prince");
+    e.add_minion(SeatId(1), prince, 4, false);
+    let trophy = find_library("Trophy: Chosen");
+    hand(&mut e, 0, &["Trophy: Chosen"]);
+    e.state.seats[0].library = (0..zvtes::library::LIBRARY.len() as u16)
+        .filter(|&c| !zvtes::cards::is_trophy(c))
+        .take(12)
+        .collect::<Vec<_>>()
+        .into();
+    pick(
+        &mut e,
+        Choice::TakeAction {
+            minion: a,
+            action: ActionKind::Diablerie,
+            target: Some(v),
+        },
+    );
+    let from_hand = Choice::TakeFrom {
+        zone: zvtes::decision::Zone::Hand,
+        card: trophy,
+    };
+    let req = offering(&mut e, from_hand);
+    let order: Vec<u16> = e.state.seats[0].library.iter().copied().collect();
+    e.choose(index_of(&req, from_hand));
+    let r = request(&mut e);
+    let left: Vec<u16> = e.state.seats[0].library.iter().copied().collect();
+    assert_eq!(left, order, "not searched, not shuffled");
+    e.choose(index_of(&r, Choice::Pass));
+    let req = request(&mut e);
+    assert_eq!(req.window, WindowLabel::BloodHuntPolling);
+    assert_eq!(e.state.seats[0].hand.len(), 7);
 }

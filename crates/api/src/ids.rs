@@ -557,7 +557,7 @@ ids!(
         /// torpor (pass).
         ClotFate,
         /// A vampire burned a Red List minion: `seat` may award it a trophy
-        /// (`find_card`, `resolve_rider`), or pass.
+        /// (`take_from`, `resolve_rider`), or pass.
         AwardTrophy,
         /// The trophy moved to `minion`: its effect (`resolve_rider`), or
         /// burned instead (pass).

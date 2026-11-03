@@ -6780,8 +6780,8 @@ impl Engine {
                             if let (Some((i, card)), Target::Uncontrolled(t)) = (named, target) {
                                 let (i, t) = (i as usize, t as usize);
                                 if i < slots.len() && t < slots.len() && slots[i].card == card {
+                                    let gone = self.burn_slot(seat, i);
                                     let s = &mut self.state.seats[seat.index()];
-                                    let gone = s.uncontrolled.remove(i);
                                     s.removed_crypt.put(gone.card, *gone.copy);
                                     let t = if t > i { t - 1 } else { t };
                                     self.state.add_uncontrolled_blood(seat, t, n);

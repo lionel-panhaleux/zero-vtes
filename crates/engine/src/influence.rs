@@ -200,9 +200,7 @@ impl Engine {
                 }
             }
             Choice::InfluenceOut { slot } => {
-                let out = self.state.seats[s.index()]
-                    .uncontrolled
-                    .remove(*slot as usize);
+                let (out, on) = self.state.take_slot(s, *slot as usize);
                 let forced =
                     out.card != crate::state::CREATED && self.state.controls_copy(s, out.card);
                 // Excess over capacity drains, a returning vampire's
@@ -231,6 +229,9 @@ impl Engine {
                         m
                     }
                 };
+                for c in on {
+                    self.state.cards[c.index()].host = Some(m);
+                }
                 self.vampire_entered(s, m, out.card, forced);
                 self.flow = Flow::Influence { left };
                 // Twilight Camp: a non-titled non-Anarch vampire put in play
@@ -308,9 +309,10 @@ impl Engine {
                 let m = self
                     .merge_partner(s, *slot as usize)
                     .expect("merge partner");
-                let slot = self.state.seats[s.index()]
-                    .uncontrolled
-                    .remove(*slot as usize);
+                let (slot, on) = self.state.take_slot(s, *slot as usize);
+                for c in on {
+                    self.state.cards[c.index()].host = Some(m);
+                }
                 self.merge(m, slot.card, *slot.copy);
                 self.flow = Flow::Influence { left: left - 4 };
                 let merged = Cause::Cost(Source::Minion(m));
@@ -330,12 +332,6 @@ impl Engine {
     /// effects, then any contest (influenced out, or put in play: Summon
     /// History); `forced`: another copy already controlled.
     pub(crate) fn vampire_entered(&mut self, s: SeatId, m: MinionId, card: u16, forced: bool) {
-        for c in &mut self.state.cards {
-            if c.in_play && c.owner == s && c.on_slot == Some(card) {
-                c.on_slot = None;
-                c.host = Some(m);
-            }
-        }
         self.entered_play_riders(m);
         // Jack Drake, whichever way it came out of the uncontrolled region.
         let turned = (0..self.state.minions.len())
@@ -500,8 +496,11 @@ impl Engine {
             .iter()
             .position(|u| advanced(u.card) && u.banished.is_none())
         {
-            let slot = seat.uncontrolled.remove(i);
+            let (slot, on) = self.state.take_slot(s, i);
             blood = slot.counters;
+            for c in on {
+                self.state.cards[c.index()].host = Some(m);
+            }
             Some((slot.card, *slot.copy))
         } else {
             seat.ash_crypt

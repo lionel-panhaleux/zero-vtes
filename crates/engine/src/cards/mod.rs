@@ -8703,12 +8703,12 @@ pub fn holds_for_uncontrolled(
             let card = st.seats[seat.index()].uncontrolled[i].card;
             card == crate::state::CREATED || !crate::crypt::CRYPT[card as usize].black_hand
         }
-        Requirement::SlotWithout(name) => {
-            let card = st.seats[seat.index()].uncontrolled[i].card;
-            !st.cards.iter().any(|c| {
-                c.in_play && c.on_slot == Some(card) && LIBRARY[c.card as usize].name == name
-            })
-        }
+        Requirement::SlotWithout(name) => !st.cards.iter().any(|c| {
+            c.in_play
+                && c.owner == seat
+                && c.on_slot == Some(i as u8)
+                && LIBRARY[c.card as usize].name == name
+        }),
         _ => true,
     }
 }
