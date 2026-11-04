@@ -208,3 +208,9 @@ becomes of it is the owner's word.
   newer one the same way: the newest join wins.
 - After a vite restart the owner's tab can ask for long-deleted modules
   (EnginePassButton.vue, deleted 3 days earlier): a refresh fixes it.
+- `#GameTopArea` forwards pointer events to the Phaser table and
+  prevents their default: a press never focuses an input under it (Game
+  menu dialogs, the central box) unless it stops `pointerdown`,
+  `pointerup` and `pointermove` (with `keydown`/`keyup`, kept from the
+  table's commands), as `SecretChoice.vue` and `EngineReport.vue` do; a
+  modal `<dialog>` is still in that tree for events.
