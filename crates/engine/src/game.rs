@@ -988,6 +988,7 @@ impl Engine {
             if self.interrupts.is_empty() {
                 self.settle_ousting();
             }
+            self.settle_acting_ousted();
             if self.settle_draw_up() {
                 continue;
             }
@@ -1332,6 +1333,12 @@ impl Engine {
     }
 
     fn apply(&mut self, choice: &Choice) {
+        self.apply_now(choice);
+        // The step's state is what a view shows, before `run` goes on.
+        self.settle_acting_ousted();
+    }
+
+    fn apply_now(&mut self, choice: &Choice) {
         let discards_first = self.discards_first();
         if !self.interrupts.is_empty() && !discards_first {
             self.interrupt_apply(choice);

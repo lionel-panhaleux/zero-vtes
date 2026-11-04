@@ -18,7 +18,7 @@ is created by one request and played over one WebSocket. Every game is
 recorded, anonymously, and kept two years to train and test the engine
 (§11).
 
-Version **2.20.1**. The types: the models of the
+Version **2.20.2**. The types: the models of the
 [API reference](https://engine.krcg.org/docs), also as
 [JSON Schema](https://engine.krcg.org/schema.json) (2020-12) and
 [TypeScript](https://engine.krcg.org/protocol.ts).
@@ -328,7 +328,10 @@ the previous one, never the engine's state.
   `intercept`, `declined`, `declining` (the attempt under way is short of
   the stealth and its Methuselah passed: blocks are not declined yet, and
   it declines unless the table helps the attempt before the round ends,
-  rules-qa 82.1).
+  rules-qa 82.1). `acting` is a minion on the table: the action ends
+  (`action_ends`, `ousted`) once its Methuselah is ousted, mid-way too (a
+  cost paying the last pool: rules-qa 51.5), and the effects under way
+  (other seats' interrupts, a Life Boon) have settled.
 - `combat`: `minions` (acting first), `round`, `range`, `sides[]`
   (`strike` once declared — the blocker chooses knowing the acting
   minion's — `maneuvers`, `presses`). A strike: `kind`, `n`, `ranged`,

@@ -48,11 +48,12 @@ fn from() -> u32 {
 /// advanced vampire merged before a view (332: Helena (ADV)), Anathema's pool
 /// (392); and a contested vampire keeping its excess (386), a created vampire
 /// removed (516: Golconda), a marker gone as a vampire returns (695: Descent
-/// into Darkness).
-const KEPT: [u32; 43] = [
+/// into Darkness); and an action its Methuselah's oust ended mid-way (389:
+/// Alastor's equipment paid with the last pool).
+const KEPT: [u32; 44] = [
     45, 70, 81, 88, 95, 99, 104, 106, 109, 111, 114, 118, 119, 132, 135, 152, 154, 172, 219, 239,
-    286, 294, 299, 300, 332, 346, 375, 380, 386, 392, 411, 474, 504, 516, 579, 591, 695, 728, 910,
-    913, 929, 933, 1111,
+    286, 294, 299, 300, 332, 346, 375, 380, 386, 389, 392, 411, 474, 504, 516, 579, 591, 695, 728,
+    910, 913, 929, 933, 1111,
 ];
 
 /// The sweep's seeds: `HOST_SEED_FROM` to `HOST_SEEDS` (40), the kept
@@ -73,6 +74,17 @@ const IMBUED: [u32; 4] = [1001, 1002, 1003, 1004];
 /// lists), both the same list every other one: crypt cards contested in
 /// play.
 const TWO: std::ops::RangeInclusive<u32> = 2001..=2040;
+
+/// A copy the viewer's numbering lacks, told by its sentinel (`u32::MAX`):
+/// a seat reading it would look for a card that does not exist.
+fn unnumbered(x: &serde_json::Value) -> bool {
+    match x {
+        serde_json::Value::Number(n) => n.as_u64() == Some(u32::MAX.into()),
+        serde_json::Value::Object(o) => o.values().any(unnumbered),
+        serde_json::Value::Array(a) => a.iter().any(unnumbered),
+        _ => false,
+    }
+}
 
 /// Every imbued, every power and conviction.
 fn imbued() -> zvtes_api::DeckList {
@@ -930,6 +942,12 @@ impl Stream {
                 self.asked_at.insert(d.decision, self.seq);
             }
             self.faces(&o.message);
+            assert!(
+                !unnumbered(&serde_json::to_value(&o.message).expect("serializes")),
+                "seed {}: a copy unnumbered: {:?}",
+                self.seed,
+                o.message
+            );
             self.started = false;
             match &o.message {
                 // A step's view is the table after the step, or after the

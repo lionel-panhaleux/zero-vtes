@@ -1691,6 +1691,22 @@ impl Engine {
         true
     }
 
+    /// An action whose Methuselah is out of the game is over (rules-qa
+    /// 49.6, 51.5), however the last pool went (an interrupt's cost behind
+    /// others, a Life Boon declined): read once the interrupts and any Boon
+    /// are settled, a combat's own oust left to `combat_ousts`, and never
+    /// past a game over (the time limit's half VPs are not paid twice).
+    pub(crate) fn settle_acting_ousted(&mut self) {
+        let out = self
+            .action
+            .as_ref()
+            .is_some_and(|a| self.state.seats[a.seat.index()].ousted);
+        let settled = self.interrupts.is_empty() && self.ousting.is_none();
+        if out && settled && self.combat.is_none() && !matches!(self.flow, Flow::GameOver) {
+            self.acting_seat_ousted();
+        }
+    }
+
     /// What lasts for the action goes with it, at its end, resolved or cut
     /// short: its layers, the cards held back until its end, its timed
     /// effects.

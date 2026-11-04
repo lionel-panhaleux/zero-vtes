@@ -6,6 +6,14 @@ server runs.
 `python3 scripts/schema_compat.py` lists what a schema change adds or
 removes; its `--check` fails a removal without a major version.
 
+## 2.20.2
+
+- An action ends (`action_ends`, `ousted`) once its Methuselah is ousted
+  mid-way (Alastor's equipment paid with the last pool after the
+  referendum) and the effects under way have settled, no longer when the
+  turn passes: `acting` no longer shows `4294967295`, a minion gone with
+  its seat.
+
 ## 2.20.1
 
 - `award_trophy` offers each trophy by zone, `take_from` (`zone`, `card`)

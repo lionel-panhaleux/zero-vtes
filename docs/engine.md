@@ -1774,7 +1774,12 @@ sources to the engine's conventions.
   turn passing only if it was the payer's (`pay_pool_for_ability`; a card an
   ability equips or employs from hand, White Lily's weapon, no play
   resolving it: `oust_if_out` after it); a play whose effects already ousted
-  its player does not oust again.
+  its player does not oust again. An action whose Methuselah is out of
+  the game is over however the last pool went (an interrupt's cost:
+  Alastor's equipment, read after the referendum concluded; a Life Boon
+  declined): `Engine::settle_acting_ousted`, after each answer and in
+  `run`, once the interrupts and any Boon are settled, a combat's oust
+  left to `combat_ousts` (rules-qa 49.6, 51.5).
 - `CostSource::FocusBlood`: a card on its host, burned as the host pays a
   card played as a combat card, 1 blood off (taken in the non-action
   payment beside The Shard). Concealed Weapon's "cannot cost 3 or more

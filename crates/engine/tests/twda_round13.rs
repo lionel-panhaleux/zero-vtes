@@ -2003,7 +2003,12 @@ fn banu_haqim_justicar_never_contests_its_own_kasim() {
 /// A justicar of seat 0's calls Alastor on himself, `cards` deep in the
 /// library: the engine at the search, and the justicar.
 fn alastor_search(cards: &[&str]) -> (Engine, MinionId) {
-    let mut e = game(2);
+    alastor_search_at(2, cards)
+}
+
+/// `alastor_search` at a table of `n`.
+fn alastor_search_at(n: usize, cards: &[&str]) -> (Engine, MinionId) {
+    let mut e = game(n);
     let j = e.add_minion(
         SeatId(0),
         textless(|c| matches!(c.title, Title::Justicar(_)), 0),
@@ -2062,6 +2067,22 @@ fn alastor_blood_cost_is_the_chosen_vampires() {
     assert_eq!(blood(&e, j), blood_before - 1);
     assert_eq!(pool(&e, 0), pool_before);
     assert!(on_minion(&e, "Zaire River Ferry", j).is_some());
+}
+
+// Alastor's equipment paid with the last pool (AK-47, half of 5: 2) ousts
+// its caller, and the action is over at once (rules-qa 51.5): no step
+// shows it under way without them; the turn passes.
+#[test]
+fn alastor_paid_with_the_last_pool_ends_the_action() {
+    let (mut e, _) = alastor_search_at(3, &["AK-47"]);
+    let ak = Choice::FindCard(find_library("AK-47"));
+    let req = offering(&mut e, ak);
+    e.state.seats[0].pool = 2;
+    e.choose(index_of(&req, ak));
+    assert!(e.state.seats[0].ousted);
+    assert!(e.action().is_none(), "the action ended with the oust");
+    e.run();
+    assert_ne!(e.state.active, SeatId(0), "the turn passed");
 }
 
 // Alastor puts the equipment on, it does not equip with it: what it does
