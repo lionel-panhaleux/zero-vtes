@@ -110,6 +110,14 @@ revealed to the viewer in SC's `revelations`, and no longer once a view
 leaves its `id` out (`know`, projection.ts; owner, 2026-10-26: Magic of
 the Smith's library opened face down).
 
+The deck screen's "Teach the bot" tab (`DeckPanel.vue`; owner,
+2026-10-26) lists `GET /catalog/taught`'s recent decks, the served bot's
+weakest first, each with its event, date and measure; a pick is the
+player's deck as a precon is (`getOrImportPrecon`, `twda-<id>`). The
+bots keep the precons (`ENGINE_BOT_DECK`, setup.ts). No tab while the
+server answers 404 (no measure for the served weights) or is out of
+reach.
+
 ## Where the owner plays
 
 On `https://sc-bot.krcg.org` (owner, 2026-10-23: no local dev server
