@@ -253,16 +253,6 @@ async fn catalog(Query(q): Query<SeatsQuery>) -> Json<Vec<(String, zvtes_api::De
     })
 }
 
-/// The training line's file: the measure of a deck, its list not in it.
-#[derive(serde::Deserialize)]
-struct MeasureFile {
-    weights: String,
-    engine: String,
-    measured: String,
-    measure: String,
-    decks: Vec<zvtes_api::DeckMeasure>,
-}
-
 /// The measure at `path`, if it is of the served `weights`: each deck
 /// with its catalog list (one the catalog no longer ships dropped) and
 /// its title, the lowest VP share first; a deck whose catalog name does
@@ -271,7 +261,7 @@ fn load_taught(
     path: &std::path::Path,
     weights: Option<&str>,
 ) -> Result<zvtes_api::TaughtDecks, String> {
-    let file: MeasureFile = std::fs::read(path)
+    let file: zvtes_api::DecksMeasure = std::fs::read(path)
         .map_err(|e| e.to_string())
         .and_then(|b| serde_json::from_slice(&b).map_err(|e| e.to_string()))?;
     if weights != Some(file.weights.as_str()) {

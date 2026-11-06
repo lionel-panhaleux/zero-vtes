@@ -19,4 +19,3 @@ then the protocol leaks the Succubus Club fork works around, then the API
 for outside platforms and contributors, then the training layer split,
 the remaining mechanisms, the review leftovers, the harness.
 
-- **The decks the bot needs taught, served**: `GET /catalog/taught` is built (protocol 2.22.0); engine.krcg.org serves it once Z-train's per-deck file for the served weights (`runs/<run>/<export>.decks.json`, the training board's "Bots on any deck") is deployed beside them. Done when engine.krcg.org's `/catalog/taught` carries the served weights' `weights` and its decks resolve in `/catalog`: the client smoke test (`crates/server/tests/client.mjs`) prints its `taught: N decks measured …` line (it passes on a 404 too). Docs: none beyond `docs/online-plan.md` "Deploy" if the deploy changes.

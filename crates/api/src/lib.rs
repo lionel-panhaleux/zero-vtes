@@ -31,7 +31,7 @@ pub use message::{Decision, EndReason, Error, Joined, Message, Out, Over, SpecEr
 pub use option::{ChoiceKey, OptionView};
 pub use record::GameRecord;
 pub use spec::{DeckList, GameSpec, Player, SeatSpec, Settings, SettingsPatch};
-pub use taught::{DeckMeasure, TaughtDeck, TaughtDecks};
+pub use taught::{DeckMeasure, DecksMeasure, TaughtDeck, TaughtDecks};
 pub use view::TableView;
 
 /// The protocol's version (semver): a client checks the major in

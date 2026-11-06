@@ -59,3 +59,21 @@ pub struct DeckMeasure {
     /// even at four seats.
     pub vp_share: f64,
 }
+
+/// The training line's file (`<weights>.decks.json`, the server's
+/// `ZVTES_DECKS`): the measure without the lists, which the server
+/// attaches from the catalog. Not on the wire: the writer and the server
+/// share it so a field renamed breaks a build, not the route.
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct DecksMeasure {
+    /// As `TaughtDecks`'s.
+    pub weights: String,
+    /// As `TaughtDecks`'s.
+    pub engine: String,
+    /// As `TaughtDecks`'s.
+    pub measured: String,
+    /// As `TaughtDecks`'s.
+    pub measure: String,
+    /// In any order.
+    pub decks: Vec<DeckMeasure>,
+}
