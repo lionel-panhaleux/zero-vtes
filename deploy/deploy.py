@@ -5,7 +5,8 @@ a systemd unit, nginx + TLS for engine.krcg.org.
 
     cd deploy && uv run --group deploy pyinfra inventory.py deploy.py --diff
 
-Environment: ZVTES_WEIGHTS (the .zvp to serve; default ../target/policy.zvp),
+Environment: ZVTES_WEIGHTS (the .zvp to serve; default ../target/policy.zvp;
+its measure by deck, `<name>.decks.json` beside it, served too when there),
 BUILD_DIR or ZVTES_REPO (+ RELEASE_TAG) for the binary.
 """
 
@@ -93,6 +94,22 @@ weights_file = files.put(
     mode="644",
 )
 
+# The training line's measure of these weights by deck, beside them
+# (`runs/<run>/<export>.decks.json`): `GET /catalog/taught`.
+decks = weights.with_name(weights.stem + ".decks.json")
+decks_file = (
+    files.put(
+        name="Weights' measure by deck",
+        src=str(decks),
+        dest=f"{opt}/weights/{digest}.decks.json",
+        user="root",
+        group=name,
+        mode="644",
+    )
+    if decks.exists()
+    else None
+)
+
 postgres_db(database=name, owner=name)
 
 env = files.put(
@@ -105,6 +122,7 @@ env = files.put(
                 # peer authentication over the unix socket, as the OS user
                 "ZVTES_DATABASE_URL": f"postgres:///{name}?host=/var/run/postgresql",
                 "ZVTES_POLICY": f"{opt}/weights/{digest}.zvp",
+                **({"ZVTES_DECKS": f"{opt}/weights/{digest}.decks.json"} if decks_file else {}),
                 "ZVTES_ORIGINS": d.origins,
                 "ZVTES_ADMIN_SHA256": d.admin_sha256,
             }.items()
@@ -128,7 +146,7 @@ systemd.service(
     name=f"Restart {name}",
     service=f"{name}.service",
     restarted=True,
-    _if=any_changed(server_binary, weights_file, env, unit),
+    _if=any_changed(server_binary, weights_file, env, unit, *([decks_file] if decks_file else [])),
 )
 
 nginx_site(

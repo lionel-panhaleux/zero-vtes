@@ -1,6 +1,6 @@
-/* zvtes protocol 2.21.1 (docs/protocol.md): generated from
+/* zvtes protocol 2.22.0 (docs/protocol.md): generated from
  * crates/api/schema.json by scripts/gen_ts.py, do not edit. */
-export const PROTOCOL_VERSION = '2.21.1'
+export const PROTOCOL_VERSION = '2.22.0'
 
 /**
  * A command as sent: an optional client id, echoed by an `error` it
@@ -1608,6 +1608,52 @@ export type Target = {
 } | {
     copy: number
     kind: 'card'
+}
+
+/** A deck measured, with its decklist. */
+export type TaughtDeck = {
+    /** The event's day, `YYYY-MM-DD`. */
+    date: string
+    /** The event it won. */
+    event: string
+    /** Games played with it. */
+    games: number
+    /** The decklist, as `GET /catalog` gives it. */
+    list: Record<string, number>
+    /** The deck's name in `GET /catalog`. */
+    name: string
+    /** Within two years of `measured`. */
+    recent: boolean
+    /** The deck's own name: `name` without its ` (event, date)`. */
+    title: string
+    /** Its TWDA id. */
+    twda: string
+    /** Its victory points a game. */
+    vp: number
+    /**
+     * Its share of the victory points scored at its tables: 0.25 is
+     * even at four seats.
+     */
+    vp_share: number
+    /** Games it won. */
+    wins: number
+}
+
+/** The served weights' measure, weakest deck first. */
+export type TaughtDecks = {
+    /** By `vp_share`, the lowest first. */
+    decks: TaughtDeck[]
+    /** The engine commit the games ran on. */
+    engine: string
+    /**
+     * How, in one line: the deck at one seat, the weights on precons at
+     * the others, the games a deck.
+     */
+    measure: string
+    /** The day measured, `YYYY-MM-DD`. */
+    measured: string
+    /** The SHA-256 of the weights measured: `GET /version`'s `weights`. */
+    weights: string
 }
 
 /** A referendum's terms chosen so far. */

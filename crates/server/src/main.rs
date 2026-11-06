@@ -5,6 +5,9 @@
 //! - `ZVTES_DATABASE_URL`: Postgres; absent, records go to `ZVTES_RECORDS`
 //!   (`records/`) as JSON lines
 //! - `ZVTES_POLICY`: the `.zvp` weights of the `network` profile
+//! - `ZVTES_DECKS`: the training line's measure of those weights by deck
+//!   (`<digest>.decks.json` beside them), served at `GET /catalog/taught`
+//!   when it names them
 //! - `ZVTES_ORIGINS`: the page origins whose browsers may open a socket,
 //!   comma-separated (a client sending no origin is let through)
 //!   (absent or empty: any, as `engine.krcg.org` runs)
@@ -62,6 +65,8 @@ struct App {
     config: Config,
     games: Games,
     policy: Option<Arc<zvtes_policy::profiles::Served>>,
+    /// The served weights' measure by deck (`GET /catalog/taught`).
+    taught: Option<zvtes_api::TaughtDecks>,
     store: mpsc::UnboundedSender<Put>,
     /// Records of games no longer live.
     records: Store,
@@ -91,6 +96,12 @@ async fn main() {
             net: Arc::new(net),
             hash,
         })
+    });
+    let measure = env("ZVTES_DECKS").and_then(|path| {
+        let weights = policy.as_ref().map(|p| p.hash.as_str());
+        load_taught(std::path::Path::new(&path), weights)
+            .inspect_err(|e| eprintln!("decks {path}: {e}, not served"))
+            .ok()
     });
     let database = env("ZVTES_DATABASE_URL");
     let store = Store::open(
@@ -130,6 +141,7 @@ async fn main() {
         },
         games: Games::default(),
         policy,
+        taught: measure,
         store: tx,
         records: store,
         created: Mutex::new(HashMap::new()),
@@ -152,6 +164,10 @@ async fn main() {
         .route("/health", get(|| async { "ok" }))
         .route("/version", get(version))
         .route("/catalog", get(catalog))
+        .route(
+            "/catalog/taught",
+            get(|State(app): State<Shared>| async move { taught(app.taught.as_ref()) }),
+        )
         .route("/cards", get(cards))
         .route("/decks/check", post(check_deck))
         .route("/games", post(create))
@@ -235,6 +251,70 @@ async fn catalog(Query(q): Query<SeatsQuery>) -> Json<Vec<(String, zvtes_api::De
         Some(2) => zvtes_host::two_player_catalog(),
         _ => zvtes_host::catalog(),
     })
+}
+
+/// The training line's file: the measure of a deck, its list not in it.
+#[derive(serde::Deserialize)]
+struct MeasureFile {
+    weights: String,
+    engine: String,
+    measured: String,
+    measure: String,
+    decks: Vec<zvtes_api::DeckMeasure>,
+}
+
+/// The measure at `path`, if it is of the served `weights`: each deck
+/// with its catalog list (one the catalog no longer ships dropped) and
+/// its title, the lowest VP share first; a deck whose catalog name does
+/// not end in its event and date refuses the file.
+fn load_taught(
+    path: &std::path::Path,
+    weights: Option<&str>,
+) -> Result<zvtes_api::TaughtDecks, String> {
+    let file: MeasureFile = std::fs::read(path)
+        .map_err(|e| e.to_string())
+        .and_then(|b| serde_json::from_slice(&b).map_err(|e| e.to_string()))?;
+    if weights != Some(file.weights.as_str()) {
+        return Err(format!("measures weights {}, not the served", file.weights));
+    }
+    let catalog: HashMap<String, zvtes_api::DeckList> = zvtes_host::catalog().into_iter().collect();
+    let mut decks = Vec::new();
+    for strength in file.decks {
+        let Some(list) = catalog.get(&strength.name).cloned() else {
+            continue;
+        };
+        // The title is cut off by the event and date the file gives, not
+        // at a " (": deck names and events carry parentheses.
+        let suffix = format!(" ({}, {})", strength.event, strength.date);
+        let Some(title) = strength.name.strip_suffix(&suffix) else {
+            return Err(format!(
+                "{}: not of {} {}",
+                strength.name, strength.event, strength.date
+            ));
+        };
+        let title = title.to_string();
+        decks.push(zvtes_api::TaughtDeck {
+            title,
+            strength,
+            list,
+        });
+    }
+    decks.sort_by(|a, b| a.strength.vp_share.total_cmp(&b.strength.vp_share));
+    Ok(zvtes_api::TaughtDecks {
+        weights: file.weights,
+        engine: file.engine,
+        measured: file.measured,
+        measure: file.measure,
+        decks,
+    })
+}
+
+/// `GET /catalog/taught`: the served weights' measure, or 404.
+fn taught(measure: Option<&zvtes_api::TaughtDecks>) -> Response {
+    match measure {
+        Some(m) => Json(m).into_response(),
+        None => StatusCode::NOT_FOUND.into_response(),
+    }
 }
 
 /// The cards the engine plays: KRCG id, and the name a decklist may give.
@@ -675,6 +755,92 @@ mod tests {
         assert_eq!(four, all);
         assert_eq!(two, zvtes_host::two_player_catalog());
         assert!(two.iter().all(|(name, _)| name.starts_with("2-player: ")));
+    }
+
+    const FIXTURE: &str = concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/tests/fixtures/taught.decks.json"
+    );
+    const MEASURED: &str = "b9035931a5276ec68d7c8c03b516861df8502d475a670579b9615cdc6c870d65";
+
+    /// `GET /catalog/taught` (protocol.md §10): the served weights'
+    /// measure, the weakest deck first, each with its catalog list; a
+    /// deck the catalog no longer ships dropped.
+    #[tokio::test]
+    async fn the_served_weights_measure_is_served_weakest_first() {
+        let m = load_taught(std::path::Path::new(FIXTURE), Some(MEASURED)).unwrap();
+        let r = taught(Some(&m));
+        assert_eq!(r.status(), StatusCode::OK);
+        let body = axum::body::to_bytes(r.into_body(), usize::MAX)
+            .await
+            .unwrap();
+        let v: serde_json::Value = serde_json::from_slice(&body).unwrap();
+        assert_eq!(v["weights"], MEASURED);
+        let names: Vec<&str> = v["decks"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|d| d["name"].as_str().unwrap())
+            .collect();
+        assert_eq!(
+            names,
+            [
+                "Lord Darby's Tremere (WoN event 1 - Creation Rites: Newark, 2023-06-18)",
+                "Una de Tapas (2025) Giovanni (Badalona New Blood 2025, 2025-07-13)",
+                "30th Stanislava (TCG Club Year-end event, 2024-12-28)",
+            ]
+        );
+        let titles: Vec<&str> = v["decks"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|d| d["title"].as_str().unwrap())
+            .collect();
+        assert_eq!(
+            titles,
+            [
+                "Lord Darby's Tremere",
+                "Una de Tapas (2025) Giovanni",
+                "30th Stanislava"
+            ]
+        );
+        let catalog: HashMap<_, _> = zvtes_host::catalog().into_iter().collect();
+        assert_eq!(
+            v["decks"][0]["list"],
+            json!(catalog[names[0]]),
+            "its catalog list"
+        );
+        assert_eq!(v["decks"][0]["vp_share"], 0.17);
+        assert_eq!(
+            v["decks"][0]["event"],
+            "WoN event 1 - Creation Rites: Newark"
+        );
+    }
+
+    /// A measure of other weights than those served, or none: not served.
+    #[test]
+    fn another_weights_measure_is_not_served() {
+        let path = std::path::Path::new(FIXTURE);
+        assert!(load_taught(path, Some("other")).is_err());
+        assert!(load_taught(path, None).is_err());
+        assert_eq!(taught(None).status(), StatusCode::NOT_FOUND);
+    }
+
+    /// A deck whose event and date are not its catalog name's: the file
+    /// is not served, its titles could not be cut.
+    #[test]
+    fn a_measure_misnaming_an_event_is_not_served() {
+        let file = std::fs::read_to_string(FIXTURE).unwrap();
+        let wrong = file.replace(
+            r#""event": "Badalona New Blood 2025""#,
+            r#""event": "Badalona New Blood""#,
+        );
+        assert_ne!(file, wrong);
+        let path = std::env::temp_dir().join(format!("taught-{}.json", std::process::id()));
+        std::fs::write(&path, wrong).unwrap();
+        let r = load_taught(&path, Some(MEASURED));
+        std::fs::remove_file(&path).unwrap();
+        assert!(r.unwrap_err().starts_with("Una de Tapas"));
     }
 
     async fn checked(

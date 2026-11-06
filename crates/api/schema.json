@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "title": "zvtes protocol",
-  "version": "2.21.1",
+  "version": "2.22.0",
   "$defs": {
     "About": {
       "description": "What a choice is about (`Decision::about`): each field given where\nthe purpose (or the terms) has it (docs/protocol.md §5).",
@@ -6017,6 +6017,117 @@
             "copy"
           ]
         }
+      ]
+    },
+    "TaughtDeck": {
+      "description": "A deck measured, with its decklist.",
+      "type": "object",
+      "properties": {
+        "date": {
+          "description": "The event's day, `YYYY-MM-DD`.",
+          "type": "string"
+        },
+        "event": {
+          "description": "The event it won.",
+          "type": "string"
+        },
+        "games": {
+          "description": "Games played with it.",
+          "type": "integer",
+          "format": "uint32",
+          "minimum": 0
+        },
+        "list": {
+          "description": "The decklist, as `GET /catalog` gives it.",
+          "type": "object",
+          "additionalProperties": {
+            "type": "integer",
+            "format": "uint32",
+            "minimum": 0
+          }
+        },
+        "name": {
+          "description": "The deck's name in `GET /catalog`.",
+          "type": "string"
+        },
+        "recent": {
+          "description": "Within two years of `measured`.",
+          "type": "boolean"
+        },
+        "title": {
+          "description": "The deck's own name: `name` without its ` (event, date)`.",
+          "type": "string"
+        },
+        "twda": {
+          "description": "Its TWDA id.",
+          "type": "string"
+        },
+        "vp": {
+          "description": "Its victory points a game.",
+          "type": "number",
+          "format": "double"
+        },
+        "vp_share": {
+          "description": "Its share of the victory points scored at its tables: 0.25 is\neven at four seats.",
+          "type": "number",
+          "format": "double"
+        },
+        "wins": {
+          "description": "Games it won.",
+          "type": "integer",
+          "format": "uint32",
+          "minimum": 0
+        }
+      },
+      "required": [
+        "title",
+        "name",
+        "twda",
+        "event",
+        "date",
+        "recent",
+        "games",
+        "wins",
+        "vp",
+        "vp_share",
+        "list"
+      ]
+    },
+    "TaughtDecks": {
+      "title": "TaughtDecks",
+      "description": "The served weights' measure, weakest deck first.",
+      "type": "object",
+      "properties": {
+        "decks": {
+          "description": "By `vp_share`, the lowest first.",
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/TaughtDeck"
+          }
+        },
+        "engine": {
+          "description": "The engine commit the games ran on.",
+          "type": "string"
+        },
+        "measure": {
+          "description": "How, in one line: the deck at one seat, the weights on precons at\nthe others, the games a deck.",
+          "type": "string"
+        },
+        "measured": {
+          "description": "The day measured, `YYYY-MM-DD`.",
+          "type": "string"
+        },
+        "weights": {
+          "description": "The SHA-256 of the weights measured: `GET /version`'s `weights`.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "weights",
+        "engine",
+        "measured",
+        "measure",
+        "decks"
       ]
     },
     "Terms": {

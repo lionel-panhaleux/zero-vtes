@@ -3,13 +3,25 @@
 // token, answers by option index, a `feedback` mid-game, the record
 // refused mid-game and read at the end, its seed the server's, a deck
 // with a card outside the pool refused, a deck checked by its cards'
-// names (/cards, /decks/check); with ZVTES_ADMIN_TOKEN, the feedback read
+// names (/cards, /decks/check), the taught decks (/catalog/taught, when
+// measured); with ZVTES_ADMIN_TOKEN, the feedback read
 // from /admin/feedback and the refused card counted at /admin/unsupported.
 // `node crates/server/tests/client.mjs [http://127.0.0.1:8040]`
 const base = process.argv[2] ?? 'http://127.0.0.1:8040'
 const version = await (await fetch(`${base}/version`)).json()
 console.log(`server: engine ${version.engine}, protocol ${version.protocol}, profiles ${version.profiles}`)
 const decks = await (await fetch(`${base}/catalog`)).json()
+// The decks the bot plays worst: the served weights' measure, or 404
+// while they have none.
+const taught = await fetch(`${base}/catalog/taught`)
+if (taught.status == 200) {
+    const t = await taught.json()
+    if (t.weights != version.weights) throw new Error('another weights\' measure served')
+    const shipped = new Set(decks.map(([name]) => name))
+    if (!t.decks.every(d => shipped.has(d.name))) throw new Error('a taught deck not in /catalog')
+    if (t.decks.some((d, i) => i && d.vp_share < t.decks[i - 1].vp_share)) throw new Error('taught decks not weakest first')
+    console.log(`taught: ${t.decks.length} decks measured ${t.measured}`)
+} else if (taught.status != 404) throw new Error(`/catalog/taught: ${taught.status}`)
 const bot = version.profiles.includes('network') ? 'network' : 'aggro_bleed'
 // A seed asked for: the server deals its own (a player's would let them
 // replay the deal), unless the operator asks.

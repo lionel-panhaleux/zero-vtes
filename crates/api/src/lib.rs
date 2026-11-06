@@ -21,6 +21,7 @@ pub mod openapi;
 pub mod option;
 pub mod record;
 pub mod spec;
+pub mod taught;
 pub mod view;
 
 pub use command::{Command, In};
@@ -30,11 +31,12 @@ pub use message::{Decision, EndReason, Error, Joined, Message, Out, Over, SpecEr
 pub use option::{ChoiceKey, OptionView};
 pub use record::GameRecord;
 pub use spec::{DeckList, GameSpec, Player, SeatSpec, Settings, SettingsPatch};
+pub use taught::{DeckMeasure, TaughtDeck, TaughtDecks};
 pub use view::TableView;
 
 /// The protocol's version (semver): a client checks the major in
 /// [`Joined::protocol`].
-pub const PROTOCOL_VERSION: &str = "2.21.1";
+pub const PROTOCOL_VERSION: &str = "2.22.0";
 
 /// The largest seed, 2^53 − 1: the most a JSON number holds exactly.
 pub const SEED_MAX: u64 = (1 << 53) - 1;
@@ -57,7 +59,8 @@ pub mod schema {
     }
 
     /// Every type a client meets, by name: commands, messages, the game
-    /// spec, the game record and what they hold.
+    /// spec, the game record, the decks the bot plays worst and what they
+    /// hold.
     pub fn defs() -> serde_json::Map<String, serde_json::Value> {
         let parts = [
             ("In", schema_for!(crate::In)),
@@ -65,6 +68,7 @@ pub mod schema {
             ("GameSpec", schema_for!(crate::GameSpec)),
             ("SpecError", schema_for!(crate::SpecError)),
             ("GameRecord", schema_for!(crate::GameRecord)),
+            ("TaughtDecks", schema_for!(crate::TaughtDecks)),
         ];
         let mut defs = serde_json::Map::new();
         for (name, s) in parts {

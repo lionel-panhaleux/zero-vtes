@@ -106,6 +106,23 @@ fn catalog() -> Value {
     })
 }
 
+fn taught() -> Value {
+    json!({
+        "tags": ["Server"],
+        "summary": "The decks the bot plays worst",
+        "description": "The tournament-winning decks of `GET /catalog`, measured with the \
+            served `network` weights (`weights`: `GET /version`'s), the weakest first by \
+            their share of the victory points, each with its decklist, event and date: \
+            the decks to play against it to teach it. 404 when the served weights have \
+            no measure.",
+        "operationId": "taught",
+        "responses": {
+            "200": ok("The served weights' measure.", model("TaughtDecks")),
+            "404": {"description": "No measure for the served weights."},
+        },
+    })
+}
+
 fn cards() -> Value {
     json!({
         "tags": ["Server"],
@@ -290,6 +307,7 @@ pub fn json() -> String {
             "/games/{game}/record": {"get": record()},
             "/version": {"get": version()},
             "/catalog": {"get": catalog()},
+            "/catalog/taught": {"get": taught()},
             "/cards": {"get": cards()},
             "/decks/check": {"post": check_deck()},
             "/health": {"get": {

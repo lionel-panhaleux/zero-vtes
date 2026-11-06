@@ -202,6 +202,11 @@ cd deploy && ZVTES_REPO=lionel-panhaleux/zero-vtes RELEASE_TAG=v<x.y.z> \
   uv run --group deploy pyinfra inventory.py deploy.py -y
 ```
 
+`ZVTES_WEIGHTS` names the weights served; their measure by deck, the
+training line's `<name>.decks.json` beside them, goes with them when it
+is there (`ZVTES_DECKS`, served at `GET /catalog/taught` only while it
+names the weights served).
+
 Nothing is built on this machine, so a training run need not pause.
 The Succubus Club fork is built on the box, niced, and served as a
 static site at `https://sc-bot.krcg.org` (`deploy/sc_bot.py`,

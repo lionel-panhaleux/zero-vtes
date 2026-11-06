@@ -1,0 +1,16 @@
+{
+  "weights": "b9035931a5276ec68d7c8c03b516861df8502d475a670579b9615cdc6c870d65",
+  "engine": "83b135c56b17",
+  "measured": "2026-11-06",
+  "measure": "the deck at one seat, the served weights on precons at the other three, 4 seats, the served settings, 100 games a deck",
+  "decks": [
+    {"name": "30th Stanislava (TCG Club Year-end event, 2024-12-28)", "twda": "11920", "event": "TCG Club Year-end event", "date": "2024-12-28", "recent": true,
+     "games": 100, "wins": 18, "vp": 1.1, "vp_share": 0.22},
+    {"name": "A deck the catalog no longer ships", "twda": "1", "event": "Gone", "date": "2025-01-01", "recent": true,
+     "games": 100, "wins": 2, "vp": 0.2, "vp_share": 0.05},
+    {"name": "Lord Darby's Tremere (WoN event 1 - Creation Rites: Newark, 2023-06-18)", "twda": "10657", "event": "WoN event 1 - Creation Rites: Newark", "date": "2023-06-18", "recent": false,
+     "games": 100, "wins": 7, "vp": 0.85, "vp_share": 0.17},
+    {"name": "Una de Tapas (2025) Giovanni (Badalona New Blood 2025, 2025-07-13)", "twda": "12472", "event": "Badalona New Blood 2025", "date": "2025-07-13", "recent": true,
+     "games": 100, "wins": 9, "vp": 1.0, "vp_share": 0.2}
+  ]
+}

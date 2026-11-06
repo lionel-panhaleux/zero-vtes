@@ -6,6 +6,14 @@ server runs.
 `python3 scripts/schema_compat.py` lists what a schema change adds or
 removes; its `--check` fails a removal without a major version.
 
+## 2.22.0
+
+- `GET /catalog/taught`: the decks the served bot plays worst, its
+  weights' measure by deck from the training line, the lowest VP share
+  first, each with its catalog list, its own title, TWDA id, event and
+  date (§10; `TaughtDecks`, `TaughtDeck`); 404 while the served weights
+  have none. Ids added, none removed.
+
 ## 2.21.1
 
 - A card played in another card's as-played window (a wake, a cancel) is
