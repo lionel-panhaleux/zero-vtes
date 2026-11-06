@@ -6,6 +6,13 @@ server runs.
 `python3 scripts/schema_compat.py` lists what a schema change adds or
 removes; its `--check` fails a removal without a major version.
 
+## 2.20.3
+
+- `opportunities: false` hides a reaction's unlock (Deep Ecology, Guard
+  Dogs, Rat's Warning, Forced Vigilance) wherever it hides a wake: outside
+  an action that concerns the seat, outside its own block moment, once
+  blocks are declined but on a bleed at the seat, in a referendum (§8).
+
 ## 2.20.2
 
 - An action ends (`action_ends`, `ousted`) once its Methuselah is ousted

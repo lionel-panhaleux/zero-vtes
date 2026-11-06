@@ -174,6 +174,18 @@ pub fn deal(seed: u64, time_limit: Option<u32>, decks: &[Resolved]) -> Engine {
     engine
 }
 
+/// Whether `mode` wakes a minion: a wake, or a reaction's unlock (Deep
+/// Ecology, Guard Dogs), which interrupts play as a wake does (owner,
+/// 2026-11-04: "much less opportunities, the way we do for wakes"). An
+/// unlock to block (`ReactionUnlockAttempt`) is a block attempt, offered
+/// only where the seat may attempt: its block moment already.
+fn wakes(mode: &ModeDef) -> bool {
+    mode.effects
+        .iter()
+        .any(|f| matches!(f, Effect::Wake | Effect::WakeTarget))
+        || mode.windows.contains(&Window::ReactionUnlock)
+}
+
 impl Session {
     /// `agents[seat]`: the bot answering it, `None` for a human seat.
     pub fn new(
@@ -653,11 +665,11 @@ impl Session {
         Ok(k)
     }
 
-    /// Whether `c` is an opportunity: a wake (in its moment or not), an
-    /// ability usable at any time (The Louvre, Paris), a block denial, a
-    /// legal no-op, a futile block attempt, the acting seat's option against
-    /// a short attempt, a strike's damage made aggravated (in its moment or
-    /// not).
+    /// Whether `c` is an opportunity: a wake or a reaction's unlock (in its
+    /// moment or not, `wake_moment`), an ability usable at any time (The
+    /// Louvre, Paris), a block denial, a legal no-op, a futile block attempt,
+    /// the acting seat's option against a short attempt, a strike's damage made
+    /// aggravated (in its moment or not).
     fn opportunity(&self, req: &DecisionRequest, c: &Choice) -> Option<Opportunity> {
         let e = &self.engine;
         let st = &e.state;
@@ -681,44 +693,15 @@ impl Session {
             Choice::Play { card, mode, .. } => {
                 let played = e.virtual_hand(req.seat)[card as usize].0;
                 let mode = zvtes::cards::lookup(played).and_then(|d| d.modes.get(mode as usize));
-                let wakes = mode.is_some_and(|m| {
-                    m.effects
-                        .iter()
-                        .any(|f| matches!(f, Effect::Wake | Effect::WakeTarget))
-                });
-                // A wake's moment: an action directed at the seat, or an
-                // undirected one of its prey or predator — never one
-                // directed at another seat (owner, 2026-10-11), nor as a
-                // card is played (owner, 2026-10-12: "more noise than
-                // usefulness") unless the woken minion could then cancel
-                // it (`wake_cancels`) — and while blocks are open, only
-                // the seat's own block moment, not before the would-be
-                // blockers ahead of it declined nor after its own decline
-                // (owner, 2026-10-17: "really misleading, even though
-                // technically correct"); once blocks are declined, only on
-                // a bleed at the seat, to wake and bounce it (owner,
-                // 2026-10-19: "otherwise it's noise"); never in a
-                // referendum (owner, 2026-10-19: "many times during a
-                // referendum. Shouldn't").
+                let wakes = mode.is_some_and(wakes);
+                // Not as a card is played (owner, 2026-10-12: "more noise
+                // than usefulness") unless the woken minion could then
+                // cancel it (`wake_cancels`).
                 if wakes && req.window == WindowLabel::CardAsPlayed {
                     return Some(Opportunity::Wake(self.wake_cancels(req, c)));
                 }
-                let blocking = e.action().is_some_and(|a| {
-                    matches!(a.state, ActionState::Open | ActionState::Attempt(_))
-                });
-                let declined = e.action().is_some_and(|a| a.state == ActionState::Declined);
-                let moment = e.referendum().is_none()
-                    && e.action().is_some_and(|a| match a.directed_seat(st) {
-                        Some(target) => target == req.seat,
-                        None => a.seat == st.prey(req.seat) || a.seat == st.predator(req.seat),
-                    })
-                    && (!blocking || e.block_moment(req.seat))
-                    && (!declined
-                        || e.action().is_some_and(|a| {
-                            a.kind == ActionKind::Bleed && a.directed_seat(st) == Some(req.seat)
-                        }));
                 if wakes {
-                    return Some(Opportunity::Wake(moment));
+                    return Some(Opportunity::Wake(self.wake_moment(req)));
                 }
                 mode.and_then(|m| self.aggravation(m).or_else(|| self.denial(m.effects)))
             }
@@ -736,6 +719,32 @@ impl Session {
             }
             _ => None,
         }
+    }
+
+    /// Whether a wake is in its moment: an action directed at the seat,
+    /// or an undirected one of its prey or predator — never one directed
+    /// at another seat (owner, 2026-10-11) — and while blocks are open,
+    /// only the seat's own block moment, not before the would-be blockers
+    /// ahead of it declined nor after its own decline (owner, 2026-10-17:
+    /// "really misleading, even though technically correct"); once blocks
+    /// are declined, only on a bleed at the seat, to wake and bounce it
+    /// (owner, 2026-10-19: "otherwise it's noise"); never in a referendum
+    /// (owner, 2026-10-19: "many times during a referendum. Shouldn't").
+    fn wake_moment(&self, req: &DecisionRequest) -> bool {
+        let e = &self.engine;
+        let st = &e.state;
+        let Some(a) = e.action() else {
+            return false;
+        };
+        let blocking = matches!(a.state, ActionState::Open | ActionState::Attempt(_));
+        let declined = a.state == ActionState::Declined;
+        e.referendum().is_none()
+            && match a.directed_seat(st) {
+                Some(target) => target == req.seat,
+                None => a.seat == st.prey(req.seat) || a.seat == st.predator(req.seat),
+            }
+            && (!blocking || e.block_moment(req.seat))
+            && (!declined || (a.kind == ActionKind::Bleed && a.directed_seat(st) == Some(req.seat)))
     }
 
     /// The wake `c`, in a card's as-played window, lets the woken
@@ -1878,16 +1887,30 @@ mod tests {
     /// block not come.
     #[test]
     fn a_wake_waits_for_the_seats_own_block_moment() {
+        wake_waits_for_the_block_moment("Malachi", "On the Qui Vive", 0);
+    }
+
+    /// A reaction's unlock is a wake (owner, 2026-11-04: "much less
+    /// opportunities, the way we do for wakes"): Deep Ecology's [pro]
+    /// waits for the seat's block moment as On the Qui Vive does.
+    #[test]
+    fn a_reaction_unlock_waits_for_the_seats_own_block_moment() {
+        wake_waits_for_the_block_moment("Indira", "Deep Ecology", 2);
+    }
+
+    /// The predator's locked `vampire` holding `card`, whose `mode` wakes
+    /// or unlocks it: hidden with the opportunities off while the prey's
+    /// attempt at a hunt is under way, shown with them on, and shown in the
+    /// predator's own block moment.
+    fn wake_waits_for_the_block_moment(vampire: &str, card: &str, mode: u8) {
         let (mut s, _) = session();
         let mut e = Engine::bare(3);
         let h = e.add_minion(SeatId(0), find_card("Madison"), 4, false);
         e.add_minion(SeatId(0), find_card("Crystal Lynn"), 4, false);
         let z = e.add_minion(SeatId(1), find_card("Donny Kowalczyk"), 4, false);
-        let w = e.add_minion(SeatId(2), find_card("Malachi"), 4, false);
+        let w = e.add_minion(SeatId(2), find_card(vampire), 3, false);
         e.state.minions[w.index()].locked = true;
-        e.state.seats[2]
-            .hand
-            .put(find_library("On the Qui Vive"), CopyId::NONE);
+        e.state.seats[2].hand.put(find_library(card), CopyId::NONE);
         e.notes = Some(Vec::new());
         s.engine = e;
         let Step::Decision(req) = s.engine.run() else {
@@ -1932,8 +1955,8 @@ mod tests {
             .options
             .iter()
             .copied()
-            .find(|o| matches!(o, Choice::Play { actor: Some(a), .. } if *a == w))
-            .expect("On the Qui Vive offered");
+            .find(|o| matches!(o, Choice::Play { actor: Some(a), mode: m, .. } if *a == w && *m == mode))
+            .unwrap_or_else(|| panic!("{card} offered in {:?}", req.options));
         hidden_off(&mut s, &req, wake);
         // The prey's attempt fails, the prey declines: the predator's
         // moment, its wake shown with the opportunities off.
