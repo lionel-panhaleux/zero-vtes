@@ -223,6 +223,17 @@ pub struct Engine {
     /// Set when a play's resolution ousted its player: the as-played stack
     /// must not resume the ousted seat's phase.
     pub(crate) ousted_during_play: bool,
+    /// A play resolving in another card's as-played window: its
+    /// replacement (`replace`) and extra draws (`offer_extra_draw`) wait
+    /// for that window to close. Set only while `as_played_advance`
+    /// resolves it: a window card's replacement made later, by an
+    /// interrupt, would not wait, nor one of a card canceled as it is
+    /// played into the window (`open_as_played`: Andrew Stuart's reveal);
+    /// no wake or cancel in the pool reaches either.
+    pub(crate) in_as_played: bool,
+    /// The extra draws `offer_extra_draw` held in an as-played window:
+    /// (seat, source, a replacement's, group), offered as it closes.
+    pub(crate) window_draws: Vec<(SeatId, crate::draws::DrawSource, bool, u32)>,
     /// The Methuselahs whose minions an action card's effects burn as it
     /// resolves, its context out of `action` meanwhile: folded into the
     /// action's `burned_owners` (Smash and Grab [ani] for Predator's
@@ -583,6 +594,8 @@ impl Engine {
             combat: None,
             referendum: None,
             ousted_during_play: false,
+            in_as_played: false,
+            window_draws: Vec::new(),
             opening: None,
             interrupts: Vec::new(),
             ousting: None,

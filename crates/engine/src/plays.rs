@@ -226,6 +226,13 @@ impl Engine {
     /// Replace `n` cards that left `s`'s hand, `except` this card's own
     /// rider (spec §6.8.3; rules-qa 8.3, 9.4; ANK 20200905).
     pub(crate) fn replace(&mut self, s: SeatId, n: usize, except: Option<CardId>) {
+        // Nothing but wakes and cancels in an as-played window, no draw
+        // either (owner, 2026-11-06; rules-qa 110.1).
+        if n > 0 && self.in_as_played {
+            let held = &mut self.state.seats[s.index()].held[Release::AsPlayedWindow];
+            *held = held.saturating_add(n as u8);
+            return;
+        }
         // The Meddling of Semsith: held until the minion phase ends.
         if n > 0 && self.state.in_minion_phase && self.state.meddled(s) {
             let held = &mut self.state.seats[s.index()].held[Release::MinionPhaseEnd];
@@ -284,6 +291,11 @@ impl Engine {
         replaces: bool,
         group: u32,
     ) {
+        // No draw in an as-played window (rules-qa 110.1).
+        if self.in_as_played {
+            self.window_draws.push((s, source, replaces, group));
+            return;
+        }
         if !self.state.seats[s.index()].library.is_empty() {
             self.interrupts.push(Interrupt::MayDrawExtra {
                 seat: s,
@@ -3975,6 +3987,7 @@ impl Engine {
         let top = stack.pop().expect("as-played stack");
         debug_assert!(top.window.is_closed());
         let mut declared_action = false;
+        self.as_played_resolving(&stack);
         if top.canceled {
             self.settle_canceled(top.ctx, top.cost_paid);
         } else {
@@ -3982,14 +3995,18 @@ impl Engine {
         }
         while stack.last().is_some_and(|p| p.canceled) {
             let p = stack.pop().expect("canceled play");
+            self.as_played_resolving(&stack);
             self.settle_canceled(p.ctx, p.cost_paid);
         }
+        self.in_as_played = false;
         // Resolution may have ousted the player (pool paid down to 0), in
         // which case the flow already moved on and must not be resumed; a
         // resolved action card has opened its action instead.
         if self.ousted_during_play {
             self.ousted_during_play = false;
             self.state.pre_woken.clear();
+            // The stack dropped with the oust: its window closed.
+            self.as_played_closed();
             return;
         }
         if declared_action {
@@ -4002,6 +4019,28 @@ impl Engine {
             self.flow = *resume;
         } else {
             self.flow = Flow::AsPlayed { stack, resume };
+        }
+    }
+
+    /// A card of the as-played stack about to resolve or settle, `stack`
+    /// the cards below it: in their window, its draws wait; the last
+    /// one's window closed, those held in it come before it resolves
+    /// (rules-qa 110.1).
+    fn as_played_resolving(&mut self, stack: &[PendingPlay]) {
+        if stack.is_empty() {
+            self.as_played_closed();
+        } else {
+            self.in_as_played = true;
+        }
+    }
+
+    /// The as-played windows closed: the replacements held in them drawn,
+    /// then the extra draws that wait on them offered.
+    fn as_played_closed(&mut self) {
+        self.in_as_played = false;
+        self.release_held(Release::AsPlayedWindow);
+        for (s, source, replaces, group) in std::mem::take(&mut self.window_draws) {
+            self.offer_extra_draw(s, source, replaces, group);
         }
     }
 

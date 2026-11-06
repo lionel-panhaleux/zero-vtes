@@ -754,11 +754,8 @@ impl Session {
         let Some(i) = req.options.iter().position(|o| o == c) else {
             return false;
         };
-        // Held now: the replacement the wake draws as it is played is not
-        // known yet, and the wake shown would tell it.
-        let held: Vec<u16> = (self.engine.virtual_hand(req.seat).iter())
-            .map(|&(card, _)| card)
-            .collect();
+        // No card is drawn in the window (rules-qa 110.1): the hand probed
+        // tells nothing the seat does not know.
         let mut probe = self.engine.clone();
         probe.choose(i);
         // The other seats pass on the wake as it is played (its own
@@ -786,14 +783,13 @@ impl Session {
                     return false;
                 };
                 let played = probe.virtual_hand(next.seat)[card as usize].0;
-                held.contains(&played)
-                    && zvtes::cards::lookup(played)
-                        .and_then(|d| d.modes.get(mode as usize))
-                        .is_some_and(|m| {
-                            m.effects
-                                .iter()
-                                .any(|f| matches!(f, Effect::CancelPlayed { .. }))
-                        })
+                zvtes::cards::lookup(played)
+                    .and_then(|d| d.modes.get(mode as usize))
+                    .is_some_and(|m| {
+                        m.effects
+                            .iter()
+                            .any(|f| matches!(f, Effect::CancelPlayed { .. }))
+                    })
             })
     }
 

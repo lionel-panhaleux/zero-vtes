@@ -69,7 +69,7 @@ by the owner. Apply them to every new card; only a ruling overrides them.
 - **Untimed abilities** — 7.7, 29.10, 15.2 (Kalinda)
 - **Legacy additions for TWDA decks** — 44.1–44.10, 57.1–57.10, 58.1–58.20, 59.1–59.19, 60.1–60.22, 62.2–62.31, 62.33, 63.1–63.17, 64.1–64.12, 65.1–65.3, 67.1–67.7, 68.1–68.17, 69.1–69.15, 70.1–70.22, 71.1–71.27, 74.1–74.13, 76.1–76.25, 77.1–77.35, 78.1–78.49, 78.54, 79.3, 80.1–80.45, 84.1–84.40, 85.1–85.34, 89.1–89.26, 102.1–102.26, 103.1–103.6, 104.1–104.20, 105.1–105.6, 106.1–106.22
 - **Ousts, Life Boon's decision point** — 45.1–45.8, 88.2
-- **Impulse, sequencing, windows** — 1.2, 1.3, 1.5, 2.1, 2.2, 2.3, 2.4, 3.7, 4.1, 5.3, 7.7, 7.8, 7.9, 23.3, 24.2, 26.5, 66.1, 96.4
+- **Impulse, sequencing, windows** — 1.2, 1.3, 1.5, 2.1, 2.2, 2.3, 2.4, 3.7, 4.1, 5.3, 7.7, 7.8, 7.9, 23.3, 24.2, 26.5, 66.1, 96.4, 110.1
 - **Mandatory effects and their ordering** — 6.1, 6.4, 7.8, 7.9, 17.2, 27.1, 28.9, 32.10, 40.5, 88.5
 - **Periodicity ("during X" = once per X, once each …)** — 6.6, 7.4, 9.6, 10.4, 11.2, 15.1, 15.2, 16.1, 36.3, 36.4, 37.1, 38.8, 42.3, 42.9, 79.1–79.4
 - **No-repeat-action, "same action"** — 1.4, 6.2, 16.6, 23.2, 25.4, 32.1, 88.1, 89.2, 89.15
@@ -87,7 +87,7 @@ by the owner. Apply them to every new card; only a ruling overrides them.
 - **Contests, uniqueness** — 3.1, 7.1, 7.3, 7.5, 8.2, 11.2, 12.3, 19.1, 36.3, 38.7, 39.4, 40.1, 57.9, 58.5, 58.19, 59.13, 60.1, 60.9, 60.20, 76.2, 76.3, 85.32, 91.2–91.6, 94.6, 100.1, 100.2, 100.4, 108.1
 - **Control, steals, ousts, removal from game** — 6.9, 7.5, 17.4, 25.1, 27.3, 27.4, 27.7, 28.13, 31.4, 31.5, 31.6, 33.5, 33.7, 38.4, 39.4, 42.7, 55.4, 55.6, 88.9, 90.4, 90.7, 90.10, 101.2, 101.3
 - **Costs and reductions** — 3.6, 5.9, 9.3, 18.1, 18.2, 23.4, 29.6, 27.6, 36.1–36.5, 38.5, 42.1, 42.2, 42.5, 42.6, 54.1, 58.12, 59.5, 60.5, 60.7, 77.24, 78.3, 78.17, 78.21, 89.3, 89.10, 89.11, 89.15, 89.24, 93.9, 96.3, 100.3, 101.1, 101.3
-- **Replacement, draws, stored and held cards** — 5.5, 7.10, 8.2, 8.3, 8.4, 9.4, 9.5, 11.1–11.3, 12.1–12.5, 22.2, 37.1, 40.4, 53.4, 53.5, 73.1, 73.2, 77.35, 78.18, 78.26, 78.51, 88.8, 93.8, 93.10, 96.2, 96.5
+- **Replacement, draws, stored and held cards** — 5.5, 7.10, 8.2, 8.3, 8.4, 9.4, 9.5, 11.1–11.3, 12.1–12.5, 22.2, 37.1, 40.4, 53.4, 53.5, 73.1, 73.2, 77.35, 78.18, 78.26, 78.51, 88.8, 93.8, 93.10, 96.2, 96.5, 110.1
 - **Card destination (ash heap, limbo, lingering effects)** — 21.1, 22.1, 31.6, 46.4, 47.1
 - **Equipment and weapons** — 9.1–9.6, 10.1–10.5, 17.4, 18.3, 22.4, 29.7, 35.3, 38.4, 38.5, 38.7, 76.9, 76.10, 76.15, 76.16, 77.19, 77.29, 78.28, 78.42, 99.1–99.3
 - **Allies, retainers, ghouls** — 22.2, 28.10, 29.2, 32.4, 32.11, 32.12, 32.13, 37.1, 40.10, 42.2, 42.9, 49.3, 50.6, 73.5, 73.6, 76.7, 76.8, 77.29, 88.3, 89.14, 89.15, 89.24, 90.2
@@ -2748,3 +2748,7 @@ Each contradiction read against the KRCG rulings, the advanced rules and the rul
 **109.49** Virstania: while she is ready, any Methuselah's slave Gargoyle may be freed, Independent, and a non-slave Gargoyle may bleed at +1 for a blood paid at resolution; the actions distinct, both in one turn (LSJ 20100909), each requiring a Gargoyle (LSJ 20080604). William Biltmore's stealth once each action, when needed (D15). Tests: `virstania_frees_gargoyles_and_lets_them_bleed`, `william_biltmore_buys_stealth`.
 
 **109.50** Orun's +2 is read by the Methuselah who played the card, whoever controls the minion it is on (109.3) (amber: "cards played by Methuselahs other than this Laibon's controller"), for every card's capacity or "younger/older" read: Kuta's "cannot block older", Transcendent Laibon's tolls, Blind Spot, Stolen Police Cruiser, the referendums' capacity terms (their caller), and the rest; blood caps and fills to capacity stay plain (the blood held is capped by the printed capacity). Tests: `kuta_reads_older_as_its_player`, `transcendent_laibon_reads_an_orun_blockers_capacity`, `blind_spot_reads_an_orun_laibons_capacity`.
+
+## Batch 110 — The as-played window draws nothing (the engine board; owner, 2026-11-06) (Claude, 2026-11-06)
+
+**110.1** Nothing but wakes and cancels in an as-played window, no draw either (owner, 2026-11-06: "only wakes and cancels can be played there, not any other card or effect (even drawing to replace or using Dreams to augment hand size)"): a card played and resolved in another card's as-played window (a wake, a cancel) is replaced as the stack's last as-played window closes, before its bottom card resolves, not as it resolves — so a cancel the replacement would draw is not offered in that window. An extra draw it brings (Ira Rivers's for an Auspex card) waits too, offered after the replacements. Its "do not replace until" clause, if any, still wins. (Tests `a_wake_in_an_as_played_window_is_replaced_as_it_closes`, `an_extra_draw_on_a_wake_waits_out_the_as_played_window`, `an_unlock_reaction_waits_out_the_as_played_window`.)

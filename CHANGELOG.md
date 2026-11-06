@@ -6,6 +6,14 @@ server runs.
 `python3 scripts/schema_compat.py` lists what a schema change adds or
 removes; its `--check` fails a removal without a major version.
 
+## 2.21.1
+
+- A card played in another card's as-played window (a wake, a cancel) is
+  replaced as that window closes, not as it resolves: nothing is drawn
+  there (rules-qa 110.1). A record whose wake was played there before
+  2.21.1 replays up to the next decision only: a game live across the
+  redeploy whose record holds one ends `server_restart`.
+
 ## 2.21.0
 
 Round 25's cards (rules-qa Batch 109); ids added, none removed:

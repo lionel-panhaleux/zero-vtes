@@ -13,7 +13,7 @@ use zvtes::decision::{ActionKind, Choice, WindowLabel};
 use zvtes::game::Engine;
 use zvtes::ids::{MinionId, SeatId};
 use zvtes::state::CardId;
-use zvtes::state::{find_card, find_library, CardInPlay};
+use zvtes::state::{find_card, find_library, CardInPlay, Release};
 
 mod common;
 use common::*;
@@ -527,6 +527,72 @@ fn an_unlock_reaction_waits_out_the_as_played_window() {
     pick(e, Choice::Pass);
     let req = expect(e, SeatId(1), WindowLabel::ActionBlock);
     assert!(plays(&req).contains(&play(1, 1, f)), "{:?}", req.options);
+}
+
+// rules-qa 110.1 — nothing but wakes and cancels in an as-played window,
+// no draw either (owner, 2026-11-06): Eyes of Argus played in Consign's
+// window is replaced as that window closes, not as it resolves — still
+// held while seat 1 is asked again there (a second wake, for C).
+#[test]
+fn a_wake_in_an_as_played_window_is_replaced_as_it_closes() {
+    let mut t = table();
+    let e = &mut t.e;
+    e.state.minions[t.b.index()].locked = true;
+    e.state.minions[t.c.index()].locked = true;
+    e.state.seats[0]
+        .hand
+        .push(find_library("Consign to Oblivion"));
+    e.state.seats[1]
+        .hand
+        .extend([find_library("Eyes of Argus"), find_library("Eyes of Argus")]);
+    fill_hand(e, 1);
+    let villein = find_library("Villein");
+    e.state.seats[1].library.push(villein);
+    pick(e, bleed(t.o));
+    pick(e, play(0, 0, t.o));
+    let req = expect(e, SeatId(1), WindowLabel::CardAsPlayed);
+    e.choose(index_of(&req, play(0, 1, t.b)));
+    let req = expect(e, SeatId(1), WindowLabel::CardAsPlayed);
+    assert!(!e.state.seats[1].hand.contains(&villein), "not drawn yet");
+    assert_eq!(e.state.seats[1].held[Release::AsPlayedWindow], 1);
+    e.choose(index_of(&req, Choice::Pass));
+    expect(e, SeatId(1), WindowLabel::ActionBlock);
+    assert!(
+        e.state.seats[1].hand.contains(&villein),
+        "drawn as it closed"
+    );
+    assert_eq!(e.state.seats[1].held[Release::AsPlayedWindow], 0);
+}
+
+// rules-qa 110.1 — no extra draw in an as-played window either: Ira
+// Rivers's draw for an Auspex card she plays, a wake in Consign's window,
+// is offered as that window closes, after its replacement.
+#[test]
+fn an_extra_draw_on_a_wake_waits_out_the_as_played_window() {
+    let mut t = table();
+    let e = &mut t.e;
+    let ira = e.add_minion(SeatId(1), find_card("Ira Rivers"), 4, false);
+    e.state.minions[ira.index()].locked = true;
+    e.state.minions[t.c.index()].locked = true;
+    e.state.seats[0]
+        .hand
+        .push(find_library("Consign to Oblivion"));
+    e.state.seats[1]
+        .hand
+        .extend([find_library("Eyes of Argus"), find_library("Eyes of Argus")]);
+    fill_hand(e, 1);
+    e.state.seats[1].library = vec![find_library("Villein"); 3].into();
+    pick(e, bleed(t.o));
+    pick(e, play(0, 0, t.o));
+    let req = expect(e, SeatId(1), WindowLabel::CardAsPlayed);
+    e.choose(index_of(&req, play(0, 1, ira)));
+    // Asked again in the window (a wake for C): no draw offered first.
+    expect(e, SeatId(1), WindowLabel::CardAsPlayed);
+    assert_eq!(e.state.seats[1].held[Release::AsPlayedWindow], 1);
+    pick(e, Choice::Pass);
+    let req = expect(e, SeatId(1), WindowLabel::Draw);
+    assert_eq!(req.options, vec![Choice::Pass, Choice::DrawLibrary]);
+    assert_eq!(e.state.seats[1].held[Release::AsPlayedWindow], 0);
 }
 
 #[test]

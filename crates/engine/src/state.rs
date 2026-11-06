@@ -1159,10 +1159,14 @@ pub enum Release {
     /// Played during its turn with a Hagar Stone unlocked: replaced as no
     /// such vampire is left unlocked, or as the turn ends.
     WhileUnlocked,
+    /// Played in another card's as-played window (a wake, a cancel):
+    /// replaced as the stack's last as-played window closes (rules-qa
+    /// 110.1).
+    AsPlayedWindow,
 }
 
 impl Release {
-    const COUNT: usize = Release::WhileUnlocked as usize + 1;
+    const COUNT: usize = Release::AsPlayedWindow as usize + 1;
     const ALL: [Release; Release::COUNT] = [
         Release::NextUnlockPhase,
         Release::NextDiscardPhase,
@@ -1178,6 +1182,7 @@ impl Release {
         Release::MasterPhase,
         Release::MinionPhaseEnd,
         Release::WhileUnlocked,
+        Release::AsPlayedWindow,
     ];
 }
 

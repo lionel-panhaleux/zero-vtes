@@ -933,19 +933,21 @@ simultaneous effects, §2.5 duration). The engine's window primitives are in
 - **As played**: opens after every card play, in an action or not; admits
   only wakes and cancellations — not card abilities (2.4). Wakes need an
   action: an action card just played has opened it, and a wake there
-  resolves before the played card's effect; outside an action, cancels
-  only (2.4, Rewind Time usable outside actions). An action card's window,
-  its action not declared yet, admits a locked minion's wake (one with no
-  effect on the action to come), held until the action is declared, and
-  the woken minion's cancel; a woken minion meets "usable by an unlocked
-  vampire" (96.4). True wakes (Wake with Evening's Freshness, On the Qui
-  Vive, Forced Awakening, Eyes of Argus [AUS], Shadow Sentinel) are;
-  unlock-and-attempt reactions (Dogged Pursuit, Eyes of the Wild, Second
-  Tradition's 2nd mode, Sense the Savage Way [ANI], One With the Land
-  [PRO], Organized Resistance) and plain unlock reactions (Guard Dogs,
-  Rat's Warning, Forced Vigilance [FOR]) are not (2.4). A card played not
-  in the normal fashion opens no as-played window and cannot be canceled
-  as played (advanced rules §1.8.2).
+  resolves before the played card's effect; outside an action, cancels only
+  (2.4, Rewind Time usable outside actions). An action card's window, its
+  action not declared yet, admits a locked minion's wake (one with no effect
+  on the action to come), held until the action is declared, and the woken
+  minion's cancel; a woken minion meets "usable by an unlocked vampire"
+  (96.4). True wakes (Wake with Evening's Freshness, On the Qui Vive, Forced
+  Awakening, Eyes of Argus [AUS], Shadow Sentinel) are; unlock-and-attempt
+  reactions (Dogged Pursuit, Eyes of the Wild, Second Tradition's 2nd mode,
+  Sense the Savage Way [ANI], One With the Land [PRO], Organized Resistance)
+  and plain unlock reactions (Guard Dogs, Rat's Warning, Forced Vigilance
+  [FOR]) are not (2.4). Nothing is drawn there: a wake or cancel resolved in
+  it is replaced as the stack's last as-played window closes, before its
+  bottom card resolves (110.1). A card played not in the normal fashion
+  opens no as-played window and cannot be canceled as played (advanced rules
+  §1.8.2).
 - **As announced**: holds only effects whose text says so ("only usable as
   the action is announced", "as … announces": Seduction, Warsaw Station,
   Yoruba Shrine, Screamer's fail); an effect usable "during the action"
@@ -4920,7 +4922,7 @@ an owner ruling:
 Every rules-qa item, by batch, with the digest sections citing it: the
 section stating it and those cross-referring to it (§2 the default
 readings, §22 engine modeling, §23 the contradictions, §24 the open
-readings). 1161 items, Batches 1–109 (44.11 was removed, replaced by Batch
+readings). 1162 items, Batches 1–110 (44.11 was removed, replaced by Batch
 45). The index is derived from the citations: a bare `N.M` cites rules-qa
 item N.M in the section it appears in. A new rules-qa item gets its line in
 the section stating it, then its entry here: `python3
@@ -5304,3 +5306,4 @@ index or an item cited nowhere.
   §15.2; 109.39 §15.2,§24.1; 109.40 §15.2,§24.1; 109.41 §15.2,§24.1; 109.42
   §15.2; 109.43 §15.2,§24.1; 109.44 §15.2,§24.1; 109.45 §15.2,§24.1; 109.46
   §15.2; 109.47 §15.2; 109.48 §15.2; 109.49 §15.2; 109.50 §15.2,§24.1
+- **110** — 110.1 §5.2

@@ -19,7 +19,12 @@ const KNOWN_STOPS: &[(&str, u64, &str)] = &[
         215,
         "rules-qa 99.1: a vampire can have only one Wall of Filth",
     ),
-    ("d8ec2c01edab010d.json", 307, STEALTH_COUNTED),
+    (
+        "d8ec2c01edab010d.json",
+        236,
+        "rules-qa 110.1: On the Qui Vive, played in an as-played window \
+         (234), replaced as that window closes",
+    ),
     (
         "zero-vtes-replay-2026-10-04T15-55-52-662Z.json",
         77,
@@ -29,6 +34,12 @@ const KNOWN_STOPS: &[(&str, u64, &str)] = &[
         "zero-vtes-replay-2026-10-11T12-31-56-022Z.json",
         79,
         STEALTH_COUNTED,
+    ),
+    (
+        "zero-vtes-replay-2026-10-12T21-02-13-473Z.json",
+        242,
+        "rules-qa 110.1: the On the Qui Vive played here was the \
+         replacement of the one played at 239, drawn in the as-played window",
     ),
 ];
 

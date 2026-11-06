@@ -1645,7 +1645,12 @@ sources to the engine's conventions.
   shrinking with it. A hand-size increase is no replacement: it draws by
   `settle_hand_rises`. The Meddling of Semsith holds replacements made
   during a minion phase until it ends (`Release::MinionPhaseEnd`), or until
-  it leaves play (`release_unmeddled`, rules-qa 88.8).
+  it leaves play (`release_unmeddled`, rules-qa 88.8). A card resolved in
+  another's as-played window (a wake, a cancel; `Engine::in_as_played`) is
+  replaced as the stack's last window closes, before its bottom card
+  resolves (`Release::AsPlayedWindow`, `as_played_closed`, rules-qa
+  110.1); the extra draws offered meanwhile wait with it
+  (`Engine::window_draws`), offered after.
 - Draw alternatives (`Hook::WouldDraw`): a choice per card drawn (rules-qa 9.4);
   beside Visit from the Capuchin a replacement is the Capuchin's counter or a
   stored card.
