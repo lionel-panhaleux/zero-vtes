@@ -1,7 +1,7 @@
 //! The bot profiles a host offers by name (`zvtes_host::Bots`): a network
 //! profile is the served weights at a temperature with its nudges. The
-//! server and the tools that play as it does (`examples/humanset.rs`) read
-//! them here.
+//! server and the tools that play as it does (`examples/humanset.rs`,
+//! `examples/decks.rs --file`) read them here.
 
 use std::sync::Arc;
 

@@ -22,3 +22,5 @@ zvtes-host = { path = "../host" }
 [dev-dependencies]
 zero-vtes-engine = { path = "../engine", features = ["fixtures"] }
 serde_json = "1"
+# `examples/decks.rs --file`: the weights' SHA-256, as the server records it.
+sha2 = "0.10"

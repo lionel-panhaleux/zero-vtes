@@ -97,14 +97,20 @@ runs" (every run's command, numbers and lessons), `docs/boards/training.md`.
    in `decks.rs`, a `humanset` score, the ledger at a table size), shown by
    a step-4 number against the served weights. Z-train sends Z-main the
    numbers, which DESIGN §11.2's "pN run" note records; a run that fails the
-   not-degrading test goes to the owner instead. Z-main redeploys
-   engine.krcg.org with `ZVTES_WEIGHTS` explicit (CLAUDE.md "Sessions": only
-   Z-main deploys); name the served weights by their sha prefix in the
-   DESIGN note (the server records the weights' SHA-256 per game); keep the
-   previous weights as `runs/served-prev-<date>-<run>.zvp`; the served
-   profile (temperature, nudges) lives in `crates/policy/src/profiles.rs`
-   (`NETWORK`), which the server and `crates/policy/examples/humanset.rs`
-   read.
+   not-degrading test goes to the owner instead. Before the deploy, write
+   the weights' per-deck file at the commit being deployed (a clean worktree
+   at main's tip), `cargo run -p zvtes-policy --profile ci --example decks
+   -- --file <served.zvp> 100` (every TWDA deck the engine keeps at one
+   seat, precons at the others, every seat the served profile; about two and
+   a half hours): `<served>.decks.json` beside them (DESIGN §11.2 "Bots on
+   any deck"), which `deploy/deploy.py` takes only if it is there as it
+   deploys. Z-main redeploys engine.krcg.org with `ZVTES_WEIGHTS` explicit
+   (CLAUDE.md "Sessions": only Z-main deploys); name the served weights by
+   their sha prefix in the DESIGN note (the server records the weights'
+   SHA-256 per game); keep the previous weights as
+   `runs/served-prev-<date>-<run>.zvp`; the served profile (temperature,
+   nudges) lives in `crates/policy/src/profiles.rs` (`NETWORK`), which the
+   server, `crates/policy/examples/humanset.rs` and `decks.rs --file` read.
 
 ## Taking a new engine
 

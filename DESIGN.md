@@ -2127,6 +2127,33 @@ training runs.
   report's human win rate and VP a seat by weights against p14's 76% and 2.64
   over 74 counted games), `runs/p17/last.zvp` (`f426338f6c80`), the previous
   `runs/served-prev-2026-11-06-p14.zvp` (`a78e74292acb`).
+- **Bots on any deck** (owner, 2026-10-26, via Z-succubus: humans teach the bot
+  the recent TWDA decks it plays worst; served at `GET /catalog/taught`,
+  protocol 2.22.0). `decks.rs --file <served.zvp> <games a deck>`: every TWDA
+  deck the engine keeps (177 on `83b135c`; the trainer's `twda` family draws
+  from them all, so the older ones are measured whole, not sampled) at one seat
+  drawn uniformly, precons (V5, anniversary, Sabbat) at the three others, none
+  sharing more than 20% of their crypt, every seat the served bot (`NETWORK`:
+  temperature 0.5, its nudges), games ending at 75 player turns (the server's
+  at 100). Written beside the weights as `<served>.decks.json`: their SHA-256
+  (the server serves the file only while it names the weights served), the
+  engine, the day, the measure in a line, and per deck, weakest first, its
+  catalog name, TWDA id, event, date, `recent` (dated within two years of the
+  measure), games, game wins, VP a game and VP share (its VPs over all those
+  scored at its tables, 0.25 even), the file a `zvtes_api::DecksMeasure`, the
+  type the server reads. p17 (`runs/p17/last.decks.json`, weights
+  `f426338f6c80`, engine `83b135c56b17`, 100 games a deck, 2 h 30 on 8 threads;
+  its measure line, from an earlier build of the tool, omits the 75-turn
+  limit): with a TWDA deck at one seat against three precons the bot wins 16.4%
+  of its games and scores 0.77 VP a game, a VP share of 0.196 on the 97 recent
+  decks (from 2024-11-06) and 0.189 on the 80 older, below even; the median
+  deck 0.18, the decks from 0.00 to 0.64, 51 under 0.10 and 54 at or above
+  0.25. The weakest recent: The Path of Enkidu (Adeus 2025) 0.005, no win in
+  100, then As carequinha (Nordestão 2025) 0.021 and Cardinalis Benedictio's
+  0.028; the floor, Unnamed (Praxis Seizure: Barcelona, 2004), no VP in 100
+  games; the strongest, The Asylum (Italian NC 2022), 0.64. A deck's win rate
+  at 100 games carries about ± 6 points (two standard errors at 10%); its VP
+  share's error is not computed (the tool keeps sums).
 - **Futile blocks on the E25 engine** (owner, 2026-10-15: before any
   redeploy). E25 (`97c4880`) offers every legal block attempt, those
   that cannot reach the stealth too (`Engine::block_can_reach`); no
