@@ -37,11 +37,12 @@ opportunities filter and the lone pass passing by itself, protocol §8)
 are the protocol's. What the host (`crates/host/src/session.rs`) adds
 to them:
 
-- **A wake's moment** (a reaction's unlock is a wake), opportunities
-  off: an action concerns the seat when it is directed at the seat, or
-  undirected and its prey's or predator's; never a bleed directed at
-  another seat (owner: "not bleeds directed at my cross"). The owner's
-  reason for each kind the filter hides is beside it in
+- **A wake's moment** (a reaction's unlock's too, but never as a card is
+  played: that window admits wakes and cancels only, rules-qa 2.4),
+  opportunities off: an action concerns the seat when it is directed at
+  the seat, or undirected and its prey's or predator's; never a bleed
+  directed at another seat (owner: "not bleeds directed at my cross").
+  The owner's reason for each kind the filter hides is beside it in
   `Session::opportunity` (a wake's in `Session::wake_moment`); each kind
   has its test, shown on and hidden off
   (`*_is_hidden_with_the_opportunities_off`). A hidden option keeps its

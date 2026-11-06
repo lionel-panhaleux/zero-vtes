@@ -502,6 +502,33 @@ fn as_played_window_wakes_and_cancels_only() {
     assert!(plays(&req).is_empty());
 }
 
+// rules-qa 2.4 — a plain unlock reaction is no wake: the as-played window
+// admits wakes and cancels only. Forced Vigilance [FOR] for a locked
+// superior Fortitude vampire waits for the action's own windows; Eyes of Argus
+// wakes B as Consign is played.
+#[test]
+fn an_unlock_reaction_waits_out_the_as_played_window() {
+    let mut t = table();
+    let e = &mut t.e;
+    let f = e.add_minion(SeatId(1), find_card("Brock Sterling"), 3, false); // FOR
+    e.state.minions[t.b.index()].locked = true;
+    e.state.minions[f.index()].locked = true;
+    e.state.seats[0]
+        .hand
+        .push(find_library("Consign to Oblivion"));
+    e.state.seats[1].hand.extend([
+        find_library("Eyes of Argus"),
+        find_library("Forced Vigilance"),
+    ]);
+    pick(e, bleed(t.o));
+    pick(e, play(0, 0, t.o));
+    let req = expect(e, SeatId(1), WindowLabel::CardAsPlayed);
+    assert_eq!(plays(&req), vec![play(0, 1, t.b)]);
+    pick(e, Choice::Pass);
+    let req = expect(e, SeatId(1), WindowLabel::ActionBlock);
+    assert!(plays(&req).contains(&play(1, 1, f)), "{:?}", req.options);
+}
+
 #[test]
 fn consign_superior_defers_reaction_replacement_to_the_end_of_the_action() {
     let mut t = table();

@@ -511,14 +511,15 @@ Per human seat, in the spec (`player.settings`; fields left out take
 their default) and changed by `settings`:
 
 - `opportunities` (default `true`): `false` hides the options that interrupt
-  play out of their moment — a wake (a reaction's unlock too: Deep Ecology,
-  Guard Dogs) outside an action that concerns the seat, as a card is played
-  (unless the woken minion could then cancel that card: Rewind Time, Touch
-  of Clarity), or, while blocks are open, outside the seat's own block
-  moment (before the would-be blockers ahead of it declined, after its own
-  decline), or, in the blocks-declined window, on anything but a bleed at
-  the seat (Shadow Sentinel: to wake and bounce it), or in a referendum, a
-  block denial short of the action's stealth, the acting seat's options
+  play out of their moment — a wake or a reaction's unlock (Deep Ecology,
+  Guard Dogs) outside an action that concerns the seat, a wake as a card is
+  played (unless the woken minion could then cancel that card: Rewind Time,
+  Touch of Clarity; an unlock is never offered then: that window admits
+  wakes and cancels only), or, while blocks are open, outside the seat's own
+  block moment (before the would-be blockers ahead of it declined, after its
+  own decline), or, in the blocks-declined window, on anything but a bleed
+  at the seat (Shadow Sentinel: to wake and bounce it), or in a referendum,
+  a block denial short of the action's stealth, the acting seat's options
   other than the pass while the attempt under way is short of it (the round
   is the blocker's and the table's), a card or ability making a strike's
   damage aggravated (Claws of the Dead, Crossbreaker) before the strikes are

@@ -174,16 +174,10 @@ pub fn deal(seed: u64, time_limit: Option<u32>, decks: &[Resolved]) -> Engine {
     engine
 }
 
-/// Whether `mode` wakes a minion: a wake, or a reaction's unlock (Deep
-/// Ecology, Guard Dogs), which interrupts play as a wake does (owner,
-/// 2026-11-04: "much less opportunities, the way we do for wakes"). An
-/// unlock to block (`ReactionUnlockAttempt`) is a block attempt, offered
-/// only where the seat may attempt: its block moment already.
 fn wakes(mode: &ModeDef) -> bool {
     mode.effects
         .iter()
         .any(|f| matches!(f, Effect::Wake | Effect::WakeTarget))
-        || mode.windows.contains(&Window::ReactionUnlock)
 }
 
 impl Session {
@@ -700,7 +694,11 @@ impl Session {
                 if wakes && req.window == WindowLabel::CardAsPlayed {
                     return Some(Opportunity::Wake(self.wake_cancels(req, c)));
                 }
-                if wakes {
+                // A reaction's unlock keeps a wake's moments (owner,
+                // 2026-11-04: "much less opportunities, the way we do for
+                // wakes"); never offered as a card is played (rules-qa 2.4).
+                let unlocks = mode.is_some_and(|m| m.windows.contains(&Window::ReactionUnlock));
+                if wakes || unlocks {
                     return Some(Opportunity::Wake(self.wake_moment(req)));
                 }
                 mode.and_then(|m| self.aggravation(m).or_else(|| self.denial(m.effects)))
@@ -721,15 +719,16 @@ impl Session {
         }
     }
 
-    /// Whether a wake is in its moment: an action directed at the seat,
-    /// or an undirected one of its prey or predator — never one directed
-    /// at another seat (owner, 2026-10-11) — and while blocks are open,
-    /// only the seat's own block moment, not before the would-be blockers
-    /// ahead of it declined nor after its own decline (owner, 2026-10-17:
-    /// "really misleading, even though technically correct"); once blocks
-    /// are declined, only on a bleed at the seat, to wake and bounce it
-    /// (owner, 2026-10-19: "otherwise it's noise"); never in a referendum
-    /// (owner, 2026-10-19: "many times during a referendum. Shouldn't").
+    /// Whether a wake or a reaction's unlock is in its moment: an action
+    /// directed at the seat, or an undirected one of its prey or predator —
+    /// never one directed at another seat (owner, 2026-10-11) — and while
+    /// blocks are open, only the seat's own block moment, not before the
+    /// would-be blockers ahead of it declined nor after its own decline
+    /// (owner, 2026-10-17: "really misleading, even though technically
+    /// correct"); once blocks are declined, only on a bleed at the seat, to
+    /// wake and bounce it (owner, 2026-10-19: "otherwise it's noise");
+    /// never in a referendum (owner, 2026-10-19: "many times during a
+    /// referendum. Shouldn't").
     fn wake_moment(&self, req: &DecisionRequest) -> bool {
         let e = &self.engine;
         let st = &e.state;
@@ -1890,9 +1889,9 @@ mod tests {
         wake_waits_for_the_block_moment("Malachi", "On the Qui Vive", 0);
     }
 
-    /// A reaction's unlock is a wake (owner, 2026-11-04: "much less
-    /// opportunities, the way we do for wakes"): Deep Ecology's [pro]
-    /// waits for the seat's block moment as On the Qui Vive does.
+    /// A reaction's unlock waits for a wake's moment (owner, 2026-11-04:
+    /// "much less opportunities, the way we do for wakes"): Deep Ecology's
+    /// [pro] waits for the seat's block moment as On the Qui Vive does.
     #[test]
     fn a_reaction_unlock_waits_for_the_seats_own_block_moment() {
         wake_waits_for_the_block_moment("Indira", "Deep Ecology", 2);
