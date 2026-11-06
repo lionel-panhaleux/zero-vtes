@@ -82,7 +82,13 @@ def parse(path):
                 yield key, buf
             buf = line.strip()[2:]
         elif buf is not None:
-            buf += " " + line.strip()
+            # A double-quoted scalar's escaped line break joins with no
+            # space, and "\ " is an escaped space (YAML 1.2 §7.3.1).
+            nxt = line.strip()
+            if buf.endswith("\\"):
+                buf = buf[:-1] + (" " + nxt[2:] if nxt.startswith("\\ ") else nxt)
+            else:
+                buf += " " + nxt
     if buf is not None:
         yield key, buf
 

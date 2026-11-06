@@ -66,8 +66,9 @@ LABELS = [
     # on its type line.
     ("Infernal", r"^(unique )?\w+ with [^\n]*\. infernal\."),
     # An ally's flight on its type line ("… 1 bleed, flight [FLIGHT].":
-    # Herald of Topheth), its printed level (rules-qa 84.37).
-    ("Flight", r"^(unique )?\w+ with [^\n]*\bbleed, flight \[flight\]\."),
+    # Herald of Topheth), its printed level (rules-qa 84.37), or first in
+    # its text ("Impundulu has flight [FLIGHT], …").
+    ("Flight", r"^(unique )?\w+ with [^\n]*\bbleed(, flight \[flight\]\.|\. [^.]* has flight \[flight\])"),
     # "More than one Discipline can be used to play this card": one mode per
     # non-empty set of its Disciplines, each set required in full (LSJ
     # 20011204-3: played, it requires the Disciplines used).

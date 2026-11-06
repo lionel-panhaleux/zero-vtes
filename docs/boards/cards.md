@@ -9,14 +9,15 @@ Docs: `docs/engine.md` (§2–5, the reference by mechanism),
 and the ledger; a rulebook mechanism no card carries is on the engine board.
 
 Pool (`scripts/coverage.py`, KRCG `vtes.json` of 2026-06-30; 2 crypt and
-18 library cards banned, out of scope, owner 2026-10-14): crypt 829 of
-1,783 (46.5%), library 1,056 of 2,346 (45.0%); the Imbued, Powers and
+18 library cards banned, out of scope, owner 2026-10-14): crypt 929 of
+1,783 (52.1%), library 1,093 of 2,346 (46.6%); the Imbued, Powers and
 Convictions all in (round 19), Nights of Reckoning complete (round 21),
 Anthology and Anarch Unbound complete (round 22, set by set), The Unaligned
 complete (round 23), Lost Kindred, Twilight Rebellion and Sword of Caine
-complete (round 24); 83 of 109 sets complete. TWDA decks in the pool 744
-of 4,538, kept 171; recent (2025+) 331 of 476 in the pool, kept 98 (two
-sets' versions displace a few kept decks). Demand
+complete (round 24), Ebony Kingdom and Blood Shadowed Court complete (round
+25); 85 of 109 sets complete. TWDA decks in the pool 791 of 4,538, kept
+177; recent (2025+) 332 of 476 in the pool, kept 94 (the sets' versions
+displace a few kept decks). Demand
 (the server's counts to 2026-10-23): every card asked for in the pool
 since round 20; 299999 (asked 12 times) is a client's placeholder, no card.
 VEKN's two-player allowed list all in the pool (round 20).

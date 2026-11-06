@@ -114,6 +114,7 @@ fn add(e: &E, w: Whom, when: Option<When>, out: &mut Vec<Effect>) {
             ..n(K::Pool, i(v))
         }),
         E::PayBlood(v) => push(cost(on(n(K::Blood, -i(v)), On::Host))),
+        E::PayBloodPerCounter => push(cost(detail(on(of(K::Blood), On::Host), "per_counter"))),
         E::HostBurnBlood(v) => push(on(n(K::Blood, -i(v)), On::Host)),
         E::AddHostBlood(v) => push(on(n(K::Blood, i(v)), On::Host)),
         E::HostBloodToPool(v) => push(detail(on(n(K::Blood, -i(v)), On::Host), "to_pool")),
@@ -154,6 +155,10 @@ fn add(e: &E, w: Whom, when: Option<When>, out: &mut Vec<Effect>) {
         }),
         E::BloodToActing(v) => push(on(n(K::Blood, i(v)), On::Acting)),
         E::DamageActing(v) => push(on(n(K::Damage, i(v)), On::Acting)),
+        E::TargetInterceptThisAction(v) => push(on(n(K::Intercept, i(v)), On::Target)),
+        E::DamageActingAndBlocker(v) => {
+            push(detail(on(n(K::Damage, i(v)), On::Acting), "and_blocker"))
+        }
         E::BloodToChosen(v) | E::HuntingGroundBlood(v) => push(on(n(K::Blood, i(v)), On::Chosen)),
         E::BloodToTargetToStart(_) => push(detail(on(of(K::Blood), On::Target), "to_start")),
         E::BloodPerHostage => push(detail(n(K::Blood, 1), "per_hostage")),
@@ -208,9 +213,9 @@ fn add(e: &E, w: Whom, when: Option<When>, out: &mut Vec<Effect>) {
         }
         E::DamageTarget(v) => push(on(n(K::Damage, i(v)), On::Target)),
         E::DamageOpponentByStrength => push(detail(of(K::Damage), "opponent_strength")),
-        E::EnvironmentalDamage { n: v, .. } | E::EnvironmentalDamageThisRound(v) => {
-            push(detail(n(K::Damage, i(v)), "environmental"))
-        }
+        E::EnvironmentalDamage { n: v, .. }
+        | E::EnvironmentalDamageThisRound(v)
+        | E::EnvironmentalDamageWhileTarget(v) => push(detail(n(K::Damage, i(v)), "environmental")),
         E::StrengthThisRound(v) => push(detail(n(K::Strength, i(v)), "this_round")),
         E::StrengthThisCombat(v) => push(n(K::Strength, i(v))),
         E::Prevent(v) => push(n(K::Prevent, i(v))),
@@ -437,6 +442,7 @@ fn add(e: &E, w: Whom, when: Option<When>, out: &mut Vec<Effect>) {
         E::ActorBecomesBlackHand
         | E::ActorBecomesClan(..)
         | E::ActorBloodToCapacity
+        | E::IfActingUnlockAndFill
         | E::ActorLasting(..)
         | E::ActorLooksAtLibraryTop(..)
         | E::AllySkipsNextUnlock
@@ -503,10 +509,34 @@ fn add(e: &E, w: Whom, when: Option<When>, out: &mut Vec<Effect>) {
         | E::HostVotes(..)
         | E::LeaveIncapacitated
         | E::LockSelf
+        | E::LockHostHeld(..)
+        | E::DiscardUpTo(..)
+        | E::ClanBleedThisTurn(..)
+        | E::DrawThenHandCardAway
+        | E::PeekBledHandIfBearer
+        | E::SearchOntoHost(..)
+        | E::SearchOntoTarget(..)
+        | E::TargetGetsTitle(..)
+        | E::ActorFreedFromSlavery
+        | E::LockActorHeldX(..)
+        | E::NamedPaysForStealth(..)
+        | E::CoinFlipBleed(..)
+        | E::BlockerControllerOpenHand
+        | E::UnlockAndControlTargetUntilEndOfTurn
+        | E::LookAtRandomPreyHandCard
+        | E::UnlockDieRoll(..)
+        | E::LookAtRandomPredatorHandMayExchange
+        | E::DamageSeatSectVampires { .. }
+        | E::LockHostHeldX(..)
+        | E::LockActorHeld(..)
+        | E::FailOrFightBond
+        | E::LockHeldForUncontrolledBloodX(..)
+        | E::LockHeldToUncontrolledX(..)
         | E::LockTargetCard
         | E::LookAtLibraryTop(..)
         | E::LookAtTurnLibraryTop
         | E::MayBurnLookedMaster(..)
+        | E::MayBottomLookedForBlood(..)
         | E::MarkBleedToll
         | E::MayCancelCombat
         | E::MoveBetweenVampires(..)
@@ -682,6 +712,10 @@ fn add(e: &E, w: Whom, when: Option<When>, out: &mut Vec<Effect>) {
         | E::HalveOpposingStrikesThisCombat
         | E::HandSizeThisCombat(..)
         | E::HandStrikeDamageThisCombat(..)
+        | E::HandStrikeBonusPerHeld(..)
+        | E::AggravatedAsNormal { .. }
+        | E::NoFrenzyCancelNorEndPress
+        | E::DamageEachCombatantNow(..)
         | E::ManeuverForBlood(..)
         | E::MayBurnToPreventInitialStrikes(..)
         | E::NeverAggravatedStrike
@@ -693,6 +727,7 @@ fn add(e: &E, w: Whom, when: Option<When>, out: &mut Vec<Effect>) {
         | E::OpponentOpenHandThisCombat
         | E::OpponentToTorpor
         | E::OpposingBurnsBlood(..)
+        | E::OpposingHandStrikerBurns { .. }
         | E::OpposingCelerityMayBurnToPrevent(..)
         | E::OpposingCombatCardsCost(..)
         | E::OpposingControllerBurnsPool(..)
@@ -710,6 +745,7 @@ fn add(e: &E, w: Whom, when: Option<When>, out: &mut Vec<Effect>) {
         | E::PlayCombatFromAsh
         | E::PreRangeDamage(..)
         | E::PressThisRound
+        | E::LockHeldToUnlock(..)
         | E::PreventHalfStrike
         | E::PreventNonAggravatedEachRound(..)
         | E::PutOnActorAfterCombat

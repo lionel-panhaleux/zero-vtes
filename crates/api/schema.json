@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "title": "zvtes protocol",
-  "version": "2.20.3",
+  "version": "2.21.0",
   "$defs": {
     "About": {
       "description": "What a choice is about (`Decision::about`): each field given where\nthe purpose (or the terms) has it (docs/protocol.md §5).",
@@ -4999,6 +4999,56 @@
           "description": "Weirding Stone: the master card looked at on the active\nMethuselah's library, burned for blood of the card's bearer\n(`resolve_rider`, `n` the blood), or pass.",
           "type": "string",
           "const": "may_burn_looked_master"
+        },
+        {
+          "description": "Bamba: `seat` may move `n` blood from `minion` to the new vampire\n`target` (`resolve_printed`), or pass.",
+          "type": "string",
+          "const": "may_move_blood"
+        },
+        {
+          "description": "Familial Bond: the blocking Laibon failed; `seat` may make\n`minion`'s action fail (`resolve_printed`), or pass.",
+          "type": "string",
+          "const": "may_fail_action"
+        },
+        {
+          "description": "Familial Bond: `minion` may lock to enter combat with the acting\n`to` (`resolve_printed`), or pass.",
+          "type": "string",
+          "const": "may_lock_to_fight"
+        },
+        {
+          "description": "Nkishi: `seat` may take an Aye or an Orun from its library or ash\nheap onto `minion` (`take_from`), or pass.",
+          "type": "string",
+          "const": "search_onto"
+        },
+        {
+          "description": "Aisata Swanou: `seat` moves a hand card to its ash heap\n(`discard`) or the top of its library (`take_from` the hand).",
+          "type": "string",
+          "const": "hand_card_away"
+        },
+        {
+          "description": "Jara Drory: `minion` may burn 1 blood to exchange the card looked\nat with one of that ash heap (`find_card`), or pass.",
+          "type": "string",
+          "const": "exchange_looked"
+        },
+        {
+          "description": "Lucas Halton blocked: `minion` may burn 1 blood instead of\nlocking (`resolve_printed`), or pass and lock.",
+          "type": "string",
+          "const": "may_burn_for_block"
+        },
+        {
+          "description": "Kurt Densch: `minion` may burn `n` blood to move the card its\nMethuselah looked at to the bottom of the library\n(`resolve_printed`), or pass.",
+          "type": "string",
+          "const": "may_bottom_looked"
+        },
+        {
+          "description": "Rachel Brandywine: as `seat`'s discard phase ends, the cards it\ndiscarded in it may go to its library, shuffled\n(`resolve_printed`, `minion` Rachel), or pass.",
+          "type": "string",
+          "const": "may_return_discards"
+        },
+        {
+          "description": "Orun and Aye over `minion`'s capacity: which kind burns first\n(`burn_in_play`), the rest read again after.",
+          "type": "string",
+          "const": "burn_over_capacity"
         },
         {
           "description": "A value this reader does not know.",

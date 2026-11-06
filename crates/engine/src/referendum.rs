@@ -144,6 +144,8 @@ pub struct TermsState {
     pub clan: Option<&'static str>,
     /// Chosen cards in play (`ChooseCard`).
     pub cards: Vec<crate::state::CardId>,
+    /// Ash heap cards named (`ChooseAshCards`), by name.
+    pub ash: Vec<u16>,
     /// Cards still to allocate points to, after the seats
     /// (`AllocatePerChosenWithCards`), and the points they got.
     pub card_pending: Vec<crate::state::CardId>,
@@ -916,6 +918,18 @@ impl Engine {
                 .filter(|&i| chooseable_card(st, crate::state::CardId(i as u32), filter))
                 .map(|i| Choice::ChooseCard(i as u32))
                 .collect(),
+            // A name once per copy there not named yet.
+            Term::ChooseAshCards { of, .. } => {
+                let ash = &st.seats[ctx.caller.index()].ash;
+                crate::state::distinct(&ash.to_cards(), |c| {
+                    of.matches(c)
+                        && ash.iter().filter(|&&a| a == c).count()
+                            > ctx.terms.ash.iter().filter(|&&a| a == c).count()
+                })
+                .into_iter()
+                .map(Choice::FindCard)
+                .collect()
+            }
             Term::SeatOrCard { card, .. } => {
                 let (seat, cards) = (ctx.terms.chosen.is_none(), ctx.terms.cards.is_empty());
                 let mut options = Vec::new();
@@ -1319,6 +1333,10 @@ impl Engine {
             (Term::ChooseCard(_), Choice::ChooseCard(c)) => {
                 ctx.terms.cards.push(crate::state::CardId(*c));
                 true
+            }
+            (Term::ChooseAshCards { n, .. }, Choice::FindCard(c)) => {
+                ctx.terms.ash.push(*c);
+                ctx.terms.ash.len() as u8 >= n
             }
             (Term::SeatOrCard { both, .. }, c) => {
                 match *c {
@@ -1823,7 +1841,9 @@ impl Engine {
                         loss[s.index()] += base as i32;
                         if st.minions_of(s).any(|m| {
                             st.minions[m.index()].ready()
-                                && st.capacity_of(m).is_some_and(|c| c <= young_cap)
+                                && st
+                                    .capacity_by(m, ctx.caller)
+                                    .is_some_and(|c| c <= young_cap)
                         }) {
                             loss[s.index()] += young_bonus as i32;
                         }
@@ -1857,7 +1877,7 @@ impl Engine {
                         loss[s.index()] += n as i32;
                     }
                     for &(s, m) in &ctx.terms.picks {
-                        gain[s.index()] += st.capacity_of(m).unwrap_or(0) as i32;
+                        gain[s.index()] += st.capacity_by(m, ctx.caller).unwrap_or(0) as i32;
                     }
                 }
                 RefEffect::GainBurnPredatorsChosenCapacity(n) => {
@@ -1866,7 +1886,8 @@ impl Engine {
                         let predator = st.predator(s);
                         for &(p, m) in &ctx.terms.picks {
                             if p == predator && p != s {
-                                loss[s.index()] += st.capacity_of(m).unwrap_or(0) as i32;
+                                loss[s.index()] +=
+                                    st.capacity_by(m, ctx.caller).unwrap_or(0) as i32;
                             }
                         }
                     }
@@ -1875,7 +1896,9 @@ impl Engine {
                     for (i, m) in st.minions.iter().enumerate() {
                         if m.present()
                             && m.is_vampire()
-                            && st.capacity_of(MinionId(i as u32)).is_some_and(|c| c >= cap)
+                            && st
+                                .capacity_by(MinionId(i as u32), ctx.caller)
+                                .is_some_and(|c| c >= cap)
                         {
                             gain[m.owner.index()] += n as i32;
                         }
@@ -1893,12 +1916,15 @@ impl Engine {
                 | RefEffect::BurnBloodPerPick
                 | RefEffect::PutOnChosen { .. }
                 | RefEffect::PutOnCaller { .. }
+                | RefEffect::CallerTitle(_)
                 | RefEffect::PutInPlay
                 | RefEffect::ChosenTakesChosenCard
                 | RefEffect::RemoveChosen
                 | RefEffect::ChosenVampireTakesChosenCard
                 | RefEffect::ChosenShuffleFromAsh(_)
-                | RefEffect::ChosenDamagedByItsVotes => {}
+                | RefEffect::ChosenDamagedByItsVotes
+                | RefEffect::DamageChosen(_)
+                | RefEffect::AshChosenToHand => {}
                 RefEffect::CallerGainsPool(n) => gain[ctx.caller.index()] += n as i32,
                 RefEffect::PoolPerReadySect(sects) => {
                     for (i, v) in self.state.minions.iter().enumerate() {
@@ -1950,7 +1976,7 @@ impl Engine {
                         if st.minions_of(s).any(|m| {
                             st.minions[m.index()].is_vampire()
                                 && st.minions[m.index()].ready()
-                                && st.capacity_of(m).is_some_and(|c| c >= cap)
+                                && st.capacity_by(m, ctx.caller).is_some_and(|c| c >= cap)
                         }) {
                             loss[s.index()] += bonus as i32;
                         }
@@ -2005,6 +2031,23 @@ impl Engine {
                     .find(|v| v.0 == m)
                     .map_or(0, |v| v.1);
                 if self.state.minions[m.index()].present() && n > 0 {
+                    self.damage_out_of_combat(m, n, false);
+                }
+            }
+            // By name: a copy still there of each (LSJ 20100917); the hand
+            // discarded down as it settles.
+            RefEffect::AshChosenToHand => {
+                let s = &mut self.state.seats[ctx.caller.index()];
+                for &c in &ctx.terms.ash {
+                    if let Some((card, copy)) = s.ash.take_card(c) {
+                        s.hand.put(card, copy);
+                    }
+                }
+            }
+            // Unpreventable: no prevention window opens.
+            RefEffect::DamageChosen(n) => {
+                let m = ctx.terms.minions[0];
+                if self.state.minions[m.index()].ready() {
                     self.damage_out_of_combat(m, n, false);
                 }
             }
@@ -2127,6 +2170,12 @@ impl Engine {
                             to_library: true,
                         });
                     }
+                }
+            }
+            RefEffect::CallerTitle(t) => {
+                let m = self.action.as_ref().expect("political action").acting;
+                if self.state.minions[m.index()].present() {
+                    self.state.minions[m.index()].granted_title = Some(t);
                 }
             }
             RefEffect::RemoveChosen => {

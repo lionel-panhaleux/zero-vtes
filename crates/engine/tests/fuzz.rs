@@ -4921,7 +4921,8 @@ fuzz_tests! {
             "play:Second Sight",
             "play:Strike with Conviction",
             "ability:Abjure",
-            "ability:Champion",
+            // (ability:Champion: starved within 300 seeds; scripted in
+            // tests/twda_round19.rs.)
             "ability:Discern",
             "ability:Donate",
             "ability:Foresee",
@@ -4974,7 +4975,9 @@ fuzz_tests! {
             "play:Second Sight",
             "burn_imbued",
             "ability:Anna \"Dictatrix11\" Suljic",
-            "ability:Erick \"Shophet125\" Franco",
+            // (ability:Erick "Shophet125" Franco, ability:Travis
+            // "Traveler72" Miller: starved within 300 seeds; scripted in
+            // tests/twda_round19.rs.)
             "ability:Jack \"Hannibal137\" Harmon",
             "ability:Jennie \"Cassie247\" Orne",
             "ability:John \"Cop90\" O'Malley",
@@ -4982,7 +4985,6 @@ fuzz_tests! {
             "ability:Lupe \"Cabbie22\" Droin",
             "ability:Maman Boumba",
             "ability:Peter \"Outback295\" Rophail",
-            "ability:Travis \"Traveler72\" Miller",
             "ability:Xian \"DziDzat155\" Quan",
             "ability:Marion \"Teacher193\" Perks",
         ],
@@ -5338,6 +5340,109 @@ fuzz_tests! {
             per_seat(e, |c| c.sect == Some(zvtes::crypt::Sect::Sabbat), 4);
         },
         seeds: 8,
+        ..BASE
+    };
+    /// Round 25 (slice 16ak): Ebony Kingdom's Orun and Aye and the cards
+    /// built on them, played by Laibon (Familial Bond first near seed 105).
+    random_games_with_twda_round_25a_hold_invariants_and_replay: Fixture {
+        slice: &[
+            "Orun",
+            "Aye",
+            "Brutal Influence",
+            "Bestial Vengeance",
+            "Blood Shield",
+            "Familial Bond",
+            "Kuta",
+            "Jua Vema",
+            "Invoke Poison Glands",
+            "Savannah Runner",
+            "Neebi",
+            "Taming the Beast",
+            "Make an Example",
+            "Exile",
+            "Well-Marked",
+            "Supernatural Resistance",
+            "Devil-Channel: Feet",
+            "Taking the Skin: Vulture",
+            // Partners: a retainer for Bestial Vengeance, strikes to meet.
+            "Raven Spy",
+            "Body Flare",
+        ],
+        covers: &[
+            "play:Orun",
+            "play:Aye",
+            "play:Brutal Influence",
+            "play:Bestial Vengeance",
+            "play:Savannah Runner",
+            "play:Exile",
+            "play:Invoke Poison Glands",
+            "play:Familial Bond",
+        ],
+        setup: |e, _| {
+            named(
+                e,
+                &["Fish", "Luanda Magere", "Ngozi Ekwensu", "Umdava"],
+            );
+            per_seat(e, |c| c.sect == Some(zvtes::crypt::Sect::Laibon), 4);
+        },
+        seeds: 210,
+        ..BASE
+    };
+    /// Round 25 (slice 16ak): the sets' vampires and their abilities, with
+    /// the masters and allies of the sets.
+    random_games_with_twda_round_25b_hold_invariants_and_replay: Fixture {
+        slice: &[
+            "Mundane",
+            "Pallid",
+            "Transcendent Laibon",
+            "Unholy Radiance",
+            "Hiding in the Open",
+            "Edge of the World",
+            "Dusk Work",
+            "Nkishi",
+            "Bamba",
+            "Mapatano Utando",
+            "Despiral",
+            "Reliquary: Trinket",
+            "Ilomba",
+            "Impundulu",
+            "Tunnel Runner",
+            "Ishtarri Warlord",
+            "Guinea-Bissau Carnival",
+            "Sense Vibrations",
+            "Remnant of the Endless Storm",
+        ],
+        covers: &[
+            "ability:Kyoko Shinsegawa",
+            "ability:Mamadou Keita",
+            "ability:Tyler",
+            "ability:Kurt Densch",
+            "ability:Undele",
+            "ability:Maxwell",
+            "play:Bamba",
+            "play:Mundane",
+            "play:Nkishi",
+        ],
+        setup: |e, _| {
+            named(
+                e,
+                &[
+                    "Kyoko Shinsegawa",
+                    "Lucian, the Perfect",
+                    "Rachel Brandywine",
+                    "Tyler",
+                    "Undele",
+                    "Mamadou Keita",
+                    "Kurt Densch",
+                    "Victorine Lafourcade",
+                    "Marlena",
+                    "Lucas Halton",
+                    "Maxwell",
+                    "Virstania, The Great Mother",
+                ],
+            );
+        },
+        seeds: 16,
         ..BASE
     };
     /// Round 24 (slice 16aj): the sets' combat, bleed and equip cards, with

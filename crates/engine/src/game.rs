@@ -796,6 +796,94 @@ impl Engine {
         }
     }
 
+    /// Familial Bond: its Laibon's block failed: the acting Methuselah may
+    /// make the action fail, asked once.
+    fn settle_bond_failed(&mut self) {
+        if let Some(a) = self
+            .action
+            .as_mut()
+            .filter(|a| a.bond_failed && !a.bond_asked)
+        {
+            a.bond_asked = true;
+            let (seat, minion) = (a.seat, a.acting);
+            self.interrupts
+                .push(crate::draws::Interrupt::MayFailAction { seat, minion });
+        }
+    }
+
+    /// A card burning while its host holds more such cards than its
+    /// capacity (Orun, Aye): one at a time, the rest read again after each
+    /// burn; of two kinds, the host's controller picks which (rules-qa
+    /// 109.2).
+    fn settle_over_capacity(&mut self) {
+        loop {
+            let st = &self.state;
+            let due = st.layers.iter().rev().find_map(|l| match l.modifier {
+                cards::Modifier::BurnUnlessHostHolds { held, n } if st.layer_active(l) => {
+                    let c = &st.cards[l.source.index()];
+                    c.host
+                        .filter(|&m| {
+                            c.in_play
+                                && (!st.minions[m.index()].ready()
+                                    || held.iter().any(|&h| st.holds_count(m, h) < n))
+                        })
+                        .map(|_| (l.source, None))
+                }
+                cards::Modifier::BurnWhileHostHolds(h) if st.layer_active(l) => {
+                    let c = &st.cards[l.source.index()];
+                    c.host
+                        .filter(|&m| c.in_play && st.holds_count(m, h) > 0)
+                        .map(|_| (l.source, None))
+                }
+                cards::Modifier::BurnOverCapacity(..) if st.layer_active(l) => {
+                    let h = st.cards[l.source.index()].host?;
+                    let asked = self.interrupts.iter().any(
+                        |i| matches!(i, Interrupt::BurnOverCapacity { host, .. } if *host == h),
+                    );
+                    let kinds = self.over_capacity_burns(h);
+                    (!asked && !kinds.is_empty()).then_some((l.source, Some((h, kinds))))
+                }
+                _ => None,
+            });
+            let Some((id, over)) = due else { break };
+            match over {
+                Some((host, kinds)) if kinds.len() > 1 => {
+                    let seat = self.state.minions[host.index()].owner;
+                    self.interrupts
+                        .push(Interrupt::BurnOverCapacity { seat, host });
+                }
+                Some((_, kinds)) => self.burn_card_in_play(kinds[0]),
+                None => self.burn_card_in_play(id),
+            }
+        }
+    }
+
+    /// The cards `h` holds over its capacity (Orun, Aye), the newest of
+    /// each kind (copies are alike); none under capacity or out of the sect.
+    pub(crate) fn over_capacity_burns(&self, h: MinionId) -> Vec<CardId> {
+        let st = &self.state;
+        let mut kinds: Vec<CardId> = Vec::new();
+        for l in st.layers.iter().rev() {
+            let cards::Modifier::BurnOverCapacity(held, sect) = l.modifier else {
+                continue;
+            };
+            let c = &st.cards[l.source.index()];
+            if !st.layer_active(l) || !c.in_play || c.host != Some(h) {
+                continue;
+            }
+            if st.sect_of(h) != Some(sect) {
+                continue;
+            }
+            let n: u8 = held.iter().map(|&k| st.holds_count(h, k)).sum();
+            if st.capacity_of(h).is_some_and(|cap| n > cap)
+                && !kinds.iter().any(|k| st.cards[k.index()].card == c.card)
+            {
+                kinds.push(l.source);
+            }
+        }
+        kinds
+    }
+
     /// `m` becomes Anarch (the Become Anarch action, Anarch Convert, Gilbert
     /// Duane, Twilight Camp): an Anarch already stays one, nothing arrives.
     pub(crate) fn make_anarch(&mut self, m: MinionId) {
@@ -980,6 +1068,8 @@ impl Engine {
             self.settle_servitors();
             self.settle_hunts_to_torpor();
             self.settle_sect_bound();
+            self.settle_over_capacity();
+            self.settle_bond_failed();
             self.settle_discard_looks();
             self.settle_unlocked_holds();
             self.settle_pool_losses();
@@ -2093,9 +2183,62 @@ impl Engine {
         }
     }
 
+    /// Retainer `card` loses `n` life, burned with none left; Ilomba's host
+    /// pays each point instead (ANK 20180525).
+    pub(crate) fn retainer_loses_life(&mut self, card: CardId, n: u8) {
+        if let Some(h) = self.life_from_host(card) {
+            for _ in 0..n {
+                if !self.host_pays_life(h) {
+                    break;
+                }
+            }
+            return;
+        }
+        let k = &mut self.state.cards[card.index()].counters;
+        *k = k.saturating_sub(n);
+        if *k == 0 {
+            self.burn_card_in_play(card);
+        }
+    }
+
+    /// The present host of a card whose life its host pays (Ilomba).
+    fn life_from_host(&self, card: CardId) -> Option<MinionId> {
+        let st = &self.state;
+        let c = &st.cards[card.index()];
+        let h = c
+            .host
+            .filter(|h| c.present() && st.minions[h.index()].present())?;
+        st.layers
+            .iter()
+            .any(|l| {
+                l.source == card
+                    && st.layer_active(l)
+                    && l.modifier == cards::Modifier::LifeFromHost
+            })
+            .then_some(h)
+    }
+
+    /// `h` burns a blood or life for its Ilomba, burned if it has none: is
+    /// it still in play?
+    fn host_pays_life(&mut self, h: MinionId) -> bool {
+        if self.state.minions[h.index()].blood == 0 {
+            self.burn_minion(h);
+            return false;
+        }
+        if self.state.burn_blood_or_life(h, 1) {
+            self.lifeless(h);
+        }
+        self.state.minions[h.index()].present()
+    }
+
     /// Burn a card in play: to its owner's ash heap with the cards on it
     /// (LSJ 20021128), its layers dropped.
     pub(crate) fn burn_card_in_play(&mut self, id: CardId) {
+        // Ilomba "would otherwise be burned": its host pays instead.
+        if let Some(h) = self.life_from_host(id) {
+            self.host_pays_life(h);
+            return;
+        }
         // An ally's card burned is the ally burned (its card with it).
         if let Some(m) = self.state.cards[id.index()].body {
             if self.state.minions[m.index()].in_play {
@@ -2455,7 +2598,29 @@ impl Engine {
                 self.release_held(Release::MinionPhaseEnd);
             }
             Flow::Influence { .. } => self.end_influence(),
-            Flow::Discard => self.end_turn(),
+            Flow::Discard => {
+                // Rachel Brandywine, ready as the phase ends: asked once,
+                // the turn ending as it is answered.
+                let a = self.state.active;
+                let discards = self.state.seats[a.index()].phase_discards.take();
+                let rachel = self.state.minions_of(a).find(|&m| {
+                    self.state.minions[m.index()].ready()
+                        && self.state.printed_mod(
+                            m,
+                            crate::cards::Stat::DiscardsToLibrary,
+                            crate::state::PrintedCtx::default(),
+                        ) > 0
+                });
+                match (rachel, discards) {
+                    (Some(minion), Some(cards)) if !cards.is_empty() => {
+                        self.state.seats[a.index()].phase_discards = Some(cards);
+                        self.flow = Flow::Discard;
+                        self.interrupts
+                            .push(crate::draws::Interrupt::MayReturnDiscards { seat: a, minion });
+                    }
+                    _ => self.end_turn(),
+                }
+            }
             other => unreachable!("not a phase: {other:?}"),
         }
     }
@@ -2476,7 +2641,11 @@ impl Engine {
             if v.ready()
                 && v.is_vampire()
                 && !v.hunted
-                && (self.state.capacity_of(m).unwrap_or(0) as usize) < n
+                && (self
+                    .state
+                    .capacity_by(m, self.state.cards[thirst.index()].owner)
+                    .unwrap_or(0) as usize)
+                    < n
                 && !self.state.gehenna_immune(m)
             {
                 let card = Cause::Effect(Source::Card(thirst));
@@ -2613,6 +2782,7 @@ impl Engine {
         }
         // The Uncoiling's and Dragonbound's effects: due again this phase.
         self.state.seats[s.index()].discard_resolved.clear();
+        self.state.seats[s.index()].phase_discards = Some(Vec::new());
         let printed = self.state.printed_discard_actions(s);
         self.state.seats[s.index()].dpa = (1 + printed).max(0) as u8;
         self.state.seats[s.index()].granted_dpa = 0;
@@ -2937,6 +3107,7 @@ impl Engine {
         self.state.red_list_marks.clear();
         self.state.blind_spots.clear();
         self.state.chosen_this_turn.clear();
+        self.state.clan_bleed_this_turn.clear();
         for i in 0..self.state.minions.len() {
             self.state.minions[i].next_action_stealth = 0;
             let unlocks = self.state.minions[i].timed.iter().any(|&(l, until, _)| {
@@ -3062,6 +3233,7 @@ impl Engine {
             m.extra_bleeds = 0;
             m.referendum_passed_turn = false;
             m.political_this_turn = false;
+            m.recruited_ally_this_turn = false;
             m.expelled = false;
             m.hunting_ground_fed = false;
             m.conviction_played = false;
@@ -3299,7 +3471,7 @@ mod tests {
     #[test]
     fn crypt_data_is_complete() {
         // The 200 V5 vampires, then the owner's legacy additions.
-        assert_eq!(CRYPT.len(), 829);
+        assert_eq!(CRYPT.len(), 929);
         assert_eq!(PRECONS.len(), 14);
         for (name, list) in PRECONS.iter() {
             let n: u32 = list.iter().map(|&(_, k)| k as u32).sum();

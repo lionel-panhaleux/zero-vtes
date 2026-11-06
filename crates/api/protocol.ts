@@ -1,6 +1,6 @@
-/* zvtes protocol 2.20.3 (docs/protocol.md): generated from
+/* zvtes protocol 2.21.0 (docs/protocol.md): generated from
  * crates/api/schema.json by scripts/gen_ts.py, do not edit. */
-export const PROTOCOL_VERSION = '2.20.3'
+export const PROTOCOL_VERSION = '2.21.0'
 
 /**
  * A command as sent: an optional client id, echoed by an `error` it
@@ -1371,6 +1371,16 @@ export type Purpose =
     | 'retake_from_ash'
     | 'may_lock_for_blood'
     | 'may_burn_looked_master'
+    | 'may_move_blood'
+    | 'may_fail_action'
+    | 'may_lock_to_fight'
+    | 'search_onto'
+    | 'hand_card_away'
+    | 'exchange_looked'
+    | 'may_burn_for_block'
+    | 'may_bottom_looked'
+    | 'may_return_discards'
+    | 'burn_over_capacity'
     | 'unknown'
 
 export type Range = 'close' | 'long' | 'unknown'

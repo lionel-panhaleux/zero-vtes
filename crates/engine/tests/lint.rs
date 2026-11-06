@@ -234,6 +234,10 @@ fn no_todo_in_code() {
 const DURING_ONCE_ELSEWHERE: &[(&str, &str)] = &[
     ("GREY_THORNE", "an unlock phase rider, offered once a phase"),
     (
+        "RACHEL_BRANDYWINE",
+        "asked once as the discard phase ends, its list of discards taken",
+    ),
+    (
         "ALAN_SOVEREIGN_ADV",
         "inert: no investment card in the pool, his base card absent",
     ),

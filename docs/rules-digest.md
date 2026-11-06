@@ -3675,6 +3675,28 @@ readings (vampires, allies, library cards) no mechanism section states.
   the title read as he is blocked (104.12); Javier Montoya's younger than him,
   any Methuselah's (104.13); Vulture's unfizzled vehicle equip, once each turn
   (104.19); [MERGED] text inert without the base card (104.20).
+- Round 25's cards: Orun's capacity for other Methuselahs' cards played, read
+  live by cards already in play as their player reads it, by a vampire's
+  ability requirement too as the vampire's player reads it, its votes by
+  three (109.1, 109.3, 109.50); Orun and Aye over capacity, the controller
+  picking which burns (109.2); Orun burned after a bleed over
+  2 or a fight's combat (109.4); Aye's cancel, grant and burn trigger, any
+  burn he causes (109.5, 109.6); Bamba and the starving rule (109.7); combat cards of the Laibon:
+  environmental damage while a retainer stays, a hand striker's burn,
+  aggravated as normal, strikes inheriting (109.8, 109.9, 109.16); X Orun or
+  Aye locked as costs (109.10, 109.11, 109.12); Familial Bond's fail or fight
+  (109.13); titles, toll and referendum terms (109.14, 109.17); Ilomba's life
+  from its host, Impundulu undirected on his own (109.15); Make an Example's
+  end (109.18); masters out of turn, range set (109.19); searches, Ishtarri
+  actions, the Remnant (109.20); reaction blood and polling (109.21); a strike
+  card canceled, chosen again (109.22); flight, Transcendent Laibon's burn
+  option (109.23); a theft's damage with the strikes (109.24); Smiling Jack's
+  rider on vampires only (109.25); the sets' vampires (109.26, 109.27, 109.28,
+  109.29, 109.30, 109.31, 109.32, 109.33, 109.34, 109.35, 109.37, 109.41,
+  109.42, 109.43, 109.45, 109.46): Kyoko's hunt, Lucas's block, Lucian's toll,
+  Rachel's discards, Tyler's once a turn, Undele's ash cards by name,
+  Virstania's Gargoyles (109.36, 109.38, 109.39, 109.40, 109.44, 109.47,
+  109.48, 109.49).
 - Round 24's cards: sets whole, promos out, round 23's review fixed in it
   (107.1, 107.2). Held replacements read live, the longest delay winning
   (107.3); extra draws by source, keyed to the draw or the play, per card
@@ -4776,6 +4798,9 @@ read, for the owner to confirm or correct:
   104.8 confirmed; 104.18 confirmed, then overturned by the owner,
   2026-10-30).
 - 105.1–105.6 graded green or amber.
+- 109.1, 109.4, 109.5, 109.7–109.39, 109.41–109.43, 109.45–109.50 graded
+  green or amber (109.2, 109.3, 109.6, 109.40, 109.44 red, answered by the
+  owner, 2026-11-06: 109.2 and 109.6 corrected, the rest confirmed).
 - 106.1–106.9, 106.11–106.17, 106.19–106.22 graded green or amber
   (106.10 and 106.18 red, confirmed by the owner).
 - 93.1–93.10 graded green (settled by KRCG rulings and 60.7, 60.19, 60.21).
@@ -4895,7 +4920,7 @@ an owner ruling:
 Every rules-qa item, by batch, with the digest sections citing it: the
 section stating it and those cross-referring to it (§2 the default
 readings, §22 engine modeling, §23 the contradictions, §24 the open
-readings). 1111 items, Batches 1–108 (44.11 was removed, replaced by Batch
+readings). 1161 items, Batches 1–109 (44.11 was removed, replaced by Batch
 45). The index is derived from the citations: a bare `N.M` cites rules-qa
 item N.M in the section it appears in. A new rules-qa item gets its line in
 the section stating it, then its entry here: `python3
@@ -5268,3 +5293,14 @@ index or an item cited nowhere.
   §15.2,§24.3; 107.30 §15.2,§24.3; 107.31 §15.2; 107.32 §15.2,§24.3; 107.33
   §15.2; 107.34 §15.2,§24.3
 - **108** — 108.1 §18.2
+- **109** — 109.1 §15.2,§24.1; 109.2 §15.2,§24.1; 109.3 §15.2,§24.1; 109.4
+  §15.2,§24.1; 109.5 §15.2,§24.1; 109.6 §15.2,§24.1; 109.7 §15.2,§24.1;
+  109.8 §15.2; 109.9 §15.2; 109.10 §15.2; 109.11 §15.2; 109.12 §15.2; 109.13
+  §15.2; 109.14 §15.2; 109.15 §15.2; 109.16 §15.2; 109.17 §15.2; 109.18
+  §15.2; 109.19 §15.2; 109.20 §15.2; 109.21 §15.2; 109.22 §15.2; 109.23
+  §15.2; 109.24 §15.2; 109.25 §15.2; 109.26 §15.2; 109.27 §15.2; 109.28
+  §15.2; 109.29 §15.2; 109.30 §15.2; 109.31 §15.2; 109.32 §15.2; 109.33
+  §15.2; 109.34 §15.2; 109.35 §15.2; 109.36 §15.2; 109.37 §15.2; 109.38
+  §15.2; 109.39 §15.2,§24.1; 109.40 §15.2,§24.1; 109.41 §15.2,§24.1; 109.42
+  §15.2; 109.43 §15.2,§24.1; 109.44 §15.2,§24.1; 109.45 §15.2,§24.1; 109.46
+  §15.2; 109.47 §15.2; 109.48 §15.2; 109.49 §15.2; 109.50 §15.2,§24.1

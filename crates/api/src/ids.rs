@@ -795,6 +795,38 @@ ids!(
         /// Methuselah's library, burned for blood of the card's bearer
         /// (`resolve_rider`, `n` the blood), or pass.
         MayBurnLookedMaster,
+        /// Bamba: `seat` may move `n` blood from `minion` to the new vampire
+        /// `target` (`resolve_printed`), or pass.
+        MayMoveBlood,
+        /// Familial Bond: the blocking Laibon failed; `seat` may make
+        /// `minion`'s action fail (`resolve_printed`), or pass.
+        MayFailAction,
+        /// Familial Bond: `minion` may lock to enter combat with the acting
+        /// `to` (`resolve_printed`), or pass.
+        MayLockToFight,
+        /// Nkishi: `seat` may take an Aye or an Orun from its library or ash
+        /// heap onto `minion` (`take_from`), or pass.
+        SearchOnto,
+        /// Aisata Swanou: `seat` moves a hand card to its ash heap
+        /// (`discard`) or the top of its library (`take_from` the hand).
+        HandCardAway,
+        /// Jara Drory: `minion` may burn 1 blood to exchange the card looked
+        /// at with one of that ash heap (`find_card`), or pass.
+        ExchangeLooked,
+        /// Lucas Halton blocked: `minion` may burn 1 blood instead of
+        /// locking (`resolve_printed`), or pass and lock.
+        MayBurnForBlock,
+        /// Kurt Densch: `minion` may burn `n` blood to move the card its
+        /// Methuselah looked at to the bottom of the library
+        /// (`resolve_printed`), or pass.
+        MayBottomLooked,
+        /// Rachel Brandywine: as `seat`'s discard phase ends, the cards it
+        /// discarded in it may go to its library, shuffled
+        /// (`resolve_printed`, `minion` Rachel), or pass.
+        MayReturnDiscards,
+        /// Orun and Aye over `minion`'s capacity: which kind burns first
+        /// (`burn_in_play`), the rest read again after.
+        BurnOverCapacity,
     }
 );
 ids!(

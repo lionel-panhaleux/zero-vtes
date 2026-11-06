@@ -2631,7 +2631,7 @@ pub static VOTER_CAPTIVATION: CardDef = CardDef {
     ..CARD
 };
 
-pub static DEFS: [&CardDef; 1056] = [
+pub static DEFS: [&CardDef; 1093] = [
     &TAUNT_THE_CAGED_BEAST,
     &PETRA_RESONANCE,
     &WAITING_GAME,
@@ -3688,6 +3688,43 @@ pub static DEFS: [&CardDef; 1056] = [
     &TROPHY_CHOSEN,
     &WATCHTOWER_THE_WOLVES_FEED,
     &BLADE_CLOT,
+    &ORUN,
+    &AYE,
+    &BAMBA,
+    &BESTIAL_VENGEANCE,
+    &BLOOD_SHIELD,
+    &BRUTAL_INFLUENCE,
+    &DESPIRAL,
+    &DEVIL_CHANNEL_FEET,
+    &DUSK_WORK,
+    &EDGE_OF_THE_WORLD,
+    &EXILE,
+    &FAMILIAL_BOND,
+    &GUINEA_BISSAU_CARNIVAL,
+    &HIDING_IN_THE_OPEN,
+    &ILOMBA,
+    &IMPUNDULU,
+    &INVOKE_POISON_GLANDS,
+    &ISHTARRI_WARLORD,
+    &JUA_VEMA,
+    &KUTA,
+    &MAKE_AN_EXAMPLE,
+    &MAPATANO_UTANDO,
+    &MUNDANE,
+    &NEEBI,
+    &NKISHI,
+    &PALLID,
+    &RELIQUARY_TRINKET,
+    &REMNANT_OF_THE_ENDLESS_STORM,
+    &SAVANNAH_RUNNER,
+    &SENSE_VIBRATIONS,
+    &UNHOLY_RADIANCE,
+    &WELL_MARKED,
+    &SUPERNATURAL_RESISTANCE,
+    &TAKING_THE_SKIN_VULTURE,
+    &TAMING_THE_BEAST,
+    &TRANSCENDENT_LAIBON,
+    &TUNNEL_RUNNER,
 ];
 
 // ---- Cards in play with riders and granted actions -------------------------
@@ -9358,7 +9395,8 @@ pub static CHILDE_OF_THE_REVOLUTION: CardDef = CardDef {
             Effect::PutInPlay,
             Effect::BecomesVampire {
                 sect: Some(Sect::Anarch),
-                master_search: true,
+                master_search: Some(&[]),
+                blood_from_sire: 0,
                 must_hunt: true,
                 idle: false,
                 born: &crate::state::NEWBORN,
@@ -12224,7 +12262,8 @@ pub static WATERS_OF_DUAT: CardDef = CardDef {
             Effect::PutInPlay,
             Effect::BecomesVampire {
                 sect: None,
-                master_search: true,
+                master_search: Some(&[]),
+                blood_from_sire: 0,
                 must_hunt: true,
                 idle: false,
                 born: &crate::state::NEWBORN,
@@ -17620,7 +17659,7 @@ pub static SCHRECKNET: CardDef = CardDef {
             Effect::DeclareAction(ActionKind::Card),
             Effect::AddStealth(1),
             Effect::UnlockActorIfClanCapacity {
-                clan: "Nosferatu",
+                clan: Some("Nosferatu"),
                 n: 6,
             },
             Effect::PutInPlay,
@@ -22079,7 +22118,8 @@ pub static THE_EMBRACE: CardDef = CardDef {
             Effect::PutInPlay,
             Effect::BecomesVampire {
                 sect: None,
-                master_search: false,
+                master_search: None,
+                blood_from_sire: 0,
                 must_hunt: true,
                 idle: false,
                 born: &crate::state::NEWBORN,
@@ -23136,7 +23176,8 @@ pub static THIRD_TRADITION_PROGENY: CardDef = CardDef {
             Effect::PutInPlay,
             Effect::BecomesVampire {
                 sect: Some(Sect::Camarilla),
-                master_search: true,
+                master_search: Some(&[]),
+                blood_from_sire: 0,
                 must_hunt: false,
                 idle: true,
                 born: &crate::state::NEWBORN,
@@ -26769,6 +26810,7 @@ pub static TAKING_THE_SKIN_MINION: CardDef = CardDef {
                 &[
                     Requirement::ActorBurnedMinion,
                     Requirement::ActorWithout(Holding::Named("Taking the Skin: Minion")),
+                    Requirement::ActorWithout(Holding::Named("Taking the Skin: Vulture")),
                 ],
                 SKIN_EFFECTS,
             )
@@ -26781,6 +26823,7 @@ pub static TAKING_THE_SKIN_MINION: CardDef = CardDef {
                 &[
                     Requirement::ActorBurnedMinion,
                     Requirement::ActorWithout(Holding::Named("Taking the Skin: Minion")),
+                    Requirement::ActorWithout(Holding::Named("Taking the Skin: Vulture")),
                 ],
                 SKIN_EFFECTS,
             )
@@ -27891,7 +27934,8 @@ pub static NOSFERATU_BESTIAL: CardDef = CardDef {
             Effect::PutInPlay,
             Effect::BecomesVampire {
                 sect: None,
-                master_search: false,
+                master_search: None,
+                blood_from_sire: 0,
                 must_hunt: false,
                 idle: false,
                 born: &crate::state::Born {
@@ -29563,7 +29607,8 @@ pub static CREATION_RITES: CardDef = CardDef {
             Effect::PutInPlay,
             Effect::BecomesVampire {
                 sect: Some(Sect::Sabbat),
-                master_search: true,
+                master_search: Some(&[]),
+                blood_from_sire: 0,
                 must_hunt: false,
                 idle: true,
                 born: &crate::state::NEWBORN,
@@ -33957,5 +34002,1380 @@ pub static BLADE_CLOT: CardDef = CardDef {
             Effect::Layer(Modifier::MovesClotsOnHit),
         ],
     )],
+    ..CARD
+};
+
+// ---- Round 25: Ebony Kingdom, Blood Shadowed Court --------------------------
+
+/// Orun and Aye, counted together on a Laibon ("more Orun and Aye than his
+/// or her capacity").
+const ORUN_AND_AYE: &[Holding] = &[Holding::Named("Orun"), Holding::Named("Aye")];
+
+/// "Master: trifle. Put this card on a Laibon. For non-Orun cards played by
+/// Methuselahs other than this Laibon's controller, this Laibon is
+/// considered to have 2 additional capacity. A Laibon gets an additional
+/// vote for every three Orun he or she has. If this Laibon successfully
+/// bleeds for more than 2 or successfully performs an action directed at a
+/// non-mortal minion, he or she burns one Orun. Burn this card if this
+/// Laibon has more Orun and Aye than his or her capacity." Any Methuselah's
+/// Laibon (D11); nothing applies off a Laibon (ANK 20221208); the capacity
+/// stacks, the votes count every three (LSJ 20051204), read by cards
+/// played before it too (LSJ 20051110); one Orun burns (LSJ 20090603),
+/// after a rush's combat (ANK 20240809).
+pub static ORUN: CardDef = CardDef {
+    name: "Orun",
+    trifle: true,
+    modes: &[ModeDef {
+        target: target(TargetKind::Minion, &[Requirement::TargetSect(Sect::Laibon)]),
+        ..mode_of(
+            &[Window::MasterPhase],
+            Actor::Methuselah,
+            &[],
+            &[
+                Effect::PutOnTarget,
+                Effect::Layer(Modifier::CapacityToOthers(2, Sect::Laibon)),
+                Effect::Layer(Modifier::HostVotePerThree(Sect::Laibon)),
+                Effect::Layer(Modifier::BurnOneOnSuccess(Sect::Laibon)),
+                Effect::Layer(Modifier::BurnOverCapacity(ORUN_AND_AYE, Sect::Laibon)),
+            ],
+        )
+    }],
+    ..CARD
+};
+
+/// "Master: trifle. Put this card on a Laibon. This Laibon may lock this
+/// card to cancel a Frenzy card played on him or her as it is played. This
+/// Laibon may burn a blood and lock three of his or her Aye to be able to
+/// play reaction cards and attempt to block as if unlocked for the current
+/// action. If this Laibon burns a minion, equipment, or location in play,
+/// he or she burns one Aye. Burn this card if this Laibon has more Orun and
+/// Aye than his or her capacity." A frenzy card on him: one that targets,
+/// selects or affects him (LSJ 20051113); canceled, still played (ANK
+/// 20190104); nothing applies off a Laibon (ANK 20221208).
+pub static AYE: CardDef = CardDef {
+    name: "Aye",
+    trifle: true,
+    modes: &[ModeDef {
+        target: target(TargetKind::Minion, &[Requirement::TargetSect(Sect::Laibon)]),
+        ..mode_of(
+            &[Window::MasterPhase],
+            Actor::Methuselah,
+            &[],
+            &[
+                Effect::PutOnTarget,
+                Effect::Layer(Modifier::BurnOneOnBurning(Sect::Laibon)),
+                Effect::Layer(Modifier::BurnOverCapacity(ORUN_AND_AYE, Sect::Laibon)),
+            ],
+        )
+    }],
+    abilities: &[
+        mode_of(
+            &[Window::CardAsPlayed],
+            Actor::Host,
+            &[
+                Requirement::CardUnlocked,
+                Requirement::PlayedFrenzyOnHost,
+                Requirement::ActorSectIn(&[Sect::Laibon]),
+            ],
+            &[Effect::LockSelf, Effect::CancelPlayed { refund: false }],
+        ),
+        mode_of(
+            &[Window::ReactionDuringAction, Window::ActionStealthIntercept],
+            Actor::Host,
+            &[
+                Requirement::HostLocked,
+                Requirement::HostReady,
+                Requirement::HostBloodAtLeast(1),
+                Requirement::HostHoldsUnlocked(Holding::Named("Aye"), 3),
+                Requirement::ActingOtherController,
+                Requirement::ActorSectIn(&[Sect::Laibon]),
+            ],
+            &[
+                Effect::HostBurnBlood(1),
+                Effect::LockHostHeld(Holding::Named("Aye"), 3),
+                Effect::Wake,
+            ],
+        ),
+    ],
+    ..CARD
+};
+
+/// "Requires a non-sterile Laibon with capacity 4 or more. +1 stealth
+/// action. Put this card in play; it becomes a 1-capacity non-unique Laibon
+/// of the same clan and cannot act this turn. If the acting Laibon is a
+/// magaji, you may search your library, hand and ash heap for a master:
+/// Discipline card to play on this vampire (pay cost as normal) and you may
+/// move 1 blood from that magaji to this Laibon." One Discipline card in
+/// all (LSJ 20090528-1); no vampire in the ash heap (LSJ 20020115), still
+/// one in the uncontrolled region (RTR 19990712), burned instead of going
+/// to the crypt (LSJ 20041201-2).
+pub static BAMBA: CardDef = CardDef {
+    name: "Bamba",
+    modes: &[action_at(
+        &[
+            Requirement::ActorSectIn(&[Sect::Laibon]),
+            Requirement::ActorNotSterile,
+            Requirement::ActorCapacityAtLeast(4),
+        ],
+        None,
+        &[
+            Effect::DeclareAction(ActionKind::Card),
+            Effect::AddStealth(1),
+            Effect::PutInPlay,
+            Effect::BecomesVampire {
+                sect: Some(Sect::Laibon),
+                master_search: Some(&[Requirement::ActorTitleIn(&[TitleClass::Magaji])]),
+                blood_from_sire: 1,
+                must_hunt: false,
+                idle: true,
+                born: &crate::state::NEWBORN,
+            },
+        ],
+    )],
+    ..CARD
+};
+
+/// "Requires a Laibon. [ani] Only usable before range is determined. Choose
+/// a retainer on this Laibon. This combat, this Laibon is immune to frenzy
+/// cards and the opposing minion takes 1 damage during strike resolution
+/// if the retainer is ready. A vampire can play only one Bestial Vengeance
+/// each combat. [ANI] As above, but for 2 damage." The damage environmental
+/// (RTR 19970630), each round while the retainer stays, burned by the
+/// strike resolving with it or not (LSJ 20090616), at long range (LSJ
+/// 20090610), past a dodge, not past a combat ending first (RTR 19941109).
+pub static BESTIAL_VENGEANCE: CardDef = CardDef {
+    name: "Bestial Vengeance",
+    modes: &[bestial_vengeance(1), bestial_vengeance(2)],
+    ..CARD
+};
+
+const fn bestial_vengeance(n: u8) -> ModeDef {
+    ModeDef {
+        limit: Some(Limit::PerCombat),
+        target: target(
+            TargetKind::Card,
+            &[
+                Requirement::TargetCard(CardFilter::Type(CardType::Retainer)),
+                Requirement::TargetOnActor,
+            ],
+        ),
+        ..combat(
+            &[Window::CombatBeforeRange],
+            &[Requirement::ActorSectIn(&[Sect::Laibon])],
+            match n {
+                1 => &[
+                    Effect::FrenzyImmuneThisCombat,
+                    Effect::EnvironmentalDamageWhileTarget(1),
+                ],
+                _ => &[
+                    Effect::FrenzyImmuneThisCombat,
+                    Effect::EnvironmentalDamageWhileTarget(2),
+                ],
+            },
+        )
+    }
+}
+
+/// "Unique equipment. The minion with this equipment may prevent 1 damage
+/// from an opposing minion's strike each round. If used to prevent damage
+/// from a hand strike made by a vampire with capacity 6 or less, that
+/// vampire burns 2 blood." (Osebo.) The blood burned at once, before the
+/// striker heals (LSJ 20090528-1); equipped by any minion from another
+/// (ANK 20180719-3).
+pub static BLOOD_SHIELD: CardDef = CardDef {
+    name: "Blood Shield",
+    modes: &[EQUIP],
+    abilities: &[ModeDef {
+        limit: Some(Limit::PerRound),
+        ..mode_of(
+            &[Window::CombatDamagePrevention],
+            Actor::Host,
+            &[Requirement::StrikeDamagePending],
+            &[
+                Effect::PreventStrike {
+                    n: 1,
+                    aggravated: true,
+                },
+                Effect::OpposingHandStrikerBurns { n: 2, cap: 6 },
+            ],
+        )
+    }],
+    ..CARD
+};
+
+/// "[pot] Ⓓ Bleed at +1 bleed. When the action is announced, this vampire
+/// may lock X Orun on him or her to get an additional +X bleed. [POT] +1
+/// stealth action. Lock X Orun on this vampire to move X blood from the
+/// bank to a younger Laibon in your uncontrolled region." A non-Laibon may
+/// lock its Orun too (ANK 20221208).
+pub static BRUTAL_INFLUENCE: CardDef = CardDef {
+    name: "Brutal Influence",
+    modes: &[
+        ModeDef {
+            terms: Some(Terms::XUnlockedHeld(Holding::Named("Orun"))),
+            ..mode_of(
+                &[Window::ActionDeclare],
+                Actor::ActingCandidate,
+                &[],
+                &[
+                    Effect::DeclareAction(ActionKind::Bleed),
+                    bleed(1, false),
+                    Effect::LockActorHeldX(Holding::Named("Orun")),
+                    Effect::BleedModX { limited: false },
+                ],
+            )
+        },
+        ModeDef {
+            target: target(
+                TargetKind::Uncontrolled,
+                &[Requirement::Younger, Requirement::TargetSect(Sect::Laibon)],
+            ),
+            terms: Some(Terms::XUnlockedHeld(Holding::Named("Orun"))),
+            ..mode_of(
+                &[Window::ActionDeclare],
+                Actor::ActingCandidate,
+                &[],
+                &[
+                    Effect::DeclareAction(ActionKind::Card),
+                    Effect::AddStealth(1),
+                    Effect::LockHeldForUncontrolledBloodX(Holding::Named("Orun")),
+                ],
+            )
+        },
+    ],
+    ..CARD
+};
+
+/// "+1 stealth action. Put this card on this Ishtarri and put 1 counter on
+/// this card. This Ishtarri gets +X bleed, where X is the number of
+/// counters on this card. This Ishtarri can add a counter to this card as
+/// a +1 stealth action that costs X blood." (Ishtarri.) The granted action
+/// requires an Ishtarri (LSJ 20080604); X read as it is paid.
+pub static DESPIRAL: CardDef = CardDef {
+    name: "Despiral",
+    modes: &[mode_of(
+        &[Window::ActionDeclare],
+        Actor::ActingCandidate,
+        &[],
+        &[
+            Effect::DeclareAction(ActionKind::Card),
+            Effect::AddStealth(1),
+            Effect::PutOnActor,
+            Effect::EnterWithCounters(1),
+            Effect::Layer(Modifier::BearerPerCounter {
+                stat: Stat::Bleed,
+                who: Bearer::Clan("Ishtarri"),
+            }),
+        ],
+    )],
+    abilities: &[ModeDef {
+        requires: &[Requirement::ActorClan("Ishtarri")],
+        ..printed_action(
+            None,
+            &[
+                Effect::DeclareAction(ActionKind::Ability),
+                Effect::AddStealth(1),
+                Effect::PayBloodPerCounter,
+                Effect::AddCounter(1),
+            ],
+        )
+    }],
+    ..CARD
+};
+
+/// "[abo] [REFLEX] Cancel a frenzy card played on this vampire as it is
+/// played. [abo] Frenzy (this vampire). Not usable if the opposing minion
+/// has flight [FLIGHT]. Strike: dodge with an optional press. [ABO] As
+/// above, and this vampire locks an Aye on him or her to unlock." The press
+/// this round only (TOM 19960521); a frenzy card on him: one that targets,
+/// selects or affects him (LSJ 20051113).
+pub static DEVIL_CHANNEL_FEET: CardDef = CardDef {
+    name: "Devil-Channel: Feet",
+    modes: &[
+        mode_of(
+            &[Window::CardAsPlayed],
+            Actor::AnyReadyVampire,
+            &[Requirement::PlayedFrenzyOnActor],
+            &[Effect::CancelPlayed { refund: false }],
+        ),
+        combat(
+            &[Window::CombatStrikeDeclaration],
+            &[],
+            &[
+                Effect::Frenzy,
+                Effect::Strike(StrikeKind::Dodge),
+                Effect::NotAgainstFlight,
+                Effect::PressThisRound,
+            ],
+        ),
+        combat(
+            &[Window::CombatStrikeDeclaration],
+            &[],
+            &[
+                Effect::Frenzy,
+                Effect::Strike(StrikeKind::Dodge),
+                Effect::NotAgainstFlight,
+                Effect::PressThisRound,
+                Effect::LockHeldToUnlock(Holding::Named("Aye")),
+            ],
+        ),
+    ],
+    ..CARD
+};
+
+/// "Requires a Laibon with three or more Aye. Play after resolving an
+/// action (successfully or not). Lock three Aye on this Laibon to unlock
+/// him or her." After all combats, still during the action (PIB 20150915);
+/// from torpor too (LSJ 20030103).
+pub static DUSK_WORK: CardDef = CardDef {
+    name: "Dusk Work",
+    modes: &[mode_of(
+        &[Window::ActionAfterResolution],
+        Actor::ActingMinion,
+        &[
+            Requirement::ActorSectIn(&[Sect::Laibon]),
+            Requirement::ActorHoldsUnlocked(Holding::Named("Aye"), 3),
+        ],
+        &[
+            Effect::LockActorHeld(Holding::Named("Aye"), 3),
+            Effect::UnlockActor,
+        ],
+    )],
+    ..CARD
+};
+
+/// "Usable by a ready Guruhi you control, acting or not. Only usable if you
+/// have gained a victory point during this action. You gain 4 pool. If
+/// this Guruhi is acting, he or she unlocks and gains enough blood from the
+/// bank to reach full capacity. Only one Edge of the World can be played
+/// each action." (Guruhi.) A victory point is gained as the prey is
+/// ousted, by the action's resolution: played after it.
+pub static EDGE_OF_THE_WORLD: CardDef = CardDef {
+    name: "Edge of the World",
+    modes: &[ModeDef {
+        limit: Some(Limit::OnePerAction),
+        ..mode_of(
+            &[Window::ActionAfterResolution],
+            Actor::AnyReadyVampire,
+            &[Requirement::GainedVpThisAction],
+            &[Effect::GainPool(4), Effect::IfActingUnlockAndFill],
+        )
+    }],
+    ..CARD
+};
+
+/// "+1 stealth action. [pre] Ⓓ Lock an ally or younger vampire and unlock
+/// this acting vampire. [PRE] Ⓓ Lock X Orun on this vampire to send a
+/// vampire or imbued with capacity or cost 2X or less to his or her owner's
+/// uncontrolled region." A non-Laibon may lock its Orun too (ANK
+/// 20221208); X from half the target's capacity, so the lock sends it.
+pub static EXILE: CardDef = CardDef {
+    name: "Exile",
+    modes: &[
+        action_at(
+            &[],
+            target(TargetKind::Minion, &[Requirement::AllyOrYounger]),
+            &[
+                Effect::DeclareAction(ActionKind::Card),
+                Effect::AddStealth(1),
+                Effect::LockTarget,
+                Effect::UnlockActor,
+            ],
+        ),
+        ModeDef {
+            terms: Some(Terms::XHeldForTarget(Holding::Named("Orun"))),
+            ..action_at(
+                &[],
+                target(
+                    TargetKind::Minion,
+                    &[
+                        Requirement::TargetVampire,
+                        Requirement::TargetCapacityAtMostTwiceHeld(Holding::Named("Orun")),
+                    ],
+                ),
+                &[
+                    Effect::DeclareAction(ActionKind::Card),
+                    Effect::AddStealth(1),
+                    Effect::LockHeldToUncontrolledX(Holding::Named("Orun")),
+                ],
+            )
+        },
+    ],
+    ..CARD
+};
+
+/// "Requires a Laibon. Only usable on an action directed at another Laibon
+/// you control or on a bleed against you. +1 intercept. If this block
+/// fails, the acting minion may choose to make the action fail. If the
+/// action succeeds, this Laibon may lock (after resolution) to enter combat
+/// with the acting minion." Only when intercept is needed (ANK 20200329);
+/// not a locked Laibon, woken or not (PIB 20121107); a failed action is no
+/// blocked one (LSJ 20070219), resolved for NRA (ANK 20211015).
+pub static FAMILIAL_BOND: CardDef = CardDef {
+    name: "Familial Bond",
+    modes: &[intercept(
+        &[
+            Requirement::ActorSectIn(&[Sect::Laibon]),
+            Requirement::InterceptNeeded,
+            Requirement::AnyOf(&[
+                &[Requirement::DirectedAtYourOtherOfSect(Sect::Laibon)],
+                &[Requirement::IsBleed, Requirement::DirectedAtYou],
+            ]),
+        ],
+        &[Effect::AddIntercept(1), Effect::FailOrFightBond],
+    )],
+    ..CARD
+};
+
+/// "Put this card in play. Each Laibon gets +X stealth when hunting and
+/// gains X+1 additional blood from the bank if successful, where X is the
+/// number of Aye he or she has. Burn this card during your next unlock
+/// phase. Only one Guinea-Bissau Carnival may be played in a game." Every
+/// Methuselah's Laibon, X its own Aye.
+pub static GUINEA_BISSAU_CARNIVAL: CardDef = CardDef {
+    name: "Guinea-Bissau Carnival",
+    modes: &[master_in_play(
+        &[Requirement::NotPlayedThisGame],
+        &[
+            Effect::PutInPlay,
+            Effect::Layer(Modifier::SectHuntPerHeld {
+                sect: Sect::Laibon,
+                held: Holding::Named("Aye"),
+            }),
+        ],
+    )],
+    riders: &[Rider {
+        hook: Hook::UnlockPhase,
+        scope: RiderScope::Controller,
+        requires: &[],
+        effects: &[Effect::BurnSelf],
+    }],
+    ..CARD
+};
+
+static HIDING_IN_THE_OPEN_REFERENDUM: ReferendumDef = ReferendumDef {
+    terms: &[],
+    effect: RefEffect::PutOnCaller { unlocks_if: None },
+    grants: &[],
+    non_anarch_titles_minus: false,
+    titled_minus: false,
+    edge_bonus: 0,
+    only_sect: None,
+};
+
+/// "Requires a Laibon. If this referendum succeeds, put this card on the
+/// acting Laibon. This Laibon gets +1 bleed. Cards which require a
+/// non-Laibon title cannot be played on this Laibon nor while this Laibon
+/// is acting. A minion may have only one Hiding in the Open." Not called
+/// for one who has it (LSJ 20100129).
+pub static HIDING_IN_THE_OPEN: CardDef = CardDef {
+    name: "Hiding in the Open",
+    modes: &[political(
+        &[
+            Requirement::ActorSectIn(&[Sect::Laibon]),
+            Requirement::ActorWithout(Holding::Named("Hiding in the Open")),
+        ],
+        &[
+            Effect::DeclareAction(ActionKind::Political),
+            Effect::CallReferendum(&HIDING_IN_THE_OPEN_REFERENDUM),
+            Effect::Layer(Modifier::Bearer {
+                stat: Stat::Bleed,
+                n: 1,
+                during: &[],
+                who: Bearer::Any,
+            }),
+            Effect::Layer(Modifier::NoNonLaibonTitleCards),
+        ],
+    )],
+    ..CARD
+};
+
+/// "Animal with 1 life. Requires a Laibon. Put Ilomba on any minion (this
+/// is a +1 stealth Ⓓ action if that minion is controlled by another
+/// Methuselah). If Ilomba would burn a life (or would otherwise be
+/// burned), this minion burns a blood or life instead. If he or she
+/// cannot, he or she is burned. A minion may have only one Ilomba." Each
+/// point of damage (ANK 20180525); neither mortal nor monster (ANK
+/// 20200203-2); on another minion only when played (LSJ 20090824), an
+/// employ whatever its target (ANK 20230408).
+pub static ILOMBA: CardDef = CardDef {
+    name: "Ilomba",
+    modes: &[ModeDef {
+        requires: &[Requirement::ActorSectIn(&[Sect::Laibon])],
+        target: target(
+            TargetKind::Minion,
+            &[Requirement::TargetWithout(Holding::Named("Ilomba"))],
+        ),
+        ..employ(&[
+            Effect::DeclareAction(ActionKind::Employ),
+            Effect::EmployRetainer { life: 1 },
+            Effect::Layer(Modifier::LifeFromHost),
+        ])
+    }],
+    ..CARD
+};
+
+/// "Unique demon with 1 life. 1 strength, 0 bleed. Impundulu has flight
+/// [FLIGHT], gets one optional maneuver each combat, and may strike: 1R
+/// damage. He may steal 1 blood or life from a minion as a +1 stealth Ⓓ
+/// action." On a vampire with no blood too (RTR 20010711); undirected at
+/// one's own (ANK 20180917).
+pub static IMPUNDULU: CardDef = CardDef {
+    name: "Impundulu",
+    modes: &[recruit(&[Effect::DeclareAction(ActionKind::Recruit)])],
+    abilities: &[
+        mode_of(
+            &[Window::CombatStrikeDeclaration],
+            Actor::Host,
+            &[],
+            &[Effect::Strike(StrikeKind::Damage {
+                n: 1,
+                ranged: true,
+                aggravated: false,
+            })],
+        ),
+        MANEUVER_EACH_COMBAT,
+        printed_action(
+            target(TargetKind::Minion, &[Requirement::OtherThanActor]),
+            &[
+                Effect::DeclareAction(ActionKind::Ability),
+                Effect::AddStealth(1),
+                Effect::StealBloodFromTarget(1),
+            ],
+        ),
+    ],
+    ..CARD
+};
+
+/// "[abo] [REFLEX] Cancel a frenzy card played on this vampire as it is
+/// played. [abo] Strike: hand strike at +1 damage. [ABO] Strike: burn the
+/// opposing animal or mortal, or strike: hand strike at +X damage, where X
+/// is the number of Orun on this vampire." The extra damage of the hand
+/// strike's kind (TOM 19960225); the burn at close range, a card effect
+/// strike (advanced rules §4.3.3).
+pub static INVOKE_POISON_GLANDS: CardDef = CardDef {
+    name: "Invoke Poison Glands",
+    lines: &[0, 1, 2, 2],
+    modes: &[
+        mode_of(
+            &[Window::CardAsPlayed],
+            Actor::AnyReadyVampire,
+            &[Requirement::PlayedFrenzyOnActor],
+            &[Effect::CancelPlayed { refund: false }],
+        ),
+        combat(
+            &[Window::CombatStrikeDeclaration],
+            &[],
+            &[Effect::Strike(StrikeKind::Hand { bonus: 1 })],
+        ),
+        combat(
+            &[Window::CombatStrikeDeclaration],
+            &[Requirement::AnyOf(&[
+                &[Requirement::OpponentSubtype(Label::Animal)],
+                &[Requirement::OpponentSubtype(Label::Mortal)],
+            ])],
+            &[
+                Effect::Strike(StrikeKind::CardEffect { ranged: false }),
+                Effect::BurnOpposingAllyOnHit,
+            ],
+        ),
+        combat(
+            &[Window::CombatStrikeDeclaration],
+            &[],
+            &[
+                Effect::Strike(StrikeKind::Hand { bonus: 0 }),
+                Effect::HandStrikeBonusPerHeld(Holding::Named("Orun")),
+            ],
+        ),
+    ],
+    ..CARD
+};
+
+/// "Master. Put this card on an Ishtarri you control. This Ishtarri gets an
+/// optional maneuver or press each combat. A minion can have only one
+/// Ishtarri Warlord." (Ishtarri; 1 pool.) One use over the combat, a
+/// maneuver or a press (rules-qa 14.2); a bearer no longer Ishtarri gets
+/// nothing (rules-qa 9.1).
+pub static ISHTARRI_WARLORD: CardDef = CardDef {
+    name: "Ishtarri Warlord",
+    modes: &[ModeDef {
+        target: target(
+            TargetKind::Minion,
+            &[
+                Requirement::Controlled,
+                Requirement::TargetClan("Ishtarri"),
+                Requirement::TargetWithout(Holding::Named("Ishtarri Warlord")),
+            ],
+        ),
+        ..mode_of(
+            &[Window::MasterPhase],
+            Actor::Methuselah,
+            &[],
+            &[Effect::PutOnTarget],
+        )
+    }],
+    abilities: &[
+        ModeDef {
+            limit: Some(Limit::PerCombatCard),
+            ..mode_of(
+                &[Window::CombatBeforeRange, Window::CombatDetermineRange],
+                Actor::Host,
+                &[Requirement::HostClan("Ishtarri")],
+                &[Effect::OptionalManeuver],
+            )
+        },
+        ModeDef {
+            limit: Some(Limit::PerCombatCard),
+            ..mode_of(
+                &[Window::CombatPress],
+                Actor::Host,
+                &[Requirement::HostClan("Ishtarri")],
+                &[Effect::OptionalPress],
+            )
+        },
+    ],
+    ..CARD
+};
+
+/// "[for] This vampire treats aggravated damage as normal damage this
+/// round. [FOR] As above, but for the remainder of the action if you lock
+/// an Aye on him or her." [FOR] needs an unlocked Aye to play; the Aye
+/// locked meanwhile, it resolves as [for].
+pub static JUA_VEMA: CardDef = CardDef {
+    name: "Jua Vema",
+    modes: &[
+        combat(
+            &[Window::CombatUntimed],
+            &[],
+            &[Effect::AggravatedAsNormal { lock: None }],
+        ),
+        combat(
+            &[Window::CombatUntimed],
+            &[Requirement::ActorHoldsUnlocked(Holding::Named("Aye"), 1)],
+            &[Effect::AggravatedAsNormal {
+                lock: Some(Holding::Named("Aye")),
+            }],
+        ),
+    ],
+    ..CARD
+};
+
+static KUTA_REFERENDUM: ReferendumDef = ReferendumDef {
+    terms: &[Term::ChooseMinions {
+        filter: &[
+            Requirement::TargetVampire,
+            Requirement::Younger,
+            Requirement::TargetCapacityAtMost(6),
+        ],
+        min: 1,
+        max: 1,
+    }],
+    effect: RefEffect::PutOnChosen { equipment: false },
+    grants: &[],
+    non_anarch_titles_minus: false,
+    titled_minus: false,
+    edge_bonus: 0,
+    only_sect: None,
+};
+
+/// "Requires a Laibon. Choose a younger vampire with capacity 6 or less. If
+/// this referendum succeeds, put this card on that vampire. Directed
+/// actions cost this vampire an additional blood. This vampire cannot block
+/// older vampires. Any vampire may call a referendum to burn this card as
+/// a +1 stealth political action." Not called with no such vampire (LSJ
+/// 20100129).
+pub static KUTA: CardDef = CardDef {
+    name: "Kuta",
+    modes: &[political(
+        &[Requirement::ActorSectIn(&[Sect::Laibon])],
+        &[
+            Effect::DeclareAction(ActionKind::Political),
+            Effect::CallReferendum(&KUTA_REFERENDUM),
+            Effect::Layer(Modifier::HostDirectedToll(1)),
+            Effect::Layer(Modifier::HostCannotBlockOlder),
+        ],
+    )],
+    abilities: &[mode_of(
+        &[Window::ActionDeclarePolitical],
+        Actor::ActingCandidate,
+        &[Requirement::ActorVampire],
+        &[
+            Effect::DeclareAction(ActionKind::Political),
+            Effect::AddStealth(1),
+            Effect::CallReferendum(&BURN_THIS_CARD),
+        ],
+    )],
+    ..CARD
+};
+
+/// "Only usable by a non-acting Guruhi when an acting Laibon you control is
+/// blocked (before combat). Inflict 2 unpreventable damage on both the
+/// acting Laibon and the blocking minion and end the action (without
+/// combat)." (Guruhi.) Unsuccessfully at once, nothing more played (RTR
+/// 20180719); by a locked Guruhi (PIB 20150720), not one in torpor.
+pub static MAKE_AN_EXAMPLE: CardDef = CardDef {
+    name: "Make an Example",
+    modes: &[mode_of(
+        &[Window::ActionBlocked],
+        Actor::AnyReadyVampire,
+        &[
+            Requirement::ActorNotActing,
+            Requirement::OwnActing,
+            Requirement::ActingSectIn(&[Sect::Laibon]),
+        ],
+        &[
+            Effect::DamageActingAndBlocker(2),
+            Effect::EndBlockedActionLocked,
+        ],
+    )],
+    ..CARD
+};
+
+/// "Unique master. Put this card in play. You may lock this card to reduce
+/// a bleed against you by 1. During your influence phase, you may lock this
+/// card and burn the Edge to gain 4 transfers. Any vampire may burn this
+/// card as a Ⓓ action that costs 1 blood." (Akunanse.)
+pub static MAPATANO_UTANDO: CardDef = CardDef {
+    name: "Mapatano Utando",
+    modes: &[master_in_play(&[], &[Effect::PutInPlay])],
+    abilities: &[
+        mode_of(
+            &[Window::ReactionDuringAction],
+            Actor::Controller,
+            &[
+                Requirement::CardUnlocked,
+                Requirement::DirectedAtYou,
+                Requirement::IsBleed,
+            ],
+            &[Effect::LockSelf, Effect::ReduceBleed(1)],
+        ),
+        mode_of(
+            &[Window::InfluencePhaseOwn],
+            Actor::Controller,
+            &[Requirement::CardUnlocked, Requirement::HasEdge],
+            &[Effect::LockSelf, Effect::BurnEdge, Effect::GainTransfers(4)],
+        ),
+        mode_of(
+            &[Window::ActionDeclare],
+            Actor::ActingCandidate,
+            &[Requirement::ActorVampire, Requirement::ActorBloodAtLeast(1)],
+            &[
+                Effect::DeclareAction(ActionKind::BurnCard),
+                Effect::PayBlood(1),
+                Effect::BurnSource,
+            ],
+        ),
+    ],
+    ..CARD
+};
+
+/// "Master. Put this card on a Laibon with no Orun and no Mundane. Cards
+/// that require Disciplines cost this vampire 1 additional blood. Burn this
+/// card if this vampire gets an Orun. Alternatively, when a minion with no
+/// Orun plays an action card requiring a Discipline or Virtue, play this
+/// card to your ash heap as an out-of-turn master to cancel that card as it
+/// is played." Only a card played from hand (RTR 20001020); any action
+/// card, recruit, employ and political included (ANK 20200813-2); its cost
+/// still paid.
+pub static MUNDANE: CardDef = CardDef {
+    name: "Mundane",
+    out_of_turn: true,
+    lines: &[0, 0],
+    modes: &[
+        ModeDef {
+            target: target(
+                TargetKind::Minion,
+                &[
+                    Requirement::TargetSect(Sect::Laibon),
+                    Requirement::TargetWithout(Holding::Named("Orun")),
+                    Requirement::TargetWithout(Holding::Named("Mundane")),
+                ],
+            ),
+            ..mode_of(
+                &[Window::MasterPhase],
+                Actor::Methuselah,
+                &[],
+                &[
+                    Effect::PutOnTarget,
+                    Effect::Layer(Modifier::HostDisciplineCardsCost(1)),
+                    Effect::Layer(Modifier::BurnWhileHostHolds(Holding::Named("Orun"))),
+                ],
+            )
+        },
+        mode_of(
+            &[Window::CardAsPlayed],
+            Actor::Methuselah,
+            &[
+                Requirement::NotOwnTurn,
+                Requirement::PlayedCardType(CardType::Action),
+                Requirement::PlayedRequiresAnyDiscipline,
+                Requirement::PlayedByMinionWithout(Holding::Named("Orun")),
+            ],
+            &[Effect::CancelPlayed { refund: false }],
+        ),
+    ],
+    ..CARD
+};
+
+/// "Requires a Laibon with three or more Aye. Only usable before range is
+/// determined. Set the range for this round. Skip the determine range step
+/// this round." Set, no other effect resets it that round (RTR 19970630);
+/// a range already set by another effect first prevails (PIB 20120214).
+pub static NEEBI: CardDef = CardDef {
+    name: "Neebi",
+    lines: &[0, 0],
+    modes: &[
+        combat(
+            &[Window::CombatBeforeRange],
+            &[
+                Requirement::ActorSectIn(&[Sect::Laibon]),
+                Requirement::ActorHoldsAtLeast(Holding::Named("Aye"), 3),
+            ],
+            &[Effect::SetRange(Range::Close)],
+        ),
+        combat(
+            &[Window::CombatBeforeRange],
+            &[
+                Requirement::ActorSectIn(&[Sect::Laibon]),
+                Requirement::ActorHoldsAtLeast(Holding::Named("Aye"), 3),
+            ],
+            &[Effect::SetRange(Range::Long)],
+        ),
+    ],
+    ..CARD
+};
+
+/// "Unique equipment. Requires a Laibon. You may use a master phase action
+/// to search your library or ash heap for an Aye or an Orun and put that
+/// card on this Laibon." Put on, not played: no trifle's extra action.
+pub static NKISHI: CardDef = CardDef {
+    name: "Nkishi",
+    modes: &[ModeDef {
+        requires: &[Requirement::ActorSectIn(&[Sect::Laibon])],
+        ..EQUIP
+    }],
+    abilities: &[mode_of(
+        &[Window::MasterPhase],
+        Actor::Host,
+        &[
+            Requirement::ActorSectIn(&[Sect::Laibon]),
+            Requirement::MasterPhaseActionLeft,
+        ],
+        &[
+            Effect::SpendMasterPhaseAction,
+            Effect::SearchOntoHost(ORUN_AND_AYE),
+        ],
+    )],
+    ..CARD
+};
+
+/// "Master. Put this card on a Laibon with no Aye and no Pallid. This
+/// vampire gets -1 stealth. Burn this card if this vampire gets an Aye.
+/// Alternatively, when a vampire with no Aye or a zombie is acting, play
+/// this card to your ash heap as an out-of-turn master to give a vampire
+/// you control +1 intercept."
+pub static PALLID: CardDef = CardDef {
+    name: "Pallid",
+    out_of_turn: true,
+    lines: &[0, 0],
+    modes: &[
+        ModeDef {
+            target: target(
+                TargetKind::Minion,
+                &[
+                    Requirement::TargetSect(Sect::Laibon),
+                    Requirement::TargetWithout(Holding::Named("Aye")),
+                    Requirement::TargetWithout(Holding::Named("Pallid")),
+                ],
+            ),
+            ..mode_of(
+                &[Window::MasterPhase],
+                Actor::Methuselah,
+                &[],
+                &[
+                    Effect::PutOnTarget,
+                    Effect::Layer(Modifier::Bearer {
+                        stat: Stat::Stealth,
+                        n: -1,
+                        during: &[],
+                        who: Bearer::Any,
+                    }),
+                    Effect::Layer(Modifier::BurnWhileHostHolds(Holding::Named("Aye"))),
+                ],
+            )
+        },
+        ModeDef {
+            target: target(
+                TargetKind::Minion,
+                &[Requirement::Controlled, Requirement::TargetVampire],
+            ),
+            ..mode_of(
+                &[Window::ActionStealthIntercept],
+                Actor::Methuselah,
+                &[
+                    Requirement::NotOwnTurn,
+                    Requirement::AnyOf(&[
+                        &[
+                            Requirement::ActingVampire,
+                            Requirement::ActingHoldsNone(Holding::Named("Aye")),
+                        ],
+                        &[Requirement::ActingAllyOf(&[Label::Zombie])],
+                    ]),
+                ],
+                &[Effect::TargetInterceptThisAction(1)],
+            )
+        },
+    ],
+    ..CARD
+};
+
+/// "Equipment. If the bearer is a ready Laibon, you get +1 hand size. This
+/// Laibon may discard up to 3 cards from your hand as a +1 stealth action.
+/// A minion may have only one Reliquary: Trinket." The action requires a
+/// Laibon (LSJ 20080604) and fizzles off the acting minion (RTR 19960221);
+/// how many chosen as it is taken, which as it resolves.
+pub static RELIQUARY_TRINKET: CardDef = CardDef {
+    name: "Reliquary: Trinket",
+    modes: &[ModeDef {
+        requires: &[Requirement::ActorWithout(Holding::Named(
+            "Reliquary: Trinket",
+        ))],
+        effects: &[
+            Effect::DeclareAction(ActionKind::Equip),
+            Effect::Layer(Modifier::HandSizeWhileBearer {
+                n: 1,
+                sect: Sect::Laibon,
+            }),
+        ],
+        ..EQUIP
+    }],
+    abilities: &[ModeDef {
+        requires: &[Requirement::ActorSectIn(&[Sect::Laibon])],
+        ..printed_action(
+            None,
+            &[
+                Effect::DeclareAction(ActionKind::Ability),
+                Effect::AddStealth(1),
+                Effect::DiscardUpTo(3),
+            ],
+        )
+    }],
+    ..CARD
+};
+
+/// "Unique werewolf with 5 life. 1 strength, 0 bleed. Requires a magaji.
+/// The Remnant gets +1 strength for each life it has. The Remnant may enter
+/// combat with any minion as a Ⓓ action. If any effect does more than 2
+/// damage to the Remnant, ignore the excess. If the Remnant has 4 or fewer
+/// life during your unlock phase, it gains 1 life from the blood bank."
+/// Each strike an effect, each out-of-combat damage one.
+pub static REMNANT_OF_THE_ENDLESS_STORM: CardDef = CardDef {
+    name: "Remnant of the Endless Storm",
+    modes: &[ModeDef {
+        requires: &[Requirement::ActorTitleIn(&[TitleClass::Magaji])],
+        ..recruit(&[
+            Effect::DeclareAction(ActionKind::Recruit),
+            Effect::Layer(Modifier::StrengthPerLife),
+            Effect::Layer(Modifier::DamageCapPerEffect(2)),
+        ])
+    }],
+    abilities: &[enter_combat(&[
+        Requirement::NotControlled,
+        Requirement::ActorReady,
+    ])],
+    riders: &[Rider {
+        hook: Hook::UnlockPhase,
+        scope: RiderScope::Controller,
+        requires: &[Requirement::HostBloodAtMost(4)],
+        effects: &[Effect::AddHostBlood(1)],
+    }],
+    ..CARD
+};
+
+/// "Requires a Laibon. [cel] This Laibon burns 1 blood to get +1 intercept.
+/// [CEL] Lock this Laibon or an Aye on him or her to unlock another ready
+/// Laibon. Not usable by a blocking Laibon." The blood not reduced by cost
+/// reductions, and needed to play it (ANK 20210226); any Methuselah's
+/// Laibon (D11).
+pub static SAVANNAH_RUNNER: CardDef = CardDef {
+    name: "Savannah Runner",
+    lines: &[0, 1, 1],
+    modes: &[
+        intercept(
+            &[
+                Requirement::ActorSectIn(&[Sect::Laibon]),
+                Requirement::ActorBloodAtLeast(1),
+                Requirement::InterceptNeeded,
+            ],
+            &[Effect::BurnActorBlood(1), Effect::AddIntercept(1)],
+        ),
+        savannah_runner_unlock(
+            &[
+                Requirement::ActorSectIn(&[Sect::Laibon]),
+                Requirement::ActorNotBlocking,
+            ],
+            &[Effect::LockActor, Effect::UnlockTarget],
+        ),
+        savannah_runner_unlock(
+            &[
+                Requirement::ActorSectIn(&[Sect::Laibon]),
+                Requirement::ActorNotBlocking,
+                Requirement::ActorHoldsUnlocked(Holding::Named("Aye"), 1),
+            ],
+            &[
+                Effect::LockActorHeld(Holding::Named("Aye"), 1),
+                Effect::UnlockTarget,
+            ],
+        ),
+    ],
+    ..CARD
+};
+
+/// Savannah Runner [CEL]: lock to unlock another ready Laibon.
+const fn savannah_runner_unlock(
+    requires: &'static [Requirement],
+    effects: &'static [Effect],
+) -> ModeDef {
+    ModeDef {
+        windows: &[Window::ReactionDuringAction],
+        actor: Actor::ReactingMinion,
+        requires,
+        target: target(
+            TargetKind::Minion,
+            &[
+                Requirement::TargetSect(Sect::Laibon),
+                Requirement::OtherThanActor,
+            ],
+        ),
+        terms: None,
+        waives_needed: false,
+        limit: None,
+        effects,
+    }
+}
+
+/// "Master: trifle. Put this card on a Laibon with Auspex [aus]. This
+/// Laibon with Auspex may lock this card during a referendum to get 1
+/// additional vote. A vampire can have only one Sense Vibrations." Not in
+/// a referendum passing on its own (PIB 20150105); nothing off a Laibon
+/// with Auspex (rules-qa 9.1).
+pub static SENSE_VIBRATIONS: CardDef = CardDef {
+    name: "Sense Vibrations",
+    trifle: true,
+    modes: &[ModeDef {
+        target: target(
+            TargetKind::Minion,
+            &[
+                Requirement::TargetSect(Sect::Laibon),
+                Requirement::TargetDiscipline("aus"),
+                Requirement::TargetWithout(Holding::Named("Sense Vibrations")),
+            ],
+        ),
+        ..mode_of(
+            &[Window::MasterPhase],
+            Actor::Methuselah,
+            &[],
+            &[Effect::PutOnTarget],
+        )
+    }],
+    abilities: &[mode_of(
+        &[Window::Referendum],
+        Actor::Host,
+        &[
+            Requirement::AnyPollingStep,
+            Requirement::CardUnlocked,
+            Requirement::ActorSectIn(&[Sect::Laibon]),
+            Requirement::HostDiscipline("aus"),
+        ],
+        &[Effect::LockSelf, Effect::HostVotes(1)],
+    )],
+    ..CARD
+};
+
+/// "Requires a Laibon with three or more Orun. Only usable during a
+/// referendum. Usable by a locked Laibon. Gain 4 votes." Not in a
+/// referendum passing on its own (PIB 20150105).
+pub static UNHOLY_RADIANCE: CardDef = CardDef {
+    name: "Unholy Radiance",
+    modes: &[polling_mode!(
+        Actor::ActingOrReactingMinion,
+        &[
+            Requirement::AnyPollingStep,
+            Requirement::ActorSectIn(&[Sect::Laibon]),
+            Requirement::ActorHoldsAtLeast(Holding::Named("Orun"), 3),
+        ],
+        &[Effect::AddVotes(4)]
+    )],
+    ..CARD
+};
+
+/// "+1 stealth action. Requires a Laibon. Put this card on this Laibon. If
+/// his or her capacity is 5 or more, he or she unlocks. Once each combat,
+/// this Laibon may prevent 1 non-aggravated damage from the opponent's
+/// strike. A minion can have only one Well-Marked." Not aggravated damage
+/// treated as normal (LSJ 20040812-2).
+pub static WELL_MARKED: CardDef = CardDef {
+    name: "Well-Marked",
+    modes: &[action_at(
+        &[
+            Requirement::ActorSectIn(&[Sect::Laibon]),
+            Requirement::ActorWithout(Holding::Named("Well-Marked")),
+        ],
+        None,
+        &[
+            Effect::DeclareAction(ActionKind::Card),
+            Effect::AddStealth(1),
+            Effect::PutOnActor,
+            Effect::UnlockActorIfClanCapacity { clan: None, n: 5 },
+        ],
+    )],
+    abilities: &[ModeDef {
+        limit: Some(Limit::PerCombat),
+        ..mode_of(
+            &[Window::CombatDamagePrevention],
+            Actor::Host,
+            &[Requirement::StrikeNormalDamagePending],
+            &[Effect::PreventStrike {
+                n: 1,
+                aggravated: false,
+            }],
+        )
+    }],
+    ..CARD
+};
+
+/// The requirements both Supernatural Resistance modes share.
+const SUPERNATURAL_RESISTANCE_REQUIRES: [Requirement; 5] = [
+    Requirement::ActorSectIn(&[Sect::Laibon]),
+    Requirement::ActorHoldsAtLeast(Holding::Named("Orun"), 3),
+    Requirement::ActorHoldsUnlocked(Holding::Named("Orun"), 1),
+    Requirement::PlayedRequiresAnyDiscipline,
+    Requirement::PlayedRequiresNone(&["cel", "pot"]),
+];
+
+/// "Requires a Laibon with three or more Orun. Lock an Orun on this Laibon
+/// to cancel an action card targeting this Laibon or a strike card as it
+/// is played. Not usable to cancel a card that doesn't require a Discipline
+/// or that requires Celerity [cel] or Potence [pot]." Only a card played
+/// from hand (RTR 20001020), any action card (ANK 20200813-2); at once, a
+/// wake only before it (LSJ 20021011).
+pub static SUPERNATURAL_RESISTANCE: CardDef = CardDef {
+    name: "Supernatural Resistance",
+    lines: &[0, 0],
+    modes: &[
+        mode_of(
+            &[Window::CardAsPlayed],
+            Actor::AnyReadyVampire,
+            &[
+                SUPERNATURAL_RESISTANCE_REQUIRES[0],
+                SUPERNATURAL_RESISTANCE_REQUIRES[1],
+                SUPERNATURAL_RESISTANCE_REQUIRES[2],
+                SUPERNATURAL_RESISTANCE_REQUIRES[3],
+                SUPERNATURAL_RESISTANCE_REQUIRES[4],
+                Requirement::PlayedActionTargetsActor,
+            ],
+            &[
+                Effect::LockActorHeld(Holding::Named("Orun"), 1),
+                Effect::CancelPlayed { refund: false },
+            ],
+        ),
+        mode_of(
+            &[Window::CardAsPlayed],
+            Actor::AnyReadyVampire,
+            &[
+                SUPERNATURAL_RESISTANCE_REQUIRES[0],
+                SUPERNATURAL_RESISTANCE_REQUIRES[1],
+                SUPERNATURAL_RESISTANCE_REQUIRES[2],
+                SUPERNATURAL_RESISTANCE_REQUIRES[3],
+                SUPERNATURAL_RESISTANCE_REQUIRES[4],
+                Requirement::PlayedStrikeByOpponent,
+            ],
+            &[
+                Effect::LockActorHeld(Holding::Named("Orun"), 1),
+                Effect::CancelPlayed { refund: false },
+            ],
+        ),
+    ],
+    ..CARD
+};
+
+/// Taking the Skin: Vulture's [abo] and [ABO] modes, as a reaction.
+const fn vulture_skin() -> ModeDef {
+    intercept(
+        &[
+            Requirement::InterceptNeeded,
+            Requirement::ActorWithout(Holding::Named("Taking the Skin: Minion")),
+            Requirement::ActorWithout(Holding::Named("Taking the Skin: Vulture")),
+        ],
+        &[
+            Effect::AddIntercept(1),
+            Effect::PutOnActorNow,
+            Effect::Layer(Modifier::BearerSuperiorDiscipline("flight")),
+        ],
+    )
+}
+
+/// "Skin. [abo] [REFLEX] Cancel a frenzy card played on this vampire as it
+/// is played. [abo] +1 intercept, and put this card on this vampire. This
+/// vampire has flight [FLIGHT]. Burn this card during your next unlock
+/// phase. A minion can have only one skin. [ABO] As above, and this vampire
+/// gets an optional maneuver each combat." The skins: Taking the Skin:
+/// Minion and this.
+pub static TAKING_THE_SKIN_VULTURE: CardDef = CardDef {
+    name: "Taking the Skin: Vulture",
+    modes: &[
+        mode_of(
+            &[Window::CardAsPlayed],
+            Actor::AnyReadyVampire,
+            &[Requirement::PlayedFrenzyOnActor],
+            &[Effect::CancelPlayed { refund: false }],
+        ),
+        vulture_skin(),
+        vulture_skin(),
+    ],
+    abilities: &[ability(
+        &[Window::CombatDetermineRange],
+        Actor::Host,
+        &[Requirement::CardMode(2)],
+        Limit::PerCombat,
+        &[Effect::Maneuver],
+    )],
+    riders: &[Rider {
+        hook: Hook::UnlockPhase,
+        scope: RiderScope::Controller,
+        requires: &[],
+        effects: &[Effect::BurnSelf],
+    }],
+    ..CARD
+};
+
+/// "[abo] [REFLEX] Cancel a frenzy card played on this vampire as it is
+/// played. [abo] Strike: hand strike at +1 damage. This combat, this minion
+/// cannot cancel frenzy cards nor press to end. [ABO] As above, but strike:
+/// burn equipment." The extra damage of the strike's kind (TOM 19960225);
+/// the equipment named with the strike, at close range (rules-qa 21.1).
+pub static TAMING_THE_BEAST: CardDef = CardDef {
+    name: "Taming the Beast",
+    modes: &[
+        mode_of(
+            &[Window::CardAsPlayed],
+            Actor::AnyReadyVampire,
+            &[Requirement::PlayedFrenzyOnActor],
+            &[Effect::CancelPlayed { refund: false }],
+        ),
+        combat(
+            &[Window::CombatStrikeDeclaration],
+            &[],
+            &[
+                Effect::Strike(StrikeKind::Hand { bonus: 1 }),
+                Effect::NoFrenzyCancelNorEndPress,
+            ],
+        ),
+        ModeDef {
+            target: target(
+                TargetKind::Card,
+                &[
+                    Requirement::TargetCard(CardFilter::Type(CardType::Equipment)),
+                    Requirement::TargetOnOpposingCombatant,
+                ],
+            ),
+            ..combat(
+                &[Window::CombatStrikeDeclaration],
+                &[],
+                &[
+                    Effect::Strike(StrikeKind::BurnEquipment),
+                    Effect::NoFrenzyCancelNorEndPress,
+                ],
+            )
+        },
+    ],
+    ..CARD
+};
+
+/// "Unique master. Put this card on a Laibon with at least three Aye and
+/// three Orun. During your unlock phase, this Laibon gains 1 blood. Allies
+/// and younger vampires must burn 1 blood or life to attempt to block this
+/// Laibon or to perform an action directed at this Laibon. Burn this card
+/// if this minion is not ready or has fewer than three Aye or three Orun."
+pub static TRANSCENDENT_LAIBON: CardDef = CardDef {
+    name: "Transcendent Laibon",
+    modes: &[ModeDef {
+        target: target(
+            TargetKind::Minion,
+            &[
+                Requirement::TargetSect(Sect::Laibon),
+                Requirement::TargetHoldsAtLeast(Holding::Named("Aye"), 3),
+                Requirement::TargetHoldsAtLeast(Holding::Named("Orun"), 3),
+            ],
+        ),
+        ..mode_of(
+            &[Window::MasterPhase],
+            Actor::Methuselah,
+            &[],
+            &[
+                Effect::PutOnTarget,
+                Effect::Layer(Modifier::SmallBlockersOfHostBurn(1)),
+                Effect::Layer(Modifier::SmallTargetersCost(1)),
+                Effect::Layer(Modifier::BurnUnlessHostHolds {
+                    held: ORUN_AND_AYE,
+                    n: 3,
+                }),
+            ],
+        )
+    }],
+    riders: &[Rider {
+        hook: Hook::UnlockPhase,
+        scope: RiderScope::Controller,
+        requires: &[],
+        effects: &[Effect::AddHostBlood(1)],
+    }],
+    ..CARD
+};
+
+/// "Werewolf with 3 life. 1 strength, 1 bleed. The Runner may play cards
+/// that require Animalism [ani] as a vampire and may burn 1 life to get +1
+/// stealth. If he successfully bleeds, you may look at the target
+/// Methuselah's hand. A vampire stealing life from the Runner takes 1
+/// damage for each point stolen. If the Runner has 2 or fewer life during
+/// your unlock phase, he gains 1 life." (Akunanse.) Independent as a
+/// vampire (LSJ 20020503); the damage environmental (RTR 19970630), with
+/// the strikes (ANK 20200517-2); the look free, taken.
+pub static TUNNEL_RUNNER: CardDef = CardDef {
+    name: "Tunnel Runner",
+    modes: &[recruit(&[
+        Effect::DeclareAction(ActionKind::Recruit),
+        Effect::Layer(Modifier::PlaysAsVampire(AsVampire {
+            disciplines: &["ani"],
+            capacity: 1,
+            non_action: false,
+            non_ally: false,
+            sect: Sect::Independent,
+        })),
+        Effect::Layer(Modifier::StealersTakeDamage),
+    ])],
+    abilities: &[mode_of(
+        &[Window::ActionDuring],
+        Actor::Host,
+        &[
+            Requirement::HostBloodAtLeast(1),
+            Requirement::ActorActing,
+            Requirement::StealthNeeded,
+        ],
+        &[Effect::HostBurnLife(1), Effect::AddStealth(1)],
+    )],
+    riders: &[
+        Rider {
+            hook: Hook::OwnBleedSuccessful,
+            scope: RiderScope::Controller,
+            requires: &[],
+            effects: &[Effect::PeekBledHandIfBearer],
+        },
+        Rider {
+            hook: Hook::UnlockPhase,
+            scope: RiderScope::Controller,
+            requires: &[Requirement::HostBloodAtMost(2)],
+            effects: &[Effect::AddHostBlood(1)],
+        },
+    ],
     ..CARD
 };

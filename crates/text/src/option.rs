@@ -117,7 +117,12 @@ fn base(
         // A card, a title or a library card contested.
         K::PayContest | K::YieldContest => {
             let what = match (&k.card, k.minion) {
-                (Some(c), _) => n.own(c.copy?),
+                // A copy the viewer never saw (another seat's contested
+                // card): by the card's id.
+                (Some(c), _) => c
+                    .copy
+                    .and_then(|copy| n.own_seen(copy))
+                    .unwrap_or_else(|| n.card_id(c.id)),
                 (None, Some(m)) if k.value.as_deref() == Some("title") => {
                     format!("the title of {}", n.minion_bare(m))
                 }
@@ -490,6 +495,14 @@ fn asked(
             format!("Burn {} blood to prevent the damage", about?.n?)
         }
         (P::MayUnlock, K::ResolvePrinted) => "Unlock".into(),
+        (P::MayMoveBlood, K::ResolvePrinted) => format!("Move {} blood", about?.n?),
+        (P::MayFailAction, K::ResolvePrinted) => "Make the action fail".into(),
+        (P::MayLockToFight, K::ResolvePrinted) => "Lock and enter combat".into(),
+        (P::MayBurnForBlock, K::ResolvePrinted) => "Burn 1 blood instead of locking".into(),
+        (P::MayReturnDiscards, K::ResolvePrinted) => "Shuffle them into the library".into(),
+        (P::MayBottomLooked, K::ResolvePrinted) => {
+            format!("Burn {} blood: the card to the bottom", about?.n?)
+        }
         (P::ReductionAtResolution, K::ResolvePrinted) => "Pay 1 blood less".into(),
         (P::EntryRemoveOrBurn, K::FindCard) => verb("Take ", "Remove ")?,
         (P::EntryRemoveOrBurn, K::AshVampire) => verb("Choose ", "Remove ")?,
@@ -810,6 +823,14 @@ fn pass(
         P::MayGainHandSize => "Keep your hand size".into(),
         P::MayPreventForBlood => "Burn no blood".into(),
         P::MayUnlock => "Stay locked".into(),
+        P::MayMoveBlood => "Move no blood".into(),
+        P::MayFailAction => "Let the action go on".into(),
+        P::MayLockToFight => "Stay out of combat".into(),
+        P::SearchOnto => "Take nothing".into(),
+        P::ExchangeLooked => "Exchange nothing".into(),
+        P::MayBurnForBlock => "Lock for the block".into(),
+        P::MayReturnDiscards => "Keep them in the ash heap".into(),
+        P::MayBottomLooked => "Leave the card on top".into(),
         P::ReductionAtResolution => "Let the card fizzle".into(),
         P::CancelAttempt => "Keep the attempt".into(),
         P::PoolForCard | P::LockForPool => "No pool".into(),
@@ -1104,6 +1125,14 @@ mod tests {
             P::MayGainHandSize,
             P::MayPreventForBlood,
             P::MayUnlock,
+            P::MayMoveBlood,
+            P::MayFailAction,
+            P::MayLockToFight,
+            P::SearchOnto,
+            P::ExchangeLooked,
+            P::MayBurnForBlock,
+            P::MayReturnDiscards,
+            P::MayBottomLooked,
             P::ReductionAtResolution,
             P::BloodOrBurned,
             P::BloodOrCamarilla,

@@ -6,6 +6,30 @@ server runs.
 `python3 scripts/schema_compat.py` lists what a schema change adds or
 removes; its `--check` fails a removal without a major version.
 
+## 2.21.0
+
+Round 25's cards (rules-qa Batch 109); ids added, none removed:
+
+- `Purpose` `may_move_blood` (Bamba): move `n` blood from `minion` to the new
+  vampire `target` (`resolve_printed`), or pass; `may_fail_action` (Familial
+  Bond): the blocking Laibon failed, make `minion`'s action fail
+  (`resolve_printed`), or pass; `may_lock_to_fight` (Familial Bond): `minion`
+  locks to enter combat with the acting `to` (`resolve_printed`), or pass;
+  `search_onto` (Nkishi, Umdava): an Aye or an Orun from library or ash heap
+  onto `minion` (`take_from`), or pass; `hand_card_away` (Aisata Swanou): a
+  hand card to the ash heap (`discard`) or the library's top (`take_from`);
+  `exchange_looked` (Jara Drory): burn 1 blood to exchange the card looked at
+  (`find_card`), or pass; `may_burn_for_block` (Lucas Halton): burn 1 blood
+  instead of locking for the block (`resolve_printed`), or pass and lock;
+  `may_bottom_looked` (Kurt Densch): burn `n` blood to move the card looked
+  at to the library's bottom (`resolve_printed`), or pass;
+  `may_return_discards` (Rachel Brandywine): the discard phase's discards
+  shuffled into the library (`resolve_printed`), or pass;
+  `burn_over_capacity` (Orun, Aye): a Laibon holding more of them than its
+  capacity, its controller picks which kind burns (`burn_in_play`).
+- A contested card another seat never showed is named by its id
+  (`Pay to keep contesting …`).
+
 ## 2.20.3
 
 - `opportunities: false` hides a reaction's unlock (Deep Ecology, Guard

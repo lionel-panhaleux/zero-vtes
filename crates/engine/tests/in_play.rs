@@ -870,7 +870,8 @@ fn smiling_jack_moves_1_pool_to_a_counter_each_own_unlock_phase_and_can_oust() {
 // card, that Methuselah burns 1 pool or burns 1 blood from a vampire they
 // control": each unit is chosen as it is paid, any mix (ANK 20181006); a
 // vampire with no blood is no source (LSJ 19971212), so with only empty
-// vampires the pool is the only way and the window elides.
+// vampires the pool is the only way and the window elides; an ally's life
+// is no vampire's blood (owner's playtest: a Gravebound Drone paid to 0).
 // Rulings: [LSJ 19971212]; [ANK 20181006].
 #[test]
 fn smiling_jack_each_other_methuselah_pays_pool_or_blood_per_counter() {
@@ -878,6 +879,7 @@ fn smiling_jack_each_other_methuselah_pays_pool_or_blood_per_counter() {
     let jack = revolt_like_in_play(&mut e, "Smiling Jack, The Anarch", 0);
     e.state.cards[jack as usize].counters = 2;
     e.state.minions[z.index()].blood = 0;
+    e.add_ally(SeatId(1), find_library("Gravebound Drone"));
     let req = to_window(&mut e, SeatId(1), WindowLabel::RiderTerms);
     assert_eq!(
         req.options,

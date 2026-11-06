@@ -311,6 +311,11 @@ impl<'a> Names<'a> {
         self.own.get(&c).cloned().unwrap_or_else(|| self.copy(c))
     }
 
+    /// As `own`, only for a copy the table or the events showed.
+    pub fn own_seen(&self, c: CopyId) -> Option<String> {
+        (self.own.contains_key(&c) || self.knows(c)).then(|| self.own(c))
+    }
+
     /// A card or minion by copy as an option names it.
     pub fn copy_bare(&self, c: CopyId) -> String {
         match self.minions.contains_key(&c) {

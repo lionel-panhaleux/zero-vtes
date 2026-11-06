@@ -7,9 +7,9 @@
 //! quoted in `incomplete`.
 
 use super::{
-    bleed, mode_of, target, Actor, CardFilter, Effect, Hook, Limit, ModeDef, Per, PlaysAs, Printed,
-    PrintedTo, RefEffect, ReferendumDef, Requirement as R, Rider, RiderScope, Stat, StrikeKind,
-    TargetKind, TargetSpec, Term, Terms, TitleClass, VampireDef, Window, VAMP,
+    bleed, mode_of, target, Actor, CardFilter, Effect, Hook, Lasting, Limit, ModeDef, Per, PlaysAs,
+    Printed, PrintedTo, RefEffect, ReferendumDef, Requirement as R, Rider, RiderScope, Stat,
+    StrikeKind, TargetKind, TargetSpec, Term, Terms, TitleClass, VampireDef, Window, VAMP,
 };
 use crate::crypt::{Sect, Title};
 use crate::decision::ActionKind;
@@ -687,9 +687,11 @@ pub static ELEN_KAMJIAN: VampireDef = VampireDef {
 
 /// "As a minion announces an action directed at Evan, flip a coin; if it is
 /// tails, the action fails." An action of his controller's own minions is
-/// undirected, so it is not flipped (LSJ 20030214-2).
+/// undirected, so it is not flipped (LSJ 20030214-2). Group 6: the group 3
+/// card has no text.
 pub static EVAN_KLEIN: VampireDef = VampireDef {
     name: "Evan Klein",
+    group: Some(6),
     riders: &[Rider {
         hook: Hook::ActionAnnouncedAtTarget,
         scope: RiderScope::Every,
@@ -1788,7 +1790,7 @@ pub static PARIJAT: VampireDef = VampireDef {
     ..VAMP
 };
 
-pub static VAMPIRES: [&VampireDef; 550] = [
+pub static VAMPIRES: [&VampireDef; 619] = [
     &JOSEF_VON_BAUREN,
     &GABRIELLE_DI_RIGHETTI,
     &HAROLD_TANNER,
@@ -2339,6 +2341,75 @@ pub static VAMPIRES: [&VampireDef; 550] = [
     &CALVIN_CLEAVER,
     &TOPAZ,
     &MARIE_PIERRE,
+    &AISATA_SWANOU,
+    &ALAN_SOVEREIGN,
+    &ALEJANDRO_AGUIRRE,
+    &ALFRED_BENEZRI,
+    &ALONZO_GUILLEN,
+    &AMELIA_THE_BLOOD_RED_TEARS,
+    &ANASTASZ_DI_ZAGREB,
+    &ANNABELLE_TRIABELL_G3,
+    &ANTONIO_VERADAS,
+    &ARRIETTE_SYLLA,
+    &BARTH,
+    &BATSHEVA_ADV,
+    &CASINO_REEDS,
+    &CESEWAYO_ADV,
+    &COCK_ROBIN,
+    &DAVID_MORGAN,
+    &EDITH_BLOUNT,
+    &EDWARD_NEALLY,
+    &ELLISON_HUMBOLDT,
+    &ENID_BLOUNT,
+    &ERICHTHO,
+    &ESAU,
+    &FLEURDUMAL,
+    &GEMINI,
+    &GENGIS_G3,
+    &GERARD_RAFIN,
+    &GRACIS_NOSTINUS,
+    &HORATIO_BALLARD,
+    &HROTHULF,
+    &ILYANA_RAVIDOVICH,
+    &OZZY_HYDE_WHITE,
+    &JARA_DRORY,
+    &JAROSLAV_PASCEK,
+    &JASON_THE_WORLDS_VOICE,
+    &JIBADE_EL_BAHRAWI_ADV,
+    &JOSHUA_TARNOPOLSKI,
+    &JULIO_MARTINEZ,
+    &KAMIRI_WA_ITHERERO_ADV,
+    &KATARINA_KORNFELD,
+    &KHALID,
+    &KURT_DENSCH,
+    &KYOKO_SHINSEGAWA,
+    &LILLE_HAAKE,
+    &LUANDA_MAGERE,
+    &LUCAS_HALTON,
+    &LUCIAN_THE_PERFECT,
+    &LUCINA,
+    &MADAME_GUIL,
+    &MAMADOU_KEITA,
+    &MARLENA,
+    &MAXWELL,
+    &MENELE,
+    &NANA_BURUKU,
+    &NGOZI_EKWENSU,
+    &OLIVER_THRACE,
+    &PIETER_VAN_DORN,
+    &RACHEL_BRANDYWINE,
+    &RUTH_MCGINLEY,
+    &SEBASTIEN_GOULET,
+    &SIR_RALPH_HAMILTON,
+    &SUZANNE_KADIM,
+    &TAMMY_WALENSKI,
+    &TOBIAS_SMITH,
+    &TYLER,
+    &UMDAVA,
+    &UNDELE,
+    &VICTORINE_LAFOURCADE,
+    &VIRSTANIA,
+    &WILLIAM_BILTMORE,
 ];
 
 /// "Anarch Baron of Miami: During your influence phase, Gilbert can burn 1
@@ -5429,11 +5500,12 @@ pub static APPOLONIUS_MERGED: VampireDef = VampireDef {
 /// Merged vampires (rulebook "Advanced"): the base card's text and the
 /// advanced card's in full, its [MERGED] clauses with them — the
 /// definition `cards::vampire_of` reads for a merged vampire.
-pub static MERGED: [&VampireDef; 4] = [
+pub static MERGED: [&VampireDef; 5] = [
     &APPOLONIUS_MERGED,
     &HELENA_MERGED,
     &XAVIAR_MERGED,
     &CLAUDIO_SEVERINO_MERGED,
+    &CESEWAYO_MERGED,
 ];
 
 // ---- Round 10: the 2025-2026 TWDA decks ------------------------------------
@@ -8502,8 +8574,8 @@ pub static BALDESAR_ROSSELLINI: VampireDef = VampireDef {
 /// the pool cost of equipping from any investment cards you control.
 /// [MERGED] During your master phase, if Alan is ready, you may move a
 /// counter from any investment card to your pool." No investment card is
-/// in the pool (Wall Street Night's precedent): the text is inert; his
-/// base card is not in the pool either.
+/// in the pool (Wall Street Night's precedent): the text is inert, as his
+/// base card's.
 pub static ALAN_SOVEREIGN_ADV: VampireDef = VampireDef {
     name: "Alan Sovereign",
     adv: true,
@@ -10280,6 +10352,1375 @@ pub static SEAN_RYCEK: VampireDef = VampireDef {
             ],
         ),
     ],
+    ..VAMP
+};
+
+// ---- Round 25: Ebony Kingdom, Blood Shadowed Court vampires ----
+/// "Laibon: During your master phase, you may draw a card and move a card
+/// from your hand to either your ash heap or the top of your library."
+/// Once in it (rules-qa 6.6); the move after the draw.
+pub static AISATA_SWANOU: VampireDef = VampireDef {
+    name: "Aisata Swanou",
+    abilities: &[mode_of(
+        &[Window::MasterPhase],
+        Actor::Host,
+        &[R::HostReady],
+        &[Effect::DrawThenHandCardAway],
+    )],
+    ..VAMP
+};
+
+/// "Camarilla: When you play an investment card, add an additional counter
+/// to it from the blood bank." No investment card is in the pool: inert,
+/// as his advanced card.
+pub static ALAN_SOVEREIGN: VampireDef = VampireDef {
+    name: "Alan Sovereign",
+    ..VAMP
+};
+
+/// "Sabbat: If Alejandro is ready, he may lock before range is determined
+/// in any combat that does not involve him to inflict 1 unpreventable
+/// damage on each combatant." Any Methuselah's combat.
+pub static ALEJANDRO_AGUIRRE: VampireDef = VampireDef {
+    name: "Alejandro Aguirre",
+    abilities: &[mode_of(
+        &[Window::CombatBeforeRange],
+        Actor::HostOutOfCombat,
+        &[R::HostReady, R::HostUnlocked],
+        &[Effect::LockHost, Effect::DamageEachCombatantNow(1)],
+    )],
+    ..VAMP
+};
+
+/// "Sabbat bishop: Alfred gets -1 strength in combat with an ally."
+pub static ALFRED_BENEZRI: VampireDef = VampireDef {
+    name: "Alfred Benezri",
+    printed: &[own(Stat::Strength, -1, &[R::OpponentAlly])],
+    ..VAMP
+};
+
+/// "Camarilla: During your unlock phase and your discard phase, if Alonzo
+/// is ready, you may burn the Edge to look at another Methuselah's hand."
+pub static ALONZO_GUILLEN: VampireDef = VampireDef {
+    name: "Alonzo Guillen",
+    abilities: &[
+        alonzo_look(&[Window::UnlockPhaseOwn]),
+        alonzo_look(&[Window::DiscardPhase]),
+    ],
+    ..VAMP
+};
+
+/// Alonzo Guillen: the Edge for another Methuselah's hand.
+const fn alonzo_look(windows: &'static [Window]) -> ModeDef {
+    ModeDef {
+        target: target(TargetKind::Seat, &[R::NotSelf]),
+        ..mode_of(
+            windows,
+            Actor::Host,
+            &[R::HostReady, R::HasEdge],
+            &[Effect::BurnEdge, Effect::PeekHand],
+        )
+    }
+}
+
+/// "Camarilla: After combat with Amelia, the opposing minion burns 1 blood
+/// or life."
+pub static AMELIA_THE_BLOOD_RED_TEARS: VampireDef = VampireDef {
+    name: "Amelia, The Blood Red Tears",
+    printed: &[own(Stat::AfterCombatOpponentBurns, 1, &[])],
+    ..VAMP
+};
+
+/// "Camarilla Tremere Justicar: If there are any other justicars ready,
+/// Anastasz gets 1 fewer vote from his justicar title. Anastasz may steal 1
+/// blood as a ranged strike."
+pub static ANASTASZ_DI_ZAGREB: VampireDef = VampireDef {
+    name: "Anastasz di Zagreb",
+    printed: &[own(
+        Stat::Votes,
+        -1,
+        &[R::OtherReadyTitled(&[TitleClass::Justicar])],
+    )],
+    abilities: &[mode_of(
+        &[Window::CombatStrikeDeclaration],
+        Actor::Host,
+        &[],
+        &[Effect::Strike(StrikeKind::StealBlood {
+            n: 1,
+            ranged: true,
+        })],
+    )],
+    ..VAMP
+};
+
+/// "Camarilla primogen: Annabelle can give Toreador vampires +1 bleed for
+/// the remainder of the turn as a +1 stealth action that costs 1 blood. If
+/// that action is successful, Annabelle unlocks." Every Methuselah's
+/// Toreador, one arriving later too (LSJ 20030811).
+pub static ANNABELLE_TRIABELL_G3: VampireDef = VampireDef {
+    name: "Annabelle Triabell",
+    group: Some(3),
+    abilities: &[printed_action(
+        None,
+        &[
+            Effect::DeclareAction(ActionKind::Ability),
+            Effect::AddStealth(1),
+            Effect::PayBlood(1),
+            Effect::ClanBleedThisTurn("Toreador", 1),
+            Effect::UnlockActor,
+        ],
+    )],
+    ..VAMP
+};
+
+/// "Sabbat bishop: Antonio gets +1 stealth when equipping with a weapon.
+/// During your discard phase, Antonio may burn 1 blood to unlock."
+pub static ANTONIO_VERADAS: VampireDef = VampireDef {
+    name: "Antonio Veradas",
+    printed: &[own(Stat::Stealth, 1, &[R::IsEquipWeaponFromHand])],
+    abilities: &[mode_of(
+        &[Window::DiscardPhase],
+        Actor::Host,
+        &[R::HostLocked, R::HostBloodAtLeast(1)],
+        &[Effect::HostBurnBlood(1), Effect::UnlockActor],
+    )],
+    ..VAMP
+};
+
+/// "Laibon: If Arriette has no Orun, she gets -1 bleed."
+pub static ARRIETTE_SYLLA: VampireDef = VampireDef {
+    name: "Arriette Sylla",
+    printed: &[own(
+        Stat::Bleed,
+        -1,
+        &[R::SourceHoldsNone(super::Holding::Named("Orun"))],
+    )],
+    ..VAMP
+};
+
+/// "Camarilla: Vampires of capacity 3 or less controlled by your prey or
+/// predator get -1 stealth when Barth is ready and unlocked."
+pub static BARTH: VampireDef = VampireDef {
+    name: "Barth",
+    printed: &[Printed {
+        stat: Stat::Stealth,
+        n: -1,
+        to: PrintedTo::Others,
+        per: Per::One,
+        requires: &[
+            R::ThisVampireReady,
+            R::HostUnlocked,
+            R::ActorOfSourcesPreyOrPredator,
+            R::ActorCapacityAtMost(3),
+        ],
+    }],
+    ..VAMP
+};
+
+/// "Advanced, Laibon: Batsheva gets +1 strength in combat with a
+/// Malkavian. [MERGED] +1 strength (in addition to her bonus against
+/// Malkavian and Tzimisce)." Her base card is not in the pool: no
+/// [MERGED] text applies.
+pub static BATSHEVA_ADV: VampireDef = VampireDef {
+    name: "Batsheva",
+    adv: true,
+    printed: &[own(Stat::Strength, 1, &[R::OpponentClan("Malkavian")])],
+    ..VAMP
+};
+
+/// "Camarilla Prince of Seattle: Casino may move up to 3 blood from himself
+/// to a younger Nosferatu in your uncontrolled region as an action. Casino
+/// inflicts +1 damage with ranged strikes (even at close range)." As much
+/// as he has, up to 3.
+pub static CASINO_REEDS: VampireDef = VampireDef {
+    name: "Casino Reeds",
+    printed: &[own(Stat::RangedStrikeDamage, 1, &[])],
+    abilities: &[printed_action(
+        target(
+            TargetKind::Uncontrolled,
+            &[R::Younger, R::TargetClan("Nosferatu")],
+        ),
+        &[
+            Effect::DeclareAction(ActionKind::Ability),
+            Effect::HostBloodToUncontrolledTarget(3),
+        ],
+    )],
+    ..VAMP
+};
+
+/// Cesewayo (advanced): "During an action directed at you, Cesewayo may
+/// lock an Aye on him to unlock." Once each such action (rules-digest D7).
+const CESEWAYO_AYE: ModeDef = ModeDef {
+    limit: Some(Limit::PerAction),
+    ..mode_of(
+        &[Window::ReactionDuringAction, Window::ActionStealthIntercept],
+        Actor::Host,
+        &[
+            R::DirectedAtYou,
+            R::HostLocked,
+            R::ActorHoldsUnlocked(super::Holding::Named("Aye"), 1),
+        ],
+        &[
+            Effect::LockActorHeld(super::Holding::Named("Aye"), 1),
+            Effect::UnlockActor,
+        ],
+    )
+};
+
+/// "Advanced, Laibon magaji: During an action directed at you, Cesewayo may
+/// lock an Aye on him to unlock. [MERGED] Cesewayo gets two additional
+/// votes." Merged: `CESEWAYO_MERGED`.
+pub static CESEWAYO_ADV: VampireDef = VampireDef {
+    name: "Cesewayo",
+    adv: true,
+    abilities: &[CESEWAYO_AYE],
+    ..VAMP
+};
+
+/// Cesewayo merged: his base card's intercept, the Aye, two more votes.
+pub static CESEWAYO_MERGED: VampireDef = VampireDef {
+    name: "Cesewayo",
+    adv: true,
+    printed: &[own(Stat::Votes, 2, &[])],
+    abilities: &[CESEWAYO.abilities[0], CESEWAYO_AYE],
+    ..VAMP
+};
+
+/// "Camarilla Nosferatu Justicar: Once per turn, when Cock Robin
+/// successfully performs an action that requires Animalism [ani], he
+/// unlocks at the end of the action. +1 strength."
+pub static COCK_ROBIN: VampireDef = VampireDef {
+    name: "Cock Robin",
+    printed: &[
+        own(Stat::Strength, 1, &[]),
+        own(Stat::UnlockAfterAniAction, 1, &[]),
+    ],
+    ..VAMP
+};
+
+/// "Camarilla: David gets +1 intercept when attempting to block a vampire of
+/// capacity 2 or less."
+pub static DAVID_MORGAN: VampireDef = VampireDef {
+    name: "David Morgan, The Scourge",
+    printed: &[own(
+        Stat::Intercept,
+        1,
+        &[R::OpponentVampire, R::OpponentCapacityAtMost(2)],
+    )],
+    ..VAMP
+};
+
+/// "Camarilla: If Enid Blount is in your ready region, Edith gets an
+/// optional maneuver and an optional press each combat."
+pub static EDITH_BLOUNT: VampireDef = VampireDef {
+    name: "Edith Blount",
+    abilities: &[
+        ability(
+            &[Window::CombatDetermineRange],
+            Actor::Host,
+            &[R::OwnReadyNamed("Enid Blount")],
+            Limit::PerCombat,
+            &[Effect::Maneuver],
+        ),
+        ability(
+            &[Window::CombatPress],
+            Actor::Host,
+            &[R::OwnReadyNamed("Enid Blount")],
+            Limit::PerCombat,
+            &[Effect::OptionalPress],
+        ),
+    ],
+    ..VAMP
+};
+
+/// "Sabbat: If Edward is ready, you can use a master phase action to
+/// increase your hand size by 1 card for the remainder of the turn. Edward
+/// can look at your prey's hand as a +1 stealth Ⓓ action that costs 1
+/// blood."
+pub static EDWARD_NEALLY: VampireDef = VampireDef {
+    name: "Edward Neally",
+    abilities: &[
+        mode_of(
+            &[Window::MasterPhase],
+            Actor::Host,
+            &[R::HostReady, R::MasterPhaseActionLeft],
+            &[
+                Effect::SpendMasterPhaseAction,
+                Effect::HandSizeBonusUntilEndOfTurn(1),
+            ],
+        ),
+        printed_action(
+            target(TargetKind::Seat, &[R::TargetPrey]),
+            &[
+                Effect::DeclareAction(ActionKind::Ability),
+                Effect::AddStealth(1),
+                Effect::PayBlood(1),
+                Effect::PeekHand,
+            ],
+        ),
+    ],
+    ..VAMP
+};
+
+/// Ellison Humboldt: a ready prince's votes and ballots cast as his
+/// controller wishes.
+const fn ellison_force(favor: bool) -> ModeDef {
+    ModeDef {
+        limit: Some(Limit::PerReferendumCard),
+        target: target(
+            TargetKind::Minion,
+            &[R::TargetTitleIn(&[TitleClass::Prince]), R::ActorReady],
+        ),
+        ..mode_of(
+            &[Window::Referendum],
+            Actor::Host,
+            &[R::AnyPollingStep, R::HostBloodAtLeast(1)],
+            match favor {
+                true => &[Effect::HostBurnBlood(1), Effect::CastTargetVotes(true)],
+                false => &[Effect::HostBurnBlood(1), Effect::CastTargetVotes(false)],
+            },
+        )
+    }
+}
+
+/// "Camarilla primogen: Princes cannot block Ellison. During a referendum,
+/// Ellison may burn a blood to force a ready prince to cast votes and
+/// ballots as Ellison's controller wishes. This can change the prince's
+/// votes and ballots."
+pub static ELLISON_HUMBOLDT: VampireDef = VampireDef {
+    name: "Ellison Humboldt",
+    printed: &[own(
+        Stat::CannotBeBlockedBy,
+        1,
+        &[R::OpponentTitleIn(&[TitleClass::Prince])],
+    )],
+    abilities: &[ellison_force(true), ellison_force(false)],
+    ..VAMP
+};
+
+/// "Camarilla: If Edith Blount is in your ready region, she may burn a
+/// blood to give Enid +1 stealth for the current action."
+pub static ENID_BLOUNT: VampireDef = VampireDef {
+    name: "Enid Blount",
+    abilities: &[mode_of(
+        &[Window::ActionDuring],
+        Actor::Host,
+        &[
+            R::ActorActing,
+            R::StealthNeeded,
+            R::OwnReadyNamed("Edith Blount"),
+        ],
+        &[Effect::NamedPaysForStealth("Edith Blount")],
+    )],
+    ..VAMP
+};
+
+/// "Camarilla: Actions to recruit or employ mages cost Erichtho 1 less pool
+/// or blood." Actions only: not a mage put in play another way, Piper's
+/// (LSJ 20090115-1).
+pub static ERICHTHO: VampireDef = VampireDef {
+    name: "Erichtho",
+    printed: &[own(
+        Stat::ActionRecruitCostOff,
+        1,
+        &[R::PlayedCard(CardFilter::HasLabel(Label::Mage))],
+    )],
+    ..VAMP
+};
+
+/// "Camarilla: When Esau declares a bleed action, he may burn 1 blood to
+/// flip a coin. If it's heads, Esau gets an additional +1 bleed for that
+/// action. +1 bleed."
+pub static ESAU: VampireDef = VampireDef {
+    name: "Esau",
+    printed: &[own(Stat::Bleed, 1, &[])],
+    abilities: &[ability(
+        &[Window::ActionAsAnnounced],
+        Actor::Host,
+        &[R::ActorActing, R::IsBleed, R::HostBloodAtLeast(1)],
+        Limit::PerAction,
+        &[Effect::HostBurnBlood(1), Effect::CoinFlipBleed(1)],
+    )],
+    ..VAMP
+};
+
+/// "Camarilla Prince of Miami: If Fleurdumal is blocked, she may burn 1
+/// blood before combat to force the opposing minion's controller to play
+/// with an open hand during the resulting combat."
+pub static FLEURDUMAL: VampireDef = VampireDef {
+    name: "Fleurdumal",
+    abilities: &[ability(
+        &[Window::ActionBlocked],
+        Actor::Host,
+        &[R::ActorActing, R::HostBloodAtLeast(1)],
+        Limit::PerAction,
+        &[Effect::HostBurnBlood(1), Effect::BlockerControllerOpenHand],
+    )],
+    ..VAMP
+};
+
+/// "Camarilla: During your unlock phase, if Gemini is ready, you may move a
+/// blood from a minion in your prey's uncontrolled region to his or her
+/// pool." Its owner's pool, the prey's.
+pub static GEMINI: VampireDef = VampireDef {
+    name: "Gemini",
+    abilities: &[mode_of(
+        &[Window::UnlockPhaseOwn],
+        Actor::Host,
+        &[R::HostReady, R::PreyUncontrolledHasBlood],
+        &[Effect::PreyUncontrolledBloodToPool(1)],
+    )],
+    ..VAMP
+};
+
+/// "Camarilla: Any Brujah controlled by another Methuselah can take a Ⓓ
+/// action to unlock Gengis and take control of him until the end of the
+/// turn. Gengis cannot block that action." The action requires a Brujah
+/// (LSJ 20080604).
+pub static GENGIS_G3: VampireDef = VampireDef {
+    name: "Gengis",
+    abilities: &[ModeDef {
+        target: target(TargetKind::Minion, &[R::TargetIsHost, R::NotControlled]),
+        ..mode_of(
+            &[Window::ActionDeclare],
+            Actor::OtherMethuselahsMinion,
+            &[R::ActorVampire, R::ActorClan("Brujah")],
+            &[
+                Effect::DeclareAction(ActionKind::Ability),
+                Effect::TargetCannotBlock,
+                Effect::UnlockAndControlTargetUntilEndOfTurn,
+            ],
+        )
+    }],
+    ..VAMP
+};
+
+/// "Camarilla: During your unlock phase, if Gerard is ready, you may look
+/// at 1 card at random from your prey's hand."
+pub static GERARD_RAFIN: VampireDef = VampireDef {
+    name: "Gerard Rafin",
+    abilities: &[mode_of(
+        &[Window::UnlockPhaseOwn],
+        Actor::Host,
+        &[R::HostReady],
+        &[Effect::LookAtRandomPreyHandCard],
+    )],
+    ..VAMP
+};
+
+/// "Camarilla Primogen: If a younger vampire attempts to block Gracis and
+/// fails, lock that vampire at the end of the action."
+pub static GRACIS_NOSTINUS: VampireDef = VampireDef {
+    name: "Gracis Nostinus",
+    printed: &[own(Stat::LockFailedYoungerBlockers, 1, &[])],
+    ..VAMP
+};
+
+static HORATIO_BALLARD_REFERENDUM: ReferendumDef = ReferendumDef {
+    terms: &[],
+    effect: RefEffect::CallerTitle(Title::Prince("Chicago")),
+    grants: &[],
+    non_anarch_titles_minus: false,
+    titled_minus: false,
+    edge_bonus: 0,
+    only_sect: None,
+};
+
+/// "Camarilla: If Horatio doesn't have a title, he can call a referendum to
+/// become the Prince of Chicago as a +1 stealth political action." Not
+/// once no longer Camarilla (LSJ 20030202, on Maxwell's same text).
+pub static HORATIO_BALLARD: VampireDef = VampireDef {
+    name: "Horatio Ballard",
+    abilities: &[mode_of(
+        &[Window::ActionDeclarePolitical],
+        Actor::Host,
+        &[R::ActorUntitled, R::ActorSectIn(&[Sect::Camarilla])],
+        &[
+            Effect::DeclareAction(ActionKind::Political),
+            Effect::AddStealth(1),
+            Effect::CallReferendum(&HORATIO_BALLARD_REFERENDUM),
+        ],
+    )],
+    ..VAMP
+};
+
+/// "Camarilla: If you control the Edge, Hrothulf can burn it to enter
+/// combat with a ready minion controlled by another Methuselah as a Ⓓ
+/// action." The Edge burned as it resolves.
+pub static HROTHULF: VampireDef = VampireDef {
+    name: "Hrothulf",
+    abilities: &[ModeDef {
+        requires: &[R::HasEdge],
+        ..printed_action(
+            target(TargetKind::Minion, &[R::NotControlled, R::ActorReady]),
+            &[
+                Effect::DeclareAction(ActionKind::Ability),
+                Effect::BurnEdge,
+                Effect::EnterCombatWithTarget,
+            ],
+        )
+    }],
+    ..VAMP
+};
+
+/// "Camarilla: You get 2 additional votes in any referendum to call a blood
+/// hunt on Ilyana. Once each action, Ilyana may burn 1 blood to get +1
+/// intercept."
+pub static ILYANA_RAVIDOVICH: VampireDef = VampireDef {
+    name: "Ilyana Ravidovich",
+    printed: &[own(Stat::OwnerVotesInOwnBloodHunt, 2, &[])],
+    abilities: &[ability(
+        &[Window::ActionStealthIntercept],
+        Actor::Host,
+        &[
+            R::HostAttempting,
+            R::HostBloodAtLeast(1),
+            R::InterceptNeeded,
+        ],
+        Limit::PerAction,
+        &[Effect::HostBurnBlood(1), Effect::AddIntercept(1)],
+    )],
+    ..VAMP
+};
+
+/// "Camarilla primogen: During your unlock phase, roll a 6-sided die. On a 1
+/// or 2, Ozzy gets +1 stealth, on a 5 or 6, Ozzy gets -1 bleed and +1
+/// strength. This effect lasts until your next unlock phase."
+pub static OZZY_HYDE_WHITE: VampireDef = VampireDef {
+    name: "J. Oswald \"Ozzy\" Hyde-White",
+    riders: &[Rider {
+        hook: Hook::UnlockPhase,
+        scope: RiderScope::Controller,
+        requires: &[],
+        effects: &[Effect::UnlockDieRoll(&[
+            (1, 2, &[Lasting::Stealth(1)]),
+            (5, 6, &[Lasting::Bleed(-1), Lasting::Strength(1)]),
+        ])],
+    }],
+    ..VAMP
+};
+
+/// "Camarilla primogen: During your unlock phase, you may look at 1 card at
+/// random from your predator's hand, and Jara may burn 1 blood to exchange
+/// that card with a card from your predator's ash heap."
+pub static JARA_DRORY: VampireDef = VampireDef {
+    name: "Jara Drory",
+    abilities: &[mode_of(
+        &[Window::UnlockPhaseOwn],
+        Actor::Host,
+        &[R::HostReady],
+        &[Effect::LookAtRandomPredatorHandMayExchange],
+    )],
+    ..VAMP
+};
+
+/// "Camarilla Brujah Justicar: Jaroslav inflicts +2 damage with melee
+/// weapons. He can inflict 1 damage on each of your prey's Sabbat vampires
+/// as a Ⓓ action. +1 intercept."
+pub static JAROSLAV_PASCEK: VampireDef = VampireDef {
+    name: "Jaroslav Pascek",
+    printed: &[own(Stat::MeleeDamage, 2, &[]), own(Stat::Intercept, 1, &[])],
+    abilities: &[printed_action(
+        target(TargetKind::Seat, &[R::TargetPrey]),
+        &[
+            Effect::DeclareAction(ActionKind::Ability),
+            Effect::DamageSeatSectVampires {
+                sect: Sect::Sabbat,
+                n: 1,
+            },
+        ],
+    )],
+    ..VAMP
+};
+
+/// "Camarilla primogen: If Jason is blocked, the blocking vampire burns 1
+/// blood after the resulting combat. Once per action, Jason can burn 1
+/// blood to get +1 bleed."
+pub static JASON_THE_WORLDS_VOICE: VampireDef = VampireDef {
+    name: "Jason, The World's Voice",
+    printed: &[own(Stat::BlockerBurnsAfterBlockedCombat, 1, &[])],
+    abilities: &[ability(
+        &[Window::ActionDuring],
+        Actor::Host,
+        &[R::ActorActing, R::IsBleed, R::HostBloodAtLeast(1)],
+        Limit::PerAction,
+        &[Effect::HostBurnBlood(1), bleed(1, false)],
+    )],
+    ..VAMP
+};
+
+/// Jibade el-Bahrawi: X Aye for X damage prevented.
+const fn jibade(kind: TargetKind, actor: Actor) -> ModeDef {
+    ModeDef {
+        windows: &[Window::CombatDamagePrevention],
+        actor,
+        requires: &[R::HostReady, R::HostBloodAtLeast(1)],
+        target: Some(TargetSpec {
+            kind,
+            filter: match kind {
+                TargetKind::Card => &[
+                    R::TargetCard(CardFilter::Type(CardType::Retainer)),
+                    R::TargetInCombatWithDamage,
+                ],
+                _ => &[R::TargetAlly, R::TargetInCombatWithDamage],
+            },
+        }),
+        terms: Some(Terms::XUnlockedHeld(super::Holding::Named("Aye"))),
+        waives_needed: false,
+        limit: None,
+        effects: &[
+            Effect::HostBurnBlood(1),
+            Effect::LockHostHeldX(super::Holding::Named("Aye")),
+            Effect::PreventOnTargetXPlus(0),
+        ],
+    }
+}
+
+/// "Advanced, Laibon: If Jibade is ready, he may burn a blood and lock X Aye
+/// on him to prevent X damage to any ally or retainer in combat." His base
+/// card is not in the pool.
+pub static JIBADE_EL_BAHRAWI_ADV: VampireDef = VampireDef {
+    name: "Jibade el-Bahrawi",
+    adv: true,
+    abilities: &[
+        jibade(TargetKind::Minion, Actor::Host),
+        jibade(TargetKind::Minion, Actor::HostOutOfCombat),
+        jibade(TargetKind::Card, Actor::Host),
+        jibade(TargetKind::Card, Actor::HostOutOfCombat),
+    ],
+    ..VAMP
+};
+
+/// "Camarilla: Allies and retainers cost Joshua 1 less pool or blood to
+/// recruit or employ. He gets +2 strength in combat with a Sabbat vampire."
+pub static JOSHUA_TARNOPOLSKI: VampireDef = VampireDef {
+    name: "Joshua Tarnopolski",
+    printed: &[
+        own(
+            Stat::CostOff,
+            1,
+            &[R::PlayedCard(CardFilter::AllyOrRetainer)],
+        ),
+        own(
+            Stat::Strength,
+            2,
+            &[R::OpponentVampire, R::OpponentSectIn(&[Sect::Sabbat])],
+        ),
+    ],
+    ..VAMP
+};
+
+/// "Sabbat bishop: +1 strength. Julio may burn a blood to get +1 intercept
+/// when attempting to block a Camarilla vampire." Each time intercept is
+/// needed, several times an action (LSJ 20040617).
+pub static JULIO_MARTINEZ: VampireDef = VampireDef {
+    name: "Julio Martinez",
+    printed: &[own(Stat::Strength, 1, &[])],
+    abilities: &[mode_of(
+        &[Window::ActionStealthIntercept],
+        Actor::Host,
+        &[
+            R::HostAttempting,
+            R::HostBloodAtLeast(1),
+            R::InterceptNeeded,
+            R::ActingVampire,
+            R::ActingSectIn(&[Sect::Camarilla]),
+        ],
+        &[Effect::HostBurnBlood(1), Effect::AddIntercept(1)],
+    )],
+    ..VAMP
+};
+
+/// "Advanced, Laibon: Kamiri can inflict 2 unpreventable damage on a minion
+/// as a Ⓓ action. [MERGED] Once each action, Kamiri may burn 1 blood to
+/// give an acting Laibon +1 stealth." His base card is not in the pool:
+/// no [MERGED] text applies.
+pub static KAMIRI_WA_ITHERERO_ADV: VampireDef = VampireDef {
+    name: "Kamiri wa Itherero",
+    adv: true,
+    abilities: &[printed_action(
+        target(TargetKind::Minion, &[R::OtherThanActor]),
+        &[
+            Effect::DeclareAction(ActionKind::Ability),
+            Effect::DamageTarget(2),
+        ],
+    )],
+    ..VAMP
+};
+
+/// "Camarilla primogen: If another ready vampire you control is a prince,
+/// Katarina gets +1 stealth."
+pub static KATARINA_KORNFELD: VampireDef = VampireDef {
+    name: "Katarina Kornfeld",
+    printed: &[own(
+        Stat::Stealth,
+        1,
+        &[R::ControlsReadyTitledOther(&[TitleClass::Prince])],
+    )],
+    ..VAMP
+};
+
+/// "Camarilla primogen: During your master phase, if Khalid is ready, you
+/// may use a master phase action and discard a card that requires
+/// Obfuscate [obf] from your hand to gain a pool."
+pub static KHALID: VampireDef = VampireDef {
+    name: "Khalid",
+    abilities: &[ModeDef {
+        terms: Some(Terms::Discard {
+            n: 1,
+            of: CardFilter::Discipline("obf"),
+        }),
+        ..mode_of(
+            &[Window::MasterPhase],
+            Actor::Host,
+            &[
+                R::HostReady,
+                R::MasterPhaseActionLeft,
+                R::HandHas(CardFilter::Discipline("obf"), 1),
+            ],
+            &[Effect::SpendMasterPhaseAction, Effect::GainPool(1)],
+        )
+    }],
+    ..VAMP
+};
+
+/// "Camarilla: During your unlock phase, you may look at the top card of
+/// your library, and Kurt may burn 1 blood to move that card to the bottom
+/// of your library. +1 intercept." Once each unlock phase; the move chosen
+/// after the look (`Interrupt::MayBottomLooked`), not offered without the
+/// blood; from torpor too (no "if ready").
+pub static KURT_DENSCH: VampireDef = VampireDef {
+    name: "Kurt Densch",
+    printed: &[own(Stat::Intercept, 1, &[])],
+    abilities: &[mode_of(
+        &[Window::UnlockPhaseOwn],
+        Actor::Host,
+        &[],
+        &[
+            Effect::LookAtLibraryTop(1),
+            Effect::MayBottomLookedForBlood(1),
+        ],
+    )],
+    ..VAMP
+};
+
+/// "Camarilla: Kyoko cannot hunt as normal. She may hunt by stealing a
+/// blood from another ready vampire as a +1 stealth Ⓓ action." A hunt
+/// (rules-qa 72.1), once each turn (RBK), its hunt bonus more blood from
+/// the target (RTR 20030519), unsuccessful with none taken (LSJ
+/// 20050720-2); a card's hunt (Abactor) stays hers with its own text (LSJ
+/// 20090606), and an empty Kyoko must take this one.
+pub static KYOKO_SHINSEGAWA: VampireDef = VampireDef {
+    name: "Kyoko Shinsegawa",
+    printed: &[own(Stat::CannotHunt, 1, &[])],
+    abilities: &[ModeDef {
+        limit: Some(Limit::PerTurn),
+        ..printed_action(
+            target(TargetKind::Minion, &[R::TargetVampire, R::OtherThanActor]),
+            &[
+                Effect::DeclareAction(ActionKind::Ability),
+                Effect::AddStealth(1),
+                Effect::HuntAction,
+                Effect::StealBloodFromTarget(1),
+            ],
+        )
+    }],
+    ..VAMP
+};
+
+/// "Camarilla primogen: Lille gets +1 bleed when bleeding a Methuselah who
+/// controls a ready Sabbat vampire. During your master phase, you may use
+/// a master phase action to discard a card from your hand." The bled
+/// Methuselah's, read live; each discard spends a master phase action, the
+/// card replaced, from torpor too.
+pub static LILLE_HAAKE: VampireDef = VampireDef {
+    name: "Lille Haake",
+    printed: &[own(
+        Stat::Bleed,
+        1,
+        &[R::TargetSeatControlsReadySect {
+            sect: Sect::Sabbat,
+            not: false,
+        }],
+    )],
+    abilities: &[ModeDef {
+        terms: Some(Terms::Discard {
+            n: 1,
+            of: CardFilter::Any,
+        }),
+        ..mode_of(
+            &[Window::MasterPhase],
+            Actor::Host,
+            &[R::MasterPhaseActionLeft, R::HandHas(CardFilter::Any, 1)],
+            &[Effect::SpendMasterPhaseAction],
+        )
+    }],
+    ..VAMP
+};
+
+/// "Laibon: Luanda gets +1 strength for each Orun he has." Cards named
+/// Orun on him, read live.
+pub static LUANDA_MAGERE: VampireDef = VampireDef {
+    name: "Luanda Magere",
+    printed: &[Printed {
+        stat: Stat::Strength,
+        n: 1,
+        to: PrintedTo::Itself,
+        per: Per::Held(crate::cards::Holding::Named("Orun")),
+        requires: &[],
+    }],
+    ..VAMP
+};
+
+/// "Camarilla Prince of Houston: Once each turn, when Lucas blocks an
+/// action, he may burn a blood instead of locking for the successful block
+/// (before combat occurs)." Once in each Methuselah's turn (ANK
+/// 20180719-4), asked as the block succeeds (`Interrupt::MayBurnForBlock`);
+/// a locked blocker has no lock to replace.
+pub static LUCAS_HALTON: VampireDef = VampireDef {
+    name: "Lucas Halton",
+    printed: &[own(Stat::MayBurnInsteadOfBlockLock, 1, &[])],
+    ..VAMP
+};
+
+/// "Laibon: Strikes against Lucian cost an additional blood or life. A
+/// minion opposing Lucian may choose not to strike. +3 bleed." Paid as the
+/// strike is chosen (LSJ 20090703), a strike card's a cost reductions
+/// apply to (LSJ 20070829-1), a granted strike's too (LSJ 20090529); not a
+/// strike at a card on him (LSJ 20090528-2); a strike committed earlier
+/// is still made (LSJ 20090528-2-2). Read live
+/// (`Engine::printed_strike_toll`).
+pub static LUCIAN_THE_PERFECT: VampireDef = VampireDef {
+    name: "Lucian, the Perfect",
+    printed: &[
+        Printed {
+            stat: Stat::StrikesAgainstToll,
+            n: 1,
+            to: PrintedTo::Opponent,
+            per: Per::One,
+            requires: &[],
+        },
+        own(Stat::Bleed, 3, &[]),
+    ],
+    ..VAMP
+};
+
+/// "Camarilla primogen: Lucina gets +1 strength in combat with a vampire
+/// whose capacity is 4 or less. During your unlock phase, if you control
+/// the Edge, Lucina gains 1 blood." Capacity read live; the Edge as the
+/// gain resolves, ordered among the phase's effects (rules-qa 6.1), from
+/// torpor too.
+pub static LUCINA: VampireDef = VampireDef {
+    name: "Lucina",
+    printed: &[own(
+        Stat::Strength,
+        1,
+        &[R::OpponentVampire, R::OpponentCapacityAtMost(4)],
+    )],
+    riders: &[Rider {
+        hook: Hook::UnlockPhase,
+        scope: RiderScope::Controller,
+        requires: &[R::HostControllerHasEdge],
+        effects: &[Effect::AddHostBlood(1)],
+    }],
+    ..VAMP
+};
+
+/// "Camarilla Toreador Justicar: +1 bleed."
+pub static MADAME_GUIL: VampireDef = VampireDef {
+    name: "Madame Guil",
+    printed: &[own(Stat::Bleed, 1, &[])],
+    ..VAMP
+};
+
+static MAMADOU_KEITA_REFERENDUM: ReferendumDef = ReferendumDef {
+    terms: &[Term::ChooseMinions {
+        filter: &[R::ActorReady],
+        min: 1,
+        max: 1,
+    }],
+    effect: RefEffect::DamageChosen(1),
+    grants: &[],
+    non_anarch_titles_minus: false,
+    titled_minus: false,
+    edge_bonus: 0,
+    only_sect: None,
+};
+
+/// "Laibon magaji: Mamadou may call a referendum to do 1 unpreventable
+/// damage to a ready minion as a +1 stealth political action." Any ready
+/// minion, his own and allies too, named in the terms (rules-qa 3.5); no
+/// longer ready as it passes, no damage.
+pub static MAMADOU_KEITA: VampireDef = VampireDef {
+    name: "Mamadou Keita",
+    abilities: &[mode_of(
+        &[Window::ActionDeclarePolitical],
+        Actor::Host,
+        &[],
+        &[
+            Effect::DeclareAction(ActionKind::Political),
+            Effect::AddStealth(1),
+            Effect::CallReferendum(&MAMADOU_KEITA_REFERENDUM),
+        ],
+    )],
+    ..VAMP
+};
+
+/// "Camarilla: Marlena does not lock when performing a recruit ally
+/// action. She can perform only 1 recruit ally action each turn." Counted
+/// as the recruit is announced.
+pub static MARLENA: VampireDef = VampireDef {
+    name: "Marlena",
+    printed: &[own(Stat::RecruitsUnlockedOncePerTurn, 1, &[])],
+    ..VAMP
+};
+
+/// "Camarilla: Once each turn, Maxwell can burn a blood to get +1 stealth on
+/// an action that requires Presence [pre]. If he doesn't have a title, he
+/// can call a referendum to become the Prince of Chicago as a +1 stealth
+/// political action." The stealth when needed, once in each Methuselah's
+/// turn (ANK 20180719-4); the referendum not once no longer Camarilla (LSJ
+/// 20030202).
+pub static MAXWELL: VampireDef = VampireDef {
+    name: "Maxwell",
+    abilities: &[
+        ability(
+            &[Window::ActionDuring],
+            Actor::Host,
+            &[
+                R::HostBloodAtLeast(1),
+                R::ActorActing,
+                R::StealthNeeded,
+                R::ActionRequiresClanOrDiscipline("", "pre"),
+            ],
+            Limit::PerTurn,
+            &[Effect::HostBurnBlood(1), Effect::AddStealth(1)],
+        ),
+        mode_of(
+            &[Window::ActionDeclarePolitical],
+            Actor::Host,
+            &[R::ActorUntitled, R::ActorSectIn(&[Sect::Camarilla])],
+            &[
+                Effect::DeclareAction(ActionKind::Political),
+                Effect::AddStealth(1),
+                Effect::CallReferendum(&HORATIO_BALLARD_REFERENDUM),
+            ],
+        ),
+    ],
+    ..VAMP
+};
+
+/// "Camarilla: During your unlock phase, you may move 2 blood from Menele
+/// to a younger vampire in your uncontrolled region. +1 bleed." (The base
+/// card.) Not offered without the 2 blood, as Nikolaus Vermeulen's; from
+/// torpor too.
+pub static MENELE: VampireDef = VampireDef {
+    name: "Menele",
+    printed: &[own(Stat::Bleed, 1, &[])],
+    abilities: &[ModeDef {
+        target: target(TargetKind::Uncontrolled, &[R::Younger]),
+        ..mode_of(
+            &[Window::UnlockPhaseOwn],
+            Actor::Host,
+            &[R::HostBloodAtLeast(2)],
+            &[Effect::HostBloodToUncontrolledTarget(2)],
+        )
+    }],
+    ..VAMP
+};
+
+/// "Laibon: While Nana is ready, you get two master phase actions (instead
+/// of one) each master phase and +1 hand size." Anson's two, read as the
+/// phase begins (rules-qa 3.3); the hand size live.
+pub static NANA_BURUKU: VampireDef = VampireDef {
+    name: "Nana Buruku",
+    printed: &[
+        own(Stat::TwoMasterPhaseActions, 1, &[R::ThisVampireReady]),
+        own(Stat::HandSize, 1, &[R::ThisVampireReady]),
+    ],
+    ..VAMP
+};
+
+/// "Laibon magaji: Once each combat, Ngozi may lock an Orun on her to make
+/// damage from her hand strikes aggravated for the current round." Before
+/// the strikes resolve, after both are chosen too (RTR 19960112).
+pub static NGOZI_EKWENSU: VampireDef = VampireDef {
+    name: "Ngozi Ekwensu",
+    abilities: &[ability(
+        &[Window::CombatUntimed],
+        Actor::Host,
+        &[R::ActorHoldsUnlocked(
+            crate::cards::Holding::Named("Orun"),
+            1,
+        )],
+        Limit::PerCombat,
+        &[
+            Effect::LockActorHeld(crate::cards::Holding::Named("Orun"), 1),
+            Effect::AggravatedHands,
+        ],
+    )],
+    ..VAMP
+};
+
+/// "Camarilla: Vampires opposing Oliver in combat may not end combat as a
+/// strike. Once each action, he may burn a card that requires Blood
+/// Sorcery [tha] from your hand to get +1 bleed." Allies may; the card
+/// burned from hand goes to the ash heap, replaced (rules-qa 8.3); during
+/// his bleed, before resolution (ANK 20231124, LSJ 19970718).
+pub static OLIVER_THRACE: VampireDef = VampireDef {
+    name: "Oliver Thrace",
+    printed: &[Printed {
+        stat: Stat::NoCombatEnds,
+        n: 1,
+        to: PrintedTo::Opponent,
+        per: Per::One,
+        requires: &[R::ActorVampire],
+    }],
+    abilities: &[ModeDef {
+        terms: Some(Terms::Discard {
+            n: 1,
+            of: CardFilter::Discipline("tha"),
+        }),
+        limit: Some(Limit::PerAction),
+        ..mode_of(
+            &[Window::ActionDuring],
+            Actor::Host,
+            &[
+                R::ActorActing,
+                R::IsBleed,
+                R::HandHas(CardFilter::Discipline("tha"), 1),
+            ],
+            &[bleed(1, false)],
+        )
+    }],
+    ..VAMP
+};
+
+/// "Camarilla: Pieter may burn a blood from a ready Tremere as a Ⓓ
+/// action." Any ready Tremere, himself too (undirected then).
+pub static PIETER_VAN_DORN: VampireDef = VampireDef {
+    name: "Pieter van Dorn",
+    abilities: &[printed_action(
+        target(TargetKind::Minion, &[R::TargetClan("Tremere")]),
+        &[
+            Effect::DeclareAction(ActionKind::Ability),
+            Effect::TargetBurnsBlood(1),
+        ],
+    )],
+    ..VAMP
+};
+
+/// "Camarilla Prince of Cleveland: If Rachel is ready, at the end of your
+/// discard phase, you may place cards you discard during that discard
+/// phase in your library (shuffle afterward). +1 bleed." All of them or
+/// none, those still in the ash heap, after the discards and redraws (RTR
+/// 20030519; `Interrupt::MayReturnDiscards`).
+pub static RACHEL_BRANDYWINE: VampireDef = VampireDef {
+    name: "Rachel Brandywine",
+    printed: &[
+        own(Stat::DiscardsToLibrary, 1, &[]),
+        own(Stat::Bleed, 1, &[]),
+    ],
+    ..VAMP
+};
+
+/// "Camarilla primogen: Ruth gets first strike when striking with a gun."
+pub static RUTH_MCGINLEY: VampireDef = VampireDef {
+    name: "Ruth McGinley",
+    printed: &[own(Stat::GunFirstStrike, 1, &[])],
+    ..VAMP
+};
+
+/// "Sabbat: Allies and retainers cost Sébastien 1 less blood or pool. Once
+/// each action, he can burn 1 blood to get +1 bleed." Recruited or employed
+/// any way he plays them (ANK 20210913, LSJ 20090116); the bleed during his
+/// bleed, before resolution (ANK 20231124, LSJ 19970718).
+pub static SEBASTIEN_GOULET: VampireDef = VampireDef {
+    name: "Sébastien Goulet",
+    printed: &[own(
+        Stat::CostOff,
+        1,
+        &[R::PlayedCard(CardFilter::AllyOrRetainer)],
+    )],
+    abilities: &[ModeDef {
+        limit: Some(Limit::PerAction),
+        ..mode_of(
+            &[Window::ActionDuring],
+            Actor::Host,
+            &[R::ActorActing, R::IsBleed, R::HostBloodAtLeast(1)],
+            &[Effect::HostBurnBlood(1), bleed(1, false)],
+        )
+    }],
+    ..VAMP
+};
+
+/// "Camarilla: Ralph gets +1 strength in combat with a younger Camarilla
+/// vampire. Followers of Set get +1 bleed when bleeding Ralph's
+/// controller." The Ministry, any Methuselah's, read against the bleed's
+/// target as it resolves; from torpor too.
+pub static SIR_RALPH_HAMILTON: VampireDef = VampireDef {
+    name: "Sir Ralph Hamilton",
+    printed: &[
+        own(
+            Stat::Strength,
+            1,
+            &[
+                R::OpponentVampire,
+                R::OpponentYounger,
+                R::OpponentSectIn(&[Sect::Camarilla]),
+            ],
+        ),
+        Printed {
+            stat: Stat::Bleed,
+            n: 1,
+            to: PrintedTo::Others,
+            per: Per::One,
+            requires: &[R::ActorClan("Ministry"), R::TargetIsSourceController],
+        },
+    ],
+    ..VAMP
+};
+
+/// "Camarilla: +1 bleed."
+pub static SUZANNE_KADIM: VampireDef = VampireDef {
+    name: "Suzanne Kadim",
+    printed: &[own(Stat::Bleed, 1, &[])],
+    ..VAMP
+};
+
+/// "Camarilla: Tammy gets 1 optional maneuver each combat."
+pub static TAMMY_WALENSKI: VampireDef = VampireDef {
+    name: "Tammy Walenski",
+    abilities: &[MANEUVER_EACH_COMBAT],
+    ..VAMP
+};
+
+/// Tobias Smith's target: another untitled Sabbat vampire of his
+/// controller's, capacity 6 or more, read again as it resolves.
+const TOBIAS_TARGET: &[R] = &[
+    R::TargetVampire,
+    R::Controlled,
+    R::OtherThanActor,
+    R::TargetUntitled,
+    R::TargetSect(Sect::Sabbat),
+    R::TargetCapacityAtLeast(6),
+];
+
+/// "Sabbat: Tobias can give any other non-titled Sabbat vampire you control
+/// with capacity 6 or more the title of bishop as an action." Ready or in
+/// torpor ("you control"); undirected, his controller's own.
+pub static TOBIAS_SMITH: VampireDef = VampireDef {
+    name: "Tobias Smith",
+    abilities: &[
+        printed_action(
+            target(TargetKind::Minion, TOBIAS_TARGET),
+            &[
+                Effect::DeclareAction(ActionKind::Ability),
+                Effect::TargetGetsTitle(Title::Bishop),
+            ],
+        ),
+        printed_action(
+            target(
+                TargetKind::Minion,
+                &[
+                    R::TargetVampire,
+                    R::Controlled,
+                    R::OtherThanActor,
+                    R::TargetUntitled,
+                    R::TargetSect(Sect::Sabbat),
+                    R::TargetCapacityAtLeast(6),
+                    R::TargetInTorpor,
+                ],
+            ),
+            &[
+                Effect::DeclareAction(ActionKind::Ability),
+                Effect::TargetGetsTitle(Title::Bishop),
+            ],
+        ),
+    ],
+    ..VAMP
+};
+
+/// "Camarilla primogen: When Tyler diablerizes a vampire, she unlocks and
+/// gains a blood from the blood bank. Once per turn, she may burn a blood
+/// to get +1 bleed or an additional vote." Any diablerie; one use a turn
+/// for either (`Limit::PerTurnCard`), the bleed during her bleed before
+/// resolution (ANK 20231124, LSJ 19970718), the vote as she can vote.
+pub static TYLER: VampireDef = VampireDef {
+    name: "Tyler",
+    printed: &[own(Stat::UnlockAndBloodOnDiablerie, 1, &[])],
+    abilities: &[
+        ModeDef {
+            limit: Some(Limit::PerTurnCard),
+            ..mode_of(
+                &[Window::ActionDuring],
+                Actor::Host,
+                &[R::ActorActing, R::IsBleed, R::HostBloodAtLeast(1)],
+                &[Effect::HostBurnBlood(1), bleed(1, false)],
+            )
+        },
+        ModeDef {
+            limit: Some(Limit::PerTurnCard),
+            ..mode_of(
+                &[Window::Referendum],
+                Actor::Host,
+                &[R::AnyPollingStep, R::HostReady, R::HostBloodAtLeast(1)],
+                &[Effect::HostBurnBlood(1), Effect::AddVotes(1)],
+            )
+        },
+    ],
+    ..VAMP
+};
+
+/// "Laibon magaji: You may use a master phase action to search your
+/// library or ash heap for an Aye or Orun to place on a ready Laibon." Any
+/// Methuselah's Laibon, named as it is used, still ready as it resolves;
+/// from torpor too; the card put in play, not played.
+pub static UMDAVA: VampireDef = VampireDef {
+    name: "Umdava",
+    abilities: &[ModeDef {
+        target: target(TargetKind::Minion, &[R::TargetSect(Sect::Laibon)]),
+        ..mode_of(
+            &[Window::MasterPhase],
+            Actor::Host,
+            &[R::MasterPhaseActionLeft],
+            &[
+                Effect::SpendMasterPhaseAction,
+                Effect::SearchOntoTarget(&[
+                    crate::cards::Holding::Named("Orun"),
+                    crate::cards::Holding::Named("Aye"),
+                ]),
+            ],
+        )
+    }],
+    ..VAMP
+};
+
+static UNDELE_REFERENDUM: ReferendumDef = ReferendumDef {
+    terms: &[Term::ChooseAshCards {
+        of: CardFilter::MinionCard,
+        n: 2,
+    }],
+    effect: RefEffect::AshChosenToHand,
+    grants: &[],
+    non_anarch_titles_minus: false,
+    titled_minus: false,
+    edge_bonus: 0,
+    only_sect: None,
+};
+
+/// "Laibon magaji: Undele may call a referendum to move two minion cards
+/// from your ash heap to your hand as a +1 stealth political action
+/// (discard afterward)." Named by name (LSJ 20100917); not callable
+/// without two (LSJ 20100129, ANK 20191228); the hand discarded down.
+pub static UNDELE: VampireDef = VampireDef {
+    name: "Undele",
+    abilities: &[mode_of(
+        &[Window::ActionDeclarePolitical],
+        Actor::Host,
+        &[],
+        &[
+            Effect::DeclareAction(ActionKind::Political),
+            Effect::AddStealth(1),
+            Effect::CallReferendum(&UNDELE_REFERENDUM),
+        ],
+    )],
+    ..VAMP
+};
+
+/// "Camarilla Prince of Atlanta: When a vampire of capacity 4 or less is
+/// bleeding you, you may burn the Edge to cause the action to fail.
+/// Victorine gets an optional press each combat." Before resolution, the
+/// bleed's current target; from torpor too.
+pub static VICTORINE_LAFOURCADE: VampireDef = VampireDef {
+    name: "Victorine Lafourcade",
+    abilities: &[
+        mode_of(
+            &[Window::ReactionDuringAction],
+            Actor::Host,
+            &[
+                R::IsBleed,
+                R::DirectedAtYou,
+                R::HasEdge,
+                R::ActingCapacityAtMost(4),
+            ],
+            &[Effect::BurnEdge, Effect::ActionFails],
+        ),
+        ability(
+            &[Window::CombatPress],
+            Actor::Host,
+            &[],
+            Limit::PerCombat,
+            &[Effect::OptionalPress],
+        ),
+    ],
+    ..VAMP
+};
+
+/// "Camarilla: If Virstania is ready, any ready slave Gargoyle may remove
+/// his or her slave status and become an Independent vampire as a +1
+/// stealth action, and non-slave Gargoyles can bleed at +1 bleed as a Ⓓ
+/// action that costs a blood." Any Methuselah's Gargoyles; the two
+/// actions distinct, both in a turn (LSJ 20100909), each requiring a
+/// Gargoyle (LSJ 20080604).
+pub static VIRSTANIA: VampireDef = VampireDef {
+    name: "Virstania, The Great Mother",
+    abilities: &[
+        ModeDef {
+            windows: &[Window::ActionDeclare],
+            actor: Actor::AnyMethuselahsMinion,
+            requires: &[
+                R::HostReady,
+                R::ActorVampire,
+                R::ActorClan("Gargoyle"),
+                R::ActorSlave,
+            ],
+            target: None,
+            terms: None,
+            waives_needed: false,
+            limit: None,
+            effects: &[
+                Effect::DeclareAction(ActionKind::Ability),
+                Effect::AddStealth(1),
+                Effect::ActorFreedFromSlavery,
+            ],
+        },
+        ModeDef {
+            windows: &[Window::ActionDeclare],
+            actor: Actor::AnyMethuselahsMinion,
+            requires: &[
+                R::HostReady,
+                R::ActorVampire,
+                R::ActorClan("Gargoyle"),
+                R::ActorNotSlave,
+                R::ActorBloodAtLeast(1),
+            ],
+            target: None,
+            terms: None,
+            waives_needed: false,
+            limit: None,
+            effects: &[
+                Effect::DeclareAction(ActionKind::Bleed),
+                Effect::PayBlood(1),
+                bleed(1, false),
+            ],
+        },
+    ],
+    ..VAMP
+};
+
+/// "Camarilla: Once each action, William can burn 1 blood to get +1
+/// stealth. +1 bleed." The stealth when needed, on his own action.
+pub static WILLIAM_BILTMORE: VampireDef = VampireDef {
+    name: "William Biltmore",
+    printed: &[own(Stat::Bleed, 1, &[])],
+    abilities: &[ability(
+        &[Window::ActionDuring],
+        Actor::Host,
+        &[R::HostBloodAtLeast(1), R::ActorActing, R::StealthNeeded],
+        Limit::PerAction,
+        &[Effect::HostBurnBlood(1), Effect::AddStealth(1)],
+    )],
     ..VAMP
 };
 

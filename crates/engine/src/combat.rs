@@ -304,6 +304,10 @@ pub struct Side {
     /// The initial strike this round must be this card's (a weapon's
     /// maneuver used, Sniper Rifle's range set): rulebook "Choose Strike".
     pub committed: Option<CardId>,
+    /// `committed` by setting the range (Sniper Rifle), not by a maneuver:
+    /// Lucian's opponent may still decline it (LSJ 20071017 against LSJ
+    /// 20090528-2-2).
+    pub committed_range_set: bool,
     /// The additional strike granted by this weapon is only usable to
     /// strike with it, and may be declined (AK-47).
     pub additional_with: Option<CardId>,
@@ -412,6 +416,9 @@ pub struct Side {
     /// (Dark Steel).
     pub environmental: u8,
     pub environmental_close: u8,
+    /// Environmental damage the opposing minion takes each round of this
+    /// combat while the card is in play (Bestial Vengeance's retainer).
+    pub environmental_while: Vec<(CardId, u8)>,
     /// Riders of the chosen strike: undodgeable (Dust Up [ani]),
     /// aggravated (Sculpt the Flesh [pro]), its card put on the opposing
     /// minion as it lands (`held`).
@@ -500,6 +507,8 @@ pub struct Side {
     /// damage in each round's press step ([ANI]) — frenzy effects.
     pub no_long_maneuver: bool,
     pub no_end_press: bool,
+    /// This combat, it cannot cancel frenzy cards (Taming the Beast).
+    pub no_frenzy_cancel: bool,
     pub frenzy_strength: u8,
     pub press_damage: u8,
     /// Necrosis [THN] landed: that much more, this round's press step only.
@@ -551,6 +560,11 @@ pub struct Side {
     /// Rage of Apedemak: +n damage on this minion's hand strikes this
     /// combat.
     pub hand_damage_bonus: u8,
+    /// +n to this round's hand strike (Invoke Poison Glands [ABO]: its
+    /// Orun).
+    pub hand_damage_round: u8,
+    /// This round, aggravated damage to it treated as normal (Jua Vema).
+    pub aggravated_as_normal: bool,
     /// Ensnare a Beast [ANI]/[CEL]: this minion's strike cards cost +n
     /// blood or life this combat.
     pub strike_card_toll: u8,
@@ -724,6 +738,7 @@ impl Side {
             frenzy_no_equipment: self.frenzy_no_equipment,
             no_long_maneuver: self.no_long_maneuver,
             no_end_press: self.no_end_press,
+            no_frenzy_cancel: self.no_frenzy_cancel,
             frenzy_strength: self.frenzy_strength,
             press_damage: self.press_damage,
             no_maneuver: self.no_maneuver,
@@ -739,6 +754,7 @@ impl Side {
             combat_ends_round: self.combat_ends_round,
             environmental: self.environmental,
             environmental_close: self.environmental_close,
+            environmental_while: std::mem::take(&mut self.environmental_while),
             aggravated_hands: self.aggravated_hands_combat,
             aggravated_hands_combat: self.aggravated_hands_combat,
             prevent_each_round: self.prevent_each_round,
@@ -1101,7 +1117,8 @@ impl CombatCtx {
         let printed = st.printed_mod(s.minion, cards::Stat::AggravatedDamage, ctx) > 0;
         let mut hit = match k {
             StrikeKind::Hand { bonus } => StrikeHit {
-                n: (strength + bonus + s.hand_damage_bonus).saturating_sub(less),
+                n: (strength + bonus + s.hand_damage_bonus + s.hand_damage_round)
+                    .saturating_sub(less),
                 aggravated: s.aggravated_hands
                     || printed
                     || st.printed_mod(s.minion, cards::Stat::AggravatedHandStrikes, ctx) > 0
@@ -1195,6 +1212,10 @@ impl CombatCtx {
             .filter(|(d, _)| tags.iter().any(|t| t.eq_ignore_ascii_case(d)))
             .map(|&(_, n)| n)
             .sum::<u8>();
+        // Remnant of the Endless Storm: the excess ignored.
+        if let Some(cap) = st.damage_cap(self.sides[1 - i].minion) {
+            hit.n = hit.n.min(cap);
+        }
         Some(hit)
     }
 
@@ -1841,12 +1862,13 @@ impl Engine {
         if let Some(i) = c.side_of(seat) {
             let s = &c.sides[i];
             let blood = self.state.minions[s.minion.index()].blood;
-            if s.strike_toll > blood {
+            let printed = self.printed_strike_toll(i);
+            if s.strike_toll + printed > blood {
                 options.retain(|o| matches!(o, Choice::Pass | Choice::Play { .. }));
                 if !options.contains(&Choice::Pass) {
                     options.insert(0, Choice::Pass);
                 }
-            } else if s.toll_for(None) > blood {
+            } else if s.toll_for(None) + printed > blood {
                 // Imprison: a strike but "combat ends" it cannot pay.
                 options.retain(|o| {
                     matches!(
@@ -1973,9 +1995,13 @@ impl Engine {
                             _ => false,
                         })
                         .collect();
-                    // Dam the Heart's River [QUI] after the commitment: it
-                    // may still choose not to strike (LSJ 20071017).
-                    if c.pair > 0 || side.tolled() {
+                    // Dam the Heart's River [QUI] after the commitment, and
+                    // Lucian after a range set: it may still choose not to
+                    // strike (LSJ 20071017).
+                    if c.pair > 0
+                        || side.tolled()
+                        || side.committed_range_set && self.printed_strike_toll(i) > 0
+                    {
                         options.insert(0, Choice::Pass);
                     }
                     return self.strike_request(side.seat, options, Some(i));
@@ -2016,9 +2042,10 @@ impl Engine {
                     return self.strike_request(side.seat, options, None);
                 }
                 let mut options = vec![Choice::HandStrike];
-                // Dam the Heart's River [QUI], Imprison: it may choose not
-                // to strike.
-                if side.tolled() {
+                // Dam the Heart's River [QUI], Imprison, Lucian: it may
+                // choose not to strike — a strike committed aside (LSJ
+                // 20090528-2-2).
+                if side.tolled() || self.printed_strike_toll(i) > 0 {
                     options.push(Choice::Pass);
                 }
                 // A granted "strike: combat ends" this round, unless combat
@@ -3438,11 +3465,13 @@ impl Engine {
             });
             strikes[i] = None;
             if let Some(w) = burned {
+                let striker = self.combat.as_ref().expect("combat context").sides[i].minion;
                 if steal {
-                    let to = self.combat.as_ref().expect("combat context").sides[i].minion;
-                    self.steal_weapon(w, to);
+                    self.steal_weapon(w, striker);
                 } else {
                     self.burn_card_in_play(w);
+                    // Aye: the striker burned an equipment (rules-qa 109.6).
+                    self.burn_one_burning(striker);
                 }
             }
         }
@@ -3467,14 +3496,16 @@ impl Engine {
         // read with the opponent): the opposing non-dodge strike waits for
         // its damage (`held_strike`, rulebook "First Strike").
         let printed_first: [bool; 2] = std::array::from_fn(|i| {
-            st.printed_mod(
-                c.sides[i].minion,
-                cards::Stat::FirstStrike,
-                crate::state::PrintedCtx {
-                    opponent: Some(c.sides[1 - i].minion),
-                    ..Default::default()
-                },
-            ) > 0
+            let ctx = crate::state::PrintedCtx {
+                opponent: Some(c.sides[1 - i].minion),
+                ..Default::default()
+            };
+            // Ruth McGinley's, striking with a gun.
+            let gun = c.sides[i]
+                .strike_source
+                .is_some_and(|w| cards::is_gun(st.cards[w.index()].card));
+            st.printed_mod(c.sides[i].minion, cards::Stat::FirstStrike, ctx) > 0
+                || gun && st.printed_mod(c.sides[i].minion, cards::Stat::GunFirstStrike, ctx) > 0
         });
         // A card's first strike on another strike (Anesthetic Touch [OBE])
         // holds the opposing strike back alike.
@@ -3543,6 +3574,12 @@ impl Engine {
                         n += k;
                     }
                 }
+                n += c.sides[i]
+                    .environmental_while
+                    .iter()
+                    .filter(|&&(card, _)| st.cards[card.index()].present())
+                    .map(|&(_, k)| k)
+                    .sum::<u8>();
                 if let Some((k, r)) = c.sides[i].resolution_damage {
                     if r == c.round {
                         c.sides[1 - i].unpreventable += k + c.sides[1 - i].more_damage_taken;
@@ -3627,7 +3664,7 @@ impl Engine {
             if let Some(n) = c.sides[i].liquefy_rider.take().filter(|_| landed) {
                 if st.minions[foe.index()].is_ally() {
                     c.sides[1 - i].sent_to_torpor = true;
-                } else if st.younger_than(foe, m) {
+                } else if st.younger_by(foe, m, st.minions[m.index()].owner) {
                     c.landed.push(Landed::Liquefy(foe, n));
                 }
             }
@@ -3638,7 +3675,9 @@ impl Engine {
                     c.landed.push(Landed::Distill(on.then_some((foe, n)), w));
                 }
             }
-            if std::mem::take(&mut c.sides[i].diablerie_rider) && landed && st.younger_than(foe, m)
+            if std::mem::take(&mut c.sides[i].diablerie_rider)
+                && landed
+                && st.younger_by(foe, m, st.minions[m.index()].owner)
             {
                 c.diablerie = Some((m, foe));
                 c.round_over = true;
@@ -3720,6 +3759,8 @@ impl Engine {
         // Coma [DEM]: the vampires that do not unlock as normal next.
         let mut comatose: Vec<MinionId> = Vec::new();
         let mut burn_weapons: Vec<CardId> = Vec::new();
+        // Strikers whose strike burned an equipment (Aye, rules-qa 109.6).
+        let mut equipment_burners: Vec<MinionId> = Vec::new();
         // Fast Hands: (weapon, striker) to move as the strikes land.
         let mut steal_weapons: Vec<(CardId, MinionId)> = Vec::new();
         // Weapons losing counters per damage inflicted (Weighted Walking
@@ -3860,6 +3901,15 @@ impl Engine {
                         let more = ranged_bonus(st, c, i, ranged, cards::Stat::RangedStrikeSteal);
                         let n = (n as i32 + more).max(0) as u8;
                         steals[i] = n.min(self.state.minions[c.sides[j].minion.index()].blood);
+                        // Tunnel Runner: a vampire stealing its life takes
+                        // as much environmental damage, with the strikes.
+                        let (taker, from) = (c.sides[i].minion, c.sides[j].minion);
+                        if st.minions[taker.index()].is_vampire()
+                            && st.minions[from.index()].is_ally()
+                            && st.bears(from, cards::Modifier::StealersTakeDamage)
+                        {
+                            c.sides[i].pending.add(steals[i], false);
+                        }
                     }
                 }
                 StrikeKind::TorporOrBurn => {
@@ -3890,6 +3940,7 @@ impl Engine {
                             let wc = &st.cards[w.index()];
                             if wc.present() && wc.host == Some(c.sides[j].minion) {
                                 burn_weapons.push(w);
+                                equipment_burners.push(c.sides[i].minion);
                             }
                         }
                     }
@@ -3987,6 +4038,11 @@ impl Engine {
         }
         for w in burn_weapons.into_iter().chain(backfired) {
             self.burn_card_in_play(w);
+        }
+        for m in equipment_burners {
+            if self.state.minions[m.index()].in_play {
+                self.burn_one_burning(m);
+            }
         }
         for (w, to) in steal_weapons {
             self.steal_weapon(w, to);
@@ -4119,19 +4175,12 @@ impl Engine {
         let c = self.combat.as_mut().expect("combat context");
         let hits = std::mem::take(&mut c.retainer_pending);
         let minions = [c.sides[0].minion, c.sides[1].minion];
-        let mut lifeless = Vec::new();
         for (r, n) in hits {
-            let card = &mut self.state.cards[r.index()];
+            let card = &self.state.cards[r.index()];
             if n == 0 || !card.present() || !card.host.is_some_and(|h| minions.contains(&h)) {
                 continue;
             }
-            card.counters -= n.min(card.counters);
-            if card.counters == 0 {
-                lifeless.push(r);
-            }
-        }
-        for r in lifeless {
-            self.burn_card_in_play(r);
+            self.retainer_loses_life(r, n);
         }
         let c = self.combat.as_mut().expect("combat context");
         // An aimed strike that landed (Target Vitals): +n of its kind — not
@@ -4150,6 +4199,10 @@ impl Engine {
                 c.sides[i].no_press_round = true;
             }
         }
+        let action_long = self
+            .action
+            .as_ref()
+            .map_or(&[][..], |a| &a.aggravated_as_normal[..]);
         let results: Vec<Resolved> = c
             .sides
             .iter()
@@ -4157,6 +4210,10 @@ impl Engine {
                 let m = &self.state.minions[s.minion.index()];
                 let mut d = s.pending;
                 d.normal += s.unpreventable;
+                // Jua Vema: the aggravated damage as normal.
+                if s.aggravated_as_normal || action_long.contains(&s.minion) {
+                    d.normal += std::mem::take(&mut d.aggravated);
+                }
                 if m.is_ally() {
                     resolve_life_damage(m.blood, d)
                 } else {
@@ -4191,6 +4248,7 @@ impl Engine {
         let mut wounded = Vec::new();
         let mut burned = Vec::new();
         let mut lifeless = Vec::new();
+        let mut aye = Vec::new();
         // "Burned (without going into torpor) if he takes more than n damage
         // during a single combat" (Franciscus).
         let over = c.sides.each_ref().map(|s| {
@@ -4230,6 +4288,8 @@ impl Engine {
             if burned.contains(&opp) {
                 let owner = self.state.minions[opp.index()].owner;
                 c.burned_minions.push((c.sides[i].minion, owner));
+                // Aye: one per minion its strikes burned (rules-qa 109.6).
+                aye.push(c.sides[i].minion);
             }
         }
         // A vampire burned by the strike of the opposing weapon (Sword of the
@@ -4274,6 +4334,11 @@ impl Engine {
                 self.red_list_burned(by, m);
             }
             self.burn_minion(m);
+        }
+        for m in aye {
+            if self.state.minions[m.index()].in_play {
+                self.burn_one_burning(m);
+            }
         }
         self.incapacitate(&lifeless);
         if !wounded.is_empty() {
@@ -4425,6 +4490,7 @@ impl Engine {
         for s in &mut c.sides {
             s.set_strike(None);
             s.committed = None;
+            s.committed_range_set = false;
             s.additional = 0;
         }
         if pre_range && self.stage_pre_range_damage() {
@@ -4553,6 +4619,42 @@ impl Engine {
     pub(crate) fn end_combat(&mut self) {
         if self.offer_new_combat() || self.offer_join_combat() {
             return;
+        }
+        // "After combat with Amelia, the opposing minion burns 1 blood or
+        // life."
+        if let Some(c) = self.combat.as_ref() {
+            let pairs = [
+                (c.sides[0].minion, c.sides[1].minion),
+                (c.sides[1].minion, c.sides[0].minion),
+            ];
+            for (m, o) in pairs {
+                let n = self.state.printed_mod(
+                    m,
+                    cards::Stat::AfterCombatOpponentBurns,
+                    crate::state::PrintedCtx::default(),
+                );
+                // Jason: the vampire blocking him.
+                let jason = self.action.as_ref().is_some_and(|a| {
+                    a.acting == m
+                        && a.blocker == Some(o)
+                        && self.state.minions[o.index()].is_vampire()
+                });
+                let n = n + if jason {
+                    self.state.printed_mod(
+                        m,
+                        cards::Stat::BlockerBurnsAfterBlockedCombat,
+                        crate::state::PrintedCtx::default(),
+                    )
+                } else {
+                    0
+                };
+                if n > 0
+                    && self.state.minions[o.index()].present()
+                    && self.state.burn_blood_or_life(o, n as u8)
+                {
+                    self.lifeless(o);
+                }
+            }
         }
         let diablerie = self.combat.as_mut().and_then(|c| c.diablerie.take());
         let stand_ins = self
@@ -4938,10 +5040,13 @@ impl Engine {
     /// costs its minion the toll now, an ally's last life burning it (LSJ
     /// 20090703). True when the combat ended.
     fn pay_strike_tolls(&mut self) -> bool {
+        // Lucian's: none on a strike at a card on him (LSJ 20090528-2).
+        let printed: Vec<u8> = (0..2).map(|i| self.printed_strike_toll(i)).collect();
         let c = self.combat.as_mut().expect("combat context");
         let mut due = Vec::new();
-        for s in &mut c.sides {
-            let toll = s.toll_for(s.strike);
+        for (i, s) in c.sides.iter_mut().enumerate() {
+            let against = if s.strike_at.is_some() { 0 } else { printed[i] };
+            let toll = s.toll_for(s.strike) + against;
             if std::mem::take(&mut s.toll_due) && s.strike.is_some() && toll > 0 {
                 due.push((s.minion, toll));
             }
@@ -4953,6 +5058,19 @@ impl Engine {
             }
         }
         self.combat.is_none()
+    }
+
+    /// "Strikes against Lucian cost an additional blood or life": the
+    /// toll on side `i`'s strikes printed on the opposing minion, read live.
+    pub(crate) fn printed_strike_toll(&self, i: usize) -> u8 {
+        let c = self.combat.as_ref().expect("combat context");
+        let ctx = crate::state::PrintedCtx {
+            opponent: Some(c.sides[1 - i].minion),
+            ..Default::default()
+        };
+        self.state
+            .printed_mod(c.sides[i].minion, cards::Stat::StrikesAgainstToll, ctx)
+            .max(0) as u8
     }
 
     /// A strike choice at the opposing minion itself (not aimed at a
@@ -5102,6 +5220,33 @@ impl Engine {
 
     /// Effects of a combat card resolved during the combat.
     pub(crate) fn apply_combat_effect(&mut self, effect: Effect, play: &PlayCtx) {
+        // From a minion out of the combat (Alejandro Aguirre).
+        if let Effect::DamageEachCombatantNow(n) = effect {
+            let c = self.combat.as_ref().expect("combat context");
+            for m in [c.sides[0].minion, c.sides[1].minion] {
+                if self.state.minions[m.index()].present() {
+                    self.damage_out_of_combat(m, n, false);
+                }
+            }
+            return;
+        }
+        if let Effect::AggravatedAsNormal { lock: Some(h) } = effect {
+            let actor = play.actor.expect("combat card actor");
+            if self.state.holds_unlocked(actor, h) > 0 {
+                self.lock_held(actor, h, 1, None);
+                if let Some(a) = self.action.as_mut() {
+                    a.aggravated_as_normal.push(actor);
+                }
+            }
+        }
+        if let Effect::LockHeldToUnlock(h) = effect {
+            let actor = play.actor.expect("combat card actor");
+            if self.state.holds_unlocked(actor, h) > 0 {
+                self.lock_held(actor, h, 1, None);
+                self.effect_unlock(actor);
+            }
+            return;
+        }
         let c = self.combat.as_mut().expect("combat context");
         let actor = play.actor.expect("combat card actor");
         // Effects of a minion out of the combat, on the target in it
@@ -5414,6 +5559,11 @@ impl Engine {
             }
             Effect::EnvironmentalDamage { n, close: false } => c.sides[i].environmental += n,
             Effect::EnvironmentalDamage { n, close: true } => c.sides[i].environmental_close += n,
+            Effect::EnvironmentalDamageWhileTarget(n) => {
+                if let crate::cards::Target::Card(card) = play.target {
+                    c.sides[i].environmental_while.push((card, n));
+                }
+            }
             Effect::RoundStrike(k) => c.sides[i].round_strike = Some(k),
             Effect::StrikeOnceEachRound(k) => {
                 let s = &mut c.sides[i];
@@ -5469,6 +5619,14 @@ impl Engine {
             Effect::CloseManeuverForBlood(n) => c.sides[i].close_maneuver_blood = n,
             Effect::ManeuverForBlood(n) => c.sides[i].maneuver_blood = n,
             Effect::HandStrikeDamageThisCombat(n) => c.sides[i].hand_damage_bonus += n,
+            Effect::AggravatedAsNormal { .. } => c.sides[i].aggravated_as_normal = true,
+            Effect::NoFrenzyCancelNorEndPress => {
+                c.sides[i].no_frenzy_cancel = true;
+                c.sides[i].no_end_press = true;
+            }
+            Effect::HandStrikeBonusPerHeld(h) => {
+                c.sides[i].hand_damage_round += self.state.holds_count(actor, h);
+            }
             Effect::ExtraDrawPerReplacementThisCombat => {
                 let seat = c.sides[i].seat;
                 self.state.seats[seat.index()]
@@ -5523,6 +5681,7 @@ impl Engine {
                             left: play.x,
                             done: 0,
                             of: Some(of),
+                            optional: false,
                         });
                 }
             }
@@ -5532,6 +5691,16 @@ impl Engine {
             Effect::OpposingBurnsBlood(n) => {
                 let o = c.sides[1 - i].minion;
                 self.state.burn_blood(o, n);
+            }
+            Effect::OpposingHandStrikerBurns { n, cap } => {
+                let o = c.sides[1 - i].minion;
+                let small = self
+                    .state
+                    .capacity_by(o, c.sides[i].seat)
+                    .is_some_and(|k| k <= cap);
+                if c.sides[1 - i].hand_struck && small {
+                    self.state.burn_blood(o, n);
+                }
             }
             Effect::HandSizeThisCombat(n) => {
                 let seat = c.sides[i].seat;

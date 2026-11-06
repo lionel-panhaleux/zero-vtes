@@ -1114,10 +1114,16 @@ sources to the engine's conventions.
   damaging strike only), the retainer, environmental and resolution
   damage in `resolve_strikes`, the after-combat damage queued there
   (Catatonic Fear), and `damage_out_of_combat` for a combatant (Botched
-  Move): a new damage site reads it too. Its strike toll: `strike_toll`
-  (a card's in its cost, `strike_card_toll`), `toll_due` on the strike
-  choices and `pay_strike_tolls` before resolution; a toll the minion
-  cannot pay leaves `strike_request` only `Pass` and strike cards.
+  Move): a new damage site reads it too. The Remnant's cap per effect
+  (`GameState::damage_cap`) is read at `strike_hit` and
+  `damage_out_of_combat` only (rules-qa 109.20). Its strike toll:
+  `strike_toll` (a card's in its cost, `strike_card_toll`), `toll_due` on
+  the strike choices and `pay_strike_tolls` before resolution; a toll the
+  minion cannot pay leaves `strike_request` only `Pass` and strike cards.
+  Lucian's printed toll on strikes against him
+  (`Engine::printed_strike_toll`) is read in `strike_card_toll`,
+  `pay_strike_tolls`, `strike_request` and its declining `Pass`: a new
+  toll site reads it too.
   Strike bars for a combat or a round (Lapse's
   `OpposingNoManeuverThisRound`/`OpposingNoInitialStrikeThisRound`, Thoughts
   Betrayed's `OpposingNoStrikeCardsThisCombat`), the strike's card and mode
@@ -1254,6 +1260,18 @@ sources to the engine's conventions.
 
 `state.rs`: `Minion`, `MinionKind::{Vampire, Ally, Imbued, Created, Token}`.
 
+- Capacity for another Methuselah: `capacity_by(m, seat)` and
+  `younger_by(a, b, seat)` add Orun's +2 (`Modifier::CapacityToOthers`).
+  Every card's or vampire ability's capacity read goes through them with
+  its reader: the card's player (`CardInPlay::owner`), the referendum's
+  caller, an ability's `AbilitySource::player` (who played the vampire or
+  card, its thief aside; `Requirement::reads_capacity` picks the
+  requirements read so) (rules-qa 109.1, 109.3, 109.50).
+  `capacity_of`/`younger_than` are left for rulebook reads (diablerie,
+  rescue, blood hunt), blood caps and fills, and printed passive bonuses.
+  Cards a holding caps (Orun, Aye over capacity) settle in
+  `Engine::settle_over_capacity`: of two kinds, the host's controller
+  picks (`Interrupt::BurnOverCapacity`, rules-qa 109.2).
 - Vampire traits are read live: `capacity_of` (with `capacity_ceiling`),
   `discipline_level`, `has_discipline`, `Minion::clan`, `GameState::sect_of`
   (`SectFallen` over `underlying_sect`, `sect_override`); printed data only via
@@ -1709,6 +1727,9 @@ sources to the engine's conventions.
 
 `plays.rs`.
 
+- An action's own reductions: Charisma's layer and Erichtho's printed
+  `Stat::ActionRecruitCostOff`, both in `GameState::recruit_discount`, read
+  only where the recruit action pays (not Piper's recruit, LSJ 20090115-1).
 - Reductions are announced with the card (`Flow::CostTerms`,
   `PlayCtx::discounts`, `CostSource`; no pass while unaffordable without them),
   locked at declaration (not if canceled as played) or at resolution for

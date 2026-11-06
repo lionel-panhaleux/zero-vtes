@@ -18,7 +18,7 @@ is created by one request and played over one WebSocket. Every game is
 recorded, anonymously, and kept two years to train and test the engine
 (§11).
 
-Version **2.20.3**. The types: the models of the
+Version **2.21.0**. The types: the models of the
 [API reference](https://engine.krcg.org/docs), also as
 [JSON Schema](https://engine.krcg.org/schema.json) (2020-12) and
 [TypeScript](https://engine.krcg.org/protocol.ts).
@@ -243,7 +243,7 @@ A JSON object with `seq`, `reply_to`? and a `type`:
 … 41: the schema's `Window`). `source` is the card whose terms or effect
 the decision chooses, when it is one (a play's or an action's terms, a
 referendum's): the options' `effects` say what each choice gets.
-`purpose` is what an effect asks the choice for, when one does (104 ids,
+`purpose` is what an effect asks the choice for, when one does (ids of
 the schema's `Purpose`: `pay_or_burn`, `store_search`…, one per kind
 of effect choice the engine asks). The purpose says the verb
 (`remove_uncontrolled`: the slot chosen is removed); where it has

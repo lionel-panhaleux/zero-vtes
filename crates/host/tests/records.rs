@@ -10,6 +10,11 @@ use zvtes_host::replay::{Replay, Replayer, Step};
 /// asks cannot be read past (`replay::past`).
 const KNOWN_STOPS: &[(&str, u64, &str)] = &[
     (
+        "zero-vtes-replay-2026-10-09T22-52-40-908Z.json",
+        569,
+        "Smiling Jack's rider offers no ally's blood (Z-succubus playtest, round 25)",
+    ),
+    (
         "zero-vtes-replay-2026-10-08T21-17-05-603Z.json",
         215,
         "rules-qa 99.1: a vampire can have only one Wall of Filth",

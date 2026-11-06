@@ -744,7 +744,7 @@ fn acheron_vortex_lowers_intercept_of_minions_without_nec_or_obt() {
     pick(&mut e, bleed(a));
     pick_when(&mut e, play(0, 0, a));
     request(&mut e);
-    let mods = |e: &Engine, m| zvtes::actions::ActionCtx::intercept_mods(&e.state, m);
+    let mods = |e: &Engine, m| zvtes::actions::ActionCtx::intercept_mods(&e.state, m, SeatId(0));
     assert_eq!((mods(&e, z), mods(&e, n)), (-1, 0));
 }
 

@@ -549,6 +549,13 @@ fn referendum_terms(x: &Ctx<impl Names>, choice: &Choice) -> Vec<Effect> {
                 ..Effect::new(EffectKind::Burn)
             }]
         }
+        (Choice::FindCard(_), _, R::AshChosenToHand) => vec![Effect {
+            to: Some(Zone::Hand),
+            ..chosen(EffectKind::Move)
+        }],
+        (Choice::ChooseMinion(_), _, R::DamageChosen(d)) => {
+            vec![n(d as i32, chosen(EffectKind::Damage))]
+        }
         (Choice::ChooseMinion(_), _, R::Banish) => vec![Effect {
             to: Some(Zone::Removed),
             ..chosen(EffectKind::Move)
@@ -627,7 +634,7 @@ fn asked(x: &Ctx<impl Names>, i: Interrupt, choice: &Choice) -> Vec<Effect> {
                 detail: Some("blind_spot".into()),
                 ..chosen(EffectKind::Lock)
             },
-            P::LockOldest(_) => Effect {
+            P::LockOldest(..) => Effect {
                 detail: Some("oldest".into()),
                 ..chosen(EffectKind::Lock)
             },
@@ -639,7 +646,7 @@ fn asked(x: &Ctx<impl Names>, i: Interrupt, choice: &Choice) -> Vec<Effect> {
                 card: Some(LIBRARY[x.e.state.cards[card.index()].card as usize].id),
                 ..chosen(EffectKind::Move)
             },
-            P::BurnOfCrowdedClan => chosen(EffectKind::Burn),
+            P::BurnOfCrowdedClan(_) => chosen(EffectKind::Burn),
             P::OldestHuntingGround(_) => n(1, chosen(EffectKind::Blood)),
             P::Damage(d) | P::DamageImbued { n: d, .. } => n(d as i32, chosen(EffectKind::Damage)),
         }],
@@ -1282,6 +1289,7 @@ pub fn about(e: &Engine, req: &DecisionRequest, names: &impl Names) -> Option<Ab
             | I::BaseSearch { minion, .. }
             | I::MayTorture { minion, .. }
             | I::EntryBurn { ally: minion, .. }
+            | I::BurnOverCapacity { host: minion, .. }
             | I::EntryRemoveOrBurn { ally: minion, .. } => About {
                 minion: m(minion),
                 ..a()
@@ -1304,9 +1312,9 @@ pub fn about(e: &Engine, req: &DecisionRequest, names: &impl Names) -> Option<Ab
                     P::UnlockAnarch => ("unlock_anarch", None, None, None),
                     P::BurnBloodOfClan(k) => ("burn_blood", Some(k), None, None),
                     P::HostCard(h) => ("host_card", None, card(h), None),
-                    P::LockOldest(k) => ("lock_oldest", Some(k), None, None),
+                    P::LockOldest(k, _) => ("lock_oldest", Some(k), None, None),
                     P::OldestHuntingGround(_) => ("oldest_gain_blood", None, None, None),
-                    P::BurnOfCrowdedClan => ("burn_crowded_clan", None, None, None),
+                    P::BurnOfCrowdedClan(_) => ("burn_crowded_clan", None, None, None),
                     P::Damage(d) => ("damage", None, None, Some(d)),
                     P::DamageImbued { n: d, .. } => ("damage_imbued", None, None, Some(d)),
                 };
@@ -1442,6 +1450,50 @@ pub fn about(e: &Engine, req: &DecisionRequest, names: &impl Names) -> Option<Ab
             } => About {
                 minion: m(minion),
                 card: card(c),
+                ..a()
+            },
+            I::ExchangeLooked {
+                minion, card: c, ..
+            } => About {
+                minion: m(minion),
+                card: Some(CardRef {
+                    id: Some(c as u32),
+                    copy: None,
+                    from: None,
+                }),
+                ..a()
+            },
+            I::HandCardAway { .. } => a(),
+            I::SearchOnto { minion, .. } => About {
+                minion: m(minion),
+                ..a()
+            },
+            I::MayFailAction { minion, .. } => About {
+                minion: m(minion),
+                ..a()
+            },
+            I::MayReturnDiscards { minion, .. } => About {
+                minion: m(minion),
+                ..a()
+            },
+            I::MayBurnForBlock { minion, .. } => About {
+                minion: m(minion),
+                ..a()
+            },
+            I::MayBottomLooked { minion, n, .. } => About {
+                minion: m(minion),
+                n: Some(n),
+                ..a()
+            },
+            I::MayLockToFight { minion, acting, .. } => About {
+                minion: m(minion),
+                to: m(acting),
+                ..a()
+            },
+            I::MayMoveBlood { from, to, n, .. } => About {
+                minion: m(from),
+                to: m(to),
+                n: Some(n),
                 ..a()
             },
             I::MoveClot { card: c, to, .. } => About {
@@ -1883,6 +1935,12 @@ pub fn about(e: &Engine, req: &DecisionRequest, names: &impl Names) -> Option<Ab
                     ("lock_burn_allocated", None, None)
                 }
                 (Term::ChooseMinions { .. }, R::Banish) => ("banish", None, None),
+                (Term::ChooseAshCards { n, .. }, R::AshChosenToHand) => {
+                    ("ash_to_hand", Some(n), None)
+                }
+                (Term::ChooseMinions { .. }, R::DamageChosen(d)) => {
+                    ("damage_chosen", Some(d), None)
+                }
                 (Term::ChooseMinions { max, .. }, R::Expel) => ("expel", Some(max), None),
                 (Term::ChooseMinions { .. }, R::PutOnChosen { .. }) => {
                     ("put_on_chosen", None, None)

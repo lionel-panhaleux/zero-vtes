@@ -38,7 +38,7 @@ V5_CLAN = {"Assamite": "Banu Haqim"}
 # the crypt's `adv` flag already says so.
 TITLE = re.compile(
     r"^(?:Advanced, )?(Camarilla|Anarch|Independent|Sabbat|Laibon)"
-    r"(?: (Prince|Baron|Archbishop) of ((?:[^:.]|\.(?=\w))+)| (primogen)| (\w+) Justicar"
+    r"(?: (Prince|Baron|Archbishop) of ((?:[^:.]|\.(?=\w))+)| ([Pp]rimogen)| (\w+) Justicar"
     r"| (\w+) Inner Circle| (bishop|cardinal|priscus|regent|magaji))?[:.]"
 )
 

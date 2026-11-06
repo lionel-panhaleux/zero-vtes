@@ -170,6 +170,8 @@ impl Effect {
             | E::PreyBurnsPool(..)
             | E::GainPool(..)
             | E::BloodToUncontrolledTarget(..)
+            | E::LockHeldForUncontrolledBloodX(..)
+            | E::LockHeldToUncontrolledX(..)
             | E::PoolToUncontrolledTarget(..)
             | E::BloodToTarget(..)
             | E::LockActor
@@ -220,6 +222,7 @@ impl Effect {
             | E::ActorBecomesClan(..)
             | E::TargetBecomesRedList
             | E::ActorBloodToCapacity
+            | E::IfActingUnlockAndFill
             | E::BurnRememberedContract
             | E::DamageTarget(..)
             | E::LockOwnReadyOfClan(..)
@@ -228,7 +231,13 @@ impl Effect {
             | E::EmployNamed
             | E::EquipNamed
             // A wake's ally rider, in an action or before it (rules-qa 96.4).
-            | E::AllySkipsNextUnlock => (Family::Shared, false),
+            | E::AllySkipsNextUnlock
+            | E::DiscardUpTo(..)
+            | E::ClanBleedThisTurn(..)
+            | E::LookAtRandomPreyHandCard
+            | E::DrawThenHandCardAway
+            | E::LockActorHeld(..)
+            | E::TargetToUncontrolled => (Family::Shared, false),
             E::CounterToTarget(..)
             | E::BloodPerHostage
             | E::BurnTargetHostages
@@ -260,6 +269,7 @@ impl Effect {
             | E::LookAtLibraryTop(..)
             | E::LookAtTurnLibraryTop
             | E::MayBurnLookedMaster(..)
+            | E::MayBottomLookedForBlood(..)
             | E::GainConviction { .. }
             | E::LeaveIncapacitated
             | E::SpendDiscardPhaseAction
@@ -276,6 +286,11 @@ impl Effect {
             | E::PredatorTakesControl
             | E::BurnSelf
             | E::LockHost
+            | E::LockHostHeld(..)
+            | E::LockHostHeldX(..)
+            | E::LookAtRandomPredatorHandMayExchange
+            | E::SearchOntoHost(..)
+            | E::SearchOntoTarget(..)
             | E::BurnOwnLife(..)
             | E::StealBloodToHostX
             | E::HostBloodToTarget(..)
@@ -300,7 +315,6 @@ impl Effect {
             | E::RevealCryptTopForCopy { .. }
             | E::ActingControllerDiscardsAtRandom
             | E::TargetSeatDiscardsAtRandom(..)
-            | E::TargetToUncontrolled
             | E::TakeBleedGain
             | E::SlaveTakesCombat
             | E::HostLeavesTorpor
@@ -389,6 +403,8 @@ impl Effect {
             | E::RedirectBleedToActingPrey
             | E::BurnActingMinion
             | E::DamageActing(..)
+            | E::DamageActingAndBlocker(..)
+            | E::TargetInterceptThisAction(..)
             | E::ActionFails
             | E::ActingBurnsOrFails(..)
             | E::SplitBloodGain
@@ -461,6 +477,16 @@ impl Effect {
             | E::AttemptBlock
             | E::WakeTarget
             | E::BleedModX { .. }
+            | E::LockActorHeldX(..)
+            | E::NamedPaysForStealth(..)
+            | E::UnlockDieRoll(..)
+            | E::DamageSeatSectVampires { .. }
+            | E::UnlockAndControlTargetUntilEndOfTurn
+            | E::TargetGetsTitle(..)
+            | E::ActorFreedFromSlavery
+            | E::CoinFlipBleed(..)
+            | E::BlockerControllerOpenHand
+            | E::FailOrFightBond
             | E::YoungerIntercept(..)
             | E::ActionCardToHand
             | E::BarSectVotesInReferendum(..)
@@ -480,6 +506,7 @@ impl Effect {
             | E::FortitudeProofStrike
             | E::NullifyOpposingWeapons
             | E::EnvironmentalDamage { .. }
+            | E::EnvironmentalDamageWhileTarget(..)
             | E::UndodgeableStrike
             | E::UndodgeableThisRound
             | E::DamageAfterCombat(..)
@@ -497,6 +524,7 @@ impl Effect {
             | E::StrengthThisRoundVotes
             | E::CombatEndsAfterStrike
             | E::PressThisRound
+            | E::LockHeldToUnlock(..)
             | E::CommittedStrike(..)
             | E::OpposingRestraint
             | E::OpposingCombatCardsCost(..)
@@ -510,6 +538,10 @@ impl Effect {
             | E::CloseManeuverForBlood(..)
             | E::ManeuverForBlood(..)
             | E::HandStrikeDamageThisCombat(..)
+            | E::HandStrikeBonusPerHeld(..)
+            | E::AggravatedAsNormal { .. }
+            | E::NoFrenzyCancelNorEndPress
+            | E::DamageEachCombatantNow(..)
             | E::HandSizeThisCombat(..)
             | E::AimExtraDamage(..)
             | E::OpponentToTorpor
@@ -529,6 +561,7 @@ impl Effect {
             | E::ContinuePressThisRound
             | E::EndPressThisRound
             | E::OpposingBurnsBlood(..)
+            | E::OpposingHandStrikerBurns { .. }
             | E::OpposingNoManeuverThisRound
             | E::OpposingImprisoned
             | E::ReflectsDamageThisCombat
@@ -621,6 +654,7 @@ impl Effect {
             | E::StealTargetTitle
             | E::PayLife(..)
             | E::PayBlood(..)
+            | E::PayBloodPerCounter
             | E::LockHostSkipNextUnlock(..)
             | E::ActingVampireTakesDamage(..)
             | E::TakeControlOfTargetUntilNextTurn
@@ -717,6 +751,7 @@ impl Effect {
             | E::HostBurnsBloodOrIsBurned(..)
             | E::HostBurnsBloodOrThisBurns(..)
             | E::CountersFromOwnBleed(..)
+            | E::PeekBledHandIfBearer
             | E::LockOldestOfClan(..)
             | E::TortureBurnPool(..)
             | E::ActingBurnsBloodOrLife(..)

@@ -72,6 +72,38 @@ pub enum Site {
 }
 
 impl Requirement {
+    /// Reads a minion's capacity or age, which Orun's "+2 for cards played
+    /// by others" changes with the reader, and nothing of its seat else
+    /// (not the combat side `holds` finds by seat: `OpponentCapacityAtMost`
+    /// stays out); an ability's reader is the Methuselah who played its
+    /// vampire or card (`AbilitySource::player`).
+    pub fn reads_capacity(self) -> bool {
+        use Requirement as R;
+        matches!(
+            self,
+            R::FoughtByYoungerActing
+                | R::BlockingYoungerActing
+                | R::ActingCapacityAtLeast(_)
+                | R::ActingCapacityAtMost(_)
+                | R::ActingYounger
+                | R::ActingAllyOrYounger
+                | R::ActorCapacityAtLeast(_)
+                | R::AttemptingAllyOrYounger
+                | R::AttemptingYoungerVampire
+                | R::AttemptingCapacityAtLeast(_)
+                | R::PlayedByAllyOrCapacityAtMost(_)
+                | R::PlayedByYoungerVampire
+                | R::CombatOpponentYounger
+                | R::Younger
+                | R::TargetOlder
+                | R::AllyOrYounger
+                | R::TargetAllyOrCapacityAtMost(_)
+                | R::TargetCapacityAtLeast(_)
+                | R::TargetCapacityAtMost(_)
+                | R::TargetCapacityAtMostTwiceHeld(_)
+        )
+    }
+
     /// The evaluators that really read this requirement (any other passes
     /// it as `true`): it belongs in a position whose evaluators meet these.
     pub fn slots(self) -> &'static [Slot] {
@@ -90,6 +122,7 @@ impl Requirement {
             | R::ActionRequiresClanOrDiscipline(..)
             | R::NoVampireNamedButInCrypt(..)
             | R::DirectedAtYourReadyClan(..)
+            | R::DirectedAtYourOtherOfSect(..)
             | R::TermsChoseYourReadyClan(..)
             | R::PlainEquipFromHandOncePerTurn
             | R::OwnActionCardCosts(..)
@@ -121,9 +154,9 @@ impl Requirement {
             | R::NoQueuedCombat
             | R::ActingAllyOrYounger
             | R::ActorNotActing
-            | R::OwnActingAllyOrYounger
             | R::ActionRequiresPath(..)
             | R::ActingAllyOf(..)
+            | R::ActingHoldsNone(..)
             | R::BlockingYoungerActing
             | R::FoughtByYoungerActing
             | R::BlockingActingOfSect(..)
@@ -142,6 +175,7 @@ impl Requirement {
             | R::OwnReadyClanWithBlood(..)
             | R::ActingVampire
             | R::ActingCapacityAtLeast(..)
+            | R::ActingCapacityAtMost(..)
             | R::OthersAttemptNeedsIntercept
             | R::ActingClan(..)
             | R::NotFirstActionOfPhase
@@ -214,6 +248,9 @@ impl Requirement {
             | R::ActorNotVotingFor
             | R::ActorWithout(..)
             | R::ActorHoldsFewer(..)
+            | R::ActorHoldsUnlocked(..)
+            | R::ActorHoldsAtLeast(..)
+            | R::GainedVpThisAction
             | R::PreyAshHasPair
             | R::ActorInfernal
             | R::ActorSeraph
@@ -277,7 +314,6 @@ impl Requirement {
             | R::ActorNotBlocking
             | R::RecruitingTzimisceGhoul
             | R::NoBlockAttempt
-            | R::OpponentVampire
             | R::OpponentLacksDiscipline(..)
             | R::OpponentVampireNotOlder
             | R::OpponentNotReady
@@ -311,18 +347,21 @@ impl Requirement {
             | R::IsEquipLabeledFromHand(..)
             | R::ControlsReadyBlackHand
             | R::ControlsReadySeraph => &[S::Play],
-            R::ActorBlackHand | R::ActorSlave | R::ActorTitleNotIn(..) => {
+            R::OpponentVampire | R::OpponentCapacityAtMost(..) => &[S::Play, S::Printed],
+            R::ActorBlackHand | R::ActorSlave | R::ActorNotSlave | R::ActorTitleNotIn(..) => {
                 &[S::Play, S::MinionTarget]
             }
             R::HostBelowCapacity
             | R::HostControllerPoolAtLeast(..)
             | R::HostBloodAtLeast(..)
+            | R::HostHoldsUnlocked(..)
             | R::HostBelowStartingLife
             | R::HostBloodAtMost(..)
             | R::HostInTorpor
             | R::HostDidNotHunt
             | R::HostAnnouncedNoAction
             | R::HostControllerActive
+            | R::HostControllerHasEdge
             | R::OwnCombatantOtherCopy
             | R::HostReady
             | R::HostVampire => &[S::Host],
@@ -342,6 +381,8 @@ impl Requirement {
             | R::BoonTargetActive
             | R::FewerCopiesThanReadyOfClan(..) => &[S::Card],
             R::TargetCapacityAtMost(..)
+            | R::TargetCapacityAtMostTwiceHeld(..)
+            | R::TargetHoldsAtLeast(..)
             | R::TargetAllyCard(..)
             | R::TargetDiscipline(..)
             | R::TargetMithraic
@@ -427,6 +468,11 @@ impl Requirement {
             | R::TargetOnPredatorOrPreyMinion
             | R::TargetCardNot(..) => &[S::CardTarget],
             R::ControlsReadyTitledOther(..)
+            | R::OtherReadyTitled(..)
+            | R::ActorOfSourcesPreyOrPredator
+            | R::ActorCapacityAtMost(..)
+            | R::OpponentTitleIn(..)
+            | R::SourceHoldsNone(..)
             | R::PredatorMoreReadyMinions
             | R::PreyPoolAtMost(..)
             | R::PreyControlsVampireNotOfSect(..)
@@ -459,6 +505,7 @@ impl Requirement {
             | R::OtherNonHuntAction
             | R::TargetSeatControlsReadyClan { .. }
             | R::TargetSeatControlsReadySect { .. }
+            | R::TargetIsSourceController
             | R::TargetSeatControlsReadyAlly
             | R::TargetSeatControlsReadyMinion
             | R::TargetSeatNoReadyCapacityAbove(..)
@@ -503,6 +550,8 @@ impl Requirement {
             | R::PlayedRequiresDiscipline(..)
             | R::PlayedRequiresAnyDiscipline
             | R::PlayedCard(..)
+            | R::PlayedRequiresNone(..)
+            | R::PlayedByMinionWithout(..)
             | R::ActorUntitled
             | R::ActorFollowsNoPath
             | R::ActorNotRedList
@@ -519,7 +568,6 @@ impl Requirement {
             | R::ImbuedRecoveryGranted => &[S::Host],
             R::OpponentMonster
             | R::OpponentNotInfernal
-            | R::OpponentCapacityAtMost(..)
             | R::CombatMonsterVsMortal
             | R::CombatBothMonsters
             | R::ActorMonster
@@ -552,7 +600,7 @@ impl Requirement {
             | R::TargetSameCircle { .. }
             | R::TargetClan(..) => &[S::MinionTarget, S::UncontrolledTarget],
             // A card's host or a vampire's own (Dive into Madness, Mustafa).
-            R::ActorOlderThanHost => &[S::Engine(Site::AbilityGate)],
+            R::ActorOlderThanHost | R::OwnActingAllyOrYounger => &[S::Engine(Site::AbilityGate)],
             R::ActingOfHostsMasterClan => &[S::Engine(Site::AbilityGate)],
             R::ActorNotBlackHand => &[S::Play, S::MinionTarget, S::UncontrolledTarget],
             R::TargetActedSuccessfully => &[S::MinionTarget],
@@ -583,7 +631,8 @@ impl Requirement {
             R::OthersMinionPhase | R::InMasterPhase => &[S::Engine(Site::AbilityWindow)],
             R::PlayedGrappleOrAimByOpponent
             | R::PlayedCombatByOpponent
-            | R::PlayedFrenzyOnYour(..) => &[S::Engine(Site::AsPlayed)],
+            | R::PlayedFrenzyOnYour(..)
+            | R::PlayedFrenzyOnHost => &[S::Engine(Site::AsPlayed)],
             R::OncePerTurn => &[S::Engine(Site::CardRider(Hook::HostBlocks))],
             R::OneCopyPerTurn => &[S::Engine(Site::CardRider(Hook::UnlockPhase))],
             R::TargetOnOpposingCombatant => &[S::Engine(Site::CardTargetQualifies)],
@@ -592,6 +641,7 @@ impl Requirement {
             | R::NotPlayedThisTurn
             | R::OnePerMethuselah
             | R::PlayedFrenzyOnActor
+            | R::PlayedActionTargetsActor
             | R::PlayedStrikeOrGrappleByOpponent
             | R::PlayedByOpposingMinion
             | R::PlayedRestrictsStrikesByOpponent
@@ -646,6 +696,7 @@ pub fn implied_requirement(payer: Actor, cost: Effect) -> Option<Requirement> {
     match cost {
         Effect::LockSelf => Some(Requirement::CardUnlocked),
         Effect::LockHost => Some(Requirement::HostUnlocked),
+        Effect::LockHostHeld(h, n) => Some(Requirement::HostHoldsUnlocked(h, n)),
         Effect::BurnConviction(n) => Some(Requirement::HostConvictionAtLeast(n)),
         Effect::BurnActorBlood(n) => Some(Requirement::ActorBloodAtLeast(n)),
         Effect::HostBurnBlood(n) | Effect::HostBurnLife(n) => Some(match payer {

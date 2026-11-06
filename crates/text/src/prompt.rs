@@ -506,6 +506,42 @@ impl Prompt<'_> {
                 self.minion()?
             ),
             P::MayUnlock => format!("{} can unlock", self.minion()?),
+            P::SearchOnto => format!("Search a card to put on {}", self.minion()?),
+            P::HandCardAway => "Move a card from your hand to your ash heap or library".into(),
+            P::ExchangeLooked => format!("{} can exchange the card looked at", self.minion()?),
+            P::BurnOverCapacity => format!(
+                "{} holds more Orun and Aye than its capacity: choose which burns",
+                self.minion()?
+            ),
+            P::MayReturnDiscards => {
+                "You can shuffle the cards discarded this discard phase into your library".into()
+            }
+            P::MayBurnForBlock => format!(
+                "{} can burn 1 blood instead of locking for the block",
+                self.minion()?
+            ),
+            P::MayBottomLooked => format!(
+                "{} can burn {} blood to move the card looked at to the bottom of your library",
+                self.minion()?,
+                a.n?
+            ),
+            P::MayFailAction => {
+                format!(
+                    "The block failed: you can make {}'s action fail",
+                    self.minion()?
+                )
+            }
+            P::MayLockToFight => format!(
+                "{} can lock to enter combat with {}",
+                self.minion()?,
+                self.to()?
+            ),
+            P::MayMoveBlood => format!(
+                "You can move {} blood from {} to {}",
+                a.n?,
+                self.minion()?,
+                self.to()?
+            ),
             P::DualFormKept => format!(
                 "{}'s Dual Form set left the ready region: choose the one kept",
                 self.minion()?
@@ -674,6 +710,16 @@ impl Prompt<'_> {
                                               per point, each card given a point is burned"
                         .into(),
                     "banish" => "choose the vampire to banish".into(),
+                    "damage_chosen" => {
+                        format!(
+                            "choose the ready minion to take {} unpreventable damage",
+                            a.n?
+                        )
+                    }
+                    "ash_to_hand" => format!(
+                        "name {} minion cards of your ash heap to move to your hand",
+                        a.n?
+                    ),
                     "expel" => format!(
                         "choose up to {} minions that cannot play reaction cards, block or cast \
                          votes this turn",
@@ -932,7 +978,17 @@ mod tests {
         RetakeFromAsh,
         MayLockForBlood,
         MayBurnLookedMaster,
+        MayMoveBlood,
+        MayFailAction,
+        MayLockToFight,
+        SearchOnto,
+        HandCardAway,
+        ExchangeLooked,
         XConvictions,
+        MayBurnForBlock,
+        MayBottomLooked,
+        MayReturnDiscards,
+        BurnOverCapacity,
     );
 
     /// Every purpose prompted, the sweeps' games reaching it or not.
