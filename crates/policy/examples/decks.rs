@@ -7,7 +7,8 @@
 //! - self-play of network A: per deck, the VPs and game wins of its seats
 //!   (the deck under the network's play, against the same play);
 //! - A at one seat, B at the three others: per A's deck, A's VPs (where
-//!   A gained over B).
+//!   A gained over B); over every deck, A's VP a seat and game wins with
+//!   two standard errors (the training skill's "Serve" reads them).
 //!
 //! `cargo run -p zvtes-policy --profile ci --example decks -- <A.zvp>
 //! <B.zvp> <games per measure>`.
@@ -46,8 +47,8 @@ fn table(rng: &mut Rng, decks: &[Deck], first: Option<usize>) -> (Vec<usize>, us
     }
 }
 
-/// (VPs in half points, game wins, seats) per deck index.
-type Tally = BTreeMap<usize, (u64, u64, u64)>;
+/// (VPs in half points, game wins, seats, squared half points) per deck index.
+type Tally = BTreeMap<usize, (u64, u64, u64, u64)>;
 
 fn play(nets: [&Arc<Net>; 2], decks: &[Deck], picks: &[usize], at: usize, seed: u64) -> Vec<u32> {
     let seats: Vec<Deck> = picks.iter().map(|&d| decks[d]).collect();
@@ -82,6 +83,7 @@ fn add(t: &mut Tally, d: usize, vps: &[u32], s: usize) {
     e.0 += vps[s] as u64;
     e.1 += win as u64;
     e.2 += 1;
+    e.3 += (vps[s] as u64).pow(2);
 }
 
 fn main() {
@@ -121,11 +123,12 @@ fn main() {
         for p in parts {
             let (s, v) = p.join().expect("a thread");
             for (into, from) in [(&mut out.0, s), (&mut out.1, v)] {
-                for (d, (x, y, z)) in from {
+                for (d, (x, y, z, q)) in from {
                     let e = into.entry(d).or_default();
                     e.0 += x;
                     e.1 += y;
                     e.2 += z;
+                    e.3 += q;
                 }
             }
         }
@@ -151,4 +154,17 @@ fn main() {
             v.2
         );
     }
+    let (h, w, n, q) = versus.values().fold((0, 0, 0, 0), |a, e| {
+        (a.0 + e.0, a.1 + e.1, a.2 + e.2, a.3 + e.3)
+    });
+    let n = n.max(2) as f64;
+    let mean = h as f64 / 2.0 / n;
+    let var = (q as f64 / 4.0 / n - mean * mean) * n / (n - 1.0);
+    let wins = w as f64 / n;
+    println!(
+        "A against B: VP a seat {mean:.3} ±{:.3}, game wins {:.1}% ±{:.1} (two standard errors), {n} seats",
+        2.0 * (var / n).sqrt(),
+        100.0 * wins,
+        200.0 * (wins * (1.0 - wins) / n).sqrt()
+    );
 }

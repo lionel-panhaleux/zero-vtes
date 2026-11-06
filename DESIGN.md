@@ -2058,56 +2058,75 @@ training runs.
   ready vampires and blocks landed through round 6; blood ahead from rounds 4–5
   (11.3 / 8.8 at round 5, custom decks unaccounted); blocks landed 1.5 times
   theirs at round 7 and twice from round 8 (21, 18 and 12 human seats).
-- **p17, prepared** (owner, 2026-11-02, through Z-main: search dropped, train
-  from human-won positions in the winner's seat, no shaping; run by this
-  session, Z-train being gone). What the run tests: half the tables start from
-  a human's win, the learner in the winner's seat, where play like theirs has
-  paid against these bots and self-play's tables never go (`--start-winner`,
-  `--start-tables 0.5`). From p14@5280 (`a78e74292acb`), as p14 otherwise: λ
-  0.95, `gw_weight` 5, the nudges, the weak decks, imitation as p16 (the
-  owner's games twice as often, doubling 4,272 of 10,353 choices). So the run
-  reads clean: p14 the only frozen opponent, at the served temperature, and
-  every seat at it in evaluation (`--served-temperature 0.5`); a flat learning
-  rate, 3e-5, so the curve is not a recovery (`--lr-final 1`); `--entropy-coef`
-  at p14's mean, a starting value, the controller staying on; a checkpoint per
-  evaluation, so `--best-seeds 1` spares the re-measures. Three more things
-  move with it, none of them tested for: the seats' context layer trains from
-  zero; 266 vocabulary rows p14 never met, in 21 of the 171 TWDA decks, train
-  in the learner and stay random in frozen p14, so scores against p14 can rise
-  from that alone; every start is 4 seats, so 5-seat tables fall to about a
-  quarter. Held out, never a start nor imitated: 13 games reading whole, four
-  of `humanset`'s five and every second of the 18 wins over p14, which p14
-  never met. To train on: 46 of the 74 human wins, 39 read whole and 7 read to
-  at least 200 decisions, 8 shorter ones and 6 partial ones with no position
-  digest left out: about 21,000 decisions to start from, about 420 tables a
-  game over the run. Thin: the libraries are shuffled, so a board can be
-  learned and a result cannot, hence stop 3. Every 20 iterations: against p14
-  (256 games at 4 and 5 seats), `vs_held` (208 games from the held-out wins, by
-  game), `start_won` of `starts`. The bar: p14 measured so first, the same
-  command with `--out runs/p17-baseline --lr 0 --iterations 5281 --eval-every 1
-  --held-games 832`, the first 208 deals the same. Stops: (1) from iteration
-  5400, every 40, the mean of the last three `vs_held` win rates not above the
-  bar's; (2) three evaluations running 0.3 under the bar's own score against
-  p14, (VPs + 5 × wins) averaged over 4 and 5 seats, on the same deals; (3) the
-  starts' win rate from iteration 5291 on, up 10 points between the first three
-  evaluations and the last three, with stop 1's mean not above the bar + 2; (4)
-  iteration 5580. Then step 4 on the last evaluation and `best.pt`, p14
-  alongside; p14 stays served unless measured better. Judged on the 13 and on
-  the nine p14 never met, reported both ways at step 4, the owner's choice
-  between them open (2026-11-02); the stops read the 13, the nine's 144 games a
-  look being no reading against this bar. The command, on `65d7140` and this
-  change, the paths absolute into the main checkout's `runs/` and `data/`:
-  `train.ppo --league true --out runs/p17 --resume runs/p14/best.pt --opponents
-  runs/p14/best.pt --served-temperature 0.5 --decks
-  precons,anniversary,sabbat,twda --gw-weight 5 --lam 0.95 --lr 3e-5 --lr-final
-  1 --entropy-coef 0.033 --bc data/records,data/server-records --bc-coef 0.02
-  --bc-every 4 --bc-held-games H --bc-weak-weight 3 --bc-games-weight
-  zero-vtes-replay=2 --starts S --start-tables 0.5 --start-winner true
-  --held-games 208 --keep-evals true --weak-decks 0,3,7,8,9,12,13 --weak-rate
-  0.35 --rescue-bonus 6 --bleed-bonus 4 --idle-bonus 3 --draw-bonus 7
-  --stuck-bonus 6 --nightmare-bonus 6 --iterations 5580 --eval-every 20
-  --best-seeds 1 --bots-every 0`, H and S kept in `runs/p17-held.txt` and
-  `runs/p17-starts.txt`.
+- **p17** (`runs/p17`, `../zero-vtes-p17` at `08c5665`; 2026-11-03 → 04, 5281 →
+  5580, no stop fired, no panic, nothing truncated in training (two evaluation
+  games); ~2.3 minutes an iteration, the machine's idle sleep stretching it to
+  ~26 hours). The owner's run (2026-11-02, through Z-main: search dropped, no
+  shaping): half the tables start from a human's win, the learner in the
+  winner's seat, where play like theirs has paid against these bots
+  (`--start-winner`, `--start-tables 0.5`). From p14@5280 (`a78e74292acb`), as
+  p14 otherwise: λ 0.95, `gw_weight` 5, the nudges, the weak decks, imitation
+  as p16's (the owner's games twice as often). Around it: p14 the only frozen
+  opponent, at the served temperature, every seat at it in evaluation
+  (`--served-temperature 0.5`); a flat learning rate, 3e-5; `--entropy-coef
+  0.033` to start, the controller on; `--best-seeds 1`, a checkpoint per
+  evaluation. Also moving, untested: the seats' context layer from zero; 266
+  vocabulary rows p14 never met (21 of the 171 TWDA decks), random in frozen
+  p14; 5-seat tables at about a quarter. Held out of imitation and starts: 13
+  human wins reading whole, four of `humanset`'s five and every second of the
+  18 wins over p14; judged on those nine, which p14 never met (owner,
+  2026-11-03). Trained from 46 of the 74 human wins (39 whole, 7 partial with a
+  position digest; 8 short and 6 undigested left out), ~21,000 decisions to
+  start from, ~450 tables a game. The command: `train.ppo --league true --out
+  runs/p17 --resume runs/p14/best.pt --opponents runs/p14/best.pt
+  --served-temperature 0.5 --decks precons,anniversary,sabbat,twda --gw-weight
+  5 --lam 0.95 --lr 3e-5 --lr-final 1 --entropy-coef 0.033 --bc
+  data/records,data/server-records --bc-coef 0.02 --bc-every 4 --bc-held-games
+  H --bc-weak-weight 3 --bc-games-weight zero-vtes-replay=2 --starts S
+  --start-tables 0.5 --start-winner true --held-games 208 --keep-evals true
+  --weak-decks 0,3,7,8,9,12,13 --weak-rate 0.35 --rescue-bonus 6 --bleed-bonus
+  4 --idle-bonus 3 --draw-bonus 7 --stuck-bonus 6 --nightmare-bonus 6
+  --iterations 5580 --eval-every 20 --best-seeds 1 --bots-every 0`, H and S in
+  `runs/p17-held.txt` and `runs/p17-starts.txt`, the paths absolute into the
+  main checkout. The stops, fixed before launch against p14 measured so first
+  (`runs/p17-baseline`: `vs_held` 0.495, the nine 0.493, 2.24 against p14):
+  none fired. `vs_held` read 0.49–0.57 over 15 evaluations, its
+  three-evaluation mean 0.506–0.521 at stop 1's five looks; against p14
+  1.86–2.41, under 1.94 at 5320 and 5500, never three running; the starts' wins
+  rose from 0.47 to 0.58 by window, stop 3 at most 5 of its 10 points. No fall
+  and no climb against p14: 2.22 at the first evaluation, 2.13 on average (by
+  thirds 2.10, 2.24, 2.04) against the bar's 2.24, where p13 to p15, at 1e-4
+  tapering, opened ~0.4 down and climbed. Step 4, measured on `08c5665`, on the
+  last evaluation (5580, `f426338f6c80`) and `best.pt` (5400, `b3d990e32f8b`),
+  p14 alongside (`runs/p17/step4/`: its README the commands, `summary.py` the
+  numbers): at one seat against three p14, `decks.rs` 1.03 VP a seat (600
+  seats, ± 0.12 by the ladder's spread), and at the served settings 1.065 ±
+  0.09 VP and 25.5% ± 2.8 wins (1,000 games, the scratch
+  `runs/search-2026-11-02/rust/ladder.rs`): level. `humanset` (20 games a
+  position, bots p14): on the nine, won 245 of 540 against p14's 218 (45.4% /
+  40.4%; better on seven games, worse on one; t 2.4 on 8 degrees of freedom
+  game by game; `best.pt` 236); on the 13, 347 and 313 of 780 (from a quarter
+  in 29% / 22%, halfway 34% / 28%, three quarters 71% / 70%; `best.pt` 349);
+  agreement 49.4% / 48.4%, the human's choice's mean log-probability −1.88 /
+  −1.97. The ledger (400 self-play games each at the served settings): A&B a
+  round 2.41 / 2.45 at 4 seats, 2.42 / 2.51 at 5, 2.05 / 2.08 on TWDA; its
+  prey's R a turn −3.48 / −3.70, −3.79 / −3.97, −3.33 / −3.48: worse beyond two
+  standard errors on A&B at 5 seats and the prey's R at 4 and 5. The critic
+  (`train.position`, the explained variance of a seat's result by quarter of
+  the game, one run each, no error computed): on 500 games of its own self-play
+  at training's settings (p14's seed, 30% held out) 0.15 / 0.22 / 0.43 / 0.74,
+  p14's 0.16 / 0.17 / 0.37 / 0.68; on the human records as they now are (50,402
+  decisions, the 46 games it started from among them) −0.18 / −0.06 / 0.14 /
+  0.57, p14's −0.23 / −0.12 / 0.10 / 0.48. It wins more from the humans'
+  positions (+5.0 points on the nine, p ≈ 0.05 game by game, within the rates'
+  two standard errors of 6.0), and in self-play harms its prey less and loses
+  more of its own (its R −1.15 / −0.93 at 5 seats, −0.76 / −0.58 on TWDA,
+  beyond two standard errors; −1.21 / −1.06 at 4): the not-degrading test
+  fails, so the run went to the owner (2026-11-04): served as a trial (owner,
+  2026-11-06; back to p14 if the human games worsen, read in the harvest
+  report's human win rate and VP a seat by weights against p14's 76% and 2.64
+  over 74 counted games), `runs/p17/last.zvp` (`f426338f6c80`), the previous
+  `runs/served-prev-2026-11-06-p14.zvp` (`a78e74292acb`).
 - **Futile blocks on the E25 engine** (owner, 2026-10-15: before any
   redeploy). E25 (`97c4880`) offers every legal block attempt, those
   that cannot reach the stealth too (`Engine::block_can_reach`); no

@@ -64,47 +64,47 @@ runs" (every run's command, numbers and lessons), `docs/boards/training.md`.
    last evaluation + 1 (`model.pt` is saved at evaluations only: up to 19
    iterations lost). Machine sleep stalls a run, it doesn't crash it.
 4. **Evaluate**: `uv run python -m train.export runs/pN/best.pt
-   runs/pN/best.zvp`; `waste` for pN and the served weights; `decks.rs`
-   per deck and pN against three of the served weights (and three pPREV
-   when pPREV was not served); `humanset` (`cargo run -p zvtes-policy --profile
+   runs/pN/best.zvp`; `waste` for pN and the served weights; `decks.rs` per
+   deck and pN against three of the served weights (and three pPREV when
+   pPREV was not served); `humanset` (`cargo run -p zvtes-policy --profile
    ci --example humanset -- <pN.zvp> <served bots.zvp> 20 <records>`) on the
    wins of the run's `--bc-held-games`, held out of its imitation and its
    starts — a resumed network keeps what its ancestors trained on, and every
-   network to date, the served p14 too, began tables from the five, so report
-   the wins newer than the served weights' starts apart; hold out new
-   harvested wins the same way to grow the set — for pN and the served
-   weights alike; `uv run python -m train.position runs/pN/best.pt
-   --records data/records,data/server-records` for the critic against
-   the position by stage (DESIGN §11.2 "The critic against the
-   position"; a shaped critic's values with Φ added back). `waste`'s
-   impact lines are the run's measure (DESIGN §11.2 "The impact
-   ledger"): A&B a round and R's change over its own turns (its own, its
-   prey's, its predator's), at 4 and 5 seats and on TWDA decks, with
-   `--cards N` the hand's cards (plays a round held). A "pN run" note in
-   DESIGN §11.2 with the numbers.
+   network to date, the served one too, descends from tables begun from the
+   five, so report the wins newer than the served weights' starts apart;
+   hold out new harvested wins the same way to grow the set — for pN and the
+   served weights alike; `uv run python -m train.position runs/pN/best.pt
+   --records data/records,data/server-records` for the critic against the
+   position by stage (DESIGN §11.2 "The critic against the position"; a
+   shaped critic's values with Φ added back). `waste`'s impact lines are the
+   run's measure (DESIGN §11.2 "The impact ledger"): A&B a round and R's
+   change over its own turns (its own, its prey's, its predator's), at 4 and
+   5 seats and on TWDA decks, with `--cards N` the hand's cards (plays a
+   round held). A "pN run" note in DESIGN §11.2 with the numbers.
 5. **Serve** (by the measure, owner 2026-10-23; the measure the impact
-   ledger, owner 2026-10-25: "remove all concerns about influence
-   idling, wakes and combat outcomes, and focus on … higher level
-   strategy"): a run is served when step 4 shows it does not degrade the
-   served weights and gains somewhere. Not degrading, each within two
-   standard errors: pN's VP a seat against three of the served weights
-   (`decks.rs`'s second measure, 4 seats) at or above even, 1.0 (2·s/√n
-   over its seats); `humanset`'s agreement and wins from the positions
-   (a rate's error 2·√(p(1−p)/n)); the ledger's A&B a round and its
-   prey's R over its own turns at 4 and 5 seats and on TWDA decks no
-   worse than the served weights' (`waste` prints each with its two
-   standard errors: the difference against both). `waste`'s other
-   counters are diagnostics, not the test. A gain: overall, or a niche
-   one (a deck's VPs in `decks.rs`, a `humanset` score, the ledger at a
-   table size), shown by a step-4 number against the served weights.
-   Z-train sends Z-main the numbers, which DESIGN §11.2's "pN run" note
-   records; a run that fails the not-degrading test goes to the owner instead.
-   Z-main redeploys engine.krcg.org with `ZVTES_WEIGHTS` explicit (CLAUDE.md
-   "Sessions": only Z-main deploys); name the served weights by their sha prefix
-   in the DESIGN note (the server records the weights' SHA-256 per game); keep
-   the previous weights as `runs/served-prev-<date>-<run>.zvp`; the served
+   ledger, owner 2026-10-25: "remove all concerns about influence idling,
+   wakes and combat outcomes, and focus on … higher level strategy"): a run
+   is served when step 4 shows it does not degrade the served weights and
+   gains somewhere. Not degrading, each within two standard errors: pN's VP
+   a seat against three of the served weights (`decks.rs`'s second measure,
+   4 seats, its last line the VP a seat and game wins with two standard
+   errors) at or above even, 1.0; `humanset`'s agreement and wins from the
+   positions (a rate's error 2·√(p(1−p)/n)); the ledger's A&B a round and
+   its prey's R over its own turns at 4 and 5 seats and on TWDA decks no
+   worse than the served weights' (`waste` prints each with its two standard
+   errors: the difference against both). `waste`'s other counters are
+   diagnostics, not the test. A gain: overall, or a niche one (a deck's VPs
+   in `decks.rs`, a `humanset` score, the ledger at a table size), shown by
+   a step-4 number against the served weights. Z-train sends Z-main the
+   numbers, which DESIGN §11.2's "pN run" note records; a run that fails the
+   not-degrading test goes to the owner instead. Z-main redeploys
+   engine.krcg.org with `ZVTES_WEIGHTS` explicit (CLAUDE.md "Sessions": only
+   Z-main deploys); name the served weights by their sha prefix in the
+   DESIGN note (the server records the weights' SHA-256 per game); keep the
+   previous weights as `runs/served-prev-<date>-<run>.zvp`; the served
    profile (temperature, nudges) lives in `crates/policy/src/profiles.rs`
-   (`NETWORK`), which the server and `crates/policy/examples/humanset.rs` read.
+   (`NETWORK`), which the server and `crates/policy/examples/humanset.rs`
+   read.
 
 ## Taking a new engine
 

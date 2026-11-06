@@ -3,8 +3,8 @@
 //! time limit), read whole by this engine, a run's `--bc-held-games`, out
 //! of its imitation and its starts, in `data/records` and harvested; a
 //! resumed network keeps what its ancestors trained on (every one to date,
-//! the served p14 too, began tables from the first five). Two scores for a
-//! network:
+//! the served one too, descends from tables begun from the first five). Two
+//! scores for a network:
 //! - agreement: at each of the winner's decisions with an alternative, the
 //!   network's favourite (its plain logits, no nudge or mask, as imitation
 //!   reads them) against the human's choice, and the log-probability it

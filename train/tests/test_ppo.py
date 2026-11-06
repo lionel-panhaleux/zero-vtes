@@ -362,7 +362,12 @@ def test_the_served_temperature(tmp_path):
         logits = forward(model, batch)[0][: len(obs["tok_n"]), : obs["opt_ids"].shape[1]].float()
     logits = logits + torch.from_numpy(obs["opt_bias"])
     best, lp_best, _ = act({0: model}, obs, trainer.device, np.random.default_rng(1), {0: 1e-4})
-    assert (best == logits.argmax(1).numpy()).all() and np.allclose(lp_best, 0, atol=1e-6)
+    # An untrained network may score two options within 1e-4 of each other,
+    # which this temperature cannot make certain: only clear favourites count.
+    top = logits.topk(2, dim=1).values
+    clear = ((top[:, 0] - top[:, 1]) > 0.01).numpy()
+    assert clear.mean() > 0.5, "most rows have a clear favourite"
+    assert (best[clear] == logits.argmax(1).numpy()[clear]).all() and np.allclose(lp_best[clear], 0, atol=1e-6)
     _, lp, _ = act({0: model}, obs, trainer.device, np.random.default_rng(1))
     assert (lp < -1e-3).any(), "at 1 the same options are sampled from their distribution"
 
