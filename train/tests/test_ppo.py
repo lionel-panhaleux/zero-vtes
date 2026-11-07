@@ -295,6 +295,13 @@ def test_start_won_is_the_learners_win():
     assert not start_won({k: v for k, v in ep.items() if k != "start"}), "a game from the deal"
 
 
+# Near zero for the tests comparing whole games whatever the action seed, and
+# its inverse the scale that makes the learner's choices sure: two copies of
+# a card are two options alike but for their slot (rules-qa 107.31), which an
+# untrained network can score 6e-4 apart; 1e-3 leaves such a pair to chance.
+NEAR_ZERO = 1e-8
+
+
 def served_trainers(tmp_path, t, steps=16):
     """Two trainers with one pool and different action seeds, the frozen
     seats at temperature `t`."""
@@ -315,20 +322,20 @@ def test_the_served_temperature_in_rollouts(tmp_path):
     learner at 1. The learner's choices made certain, near zero the same games
     stand after a few steps whatever the action seed; at 1 the frozen seats'
     sampling parts them, and near zero the learner's own sampling does.
-    (Later on, two options scored alike keep sampling at any temperature.)"""
+    (Later on, two options scored the same keep sampling at any temperature.)"""
     def after(t, certain=True):
         out = []
         for trainer in served_trainers(tmp_path, t, steps=8):
             if certain:
                 with torch.no_grad():
-                    trainer.model.score[-1].weight.mul_(1e4)
+                    trainer.model.score[-1].weight.mul_(1 / NEAR_ZERO)
             trainer.rollout()
             out.append(trainer.pool.observe()["tok_ids"])
         return out
 
-    assert np.array_equal(*after(1e-3))
+    assert np.array_equal(*after(NEAR_ZERO))
     assert not np.array_equal(*after(1.0))
-    assert not np.array_equal(*after(1e-3, certain=False))
+    assert not np.array_equal(*after(NEAR_ZERO, certain=False))
 
 
 def test_the_served_temperature_in_evaluation(tmp_path):
@@ -339,7 +346,7 @@ def test_the_served_temperature_in_evaluation(tmp_path):
         tables = [{"seats": seats} for seats in eval_tables([f"net:{FROZEN}"] * 3, 8)]
         return [json.dumps(trainer.played(trainer.eval_pool(tables, 0), 8, seed)) for seed in (1, 2, 3)]
 
-    assert len(set(results(1e-3))) == 1
+    assert len(set(results(NEAR_ZERO))) == 1
     assert len(set(results(1.0))) > 1
 
 
