@@ -185,7 +185,9 @@ fn every_option_s_key_names_what_it_is_about() {
 /// the library, hand or ash heap of the seat it is taken from, the card
 /// in it; none only for a card named without taking it (Master:
 /// Discipline) or one stored on a card. A library search, the seat's own
-/// ash heap and another seat's (Trochomancy) are each met.
+/// ash heap and another seat's (Trochomancy) are each met; a deeper
+/// sweep's seed kept: Undele's referendum naming its caller's ash heap
+/// cards (178).
 #[test]
 fn a_found_card_names_the_zone_it_is_in() {
     use zvtes::decision::Choice;
@@ -202,11 +204,14 @@ fn a_found_card_names_the_zone_it_is_in() {
     let troch = zvtes_host::deck::resolve(0, &troch).expect("Trochomancy's deck");
     let lists = vec![(troch.crypt.as_slice(), troch.library.as_slice()); 4];
     let mut met: HashMap<(Zone, bool), usize> = HashMap::new();
-    for seed in 1..=seeds + 12 {
-        let mut e = if seed <= seeds {
-            engine(seed)
-        } else {
+    let kept = [178].into_iter().filter(|&s| s > seeds);
+    let deck = (seeds + 1..=seeds + 12).map(|s| (s, true));
+    let played = (1..=seeds).chain(kept).map(|s| (s, false)).chain(deck);
+    for (seed, with_troch) in played {
+        let mut e = if with_troch {
             Engine::with_lists(seed, &lists)
+        } else {
+            engine(seed)
         };
         let mut agent = RandomLegal::new(seed);
         for _ in 0..20_000 {

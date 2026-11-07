@@ -296,10 +296,11 @@ fn invariants(e: &Engine, totals: &[usize], seed: u64, window: WindowLabel) {
     );
     assert!(edges <= 1, "multiple Edges (seed {seed})");
     for (i, m) in st.minions.iter().enumerate() {
-        // In play: out of it, cards on it give nothing, and the blood they
-        // let it hold stays (advanced rules 5.1.1).
+        // Present: out of play (contested too, rules-qa 108.1), cards on
+        // it give nothing, and the blood they let it hold stays (advanced
+        // rules 5.1.1).
         assert!(
-            !m.in_play
+            !m.present()
                 || st
                     .capacity_of(MinionId(i as u32))
                     .is_none_or(|c| m.blood <= c),
@@ -627,48 +628,81 @@ fn fuzz(name: &str, seeds: u64, start: &dyn Fn(u64) -> Engine) -> (HashSet<Strin
         .and_then(|v| v.parse().ok());
     let seeds = sweep.unwrap_or(seeds);
     for seed in from.unwrap_or(0)..seeds {
-        let Played {
-            e: played,
-            vps,
-            chosen,
-            trail,
-        } = play(seed, start);
-        seen.extend(chosen.into_iter().map(spell));
-        lines.push(trail.line(seed, &played, &vps));
-        ousted |= played.state.seats.iter().any(|s| s.ousted) && vps.iter().any(|&v| v >= 2);
-        let hash = played.state.hash();
-        if seed % REPLAY_EVERY != 0 {
-            continue;
-        }
-
-        // Replay: the recorded decision log reproduces the identical game.
-        let mut replayed = start(seed);
-        let mut cursor = 0;
-        let replayed_vps = loop {
-            match replayed.run() {
-                Step::Decision(_) => {
-                    replayed.choose(played.log[cursor]);
-                    cursor += 1;
+        // A panic inside the engine (an index out of range) knows no seed:
+        // name it.
+        let one = std::panic::AssertUnwindSafe(|| one_seed(seed, start, &mut seen, &mut ousted));
+        match std::panic::catch_unwind(one) {
+            Ok(line) => lines.push(line),
+            Err(p) => {
+                let what = p
+                    .downcast_ref::<String>()
+                    .map(String::as_str)
+                    .or_else(|| p.downcast_ref::<&str>().copied())
+                    .unwrap_or("a panic");
+                if what.contains("(seed ") {
+                    std::panic::resume_unwind(p);
                 }
-                Step::Over(v) => break v,
+                panic!("{what} (seed {seed})");
             }
-        };
-        assert_eq!(
-            cursor,
-            played.log.len(),
-            "log length mismatch (seed {seed})"
-        );
-        assert_eq!(replayed_vps, vps, "VP mismatch on replay (seed {seed})");
-        assert_eq!(
-            replayed.state.hash(),
-            hash,
-            "state hash mismatch on replay (seed {seed})"
-        );
+        }
     }
     if from.is_none() {
         golden(name, &lines, sweep.is_none());
     }
     (seen, ousted)
+}
+
+/// One seed of `fuzz`: played, replayed every `REPLAY_EVERY`th; its golden
+/// line.
+fn one_seed(
+    seed: u64,
+    start: &dyn Fn(u64) -> Engine,
+    seen: &mut HashSet<String>,
+    ousted: &mut bool,
+) -> String {
+    let Played {
+        e: played,
+        vps,
+        chosen,
+        trail,
+    } = play(seed, start);
+    seen.extend(chosen.into_iter().map(spell));
+    let line = trail.line(seed, &played, &vps);
+    *ousted |= played.state.seats.iter().any(|s| s.ousted) && vps.iter().any(|&v| v >= 2);
+    let hash = played.state.hash();
+    if !seed.is_multiple_of(REPLAY_EVERY) {
+        return line;
+    }
+
+    // Replay: the recorded decision log reproduces the identical game.
+    // Numbered as `play` numbers it: rules read copies (Steely Tenacity's
+    // retake, Gift of Proteus' earmark; an unnumbered one matches any
+    // copy), and the state hash skips them (`Pile`, `Untracked`): a replay
+    // without them diverges under equal hashes.
+    let mut replayed = start(seed);
+    zvtes::copies::number_unnumbered(&mut replayed);
+    let mut cursor = 0;
+    let replayed_vps = loop {
+        match replayed.run() {
+            Step::Decision(_) => {
+                replayed.choose(played.log[cursor]);
+                cursor += 1;
+            }
+            Step::Over(v) => break v,
+        }
+    };
+    assert_eq!(
+        cursor,
+        played.log.len(),
+        "log length mismatch (seed {seed})"
+    );
+    assert_eq!(replayed_vps, vps, "VP mismatch on replay (seed {seed})");
+    assert_eq!(
+        replayed.state.hash(),
+        hash,
+        "state hash mismatch on replay (seed {seed})"
+    );
+    line
 }
 
 // ---- Golden replays (DESIGN §7.3) ---------------------------------------------

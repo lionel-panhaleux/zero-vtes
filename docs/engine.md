@@ -688,19 +688,19 @@ sources to the engine's conventions.
 
 `actions.rs`: `ActionCtx`, `ActionState`; `ActionKind`, `ActionId`.
 
-- An action's two ends, `declare_action` and `drop_action` (resolved, or
-  cut short by an oust, the turn's end or the game's: `run` drops it
-  before `Step::Over`), are noted (`Note::Action`, `ActionNote`: the
-  context then), which the host tells as `action_starts` and
-  `action_ends`; Mask of a Thousand Faces' takeover as `Note::Acting`
-  (`acting_changes`). An action ends only through `drop_action`; a
-  `self.action.take()` that puts it back is no end. Its resolution
-  (`succeed`) and its window's choices (`action_apply`) run as its
-  effect (`ActionCtx::cause_source`), its costs inside as costs
-  (`paying`). Taken out, the action is not `self.action`: what reads it
-  there misses it — an action card's burns go through `Engine::card_burns`
-  into `ActionCtx::burned_owners` (Predator's Transformation [ABO], the
-  Trophies; rules-qa 94.5).
+- An action's two ends, `declare_action` and `drop_action` (resolved, or cut
+  short by an oust, the turn's end or the game's: `run` drops it before
+  `Step::Over`, and the game's end first puts its card where the action's end
+  would, `place_action_card`), are noted (`Note::Action`, `ActionNote`: the
+  context then), which the host tells as `action_starts` and `action_ends`; Mask
+  of a Thousand Faces' takeover as `Note::Acting` (`acting_changes`). An action
+  ends only through `drop_action`; a `self.action.take()` that puts it back is
+  no end. Its resolution (`succeed`) and its window's choices (`action_apply`)
+  run as its effect (`ActionCtx::cause_source`), its costs inside as costs
+  (`paying`). Taken out, the action is not `self.action`: what reads it there
+  misses it — an action card's burns go through `Engine::card_burns` into
+  `ActionCtx::burned_owners` (Predator's Transformation [ABO], the Trophies;
+  rules-qa 94.5).
 - Kinds: rulebook (bleed, hunt, leave torpor, rescue, diablerie, political),
   `Card`, `Equip`/`EquipFrom`/`EquipFound`, `Recruit`/`Employ`, `BurnCard`,
   `StealCard`, `Ability` (granted by a card in play or printed on a vampire;
@@ -2025,10 +2025,13 @@ are in DESIGN §11.2.
   `CopyCounter::deal`; none yet: a ghoul token is a library card).
 - Copies serve clients (a card followed across the table) and records; they
   never take part in the game's identity (a `CopyId` stored in a new field
-  goes in `Untracked`, as `CardInPlay::held_vampire`'s: a bare one is
-  hashed, and the fuzz's replay check fails on it): `Pile` compares and hashes as its
-  card ids alone, `Untracked` fields not at all, so the state hash,
-  observations and options do not see them.
+  goes in `Untracked`, as `CardInPlay::held_vampire`'s): `Pile` compares and
+  hashes as its card ids alone, `Untracked` fields not at all, so the state
+  hash, observations and options do not see them. The rules that follow one
+  physical card read them (`copies.rs` lists them, Steely Tenacity's retake
+  and Gift of Proteus' earmark among them), so a fixture numbers its cards
+  (`number_unnumbered`) before a game and before its replay alike: two
+  games apart there diverge under equal hashes.
 - `census` lists every card with its copy and place (`Place`: a seat's
   zone, the uncontrolled region, a card or minion in play, stored on a
   card, in flight, on a banished vampire, in training); the fuzz tests

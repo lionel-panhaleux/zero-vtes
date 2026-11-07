@@ -4364,6 +4364,7 @@ impl Engine {
             }
             self.combat = None;
             self.state.leave_combat();
+            self.place_action_card();
             self.drop_action();
             self.flow = Flow::GameOver;
             return true;

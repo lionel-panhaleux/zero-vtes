@@ -268,6 +268,16 @@ fn found_in(e: &Engine, req: &DecisionRequest) -> Option<ZoneRef> {
     if req.window == W::ActionExchange {
         return at(req.seat, Zone::AshHeap);
     }
+    // Undele's referendum: its caller's heap.
+    let ash_named = |r: &&zvtes::referendum::ReferendumCtx| {
+        matches!(
+            r.current_term(),
+            Some(zvtes::cards::Term::ChooseAshCards { .. })
+        )
+    };
+    if let Some(r) = e.referendum().filter(ash_named) {
+        return at(r.caller, Zone::AshHeap);
+    }
     if let Some(p) = e.play_terms() {
         return at(p.ash.map_or(p.seat, |(s, _)| s), Zone::AshHeap);
     }

@@ -1103,7 +1103,9 @@ impl Engine {
                 continue;
             }
             if matches!(self.flow, Flow::GameOver) {
-                // An action the game's end cut short ends with it.
+                // An action the game's end cut short ends with it, its card
+                // placed as it would have been.
+                self.place_action_card();
                 self.drop_action();
                 return Step::Over(self.state.seats.iter().map(|s| s.half_vps).collect());
             }

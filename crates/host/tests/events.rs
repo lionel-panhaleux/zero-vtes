@@ -49,11 +49,12 @@ fn from() -> u32 {
 /// (392); and a contested vampire keeping its excess (386), a created vampire
 /// removed (516: Golconda), a marker gone as a vampire returns (695: Descent
 /// into Darkness); and an action its Methuselah's oust ended mid-way (389:
-/// Alastor's equipment paid with the last pool).
-const KEPT: [u32; 44] = [
-    45, 70, 81, 88, 95, 99, 104, 106, 109, 111, 114, 118, 119, 132, 135, 141, 152, 172, 219, 239,
-    286, 294, 299, 300, 332, 346, 375, 380, 386, 389, 392, 411, 474, 504, 516, 579, 591, 695, 728,
-    910, 913, 929, 933, 1386,
+/// Alastor's equipment paid with the last pool), one whose referendum ended
+/// the game, its card out of limbo (210: Kine Resources Contested).
+const KEPT: [u32; 45] = [
+    45, 70, 81, 88, 95, 99, 104, 106, 109, 111, 114, 118, 119, 132, 135, 141, 152, 172, 210, 219,
+    239, 286, 294, 299, 300, 332, 346, 375, 380, 386, 389, 392, 411, 474, 504, 516, 579, 591, 695,
+    728, 910, 913, 929, 933, 1386,
 ];
 
 /// The sweep's seeds: `HOST_SEED_FROM` to `HOST_SEEDS` (40), the kept

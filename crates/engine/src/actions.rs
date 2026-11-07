@@ -7691,39 +7691,10 @@ impl Engine {
                 });
             }
         }
+        self.place_action_card();
         let a = self.action.as_ref().expect("action context");
-        let seat = a.seat;
         let acting = a.acting;
         if let Some(play) = a.card {
-            // Entered play as it resolved: its own flag, never a same-named
-            // card already on the minion (a second Raven Spy employed).
-            if !a.card_entered_play
-                && !a.card_returned
-                && self.played_from_removing_store(play.from)
-            {
-                let owner = self.played_card_owner(seat, play.from);
-                self.state.seats[owner.index()]
-                    .removed
-                    .put(play.card, *play.copy);
-            } else if cards::removed_once_played(play.card, play.mode) {
-                self.state.seats[seat.index()]
-                    .removed
-                    .put(play.card, *play.copy);
-            } else if !a.card_entered_play && !a.card_returned && a.card_to_hand {
-                // Tangle Atropos' Hand: back in hand, discarded down after.
-                self.state.seats[seat.index()]
-                    .hand
-                    .put(play.card, *play.copy);
-            } else if !a.card_entered_play && !a.card_returned && a.card_to_library {
-                // Epikasta Rigatos: to the library instead, shuffled.
-                let lib = &mut self.state.seats[seat.index()].library;
-                lib.put(play.card, *play.copy);
-                lib.shuffle(&mut self.rng);
-            } else if !a.card_entered_play && !a.card_returned {
-                self.state.seats[seat.index()]
-                    .ash
-                    .put(play.card, *play.copy);
-            }
             // Canceled before resolution, the same action may be taken
             // again — not one blocked and continued before (ANK 20211015).
             if !a.canceled || !a.blocked_by.is_empty() {
@@ -7802,6 +7773,48 @@ impl Engine {
             self.lifeless(m);
         } else if r.wounded {
             self.minions_to_torpor(&[m]);
+        }
+    }
+
+    /// The action's card, out of play since it was played, to where it
+    /// goes as the action ends: its ash heap, unless it entered play,
+    /// returned, or its card says otherwise. As the action ends, or with
+    /// the game (an oust that leaves one Methuselah).
+    pub(crate) fn place_action_card(&mut self) {
+        let Some(a) = self.action.as_ref() else {
+            return;
+        };
+        let seat = a.seat;
+        if let Some(play) = a.card {
+            // Entered play as it resolved: its own flag, never a same-named
+            // card already on the minion (a second Raven Spy employed).
+            if !a.card_entered_play
+                && !a.card_returned
+                && self.played_from_removing_store(play.from)
+            {
+                let owner = self.played_card_owner(seat, play.from);
+                self.state.seats[owner.index()]
+                    .removed
+                    .put(play.card, *play.copy);
+            } else if cards::removed_once_played(play.card, play.mode) {
+                self.state.seats[seat.index()]
+                    .removed
+                    .put(play.card, *play.copy);
+            } else if !a.card_entered_play && !a.card_returned && a.card_to_hand {
+                // Tangle Atropos' Hand: back in hand, discarded down after.
+                self.state.seats[seat.index()]
+                    .hand
+                    .put(play.card, *play.copy);
+            } else if !a.card_entered_play && !a.card_returned && a.card_to_library {
+                // Epikasta Rigatos: to the library instead, shuffled.
+                let lib = &mut self.state.seats[seat.index()].library;
+                lib.put(play.card, *play.copy);
+                lib.shuffle(&mut self.rng);
+            } else if !a.card_entered_play && !a.card_returned {
+                self.state.seats[seat.index()]
+                    .ash
+                    .put(play.card, *play.copy);
+            }
         }
     }
 

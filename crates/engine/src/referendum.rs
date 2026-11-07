@@ -2417,12 +2417,14 @@ impl Engine {
     /// (`riders`: the failed-or-canceled riders apply, not if fizzled).
     fn after_referendum(&mut self, riders: bool) {
         if self.state.living() <= 1 {
+            self.place_action_card();
             self.drop_action();
             self.flow = Flow::GameOver;
             return;
         }
         self.political_passed_riders();
         if self.state.living() <= 1 {
+            self.place_action_card();
             self.drop_action();
             self.flow = Flow::GameOver;
             return;

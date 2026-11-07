@@ -108,6 +108,28 @@ fn referendum_terms_before_votes() {
     expect(&mut e, SeatId(0), WindowLabel::MinionPhase);
 }
 
+// An action card goes where the action's end puts it, also when its
+// referendum ends the game: every other Methuselah ousted, the card is in
+// its ash heap, not dropped with the action (the host told no move as it
+// left limbo: protocol §9 `card_moves`).
+#[test]
+fn a_political_action_ending_the_game_puts_its_card_in_the_ash_heap() {
+    let Table { mut e, alexa, .. } = table();
+    e.state.seats[1].pool = 2;
+    e.state.seats[2].pool = 2;
+    hand(&mut e, 0, &["Kine Resources Contested"]);
+    pick(&mut e, play(0, 0, alexa));
+    pick(&mut e, alloc(0, 0));
+    pick(&mut e, alloc(1, 2));
+    pick(&mut e, votes(alexa, true));
+    close_polling(&mut e);
+    assert!(matches!(e.run(), Step::Over(_)), "the game ends");
+    assert_eq!(
+        e.state.seats[0].ash,
+        vec![find_library("Kine Resources Contested")]
+    );
+}
+
 // Rulebook "Resolve the Referendum": tied referendums fail.
 #[test]
 fn tied_referendum_fails() {

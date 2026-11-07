@@ -2,10 +2,13 @@
 //! dealt in decklist order (independent of the seed) and carried through
 //! every zone. Bookkeeping for clients and records, never part of the
 //! game's identity: a `Pile` hashes its card ids alone, `Untracked` nothing.
-//! Two rules read them: a hand card's owner (`GameState::foreign`, rules-qa
-//! 96.2), skipped for a card with no copy; and the hand cards an action
-//! card announced (`Seat::earmarked`, Gift of Proteus), a fixture's
-//! unnumbered copies alike until `number_unnumbered`.
+//! Three rules read them: a hand card's owner (`GameState::foreign`,
+//! rules-qa 96.2) and the ash heap card a replacement takes back
+//! (`Seat::retakes`, Steely Tenacity; `GameState::ash_index`), each
+//! skipped for a card with no copy; and the hand cards an action card
+//! announced (`Seat::earmarked`, Gift of Proteus), a fixture's unnumbered
+//! copies alike until `number_unnumbered`. A fixture's game and its replay
+//! are numbered alike: unnumbered, these rules match other cards.
 
 use std::hash::{Hash, Hasher};
 use std::ops::Deref;
