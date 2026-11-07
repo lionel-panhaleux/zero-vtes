@@ -232,6 +232,10 @@ fn no_todo_in_code() {
 /// with how it is once all the same. An entry no longer flagged fails as
 /// stale.
 const DURING_ONCE_ELSEWHERE: &[(&str, &str)] = &[
+    (
+        "EMERGENCY_PREPARATIONS",
+        "a card played in the minion phase, gone to the ash heap",
+    ),
     ("GREY_THORNE", "an unlock phase rider, offered once a phase"),
     (
         "RACHEL_BRANDYWINE",
@@ -267,6 +271,10 @@ const DURING_ONCE_ELSEWHERE: &[(&str, &str)] = &[
     (
         "JOE_BOOT_HILL",
         "the maneuver his own action's combat grants, no ability",
+    ),
+    (
+        "MARTHE_DIZIER",
+        "her cards of the combat taken out as one is taken back",
     ),
     ("MONOCLE_OF_CLARITY", "no engine effect (rules-qa 68.11)"),
     (
@@ -382,9 +390,15 @@ fn during_abilities_are_once() {
                         v.name == name && v.adv == *adv && v.group.map(|g| g.to_string()) == *group
                     })
                     .map(|v| v.abilities)
+            })
+            .or_else(|| {
+                zvtes::cards::vampires::MERGED
+                    .iter()
+                    .find(|v| v.name == name && v.adv == *adv && konst.ends_with("_MERGED"))
+                    .map(|v| v.abilities)
             });
         let abilities =
-            abilities.unwrap_or_else(|| panic!("{konst}: in neither DEFS nor VAMPIRES"));
+            abilities.unwrap_or_else(|| panic!("{konst}: in neither DEFS, VAMPIRES nor MERGED"));
         if !abilities.iter().any(limited) {
             flagged.push(konst.clone());
         }

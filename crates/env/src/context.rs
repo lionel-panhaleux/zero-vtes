@@ -43,9 +43,14 @@ pub const DISCIPLINES: [&str; 25] = [
     "dem", "abo", "nec", "obe", "vic", "obt", "san", "spi", "dai", "ser", "vis", "myt",
 ];
 
+/// Disciplines the pool gained after the context was made, appended after
+/// the profile in this order (Thanatosis: round 26).
+pub const LATE_DISCIPLINES: [&str; 1] = ["thn"];
+
 /// A seat's features: present, its position, its Disciplines, its
-/// profile per round.
-pub const PER_SEAT: usize = 1 + POSITION.len() + DISCIPLINES.len() + PROFILE.len();
+/// profile per round, the Disciplines the pool gained since.
+pub const PER_SEAT: usize =
+    1 + POSITION.len() + DISCIPLINES.len() + PROFILE.len() + LATE_DISCIPLINES.len();
 
 /// The context's length: each feature for `SLOTS` seats, zeros past the
 /// table.
@@ -58,6 +63,7 @@ pub fn names() -> Vec<String> {
     out.extend(POSITION.iter().map(|n| n.to_string()));
     out.extend(DISCIPLINES.iter().map(|d| format!("discipline:{d}")));
     out.extend(PROFILE.iter().map(|n| n.to_string()));
+    out.extend(LATE_DISCIPLINES.iter().map(|d| format!("discipline:{d}")));
     out
 }
 
@@ -120,12 +126,12 @@ pub fn position(st: &GameState, s: SeatId) -> [f32; POSITION.len()] {
     ]
 }
 
-/// The levels seat `s`'s ready vampires have in each of `DISCIPLINES`,
-/// summed, over 6.
-pub fn disciplines(st: &GameState, s: SeatId) -> [f32; DISCIPLINES.len()] {
-    let mut out = [0.0; DISCIPLINES.len()];
+/// The levels seat `s`'s ready vampires have in each of `of`, summed,
+/// over 6.
+pub fn disciplines(st: &GameState, s: SeatId, of: &[&str]) -> Vec<f32> {
+    let mut out = vec![0.0; of.len()];
     for m in ready(st, s) {
-        for (x, d) in out.iter_mut().zip(DISCIPLINES) {
+        for (x, d) in out.iter_mut().zip(of) {
             *x += st.discipline_level(m, d) as f32 / 6.0;
         }
     }
@@ -147,8 +153,9 @@ pub fn features(e: &Engine, viewer: SeatId) -> Vec<f32> {
             .map(|c| c as f32 / rounds / 3.0);
         let seat = std::iter::once(1.0)
             .chain(position(st, s))
-            .chain(disciplines(st, s))
-            .chain(profile);
+            .chain(disciplines(st, s, &DISCIPLINES))
+            .chain(profile)
+            .chain(disciplines(st, s, &LATE_DISCIPLINES));
         for (f, x) in seat.enumerate() {
             out[f * SLOTS + k] = x;
         }

@@ -20,6 +20,7 @@ pub mod agent;
 pub mod cards;
 pub mod combat;
 pub mod contests;
+pub mod control;
 pub mod copies;
 pub mod crypt;
 pub mod decision;

@@ -5376,6 +5376,116 @@ fuzz_tests! {
         seeds: 8,
         ..BASE
     };
+    /// Round 26 (slice 16al): Gehenna's events, masters and actions, with
+    /// the set's vampires.
+    random_games_with_twda_round_26a_hold_invariants_and_replay: Fixture {
+        slice: &[
+            "Veil of Darkness",
+            "Becoming of Ennoia",
+            "Diamond Thunderbolt, The",
+            "Chain of Command",
+            "Black Hand Ritual",
+            "Bravo",
+            "Curmudgeon",
+            "Loner",
+            "Traditionalist",
+            "Entrenching",
+            "Emergency Preparations",
+            "Friend of Mine",
+            "Games of Instinct",
+            "Jack of Both Sides",
+            "Momentum's Edge",
+            "Nod",
+            "Personal Involvement",
+            "Root of Vitality",
+            "Tapestry of Blood",
+            "Virolax Facility",
+            "Siphon",
+            "Sleep Unseen",
+            "Flash Grenade",
+            "Caseless Rounds",
+            "Scattershot",
+            "Esgrima",
+        ],
+        covers: &["play:Chain of Command", "play:Bravo", "play:Siphon"],
+        setup: |e, _| {
+            named(
+                e,
+                &[
+                    "Afifa, The Herald",
+                    "Alicia Barrows",
+                    "Hazimel",
+                    "Jacob, The Glitch",
+                    "Shahid",
+                    "Antara",
+                    "Cyscek",
+                    "Count Germaine",
+                    "Theo Bell",
+                    "Seren Sukardi",
+                    "Muhandis",
+                    "Spider",
+                ],
+            );
+        },
+        seeds: 8,
+        ..BASE
+    };
+    /// Round 26 (slice 16al): Anarchs' cards and vampires, with strikes,
+    /// referendums and steals to meet them.
+    random_games_with_twda_round_26b_hold_invariants_and_replay: Fixture {
+        slice: &[
+            "Redline",
+            "Brinksmanship",
+            "Mob Rule",
+            "Rant!",
+            "Emissary",
+            "Peace Treaty",
+            "Bribes",
+            "Liberty Club Intrigue",
+            "Ghouled",
+            "Repo Man",
+            "Magazine",
+            "Improvised Tactics",
+            "Undead Persistence",
+            "Cry Wolf",
+            "Delivery Truck",
+            "Gather",
+            "Go Anarch",
+            "Seattle Committee",
+            "Sowing Dissension",
+            "Skullduggery",
+            "Firebrand",
+            "Pushing the Limit",
+            "Sword of Nuln",
+            "Meat Hook",
+            "Car Bomb",
+            "Year of Fortune",
+            "Presence",
+        ],
+        covers: &["play:Mob Rule", "play:Redline", "play:Skullduggery"],
+        setup: |e, _| {
+            named(
+                e,
+                &[
+                    "Smallpox Griet",
+                    "Lord Ashton",
+                    "Tusk, The Talebearer",
+                    "Karsh",
+                    "Jeremy MacNeil",
+                    "Juggler",
+                    "Lucita",
+                    "Sundown",
+                    "Torvus Bloodbeard",
+                    "Ardan Lane",
+                    "Nedal, The Careless",
+                    "Kahina the Sorceress",
+                ],
+            );
+            per_seat(e, |c| c.sect == Some(zvtes::crypt::Sect::Anarch), 2);
+        },
+        seeds: 8,
+        ..BASE
+    };
     /// Round 25 (slice 16ak): Ebony Kingdom's Orun and Aye and the cards
     /// built on them, played by Laibon (Familial Bond first near seed 105).
     random_games_with_twda_round_25a_hold_invariants_and_replay: Fixture {

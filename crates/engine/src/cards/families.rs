@@ -77,6 +77,7 @@ impl Effect {
             | E::AshurTablets
             | E::GiveBoonPool
             | E::RotschreckEndsCombat
+            | E::FrenzyRound
             | E::BecomesVampire { .. }
             | E::PutOnTarget
             | E::ConvictionOnTarget
@@ -86,8 +87,14 @@ impl Effect {
             | E::DerangeTarget
             | E::PutInPlay
             | E::EnterWithCounters(..)
+            | E::EnterWithCountersPerX(..)
             | E::EntersLocked
             | E::StoreFromOwnHand
+            | E::RearrangeEquipment
+            | E::LockTargetsSkipUnlock
+            | E::ChooseUncontrolledTarget
+            | E::GiveHold { .. }
+            | E::PutOnTargetCardStoring(..)
             | E::StoreFromHandX(..)
             | E::UnlockActorIfClanCapacity { .. }
             | E::MoveBloodTargetToPoolX
@@ -99,6 +106,9 @@ impl Effect {
             | E::CountersFromTargetCapacity
             | E::RetainerToStartingLife
             | E::DiscardFromAllHands
+            | E::EachOtherDiscardsAtRandom(..)
+            | E::EachOtherLocksYoungerVampire
+            | E::StealFromTorpid { .. }
             | E::PutOnActorNowStacking
             | E::LastingOnActor
             | E::PutOnOpponent
@@ -147,15 +157,18 @@ impl Effect {
             | E::StealBloodFromTarget(..)
             | E::NextReferendumPasses
             | E::MergeWithBase
+            | E::LockTargetMergeFromCrypt
             | E::DiscardFromTargetHand
             | E::StealPoolFromTarget(..)
             | E::TargetControllerBurnsPool(..)
             | E::ActingControllerBurnsPool(..)
+            | E::ActingBurnsBlood(..)
             | E::RemovePreyAshToBurnPool { .. }
             | E::LockPlayedCard
             | E::ActorTakesAggravated { .. }
             | E::PutOnActor
             | E::PutOnActorRemembering
+            | E::CompareCryptTopsWithBlocker { .. }
             | E::If { .. }
             | E::GameOfMalkav
             | E::DrawCryptBloodIfBlackHand(..)
@@ -168,7 +181,9 @@ impl Effect {
             | E::TargetLeavesIncapacitated
             | E::BloodToActing(..)
             | E::PreyBurnsPool(..)
+            | E::PreyBurnsPoolIfRicher(..)
             | E::GainPool(..)
+            | E::LoseVictoryPoints(..)
             | E::BloodToUncontrolledTarget(..)
             | E::LockHeldForUncontrolledBloodX(..)
             | E::LockHeldToUncontrolledX(..)
@@ -181,13 +196,19 @@ impl Effect {
             | E::TargetBurnLife(..)
             | E::TargetRetainerBurnsLife(..)
             | E::UnlockActor
+            | E::ActorLeavesTorpor
+            | E::ActorGainsBloodIfAtLeast { .. }
             | E::UnlockActorAtDiscard
             | E::TakeControlOfTargetUntilUnlock
+            | E::StopControlChange
+            | E::SaveFromHuntBurn
             | E::MayBleedAgainThisTurn
             | E::BurnActorBlood(..)
             | E::DrawThenDiscardDown(..)
             | E::UnlockTarget
             | E::LockTarget
+            | E::TargetToTorpor
+            | E::BurnOwnCorruptionFromTarget(..)
             | E::BurnTargetMinion
             | E::TargetLosesTitle
             | E::MergeWithAdvanced
@@ -202,6 +223,7 @@ impl Effect {
             | E::SacrificeTarget
             | E::CircleBloodMoves { .. }
             | E::BurnTargetCard
+            | E::EndTargetCardHold
             | E::StoreTopCards(..)
             | E::HandSizeUntilUnlock(..)
             | E::ActorLasting(..)
@@ -228,6 +250,7 @@ impl Effect {
             | E::LockOwnReadyOfClan(..)
             | E::TaintTarget
             | E::StealTargetVampire
+            | E::CommandUncontrolled { .. }
             | E::EmployNamed
             | E::EquipNamed
             // A wake's ally rider, in an action or before it (rules-qa 96.4).
@@ -268,6 +291,10 @@ impl Effect {
             | E::DamageOpponentByStrength
             | E::LookAtLibraryTop(..)
             | E::LookAtTurnLibraryTop
+            | E::LookAtEachLibraryTop
+            | E::LookAtTargetLibraryTopBurnOne(..)
+            | E::StealFromTargetSeatSlot(..)
+            | E::ActorBloodToSourceCardUpTo { .. }
             | E::MayBurnLookedMaster(..)
             | E::MayBottomLookedForBlood(..)
             | E::GainConviction { .. }
@@ -275,6 +302,7 @@ impl Effect {
             | E::SpendDiscardPhaseAction
             | E::AddHostBlood(..)
             | E::AddCounter(..)
+            | E::AddCounterToTargetCard(..)
             | E::BurnSelfAtCounters(..)
             | E::RemoveCounter(..)
             | E::BurnSelfWithoutCounters
@@ -312,6 +340,7 @@ impl Effect {
             | E::HuntingGroundTwoOldest
             | E::AddInterceptX
             | E::RevealTopCard { .. }
+            | E::BurnTopCardByDiscipline { .. }
             | E::RevealCryptTopForCopy { .. }
             | E::ActingControllerDiscardsAtRandom
             | E::TargetSeatDiscardsAtRandom(..)
@@ -357,6 +386,9 @@ impl Effect {
             | E::CountersToPool
             | E::CounterToPool
             | E::CommitStrike
+            | E::LoadGunFromStore
+            | E::DiscardStoredCopy
+            | E::ChosenUncontrolledToReady
             | E::GhoulFromLibraryTop(..)
             | E::GiveBloodToOthers
             | E::GiveBloodToOwnAnarch
@@ -379,9 +411,13 @@ impl Effect {
             | E::ReturnHost { .. }
             | E::OutOfPlayHostGainsBlood(..)
             | E::ActorTakesAnyAction
-            | E::HostSuperiorChosenUntilMaster => (Family::Ability, false),
+            | E::HostSuperiorChosenUntilMaster
+            | E::DiscardHand
+            | E::DiscardUpToFromTargetHand(..)
+            | E::HandSizePerActiveReadyMinions => (Family::Ability, false),
             E::TakeOverAction
             | E::AnimalBoostIfSuccessful { .. }
+            | E::PutOnRecruitedIfSuccessful(..)
             | E::ActionLayer(..)
             | E::AddStealth(..)
             | E::AddIntercept(..)
@@ -403,6 +439,8 @@ impl Effect {
             | E::RedirectBleedToActingPrey
             | E::BurnActingMinion
             | E::DamageActing(..)
+            | E::BurnActingHeld(..)
+            | E::ActionStealthMinus(..)
             | E::DamageActingAndBlocker(..)
             | E::TargetInterceptThisAction(..)
             | E::ActionFails
@@ -411,11 +449,12 @@ impl Effect {
             | E::ActingSkipsNextUnlock
             | E::DeferReactionReplacement
             | E::EndActionIfBlocked
-            | E::MayCancelCombatIfBlocked
+            | E::MayCancelCombatIfBlocked { .. }
             | E::ContinueUnblocked
             | E::AlliesCannotBlock
             | E::StrengthThisAction(..)
             | E::AggravatedHandsThisAction
+            | E::HandStrikeDamageThisAction(..)
             | E::DawnOperation { .. }
             | E::PutOnActorIfNoBlock
             | E::PutOnActingIfBlocks
@@ -515,7 +554,11 @@ impl Effect {
             | E::CleaveWeapon
             | E::Expiate
             | E::FirstStrike
+            | E::FirstStrikeThisRound
+            | E::LoadGun(..)
             | E::BurnOpponentInsteadOfTorpor
+            | E::DiablerizeOpponentInsteadOfTorpor
+            | E::TorporAfterCombat { .. }
             | E::PutOnOpponentOnHit { .. }
             | E::PutOnSelfAsStrikeResolves
             | E::BurnOpposingAllyOnHit
@@ -552,6 +595,7 @@ impl Effect {
             | E::AdditionalStrikeOnly { .. }
             | E::AdditionalStrikesX { .. }
             | E::ActorBurnsBloodX
+            | E::ActorBurnsBlood(..)
             | E::WeaponStrikePlus(..)
             | E::CommittedWeaponStrikePlus(..)
             | E::QueueCombatWithOpponent
@@ -642,6 +686,13 @@ impl Effect {
             | E::CastTargetVotes(..)
             | E::AddVotesAgainst(..)
             | E::TallyPenaltyAgainst(..)
+            | E::TallyBonusForOthers(..)
+            | E::BloodForVotesRound { .. }
+            | E::GrantForReferendum
+            | E::ActorDamagedIfReferendumFails(..)
+            | E::TargetGainsVotes(..)
+            | E::CancelChosenVotes
+            | E::PutOnCallingIfPasses(..)
             | E::BarNonCamarillaVotes
             | E::BarCorruptedVotes
             | E::CorruptTarget
@@ -673,6 +724,7 @@ impl Effect {
             | E::SearchEquipFree(..)
             | E::SearchEquipForTarget
             | E::SearchArchetypeOntoActor
+            | E::SearchDisciplineMasterOntoActor(..)
             | E::FledglingFromNamedMaster
             | E::HeldVampireBecomesGargoyle
             | E::SearchToHand { .. }
@@ -687,7 +739,8 @@ impl Effect {
             | E::MoveSourceToTarget
             | E::StealBloodUpTo(..)
             | E::ExchangeHandForAsh
-            | E::EquipFirstFound
+            | E::EquipFirstFound { .. }
+            | E::EquipStored
             | E::TargetActsInCombat
             | E::InResultingCombat(..)
             | E::TargetMethuselahDiscards(..)
@@ -701,6 +754,7 @@ impl Effect {
             E::CannotGainLife
             | E::ActsWhenRecruited
             | E::UnlockRecruiterOnFirst
+            | E::RecruiterUnlocksAtEndOfTurn
             | E::MayRepeatThisTurn
             | E::Version(..)
             | E::EntryBurnAllyOrRetainer
@@ -715,7 +769,10 @@ impl Effect {
             | E::HostBloodToBy(..)
             | E::BurnSelfUnlessPool(..)
             | E::PreyChoosesMinionDamaged(..)
+            | E::ChooseBlockMark
             | E::ControllerChoosesMinionDamaged(..)
+            | E::ActiveChoosesVampireDamaged(..)
+            | E::PreyPoolToController(..)
             | E::OtherReadyImbuedDamaged(..)
             | E::HostBurnsConviction(..)
             | E::ClearCounters
@@ -755,8 +812,16 @@ impl Effect {
             | E::LockOldestOfClan(..)
             | E::TortureBurnPool(..)
             | E::ActingBurnsBloodOrLife(..)
+            | E::YoungerBlockerBurnsBlood(..)
+            | E::GainEdge
+            | E::BloodByPoolParity { .. }
+            | E::BurnHostVampire
+            | E::OtherVampireBloodOrPool { .. }
+            | E::GehennaPlayerBurnsPool(..)
             | E::DistributeToUncontrolled { .. }
             | E::PreyPaysOrBurnsLocations(..)
+            | E::PoxDamage(..)
+            | E::BurnAllPox
             | E::BurnPoolOrNoTransfers(..)
             | E::LockOrBurnPool(..)
             | E::DrawCryptOnEntry
@@ -814,13 +879,15 @@ impl Effect {
             | E::SearchStore(..)
             | E::CanceledGetsMasterAction
             | E::CancelableForPool(..)
+            | E::CancelableForPoolByAny(..)
             | E::MovesToOldestUntitled { .. } => (Family::Marker, false),
             // What the card is (`card_title`, `becomes_weapon`, `is_gun`).
             E::RepresentsTitle(..)
             | E::BecomesWeapon
             | E::BecomesGun
             | E::NotAgainstFlight
-            | E::EquipFromAnyAsh => (Family::Marker, false),
+            | E::EquipFromAnyAsh
+            | E::TorporIfReferendumFails => (Family::Marker, false),
             // Read by `give_card_control`, `about_to_leave_ready`,
             // `start_influence`, `influence_apply`, the diablerie (Regent),
             // `card_controller` (Melange [AUS]), `settle_servitors`, and
@@ -831,6 +898,7 @@ impl Effect {
             | E::SpendTransfers(..)
             | E::GainTransfers(..)
             | E::ShuffleSourceIntoLibrary
+            | E::CryptVampireToReady { .. }
             | E::MovesToSabbatDiablerist
             | E::NotTakenByDiablerie
             | E::RemovedAfterSuccessOrWithoutInfernal
@@ -841,7 +909,7 @@ impl Effect {
             | E::UndirectedAction
             | E::DirectedAtSourceController
             | E::EquipActionUnlocksEndOfTurn
-            | E::NamedEquipOff(..)
+            | E::NamedCardOff { .. }
             | E::Trophy
             | E::TrophyBlood(..)
             | E::GainVictimDiscipline
@@ -872,6 +940,7 @@ impl Effect {
             | E::BurnAtActionEnd
             | E::BearerDamageOncePerCombat
             | E::BurnAfterStrike
+            | E::StunsAfterCombat
             | E::CountersPerDamage
             | E::AdditionalStrikeWithSource
             | E::UnpreventableStrike
@@ -980,6 +1049,30 @@ mod tests {
                 At::Ability
             };
             self.effects(name, at, a.effects);
+        }
+    }
+
+    // A definition's mode reads its card's text line (`library_mode`): one
+    // past its lines indexes out of bounds as the card is offered.
+    #[test]
+    fn every_mode_maps_to_a_line_of_its_card() {
+        for d in DEFS.iter() {
+            let card = crate::library::LIBRARY
+                .iter()
+                .find(|c| c.name == d.name)
+                .expect("a library card");
+            let lines = card.modes.len();
+            if d.lines.is_empty() {
+                assert!(
+                    d.modes.len() <= lines,
+                    "{}: {} modes, {lines} lines",
+                    d.name,
+                    d.modes.len()
+                );
+            } else {
+                assert_eq!(d.lines.len(), d.modes.len(), "{}", d.name);
+                assert!(d.lines.iter().all(|&l| (l as usize) < lines), "{}", d.name);
+            }
         }
     }
 

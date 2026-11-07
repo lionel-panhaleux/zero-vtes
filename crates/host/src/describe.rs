@@ -131,7 +131,8 @@ impl<N: Names> Ctx<'_, N> {
             Some(
                 Interrupt::PreySlotToPool { of, .. }
                 | Interrupt::PreySlotHalf { of, .. }
-                | Interrupt::NameSlotPair { of, from: None, .. },
+                | Interrupt::NameSlotPair { of, from: None, .. }
+                | Interrupt::StealFromSlot { of, slot: None, .. },
             ) => of,
             _ => self.seat,
         }
@@ -254,7 +255,8 @@ fn found_in(e: &Engine, req: &DecisionRequest) -> Option<ZoneRef> {
             | Interrupt::AllyFromAsh { seat, .. }
             | Interrupt::StoreOwnAsh { seat, .. }
             | Interrupt::NameOwnAshCard { seat, .. }
-            | Interrupt::NameAshPair { of: seat, .. },
+            | Interrupt::NameAshPair { of: seat, .. }
+            | Interrupt::StoreFromAshOf { from: seat, .. },
         ) => return at(seat, Zone::AshHeap),
         Some(Interrupt::StorePreyAsh { seat, .. }) => return at(e.state.prey(seat), Zone::AshHeap),
         Some(Interrupt::ExchangeAnarch { .. } | Interrupt::EntryRemoveOrBurn { .. }) => {
@@ -279,7 +281,14 @@ fn found_in(e: &Engine, req: &DecisionRequest) -> Option<ZoneRef> {
         return at(r.caller, Zone::AshHeap);
     }
     if let Some(p) = e.play_terms() {
-        return at(p.ash.map_or(p.seat, |(s, _)| s), Zone::AshHeap);
+        let hold = zvtes::cards::lookup(p.card)
+            .is_some_and(|d| d.modes[p.mode as usize].terms == Some(Terms::HoldCardOfTarget));
+        let heap = match (p.ash, p.target) {
+            (Some((s, _)), _) => s,
+            (None, T::Seat(t)) if hold => t,
+            _ => p.seat,
+        };
+        return at(heap, Zone::AshHeap);
     }
     match e.ability_terms()?.1.terms {
         Some(Terms::AshCard) => at(req.seat, Zone::AshHeap),
@@ -636,8 +645,14 @@ fn asked(x: &Ctx<impl Names>, i: Interrupt, choice: &Choice) -> Vec<Effect> {
     let library = |c: u16| Some(LIBRARY[c as usize].id);
     match (i, *choice) {
         (Interrupt::MinionOf { purpose, .. }, Choice::ChooseMinion(_)) => vec![match purpose {
-            P::Lock | P::LockVampire | P::LockOtherAnarch(_) => chosen(EffectKind::Lock),
+            P::Lock | P::LockVampire | P::LockOtherAnarch(_) | P::LockYoungerThan(_) => {
+                chosen(EffectKind::Lock)
+            }
             P::BurnAllyUpTo(_) => chosen(EffectKind::Burn),
+            P::StealFromTorpid { .. } => chosen(EffectKind::Steal),
+            P::EquipFoundOn { .. } => chosen(EffectKind::Move),
+            P::Rearrange(_) => chosen(EffectKind::Move),
+            P::BloodTo { n: d, .. } => n(-(d as i32), chosen(EffectKind::Blood)),
             P::HealHost(_) => n(-1, chosen(EffectKind::Blood)),
             P::MoveOntoAny(..) => chosen(EffectKind::Move),
             P::BlindSpot(_) => Effect {
@@ -658,7 +673,10 @@ fn asked(x: &Ctx<impl Names>, i: Interrupt, choice: &Choice) -> Vec<Effect> {
             },
             P::BurnOfCrowdedClan(_) => chosen(EffectKind::Burn),
             P::OldestHuntingGround(_) => n(1, chosen(EffectKind::Blood)),
-            P::Damage(d) | P::DamageImbued { n: d, .. } => n(d as i32, chosen(EffectKind::Damage)),
+            P::BlockMark(_) => chosen(EffectKind::Intercept),
+            P::Damage(d) | P::DamageVampire(d) | P::DamageImbued { n: d, .. } => {
+                n(d as i32, chosen(EffectKind::Damage))
+            }
         }],
         // Unity: on top of the library.
         (Interrupt::AshToLibraryTop { .. }, Choice::FindCard(c)) => vec![Effect {
@@ -1085,6 +1103,10 @@ pub fn dues(e: &Engine, req: &DecisionRequest, names: &impl Names) -> Vec<Due> {
                 kind: DueKind::TakeControl,
                 copy: x.card(c),
             },
+            D::Bleed(m) => Due {
+                kind: DueKind::Bleed,
+                copy: x.minion(m),
+            },
         })
         .collect()
 }
@@ -1249,6 +1271,17 @@ pub fn about(e: &Engine, req: &DecisionRequest, names: &impl Names) -> Option<Ab
                 minion: m(minion),
                 ..a()
             },
+            I::BloodOrPool {
+                except,
+                blood,
+                pool,
+                ..
+            } => About {
+                minion: m(except),
+                n: Some(blood),
+                m: Some(pool),
+                ..a()
+            },
             I::PoolOrNoTransfers { pool, .. } => About {
                 n: Some(pool),
                 ..a()
@@ -1316,6 +1349,11 @@ pub fn about(e: &Engine, req: &DecisionRequest, names: &impl Names) -> Option<Ab
                     P::HealHost(_) => ("heal_host", None, None, None),
                     P::MoveOntoAny(c, _) => ("move_onto_any", None, card(c), None),
                     P::LockOtherAnarch(_) => ("lock_other_anarch", None, None, None),
+                    P::LockYoungerThan(_) => ("lock_younger", None, None, None),
+                    P::StealFromTorpid { steal, .. } => ("siphon", None, None, Some(steal)),
+                    P::EquipFoundOn { card: c, .. } => ("equip_found_on", None, named(c), None),
+                    P::Rearrange(id) => ("rearrange", None, card(id), None),
+                    P::BloodTo { n: d, .. } => ("blood_to_acting", None, None, Some(d)),
                     P::BlindSpot(_) => ("blind_spot", None, None, None),
                     P::Corrupt => ("corrupt", None, None, None),
                     P::LockVampire => ("lock_vampires", None, None, None),
@@ -1325,8 +1363,9 @@ pub fn about(e: &Engine, req: &DecisionRequest, names: &impl Names) -> Option<Ab
                     P::LockOldest(k, _) => ("lock_oldest", Some(k), None, None),
                     P::OldestHuntingGround(_) => ("oldest_gain_blood", None, None, None),
                     P::BurnOfCrowdedClan(_) => ("burn_crowded_clan", None, None, None),
-                    P::Damage(d) => ("damage", None, None, Some(d)),
+                    P::Damage(d) | P::DamageVampire(d) => ("damage", None, None, Some(d)),
                     P::DamageImbued { n: d, .. } => ("damage_imbued", None, None, Some(d)),
+                    P::BlockMark(_) => ("block_mark", None, None, None),
                 };
                 About {
                     seat: Some(of.0),
@@ -1532,6 +1571,50 @@ pub fn about(e: &Engine, req: &DecisionRequest, names: &impl Names) -> Option<Ab
                 ..a()
             },
             I::CutLibrary { .. } => a(),
+            I::MayLockCardForBlock {
+                card: c, minion, ..
+            } => About {
+                card: card(c),
+                minion: m(minion),
+                ..a()
+            },
+            I::BloodToCardUpTo {
+                card: c, from, max, ..
+            } => About {
+                card: card(c),
+                minion: m(from),
+                n: Some(max),
+                ..a()
+            },
+            I::StoreFromAshOf { card: c, from, .. } => About {
+                card: card(c),
+                seat: Some(from.0),
+                ..a()
+            },
+            I::BloodForVotes { min, more, .. } => About {
+                n: Some(min),
+                m: Some(more),
+                ..a()
+            },
+            I::StealFromSlot {
+                of, to, n, slot, ..
+            } => About {
+                seat: Some(of.0),
+                minion: m(to),
+                n: Some(n),
+                detail: slot.map(|_| "named".to_string()),
+                ..a()
+            },
+            I::CryptToReady { below, blood, .. } => About {
+                n: Some(below),
+                m: Some(blood),
+                ..a()
+            },
+            I::BurnFromLibraryTop { of, n, .. } => About {
+                seat: Some(of.0),
+                n: Some(n),
+                ..a()
+            },
             I::MayBurnLookedMaster { card: c, n, .. } => About {
                 card: card(c),
                 n: Some(n),
@@ -1805,6 +1888,14 @@ pub fn about(e: &Engine, req: &DecisionRequest, names: &impl Names) -> Option<Ab
                     | Terms::EmployFromHandIgnoring(_)
                     | Terms::RecruitOrEmployFromHand => About {
                         detail: detail("put_in_play"),
+                        ..a()
+                    },
+                    Terms::CommandPicks => About {
+                        detail: detail("command_picks"),
+                        ..a()
+                    },
+                    Terms::HoldCardOfTarget => About {
+                        detail: detail("hold_card"),
                         ..a()
                     },
                     _ => return None,

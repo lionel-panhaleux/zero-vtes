@@ -5558,6 +5558,26 @@ fn puppet_master_superior_takes_a_vampire_for_the_next_turn() {
     assert_eq!(v.temp_from, None);
 }
 
+// The Diamond Thunderbolt: [LSJ 20040518] [LSJ 20040518-2] "Will not extend
+// temporary change of control effects when they expire": seat 0 holding it
+// as Puppet Master's control of z ends with its turn, it is never offered;
+// z returns.
+#[test]
+fn diamond_thunderbolt_does_not_extend_puppet_masters_control() {
+    let (mut e, a, _, z, pm) = puppet_master_next_turn();
+    hand(&mut e, 0, &["Diamond Thunderbolt, The"]);
+    pick(&mut e, action(a, ActionKind::Hunt));
+    until(&mut e, SeatId(0), WindowLabel::MinionPhase);
+    pick(&mut e, ability(pm));
+    never_offered_where(
+        &mut e,
+        SeatId(1),
+        WindowLabel::MinionPhase,
+        |o| matches!(o, Choice::Play { target: Target::Minion(m), .. } if *m == z),
+    );
+    assert_eq!(e.state.minions[z.index()].owner, SeatId(1), "returned");
+}
+
 // [LSJ 20080326] Stealing "a minion attempting to block, if the block
 // attempt becomes illegal, the block attempt fails." [LSJ 20020618] "If used
 // to steal a vampire in combat, combat ends. Any damage yet to resolve still

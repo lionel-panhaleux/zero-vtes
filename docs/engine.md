@@ -158,15 +158,14 @@ seats).
 
 **Timed seat modifiers.** `Seat::timed` (`state::Timed`): an amount per
 `TimedStat` (`HandSize`, `HuntStealth`, `ExtraDraws`) until each `Expiry`
-(`EndOfTurn`, `DiscardPhase`, `UnlockPhase`, `MasterPhase`, `Combat`,
-`Round`, `Never`), each
-swept at one line (`Timed::expire`): `DiscardPhase` in `end_influence`
-after the held discard-phase replacements, `EndOfTurn` in `end_turn` after
-temporary control ends, `UnlockPhase` in `start_turn` before the held
-unlock-phase replacements, `MasterPhase` in `start_master_phase`,
-`Combat` as the combat ends. Other shapes stay
-fields (`combat_open_hand`, `no_transfers_next`, `transfers_next`,
-`mpa_next`, `veil_left`).
+(`EndOfTurn`, `DiscardPhase`, `UnlockPhase`, `MasterPhase`, `Combat`, `Round`,
+`Never`), each swept at one line (`Timed::expire`): `DiscardPhase` in
+`end_influence` after the held discard-phase replacements, `EndOfTurn` in
+`end_turn` after temporary control ends (every seat's: Shahid's, gained in
+another's turn), `UnlockPhase` in `start_turn` before the held unlock-phase
+replacements, `MasterPhase` in `start_master_phase`, `Combat` as the combat
+ends. Other shapes stay fields (`combat_open_hand`, `no_transfers_next`,
+`transfers_next`, `mpa_next`, `veil_left`).
 
 **Timed minion bonuses.** `Minion::timed`: `(Lasting, Expiry, SeatId)`
 entries — `Lasting::{Stealth, Strength, Superior(discipline), Bleed,
@@ -271,7 +270,8 @@ generators' `--check` (`gen_crypt.py`, `gen_library.py`, `gen_twda.py`).
 - A predicate meaningful on printed text: `holds` and `printed_holds` are
   two evaluators; `slots` checks where a requirement sits, not that both
   agree. Shared readings go through one helper (`ActionCtx::is_hunt` /
-  `PrintedCtx::is_hunt`, `GameState::ready_named`).
+  `PrintedCtx::is_hunt`, `ActionCtx::is_employ_action` /
+  `PrintedCtx::employ_action`, `GameState::ready_named`).
 - An engine-checked requirement (`Slot::Engine`) needs its real check in
   the site its slot names; the slot is declared by hand from the arm that
   reads it.
@@ -557,7 +557,8 @@ sources to the engine's conventions.
 
 - Unlock: DESIGN §10.7 (`Flow::Abilities`, `Pending`). Cards a Methuselah
   controls unlock in their unlock phase. Substitutions: `Minion.skip_unlock`,
-  `Modifier::CounterInsteadOfUnlock`, `HostDoesNotUnlock`. The rulebook burn
+  `Modifier::CounterInsteadOfUnlock`, `HostDoesNotUnlock` (read on the
+  card's bearer: an ally's own card too, Cry Wolf). The rulebook burn
   option is a discard in any unlock phase (`Seat::burn_option_used`).
 - Unlock-phase effects (`start_unlock_effects`, `Flow::Abilities`): one
   ordered impulse sequence clockwise from the active Methuselah, who settles
@@ -585,7 +586,8 @@ sources to the engine's conventions.
 - Minion phase: `Engine::mandatory_actions` — a mandatory action (printed,
   Puppet Master's take) is the only offer and the phase cannot end before it; a
   minion unable to take it declares nothing (spec §3.9). Several mandatory
-  actions are ordered by the acting Methuselah (rules-qa 17.2).
+  actions are ordered by the acting Methuselah (rules-qa 17.2). An ally's
+  own card may carry one (Cry Wolf), read like a vampire's printed text.
 - Influence: `Choice::FollowPath` (rules-qa 97: a Sabbat vampire following
   no path burns 1 blood to follow one of `state::SABBAT_PATHS`, its
   `Minion::path_override`; no transfer spent), transfers, `Choice::Withdraw`
@@ -654,8 +656,11 @@ sources to the engine's conventions.
   `has_disciplines` reads it so): `holds`' `ActorSectIn` /
   `ActorCapacityAtLeast` read sect and capacity alone (rules-qa 73.6).
 - A play canceled as it opens (Andrew Stuart: `Hook::HostPlaysCard` →
-  `Effect::RevealTopCancels`; Two Wrongs) settles at once in
-  `open_as_played`, with no as-played window.
+  `Effect::RevealTopCancels`; Veil of Darkness:
+  `Modifier::FirstDisciplineCardRevealsTop`, a vampire's first card
+  requiring a Discipline each turn, `Minion::discipline_card_turn`, unpaid;
+  Two Wrongs) settles at once in `open_as_played`, with no as-played
+  window.
 - Karl Schrekt (`Stat::PlaysAsJusticar`, his Camarilla requirement) and
   Victor Gerard (`Stat::PlaysAsCamarilla`, `Stat::PlaysAsPrince`) meet a
   card's requirement through `cards::plays_as_sect_or_title`, read on the
@@ -729,8 +734,10 @@ sources to the engine's conventions.
 - Windows: as-announced (acting Methuselah, then others: `ReactionAsAnnounced`)
   → block loop (`ActionBlockAttempt`, `ReactionUnlock`,
   `ReactionUnlockAttempt`) → `ActionState::Blocked` (Crypt's Sons continue as if
-  unblocked) → block resolution → combat → after-combat → for a bleed of 1+,
-  `ActionWouldBeSuccessful` → resolution → after-resolution.
+  unblocked) → block resolution (an acting minion out of the ready region
+  by then, Cry Wolf's `BlockRider::ActingToTorpor`: blocked, no combat) →
+  combat → after-combat → for a bleed of 1+, `ActionWouldBeSuccessful` →
+  resolution → after-resolution.
 - **After resolution always opens** once an action reached resolution —
   successful, fizzled, failed, blocked (after its combat), or ended (Change of
   Target, Mirror Walk, Yawp Court's combat: `ActionCtx::ended_early`, no card
@@ -989,7 +996,17 @@ sources to the engine's conventions.
   window just offered it; an ability used there asks the step again):
   Decapitate [POT] there sets
   `Side::burn_instead_of_torpor`; `going_to_torpor` / `going_down` read
-  the pending damage (`OpponentGoingToTorpor`, `ActorNotGoingDown`).
+  the pending damage (`OpponentGoingToTorpor`, `ActorGoingToTorpor`,
+  `ActorNotGoingDown`). Each side is asked, the acting one first, about
+  either combatant; the first card played averts the torpor for the other
+  (`going_to_torpor` false once burned, diablerized or persisting; RTR
+  20010711). Undead Persistence (`Effect::TorporAfterCombat`):
+  `Side::persisting` keeps the vampire ready and wounded (its damage read
+  as a torpid one's), `Minion::torpor_after_combat` sends it to torpor in
+  `close_combat`; a new combat (Psyche!) carries the flag, its torpor due
+  as that combat begins (`sent_to_torpor`, staged with the pre-range
+  damage); `CombatCtx::quiet_rounds` ends the combat after `quiet_limit`
+  rounds (the card's three) with no card played (`card_played_round`).
 - Combat ends: `Effect::EndCombat` goes to the end-of-round window; no new round
   once a combatant left the ready region; mid-combat ousts DESIGN §10.8.
 - "Put this card on …" in combat: a card that says so as it resolves goes
@@ -1249,7 +1266,8 @@ sources to the engine's conventions.
   chosen prince's very title, contested with its holder.
 - Laibon titles: `Title::Laibon { name, votes }` (from `gen_crypt.py`;
   the host's title id `laibon`); Osebo Kholo moves as §6.2 says, gaining
-  through `gain_title`.
+  through `gain_title`. A named Camarilla title likewise
+  (`Title::Camarilla`, id `camarilla`: Karsh's Imperator, merged).
 
 - A title bought as a vampire enters (Victor Pelletier:
   `Interrupt::BuyTitle`, before any contest, not a title its Methuselah
@@ -1464,7 +1482,10 @@ sources to the engine's conventions.
   is not pending, its window elides); unlock riders are pending mandatory
   effects ordered by their resolver (DESIGN §10.7), but for one whose
   condition is read as the phase ends (`Hook::UnlockPhaseEnd`: Anarch
-  Revolt's), resolved as its Methuselah passes (rules-qa 88.5); one burn per copy;
+  Revolt's), resolved as its Methuselah passes (rules-qa 88.5); a
+  burn-when-empty one (Powerbase: Barranquilla, room for Church of the
+  Order of St. Blaise, LSJ 20050105-1) pending again after its card's
+  ability; one burn per copy;
   `R::OneCopyPerTurn` drops the other copies once one resolves. An unlock
   rider paid unit by unit as it resolves (Smiling Jack: pool or a vampire's
   blood, per counter) runs through `Flow::RiderTerms`.
@@ -1604,9 +1625,19 @@ sources to the engine's conventions.
   still equipment in play: a locquipment is a location (rules-qa 94.4).
   `Engine::put_equipment` is shared by equip, searches and Vast Wealth;
   "only one played or equipped in a game" is recorded there.
+- Found or stored equipment (Vast Wealth, Repo Man, Delivery Truck's
+  `EquipStored`) is checked by `equip_requirements_met`: clan, path,
+  Disciplines, "only one" and its equip mode's sect and title
+  requirements. Nod (`RearrangeEquipment`): one `MinionPurpose::Rearrange`
+  per equipment, each Methuselah's in turn; "only one" read against the
+  cards already placed (`rearrange_fits`), so vehicles may swap.
 - "An equip action" (Hag's Wrinkles, NRA PAC): `ActionCtx::is_equip_action`,
   an equip from hand or a search equipping (`SearchEquip`), never the
   equip-from-another-minion move (rules-qa 78.28, digest §3.7).
+- "An employ action" (Rosa Hernández, Frau Schädel):
+  `ActionCtx::is_employ_action` (`PrintedCtx::employ_action`), a retainer's
+  own or an action card's (Jack of Both Sides, TOM 19960130), not one
+  ignoring requirements (Biothaumaturgic Experiment, ANK 20180817).
 - Bearer effects are read live on the current bearer (`Modifier::Bearer`), with
   the named trait (a non-Ravnos holding Treasured Samadji gets nothing,
   rules-qa 9.1).
@@ -1650,7 +1681,9 @@ sources to the engine's conventions.
   replaced as the stack's last window closes, before its bottom card
   resolves (`Release::AsPlayedWindow`, `as_played_closed`, rules-qa
   110.1); the extra draws offered meanwhile wait with it
-  (`Engine::window_draws`), offered after.
+  (`Engine::window_draws`), offered after. A vampire's printed delay
+  (Nedal: `Stat::CombatCardsHeldUntilUnlock`) holds its combat cards' as a
+  card's own "do not replace until" would, the longest delay first.
 - Draw alternatives (`Hook::WouldDraw`): a choice per card drawn (rules-qa 9.4);
   beside Visit from the Capuchin a replacement is the Capuchin's counter or a
   stored card.
@@ -1864,12 +1897,38 @@ sources to the engine's conventions.
   `start_turn` takes it first: kept, `Engine::withdraw` removes the seat as an
   oust does (`remove_seat`, `Seat::withdrew`, `Rule::Withdrawal`) without the
   predator's reward or the oust's releases, and the next turn begins.
+  `Modifier::ForcedWithdrawals` (Brinksmanship) announces it for a seat that
+  begins short (`Seat::withdrawal_forced`): broken, `start_turn` ousts the
+  seat (`oust_now`, no Boon: no pool loss); any withdrawal kept ousts the
+  card's controller.
+- Moments a card from hand answers before they happen wait as an oust does
+  (`control.rs`, served after the ousting): a control change (`take_control`
+  with a `ControlTerm`; `ControlChange` in `GameState::control_change`, the ones
+  behind it in `GameState::control_queue`, each asked in turn;
+  `Window::ControlAboutToChange`, its loser asked: The Diamond Thunderbolt,
+  `Effect::StopControlChange`) and a passed blood hunt's burn (`HuntBurn` in
+  `GameState::hunt_burn`, `Window::BloodHuntWouldBurn`, the other Methuselahs
+  asked clockwise: Redline, `Effect::SaveFromHuntBurn`; the referendum's end,
+  `end_blood_hunt`, waits with it, `Flow::Referendum` restored over `advance`'s
+  placeholder). The change's costs are paid first; Graverobbing's and corruption
+  steals go through it (`ControlTerm::ForGood`, `take_for_good_now`); a
+  temporary control ending does not (LSJ 20040518).
 - Victory points go through `Engine::gain_half_vps` (prey ousts, last
   standing, a withdrawal, the time limit's half point): a Life Boon in play
   remembering the Methuselah (`CardInPlay::against`) takes them, oldest first,
   its counters the half points given, burned at 1 VP.
   `Effect::StealPoolFromBoonTarget` (`Requirement::BoonTargetActive`,
   `Window::UnlockPhaseAny`).
+
+- Chain of Command (`Effect::CommandUncontrolled`, named as played by
+  `Terms::CommandPicks` over `Engine::commandable`, `PlayCtx::commanded`,
+  each re-checked as it resolves): its vampires enter as an influence
+  would (`slot_to_ready`, `scarce_toll`) with 1 blood more, recorded in
+  `GameState::commands`; `mandatory_actions` withholds the minion phase's
+  Pass while one has a bleed (`Due::Bleed`), a successful bleed marks the
+  command done, and `settle_commands` (between actions) sends those still
+  in play to their crypt's bottom (`minion_to_crypt_bottom`, the cards on
+  them burned) once done or none can bleed.
 
 ### 6.18 Generated data
 

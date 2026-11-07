@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "title": "zvtes protocol",
-  "version": "2.22.0",
+  "version": "2.23.0",
   "$defs": {
     "About": {
       "description": "What a choice is about (`Decision::about`): each field given where\nthe purpose (or the terms) has it (docs/protocol.md §5).",
@@ -1124,6 +1124,11 @@
           "description": "A card taking control of its host this phase (Puppet Master).",
           "type": "string",
           "const": "take_control"
+        },
+        {
+          "description": "A vampire that must bleed (Chain of Command).",
+          "type": "string",
+          "const": "bleed"
         },
         {
           "description": "A value this reader does not know.",
@@ -5051,6 +5056,46 @@
           "const": "burn_over_capacity"
         },
         {
+          "description": "Tapestry of Blood: `seat` looked at the top `n` cards of the\nlibrary of `target`'s Methuselah (`seat` in the about); one may\nburn (`find_card`), or pass.",
+          "type": "string",
+          "const": "burn_from_library_top"
+        },
+        {
+          "description": "Virolax Facility: a vampire of capacity below `n` from `seat`'s\ncrypt to their ready region with 1 blood (`ash_vampire`), or\nnone (pass); the crypt shuffled.",
+          "type": "string",
+          "const": "crypt_to_ready"
+        },
+        {
+          "description": "San Lorenzo de El Escorial, named as the action is announced: the\nuncontrolled minion of `seat`'s region (`slot`), then (`detail`:\n`named`) the blood, 0 up to `n` (`set_x`), `minion` steals from it.",
+          "type": "string",
+          "const": "steal_from_slot"
+        },
+        {
+          "description": "Mob Rule: `seat` burns 1 blood of a ready vampire of capacity\nabove `n` (`choose_minion`) for a vote, two above `m`, or passes;\naround the table until all pass.",
+          "type": "string",
+          "const": "blood_for_votes"
+        },
+        {
+          "description": "The Holds: the card of `target`'s Methuselah's ash heap to move\nonto `card` (`find_card`).",
+          "type": "string",
+          "const": "store_from_ash_of"
+        },
+        {
+          "description": "Cold Amber's Hold: 1 up to `n` blood from `minion` onto `card`\n(`set_x`).",
+          "type": "string",
+          "const": "blood_to_card_up_to"
+        },
+        {
+          "description": "Elysium: Sforzesco Castle: `seat` may lock `card` instead of its\nblocking `minion` (`resolve_rider`), or pass and lock the vampire.",
+          "type": "string",
+          "const": "may_lock_card_for_block"
+        },
+        {
+          "description": "Afifa, The Herald: a ready vampire of `seat`'s other than\n`minion` burns 1 blood (`choose_minion`), or `seat` burns 1 pool\n(`burn_pool`).",
+          "type": "string",
+          "const": "blood_or_pool"
+        },
+        {
           "description": "A value this reader does not know.",
           "type": "string",
           "const": "unknown"
@@ -6181,18 +6226,18 @@
       "type": "object",
       "properties": {
         "id": {
-          "description": "`primogen`, `prince`, `baron`, `justicar`, `inner_circle`,\n`archbishop`, `bishop`, `cardinal`, `priscus`, `regent`, `magaji`,\n`independent` or `laibon` (a unique title named in `of`), `votes` (a\ntitle by its votes only).",
+          "description": "`primogen`, `prince`, `baron`, `justicar`, `inner_circle`,\n`archbishop`, `bishop`, `cardinal`, `priscus`, `regent`, `magaji`,\n`independent`, `laibon` or `camarilla` (a unique title named in\n`of`), `votes` (a title by its votes only).",
           "type": "string"
         },
         "of": {
-          "description": "The city (a prince, a baron, an archbishop), the clan (a justicar,\nthe Inner Circle) or an independent or Laibon title's name.",
+          "description": "The city (a prince, a baron, an archbishop), the clan (a justicar,\nthe Inner Circle) or an independent, Laibon or Camarilla title's\nname.",
           "type": [
             "string",
             "null"
           ]
         },
         "votes": {
-          "description": "Its votes, when the title says them (`independent`, `laibon`,\n`votes`).",
+          "description": "Its votes, when the title says them (`independent`, `laibon`,\n`camarilla`, `votes`).",
           "type": [
             "integer",
             "null"

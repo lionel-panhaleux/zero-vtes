@@ -384,6 +384,9 @@ pub fn table(seed: u64, slice: &[&str], extra: &[&str]) -> Engine {
             sect_change: None,
             training: false,
             spent_turn: 0,
+            hold: None,
+            on_card: None,
+            chosen_crypt: None,
             chosen: Vec::new(),
         });
     }

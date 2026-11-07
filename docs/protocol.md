@@ -284,7 +284,9 @@ minion phase offers no `pass`: what it must do before it ends, each
 must hunt, hunts before any other action: rules-qa 17.2; other minions'
 actions wait), `action` (a vampire's printed mandatory action, Elen
 Kamjian's bleed), `take_control` (the card taking control of its host
-this phase, Puppet Master); empty whenever `pass` is offered.
+this phase, Puppet Master), `bleed` (a vampire a card put in play must
+bleed before the phase ends: Chain of Command); empty whenever `pass` is
+offered.
 
 ## 6. The view
 
@@ -793,8 +795,8 @@ Snake_case ids from sets the protocol does not close:
   types (`action_modifier`, `reaction`, `combat`…).
 - Titles: `primogen`, `prince`, `baron`, `justicar`, `inner_circle`,
   `archbishop`, `bishop`, `cardinal`, `priscus`, `regent`, `magaji`,
-  `independent` or `laibon` (a unique title, its name in `of`), `votes`
-  (a title by its votes only).
+  `independent`, `laibon` or `camarilla` (a unique title, its name in
+  `of`: Karsh's `Imperator`), `votes` (a title by its votes only).
 
 Closed sets (`Window`, `OptionKind`, `EffectKind`, `Role`, `MarkerKind`,
 `Trait`, `Zone`…) are listed in the schema; a client should read a value a later

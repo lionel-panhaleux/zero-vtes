@@ -1614,6 +1614,220 @@ ADDED_BATCHES = [
         201469: "William Biltmore (G3)",
         201474: "Wolfgang (G3)",
     },
+    # Round 26 (slice 16al): Gehenna and Anarchs completed (owner,
+    # 2026-11-06: "Gehenna + Anarchs").
+    {
+        100027: "Ahriman's Demesne",
+        100036: "Alacrity",
+        100039: "Alia, God's Messenger",
+        100043: "Amaranth",
+        100112: "Aura of Invincibility",
+        100144: "Bear-Baiting",
+        100148: "Becoming of Ennoia",
+        100168: "Black Hand Ritual",
+        100226: "Blow Torch",
+        100229: "Body Bag",
+        100240: "Border Skirmish",
+        100244: "Boxed In",
+        100247: "Bravo",
+        100251: "Bribes",
+        100255: "Brinksmanship",
+        100293: "Car Bomb",
+        100299: "Carnivale",
+        100304: "Caseless Rounds",
+        100316: "Chain of Command",
+        100343: "Chiram's Hold",
+        100347: "Church of the Order of St. Blaise",
+        100375: "Cold Amber's Hold",
+        100422: "Cooler",
+        100451: "Crusade: Amsterdam",
+        100455: "Crusade: Berlin",
+        100459: "Crusade: Dublin",
+        100460: "Crusade: Frankfurt",
+        100461: "Crusade: Geneva",
+        100468: "Crusade: Paris",
+        100473: "Crusade: Washington, D.C.",
+        100475: "Cry Wolf",
+        100482: "Curmudgeon",
+        100504: "Dead-End Alley",
+        100520: "Delivery Truck",
+        100543: "The Diamond Thunderbolt",
+        100564: "Diversity",
+        100586: "Dread Gaze",
+        100591: "Drum of Xipe Totec",
+        100611: "Ecstatic Agony",
+        100621: "Elder Michaelis's Hold",
+        100630: "Elysium: Sforzesco Castle",
+        100635: "Emergency Powers",
+        100636: "Emergency Preparations",
+        100638: "Emissary",
+        100653: "Entrenching",
+        100662: "Esgrima",
+        100732: "Finding the Path",
+        100736: "Firebrand",
+        100745: "Flash Grenade",
+        100759: "Force of Will",
+        100772: "Form of the Ghost",
+        100791: "Frenzy",
+        100792: "Friend of Mine",
+        100798: "Galaric's Legacy",
+        100799: "Gambit Accepted",
+        100801: "Games of Instinct",
+        100812: "Gather",
+        100820: "Ghouled",
+        100826: "Gift of Experience",
+        100840: "Go Anarch",
+        100930: "Highway Haven: RV",
+        100965: "Improvised Tactics",
+        101000: "Into the Fire",
+        101010: "Irregular Protocol",
+        101016: "Jack of Both Sides",
+        101101: "Liberty Club Intrigue",
+        101121: "Loner",
+        101122: "Loose Cannon",
+        101142: "Magazine",
+        101191: "Meat Hook",
+        101230: "Mob Rule",
+        101233: "The Mole",
+        101237: "Momentum's Edge",
+        101247: "Movement of the Slow Body",
+        101295: "Nod",
+        101313: "Occlusion",
+        101336: "Out of the Frying Pan",
+        101343: "Pack Tactics",
+        101351: "Paragon",
+        101380: "Peace Treaty",
+        101394: "Personal Involvement",
+        101480: "Presence",
+        101486: "Principia Discordia",
+        101524: "Pushing the Limit",
+        101541: "Rant!",
+        101543: "Rapid Healing",
+        101580: "Redline",
+        101582: "Reformation",
+        101584: "Regarhagan's Hold",
+        101605: "Repo Man",
+        101622: "Revelation of Desire",
+        101652: "Root of Vitality",
+        101669: "Sacrament of Carnage",
+        101676: "San Lorenzo de El Escorial, Spain",
+        101689: "Scattershot",
+        101693: "Scorpion Sting",
+        101704: "Seattle Committee",
+        101707: "Secret Horde",
+        101725: "Serenading the Kami",
+        101729: "Servitor of Irad",
+        101784: "Siphon",
+        101790: "Skin of Night",
+        101796: "Skullduggery",
+        101803: "Sleep of Reason",
+        101804: "Sleep Unseen",
+        101813: "Smoke and Mirrors",
+        101815: "Snipe Hunt",
+        101828: "Songs of the Distant Vitae",
+        101838: "Sowing Dissension",
+        101861: "Starvation of Marena",
+        101915: "Sweeper",
+        101920: "Sword of Nuln",
+        101922: "Sword of Troile",
+        101936: "Tapestry of Blood",
+        102005: "Traditionalist",
+        102058: "Uncontrollable Rage",
+        102060: "Undead Persistence",
+        102061: "Undead Strength",
+        102095: "Veil of Darkness",
+        102123: "Virolax Facility",
+        102200: "Year of Fortune",
+        200017: "Aeron (G3)",
+        200018: "Afifa, The Herald (G4)",
+        200052: "Alfred Benezri (G3 ADV)",
+        200053: "Ali Kar (G3)",
+        200054: "Alicia Barrows (G4)",
+        200073: "Amenophobis (G4)",
+        200108: "Antara (G4)",
+        200115: "Antonino (G3)",
+        200128: "Ardan Lane (G3)",
+        200147: "Assad Salhoum (G4)",
+        200183: "Beckett (G3)",
+        200184: "Beckett (G3 ADV)",
+        200212: "Boss Callihan (G3)",
+        200214: "Bothwell (G3)",
+        200223: "Brunhilde (G3)",
+        200274: "Christopher Houghton (G3)",
+        200276: "Clarissa Steinburgen (G3)",
+        200292: "Count Germaine (G4)",
+        200302: "Cristos Mantigo (G3)",
+        200307: "Cyscek (G4)",
+        200316: "Danielle Diron (G3)",
+        200408: "Elena Mendoza Vasquez (G3)",
+        200415: "Elizabeth Westcott (G3)",
+        200439: "Étienne Fauberge (G3)",
+        200453: "Fahd al-Zawba'a (G4)",
+        200457: "Faruq (G2)",
+        200465: "Ferox, The Rock Lord (G2 ADV)",
+        200511: "Gharston Roland (G4)",
+        200514: "Giangaleazzo, The Traitor (G4)",
+        200546: "Guillermo Arsuaga (G4)",
+        200552: "Gustavo Morales (G3)",
+        200564: "Hanna Redmonds (G3)",
+        200574: "Harry Reese (G3)",
+        200578: "Hazimel (G4)",
+        200582: "Hector Trelane (G4)",
+        200596: "Hezekiah Rutledge (G4)",
+        200606: "Horrock (G3)",
+        200626: "Iliana (G2)",
+        200661: "Jacob, The Glitch (G3)",
+        200670: "Jan Pieterzoon (G2 ADV)",
+        200692: "Jeremiah Noble (G3)",
+        200694: "Jeremy MacNeil (G3 ADV)",
+        200695: "Jeremy Talbot (G3)",
+        200698: "Jesse Menks (G3)",
+        200702: "Jezebelle (G4)",
+        200716: "John Paleologus (G3)",
+        200724: "Joseph O'Grady (G3)",
+        200733: "Juggler (G3)",
+        200742: "Kahina the Sorceress (G3)",
+        200757: "Karsh (G3)",
+        200761: "Katarina (G2)",
+        200821: "Lazarus (G1 ADV)",
+        200822: "Lazarus James (G4)",
+        200834: "Lia Milliner (G3)",
+        200839: "Lisa Noble (G3)",
+        200853: "Lord Ashton (G3)",
+        200875: "Lucita (G2 ADV)",
+        200903: "Maldavis (G3)",
+        200909: "Marcel de Breau (G3)",
+        200916: "Marcus Vitel (G3 ADV)",
+        200942: "Marthe Dizier (G3)",
+        200962: "Matthew Romans (G4)",
+        200982: "Michael Luther (G3)",
+        201019: "Muhandis (G4)",
+        201021: "Mukhtar Bey (G4)",
+        201040: "Nedal, The Careless (G3)",
+        201090: "Panagos Levidis (G2)",
+        201142: "Quentin King III (G3 ADV)",
+        201158: "Ramona (G2)",
+        201159: "Ramona (G2 ADV)",
+        201193: "Robin Withers (G4)",
+        201215: "Ryder (G4)",
+        201232: "Sandra White (G3)",
+        201239: "Sarah Raines (G3)",
+        201245: "Sascha Vykos, The Angel of Caine (G2 ADV)",
+        201251: "Scarlet Carson O'Toole (G3)",
+        201265: "Seren Sukardi (G4)",
+        201273: "Shahid (G4)",
+        201278: "Shawnda Dorrit (G4)",
+        201299: "Smallpox Griet (G3)",
+        201307: "Sophia Watson (G3)",
+        201308: "Spider (G4)",
+        201325: "Sundown (G3)",
+        201353: "Tegyrius, Vizier (G2 ADV)",
+        201363: "Theo Bell (G2 ADV)",
+        201384: "Torvus Bloodbeard (G3)",
+        201396: "Tusk, The Talebearer (G1 ADV)",
+        201434: "Velya, The Flayer (G3)",
+        201502: "Zayyat, The Sandstorm (G3)",
+    },
 ]
 ADDED_CARDS = {k: v for batch in ADDED_BATCHES for k, v in batch.items()}
 
@@ -1807,6 +2021,13 @@ COMBAT_TIMING = [
     # "Only usable when the opposing vampire is going into torpor"
     # (Decapitate [POT]): after the preventions, the damage about to land.
     (r"opposing vampire is going into torpor", "COMBAT_GOING_TO_TORPOR"),
+    # "Only usable when the opposing vampire should go to torpor"
+    # (Amaranth); "when this vampire should go into torpor" (Undead
+    # Persistence [for]): the same moment.
+    (r"vampire should go (in)?to torpor", "COMBAT_GOING_TO_TORPOR"),
+    # Ammo, "Only usable before resolution of a gun's strike" (Scattershot,
+    # Caseless Rounds): the strike chosen, before it resolves.
+    (r"before resolution of a gun's strike", "COMBAT_BEFORE_RESOLUTION"),
     # "Only usable after this Blood Brother gains blood" (Slake the
     # Thirst): any step after the gain, the round's end too (Taste of
     # Vitae's gain; LSJ 20100206-2, rules-qa 94.2).
@@ -1817,8 +2038,15 @@ COMBAT_DEFAULT = "COMBAT_UNTIMED"   # rules-qa 2.2: no printed step
 
 MODIFIER_TIMING = [
     (r"as (an?|the|this)\b[^.]{0,60}?\bis announced", "ACTION_AS_ANNOUNCED"),
-    # "Only usable when the action is announced" (Shell Game).
-    (r"when the action is announced", "ACTION_AS_ANNOUNCED"),
+    # "Only usable when the action is announced" (Shell Game); "when the
+    # action to recruit a mortal ally is announced" (Ghouled).
+    (r"when the action\b[^.]{0,40}?\bis announced", "ACTION_AS_ANNOUNCED"),
+    # "Only usable when an older non-Anarch vampire successfully blocks"
+    # (Bear-Baiting): the block made, before its resolution.
+    (r"when an? [^.]{0,40}?successfully blocks", "ACTION_BLOCKED"),
+    # "Only usable at the end of a successful action (after resolving the
+    # action)" (Sleep Unseen).
+    (r"after resolving the action", "ACTION_AFTER_RESOLUTION"),
     # "… another one who has just been blocked, before block resolution"
     # (Claiming the Body).
     (r"has just been blocked", "ACTION_BLOCKED"),
@@ -1885,11 +2113,25 @@ MODIFIER_TIMING = [
 ]
 MODIFIER_GENERIC = [
     (r"\+\d+ stealth", "ACTION_STEALTH_INTERCEPT"),
+    # "The blocking vampire gets -1 intercept" (Smoke and Mirrors [obt]).
+    (r"blocking vampire gets -\d+ intercept", "ACTION_STEALTH_INTERCEPT"),
     (r"\+\d+ bleed|\+\d+ votes?", "ACTION_DURING"),
 ]
 MODIFIER_DEFAULT = "ACTION_DURING"
 
 REACTION_TIMING = [
+    # Out-of-turn masters before a moment happens (crate::control): a
+    # control change (The Diamond Thunderbolt), a passed blood hunt's burn
+    # (Redline); "about to enter combat": as a block succeeds, blocks
+    # declined, or the combat Psyche! queued (Obedience's windows).
+    (r"control of a vampire you control is about to change", "CONTROL_ABOUT_TO_CHANGE"),
+    (r"a vampire you control is about to enter combat", "ACTION_BLOCKED"),
+    (r"a vampire you control is about to enter combat", "ACTION_BLOCKS_DECLINED"),
+    (r"a vampire you control is about to enter combat", "ACTION_QUEUED_COMBAT"),
+    (r"blood hunt referendum passes and would burn", "BLOOD_HUNT_WOULD_BURN"),
+    # "Under the control of another Methuselah during his or her unlock
+    # phase" (Regarhagan's Hold).
+    (r"another Methuselah during his or her unlock phase", "UNLOCK_PHASE_ANY"),
     (r"\bwakes?\b", "WAKE"),                                   # rules-qa 2.4
     (r"unlocks?( and| to)? attempts? to block|unlock[^.]*; that \w+ attempts to block",
      "REACTION_UNLOCK_ATTEMPT"),
@@ -1912,8 +2154,10 @@ REACTION_TIMING = [
     (r"\bthis \w+ attempts to block\.", "ACTION_STEALTH_INTERCEPT"),
     (r"unlock this (vampire|minion)|burns? \d blood to unlock\.", "REACTION_UNLOCK"),
     (r"after blocks are declined", "ACTION_BLOCKS_DECLINED"),
+    # Another Methuselah's, after the acting one's own (Car Bomb; LSJ
+    # 20081105).
     (r"as (an?|the|this)\b[^.]{0,60}?\bis announced|cancel (an?|the|that) action",
-     "ACTION_AS_ANNOUNCED"),
+     "REACTION_AS_ANNOUNCED"),
     (r"polling step|during (a|the|this) referendum", "REFERENDUM"),
     (r"reduce (a|the) bleed", "REACTION_DURING_ACTION"),   # legality: a bleed against you
     # "Only usable if a minion controlled by your predator successfully
@@ -1939,6 +2183,11 @@ REACTION_TIMING = [
     # any time its player holds the impulse, outside combat (owner,
     # rules-qa 103.6).
     (r"\bnot usable during combat\.", "ANY_IMPULSE"),
+    # An out-of-turn master's alternative in its player's own minion phase
+    # (Emergency Preparations).
+    (r"play this card during your minion phase", "ANY_IMPULSE"),
+    # An out-of-turn master before range (Frenzy).
+    (r"only usable before range is (determined|chosen)", "COMBAT_BEFORE_RANGE"),
     # An out-of-turn master triggered by the opposing strike (Rötschreck).
     (r"attempts to inflict aggravated damage", "COMBAT_BEFORE_RESOLUTION"),
     # An out-of-turn master saving a Methuselah from an oust (Life Boon).
@@ -1961,7 +2210,8 @@ CANCEL_AS_PLAYED = (r"cancel (?!this card)[^.]{0,160}?as it is (being )?played"
                     r"|as the opposing minion plays a card[\s\S]{0,300}?the played card is canceled")
 
 FLAGS = [
-    (r"do not replace", "delayed_replacement"),
+    # Not a quoted directive another card ends (Black Hand Ritual).
+    (r'(?<!")do not replace', "delayed_replacement"),
     # Not "a non-out-of-turn master card" (Bleeding the Vine).
     (r"(?<!non-)out-of-turn", "out_of_turn"),
     (r"\btrifle\b", "trifle"),
@@ -2054,6 +2304,12 @@ def classify_mode(mtype, text, as_above=False):
     # (Shoulder Drop), a grapple timed after the strike.
     if mtype == "Combat" and re.search(r"inflict damage from a hand strike", text, re.I):
         hits = ["COMBAT_ADDITIONAL_STRIKE"]
+    # A printed moment alone: the gun's strike about to resolve (Caseless
+    # Rounds' later strike), the torpor about to land (Undead Persistence's
+    # later press).
+    for only in ("COMBAT_BEFORE_RESOLUTION", "COMBAT_GOING_TO_TORPOR"):
+        if mtype == "Combat" and only in hits:
+            hits = [only]
     # Blade Clot's combat half: timed by the diablerie, no combat step.
     if mtype == "Combat" and re.search(r"when this anarch diablerizes", text, re.I):
         hits = ["ACTION_AFTER_DIABLERIE"]
@@ -2165,7 +2421,10 @@ def modes_for(card):
             mwins.append("CARD_AS_PLAYED")
         # "Maneuver or press or burn 1 blood to cancel … as it is played"
         # (Groundfighting): the alternatives keep their own timings.
-        if not cancels or re.search(r"\b(maneuver|press) or [^.]*\bcancel\b", raw_text, re.I):
+        # "Alternatively, … play this card during your minion phase"
+        # (Emergency Preparations): its own timing too.
+        if not cancels or re.search(r"\b(maneuver|press) or [^.]*\bcancel\b", raw_text, re.I) \
+                or re.search(r"alternatively, [^.]*during your minion phase", raw_text, re.I):
             # "As above, and/or …" (I am Legion [DAI][OBF]): the added
             # effect alone is a play of its own, timed by its text.
             either = as_above and re.search(r"\band/or\b", mtext, re.I)

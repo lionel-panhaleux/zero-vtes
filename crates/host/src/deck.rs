@@ -313,17 +313,19 @@ mod tests {
             assert_eq!(id_of(&name), Some(id), "{name}");
             assert_eq!(id_of(&name.to_lowercase()), Some(id), "{name}");
         }
-        let theo = |g: u8| {
+        let theo = |g: u8, adv: bool| {
             CRYPT
                 .iter()
-                .find(|c| c.name == "Theo Bell" && c.group == g)
+                .find(|c| c.name == "Theo Bell" && c.group == g && c.adv == adv)
                 .unwrap()
                 .id
         };
-        assert_eq!(id_of("Theo Bell (G2)"), Some(theo(2)));
-        assert_eq!(id_of("Theo Bell (G6)"), Some(theo(6)));
+        assert_eq!(id_of("Theo Bell (G2)"), Some(theo(2, false)));
+        assert_eq!(id_of("Theo Bell (G6)"), Some(theo(6, false)));
         assert_eq!(id_of("Theo Bell"), None);
-        assert_eq!(id_of("Theo Bell (ADV)"), None);
+        // The one advanced card (G2, round 26).
+        assert_eq!(id_of("Theo Bell (ADV)"), Some(theo(2, true)));
+        assert_eq!(id_of("Theo Bell (G2 ADV)"), Some(theo(2, true)));
     }
 
     /// A list by ids is its own `by_id` (records and goldens unchanged);

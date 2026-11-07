@@ -43,6 +43,28 @@ TITLE = re.compile(
 )
 
 
+def merged_title(text):
+    """The title an advanced card holds only merged: "[MERGED] Baron of
+    Berlin", "Anarch Baron of Los Angeles" (Jeremy MacNeil), "Sabbat
+    cardinal" (Sascha Vykos), "Assamite Justicar" (Tegyrius), "Imperator
+    (3 votes)" (Karsh)."""
+    m = re.search(r"\[MERGED\] (?:Anarch |Camarilla |Sabbat |Independent )?"
+                  r"(Prince|Baron|Archbishop) of ((?:[^:.]|\.(?=\w))+)[:.]", text)
+    if m:
+        return f"Some(Title::{m.group(1)}({rust_str(m.group(2))}))"
+    m = re.search(r"\[MERGED\] (?:Sabbat )?(bishop|cardinal|priscus|regent)\b", text)
+    if m:
+        return f"Some(Title::{m.group(1).capitalize()})"
+    m = re.search(r"\[MERGED\] (\w+) Justicar\b", text)
+    if m:
+        return f'Some(Title::Justicar("{V5_CLAN.get(m.group(1), m.group(1))}"))'
+    # "[MERGED] Imperator (3 votes)" (Karsh): a named Camarilla title.
+    m = re.search(r"\[MERGED\] ([A-Z]\w+) \((\d+) votes\)", text)
+    if m and text.startswith("Camarilla"):
+        return f'Some(Title::Camarilla {{ name: "{m.group(1)}", votes: {m.group(2)} }})'
+    return "None"
+
+
 def parse(card):
     # An imbued has no sect nor title (rulebook "Appendix: Imbued Rules").
     if "Imbued" in card["types"]:
@@ -124,6 +146,12 @@ def generate(cards):
     out.append("    /// Scout Youngwood): a title worth n votes, not unique.")
     out.append("    Votes(u8),")
     out.append("    Independent {")
+    out.append("        name: &'static str,")
+    out.append("        votes: u8,")
+    out.append("    },")
+    out.append("    /// A unique Camarilla title a card names, worth its votes (Karsh's")
+    out.append("    /// Imperator, merged).")
+    out.append("    Camarilla {")
     out.append("        name: &'static str,")
     out.append("        votes: u8,")
     out.append("    },")
@@ -213,8 +241,7 @@ def generate(cards):
         out.append(f"        sect: {f'Some(Sect::{sect})' if sect else 'None'},")
         out.append(f"        imbued: {'true' if 'Imbued' in c['types'] else 'false'},")
         out.append(f"        title: {title},")
-        merged = re.search(r"\[MERGED\] (Prince|Baron|Archbishop) of ((?:[^:.]|\.(?=\w))+)[:.]", c["card_text"])
-        out.append(f"        merged_title: {f'Some(Title::{merged.group(1)}({rust_str(merged.group(2))}))' if merged else 'None'},")
+        out.append(f"        merged_title: {merged_title(c['card_text'])},")
         out.append(f"        adv: {'true' if c.get('adv') else 'false'},")
         path = f"Some({rust_str(c['path'])})" if c.get("path") else "None"
         out.append(f"        path: {path},")

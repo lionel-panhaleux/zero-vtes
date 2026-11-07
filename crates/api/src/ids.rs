@@ -163,6 +163,8 @@ ids!(
         Action,
         /// A card taking control of its host this phase (Puppet Master).
         TakeControl,
+        /// A vampire that must bleed (Chain of Command).
+        Bleed,
     }
 );
 
@@ -827,6 +829,35 @@ ids!(
         /// Orun and Aye over `minion`'s capacity: which kind burns first
         /// (`burn_in_play`), the rest read again after.
         BurnOverCapacity,
+        /// Tapestry of Blood: `seat` looked at the top `n` cards of the
+        /// library of `target`'s Methuselah (`seat` in the about); one may
+        /// burn (`find_card`), or pass.
+        BurnFromLibraryTop,
+        /// Virolax Facility: a vampire of capacity below `n` from `seat`'s
+        /// crypt to their ready region with 1 blood (`ash_vampire`), or
+        /// none (pass); the crypt shuffled.
+        CryptToReady,
+        /// San Lorenzo de El Escorial, named as the action is announced: the
+        /// uncontrolled minion of `seat`'s region (`slot`), then (`detail`:
+        /// `named`) the blood, 0 up to `n` (`set_x`), `minion` steals from it.
+        StealFromSlot,
+        /// Mob Rule: `seat` burns 1 blood of a ready vampire of capacity
+        /// above `n` (`choose_minion`) for a vote, two above `m`, or passes;
+        /// around the table until all pass.
+        BloodForVotes,
+        /// The Holds: the card of `target`'s Methuselah's ash heap to move
+        /// onto `card` (`find_card`).
+        StoreFromAshOf,
+        /// Cold Amber's Hold: 1 up to `n` blood from `minion` onto `card`
+        /// (`set_x`).
+        BloodToCardUpTo,
+        /// Elysium: Sforzesco Castle: `seat` may lock `card` instead of its
+        /// blocking `minion` (`resolve_rider`), or pass and lock the vampire.
+        MayLockCardForBlock,
+        /// Afifa, The Herald: a ready vampire of `seat`'s other than
+        /// `minion` burns 1 blood (`choose_minion`), or `seat` burns 1 pool
+        /// (`burn_pool`).
+        BloodOrPool,
     }
 );
 ids!(

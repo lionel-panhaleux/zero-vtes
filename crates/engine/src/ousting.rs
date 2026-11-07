@@ -34,16 +34,16 @@ pub fn life_boon() -> u16 {
     })
 }
 
-/// Is a play of `card` by `seat` still under way somewhere in `flow`?
-fn in_flight(flow: &Flow, card: u16, seat: SeatId) -> bool {
+/// Is a play of `card` (any card if `None`) by `seat` still under way
+/// somewhere in `flow`?
+pub(crate) fn in_flight(flow: &Flow, card: Option<u16>, seat: SeatId) -> bool {
+    let is = |c: u16| card.is_none_or(|k| k == c);
     match flow {
         Flow::PlayTerms { ctx, resume } | Flow::CostTerms { ctx, resume, .. } => {
-            (ctx.card == card && ctx.seat == seat) || in_flight(resume, card, seat)
+            (is(ctx.card) && ctx.seat == seat) || in_flight(resume, card, seat)
         }
         Flow::AsPlayed { stack, resume } => {
-            stack
-                .iter()
-                .any(|p| p.ctx.card == card && p.ctx.seat == seat)
+            stack.iter().any(|p| is(p.ctx.card) && p.ctx.seat == seat)
                 || in_flight(resume, card, seat)
         }
         _ => false,
@@ -107,7 +107,7 @@ impl Engine {
             return;
         };
         if o.playing {
-            if in_flight(&self.flow, life_boon(), o.order[o.next]) {
+            if in_flight(&self.flow, Some(life_boon()), o.order[o.next]) {
                 return;
             }
             self.ousting.as_mut().expect("ousting").playing = false;

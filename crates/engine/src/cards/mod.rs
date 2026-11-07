@@ -79,6 +79,12 @@ pub enum Window {
     CombatBeforeResolution,
     /// A Methuselah with no pool, before the oust applies (Life Boon).
     Ousting,
+    /// Control of a minion about to change, before it does: its
+    /// controller's (The Diamond Thunderbolt; `crate::control`).
+    ControlAboutToChange,
+    /// A passed blood hunt about to burn its vampire, before it does:
+    /// another Methuselah's (Redline; `crate::control`).
+    BloodHuntWouldBurn,
     /// A ready titled vampire about to be burned or sent to torpor
     /// (Leadership Vacuum; `Interrupt::ReadyTitledLeft`).
     ReadyTitledLeft,
@@ -106,6 +112,9 @@ pub enum Window {
     /// Another Methuselah's discard phase, once each per copy (Giotto
     /// Verducci; rules-qa 6.6).
     OthersDiscardPhase,
+    /// Another Methuselah's influence phase, offered in the rotation that
+    /// closes it (Gather; ANK 20240118).
+    OthersInfluencePhase,
 }
 
 impl Window {
@@ -120,6 +129,7 @@ impl Window {
                 | Window::InfluencePhaseOwn
                 | Window::DiscardPhase
                 | Window::OthersDiscardPhase
+                | Window::OthersInfluencePhase
         )
     }
 }
@@ -158,6 +168,10 @@ impl Window {
             "ACTION_DECLARE_RECRUIT" => ActionDeclareRecruit,
             "ACTION_DECLARE_EMPLOY" => ActionDeclareEmploy,
             "ACTION_AS_ANNOUNCED" => ActionAsAnnounced,
+            "REACTION_AS_ANNOUNCED" => ReactionAsAnnounced,
+            "CONTROL_ABOUT_TO_CHANGE" => ControlAboutToChange,
+            "BLOOD_HUNT_WOULD_BURN" => BloodHuntWouldBurn,
+            "UNLOCK_PHASE_ANY" => UnlockPhaseAny,
             "ACTION_DURING" => ActionDuring,
             "ACTION_STEALTH_INTERCEPT" => ActionStealthIntercept,
             "ACTION_BLOCK_ATTEMPT" => ActionBlockAttempt,
@@ -249,6 +263,9 @@ pub enum Actor {
     /// The prey of the controller of the vampire whose text it is, the
     /// vampire the host (Keith Moody).
     HostControllersPrey,
+    /// The predator of the controller of the vampire whose text it is, the
+    /// vampire the host (Jacob, The Glitch).
+    HostControllersPredator,
     /// A ready unlocked minion of another Methuselah than the controller of
     /// the vampire whose text it is, acting with it, the vampire the host
     /// (Calebros).
@@ -309,6 +326,28 @@ impl TitleClass {
     }
 }
 
+/// The Methuselah a Hold is given to.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+pub enum Recipient {
+    /// The target Methuselah (Cold Amber's Hold).
+    Target,
+    /// The acting minion's controller (Chiram's, Elder Michaelis's Hold).
+    ActingController,
+    /// The Methuselah whose turn it is (Regarhagan's Hold).
+    Active,
+}
+
+/// An ammo card's effect on a gun for the rest of a combat.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+pub enum Ammo {
+    /// Once each round, striking with it, an optional additional strike
+    /// (limited), only with it.
+    CaselessRounds,
+    /// +`close` damage at close range, -`long` at long, each strike
+    /// (Scattershot).
+    DamageByRange { close: u8, long: u8 },
+}
+
 /// What a minion may hold only one of (a vehicle, a Kevlar Vest).
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum Holding {
@@ -333,6 +372,10 @@ pub struct AsVampire {
     /// The sect it plays them as: Independent (rulebook "Allies"), or the
     /// printed one ("as an Anarch vampire", Vivienne Géroux).
     pub sect: Sect,
+    /// Only strike cards (Ghouled).
+    pub strike_only: bool,
+    /// Once each combat (Ghouled; `Minion::as_vampire_spent`).
+    pub once_per_combat: bool,
 }
 
 /// The trait printed text names the bearer by ("this Ravnos"), read on the
@@ -508,6 +551,30 @@ pub enum Stat {
     ContinuePressToll,
     /// It cannot press to end combat (Don Michael Antonio Giovanni).
     NoPressToEnd,
+    /// It cannot use presses to continue combat (Mukhtar Bey).
+    NoPressToContinue,
+    /// The controller of an older vampire it diablerizes burns n pool
+    /// (Sandra White).
+    PoolBurnAfterOlderDiablerie,
+    /// Sent to torpor or burned in combat, it burns, the opposing minion's
+    /// controller gaining n pool (Hector Trelane).
+    PoolToOpponentIfBurnedInCombat,
+    /// It cannot act once any minion has acted this turn (Gharston Roland).
+    NoActionAfterAnother,
+    /// Contracts cannot be placed on it (Iliana).
+    NoContractsOn,
+    /// Minions opposing it in combat cannot use weapons (Count Germaine).
+    OpponentsNoWeapons,
+    /// It cannot commit diablerie (Ferox).
+    CannotDiablerize,
+    /// Its damage-dealing strikes inflict +n damage (Harry Reese, against
+    /// the opponent its requirements read).
+    StrikeDamage,
+    /// It burns n blood when blocked, the blocker still ready at the end of
+    /// the action (Spider).
+    BurnsIfBlockerReady,
+    /// It cannot rescue other vampires from torpor (Boss Callihan).
+    CannotRescue,
     /// It cannot maneuver to long range (Pedro Cortez).
     NoManeuverToLong,
     /// While it is in play, any incapacitated imbued may leave the region
@@ -516,6 +583,14 @@ pub enum Stat {
     /// Other Methuselahs' actions targeting it cost n more blood or life,
     /// paid by the acting minion as they resolve (François "Warden" Loehr).
     TargetedCostsBlood,
+    /// Other Methuselahs' actions directed at it cost n additional blood,
+    /// as Chanjelin Ward's (`GameState::targeted_surcharge`): an ally
+    /// never pays it (Étienne Fauberge; LSJ 20030815, rules-qa 73.5).
+    DirectedCostsBlood,
+    /// A card matching the requirements played on it by another than
+    /// itself costs n less blood or pool (Guillermo Arsuaga's haven
+    /// "played on" him; `GameState::played_on_cost_off`).
+    CostOffPlayedOn,
     /// No equip action, no equipment taken (Enkidu, The Noah; LSJ
     /// 20050315), a location in play aside.
     NoEquipment,
@@ -526,6 +601,12 @@ pub enum Stat {
     ExtraDrawOnPlay,
     /// After replacing such a card, its controller may draw 1 more (Duality).
     ExtraDrawOnReplace,
+    /// After another Methuselah plays a master card, its controller may
+    /// draw 1, discarding after (Sascha Vykos; ANK 20190606-2).
+    DrawAfterOthersMaster,
+    /// Each hand strike landing the round after one landed gives the
+    /// opponent a pox counter (Smallpox Griet; PIB 20141210).
+    PoxOnConsecutiveHandDamage,
     /// Damage of its gun strikes at long range (Joaquin Murietta).
     GunDamageAtLong,
     /// Animal retainers lose their text while it acts or is in combat
@@ -559,6 +640,12 @@ pub enum Stat {
     /// The blood or life its ranged strikes steal, at either range (The
     /// Dracon).
     RangedStrikeSteal,
+    /// Blood or life its stealing strikes steal more, at any range, the
+    /// strike card read (`PrintedCtx::card`: Ardan Lane's [tha]).
+    StrikeSteal,
+    /// The combat cards it plays are not replaced until its controller's
+    /// next unlock phase (Nedal, The Careless).
+    CombatCardsHeldUntilUnlock,
     /// Its controller's discard phase actions, read as the discard phase
     /// begins (Sreelekha).
     DiscardPhaseActions,
@@ -826,6 +913,16 @@ pub enum Stat {
     /// Any positive total: one redraw each turn (Blackhorse Tanner;
     /// `Interrupt::Redraw`).
     RedrawOncePerTurn,
+    /// One optional maneuver or press in the first round of each combat,
+    /// used either way (Hanna Redmonds, to an older opponent).
+    FirstRoundManeuverOrPress,
+    /// Capacity +n while in play (Jacob, The Glitch: "while he is
+    /// controlled"; `GameState::capacity_of`).
+    Capacity,
+    /// Blood the opposing vampire burns to announce a directed action at
+    /// it or a card on it, unless canceled as played (Hazimel;
+    /// `Engine::announce_toll`).
+    DirectedAtAnnounceBlood,
 }
 
 /// Legality predicates, the closed vocabulary, evaluated over the state and
@@ -863,7 +960,8 @@ pub enum Requirement {
     OpponentTitleIn(&'static [TitleClass]),
     /// The modified minion has this Discipline (Lin Jun).
     ActorHasDiscipline(&'static str),
-    /// The actor can commit diablerie (Cloak of Blood).
+    /// The actor is a vampire who can commit diablerie (Cloak of Blood,
+    /// Amaranth).
     ActorCanDiablerize,
     /// The actor's initial strike of the round its [VIC] named (Liquefy the
     /// Mortal Coil).
@@ -960,6 +1058,11 @@ pub enum Requirement {
     /// Discipline (Cappadocian Crypt); an empty Discipline: the clan alone
     /// (Keegan).
     ActionRequiresClanOrDiscipline(&'static str, &'static str),
+    /// The action's card requires this Discipline in the mode played
+    /// (Amenophobis: "any successful action requiring Serpentis").
+    ActionRequiresDiscipline(&'static str),
+    /// The Methuselah the action is directed at has the Edge (Amenophobis).
+    TargetSeatHasEdge,
     /// The target has this Discipline (Powerbase: Munich).
     TargetDiscipline(&'static str),
     /// The player controls no vampire of this name, and has one in their
@@ -1016,6 +1119,23 @@ pub enum Requirement {
     TargetRedList,
     /// The target minion is not Black Hand (Shakar).
     TargetNotBlackHand,
+    /// The actor's strike this round is with a gun it bears on which no
+    /// ammo card was used this combat (Caseless Rounds; LSJ 20020425).
+    StrikingWithUnloadedGun,
+    /// The combatant using it strikes this round with the gun this card is
+    /// on, no ammo used on it this combat (Magazine).
+    StrikingWithItsGun,
+    /// The Methuselah a Hold goes to controls no copy of it ("only 1") and
+    /// has a card of the type it takes in their ash heap (D14, rules-qa
+    /// 60.17).
+    HoldRecipient(Recipient),
+    /// Its controller's hand holds a copy of the card on this one (the
+    /// Holds' discard).
+    HandHasStoredCopy,
+    /// The target minion is Black Hand (Black Hand Ritual).
+    TargetBlackHand,
+    /// The target vampire has not merged (Gift of Experience).
+    TargetUnmerged,
     /// The opposing minion lacks this Discipline, read live (Waxen
     /// Poetica: "not usable against a vampire with Celerity").
     OpponentLacksDiscipline(&'static str),
@@ -1043,6 +1163,9 @@ pub enum Requirement {
     /// The opposing vampire's pending damage, as it stands, sends it to
     /// torpor (Decapitate [POT]).
     OpponentGoingToTorpor,
+    /// The actor's own pending damage, as it stands, sends it to torpor
+    /// (Undead Persistence [for]).
+    ActorGoingToTorpor,
     /// The actor is not being burned or going to torpor by the damage
     /// pending on it (Decapitate [POT]).
     ActorNotGoingDown,
@@ -1141,6 +1264,9 @@ pub enum Requirement {
     /// The host's controller is the active Methuselah (Fear of Mekhet's
     /// "this vampire's unlock phase").
     HostControllerActive,
+    /// The host's controller put no Gehenna card in play this discard phase
+    /// (Afifa, The Herald; `Seat::gehenna_put`).
+    HostControllerPutNoGehenna,
     /// The host's controller holds the Edge (Lucina's unlock rider; an
     /// ability's own `HasEdge` reads its user's).
     HostControllerHasEdge,
@@ -1227,6 +1353,8 @@ pub enum Requirement {
     ActionPutsVampireInPlay,
     /// The opposing combatant is an ally (Entombment [obt], Carolina Vález).
     OpponentAlly,
+    /// The opposing minion is an ally not a mortal (Harry Reese).
+    OpponentNonMortalAlly,
     /// The player lacks the Edge ("unless you have the Edge").
     NoEdge,
     /// The action's card, or granting card, has this path icon (Sakura).
@@ -1236,6 +1364,8 @@ pub enum Requirement {
     ActingAllyOf(&'static [crate::library::Label]),
     /// The acting minion holds no card of this kind (Pallid: no Aye).
     ActingHoldsNone(Holding),
+    /// The acting minion holds a card of this kind (Car Bomb: a vehicle).
+    ActingHolds(Holding),
     /// The minion target is an ally of these subtypes (Fiorella, Burial
     /// Site Hunting Ground).
     TargetAllyOf(&'static [crate::library::Label]),
@@ -1293,6 +1423,9 @@ pub enum Requirement {
     /// n or more other Gehenna events in play, checked at play only (PIB
     /// 20121031).
     GehennaInPlay(u8),
+    /// At least n Gehenna cards other Methuselahs control in play
+    /// (Becoming of Ennoia; checked as played, PIB 20121031).
+    GehennaOfOthersInPlay(u8),
     /// No Gehenna card in play (Claudio Severino's unlock-phase toll).
     NoGehennaInPlay,
     /// Not while its player controls a copy (Raising the Portcullis; LSJ
@@ -1339,6 +1472,8 @@ pub enum Requirement {
     /// The actor is older than this card's host (Dive into Madness):
     /// engine-checked.
     ActorOlderThanHost,
+    /// The actor is older than the card's chosen vampire (Emissary).
+    ActorOlderThanChosen,
     /// The actor has not forced a vampire's cast yet this referendum
     /// (Mustafa: once each Toreador, "during the polling step", D7).
     ActorNotForcedYet,
@@ -1459,11 +1594,25 @@ pub enum Requirement {
     /// Combat: the round is at close range.
     RangeClose,
     RangeLong,
+    /// The actor is in combat with the acting minion (Chiram's Hold).
+    OpponentIsActing,
+    /// Damage was successfully inflicted on the actor this round of its
+    /// combat (Ecstatic Agony [AUS]).
+    ActorDamagedThisRound,
     /// Combat: the first round.
     FirstRound,
     NotFirstRound,
+    /// Combat: a previous round, at long range as it ended (Seren
+    /// Sukardi).
+    PreviousRoundLong,
+    /// Combat: no damage was successfully inflicted on the actor in the
+    /// previous round (Seren Sukardi).
+    ActorUndamagedLastRound,
     /// Combat: both combatants are still ready (Telepathic Tracking [AUS]).
     BothCombatantsReady,
+    /// Both combatants are vampires of this sect (Alfred Benezri: "combat
+    /// involving two other Sabbat vampires").
+    BothCombatantsSect(Sect),
     /// Combat: the end-of-round window, no press to continue standing, no
     /// replacement yet (spec §4.9.1).
     CombatWouldEnd,
@@ -1504,6 +1653,8 @@ pub enum Requirement {
     ActorCapacityAtLeast(u8),
     /// The current action is a political action.
     IsPolitical,
+    /// The current action is not a political action (Smoke and Mirrors [obf]).
+    NotPolitical,
     /// The polling step of a political action's referendum, not the blood
     /// hunt's (spec §3.7.5.4).
     PollingStep,
@@ -1560,12 +1711,39 @@ pub enum Requirement {
     ReadyImbuedInPlay,
     /// The acting minion belongs to one of these sects.
     ActingSectIn(&'static [Sect]),
+    /// The vampire with this text belongs to one of these sects (Marcus
+    /// Vitel merged: "while he is ready and Sabbat").
+    SourceSectIn(&'static [Sect]),
+    /// The acting minion is not of this sect, an ally included (The Mole).
+    ActingSectNot(Sect),
+    /// The actor is a vampire in torpor, its action a torpor action: blocked,
+    /// no combat, the blocker may diablerize (Rapid Healing, Movement of the
+    /// Slow Body).
+    ActorInTorpor,
+    /// An action of the actor succeeded this turn, a fizzle too (Loner).
+    ActorSucceededThisTurn,
+    /// No other minion of the actor's controller announced an action this
+    /// turn (Loner; LSJ 20060616-1: those controlled now).
+    NoOtherOwnAttemptedThisTurn,
+    /// The target card uses counters, blood or pool ones (Church of the
+    /// Order of St. Blaise; PIB 20110712-1).
+    TargetUsesCounters,
+    /// A contract may be placed on the target minion (Iliana: "Contracts
+    /// cannot be placed on Iliana").
+    TargetTakesContracts,
+    /// A vampire of the Methuselah the action is directed at successfully
+    /// hunted since the user's last turn (Songs of the Distant Vitae
+    /// [QUI]).
+    DirectedSeatHuntedSinceYourLastTurn,
+    /// The acting minion lacks this Discipline, read live (The Mole [cel]).
+    ActingLacksDiscipline(&'static str),
     /// The Methuselah the action is directed at has cards in hand.
     DirectedHandNotEmpty,
     /// Target minion is controlled by the Methuselah the action is
     /// directed at (Alicia Cortez).
     ControlledByDirectedSeat,
-    /// Target minion is not the vampire whose ability it is (Alabástrom).
+    /// Target minion, or an ability's user, is not the vampire whose
+    /// ability it is (Alabástrom, Lord Ashton).
     NotHost,
     /// The minion attempting to block is the player's and needs intercept
     /// (Oskar Anasov; rules-qa 3.2).
@@ -1594,6 +1772,8 @@ pub enum Requirement {
     /// The player's library holds at least n cards (Liquidation; LSJ
     /// 20070901).
     LibraryAtLeast(u8),
+    /// A minion of the active Methuselah has pox counters (Smallpox Griet).
+    ActivePoxed,
     /// The player's ash heap holds at least n cards, burned vampires
     /// included (Marchesa Liliana; rules-qa 42.7).
     AshAtLeast(u8),
@@ -1683,6 +1863,11 @@ pub enum Requirement {
     /// No card of this name was played during this action ("X and Y cannot
     /// both be played on the same action": Into Thin Air, Lost in Crowds).
     NotPlayedThisAction(&'static str),
+    /// The actor played no card of this name this action ("A vampire cannot
+    /// play both Pack Tactics and Elder Intervention").
+    ActorNotPlayedThisAction(&'static str),
+    /// The player has n victory points or more (Momentum's Edge).
+    VictoryPointsAtLeast(u8),
     /// This card in play was played in mode n (Condemnation: Mute's [DAI],
     /// its third).
     CardMode(u8),
@@ -1697,6 +1882,9 @@ pub enum Requirement {
     NoGreatBeastControlled,
     /// No card is on this card in play ("only 1 card … at a time").
     StoreEmpty,
+    /// The actor meets the requirements of the card on this card and can
+    /// pay for it (Delivery Truck; ANK 20180817).
+    ActorMayEquipStored,
     /// A card is on this card in play (Maabara).
     StoreNotEmpty,
     /// "Once each turn" on a rider: once in each Methuselah's turn per copy
@@ -1734,6 +1922,9 @@ pub enum Requirement {
     TargetBloodAtMostCounters,
     /// The target minion carries corruption counters, anyone's (Aniel).
     TargetCorrupted,
+    /// The target minion carries the user's corruption counters
+    /// (Revelation of Desire [SER]).
+    TargetHasYourCorruption,
     /// At the maneuver, only to get to close range: the range is long (Slam
     /// [POT]); any other step, no condition.
     ManeuverToClose,
@@ -1814,6 +2005,10 @@ pub enum Requirement {
     /// The minion that blocked the current action holds a title of one of
     /// these classes.
     BlockerTitleIn(&'static [TitleClass]),
+    /// The blocker is a non-Anarch vampire older than the actor, and both
+    /// its controller's crypt and the actor's controller's hold a card
+    /// (Bear-Baiting; RTR 20000501).
+    BlockerOlderNonAnarchCrypts,
     /// The host of the card in play has this discipline (lower case: any
     /// level; upper case: superior).
     HostDiscipline(&'static str),
@@ -1825,6 +2020,8 @@ pub enum Requirement {
     ActorGraftedAlly,
     /// The opposing minion is of this clan.
     OpponentClan(&'static str),
+    /// The opposing minion is not of this clan (Hazimel: "non-Ravnos").
+    OpponentNotClan(&'static str),
     /// The opposing minion bears this name, any version (Elizabeth
     /// Dimitros: Hesha Ruhadze).
     OpponentNamed(&'static str),
@@ -1847,6 +2044,17 @@ pub enum Requirement {
     /// Printed: the vampire calls the referendum the votes are read in
     /// (Maldavis).
     SourceCalledReferendum,
+    /// Printed: another vampire calls the referendum the votes are read in
+    /// (Jezebelle).
+    OtherCalledReferendum,
+    /// Printed: the referendum the votes are read in, passing, gives a
+    /// vampire a title of these classes (Jezebelle: "to declare a prince";
+    /// `PrintedCtx::referendum_title`).
+    ReferendumGrantsTitle(&'static [TitleClass]),
+    /// Printed: the opposing minion is the one the vampire chose for its
+    /// blocks until its controller's next unlock (Christopher Houghton;
+    /// `GameState::unlock_marks`).
+    OpponentMarkedForBlocks,
     /// The action equips its actor with an equipment card from hand bearing
     /// this label (Synner-G: electronic).
     IsEquipLabeledFromHand(crate::library::Label),
@@ -1923,6 +2131,9 @@ pub enum Requirement {
     /// Printed: the vampire's controller controls no ready vampire of this
     /// clan (a slave's master clan, rulebook "Slave").
     ControlsNoReadyOfClan(&'static str),
+    /// Printed: the vampire's controller controls no ready vampire with a
+    /// title of these classes (Jezebelle).
+    ControlsNoReadyTitled(&'static [TitleClass]),
     /// The current action is the player's, blocked, and no slave took its
     /// combat yet (rulebook "Slave").
     NoSlaveInstead,
@@ -2048,6 +2259,9 @@ pub enum Requirement {
     /// The card being played is played by an ally or a vampire with
     /// capacity n or less (Approximation of Loyalty [PRE]).
     PlayedByAllyOrCapacityAtMost(u8),
+    /// The card being played is played by a vampire with capacity n or less
+    /// (Lucita).
+    PlayedByVampireCapacityAtMost(u8),
     /// The card being played is played by a vampire younger than the actor
     /// (Mithras G3).
     PlayedByYoungerVampire,
@@ -2170,6 +2384,15 @@ pub enum Requirement {
     TargetFacesAggravatedStrike,
     /// The target minion is in the combat under way.
     TargetCombatant,
+    /// Control of the target is about to change (`crate::control`).
+    TargetControlAboutToChange,
+    /// The target is the vampire a passed blood hunt is about to burn
+    /// (`crate::control`).
+    TargetHuntedToBurn,
+    /// The target is about to enter combat: blocked or blocking, or fought
+    /// by the action's resolution (blocks declined) or the combat Psyche!
+    /// queued.
+    TargetAboutToEnterCombat,
     /// The combat's acting side is a vampire the user controls, Deep Song's
     /// target included (Powerbase: Savannah; ANK 20230814).
     ActingCombatantYourVampire,
@@ -2273,9 +2496,15 @@ pub enum Requirement {
     MayBeLocked,
     /// Seat target: the player's prey (Shroud of Decay [OBL]).
     TargetPrey,
+    /// The target Methuselah is the user's predator (San Lorenzo de El
+    /// Escorial).
+    TargetPredator,
     /// Seat target: at least n cards in their ash heap, burned vampires
     /// included (Shroud of Decay [OBL]; rules-qa 42.7).
     TargetAshAtLeast(u8),
+    /// Seat target: a minion in their uncontrolled region (San Lorenzo de
+    /// El Escorial; D14).
+    TargetHasUncontrolled,
     /// Seat target: the predator of the actor's predator (My Enemy's
     /// Enemy [AUS]).
     PredatorsPredator,
@@ -2339,6 +2568,9 @@ pub enum Requirement {
     /// Printed: the target Methuselah controls no ready vampire of this
     /// sect (Kestrelle Hayes).
     TargetSeatControlsNoReadySect(Sect),
+    /// The Methuselah the action is directed at controls a ready vampire
+    /// with one of these titles (Maldavis: "a ready primogen").
+    TargetSeatControlsReadyTitled(&'static [TitleClass]),
     /// Printed: the target Methuselah controls a location, uncontested
     /// (Porphyry).
     TargetSeatControlsLocation,
@@ -2394,6 +2626,9 @@ pub enum BlockRider {
     UnlockAfterForBlood(u8),
     /// 1 optional press in that combat (Hunter's Mark).
     Press,
+    /// At that combat's end, the only ready combatant gains blood equal to
+    /// the opposing vampire's capacity (Games of Instinct).
+    LoneReadyGainsCapacity,
     /// The opposing "strike: combat ends" denied in the first round
     /// (Hunter's Mark [CEL][THA]).
     OpponentNoCombatEndsFirstRound,
@@ -2420,6 +2655,17 @@ pub enum BlockRider {
     HandSize(u8),
     /// Its minion cannot strike in the first round (Fast Reaction).
     NoStrikeFirstRound,
+    /// Before block resolution, its player locks a younger non-blocking
+    /// vampire the blocker's controller controls (Loose Cannon [dem]).
+    LockYoungerOfBlockersSeat,
+    /// Before block resolution, n blood from a non-blocking vampire the
+    /// blocker's controller controls to its minion (Loose Cannon [tha]).
+    BloodFromBlockersSeat(u8),
+    /// Its minion's hand strikes aggravated in that combat (Loose Cannon
+    /// [vic]).
+    AggravatedHands,
+    /// Before block resolution, its minion goes to torpor (Cry Wolf).
+    ActingToTorpor,
 }
 
 /// How a card in play reduces its controller's costs.
@@ -2515,6 +2761,12 @@ pub enum Term {
     },
     /// Choose between `min` and `max` Methuselahs.
     ChooseSeats { min: u8, max: u8 },
+    /// Choose at least half of the Methuselahs in the game, rounded up
+    /// (Finding the Path).
+    ChooseSeatsHalfOrMore,
+    /// Choose one or more Methuselahs no card of this name in play chose
+    /// (Year of Fortune).
+    ChooseSeatsUnchosen(&'static str),
     /// Choose one Methuselah (the "chosen" one for later terms).
     ChooseSeat(SeatFilter),
     /// Choose between `min` and `max` minions meeting the filter.
@@ -2592,6 +2844,12 @@ pub enum RefEffect {
     /// Each Methuselah gains 1 pool per vampire of the chosen clan they
     /// control.
     GainPerClanVampire,
+    /// Each Methuselah gains 1 pool per clan among their ready vampires
+    /// (Diversity).
+    GainPerReadyClan,
+    /// Each chosen Methuselah burns n pool, each other one gains n
+    /// (Finding the Path).
+    ChosenBurnOthersGain(u8),
     /// Each ready Anarch gains 1 blood; each Methuselah controlling an
     /// Anarch gains 1 pool.
     AnarchSalon,
@@ -2615,6 +2873,14 @@ pub enum RefEffect {
     /// The political action card is put in play, its caller's (Raising the
     /// Portcullis).
     PutInPlay,
+    /// As `PutInPlay`, locking every vampire with capacity below n (Snipe
+    /// Hunt).
+    PutInPlayLockBelow(u8),
+    /// The vampire granting the action is burned (Theo Bell, advanced).
+    BurnSourceVampire,
+    /// n damage on each ready minion with any of the caller's corruption
+    /// counters (Kahina the Sorceress).
+    DamageYourCorrupted(u8),
     /// The chosen Methuselah takes the chosen card (Disputed Territory): one
     /// on a minion moves onto one of theirs (RTR 19960112), not when it
     /// stays with the same Methuselah (LSJ 19971002).
@@ -2685,12 +2951,25 @@ pub enum RefEffect {
     /// repaying their pool cost, 0 for a blood cost or none (Kindred
     /// Segregation; RTR 20010711, LSJ 20060409; ANK 20190724).
     BurnAlliesUnlessKept,
+    /// As `BurnAlliesUnlessKept`, the weapons on each Methuselah's minions
+    /// (Peace Treaty; RTR 20010710: the pool cost only; ANK 20190724: one
+    /// with no pool cost may be kept or burned).
+    BurnWeaponsUnlessKept,
     /// Each vampire picked by `DistributeBlood` burns 1 blood per point
     /// (Free States Rant).
     BurnBloodPerPick,
 }
 
 impl RefEffect {
+    /// Burned unless each Methuselah repays its pool cost (`RefStep::Choose`
+    /// one keep at a time).
+    pub fn keeps_by_repaying(self) -> bool {
+        matches!(
+            self,
+            RefEffect::BurnAlliesUnlessKept | RefEffect::BurnWeaponsUnlessKept
+        )
+    }
+
     /// Each Methuselah chooses a ready vampire they control once the
     /// referendum passes (rules-qa 49.1).
     pub fn chooses_vampires(self) -> bool {
@@ -2811,6 +3090,21 @@ impl ReferendumDef {
                 }
                 Term::ChooseSeats { min, .. } => {
                     if (living.len() as u8) < min {
+                        return false;
+                    }
+                }
+                // At least half of them: always feasible.
+                Term::ChooseSeatsHalfOrMore => {}
+                // One no copy in play chose (LSJ 20100129, ANK 20191228).
+                Term::ChooseSeatsUnchosen(name) => {
+                    let taken = |s: SeatId| {
+                        st.cards.iter().any(|c| {
+                            c.present()
+                                && LIBRARY[c.card as usize].name == name
+                                && c.against.contains(s)
+                        })
+                    };
+                    if living.iter().all(|&s| taken(s)) {
                         return false;
                     }
                 }
@@ -2984,6 +3278,9 @@ pub enum Limit {
     /// As `PerReferendum`, the source's abilities so limited sharing the
     /// use (Sean Rycek's lock or blood).
     PerReferendumCard,
+    /// Once per referendum for each minion using it (Tegyrius' grant to
+    /// each Camarilla Banu Haqim, Rant!'s to each ready anarch).
+    PerReferendumEachUser,
     /// Once each Methuselah's turn per copy or vampire ability (advanced
     /// rules §1.2.1); on a card mode per minion and card (Forced March).
     PerTurn,
@@ -3204,6 +3501,10 @@ pub enum Terms {
     /// A card in the user's ash heap, chosen by name as the ability is used
     /// (Mora, the Death Seer).
     AshCard,
+    /// A card the host played in the combat just ended, still in the
+    /// user's ash heap, named as the ability is used, to hand (Marthe
+    /// Dizier; `ActionCtx::combat_played`).
+    CombatPlayedAshCard,
     /// A card with two copies in the prey's ash heap, named as announced,
     /// both removed at resolution (Giovanni del Georgio).
     PreyAshPair,
@@ -3240,6 +3541,10 @@ pub enum Terms {
     /// The prey's vampire is the target, the predator's `PlayCtx::picks[0]`,
     /// both targets (Taunt the Caged Beast [ANI]; rules-qa 71.21).
     TauntPair,
+    /// "Up to two": a second minion meeting the mode's own target filter,
+    /// or none (Pass), picked as played (`PlayCtx::picks[0]`, the action
+    /// directed at its Methuselah too: Liberty Club Intrigue).
+    OptionalSecondTarget,
     /// A ready vampire of the clan the user controls, as played; `other`:
     /// not the target (Priority Contract, Toreador Grand Ball; rules-qa 28.5).
     OwnOfClan { clan: &'static str, other: bool },
@@ -3286,6 +3591,20 @@ pub enum Terms {
     /// n ash heap library cards, named one at a time as played, a name
     /// again only for another copy (Sudario Refraction).
     AshCards(u8),
+    /// X (+ `more`) younger uncontrolled vampires named one at a time as
+    /// played, X paid in blood (`PlayCtx::commanded`; Chain of Command, D1).
+    CommandPicks,
+    /// The Hold's card of the target's ash heap, named as played
+    /// (`PlayCtx::ash`; Cold Amber's Hold, D1, rules-qa 60.17).
+    HoldCardOfTarget,
+}
+
+/// The type of card a Hold played in `mode` takes from an ash heap.
+pub fn hold_of(mode: &ModeDef) -> Option<CardType> {
+    mode.effects.iter().find_map(|e| match e {
+        Effect::GiveHold { of, .. } => Some(*of),
+        _ => None,
+    })
 }
 
 /// A bonus lasting on a minion until an expiry (`Minion::timed`): Dive
@@ -3310,12 +3629,81 @@ pub enum Lasting {
 /// Continuous-effect modifiers carried by layers.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum Modifier {
+    /// +n votes for the host in referendums younger vampires call
+    /// (Paragon).
+    HostVotesWhenCallerYounger(u8),
+    /// Its host gets a vote per counter on the card in referendums it
+    /// calls (Aura of Invincibility).
+    HostVotesPerCounterWhenCalling,
+    /// Its host gets a vote per Gehenna card in play in each political
+    /// action's referendum (Emergency Powers).
+    HostVotesPerGehennaInPolitics,
+    /// The card burns once no Gehenna card is in play (Emergency Powers).
+    GehennaBound,
+    /// Its host gets +X strength each round, X the damage successfully
+    /// inflicted on it the previous round of the combat (Ecstatic Agony).
+    HostStrengthPerLastRoundDamage,
+    /// Its host's controller draws a card as each press step of its combat
+    /// begins, then discards down to hand size (Improvised Tactics [aus]).
+    DrawEachPressStep,
+    /// Each strike its bearer makes at close range is with this weapon if
+    /// it can strike (Sword of Troile).
+    CloseStrikesWithThis,
+    /// Its bearer cannot maneuver to long range (Sword of Troile).
+    BearerNoManeuverToLong,
+    /// The damage of this weapon's strikes is mended for n blood a point
+    /// (Sword of Nuln).
+    MendingCost(u8),
+    /// Cards named as the card on this one cost its controller's vampires
+    /// n more blood (the Holds).
+    StoredCardsCostBlood(u8),
+    /// A vampire of its controller's blocking a Camarilla vampire, the
+    /// card may lock instead of it (Elysium: Sforzesco Castle;
+    /// `Interrupt::MayLockCardForBlock`).
+    LocksInsteadOfBlockerOfCamarilla,
+    /// A directed action at its bearer costs the acting Methuselah n more
+    /// pool as it resolves (Alia, God's Messenger; Ambrosio's printed
+    /// `Stat::DirectedAtCostsPool`).
+    DirectedAtBearerCostsPool(u8),
+    /// Its bearer has subtype `is` instead of `not` (Ghouled: a ghoul, not
+    /// a mortal).
+    BearerSubtypeInstead {
+        is: crate::library::Label,
+        not: crate::library::Label,
+    },
+    /// Once each combat, a strike with this weapon at close range not
+    /// dodged gives its bearer an optional press that round, only to
+    /// continue (Meat Hook).
+    ContinuePressOnHitOnce,
+    /// Its bearer gets 1 optional press to end combat the first round
+    /// (Highway Haven: RV).
+    BearerFirstRoundEndPress,
+    /// Its bearer anarch, a vampire attempting an action directed at it
+    /// does not unlock as normal next (Highway Haven: RV).
+    ActingAtAnarchBearerSkipsUnlock,
+    /// Its controller ousted or withdrawing, their predator gains n more
+    /// victory points (Gambit Accepted; RTR 20040501).
+    PredatorVpIfOusted(u8),
+    /// At the end of the game, its controller not ousted gains n victory
+    /// points (Gambit Accepted).
+    VpAtGameEndIfStanding(u8),
+    /// +n hand size for each Methuselah its terms chose (Year of Fortune;
+    /// PIB 20121028: gone with the card).
+    HandSizeForChosen(i8),
+    /// Vampires with capacity below n do not unlock as normal (Snipe Hunt).
+    CapacityBelowDoesNotUnlock(u8),
     /// Each Methuselah gets +n hand size for each victory point they have
     /// (The Bitter and Sweet Story).
     HandSizePerVp(u8),
     /// The layer source's host gets n bleed against its controller's prey
     /// (Tier of Souls [ANI]).
     HostBleedAgainstPrey(i8),
+    /// Its bearer gets +n bleed bleeding the Methuselah the card remembers
+    /// (`CardInPlay::against`; Bear-Baiting).
+    HostBleedAgainstRemembered(i8),
+    /// Cards of this name cost n more blood (Becoming of Ennoia: Earth
+    /// Meld), but to a vampire Gehenna events do not affect.
+    NamedCardsCost(&'static str, u8),
     /// The host's recruit ally actions cost n less (Charisma).
     HostRecruitDiscount(u8),
     /// The host gets n votes while its controller controls the named
@@ -3455,6 +3843,20 @@ pub enum Modifier {
     HostCannotRecruitOrEmploy,
     /// The host gets n optional presses each combat (Dread Mastiff [ANI]).
     HostCombatPress(u8),
+    /// The host gets an optional press each combat with a vampire of the
+    /// sect, read live (Redline).
+    HostCombatPressVsSect(Sect),
+    /// As a vampire plays its first card requiring a Discipline each turn,
+    /// its controller reveals the top of their library: a master there,
+    /// the card has no effect (no cost paid), and the vampire burns `burn`
+    /// blood if the card required the Discipline `disc` (Veil of
+    /// Darkness).
+    FirstDisciplineCardRevealsTop { disc: &'static str, burn: u8 },
+    /// A Methuselah beginning their unlock phase with their library
+    /// exhausted and a short hand must attempt to withdraw, ousted at their
+    /// next unlock phase if it failed; any withdrawal ousts the card's
+    /// controller (Brinksmanship).
+    ForcedWithdrawals,
     /// The host gets n mandatory presses each combat, only usable to
     /// continue combat in the first round (Talbot's Chainsaw).
     HostFirstRoundMandatoryPress(u8),
@@ -3961,6 +4363,12 @@ pub enum Effect {
     /// n pool moved from the user's prey to this card, as counters (419
     /// Operation); their last pool ousts them.
     PreyPoolToCounter(u8),
+    /// Unlock rider: n pool moves from the controller's prey's pool to
+    /// theirs (Gambit Accepted).
+    PreyPoolToController(u8),
+    /// The player loses n victory points as the card is played (Gambit
+    /// Accepted).
+    LoseVictoryPoints(u8),
     /// An in-play ability's target vampire becomes its card's chosen one
     /// (Powerbase: Luanda).
     CardChoosesTarget,
@@ -4029,6 +4437,9 @@ pub enum Effect {
     /// it has ended (Rötschreck; LSJ 20070907), not if it continues (RTR
     /// 20020501).
     RotschreckEndsCombat,
+    /// The target combatant cannot use equipment nor press to end combat
+    /// this round, and the round has a press only to continue (Frenzy).
+    FrenzyRound,
     /// After `PutInPlay`, the card becomes a vampire of the `sect` printed,
     /// else its sire's (Childe of the Revolution, The Embrace; rulebook
     /// "Sect"; rules-qa 32.6); `master_search`: its Discipline master
@@ -4097,6 +4508,24 @@ pub enum Effect {
     /// Its user looks at the top card of the library of the Methuselah
     /// whose turn it is (Weirding Stone).
     LookAtTurnLibraryTop,
+    /// Look at the top card of each Methuselah's library (Sweeper).
+    LookAtEachLibraryTop,
+    /// Look at the top n cards of the target Methuselah's library and burn
+    /// up to one of them (Tapestry of Blood; `Interrupt::BurnFromLibraryTop`).
+    LookAtTargetLibraryTopBurnOne(u8),
+    /// Steal up to n blood from an uncontrolled minion of the target
+    /// Methuselah's region to the actor, both named as announced (San
+    /// Lorenzo de El Escorial; `Interrupt::StealFromSlot`).
+    StealFromTargetSeatSlot(u8),
+    /// A burned vampire of capacity above `burned_above`: this card burns
+    /// and its controller searches their crypt for a vampire of capacity
+    /// below `below`, ready with 1 blood, not acting this turn (Virolax
+    /// Facility; `Interrupt::CryptToReady`).
+    CryptVampireToReady {
+        burned_above: u8,
+        below: u8,
+        blood: u8,
+    },
     /// The card looked at a master, the host vampire with n blood: its
     /// player may burn n of it to burn that card (Weirding Stone;
     /// `Interrupt::MayBurnLookedMaster`), the look's information its own.
@@ -4268,6 +4697,9 @@ pub enum Effect {
     /// Hand size +n until the end of the discard phase (LSJ 20100812),
     /// drawn up at once; cards over size afterward stay (ANK 20180318).
     HandSizeBonusUntilEndOfTurn(u8),
+    /// Hand size +X until the end of the turn, X the ready minions the
+    /// active Methuselah controls, drawn up at once (Shahid).
+    HandSizePerActiveReadyMinions,
     /// Add n blood to the targeted vampire in the player's uncontrolled
     /// region (capped at its capacity).
     BloodToUncontrolledTarget(u8),
@@ -4445,6 +4877,13 @@ pub enum Effect {
     /// A weapon burned once its strike resolved ("burn after use",
     /// Molotov Cocktail).
     BurnAfterStrike,
+    /// The ammo's effect on the gun its player's combatant strikes with,
+    /// for the rest of the combat (`CombatCtx::ammo`).
+    LoadGun(Ammo),
+    /// Its strike: combat ends, then the opposing vampire, not dodging, and
+    /// the vampire bearer at close range lock and do not unlock as normal
+    /// next (Flash Grenade).
+    StunsAfterCombat,
     /// The card's controller chooses a ready minion they control to take n
     /// unpreventable damage, the card's, not its bearer's (Talbot's
     /// Chainsaw; LSJ 20090304-1).
@@ -4481,6 +4920,10 @@ pub enum Effect {
     /// n damage on the acting minion, out of combat, after resolution
     /// (Touch of Pain).
     DamageActing(u8),
+    /// The acting minion's cards of this kind burn (Car Bomb: its vehicle).
+    BurnActingHeld(Holding),
+    /// The action gets -n stealth, a played card's (Car Bomb).
+    ActionStealthMinus(u8),
     /// The player draws a card, then moves a card from hand to the ash heap
     /// or the top of the library (Aisata Swanou; `Interrupt::HandCardAway`).
     DrawThenHandCardAway,
@@ -4509,9 +4952,15 @@ pub enum Effect {
     /// If this action is blocked, lock the blocking minion and end the
     /// action before block resolution (Mirror Walk [THA]).
     EndActionIfBlocked,
-    /// If this action is blocked, the acting vampire may cancel the
-    /// resulting combat (Stone Travel [MYT]).
-    MayCancelCombatIfBlocked,
+    /// If this action is blocked (by a non-titled vampire when
+    /// `untitled_blocker`), the acting vampire may cancel the resulting
+    /// combat, burning `blood` and unlocking if `unlock` (Stone Travel
+    /// [MYT], Sowing Dissension).
+    MayCancelCombatIfBlocked {
+        blood: u8,
+        unlock: bool,
+        untitled_blocker: bool,
+    },
     /// The card (a retainer) enters play on the acting minion with this life.
     EmployRetainer { life: u8 },
     /// Burn n life from this card (a retainer's, an ally's own: Crypt's
@@ -4534,6 +4983,9 @@ pub enum Effect {
     /// The acting Anarch's hand strikes are aggravated this action
     /// (Invigorate [pro]).
     AggravatedHandsThisAction,
+    /// The acting minion's hand strikes inflict +n damage this action
+    /// (Uncontrollable Rage).
+    HandStrikeDamageThisAction(u8),
     /// This ally cannot gain life, set as it enters (Aggressive Corpse).
     CannotGainLife,
     /// This ally can act the turn it is recruited (Spectral Servitor).
@@ -4598,6 +5050,13 @@ pub enum Effect {
     /// The opposing vampire is burned instead of going to torpor by the
     /// damage about to land (Decapitate [POT]).
     BurnOpponentInsteadOfTorpor,
+    /// The opposing vampire is diablerized by the actor instead of going to
+    /// torpor by the damage about to land (Amaranth).
+    DiablerizeOpponentInsteadOfTorpor,
+    /// The actor, wounded, goes to torpor only after the combat, a new one
+    /// past it (LSJ 20030214); the combat ends after `quiet_rounds` rounds
+    /// with no card played (Undead Persistence [for]).
+    TorporAfterCombat { quiet_rounds: u8 },
     /// Marker: the bearer's aim cards go on this card once used, canceled
     /// too, and only the bearer plays them from it as if from hand, then
     /// removed from the game (Light Intensifying Goggles).
@@ -4692,6 +5151,13 @@ pub enum Effect {
     /// blood from the host, else `stealth` stealth, only while needed
     /// (Gathii; ANK 20231031).
     RevealTopCard { burn: u8, stealth: u8 },
+    /// Burn the library's top card: requiring `disc`, `stealth` stealth
+    /// this action, else the host burns `burn` blood (Tusk).
+    BurnTopCardByDiscipline {
+        disc: &'static str,
+        stealth: u8,
+        burn: u8,
+    },
     /// Reveal the user's crypt's top card, then shuffle the crypt: a copy
     /// of the host gives it `stealth` (only while needed, ANK 20231031),
     /// another card `strength` this action (Bolesław Gutowski).
@@ -4782,6 +5248,13 @@ pub enum Effect {
     /// rulebook "First Strike"), after a strike: combat ends; a dodge still
     /// protects.
     FirstStrike,
+    /// Every strike of the user this round is with first strike (Christopher
+    /// Houghton).
+    FirstStrikeThisRound,
+    /// The controller chooses a ready minion, marked for the host's blocks
+    /// until their next unlock phase (Christopher Houghton;
+    /// `GameState::unlock_marks`): a printed unlock rider's effect.
+    ChooseBlockMark,
     /// The strike, landing, burns an opposing ally or n blood from an
     /// opposing younger vampire, combat ending if it has none left (Liquefy
     /// the Mortal Coil [vic]): a `StrikeKind::CardEffect` strike's effect.
@@ -4861,8 +5334,10 @@ pub enum Effect {
     /// (Contraband [OBF]); not an action (LSJ 20080815), so no action cost
     /// reduction (LSJ 20090115-1).
     EquipNamed,
-    /// That named equipment costs n pool or blood less (Children of Stone).
-    NamedEquipOff(u8),
+    /// That named card costs `pool` less if it costs pool, else `blood`
+    /// less (Children of Stone: 1 or 1; Jack of Both Sides: 1 pool or up to
+    /// 2 blood).
+    NamedCardOff { pool: u8, blood: u8 },
     /// 1 optional maneuver this round, to close range only (Angel's Gift).
     OptionalCloseManeuver,
     /// If blocked, damage to vampires in the combat is aggravated,
@@ -5229,6 +5704,41 @@ pub enum Effect {
     /// The hand cards picked by the ability's terms go on this card, face up
     /// and out of play, replaced (Fleshforge Chamber; rules-qa 37.1).
     StorePickedFromHand,
+    /// The card remembers the vampire of the uncontrolled-region target
+    /// (`CardInPlay::chosen_crypt`; Gather).
+    ChooseUncontrolledTarget,
+    /// Its chosen vampire, still in its controller's uncontrolled region,
+    /// to their ready region with its counters, unless it would contest a
+    /// vampire in play (Gather).
+    ChosenUncontrolledToReady,
+    /// If the recruit succeeds, this card goes from the ash heap onto the
+    /// ally recruited, with n more life (Ghouled; gone from it, nothing,
+    /// ANK 20220805).
+    PutOnRecruitedIfSuccessful(u8),
+    /// The target and the second target lock and do not unlock as normal
+    /// next (Liberty Club Intrigue).
+    LockTargetsSkipUnlock,
+    /// The card enters play under the recipient's control, and its player
+    /// moves a card of this type from the recipient's ash heap onto it,
+    /// face up (the Holds; `Interrupt::StoreFromAshOf`).
+    GiveHold {
+        to: Recipient,
+        of: crate::library::CardType,
+    },
+    /// Discard from hand a copy of the card on this one, replaced (the
+    /// Holds).
+    DiscardStoredCopy,
+    /// Move 1 up to `max` blood, chosen at resolution, from the actor onto
+    /// this card as counters; at `burn_at` counters the card burns (Cold
+    /// Amber's Hold; `Interrupt::BloodToCardUpTo`).
+    ActorBloodToSourceCardUpTo { max: u8, burn_at: u8 },
+    /// Put this card on the target card in play (its bearer's), then a card
+    /// of the filter from hand on this card, face up (Magazine:
+    /// `Interrupt::StoreOwnHand`).
+    PutOnTargetCardStoring(CardFilter),
+    /// The ammo card on this card used as if played from hand on the gun
+    /// it is on, its pool cost paid (Magazine).
+    LoadGunFromStore,
     /// Put a card from hand face down on this card as it is played,
     /// replaced (Storage Annex; `Interrupt::StoreOwnHand`).
     StoreFromOwnHand,
@@ -5321,6 +5831,9 @@ pub enum Effect {
     /// The actor burns X blood, X the play's terms: an effect, not a cost,
     /// no cost reduction reaches it (ANK 20210226).
     ActorBurnsBloodX,
+    /// The actor burns n blood, the cost of an in-play ability it uses
+    /// (Meat Hook's destroying strike).
+    ActorBurnsBlood(u8),
     /// The target weapon's own strike at +n damage, its limit and riders
     /// included (`Engine::weapon_strike_plus`; spec §4.10.4); which weapons
     /// is the target's filter (Lucky Blow's melee, Strike with Conviction's
@@ -5368,6 +5881,64 @@ pub enum Effect {
     /// Blocks rider: the acting minion burns n blood or life before combat,
     /// before any other effect (Banshee Ironwail; ANK 20210627).
     ActingBurnsBloodOrLife(u8),
+    /// The acting vampire burns n blood (Friend of Mine [obt]).
+    ActingBurnsBlood(u8),
+    /// The controller gains the Edge (Cyscek).
+    GainEdge,
+    /// Marker: the referendum this political action calls failing or
+    /// canceled, the acting vampire goes to torpor (Theo Bell, advanced).
+    TorporIfReferendumFails,
+    /// The vampire gains `even` blood if its controller's pool is even,
+    /// burns `odd` if odd (Jeremy Talbot).
+    BloodByPoolParity { even: u8, odd: u8 },
+    /// The vampire with this text is burned (Mukhtar Bey).
+    BurnHostVampire,
+    /// The acting vampire leaves torpor (Rapid Healing).
+    ActorLeavesTorpor,
+    /// The target vampire goes to torpor (Sleep of Reason).
+    TargetToTorpor,
+    /// Each other Methuselah discards n cards at random, replaced: an action
+    /// directed at each of them (Border Skirmish).
+    EachOtherDiscardsAtRandom(u8),
+    /// Each other Methuselah, clockwise, locks an unlocked ready vampire
+    /// they control younger than the actor: an action directed at each of
+    /// them (Sowing Dissension).
+    EachOtherLocksYoungerVampire,
+    /// The acting vampire steals `steal` blood from each of one or more
+    /// vampires in torpor chosen at resolution, younger (if `younger`)
+    /// unless a Gehenna event is in play; one of `clan` moves a card from
+    /// the ash heap to hand for each blood stolen (Siphon).
+    StealFromTorpid {
+        steal: u8,
+        younger: bool,
+        clan: &'static str,
+    },
+    /// Host-blocked rider: a younger vampire blocking the host burns n blood
+    /// (Paragon).
+    YoungerBlockerBurnsBlood(u8),
+    /// n counters added to the target card (Church of the Order of St.
+    /// Blaise).
+    AddCounterToTargetCard(u8),
+    /// One of the player's corruption counters on the target burns
+    /// (Revelation of Desire [SER]).
+    BurnOwnCorruptionFromTarget(u8),
+    /// The actor gains n blood if it is a vampire with min or more, read at
+    /// resolution (Entrenching; an ally nothing, D16).
+    ActorGainsBloodIfAtLeast { min: u8, n: u8 },
+    /// The card enters play with n counters per X (Secret Horde).
+    EnterWithCountersPerX(u8),
+    /// The host's controller discards the whole hand, replaced (Beckett
+    /// advanced's rider) or drawn up (Jacob, The Glitch's ability).
+    DiscardHand,
+    /// A ready vampire of the controller's other than the host burns
+    /// `blood`, or they burn `pool` (Afifa, The Herald;
+    /// `Interrupt::BloodOrPool`).
+    OtherVampireBloodOrPool { blood: u8, pool: u8 },
+    /// Look at the target Methuselah's hand and discard up to n cards of
+    /// the filter from it, replaced once done (Alicia Barrows).
+    DiscardUpToFromTargetHand(u8, CardFilter),
+    /// The Methuselah who played the card burns n pool (Cyscek).
+    GehennaPlayerBurnsPool(u8),
     /// The controller of the target card's host takes control of this card
     /// (Smear Campaign).
     TargetHostControllerTakesControl,
@@ -5432,7 +6003,7 @@ pub enum Effect {
     /// to the user until the next action ends (The Baron).
     PeekHandsOfReadyClan(&'static str),
     /// Mark the target's bleed toll for the host (Donatello Giovanni;
-    /// `GameState::bleed_tolls`).
+    /// `GameState::unlock_marks`).
     MarkBleedToll,
     /// The player's next decision may play a combat card from the ash heap
     /// (Spiritual Guidance).
@@ -5830,6 +6401,12 @@ pub enum Effect {
     /// Unlock-phase rider: the active Methuselah burns the card's fixed X
     /// pool (Leadership Vacuum).
     ActiveBurnsPoolFixedX,
+    /// Unlock-phase rider: each of the active Methuselah's minions with pox
+    /// counters takes n environmental damage (Smallpox Griet; RTR
+    /// 19970630).
+    PoxDamage(u8),
+    /// Every pox counter burned (Smallpox Griet; `Hook::HostLeftReady`).
+    BurnAllPox,
     /// Unlock-phase rider: the card burns if the active Methuselah controls
     /// a ready vampire of capacity n or more or titled (Leadership
     /// Vacuum), before its pool is burned.
@@ -5844,6 +6421,10 @@ pub enum Effect {
     /// plus 1 pool per copy on its controller's minions (Guide and Mentor;
     /// PIB 20110914: the blood even with none found).
     SearchArchetypeOntoActor,
+    /// On success: the acting vampire may take a Discipline master of these
+    /// names from its controller's library, shuffled after (Lord Ashton;
+    /// `Interrupt::DisciplineSearch`).
+    SearchDisciplineMasterOntoActor(&'static [&'static str]),
     /// The target vampire in torpor moves onto the card put in play, face up
     /// and out of play, the cards on it burned, its blood gone (Raw
     /// Recruit; LSJ 20100302-2); no longer in torpor: no effect.
@@ -6128,6 +6709,9 @@ pub enum Effect {
     /// On success, the card granting the action moves to the target
     /// vampire (Society of Leopold).
     MoveSourceToTarget,
+    /// The target card's own "do not replace until" ends: its controller
+    /// replaces it now if it waits still (Black Hand Ritual).
+    EndTargetCardHold,
     /// On success, the target card is burned.
     BurnTargetCard,
     /// Steal up to n blood from the target, the amount chosen at resolution
@@ -6141,10 +6725,26 @@ pub enum Effect {
     /// Exchange a hand card for a library card in the ash heap, both named
     /// as announced (Lenelle; LSJ 20000222), on success if both still there.
     ExchangeHandForAsh,
-    /// On success, equip the first equipment found from the top (Vast
-    /// Wealth): one that cannot be placed or paid in blood burned free (TOM
-    /// 19950407); a pool cost that ousts paid (RTR 19941109).
-    EquipFirstFound,
+    /// On success, equip the first equipment found from the top, of
+    /// `label` if any (Vast Wealth; Repo Man: a vehicle), on the actor or,
+    /// `on_any_own`, on any ready minion of its controller's meeting it
+    /// (`MinionPurpose::EquipFoundOn`): one that cannot be placed or paid
+    /// in blood burned free (TOM 19950407); a pool cost that ousts paid
+    /// (RTR 19941109).
+    EquipFirstFound {
+        label: Option<crate::library::Label>,
+        on_any_own: bool,
+    },
+    /// On success, the card on this card equips the actor as played,
+    /// requirements and cost as normal; unmet, it stays (Delivery Truck).
+    EquipStored,
+    /// Each Methuselah from its player, clockwise, rearranges the
+    /// equipment on their ready minions, all chosen then moved (Nod; ANK
+    /// 20190617-1).
+    RearrangeEquipment,
+    /// The recruiting minion unlocks at the end of the turn if the recruit
+    /// succeeds (Repo Man).
+    RecruiterUnlocksAtEndOfTurn,
     /// Move the top n library cards onto this card, out of play, as many as
     /// there are (Shilmulo Tarot; rules-qa 11.2).
     StoreTopCards(u8),
@@ -6176,6 +6776,10 @@ pub enum Effect {
     /// Unlock, search for the base version and merge with it (Legacy;
     /// `Interrupt::BaseSearch`).
     MergeWithBase,
+    /// Lock the target vampire and merge it from its controller's crypt
+    /// only: with its advanced version, or with its base if advanced (Gift
+    /// of Experience).
+    LockTargetMergeFromCrypt,
     /// Pool lost to the passed referendum is lost by the acting vampire's
     /// controller too (Poison Pill).
     PoisonPill,
@@ -6193,6 +6797,47 @@ pub enum Effect {
     /// Methuselahs casting votes or ballots against burn n pool once the
     /// results are tallied (Scorn of Adonis; once per Scorn per Methuselah).
     TallyPenaltyAgainst(u8),
+    /// Every other Methuselah casting votes or ballots in favor and none
+    /// against gains n pool once the results are tallied (Bribes; one per
+    /// Bribes per Methuselah).
+    TallyBonusForOthers(u8),
+    /// Around the table from the player, each Methuselah may burn blood one
+    /// at a time from a ready vampire of capacity above `min` for `votes`
+    /// each, `extra` more above `more`, until all pass (Mob Rule;
+    /// `Interrupt::BloodForVotes`).
+    BloodForVotesRound {
+        min: u8,
+        more: u8,
+        votes: u8,
+        extra: u8,
+    },
+    /// The card's effect stays in play on the actor for this referendum,
+    /// its abilities the grant, its chosen vampire the target if any;
+    /// burned as the referendum ends (Rant!, Emissary).
+    GrantForReferendum,
+    /// The actor takes n unpreventable damage if this referendum fails
+    /// (Rant!).
+    ActorDamagedIfReferendumFails(u8),
+    /// The target gets n votes in this referendum (Emissary).
+    TargetGainsVotes(u8),
+    /// The card's chosen vampire's votes and ballots in this referendum
+    /// canceled, none more cast (Emissary's older Camarilla vampire).
+    CancelChosenVotes,
+    /// The control change about to happen to the target does not
+    /// (`crate::control`).
+    StopControlChange,
+    /// Put the X (+ `more`) younger vampires named as played
+    /// (`Terms::CommandPicks`) in play, `blood` each from the bank over
+    /// their own, no unique one already in play (two copies neither, LSJ
+    /// 20040722); they must bleed, then go to the bottom of the crypt
+    /// (Chain of Command; `crate::state::Command`).
+    CommandUncontrolled { more: u8, blood: u8 },
+    /// The vampire a passed blood hunt is about to burn is not burned
+    /// (`crate::control`).
+    SaveFromHuntBurn,
+    /// If this referendum passes, the card goes from the ash heap onto the
+    /// calling vampire with n counters (Aura of Invincibility).
+    PutOnCallingIfPasses(u8),
     /// Non-Camarilla vampires cannot cast votes or ballots (Closed Session).
     BarNonCamarillaVotes,
     /// Minions with any corruption counters cannot cast votes or ballots in
@@ -6326,6 +6971,16 @@ pub enum Effect {
     /// As `PutOnActor`, remembering the Methuselahs the action is directed
     /// at (`CardInPlay::against`; Spying Mission [OBF], Shadow Cast [OBL]).
     PutOnActorRemembering,
+    /// The active Methuselah chooses a ready vampire they control, which
+    /// takes n unpreventable damage (Becoming of Ennoia: each Methuselah's
+    /// unlock phase).
+    ActiveChoosesVampireDamaged(u8),
+    /// Compare the capacities of the tops of the actor's controller's and
+    /// the blocker's controller's crypts, shuffle both: the actor's
+    /// younger, it takes 1 unpreventable damage; else the block's combat is
+    /// canceled and this card goes on the actor, remembering the blocker's
+    /// controller (`CardInPlay::against`; Bear-Baiting).
+    CompareCryptTopsWithBlocker { damage: u8 },
     /// What the actor gets in the combat its block (or its action's block)
     /// begins, for each such block this action (LSJ 20010813, 20010814-2).
     IfBlocks(BlockRider),
@@ -6363,6 +7018,12 @@ pub enum Effect {
     /// The blocking minion's controller can burn n pool to cancel this card
     /// as played (True Love's Face [OBF][PRE]; `Choice::PayToCancel`).
     CancelableForPool(u8),
+    /// Any Methuselah can burn n pool to cancel this card as it is played,
+    /// its cost then not paid (Personal Involvement).
+    CancelableForPoolByAny(u8),
+    /// The player's prey burns n pool if richer than the player after the
+    /// card's cost (Personal Involvement).
+    PreyBurnsPoolIfRicher(u8),
     /// The actor attempts to block the action, keeping an attempt already
     /// under way (ANK 20181122-2).
     AttemptBlock,
@@ -6396,6 +7057,14 @@ pub enum Hook {
     /// ordered with the acting minion's "if blocked" riders (Millicent
     /// Smith; ANK 20220116).
     OwnVampireBlocked,
+    /// The minion the card chose is blocked, before block resolution: its
+    /// player may lock it for 1 blood on its vampire (Curmudgeon).
+    ChosenMinionBlocked,
+    /// A vampire the controller controls is burned (Virolax Facility).
+    OwnVampireBurned,
+    /// A referendum fails that the card's bearer cast votes or ballots
+    /// against, read at the tally (Traditionalist).
+    BearerVotedAgainstFailed,
     /// A vampire's own entry, influenced out, before its contests (Erlik).
     EntersPlay,
     /// Another card of this label enters play (Watchtower: Four Ride
@@ -6458,6 +7127,8 @@ pub enum Hook {
     /// This vampire left the ready region (burned or to torpor), fired
     /// with `ReadyMinionBurnedOrTorpor` (Bez Dunsirn).
     HostLeftReady,
+    /// Its vampire enters combat (Michael Luther).
+    HostEntersCombat,
     /// This vampire's political action's referendum was canceled or
     /// failed, as the action resolves (Cedrick Calhoun).
     OwnReferendumFailed,
@@ -7119,6 +7790,8 @@ pub enum PrintedTo {
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum Per {
     One,
+    /// The Gehenna cards in play (Beckett advanced, Emergency Powers).
+    GehennaInPlay,
     /// Per unique equipment on it (uncontested).
     UniqueEquipmentOn,
     /// Per ready titled vampire of other Methuselahs (Gerald Windham).
@@ -7347,6 +8020,9 @@ pub struct PlayCtx {
     pub ash_names: [Option<u16>; 3],
     /// The Blood Brothers chosen by `Terms::CirclePicks`, in order.
     pub picks: [Option<MinionId>; 8],
+    /// The uncontrolled vampires named by `Terms::CommandPicks`, by slot
+    /// and card.
+    pub commanded: [Option<(u8, u16)>; 8],
     /// The Discipline chosen as the card is played (`Terms::SuperiorDiscipline`).
     pub discipline: Option<&'static str>,
     /// The vampire locked to take pool off the card (Jack:
@@ -7386,6 +8062,7 @@ impl PlayCtx {
             once_off: false,
             ash_names: [None; 3],
             picks: [None; 8],
+            commanded: [None; 8],
             locker: None,
             reducer: None,
             discipline: None,
@@ -7412,8 +8089,11 @@ pub fn plays_card_as_vampire(
             .iter()
             .any(|e| matches!(e, Effect::DeclareAction(_)))
     });
+    let strike = crate::plays::is_strike_mode(card, mi as u8);
     st.plays_as_vampire(m).filter(|g| {
-        tags.iter().any(|t| g.disciplines.contains(t))
+        !(g.strike_only && !strike)
+            && !(g.once_per_combat && st.minions[m.index()].as_vampire_spent)
+            && tags.iter().any(|t| g.disciplines.contains(t))
             && !(g.non_action && declares)
             && !(g.non_ally && LIBRARY[card as usize].types.contains(&CardType::Ally))
     })
@@ -7517,6 +8197,9 @@ pub fn holds(
         | Requirement::TargetInfernal
         | Requirement::BloodAtMost(_)
         | Requirement::TargetCombatant
+        | Requirement::TargetControlAboutToChange
+        | Requirement::TargetHuntedToBurn
+        | Requirement::TargetAboutToEnterCombat
         | Requirement::TargetFacesAggravatedStrike
         | Requirement::TargetSeatOusting
         | Requirement::TargetSeatLostTitled
@@ -7524,6 +8207,7 @@ pub fn holds(
         | Requirement::CanSaveTarget
         | Requirement::BoonTargetActive
         | Requirement::TargetCard(_)
+        | Requirement::TargetUsesCounters
         | Requirement::TargetOnReadyMinion
         | Requirement::ActorMayHoldTarget
         | Requirement::DirectedAtRemembered
@@ -7557,9 +8241,9 @@ pub fn holds(
         Requirement::RulebookHunt => action.is_some_and(|a| a.kind == ActionKind::Hunt),
         Requirement::IsDiablerie => action.is_some_and(|a| a.kind == ActionKind::Diablerie),
         Requirement::ActorNotActing => !action.is_some_and(|a| actor == Some(a.acting)),
-        Requirement::IsEmploy => action.is_some_and(|a| a.kind == ActionKind::Employ),
+        Requirement::IsEmploy => action.is_some_and(|a| a.is_employ_action(st)),
         Requirement::IsRecruitOrEmploy => {
-            action.is_some_and(|a| matches!(a.kind, ActionKind::Recruit | ActionKind::Employ))
+            action.is_some_and(|a| a.kind == ActionKind::Recruit || a.is_employ_action(st))
         }
         Requirement::IsEquipLabeledFromHand(label) => action.is_some_and(|a| {
             a.kind == ActionKind::Equip
@@ -7584,6 +8268,7 @@ pub fn holds(
         }),
         Requirement::ActingAllyOf(labels) => action.is_some_and(|a| st.ally_of(a.acting, labels)),
         Requirement::ActingHoldsNone(h) => action.is_some_and(|a| st.holds_count(a.acting, h) == 0),
+        Requirement::ActingHolds(h) => action.is_some_and(|a| st.holds_count(a.acting, h) > 0),
         Requirement::FoughtByYoungerActing => action.is_some_and(|a| {
             actor.is_some_and(|m| {
                 a.about_to_fight(st, m)
@@ -7673,6 +8358,14 @@ pub fn holds(
             _ => false,
         }),
         Requirement::LockedActor => actor.is_some_and(|m| st.minions[m.index()].locked),
+        Requirement::ActorInTorpor => actor.is_some_and(|m| st.minions[m.index()].in_torpor),
+        Requirement::ActorSucceededThisTurn => {
+            actor.is_some_and(|m| st.minions[m.index()].succeeded_this_turn)
+        }
+        Requirement::NoOtherOwnAttemptedThisTurn => actor.is_some_and(|m| {
+            st.minions_of(st.minions[m.index()].owner)
+                .all(|o| o == m || !st.minions[o.index()].attempted_this_turn)
+        }),
         Requirement::MasterPhaseActionLeft => st.mpa_left(seat) > 0,
         Requirement::HasEdge => st.seats[seat.index()].has_edge,
         Requirement::NoEdge => !st.seats[seat.index()].has_edge,
@@ -7705,6 +8398,10 @@ pub fn holds(
         | Requirement::ActorIsHost
         | Requirement::ActorIsChosen
         | Requirement::ActorOlderThanHost
+        | Requirement::ActorOlderThanChosen
+        | Requirement::StrikingWithItsGun
+        | Requirement::HoldRecipient(_)
+        | Requirement::HandHasStoredCopy
         | Requirement::NotPlacedThisRound
         | Requirement::PlayedFrenzyOnYour(_)
         | Requirement::PlayedFrenzyOnHost
@@ -7739,6 +8436,8 @@ pub fn holds(
         | Requirement::TargetSect(_)
         | Requirement::TargetRedList
         | Requirement::TargetNotBlackHand
+        | Requirement::TargetBlackHand
+        | Requirement::TargetUnmerged
         | Requirement::TargetNotRedList
         | Requirement::TargetNotBlocker
         | Requirement::TargetAtActionsEnd
@@ -7829,6 +8528,7 @@ pub fn holds(
         | Requirement::HostControllerPoolAtLeast(_)
         | Requirement::HostInTorpor
         | Requirement::HostControllerActive
+        | Requirement::HostControllerPutNoGehenna
         | Requirement::HostControllerHasEdge
         | Requirement::ControlsReadyTitledOther(_)
         | Requirement::OtherReadyTitled(_)
@@ -7982,6 +8682,8 @@ pub fn holds(
         }
         Requirement::ActorInfernal => actor.is_some_and(|m| st.is_infernal(m)),
         Requirement::ActorSeraph => actor.is_some_and(|m| st.is_seraph(m)),
+        // Meat Hook: the bearer's opponent with Potence, read live.
+        Requirement::ActorHasDiscipline(d) => actor.is_some_and(|m| st.has_discipline(m, d)),
         // An equip from hand, Vast Wealth's, or an action card equipping
         // from the library (Magic of the Smith: owner, 2026-10-17); not a
         // move from another minion (rules-digest §3.7).
@@ -7991,6 +8693,9 @@ pub fn holds(
             .is_some_and(|pair| pair.iter().all(|m| st.minions[m.index()].ready())),
         Requirement::NotPlayedThisAction(name) => {
             action.is_none_or(|a| !a.played.iter().any(|&(_, n)| n == name))
+        }
+        Requirement::ActorNotPlayedThisAction(name) => {
+            action.is_none_or(|a| !a.played.iter().any(|&(m, n)| n == name && Some(m) == actor))
         }
         Requirement::PreyAshHasPair => {
             let ash = &st.seats[st.prey(seat).index()].ash;
@@ -8013,8 +8718,38 @@ pub fn holds(
         Requirement::RangeClose => combat.is_some_and(|c| c.range == Range::Close),
         Requirement::RangeLong => combat.is_some_and(|c| c.range == Range::Long),
         Requirement::FirstRound => combat.is_some_and(|c| c.round == 1),
+        Requirement::StrikingWithUnloadedGun => combat.is_some_and(|c| {
+            actor.and_then(|m| c.side_of_minion(m)).is_some_and(|i| {
+                c.sides[i].strike_source.is_some_and(|w| {
+                    is_gun(st.cards[w.index()].card)
+                        && st.cards[w.index()].host == actor
+                        && !c.ammo.iter().any(|&(g, _)| g == w)
+                })
+            })
+        }),
+        Requirement::OpponentIsActing => combat.is_some_and(|c| {
+            actor
+                .and_then(|m| c.side_of_minion(m))
+                .is_some_and(|i| action.is_some_and(|a| c.sides[1 - i].minion == a.acting))
+        }),
+        Requirement::ActorDamagedThisRound => combat.is_some_and(|c| {
+            actor
+                .and_then(|m| c.side_of_minion(m))
+                .is_some_and(|i| c.sides[i].damaged_round)
+        }),
         Requirement::NotFirstRound => combat.is_some_and(|c| c.round > 1),
+        Requirement::PreviousRoundLong => combat.is_some_and(|c| c.round > 1 && !c.prev_close),
+        Requirement::ActorUndamagedLastRound => combat.is_some_and(|c| {
+            actor
+                .and_then(|m| c.side_of_minion(m))
+                .is_some_and(|i| c.sides[i].damage_last_round == 0)
+        }),
         Requirement::BothCombatantsReady => combat.is_some_and(|c| c.both_ready(st)),
+        Requirement::BothCombatantsSect(sect) => combat.is_some_and(|c| {
+            c.sides.iter().all(|s| {
+                st.minions[s.minion.index()].is_vampire() && st.sect_of(s.minion) == Some(sect)
+            })
+        }),
         Requirement::AnarchCombatWithYours => combat.is_some_and(|c| {
             let anarch = |m: MinionId| st.sect_of(m) == Some(Sect::Anarch);
             let (a, b) = (c.sides[0].minion, c.sides[1].minion);
@@ -8039,6 +8774,9 @@ pub fn holds(
         Requirement::OpponentGoingToTorpor => combat
             .zip(side)
             .is_some_and(|(c, i)| crate::combat::going_to_torpor(st, c, 1 - i)),
+        Requirement::ActorGoingToTorpor => combat
+            .zip(side)
+            .is_some_and(|(c, i)| crate::combat::going_to_torpor(st, c, i)),
         Requirement::ActorNotGoingDown => combat
             .zip(side)
             .is_some_and(|(c, i)| !crate::combat::going_down(st, c, i)),
@@ -8066,6 +8804,7 @@ pub fn holds(
         Requirement::SourceHeldWhenBlocking
         | Requirement::ControllerControlsHost
         | Requirement::HostReady
+        | Requirement::ActivePoxed
         | Requirement::HostVampire => true,
         Requirement::NoContinuePress => combat.is_some_and(|c| !c.press_continue),
         Requirement::ActorHasBlocked => {
@@ -8094,6 +8833,7 @@ pub fn holds(
             actor.is_some_and(|m| st.capacity_by(m, seat).is_some_and(|c| c >= n))
         }
         Requirement::IsPolitical => action.is_some_and(|a| a.kind == ActionKind::Political),
+        Requirement::NotPolitical => action.is_some_and(|a| a.kind != ActionKind::Political),
         Requirement::PollingStep => political.is_some_and(|r| r.step == RefStep::Polling),
         Requirement::ActorNotForcedYet => {
             political.is_some_and(|r| actor.is_some_and(|m| !r.forcers.contains(&m)))
@@ -8101,6 +8841,7 @@ pub fn holds(
         Requirement::AnyPollingStep => referendum.is_some_and(|r| r.step == RefStep::Polling),
         Requirement::ActorActing => action.zip(actor).is_some_and(|(a, m)| a.acting == m),
         Requirement::GehennaInPlay(n) => st.gehenna_in_play() >= n as usize,
+        Requirement::GehennaOfOthersInPlay(n) => st.gehenna_of_others(seat) >= n as usize,
         Requirement::NoGehennaInPlay => st.gehenna_in_play() == 0,
         Requirement::RescuedFromTorpor => action.is_some_and(|a| {
             a.kind == ActionKind::Rescue && a.outcome == Some(crate::actions::Outcome::Successful)
@@ -8167,20 +8908,29 @@ pub fn holds(
         Requirement::ActingSectIn(sects) => {
             action.is_some_and(|a| st.sect_of(a.acting).is_some_and(|s| sects.contains(&s)))
         }
+        Requirement::ActingSectNot(sect) => {
+            action.is_some_and(|a| st.sect_of(a.acting) != Some(sect))
+        }
+        Requirement::ActingLacksDiscipline(d) => {
+            action.is_some_and(|a| st.discipline_level(a.acting, d) == 0)
+        }
         Requirement::DirectedHandNotEmpty => action
             .and_then(|a| a.directed_seat(st))
             .is_some_and(|t| !st.seats[t.index()].hand.is_empty()),
         // Target predicates (`holds_for_minion`).
         Requirement::ControlledByDirectedSeat
+        | Requirement::DirectedSeatHuntedSinceYourLastTurn
         | Requirement::NotHost
         | Requirement::OtherThanPlayer
         | Requirement::YoungerThanHost
         | Requirement::TargetClan(_)
         | Requirement::PredatorsPredator
         | Requirement::TargetPrey
+        | Requirement::TargetPredator
         | Requirement::TargetPoolMoreThanYours
         | Requirement::TargetPredatorOrPrey
-        | Requirement::TargetAshAtLeast(_) => true,
+        | Requirement::TargetAshAtLeast(_)
+        | Requirement::TargetHasUncontrolled => true,
         // Still the predator once the action ousted them (Donald Cargill,
         // LSJ 20090115-2).
         Requirement::ActingByPredator => {
@@ -8202,6 +8952,14 @@ pub fn holds(
         Requirement::AnyAttemptNeedsIntercept => action.is_some_and(|a| match a.state {
             ActionState::Attempt(m) => a.stealth(st) > a.intercept_of(st, m),
             _ => false,
+        }),
+        Requirement::ActionRequiresDiscipline(disc) => action.is_some_and(|a| {
+            a.card.is_some_and(|p| {
+                LIBRARY[p.card as usize].modes[library_mode(p.card, p.mode as usize)]
+                    .tags
+                    .iter()
+                    .any(|t| discipline_key(t) == disc)
+            })
         }),
         Requirement::ActionRequiresClanOrDiscipline(clan, disc) => action.is_some_and(|a| {
             let from_card = a.card.is_some_and(|p| {
@@ -8385,6 +9143,12 @@ pub fn holds(
         | Requirement::TargetEnteredInYourLastInfluencePhase
         | Requirement::ActionTargetsHost
         | Requirement::TargetWeapon => true, // target and card predicates
+        Requirement::PlayedByVampireCapacityAtMost(n) => {
+            played.and_then(|p| p.actor).is_some_and(|m| {
+                st.minions[m.index()].is_vampire()
+                    && st.capacity_by(m, seat).is_some_and(|c| c <= n)
+            })
+        }
         Requirement::PlayedByAllyOrCapacityAtMost(n) => {
             played.and_then(|p| p.actor).is_some_and(|m| {
                 st.minions[m.index()].is_ally() || st.capacity_by(m, seat).is_some_and(|c| c <= n)
@@ -8455,6 +9219,8 @@ pub fn holds(
         | Requirement::SuperiorVersion
         | Requirement::BasicVersion
         | Requirement::TargetAllyHurt
+        | Requirement::TargetTakesContracts
+        | Requirement::TargetHasYourCorruption
         | Requirement::TargetOtherCopy
         | Requirement::TargetUnlocked => true, // card / target predicates
         Requirement::RecruitingTzimisceGhoul => action.is_some_and(|a| {
@@ -8635,6 +9401,10 @@ pub fn holds(
         Requirement::OpponentAlly => combat
             .zip(side)
             .is_some_and(|(c, i)| st.minions[c.sides[1 - i].minion.index()].is_ally()),
+        Requirement::OpponentNonMortalAlly => combat.zip(side).is_some_and(|(c, i)| {
+            let o = c.sides[1 - i].minion;
+            st.minions[o.index()].is_ally() && !st.is_mortal(o)
+        }),
         Requirement::OpponentVampireNotOlder => combat.zip(side).is_some_and(|(c, i)| {
             let (me, opp) = (c.sides[i].minion, c.sides[1 - i].minion);
             !st.minions[opp.index()].is_ally() && !st.younger_by(me, opp, seat)
@@ -8664,6 +9434,7 @@ pub fn holds(
             actor.is_some_and(|m| st.holds_unlocked(m, h) >= n)
         }
         Requirement::ActorHoldsAtLeast(h, n) => actor.is_some_and(|m| st.holds_count(m, h) >= n),
+        Requirement::VictoryPointsAtLeast(n) => st.seats[seat.index()].half_vps >= 2 * n as u32,
         Requirement::GainedVpThisAction => {
             action.is_some()
                 && st.seats[seat.index()].half_vps
@@ -8674,6 +9445,7 @@ pub fn holds(
         }
         Requirement::ActorClan(c) => actor.and_then(|m| st.minions[m.index()].clan()) == Some(c),
         Requirement::YouControlThisCard
+        | Requirement::ActorMayEquipStored
         | Requirement::OthersControlThisCard
         | Requirement::CardControllersTurn
         | Requirement::TargetCapacityBelowCounters
@@ -8690,6 +9462,7 @@ pub fn holds(
         Requirement::ThisVampireReady
         | Requirement::ActorGraftedAlly
         | Requirement::OpponentClan(_)
+        | Requirement::OpponentNotClan(_)
         | Requirement::OpponentNamed(_)
         | Requirement::ActorOfOtherMethuselah
         | Requirement::DirectedAtYourClan(_)
@@ -8702,16 +9475,22 @@ pub fn holds(
         | Requirement::TargetSeatNoReadyCapacityAbove(_)
         | Requirement::SourceInTorpor
         | Requirement::ActorOfSourcesPredator
-        | Requirement::ActorHasDiscipline(_)
         | Requirement::TargetSeatControlsLocation
         | Requirement::PreyControlsReadyTitled(_)
         | Requirement::DirectedAtCard(_)
         | Requirement::SourceCalledReferendum
+        | Requirement::OtherCalledReferendum
+        | Requirement::ReferendumGrantsTitle(_)
+        | Requirement::OpponentMarkedForBlocks
+        | Requirement::ControlsNoReadyTitled(_)
         | Requirement::OpponentControllerHasGehenna
         | Requirement::TargetSeatControlsReadyClan { .. }
         | Requirement::TargetSeatControlsReadySect { .. }
+        | Requirement::TargetSeatControlsReadyTitled(_)
         | Requirement::TargetIsSourceController
         | Requirement::SourceTitleIn(_)
+        | Requirement::SourceSectIn(_)
+        | Requirement::TargetSeatHasEdge
         | Requirement::OpponentYounger
         | Requirement::OpponentOlder
         | Requirement::OpponentAllyOrYounger
@@ -8831,6 +9610,16 @@ pub fn holds(
         Requirement::BlockerOwnAnarch => action.and_then(|a| a.blocker).is_some_and(|b| {
             st.minions[b.index()].owner == seat && st.sect_of(b) == Some(Sect::Anarch)
         }),
+        Requirement::BlockerOlderNonAnarchCrypts => {
+            action.and_then(|a| a.blocker).is_some_and(|b| {
+                let v = &st.minions[b.index()];
+                v.is_vampire()
+                    && st.sect_of(b) != Some(Sect::Anarch)
+                    && actor.is_some_and(|m| st.younger_by(m, b, seat))
+                    && !st.seats[v.owner.index()].crypt.is_empty()
+                    && !st.seats[seat.index()].crypt.is_empty()
+            })
+        }
         Requirement::BlockerTitleIn(classes) => action.and_then(|a| a.blocker).is_some_and(|b| {
             let t = st.title_of(b);
             classes.iter().any(|c| c.matches(t))
@@ -8868,6 +9657,15 @@ pub fn holds_for_minion(
         Requirement::ControlledByDirectedSeat => action
             .and_then(|a| a.directed_seat(st))
             .is_some_and(|t| v.owner == t),
+        Requirement::DirectedSeatHuntedSinceYourLastTurn => {
+            action.and_then(|a| a.directed_seat(st)).is_some_and(|t| {
+                st.minions_of(t).any(|o| {
+                    st.minions[o.index()]
+                        .hunted_turn
+                        .is_some_and(|h| h > st.seats[seat.index()].previous_turn)
+                })
+            })
+        }
         Requirement::Controlled => v.owner == seat && v.present(),
         Requirement::NotControlled => v.owner != seat,
         Requirement::TargetSameCircle { sanguinus } => acting.is_some_and(|a| {
@@ -8903,6 +9701,19 @@ pub fn holds_for_minion(
                 && acting.is_some_and(|a| a != m && st.minions[a.index()].name() == v.name())
         }
         Requirement::TargetCombatant => st.combatants.is_some_and(|p| p.contains(&m)),
+        Requirement::TargetHuntedToBurn => st.hunt_burn.as_ref().is_some_and(|h| h.minion == m),
+        Requirement::TargetControlAboutToChange => st
+            .control_change
+            .is_some_and(|c| c.minion == m && c.from == seat),
+        Requirement::TargetAboutToEnterCombat => action.is_some_and(|a| {
+            let blocked = matches!(a.state, crate::actions::ActionState::Blocked(b)
+                if a.acting == m || b == m);
+            let fights = |x: MinionId| a.about_to_fight(st, x);
+            blocked
+                || fights(m)
+                || (a.acting == m && a.combat_target(st).is_some_and(fights))
+                || (a.acting == m && a.queued_opponent(m).is_some_and(fights))
+        }),
         // The strike is read by the play's options (`play_options`), which
         // see the combat; here, without it, a combatant.
         Requirement::TargetFacesAggravatedStrike => st.combatants.is_some_and(|p| p.contains(&m)),
@@ -8939,6 +9750,10 @@ pub fn holds_for_minion(
         Requirement::Younger => acting.is_some_and(|a| st.younger_by(m, a, seat)),
         Requirement::TargetOlder => acting.is_some_and(|a| st.younger_by(a, m, seat)),
         Requirement::TargetAllyHurt => st.ally_body(m).is_some_and(|b| v.blood < b.life),
+        Requirement::TargetHasYourCorruption => v.corruption_of(seat) > 0,
+        Requirement::TargetTakesContracts => {
+            st.printed_mod(m, Stat::NoContractsOn, crate::state::PrintedCtx::default()) == 0
+        }
         Requirement::TargetAllyCard(f) if v.is_imbued() => {
             f == CardFilter::HasLabel(crate::library::Label::Mortal)
         }
@@ -9002,6 +9817,8 @@ pub fn holds_for_minion(
         Requirement::TargetSectNot(sect) => v.is_vampire() && st.sect_of(m) != Some(sect),
         Requirement::TargetRedList => st.is_red_list(m),
         Requirement::TargetNotBlackHand => !st.is_black_hand(m),
+        Requirement::TargetBlackHand => st.is_black_hand(m),
+        Requirement::TargetUnmerged => st.minions[m.index()].merged.is_none(),
         Requirement::TargetNotRedList => !st.is_red_list(m),
         Requirement::TargetNotBlocker => action.and_then(|a| a.blocker) != Some(m),
         Requirement::TargetAtActionsEnd => action.is_some_and(|a| {
@@ -9131,6 +9948,7 @@ pub fn holds_for_seat(
         Requirement::NotPrey => t != st.prey(seat),
         Requirement::PredatorsPredator => t == st.predator(st.predator(seat)),
         Requirement::TargetPrey => t == st.prey(seat),
+        Requirement::TargetPredator => t == st.predator(seat) && t != seat,
         Requirement::TargetPredatorOrPrey => t == st.prey(seat) || t == st.predator(seat),
         Requirement::TargetPoolMoreThanYours => {
             st.seats[t.index()].pool > st.seats[seat.index()].pool
@@ -9142,6 +9960,7 @@ pub fn holds_for_seat(
             let s = &st.seats[t.index()];
             s.ash.len() + s.ash_crypt.len() >= n as usize
         }
+        Requirement::TargetHasUncontrolled => !st.seats[t.index()].uncontrolled.is_empty(),
         _ => true,
     }
 }
@@ -9170,6 +9989,7 @@ pub fn holds_for_card_target(
             is_equipment_in_play(c.card) || becomes_weapon(c.card)
         }
         Requirement::TargetCard(f) => f.matches(c.card),
+        Requirement::TargetUsesCounters => uses_counters(c.card),
         Requirement::TargetWeapon => is_weapon(c.card),
         Requirement::TargetOnReadyMinion => c.host.is_some_and(|h| st.minions[h.index()].ready()),
         Requirement::TargetOnVampire => c.host.is_some_and(|h| !st.minions[h.index()].is_ally()),
@@ -9372,6 +10192,9 @@ pub fn holds_for_host(req: Requirement, st: &GameState, host: MinionId) -> bool 
         Requirement::HostLocked => v.locked,
         Requirement::HostUnlocked => !v.locked,
         Requirement::HostReady => v.ready(),
+        Requirement::ActivePoxed => st
+            .minions_of(st.active)
+            .any(|m| st.minions[m.index()].pox > 0),
         Requirement::HostConvictionAtLeast(n) => st.convictions(host).len() >= n as usize,
         Requirement::HostHoldsUnlocked(h, n) => st.holds_unlocked(host, h) >= n,
         Requirement::HostIncapacitated => v.present() && v.incapacitated,
@@ -9401,6 +10224,7 @@ pub fn holds_for_host(req: Requirement, st: &GameState, host: MinionId) -> bool 
         Requirement::GehennaInPlay(n) => st.gehenna_in_play() >= n as usize,
         Requirement::NoGehennaInPlay => st.gehenna_in_play() == 0,
         Requirement::HostControllerActive => v.in_play && v.owner == st.active,
+        Requirement::HostControllerPutNoGehenna => !st.seats[v.owner.index()].gehenna_put,
         // Gravebound Drone: another copy of it is the user's combatant.
         Requirement::OwnCombatantOtherCopy => st.combatants.is_some_and(|pair| {
             pair.iter().any(|&m| {
@@ -9578,8 +10402,10 @@ pub fn mask_capable(st: &GameState, a: &ActionCtx, m: MinionId) -> bool {
     use crate::decision::ActionKind as K;
     let v = &st.minions[m.index()];
     // An effect of a card on the acting minion used this action (Aching
-    // Beauty): not the masking vampire's (RTR 19980623).
+    // Beauty): not the masking vampire's (RTR 19980623). The block's combat
+    // canceled, the action stays blocked (Bear-Baiting: LSJ 20090322).
     if m == a.acting
+        || a.block_combat_canceled
         || !v.is_vampire()
         || !v.ready()
         || v.locked
@@ -9645,4 +10471,29 @@ pub fn mask_capable(st: &GameState, a: &ActionCtx, m: MinionId) -> bool {
             may_play(card, LIBRARY[card as usize].disciplines)
         });
     kind_ok && card_ok && played_ok
+}
+
+/// Card `card`'s definition puts, moves or reads counters on it (Church of
+/// the Order of St. Blaise's "a location … that uses counters").
+pub fn uses_counters(card: u16) -> bool {
+    let counting = |e: &Effect| {
+        matches!(
+            e,
+            Effect::EnterWithCounters(_)
+                | Effect::EnterWithCountersPerX(_)
+                | Effect::AddCounter(_)
+                | Effect::RemoveCounter(_)
+                | Effect::CounterToPool
+                | Effect::CountersToPool
+                | Effect::CounterToTargetBlood
+                | Effect::BurnSelfWithoutCounters
+        )
+    };
+    lookup(card).is_some_and(|d| {
+        d.modes
+            .iter()
+            .chain(d.abilities)
+            .any(|m| m.effects.iter().any(counting))
+            || d.riders.iter().any(|r| r.effects.iter().any(counting))
+    })
 }

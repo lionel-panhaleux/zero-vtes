@@ -6,6 +6,31 @@ server runs.
 `python3 scripts/schema_compat.py` lists what a schema change adds or
 removes; its `--check` fails a removal without a major version.
 
+## 2.23.0
+
+Round 26's cards (rules-qa Batch 111); ids added, none removed:
+
+- `Purpose` `burn_from_library_top` (Tapestry of Blood): one of the top `n`
+  cards of `target`'s Methuselah's library burned (`find_card`), or none;
+  `crypt_to_ready` (Virolax Facility): a vampire of capacity below `n`
+  from the crypt to the ready region (`ash_vampire`), or none;
+  `steal_from_slot` (San Lorenzo de El Escorial): the uncontrolled minion
+  of `target`'s Methuselah's region blood is stolen from (`slot`);
+  `blood_for_votes` (Mob Rule): burn 1 blood of a ready vampire for votes
+  (`choose_minion`), or pass, around the table; `store_from_ash_of` (the
+  Holds): the card of `target`'s Methuselah's ash heap moved onto `card`
+  (`find_card`); `blood_to_card_up_to` (Cold Amber's Hold): 1 up to `n`
+  blood onto `card` (`set_x`); `may_lock_card_for_block` (Elysium:
+  Sforzesco Castle): lock `card` instead of the blocking `minion`
+  (`resolve_rider`), or pass; `blood_or_pool` (Afifa, The Herald): a ready
+  vampire burns 1 blood (`choose_minion`), or 1 pool (`burn_pool`).
+- `DueKind` `bleed` (Chain of Command): a vampire that must bleed before
+  the minion phase ends.
+- The title id `camarilla`: a unique Camarilla title named in `of`
+  (Karsh's `Imperator`, merged), with its votes.
+- A minion's equipment rearranged (Nod) is described with the detail
+  `rearrange`.
+
 ## 2.22.0
 
 - `GET /catalog/taught`: the decks the served bot plays worst, its

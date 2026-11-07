@@ -429,6 +429,14 @@ impl Engine {
         canceled: bool,
         no_effect: bool,
     ) {
+        // Ghouled: its "once each combat" play as a vampire, spent.
+        if let Some(m) = ctx.actor {
+            if crate::cards::plays_card_as_vampire(&self.state, m, ctx.card, ctx.mode as usize)
+                .is_some_and(|g| g.once_per_combat)
+            {
+                self.state.minions[m.index()].as_vampire_spent = true;
+            }
+        }
         self.push_note(crate::notes::Note::Play(PlayNote {
             seat: ctx.seat,
             card: ctx.card,
@@ -795,6 +803,10 @@ impl Engine {
                         .any(|m| st.minions[m.index()].ready() && st.is_seraph(m));
                     (!seraph && st.cards[l.source.index()].in_play).then_some(l.source)
                 }
+                cards::Modifier::GehennaBound if st.layer_active(l) => {
+                    (st.cards[l.source.index()].in_play && st.gehenna_in_play() == 0)
+                        .then_some(l.source)
+                }
                 cards::Modifier::SectBound(sect) if st.layer_active(l) => {
                     let c = &st.cards[l.source.index()];
                     c.host
@@ -1089,6 +1101,9 @@ impl Engine {
             self.state.settle_foreign_cards();
             self.settle_interrupts();
             if self.interrupts.is_empty() {
+                self.settle_control_change();
+                self.settle_hunt_burn();
+                self.settle_commands();
                 self.settle_ousting();
             }
             self.settle_acting_ousted();
@@ -1099,7 +1114,12 @@ impl Engine {
             self.caused(capacity, |e| e.state.drain_all_excess());
             self.state.release_hostages();
             self.state.release_torture();
-            if self.interrupts.is_empty() && self.ousting.is_none() && self.settle_hand_rises() {
+            if self.interrupts.is_empty()
+                && self.ousting.is_none()
+                && self.state.control_change.is_none()
+                && self.state.hunt_burn.is_none()
+                && self.settle_hand_rises()
+            {
                 continue;
             }
             if matches!(self.flow, Flow::GameOver) {
@@ -1107,6 +1127,24 @@ impl Engine {
                 // placed as it would have been.
                 self.place_action_card();
                 self.drop_action();
+                // Gambit Accepted: its victory points to its standing player.
+                if !std::mem::replace(&mut self.state.end_bonus_paid, true) {
+                    let due: Vec<(SeatId, u8)> = (0..self.state.seats.len())
+                        .map(|i| SeatId(i as u8))
+                        .filter(|s| !self.state.seats[s.index()].ousted)
+                        .flat_map(|s| {
+                            self.state
+                                .controlled_layers(s)
+                                .filter_map(move |l| match l.modifier {
+                                    cards::Modifier::VpAtGameEndIfStanding(n) => Some((s, n)),
+                                    _ => None,
+                                })
+                        })
+                        .collect();
+                    for (s, n) in due {
+                        self.gain_half_vps(s, 2 * n as u32);
+                    }
+                }
                 return Step::Over(self.state.seats.iter().map(|s| s.half_vps).collect());
             }
             self.note_blood_gains();
@@ -1272,6 +1310,8 @@ impl Engine {
     fn settle_draw_up(&mut self) -> bool {
         let quiet = self.interrupts.is_empty()
             && self.ousting.is_none()
+            && self.state.control_change.is_none()
+            && self.state.hunt_burn.is_none()
             && self.action.is_none()
             && self.combat.is_none()
             && self.referendum.is_none()
@@ -1327,6 +1367,12 @@ impl Engine {
                 return Some(req);
             }
             if let Some(req) = self.ousting_request() {
+                return Some(req);
+            }
+            if let Some(req) = self.control_request() {
+                return Some(req);
+            }
+            if let Some(req) = self.hunt_burn_request() {
                 return Some(req);
             }
         }
@@ -1451,6 +1497,14 @@ impl Engine {
         }
         if self.ousting.as_ref().is_some_and(|o| !o.playing) && !discards_first {
             self.ousting_apply(choice);
+            return;
+        }
+        if self.control_request().is_some() && !discards_first {
+            self.control_apply(choice);
+            return;
+        }
+        if self.hunt_burn_request().is_some() && !discards_first {
+            self.hunt_burn_apply(choice);
             return;
         }
         if let Some(s) = self.discard_down_seat() {
@@ -1795,11 +1849,59 @@ impl Engine {
         };
     }
 
+    /// `m` out of play to the bottom of its owner's crypt, not burned (Chain
+    /// of Command): its blood to the bank, the cards on it burned.
+    pub(crate) fn minion_to_crypt_bottom(&mut self, m: MinionId) {
+        self.titled_leaving(&[m]);
+        self.about_to_leave_ready(&[m]);
+        let v = &mut self.state.minions[m.index()];
+        v.in_play = false;
+        v.clear_blood();
+        v.corruption.clear();
+        if let Some(card) = v.crypt_card() {
+            let owner = v.owner_seat();
+            let copy = *v.copy;
+            let merged = v.merged.map(|b| (b, *v.merged_copy));
+            let crypt = &mut self.state.seats[owner.index()].crypt;
+            crypt.put_at(0, card, copy);
+            if let Some((base, copy)) = merged {
+                crypt.put_at(0, base, copy);
+            }
+        }
+        for ci in 0..self.state.cards.len() {
+            let c = &self.state.cards[ci];
+            if c.in_play && (c.host == Some(m) || c.body == Some(m)) {
+                self.burn_card_in_play(CardId(ci as u32));
+            }
+        }
+    }
+
+    /// Hector Trelane: burned in combat against `foe`, its controller gains
+    /// pool (a blood hunt's burn in it too, LSJ 20091210).
+    pub(crate) fn burned_in_combat_gift(&mut self, m: MinionId, foe: MinionId) {
+        let gift = self.state.printed_mod(
+            m,
+            cards::Stat::PoolToOpponentIfBurnedInCombat,
+            Default::default(),
+        );
+        if gift > 0 {
+            let s = self.state.minions[foe.index()].owner;
+            self.state.seats[s.index()].pool += gift;
+        }
+    }
+
     /// A minion is burned, the cards on it to their owners' ash heaps
     /// (spec §1.12.1); "after a ready minion is burned" riders if it was ready.
     pub(crate) fn burn_minion(&mut self, m: MinionId) {
         if self.book_takes_ally(m) {
             return;
+        }
+        let foe = self
+            .combat
+            .as_ref()
+            .and_then(|c| c.side_of_minion(m).map(|i| c.sides[1 - i].minion));
+        if let Some(f) = foe {
+            self.burned_in_combat_gift(m, f);
         }
         // Burned by a directed action, out of combat (Predator's
         // Transformation [ABO]).
@@ -1870,6 +1972,7 @@ impl Engine {
             let v = &self.state.minions[m.index()];
             (v.in_play && v.is_vampire(), v.owner)
         };
+        let burned_capacity = self.state.capacity_of(m).unwrap_or(0);
         // The Capuchin: to his owner's uncontrolled region, a new vampire,
         // his controller's transfers next influence phase (ANK 20200417).
         let capuchin = self.state.minions[m.index()].in_play.then(|| {
@@ -1994,6 +2097,30 @@ impl Engine {
         // burned, Mina gains 3 blood" — from torpor too.
         if burned_vampire {
             self.neighbor_vampire_burned(burned_owner);
+            // Virolax Facility: one of its controller's, big enough.
+            for (id, r) in self.fired_riders(Hook::OwnVampireBurned, &HookAt::of(burned_owner)) {
+                for e in r.effects {
+                    match *e {
+                        crate::cards::Effect::CryptVampireToReady {
+                            burned_above,
+                            below,
+                            blood,
+                        } => {
+                            if burned_capacity > burned_above
+                                && self.state.cards[id.index()].in_play
+                            {
+                                self.burn_card_in_play(id);
+                                self.interrupts.push(Interrupt::CryptToReady {
+                                    seat: burned_owner,
+                                    below,
+                                    blood,
+                                });
+                            }
+                        }
+                        other => unreachable!("not an own-vampire-burned effect: {other:?}"),
+                    }
+                }
+            }
         }
         if let Some((g, seat, cap)) = gem_ctx {
             self.soul_gem(g, seat, cap);
@@ -2162,12 +2289,22 @@ impl Engine {
         self.leave_riders(Hook::ReadyMinionBurnedOrTorpor, ms);
         for &m in ms {
             let v = &self.state.minions[m.index()];
+            let in_combat = self
+                .combat
+                .as_ref()
+                .is_some_and(|c| c.side_of_minion(m).is_some());
             if v.in_play
                 && v.in_torpor
-                && self
+                && (self
                     .state
                     .printed_mod(m, cards::Stat::BurnedAfterTorpor, Default::default())
                     > 0
+                    || in_combat
+                        && self.state.printed_mod(
+                            m,
+                            cards::Stat::PoolToOpponentIfBurnedInCombat,
+                            Default::default(),
+                        ) > 0)
             {
                 self.burn_minion(m);
             }
@@ -2349,6 +2486,19 @@ impl Engine {
         if !c.in_play {
             return;
         }
+        // Magazine: burned with the gun it is on (LSJ 20021128: the card
+        // on it with it).
+        let on: Vec<CardId> = (0..self.state.cards.len())
+            .map(|i| CardId(i as u32))
+            .filter(|&o| {
+                let x = &self.state.cards[o.index()];
+                x.in_play && x.on_card == Some(id)
+            })
+            .collect();
+        for o in on {
+            self.burn_card_in_play(o);
+        }
+        let c = &mut self.state.cards[id.index()];
         // Derange gone: back to the underlying clan and sect (RTR 20201130).
         for m in &mut self.state.minions {
             if m.deranged.is_some_and(|(.., d)| d == id) {
@@ -2802,6 +2952,7 @@ impl Engine {
         self.state.seats[s.index()].dpa = (1 + printed).max(0) as u8;
         self.state.seats[s.index()].granted_dpa = 0;
         self.state.seats[s.index()].event_played = false;
+        self.state.seats[s.index()].gehenna_put = false;
         // Fotini Katsikaris's bonus ends as the discard phase begins
         // (rules-qa 53.4).
         self.state.seats[s.index()]
@@ -2848,8 +2999,11 @@ impl Engine {
             }
             self.return_temporary(i, back);
         }
-        // Dreams of the Sphinx's hand size (LSJ 20100812).
-        self.state.seats[s.index()].timed.expire(Expiry::EndOfTurn);
+        // Dreams of the Sphinx's hand size (LSJ 20100812); any Methuselah's,
+        // gained in another's turn too (Sascha Vykos, Shahid).
+        for seat in &mut self.state.seats {
+            seat.timed.expire(Expiry::EndOfTurn);
+        }
         // Fiendish Tongue's unlock: that discard phase only.
         for m in &mut self.state.minions {
             if m.owner == s {
@@ -2938,6 +3092,10 @@ impl Engine {
     pub(crate) fn oust_now(&mut self, seats: &[SeatId]) {
         let preds: Vec<(SeatId, SeatId)> =
             seats.iter().map(|&s| (s, self.state.predator(s))).collect();
+        let gambits: Vec<(SeatId, u32)> = preds
+            .iter()
+            .map(|&(s, pred)| (pred, self.gambits_of(s)))
+            .collect();
         let oust = Cause::Effect(Source::Rule(Rule::Oust));
         for &s in seats {
             self.caused(oust, |e| e.remove_seat(s));
@@ -2948,6 +3106,9 @@ impl Engine {
         // "After a Methuselah is ousted, burn this card."
         if let Some(army) = self.state.global(crate::cards::Modifier::GhoulArmy) {
             self.burn_card_in_play(army);
+        }
+        for (pred, n) in gambits {
+            self.gain_half_vps(pred, 2 * n);
         }
         for (_, pred) in &preds {
             self.gain_half_vps(*pred, 2);
@@ -2986,6 +3147,18 @@ impl Engine {
         self.last_standing();
     }
 
+    /// Gambit Accepted: its predator's victory points as `s` leaves the
+    /// game.
+    fn gambits_of(&self, s: SeatId) -> u32 {
+        self.state
+            .controlled_layers(s)
+            .map(|l| match l.modifier {
+                cards::Modifier::PredatorVpIfOusted(n) => n as u32,
+                _ => 0,
+            })
+            .sum()
+    }
+
     /// The game's end as Methuselahs leave it (an oust, a withdrawal).
     fn last_standing(&mut self) {
         match self.state.living() {
@@ -3013,6 +3186,8 @@ impl Engine {
         // Set before `remove_seat`: the ledger `caused` takes around it
         // tells the host `withdrew`, not `ousted`.
         self.state.seats[s.index()].withdrew = true;
+        let (pred, gambits) = (self.state.predator(s), self.gambits_of(s));
+        self.gain_half_vps(pred, 2 * gambits);
         let rule = Cause::Effect(Source::Rule(Rule::Withdrawal));
         self.caused(rule, |e| e.remove_seat(s));
         self.release_unmeddled();
@@ -3159,6 +3334,7 @@ impl Engine {
             for id in c.stand_ins {
                 self.burn_card_in_play(id);
             }
+            self.persisted_to_torpor(c.sides.each_ref().map(|s| s.minion));
         }
         self.state.leave_combat();
         self.referendum = None;
@@ -3174,10 +3350,37 @@ impl Engine {
     fn start_turn(&mut self) {
         let s = self.state.active;
         // A withdrawal kept until this unlock phase: out of the game.
-        if std::mem::take(&mut self.state.seats[s.index()].withdrawal)
-            == crate::state::Withdrawal::Announced
-        {
+        let withdrawal = std::mem::take(&mut self.state.seats[s.index()].withdrawal);
+        let forced = std::mem::take(&mut self.state.seats[s.index()].withdrawal_forced);
+        if withdrawal == crate::state::Withdrawal::Announced {
+            // Brinksmanship: "if any Methuselah successfully withdraws,
+            // you are ousted."
+            let losers: Vec<SeatId> = self
+                .state
+                .in_play_layers()
+                .filter(|l| l.modifier == cards::Modifier::ForcedWithdrawals)
+                .map(|l| self.state.card_controller(l.source))
+                .filter(|&c| c != s)
+                .collect();
             self.withdraw(s);
+            let mut losers: Vec<SeatId> = losers
+                .into_iter()
+                .filter(|c| !self.state.seats[c.index()].ousted)
+                .collect();
+            losers.sort_unstable();
+            losers.dedup();
+            if self.state.living() > 1 && !losers.is_empty() {
+                self.oust_now(&losers);
+            }
+            if self.state.living() > 1 {
+                self.state.active = self.state.prey(s);
+                self.start_turn();
+            }
+            return;
+        }
+        // Brinksmanship: the forced withdrawal failed.
+        if forced && withdrawal == crate::state::Withdrawal::Broken {
+            self.oust_now(&[s]);
             if self.state.living() > 1 {
                 self.state.active = self.state.prey(s);
                 self.start_turn();
@@ -3187,6 +3390,16 @@ impl Engine {
         let short = self.state.seats[s.index()].library.is_empty()
             && self.state.hand_load(s) < self.state.hand_size(s);
         self.state.seats[s.index()].began_short = short;
+        if self
+            .state
+            .global(cards::Modifier::ForcedWithdrawals)
+            .is_some()
+            && self.state.may_announce_withdrawal(s)
+        {
+            let seat = &mut self.state.seats[s.index()];
+            seat.withdrawal = crate::state::Withdrawal::Announced;
+            seat.withdrawal_forced = true;
+        }
         self.state.turn += 1;
         let seat = &mut self.state.seats[s.index()];
         seat.turns_taken += 1;
@@ -3222,15 +3435,15 @@ impl Engine {
                 .retain(|&(_, until, seat)| (until, seat) != (Expiry::UnlockPhase, s));
         }
         self.state.seats[s.index()].training_burned = 0;
-        // Donatello Giovanni's marks last until his controller's unlock.
+        // Marks last until their vampire's controller's unlock.
         let st = &self.state;
-        let keep: Vec<(MinionId, MinionId)> = st
-            .bleed_tolls
+        let keep: Vec<_> = st
+            .unlock_marks
             .iter()
             .copied()
-            .filter(|&(_, d)| st.minions[d.index()].owner != s)
+            .filter(|&(_, _, d)| st.minions[d.index()].owner != s)
             .collect();
-        self.state.bleed_tolls = keep;
+        self.state.unlock_marks = keep;
         self.state.phase_uses.clear();
         self.state.turn_uses.clear();
         self.state.veil_superior = false;
@@ -3245,6 +3458,8 @@ impl Engine {
         self.state.titled_left.clear();
         for m in &mut self.state.minions {
             m.bled_this_turn = false;
+            m.attempted_this_turn = false;
+            m.succeeded_this_turn = false;
             m.extra_bleeds = 0;
             m.referendum_passed_turn = false;
             m.political_this_turn = false;
@@ -3486,7 +3701,7 @@ mod tests {
     #[test]
     fn crypt_data_is_complete() {
         // The 200 V5 vampires, then the owner's legacy additions.
-        assert_eq!(CRYPT.len(), 929);
+        assert_eq!(CRYPT.len(), 1018);
         assert_eq!(PRECONS.len(), 14);
         for (name, list) in PRECONS.iter() {
             let n: u32 = list.iter().map(|&(_, k)| k as u32).sum();

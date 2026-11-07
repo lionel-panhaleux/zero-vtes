@@ -94,6 +94,9 @@ LABELS = [
     # "Master: watchtower." (Watchtower: Four Ride Forth burns as another
     # enters play).
     ("Watchtower", r"^watchtower\."),
+    # "Ammo." (Caseless Rounds, Scattershot: one ammo card on a gun each
+    # combat; Magazine holds one).
+    ("Ammo", r"^ammo\."),
 ]
 # An ally's or retainer's type line: "Unique mortal with 2 life. 1 strength,
 # 0 bleed." (a retainer prints its life only).

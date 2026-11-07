@@ -13,7 +13,7 @@ use crate::ids::{MinionId, SeatId};
 use crate::library::{CardType, LIBRARY};
 use crate::notes::{self, Cause, Rule};
 use crate::plays::{HookAt, ModeLayers};
-use crate::state::{title_votes, ActionId, Expiry, TimedStat, UncontrolledSlot};
+use crate::state::{title_votes, ActionId, CardId, Expiry, TimedStat, UncontrolledSlot};
 use crate::window::PollingWindow;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -154,6 +154,8 @@ pub struct TermsState {
     pub realloc: Vec<(SeatId, u8)>,
     /// The vampires the Methuselahs chose as it passed (`RefStep::Choose`).
     pub picks: Vec<(SeatId, MinionId)>,
+    /// The weapons the Methuselahs kept as it passed (Peace Treaty).
+    pub kept_cards: Vec<(SeatId, crate::state::CardId)>,
 }
 
 #[derive(Clone, Debug)]
@@ -213,6 +215,13 @@ pub struct ReferendumCtx {
     /// Scorn of Adonis: pool burned at the tally by each Methuselah who
     /// cast against (one per Scorn).
     pub scorn: u8,
+    /// Bribes: the Methuselahs who played one, a copy each, and its pool.
+    pub bribes: Vec<(SeatId, u8)>,
+    /// Rant!: damage to the acting vampire if this referendum fails.
+    pub fail_damage: Vec<(MinionId, u8)>,
+    /// Aura of Invincibility: cards put on the calling vampire if this
+    /// referendum passes, from the ash heap.
+    pub place_if_passes: Vec<crate::combat::Held>,
     /// Poison Pill: the Methuselahs whose pool lost to the referendum's
     /// effect the acting vampire's controller loses as well.
     pub poison: Vec<SeatId>,
@@ -224,9 +233,27 @@ pub struct ReferendumCtx {
     pub fizzled: bool,
     /// Abilities used this referendum (`Limit::PerReferendum`).
     pub abilities_used: Vec<(cards::AbilitySource, u8)>,
+    /// Those used by each minion (`Limit::PerReferendumEachUser`).
+    pub user_uses: Vec<(cards::AbilitySource, u8, MinionId)>,
+    /// The title the calling political action card represents (Praxis
+    /// Seizure), for `title_given`.
+    pub card_title: Option<crate::crypt::Title>,
 }
 
 impl ReferendumCtx {
+    /// The title a vampire gets if this referendum passes (Jezebelle's "to
+    /// declare a prince"), the chosen vampire's read live.
+    pub fn title_given(&self, st: &crate::state::GameState) -> Option<crate::crypt::Title> {
+        match self.def?.effect {
+            RefEffect::CallerTitle(t) => Some(t),
+            RefEffect::PutOnCaller { .. } | RefEffect::PutOnChosen { .. } => self.card_title,
+            RefEffect::CallerContestsChosenTitle => {
+                self.terms.minions.first().map(|&m| st.title_of(m))
+            }
+            _ => None,
+        }
+    }
+
     /// Votes a vampire can cast right now: its title (ready holder,
     /// uncontested) plus bonuses granted this referendum; none while
     /// abstaining, expelled, or barred by sect.
@@ -254,6 +281,7 @@ impl ReferendumCtx {
             crate::cards::Stat::Votes,
             crate::state::PrintedCtx {
                 calling: self.calling,
+                referendum_title: self.title_given(st),
                 ..Default::default()
             },
         );
@@ -571,11 +599,23 @@ impl Engine {
             corrupted_barred: false,
             rider_clauses: Vec::new(),
             scorn: 0,
+            bribes: Vec::new(),
+            fail_damage: Vec::new(),
+            place_if_passes: Vec::new(),
             poison: Vec::new(),
             terms: TermsState::default(),
             canceled: false,
             fizzled: false,
+            user_uses: Vec::new(),
             abilities_used: Vec::new(),
+            card_title: match kind {
+                RefKind::Political => self
+                    .action
+                    .as_ref()
+                    .and_then(|a| a.card)
+                    .and_then(|p| cards::card_title(p.card)),
+                RefKind::BloodHunt { .. } => None,
+            },
         };
         // Printed votes in favor of a blood hunt called on the diablerist
         // (Styles Margs), counted as it is called.
@@ -852,6 +892,39 @@ impl Engine {
                     .into_iter()
                     .map(|n| Choice::AllocateTo { seat, n })
                     .collect()
+            }
+            Term::ChooseSeatsUnchosen(name) => {
+                let taken = |s: SeatId| {
+                    st.cards.iter().any(|c| {
+                        c.present()
+                            && crate::library::LIBRARY[c.card as usize].name == name
+                            && c.against.contains(s)
+                    })
+                };
+                let mut options = Vec::new();
+                if !ctx.terms.seats.is_empty() {
+                    options.push(Choice::Pass);
+                }
+                for s in st.clockwise_from(ctx.caller) {
+                    if !ctx.terms.seats.contains(&s) && !taken(s) {
+                        options.push(Choice::ChooseSeat(s));
+                    }
+                }
+                options
+            }
+            Term::ChooseSeatsHalfOrMore => {
+                let live = st.seats.iter().filter(|s| !s.ousted).count() as u8;
+                let min = live.div_ceil(2);
+                let mut options = Vec::new();
+                if ctx.terms.seats.len() as u8 >= min {
+                    options.push(Choice::Pass);
+                }
+                for s in st.clockwise_from(ctx.caller) {
+                    if !ctx.terms.seats.contains(&s) {
+                        options.push(Choice::ChooseSeat(s));
+                    }
+                }
+                options
             }
             Term::ChooseSeats { min, max } => {
                 let mut options = Vec::new();
@@ -1272,12 +1345,11 @@ impl Engine {
             }
             RefStep::Choose => {
                 // Kindred Segregation: allies kept one by one, until a pass.
-                let keeps = ctx
-                    .def
-                    .is_some_and(|d| d.effect == RefEffect::BurnAlliesUnlessKept);
+                let keeps = ctx.def.is_some_and(|d| d.effect.keeps_by_repaying());
                 let seat = ctx.terms.pending[0];
                 match *choice {
                     Choice::ChooseMinion(m) => ctx.terms.picks.push((seat, m)),
+                    Choice::ChooseCard(c) => ctx.terms.kept_cards.push((seat, CardId(c))),
                     Choice::Pass => {}
                     _ => unreachable!("illegal vampire choice {choice:?}"),
                 }
@@ -1303,11 +1375,21 @@ impl Engine {
                 ctx.terms.alloc.push((*seat, *n));
                 ctx.terms.pending.is_empty()
             }
-            (Term::ChooseSeats { .. }, Choice::ChooseSeat(s)) => {
+            (
+                Term::ChooseSeats { .. }
+                | Term::ChooseSeatsHalfOrMore
+                | Term::ChooseSeatsUnchosen(_),
+                Choice::ChooseSeat(s),
+            ) => {
                 ctx.terms.seats.push(*s);
                 false
             }
-            (Term::ChooseSeats { .. }, Choice::Pass) => true,
+            (
+                Term::ChooseSeats { .. }
+                | Term::ChooseSeatsHalfOrMore
+                | Term::ChooseSeatsUnchosen(_),
+                Choice::Pass,
+            ) => true,
             (Term::ChooseSeat(_), Choice::ChooseSeat(s)) => {
                 ctx.terms.chosen = Some(*s);
                 true
@@ -1532,6 +1614,78 @@ impl Engine {
             .collect();
         let turn = self.state.turn;
         self.state.cast_votes_before = std::mem::replace(&mut self.state.cast_votes, (turn, votes));
+        // "When a referendum called by this vampire passes / fails" (Aura
+        // of Invincibility): its cards already there, then the cards this
+        // referendum puts on it — gone from the ash heap, nothing (ANK
+        // 20220805).
+        if let Some(c) = ctx.calling.filter(|_| ctx.kind == RefKind::Political) {
+            let hook = if passed {
+                cards::Hook::OwnReferendumPassed
+            } else {
+                cards::Hook::OwnReferendumFailed
+            };
+            let on = |x: &crate::state::CardInPlay| x.bearer() == Some(c);
+            for (id, r) in self.fired_riders(hook, &HookAt::on(&on)) {
+                for &e in r.effects {
+                    match e {
+                        cards::Effect::AddCounter(n) => self.state.cards[id.index()].counters += n,
+                        cards::Effect::GoToTorpor => {
+                            if self.state.minions[c.index()].ready() {
+                                self.minions_to_torpor(&[c]);
+                            }
+                        }
+                        cards::Effect::BurnSelf => {
+                            if self.state.cards[id.index()].in_play {
+                                self.burn_card_in_play(id);
+                            }
+                        }
+                        other => unreachable!("not an own-referendum card rider: {other:?}"),
+                    }
+                }
+            }
+            if passed && self.state.minions[c.index()].in_play {
+                for &h in &ctx.place_if_passes {
+                    let ash = &self.state.seats[h.seat.index()].ash;
+                    if ash.contains(&h.card) {
+                        self.place_held(h, c);
+                    }
+                }
+            }
+        }
+        // Rant!: its acting vampire, the referendum failed.
+        if !passed {
+            for &(m, n) in &ctx.fail_damage {
+                if self.state.minions[m.index()].present() {
+                    self.damage_out_of_combat(m, n, false);
+                }
+            }
+        }
+        // Traditionalist: once a turn, its vampire's votes against a failed
+        // referendum.
+        if !passed {
+            let on = |x: &crate::state::CardInPlay| x.bearer().is_some();
+            for (id, r) in
+                self.fired_riders(cards::Hook::BearerVotedAgainstFailed, &HookAt::on(&on))
+            {
+                let host = self.state.cards[id.index()].bearer().expect("its bearer");
+                let against = ctx
+                    .records
+                    .iter()
+                    .any(|v| !v.canceled && !v.favor && v.source == Source::Vampire(host));
+                if against
+                    && self.state.cards[id.index()].spent_turn != turn
+                    && self.state.minions[host.index()].ready()
+                {
+                    self.state.cards[id.index()].spent_turn = turn;
+                    for &e in r.effects {
+                        match e {
+                            cards::Effect::AddHostBlood(n) => self.state.gain_blood(host, n),
+                            other => unreachable!("not a voted-against rider: {other:?}"),
+                        }
+                    }
+                }
+            }
+        }
         // Malkavian Rider Clause: no "this turn" — until it is used.
         if passed {
             for &s in &ctx.rider_clauses {
@@ -1560,21 +1714,15 @@ impl Engine {
         match ctx.kind {
             RefKind::BloodHunt { diablerist } => {
                 if passed {
-                    // Genina: to torpor instead of burned.
-                    let torpor = self.state.printed_mod(
-                        diablerist,
-                        cards::Stat::TorporInsteadOfBloodHuntBurn,
-                        crate::state::PrintedCtx::default(),
-                    ) > 0;
-                    if torpor {
-                        self.minions_to_torpor(&[diablerist]);
-                    } else {
-                        self.burn_minion(diablerist);
+                    if self.defer_hunt_burn(diablerist) {
+                        // Waiting in the referendum (`advance` left a
+                        // placeholder), its end settled with the burn.
+                        self.flow = Flow::Referendum;
+                        return;
                     }
+                    self.hunt_burn_now(diablerist);
                 }
-                // Part of the action (spec §3.7.8.1): the after-resolution
-                // window follows it (rules-qa 5.8).
-                self.after_referendum(true);
+                self.end_blood_hunt();
             }
             RefKind::Political => {
                 {
@@ -1593,6 +1741,21 @@ impl Engine {
                         loss[r.seat.index()] = ctx.scorn as i32;
                     }
                     self.burn_pool_batch(&loss);
+                }
+                // Bribes: gained at the tally, by the Methuselahs casting
+                // only in favor.
+                for &(p, n) in &ctx.bribes {
+                    for i in 0..self.state.seats.len() {
+                        let s = SeatId(i as u8);
+                        let cast = |favor: bool| {
+                            ctx.records
+                                .iter()
+                                .any(|r| r.seat == s && !r.canceled && r.favor == favor)
+                        };
+                        if s != p && cast(true) && !cast(false) {
+                            self.state.seats[i].pool += n as i32;
+                        }
+                    }
                 }
                 // Hartmut Stover: not a cost (no blood, none burned), and
                 // Methuselah ballots burn nothing (rules-qa 49.2).
@@ -1654,7 +1817,8 @@ impl Engine {
                         return;
                     }
                 }
-                let keeps = def.effect == RefEffect::BurnAlliesUnlessKept;
+                let keeps = def.effect.keeps_by_repaying();
+                let weapons = def.effect == RefEffect::BurnWeaponsUnlessKept;
                 if passed && (def.effect.chooses_vampires() || keeps) {
                     ctx.step = RefStep::Choose;
                     ctx.terms.pending = self
@@ -1662,7 +1826,9 @@ impl Engine {
                         .clockwise_from(ctx.caller)
                         .into_iter()
                         .filter(|&s| {
-                            if keeps {
+                            if weapons {
+                                !self.weapons_of(s).is_empty()
+                            } else if keeps {
                                 !self.allies_of(s).is_empty()
                             } else {
                                 !self.ready_vampires_of(s).is_empty()
@@ -1718,17 +1884,57 @@ impl Engine {
     /// The pool `s` has committed to keep allies so far (Kindred
     /// Segregation), paid as the referendum resolves.
     fn kept_cost(&self, ctx: &ReferendumCtx, s: SeatId) -> i32 {
-        ctx.terms
+        let allies: i32 = ctx
+            .terms
             .picks
             .iter()
             .filter(|(p, _)| *p == s)
             .map(|&(_, m)| self.ally_pool_cost(m))
-            .sum()
+            .sum();
+        let weapons: i32 = ctx
+            .terms
+            .kept_cards
+            .iter()
+            .filter(|(p, _)| *p == s)
+            .map(|&(_, c)| card_pool_cost(self.state.cards[c.index()].card))
+            .sum();
+        allies + weapons
+    }
+
+    /// The weapons on `s`'s minions (Peace Treaty).
+    fn weapons_of(&self, s: SeatId) -> Vec<CardId> {
+        let st = &self.state;
+        (0..st.cards.len())
+            .map(|i| CardId(i as u32))
+            .filter(|&c| {
+                let card = &st.cards[c.index()];
+                card.present()
+                    && cards::is_weapon(card.card)
+                    && card
+                        .bearer()
+                        .is_some_and(|m| st.minions[m.index()].owner == s)
+            })
+            .collect()
     }
 
     fn choose_request(&self, ctx: &ReferendumCtx) -> DecisionRequest {
         let seat = ctx.terms.pending[0];
         let options = if ctx
+            .def
+            .is_some_and(|d| d.effect == RefEffect::BurnWeaponsUnlessKept)
+        {
+            // Each weapon kept in turn, while the pool covers its cost.
+            let left = self.state.seats[seat.index()].pool - self.kept_cost(ctx, seat);
+            std::iter::once(Choice::Pass)
+                .chain(
+                    self.weapons_of(seat)
+                        .into_iter()
+                        .filter(|c| !ctx.terms.kept_cards.iter().any(|(_, k)| k == c))
+                        .filter(|c| card_pool_cost(self.state.cards[c.index()].card) <= left)
+                        .map(|c| Choice::ChooseCard(c.0)),
+                )
+                .collect()
+        } else if ctx
             .def
             .is_some_and(|d| d.effect == RefEffect::BurnAlliesUnlessKept)
         {
@@ -1832,6 +2038,30 @@ impl Engine {
                         }
                     }
                 }
+                RefEffect::ChosenBurnOthersGain(n) => {
+                    for s in st.clockwise_from(ctx.caller) {
+                        if ctx.terms.seats.contains(&s) {
+                            loss[s.index()] += n as i32;
+                        } else {
+                            gain[s.index()] += n as i32;
+                        }
+                    }
+                }
+                RefEffect::GainPerReadyClan => {
+                    for s in st.clockwise_from(ctx.caller) {
+                        let mut clans: Vec<&str> = st
+                            .minions_of(s)
+                            .filter(|&m| {
+                                let v = &st.minions[m.index()];
+                                v.ready() && v.is_vampire()
+                            })
+                            .filter_map(|m| st.minions[m.index()].clan())
+                            .collect();
+                        clans.sort_unstable();
+                        clans.dedup();
+                        gain[s.index()] += clans.len() as i32;
+                    }
+                }
                 RefEffect::BurnChosen {
                     base,
                     young_bonus,
@@ -1913,11 +2143,15 @@ impl Engine {
                 | RefEffect::Expel
                 | RefEffect::BurnSource
                 | RefEffect::BurnAlliesUnlessKept
+                | RefEffect::BurnWeaponsUnlessKept
                 | RefEffect::BurnBloodPerPick
                 | RefEffect::PutOnChosen { .. }
                 | RefEffect::PutOnCaller { .. }
                 | RefEffect::CallerTitle(_)
                 | RefEffect::PutInPlay
+                | RefEffect::PutInPlayLockBelow(_)
+                | RefEffect::BurnSourceVampire
+                | RefEffect::DamageYourCorrupted(_)
                 | RefEffect::ChosenTakesChosenCard
                 | RefEffect::RemoveChosen
                 | RefEffect::ChosenVampireTakesChosenCard
@@ -2045,6 +2279,22 @@ impl Engine {
                 }
             }
             // Unpreventable: no prevention window opens.
+            // Kahina the Sorceress: 1 each, whatever its counters (LSJ
+            // 20030820).
+            RefEffect::DamageYourCorrupted(n) => {
+                let hit: Vec<MinionId> = (0..self.state.minions.len())
+                    .map(|i| MinionId(i as u32))
+                    .filter(|&m| {
+                        let v = &self.state.minions[m.index()];
+                        v.ready() && v.corruption_of(ctx.caller) > 0
+                    })
+                    .collect();
+                for m in hit {
+                    if self.state.minions[m.index()].ready() {
+                        self.damage_out_of_combat(m, n, false);
+                    }
+                }
+            }
             RefEffect::DamageChosen(n) => {
                 let m = ctx.terms.minions[0];
                 if self.state.minions[m.index()].ready() {
@@ -2235,7 +2485,19 @@ impl Engine {
                     }
                 }
             }
-            RefEffect::PutInPlay => {
+            RefEffect::PutInPlay | RefEffect::PutInPlayLockBelow(_) => {
+                if let RefEffect::PutInPlayLockBelow(n) = effect {
+                    for i in 0..self.state.minions.len() {
+                        let m = MinionId(i as u32);
+                        let v = &self.state.minions[i];
+                        if v.ready()
+                            && v.is_vampire()
+                            && self.state.capacity_of(m).is_some_and(|k| k < n)
+                        {
+                            self.state.minions[i].locked = true;
+                        }
+                    }
+                }
                 let a = self.action.as_ref().expect("political action");
                 let (seat, play) = (a.seat, a.card.expect("a political action card"));
                 // "A Methuselah can have only one" (Raising the
@@ -2280,6 +2542,20 @@ impl Engine {
             }
             // Kept allies paid for as a batch (ousts with the referendum's),
             // then every other ally burned, in torpor too.
+            RefEffect::BurnWeaponsUnlessKept => {
+                let mut cost = vec![0i32; self.state.seats.len()];
+                for s in self.state.clockwise_from(ctx.caller) {
+                    cost[s.index()] = self.kept_cost(ctx, s);
+                }
+                self.burn_pool_batch(&cost);
+                let all: Vec<CardId> = (0..self.state.seats.len())
+                    .flat_map(|i| self.weapons_of(SeatId(i as u8)))
+                    .filter(|c| !ctx.terms.kept_cards.iter().any(|(_, k)| k == c))
+                    .collect();
+                for c in all {
+                    self.burn_card_in_play(c);
+                }
+            }
             RefEffect::BurnAlliesUnlessKept => {
                 let mut cost = vec![0i32; self.state.seats.len()];
                 for s in self.state.clockwise_from(ctx.caller) {
@@ -2291,6 +2567,15 @@ impl Engine {
                     let v = &self.state.minions[i];
                     if v.present() && v.is_ally() && !ctx.terms.picks.iter().any(|&(_, k)| k == m) {
                         self.burn_minion(m);
+                    }
+                }
+            }
+            RefEffect::BurnSourceVampire => {
+                if let Some(crate::cards::AbilitySource::Vampire(v)) =
+                    self.action.as_ref().and_then(|a| a.source)
+                {
+                    if self.state.minions[v.index()].present() {
+                        self.burn_minion(v);
                     }
                 }
             }
@@ -2413,9 +2698,45 @@ impl Engine {
         }
     }
 
+    /// A passed blood hunt burns its vampire; Genina goes to torpor
+    /// instead.
+    pub(crate) fn hunt_burn_now(&mut self, diablerist: MinionId) {
+        let torpor = self.state.printed_mod(
+            diablerist,
+            cards::Stat::TorporInsteadOfBloodHuntBurn,
+            crate::state::PrintedCtx::default(),
+        ) > 0;
+        if torpor {
+            self.minions_to_torpor(&[diablerist]);
+        } else {
+            let victim = self.action.as_ref().and_then(|a| a.diablerized_in_combat);
+            if let Some(v) = victim {
+                self.burned_in_combat_gift(diablerist, v);
+            }
+            self.burn_minion(diablerist);
+        }
+    }
+
+    /// Part of the action (spec §3.7.8.1): the after-resolution window
+    /// follows the blood hunt (rules-qa 5.8).
+    pub(crate) fn end_blood_hunt(&mut self) {
+        self.after_referendum(true);
+    }
+
     /// The referendum concluded: on to the action's after-resolution window
     /// (`riders`: the failed-or-canceled riders apply, not if fizzled).
     fn after_referendum(&mut self, riders: bool) {
+        // Rant!, Emissary: their grants end with the referendum.
+        let grants = self
+            .action
+            .as_mut()
+            .map(|a| std::mem::take(&mut a.referendum_grants))
+            .unwrap_or_default();
+        for id in grants {
+            if self.state.cards[id.index()].in_play {
+                self.burn_card_in_play(id);
+            }
+        }
         if self.state.living() <= 1 {
             self.place_action_card();
             self.drop_action();
@@ -2494,6 +2815,17 @@ impl Engine {
             return;
         }
         let (m, seat) = (a.acting, a.seat);
+        // Theo Bell (advanced): failed or canceled, its caller to torpor.
+        let torpor = !a.referendum_passed
+            && a.source.zip(a.ability).is_some_and(|(src, ai)| {
+                self.ability_mode(src, ai)
+                    .effects
+                    .contains(&cards::Effect::TorporIfReferendumFails)
+            });
+        if torpor && self.state.minions[m.index()].ready() {
+            self.minions_to_torpor(&[m]);
+            return;
+        }
         // "After a referendum called by Juliet passes" (Juliet Parr).
         let hook = if a.referendum_passed {
             cards::Hook::OwnReferendumPassed
@@ -2678,6 +3010,68 @@ impl Engine {
                 self.state.burn_blood(t, burn);
             }
             cards::Effect::TallyPenaltyAgainst(n) => ctx.scorn += n,
+            cards::Effect::TallyBonusForOthers(n) => ctx.bribes.push((play.seat, n)),
+            cards::Effect::BloodForVotesRound {
+                min,
+                more,
+                votes,
+                extra,
+            } => {
+                self.interrupts
+                    .push(crate::draws::Interrupt::BloodForVotes {
+                        seat: play.seat,
+                        min,
+                        more,
+                        votes,
+                        extra,
+                        passes: 0,
+                    });
+            }
+            cards::Effect::ActorDamagedIfReferendumFails(n) => {
+                ctx.fail_damage.extend(play.actor.map(|m| (m, n)));
+            }
+            cards::Effect::TargetGainsVotes(n) => {
+                let m = play.target.minion();
+                match ctx
+                    .records
+                    .iter_mut()
+                    .find(|r| r.source == Source::Vampire(m) && !r.canceled)
+                {
+                    Some(r) => r.n += n,
+                    None => ctx.bonus.push((m, n)),
+                }
+            }
+            cards::Effect::GrantForReferendum => {
+                let actor = play.actor.expect("the acting vampire");
+                let chosen = match play.target {
+                    crate::cards::Target::Minion(t) => vec![t],
+                    _ => Vec::new(),
+                };
+                let id = self.place_now(
+                    crate::state::CardInPlay {
+                        effect_only: true,
+                        chosen,
+                        ..crate::state::CardInPlay::entering(
+                            play.card,
+                            crate::copies::CopyId::NONE,
+                            play.seat,
+                            Some(actor),
+                            play.mode,
+                        )
+                    },
+                    crate::plays::ModeLayers::Push,
+                    false,
+                );
+                if let (Some(id), Some(a)) = (id, self.action.as_mut()) {
+                    a.referendum_grants.push(id);
+                }
+            }
+            cards::Effect::PutOnCallingIfPasses(n) => {
+                if let Some(c) = ctx.calling {
+                    ctx.place_if_passes
+                        .push(crate::combat::Held::from_play(play, c, n));
+                }
+            }
             cards::Effect::BarCorruptedVotes => ctx.corrupted_barred = true,
             cards::Effect::CorruptTarget => {
                 let t = play.target.minion();
@@ -2816,5 +3210,14 @@ impl Engine {
         if let Some(m) = unlock {
             self.unlock_minion(m);
         }
+    }
+}
+
+/// A card's printed pool cost (0 for a blood cost or none): what Peace
+/// Treaty's keeper repays.
+fn card_pool_cost(card: u16) -> i32 {
+    match crate::library::LIBRARY[card as usize].pool_cost {
+        crate::library::Cost::Fixed(n) => n as i32,
+        _ => 0,
     }
 }

@@ -1,6 +1,6 @@
-/* zvtes protocol 2.22.0 (docs/protocol.md): generated from
+/* zvtes protocol 2.23.0 (docs/protocol.md): generated from
  * crates/api/schema.json by scripts/gen_ts.py, do not edit. */
-export const PROTOCOL_VERSION = '2.22.0'
+export const PROTOCOL_VERSION = '2.23.0'
 
 /**
  * A command as sent: an optional client id, echoed by an `error` it
@@ -495,7 +495,7 @@ export type Due = {
 }
 
 /** What a minion phase waits for before it may end (`Decision::due`). */
-export type DueKind = 'hunt' | 'action' | 'take_control' | 'unknown'
+export type DueKind = 'hunt' | 'action' | 'take_control' | 'bleed' | 'unknown'
 
 /**
  * One thing an option does, to whom (docs/protocol.md §7): a curated
@@ -1381,6 +1381,14 @@ export type Purpose =
     | 'may_bottom_looked'
     | 'may_return_discards'
     | 'burn_over_capacity'
+    | 'burn_from_library_top'
+    | 'crypt_to_ready'
+    | 'steal_from_slot'
+    | 'blood_for_votes'
+    | 'store_from_ash_of'
+    | 'blood_to_card_up_to'
+    | 'may_lock_card_for_block'
+    | 'blood_or_pool'
     | 'unknown'
 
 export type Range = 'close' | 'long' | 'unknown'
@@ -1675,18 +1683,19 @@ export type Title = {
     /**
      * `primogen`, `prince`, `baron`, `justicar`, `inner_circle`,
      * `archbishop`, `bishop`, `cardinal`, `priscus`, `regent`, `magaji`,
-     * `independent` or `laibon` (a unique title named in `of`), `votes` (a
-     * title by its votes only).
+     * `independent`, `laibon` or `camarilla` (a unique title named in
+     * `of`), `votes` (a title by its votes only).
      */
     id: string
     /**
      * The city (a prince, a baron, an archbishop), the clan (a justicar,
-     * the Inner Circle) or an independent or Laibon title's name.
+     * the Inner Circle) or an independent, Laibon or Camarilla title's
+     * name.
      */
     of?: string | null
     /**
      * Its votes, when the title says them (`independent`, `laibon`,
-     * `votes`).
+     * `camarilla`, `votes`).
      */
     votes?: number | null
 }

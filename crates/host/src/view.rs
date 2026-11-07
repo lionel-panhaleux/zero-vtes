@@ -734,6 +734,7 @@ pub(crate) fn title(t: Ti) -> Option<Title> {
         Ti::Magaji => make("magaji", None, None),
         Ti::Independent { name, votes } => make("independent", Some(name), Some(votes)),
         Ti::Laibon { name, votes } => make("laibon", Some(name), Some(votes)),
+        Ti::Camarilla { name, votes } => make("camarilla", Some(name), Some(votes)),
         Ti::Votes(n) => make("votes", None, Some(n)),
     }
 }

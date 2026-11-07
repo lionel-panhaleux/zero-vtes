@@ -2047,3 +2047,28 @@ fn edward_vignes_reads_an_actions_second_target() {
     }
     assert!(offered, "Edward's ability against the action at him");
 }
+
+// Rulebook "Appendix: Imbued Rules" 5: an incapacitated imbued is not
+// ready, so it takes no action (a bleed offered it led to a combat with a
+// minion out of the ready region; found by round 26's fuzz goldens).
+#[test]
+fn an_incapacitated_imbued_takes_no_action() {
+    let mut e = game(2);
+    let inez = imbued(&mut e, 0, "Inez \"Nurse216\" Villagrande");
+    let jack = imbued(&mut e, 0, "Jack \"Hannibal137\" Harmon");
+    e.add_minion(SeatId(1), plain("Ventrue", 0), 4, false);
+    {
+        let v = &mut e.state.minions[jack.index()];
+        v.incapacitated = true;
+        v.blood = 0;
+    }
+    let req = request(&mut e);
+    assert!(req
+        .options
+        .iter()
+        .any(|o| matches!(o, Choice::TakeAction { minion, .. } if *minion == inez)));
+    assert!(!req
+        .options
+        .iter()
+        .any(|o| matches!(o, Choice::TakeAction { minion, .. } if *minion == jack)));
+}

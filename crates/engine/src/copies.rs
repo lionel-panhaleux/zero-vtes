@@ -191,6 +191,17 @@ pub fn census(e: &Engine) -> Vec<(CopyId, u16, Place)> {
     for p in e.in_flight().into_iter().chain(&e.opening) {
         add(*p.copy, p.card, Place::InFlight(p.seat.0));
     }
+    // Repo Man's equipment, found, waiting on the minion to take it.
+    for i in &e.interrupts {
+        if let crate::draws::Interrupt::MinionOf {
+            seat,
+            purpose: crate::draws::MinionPurpose::EquipFoundOn { card, copy },
+            ..
+        } = *i
+        {
+            add(copy, card, Place::InFlight(seat.0));
+        }
+    }
     // The action's card, until it enters play or goes back to the hand.
     if let Some(a) = e
         .action()

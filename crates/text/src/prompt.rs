@@ -180,6 +180,17 @@ impl Prompt<'_> {
                     }
                     "corrupt" => format!("Choose a minion {of} to get a corruption counter"),
                     "lock_vampires" => format!("Lock up to two vampires {of}"),
+                    "lock_younger" => {
+                        format!("Lock an unlocked ready vampire {of} younger than the acting one")
+                    }
+                    "siphon" => format!("Choose a vampire in torpor to steal {} blood from", a.n?),
+                    "equip_found_on" => format!("Choose a ready minion {of} to equip the card found"),
+                    "rearrange" => format!("Choose a ready minion {of} to take {}", self.card()?),
+                    "blood_to_acting" => {
+                        format!(
+                            "Choose a non-blocking vampire {of} to move blood to the acting one"
+                        )
+                    }
                     "unlock_anarch" => "You can unlock a ready Anarch of yours".into(),
                     "burn_blood" => {
                         format!("Choose a ready {} of yours to burn 1 blood", self.clan()?)
@@ -202,6 +213,9 @@ impl Prompt<'_> {
                         "Choose another ready imbued of yours to take {} unpreventable damage",
                         a.n?
                     ),
+                    "block_mark" => {
+                        "Choose a ready minion your vampire gets intercept against until your next unlock".into()
+                    }
                     _ => return None,
                 }
             }
@@ -244,6 +258,44 @@ impl Prompt<'_> {
             P::MayLockForBlood => format!(
                 "{}: you can lock it to move 1 blood from the blood bank to its vampire",
                 self.card()?
+            ),
+            P::MayLockCardForBlock => format!(
+                "{}: you can lock it instead of {} for the block",
+                self.card()?,
+                self.minion()?
+            ),
+            P::BloodToCardUpTo => format!(
+                "How much blood (up to {}) {} moves onto {}",
+                a.n?,
+                self.minion()?,
+                self.card()?
+            ),
+            P::StoreFromAshOf => format!(
+                "Choose the card of {}'s ash heap to move onto {}",
+                self.seat()?,
+                self.card()?
+            ),
+            P::BloodForVotes => format!(
+                "Mob Rule: burn 1 blood of a vampire of capacity above {} for votes \
+                 (more above {}), or pass",
+                a.n?, a.m?
+            ),
+            P::StealFromSlot => match self.detail() {
+                Some(_) => format!("How much blood {} steals (up to {})", self.minion()?, a.n?),
+                None => format!(
+                    "Choose an uncontrolled minion of {} to steal up to {} blood from",
+                    self.seat()?,
+                    a.n?
+                ),
+            },
+            P::CryptToReady => format!(
+                "Choose a vampire of capacity below {} in your crypt to put in play with {} blood",
+                a.n?, a.m?
+            ),
+            P::BurnFromLibraryTop => format!(
+                "You can burn one of the top {} cards of {}'s library",
+                a.n?,
+                self.seat()?
             ),
             P::MayTorture => format!(
                 "The Path of Lilith: you can lock it to put a torture counter on {}",
@@ -375,6 +427,12 @@ impl Prompt<'_> {
             P::LockOrPay => format!("Lock {} or burn {} pool", self.card()?, a.n?),
             P::LibraryToHand => "Choose a card in your library to put in your hand".into(),
             P::BloodOrCamarilla => format!("{} burns 1 blood or becomes Camarilla", self.minion()?),
+            P::BloodOrPool => format!(
+                "A ready vampire of yours other than {} burns {} blood, or burn {} pool",
+                self.minion()?,
+                a.n?,
+                a.m?
+            ),
             P::PoolOrNoTransfers => format!(
                 "Burn {} pool, or lose all transfers in your next influence phase",
                 a.n?
@@ -598,6 +656,7 @@ impl Prompt<'_> {
                 match d.kind {
                     DueKind::Hunt => format!("{} must hunt first", m()),
                     DueKind::Action => format!("{} must take its action first", m()),
+                    DueKind::Bleed => format!("{} must bleed first", m()),
                     // The card in play taking control of its host.
                     DueKind::TakeControl => {
                         format!("{} must take control of its host first", self.n.own(d.copy))
@@ -641,6 +700,10 @@ impl Prompt<'_> {
                     self.minion().unwrap_or_else(|| "the vampire".into())
                 ),
                 "put_in_play" => "the card to put in play".into(),
+                "command_picks" => {
+                    "the next younger vampire of your uncontrolled region (X blood each)".into()
+                }
+                "hold_card" => "the card of their ash heap to move onto the Hold".into(),
                 "cost_reductions" => "the cost reductions to use".into(),
                 "cost_counters" => format!("how many counters from {} to use", self.card()?),
                 "discard" => format!("discard {} card(s) to use it", a.n?),
@@ -787,6 +850,11 @@ mod tests {
                 Some("move_onto_any"),
                 Some("corrupt"),
                 Some("lock_vampires"),
+                Some("lock_younger"),
+                Some("siphon"),
+                Some("equip_found_on"),
+                Some("rearrange"),
+                Some("blood_to_acting"),
                 Some("unlock_anarch"),
                 Some("burn_blood"),
                 Some("host_card"),
@@ -795,6 +863,7 @@ mod tests {
                 Some("burn_crowded_clan"),
                 Some("damage"),
                 Some("damage_imbued"),
+                Some("block_mark"),
             ],
             Purpose::ChooseForCard => &[
                 Some("unblockable_non_bleed"),
@@ -978,6 +1047,14 @@ mod tests {
         RetakeFromAsh,
         MayLockForBlood,
         MayBurnLookedMaster,
+        BurnFromLibraryTop,
+        CryptToReady,
+        StealFromSlot,
+        BloodForVotes,
+        StoreFromAshOf,
+        BloodToCardUpTo,
+        MayLockCardForBlock,
+        BloodOrPool,
         MayMoveBlood,
         MayFailAction,
         MayLockToFight,

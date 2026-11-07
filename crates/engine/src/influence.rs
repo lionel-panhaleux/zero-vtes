@@ -200,39 +200,7 @@ impl Engine {
                 }
             }
             Choice::InfluenceOut { slot } => {
-                let (out, on) = self.state.take_slot(s, *slot as usize);
-                let forced =
-                    out.card != crate::state::CREATED && self.state.controls_copy(s, out.card);
-                // Excess over capacity drains, a returning vampire's
-                // capacity counting its cards (advanced rules 5.1.1).
-                let m = match out.banished.map(|b| (b.minion, b.cards)) {
-                    // A banished vampire returns as it left, its cards
-                    // with it, unlocked (rules-qa 5.7; LSJ 20060213).
-                    Some((m, on)) => {
-                        let v = &mut self.state.minions[m.index()];
-                        v.in_play = true;
-                        v.locked = false;
-                        v.in_torpor = false;
-                        for c in on {
-                            let c = &mut self.state.cards[c.index()];
-                            c.in_play = true;
-                            c.locked = false;
-                        }
-                        let capacity = self.state.capacity_of(m).unwrap_or(1);
-                        self.state.minions[m.index()].raise_blood(out.counters.min(capacity));
-                        m
-                    }
-                    None => {
-                        let capacity = CRYPT[out.card as usize].capacity;
-                        let m = self.add_minion(s, out.card, capacity, false);
-                        self.state.minions[m.index()].copy = out.copy;
-                        m
-                    }
-                };
-                for c in on {
-                    self.state.cards[c.index()].host = Some(m);
-                }
-                self.vampire_entered(s, m, out.card, forced);
+                let m = self.slot_to_ready(s, *slot as usize);
                 self.flow = Flow::Influence { left };
                 // Twilight Camp: a non-titled non-Anarch vampire put in play
                 // from the uncontrolled region may be made Anarch.
@@ -276,26 +244,8 @@ impl Engine {
                         }
                     }
                 }
-                // Scarce: 3 pool for each vampire of its clan already
-                // controlled — the apparent clan (LSJ 20011015).
-                if out.card != crate::state::CREATED && CRYPT[out.card as usize].scarce {
-                    let clan = self.state.minions[m.index()].clan();
-                    let k = self
-                        .state
-                        .minions_of(s)
-                        .filter(|&o| {
-                            o != m
-                                && self.state.minions[o.index()].is_vampire()
-                                && self.state.minions[o.index()].clan() == clan
-                        })
-                        .count() as i32;
-                    if k > 0 {
-                        let scarce = Cause::Effect(Source::Minion(m));
-                        self.caused(scarce, |e| e.state.seats[s.index()].lose_pool(3 * k));
-                        if self.state.seats[s.index()].pool <= 0 {
-                            self.oust_and_pass(s);
-                        }
-                    }
+                if self.scarce_toll(s, m) {
+                    self.oust_and_pass(s);
                 }
             }
             Choice::ResolveRider { card } => {
@@ -328,6 +278,73 @@ impl Engine {
 }
 
 impl Engine {
+    /// `s`'s uncontrolled vampire at `slot` to the ready region with its
+    /// counters (the influence phase's move; Gather's): its entry effects
+    /// and contest.
+    pub(crate) fn slot_to_ready(&mut self, s: SeatId, slot: usize) -> crate::ids::MinionId {
+        let (out, on) = self.state.take_slot(s, slot);
+        let forced = out.card != crate::state::CREATED && self.state.controls_copy(s, out.card);
+        // Excess over capacity drains, a returning vampire's
+        // capacity counting its cards (advanced rules 5.1.1).
+        let m = match out.banished.map(|b| (b.minion, b.cards)) {
+            // A banished vampire returns as it left, its cards
+            // with it, unlocked (rules-qa 5.7; LSJ 20060213).
+            Some((m, on)) => {
+                let v = &mut self.state.minions[m.index()];
+                v.in_play = true;
+                v.locked = false;
+                v.in_torpor = false;
+                for c in on {
+                    let c = &mut self.state.cards[c.index()];
+                    c.in_play = true;
+                    c.locked = false;
+                }
+                let capacity = self.state.capacity_of(m).unwrap_or(1);
+                self.state.minions[m.index()].raise_blood(out.counters.min(capacity));
+                m
+            }
+            // Its counters (all of its capacity for an influence; Gather's
+            // move takes what it has), the excess draining.
+            None => {
+                let capacity = CRYPT[out.card as usize].capacity;
+                let m = self.add_minion(s, out.card, out.counters.min(capacity), false);
+                self.state.minions[m.index()].copy = out.copy;
+                m
+            }
+        };
+        for c in on {
+            self.state.cards[c.index()].host = Some(m);
+        }
+        self.vampire_entered(s, m, out.card, forced);
+        m
+    }
+
+    /// Scarce: 3 pool for each vampire of its clan already controlled —
+    /// the apparent clan (LSJ 20011015) — as it leaves the uncontrolled
+    /// region; whether the pool ran out.
+    pub(crate) fn scarce_toll(&mut self, s: SeatId, m: crate::ids::MinionId) -> bool {
+        let card = self.state.minions[m.index()].crypt_card();
+        if !card.is_some_and(|c| c != crate::state::CREATED && CRYPT[c as usize].scarce) {
+            return false;
+        }
+        let clan = self.state.minions[m.index()].clan();
+        let k = self
+            .state
+            .minions_of(s)
+            .filter(|&o| {
+                o != m
+                    && self.state.minions[o.index()].is_vampire()
+                    && self.state.minions[o.index()].clan() == clan
+            })
+            .count() as i32;
+        if k == 0 {
+            return false;
+        }
+        let scarce = Cause::Effect(Source::Minion(m));
+        self.caused(scarce, |e| e.state.seats[s.index()].lose_pool(3 * k));
+        self.state.seats[s.index()].pool <= 0
+    }
+
     /// A crypt card just put in play as `s`'s vampire `m`: its entry
     /// effects, then any contest (influenced out, or put in play: Summon
     /// History); `forced`: another copy already controlled.
@@ -481,7 +498,12 @@ impl Engine {
 
     /// Epiphany: `m`'s advanced version, from `s`'s crypt, uncontrolled
     /// region or ash heap in that order, merged with it; none, no effect.
-    pub(crate) fn merge_with_advanced(&mut self, s: SeatId, m: crate::ids::MinionId) {
+    pub(crate) fn merge_with_advanced(
+        &mut self,
+        s: SeatId,
+        m: crate::ids::MinionId,
+        crypt_only: bool,
+    ) {
         let name = CRYPT[self.state.minions[m.index()]
             .crypt_card()
             .expect("a vampire") as usize]
@@ -491,6 +513,8 @@ impl Engine {
         let seat = &mut self.state.seats[s.index()];
         let found = if let Some(i) = seat.crypt.iter().position(|&c| advanced(c)) {
             Some(seat.crypt.take(i))
+        } else if crypt_only {
+            None
         } else if let Some(i) = seat
             .uncontrolled
             .iter()

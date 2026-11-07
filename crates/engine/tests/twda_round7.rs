@@ -1301,6 +1301,41 @@ fn mind_tricks_gives_a_maneuver_or_a_press() {
     );
 }
 
+// Mind Tricks: "… 1 optional maneuver or press during the resulting
+// combat": still there in the second round, the first one's press the
+// blocker's (Serhat Gunde's own).
+#[test]
+fn mind_tricks_maneuver_or_press_lasts_the_combat() {
+    let mut e = game(2);
+    let a = e.add_minion(SeatId(0), find_card("Erebus"), 4, false);
+    superior(&mut e, a, "dem");
+    e.add_minion(SeatId(0), plain("Brujah", 0), 4, false);
+    let z = e.add_minion(
+        SeatId(1),
+        find_card("Serhat Gunde, Combat Junkie"),
+        8,
+        false,
+    );
+    in_play(&mut e, 1, "Sport Bike", Some(z));
+    in_play(&mut e, 1, "Sport Bike", Some(z));
+    hand(&mut e, 0, &["Mind Tricks"]);
+    pick(&mut e, bleed(a));
+    pick_when(&mut e, block(z));
+    pick_when(&mut e, play(0, 1, a));
+    let req = until(&mut e, SeatId(0), WindowLabel::CombatDetermineRange);
+    e.choose(index_of(&req, Choice::Pass));
+    loop {
+        let req = request(&mut e);
+        if req.seat == SeatId(1) && req.options.contains(&Choice::UsePress) {
+            e.choose(index_of(&req, Choice::UsePress));
+            break;
+        }
+        e.choose(fallback(&req));
+    }
+    let req = until(&mut e, SeatId(0), WindowLabel::CombatDetermineRange);
+    assert!(req.options.contains(&Choice::UseManeuver));
+}
+
 // Osric Vladislav: "Osric can burn a location you control to get +1
 // stealth for the current action." [LSJ 20020814] [ANK 20221229] "His
 // ability can be used more than once during an action, but only if he is
