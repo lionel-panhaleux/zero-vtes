@@ -2123,9 +2123,12 @@ training runs.
   more of its own (its R −1.15 / −0.93 at 5 seats, −0.76 / −0.58 on TWDA,
   beyond two standard errors; −1.21 / −1.06 at 4): the not-degrading test
   fails, so the run went to the owner (2026-11-04): served as a trial (owner,
-  2026-11-06; back to p14 if the human games worsen, read in the harvest
-  report's human win rate and VP a seat by weights against p14's 76% and 2.64
-  over 74 counted games), `runs/p17/last.zvp` (`f426338f6c80`), the previous
+  2026-11-06; back to p14 if the human games worsen, read in the harvest's
+  total report (`data/server-records/reports/total.md`, "Humans against the
+  bots") by weights against p14's own: humans winning 79% ± 13 points and
+  scoring 2.79 ± 0.39 VP a seat (two standard errors) over its 39 counted
+  games; p17's games with a human on a deck from `GET /catalog/taught` read
+  apart, p14's having none), `runs/p17/last.zvp` (`f426338f6c80`), the previous
   `runs/served-prev-2026-11-06-p14.zvp` (`a78e74292acb`).
 - **Bots on any deck** (owner, 2026-10-26, via Z-succubus: humans teach the bot
   the recent TWDA decks it plays worst; served at `GET /catalog/taught`,
