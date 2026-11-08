@@ -31,3 +31,14 @@ round; the cleanup lines ride with the rounds that meet their cards (the
 ship skill's scope rule). Rounds go set by set, the owner picking the
 sets; the TWDA analysis no longer chooses the cards, and promos are
 skipped (owner, 2026-10-30).
+
+- **Refresh the TWDA tables from a newer twda.json**: the owner (2026-11-08):
+  "we should let the bot play recent (last 6 months) TWDA decks"; KRCG's
+  twda.json ends at 2026-06-13 (9 decks of the 26 since 2026-05-08 kept, the
+  rest needing cards outside the pool), so the window empties by
+  2026-12-07: ask the owner to refresh static.krcg.org's twda.json,
+  2026-11-08; then regenerate `twda.rs` (`scripts/gen_twda.py`), the fuzz
+  goldens re-blessed (Z-main told before it merges). Done when the catalog
+  holds TWDA decks dated after 2026-06-13 and the `gen_twda`, ledger and
+  window-matrix `--check`s pass. Docs: `docs/boards/cards.md` (the
+  header's TWDA counts).
