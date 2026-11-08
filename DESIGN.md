@@ -2146,7 +2146,13 @@ training runs.
   catalog name, TWDA id, event, date, `recent` (dated within two years of the
   measure), games, game wins, VP a game and VP share (its VPs over all those
   scored at its tables, 0.25 even), the file a `zvtes_api::DecksMeasure`, the
-  type the server reads. p17 (`runs/p17/last.decks.json`, weights
+  type the server reads. It also sets the fork's bot pool (owner, 2026-11-08: a
+  floor at 0.15, the decks below for humans to teach): beside the precons, the
+  decks dated within six months of the game's day with a VP share of at least
+  0.15; a deck the file lacks stays out until measured (the platforms line,
+  `docs/platforms/sc.md`); hence the training skill's re-measure when the kept
+  TWDA decks gain one. p17's measure of 2026-11-06
+  (`runs/p17/decks-2026-11-06.json`, a copy of the file then served; weights
   `f426338f6c80`, engine `83b135c56b17`, 100 games a deck, 2 h 30 on 8 threads;
   its measure line, from an earlier build of the tool, omits the 75-turn
   limit): with a TWDA deck at one seat against three precons the bot wins 16.4%

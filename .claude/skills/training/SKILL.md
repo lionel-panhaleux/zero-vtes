@@ -104,18 +104,30 @@ runs" (every run's command, numbers and lessons), `docs/boards/training.md`.
    seat, precons at the others, every seat the served profile; about two and
    a half hours): `<served>.decks.json` beside them (DESIGN §11.2 "Bots on
    any deck"), which `deploy/deploy.py` takes only if it is there as it
-   deploys. Z-main redeploys engine.krcg.org with `ZVTES_WEIGHTS` explicit
-   (CLAUDE.md "Sessions": only Z-main deploys); name the served weights by
-   their sha prefix in the DESIGN note (the server records the weights'
-   SHA-256 per game); keep the previous weights as
-   `runs/served-prev-<date>-<run>.zvp`; the served profile (temperature,
-   nudges) lives in `crates/policy/src/profiles.rs` (`NETWORK`), which the
-   server, `crates/policy/examples/humanset.rs` and `decks.rs --file` read.
+   deploys (the server reads it at start). Rewrite it in place, at main's
+   tip, whenever main's kept TWDA decks (`crates/engine/src/twda.rs`) gain
+   one dated within six months (a card round, a TWDA refresh), and ask
+   Z-main to redeploy: the fork's bots draw only measured decks of the last
+   six months (DESIGN §11.2 "Bots on any deck"). Z-main redeploys
+   engine.krcg.org with `ZVTES_WEIGHTS` explicit (CLAUDE.md "Sessions": only
+   Z-main deploys); name the served weights by their sha prefix in the
+   DESIGN note (the server records the weights' SHA-256 per game); keep the
+   previous weights as `runs/served-prev-<date>-<run>.zvp`, their per-deck
+   file beside them under the same stem (`.decks.json`), and measure weights
+   that have none before serving them (a rollback to p14); the served
+   profile (temperature, nudges) lives in `crates/policy/src/profiles.rs`
+   (`NETWORK`), which the server, `crates/policy/examples/humanset.rs` and
+   `decks.rs --file` read.
 
 ## Taking a new engine
 
 - Card rounds: no retraining; `remap_vocab` maps the grown card vocabulary
-  on resume and for frozen opponents. Check that the run starts.
+  on resume and for frozen opponents. Check that the run starts. A merge
+  that gains a kept TWDA deck dated within six months (a TWDA refresh too)
+  rewrites the served weights' per-deck file (step 5): the decks gained are
+  main's kept decks dated within six months whose names the file's `decks`
+  lacks (a diff of `crates/engine/src/twda.rs` lists them, unless the table
+  was reformatted).
 - A record the pinned engine stops reading partway (a rules fix since it
   was played) gives imitation nothing, held out or not: the run's first
   line names it (`bc_stopped`), and a held-out one shrinks the evaluation
