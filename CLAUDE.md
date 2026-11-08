@@ -99,11 +99,12 @@ with its board companion), as applied here:
   `[M:<slug>]` token (a defect or maintenance none). Opening a milestone
   or changing the plan is the owner's (scope).
 - **Boards** (`docs/boards/<line>.md`): shrinking lists, the goal zero.
-  One line an ask, with its done-condition and the pages it changes; done
-  is deleted; order is priority (each header's "Order:", the roadmap's
-  "Ranking" between lines); no ids, no status, no "later" (the roadmap's
-  "Deferred by the owner" holds what the owner put off); the only state
-  is `[doing: <session>]`. What waits on a date, a person or an event,
+  One line an ask (one physical line, no width limit), with its
+  done-condition and the pages it changes; done is deleted; order is
+  priority (each header's "Order:", the roadmap's "Ranking" between
+  lines); no ids, no status, no "later" (the roadmap's "Deferred by the
+  owner" holds what the owner put off); the only state is `[doing:
+  <session>]`. What waits on a date, a person or an event,
   and every schedule, is a watch item (`docs/watch.md`: when, what to
   check, what each outcome does), never a line; one Z-main cron fires it.
 - **Three loops, three skills.** `intake` (ingress: conflict,

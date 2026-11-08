@@ -30,23 +30,5 @@ the rounds that meet their cards (the ship skill's scope rule). Rounds go set by
 set, the owner picking the sets; the TWDA analysis no longer chooses the cards,
 and promos are skipped (owner, 2026-10-30).
 
-- **Refresh the TWDA tables from the v5 twda.json** [M:recent-decks]: the owner
-  (2026-11-08): "we should let the bot play recent (last 6 months) TWDA decks";
-  KRCG's root twda.json (v5 schema) holds decks to 2026-10-25, 144 after
-  2026-06-13 (5 of the 26 since 2026-05-08 kept today, the rest needing cards
-  outside the pool). Regenerate `twda.rs` (`scripts/gen_twda.py`) from it, and
-  rename "Path of Death" to "Path of Death and the Soul" (owner, 2026-11-08:
-  `SABBAT_NAMES` in `scripts/window_matrix.py` emptied; the harvest maps the old
-  name with Z-train before it commits); the fuzz goldens re-blessed (the other
-  lines told before, docs/hazards.md "The shared tree"). Done when the catalog
-  holds TWDA decks dated after 2026-06-13, the generator, ledger and
-  window-matrix `--check`s pass and the goldens are re-blessed. Docs:
-  `docs/boards/cards.md` (the header's TWDA counts, and its set count: v5 merges
-  every promo into one "Promo" set, so the header says which measure it quotes,
-  from `scripts/coverage.py`'s v5 output).
-- **Add Secrets of New York and Noites Brasileiras (round 27)** [M:new-sets] (63
-  cards, 2026-10-31; owner, 2026-11-08). Done when `OUT_BUNDLES`
-  (`scripts/window_matrix.py`) is empty, every card is defined and the add-cards
-  checks pass. Docs: the add-cards set (`docs/engine.md`, rules-qa Batch 112,
-  `docs/rules-digest.md`, `data/rulings-v5.csv`,
-  `data/window-matrix-reviewed.csv`).
+- **Refresh the TWDA tables from the v5 twda.json** [M:recent-decks]: the owner (2026-11-08): "we should let the bot play recent (last 6 months) TWDA decks"; KRCG's root twda.json (v5 schema) holds decks to 2026-10-25, 144 after 2026-06-13 (5 of the 26 since 2026-05-08 kept today, the rest needing cards outside the pool). Regenerate `twda.rs` (`scripts/gen_twda.py`) from it, and rename "Path of Death" to "Path of Death and the Soul" (owner, 2026-11-08: `SABBAT_NAMES` in `scripts/window_matrix.py` emptied; the harvest maps the old name with Z-train before it commits); the fuzz goldens re-blessed (the other lines told before, docs/hazards.md "The shared tree"). Done when the catalog holds TWDA decks dated after 2026-06-13, the generator, ledger and window-matrix `--check`s pass and the goldens are re-blessed. Docs: `docs/boards/cards.md` (the header's TWDA counts, and its set count: v5 merges every promo into one "Promo" set, so the header says which measure it quotes, from `scripts/coverage.py`'s v5 output).
+- **Add Secrets of New York and Noites Brasileiras (round 27)** [M:new-sets] (63 cards, 2026-10-31; owner, 2026-11-08). Done when `OUT_BUNDLES` (`scripts/window_matrix.py`) is empty, every card is defined and the add-cards checks pass. Docs: the add-cards set (`docs/engine.md`, rules-qa Batch 112, `docs/rules-digest.md`, `data/rulings-v5.csv`, `data/window-matrix-reviewed.csv`).
