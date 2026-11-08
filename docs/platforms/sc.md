@@ -113,10 +113,20 @@ the Smith's library opened face down).
 The deck screen's "Teach the bot" tab (`DeckPanel.vue`; owner,
 2026-10-26) lists `GET /catalog/taught`'s recent decks, the served bot's
 weakest first, each with its event, date and measure; a pick is the
-player's deck as a precon is (`getOrImportPrecon`, `twda-<id>`). The
-bots keep the precons (`ENGINE_BOT_DECK`, setup.ts). No tab while the
-server answers 404 (no measure for the served weights) or is out of
-reach.
+player's deck as a precon is (`getOrImportPrecon`, `twda-<id>`). No
+tab while the server answers 404 (no measure for the served weights) or
+is out of reach.
+
+The bots' decks (`botDeck`, setup.ts; owner, 2026-11-08) are drawn from
+`GET /catalog/decks` by its `kind` and `date`, never by the name: the
+`precon` decks and the `twda` decks of the last six months the served
+bot takes at least 0.15 of the VPs with (`GET /catalog/taught`'s
+`vp_share`; a deck not measured yet, or every one while the server has
+no measure, waits for it), no `starter` (half decks), never the
+player's own; each bot is named by its deck's `title`.
+The recent decks below the floor are left for the players to teach: the
+Teach the bot tab, weakest first, lists them ahead of any the bot plays
+at or above the floor.
 
 ## Where the owner plays
 
