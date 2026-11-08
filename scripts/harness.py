@@ -78,11 +78,16 @@ def deleted(before, after):
 
 
 def board_commits():
-    """(sha, date, cycles, upkeep) of each commit touching the boards, oldest first."""
-    log = git("log", "--reverse", "--format=%H %cs", "--", BOARDS).split("\n")
+    """(sha, date, cycles, upkeep) of each commit touching the boards or
+    marking a pass (one may touch no board), oldest first."""
+    kept = set(git("log", "--format=%H", "--", BOARDS).split())
+    kept |= set(git("log", "--format=%H", "-E", "--grep=^Upkeep:").split())
+    log = git("log", "--reverse", "--format=%H %cs").split("\n")
     out = []
     for entry in filter(None, log):
         sha, date = entry.split()
+        if sha not in kept:
+            continue
         parents = git("rev-list", "--parents", "-n1", sha).split()[1:]
         before = board_keys(parents[0]) if parents else set()
         cycles = deleted(before, board_keys(sha))
