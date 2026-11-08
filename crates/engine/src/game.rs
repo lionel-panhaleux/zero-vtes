@@ -290,6 +290,10 @@ pub struct Engine {
     /// The last [`HISTORY`] public choices, oldest first (observations'
     /// memory, `zvtes_env::obs::Version::V2`).
     pub history: std::collections::VecDeque<Event>,
+    /// The last [`REVEALS`] cards revealed to all, oldest first, each with
+    /// the game turn it was revealed on (observations' memory,
+    /// `zvtes_env::obs::Version::V4`): kept whether or not `notes` are.
+    pub reveals: std::collections::VecDeque<(u32, Reveal)>,
     /// Each seat's public play over the whole game, counted (`profile`,
     /// the observations' seats' context).
     pub profiles: Vec<crate::profile::Profile>,
@@ -297,6 +301,9 @@ pub struct Engine {
 
 /// How many public choices [`Engine::history`] keeps.
 pub const HISTORY: usize = 32;
+
+/// How many reveals [`Engine::reveals`] keeps.
+pub const REVEALS: usize = 8;
 
 /// A public choice: who made it, on which game turn, and the card a hand
 /// index named (`Play`, `Discard`, `BurnForVote`: the index is dead once
@@ -498,10 +505,15 @@ impl Engine {
         }
     }
 
-    /// A card of `seat`'s crypt or library revealed to all, noted for a
-    /// narrator.
+    /// A card of `seat`'s crypt or library revealed to all: kept in
+    /// `reveals`, noted for a narrator.
     pub(crate) fn reveal(&mut self, seat: SeatId, card: u16, crypt: bool) {
-        self.push_note(crate::notes::Note::Reveal(Reveal { seat, card, crypt }));
+        let r = Reveal { seat, card, crypt };
+        if self.reveals.len() == REVEALS {
+            self.reveals.pop_front();
+        }
+        self.reveals.push_back((self.state.turn, r));
+        self.push_note(crate::notes::Note::Reveal(r));
     }
 
     /// A new game: each seat gets a random full-size V5 precon (rulebook
@@ -621,6 +633,7 @@ impl Engine {
             held_at: None,
             notes_drained: 0,
             history: Default::default(),
+            reveals: Default::default(),
             profiles: vec![Default::default(); n],
         };
         engine.start_turn();

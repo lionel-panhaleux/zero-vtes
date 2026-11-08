@@ -1705,9 +1705,10 @@ sources to the engine's conventions.
   Lazarus; a haven found by Goblinism [MYT] (`LibraryToHand::haven_on`) may
   go on the vampire instead (`Interrupt::PutFoundOn`, its cost paid,
   `place_now`), asked before the hand is discarded down (`discards_first`);
-  a revealed card (a search's find, a top card) goes to
-  `Note::Reveal` (`Reveal`), which the host tells every seat. A
-  look at another seat's hand goes through `Engine::peek`: the hand
+  a revealed card (a search's find, a top card) goes to `Note::Reveal`
+  (`Reveal`), which the host tells every seat, and to `Engine::reveals`
+  (the last `REVEALS`, notes on or off), which observation `V4` encodes.
+  A look at another seat's hand goes through `Engine::peek`: the hand
   visible to the viewer until the action ends (`GameState::peeks`), and
   the hand as it stood to `Note::Look` (`Look`), which the host
   tells the viewer alone (the next view no longer shows it).

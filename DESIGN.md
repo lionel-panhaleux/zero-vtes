@@ -315,14 +315,14 @@ the league and the remaining-deck tokens included.
   serialized protocol is for clients.
 - **Encoding sketch**: entity tokens (players with relative-seat encoding,
   minions, hand, in-play cards; since `obs::Version::V2` the ash heaps'
-  contents and the last public choices, §11.2), transformer trunk,
-  auto-regressive head over options; the viewer's remaining deck pooled
-  into the context token (`train/model.py`); reward = tournament scoring
-  (VPs, GW) — a potential-based shaping by the position, tried in p15,
-  cut the rushes and was dropped (§11.2 "p15"; `--shaping` kept), as was
-  a survival shaping; league = current agent + snapshots + exploiters +
-  scripted bots, PFSP (`train/league.py`); decks × seats sampled per
-  episode.
+  contents and the last public choices, since `V4` the cards revealed to
+  all, §11.2), transformer trunk, auto-regressive head over options; the
+  viewer's remaining deck pooled into the context token
+  (`train/model.py`); reward = tournament scoring (VPs, GW) — a
+  potential-based shaping by the position, tried in p15, cut the rushes
+  and was dropped (§11.2 "p15"; `--shaping` kept), as was a survival
+  shaping; league = current agent + snapshots + exploiters + scripted
+  bots, PFSP (`train/league.py`); decks × seats sampled per episode.
 - **The seats' context** (owner with Tom: "a better view of
   the opponents' action history: what they did, what they're capable of …
   as part of a context vector", the position for the policy too): every
@@ -679,6 +679,14 @@ training runs.
 - Review points: ash heaps, removed cards and cards stored on cards are sizes
   or absent, not tokens; `ActionCtx::card` (a card
   named from hand) is never read, by construction only.
+- Versions (`obs::Version`, a network's `obs`): `V2` adds the ash heaps
+  and the last public choices (`T_ASH`, `T_EVENT` + kind), `V3` lightens
+  it ("Faster iterations" below), `V4` adds a token per card revealed to
+  all (`T_REVEAL`, the last 8 of `Engine::reveals`: the card, whose
+  library or crypt, how far back), what the host tells every seat
+  (`revealed`), Mesu Bedshet's vampire too, its slot still face down;
+  `T_REVEAL` is `T_EVENT` itself, which no choice kind takes, so no
+  table grows. `obs.rs` checks `V4` is `V3` plus those tokens.
 
 **Training** (`crates/py`: `zvtes_py.GamePool`, `replay`, `schema`,
 `deck_names`, `deck_families`, `vocab_keys`; `train/`: `model.py`,
@@ -2234,7 +2242,7 @@ What the engine does not yet do or does only in part, true today.
 
 The objectives still open are the roadmap's (`docs/roadmap.md`).
 
-Definitions: 1214 library, 692 vampires; 3528 Rust tests, 72 Python tests
+Definitions: 1214 library, 692 vampires; 3529 Rust tests, 72 Python tests
 
 ## Outlook: deck building (post-v1)
 

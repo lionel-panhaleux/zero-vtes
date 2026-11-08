@@ -180,6 +180,7 @@ impl Net {
             1 => obs::Version::V1,
             2 => obs::Version::V2,
             3 => obs::Version::V3,
+            4 => obs::Version::V4,
             v => return Err(format!("unknown obs version {v}")),
         };
         // The seats' context layer, if the network has one: [d, its LEN],

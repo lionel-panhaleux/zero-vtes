@@ -350,13 +350,11 @@ impl Game {
                         };
                         self.offered = offered;
                         let obs = encode(&self.engine, &req, self.versions[req.seat.index()]);
-                        // The critic reads `V2`, lighter (`V3`) for a
-                        // learner reading it.
-                        let cv = if self.versions.contains(&Version::V3) {
-                            Version::V3
-                        } else {
-                            Version::V2
-                        };
+                        let cv = self
+                            .versions
+                            .iter()
+                            .copied()
+                            .fold(Version::V2, Version::max);
                         self.critic = critic.then(|| encode_critic(&self.engine, &req, cv));
                         self.pending = Some((req, obs));
                         return None;
@@ -434,7 +432,8 @@ fn version(v: u8) -> PyResult<Version> {
         1 => Ok(Version::V1),
         2 => Ok(Version::V2),
         3 => Ok(Version::V3),
-        _ => Err(PyValueError::new_err("obs: 1, 2 or 3")),
+        4 => Ok(Version::V4),
+        _ => Err(PyValueError::new_err("obs: 1 to 4")),
     }
 }
 
@@ -467,12 +466,13 @@ fn all_decks() -> &'static [Deck] {
 /// limit is drawn in this range of player turns (a time-out scores 0.5 VP
 /// per survivor, which counts toward the game win); episodes report it and
 /// `replay` takes it. `obs`: the encoding the networks read
-/// (`zvtes_env::obs::Version`, 1 to 3), but the `net_obs` network ids (id,
-/// version), which read their own, and the `legacy` ones, which read `V1`;
-/// the critic reads `V2`, or `V3` when a network does. `politics`: network seats play the
-/// default politics (`zvtes_env::politics`; DESIGN §11.2): referendum terms by
-/// rule, never offered to Python; options the rule masks left out of the
-/// request Python sees (its option indices are among those offered).
+/// (`zvtes_env::obs::Version`, 1 to 4), but the `net_obs` network ids (id,
+/// version), which read their own, and the `legacy` ones, which read `V1`; the
+/// critic reads the newest version a seat reads, `V2` at least. `politics`:
+/// network seats play the default politics (`zvtes_env::politics`; DESIGN
+/// §11.2): referendum terms by rule, never offered to Python; options the rule
+/// masks left out of the request Python sees (its option indices are among
+/// those offered).
 /// `replays`: the games a queued table may `start` from (game records,
 /// `zvtes_protocol::start`). `habits`: the habits of the `net:k+habits`
 /// seats (`zvtes_env::habits::Set::parse`), all by default. `chores`: network

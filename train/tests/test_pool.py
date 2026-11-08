@@ -249,7 +249,7 @@ def test_each_network_reads_its_own_observation():
         pool.act(random_actions(obs, rng))
     assert all(seen.values())
     with pytest.raises(ValueError):
-        zvtes_py.GamePool(1, ["net:0"] * 4, obs=4)
+        zvtes_py.GamePool(1, ["net:0"] * 4, obs=5)
 
 
 def test_tables_start_from_an_owner_game():

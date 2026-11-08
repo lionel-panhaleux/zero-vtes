@@ -38,9 +38,12 @@ pub const T_ASH: i32 = 9;
 /// A public choice (`Engine::history`, `V2`): `T_EVENT` + its choice kind
 /// (`opt_ids[0]`), a token type per kind.
 pub const T_EVENT: i32 = 10;
+/// A card revealed to all (`Engine::reveals`, `V4`): the event type of no
+/// choice kind (kinds are 1-based), so the type table keeps its rows.
+pub const T_REVEAL: i32 = T_EVENT;
 
 /// The encoding's version: what a network was trained to read.
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord)]
 pub enum Version {
     /// Every network trained before 2026-10-03.
     #[default]
@@ -51,6 +54,9 @@ pub enum Version {
     /// (`Obs::deck_ids`), others' face-down vampires as counts, the
     /// transfers left.
     V3,
+    /// `V3` plus the cards revealed to all (`T_REVEAL`), as a human sees
+    /// them told.
+    V4,
 }
 
 /// The vocabulary of `ids[1]`: 0 none, then the crypt, the library, a
@@ -300,7 +306,7 @@ fn encode_as(e: &Engine, req: &DecisionRequest, v: Version, omniscient: bool) ->
         f[F_MPA] = (seat.mpa + seat.dpa) as f32 / 3.0;
         f[F_HELD] = seat.held.total() as f32 / 5.0;
         f[F_UNCONTROLLED] = seat.uncontrolled.len() as f32 / 6.0;
-        if v == Version::V3 {
+        if v >= Version::V3 {
             // The face-down vampires' counters (public), their slots no
             // tokens.
             let hidden: u32 = (seat.uncontrolled.iter())
@@ -405,7 +411,7 @@ fn encode_as(e: &Engine, req: &DecisionRequest, v: Version, omniscient: bool) ->
         let seat = SeatId(s as u8);
         for (k, slot) in st.seats[s].uncontrolled.iter().enumerate() {
             let seen = omniscient || seat == viewer || slot.banished.is_some();
-            if v == Version::V3 && !seen {
+            if v >= Version::V3 && !seen {
                 ix.seat_slots[s].push(0);
                 continue;
             }
@@ -449,7 +455,7 @@ fn encode_as(e: &Engine, req: &DecisionRequest, v: Version, omniscient: bool) ->
             } else {
                 library_id(c)
             };
-            if v == Version::V3 {
+            if v >= Version::V3 {
                 o.deck_ids.push([T_DECK, id, 0, 0]);
                 o.deck_f.push(f);
             } else {
@@ -524,12 +530,28 @@ fn encode_as(e: &Engine, req: &DecisionRequest, v: Version, omniscient: bool) ->
             push(&mut o, [T_EVENT + ids[0], ids[1], a, ids[4]], f);
         }
     }
+    if v >= Version::V4 {
+        // The cards revealed to all, oldest first: whose, how far back.
+        let n = e.reveals.len();
+        for (k, &(turn, r)) in e.reveals.iter().enumerate() {
+            let mut f = [0.0; TOK_F];
+            f[F_REL + rel(st, viewer, r.seat).min(SEATS - 1)] = 1.0;
+            f[E_AGE] = (n - k) as f32 / zvtes::game::REVEALS as f32;
+            f[E_TURNS] = st.turn.saturating_sub(turn) as f32 / 10.0;
+            let id = if r.crypt {
+                crypt_id(r.card)
+            } else {
+                library_id(r.card)
+            };
+            push(&mut o, [T_REVEAL, id, 0, 0], f);
+        }
+    }
 
     // The context: window, action, combat, referendum.
     let mut f = [0.0; TOK_F];
     let (mut a_ptr, mut b_ptr) = (0, 0);
     f[F_TURN] = st.turn as f32 / 100.0;
-    if let (Version::V3, Some(left)) = (v, e.influence_transfers_left()) {
+    if let Some(left) = e.influence_transfers_left().filter(|_| v >= Version::V3) {
         f[F_MPA] = left as f32 / 4.0;
     }
     if let Some(a) = e.action() {

@@ -94,8 +94,9 @@ class Config:
     # the ash heaps' contents and the last public choices; 3 reads the
     # same in ~40% fewer tokens (the deck pooled out of attention, others'
     # face-down vampires as counts) and the transfers left (owner,
-    # 2026-10-06: lighter training). Frozen networks read the one they
-    # were trained on (`obs` in their config, else 1).
+    # 2026-10-06: lighter training); 4 adds the cards revealed to all.
+    # Frozen networks read the one they were trained on (`obs` in their
+    # config, else 1).
     obs: int = 3
     # Network seats play the default politics (zvtes_env::politics, DESIGN
     # §11.2): referendum terms by rule, wrong-side votes masked. Temporary

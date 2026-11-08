@@ -6,7 +6,8 @@
 //! token and option counts met. `V2` is `V1` plus its ash heap and event
 //! tokens, and the history it reads holds only public choices. `V3` is
 //! `V2` with its deck tokens apart and the others' face-down uncontrolled
-//! vampires gone, pointers following.
+//! vampires gone, pointers following. `V4` is `V3` plus a token per card
+//! revealed to all (`Engine::reveals`), of a type `V3` never uses.
 
 #[path = "../../engine/tests/common/mod.rs"]
 mod common;
@@ -21,7 +22,7 @@ use zvtes_env::bots::{Scripted, Style};
 use zvtes_env::context;
 use zvtes_env::obs::{
     encode, encode_critic, Obs, Version, T_ASH, T_CONTEXT, T_DECK, T_EVENT, T_HAND, T_REFERENDUM,
-    T_SEAT, T_SLOT, V_CRYPT, V_HIDDEN, V_LIBRARY,
+    T_REVEAL, T_SEAT, T_SLOT, V_CRYPT, V_HIDDEN, V_LIBRARY,
 };
 
 const DECISION_BUDGET: u64 = 100_000;
@@ -183,6 +184,35 @@ fn lightens_v2(v2: &Obs, v3: &Obs, omniscient: bool, what: &str) {
     assert!(v2.opt_f == v3.opt_f, "{what}: option features");
 }
 
+/// `V4` is `V3` with a token per reveal the engine keeps, oldest first,
+/// just before the context token; `V3` has none of their type.
+fn reveals_on_v3(v3: &Obs, v4: &Obs, e: &Engine, what: &str) {
+    assert!(
+        v3.tok_ids.iter().all(|t| t[0] != T_REVEAL),
+        "{what}: the reveal type in V3"
+    );
+    let n = v3.tok_ids.len() - 1;
+    let k = e.reveals.len();
+    assert_eq!(v4.tok_ids.len(), n + k + 1, "{what}: token count");
+    assert!(
+        v4.tok_ids[..n] == v3.tok_ids[..n] && v4.tok_f[..n] == v3.tok_f[..n],
+        "{what}: V3's tokens"
+    );
+    for (t, (_, r)) in v4.tok_ids[n..n + k].iter().zip(&e.reveals) {
+        let id = if r.crypt { V_CRYPT } else { V_LIBRARY } + r.card as i32;
+        assert!(*t == [T_REVEAL, id, 0, 0], "{what}: {t:?} for {r:?}");
+    }
+    assert!(
+        v4.tok_ids[n + k] == v3.tok_ids[n] && v4.tok_f[n + k] == v3.tok_f[n],
+        "{what}: context"
+    );
+    assert!(
+        (&v4.opt_ids, &v4.opt_f, &v4.deck_ids, &v4.deck_f, &v4.ctx)
+            == (&v3.opt_ids, &v3.opt_f, &v3.deck_ids, &v3.deck_f, &v3.ctx),
+        "{what}: options, deck and context"
+    );
+}
+
 fn game(what: &str, mut e: Engine, agents: &mut [Box<dyn Agent>], stats: &mut Stats) {
     while let Step::Decision(req) = e.run() {
         assert!(e.decisions < DECISION_BUDGET, "{what}: decision budget");
@@ -207,6 +237,9 @@ fn game(what: &str, mut e: Engine, agents: &mut [Box<dyn Agent>], stats: &mut St
             );
         }
         lightens_v2(&seeing_v2, &seeing_v3, false, &what);
+        let seeing_v4 = encode(&e, &req, Version::V4);
+        check(&seeing_v4, &req, &what);
+        reveals_on_v3(&seeing_v3, &seeing_v4, &e, &what);
         lightens_v2(
             &encode_critic(&e, &req, Version::V2),
             &encode_critic(&e, &req, Version::V3),
@@ -223,6 +256,7 @@ fn game(what: &str, mut e: Engine, agents: &mut [Box<dyn Agent>], stats: &mut St
                 req.window
             );
             assert!(encode(&view, &req, Version::V3) == seeing_v3, "{what}: V3");
+            assert!(encode(&view, &req, Version::V4) == seeing_v4, "{what}: V4");
             assert!(
                 encode(&view, &req, Version::V2) == seeing_v2,
                 "{what}: {:?}",
@@ -523,4 +557,43 @@ fn a_referendum_shows_its_card_terms_and_votes() {
         .filter(|&j| me[j] == 3.0 / 5.0 && next[j] == 1.0 / 5.0 && caller[j] == 0.0)
         .collect();
     assert!(!diff.is_empty(), "the allocation is on the seat tokens");
+}
+
+/// A card revealed to all reaches every seat's `V4` encoding: Gathii's
+/// top card, seen by the Methuselah he bleeds, as the host tells it.
+#[test]
+fn every_seat_sees_a_card_revealed() {
+    use common::{action, pick, plain, until};
+    use zvtes::cards::{AbilitySource, Target};
+    use zvtes::decision::WindowLabel;
+    use zvtes::ids::SeatId;
+    use zvtes::state::{find_card, find_library};
+    let mut e = Engine::bare(2);
+    e.state.turn = 4;
+    let gathii = e.add_minion(SeatId(0), find_card("Gathii"), 4, false);
+    e.add_minion(SeatId(0), plain("Ventrue", 0), 4, false);
+    e.add_minion(SeatId(1), plain("Brujah", 0), 4, false);
+    let top = find_library("Conditioning");
+    e.state.seats[0].library.push(top);
+    common::fill_hand(&mut e, 0);
+    pick(&mut e, action(gathii, ActionKind::Bleed));
+    pick(
+        &mut e,
+        Choice::UseAbility {
+            source: AbilitySource::Vampire(gathii),
+            ability: 0,
+            actor: None,
+            target: Target::None,
+        },
+    );
+    let req = until(&mut e, SeatId(1), WindowLabel::ActionBlock);
+    let o = encode(&e, &req, Version::V4);
+    let seen: Vec<_> = (o.tok_ids.iter().zip(&o.tok_f))
+        .filter(|(t, _)| t[0] == T_REVEAL)
+        .collect();
+    assert_eq!(seen.len(), 1);
+    let (t, f) = seen[0];
+    assert_eq!(t[1], V_LIBRARY + top as i32);
+    // Gathii's Methuselah, one seat on from the viewer.
+    assert_eq!(f[1], 1.0);
 }
