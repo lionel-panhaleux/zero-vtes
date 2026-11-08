@@ -19,3 +19,5 @@ then the protocol leaks the Succubus Club fork works around, then the API
 for outside platforms and contributors, then the training layer split,
 the remaining mechanisms, the review leftovers, the harness.
 
+
+- **`GET /catalog` says what each deck is**: the owner (2026-11-08): "we should let the bot play recent (last 6 months) TWDA decks"; the fork's bot picker infers the precons from the names (`setup.ts`'s `ENGINE_BOT_DECK`), and its line "The bots play recent TWDA decks" (platforms board) waits on this. Each catalog deck's kind (precon or TWDA), its `title` (the name without ` (event, date)`), and for a TWDA deck its `twda` id, `event` and `date`, as `TaughtDeck` already carries. The entries are `[name, list]` pairs today (`dict(get("/catalog"))` in protocol §10's example), so either a minor that keeps them (a new route or query, `schema_compat.py --check` clean) or a major with its CHANGELOG entry; tell Z-succubus. Done when the catalog's decks carry them in `schema.json` and protocol §10. Docs: `docs/protocol.md`, `crates/api` (`schema.json`, `openapi.json`, `protocol.ts`), `CHANGELOG.md`.
