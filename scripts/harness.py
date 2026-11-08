@@ -24,8 +24,8 @@ carrying an `Upkeep:` trailer.
         width, and the stub lines a reflow leaves; then, not failing, what to
         re-read: each function whose body it changes with its doc unchanged,
         each page line citing a function it changes or a variant it defines;
-        `<base>` alone compares the branch point with the working tree (ship
-        step 3)
+        `<base>` alone compares the merge-base of `<base>` and HEAD (`stale
+        main` on trunk: HEAD) with the working tree (ship step 3)
 """
 
 import datetime

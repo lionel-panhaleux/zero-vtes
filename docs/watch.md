@@ -44,6 +44,14 @@ to the main checkout's ignored `data/`.
   detached checkout. Refused (a training run) → retried the next day; a
   failure → Z-engine's `intake`.
 
+## Dated
+
+- **2026-11-15 — the owner's answers to upkeep's proposals of
+  2026-11-08** (the commit carrying that pass's `Upkeep:` trailer): each
+  accepted one made then (a skill line, a page edit), each declined one
+  dropped; each still unanswered re-dated a week on in a new item. This
+  item is deleted as it fires.
+
 ## On an event
 
 - **50 of the owner's cross-table combats harvested** (the report's `waste`

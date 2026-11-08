@@ -203,9 +203,11 @@ runs" (every run's command, numbers and lessons), `docs/boards/training.md`.
   client's — owner, 2026-10-29: "unfinished game records are really of no
   use"), and names the starts it left out (`starts_left_out`); the files
   stay for the report's counts. The report's list (`python3
-  scripts/games_report.py --list <file>` in the shared checkout on `main`,
-  after the harvest; `--bc data/records,$(cat <file>)`) also drops its
-  "short" games (under `--min-rounds` rounds). Imitation's cost: `--bc-every
+  scripts/harvest.py --list <file>`, asked of Z-main: its detached
+  checkout at `main`, where the harvest's replays are safe; it is the
+  day's harvest too, its report read as the watch item's; `--bc
+  data/records,$(cat <file>)`) also drops its "short" games (under
+  `--min-rounds` rounds). Imitation's cost: `--bc-every
   4` puts its term on every 4th minibatch at 4× the weight (~14% of an
   iteration, DESIGN §11.2 "Faster iterations"; from p13). Imitation (`--bc`)
   keeps only the human who won (owner, 2026-10-15: the bot is strong and not

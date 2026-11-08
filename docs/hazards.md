@@ -35,7 +35,7 @@ review finding); one the code or a page now makes impossible leaves it.
 
 - "Put this card on … / in play" (a recurring miss, owner): the card
   itself enters play, never the ash heap. As the card resolves,
-  `apply_card_effect` sets `in_play` (Wall of Filth, Morbidity); the
+  `Engine::place_now` puts it in play (Wall of Filth, Morbidity); the
   `Held` / `place_held` stand-in is only for a placement after the card
   reached the ash heap (after combat, on a hit). Its test asserts the
   card in play is not `effect_only` and the ash heap lacks it —
@@ -79,11 +79,10 @@ Every line works in the one checkout on `main` (CLAUDE.md "Sessions").
   build, deep fuzz sweep or deploy build while one runs (a release
   build's memory pressure killed p12, 2026-10-17); the `ci`-profile
   checks are fine.
-- The sessions share one machine and one repository: no `git stash` in a
-  worktree (one stash list for every worktree: Z-train's and Z-add's
-  crossed, 2026-10-25; copy files under the job tmp instead), and a
-  process killed by its worktree's path (`pkill -f <worktree>/target`),
-  never by a generic pattern (`pkill -f 'cargo test'` stops every
-  session's runs).
+- The sessions share one machine and one checkout: never `git stash` (it
+  takes every session's uncommitted edits; copy files under the job tmp
+  instead), and a process killed by its PID, never by a pattern (`pkill -f
+  'cargo test'` or `pkill -f <checkout>/target` stops every session's
+  runs).
 - zsh: never write `"$VAR:x"` in shell arguments (history modifiers eat
   `:t`/`:e`/`:r`/`:s`).

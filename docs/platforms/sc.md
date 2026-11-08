@@ -192,8 +192,9 @@ becomes of it is the owner's word.
   `cargo run -p zvtes-host --profile ci --example replay -- <record> --options`.
   For the wire data the replay text hides (actor, ability, target per
   option), a throwaway `crates/host/examples/scratch_*.rs` calling
-  `describe::key` at decision N; delete it after (clippy --all-targets
-  compiles examples).
+  `describe::key` at decision N; delete it as soon as it has answered
+  (clippy --all-targets compiles examples, every session's checks in the
+  shared checkout too).
 
 ## Traps
 
@@ -207,8 +208,8 @@ becomes of it is the owner's word.
   it; a dropped socket alone is joined again, `host.ts` `rejoin`, for a
   minute, or until the server answers 404: the game gone; a server
   restart, a deploy, resumes the game, so the rejoin finds it, a fresh
-  `joined`. Z-main redeploys only with no game live
-  (`scripts/fetch_games.py`, docs/operations.md "Releases and deploys").
+  `joined`. Z-main redeploys only with no game live (docs/operations.md
+  "Releases and deploys").
 - A refresh joins with a plain `join` (no `after`): the server answers
   `joined` (seats, the view) and the pending decision, and the table is
   built from that view as from any other (the projection creates the

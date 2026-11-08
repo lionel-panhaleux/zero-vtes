@@ -41,9 +41,9 @@ def token():
 
 def cursor(started, going):
     """Where the next pull starts: past the newest game, but no later
-    than the oldest one still going — a day back at most (a game going
-    when the server restarts is ended at its start; an idle one in 30
-    minutes)."""
+    than the oldest one still going — a day back at most (a game the
+    server restarts on is resumed, or ended past its idle time; an idle
+    one ends in 30 minutes)."""
     if started is None:
         return None
     return min([started + 1] + [g for g in going if g > started - DAY_MS])

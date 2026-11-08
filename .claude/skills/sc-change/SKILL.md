@@ -37,7 +37,7 @@ branches, PRs, recipes, traps) and update it as you learn.
    by default): work and commit in the fork's checkout on
    `zero-vtes-engine`; no local server serves it (the owner plays on
    sc-bot.krcg.org), so an edit loses nobody's game. A redeploy waits for
-   no game live (Z-main checks it, `scripts/fetch_games.py`).
+   no game live (Z-main checks it, docs/operations.md "Releases and deploys").
 5. **Push with explicit refspecs** (`git push fork <b>:refs/heads/<b>`):
    `push.default=upstream` is set globally.
 6. **The platform stays agnostic of the engine's internals**: the fork reads

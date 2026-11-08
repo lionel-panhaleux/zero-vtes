@@ -50,7 +50,7 @@ Key facts:
   play procedures gist (shortcuts, declarations):
   https://gist.github.com/lionel-panhaleux/766eedd27ff26ae30169508ddc6bf95c
 
-Online play (P6, owner 2026-10-13): `docs/online-plan.md` — the server
+Online play (owner 2026-10-13): `docs/online-plan.md` — the server
 on `engine.krcg.org` is authoritative (bots server-side, every game
 logged to Postgres, kept 2 years); crates `api` (the contract: serde
 only, no engine; `docs/protocol.md`) ← `host` (engine → api, the

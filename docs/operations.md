@@ -79,10 +79,12 @@ standing word, 2026-10-23):
   ```
 
   Nothing is built on this machine, so a training run need not pause.
-- a deploy only with no game live (`scripts/fetch_games.py`: a game live
-  stops it), the lines told before a redeploy, the client smoke test
-  after (`node crates/server/tests/client.mjs https://engine.krcg.org`,
-  Node 22 or later), each reported in the digest;
+- a deploy only with no game live (`GET /admin/games?since=<a day ago,
+  Unix ms>`, protocol §10: a bare call answers the oldest 1000 only; a
+  game without `ended` is live and stops it), the lines told before a
+  redeploy, the client smoke test after (`node
+  crates/server/tests/client.mjs https://engine.krcg.org`, Node 22 or
+  later), each reported in the digest;
 - weights served by the measure (training skill "Serve"): `ZVTES_WEIGHTS`
   names the weights served; their measure by deck, the training line's
   `<name>.decks.json` beside them, goes with them when it is there

@@ -123,9 +123,11 @@ Served at `https://sc-bot.krcg.org`: the fork's `zero-vtes-engine`, the
 bots-only edition (the engine game, decks, preferences, About), built on
 frankfurt by `deploy/sc_bot.py` (`SC_COMMIT=<sha>`; Z-main deploys).
 
-Locally, the fork plays on `https://engine.krcg.org` (the server's network bots:
-temperature 0.5 and the nudges their weights trained with,
-`zvtes_policy::profiles::NETWORK`):
+Locally, the fork plays on `https://engine.krcg.org` by default (the server's
+network bots: temperature 0.5 and the nudges their weights trained with,
+`zvtes_policy::profiles::NETWORK`): a session never plays test games there
+(they pollute the recorded corpus, sc-change); a visual check the owner asks
+for plays on a local server (below):
 
 ```
 cd ../succubus-club && npm install                # once
