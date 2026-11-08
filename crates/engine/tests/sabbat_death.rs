@@ -121,7 +121,7 @@ fn bleed_blocked(e: &mut Engine, a: MinionId, b: MinionId) {
 #[test]
 fn the_path_of_death_and_the_soul_deck_is_complete() {
     let deck = Deck::sabbat(3);
-    assert_eq!(deck.name, "Path of Death (Sabbat V5)");
+    assert_eq!(deck.name, "Path of Death and the Soul (Sabbat V5)");
     assert_eq!(deck.crypt_cards().len(), 12);
     assert_eq!(deck.library_cards().len(), 77);
     assert_eq!(deck.path(), Some("Death and the Soul"));

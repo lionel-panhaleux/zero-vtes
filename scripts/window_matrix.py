@@ -1930,9 +1930,6 @@ def anniversary_decks(cards):
 # emitted once every card of it is in the pool; drawn by path for training
 # (owner, 2026-10-05).
 SABBAT_SET = "Sabbat V5"
-# KRCG's later bundle name -> the deck's name in the tables, kept until the
-# cards board's TWDA refresh renames the deck (owner, 2026-11-08).
-SABBAT_NAMES = {"Path of Death and the Soul": "Path of Death"}
 
 
 def sabbat_decks(cards):
@@ -1942,7 +1939,7 @@ def sabbat_decks(cards):
     for c in cards:
         for e in pool_sets(c).get(SABBAT_SET, []):
             if "precon" in e:
-                decks.setdefault(SABBAT_NAMES.get(e["precon"], e["precon"]), {})[c["id"]] = (c, e["copies"])
+                decks.setdefault(e["precon"], {})[c["id"]] = (c, e["copies"])
     # In the order they were completed (the batch of their last card), so
     # a deck added never moves one already emitted.
     batch = {k: i for i, b in enumerate(ADDED_BATCHES) for k in b}

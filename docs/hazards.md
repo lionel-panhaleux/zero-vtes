@@ -22,6 +22,11 @@ review finding); one the code or a page now makes impossible leaves it.
   is about twice the seed where its last key first appears (at most
   300); `FUZZ_SEEDS=n` sweeps deeper (checked against the goldens'
   seeds). Every 4th seed is replayed.
+- The host events sweep (`crates/host/tests/events.rs`) deals its decks by
+  seed modulo the catalog's size: a catalog size change (a TWDA refresh, a
+  round changing the kept decks) reshuffles every `KEPT` seed's game while
+  the test may stay green. Re-probe each kept seed's cause at
+  `HOST_SEEDS=400` and replace the ones that lost it.
 - Refactors: the fuzz golden replays and perft counts (`tests/golden/`,
   DESIGN §7.3/§7.5) must stay green; a failure names the seed and
   decision range (`FUZZ_TRACE=1 SEED_FROM=n` traces it). Re-bless an

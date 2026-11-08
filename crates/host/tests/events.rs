@@ -30,10 +30,10 @@ fn from() -> u32 {
 /// a vampire banished and back between two views (45), one influenced into a
 /// contest (81), a unique ally played into one (95), a crypt card come with
 /// counters (111), a contested minion's cards (118), a merge (119), training
-/// counters (152), a vampire moved within its uncontrolled region (605), two
+/// counters (152), a vampire moved within its uncontrolled region (376), two
 /// Methuselahs ousted at once (239), a unique card put into a contest (299), a
 /// vampire's excess drained in one (380), an action's intercept changed between
-/// two views (174), a play canceled as it is announced (88: Andrew Stuart), a
+/// two views (82), a play canceled as it is announced (88: Andrew Stuart), a
 /// cost reduced by a lasting effect whose card is in the ash heap (104: Inner
 /// Essence); and the causes a deeper sweep found missing: Camarilla Threat's
 /// discard toll (294), blood to an uncontrolled vampire (375), a diablerie in a
@@ -44,7 +44,7 @@ fn from() -> u32 {
 /// view paths the events missed: an ally stolen for good (99, 300:
 /// Entrancement), a contested vampire's capacity (114, 286), Call the Great
 /// Beast become a vampire (300), a card burned to an ousted owner's ash heap
-/// (474, 933: Disarm), an open hand (109), cards into one (106, 135), one
+/// (474, 933: Disarm), an open hand (142), cards into one (106, 135), one
 /// closed with a card leaving it in the same step (910, 929); and a line naming
 /// no minion: an advanced vampire merged before a view (332: Helena (ADV)),
 /// Anathema's pool (392); and a contested vampire keeping its excess (386), a
@@ -54,9 +54,9 @@ fn from() -> u32 {
 /// referendum ended the game, its card out of limbo (210: Kine Resources
 /// Contested).
 const KEPT: [u32; 47] = [
-    45, 70, 81, 88, 95, 99, 104, 106, 109, 111, 114, 118, 119, 132, 135, 152, 172, 174, 210, 219,
-    239, 286, 294, 299, 300, 332, 346, 375, 380, 386, 389, 392, 411, 426, 474, 504, 516, 579, 591,
-    605, 695, 728, 910, 913, 929, 933, 1153,
+    45, 70, 81, 82, 88, 95, 99, 104, 106, 111, 114, 118, 119, 132, 135, 142, 152, 172, 210, 219,
+    239, 286, 294, 299, 300, 332, 346, 375, 376, 380, 386, 389, 392, 411, 426, 474, 504, 516, 579,
+    591, 695, 728, 910, 913, 929, 933, 1153,
 ];
 
 /// The sweep's seeds: `HOST_SEED_FROM` to `HOST_SEEDS` (40), the kept
