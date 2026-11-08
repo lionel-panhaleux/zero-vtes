@@ -6,6 +6,14 @@ server runs.
 `python3 scripts/schema_compat.py` lists what a schema change adds or
 removes; its `--check` fails a removal without a major version.
 
+## 2.24.0
+
+- `GET /catalog/decks`: the catalog's decks in its order, each with what
+  it is: its `kind` (`precon`, `starter` or `twda`), its own `title`, and a
+  tournament winner's `twda` id, `event` and `date` (§10; `CatalogDeck`,
+  `DeckKind`). `GET /catalog` keeps its `[name, list]` pairs. Ids added,
+  none removed.
+
 ## 2.23.0
 
 Round 26's cards (rules-qa Batch 111); ids added, none removed:

@@ -34,6 +34,11 @@ pub fn catalog() -> Vec<(String, DeckList)> {
     deck::catalog()
 }
 
+/// The catalog's decks, each with what it is (`GET /catalog/decks`).
+pub fn catalog_decks() -> Vec<zvtes_api::CatalogDeck> {
+    deck::catalog_decks()
+}
+
 /// VEKN's suggested two-player decklists: (name, list).
 pub fn two_player_catalog() -> Vec<(String, DeckList)> {
     deck::two_player_catalog()

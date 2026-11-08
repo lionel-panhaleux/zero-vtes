@@ -106,6 +106,21 @@ fn catalog() -> Value {
     })
 }
 
+fn catalog_decks() -> Value {
+    json!({
+        "tags": ["Server"],
+        "summary": "What each deck is",
+        "description": "The decks of `GET /catalog`, in its order, each with what it is: \
+            its `kind` (a precon, a New Blood starter or a tournament winner), its own `title`, and a \
+            tournament winner's TWDA id, event and date. The two-player variant's \
+            decklists stay at `GET /catalog?seats=2`.",
+        "operationId": "catalogDecks",
+        "responses": {"200": ok("The decks, described.", json!({
+            "type": "array", "items": model("CatalogDeck"),
+        }))},
+    })
+}
+
 fn taught() -> Value {
     json!({
         "tags": ["Server"],
@@ -307,6 +322,7 @@ pub fn json() -> String {
             "/games/{game}/record": {"get": record()},
             "/version": {"get": version()},
             "/catalog": {"get": catalog()},
+            "/catalog/decks": {"get": catalog_decks()},
             "/catalog/taught": {"get": taught()},
             "/cards": {"get": cards()},
             "/decks/check": {"post": check_deck()},

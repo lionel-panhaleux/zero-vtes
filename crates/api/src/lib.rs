@@ -12,6 +12,7 @@
 //! tagged by `type` (messages, commands, record entries), `kind` (events,
 //! targets) or `error`.
 
+pub mod catalog;
 pub mod command;
 pub mod event;
 pub mod ids;
@@ -24,6 +25,7 @@ pub mod spec;
 pub mod taught;
 pub mod view;
 
+pub use catalog::{CatalogDeck, DeckKind};
 pub use command::{Command, In};
 pub use event::{Event, EventKind};
 pub use ids::*;
@@ -36,7 +38,7 @@ pub use view::TableView;
 
 /// The protocol's version (semver): a client checks the major in
 /// [`Joined::protocol`].
-pub const PROTOCOL_VERSION: &str = "2.23.0";
+pub const PROTOCOL_VERSION: &str = "2.24.0";
 
 /// The largest seed, 2^53 − 1: the most a JSON number holds exactly.
 pub const SEED_MAX: u64 = (1 << 53) - 1;
@@ -59,8 +61,8 @@ pub mod schema {
     }
 
     /// Every type a client meets, by name: commands, messages, the game
-    /// spec, the game record, the decks the bot plays worst and what they
-    /// hold.
+    /// spec, the game record, what each catalog deck is, the decks the bot
+    /// plays worst and what they hold.
     pub fn defs() -> serde_json::Map<String, serde_json::Value> {
         let parts = [
             ("In", schema_for!(crate::In)),
@@ -68,6 +70,7 @@ pub mod schema {
             ("GameSpec", schema_for!(crate::GameSpec)),
             ("SpecError", schema_for!(crate::SpecError)),
             ("GameRecord", schema_for!(crate::GameRecord)),
+            ("CatalogDeck", schema_for!(crate::CatalogDeck)),
             ("TaughtDecks", schema_for!(crate::TaughtDecks)),
         ];
         let mut defs = serde_json::Map::new();

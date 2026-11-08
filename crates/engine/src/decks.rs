@@ -5,7 +5,7 @@
 
 use crate::crypt::{ANNIVERSARY_PRECONS, MINI_PRECONS, PRECONS, SABBAT_PRECONS};
 use crate::library::{ANNIVERSARY_LIBRARIES, MINI_LIBRARIES, PRECON_LIBRARIES, SABBAT_LIBRARIES};
-use crate::twda::TWDA;
+use crate::twda::{Decklist, TWDA};
 
 /// Cards and copies: (CRYPT or LIBRARY index, copies).
 pub type CardList<'a> = &'a [(u16, u8)];
@@ -16,6 +16,20 @@ pub struct Deck {
     pub name: &'static str,
     pub crypt: &'static [(u16, u8)],
     pub library: &'static [(u16, u8)],
+    pub kind: Kind,
+}
+
+/// What a decklist is.
+#[derive(Clone, Copy, Debug)]
+pub enum Kind {
+    /// A preconstructed deck: the full-size precons, the anniversary and
+    /// the Sabbat V5 decks.
+    Precon,
+    /// A New Blood mini-starter: a half deck, never trained on (DESIGN §3).
+    Starter,
+    /// A tournament-winning deck, with its archive entry (title, event,
+    /// date, id).
+    Twda(&'static Decklist),
 }
 
 impl Deck {
@@ -25,6 +39,7 @@ impl Deck {
             name: PRECONS[i].0,
             crypt: PRECONS[i].1,
             library: PRECON_LIBRARIES[i].1,
+            kind: Kind::Precon,
         }
     }
 
@@ -34,6 +49,7 @@ impl Deck {
             name: MINI_PRECONS[i].0,
             crypt: MINI_PRECONS[i].1,
             library: MINI_LIBRARIES[i].1,
+            kind: Kind::Starter,
         }
     }
 
@@ -43,6 +59,7 @@ impl Deck {
             name: ANNIVERSARY_PRECONS[i].0,
             crypt: ANNIVERSARY_PRECONS[i].1,
             library: ANNIVERSARY_LIBRARIES[i].1,
+            kind: Kind::Precon,
         }
     }
 
@@ -52,15 +69,31 @@ impl Deck {
             name: SABBAT_PRECONS[i].0,
             crypt: SABBAT_PRECONS[i].1,
             library: SABBAT_LIBRARIES[i].1,
+            kind: Kind::Precon,
         }
     }
 
     /// The TWDA deck `i` (`TWDA` order).
     pub fn twda(i: usize) -> Deck {
+        let d = &TWDA[i];
         Deck {
-            name: TWDA[i].0,
-            crypt: TWDA[i].2,
-            library: TWDA[i].3,
+            name: d.name,
+            crypt: d.crypt,
+            library: d.library,
+            kind: Kind::Twda(d),
+        }
+    }
+
+    /// The deck's own name: a TWDA deck's archive title; a precon's or a
+    /// starter's name without its set (`gen_crypt.py` writes `deck (set)`,
+    /// the deck with no parenthesis of its own, a set may: `Fifth Edition
+    /// (Anarch)`; `precon_names_are_deck_then_set`).
+    pub fn title(&self) -> &'static str {
+        match self.kind {
+            Kind::Twda(t) => t.title,
+            Kind::Precon | Kind::Starter => {
+                self.name.split_once(" (").map_or(self.name, |(t, _)| t)
+            }
         }
     }
 
@@ -164,6 +197,27 @@ mod tests {
     use crate::library::LIBRARY;
 
     #[test]
+    fn precon_names_are_deck_then_set() {
+        for d in Deck::all().filter(|d| !matches!(d.kind, Kind::Twda(_))) {
+            let set = d
+                .name
+                .strip_prefix(d.title())
+                .and_then(|r| r.strip_prefix(" ("));
+            assert!(set.is_some_and(|s| s.ends_with(')')), "{}", d.name);
+            assert!(!d.title().contains(['(', ')']), "{}", d.name);
+        }
+        assert_eq!(Deck::precon(0).title(), "Hecata");
+        let banu = Deck::all().find(|d| d.name == "Banu Haqim (Fifth Edition (Anarch))");
+        assert_eq!(banu.map(|d| d.title()), Some("Banu Haqim"));
+        assert_eq!(Deck::twda(0).title(), crate::twda::TWDA[0].title);
+        // A TWDA name is its archive fields, joined (the server's taught
+        // decks check a measure's event and date against them).
+        for t in &crate::twda::TWDA {
+            assert_eq!(t.name, format!("{} ({}, {})", t.title, t.event, t.date));
+        }
+    }
+
+    #[test]
     fn crypt_share_counts_copies_over_the_smaller_crypt() {
         let a = Deck::precon(0);
         assert_eq!(a.crypt_share(&a), 1.0);
@@ -171,6 +225,7 @@ mod tests {
             name: "half",
             crypt: &[],
             library: &[],
+            kind: Kind::Starter,
         };
         assert_eq!(a.crypt_share(&b), 0.0);
         // Distinct precons of one clan share some vampires, others none.

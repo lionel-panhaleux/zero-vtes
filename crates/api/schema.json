@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "title": "zvtes protocol",
-  "version": "2.23.0",
+  "version": "2.24.0",
   "$defs": {
     "About": {
       "description": "What a choice is about (`Decision::about`): each field given where\nthe purpose (or the terms) has it (docs/protocol.md §5).",
@@ -631,6 +631,60 @@
         }
       }
     },
+    "CatalogDeck": {
+      "title": "CatalogDeck",
+      "description": "A deck the engine ships, as `GET /catalog` names it, with what it is.",
+      "type": "object",
+      "properties": {
+        "date": {
+          "description": "The event's day, `YYYY-MM-DD`.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "event": {
+          "description": "The event it won.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "kind": {
+          "$ref": "#/$defs/DeckKind"
+        },
+        "list": {
+          "description": "The decklist, as `GET /catalog` gives it.",
+          "type": "object",
+          "additionalProperties": {
+            "type": "integer",
+            "format": "uint32",
+            "minimum": 0
+          }
+        },
+        "name": {
+          "description": "Its name in `GET /catalog`.",
+          "type": "string"
+        },
+        "title": {
+          "description": "The deck's own name: `name` without its ` (set)` (a precon's,\na starter's) or ` (event, date)` (a tournament winner's).",
+          "type": "string"
+        },
+        "twda": {
+          "description": "A tournament winner's TWDA id.",
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "name",
+        "title",
+        "kind",
+        "list"
+      ]
+    },
     "Cause": {
       "description": "What made a `pool`, `blood` or `counters` change: a cost paid or an effect, of a\ncard or of the rules.",
       "type": "object",
@@ -1071,6 +1125,26 @@
         "options",
         "undo",
         "view"
+      ]
+    },
+    "DeckKind": {
+      "description": "Where a catalog deck comes from.",
+      "oneOf": [
+        {
+          "description": "A preconstructed deck: the V5 precons, the anniversary and the\nSabbat V5 decks.",
+          "type": "string",
+          "const": "precon"
+        },
+        {
+          "description": "A New Blood mini-starter: a half deck (6 crypt cards, 48–49\nlibrary cards).",
+          "type": "string",
+          "const": "starter"
+        },
+        {
+          "description": "A tournament-winning deck of the TWDA, all its cards in the pool.",
+          "type": "string",
+          "const": "twda"
+        }
       ]
     },
     "DisciplineLevel": {

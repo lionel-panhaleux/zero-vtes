@@ -1989,9 +1989,13 @@ sources to the engine's conventions.
   are all in the pool, tournament-legal sizes (crypt 12+, library 60–90),
   versions capped (`SAME_CRYPT` 25%, `VERSIONS` 3, `SAME_LIBRARY` 50%; the
   largest event's winner first, then the newest; generic vampires such as
-  Anarch Convert not counted), TWDA order; `Deck::crypt_share`,
-  `Deck::clan` (most crypt copies); regenerated after a pool change, it
-  picks up the decks the additions complete.
+  Anarch Convert not counted), TWDA order; each a `twda::Decklist`, its
+  catalog `name` (`title (event, date)`) beside the archive's own title,
+  event, date and id, which a deck's `decks::Kind::Twda` carries (beside
+  `Precon` and `Starter`, the New Blood minis; the server's
+  `GET /catalog/decks`); `Deck::crypt_share`, `Deck::clan` (most
+  crypt copies); regenerated after a pool change, it picks up the decks
+  the additions complete.
 - `Engine::with_decks(seed, decks)` seats them in order; `Engine::new` draws
   random precons with the same random sequence as before (goldens
   unchanged).

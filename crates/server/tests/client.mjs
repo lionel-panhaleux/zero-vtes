@@ -3,14 +3,22 @@
 // token, answers by option index, a `feedback` mid-game, the record
 // refused mid-game and read at the end, its seed the server's, a deck
 // with a card outside the pool refused, a deck checked by its cards'
-// names (/cards, /decks/check), the taught decks (/catalog/taught, when
-// measured); with ZVTES_ADMIN_TOKEN, the feedback read
-// from /admin/feedback and the refused card counted at /admin/unsupported.
+// names (/cards, /decks/check), what each deck is (/catalog/decks), the
+// taught decks (/catalog/taught, when measured); with ZVTES_ADMIN_TOKEN,
+// the feedback read from /admin/feedback and the refused card counted at
+// /admin/unsupported.
 // `node crates/server/tests/client.mjs [http://127.0.0.1:8040]`
 const base = process.argv[2] ?? 'http://127.0.0.1:8040'
 const version = await (await fetch(`${base}/version`)).json()
 console.log(`server: engine ${version.engine}, protocol ${version.protocol}, profiles ${version.profiles}`)
 const decks = await (await fetch(`${base}/catalog`)).json()
+// Each deck described, in the catalog's order; a tournament winner dated.
+const described = await (await fetch(`${base}/catalog/decks`)).json()
+if (described.map(d => d.name).join('\n') != decks.map(([name]) => name).join('\n')) throw new Error('/catalog/decks is not /catalog')
+const winners = described.filter(d => d.kind == 'twda')
+if (!winners.every(d => d.twda && d.event && /^\d{4}-\d\d-\d\d$/.test(d.date))) throw new Error('a TWDA deck undated')
+const kind = k => described.filter(d => d.kind == k).length
+console.log(`catalog: ${kind('precon')} precons, ${kind('starter')} starters, ${winners.length} TWDA decks, the newest ${winners.map(d => d.date).sort().at(-1)}`)
 // The decks the bot plays worst: the served weights' measure, or 404
 // while they have none.
 const taught = await fetch(`${base}/catalog/taught`)

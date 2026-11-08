@@ -87,7 +87,8 @@ def precons():
 
 def select(twda):
     """The TWDA decks whose every card is in the pool, at tournament sizes,
-    as (name, TWDA id, crypt, library, players, date); and the ids kept
+    as (name, TWDA id, crypt, library, players, date, title, event); and
+    the ids kept
     under the versions cap."""
     crypt_ids = table_ids(os.path.join(SRC, "crypt.rs"), "CRYPT")
     crypt = {i: k for k, i in enumerate(crypt_ids)}
@@ -109,8 +110,9 @@ def select(twda):
         # Tournament-legal sizes only (tournament rules: crypt 12+, library 60–90).
         if sum(n for _, n in c) < 12 or not 60 <= sum(n for _, n in li) <= 90:
             continue
-        name = f"{d.get('name') or 'Unnamed'} ({d['event']}, {d['date']})"
-        decks.append((name, d["id"], c, li, d.get("players_count") or 0, d["date"]))
+        title = d.get("name") or "Unnamed"
+        name = f"{title} ({d['event']}, {d['date']})"
+        decks.append((name, d["id"], c, li, d.get("players_count") or 0, d["date"], title, d["event"]))
     kept = precons()  # (crypt, library)
     keep = set()
     for deck in sorted(decks, key=lambda x: (x[4], x[5]), reverse=True):
@@ -132,23 +134,35 @@ def generate(twda):
         "//! from KRCG twda.json and the generated crypt/library tables. Do not edit by",
         "//! hand; regenerate and check with `--check`.",
         "",
-        "/// (name (event, date), TWDA id, crypt, library): crypt and library as",
-        "/// (CRYPT / LIBRARY index, copies).",
-        "pub type Decklist = (",
-        "    &'static str,",
-        "    &'static str,",
-        "    &'static [(u16, u8)],",
-        "    &'static [(u16, u8)],",
-        ");",
+        "/// A tournament-winning deck: its catalog `name` (`title (event, date)`),",
+        "/// the archive's own fields, and its cards as (CRYPT / LIBRARY index,",
+        "/// copies).",
+        "#[derive(Debug)]",
+        "pub struct Decklist {",
+        "    pub name: &'static str,",
+        "    /// The deck's own name (`Unnamed` when the archive gives none).",
+        "    pub title: &'static str,",
+        "    pub event: &'static str,",
+        "    /// `YYYY-MM-DD`.",
+        "    pub date: &'static str,",
+        "    /// The TWDA id.",
+        "    pub id: &'static str,",
+        "    pub crypt: &'static [(u16, u8)],",
+        "    pub library: &'static [(u16, u8)],",
+        "}",
         "",
         "/// The decks, in TWDA order.",
         "#[rustfmt::skip]",
         f"pub static TWDA: [Decklist; {len(decks)}] = [",
     ]
-    for name, tid, c, li, _, _ in decks:
+    for name, tid, c, li, _, date, title, event in decks:
         body_c = ", ".join(f"({i}, {n})" for i, n in c)
         body_l = ", ".join(f"({i}, {n})" for i, n in li)
-        out.append(f"    ({rust_str(name)}, {rust_str(tid)}, &[{body_c}], &[{body_l}]),")
+        out.append(
+            f"    Decklist {{ name: {rust_str(name)}, title: {rust_str(title)}, "
+            f"event: {rust_str(event)}, date: {rust_str(date)}, id: {rust_str(tid)}, "
+            f"crypt: &[{body_c}], library: &[{body_l}] }},"
+        )
     out.append("];")
     return "\n".join(out) + "\n"
 

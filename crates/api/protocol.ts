@@ -1,6 +1,6 @@
-/* zvtes protocol 2.23.0 (docs/protocol.md): generated from
+/* zvtes protocol 2.24.0 (docs/protocol.md): generated from
  * crates/api/schema.json by scripts/gen_ts.py, do not edit. */
-export const PROTOCOL_VERSION = '2.23.0'
+export const PROTOCOL_VERSION = '2.24.0'
 
 /**
  * A command as sent: an optional client id, echoed by an `error` it
@@ -351,6 +351,26 @@ export type CardRef = {
     id?: number | null
 }
 
+/** A deck the engine ships, as `GET /catalog` names it, with what it is. */
+export type CatalogDeck = {
+    /** The event's day, `YYYY-MM-DD`. */
+    date?: string | null
+    /** The event it won. */
+    event?: string | null
+    kind: DeckKind
+    /** The decklist, as `GET /catalog` gives it. */
+    list: Record<string, number>
+    /** Its name in `GET /catalog`. */
+    name: string
+    /**
+     * The deck's own name: `name` without its ` (set)` (a precon's,
+     * a starter's) or ` (event, date)` (a tournament winner's).
+     */
+    title: string
+    /** A tournament winner's TWDA id. */
+    twda?: string | null
+}
+
 /**
  * What made a `pool`, `blood` or `counters` change: a cost paid or an effect, of a
  * card or of the rules.
@@ -478,6 +498,9 @@ export type Decision = {
     votes?: VoteTotals | null
     window: Window
 }
+
+/** Where a catalog deck comes from. */
+export type DeckKind = 'precon' | 'starter' | 'twda'
 
 export type DisciplineLevel = {
     /** The KRCG abbreviation, lowercase: `dom`, `aus`… */

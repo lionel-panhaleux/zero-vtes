@@ -203,28 +203,6 @@ fn main() {
     );
 }
 
-/// A TWDA deck's catalog name, "<deck> (<event>, <YYYY-MM-DD>)"
-/// (`scripts/gen_twda.py`): its event and date. An event may hold commas
-/// and parentheses: the group the last parenthesis closes, found from the
-/// end.
-fn event_date(name: &str) -> (&str, &str) {
-    let inner = name
-        .strip_suffix(')')
-        .expect("a TWDA name ends with its event and date");
-    let mut depth = 0;
-    let (open, _) = inner
-        .char_indices()
-        .rev()
-        .find(|&(_, c)| {
-            depth += (c == ')') as i32 - (c == '(') as i32;
-            depth < 0
-        })
-        .expect("its opening parenthesis");
-    inner[open + 1..]
-        .rsplit_once(", ")
-        .expect("an event, then a date")
-}
-
 /// Today in UTC, `YYYY-MM-DD`.
 fn today() -> String {
     let out = std::process::Command::new("date")
@@ -290,7 +268,7 @@ fn deck_file(path: &str, games: u64) {
     let year: i32 = measured[..4].parse().expect("a year");
     // Dated within two years: the date two years back, compared as text.
     let since = format!("{}{}", year - 2, &measured[4..]);
-    let recent = |d: usize| event_date(TWDA[d].0).1 >= since.as_str();
+    let recent = |d: usize| TWDA[d].date >= since.as_str();
     let share = |d: usize| rows[&d].0 as f64 / rows[&d].3.max(1) as f64;
     let mut order: Vec<usize> = rows.keys().copied().collect();
     order.sort_by(|&a, &b| share(a).total_cmp(&share(b)));
@@ -298,14 +276,13 @@ fn deck_file(path: &str, games: u64) {
     let decks: Vec<zvtes_api::DeckMeasure> = order
         .iter()
         .map(|&d| {
-            let (name, id, _, _) = TWDA[d];
-            let (event, date) = event_date(name);
+            let deck = &TWDA[d];
             let (h, w, n, _) = rows[&d];
             zvtes_api::DeckMeasure {
-                name: name.into(),
-                twda: id.into(),
-                event: event.into(),
-                date: date.into(),
+                name: deck.name.into(),
+                twda: deck.id.into(),
+                event: deck.event.into(),
+                date: deck.date.into(),
                 recent: recent(d),
                 games: n as u32,
                 wins: w as u32,
@@ -353,6 +330,6 @@ fn deck_file(path: &str, games: u64) {
         );
     }
     for &d in order.iter().filter(|&&d| recent(d)).take(10) {
-        println!("{:.3} ({} wins) {}", share(d), rows[&d].1, TWDA[d].0);
+        println!("{:.3} ({} wins) {}", share(d), rows[&d].1, TWDA[d].name);
     }
 }

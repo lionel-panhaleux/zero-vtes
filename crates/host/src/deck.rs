@@ -179,10 +179,36 @@ pub fn list_of(deck: &Deck) -> DeckList {
 }
 
 /// Every deck the engine ships, by name: the precons, the New Blood
-/// minis, the anniversary decks, then the TWDA decks.
+/// minis, the anniversary decks, the Sabbat V5 decks, then the TWDA decks.
 pub fn catalog() -> Vec<(String, DeckList)> {
     Deck::all()
         .map(|d| (d.name.to_string(), list_of(&d)))
+        .collect()
+}
+
+/// The catalog's decks, in its order, each with what it is: a precon, a
+/// New Blood starter, or a tournament winner with its archive's title,
+/// event, date and id.
+pub fn catalog_decks() -> Vec<zvtes_api::CatalogDeck> {
+    use zvtes::decks::Kind;
+    use zvtes_api::DeckKind;
+    Deck::all()
+        .map(|d| {
+            let (kind, t) = match d.kind {
+                Kind::Precon => (DeckKind::Precon, None),
+                Kind::Starter => (DeckKind::Starter, None),
+                Kind::Twda(t) => (DeckKind::Twda, Some(t)),
+            };
+            zvtes_api::CatalogDeck {
+                name: d.name.into(),
+                title: d.title().into(),
+                kind,
+                list: list_of(&d),
+                twda: t.map(|t| t.id.into()),
+                event: t.map(|t| t.event.into()),
+                date: t.map(|t| t.date.into()),
+            }
+        })
         .collect()
 }
 

@@ -164,6 +164,7 @@ async fn main() {
         .route("/health", get(|| async { "ok" }))
         .route("/version", get(version))
         .route("/catalog", get(catalog))
+        .route("/catalog/decks", get(catalog_decks))
         .route(
             "/catalog/taught",
             get(|State(app): State<Shared>| async move { taught(app.taught.as_ref()) }),
@@ -253,10 +254,15 @@ async fn catalog(Query(q): Query<SeatsQuery>) -> Json<Vec<(String, zvtes_api::De
     })
 }
 
+/// The catalog's decks, each with what it is (protocol §10).
+async fn catalog_decks() -> Json<Vec<zvtes_api::CatalogDeck>> {
+    Json(zvtes_host::catalog_decks())
+}
+
 /// The measure at `path`, if it is of the served `weights`: each deck
-/// with its catalog list (one the catalog no longer ships dropped) and
-/// its title, the lowest VP share first; a deck whose catalog name does
-/// not end in its event and date refuses the file.
+/// with its catalog list and title (one the catalog no longer ships
+/// dropped), the lowest VP share first; a deck whose event or date is not
+/// the catalog's refuses the file.
 fn load_taught(
     path: &std::path::Path,
     weights: Option<&str>,
@@ -267,26 +273,27 @@ fn load_taught(
     if weights != Some(file.weights.as_str()) {
         return Err(format!("measures weights {}, not the served", file.weights));
     }
-    let catalog: HashMap<String, zvtes_api::DeckList> = zvtes_host::catalog().into_iter().collect();
+    let catalog: HashMap<String, zvtes_api::CatalogDeck> = zvtes_host::catalog_decks()
+        .into_iter()
+        .map(|d| (d.name.clone(), d))
+        .collect();
     let mut decks = Vec::new();
     for strength in file.decks {
-        let Some(list) = catalog.get(&strength.name).cloned() else {
+        let Some(deck) = catalog.get(&strength.name).cloned() else {
             continue;
         };
-        // The title is cut off by the event and date the file gives, not
-        // at a " (": deck names and events carry parentheses.
-        let suffix = format!(" ({}, {})", strength.event, strength.date);
-        let Some(title) = strength.name.strip_suffix(&suffix) else {
+        if deck.event.as_ref() != Some(&strength.event)
+            || deck.date.as_ref() != Some(&strength.date)
+        {
             return Err(format!(
                 "{}: not of {} {}",
                 strength.name, strength.event, strength.date
             ));
-        };
-        let title = title.to_string();
+        }
         decks.push(zvtes_api::TaughtDeck {
-            title,
+            title: deck.title,
             strength,
-            list,
+            list: deck.list,
         });
     }
     decks.sort_by(|a, b| a.strength.vp_share.total_cmp(&b.strength.vp_share));
@@ -734,6 +741,52 @@ async fn serve(app: Shared, id: String, mut ws: WebSocket) {
 mod tests {
     use super::*;
 
+    /// `GET /catalog/decks`: the catalog's decks in its order, each with
+    /// its kind (the New Blood starters apart from the precons) and title,
+    /// a tournament winner with its archive's id, event and date (a title
+    /// and an event with parentheses of their own).
+    #[tokio::test]
+    async fn the_catalog_says_what_each_deck_is() {
+        let Json(decks) = catalog_decks().await;
+        let Json(lists) = catalog(Query(SeatsQuery { seats: None })).await;
+        let names: Vec<&str> = decks.iter().map(|d| d.name.as_str()).collect();
+        let listed: Vec<&str> = lists.iter().map(|(n, _)| n.as_str()).collect();
+        assert_eq!(names, listed);
+        assert!(decks.iter().zip(&lists).all(|(d, (_, l))| d.list == *l));
+        let precon = &decks[0];
+        assert_eq!(precon.kind, zvtes_api::DeckKind::Precon);
+        assert_eq!(
+            (precon.name.as_str(), precon.title.as_str()),
+            ("Hecata (Fifth Edition)", "Hecata")
+        );
+        assert_eq!(
+            (&precon.twda, &precon.event, &precon.date),
+            (&None, &None, &None)
+        );
+        let tapas = decks
+            .iter()
+            .find(|d| {
+                d.name == "Una de Tapas (2025) Giovanni (Badalona New Blood 2025, 2025-07-13)"
+            })
+            .expect("a TWDA deck");
+        assert_eq!(tapas.kind, zvtes_api::DeckKind::Twda);
+        assert_eq!(tapas.title, "Una de Tapas (2025) Giovanni");
+        assert_eq!(tapas.twda.as_deref(), Some("12472"));
+        assert_eq!(tapas.event.as_deref(), Some("Badalona New Blood 2025"));
+        assert_eq!(tapas.date.as_deref(), Some("2025-07-13"));
+        let starter = decks
+            .iter()
+            .find(|d| d.name == zvtes::decks::Deck::mini(0).name)
+            .expect("a New Blood starter");
+        assert_eq!(starter.kind, zvtes_api::DeckKind::Starter);
+        let count = |k| decks.iter().filter(|d| d.kind == k).count();
+        assert_eq!(count(zvtes_api::DeckKind::Twda), zvtes::twda::TWDA.len());
+        assert_eq!(
+            count(zvtes_api::DeckKind::Starter),
+            zvtes::crypt::MINI_PRECONS.len()
+        );
+    }
+
     /// `GET /catalog` keeps the shipped decks; `?seats=2` gives VEKN's
     /// two-player lists (protocol.md §10).
     #[tokio::test]
@@ -816,8 +869,8 @@ mod tests {
         assert_eq!(taught(None).status(), StatusCode::NOT_FOUND);
     }
 
-    /// A deck whose event and date are not its catalog name's: the file
-    /// is not served, its titles could not be cut.
+    /// A deck whose event or date is not the catalog's: the file is not
+    /// served (its `TaughtDeck` would carry the wrong ones).
     #[test]
     fn a_measure_misnaming_an_event_is_not_served() {
         let file = std::fs::read_to_string(FIXTURE).unwrap();
