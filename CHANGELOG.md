@@ -6,6 +6,12 @@ server runs.
 `python3 scripts/schema_compat.py` lists what a schema change adds or
 removes; its `--check` fails a removal without a major version.
 
+## 2.24.1
+
+- `opportunities` off (§8): a wake in a referendum is shown when the woken
+  minion could then play a card there (Delaying Tactics); other wakes there
+  stay hidden (the owner, 2026-11-08). No id changed.
+
 ## 2.24.0
 
 - `GET /catalog/decks`: the catalog's decks in its order, each with what

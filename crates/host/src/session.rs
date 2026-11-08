@@ -660,10 +660,11 @@ impl Session {
     }
 
     /// Whether `c` is an opportunity: a wake or a reaction's unlock (in its
-    /// moment or not, `wake_moment`), an ability usable at any time (The
-    /// Louvre, Paris), a block denial, a legal no-op, a futile block attempt,
-    /// the acting seat's option against a short attempt, a strike's damage made
-    /// aggravated (in its moment or not).
+    /// moment or not: `wake_moment`; a wake as a card is played or in a
+    /// referendum, `wake_cancels`, `wake_plays_in_referendum`), an ability
+    /// usable at any time (The Louvre, Paris), a block denial, a legal no-op, a
+    /// futile block attempt, the acting seat's option against a short attempt,
+    /// a strike's damage made aggravated (in its moment or not).
     fn opportunity(&self, req: &DecisionRequest, c: &Choice) -> Option<Opportunity> {
         let e = &self.engine;
         let st = &e.state;
@@ -693,6 +694,12 @@ impl Session {
                 // cancel it (`wake_cancels`).
                 if wakes && req.window == WindowLabel::CardAsPlayed {
                     return Some(Opportunity::Wake(self.wake_cancels(req, c)));
+                }
+                // Nor in a referendum (owner, 2026-10-19) unless the woken
+                // minion could then play a card there (owner, 2026-11-08:
+                // "wakes to play Delaying Tactics").
+                if wakes && e.referendum().is_some() {
+                    return Some(Opportunity::Wake(self.wake_plays_in_referendum(req, c)));
                 }
                 // A reaction's unlock keeps a wake's moments (owner,
                 // 2026-11-04: "much less opportunities, the way we do for
@@ -728,7 +735,8 @@ impl Session {
     /// correct"); once blocks are declined, only on a bleed at the seat, to
     /// wake and bounce it (owner, 2026-10-19: "otherwise it's noise");
     /// never in a referendum (owner, 2026-10-19: "many times during a
-    /// referendum. Shouldn't").
+    /// referendum. Shouldn't"; a wake letting its minion play a card there
+    /// is `wake_plays_in_referendum`'s).
     fn wake_moment(&self, req: &DecisionRequest) -> bool {
         let e = &self.engine;
         let st = &e.state;
@@ -751,30 +759,7 @@ impl Session {
     /// Clarity): the seat is then offered a play canceling it (owner,
     /// 2026-10-25).
     fn wake_cancels(&self, req: &DecisionRequest, c: &Choice) -> bool {
-        let Some(i) = req.options.iter().position(|o| o == c) else {
-            return false;
-        };
-        // No card is drawn in the window (rules-qa 110.1): the hand probed
-        // tells nothing the seat does not know.
-        let mut probe = self.engine.clone();
-        probe.choose(i);
-        // The other seats pass on the wake as it is played (its own
-        // as-played window): whether they could answer it is theirs.
-        let mut next = None;
-        for _ in 0..16 {
-            let Step::Decision(asked) = probe.run() else {
-                return false;
-            };
-            if asked.seat == req.seat {
-                next = Some(asked);
-                break;
-            }
-            let Some(pass) = asked.options.iter().position(|o| *o == Choice::Pass) else {
-                return false;
-            };
-            probe.choose(pass);
-        }
-        let Some(next) = next else {
+        let Some((probe, next)) = self.after_wake(req, c) else {
             return false;
         };
         next.window == WindowLabel::CardAsPlayed
@@ -791,6 +776,47 @@ impl Session {
                             .any(|f| matches!(f, Effect::CancelPlayed { .. }))
                     })
             })
+    }
+
+    /// The wake `c`, in a referendum, lets the woken minion play a card
+    /// there (Delaying Tactics): the seat is then offered a play by it.
+    fn wake_plays_in_referendum(&self, req: &DecisionRequest, c: &Choice) -> bool {
+        let Choice::Play {
+            actor: Some(woken), ..
+        } = *c
+        else {
+            return false;
+        };
+        let Some((probe, next)) = self.after_wake(req, c) else {
+            return false;
+        };
+        probe.referendum().is_some()
+            && next
+                .options
+                .iter()
+                .any(|o| matches!(o, Choice::Play { actor: Some(a), .. } if *a == woken))
+    }
+
+    /// The seat's next request once it played the wake `c` and the other
+    /// seats passed on it as it was played (its as-played window: whether
+    /// they could answer it is theirs), and the engine then.
+    fn after_wake(&self, req: &DecisionRequest, c: &Choice) -> Option<(Engine, DecisionRequest)> {
+        let i = req.options.iter().position(|o| o == c)?;
+        // No card is drawn in the window (rules-qa 110.1): the hand probed
+        // tells nothing the seat does not know.
+        let mut probe = self.engine.clone();
+        probe.choose(i);
+        for _ in 0..16 {
+            let Step::Decision(asked) = probe.run() else {
+                return None;
+            };
+            if asked.seat == req.seat {
+                return Some((probe, asked));
+            }
+            let pass = asked.options.iter().position(|o| *o == Choice::Pass)?;
+            probe.choose(pass);
+        }
+        None
     }
 
     /// `effects` deny the block attempt under way: needed only while the
@@ -1994,8 +2020,9 @@ mod tests {
     }
 
     /// Whether the seat's locked vampire's wake is shown in its predator's
-    /// referendum, the opportunities `on` or off (`None`: never offered).
-    fn referendum_wake_shown(on: bool) -> Option<bool> {
+    /// referendum, the opportunities `on` or off (`None`: never offered),
+    /// the seat holding Delaying Tactics too if `delaying`.
+    fn referendum_wake_shown(on: bool, delaying: bool) -> Option<bool> {
         let (mut s, _) = session();
         let mut e = Engine::bare(3);
         for seat in &mut e.state.seats {
@@ -2009,6 +2036,11 @@ mod tests {
         e.state.seats[1]
             .hand
             .put(find_library("On the Qui Vive"), CopyId::NONE);
+        if delaying {
+            e.state.seats[1]
+                .hand
+                .put(find_library("Delaying Tactics"), CopyId::NONE);
+        }
         e.state.seats[0]
             .hand
             .put(find_library("Kine Resources Contested"), CopyId::NONE);
@@ -2033,11 +2065,12 @@ mod tests {
                 break;
             };
             if req.seat == SeatId(1) && s.engine.referendum().is_some() {
-                if let Some(i) = req
-                    .options
-                    .iter()
-                    .position(|o| matches!(o, Choice::Play { actor: Some(a), .. } if *a == z))
-                {
+                let qui_vive = find_library("On the Qui Vive");
+                let hand = s.engine.virtual_hand(SeatId(1));
+                if let Some(i) = req.options.iter().position(|o| {
+                    matches!(o, Choice::Play { card, actor: Some(a), .. }
+                        if *a == z && hand[*card as usize].0 == qui_vive)
+                }) {
                     shown = Some(s.shown(&req).contains(&i));
                     break;
                 }
@@ -2058,20 +2091,29 @@ mod tests {
         shown
     }
 
-    /// A wake is never shown in a referendum with the opportunities off
-    /// (owner, 2026-10-19): only with them on.
+    /// A wake in a referendum that lets no card be played there is hidden
+    /// with the opportunities off (owner, 2026-10-19): shown with them on.
     #[test]
     fn a_wake_in_a_referendum_is_hidden_with_the_opportunities_off() {
         assert_eq!(
-            referendum_wake_shown(true),
+            referendum_wake_shown(true, false),
             Some(true),
             "shown with them on"
         );
         assert_eq!(
-            referendum_wake_shown(false),
+            referendum_wake_shown(false, false),
             Some(false),
             "offered, hidden off"
         );
+    }
+
+    /// With the opportunities off, a wake in a referendum is shown when the
+    /// woken vampire could then play a card there: Delaying Tactics in
+    /// hand (owner, 2026-11-08: "wakes to play Delaying Tactics during an
+    /// opponent's political action").
+    #[test]
+    fn a_wake_in_a_referendum_is_shown_when_it_lets_a_card_be_played() {
+        assert_eq!(referendum_wake_shown(false, true), Some(true));
     }
 
     /// Seat 0's `action` (a bleed is at seat 1) against seat 1's locked

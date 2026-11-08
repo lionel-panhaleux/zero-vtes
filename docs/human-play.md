@@ -43,9 +43,10 @@ to them:
   the seat, or undirected and its prey's or predator's; never a bleed
   directed at another seat (owner: "not bleeds directed at my cross").
   The owner's reason for each kind the filter hides is beside it in
-  `Session::opportunity` (a wake's in `Session::wake_moment`); each kind
-  has its test, shown on and hidden off
-  (`*_is_hidden_with_the_opportunities_off`). A hidden option keeps its
+  `Session::opportunity` (a wake's in `Session::wake_moment`, and as a card
+  is played or in a referendum in `wake_cancels`,
+  `wake_plays_in_referendum`); each kind has its test, shown on and hidden
+  off (`*_is_hidden_with_the_opportunities_off`). A hidden option keeps its
   engine index; the record keeps the options shown.
 - **All votes one way** casts the seat's vampires' votes and its
   political card's vote as each turn of the polling comes; the Edge, a

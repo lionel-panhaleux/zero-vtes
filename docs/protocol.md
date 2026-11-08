@@ -18,7 +18,7 @@ is created by one request and played over one WebSocket. Every game is
 recorded, anonymously, and kept two years to train and test the engine
 (§11).
 
-Version **2.24.0**. The types: the models of the
+Version **2.24.1**. The types: the models of the
 [API reference](https://engine.krcg.org/docs), also as
 [JSON Schema](https://engine.krcg.org/schema.json) (2020-12) and
 [TypeScript](https://engine.krcg.org/protocol.ts).
@@ -520,7 +520,8 @@ their default) and changed by `settings`:
   wakes and cancels only), or, while blocks are open, outside the seat's own
   block moment (before the would-be blockers ahead of it declined, after its
   own decline), or, in the blocks-declined window, on anything but a bleed
-  at the seat (Shadow Sentinel: to wake and bounce it), or in a referendum,
+  at the seat (Shadow Sentinel: to wake and bounce it), or in a referendum
+  (unless the woken minion could then play a card there: Delaying Tactics),
   a block denial short of the action's stealth, the acting seat's options
   other than the pass while the attempt under way is short of it (the round
   is the blocker's and the table's), a card or ability making a strike's
