@@ -2127,8 +2127,10 @@ training runs.
   total report (`data/server-records/reports/total.md`, "Humans against the
   bots") by weights against p14's own: humans winning 79% ± 13 points and
   scoring 2.79 ± 0.39 VP a seat (two standard errors) over its 39 counted
-  games; p17's games with a human on a deck from `GET /catalog/taught` read
-  apart, p14's having none), `runs/p17/last.zvp` (`f426338f6c80`), the previous
+  games; p17's games with a human on a deck from `GET /catalog/taught` or a bot
+  on a TWDA deck read apart (each game's decks: the daily reports' "Every game"
+  rows), p14's having neither: its bots played precons only),
+  `runs/p17/last.zvp` (`f426338f6c80`), the previous
   `runs/served-prev-2026-11-06-p14.zvp` (`a78e74292acb`).
 - **Bots on any deck** (owner, 2026-10-26, via Z-succubus: humans teach the bot
   the recent TWDA decks it plays worst; served at `GET /catalog/taught`,
