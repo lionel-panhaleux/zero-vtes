@@ -10,7 +10,9 @@
 - **frankfurt**: an OVH VPS, 6 vCPU / 12 GB, shared with archon beta and
   the forum (Discourse); pyinfra-deployed systemd units behind nginx and
   certbot, sops secrets, Alloy to Loki and Prometheus, Postgres 17 with
-  nightly restic backups to Scaleway, UFW 22/80/443 only. It serves:
+  nightly restic backups to Scaleway, UFW 22/80/443 only. It keeps the
+  served weights and their runs' checkpoints by hash in
+  `/opt/zvtes/weights` ("Releases and deploys"). It serves:
   - `https://engine.krcg.org`: the server (`crates/server`, port 8040,
     `MemoryMax` 3G and `CPUQuota` 400% in `deploy/group_data/all.py`: the
     forum shares the box; the server pings every 30 s under nginx's read
@@ -89,7 +91,11 @@ standing word, 2026-10-23):
   names the weights served; their measure by deck, the training line's
   `<name>.decks.json` beside them, goes with them when it is there
   (`ZVTES_DECKS`, served at `GET /catalog/taught` only while it names the
-  weights served).
+  weights served), and their run's checkpoint, `<name>.pt` beside them,
+  kept as `/opt/zvtes/weights/<sha>.pt` (owner, 2026-11-09: the one
+  training file kept off the training machine, a run's `best.pt`; the
+  rest of `runs/` is not kept, the harvest is rebuilt from
+  the server's Postgres, the run's numbers live in DESIGN §11.2).
 
 Z-succubus pushes its own fork branches but `engine-game` (upstream PR
 #285, sc-change); upstream stays on the owner's word.

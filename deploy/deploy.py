@@ -6,7 +6,8 @@ a systemd unit, nginx + TLS for engine.krcg.org.
     cd deploy && uv run --group deploy pyinfra inventory.py deploy.py --diff
 
 Environment: ZVTES_WEIGHTS (the .zvp to serve; default ../target/policy.zvp;
-its measure by deck, `<name>.decks.json` beside it, served too when there),
+its measure by deck, `<name>.decks.json` beside it, served too when there;
+its run's checkpoint, `<name>.pt` beside it, kept too when there),
 BUILD_DIR or ZVTES_REPO (+ RELEASE_TAG) for the binary.
 """
 
@@ -109,6 +110,20 @@ decks_file = (
     if decks.exists()
     else None
 )
+
+# The run's checkpoint (`<name>.pt` beside the weights: policy, critic,
+# optimizer), kept by the weights' hash: the only copy off the training
+# machine a next run can resume from; the server never reads it.
+checkpoint = weights.with_suffix(".pt")
+if checkpoint.exists():
+    files.put(
+        name="Run checkpoint",
+        src=str(checkpoint),
+        dest=f"{opt}/weights/{digest}.pt",
+        user="root",
+        group=name,
+        mode="644",
+    )
 
 postgres_db(database=name, owner=name)
 

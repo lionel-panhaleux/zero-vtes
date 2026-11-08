@@ -113,9 +113,15 @@ runs" (every run's command, numbers and lessons), `docs/boards/training.md`.
    Z-main deploys); name the served weights by their sha prefix in the
    DESIGN note (the server records the weights' SHA-256 per game); keep the
    previous weights as `runs/served-prev-<date>-<run>.zvp`, their per-deck
-   file beside them under the same stem (`.decks.json`), and measure weights
-   that have none before serving them (a rollback to p14); the served
-   profile (temperature, nudges) lives in `crates/policy/src/profiles.rs`
+   file beside them under the same stem (`.decks.json`); the served export
+   made from a copy of the run's checkpoint (`cp runs/pN/best.pt
+   runs/served-pN.pt`, then `train.export runs/served-pN.pt
+   runs/served-pN.zvp`: `best.pt` moves while a run goes on), which the
+   deploy keeps on frankfurt by the weights' hash (docs/operations.md
+   "Releases and deploys"; on a new machine `scp
+   frankfurt:/opt/zvtes/weights/<sha>.pt`); measure weights that have none
+   before serving them (a rollback to p14); the served profile
+   (temperature, nudges) lives in `crates/policy/src/profiles.rs`
    (`NETWORK`), which the server, `crates/policy/examples/humanset.rs` and
    `decks.rs --file` read.
 
