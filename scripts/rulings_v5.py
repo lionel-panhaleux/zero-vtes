@@ -29,13 +29,12 @@ test function whose doc comment cites the references; every test in
 tests/rulings.rs backs at least one row.
 """
 import csv
-import json
 import os
 import re
 import sys
-import urllib.request
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import krcg  # noqa: E402
 from window_matrix import in_pool  # noqa: E402
 
 RULINGS_DIR = os.path.join(os.path.dirname(__file__), "..", "..", "vtes-advanced-rules",
@@ -219,12 +218,8 @@ def main():
     if os.path.exists(CSV_PATH):
         for r in csv.DictReader(open(CSV_PATH, encoding="utf-8", newline="")):
             previous[tuple(r[k] for k in KEY)] = r["status"]
-    if args:
-        cards = json.load(open(args[0]))
-    else:
-        with urllib.request.urlopen("https://static.krcg.org/data/vtes.json") as f:
-            cards = json.load(f)
-    v5 = {c["id"]: c["_name"] for c in cards if in_pool(c)}
+    cards = krcg.load_cards(args[0] if args else None)
+    v5 = {c["id"]: krcg.name(c) for c in cards if in_pool(c)}
     groups = parse_groups(GROUPS)
     out = csv.writer(sys.stdout)
     out.writerow(["card_id", "card", "via", "references", "ruling", "status"])

@@ -14,26 +14,20 @@ missing. A demand file is the server's count of the ids its refusals named
 Usage: python3 scripts/coverage.py [vtes.json] [--twda twda.json]
                                    [--demand demand.json] [--sets]
 Downloads https://static.krcg.org/data/vtes.json (and twda.json) when no
-path is given; `--sets` prints every set, the summary only its totals.
+path is given (KRCG's v5 schema, read through scripts/krcg.py); `--sets`
+prints every set, the summary only its totals.
 """
 import json
 import os
 import sys
-import urllib.request
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import gen_twda  # noqa: E402  (its pool readers and deck rules)
+import krcg  # noqa: E402
 
 SRC = gen_twda.SRC
 CRYPT_TYPES = {"Vampire", "Imbued"}
 RECENT = "2025"  # the owner's metric (2026-10-14): recent decks, 2025 on
-
-
-def load(path, url):
-    if path:
-        return json.load(open(path))
-    with urllib.request.urlopen(url) as f:
-        return json.load(f)
 
 
 def is_crypt(card):
@@ -64,8 +58,8 @@ def main():
     all_sets = "--sets" in args
     if all_sets:
         args.remove("--sets")
-    cards = load(args[0] if args else None, "https://static.krcg.org/data/vtes.json")
-    twda = load(twda_path, "https://static.krcg.org/data/twda.json")
+    cards = krcg.load_cards(args[0] if args else None)
+    twda = krcg.load_twda(twda_path)
 
     pool = set(gen_twda.table_ids(os.path.join(SRC, "crypt.rs"), "CRYPT"))
     pool |= set(gen_twda.table_ids(os.path.join(SRC, "library.rs"), "LIBRARY"))
@@ -89,7 +83,7 @@ def main():
     for c in cards:
         if c["id"] in banned:
             continue
-        for name, prints in c["sets"].items():
+        for name, prints in krcg.sets(c).items():
             date = min((p.get("release_date") or "9999") for p in prints) if prints else "9999"
             s = sets.setdefault(name, {"date": date, "n": 0, "done": 0})
             s["date"] = min(s["date"], date)
@@ -119,7 +113,7 @@ def main():
     print(f"{len(asked)} ids asked, {len(missing)} not in the pool:")
     for n, i in missing:
         card = by_id.get(i)
-        name = card["name"] if card else "unknown id"
+        name = krcg.full_name(card) if card else "unknown id"
         print(f"{n:>5}  {i}  {name}{' (banned)' if i in banned else ''}")
 
 

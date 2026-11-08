@@ -62,9 +62,9 @@ cards line adds them in rounds (the `add-cards` skill).
   decisions). Playing an event is an optional discard-phase action, so events
   stress the effects framework, not the decision protocol.
 - **Training decks**: deck families drawn per seat (`--decks`): the 14
-  full-size precons (Fifth Edition 7 · Anarch 4 · Companion 3, from KRCG
-  `_set` bundle codes: 379 unique cards), the reviewed anniversary decks
-  (`Deck::anniversary`), the Sabbat V5 precons (`Deck::sabbat`) and the
+  full-size precons (Fifth Edition 7 · Anarch 4 · Companion 3, from KRCG's
+  precon bundles, `krcg.sets`: 379 unique cards), the reviewed anniversary
+  decks (`Deck::anniversary`), the Sabbat V5 precons (`Deck::sabbat`) and the
   TWDA decks fully in the pool (`Deck::twda`, `scripts/gen_twda.py`),
   capped at 3 versions of a deck (owner: decks sharing more than 25% of
   their crypt are the same deck; a precon is its deck's first version; a
@@ -2253,7 +2253,7 @@ pointer-style policy makes new decklists data; engine pool ⊃ training roster.
 Terms the owner uses, as recorded in rules Q&A:
 
 - **Combo**: a single line of Discipline icons, "[dom][pre] X": every one
-  is needed (Iron Glare; KRCG `combo`).
+  is needed (Iron Glare; KRCG's discipline requirement `Combo`).
 - **Choice**: separate lines, "[pre] X / [tem] Y": one Discipline is
   chosen, at one level (Line Brawl). A card printing "more than one
   Discipline can be used" lets any set of them combine, each effect

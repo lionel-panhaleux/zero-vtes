@@ -23,16 +23,19 @@ timing is the legality filter.
 
 Usage: python3 scripts/window_matrix.py [path/to/vtes.json] > draft.csv
        python3 scripts/window_matrix.py [path/to/vtes.json] --check data/window-matrix-reviewed.csv
-Downloads https://static.krcg.org/data/vtes.json if no path is given.
+Downloads https://static.krcg.org/data/vtes.json if no path is given (KRCG's
+v5 schema, read through scripts/krcg.py).
 `--check` prints every card whose generated windows/flags differ from the
 reviewed matrix and exits non-zero if any do (convergence is expected to hold:
 the generator encodes the review's conventions).
 """
 import csv
-import json
+import os
 import re
 import sys
-import urllib.request
+
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import krcg  # noqa: E402
 
 V5_SETS = {
     "Fifth Edition": "V5",
@@ -1832,11 +1835,22 @@ ADDED_BATCHES = [
 ADDED_CARDS = {k: v for batch in ADDED_BATCHES for k, v in batch.items()}
 
 
+# Bundles of a V5 set kept out of the pool, as (set code, bundle code): the
+# 2026-10-31 bundles Secrets of New York and Noites Brasileiras, out until
+# the owner adds them as a round.
+OUT_BUNDLES = {("V5", "SoNY"), ("V5", "NBr")}
+
+
+def pool_sets(card):
+    """`krcg.sets` without the OUT_BUNDLES prints."""
+    return krcg.sets(card, OUT_BUNDLES)
+
+
 def in_pool(card):
-    """A card of the engine pool: printed in a V5-era set, or an owner-added
-    extra or addition."""
+    """A card of the engine pool: printed in a V5-era set (OUT_BUNDLES
+    aside), or an owner-added extra or addition."""
     return (
-        bool(V5_SETS.keys() & set(card.get("ordered_sets", [])))
+        bool(set(V5_SETS.values()) & krcg.set_codes(card, OUT_BUNDLES))
         or card["id"] in EXTRA_CARDS
         or card["id"] in ADDED_CARDS
     )
@@ -1899,9 +1913,9 @@ def anniversary_decks(cards):
         assert sum(extras.values()) == 20, s
         deck = {}
         for c in cards:
-            n = sum(e.get("copies", 0) for e in c.get("sets", {}).get(s, []))
+            n = sum(e.get("copies", 0) for e in pool_sets(c).get(s, []))
             n -= extras.get(c["id"], 0)
-            assert n >= 0, (s, c["name"])
+            assert n >= 0, (s, krcg.full_name(c))
             if n:
                 deck[c["id"]] = (c, n)
         if not all(in_pool(c) for c, _ in deck.values()):
@@ -1912,9 +1926,13 @@ def anniversary_decks(cards):
     return out
 
 
-# The Sabbat V5 precons (KRCG `precon` tags), each emitted once every card
-# of it is in the pool; drawn by path for training (owner, 2026-10-05).
+# The Sabbat V5 precons (KRCG's bundles, `krcg.sets` `precon`), each
+# emitted once every card of it is in the pool; drawn by path for training
+# (owner, 2026-10-05).
 SABBAT_SET = "Sabbat V5"
+# KRCG's later bundle name -> the deck's name in the tables, kept until the
+# cards board's TWDA refresh renames the deck (owner, 2026-11-08).
+SABBAT_NAMES = {"Path of Death and the Soul": "Path of Death"}
 
 
 def sabbat_decks(cards):
@@ -1922,9 +1940,9 @@ def sabbat_decks(cards):
     set, {card id: copies}); 12 crypt / 77 library each."""
     decks = {}
     for c in cards:
-        for e in c.get("sets", {}).get(SABBAT_SET, []):
+        for e in pool_sets(c).get(SABBAT_SET, []):
             if "precon" in e:
-                decks.setdefault(e["precon"], {})[c["id"]] = (c, e["copies"])
+                decks.setdefault(SABBAT_NAMES.get(e["precon"], e["precon"]), {})[c["id"]] = (c, e["copies"])
     # In the order they were completed (the batch of their last card), so
     # a deck added never moves one already emitted.
     batch = {k: i for i, b in enumerate(ADDED_BATCHES) for k in b}
@@ -2338,7 +2356,7 @@ def modes_for(card):
     Action/Combat card, every mode of a single-type card; card-text flags go
     on every mode."""
     types = card.get("types", [])
-    text = card.get("card_text", "")
+    text = krcg.text(card)
     wins = []
     flags = [f for pat, f in FLAGS if re.search(pat, text, re.I)]
     if re.search(IN_PLAY_ACTION, re.sub(r"[^.]*(announces?\b|burns a minion)[^.]*\.", "", text), re.I):
@@ -2348,7 +2366,7 @@ def modes_for(card):
     # imbued in the unlock phase (rulebook "Appendix: Imbued Rules" 2, 3):
     # the icons in their text time their abilities, not their play.
     if "Power" in types:
-        return [(card.get("disciplines", []), ["ACTION_DECLARE_POWER"], [])]
+        return [(krcg.disciplines(card), ["ACTION_DECLARE_POWER"], [])]
     if "Conviction" in types:
         return [([], ["UNLOCK_CONVICTION"], [])]
     out_of_turn = "out_of_turn" in flags
@@ -2464,18 +2482,15 @@ def modes_for(card):
 
 def rows_for(cards):
     codes = set(V5_SETS.values())
-    for card in sorted(cards, key=lambda c: c.get("name", "")):
+    for card in sorted(cards, key=krcg.full_name):
         if not in_pool(card):
             continue
         if {"Vampire", "Imbued"} & set(card.get("types", [])):
             continue
-        in_precon = any(
-            p.split(":")[0] in codes and re.match(r"^P", p.split(":", 1)[1])
-            for p in card.get("_set", "").split(", ") if ":" in p
-        )
+        in_precon = krcg.in_bundle(card, codes)
         wins, flags = windows_for(card)
-        yield [str(card["id"]), card["name"], "/".join(card.get("types", [])),
-               "/".join(card.get("disciplines", [])),
+        yield [str(card["id"]), krcg.full_name(card), "/".join(card.get("types", [])),
+               "/".join(krcg.disciplines(card)),
                "yes" if in_precon else "no",
                ";".join(wins), ";".join(flags), "yes" if len(wins) > 2 else ""]
 
@@ -2506,11 +2521,7 @@ def main():
         i = args.index("--check")
         reviewed = args[i + 1]
         del args[i:i + 2]
-    if args:
-        cards = json.load(open(args[0]))
-    else:
-        with urllib.request.urlopen("https://static.krcg.org/data/vtes.json") as f:
-            cards = json.load(f)
+    cards = krcg.load_cards(args[0] if args else None)
 
     rows = list(rows_for(cards))
     if reviewed:

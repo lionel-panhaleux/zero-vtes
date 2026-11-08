@@ -32,12 +32,15 @@ Key facts:
   `blocked:`); `scripts/rulings_v5.py --check data/rulings-v5.csv` verifies
   it against the tests offline — keep both in sync (regeneration keeps the
   statuses).
-- Card data source: https://static.krcg.org/data/vtes.json (the `v5/` dir there
-  is a *schema* version, not the V5 format). Generated from it, never edited by
-  hand: `scripts/gen_crypt.py` → `crypt.rs`, `scripts/gen_library.py` →
-  `library.rs` (`python3 scripts/gen_library.py <vtes.json> --check
-  crates/engine/src/library.rs`; same for crypt); `scripts/gen_twda.py [twda.json] --check crates/engine/src/twda.rs`
-  after either: the TWDA decks fully in the pool;
+- Card data source: https://static.krcg.org/data/vtes.json and twda.json, in
+  KRCG's v5 *schema* (not the V5 format; `v4/` keeps the old one), read
+  through `scripts/krcg.py` (the loaders, the card fields; set and bundle
+  names from `v5/expansions.json`, beside a given path or downloaded).
+  Generated from it, never edited by hand: `scripts/gen_crypt.py` →
+  `crypt.rs`, `scripts/gen_library.py` → `library.rs` (`python3
+  scripts/gen_library.py <vtes.json> --check crates/engine/src/library.rs`;
+  same for crypt); `scripts/gen_twda.py [twda.json] --check
+  crates/engine/src/twda.rs` after either: the TWDA decks fully in the pool;
   `scripts/two_player.py --check data/two-player.json`: VEKN's two-player
   list and decklists, downloaded from vekn.net, a directory of the pages
   as first argument offline).

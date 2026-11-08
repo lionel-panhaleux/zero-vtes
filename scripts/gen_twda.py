@@ -20,13 +20,15 @@ written in TWDA order (as the archive lists them). Output:
 
 Usage: python3 scripts/gen_twda.py [path/to/twda.json] > crates/engine/src/twda.rs
        python3 scripts/gen_twda.py [path/to/twda.json] --check crates/engine/src/twda.rs
-Downloads https://static.krcg.org/data/twda.json if no path is given.
+Downloads https://static.krcg.org/data/twda.json if no path is given (KRCG's
+v5 schema, read through scripts/krcg.py `load_twda`).
 """
-import json
 import os
 import re
 import sys
-import urllib.request
+
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import krcg  # noqa: E402
 
 SAME_CRYPT = 0.25
 VERSIONS = 3
@@ -102,9 +104,8 @@ def select(twda):
     library = {i: k for k, i in enumerate(table_ids(os.path.join(SRC, "library.rs"), "LIBRARY"))}
     decks = []
     for d in twda:
-        c = entries(d["crypt"]["cards"], crypt)
-        lib = [card for section in d["library"].get("cards", []) for card in section.get("cards", [])]
-        li = entries(lib, library)
+        c = entries(d["crypt"], crypt)
+        li = entries(d["library"], library)
         if c is None or li is None:
             continue
         # Tournament-legal sizes only (tournament rules: crypt 12+, library 60–90).
@@ -174,11 +175,7 @@ def main():
         i = args.index("--check")
         check = args[i + 1]
         del args[i:i + 2]
-    if args:
-        twda = json.load(open(args[0]))
-    else:
-        with urllib.request.urlopen("https://static.krcg.org/data/twda.json") as f:
-            twda = json.load(f)
+    twda = krcg.load_twda(args[0] if args else None)
     text = generate(twda)
     if check:
         if open(check).read() != text:

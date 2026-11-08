@@ -76,7 +76,7 @@ pub struct CryptCard {
     /// The title an advanced vampire holds only merged ("[MERGED] Baron of
     /// London", Appolonius): it takes precedence over the printed one.
     pub merged_title: Option<Title>,
-    /// An advanced vampire (KRCG `adv`): the same vampire as its base
+    /// An advanced vampire (KRCG `advanced`): the same vampire as its base
     /// card for contests (rulebook "Advanced Vampires").
     pub adv: bool,
     /// The Sabbat path printed on the vampire (KRCG `path`), the one it

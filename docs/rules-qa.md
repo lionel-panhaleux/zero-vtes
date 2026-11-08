@@ -438,7 +438,7 @@ by the owner. Apply them to every new card; only a ruling overrides them.
 
 **25.1** Corruption counters belong to the Methuselah who put them; they stay through torpor and control changes, and survive banishment (a banished vampire keeps everything, counters of any kind included). Lost when the minion is burned or removed with its ousted controller. An ousted Methuselah's counters on others' minions stay (no longer "yours", but Aniel can burn them).
 
-**25.2** Discipline layout decides: "[dom][pre] X" on one line is a combo — both needed (Iron Glare; KRCG `combo`); separate lines are a choice of one Discipline at one level (Line Brawl); "more than one Discipline can be used" allows any non-empty subset, each effect applying (Break the Bonds, The Platinum Protocol; LSJ 20011204-3). Outside the Hourglass: a choice with an "outferior" option.
+**25.2** Discipline layout decides: "[dom][pre] X" on one line is a combo — both needed (Iron Glare; KRCG's discipline requirement `Combo`); separate lines are a choice of one Discipline at one level (Line Brawl); "more than one Discipline can be used" allows any non-empty subset, each effect applying (Break the Bonds, The Platinum Protocol; LSJ 20011204-3). Outside the Hourglass: a choice with an "outferior" option.
 
 **25.3** Revelation of the Serpent's "or" is a real choice: the bleed-only option is always available during the bleed (even when stealth is needed, for a player wanting the block); the stealth option only when stealth is needed.
 

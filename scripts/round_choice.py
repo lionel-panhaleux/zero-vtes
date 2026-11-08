@@ -24,13 +24,13 @@ Usage: python3 scripts/round_choice.py vtes.json --twda twda.json
            [--set NAME]… [--steps 15] [--bundle 8] [--cut N]
            [--demand FILE]
 """
-import json
 import os
 import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-import coverage  # noqa: E402  (the demand reader, the KRCG loaders)
+import coverage  # noqa: E402  (the demand reader)
 import gen_twda  # noqa: E402
+import krcg  # noqa: E402
 
 RECENT = coverage.RECENT
 
@@ -58,8 +58,7 @@ class Pool:
 
 
 def deck_ids(d):
-    lib = [c for s in d["library"].get("cards", []) for c in s.get("cards", [])]
-    return [c["id"] for c in d["crypt"]["cards"]] + [c["id"] for c in lib]
+    return [c["id"] for c in d["crypt"] + d["library"]]
 
 
 def main():
@@ -79,8 +78,8 @@ def main():
     twda_path, demand_path = opt("--twda"), opt("--demand")
     steps, bundle = int(opt("--steps", 15)), int(opt("--bundle", 8))
     cut = opt("--cut")
-    cards = coverage.load(args[0] if args else None, "https://static.krcg.org/data/vtes.json")
-    twda = coverage.load(twda_path, "https://static.krcg.org/data/twda.json")
+    cards = krcg.load_cards(args[0] if args else None)
+    twda = krcg.load_twda(twda_path)
     by_id = {c["id"]: c for c in cards}
     banned = {c["id"] for c in cards if c.get("banned")}
     pool = Pool(cards)
@@ -120,7 +119,7 @@ def main():
         extra |= new
         chosen.append(sorted(new))
         cost = len(extra) / max(1, current[2] - base[2])
-        names = ", ".join(by_id[i]["name"] for i in sorted(new))
+        names = ", ".join(krcg.full_name(by_id[i]) for i in sorted(new))
         print(f"{step:>2}. +{len(new)} ({len(extra)} in all): kept {current[1]}, recent kept "
               f"{current[2]}, {cost:.1f} cards a recent deck: {names}")
 
@@ -128,7 +127,7 @@ def main():
     if sets:
         print("\n## Sets")
         for name in sets:
-            ids = {c["id"] for c in cards if name in c["sets"] and c["id"] not in pool.ids | banned}
+            ids = {c["id"] for c in cards if name in krcg.sets(c) and c["id"] not in pool.ids | banned}
             set_ids |= ids
             print(f"{name}: {len(ids)} missing: {measure(ids)}")
         print(f"together: {len(set_ids)}: {measure(set_ids)}")
@@ -138,13 +137,13 @@ def main():
         hit = sorted((n, i) for i, n in asked.items() if i in extra | set_ids)
         print(f"\n## Demand: {len(hit)} asked ids among the cards above")
         for n, i in reversed(hit):
-            print(f"{n:>5}  {i}  {by_id[i]['name']}")
+            print(f"{n:>5}  {i}  {krcg.full_name(by_id[i])}")
 
     if cut is not None:
         ids = set_ids | {i for step in chosen[:int(cut)] for i in step}
         print(f"\n## Cut: {len(ids)} cards, {measure(ids)}")
         for i in sorted(ids):
-            print(f"{i}  {by_id[i]['name']}")
+            print(f"{i}  {krcg.full_name(by_id[i])}")
 
 
 if __name__ == "__main__":

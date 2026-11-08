@@ -104,17 +104,18 @@ pub struct LibraryCard {
     pub blood_cost: Cost,
     pub pool_cost: Cost,
     /// "[n CONVICTION]" printed as the card's cost: burned from the
-    /// imbued playing it (KRCG `conviction_cost`).
+    /// imbued playing it (KRCG `cost`, type Conviction).
     pub conviction_cost: Cost,
     pub burn_option: bool,
-    /// Combo card: every listed discipline is required (KRCG `combo`).
+    /// Combo card: every listed discipline is required (KRCG's
+    /// discipline requirement `Combo`).
     pub combo: bool,
     pub labels: &'static [Label],
     /// Allies and retainers: the printed type line.
     pub body: Option<Body>,
     pub modes: &'static [Mode],
-    /// The Sabbat path icon (KRCG `path`): a vampire following it plays
-    /// the card (rules-qa 49.7).
+    /// The Sabbat path icon (KRCG `path_requirement`): a vampire
+    /// following it plays the card (rules-qa 49.7).
     pub path: Option<&'static str>,
 }
 
