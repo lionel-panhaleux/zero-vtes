@@ -85,9 +85,12 @@ names its interpreter:
 | `Marker` | read by name where offered, declared or played (`effects.contains(&Effect::X)`); the interpreters pass it |
 
 `apply_card_effect` and `resolve_ability` end in one `match e.family()`;
-a family that cannot reach them is `unreachable!`. An `Action` effect from
-an ability needs an action under way: such abilities are offered in an
-action's windows only (tested, §3).
+a family that cannot reach them is `unreachable!`. A granted action's
+success (`succeed`'s `ActionKind::Ability`) dispatches on
+`Effect::granted` instead (`Granted`: passed, its own arm, the play's or
+the shared body): an effect it does not list cannot sit there. An
+`Action` effect from an ability needs an action under way: such
+abilities are offered in an action's windows only (tested, §3).
 
 **Requirement slots** (`cards/slots.rs`). `Requirement::slots` (exhaustive)
 names the evaluators that really read each requirement: `holds` (`Slot::Play`:
@@ -205,8 +208,10 @@ tables; `limit_slot` matches every `Limit`.
 
 - `every_effect_sits_where_its_family_resolves` (`cards/families.rs`): each
   effect of `DEFS`/`VAMPIRES` sits in a position whose interpreter resolves
-  its family (a mode, an action card's mode, an ability, a granted action,
-  a rider, an `If` bonus, an `IfBleedSuccessful` body);
+  its family (a mode, an action card's mode, an ability, a rider, an `If`
+  bonus, an `IfBleedSuccessful` body); a granted action's, what
+  `Effect::granted` lists, or for another kind what its resolver,
+  stealth or declaration reads by name (the test's list by kind);
 - `abilities_changing_the_action_are_used_in_one` (same file): an
   ability's `Action` effect is offered in an action's windows only;
 - `every_requirement_sits_where_it_is_read` (`cards/slots.rs`): each

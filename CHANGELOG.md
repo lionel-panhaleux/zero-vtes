@@ -6,6 +6,23 @@ server runs.
 `python3 scripts/schema_compat.py` lists what a schema change adds or
 removes; its `--check` fails a removal without a major version.
 
+## 2.24.2
+
+- A move of a vampire's own blood to an uncontrolled vampire (Zayyat,
+  The Sandstorm; Casino Reeds) is told: `blood`, `n` the amount, `on`
+  `uncontrolled`, `detail` `from_host`, so each count's ability is told
+  apart by its `apart`.
+  Casino Reeds' move is three abilities, one a count (1, 2, 3; rules-qa
+  111.51), as Zayyat's: a record using his move before 2.24.2 replays it
+  as a move of 1. Zayyat's stealth ability moved from index 1 to 3 (his
+  counts are 0 to 2): a record that used it before 2.24.2 no longer
+  matches its key and replays only up to it.
+- A granted political action's printed pool (War of Ages' "costs 1
+  pool") is paid as it resolves (rules-qa 52.10): a record holding War of
+  Ages' burn referendum before 2.24.2 replays up to it only. A game live
+  across the redeploy whose record holds one of these ends
+  `server_restart`.
+
 ## 2.24.1
 
 - `opportunities` off (§8): a wake in a referendum is shown when the woken

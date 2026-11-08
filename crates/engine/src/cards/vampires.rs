@@ -10616,23 +10616,59 @@ pub static BATSHEVA_ADV: VampireDef = VampireDef {
     ..VAMP
 };
 
+/// A move of a count of the acting vampire's blood to an uncontrolled
+/// vampire matching `filter`, a printed action (Casino Reeds, Zayyat).
+const fn uncontrolled_move(
+    filter: &'static [R],
+    requires: &'static [R],
+    effects: &'static [Effect],
+) -> ModeDef {
+    ModeDef {
+        target: Some(TargetSpec {
+            kind: TargetKind::Uncontrolled,
+            filter,
+        }),
+        requires,
+        ..printed_action(None, effects)
+    }
+}
+
+const CASINO_FILTER: &[R] = &[R::Younger, R::TargetClan("Nosferatu")];
+
 /// "Camarilla Prince of Seattle: Casino may move up to 3 blood from himself
 /// to a younger Nosferatu in your uncontrolled region as an action. Casino
-/// inflicts +1 damage with ranged strikes (even at close range)." As much
-/// as he has, up to 3.
+/// inflicts +1 damage with ranged strikes (even at close range)." The
+/// amount named as the action is declared, what he has of it moved as it
+/// resolves (D1, rules-qa 111.51): one action a count, 1 to 3, as Zayyat's.
 pub static CASINO_REEDS: VampireDef = VampireDef {
     name: "Casino Reeds",
     printed: &[own(Stat::RangedStrikeDamage, 1, &[])],
-    abilities: &[printed_action(
-        target(
-            TargetKind::Uncontrolled,
-            &[R::Younger, R::TargetClan("Nosferatu")],
+    abilities: &[
+        uncontrolled_move(
+            CASINO_FILTER,
+            &[R::HostBloodAtLeast(1)],
+            &[
+                Effect::DeclareAction(ActionKind::Ability),
+                Effect::HostBloodToUncontrolledTarget(1),
+            ],
         ),
-        &[
-            Effect::DeclareAction(ActionKind::Ability),
-            Effect::HostBloodToUncontrolledTarget(3),
-        ],
-    )],
+        uncontrolled_move(
+            CASINO_FILTER,
+            &[R::HostBloodAtLeast(2)],
+            &[
+                Effect::DeclareAction(ActionKind::Ability),
+                Effect::HostBloodToUncontrolledTarget(2),
+            ],
+        ),
+        uncontrolled_move(
+            CASINO_FILTER,
+            &[R::HostBloodAtLeast(3)],
+            &[
+                Effect::DeclareAction(ActionKind::Ability),
+                Effect::HostBloodToUncontrolledTarget(3),
+            ],
+        ),
+    ],
     ..VAMP
 };
 
@@ -11942,7 +11978,8 @@ pub static BECKETT: VampireDef = VampireDef {
 
 /// "Sabbat: Cristos can search your library for an equipment card and move
 /// it to your hand as a +1 stealth action. Discard down to your hand size
-/// and shuffle afterward."
+/// and shuffle afterward." Not revealed (his text says none); the search
+/// may find nothing (rules-qa 111.44).
 pub static CRISTOS_MANTIGO: VampireDef = VampireDef {
     name: "Cristos Mantigo",
     abilities: &[printed_action(
@@ -11950,7 +11987,10 @@ pub static CRISTOS_MANTIGO: VampireDef = VampireDef {
         &[
             Effect::DeclareAction(ActionKind::Ability),
             Effect::AddStealth(1),
-            Effect::SearchLibraryToHand(CardFilter::Type(CardType::Equipment)),
+            Effect::SearchToHand {
+                filter: CardFilter::Type(CardType::Equipment),
+                shown: false,
+            },
         ],
     )],
     ..VAMP
@@ -12215,26 +12255,39 @@ pub static VELYA_THE_FLAYER: VampireDef = VampireDef {
 /// stealth action. Once each turn, he can burn 2 blood to get +2 stealth
 /// for the current action." Once in each Methuselah's turn (ANK
 /// 20180719-4); the votes generated, kept through a sect change (LSJ
-/// 20010714).
+/// 20010714). The amount named as the action is declared, what he has of
+/// it moved as it resolves (D1, rules-qa 111.51): one action a count, 1 to
+/// 3, as Casino Reeds' move.
 pub static ZAYYAT_THE_SANDSTORM: VampireDef = VampireDef {
     name: "Zayyat, The Sandstorm",
     abilities: &[
-        ModeDef {
-            target: Some(TargetSpec {
-                kind: TargetKind::Uncontrolled,
-                filter: &[R::Younger],
-            }),
-            terms: Some(Terms::BloodRange { min: 1, max: 3 }),
-            requires: &[R::HostBloodAtLeast(1)],
-            ..printed_action(
-                None,
-                &[
-                    Effect::DeclareAction(ActionKind::Ability),
-                    Effect::AddStealth(1),
-                    Effect::MoveBloodXToUncontrolledTarget,
-                ],
-            )
-        },
+        uncontrolled_move(
+            &[R::Younger],
+            &[R::HostBloodAtLeast(1)],
+            &[
+                Effect::DeclareAction(ActionKind::Ability),
+                Effect::AddStealth(1),
+                Effect::HostBloodToUncontrolledTarget(1),
+            ],
+        ),
+        uncontrolled_move(
+            &[R::Younger],
+            &[R::HostBloodAtLeast(2)],
+            &[
+                Effect::DeclareAction(ActionKind::Ability),
+                Effect::AddStealth(1),
+                Effect::HostBloodToUncontrolledTarget(2),
+            ],
+        ),
+        uncontrolled_move(
+            &[R::Younger],
+            &[R::HostBloodAtLeast(3)],
+            &[
+                Effect::DeclareAction(ActionKind::Ability),
+                Effect::AddStealth(1),
+                Effect::HostBloodToUncontrolledTarget(3),
+            ],
+        ),
         ability(
             &[Window::ActionStealthIntercept],
             Actor::Host,

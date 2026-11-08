@@ -8967,6 +8967,187 @@ fn a_hold_leaving_play_burns_its_card() {
     }
 }
 
+/// Zayyat: "Zayyat can move up to 3 blood from himself to a younger vampire
+/// in your uncontrolled region as a +1 stealth action." The amount named as
+/// it is declared (D1, rules-qa 111.51), one action a count; 2 moved, the
+/// older not offered (its resolution once panicked: a granted action's
+/// unhandled effect); with 2 blood, no count of 3.
+#[test]
+fn zayyat_moves_blood_to_a_younger_uncontrolled_vampire() {
+    let mut e = game(2);
+    let zy = e.add_minion(SeatId(0), find_card("Zayyat, The Sandstorm"), 6, false);
+    e.add_minion(SeatId(0), plain("Brujah", 1), 4, false);
+    e.add_minion(SeatId(1), plain("Ventrue", 0), 4, false);
+    let young = textless(|c| c.capacity <= 3, 0);
+    let old = CRYPT
+        .iter()
+        .position(|c| c.capacity >= CRYPT[find_card("Zayyat, The Sandstorm") as usize].capacity)
+        .expect("not younger") as u16;
+    let u = &mut e.state.seats[0].uncontrolled;
+    u.push(slot(young, 0));
+    u.push(slot(old, 0));
+    let req = request(&mut e);
+    let moves: Vec<Choice> = req
+        .options
+        .iter()
+        .copied()
+        .filter(|o| {
+            matches!(o, Choice::UseAbility { source: zvtes::cards::AbilitySource::Vampire(x), ability: 0..=2, .. } if *x == zy)
+        })
+        .collect();
+    assert_eq!(moves.len(), 3, "one a count, the younger only: {moves:?}");
+    let two = Choice::UseAbility {
+        source: zvtes::cards::AbilitySource::Vampire(zy),
+        ability: 1,
+        actor: Some(zy),
+        target: Target::Uncontrolled(0),
+    };
+    assert!(moves.contains(&two), "{moves:?}");
+    pick(&mut e, two);
+    until(&mut e, SeatId(0), WindowLabel::MinionPhase);
+    assert_eq!(blood(&e, zy), 6 - 2);
+    assert_eq!(e.state.seats[0].uncontrolled[0].counters, 2);
+
+    let mut e = game(2);
+    let zy = e.add_minion(SeatId(0), find_card("Zayyat, The Sandstorm"), 2, false);
+    e.add_minion(SeatId(0), plain("Brujah", 1), 4, false);
+    e.add_minion(SeatId(1), plain("Ventrue", 0), 4, false);
+    e.state.seats[0].uncontrolled.push(slot(young, 0));
+    let req = request(&mut e);
+    let count = |ability| Choice::UseAbility {
+        source: zvtes::cards::AbilitySource::Vampire(zy),
+        ability,
+        actor: Some(zy),
+        target: Target::Uncontrolled(0),
+    };
+    assert!(req.options.contains(&count(1)), "{:?}", req.options);
+    assert!(!req.options.contains(&count(2)), "3 above his 2 blood");
+}
+
+/// Zayyat: the amount named as declared, what he has of it moved as it
+/// resolves (rules-qa 111.51): his count of 3 declared, he is down to 1
+/// blood by resolution, 1 moves.
+#[test]
+fn zayyat_moves_what_he_has_as_it_resolves() {
+    let mut e = game(2);
+    let zy = e.add_minion(SeatId(0), find_card("Zayyat, The Sandstorm"), 6, false);
+    e.add_minion(SeatId(0), plain("Brujah", 1), 4, false);
+    e.add_minion(SeatId(1), plain("Ventrue", 0), 4, false);
+    e.state.seats[0]
+        .uncontrolled
+        .push(slot(textless(|c| c.capacity <= 3, 0), 0));
+    pick(
+        &mut e,
+        Choice::UseAbility {
+            source: zvtes::cards::AbilitySource::Vampire(zy),
+            ability: 2,
+            actor: Some(zy),
+            target: Target::Uncontrolled(0),
+        },
+    );
+    e.state.minions[zy.index()].blood = 1;
+    until(&mut e, SeatId(0), WindowLabel::MinionPhase);
+    assert_eq!(blood(&e, zy), 0);
+    assert_eq!(e.state.seats[0].uncontrolled[0].counters, 1);
+}
+
+/// Edward Neally: "Edward can look at your prey's hand as a +1 stealth Ⓓ
+/// action that costs 1 blood." Taken, its blood paid and the prey's hand
+/// seen (its resolution once panicked: a granted action's unhandled
+/// effect).
+#[test]
+fn edward_neally_looks_at_his_preys_hand() {
+    let mut e = game(2);
+    let ed = e.add_minion(SeatId(0), find_card("Edward Neally"), 4, false);
+    e.add_minion(SeatId(0), plain("Brujah", 1), 4, false);
+    e.add_minion(SeatId(1), plain("Ventrue", 0), 4, false);
+    hand(&mut e, 1, &["Blood Doll"]);
+    e.notes = Some(Vec::new());
+    pick(
+        &mut e,
+        Choice::UseAbility {
+            source: zvtes::cards::AbilitySource::Vampire(ed),
+            ability: 1,
+            actor: Some(ed),
+            target: Target::Seat(SeatId(1)),
+        },
+    );
+    until(&mut e, SeatId(0), WindowLabel::MinionPhase);
+    assert_eq!(blood(&e, ed), 4 - 1);
+    let looks = noted_looks(&mut e);
+    assert!(
+        looks.iter().any(|l| l.viewer == SeatId(0)
+            && l.seat == SeatId(1)
+            && !l.library
+            && l.cards == vec![find_library("Blood Doll")]),
+        "{looks:?}"
+    );
+}
+
+/// Cristos Mantigo: "Cristos can search your library for an equipment card
+/// and move it to your hand as a +1 stealth action. Discard down to your
+/// hand size and shuffle afterward." The equipment found, not revealed, the
+/// hand discarded down (its resolution once panicked: a granted action's
+/// unhandled effect).
+#[test]
+fn cristos_mantigo_searches_for_an_equipment() {
+    let mut e = game(2);
+    let c = e.add_minion(SeatId(0), find_card("Cristos Mantigo"), 4, false);
+    e.add_minion(SeatId(0), plain("Brujah", 1), 4, false);
+    e.add_minion(SeatId(1), plain("Ventrue", 0), 4, false);
+    let magnum = find_library(".44 Magnum");
+    e.state.seats[0].library = vec![find_library("Blood Doll"), magnum].into();
+    fill_hand(&mut e, 0);
+    let size = e.state.seats[0].hand.len();
+    e.notes = Some(Vec::new());
+    pick(
+        &mut e,
+        Choice::UseAbility {
+            source: zvtes::cards::AbilitySource::Vampire(c),
+            ability: 0,
+            actor: Some(c),
+            target: Target::None,
+        },
+    );
+    let req = until(&mut e, SeatId(0), WindowLabel::LibrarySearch);
+    assert_eq!(req.options, vec![Choice::Pass, Choice::FindCard(magnum)]);
+    pick(&mut e, Choice::FindCard(magnum));
+    until(&mut e, SeatId(0), WindowLabel::MinionPhase);
+    assert_eq!(e.state.seats[0].library.len(), 1);
+    assert_eq!(e.state.seats[0].hand.len(), size, "discarded down");
+    assert_eq!(e.state.seats[0].ash.len(), 1);
+    assert_eq!(noted_reveals(&mut e), Vec::new());
+}
+
+/// Highway Haven: RV: "Any werewolf may burn this equipment and enter
+/// combat with this minion as a +1 stealth Ⓓ action." Successful, the RV
+/// burns and the werewolf fights its former bearer (its resolution once
+/// panicked: a granted action's unhandled effect).
+#[test]
+fn highway_haven_rv_is_burned_by_a_werewolf() {
+    let mut e = game(2);
+    let w = e.add_ally(SeatId(0), find_library("Double Deuce"));
+    e.add_minion(SeatId(0), plain("Brujah", 1), 4, false);
+    let z = e.add_minion(SeatId(1), plain("Ventrue", 0), 4, false);
+    let rv = in_play(&mut e, 1, "Highway Haven: RV", Some(z));
+    pick(
+        &mut e,
+        Choice::UseAbility {
+            source: zvtes::cards::AbilitySource::Card(rv),
+            ability: 0,
+            actor: Some(w),
+            target: Target::Minion(z),
+        },
+    );
+    until(&mut e, SeatId(0), WindowLabel::MinionPhase);
+    assert!(!e.state.cards[rv.index()].in_play);
+    assert_eq!(
+        e.state.seats[1].ash,
+        vec![find_library("Highway Haven: RV")]
+    );
+    assert!(blood(&e, z) < 4, "they fought");
+}
+
 /// Zayyat: "Once each turn, he can burn 2 blood to get +2 stealth for the
 /// current action." [ANK 20180719-4] "Once each turn" means once during
 /// each player's turn: used on his bleed, not on his hunt after it that
@@ -8979,7 +9160,7 @@ fn zayyat_buys_stealth_once_each_turn() {
     let y = e.add_minion(SeatId(1), plain("Ventrue", 0), 4, false);
     let w = e.add_minion(SeatId(1), plain("Ventrue", 1), 4, false);
     let stealth = |o: &Choice| {
-        matches!(o, Choice::UseAbility { source: zvtes::cards::AbilitySource::Vampire(x), ability: 1, .. }
+        matches!(o, Choice::UseAbility { source: zvtes::cards::AbilitySource::Vampire(x), ability: 3, .. }
             if *x == zy)
     };
     pick_when(&mut e, bleed(zy));

@@ -134,6 +134,9 @@ fn add(e: &E, w: Whom, when: Option<When>, out: &mut Vec<Effect>) {
         E::TargetBloodToPool(v) => push(detail(on(n(K::Blood, -i(v)), On::Target), "to_pool")),
         E::PoolToTargetBlood(v) => push(detail(on(n(K::Blood, i(v)), On::Target), "from_pool")),
         E::HostBloodToTarget(v) => push(detail(on(n(K::Blood, i(v)), On::Target), "from_host")),
+        E::HostBloodToUncontrolledTarget(v) => {
+            push(detail(on(n(K::Blood, i(v)), On::Uncontrolled), "from_host"))
+        }
         E::TargetBloodToHost(v) => push(detail(on(n(K::Blood, i(v)), On::Host), "from_target")),
         E::ActorBloodToTarget(v) => push(detail(on(n(K::Blood, i(v)), On::Target), "from_actor")),
         E::GraftOnTarget => push(detail(on(n(K::Counters, 1), On::Target), "graft")),
@@ -541,7 +544,6 @@ fn add(e: &E, w: Whom, when: Option<When>, out: &mut Vec<Effect>) {
         | E::GiveBloodToOwnAnarch
         | E::HostAsIfUnlockedForAuspex
         | E::HostBleedThisTurn(..)
-        | E::HostBloodToUncontrolledTarget(..)
         | E::HostBurnLife(..)
         | E::HostLeavesTorpor
         | E::HostSuperiorChosenUntilMaster
@@ -1086,5 +1088,35 @@ mod tests {
             }
         }
         assert!(seen > 20, "{seen}");
+    }
+
+    // Zayyat's three counts (abilities 0–2, rules-qa 111.51) told apart by
+    // data: each its own amount of his blood to the uncontrolled vampire.
+    #[test]
+    fn zayyat_counts_are_told_apart() {
+        use zvtes::cards::AbilitySource;
+        use zvtes::decision::Choice;
+        let mut e = zvtes::game::Engine::bare(2);
+        let zayyat = zvtes::state::find_card("Zayyat, The Sandstorm");
+        let zy = e.add_minion(zvtes::ids::SeatId(0), zayyat, 6, false);
+        let apart: Vec<Vec<zvtes_api::option::Effect>> = (0..3)
+            .map(|ability| {
+                let c = Choice::UseAbility {
+                    source: AbilitySource::Vampire(zy),
+                    ability,
+                    actor: Some(zy),
+                    target: zvtes::cards::Target::Uncontrolled(0),
+                };
+                crate::describe::ability_apart(&e, &c)
+            })
+            .collect();
+        for (k, a) in apart.iter().enumerate() {
+            let moved: Vec<_> = a
+                .iter()
+                .filter(|t| t.kind == K::Blood && t.on == Some(On::Uncontrolled))
+                .map(|t| (t.n, t.detail.as_deref()))
+                .collect();
+            assert_eq!(moved, [(Some(k as i32 + 1), Some("from_host"))], "{a:?}");
+        }
     }
 }

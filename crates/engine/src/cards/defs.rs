@@ -38358,7 +38358,9 @@ pub static FRENZY: CardDef = CardDef {
 /// on his or her next unlock phase (even if the action isn't successful).
 /// Any werewolf may burn this equipment and enter combat with this minion
 /// as a +1 stealth Ⓓ action. A minion may have only one haven and only one
-/// vehicle." Read as the action is announced, the bearer's sect live.
+/// vehicle." Read as the action is announced, the bearer's sect live
+/// (rules-qa 111.34). The werewolf's action burns it as it succeeds, then
+/// enters combat with its former bearer.
 pub static HIGHWAY_HAVEN_RV: CardDef = CardDef {
     name: "Highway Haven: RV",
     modes: &[ModeDef {

@@ -810,6 +810,27 @@ fn war_of_ages_drains_the_prey_and_pays_for_its_oust() {
     assert!(!e.state.cards.iter().any(|c| c.in_play && c.card == war));
 }
 
+// War of Ages: "Any Sabbat vampire can call a referendum to burn this card
+// as a +1 stealth political action that costs 1 pool." The pool paid as the
+// action resolves (rules-qa 52.10), the referendum called; passed, the card
+// burns.
+#[test]
+fn war_of_ages_burn_referendum_costs_a_pool() {
+    let mut e = game(2);
+    let war = in_play(&mut e, 0, "War of Ages", None);
+    e.add_minion(SeatId(0), plain("Brujah", 0), 4, false);
+    let z = e.add_minion(SeatId(1), card("Concordia"), 4, false);
+    e.add_minion(SeatId(1), plain("Ventrue", 0), 4, false);
+    until(&mut e, SeatId(1), WindowLabel::MinionPhase);
+    let before = e.state.seats[1].pool;
+    pick(&mut e, use_at(war, 0, Some(z), Target::None));
+    pick_when(&mut e, votes(z, true));
+    close_polling(&mut e);
+    until(&mut e, SeatId(1), WindowLabel::MinionPhase);
+    assert_eq!(e.state.seats[1].pool, before - 1, "its 1 pool");
+    assert!(!e.state.cards[war.index()].in_play, "burned");
+}
+
 // Cardinal Benediction: [LSJ 20100129] [ANK 20191228] not playable without
 // a Sabbat vampire of capacity 7 or more to choose; passed, the chosen
 // vampire is a cardinal. "Non-Sabbat vampires cannot cast votes or

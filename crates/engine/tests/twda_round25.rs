@@ -1949,7 +1949,8 @@ fn find_card_adv(name: &str) -> u16 {
 
 /// Casino Reeds: "Casino may move up to 3 blood from himself to a younger
 /// Nosferatu in your uncontrolled region as an action. Casino inflicts +1
-/// damage with ranged strikes."
+/// damage with ranged strikes." The amount named as it is declared (D1,
+/// rules-qa 111.51): the count of 3 (ability 2).
 #[test]
 fn casino_reeds_feeds_a_younger_nosferatu() {
     let mut e = game(2);
@@ -1975,7 +1976,7 @@ fn casino_reeds_feeds_a_younger_nosferatu() {
     );
     let feed = Choice::UseAbility {
         source: zvtes::cards::AbilitySource::Vampire(c),
-        ability: 0,
+        ability: 2,
         actor: Some(c),
         target: Target::Uncontrolled(0),
     };

@@ -2,7 +2,7 @@
 //! 1.3), block resolution, the after-combat window and resolution. The
 //! action context lives on the engine so card plays resolving can modify it.
 
-use crate::cards::families::Family;
+use crate::cards::families::{Family, Granted};
 use crate::cards::{self, Effect, Hook, Limit, PlayCtx, Requirement, Scope, Stat, Target, Window};
 use crate::decision::{ActionKind, Choice, DecisionRequest, WindowLabel};
 use crate::game::{Engine, Flow};
@@ -7333,588 +7333,595 @@ impl Engine {
                 let ctx = PlayCtx::new(seat, card, ability, Some(acting), target, 0);
                 self.action = Some(a);
                 for e in effects {
-                    match *e {
-                        Effect::DeclareAction(_)
-                        | Effect::AddStealth(_)
-                        | Effect::StealthIfOwnTarget(_)
-                        | Effect::BurnSourceOnDeclare
-                        | Effect::MandatoryAction
-                        | Effect::PayBlood(_)
-                        | Effect::PayBloodPerCounter
-                        | Effect::PayLife(_)
-                        | Effect::PayPool(_)
-                        | Effect::PayConviction
-                        | Effect::SameActionAs(_)
-                        | Effect::LockSelf
-                        | Effect::TargetCannotBlock
-                        | Effect::HuntAction => {}
-                        // "Add 1 counter to this card" (The Gate of
-                        // Acheron): the card granting the action, still in
-                        // play.
-                        Effect::AddCounter(n) => {
-                            let c = src.card();
-                            if self.state.cards[c.index()].present() {
-                                self.state.cards[c.index()].counters += n;
-                            }
-                        }
-                        Effect::GreatBeastAtEleven => {
-                            let c = src.card();
-                            self.great_beast_at_eleven(c);
-                        }
-                        Effect::RemoveAllSourceCounters => {
-                            let c = src.card();
-                            if self.state.cards[c.index()].present() {
-                                self.state.cards[c.index()].counters = 0;
-                            }
-                        }
-                        Effect::SearchToHand { filter, shown } => {
-                            self.flow = Flow::LibrarySearch {
-                                minion: acting,
-                                equip: &[],
-                                to_hand: Some((filter, shown)),
-                                free: false,
-                                archetype: false,
-                                hand: false,
-                            };
-                            return;
-                        }
-                        // The named cards, if both are still where they were.
-                        Effect::ExchangeHandForAsh => {
-                            let (ash, held) = exchange.expect("named cards");
-                            let s = &mut self.state.seats[seat.index()];
-                            let from_ash = s.ash.iter().position(|&c| c == ash);
-                            let from_hand = s.hand.iter().position(|&c| c == held);
-                            if let (Some(i), Some(j)) = (from_ash, from_hand) {
-                                let (_, ash_copy) = s.ash.take(i);
-                                let (_, copy) = s.hand.take(j);
-                                s.ash.put(held, copy);
-                                s.hand.put(ash, ash_copy);
-                            }
-                        }
-                        // The ally named as the action was declared, if still
-                        // there; gone: no effect (as Psychophagia's, rules-qa
-                        // 32.12).
-                        Effect::AllyFromAshLocked(_) => {
-                            let named = self.action.as_ref().and_then(|a| a.ash_named);
-                            if let Some(card) =
-                                named.filter(|c| self.state.seats[seat.index()].ash.contains(c))
-                            {
-                                self.raise_ash_ally(seat, card, true);
-                            }
-                        }
-                        Effect::AshVampireToUncontrolled => {
-                            let named = self.action.as_ref().and_then(|a| a.ash_vampire_named);
-                            let s = &mut self.state.seats[seat.index()];
-                            if let Some(i) =
-                                named.and_then(|card| s.ash_crypt.iter().position(|&c| c == card))
-                            {
-                                let (card, copy) = s.ash_crypt.take(i);
-                                s.uncontrolled.push(crate::state::UncontrolledSlot {
-                                    card,
-                                    copy: crate::copies::Untracked(copy),
-                                    counters: 0,
-                                    banished: None,
-                                });
-                            }
-                        }
-                        // Both still ready (the target was re-checked above).
-                        Effect::EnterCombatWithTarget => {
-                            let t = target.minion();
-                            if self.state.minions[acting.index()].ready() {
-                                // "If that action is successful, she gets an
-                                // optional maneuver in the first round of the
-                                // resulting combat" (Massassi).
-                                let riders: Vec<(MinionId, cards::BlockRider)> = effects
-                                    .iter()
-                                    .filter_map(|e| match e {
-                                        Effect::InResultingCombat(r) => Some((acting, *r)),
-                                        _ => None,
-                                    })
-                                    .collect();
-                                self.start_combat_at_resolution(acting, t);
-                                self.combat_riders(&riders);
-                                return;
-                            }
-                        }
-                        Effect::InResultingCombat(_) => {}
-                        // Still one it could hold (re-checked above).
-                        Effect::StealTargetCard => {
-                            let c = target.card();
-                            self.state.set_host(c, acting);
-                        }
-                        // Still contested (re-checked above).
-                        Effect::TargetYieldsTitle => {
-                            let t = target.minion();
-                            self.yield_title(t);
-                        }
-                        // The card still in play, the target still a
-                        // vampire in play (re-checked above).
-                        Effect::MoveSourceToTarget => {
-                            let c = src.card();
-                            if self.state.cards[c.index()].present() {
-                                let to = target.minion();
-                                // Derange's clan and sect move with it (LSJ
-                                // 20070707).
-                                if let Some(from) = self.state.cards[c.index()].host {
-                                    let d = self.state.minions[from.index()].deranged;
-                                    if d.is_some_and(|(.., id)| id == c) {
-                                        self.state.minions[from.index()].deranged = None;
-                                        self.state.minions[to.index()].deranged = d;
-                                    }
-                                }
-                                self.state.set_host(c, to);
-                            }
-                        }
-                        // Rise of the Nephtali: no contest with a younger
-                        // vampire — the younger one yields at once.
-                        Effect::GainLiaison => {
-                            let t = crate::crypt::Title::Independent {
-                                name: "Liaison",
-                                votes: 4,
-                            };
-                            let holder = (0..self.state.minions.len())
-                                .map(|i| MinionId(i as u32))
-                                .find(|&h| {
-                                    h != acting
-                                        && self.state.minions[h.index()].in_play
-                                        && self.state.claimed_title(h) == t
-                                });
-                            let gains = match holder {
-                                Some(h)
-                                    if self.state.younger_by(
-                                        h,
-                                        acting,
-                                        self.state.minions[acting.index()].owner,
-                                    ) =>
-                                {
-                                    self.state.minions[h.index()].granted_title = None;
-                                    true
-                                }
-                                Some(_) => false,
-                                None => true,
-                            };
-                            if gains && self.state.minions[acting.index()].in_play {
-                                self.gain_title(acting, t, None);
-                                self.release_held(Release::Liaison);
-                            }
-                        }
-                        // Nephandus: "to gain 1 life", over his starting
-                        // life too (ANK 20171109).
-                        Effect::AddHostBlood(n) => {
-                            let b = self.state.minions[acting.index()].blood + n;
-                            self.state.set_blood(acting, b);
-                        }
-                        // The Sargon Fragment: any copy of the named card
-                        // (LSJ 20050228), the Fragment still on the acting
-                        // vampire — else no effect (RTR 19960221).
-                        Effect::AshCardToHandNamed => {
-                            let named = self.action.as_ref().and_then(|a| a.ash_named);
-                            let c = src.card();
-                            let on = self.state.cards[c.index()].present()
-                                && self.state.cards[c.index()].host == Some(acting);
-                            let s = &mut self.state.seats[seat.index()];
-                            if let (true, Some(i)) =
-                                (on, named.and_then(|n| s.ash.iter().position(|&x| x == n)))
-                            {
-                                let (card, copy) = s.ash.take(i);
-                                s.hand.put(card, copy);
-                            }
-                        }
-                        // Drozodny: a copy of the named card still in the
-                        // ash heap (discard down afterward: the hand settles
-                        // once the action is over).
-                        Effect::AshCardOfToHand(_) => {
-                            let named = self.action.as_ref().and_then(|a| a.ash_named);
-                            self.ash_named_to_hand(seat, named);
-                        }
-                        Effect::AshCardToHandOnSuccess(of) => {
-                            if let Some(a) = self.action.as_mut() {
-                                a.ash_to_hand_on_name = true;
-                            }
-                            self.interrupts
-                                .push(crate::draws::Interrupt::NameOwnAshCard { seat, of });
-                        }
-                        // Malgorzata: both vampires still where they were
-                        // named.
-                        Effect::RemoveUncontrolledForBlood(n) => {
-                            let named = self.action.as_ref().and_then(|a| a.uncontrolled_named);
-                            let slots = &self.state.seats[seat.index()].uncontrolled;
-                            if let (Some((i, card)), Target::Uncontrolled(t)) = (named, target) {
-                                let (i, t) = (i as usize, t as usize);
-                                if i < slots.len() && t < slots.len() && slots[i].card == card {
-                                    let gone = self.burn_slot(seat, i);
-                                    let s = &mut self.state.seats[seat.index()];
-                                    s.removed_crypt.put(gone.card, *gone.copy);
-                                    let t = if t > i { t - 1 } else { t };
-                                    self.state.add_uncontrolled_blood(seat, t, n);
-                                }
-                            }
-                        }
+                    let how = e.granted();
+                    match how
+                        .unwrap_or_else(|| unreachable!("not a granted action's effect: {e:?}"))
+                    {
+                        Granted::Passed => {}
                         // Mary Anne Blaire: the vampire named, if still
                         // there.
-                        Effect::BloodToUncontrolledTarget(_)
-                        | Effect::LockHeldForUncontrolledBloodX(_)
-                            if !self.uncontrolled_target_left(&ctx) => {}
-                        // Kaymakli Fragment: drawn now, the hand discarded
-                        // down as it settles.
-                        Effect::DrawThenDiscardDown(n) => {
-                            for _ in 0..n {
-                                let s = &mut self.state.seats[seat.index()];
-                                if let Some((c, copy)) = s.library.take_top() {
-                                    s.hand.put(c, copy);
-                                    self.offer_redraw(seat, c);
-                                }
-                            }
-                        }
-                        Effect::PreyAshPairHunt(bonus) => {
-                            let prey = self.state.prey(seat);
-                            let named = self.action.as_ref().and_then(|a| a.ash_named);
-                            let ps = &mut self.state.seats[prey.index()];
-                            let pair =
-                                named.filter(|&c| ps.ash.iter().filter(|&&x| x == c).count() >= 2);
-                            let Some(card) = pair else {
-                                let a = self.action.take().expect("action context");
-                                return self.fizzle(a);
-                            };
-                            for _ in 0..2 {
-                                let i = ps.ash.iter().position(|&x| x == card).expect("copy");
-                                let (_, copy) = ps.ash.take(i);
-                                ps.removed.put(card, copy);
-                            }
-                            let before = self.state.minions[acting.index()].blood;
-                            let n = 1 + bonus + self.state.hunt_bonus(acting);
-                            let successful = self.state.hunt_blood(acting, n);
-                            let gained = self.state.minions[acting.index()].blood > before;
-                            if let Some(a) = self.action.as_mut() {
-                                a.hunt_gained = gained;
-                            }
-                            if successful {
-                                self.successful_hunt_riders(acting);
-                            }
-                        }
-                        // Heartrender: the target burned, the ally out of
-                        // the game (rules-qa 55.4).
-                        Effect::RemoveActorToBurnTarget => {
-                            match target {
-                                Target::Minion(t) => self.burn_minion(t),
-                                Target::Card(c) => self.burn_card_in_play(c),
-                                _ => {}
-                            }
-                            if self.state.minions[acting.index()].in_play {
-                                self.remove_from_game(acting);
-                            }
-                        }
-                        Effect::PaidConvictionToTarget => {
-                            let paid = self.action.as_ref().and_then(|a| a.conviction);
-                            if let (Some(c), Target::Minion(t)) = (paid, target) {
-                                let card = self.state.cards[c.index()].card;
-                                let ash = &self.state.seats[seat.index()].ash;
-                                let k = ash.iter().rposition(|&x| x == card);
-                                let v = &self.state.minions[t.index()];
-                                if let Some(k) = k.filter(|_| v.present() && v.is_imbued()) {
-                                    let (_, copy) = self.state.seats[seat.index()].ash.take(k);
-                                    self.gain_conviction(t, card, copy, seat);
-                                }
-                            }
-                        }
-                        Effect::ActingGainsConviction => {
-                            self.interrupts
-                                .push(crate::draws::Interrupt::GainConviction {
-                                    seat,
-                                    minion: acting,
-                                    library: false,
-                                });
-                        }
-                        Effect::ReorderTop { n, unlock } => {
-                            if unlock {
-                                self.effect_unlock(acting);
-                            }
-                            let total =
-                                (n as usize).min(self.state.seats[seat.index()].library.len());
-                            if total > 1 {
-                                self.interrupts.push(crate::draws::Interrupt::Reorder {
-                                    seat,
-                                    total: total as u8,
-                                    placed: 0,
-                                });
-                            }
-                        }
-                        // Michael Harris: the equipment is chosen now that
-                        // the action succeeded (as Magic of the Smith).
-                        // Raw Recruit: the card a Gargoyle, its vampire gone.
-                        Effect::HeldVampireBecomesGargoyle => {
-                            self.recruit_gargoyle(src.card(), acting);
-                        }
-                        // Legion: the fledgling, the hand discarded after.
-                        Effect::FledglingFromNamedMaster => {
-                            let named = self.action.as_ref().and_then(|a| a.named_master);
-                            self.fledgling_from_named_master(seat, acting, named);
-                        }
-                        Effect::SearchDisciplineMasterOntoActor(named) => {
-                            self.interrupts
-                                .push(crate::draws::Interrupt::DisciplineSearch {
-                                    seat,
-                                    minion: acting,
-                                    named,
-                                });
-                        }
-                        Effect::SearchArchetypeOntoActor => {
-                            self.state.gain_blood(acting, 1);
-                            self.flow = Flow::LibrarySearch {
-                                minion: acting,
-                                equip: &[],
-                                to_hand: None,
-                                free: false,
-                                archetype: true,
-                                hand: false,
-                            };
-                            return;
-                        }
-                        Effect::SearchEquipForTarget => {
-                            self.flow = Flow::LibrarySearch {
-                                minion: target.minion(),
-                                equip: &[],
-                                to_hand: None,
-                                free: false,
-                                archetype: false,
-                                hand: true,
-                            };
-                            return;
-                        }
-                        Effect::SearchEquip(equip) | Effect::SearchEquipFree(equip) => {
-                            self.flow = Flow::LibrarySearch {
-                                minion: acting,
-                                equip,
-                                to_hand: None,
-                                free: matches!(e, Effect::SearchEquipFree(_)),
-                                archetype: false,
-                                hand: false,
-                            };
-                            return;
-                        }
-                        // Whose counter, if several Methuselahs' are on it:
-                        // the acting Methuselah's choice.
-                        Effect::BurnCorruptionFromTarget => {
-                            let t = target.minion();
-                            let v = &self.state.minions[t.index()];
-                            if let [(owner, _)] = v.corruption[..] {
-                                self.state.burn_corruption(t, owner, 1, seat);
-                            } else {
-                                self.interrupts
-                                    .push(crate::draws::Interrupt::CorruptionOwner {
-                                        seat,
-                                        minion: t,
-                                    });
-                            }
-                        }
-                        Effect::GraftOnTarget => {
-                            let v = &mut self.state.minions[target.minion().index()];
-                            v.grafts = v.grafts.saturating_add(1);
-                        }
-                        // Still a prince (re-checked above).
-                        Effect::StealTargetTitle => {
-                            let t = target.minion();
-                            self.steal_title(acting, t);
-                        }
-                        Effect::StealBloodFromTarget(n) => {
-                            let t = target.minion();
-                            // A hunt bonus is more blood from the target
-                            // (The Hungry Coyote; RTR 20030519).
-                            let hunt = self.action.as_ref().is_some_and(|a| a.card_hunt);
-                            let n = n + if hunt {
-                                self.state.hunt_bonus(acting)
-                            } else {
-                                0
-                            };
-                            // Diseased: no blood to gain, none taken.
-                            let n = if hunt && self.state.minions[acting.index()].disease {
-                                0
-                            } else {
-                                n
-                            };
-                            let taken = n.min(self.state.minions[t.index()].blood);
-                            self.state.lose_blood(t, taken);
-                            self.state.gain_blood(acting, taken);
-                            self.stealer_damaged(Some(acting), t, taken);
-                            // A hunt stealing no blood is not successful (LSJ
-                            // 20050720-2); blood it cannot hold goes to the
-                            // bank (LSJ 20010809-1).
-                            if hunt && taken > 0 {
-                                self.action.as_mut().expect("action").hunt_gained = true;
-                                self.state.spend_once_hunt(acting);
-                                self.successful_hunt_riders(acting);
-                            }
-                            // An ally's life taken as blood (Gabrielle di
-                            // Righetti): none left, it burns.
-                            let v = &self.state.minions[t.index()];
-                            if v.present() && v.is_ally() && v.blood == 0 {
-                                self.lifeless(t);
-                            }
-                        }
-                        // François Villon (G2): how much, chosen now.
-                        Effect::StealBloodUpTo(n) => {
-                            let t = target.minion();
-                            let max = n.min(self.state.minions[t.index()].blood);
-                            if max <= 1 {
-                                self.state.lose_blood(t, max);
-                                self.state.gain_blood(acting, max);
-                            } else {
-                                self.interrupts.push(crate::draws::Interrupt::StealUpTo {
-                                    seat,
-                                    from: t,
-                                    to: acting,
-                                    max,
-                                });
-                            }
-                        }
-                        Effect::CorruptTargetMayStealAtCapacity => {
-                            self.corrupt_may_steal(seat, target.minion())
-                        }
-                        // Ayelea: back at the end of her controller's next
-                        // turn.
-                        Effect::TakeControlOfTargetUntilNextTurn => {
-                            let t = target.minion();
-                            if self.state.minions[t.index()].present() {
-                                self.take_control(
-                                    t,
-                                    seat,
-                                    crate::control::ControlTerm::UntilNextTurn,
-                                );
-                            }
-                        }
-                        // Lázár Dobrescu: the pair named as it was announced,
-                        // both still there and the prey's with blood — or
-                        // nothing.
-                        Effect::PreySlotToOwnSlot => {
-                            let pair = self.action.as_ref().and_then(|a| a.slot_pair);
-                            if let (Some(((f, fc), (t, tc))), Target::Seat(of)) = (pair, target) {
-                                let st = &self.state;
-                                let from = st.seats[of.index()].uncontrolled.get(f as usize);
-                                let to = st.seats[seat.index()].uncontrolled.get(t as usize);
-                                if from.is_some_and(|u| u.card == fc && u.counters > 0)
-                                    && to.is_some_and(|u| u.card == tc)
-                                {
-                                    self.state.seats[of.index()].uncontrolled[f as usize]
-                                        .counters -= 1;
-                                    self.state.add_uncontrolled_blood(seat, t as usize, 1);
-                                }
-                            }
-                        }
+                        Granted::Shared
+                            if matches!(
+                                e,
+                                Effect::BloodToUncontrolledTarget(_)
+                                    | Effect::LockHeldForUncontrolledBloodX(_)
+                            ) && !self.uncontrolled_target_left(&ctx) => {}
                         // The target re-checked above, as a card's (Mylan
                         // Horseed, Victoria Ash: a locked target's lock a
                         // no-op, rules-qa 57.10; Le Dinh Tho, PIB 20121031).
-                        e if e.family() == Family::Shared => {
-                            self.apply_shared_effect(e, &ctx, By::Ability(src))
-                        }
-                        e @ (Effect::StealTargetAlly
-                        | Effect::StealPoolFromTarget(_)
-                        | Effect::DiscardFromTargetHand) => {
-                            self.apply_card_effect(e, &ctx, &mut None)
-                        }
-                        // Cold Amber's Hold.
-                        Effect::ActorBloodToSourceCardUpTo { max, burn_at } => {
-                            let from = ctx.actor.expect("the acting vampire");
-                            self.interrupts
-                                .push(crate::draws::Interrupt::BloodToCardUpTo {
-                                    seat,
-                                    from,
-                                    card: src.card(),
-                                    max,
-                                    burn_at,
-                                });
-                        }
-                        // San Lorenzo de El Escorial: the minion named, still
-                        // there, gives what it has of the amount named.
-                        Effect::StealFromTargetSeatSlot(_) => {
-                            let named = self.action.as_ref().and_then(|a| a.slot_steal);
-                            if let (Some((i, card, x)), Target::Seat(of)) = (named, ctx.target) {
-                                let to = ctx.actor.expect("the acting vampire");
-                                let region = &mut self.state.seats[of.index()].uncontrolled;
-                                if let Some(u) =
-                                    region.get_mut(i as usize).filter(|u| u.card == card)
-                                {
-                                    let k = x.min(u.counters);
-                                    u.counters -= k;
-                                    self.state.gain_blood(to, k);
+                        Granted::Shared => self.apply_shared_effect(*e, &ctx, By::Ability(src)),
+                        Granted::Play => self.apply_card_effect(*e, &ctx, &mut None),
+                        Granted::Own => match *e {
+                            // "Add 1 counter to this card" (The Gate of
+                            // Acheron): the card granting the action, still in
+                            // play.
+                            Effect::AddCounter(n) => {
+                                let c = src.card();
+                                if self.state.cards[c.index()].present() {
+                                    self.state.cards[c.index()].counters += n;
                                 }
                             }
-                        }
-                        // Tapestry of Blood.
-                        Effect::LookAtTargetLibraryTopBurnOne(n) => {
-                            if let Target::Seat(of) = ctx.target {
-                                self.look_library_top(seat, of, n);
+                            Effect::GreatBeastAtEleven => {
+                                let c = src.card();
+                                self.great_beast_at_eleven(c);
+                            }
+                            Effect::RemoveAllSourceCounters => {
+                                let c = src.card();
+                                if self.state.cards[c.index()].present() {
+                                    self.state.cards[c.index()].counters = 0;
+                                }
+                            }
+                            Effect::SearchToHand { filter, shown } => {
+                                self.flow = Flow::LibrarySearch {
+                                    minion: acting,
+                                    equip: &[],
+                                    to_hand: Some((filter, shown)),
+                                    free: false,
+                                    archetype: false,
+                                    hand: false,
+                                };
+                                return;
+                            }
+                            // The named cards, if both are still where they
+                            // were.
+                            Effect::ExchangeHandForAsh => {
+                                let (ash, held) = exchange.expect("named cards");
+                                let s = &mut self.state.seats[seat.index()];
+                                let from_ash = s.ash.iter().position(|&c| c == ash);
+                                let from_hand = s.hand.iter().position(|&c| c == held);
+                                if let (Some(i), Some(j)) = (from_ash, from_hand) {
+                                    let (_, ash_copy) = s.ash.take(i);
+                                    let (_, copy) = s.hand.take(j);
+                                    s.ash.put(held, copy);
+                                    s.hand.put(ash, ash_copy);
+                                }
+                            }
+                            // The ally named as the action was declared, if
+                            // still there; gone: no effect (as Psychophagia's,
+                            // rules-qa 32.12).
+                            Effect::AllyFromAshLocked(_) => {
+                                let named = self.action.as_ref().and_then(|a| a.ash_named);
+                                if let Some(card) =
+                                    named.filter(|c| self.state.seats[seat.index()].ash.contains(c))
+                                {
+                                    self.raise_ash_ally(seat, card, true);
+                                }
+                            }
+                            Effect::AshVampireToUncontrolled => {
+                                let named = self.action.as_ref().and_then(|a| a.ash_vampire_named);
+                                let s = &mut self.state.seats[seat.index()];
+                                if let Some(i) = named
+                                    .and_then(|card| s.ash_crypt.iter().position(|&c| c == card))
+                                {
+                                    let (card, copy) = s.ash_crypt.take(i);
+                                    s.uncontrolled.push(crate::state::UncontrolledSlot {
+                                        card,
+                                        copy: crate::copies::Untracked(copy),
+                                        counters: 0,
+                                        banished: None,
+                                    });
+                                }
+                            }
+                            // Both still ready (the target was re-checked
+                            // above).
+                            Effect::EnterCombatWithTarget => {
+                                let t = target.minion();
+                                if self.state.minions[acting.index()].ready() {
+                                    // "If that action is successful, she gets
+                                    // an optional maneuver in the first round
+                                    // of the resulting combat" (Massassi).
+                                    let riders: Vec<(MinionId, cards::BlockRider)> = effects
+                                        .iter()
+                                        .filter_map(|e| match e {
+                                            Effect::InResultingCombat(r) => Some((acting, *r)),
+                                            _ => None,
+                                        })
+                                        .collect();
+                                    self.start_combat_at_resolution(acting, t);
+                                    self.combat_riders(&riders);
+                                    return;
+                                }
+                            }
+                            // Still one it could hold (re-checked above).
+                            Effect::StealTargetCard => {
+                                let c = target.card();
+                                self.state.set_host(c, acting);
+                            }
+                            // Still contested (re-checked above).
+                            Effect::TargetYieldsTitle => {
+                                let t = target.minion();
+                                self.yield_title(t);
+                            }
+                            // The card still in play, the target still a
+                            // vampire in play (re-checked above).
+                            Effect::MoveSourceToTarget => {
+                                let c = src.card();
+                                if self.state.cards[c.index()].present() {
+                                    let to = target.minion();
+                                    // Derange's clan and sect move with it (LSJ
+                                    // 20070707).
+                                    if let Some(from) = self.state.cards[c.index()].host {
+                                        let d = self.state.minions[from.index()].deranged;
+                                        if d.is_some_and(|(.., id)| id == c) {
+                                            self.state.minions[from.index()].deranged = None;
+                                            self.state.minions[to.index()].deranged = d;
+                                        }
+                                    }
+                                    self.state.set_host(c, to);
+                                }
+                            }
+                            // Rise of the Nephtali: no contest with a younger
+                            // vampire — the younger one yields at once.
+                            Effect::GainLiaison => {
+                                let t = crate::crypt::Title::Independent {
+                                    name: "Liaison",
+                                    votes: 4,
+                                };
+                                let holder = (0..self.state.minions.len())
+                                    .map(|i| MinionId(i as u32))
+                                    .find(|&h| {
+                                        h != acting
+                                            && self.state.minions[h.index()].in_play
+                                            && self.state.claimed_title(h) == t
+                                    });
+                                let gains = match holder {
+                                    Some(h)
+                                        if self.state.younger_by(
+                                            h,
+                                            acting,
+                                            self.state.minions[acting.index()].owner,
+                                        ) =>
+                                    {
+                                        self.state.minions[h.index()].granted_title = None;
+                                        true
+                                    }
+                                    Some(_) => false,
+                                    None => true,
+                                };
+                                if gains && self.state.minions[acting.index()].in_play {
+                                    self.gain_title(acting, t, None);
+                                    self.release_held(Release::Liaison);
+                                }
+                            }
+                            // Nephandus: "to gain 1 life", over his starting
+                            // life too (ANK 20171109).
+                            Effect::AddHostBlood(n) => {
+                                let b = self.state.minions[acting.index()].blood + n;
+                                self.state.set_blood(acting, b);
+                            }
+                            // The Sargon Fragment: any copy of the named card
+                            // (LSJ 20050228), the Fragment still on the acting
+                            // vampire — else no effect (RTR 19960221).
+                            Effect::AshCardToHandNamed => {
+                                let named = self.action.as_ref().and_then(|a| a.ash_named);
+                                let c = src.card();
+                                let on = self.state.cards[c.index()].present()
+                                    && self.state.cards[c.index()].host == Some(acting);
+                                let s = &mut self.state.seats[seat.index()];
+                                if let (true, Some(i)) =
+                                    (on, named.and_then(|n| s.ash.iter().position(|&x| x == n)))
+                                {
+                                    let (card, copy) = s.ash.take(i);
+                                    s.hand.put(card, copy);
+                                }
+                            }
+                            // Drozodny: a copy of the named card still in the
+                            // ash heap (discard down afterward: the hand
+                            // settles once the action is over).
+                            Effect::AshCardOfToHand(_) => {
+                                let named = self.action.as_ref().and_then(|a| a.ash_named);
+                                self.ash_named_to_hand(seat, named);
+                            }
+                            Effect::AshCardToHandOnSuccess(of) => {
+                                if let Some(a) = self.action.as_mut() {
+                                    a.ash_to_hand_on_name = true;
+                                }
                                 self.interrupts
-                                    .push(crate::draws::Interrupt::BurnFromLibraryTop {
+                                    .push(crate::draws::Interrupt::NameOwnAshCard { seat, of });
+                            }
+                            // Malgorzata: both vampires still where they were
+                            // named.
+                            Effect::RemoveUncontrolledForBlood(n) => {
+                                let named = self.action.as_ref().and_then(|a| a.uncontrolled_named);
+                                let slots = &self.state.seats[seat.index()].uncontrolled;
+                                if let (Some((i, card)), Target::Uncontrolled(t)) = (named, target)
+                                {
+                                    let (i, t) = (i as usize, t as usize);
+                                    if i < slots.len() && t < slots.len() && slots[i].card == card {
+                                        let gone = self.burn_slot(seat, i);
+                                        let s = &mut self.state.seats[seat.index()];
+                                        s.removed_crypt.put(gone.card, *gone.copy);
+                                        let t = if t > i { t - 1 } else { t };
+                                        self.state.add_uncontrolled_blood(seat, t, n);
+                                    }
+                                }
+                            }
+                            // Kaymakli Fragment: drawn now, the hand discarded
+                            // down as it settles.
+                            Effect::DrawThenDiscardDown(n) => {
+                                for _ in 0..n {
+                                    let s = &mut self.state.seats[seat.index()];
+                                    if let Some((c, copy)) = s.library.take_top() {
+                                        s.hand.put(c, copy);
+                                        self.offer_redraw(seat, c);
+                                    }
+                                }
+                            }
+                            Effect::PreyAshPairHunt(bonus) => {
+                                let prey = self.state.prey(seat);
+                                let named = self.action.as_ref().and_then(|a| a.ash_named);
+                                let ps = &mut self.state.seats[prey.index()];
+                                let pair = named
+                                    .filter(|&c| ps.ash.iter().filter(|&&x| x == c).count() >= 2);
+                                let Some(card) = pair else {
+                                    let a = self.action.take().expect("action context");
+                                    return self.fizzle(a);
+                                };
+                                for _ in 0..2 {
+                                    let i = ps.ash.iter().position(|&x| x == card).expect("copy");
+                                    let (_, copy) = ps.ash.take(i);
+                                    ps.removed.put(card, copy);
+                                }
+                                let before = self.state.minions[acting.index()].blood;
+                                let n = 1 + bonus + self.state.hunt_bonus(acting);
+                                let successful = self.state.hunt_blood(acting, n);
+                                let gained = self.state.minions[acting.index()].blood > before;
+                                if let Some(a) = self.action.as_mut() {
+                                    a.hunt_gained = gained;
+                                }
+                                if successful {
+                                    self.successful_hunt_riders(acting);
+                                }
+                            }
+                            // Heartrender: the target burned, the ally out of
+                            // the game (rules-qa 55.4).
+                            Effect::RemoveActorToBurnTarget => {
+                                match target {
+                                    Target::Minion(t) => self.burn_minion(t),
+                                    Target::Card(c) => self.burn_card_in_play(c),
+                                    _ => {}
+                                }
+                                if self.state.minions[acting.index()].in_play {
+                                    self.remove_from_game(acting);
+                                }
+                            }
+                            Effect::PaidConvictionToTarget => {
+                                let paid = self.action.as_ref().and_then(|a| a.conviction);
+                                if let (Some(c), Target::Minion(t)) = (paid, target) {
+                                    let card = self.state.cards[c.index()].card;
+                                    let ash = &self.state.seats[seat.index()].ash;
+                                    let k = ash.iter().rposition(|&x| x == card);
+                                    let v = &self.state.minions[t.index()];
+                                    if let Some(k) = k.filter(|_| v.present() && v.is_imbued()) {
+                                        let (_, copy) = self.state.seats[seat.index()].ash.take(k);
+                                        self.gain_conviction(t, card, copy, seat);
+                                    }
+                                }
+                            }
+                            Effect::ActingGainsConviction => {
+                                self.interrupts
+                                    .push(crate::draws::Interrupt::GainConviction {
                                         seat,
-                                        of,
-                                        n,
+                                        minion: acting,
+                                        library: false,
                                     });
                             }
-                        }
-                        Effect::CryptNamedToUncontrolled(name) => {
-                            self.crypt_named_to_uncontrolled(seat, name)
-                        }
-                        Effect::TargetSeatTakesSourceAlly => {
-                            if let (Target::Seat(to), cards::AbilitySource::Card(c)) = (target, src)
-                            {
+                            Effect::ReorderTop { n, unlock } => {
+                                if unlock {
+                                    self.effect_unlock(acting);
+                                }
+                                let total =
+                                    (n as usize).min(self.state.seats[seat.index()].library.len());
+                                if total > 1 {
+                                    self.interrupts.push(crate::draws::Interrupt::Reorder {
+                                        seat,
+                                        total: total as u8,
+                                        placed: 0,
+                                    });
+                                }
+                            }
+                            // Michael Harris: the equipment is chosen now that
+                            // the action succeeded (as Magic of the Smith). Raw
+                            // Recruit: the card a Gargoyle, its vampire gone.
+                            Effect::HeldVampireBecomesGargoyle => {
+                                self.recruit_gargoyle(src.card(), acting);
+                            }
+                            // Legion: the fledgling, the hand discarded after.
+                            Effect::FledglingFromNamedMaster => {
+                                let named = self.action.as_ref().and_then(|a| a.named_master);
+                                self.fledgling_from_named_master(seat, acting, named);
+                            }
+                            Effect::SearchDisciplineMasterOntoActor(named) => {
+                                self.interrupts
+                                    .push(crate::draws::Interrupt::DisciplineSearch {
+                                        seat,
+                                        minion: acting,
+                                        named,
+                                    });
+                            }
+                            Effect::SearchArchetypeOntoActor => {
+                                self.state.gain_blood(acting, 1);
+                                self.flow = Flow::LibrarySearch {
+                                    minion: acting,
+                                    equip: &[],
+                                    to_hand: None,
+                                    free: false,
+                                    archetype: true,
+                                    hand: false,
+                                };
+                                return;
+                            }
+                            Effect::SearchEquipForTarget => {
+                                self.flow = Flow::LibrarySearch {
+                                    minion: target.minion(),
+                                    equip: &[],
+                                    to_hand: None,
+                                    free: false,
+                                    archetype: false,
+                                    hand: true,
+                                };
+                                return;
+                            }
+                            Effect::SearchEquip(equip) | Effect::SearchEquipFree(equip) => {
+                                self.flow = Flow::LibrarySearch {
+                                    minion: acting,
+                                    equip,
+                                    to_hand: None,
+                                    free: matches!(e, Effect::SearchEquipFree(_)),
+                                    archetype: false,
+                                    hand: false,
+                                };
+                                return;
+                            }
+                            // Whose counter, if several Methuselahs' are on it:
+                            // the acting Methuselah's choice.
+                            Effect::BurnCorruptionFromTarget => {
+                                let t = target.minion();
+                                let v = &self.state.minions[t.index()];
+                                if let [(owner, _)] = v.corruption[..] {
+                                    self.state.burn_corruption(t, owner, 1, seat);
+                                } else {
+                                    self.interrupts.push(
+                                        crate::draws::Interrupt::CorruptionOwner {
+                                            seat,
+                                            minion: t,
+                                        },
+                                    );
+                                }
+                            }
+                            Effect::GraftOnTarget => {
+                                let v = &mut self.state.minions[target.minion().index()];
+                                v.grafts = v.grafts.saturating_add(1);
+                            }
+                            // Still a prince (re-checked above).
+                            Effect::StealTargetTitle => {
+                                let t = target.minion();
+                                self.steal_title(acting, t);
+                            }
+                            Effect::StealBloodFromTarget(n) => {
+                                let t = target.minion();
+                                // A hunt bonus is more blood from the target
+                                // (The Hungry Coyote; RTR 20030519).
+                                let hunt = self.action.as_ref().is_some_and(|a| a.card_hunt);
+                                let n = n + if hunt {
+                                    self.state.hunt_bonus(acting)
+                                } else {
+                                    0
+                                };
+                                // Diseased: no blood to gain, none taken.
+                                let n = if hunt && self.state.minions[acting.index()].disease {
+                                    0
+                                } else {
+                                    n
+                                };
+                                let taken = n.min(self.state.minions[t.index()].blood);
+                                self.state.lose_blood(t, taken);
+                                self.state.gain_blood(acting, taken);
+                                self.stealer_damaged(Some(acting), t, taken);
+                                // A hunt stealing no blood is not successful
+                                // (LSJ 20050720-2); blood it cannot hold goes
+                                // to the bank (LSJ 20010809-1).
+                                if hunt && taken > 0 {
+                                    self.action.as_mut().expect("action").hunt_gained = true;
+                                    self.state.spend_once_hunt(acting);
+                                    self.successful_hunt_riders(acting);
+                                }
+                                // An ally's life taken as blood (Gabrielle di
+                                // Righetti): none left, it burns.
+                                let v = &self.state.minions[t.index()];
+                                if v.present() && v.is_ally() && v.blood == 0 {
+                                    self.lifeless(t);
+                                }
+                            }
+                            // François Villon (G2): how much, chosen now.
+                            Effect::StealBloodUpTo(n) => {
+                                let t = target.minion();
+                                let max = n.min(self.state.minions[t.index()].blood);
+                                if max <= 1 {
+                                    self.state.lose_blood(t, max);
+                                    self.state.gain_blood(acting, max);
+                                } else {
+                                    self.interrupts.push(crate::draws::Interrupt::StealUpTo {
+                                        seat,
+                                        from: t,
+                                        to: acting,
+                                        max,
+                                    });
+                                }
+                            }
+                            Effect::CorruptTargetMayStealAtCapacity => {
+                                self.corrupt_may_steal(seat, target.minion())
+                            }
+                            // Ayelea: back at the end of her controller's next
+                            // turn.
+                            Effect::TakeControlOfTargetUntilNextTurn => {
+                                let t = target.minion();
+                                if self.state.minions[t.index()].present() {
+                                    self.take_control(
+                                        t,
+                                        seat,
+                                        crate::control::ControlTerm::UntilNextTurn,
+                                    );
+                                }
+                            }
+                            // Lázár Dobrescu: the pair named as it was
+                            // announced, both still there and the prey's with
+                            // blood — or nothing.
+                            Effect::PreySlotToOwnSlot => {
+                                let pair = self.action.as_ref().and_then(|a| a.slot_pair);
+                                if let (Some(((f, fc), (t, tc))), Target::Seat(of)) = (pair, target)
+                                {
+                                    let st = &self.state;
+                                    let from = st.seats[of.index()].uncontrolled.get(f as usize);
+                                    let to = st.seats[seat.index()].uncontrolled.get(t as usize);
+                                    if from.is_some_and(|u| u.card == fc && u.counters > 0)
+                                        && to.is_some_and(|u| u.card == tc)
+                                    {
+                                        self.state.seats[of.index()].uncontrolled[f as usize]
+                                            .counters -= 1;
+                                        self.state.add_uncontrolled_blood(seat, t as usize, 1);
+                                    }
+                                }
+                            }
+                            // Cold Amber's Hold.
+                            Effect::ActorBloodToSourceCardUpTo { max, burn_at } => {
+                                let from = ctx.actor.expect("the acting vampire");
+                                self.interrupts
+                                    .push(crate::draws::Interrupt::BloodToCardUpTo {
+                                        seat,
+                                        from,
+                                        card: src.card(),
+                                        max,
+                                        burn_at,
+                                    });
+                            }
+                            // San Lorenzo de El Escorial: the minion named,
+                            // still there, gives what it has of the amount
+                            // named.
+                            Effect::StealFromTargetSeatSlot(_) => {
+                                let named = self.action.as_ref().and_then(|a| a.slot_steal);
+                                if let (Some((i, card, x)), Target::Seat(of)) = (named, ctx.target)
+                                {
+                                    let to = ctx.actor.expect("the acting vampire");
+                                    let region = &mut self.state.seats[of.index()].uncontrolled;
+                                    if let Some(u) =
+                                        region.get_mut(i as usize).filter(|u| u.card == card)
+                                    {
+                                        let k = x.min(u.counters);
+                                        u.counters -= k;
+                                        self.state.gain_blood(to, k);
+                                    }
+                                }
+                            }
+                            // Tapestry of Blood.
+                            Effect::LookAtTargetLibraryTopBurnOne(n) => {
+                                if let Target::Seat(of) = ctx.target {
+                                    self.look_library_top(seat, of, n);
+                                    self.interrupts.push(
+                                        crate::draws::Interrupt::BurnFromLibraryTop { seat, of, n },
+                                    );
+                                }
+                            }
+                            Effect::CryptNamedToUncontrolled(name) => {
+                                self.crypt_named_to_uncontrolled(seat, name)
+                            }
+                            Effect::TargetSeatTakesSourceAlly => {
+                                if let (Target::Seat(to), cards::AbilitySource::Card(c)) =
+                                    (target, src)
+                                {
+                                    if self.state.cards[c.index()].present() {
+                                        self.give_card_control(c, to);
+                                    }
+                                }
+                            }
+                            Effect::UnlockAndControlTargetUntilEndOfTurn => {
+                                let t = target.minion();
+                                if self.state.minions[t.index()].present() {
+                                    self.effect_unlock(t);
+                                    self.take_control(
+                                        t,
+                                        seat,
+                                        crate::control::ControlTerm::UntilEndOfTurn,
+                                    );
+                                }
+                            }
+                            // Jaroslav Pascek: each of them, at once.
+                            Effect::DamageSeatSectVampires { sect, n } => {
+                                if let Target::Seat(t) = target {
+                                    let hit: Vec<MinionId> = self
+                                        .state
+                                        .minions_of(t)
+                                        .filter(|&m| {
+                                            let v = &self.state.minions[m.index()];
+                                            v.present()
+                                                && v.is_vampire()
+                                                && self.state.sect_of(m) == Some(sect)
+                                        })
+                                        .collect();
+                                    for m in hit {
+                                        self.damage_out_of_combat(m, n, false);
+                                    }
+                                }
+                            }
+                            // Tobias Smith: the target still his controller's,
+                            // untitled and Sabbat (its filter read again).
+                            Effect::TargetGetsTitle(title) => {
+                                let t = target.minion();
+                                self.state.minions[t.index()].granted_title = Some(title);
+                            }
+                            Effect::ActorFreedFromSlavery => {
+                                let v = &mut self.state.minions[acting.index()];
+                                v.freed_slave = true;
+                                v.slave_of = None;
+                                v.sect_override = Some(crate::crypt::Sect::Independent);
+                            }
+                            // Casino Reeds, Zayyat: up to n of his own blood.
+                            Effect::HostBloodToUncontrolledTarget(n) => {
+                                if let Target::Uncontrolled(i) = target {
+                                    let give = n.min(self.state.minions[acting.index()].blood);
+                                    self.state.lose_blood(acting, give);
+                                    self.state.add_uncontrolled_blood(seat, i as usize, give);
+                                }
+                            }
+                            // Edward Neally: the prey's hand (re-checked
+                            // above).
+                            Effect::PeekHand => {
+                                if let Target::Seat(t) = target {
+                                    self.peek(seat, t);
+                                }
+                            }
+                            // Highway Haven: RV: burned as the action succeeds,
+                            // the combat with its former bearer after.
+                            Effect::BurnSource => {
+                                let c = src.card();
                                 if self.state.cards[c.index()].present() {
-                                    self.give_card_control(c, to);
+                                    self.burn_card_in_play(c);
                                 }
                             }
-                        }
-                        Effect::DirectedAtSourceController => {}
-                        Effect::UnlockAndControlTargetUntilEndOfTurn => {
-                            let t = target.minion();
-                            if self.state.minions[t.index()].present() {
-                                self.effect_unlock(t);
-                                self.take_control(
-                                    t,
-                                    seat,
-                                    crate::control::ControlTerm::UntilEndOfTurn,
-                                );
+                            other => {
+                                unreachable!("a granted action's effect without its arm: {other:?}")
                             }
-                        }
-                        // Jaroslav Pascek: each of them, at once.
-                        Effect::DamageSeatSectVampires { sect, n } => {
-                            if let Target::Seat(t) = target {
-                                let hit: Vec<MinionId> = self
-                                    .state
-                                    .minions_of(t)
-                                    .filter(|&m| {
-                                        let v = &self.state.minions[m.index()];
-                                        v.present()
-                                            && v.is_vampire()
-                                            && self.state.sect_of(m) == Some(sect)
-                                    })
-                                    .collect();
-                                for m in hit {
-                                    self.damage_out_of_combat(m, n, false);
-                                }
-                            }
-                        }
-                        // Tobias Smith: the target still his controller's,
-                        // untitled and Sabbat (its filter read again).
-                        Effect::TargetGetsTitle(title) => {
-                            let t = target.minion();
-                            self.state.minions[t.index()].granted_title = Some(title);
-                        }
-                        Effect::ActorFreedFromSlavery => {
-                            let v = &mut self.state.minions[acting.index()];
-                            v.freed_slave = true;
-                            v.slave_of = None;
-                            v.sect_override = Some(crate::crypt::Sect::Independent);
-                        }
-                        // Hrothulf: the Edge as the action's price.
-                        Effect::BurnEdge => self.state.seats[seat.index()].has_edge = false,
-                        // Casino Reeds: up to n of his own blood.
-                        Effect::HostBloodToUncontrolledTarget(n) => {
-                            if let Target::Uncontrolled(i) = target {
-                                let give = n.min(self.state.minions[acting.index()].blood);
-                                self.state.lose_blood(acting, give);
-                                self.state.add_uncontrolled_blood(seat, i as usize, give);
-                            }
-                        }
-                        other => unreachable!("not a granted action's effect: {other:?}"),
+                        },
                     }
                 }
                 self.after_resolution();
@@ -7924,7 +7931,9 @@ impl Engine {
                 // Rulebook "The Referendum": the cost paid, the referendum
                 // called if the acting minion is still ready (spec
                 // §3.7.5.1); NRA on resolution (rules-qa 1.4). A granted
-                // one has no card-play cost (spec §1.5).
+                // one has no card-play cost (spec §1.5), its own printed
+                // pool paid now (War of Ages, rules-qa 52.10; unpayable, it
+                // fizzles, 3.6).
                 let (mode, (cost, once, used)) = match (a.card, a.source) {
                     (Some(play), _) => {
                         let def = cards::lookup(play.card).expect("definition");
@@ -7942,6 +7951,13 @@ impl Engine {
                 };
                 let acting = a.acting;
                 self.state.minions[acting.index()].political_this_turn = true;
+                let printed = match a.card {
+                    None => self.granted_cost(&a).0,
+                    Some(_) => 0,
+                };
+                if self.state.seats[seat.index()].pool < printed as i32 {
+                    return self.fizzle(a);
+                }
                 if !a.cost_paid_early {
                     if self.state.minions[acting.index()].blood < cost {
                         // Unpayable by resolution: fizzles (rules-qa 3.6),
@@ -7953,6 +7969,16 @@ impl Engine {
                         self.spend_once_cost_off(&play, once);
                     }
                     self.spend_counters(&used);
+                }
+                if printed > 0 {
+                    self.paying(|e| e.state.seats[seat.index()].lose_pool(printed as i32));
+                    if self.state.seats[seat.index()].pool == 0 {
+                        self.action = Some(a);
+                        if self.acting_pool_out(seat) {
+                            return;
+                        }
+                        a = self.action.take().expect("action");
+                    }
                 }
                 let referendum = mode
                     .effects

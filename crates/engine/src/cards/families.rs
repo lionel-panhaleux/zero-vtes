@@ -36,6 +36,20 @@ pub enum Family {
     Marker,
 }
 
+/// How a granted action's success resolves an effect of its ability
+/// (`Effect::granted`).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Granted {
+    /// Read as the action is declared or paid: passed as it resolves.
+    Passed,
+    /// The resolver's own arm (`succeed`'s `ActionKind::Ability`).
+    Own,
+    /// `Engine::apply_card_effect`'s arm, as a card played resolves it.
+    Play,
+    /// `Engine::apply_shared_effect`.
+    Shared,
+}
+
 impl Effect {
     /// The interpreter resolving this effect.
     pub fn family(self) -> Family {
@@ -59,6 +73,86 @@ impl Effect {
                 | Effect::TakeControlOfTargetUntilUnlock
                 | Effect::TakeControlOfTargetUntilNextTurn
         )
+    }
+
+    /// How a granted action (`ActionKind::Ability`) resolves this effect of
+    /// its ability as it succeeds (`Engine::succeed` dispatches on it):
+    /// `None`, it cannot sit there.
+    pub fn granted(self) -> Option<Granted> {
+        use Effect as E;
+        Some(match self {
+            E::DeclareAction(_)
+            | E::AddStealth(_)
+            | E::StealthIfOwnTarget(_)
+            | E::BurnSourceOnDeclare
+            | E::MandatoryAction
+            | E::PayBlood(_)
+            | E::PayBloodPerCounter
+            | E::PayLife(_)
+            | E::PayPool(_)
+            | E::PayConviction
+            | E::SameActionAs(_)
+            | E::LockSelf
+            | E::TargetCannotBlock
+            | E::HuntAction
+            | E::InResultingCombat(_)
+            | E::DirectedAtSourceController => Granted::Passed,
+            E::AddCounter(_)
+            | E::GreatBeastAtEleven
+            | E::RemoveAllSourceCounters
+            | E::SearchToHand { .. }
+            | E::ExchangeHandForAsh
+            | E::AllyFromAshLocked(_)
+            | E::AshVampireToUncontrolled
+            | E::EnterCombatWithTarget
+            | E::StealTargetCard
+            | E::TargetYieldsTitle
+            | E::MoveSourceToTarget
+            | E::GainLiaison
+            | E::AddHostBlood(_)
+            | E::AshCardToHandNamed
+            | E::AshCardOfToHand(_)
+            | E::AshCardToHandOnSuccess(_)
+            | E::RemoveUncontrolledForBlood(_)
+            | E::DrawThenDiscardDown(_)
+            | E::PreyAshPairHunt(_)
+            | E::RemoveActorToBurnTarget
+            | E::PaidConvictionToTarget
+            | E::ActingGainsConviction
+            | E::ReorderTop { .. }
+            | E::HeldVampireBecomesGargoyle
+            | E::FledglingFromNamedMaster
+            | E::SearchDisciplineMasterOntoActor(_)
+            | E::SearchArchetypeOntoActor
+            | E::SearchEquipForTarget
+            | E::SearchEquip(_)
+            | E::SearchEquipFree(_)
+            | E::BurnCorruptionFromTarget
+            | E::GraftOnTarget
+            | E::StealTargetTitle
+            | E::StealBloodFromTarget(_)
+            | E::StealBloodUpTo(_)
+            | E::CorruptTargetMayStealAtCapacity
+            | E::TakeControlOfTargetUntilNextTurn
+            | E::PreySlotToOwnSlot
+            | E::ActorBloodToSourceCardUpTo { .. }
+            | E::StealFromTargetSeatSlot(_)
+            | E::LookAtTargetLibraryTopBurnOne(_)
+            | E::CryptNamedToUncontrolled(_)
+            | E::TargetSeatTakesSourceAlly
+            | E::UnlockAndControlTargetUntilEndOfTurn
+            | E::DamageSeatSectVampires { .. }
+            | E::TargetGetsTitle(_)
+            | E::ActorFreedFromSlavery
+            | E::HostBloodToUncontrolledTarget(_)
+            | E::PeekHand
+            | E::BurnSource => Granted::Own,
+            E::StealTargetAlly | E::StealPoolFromTarget(_) | E::DiscardFromTargetHand => {
+                Granted::Play
+            }
+            e if e.family() == Family::Shared => Granted::Shared,
+            _ => return None,
+        })
     }
 
     /// The family and whether it prevents, classified together so a new
@@ -960,6 +1054,7 @@ mod tests {
     use super::super::vampires::VAMPIRES;
     use super::super::ModeDef;
     use super::*;
+    use crate::decision::ActionKind;
 
     /// A position of a definition holding effects, and the interpreter
     /// running them there.
@@ -972,9 +1067,9 @@ mod tests {
         ActionMode,
         /// An in-play ability: `resolve_ability`.
         Ability,
-        /// An ability declaring an action: its effects resolve as the
-        /// action succeeds (`succeed`), which reads the card's too.
-        Granted,
+        /// An ability declaring an action of this kind: its effects resolve
+        /// as the action succeeds (`succeed`), read at its declaration.
+        Granted(ActionKind),
         /// A rider: the loop firing its hook.
         Rider,
         /// `If`'s bonus, read live for the rest of the action.
@@ -989,17 +1084,74 @@ mod tests {
             At::Mode => matches!(f, Play | Shared | Action | Combat | Vote | Entry | Marker),
             At::ActionMode => allowed(At::Mode, f) || f == Success,
             At::Ability => matches!(f, Shared | Ability | Action | Combat | Vote | Marker),
-            At::Granted => !matches!(f, Entry | Rider),
+            At::Granted(_) => unreachable!("read by `granted_resolves`"),
             At::Rider => !matches!(f, Play | Combat | Vote | Success | Entry),
             At::If => f == Action,
             At::BleedSuccessful => matches!(f, Shared | Success),
         }
     }
 
-    fn declares(m: &ModeDef) -> bool {
-        m.effects
-            .iter()
-            .any(|e| matches!(e, Effect::DeclareAction(_)))
+    /// What resolves an effect of a granted action of `kind`: for
+    /// `ActionKind::Ability`, the resolver's own dispatch (`Effect::granted`);
+    /// for another kind, the effects its resolver, its stealth or its
+    /// declaration read by name (`succeed`'s arm of the kind,
+    /// `ActionCtx::stealth`, `bleed_amount`, `granted_cost`, `use_ability`).
+    fn granted_resolves(kind: ActionKind, e: Effect) -> bool {
+        use ActionKind as K;
+        use Effect as E;
+        if kind == K::Ability {
+            return e.granted().is_some();
+        }
+        let declared = matches!(
+            e,
+            E::DeclareAction(_)
+                | E::AddStealth(_)
+                | E::MandatoryAction
+                | E::StealthForClan { .. }
+                | E::StealthForTitled(_)
+        );
+        declared
+            || match kind {
+                K::Bleed => matches!(
+                    e,
+                    E::BleedMod { .. }
+                        | E::BleedIfTargetHasNoReadyUnlocked(_)
+                        | E::NoOtherEquipmentBleed
+                        | E::BurnSourceOnResolution
+                        | E::PayBlood(_)
+                        | E::PayBloodPerCounter
+                ),
+                K::BurnCard => matches!(
+                    e,
+                    E::BurnSource
+                        | E::BurnSelfAtCounters(_)
+                        | E::AddCounter(_)
+                        | E::ShuffleSourceIntoLibrary
+                        | E::ActingVampireTakesDamage(_)
+                        | E::LockHostSkipNextUnlock(_)
+                        | E::PayBlood(_)
+                        | E::PayBloodPerCounter
+                        | E::PayPool(_)
+                ),
+                K::EquipFound => {
+                    matches!(
+                        e,
+                        E::EquipFirstFound { .. } | E::EquipStored | E::EquipFromAnyAsh
+                    )
+                }
+                K::Political => matches!(
+                    e,
+                    E::CallReferendum(_) | E::TorporIfReferendumFails | E::PayPool(_)
+                ),
+                _ => false,
+            }
+    }
+
+    fn declared(m: &ModeDef) -> Option<ActionKind> {
+        m.effects.iter().find_map(|e| match e {
+            Effect::DeclareAction(k) => Some(*k),
+            _ => None,
+        })
     }
 
     #[derive(Default)]
@@ -1012,7 +1164,11 @@ mod tests {
         fn effects(&mut self, name: &str, at: At, effects: &[Effect]) {
             for &e in effects {
                 self.checked += 1;
-                if !allowed(at, e.family()) {
+                let sits = match at {
+                    At::Granted(kind) => granted_resolves(kind, e),
+                    at => allowed(at, e.family()),
+                };
+                if !sits {
                     self.failures
                         .push(format!("{name}: {e:?} ({:?}) in {at:?}", e.family()));
                 }
@@ -1034,7 +1190,7 @@ mod tests {
         }
 
         fn mode(&mut self, name: &str, m: &ModeDef) {
-            let at = if declares(m) {
+            let at = if declared(m).is_some() {
                 At::ActionMode
             } else {
                 At::Mode
@@ -1043,11 +1199,7 @@ mod tests {
         }
 
         fn ability(&mut self, name: &str, a: &ModeDef) {
-            let at = if declares(a) {
-                At::Granted
-            } else {
-                At::Ability
-            };
+            let at = declared(a).map_or(At::Ability, At::Granted);
             self.effects(name, at, a.effects);
         }
     }
@@ -1136,7 +1288,7 @@ mod tests {
             );
         let mut failures = Vec::new();
         let mut checked = 0;
-        for (name, a) in abilities.filter(|(_, a)| !declares(a)) {
+        for (name, a) in abilities.filter(|(_, a)| declared(a).is_none()) {
             for e in a.effects.iter().filter(|e| e.family() == Family::Action) {
                 checked += 1;
                 if !a.windows.iter().all(in_action) {
