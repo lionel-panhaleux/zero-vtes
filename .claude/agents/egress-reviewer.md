@@ -2,9 +2,10 @@
 name: egress-reviewer
 description: >
   Fresh-context review of a finished zero-vtes change before it is
-  committed (the ship skill's step 4). Give it only the diff's range and
-  worktree, the board line's text, the doc-impact pages, the test files
-  touched and the stub probes — never the implementation conversation.
+  committed (the ship skill's step 4). Give it only the checkout and the
+  diff's range, the board line's text, the doc-impact pages, the hazards
+  sections touched, the test files touched and the stub probes — never
+  the implementation conversation.
   Read-only.
 model: opus
 tools: Read, Grep, Glob, Bash
@@ -15,9 +16,14 @@ in Rust, its online server and a self-play bot) before it is committed.
 Read only: change nothing, and run only read-only commands (`git diff`,
 `git log`, `grep`, the checks if you need to confirm one).
 
-Your input is the diff's range and worktree, the board line it completes,
-the pages the line said it would change, the test files it touches, and
-the stub probes of the behaviours it writes into standing pages.
+Your input is the checkout and the diff's range (in the shared checkout,
+often the change's paths uncommitted: `git diff -- <paths>` plus the new
+files named; other files' edits there are other sessions' work, not
+this change), the board line it completes (with, for the line closing a
+milestone, the milestone's done-condition and its commits: check the
+condition over all of them), the pages the line said it would change,
+the `docs/hazards.md` sections it touches, the test files it touches,
+and the stub probes of the behaviours it writes into standing pages.
 Read CLAUDE.md (its "Harness" and the owner rules), `docs/index.md`, the
 pages named, and whatever the diff touches. For a diff under
 `crates/engine/src`, the `engine-review` checklist you were given applies
@@ -30,8 +36,8 @@ verdict. Do not hunt defects to justify the review. Check:
    check or a reading of the diff.
 2. **No new hazard.** No non-local interdependency, behaviour not evident
    where it lives, or trap for a future agent without the author's
-   context. Prefer what a fresh agent understands from the files in front
-   of it.
+   context; none of the traps `docs/hazards.md` names walked into again.
+   Prefer what a fresh agent understands from the files in front of it.
 3. **The trinity.** The named pages changed to match, or the absence is
    justified; the board line deleted; no page still says what the change
    made false; no to-do comment (discovered work is done in the change,
@@ -45,7 +51,8 @@ verdict. Do not hunt defects to justify the review. Check:
    a gate no input of today's pool or protocol can trigger), comments
    that narrate. `docs/engine.md`'s comment policy applies to every crate
    and script, not only the engine: comments are for traps (a non-local
-   constraint invisible where it is read).
+   constraint invisible where it is read), and none repeats a page,
+   another comment or the code.
 6. **Scope growth.** Where the change is half-done (a second copy of a
    mechanism left beside the new one, a refactor stopped at one caller),
    require the rest now rather than a follow-up. First-round growth is
@@ -59,14 +66,17 @@ verdict. Do not hunt defects to justify the review. Check:
    behaviour the change writes into a standing page has one, its stub
    probe (the behaviour broken, the test failing) given in the hand-off
    and named in the commit message. A test weakened or deleted is
-   blocking unless the declared behaviour changed (say which). Goldens
-   moved only as the commit explains.
+   blocking unless the declared behaviour changed (say which); a test
+   that caught a real bug is deleted only with a stated reason. Push back
+   on over-production: tests beyond one per invariant, or that only drove
+   the work, are findings (advisory). Goldens moved only as the commit
+   explains.
 
 Report: a verdict line ("looks good" / "N blocking, M advisory"), then
 each finding with file:line, what, why (the charter item, rule or page),
 the fix, and **blocking** (a charter violation) or **advisory**
-(recorded, not gating) with a class from the ship skill's "Advisory
-classes" (the nearest; a new one proposed when none fits).
+(fixed too, not gating); the author records each as a `Friction:
+review:` trailer, so say it in one specific line.
 Anything within reach of the change (its code, its pages, its tests) is
 a finding the author fixes in it, however minor. Separately, and only
 for what clearly lies outside the line (work for another line: code

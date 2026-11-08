@@ -18,16 +18,17 @@ currency is mechanical, not aspirational.
 
 The top line of your board without a `[doing: …]` marker, unless the
 owner names another. Mark it `[doing: <session>]`. Read what the line
-points at and the pages it names. A session edits its own board only: a
+points at, the pages it names, and the sections of `docs/hazards.md`
+naming what it touches. A session edits its own board only: a
 line for another board is sent to that line's session (or to Z-main when
 it crosses lines), which runs `intake` on it.
 
 ## 2. Do it
 
 Follow the line's skill: `add-cards` (cards), `engine-review` (engine
-commits), `training`, `sc-change`. Work in the line's worktree (CLAUDE.md
-"Harness": worktrees stay). Task notes (plan, progress, hazards) go in the
-session's job tmp; they die with the task.
+commits), `training`, `sc-change`. Work in the shared checkout on `main`
+(CLAUDE.md "Sessions": trunk-based, the tree shared). Task notes (plan,
+progress, hazards) go in the session's job tmp; they die with the task.
 
 Scope grows in place (owner, 2026-10-15): what the work discovers (a
 bug, a rough edge, a stale page, a missing test) and every relevant
@@ -44,7 +45,10 @@ completed.
 
 Before review, in the change itself:
 
-- the code and its tests, the CLAUDE.md checks green;
+- the code and its tests, the checks green (docs/operations.md
+  "Checks"); the tests that only drove the work dropped, the main path
+  and the failure modes that matter kept (CLAUDE.md "Harness");
+- every comment repeating a page, another comment or the code deleted;
 - for each behaviour the change writes into a standing page (a rule, a
   guarantee, a "never"), a test that fails without it, shown so: a stub
   probe (the behaviour removed or broken, the test failing, then
@@ -64,26 +68,37 @@ Before review, in the change itself:
   elsewhere), said in the commit. Its re-read list (a function whose
   body changed under an unchanged doc, a page line citing a changed
   function or variant) is gone through: each still true after the
-  change, or fixed.
+  change, or fixed. In the shared tree it also reads the other
+  sessions' uncommitted edits: a hit in a file not yours is theirs.
 
 ## 4. Egress review
 
+A change of pages only (no code, test, script, skill or agent) skips
+review: its trailer is `Egress: none (docs only)`. Any other change is
+reviewed.
+
 Spawn the `egress-reviewer` agent (`.claude/agents/egress-reviewer.md`)
-with, and only with: the diff's range and worktree, the board line's
-text as it was, the doc-impact pages, the test files the diff touches
-(`git diff --stat <range> -- '*tests*' '*test_*'`), and the stub probe
-of each behaviour the change writes into a standing page (the test, what
-was broken). Not the conversation: a fresh reader sees what the author's
+with, and only with: the checkout and the diff's range (the change's
+paths, uncommitted: `-- <paths>`, new files named), the board line's text
+as it was, the doc-impact pages, the sections of `docs/hazards.md` the
+diff touches, the test files the diff touches, and the stub probe of each
+behaviour the change writes into a standing page (the test, what was
+broken). Not the conversation: a fresh reader sees what the author's
 context hides. A diff touching `crates/engine/src` (generated tables
 aside) also gets the `engine-review` charter: pass the skill's checklist
 in the same prompt, or run that skill's reviewer alongside.
+
+The line that closes a milestone (the last line carrying its
+`[M:<slug>]`, roadmap "Milestones") is reviewed with the whole
+milestone: add its done-condition and its commits (`git log --grep
+'M:<slug>'`), the reviewer checking the condition over all they changed;
+the milestone is deleted from the roadmap in the same change.
 
 Then:
 
 - **Blocking** findings: fix, re-run the checks, review again.
 - **Advisory** findings: fixed in this change too, unless clearly outside
-  its line (then `intake`, and the trailer says so); each recorded as a
-  commit trailer.
+  its line (then `intake`, and the trailer says so).
 - A third round still blocking: stop and take it to the owner,
   compressed to the one decision it turns on; three rounds that fail
   point at the approach, not its details (owner, 2026-10-25). Blocking
@@ -93,99 +108,36 @@ Then:
 
 Once the checks are green and the review has no blocking finding left:
 the owner's standing word (CLAUDE.md "Owner rules"); a red reading is
-answered by the owner first. The message ends with the review's
-trailers, which the upkeep's ratchet reads:
+answered by the owner first. On `main`, your files only, by path
+(`git commit -- <paths>`; CLAUDE.md "Sessions"). The message names the
+line's milestone token when it has one, and ends with its trailers,
+which the upkeep's retrospective reads:
 
 ```
-Egress: clean | <n> blocking fixed
-Advisory: <class>: <one line>        (one per advisory finding, fixed or not)
-Advisory: <class>: <one line> (intake: <board>)   (one taken out of scope)
+Egress: clean | <n> blocking fixed | none (docs only)
+Friction: <kind>: <one line>      (one per friction met, see below)
+Friction: review: <one line> (intake: <board>)   (a finding taken out of scope)
+Friction: none                    (when the change met none)
 Grading: <n> readings, <r> red asked, <c> corrected    (card rounds)
-Grading-missed: <round> <rules-qa item>: <one line>  (a reading graded green/amber, found wrong later)
 ```
 
-`<class>` is one of the classes below, so three of a kind can be
-counted (`python3 scripts/harness.py ratchet`). Then the usual
-attribution trailers.
+Then the usual attribution trailers. Tell the lines what the commit
+changes for them ("Between lines") and Z-main what it changes for a
+deploy; Z-main pushes.
 
-The branch reaches `main` through Z-main, who merges a line's request
-without asking the owner (CLAUDE.md "Sessions"): send it the branch, its tip
-and what it changes for the other lines, and tell those lines yourself
-("Between lines"). Z-main, after a merge: `python3 scripts/harness.py due`,
-and `upkeep` when it is due.
+### Friction kinds
 
-### Advisory classes
+What slowed the change or would have gone wrong, one trailer each, the
+one line saying what happened, specifically enough that the same
+friction met twice can be recognised (the file, the rule, the check):
 
-One slug a kind, the first on its line; the ones after it are its older
-spellings, counted with it (`*` a prefix; an exact slug wins over a
-prefix, a longer prefix over a shorter). A finding of no kind here gets
-the nearest, or a new line in this list.
-
-- `stale-doc`: a page or doc comment says what is no longer true; also
-  `stale-*`, `inaccurate-doc`, `doc-mismatch`, `doc-vs-code`,
-  `false-text`, `dangling-reference`, `ledger-*`, `doc-overclaim`,
-  `unbacked-claim`, `wrong-citation`, `miscount`, `contradiction`,
-  `inconsistent-rule`, `rule-tension`.
-- `stale-comment`: a code comment says what is no longer true; also
-  `misleading-comment`, `inaccurate-comment`, `stale-docstring`,
-  `comment-accuracy`, `comment-overclaims`, `overclaiming-comment`,
-  `test-comment-overclaims`.
-- `doc-precision`: true but vague or incomplete; also `imprecise-*`,
-  `ambiguous-*`, `unclear-*`, `vague-*`, `doc-imprecise`, `wording`,
-  `message-precision`, `comment-precision`, `comment-wording`, `doc-gap`,
-  `unstated-case`, `underspecified-design`, `missing-context`,
-  `example-too-narrow`, `unfounded-line`.
-- `misplaced-doc`: knowledge on the wrong page, or a journal; also
-  `misplaced-*`, `doc-placement`, `line-placement`, `journal-*`,
-  `duplicated-doc`, `duplicate-doc`, `data-in-text`.
-- `narrating-comment`: a comment narrating, not a trap; also
-  `narrating-*`.
-- `trap-undocumented`: a trap nothing states where it is read; also
-  `trap`, `trap-*`, `latent-trap`, `doc-trap`, `hazard`, `hidden-*`,
-  `non-local-*`, `implicit-coupling`, `behaviour-not-evident`.
-- `test-gap`: a behaviour with no test failing without it; also
-  `test-missing`, `missing-test`, `untested-*`, `test-coverage`,
-  `test-incomplete`, `coverage-unasserted`, `unverified-done`,
-  `done-condition-gap`, `fuzz-coverage`, `test-narrow`.
-- `test-weak`: a test that would pass without the behaviour; also
-  `test-weak-*`, `vacuous-*`, `test-vacuous`, `test-tautology`,
-  `weak-oracle`, `loose-assertion`, `test-not-discriminating`.
-- `test-weakened`: a test made weaker or deleted; also `rule-weakened`.
-- `test-boundary`: tested below the engine's or the server's boundary;
-  also `test-at-boundary-manual`, `test-below-boundary`,
-  `unit-not-boundary`.
-- `test-hygiene`: a test's name, noise or isolation; also
-  `test-naming`, `test-clarity`, `test-noise`, `test-isolation`,
-  `test-fragile`, `test-flaky`, `redundant-test`, `duplicated-test`,
-  `duplicate-test`.
-- `half-done`: a change stopped short (a second copy left, a site
-  missed); also `half-done-*`, `missed-site`, `two-mechanisms`,
-  `split-mechanism`, `primitive-bypassed`.
-- `duplicated-body`: one body written twice; also `duplicate-*`,
-  `duplicated-*`, `repeated-*`, `reuse`.
-- `dead-code`: code nothing reaches or reads; also `dead-*`,
-  `unreachable-path`, `redundant-*`, `leftover-*`, `misleading-code`.
-- `defensive-bloat`: a check nothing reaches, a catch-all; also
-  `defensive-*`, `catch-all-*`, `masking-check`.
-- `shallow-module`: an interface hiding little; also `shallow-*`,
-  `visibility-*`.
-- `formatting`: wrap, width, layout; also `format`, `wrap-width`,
-  `comment-wrap`, `comment-width`, `long-line`, `line-width`,
-  `page-reflow`, `doc-reflow`, `stale-wrap`, `trailing-blank`, `style`,
-  `cosmetic`, `doc-format`, `comment-format`, `layout`, `readability`,
-  `schema-order`, `local-ordering`.
-- `naming`: a misleading or colliding name; also `misleading-name`,
-  `confusing-name`, `name-collision`.
-- `info-leak`: hidden information reaching a seat; also `hidden-info`,
-  `hidden-info-leak`, `visibility-leak`, `seed-leak`.
-- `commit-message`: the message misstates or omits; also `commit-note`,
-  `trailer-format`, `golden-unexplained`, `unannounced-edit`,
-  `undeclared-departure`, `unexplained-behaviour-change`, `rebase-needed`.
-- `card-data-in-engine`: card-printed data in engine code.
-- `correctness`: a defect fixed in passing; also `edge-case`, `overflow`,
-  `unchecked-input`, `index-mismatch`, `cost-order-mismatch`.
-- `measure`: a measurement reported wrong or not reproducible; also
-  `measure-error`, `unreproducible-measure`, `misleading-metric`.
-- `reading-unrecorded`: a rules reading no rules-qa item records; also
-  `unruled-reading`.
-- `performance`: work done twice or too slowly; also `efficiency`.
+- `correction`: the owner corrected the session or restated a rule
+  (their words, short).
+- `review`: a finding of the egress or engine review, blocking or
+  advisory, fixed or taken through `intake`.
+- `round`: a review round beyond the first, and what made it needed.
+- `surprise`: the code, a page or a tool was not what it seemed (a trap:
+  a docs/hazards.md candidate).
+- `check`: a check failed other than as the change meant it to, and why.
+- `reading`: a reading graded green or amber found wrong later (the
+  round, the rules-qa item).

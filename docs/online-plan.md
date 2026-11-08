@@ -186,32 +186,8 @@ training skill's ("Harvest"). On frankfurt, `sudo -u zvtes psql zvtes`
 
 ## Deploy
 
-frankfurt: an OVH VPS, 6 vCPU / 12 GB, shared with archon beta and the
-forum (Discourse); pyinfra-deployed systemd units behind nginx and
-certbot, sops secrets, Alloy to Loki and Prometheus, Postgres 17 with
-nightly restic backups to Scaleway, UFW 22/80/443 only. The engine's
-Rust ships as a GitHub Actions release asset on a `v*` tag
-(`.github/workflows/release.yml`), never built there: `deploy/deploy.py`
-(port 8040, `MemoryMax` 3G and `CPUQuota` 400% in
-`deploy/group_data/all.py`: the forum shares the box; the server pings
-every 30 s under nginx's read timeout) fetches it (`deploy/release.py`),
-`deploy/build.sh` the fallback:
-
-```
-cd deploy && ZVTES_REPO=lionel-panhaleux/zero-vtes RELEASE_TAG=v<x.y.z> \
-  uv run --group deploy pyinfra inventory.py deploy.py -y
-```
-
-`ZVTES_WEIGHTS` names the weights served; their measure by deck, the
-training line's `<name>.decks.json` beside them, goes with them when it
-is there (`ZVTES_DECKS`, served at `GET /catalog/taught` only while it
-names the weights served).
-
-Nothing is built on this machine, so a training run need not pause.
-The Succubus Club fork is built on the box, niced, and served as a
-static site at `https://sc-bot.krcg.org` (`deploy/sc_bot.py`,
-server-setup's `spa` nginx site; human-play.md "Running the fork").
-Z-main deploys (CLAUDE.md "Sessions").
+docs/operations.md: the box, what it serves, the release asset and the
+pyinfra command, the weights served, who deploys.
 
 ## Succubus Club
 

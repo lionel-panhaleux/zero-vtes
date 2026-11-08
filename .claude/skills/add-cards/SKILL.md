@@ -14,10 +14,10 @@ Goal: every card in the pool, added in a loop where the owner intervenes
 only on readings likely to be wrong. Read first: CLAUDE.md (owner rules),
 `docs/engine.md` §2–5 (dispatch, what is enforced, adding a card, comment
 policy), `docs/rules-digest.md` (settled readings by mechanism; its
-"Default readings" and "What counts as X" sections always). Work in a
-worktree on a round branch (`../zero-vtes-rN`, branch `roundN`), never in
-the shared checkout (regenerated tables there get built into the training
-session's extension at its next `uv sync`); keep a progress file in the job's tmp (done, todo,
+"Default readings" and "What counts as X" sections always). Work in the
+shared checkout on `main` (CLAUDE.md "Sessions": trunk-based; a
+regenerated table or a re-bless records the whole tree, docs/hazards.md
+"The shared tree"); keep a progress file in the job's tmp (done, todo,
 readings, commit checklist): a round outlives one context window.
 
 ## 1. Choose the round
@@ -81,7 +81,7 @@ CRLF: the csv module with `lineterminator="\r\n"`, or byte-wise.
   a `CHANGELOG.md` line under the coming protocol version
   (`scripts/schema_compat.py` lists what the schema adds); a new choice
   kind, window label or action kind also moves the observation encoder's fixed id
-  tables: tell the training session before merging (interrupts and
+  tables: tell the training session before committing (interrupts and
   purposes are not encoded).
 - Vampires end with ALL their text; text-only traits (blood cursed, Black
   Hand, scarce, titles, votes) are generated crypt data and need only a
@@ -165,11 +165,11 @@ through `intake`; the round's line deleted from the
 cards board (`docs/boards/cards.md`).
 Ask the red items before committing (through Z-main's digest, or the
 owner directly): a "no" lands in the same commit, and the commit waits
-for their answers only. Then rebase the round branch on `main`
-(regenerate `crypt.rs`/`library.rs`/`twda.rs` on conflict, never
-hand-merge them), send Z-main the branch to merge (CLAUDE.md "Sessions": the
-merge needs no ask), and tell the training session the vocabulary deltas
-(library n→m, vampires, kept decks) and any new encoder id. The round's
+for their answers only. Commit the round's files by path (CLAUDE.md
+"Sessions"; a generated table another commit moved meanwhile is
+regenerated, never hand-merged), and tell the training session the
+vocabulary deltas (library n→m, vampires, kept decks) and any new encoder
+id, and Z-main what it changes for a deploy. The round's
 rules-qa batch number comes from Z-main, asked before the batch is written
 (CLAUDE.md "Sessions").
 
@@ -181,5 +181,5 @@ root cause and make it impossible to repeat: a new default reading or
 reader here, or a new grading trigger. Record the round's numbers as its
 commit's `Grading:` trailer (readings, red asked, corrected), and a
 correction the grading missed (a green or amber reading found wrong later)
-as a `Grading-missed:` trailer on the fix (the `ship` skill's format): the
-`upkeep` ratchet counts them.
+as a `Friction: reading: <round> <rules-qa item>: …` trailer on the fix
+(the `ship` skill's format): the `upkeep` retrospective reads them.

@@ -68,7 +68,7 @@ The fuzz goldens (`crates/engine/tests/golden/`) replay random games: a
 change that moves them says why, seed by seed, and re-blesses them with
 `GOLDEN_BLESS=1 cargo test --profile ci --test fuzz --test perft`. The
 server and the Python side have their own checks (`docs/human-play.md`
-"Checks", CLAUDE.md "Working lessons").
+"Checks", docs/operations.md "Checks").
 
 ## Pull requests
 
@@ -76,6 +76,6 @@ Against `main`, one board line (or one issue) each, its checks green. A
 fresh reviewer reads the diff against the line and its pages (the
 `egress-reviewer` agent); its findings are fixed (one clearly outside the
 change is tracked instead), each recorded as a commit trailer (`Egress:`,
-`Advisory:`). The owner merges.
+`Friction:`). The owner merges.
 
 Contributions are under the [MIT License](LICENSE).

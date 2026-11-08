@@ -11,12 +11,11 @@ the rulebook mechanisms no card carries (card definitions and readings
 are the cards board's), and the harness (CLAUDE.md, the `intake`, `ship`
 and `upkeep` skills, `docs/index.md`).
 
-A shrinking list (CLAUDE.md "Harness"): one line an ask, its done-condition
-and the docs it changes; done is deleted; order is priority; the only
-state is `[doing: <session>]`. Order: what the community beta's games meet
-first (the server's records and restarts, a rule players hit),
-then the protocol leaks the Succubus Club fork works around, then the API
-for outside platforms and contributors, then the training layer split,
-the remaining mechanisms, the review leftovers, the harness.
+A shrinking list (CLAUDE.md "Harness"; the milestone tokens: roadmap
+"Milestones"). Order: what the community beta's games meet first (the server's
+records and restarts, a rule players hit), then the protocol leaks the Succubus
+Club fork works around, then the API for outside platforms and contributors,
+then the training layer split, the remaining mechanisms, the review leftovers,
+the harness.
 
 

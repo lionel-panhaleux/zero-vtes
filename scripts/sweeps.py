@@ -6,9 +6,10 @@ collision found goes through `intake`; a seed a fix needs is kept in the
 sweep (`KEPT` in crates/host/tests/events.rs, a fixture's `seeds`).
 
 Refused while a training run shares the machine (`pgrep -f train.ppo`: a
-deep sweep's load beside one is what CLAUDE.md forbids) and from a
-checkout not on `main` or with uncommitted edits (the sweep is of
-`main`'s tip). Z-main runs it on its schedule (CLAUDE.md "Sessions").
+deep sweep's load beside one is what docs/hazards.md forbids) and from a
+checkout not at `main`'s tip or with uncommitted edits (the sweep is of
+`main`'s tip): Z-main runs it from a detached checkout at `main`
+(docs/watch.md), the shared one holding the lines' work in progress.
 
 Usage: python3 scripts/sweeps.py [--fuzz N] [--host N] [--out DIR]
 Exits non-zero when a sweep fails or is refused; the last line names the
@@ -57,10 +58,11 @@ def main():
     args = p.parse_args()
     if subprocess.run(["pgrep", "-f", "train.ppo"], capture_output=True).returncode == 0:
         sys.exit("sweeps: a training run shares this machine (pgrep -f train.ppo); run once it ends")
-    branch = git("rev-parse", "--abbrev-ref", "HEAD")
+    off_main = git("rev-parse", "HEAD") != git("rev-parse", "main")
     dirty = git("status", "--porcelain", "--untracked-files=no")
-    if branch != "main" or dirty:
-        sys.exit(f"sweeps: this checkout is on {branch}{' with edits' if dirty else ''}; run it from main, clean")
+    if off_main or dirty:
+        why = " and ".join(w for w, on in (("is not at main", off_main), ("has edits", dirty)) if on)
+        sys.exit(f"sweeps: this checkout {why}; run it at main's tip, clean (docs/watch.md)")
     out = args.out or pathlib.Path(git("rev-parse", "--path-format=absolute", "--git-common-dir")).parent / "data" / "sweeps"
     out.mkdir(parents=True, exist_ok=True)
     tip = git("rev-parse", "--short=12", "HEAD")

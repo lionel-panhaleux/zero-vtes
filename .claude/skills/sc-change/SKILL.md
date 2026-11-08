@@ -33,12 +33,11 @@ branches, PRs, recipes, traps) and update it as you learn.
    `useEngineMode()` / `useUIFeatures` in the re-cut (the fork tests
    `GameType.Engine` inline); engine display state in the engine store,
    never on SC's synced `Card`.
-4. **Never edit the served checkout while the owner may be playing** (vite
-   reloads, and a reload loses the fork's game, sc.md traps): work in a
-   worktree under the job's tmp (`git worktree add`, `node_modules`
-   symlinked); fast-forward `zero-vtes-engine` only when no game is live
-   (check with `scripts/fetch_games.py`, which reads the admin token itself;
-   never read the token) or the owner says so; when in doubt, ask the owner.
+4. **Trunk-based on `zero-vtes-engine`** (owner, 2026-11-08: no worktree
+   by default): work and commit in the fork's checkout on
+   `zero-vtes-engine`; no local server serves it (the owner plays on
+   sc-bot.krcg.org), so an edit loses nobody's game. A redeploy waits for
+   no game live (Z-main checks it, `scripts/fetch_games.py`).
 5. **Push with explicit refspecs** (`git push fork <b>:refs/heads/<b>`):
    `push.default=upstream` is set globally.
 6. **The platform stays agnostic of the engine's internals**: the fork reads
@@ -58,14 +57,14 @@ branches, PRs, recipes, traps) and update it as you learn.
    platforms board (`docs/boards/platforms.md`), unless the change at
    hand takes it (a finding on what is being shipped is fixed in it). Diagnose from the server's record when a
    game is involved (sc.md "Recipes").
-2. Fix on a worktree of `zero-vtes-engine`; checks: `npx vue-tsc --noEmit`,
+2. Fix on `zero-vtes-engine` (rule 4); checks: `npx vue-tsc --noEmit`,
    `npx eslint`, `npx prettier --check` (SC has no test suite). Agents
    don't start vite as a check (AGENTS.md); the owner plays on
    sc-bot.krcg.org (sc.md "Where the owner plays"). A visual check, when
    the owner asks for one, runs against a LOCAL engine server (test games
    on engine.krcg.org pollute the recorded corpus).
-3. Fast-forward `zero-vtes-engine` (rule 4); push it (rule 5) and ask
-   Z-main for the sc-bot redeploy at that commit; tell the
+3. Commit; push `zero-vtes-engine` (rule 5) and ask Z-main for the
+   sc-bot redeploy at that commit; tell the
    owner what to look at once it is live.
 4. Upstream (deferred by the owner, 2026-10-21: roadmap "Deferred by
    the owner"; only once it is brought back): fold into the

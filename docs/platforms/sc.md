@@ -207,8 +207,8 @@ becomes of it is the owner's word.
   it; a dropped socket alone is joined again, `host.ts` `rejoin`, for a
   minute, or until the server answers 404: the game gone; a server
   restart, a deploy, resumes the game, so the rejoin finds it, a fresh
-  `joined`. Work in a worktree under the job's tmp; Z-main redeploys
-  only with no game live (`scripts/fetch_games.py`, CLAUDE.md "Sessions").
+  `joined`. Z-main redeploys only with no game live
+  (`scripts/fetch_games.py`, docs/operations.md "Releases and deploys").
 - A refresh joins with a plain `join` (no `after`): the server answers
   `joined` (seats, the view) and the pending decision, and the table is
   built from that view as from any other (the projection creates the

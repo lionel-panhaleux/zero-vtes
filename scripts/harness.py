@@ -11,9 +11,12 @@ carrying an `Upkeep:` trailer.
     python3 scripts/harness.py age       each line's cycles since it was touched
     python3 scripts/harness.py due       whether an upkeep pass is due
     python3 scripts/harness.py orphans   docs pages docs/index.md does not reach
-    python3 scripts/harness.py ratchet   the advisory trailers since the last
-        upkeep by class (the ship skill's "Advisory classes"), three of a
-        kind marked, and the slugs no class lists
+    python3 scripts/harness.py levels    each roadmap milestone's lines by board,
+        the tokens no milestone names, the milestones no line serves
+    python3 scripts/harness.py friction  the `Friction:` trailers since the last
+        upkeep by kind (the ship skill's "Friction kinds"; the older
+        `Advisory:` and `Grading-missed:` read as `review` and `reading`),
+        for the retrospective to read
     python3 scripts/harness.py stale <base>|<a>..<b>
         the names a change removes (code identifiers, headings, paths) that
         the pages, CLAUDE.md, the skills and the code's comments still cite,
@@ -743,57 +746,66 @@ def stale():
 
 
 SHIP = ".claude/skills/ship/SKILL.md"
+ROADMAP = "docs/roadmap.md"
+TOKEN = re.compile(r"\[M:([a-z0-9-]+)\]")
+MILESTONE = re.compile(r"^- \*\*M:([a-z0-9-]+)\*\*")
+# Spellings before the Friction trailer, read as their kind.
+OLDER = {"Advisory": "review", "Grading-missed": "reading"}
 
 
-def classes():
-    """(exact, prefixes): each slug, each `prefix-*`, to its class, from the
-    ship skill's "Advisory classes" (a class's line: its slug first)."""
-    text = (ROOT / SHIP).read_text()
-    part = text.split("### Advisory classes", 1)[1]
-    exact, prefixes = {}, {}
-    kind = None
-    for line in part.split("\n"):
-        if line.startswith("- `"):
-            kind = re.match(r"- `([^`]+)`", line).group(1)
-        elif not (kind and line.startswith("  ")):
-            # The list ends at its first line that is not a class's.
-            if exact and line.strip():
-                break
-            kind = None
-            continue
-        for slug in re.findall(r"`([^`]+)`", line):
-            if slug.endswith("*"):
-                prefixes[slug[:-1]] = kind
-            else:
-                exact[slug] = kind
-    return exact, prefixes
+def kinds():
+    """The kinds the ship skill's "Friction kinds" lists, in order."""
+    part = (ROOT / SHIP).read_text().split("### Friction kinds", 1)[1]
+    return re.findall(r"^- `([a-z-]+)`", part, re.M)
 
 
-def classify(slug, exact, prefixes):
-    if slug in exact:
-        return exact[slug]
-    hits = [p for p in prefixes if slug.startswith(p)]
-    return prefixes[max(hits, key=len)] if hits else None
-
-
-def ratchet():
+def friction():
     commits = board_commits()
     since = commits[last_upkeep(commits)][0] if commits else None
     log = git("log", "--format=%B", f"{since}..HEAD" if since else "HEAD")
-    exact, prefixes = classes()
-    counts, unlisted = {}, {}
+    known = kinds()
+    found = {}
     for line in log.splitlines():
-        if m := re.match(r"^Advisory: ([a-z0-9-]+)", line):
-            kind = classify(m.group(1), exact, prefixes)
-            if kind:
-                counts[kind] = counts.get(kind, 0) + 1
-            else:
-                unlisted[m.group(1)] = unlisted.get(m.group(1), 0) + 1
-    print(f"advisories since {since[:7] if since else 'the start'}, by class:")
-    for kind, n in sorted(counts.items(), key=lambda kv: (-kv[1], kv[0])):
-        print(f"{n:>4}  {kind}{'  three of a kind' if n >= 3 else ''}")
-    if unlisted:
-        print("no class lists:", ", ".join(f"{k} ({n})" for k, n in sorted(unlisted.items())))
+        if m := re.match(r"^Friction: ([a-z-]+): (.+)", line):
+            kind, text = m.groups()
+        elif m := re.match(r"^(Advisory|Grading-missed): (.+)", line):
+            kind, text = OLDER[m.group(1)], m.group(2)
+        else:
+            continue
+        found.setdefault(kind, []).append(text)
+    print(f"friction since {since[:7] if since else 'the start'}:")
+    order = known + sorted(set(found) - set(known))
+    for kind in order:
+        rows = found.get(kind, [])
+        mark = "" if kind in known else "  (no such kind)"
+        print(f"\n{kind}: {len(rows)}{mark}")
+        for text in rows:
+            print(f"  {text}")
+
+
+def levels():
+    milestones = []
+    for line in (ROOT / ROADMAP).read_text().splitlines():
+        if m := MILESTONE.match(line):
+            milestones.append(m.group(1))
+    served = {}
+    for path in sorted((ROOT / BOARDS).glob("*.md")):
+        for line in path.read_text().splitlines():
+            if (m := KEY.match(line)) and (t := TOKEN.search(line)):
+                served.setdefault(t.group(1), []).append((path.stem, m.group(1)))
+    bad = False
+    for slug in milestones:
+        rows = served.get(slug, [])
+        print(f"M:{slug}: {len(rows)} line{'s' if len(rows) != 1 else ''}")
+        for board, key in rows:
+            print(f"  {board:<10} {key}")
+        if not rows:
+            print("  no line serves it")
+    for slug in sorted(set(served) - set(milestones)):
+        bad = True
+        for board, key in served[slug]:
+            print(f"no milestone M:{slug}: {board} {key}")
+    return 1 if bad else 0
 
 
 if __name__ == "__main__":
@@ -803,7 +815,8 @@ if __name__ == "__main__":
         "age": age,
         "due": due,
         "orphans": orphans,
-        "ratchet": ratchet,
+        "levels": levels,
+        "friction": friction,
         "stale": stale,
     }
     if cmd not in commands:

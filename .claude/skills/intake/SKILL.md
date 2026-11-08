@@ -44,10 +44,16 @@ list; refusing a line at the door is cheaper than evicting it later.
    board's '<its ask>'").
 5. **Doc-impact.** Name the pages the work will change, or "none" when
    nothing standing changes.
-6. **Waiting is a date.** Work waiting on a person is a dated ask ("Ask
-   the owner whether to chase Thomas, 2026-10-21"); never a waiting state.
-   Chasing someone outside is outward-facing: the line asks the owner.
-7. **Place it** on the board of the line that does it (CLAUDE.md "Lines
+6. **Waiting is watched.** What waits on a date, a person or an event
+   (and anything to check rather than do: a schedule, a trial to watch)
+   is a `docs/watch.md` item — when, what to check, what each outcome
+   does — never a board line nor a waiting state. Chasing someone outside
+   is outward-facing: the item's outcome is an ask of the owner.
+7. **Level.** The milestone it serves (roadmap "Milestones"), its token
+   on the line; none for a defect or maintenance. Work fitting no open
+   milestone and no defect is either the start of a new milestone or a
+   plan change: both are scope, the owner's (CLAUDE.md "Ask the owner").
+8. **Place it** on the board of the line that does it (CLAUDE.md "Lines
    of work"; the harness itself is the engine board's), at the position
    the board's "Order:" and the roadmap's "Ranking" give it, and say so in
    the turn's report so the owner sees what came in. A session writes its
@@ -57,7 +63,7 @@ list; refusing a line at the door is cheaper than evicting it later.
 ## The line
 
 ```
-- **<the ask, a verb phrase>**[ [doing: <session>]]: <what and why, the
+- **<the ask, a verb phrase>**[ [M:<slug>]][ [doing: <session>]]: <what and why, the
   owner's words when they are the source, where the context is>. Done when
   <condition>. Docs: <pages | none>.
 ```
@@ -76,7 +82,8 @@ players' feedback (`GET https://engine.krcg.org/admin/feedback?since=`
 with the admin token from `~/.config/zvtes/admin_token`, never printed:
 each report's game, engine and decision, its record replayed with
 `--example replay` at that decision); the egress reviewer's out-of-scope
-notes; the upkeep's lint and ratchet proposals; GitHub issues and pull
+notes; the upkeep's review and retrospective proposals; the watch
+file's fired items (docs/watch.md); GitHub issues and pull
 requests (`gh issue list`, `gh pr list`: Z-main reads them, as
 CONTRIBUTING.md promises outsiders; an outside pull request gets the
 `egress-reviewer` before the owner merges it); the fork's issues, where

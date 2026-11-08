@@ -122,7 +122,7 @@ runs" (every run's command, numbers and lessons), `docs/boards/training.md`.
 ## Taking a new engine
 
 - Card rounds: no retraining; `remap_vocab` maps the grown card vocabulary
-  on resume and for frozen opponents. Check that the run starts. A merge
+  on resume and for frozen opponents. Check that the run starts. A commit
   that gains a kept TWDA deck dated within six months (a TWDA refresh too)
   rewrites the served weights' per-deck file (step 5): the decks gained are
   main's kept decks dated within six months whose names the file's `decks`
@@ -147,7 +147,7 @@ runs" (every run's command, numbers and lessons), `docs/boards/training.md`.
   `before` as the diablerie succeeding.
 - Observation changes (a new `Choice` kind, `WindowLabel`, `ActionKind` or
   token type) touch `obs`'s fixed id tables: a new `obs::Version` or a
-  slot shown unused; the engine side tells this line before merging
+  slot shown unused; the engine side tells this line before committing
   (`add-cards` §3).
   A `WindowLabel` after the last one (`N_WINDOWS` ends at
   `CombatEndOfRound`) would take the first clan's id; a new `ActionKind`
@@ -166,8 +166,8 @@ runs" (every run's command, numbers and lessons), `docs/boards/training.md`.
 
 ## Learning from human games
 
-- **Harvest** (daily, on Z-main's schedule): `python3 scripts/harvest.py`
-  in the shared checkout on `main`, clean (it refuses another branch or
+- **Harvest** (daily, docs/watch.md): `python3 scripts/harvest.py` in
+  Z-main's detached checkout at `main`'s tip (it refuses another commit or
   engine edits: the report replays the new records before protocol 1.7.0
   on its checkout and caches the turns for good, a newer one carries its
   own; `--no-turns` skips both), then read the

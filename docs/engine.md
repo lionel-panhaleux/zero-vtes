@@ -345,8 +345,8 @@ generators' `--check` (`gen_crypt.py`, `gen_library.py`, `gen_twda.py`).
 5. **Tests**: one file per family under `crates/engine/tests/` (the
    round's file for TWDA rounds); `tests/common` helpers
    (`CardInPlay::new`, `never_offered_until` to prove a non-offer, `plain`
-   for a vanilla vampire). Window elision affects naive tests (CLAUDE.md
-   "Working lessons"). Futile block attempts are offered (rules-qa 73.8):
+   for a vanilla vampire). Window elision affects naive tests (docs/hazards.md
+   "Engine tests"). Futile block attempts are offered (rules-qa 73.8):
    `pick` and `expect` decline a block window offering only attempts that
    cannot reach the stealth on their way (`futile_blocks`; the window the
    engine elided before), `request` returns it; `decline_futile` passes
@@ -371,8 +371,8 @@ generators' `--check` (`gen_crypt.py`, `gen_library.py`, `gen_twda.py`).
    `intake` skill (CLAUDE.md "Findings").
 9. **Elsewhere**: a new effect is told in `crates/host/src/effects.rs` or
    named in its untold arms (the host does not compile until it is); a new
-   `Choice` kind needs its obs slot (§6.21); the checks of CLAUDE.md
-   "Working lessons" before calling it done.
+   `Choice` kind needs its obs slot (§6.21); the checks of docs/operations.md
+   "Checks" before calling it done.
 
 ## 5. Comment policy
 

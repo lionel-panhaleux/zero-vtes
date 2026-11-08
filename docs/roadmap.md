@@ -1,10 +1,33 @@
 # zero-vtes roadmap
 
-The objectives, how to rank work across lines, the near milestone, and
-what the owner has put off. The work itself is on four boards, one per
-line of work (CLAUDE.md "Lines of work"): [cards](boards/cards.md),
-[engine](boards/engine.md), [training](boards/training.md),
-[platforms](boards/platforms.md).
+The plan: who the work is for, the phase it is in, the objectives, how
+to rank work across lines, the open milestones, and what the owner has
+put off. Rewritten, never appended (CLAUDE.md "Harness": levels). The
+work itself is on four boards, one per line of work (CLAUDE.md "Lines
+of work"): [cards](boards/cards.md), [engine](boards/engine.md),
+[training](boards/training.md), [platforms](boards/platforms.md).
+
+## Who it is for
+
+VTES players: a bot in a free seat when a player is missing, a full bot
+table to test a deck, an opponent worth playing. Online platforms: the
+rules enforced by one engine they plug in. The objectives below say how
+we would know.
+
+## The phase: a community beta
+
+The owner (2026-10-14): a working VTES bot online; bot + Succubus Club is
+good enough to beta test with players of the community. Testers play at
+`https://sc-bot.krcg.org`, the fork as its own platform, bots only
+(agreed with Thomas, owner 2026-10-21). Players' reports (the protocol's
+`feedback`, the fork's GitHub issues) come in through `intake`; the cards
+refused decks name (`/admin/unsupported`) steer the cards rounds
+(add-cards §1). Not the beta's: the demo video (platforms/sc.md "A fixed
+deal"; the owner records it).
+
+Ends when the owner opens the bots to the whole community beyond the
+testers (owner, 2026-11-08): a phase change reorders the objectives
+and may change the harness.
 
 ## Ranking
 
@@ -14,26 +37,33 @@ that could go on two boards:
 1. What the community beta's players meet, before anything else.
 2. A line another line waits on, before the waiting line's own work.
 3. An ask of the owner or of a person outside, early: it waits on someone.
-4. Then the objectives in order: A (a great opponent) and B (every card)
+4. The milestones in their order below; a line serving none (a defect,
+   maintenance) after them, unless 1 or 2 lifts it.
+5. Then the objectives in order: A (a great opponent) and B (every card)
    are the lines' own; C and the architecture move with the platforms'
    and contributors' demand.
 
-## The first milestone: a community beta
+## Milestones
 
-The owner (2026-10-14): a working VTES bot online; bot + Succubus Club is
-good enough to beta test with players of the community.
-Testers play at `https://sc-bot.krcg.org`, the fork as its own platform,
-bots only (agreed with Thomas, owner 2026-10-21).
+At most three open, each named by what someone can do afterwards, with
+its done-condition; done is deleted. A board line serving one carries its
+token (`[M:<slug>]`, greppable); a defect or a maintenance line carries
+none. The current milestone is lined out on the boards; a later one is a
+bullet in the objectives until it opens. The line that closes a milestone
+is reviewed with the whole milestone (ship §4). Opening one is a scope
+decision: the owner's.
 
-What it still needs: **the best bot served**, each run measured against
-the served weights and served if it improves on them without degrading
-them, a niche gain enough (owner, 2026-10-23; training skill "Serve").
-Training: its run's line. Players' reports (the protocol's `feedback`,
-the fork's GitHub issues) come in through `intake`; the cards refused
-decks name (`/admin/unsupported`) steer the cards rounds (add-cards §1).
-
-Not needed for the beta: the demo video (platforms/sc.md "A fixed
-deal"; the owner records it).
+- **M:stronger-bot** — beta players face a bot stronger than p14. Done
+  when a run is served by the measure with VP and wins above p14's
+  (training board, "A served bot stronger than p14").
+- **M:recent-decks** — beta players meet bots playing recent TWDA decks,
+  and teach the bot the decks it plays worst. Done when a game on sc-bot
+  deals a TWDA deck from the last six months to a bot, the deck screen's
+  "Teach the bot" tab lists the decks it plays worst, and the owner has
+  seen both.
+- **M:new-sets** — a player brings a deck with Secrets of New York and
+  Noites Brasileiras cards. Done when both sets are in the pool
+  (`OUT_BUNDLES` empty).
 
 ## Objectives
 

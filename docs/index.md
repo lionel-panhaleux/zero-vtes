@@ -30,6 +30,10 @@ reasoning journeys live in a task and die with it, git keeping them.
   and the owner's settled list: the crates and their dependencies, the
   contract's rules and tests, records, copies, the bots, the server,
   logging, deploy.
+- [`operations.md`](operations.md): the environments, the checks, releases
+  and deploys and who makes them, the schedules, where to look things up.
+- [`hazards.md`](hazards.md): the traps already met, by area: read before
+  touching what a section names.
 - [`human-play.md`](human-play.md): the human seat: its settled
   decisions, the host's ergonomics beyond the protocol, the fork's
   interface, "Checks" and "Running the fork".
@@ -55,12 +59,15 @@ reasoning journeys live in a task and die with it, git keeping them.
 
 ## The work
 
-- [`roadmap.md`](roadmap.md): the objectives, the ranking between lines,
-  the milestone, what the owner deferred.
+- [`roadmap.md`](roadmap.md): the plan: who it is for, the phase, the
+  objectives, the ranking between lines, the open milestones, what the
+  owner deferred.
 - The boards, one per line of work, each a shrinking list:
   [`boards/cards.md`](boards/cards.md), [`boards/engine.md`](boards/engine.md),
   [`boards/training.md`](boards/training.md),
   [`boards/platforms.md`](boards/platforms.md).
+- [`watch.md`](watch.md): what is checked, not done: the schedules, the
+  dated and event-gated items, the one cron firing them.
 - [`sessions.md`](sessions.md): the launch prompt of each line's session
   (CLAUDE.md "Sessions").
 - The harness: `../CLAUDE.md` (the rules every session reads) and

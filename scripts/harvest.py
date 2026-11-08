@@ -7,8 +7,10 @@ it: each worktree has its own ignored `data/`, and a pull into one would
 split the corpus and its cursor. A record before protocol 1.7.0 carries
 no turn count: the report replays it on this script's checkout for its
 turns and caches them in the corpus for good, so the script refuses a
-checkout not on `main` or with uncommitted edits under `crates/`
-(`--no-turns` skips the replay and the check).
+checkout not at `main`'s tip or with uncommitted edits under `crates/`
+(`--no-turns` skips the replay and the check): run it from a detached
+checkout at `main` (docs/watch.md), the shared one holding the lines'
+work in progress.
 
 Usage: python3 scripts/harvest.py [--out DIR] [report options…]
 (the other options go to `games_report.py`). Exits non-zero when either
@@ -34,10 +36,11 @@ def main():
     # The main working tree: the parent of the repository's common `.git`.
     out = args.out or pathlib.Path(git("rev-parse", "--path-format=absolute", "--git-common-dir")).parent / "data" / "server-records"
     if "--no-turns" not in report:
-        branch = git("rev-parse", "--abbrev-ref", "HEAD")
+        off_main = git("rev-parse", "HEAD") != git("rev-parse", "main")
         dirty = git("status", "--porcelain", "--", ":/crates")
-        if branch != "main" or dirty:
-            sys.exit(f"harvest: this checkout is on {branch}{' with engine edits' if dirty else ''}; run it from main, clean (or --no-turns)")
+        if off_main or dirty:
+            why = " and ".join(w for w, on in (("is not at main", off_main), ("has engine edits", dirty)) if on)
+            sys.exit(f"harvest: this checkout {why}; run it at main's tip, clean (docs/watch.md), or --no-turns")
     for step in (
         [sys.executable, HERE / "fetch_games.py", "--finished", "--out", out],
         [sys.executable, HERE / "games_report.py", out, *report],

@@ -29,13 +29,13 @@ first commit if the work is committed at the end.
 ## How
 
 1. Make the change complete first: code, tests, ledger, rules-qa, and the
-   CLAUDE.md checks green. The review reads a finished diff.
+   checks green (docs/operations.md "Checks"). The review reads a finished diff.
 2. Launch a fresh reviewer: the Agent tool, `model: opus`, `effort: high`,
    general-purpose (or the `egress-reviewer` agent, given this checklist
-   too: the `ship` skill's step 4), with the prompt below and the diff's range (e.g.
-   `git diff main` in the worktree, or `HEAD~n..HEAD`). The author must not
-   review its own diff in its own context: a fresh reader sees what the
-   author's context hides.
+   too: the `ship` skill's step 4), with the prompt below and the diff's
+   range (the change's paths uncommitted, `-- <paths>`, or
+   `HEAD~n..HEAD`). The author must not review its own diff in its own
+   context: a fresh reader sees what the author's context hides.
 3. Act on the report: fix each "do" finding (then re-run the checks) and
    each "consider" too, unless clearly outside the change's line (CLAUDE.md
    "Findings": the scope grows to take them); only what lies outside goes
@@ -43,16 +43,16 @@ first commit if the work is committed at the end.
    reading the rules don't settle goes to a new rules-qa batch.
 4. Record the review in the commit's trailers (the `ship` skill's format):
    `Egress: clean` or `Egress: <n> blocking fixed`, one
-   `Advisory: <class>: …` per "consider", fixed or taken through `intake`
-   (the ratchet counts classes, fixed or not).
+   `Friction: review: …` per "do" and per "consider", fixed or taken
+   through `intake` (upkeep's retrospective reads them).
 
 ## Reviewer prompt
 
-Pass this, with `<RANGE>` and `<WORKTREE>` filled in:
+Pass this, with `<RANGE>` and `<CHECKOUT>` filled in:
 
 > You review a change to the zero-vtes engine (a rules-enforcing VTES engine
 > in Rust) before it is committed. Read only; change nothing. Work in
-> `<WORKTREE>`; the diff is `git diff <RANGE>` (ignore the generated
+> `<CHECKOUT>`; the diff is `git diff <RANGE>` (ignore the generated
 > `crypt.rs`, `library.rs`, `twda.rs`).
 >
 > Read first: CLAUDE.md; docs/engine.md (sections 2–5 whole, and the section
