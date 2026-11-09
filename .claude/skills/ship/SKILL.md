@@ -52,6 +52,11 @@ Before review, in the change itself:
 - every guard, clamp or fallback for a state no input of today's pool
   or protocol reaches deleted (the reviewer's item 5; owner,
   2026-11-09: it removed one in 10 commits between two upkeeps);
+- each assertion pinned to the behaviour claimed (the zone reached, the
+  cause and its source, the action ended), never a weaker predicate the
+  defect also passes (`!in_play` for "in the ash heap", any cause for
+  "this source's"; owner, 2026-11-09: 7 such tests passed without their
+  fix between two upkeeps);
 - for each behaviour the change writes into a standing page (a rule, a
   guarantee, a "never"), a test that fails without it, shown so: a stub
   probe (the behaviour removed or broken, the test failing, then
