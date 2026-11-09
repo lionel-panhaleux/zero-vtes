@@ -99,8 +99,8 @@ class Config:
     # config, else 1).
     obs: int = 3
     # Network seats play the default politics (zvtes_env::politics, DESIGN
-    # §11.2): referendum terms by rule, wrong-side votes masked. Temporary
-    # guidance, to be relaxed later in training (owner, 2026-10-04).
+    # §11.2): referendum terms by rule, wrong-side votes masked; kept (owner,
+    # 2026-11-09: no longer to be relaxed).
     politics: bool = True
     # Network seats never decline a chore (`zvtes_policy::chores`; owner,
     # 2026-10-08: options "a human is allowed to forget … but it's never
@@ -182,8 +182,8 @@ class Config:
     # `vs_habits4/5`, not used for `best.pt`.
     habit_seats: float = 0.0
     # Which habits those seats play (`zvtes_env::habits::Set`): a forced rescue
-    # made the network stronger, a forced burn, diablerie or minion kept
-    # home weaker (DESIGN §11.2).
+    # costs nothing measurable, a forced burn, diablerie or minion kept home
+    # costs strength (DESIGN §11.2).
     habits: str = "rescue,burn,diablerie,home"
     # The nudges (`zvtes_policy::Nudges`; owner, 2026-10-05: "encouraged
     # more as a guiding harness … until it learns by itself"): added to

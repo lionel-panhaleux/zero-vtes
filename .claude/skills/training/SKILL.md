@@ -11,162 +11,133 @@ description: >
 
 # Training the bots
 
-The bots improve in runs (p8 …), each from the last, measured against a
-baseline, and fed by the games humans play online. Card additions never
-wait on training; training takes engine updates at the start of a run.
-Read first: DESIGN §5 (the agent) and §11.2 "Policy surface and training
-runs" (every run's command, numbers and lessons), `docs/boards/training.md`.
+The bots improve in runs (p8 …), each from the last, judged against the
+served weights, and fed by the games humans play online. Card additions
+never wait on training; training takes engine updates at the start of a
+run. Read first: DESIGN §5 (the agent) and §11.2 (the bot layer, the
+measures, what measurement settled, "Where the bots stand", the runs —
+the last one's command in full), `docs/boards/training.md`. This skill is
+the procedure; what a flag does and why is §11.2's.
+
+What a run aims at: DESIGN §11.2 "Where the bots stand" and the
+roadmap's M:stronger-bot (a gain against humans; bot against bot only
+checks it did not get worse).
 
 ## A run
 
-1. **Prepare.** Start from the previous run's command (its DESIGN note
-   quotes every flag); change one or two things, each with a reason and a
-   baseline measured with `crates/policy/examples/waste.rs` (waste,
-   cross-table, Wider View; the owner's records are the reference group)
-   and `crates/policy/examples/decks.rs` (per-deck strength). The owner
-   decides the deck mix, nudges and what to try. Write a "pN, prepared" note in DESIGN §11.2
-   first: why, baseline numbers, settings. §11.2 is the run record, a
-   standing page: once the run ends its note becomes one entry (the
-   command, the numbers, what it settled), the preparation folded in. New code gets a pytest in
-   `train/tests/` and the checks (`uv run pytest -q`, py clippy, fmt,
-   clippy). Measures compare like with like only from a clean build: `waste`
-   and `decks.rs` compile from the working tree, so run them in the run's
-   worktree (or another at a commit), never in the shared checkout. `waste`
-   takes record paths or directories (`data/records`, a harvest; `- 0`
-   reads records only, no network), groups seats as humans or bots by
-   profile and weights, needs `--twda` for Wider View on TWDA decks (four
-   precons have it too) and `--seats 5` for 5-seat cross-table numbers;
-   `--by-deck` splits each group by the seat's deck, for the combat play
-   (rushes and their targets, blocks, every combat's cards and results).
-   The seats' context (DESIGN §5) is read by every network from p16 on: a
-   checkpoint saved before it resumes with its layer at zero (and fresh
-   optimizer moments, once).
-   No reward shaping: `--shaping` (a `train.position --phi` potential)
-   was tried in p15 and cut its rushes (DESIGN §11.2 "p15").
-   A larger network starts from the served one by distillation
-   (`--teacher <ckpt> --d … --layers …`): the learner plays, the teacher
-   labels its decisions, the policy term is KL(teacher ‖ learner); then
-   measured as a run (steps 4 and 5) before any RL from it.
-2. **Launch** from a dedicated worktree at the launch commit
-   (`git worktree add ../zero-vtes-pN <sha>`, `uv sync` there: a fresh
-   `.venv` builds the extension at that commit; `--reinstall-package
-   zvtes-py` is for a long-lived checkout whose engine changed): `uv run`
-   rebuilds from whatever is on disk, and other sessions leave edits in the
-   shared checkout. `nohup uv
-   run python -m train.ppo --league true --resume <abs>/runs/pPREV/best.pt
-   --opponents <prev bests> --out <abs>/runs/pN … > <abs>/runs/pN.log 2>&1
-   &` with absolute paths into the main checkout's `runs/` (ignored).
+1. **Prepare.** Start from the last run's command (§11.2 "The runs");
+   change one or two things, each with a reason and a baseline measured as
+   step 4 measures. The owner decides the deck mix, nudges and what to try.
+   Write a "pN, prepared" entry in §11.2 first (why, baseline numbers,
+   settings). New code gets a pytest in `train/tests/` and the checks
+   (docs/operations.md "Checks"). Measures compare like with like only from
+   a clean build: `waste`, `decks.rs` and `humanset` compile from the working
+   tree, so run them in the run's worktree (or another at a commit), never in
+   the shared checkout. Settled, not to retry without new information
+   (§11.2 "Settled by measurement"): reward shaping, the pairing, faded
+   nudges, the weak-deck routing (`--weak-rate`), search at play time.
+   Held out of imitation and starts (`--bc-held-games`, parts of file
+   names): the five games held since p10 (`2026-10-11T12-31-56`,
+   `2026-10-11T15-45-47`, `2026-10-12T21-02-13`, `2026-10-12T21-50-21`,
+   `e33fab34fee8ca4b`) and every human win harvested since the served
+   weights' run was launched; the list kept in the run's §11.2 entry, not
+   only in `runs/` (p17's was lost with its machine). The five were starts
+   of the p10–p16 tables, so every network since descends from tables begun
+   in them: `humanset` reports them apart, and a gain is read on the newer
+   wins, which no ancestor met.
+2. **Launch** from a dedicated worktree at the launch commit (`git worktree
+   add ../zero-vtes-pN <sha>`, `uv sync` there: a fresh `.venv` builds the
+   extension at that commit): `uv run` rebuilds from whatever is on disk,
+   and other sessions leave edits in the shared checkout. `nohup uv run
+   python -m train.ppo --league true --resume <abs>/runs/pPREV/best.pt
+   --opponents <…> --out <abs>/runs/pN … > <abs>/runs/pN.log 2>&1 &`, the
+   paths absolute into the main checkout's `runs/` (ignored). A network
+   saved before a new input layer (the seats' context) resumes with it at
+   zero and fresh optimizer moments, once. A larger network starts from
+   the served one by distillation (`--teacher <ckpt> --d … --layers …`),
+   measured as a run before any RL from it.
 3. **Monitor** by events (a Monitor on the log), not polling: `panics` and
    `truncated` ~0; `kl`, `clipfrac`, `entropy`; `bc_val_acc`; habits and
-   nudges counts. Evaluation every 20 iterations (VPs + 5×wins at 4 and 5
-   seats against the frozen opponents; `best.pt` moves only on a beaten
-   re-measure). After a crash: `--resume runs/pN/model.pt` restarts at the
-   last evaluation + 1 (`model.pt` is saved at evaluations only: up to 19
-   iterations lost). Machine sleep stalls a run, it doesn't crash it.
-4. **Evaluate**: `uv run python -m train.export runs/pN/best.pt
-   runs/pN/best.zvp`; `waste` for pN and the served weights; `decks.rs` per
-   deck and pN against three of the served weights (and three pPREV when
-   pPREV was not served); `humanset` (`cargo run -p zvtes-policy --profile
-   ci --example humanset -- <pN.zvp> <served bots.zvp> 20 <records>`) on the
-   wins of the run's `--bc-held-games`, held out of its imitation and its
-   starts — a resumed network keeps what its ancestors trained on, and every
-   network to date, the served one too, descends from tables begun from the
-   five, so report the wins newer than the served weights' starts apart;
-   hold out new harvested wins the same way to grow the set — for pN and the
-   served weights alike; `uv run python -m train.position runs/pN/best.pt
-   --records data/records,data/server-records` for the critic against the
-   position by stage (DESIGN §11.2 "The critic against the position"; a
-   shaped critic's values with Φ added back). `waste`'s impact lines are the
-   run's measure (DESIGN §11.2 "The impact ledger"): A&B a round and R's
-   change over its own turns (its own, its prey's, its predator's), at 4 and
-   5 seats and on TWDA decks, with `--cards N` the hand's cards (plays a
-   round held). A "pN run" note in DESIGN §11.2 with the numbers.
-5. **Serve** (by the measure, owner 2026-10-23; the measure the impact
-   ledger, owner 2026-10-25: "remove all concerns about influence idling,
-   wakes and combat outcomes, and focus on … higher level strategy"): a run
-   is served when step 4 shows it does not degrade the served weights and
-   gains somewhere. Not degrading, each within two standard errors: pN's VP
-   a seat against three of the served weights (`decks.rs`'s second measure,
-   4 seats, its last line the VP a seat and game wins with two standard
-   errors) at or above even, 1.0; `humanset`'s agreement and wins from the
-   positions (a rate's error 2·√(p(1−p)/n)); the ledger's A&B a round and
-   its prey's R over its own turns at 4 and 5 seats and on TWDA decks no
-   worse than the served weights' (`waste` prints each with its two standard
-   errors: the difference against both). `waste`'s other counters are
-   diagnostics, not the test. A gain: overall, or a niche one (a deck's VPs
-   in `decks.rs`, a `humanset` score, the ledger at a table size), shown by
-   a step-4 number against the served weights. Z-train sends Z-main the
-   numbers, which DESIGN §11.2's "pN run" note records; a run that fails the
-   not-degrading test goes to the owner instead. Before the deploy, write
-   the weights' per-deck file at the commit being deployed (a clean worktree
-   at main's tip), `cargo run -p zvtes-policy --profile ci --example decks
-   -- --file <served.zvp> 100` (every TWDA deck the engine keeps at one
-   seat, precons at the others, every seat the served profile; about two and
-   a half hours): `<served>.decks.json` beside them (DESIGN §11.2 "Bots on
-   any deck"), which `deploy/deploy.py` takes only if it is there as it
-   deploys (the server reads it at start). Rewrite it in place, at main's
-   tip, whenever main's kept TWDA decks (`crates/engine/src/twda.rs`) gain
-   one dated within six months (a card round, a TWDA refresh), and ask
-   Z-main to redeploy: the fork's bots draw only measured decks of the last
-   six months (DESIGN §11.2 "Bots on any deck"). Z-main redeploys
-   engine.krcg.org with `ZVTES_WEIGHTS` explicit (CLAUDE.md "Sessions": only
-   Z-main deploys); name the served weights by their sha prefix in the
-   DESIGN note (the server records the weights' SHA-256 per game); keep the
-   previous weights as `runs/served-prev-<date>-<run>.zvp`, their per-deck
-   file beside them under the same stem (`.decks.json`); the served export
-   made from a copy of the run's checkpoint (`cp runs/pN/best.pt
-   runs/served-pN.pt`, then `train.export runs/served-pN.pt
-   runs/served-pN.zvp`: `best.pt` moves while a run goes on), which the
-   deploy keeps on frankfurt by the weights' hash (docs/operations.md
-   "Releases and deploys"; on a new machine `scp
-   frankfurt:/opt/zvtes/weights/<sha>.pt`); measure weights that have none
-   before serving them (a rollback to p14); the served profile
-   (temperature, nudges) lives in `crates/policy/src/profiles.rs`
-   (`NETWORK`), which the server, `crates/policy/examples/humanset.rs` and
-   `decks.rs --file` read.
+   nudges counts; the first lines' `bc_stopped`, `starts_left_out`. An
+   evaluation every 20 iterations; `best.pt` moves only on a beaten
+   re-measure. After a crash: `--resume runs/pN/model.pt` (saved at
+   evaluations only). Machine sleep stalls a run, it does not crash it.
+4. **Evaluate**, pN and the served weights alike, on the run's engine:
+   `uv run python -m train.export runs/pN/best.pt runs/pN/best.zvp`, then
+   - `humanset` (`cargo run -p zvtes-policy --profile ci --example humanset
+     -- <pN.zvp> <served.zvp> 20 <records>`) on the held-out wins of step 1:
+     the agreement and the wins from the positions — the human-facing
+     measure;
+   - `decks.rs`: pN at one seat against three of the served weights (its
+     last line the VP a seat and game wins with two standard errors), and
+     per deck;
+   - `waste` (`-- - 0 <records or dirs>`, `--seats 5`, `--twda`, `--by-deck`,
+     `--cards N`): its impact lines (A&B a round, R its own, its prey's and
+     its predator's) at 4 and 5 seats and on TWDA decks, each with two
+     standard errors; the other counters are diagnostics;
+   - `uv run python -m train.position runs/pN/best.pt --records
+     data/records,data/server-records`: the critic by stage.
+   Write the "pN run" entry in §11.2 with the numbers.
+5. **Serve** (by the measure, owner 2026-10-23; what counts, owner
+   2026-11-09). Not degrading, each within two standard errors of the
+   served weights: pN's VP a seat against three of them at or above even,
+   1.0; `humanset`'s agreement and wins (a rate's error 2·√(p(1−p)/n)); the
+   ledger's A&B a round and its prey's R at 4 and 5 seats and on TWDA. A
+   gain, beyond two standard errors: on the human-facing measures
+   (`humanset`'s wins on the held-out wins no ancestor met; the online A/B
+   once it runs, docs/watch.md) — what closes M:stronger-bot; or one at bot
+   tables (a deck's VPs in `decks.rs`, the exploitability probe once it is
+   step 4's, training board), which serves but does not close it. Z-train
+   sends Z-main the numbers; a run failing the not-degrading test goes to
+   the owner instead. Before the deploy:
+   - the per-deck file, at the commit being deployed (a clean worktree at
+     main's tip): `cargo run -p zvtes-policy --profile ci --example decks --
+     --file <served.zvp> 100` (about two and a half hours), written as
+     `<served>.decks.json` beside the weights, which `deploy/deploy.py` takes
+     if present (DESIGN §11.2 "Bots on any deck"); rewritten in place at
+     main's tip, and Z-main asked to redeploy, whenever main's kept TWDA
+     decks gain one dated within six months;
+   - the served export from a copy (`cp runs/pN/best.pt runs/served-pN.pt`,
+     then `train.export runs/served-pN.pt runs/served-pN.zvp`: `best.pt`
+     moves while a run goes on), named by its sha prefix in the entry; the
+     previous weights kept as `runs/served-prev-<date>-<run>.zvp` with their
+     `.decks.json`; weights that have no per-deck file measured before
+     serving (a rollback too);
+   - Z-main redeploys engine.krcg.org with `ZVTES_WEIGHTS` explicit
+     (CLAUDE.md "Sessions"); the deploy keeps the checkpoint on frankfurt by
+     the weights' hash (docs/operations.md "Releases and deploys"; on a new
+     machine `scp frankfurt:/opt/zvtes/weights/<sha>.pt`). The
+     served profile (temperature, nudges) is `crates/policy/src/profiles.rs`
+     (`NETWORK`), read by the server, `humanset` and `decks.rs --file`.
 
 ## Taking a new engine
 
-- Card rounds: no retraining; `remap_vocab` maps the grown card vocabulary
-  on resume and for frozen opponents. Check that the run starts. A commit
-  that gains a kept TWDA deck dated within six months (a TWDA refresh too)
-  rewrites the served weights' per-deck file (step 5): the decks gained are
-  main's kept decks dated within six months whose names the file's `decks`
-  lacks (a diff of `crates/engine/src/twda.rs` lists them, unless the table
-  was reformatted).
+- Card rounds: no retraining; `remap_vocab` maps the grown vocabulary on
+  resume and for frozen opponents. Check that the run starts. A commit that
+  gains a kept TWDA deck dated within six months rewrites the per-deck file
+  (step 5; a diff of `crates/engine/src/twda.rs` lists the decks gained).
 - A record the pinned engine stops reading partway (a rules fix since it
-  was played) gives imitation nothing, held out or not: the run's first
-  line names it (`bc_stopped`), and a held-out one shrinks the evaluation
-  set, so read that line before letting the run go on. Before the launch,
-  in its worktree, `cargo run -p zvtes-policy --profile ci --example waste
-  -- - 0 <records>` prints `read to its decision N: why` for each. N is
-  only an upper bound: a rules change that reorders hidden cards with no
-  decision (7d7d339: a diablerie of an older vampire shuffles the library)
-  drifts the replay silently from that point, its hands no longer the
-  human's, and the stop comes later, or never. A record from protocol
-  2.4.0 on carries a position digest in each decision entry and stops at
-  the first divergence. An older record, for `--bc` or as a start, is cut
-  at the last such change before its stop. Scan the `--bc` records from
-  before 7d7d339 for one before the winner's choices: replayed on the
-  pinned engine, the diablerie of an older vampire opens
-  `Interrupt::DisciplineSearch` (`draws.rs`), told in `replay_decisions`'
-  `before` as the diablerie succeeding.
+  was played) gives imitation nothing past the stop: read the run's first
+  line (`bc_stopped`) before letting it go on. Before the launch, in its
+  worktree, `cargo run -p zvtes-policy --profile ci --example waste -- - 0
+  <records>` prints `read to its decision N: why` for each. A record from
+  protocol 2.4.0 on carries a position digest and stops at the first
+  divergence; an older one can drift silently where a rules change reorders
+  hidden cards with no decision (7d7d339: a diablerie of an older vampire
+  shuffles the library; replayed later, it opens
+  `Interrupt::DisciplineSearch`, `draws.rs`, told in `replay_decisions`'
+  `before`), so it is cut at the last such change before its stop.
 - Observation changes (a new `Choice` kind, `WindowLabel`, `ActionKind` or
-  token type) touch `obs`'s fixed id tables: a new `obs::Version` or a
-  slot shown unused; the engine side tells this line before committing
-  (`add-cards` §3).
-  A `WindowLabel` after the last one (`N_WINDOWS` ends at
-  `CombatEndOfRound`) would take the first clan's id; a new `ActionKind`
-  after `Ability` needs its `action_slot` arm (folded into `Ability`'s
-  slot, as Become Anarch's), else its one-hot lands in `F_LONG`. Interrupts,
-  purposes, a new marker kind and the api's wire ids are not encoded (the
-  hostage, nightmare, torture and disease counts are, summed in
-  `F_MARKERS`): `git diff -M <pin> <main> -- crates/engine/src/obs.rs
-  crates/env/src/obs.rs crates/env/src/context.rs
+  token type) touch `obs`'s fixed id tables: a new `obs::Version` or a slot
+  shown unused; the engine side tells this line before committing
+  (`add-cards` §3). A `WindowLabel` after `CombatEndOfRound` would take the
+  first clan's id; a new `ActionKind` after `Ability` needs its
+  `action_slot` arm. Interrupts, purposes, a new marker kind and the api's
+  wire ids are not encoded. `git diff -M <pin> <main> --
+  crates/engine/src/obs.rs crates/env/src/obs.rs crates/env/src/context.rs
   crates/engine/src/profile.rs crates/engine/src/decision.rs` says whether a
-  table the networks read moved (both obs paths, the file having moved to
-  `crates/env`, so a pin before the move diffs as a rename); a change to how an encoded state is counted (`state.rs`, a
-  marker's count, `F_CONTESTED`'s inputs) moves a value, not a table.
+  table the networks read moved; a change to how an encoded state is
+  counted moves a value, not a table.
 - After an engine update the first evaluation is a new bar: scores compare
   within a run only.
 
@@ -174,77 +145,43 @@ runs" (every run's command, numbers and lessons), `docs/boards/training.md`.
 
 - **Harvest** (daily, docs/watch.md): `python3 scripts/harvest.py` in
   Z-main's detached checkout at `main`'s tip (it refuses another commit or
-  engine edits: the report replays the new records before protocol 1.7.0
-  on its checkout and caches the turns for good, a newer one carries its
-  own; `--no-turns` skips both), then read the
-  day's report and take what it shows through `intake`. The corpus is
-  always the main checkout's `data/server-records/` (each worktree has its
-  own ignored `data/`: a pull there would split the corpus and its cursor).
-  Its two steps: `scripts/fetch_games.py --finished` pulls the
-  finished games since its cursor (`data/server-records/.since`) from the
-  admin API into `data/server-records/` (ignored), one `<game id>.json` each,
-  then `scripts/games_report.py` writes the report
-  (`data/server-records/reports/<date>.md`): games by engine and weights;
-  human win rate and VP per seat by bot profile and weights (small samples
-  marked); decks humans win with; notable human wins with their replay
-  command; abandoned and very short games counted apart; the bots' `waste`
-  lines in the counted games, by profile and weights. The admin token
+  engine edits), then the day's report read and what it shows taken through
+  `intake`. The corpus is always the main checkout's `data/server-records/`
+  (a worktree's own ignored `data/` would split it and its cursor). Its two
+  steps: `scripts/fetch_games.py --finished` pulls the finished games since
+  `data/server-records/.since` from the admin API, one `<game id>.json`
+  each; `scripts/games_report.py` writes `reports/<date>.md` and
+  `reports/total.md` (games by engine and weights; the humans' win rate and
+  VP a seat by weights, small samples marked; decks; notable human wins
+  with their replay command; the bots' `waste` lines). The admin token
   stays in `~/.config/zvtes/admin_token`: never printed, logged or
   committed.
 - **Promotion**: curated games go to `data/records/` (committed: a test
-  fixture and a training input) by an explicit step: the owner's games,
-  games the owner flags, human wins worth learning from.
-  `python3 scripts/promote.py <game id> … --from <main
-  checkout>/data/server-records` in the run's worktree (its engine reads
-  each whole) copies them and lists them in the README, refusing a game
-  not played out with a human, a test client's, one this engine stops,
-  and one failing the stranger's check (a field it does not know, a seat
-  name or client the server or Succubus Club did not write, a feedback
-  text: `--allow-text` once the owner has read them). A promoted game is
-  in `data/records` and in the harvest list both; the trainer reads it
-  once (`load_replays` keeps a game listed twice once).
-- **Use**: `--bc` and `--starts` over `data/records` (curated) and the
-  harvest directory `data/server-records`: the trainer reads only players'
-  games (`train/ppo.py` `players_game`: played out, a human seat, not a test
-  client's — owner, 2026-10-29: "unfinished game records are really of no
-  use"), and names the starts it left out (`starts_left_out`); the files
-  stay for the report's counts. The report's list (`python3
-  scripts/harvest.py --list <file>`, asked of Z-main: its detached
-  checkout at `main`, where the harvest's replays are safe; it is the
-  day's harvest too, its report read as the watch item's; `--bc
-  data/records,$(cat <file>)`) also drops its "short" games (under
-  `--min-rounds` rounds). Imitation's cost: `--bc-every
-  4` puts its term on every 4th minibatch at 4× the weight (~14% of an
-  iteration, DESIGN §11.2 "Faster iterations"; from p13). Imitation (`--bc`)
-  keeps only the human who won (owner, 2026-10-15: the bot is strong and not
-  every human is good; only a game played out, last standing or the time
-  limit: a lost, unfinished or abandoned one gives nothing, its leader
-  recorded as winner or not), among the options they were shown (a record's
-  `shown`, read from the entry each decision took, `replay_decisions`'
-  `entry`, never by position: a pass the reader reads past shifts it; those
-  their settings hid get no probability, so Opportunities off is fine);
-  held-out games named with `--bc-held-games`, out of imitation and of the
-  starts (it matches parts of file names: game ids for harvested files,
-  timestamps in `data/records`), never every Nth; `--bc-weak-weight W` draws
-  the choices of a winner on a `--weak-decks` deck W times as often (the
-  first line logs them, `bc_weak`); `--bc-games-weight part=W,…` those of
-  named games (parts of file names; the first part a name holds) W times,
-  the deck's and the game's weights multiplied (`bc_games`): the owner's
-  games, `zero-vtes-replay` (the 24 converted fork games, all the owner's)
-  and a harvested one by its id — no record names its player. Starts from
-  recorded positions (`--starts`); `--start-winner` narrows them to the
-  humans' wins, the learner in the winner's seat; `--held-games N` evaluates
-  from the held-out wins (`vs_held`, by game); `start_won` logs the starts'
-  wins; `--served-temperature` sets the frozen seats, and every seat in
-  evaluation, at the served bot's; `--keep-evals` keeps a checkpoint per
-  evaluation. Weakness mining: a recurring bad choice becomes a `waste`
-  counter first, a nudge only if it persists and the owner agrees (the owner
-  prefers emergent fixes).
+  fixture and a training input) by an explicit step — the owner's games,
+  games the owner flags, human wins worth learning from: `python3
+  scripts/promote.py <game id> … --from <main checkout>/data/server-records`
+  in the run's worktree (its engine reads each whole). It refuses a game not
+  played out with a human, a test client's, one this engine stops, and one
+  failing the stranger's check (`--allow-text` once the owner has read the
+  feedback texts).
+- **Use**: `--bc` and `--starts` over `data/records` and
+  `data/server-records`; the trainer reads players' games only and names
+  the starts it left out; Z-main's `python3 scripts/harvest.py --list
+  <file>` drops the short games too (`--bc data/records,$(cat <file>)`).
+  Imitation keeps only the human who won (§11.2 "Training"); the held-out
+  games as step 1 says; `--bc-weak-weight`, `--bc-games-weight` (the
+  owner's games, `zero-vtes-replay`, a harvested id) weight by deck and
+  game; `--start-winner` puts the learner in a human winner's seat;
+  `--held-games N` evaluates from the held-out wins (`vs_held`).
+- **Weakness mining**: a recurring bad choice becomes a `waste` counter
+  first; the fix is looked for in exploration and opponents that punish it
+  (training board) before a nudge, which needs the owner (the owner prefers
+  emergent fixes).
 
 ## Rules
 
 - Commit once checks and egress are clean (CLAUDE.md "Owner rules");
   weights never in a commit.
-- Served weights: named by sha prefix, previous ones kept (see Serve).
-- Findings (a bot's weakness, a harvest surprise) go through `intake`,
-  onto the training board.
+- Served weights: named by sha prefix, previous ones kept (step 5).
+- Findings (a bot's weakness, a harvest surprise) go through `intake`, onto
+  the training board.

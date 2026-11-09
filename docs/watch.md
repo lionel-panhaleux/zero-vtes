@@ -46,6 +46,15 @@ to the main checkout's ignored `data/`.
 
 ## On an event
 
+- **The platform opened to more players** (owner, 2026-11-09: planned
+  for about 2026-11-23; the roadmap's phase): the online A/B — each game
+  on engine.krcg.org served the current or the candidate weights at
+  random, the humans' win rate and VP compared by weights in the harvest
+  report — is the owner's to start, not before the opening. Opened → the
+  owner asked in the digest; started with a candidate → Z-engine's
+  `intake` (the server's random choice of weights, the report's split by
+  arm) and Z-train's (the candidate), and the item is deleted; no
+  candidate yet → the item stays until one exists.
 - **50 of the owner's cross-table combats harvested** (the `humans` group
   of `waste - 0 data/server-records`, in the detached checkout, its
   combats with no seat ousted: the report keeps the bots' groups only;

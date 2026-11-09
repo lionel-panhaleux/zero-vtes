@@ -26,8 +26,10 @@ refused decks name (`/admin/unsupported`) steer the cards rounds
 deal"; the owner records it).
 
 Ends when the owner opens the bots to the whole community beyond the
-testers (owner, 2026-11-08): a phase change reorders the objectives
-and may change the harness.
+testers (owner, 2026-11-08; planned for about 2026-11-23, ideally with
+more cards in by then, owner 2026-11-09): a phase change reorders the
+objectives and may change the harness. Until then the humans' games are
+mostly the owner's.
 
 ## Ranking
 
@@ -54,8 +56,11 @@ is reviewed with the whole milestone (ship §4). Opening one is a scope
 decision: the owner's.
 
 - **M:stronger-bot** — beta players face a bot stronger than p14. Done
-  when a run is served by the measure with VP and wins above p14's
-  (training board, "A served bot stronger than p14").
+  when a run is served with a gain on the human-facing measures
+  (`humanset` on held-out human wins; the online A/B once the platform
+  opens to more players), bot-against-bot not degrading (owner,
+  2026-11-09: the head-to-head against p14, flat since p10 and blind to
+  the humans' 79%, is the not-degrading check only).
 - **M:recent-decks** — beta players meet bots playing recent TWDA decks,
   and teach the bot the decks it plays worst. Done when a game on sc-bot
   deals a TWDA deck from the last six months to a bot, the deck screen's

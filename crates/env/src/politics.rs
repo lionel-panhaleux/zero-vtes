@@ -1,7 +1,7 @@
 //! Default politics for the trained network's seats (owner, 2026-10-04:
 //! "the bot is too bad at setting the terms"; DESIGN §11.2): some terms by
-//! rule (`terms_choice`), the rest and the votes bounded (`mask`). Temporary
-//! guidance, to be relaxed later in training. Agent behaviour, not an
+//! rule (`terms_choice`), the rest and the votes bounded (`mask`); kept
+//! (owner, 2026-11-09: no longer to be relaxed). Agent behaviour, not an
 //! engine mask (rules-qa 17.4 untouched); reads only public state (the
 //! terms are announced).
 
