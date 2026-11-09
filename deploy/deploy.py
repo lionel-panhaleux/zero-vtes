@@ -1,7 +1,8 @@
 """The engine served on frankfurt (docs/online-plan.md "Deploy"), the
 server-setup way: a system user, the binary from a release (release.py),
-the policy weights archived by hash, Postgres by peer auth (no secret),
-a systemd unit, nginx + TLS for engine.krcg.org.
+the policy weights archived by hash and backed up daily with restic,
+Postgres by peer auth (no secret), a systemd unit, nginx + TLS for
+engine.krcg.org.
 
     cd deploy && uv run --group deploy pyinfra inventory.py deploy.py --diff
 
@@ -36,6 +37,7 @@ values = dict(
     lib_dir=lib_dir,
     cpu_quota=d.cpu_quota,
     memory_max=d.memory_max,
+    backup_repo=f"{name}_weights",
 )
 
 
@@ -124,6 +126,29 @@ if checkpoint.exists():
         group=name,
         mode="644",
     )
+
+# The host's orphan scan skips a restic repo declared in repos.d
+# (server-setup OPERATIONS.md "Backup layout").
+files.file(
+    name="Declare the weights' backup repo",
+    path=f"/etc/postgres-backup/repos.d/{values['backup_repo']}",
+)
+backup_units = [
+    files.put(
+        name=f"Weights backup {kind}",
+        src=render(f"weights-backup.{kind}.j2"),
+        dest=f"/etc/systemd/system/{name}-weights-backup.{kind}",
+        mode="644",
+    )
+    for kind in ("service", "timer")
+]
+systemd.daemon_reload(name="Reload units for the backup", _if=any_changed(*backup_units))
+systemd.service(
+    name="Weights backup timer running",
+    service=f"{name}-weights-backup.timer",
+    running=True,
+    enabled=True,
+)
 
 postgres_db(database=name, owner=name)
 

@@ -1,0 +1,11 @@
+[Unit]
+Description={{ name }}'s weights and checkpoints pushed to the fleet's restic bucket
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+EnvironmentFile=/etc/postgres-backup/remote.env
+ExecStart=/bin/sh -c '/usr/bin/restic -r "$RESTIC_REPOSITORY_BASE/{{ backup_repo }}" cat config >/dev/null 2>&1 || /usr/bin/restic -r "$RESTIC_REPOSITORY_BASE/{{ backup_repo }}" init'
+ExecStart=/usr/bin/restic -r ${RESTIC_REPOSITORY_BASE}/{{ backup_repo }} backup {{ opt }}/weights
+ExecStart=/usr/bin/restic -r ${RESTIC_REPOSITORY_BASE}/{{ backup_repo }} forget --group-by host --keep-daily ${REMOTE_KEEP_DAILY} --keep-weekly ${REMOTE_KEEP_WEEKLY} --keep-monthly ${REMOTE_KEEP_MONTHLY} --prune

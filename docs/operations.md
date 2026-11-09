@@ -12,7 +12,9 @@
   certbot, sops secrets, Alloy to Loki and Prometheus, Postgres 17 with
   nightly restic backups to Scaleway, UFW 22/80/443 only. It keeps the
   served weights and their runs' checkpoints by hash in
-  `/opt/zvtes/weights` ("Releases and deploys"). It serves:
+  `/opt/zvtes/weights` ("Releases and deploys"), pushed daily by
+  `zvtes-weights-backup.timer` to the same bucket (restic repo
+  `zvtes_weights`; restore as root, below). It serves:
   - `https://engine.krcg.org`: the server (`crates/server`, port 8040,
     `MemoryMax` 3G and `CPUQuota` 400% in `deploy/group_data/all.py`: the
     forum shares the box; the server pings every 30 s under nginx's read
@@ -20,6 +22,13 @@
   - `https://sc-bot.krcg.org`: the Succubus Club fork, built on the box,
     niced, served as a static site (`deploy/sc_bot.py`, server-setup's
     `spa` nginx site; human-play.md "Running the fork").
+
+  The weights restored, as root:
+
+  ```sh
+  set -a; . /etc/postgres-backup/remote.env; set +a
+  restic -r "$RESTIC_REPOSITORY_BASE/zvtes_weights" restore latest --target /
+  ```
 
 ## Checks
 
