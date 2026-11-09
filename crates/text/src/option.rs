@@ -462,6 +462,10 @@ fn asked(
         }
         // a pass gains 1 pool.
         (P::AnarchConvert, K::ChooseMinion) => role("becomes Anarch")?,
+        (P::CryptTopPick, K::AshVampire) => format!(
+            "Move {} to your uncontrolled region, the others to the bottom of your crypt",
+            card()
+        ),
         (P::CryptSearch, K::AshVampire) => format!(
             "Move {} from your crypt to your uncontrolled region",
             card()
@@ -477,12 +481,17 @@ fn asked(
             format!("Move {} onto Light Intensifying Goggles", named()?)
         }
         (P::MayAddCounter, K::ResolveRider) => format!("Add 1 counter to {}", named()?),
+        (P::StoreUpTo, K::FindCard) => format!("Put {} face down on it", card()),
+        (P::MayBottomTop, K::ResolveRider) => "Move them to the bottom of your library".into(),
         (P::MayLockForBlood, K::ResolveRider) => "Lock it: 1 blood".into(),
         (P::MayLockCardForBlock, K::ResolveRider) => "Lock it instead".into(),
         (P::MayBurnLookedMaster, K::ResolveRider) => "Burn blood to burn the master card".into(),
         (P::MayTorture, K::ResolveRider) => "Lock The Path of Lilith: a torture counter".into(),
         (P::MayGainPool, K::ResolvePrinted) => format!("Gain {} pool", about?.n?),
         (P::AshToLibraryTop, K::FindCard) => format!("{} on top of your library", card()),
+        (P::AshToLibraryBottom, K::FindCard) => {
+            format!("{} on the bottom of your library", card())
+        }
         (P::BurnFromLibraryTop, K::FindCard) => format!("Burn {}", card()),
         (P::CryptToReady, K::AshVampire) => format!("Put {} in play from your crypt", card()),
         (P::RetakeFromAsh, K::FindCard) => format!("Take {} back from your ash heap", card()),
@@ -820,6 +829,9 @@ fn pass(
         P::MayPutOn | P::MayStoreAim => format!("Leave {} in the ash heap", named()?),
         P::PutFoundOn => format!("Keep {} in your hand", named()?),
         P::MayAddCounter => "Add no counter".into(),
+        P::MayBottomTop => "Leave them on top".into(),
+        P::AshToLibraryBottom => "Move no more cards".into(),
+        P::StoreUpTo => "Put no more there".into(),
         P::MayTorture => "No torture counter".into(),
         P::MayLockForBlood => "Leave it unlocked".into(),
         P::MayLockCardForBlock => "Lock the blocking vampire".into(),
@@ -1127,6 +1139,9 @@ mod tests {
             P::LockForPool,
             P::PoolForCard,
             P::MayStoreAim,
+            P::MayBottomTop,
+            P::AshToLibraryBottom,
+            P::StoreUpTo,
             P::MayTorture,
             P::MayLockForBlood,
             P::MayLockCardForBlock,

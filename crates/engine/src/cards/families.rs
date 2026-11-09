@@ -147,9 +147,10 @@ impl Effect {
             | E::HostBloodToUncontrolledTarget(_)
             | E::PeekHand
             | E::BurnSource => Granted::Own,
-            E::StealTargetAlly | E::StealPoolFromTarget(_) | E::DiscardFromTargetHand => {
-                Granted::Play
-            }
+            E::StealTargetAlly
+            | E::StealPoolFromTarget(_)
+            | E::DiscardFromTargetHand
+            | E::StealLocation => Granted::Play,
             e if e.family() == Family::Shared => Granted::Shared,
             _ => return None,
         })
@@ -167,6 +168,7 @@ impl Effect {
             | E::ChooseCardCircle
             | E::ChooseActor
             | E::RevealCryptTop { .. }
+            | E::EachCryptTopPick(..)
             | E::BecomesAlly(..)
             | E::AshurTablets
             | E::GiveBoonPool
@@ -303,6 +305,7 @@ impl Effect {
             | E::LockTarget
             | E::TargetToTorpor
             | E::BurnOwnCorruptionFromTarget(..)
+            | E::CorruptTargetMinion
             | E::BurnTargetMinion
             | E::TargetLosesTitle
             | E::MergeWithAdvanced
@@ -440,7 +443,12 @@ impl Effect {
             | E::TargetSeatDiscardsAtRandom(..)
             | E::TakeBleedGain
             | E::SlaveTakesCombat
+            | E::StandInIfBlocked
             | E::HostLeavesTorpor
+            | E::ShuffleHostIntoLibrary
+            | E::DamageActingNow(..)
+            | E::PayPoolToCardController(..)
+            | E::ReorderTopMayBottom(..)
             | E::ReduceBleedX
             | E::SearchMageAlly
             | E::YawpCourtCombat
@@ -592,6 +600,7 @@ impl Effect {
             | E::PactCountersOnActing(..)
             | E::QueueCombatWithLast
             | E::PoolIfSuccessful(..)
+            | E::DrawIfReferendumPasses
             | E::UnlockActorIfSuccessful
             | E::AttemptFailsBarSeat
             | E::GainBloodPerMargin
@@ -600,6 +609,8 @@ impl Effect {
             | E::FailBlockForCorruption
             | E::UnlockForCorruption(..)
             | E::IfBlocks(..)
+            | E::IfAttemptingBlocks(..)
+            | E::BlockRiderBoth(..)
             | E::TargetAttemptsBlock(..)
             | E::BurnForInterceptThisAction
             | E::LockIfNoBlock
@@ -641,6 +652,8 @@ impl Effect {
             | E::EnvironmentalDamage { .. }
             | E::EnvironmentalDamageWhileTarget(..)
             | E::UndodgeableStrike
+            | E::StunOpponentOnHit
+            | E::RetainerDamageWithStrike(..)
             | E::UndodgeableThisRound
             | E::DamageAfterCombat(..)
             | E::AggravatedStrike
@@ -679,6 +692,7 @@ impl Effect {
             | E::AggravatedAsNormal { .. }
             | E::NoFrenzyCancelNorEndPress
             | E::DamageEachCombatantNow(..)
+            | E::DamageOpposingOwnCombatantNow(..)
             | E::HandSizeThisCombat(..)
             | E::AimExtraDamage(..)
             | E::OpponentToTorpor
@@ -737,6 +751,7 @@ impl Effect {
             | E::GrappleDamage(..)
             | E::StunAfterCombatIfClose
             | E::PutOnOpponentAfterCombatIfClose
+            | E::PutOnOpponentAtRoundEndIfMore
             | E::SetRange(..)
             | E::ImmuneStrikeNonAggravated
             | E::ImmuneEffectNonAggravated
@@ -750,6 +765,7 @@ impl Effect {
             E::Prevent(..)
             | E::PreventXPlus(..)
             | E::PreventNonAggravated(..)
+            | E::PreventAggravated(..)
             | E::PreventThisRound(..)
             | E::PreventEachRound(..)
             | E::PreventOpposingStrikesThisRound
@@ -771,6 +787,7 @@ impl Effect {
             | E::BarNonSectVotes(..)
             | E::PoolForVotesRound { .. }
             | E::AddVotes(..)
+            | E::RevealCryptTopVoteIfOlder
             | E::ClanCoalition(..)
             | E::GrantVotes(..)
             | E::GrantVotesAll(..)
@@ -834,7 +851,7 @@ impl Effect {
             | E::StealBloodUpTo(..)
             | E::ExchangeHandForAsh
             | E::EquipFirstFound { .. }
-            | E::EquipStored
+            | E::EquipStored(..)
             | E::TargetActsInCombat
             | E::InResultingCombat(..)
             | E::TargetMethuselahDiscards(..)
@@ -852,7 +869,9 @@ impl Effect {
             | E::MayRepeatThisTurn
             | E::Version(..)
             | E::EntryBurnAllyOrRetainer
-            | E::EntryRemoveFromAshOrBurn => (Family::Entry, false),
+            | E::EntryRemoveFromAshOrBurn
+            | E::EntryRemoveAshCardsOrBurn(..)
+            | E::EntryStoreEquipmentUpTo(..) => (Family::Entry, false),
             E::HostageOnTorpor(..)
             | E::ControllerGainsPoolIfPrey(..)
             | E::UnlockBurnPoolUnlessReady { .. }
@@ -874,6 +893,8 @@ impl Effect {
             | E::MayMoveOffBurnedBearer
             | E::CoinFlipActionFails
             | E::GoToTorpor
+            | E::StunHost
+            | E::TransfersThisTurn(..)
             | E::PoolOrAshCardsPerCounter
             | E::BlockerControllerBurnsPool(..)
             | E::BleedOutcomeCounters
@@ -1019,6 +1040,8 @@ impl Effect {
             | E::PutOnActorIfOpposingNotReadyAfterCombat
             | E::TargetLocksReadyUnlocked
             | E::PinnedWhileBearerReady
+            | E::PinnedAlways
+            | E::BurnedSendsBearerToTorpor
             | E::BurnedDamagesBearer(..)
             | E::ControllerGivesCard
             | E::ClanBlocksItsBurn(..)
@@ -1136,7 +1159,7 @@ mod tests {
                 K::EquipFound => {
                     matches!(
                         e,
-                        E::EquipFirstFound { .. } | E::EquipStored | E::EquipFromAnyAsh
+                        E::EquipFirstFound { .. } | E::EquipStored(..) | E::EquipFromAnyAsh
                     )
                 }
                 K::Political => matches!(

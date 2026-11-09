@@ -61,9 +61,6 @@ decision: the owner's.
   deals a TWDA deck from the last six months to a bot, the deck screen's
   "Teach the bot" tab lists the decks it plays worst, and the owner has
   seen both.
-- **M:new-sets** — a player brings a deck with Secrets of New York and
-  Noites Brasileiras cards. Done when both sets are in the pool
-  (`OUT_BUNDLES` empty).
 
 ## Objectives
 
@@ -148,10 +145,6 @@ not on any board; the owner brings each back:
   rule.
 - Training: strength levels players pick (named server profiles), to
   discuss on the training side.
-- New-set intake (cards): the recipe for a set KRCG publishes (regenerate,
-  list the new ids, window-matrix drafts, a round of them) as a step of
-  add-cards §1; off the cards board until KRCG announces a set, its
-  done-condition needing a real release (2026-10-15).
 - Upstream Succubus Club (2026-10-21: the fork goes out on its own, bots
   only, agreed with Thomas): #285 as it stands; the `engine-game`
   re-cut caught up with the fork's fixes after `a7515b1`, its controls

@@ -242,7 +242,12 @@ fn found_in(e: &Engine, req: &DecisionRequest) -> Option<ZoneRef> {
         Some(
             Interrupt::DiscardFromHandOf { of: Some(seat), .. }
             | Interrupt::PutFoundOn { seat, .. }
-            | Interrupt::StoreOwnHand { seat, .. },
+            | Interrupt::StoreOwnHand { seat, .. }
+            | Interrupt::StoreUpTo {
+                seat,
+                from_ash: false,
+                ..
+            },
         ) => return at(seat, Zone::Hand),
         Some(
             Interrupt::RemoveFromAsh { of: seat, .. }
@@ -254,6 +259,11 @@ fn found_in(e: &Engine, req: &DecisionRequest) -> Option<ZoneRef> {
             }
             | Interrupt::AllyFromAsh { seat, .. }
             | Interrupt::StoreOwnAsh { seat, .. }
+            | Interrupt::StoreUpTo {
+                seat,
+                from_ash: true,
+                ..
+            }
             | Interrupt::NameOwnAshCard { seat, .. }
             | Interrupt::NameAshPair { of: seat, .. }
             | Interrupt::StoreFromAshOf { from: seat, .. },
@@ -1654,6 +1664,7 @@ pub fn about(e: &Engine, req: &DecisionRequest, names: &impl Names) -> Option<Ab
                 n: Some(n),
                 ..a()
             },
+            I::CryptTopPick { n, .. } => About { n: Some(n), ..a() },
             I::CryptSearch { clan, .. } => About {
                 clan: Some(snake(clan)),
                 ..a()
@@ -1702,10 +1713,16 @@ pub fn about(e: &Engine, req: &DecisionRequest, names: &impl Names) -> Option<Ab
                 ..a()
             },
             I::MayAddCounter { card: c, .. }
+            | I::MayBottomTop { card: c, .. }
             | I::StorePreyAsh { card: c, .. }
             | I::StoreOwnAsh { card: c, .. }
             | I::StoredToLibraryTop { card: c, .. } => About {
                 card: card(c),
+                ..a()
+            },
+            I::StoreUpTo { card: c, left, .. } => About {
+                card: card(c),
+                n: Some(left),
                 ..a()
             },
             I::StoreOwnHand { card: c, left, .. } => About {

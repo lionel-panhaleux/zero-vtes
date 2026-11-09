@@ -53,6 +53,12 @@ pub fn once_hand_size_key(m: MinionId) -> (crate::cards::AbilitySource, u8) {
     (crate::cards::AbilitySource::Vampire(m), u8::MAX - 4)
 }
 
+/// The combat's `abilities_used` key of a once-each-combat corruption on
+/// damage (Elie Sansaricq).
+pub fn once_corrupt_key(m: MinionId) -> (crate::cards::AbilitySource, u8) {
+    (crate::cards::AbilitySource::Vampire(m), u8::MAX - 7)
+}
+
 /// The `turn_uses` key of Lucas Halton's once-each-turn blood burned
 /// instead of locking for a block.
 pub fn once_block_burn_key(m: MinionId) -> (crate::cards::AbilitySource, u8) {
@@ -1606,6 +1612,8 @@ pub struct GameState {
     /// Abilities used this turn ("once each turn", `Limit::PerTurn`);
     /// cleared as each Methuselah's turn begins.
     pub turn_uses: Vec<(AbilitySource, u8)>,
+    /// Abilities used this game ("once each game", `Limit::PerGame`).
+    pub game_uses: Vec<(AbilitySource, u8)>,
     /// Actions declared in the game so far: the current one's number.
     pub action_serial: u32,
     /// Library cards taken from another's ash heap (The Erciyes Fragments):
@@ -2134,6 +2142,11 @@ impl GameState {
             .filter(|l| {
                 let g = match l.modifier {
                     Modifier::BearerDisciplineLevel(g) => Some(g),
+                    Modifier::BearerClanDisciplineLevel { clan, discipline } => self.cards
+                        [l.source.index()]
+                    .host
+                    .filter(|&h| self.minions[h.index()].clan() == Some(clan))
+                    .map(|_| discipline),
                     // Field Training: the Discipline chosen as played.
                     Modifier::BearerChosenDisciplineLevel => {
                         self.cards[l.source.index()].discipline
@@ -2449,7 +2462,15 @@ impl GameState {
         if matches!(self.minions[m.index()].kind, MinionKind::GreatBeast { .. }) {
             return 3;
         }
-        self.ally_body(m).map_or(1, |b| b.bleed)
+        let life = self.minions[m.index()].blood;
+        let extra: u8 = self
+            .borne(m)
+            .map(|l| match l.modifier {
+                Modifier::BleedPerLifeAbove(n) => life.saturating_sub(n),
+                _ => 0,
+            })
+            .sum();
+        self.ally_body(m).map_or(1, |b| b.bleed) + extra
     }
 
     /// `m`'s hunt gets n blood from the bank: whether it successfully hunts
@@ -3123,6 +3144,22 @@ impl GameState {
                 .is_some_and(|c| c <= n),
             R::OpponentNamed(n) => opp.is_some_and(|o| o.name() == n),
             R::ActorOfOtherMethuselah => me.owner != src.owner,
+            R::DirectedAtYourMinion => {
+                ctx.directed == Some(true)
+                    && ctx
+                        .target_minions
+                        .iter()
+                        .flatten()
+                        .any(|&m| self.minions[m.index()].owner == src.owner)
+            }
+            // An action at a card is directed at its controller (rules-qa
+            // 17.2).
+            R::DirectedAtYourCard(filters) => {
+                ctx.targets.contains(src.owner)
+                    && ctx
+                        .target_card
+                        .is_some_and(|c| filters.iter().any(|f| f.matches(c)))
+            }
             R::DirectedAtYourClan(clan) => {
                 ctx.directed == Some(true)
                     && ctx.target_minions.iter().flatten().any(|&m| {
@@ -3131,6 +3168,9 @@ impl GameState {
                     })
             }
             R::OpponentRedList => ctx.opponent.is_some_and(|o| self.is_red_list(o)),
+            R::CallerTitleIn(classes) => ctx
+                .calling
+                .is_some_and(|c| classes.iter().any(|k| k.matches(self.title_of(c)))),
             // "In combat with a werewolf" (Mark Decker): an ally of the
             // subtype.
             R::OpponentSubtype(l) => opp
@@ -3255,6 +3295,16 @@ impl GameState {
                     })
                     .count() as i32
             }),
+            cards::Per::OtherOwnTitled(class) => {
+                let owner = self.minions[source.index()].owner;
+                self.minions_of(owner)
+                    .filter(|&m| {
+                        m != source
+                            && self.minions[m.index()].is_vampire()
+                            && class.matches(self.title_of(m))
+                    })
+                    .count() as i32
+            }
             cards::Per::ReadyTitledOfOthers => {
                 let owner = self.minions[source.index()].owner;
                 (0..self.minions.len())
@@ -4681,12 +4731,13 @@ impl GameState {
     /// Hazimel)?
     pub fn pinned(&self, id: CardId) -> bool {
         let c = &self.cards[id.index()];
-        c.host.is_some_and(|h| self.minions[h.index()].ready())
-            && cards::lookup(c.card).is_some_and(|d| {
-                d.modes
-                    .iter()
-                    .any(|md| md.effects.contains(&cards::Effect::PinnedWhileBearerReady))
-            })
+        let has = |e| {
+            cards::lookup(c.card).is_some_and(|d| d.modes.iter().any(|md| md.effects.contains(&e)))
+        };
+        c.host.is_some()
+            && (has(cards::Effect::PinnedAlways)
+                || c.host.is_some_and(|h| self.minions[h.index()].ready())
+                    && has(cards::Effect::PinnedWhileBearerReady))
     }
 
     /// May `m` take an action in another Methuselah's minion phase: of the

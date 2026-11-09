@@ -1831,26 +1831,92 @@ ADDED_BATCHES = [
         201434: "Velya, The Flayer (G3)",
         201502: "Zayyat, The Sandstorm (G3)",
     },
+    # Round 27 (slice 16am): Secrets of New York and Noites Brasileiras,
+    # the 2026-10-31 bundles (owner, 2026-11-08).
+    {
+        102366: "Porto de Santos",
+        102367: "Aaron Fletcher, Silent Investor",
+        102368: "Academia de Campeões, São Paulo",
+        102369: "The Art Hole, New York",
+        102370: "Backroom Deal",
+        102371: "Bar Último Trago, Campina Grande",
+        102372: "Cãoera",
+        102373: "Chave de Braço",
+        102374: "Circulatory System Outlet",
+        102375: "Convento da Penha, Vila Velha",
+        102376: "Deadly Secrets",
+        102377: "Destilaria Estrela da Paraíba",
+        102378: "Double Spiral Corporation",
+        102379: "Emboldened Councilor",
+        102380: "Father Anthony",
+        102381: "Hálito Negro",
+        102382: "Iara",
+        102383: "Information Exchange",
+        102384: "Lambreta",
+        102385: "Meia Lua",
+        102386: "Mulher de Branco",
+        102387: "Palavra Sagrada, Rio de Janeiro",
+        102388: "Respected Representative",
+        102389: "Ron Zertnert, S.A.D. Agent",
+        102390: "St. Patrick's Cathedral, New York",
+        102391: "Vial of Zapathasura's Vitae",
+        201787: "Addison Payne (G6)",
+        201788: "Aisling Sturbridge (G6)",
+        201789: "Aríete (G6)",
+        201790: "Bruxa Branca (G7)",
+        201791: "Caçador de Raposas (G7)",
+        201792: "Caique (G7)",
+        201793: "Carter Vanderweyden (G6)",
+        201794: "Dorinha, a Confusa (G7)",
+        201795: "Durok (G6)",
+        201796: "Eduardo, o Oráculo Mascarado (G7)",
+        201797: "Elie Sansaricq (G6)",
+        201798: "Gianni D'Angelo (G7)",
+        201799: "Hellene Panhard (G7)",
+        201800: "Hope (G7)",
+        201801: "Julia Sowinski (G6)",
+        201802: "Kaiser (G6)",
+        201803: "Kali (G6)",
+        201804: "Katherine Wiese (G7)",
+        201805: "Luana do Lago (G7)",
+        201806: "Luíza (G6)",
+        201807: "Marcela (G6)",
+        201808: "Maria Quitéria (G6)",
+        201809: "Mel, a Guerreira Vibrante (G6)",
+        201810: "O Encourado (G7)",
+        201811: "O Grande Arquiteto (G7)",
+        201812: "Padraic Conroy (G7)",
+        201813: "Qadir al-Asmai (G7)",
+        201814: "Rey, o Mentor (G6)",
+        201815: "Samira (G7)",
+        201816: "Sydnelson (G7)",
+        201817: "Tereza Rossi (G6)",
+        201818: "Tharmas (G6)",
+        201819: "Thomas Arturo (G6)",
+        201820: "Torque (G7)",
+        201821: "Tubarão (G7)",
+        201822: "Valerie Duval (G7)",
+        201823: "Vritra (G6)",
+    },
 ]
 ADDED_CARDS = {k: v for batch in ADDED_BATCHES for k, v in batch.items()}
 
 
-# Bundles of a V5 set kept out of the pool, as (set code, bundle code): the
-# 2026-10-31 bundles Secrets of New York and Noites Brasileiras, out until
-# the owner adds them as a round.
-OUT_BUNDLES = {("V5", "SoNY"), ("V5", "NBr")}
+# Bundles KRCG types "Precon" that are card packs, no deck (54 cards, two of
+# each new card): in the pool, never a precon table's deck.
+PACK_BUNDLES = {("V5", "SoNY"), ("V5", "NBr")}
 
 
 def pool_sets(card):
-    """`krcg.sets` without the OUT_BUNDLES prints."""
-    return krcg.sets(card, OUT_BUNDLES)
+    """`krcg.sets`, the PACK_BUNDLES no precon."""
+    return krcg.sets(card, PACK_BUNDLES)
 
 
 def in_pool(card):
-    """A card of the engine pool: printed in a V5-era set (OUT_BUNDLES
-    aside), or an owner-added extra or addition."""
+    """A card of the engine pool: printed in a V5-era set, or an
+    owner-added extra or addition."""
     return (
-        bool(set(V5_SETS.values()) & krcg.set_codes(card, OUT_BUNDLES))
+        bool(set(V5_SETS.values()) & krcg.set_codes(card))
         or card["id"] in EXTRA_CARDS
         or card["id"] in ADDED_CARDS
     )
@@ -2009,7 +2075,9 @@ COMBAT_TIMING = [
     # "usable when choosing a strike" (Disguised Weapon [OBF]).
     (r"as this minion chooses a strike|when choosing a strike", "COMBAT_STRIKE_DECLARATION"),
     (r"\bmaneuver\b", "COMBAT_DETERMINE_RANGE"),
-    (r"\bgrapple\b|before strikes are chosen", "COMBAT_BEFORE_STRIKES"),
+    # "Grapple." is a label, no timing (Chave de Braço's strike): Immortal
+    # Grapple's timing is its "before strikes are chosen".
+    (r"before strikes are chosen", "COMBAT_BEFORE_STRIKES"),
     # "Usable after strikes have been chosen" (Sanguinary Wind [CEL]).
     (r"usable after strikes have been chosen", "COMBAT_BEFORE_RESOLUTION"),
     (r"additional strike", "COMBAT_ADDITIONAL_STRIKE"),
@@ -2315,6 +2383,10 @@ def classify_mode(mtype, text, as_above=False):
     # (Coordinate Attacks): the would-end moment alone.
     if mtype == "Combat" and re.search(r"combat is about to end", text, re.I):
         hits = ["COMBAT_WOULD_END"]
+    # A strike's "As above, and at the end of the round, if …" is its rider,
+    # no play window (Chave de Braço [POT]).
+    if mtype == "Combat" and re.search(r"and at the end of the round, if", text, re.I):
+        hits = [w for w in hits if w != "COMBAT_END_OF_ROUND"]
     # "Play when you successfully inflict damage from a hand strike"
     # (Shoulder Drop), a grapple timed after the strike.
     if mtype == "Combat" and re.search(r"inflict damage from a hand strike", text, re.I):

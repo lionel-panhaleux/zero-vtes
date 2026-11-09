@@ -193,12 +193,14 @@ impl Requirement {
             | R::RangeLong
             | R::BothCombatantsReady
             | R::BothCombatantsSect(..)
+            | R::BothCombatantsOthersVampires
             | R::CombatWouldEnd
             | R::DamagePending
             | R::OpponentGoingToTorpor
             | R::ActorGoingToTorpor
             | R::ActorNotGoingDown
             | R::NonAggravatedDamagePending
+            | R::AggravatedDamagePending
             | R::GunStrikeDamagePending
             | R::NonGunDamagePending
             | R::NoContinuePress
@@ -232,6 +234,7 @@ impl Requirement {
             | R::ControlsReadyImbued
             | R::ReadyImbuedInPlay
             | R::ActingSectIn(..)
+            | R::ActingTitleIn(..)
             | R::ActingSectNot(..)
             | R::ActingLacksDiscipline(..)
             | R::ActingBlackHand
@@ -289,6 +292,7 @@ impl Requirement {
             | R::StrikeDamagePending
             | R::NoReactionPlayed
             | R::BlockerOwnAnarch
+            | R::BlockerYours
             | R::BlockerOwn
             | R::BlockerReadyAfterItsCombat
             | R::ActorNotBlocker
@@ -305,9 +309,7 @@ impl Requirement {
             | R::NoReadyBlackHand
             | R::BlackHandVampireInPlay
             | R::ControlsLockedMinion
-            | R::DirectedAtYourMinion
             | R::DirectedAtYourAlly
-            | R::DirectedAtYourCard(_)
             | R::ActingByPredatorOrPrey
             | R::ActorUnmergedAdvanced
             | R::ActorPassedReferendumThisTurn
@@ -378,6 +380,7 @@ impl Requirement {
             | R::OwnCombatantOtherCopy
             | R::HostReady
             | R::ActivePoxed
+            | R::HostAlly
             | R::HostVampire => &[S::Host],
             R::HostCombatOpposingVampireNotReady
             | R::HostUsedDisciplines(..)
@@ -418,6 +421,7 @@ impl Requirement {
             | R::TargetNotRedList
             | R::TargetNotBlocker
             | R::TargetNotActing
+            | R::TargetNotAttempting
             | R::TargetHostage
             | R::ControlledByPrey
             | R::NotAbstaining
@@ -479,6 +483,7 @@ impl Requirement {
             | R::TargetHasUncontrolled
             | R::PredatorsPredator => &[S::SeatTarget],
             R::CardControlledByPrey
+            | R::CardControllerMoreLocations
             | R::CardControlledByPredatorOrPrey
             | R::TargetOnPreyMinion
             | R::TargetOnActor
@@ -509,6 +514,7 @@ impl Requirement {
             | R::OpponentNamed(..)
             | R::ActorOfOtherMethuselah
             | R::DirectedAtYourClan(..)
+            | R::CallerTitleIn(..)
             | R::OpponentYounger
             | R::OpponentOlder
             | R::OpponentAllyOrYounger
@@ -555,6 +561,7 @@ impl Requirement {
             R::ActiveControlsNonSect(..) | R::ActiveIsAgainst => &[S::Rider],
             R::ActorReady | R::BleedTargetPoolAtMost(..) => &[S::Play, S::MinionTarget],
             R::PoolAtMost(..) | R::FirstRound => &[S::Play, S::Printed],
+            R::DirectedAtYourMinion | R::DirectedAtYourCard(_) => &[S::Play, S::Printed],
             R::ActorDamagedThisRound
             | R::StrikingWithUnloadedGun
             | R::OpponentIsActing
@@ -662,7 +669,7 @@ impl Requirement {
             | R::ActorIsHost
             | R::CardControllersTurn
             | R::YouControlThisCard
-            | R::ActorMayEquipStored
+            | R::ActorMayEquipStored(..)
             | R::OthersControlThisCard
             | R::WeaponBurnedOpponent
             | R::NotPlacedThisRound
@@ -694,6 +701,8 @@ impl Requirement {
             | R::CanAttemptBlockAnyone
             | R::MayBeLocked => &[S::Engine(Site::PlayOptions)],
             R::BlockedByOlder => &[S::Engine(Site::VampireRider(Hook::HostBlocked))],
+            R::BlocksOlder => &[S::Engine(Site::VampireRider(Hook::HostEntersCombat))],
+            R::ReferendumFailed => &[S::Engine(Site::VampireRider(Hook::OwnReferendumFailed))],
             R::BlockerOlderNonAnarchCrypts => &[S::Play],
             R::BlockerTitleIn(..) => &[
                 S::Play,
@@ -728,7 +737,9 @@ impl Requirement {
             R::OtherThanPlayer => &[S::Engine(Site::PlayTarget)],
             R::YoungerThanHost => &[S::Engine(Site::AbilityTargets)],
             R::PlayedStrikeByOpponent => &[S::Engine(Site::PlayOptions), S::Engine(Site::AsPlayed)],
-            R::HostAttempting | R::HostOutOfCombat => &[S::Engine(Site::AbilityGate)],
+            R::HostAttempting | R::AttemptingNotHost | R::HostOutOfCombat => {
+                &[S::Engine(Site::AbilityGate)]
+            }
             R::CanAttemptBlock => &[
                 S::Engine(Site::PlayOptions),
                 S::Engine(Site::PlayTarget),

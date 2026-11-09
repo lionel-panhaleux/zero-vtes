@@ -315,6 +315,9 @@ pub struct ActionCtx {
     /// Pool its Methuselah gains after resolution if it is successful (I
     /// am Legion).
     pub pool_if_successful: u8,
+    /// Methuselahs drawing 1 card after resolution if the referendum
+    /// passed (Deadly Secrets).
+    pub draws_if_passed: Vec<SeatId>,
     /// The acting minion unlocks after resolution if it is successful
     /// (Hag's Wrinkles).
     pub unlock_on_success: bool,
@@ -374,6 +377,8 @@ pub struct ActionCtx {
     pub rescue_gain: u8,
     /// The political action's referendum passed, by this margin.
     pub referendum_passed: bool,
+    /// It was held and failed: not canceled.
+    pub referendum_failed: bool,
     pub margin: u32,
     /// Bleed reductions (Party Out Of Bounds [obf], Protected District).
     pub bleed_reduce: u8,
@@ -574,6 +579,9 @@ pub struct ActionCtx {
     /// "Slave"): it fights the blocker, the acting vampire unlocked; the
     /// canceled combat's riders are dead (advanced rules §5.7.2).
     pub slave: Option<MinionId>,
+    /// The minion fighting the blocker instead, the acting one staying
+    /// locked (Iara).
+    pub stand_in: Option<MinionId>,
     /// Cards put on their minion after resolution if it did not block
     /// (Dogged Pursuit [ANI]).
     pub put_if_no_block: Vec<crate::combat::Held>,
@@ -1022,16 +1030,14 @@ impl ActionCtx {
             // The equip of a card requiring an Anarch (Delivery Truck;
             // rules-qa 62.21).
             let stored = self.equipped_stored.or_else(|| {
-                mode.effects
-                    .contains(&Effect::EquipStored)
-                    .then(|| {
-                        st.cards[src.card().index()]
-                            .stored
-                            .to_cards()
-                            .first()
-                            .copied()
-                    })
-                    .flatten()
+                mode.effects.iter().find_map(|e| match e {
+                    Effect::EquipStored(i) => st.cards[src.card().index()]
+                        .stored
+                        .to_cards()
+                        .get(*i as usize)
+                        .copied(),
+                    _ => None,
+                })
             });
             return stored.is_some_and(|k| LIBRARY[k as usize].labels.contains(&Label::RequiresAnarch))
                 || mode.requires.iter().any(|r| {
@@ -3865,6 +3871,14 @@ impl Engine {
                     // no combat.
                     a.outcome = Some(Outcome::Blocked);
                     self.after_resolution();
+                } else if let Some(s) = a
+                    .stand_in
+                    .filter(|&s| self.state.minions[s.index()].ready())
+                {
+                    self.state.minions[blocker.index()].locked = true;
+                    self.start_combat(s, blocker);
+                    let c = self.combat.as_mut().expect("the stand-in's combat");
+                    c.held_at_block.clear();
                 } else if let Some(slave) = a.slave {
                     let acting = a.acting;
                     self.state.minions[acting.index()].locked = false;
@@ -3962,6 +3976,9 @@ impl Engine {
                 cards::BlockRider::PreventInCombat(n) => c.sides[i].combat_prevents += n,
                 cards::BlockRider::NoStrikesFirstRound => c.no_strikes_round = Some(1),
                 cards::BlockRider::NoEquipment => c.sides[i].bar_equipment(&mut self.state, false),
+                cards::BlockRider::EnvironmentalFirstRound(n) => {
+                    crate::combat::add_this_round(&mut c.sides[i].environmental_round, n, 1)
+                }
                 cards::BlockRider::CombatEndsFirstRound => c.sides[i].combat_ends_round = Some(1),
                 cards::BlockRider::OpponentNoCombatEndsFirstRound => {
                     c.sides[1 - i].no_combat_ends_round = Some(1)
@@ -4072,9 +4089,16 @@ impl Engine {
             // cause, this reached after a combat under none.
             let n = std::mem::take(&mut a.pool_if_successful);
             let (seat, source) = (a.seat, a.cause_source());
+            let draws = std::mem::take(&mut a.draws_if_passed);
+            let passed = a.referendum_passed;
             if successful && n > 0 && !self.state.seats[seat.index()].ousted {
                 let gain = Cause::Effect(source);
                 self.caused(gain, |e| e.state.seats[seat.index()].pool += n as i32);
+            }
+            for s in draws.into_iter().filter(|_| passed) {
+                if !self.state.seats[s.index()].ousted {
+                    self.draw_top(s);
+                }
             }
         }
         self.bleed_ends_riders();
@@ -4663,6 +4687,7 @@ impl Engine {
             }
             Effect::DamageAfterResolution(n) => a.damage_after += n,
             Effect::PoolIfSuccessful(n) => a.pool_if_successful += n,
+            Effect::DrawIfReferendumPasses => a.draws_if_passed.push(play.seat),
             Effect::QueueCombatWithLast => {
                 if let Some([x, y]) = a.last_combat {
                     a.queued_combat = Some((x, y));
@@ -4840,6 +4865,17 @@ impl Engine {
                 a.woken.push(t);
             }
             Effect::IfBlocks(rider) => a.block_riders.push((play.actor.expect("actor"), rider)),
+            Effect::BlockRiderBoth(rider) => {
+                if let Some(b) = a.blocker {
+                    a.block_riders.push((a.acting, rider));
+                    a.block_riders.push((b, rider));
+                }
+            }
+            Effect::IfAttemptingBlocks(rider) => {
+                if let ActionState::Attempt(m) = a.state {
+                    a.block_riders.push((m, rider));
+                }
+            }
             // The minion attempting to block (Form of the Bat [pro]: "the
             // blocking minion gets -1 intercept"), for the rest of the
             // action.
@@ -6665,12 +6701,23 @@ impl Engine {
                 if a.source.zip(a.ability).is_some_and(|(s, ab)| {
                     s.mode(&self.state, ab)
                         .effects
-                        .contains(&Effect::EquipStored)
+                        .iter()
+                        .any(|e| matches!(e, Effect::EquipStored(_)))
                 }) =>
             {
                 let src = a.source.expect("source").card();
-                if let Some(ctx) = self.stored_equip(seat, a.acting, src) {
-                    self.state.cards[src.index()].stored.take(0);
+                let (s, ab) = a.source.zip(a.ability).expect("the granted equip");
+                let i = s
+                    .mode(&self.state, ab)
+                    .effects
+                    .iter()
+                    .find_map(|e| match e {
+                        Effect::EquipStored(i) => Some(*i),
+                        _ => None,
+                    })
+                    .expect("its stored slot");
+                if let Some(ctx) = self.stored_equip(seat, a.acting, src, i) {
+                    self.state.cards[src.index()].stored.take(i as usize);
                     a.equipped_stored = Some(ctx.card);
                     self.action = Some(a);
                     self.equip_found_with_terms(ctx);
@@ -8819,6 +8866,33 @@ impl Engine {
                         .push(crate::draws::Interrupt::EntryRemoveOrBurn {
                             seat: ctx.seat,
                             ally: ctx.actor.expect("the entering ally"),
+                            left: 1,
+                            taken: 0,
+                            any: false,
+                        });
+                }
+                Effect::EntryStoreEquipmentUpTo(n) => {
+                    let ally = ctx.actor.expect("the entering ally");
+                    let card = (0..self.state.cards.len())
+                        .map(|i| CardId(i as u32))
+                        .find(|c| self.state.cards[c.index()].body == Some(ally));
+                    if let Some(card) = card {
+                        self.interrupts.push(crate::draws::Interrupt::StoreUpTo {
+                            seat: ctx.seat,
+                            card,
+                            left: n,
+                            from_ash: false,
+                        });
+                    }
+                }
+                Effect::EntryRemoveAshCardsOrBurn(n) => {
+                    self.interrupts
+                        .push(crate::draws::Interrupt::EntryRemoveOrBurn {
+                            seat: ctx.seat,
+                            ally: ctx.actor.expect("the entering ally"),
+                            left: n,
+                            taken: 0,
+                            any: true,
                         });
                 }
                 Effect::EntryBurnAllyOrRetainer => {
@@ -8957,22 +9031,23 @@ impl Engine {
         }
     }
 
-    /// The card on `src` as `acting` would equip it, if it meets its
-    /// requirements and can pay (Delivery Truck).
+    /// The card at index `i` on `src` as `acting` would equip it, if it
+    /// meets its requirements and can pay (Delivery Truck, Aaron Fletcher).
     pub(crate) fn stored_equip(
         &self,
         seat: SeatId,
         acting: MinionId,
         src: CardId,
+        i: u8,
     ) -> Option<PlayCtx> {
         let c = &self.state.cards[src.index()];
         let card = c
             .stored
             .to_cards()
-            .first()
+            .get(i as usize)
             .copied()
             .filter(|_| c.present())?;
-        let ctx = found_play(seat, acting, card, c.stored.copy(0));
+        let ctx = found_play(seat, acting, card, c.stored.copy(i as usize));
         (self.equip_requirements_met(acting, card) && self.payable_with_potential(&ctx, true))
             .then_some(ctx)
     }

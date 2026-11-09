@@ -106,9 +106,11 @@ fn add(e: &E, w: Whom, when: Option<When>, out: &mut Vec<Effect>) {
         E::SpendTransfers(v) => push(cost(n(K::Transfers, -i(v)))),
         E::GainTransfers(v) => push(n(K::Transfers, i(v))),
         E::PayPool(v) => push(cost(n(K::Pool, -i(v)))),
+        E::PayPoolToCardController(v) => push(cost(detail(n(K::Pool, -i(v)), "to_controller"))),
         E::PayPoolX => push(cost(x(n(K::Pool, -1)))),
         E::BurnPool(v) => push(n(K::Pool, -i(v))),
         E::GainPool(v) => push(n(K::Pool, i(v))),
+        E::DrawIfReferendumPasses => push(detail(n(K::Draw, 1), "if_passed")),
         E::PoolIfSuccessful(v) => push(Effect {
             when: Some(When::Successful),
             ..n(K::Pool, i(v))
@@ -226,6 +228,7 @@ fn add(e: &E, w: Whom, when: Option<When>, out: &mut Vec<Effect>) {
         E::PreventGunStrikeAllowance(v) => push(detail(n(K::Prevent, i(v)), "guns")),
         E::PreventNonGun(v) => push(detail(n(K::Prevent, i(v)), "not_guns")),
         E::PreventNonAggravated(v) => push(detail(n(K::Prevent, i(v)), "non_aggravated")),
+        E::PreventAggravated(v) => push(detail(n(K::Prevent, i(v)), "aggravated")),
         E::PreventXPlus(v) => push(detail(n(K::Prevent, i(v)), "x_plus")),
         E::PreventThisRound(v) => push(detail(n(K::Prevent, i(v)), "this_round")),
         E::PreventEachRound(v) => push(detail(n(K::Prevent, i(v)), "each_round")),
@@ -426,6 +429,7 @@ fn add(e: &E, w: Whom, when: Option<When>, out: &mut Vec<Effect>) {
         | E::RemovePreyAshToBurnPool { .. }
         | E::RetainerToStartingLife
         | E::RevealCryptTop { .. }
+        | E::EachCryptTopPick(..)
         | E::RotschreckEndsCombat
         | E::FrenzyRound
         | E::SearchLibraryToHand(..)
@@ -471,6 +475,7 @@ fn add(e: &E, w: Whom, when: Option<When>, out: &mut Vec<Effect>) {
         | E::HandStrikeDamageThisAction(..)
         | E::TargetToTorpor
         | E::BurnOwnCorruptionFromTarget(..)
+        | E::CorruptTargetMinion
         | E::DiablerizeOpponentInsteadOfTorpor
         | E::CancelableForPoolByAny(..)
         | E::PreyBurnsPoolIfRicher(..)
@@ -546,6 +551,9 @@ fn add(e: &E, w: Whom, when: Option<When>, out: &mut Vec<Effect>) {
         | E::HostBleedThisTurn(..)
         | E::HostBurnLife(..)
         | E::HostLeavesTorpor
+        | E::ShuffleHostIntoLibrary
+        | E::DamageActingNow(..)
+        | E::ReorderTopMayBottom(..)
         | E::HostSuperiorChosenUntilMaster
         | E::HostVotes(..)
         | E::LeaveIncapacitated
@@ -606,6 +614,7 @@ fn add(e: &E, w: Whom, when: Option<When>, out: &mut Vec<Effect>) {
         | E::SearchMageAlly
         | E::ShuffleHandDrawUp
         | E::SlaveTakesCombat
+        | E::StandInIfBlocked
         | E::SpendDiscardPhaseAction
         | E::StealPoolFromBoonTarget
         | E::StoreFromOwnAsh
@@ -658,6 +667,8 @@ fn add(e: &E, w: Whom, when: Option<When>, out: &mut Vec<Effect>) {
         | E::GainBloodPerMargin
         | E::HuntBonusThisAction(..)
         | E::IfBlocks(..)
+        | E::IfAttemptingBlocks(..)
+        | E::BlockRiderBoth(..)
         | E::LockAttempting
         | E::LockBlocker
         | E::LockFailedBlockers
@@ -766,6 +777,7 @@ fn add(e: &E, w: Whom, when: Option<When>, out: &mut Vec<Effect>) {
         | E::AggravatedAsNormal { .. }
         | E::NoFrenzyCancelNorEndPress
         | E::DamageEachCombatantNow(..)
+        | E::DamageOpposingOwnCombatantNow(..)
         | E::ManeuverForBlood(..)
         | E::MayBurnToPreventInitialStrikes(..)
         | E::NeverAggravatedStrike
@@ -812,7 +824,10 @@ fn add(e: &E, w: Whom, when: Option<When>, out: &mut Vec<Effect>) {
         | E::StrikeOnceEachRound(..)
         | E::StunAfterCombatIfClose
         | E::PutOnOpponentAfterCombatIfClose
+        | E::PutOnOpponentAtRoundEndIfMore
         | E::UndodgeableStrike
+        | E::StunOpponentOnHit
+        | E::RetainerDamageWithStrike(..)
         | E::UndirectedAction
         | E::EquipActionUnlocksEndOfTurn
         | E::NamedCardOff { .. }
@@ -841,7 +856,7 @@ fn add(e: &E, w: Whom, when: Option<When>, out: &mut Vec<Effect>) {
         | E::CorruptTargetMayStealAtCapacity
         | E::EnterCombatWithRandomPreyMonster
         | E::EquipFirstFound { .. }
-        | E::EquipStored
+        | E::EquipStored(..)
         | E::RearrangeEquipment
         | E::RecruiterUnlocksAtEndOfTurn
         | E::ExchangeHandForAsh
@@ -889,6 +904,7 @@ fn add(e: &E, w: Whom, when: Option<When>, out: &mut Vec<Effect>) {
         | E::NextReferendumPassesIfPasses
         | E::NotPathVotesMinus(..)
         | E::PoisonPill
+        | E::RevealCryptTopVoteIfOlder
         | E::PoolForVotesRound { .. }
         | E::TallyPenaltyAgainst(..)
         | E::TallyBonusForOthers(..)
@@ -904,6 +920,8 @@ fn add(e: &E, w: Whom, when: Option<When>, out: &mut Vec<Effect>) {
         | E::CannotGainLife
         | E::EntryBurnAllyOrRetainer
         | E::EntryRemoveFromAshOrBurn
+        | E::EntryRemoveAshCardsOrBurn(..)
+        | E::EntryStoreEquipmentUpTo(..)
         | E::MayRepeatThisTurn
         | E::UnlockRecruiterOnFirst
         | E::Version(..) => {}
@@ -942,6 +960,8 @@ fn add(e: &E, w: Whom, when: Option<When>, out: &mut Vec<Effect>) {
         | E::DistributeToUncontrolled { .. }
         | E::DrawCryptOnEntry
         | E::GoToTorpor
+        | E::StunHost
+        | E::TransfersThisTurn(..)
         | E::HandSizeUntilDiscard(..)
         | E::HostBloodToBy(..)
         | E::HostBurnsBloodOrBurnedThenMoves(..)
@@ -1034,6 +1054,8 @@ fn add(e: &E, w: Whom, when: Option<When>, out: &mut Vec<Effect>) {
         | E::NotTakenByDiablerie
         | E::OpposingBurnsPoolIfOneReadyAfterCombat(..)
         | E::PinnedWhileBearerReady
+        | E::PinnedAlways
+        | E::BurnedSendsBearerToTorpor
         | E::PlayableFromStore(..)
         | E::PoolWhenHostLeaves(..)
         | E::PutOnActorIfOpposingNotReadyAfterCombat

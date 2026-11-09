@@ -130,14 +130,14 @@ granted-action checks (`may_take_granted`, the turn's political action,
 Delaying Tactics, a referendum feasible), then `ability_holds` (the
 requirements read by name, the card's, host's and play's evaluators).
 `limit_slot(limit, source, ability)` maps a `Limit` to its `Ledger`
-(combat, round, action, referendum, turn), key and allowed uses, read by
-`limit_spent` and written by `mark_limit`. `Engine::gains_nothing` tells a
-legal no-op for interfaces that hide it (rules-qa 17.4: the engine still
-offers it); `Engine::ability_used_by` tells interfaces who uses an
-offered ability (the seat, and the minion when it is the user's own);
-`Engine::dues` what a minion phase withholding its end waits for (the
-hunts due, read from the same `starving` the options are built from;
-the mandatory actions; Puppet Master).
+(combat, round, action, referendum, turn, game: `GameState::game_uses`),
+key and allowed uses, read by `limit_spent` and written by `mark_limit`.
+`Engine::gains_nothing` tells a legal no-op for interfaces that hide it
+(rules-qa 17.4: the engine still offers it); `Engine::ability_used_by`
+tells interfaces who uses an offered ability (the seat, and the minion when
+it is the user's own); `Engine::dues` what a minion phase withholding its
+end waits for (the hunts due, read from the same `starving` the options are
+built from; the mandatory actions; Puppet Master).
 
 **Placement.** "Put this card on … / in play": `Engine::place_now(card,
 ModeLayers, one_per_vampire)` as the card resolves (the card itself enters
@@ -929,6 +929,11 @@ sources to the engine's conventions.
   sizes). Hands themselves are never read (`tests/elision.rs`).
 - The engine has legal unbounded repeats here (block re-attempts, DESIGN
   §11.3): cap decisions in any exploratory driver.
+- Block-time riders for both combatants (`Effect::BlockRiderBoth`: Bar Último
+  Trago's no equipment and `BlockRider::EnvironmentalFirstRound`), an attempting
+  minion's from another card (`Effect::IfAttemptingBlocks`: Destilaria), and a
+  stand-in fighting the blocker, the acting minion out (`ActionCtx::stand_in`:
+  Iara).
 
 ### 6.7 Combat
 
@@ -1180,6 +1185,17 @@ sources to the engine's conventions.
 - Blood Turnip moves as a combat begins (`turnips_move`); clot counters
   (`Minion::clots`) move on hand or melee damage (`Interrupt::MoveClot`) and
   bite in `start_unlock_effects`.
+- In combat: a damage strike's retainers hit (`Side::retainer_strike_damage`:
+  Hálito Negro); a strike card held to the round's end, put on the opponent at
+  close range with more damage inflicted, settled as the end-of-round step
+  closes (`Side::round_end_put`: Chave de Braço); a card-effect strike that
+  stuns as it lands (`Landed::Stun`: Father Anthony); a once-a-combat corruption
+  as a combatant's strike damage lands (`Stat::CorruptOnDamageOncePerCombat`:
+  Elie Sansaricq); unpreventable damage on the minion opposing the user's
+  combatant (`Effect::DamageOpposingOwnCombatantNow`: Ron Zertnert);
+  aggravated-only prevention (`Effect::PreventAggravated`); printed riders as a
+  combat begins (`Hook::HostEntersCombat`: Caique, Padraic Conroy's
+  `BlocksOlder`).
 
 ### 6.8 Referendums
 
@@ -1223,6 +1239,13 @@ sources to the engine's conventions.
   live: a minion corrupted after voting loses its votes. Skaald's
   `Modifier::HostVotesWhenCallerOfClan` reads the caller in `votes_of`
   (`GameState::caller_clan_votes`).
+- Referendums: a held and failed one apart from a canceled one
+  (`ActionCtx::referendum_failed`, `Requirement::ReferendumFailed`: Hellene
+  Panhard's `StunHost`); votes barred against a caller of a title
+  (`Stat::NoVotesAgainst`, `CallerTitleIn`: Samira); a chosen seat among those
+  given points (`SeatFilter::Allocated`: Information Exchange); a vote from a
+  crypt reveal (`RevealCryptTopVoteIfOlder`: Tubarão); a draw after a passed
+  referendum (`ActionCtx::draws_if_passed`: Deadly Secrets).
 
 ### 6.9 Contests and titles
 
@@ -1447,6 +1470,10 @@ sources to the engine's conventions.
   `SameCircleAsOwnCombatant`, always by the other circle readers, which only
   Sanguinus cards carry (§3's `circle_requirements_read_angelo_only_on_
   sanguinus_cards`).
+- An ally leaving play shuffled into its owner's library, not burned
+  (`Engine::shuffle_ally_into_library`: Mulher de Branco), its entry toll of any
+  n ash heap cards (`Interrupt::EntryRemoveOrBurn`'s `left`, `any`); an ally's
+  bleed per life above n (`Modifier::BleedPerLifeAbove`: Cãoera).
 
 ### 6.11 Cards in play
 
@@ -1660,6 +1687,12 @@ sources to the engine's conventions.
   however equipped (`put_equipment`; a take from another minion in
   `ActionKind::EquipFrom`); a card put on (Alastor's `SearchEquipFor`) runs
   no mode effect.
+- Stored equipment by index (`EquipStored(i)`, `ActorMayEquipStored(i)`:
+  Delivery Truck's 0, Aaron Fletcher's three, a copy of an earlier slot not
+  offered again), stored as an ally enters play (`Interrupt::StoreUpTo`); never
+  moved (`Effect::PinnedAlways`), its burn sending the bearer to torpor
+  (`BurnedSendsBearerToTorpor`), a clan's Discipline level
+  (`Modifier::BearerClanDisciplineLevel`: the Vial).
 
 ### 6.14 Replacement, hand size, draws, searches
 
@@ -1766,6 +1799,12 @@ sources to the engine's conventions.
   `Release::WhileUnlocked`): read live, as a vampire locks in dozens of ways
   (`settle_unlocked_holds` in `run`), the turn's end releasing them; a shorter
   delay carries into it in `release_held` (the longest wins).
+- A reorder then a move to the library's bottom chosen after it
+  (`Interrupt::MayBottomTop`: St. Patrick's Cathedral); ash heap cards to the
+  bottom, up to n (`AshToLibraryTop`'s `bottom`, `up_to`: Academia); each
+  Methuselah's crypt-top pick (`Interrupt::CryptTopPick`: Porto de Santos);
+  transfers this turn from the minion phase (`TransfersThisTurn` into
+  `Seat::transfers_next`: Julia Sowinski).
 
 ### 6.15 Costs and reductions
 
@@ -1855,6 +1894,12 @@ sources to the engine's conventions.
   division first", RTR 20070707), the half taken off with the bearer's
   other reductions; a dual Action Modifier card is halved when played as a
   reaction or in combat, an X cost once X is chosen (rules-qa 70.17).
+- A pool-only seat reduction paid with a random discard
+  (`Stat::SeatPoolOffForRandomDiscard`: Kali, Baldesar Rossellini's slot); a
+  surcharge on the Discipline cards of a vampire in combat with the bearer
+  (`Modifier::OpposingVampireDisciplineCardsCost`: Father Anthony); a pool cost
+  paid to a card's controller (`PayPoolToCardController`: Convento da Penha); an
+  ability once each game (`Limit::PerGame`).
 
 ### 6.16 Events
 

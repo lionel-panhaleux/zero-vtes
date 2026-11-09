@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "title": "zvtes protocol",
-  "version": "2.24.2",
+  "version": "2.25.0",
   "$defs": {
     "About": {
       "description": "What a choice is about (`Decision::about`): each field given where\nthe purpose (or the terms) has it (docs/protocol.md §5).",
@@ -4865,6 +4865,11 @@
           "const": "crypt_search"
         },
         {
+          "description": "Porto de Santos: one of the crypt's top cards to the uncontrolled\nregion (`AshVampire`), the others to the bottom.",
+          "type": "string",
+          "const": "crypt_top_pick"
+        },
+        {
           "description": "Solomon Batanea: the slot of `of`'s uncontrolled region that gives\n1 blood to `of`'s pool (`Choice::Slot`, `of`'s region).",
           "type": "string",
           "const": "prey_slot_to_pool"
@@ -4955,6 +4960,11 @@
           "const": "may_store_aim"
         },
         {
+          "description": "St. Patrick's Cathedral: the library's top cards just reordered\nmoved to the bottom in the same order (`ResolveRider`), or pass.",
+          "type": "string",
+          "const": "may_bottom_top"
+        },
+        {
           "description": "The Path of Lilith: `seat` may lock `card` to put a torture counter\non `minion` (`ResolveRider`), or pass.",
           "type": "string",
           "const": "may_torture"
@@ -4988,6 +4998,11 @@
           "description": "A card of the hand put face down on `card` (`find_card`):\nStorage Annex's one as it is played, replaced; Gift of Proteus's\nannounced number as its action resolves, one at a time (`n` left),\nnot replaced.",
           "type": "string",
           "const": "store_own_hand"
+        },
+        {
+          "description": "Aaron Fletcher: up to n more equipment cards of the hand, then of\nthe ash heap, put face down on the card (`FindCard`), or stop.",
+          "type": "string",
+          "const": "store_up_to"
         },
         {
           "description": "\"When it enters play, you may pay n pool to make it <title>\"\n(Victor Pelletier, `minion`): `SetX(n)` pays n pool for the title\nits option's effect names (`role`, `detail`: `primogen`,\n`prince_of_paris`…), or pass.",
@@ -5058,6 +5073,11 @@
           "description": "Unity: `n` more cards requiring an imbued, a creed or a virtue\nmoved one at a time from `seat`'s ash heap to the top of their\nlibrary (`find_card`).",
           "type": "string",
           "const": "ash_to_library_top"
+        },
+        {
+          "description": "As `AshToLibraryTop`, to the bottom, up to the number (Academia\nde Campeões): `Pass` stops.",
+          "type": "string",
+          "const": "ash_to_library_bottom"
         },
         {
           "description": "Unity: `seat` may cut their library once, `set_x` the cards\nmoved from the top to the bottom (a pass: no cut).",

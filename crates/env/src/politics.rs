@@ -33,7 +33,9 @@ fn harm(e: &Engine, me: SeatId, s: SeatId) -> i32 {
 /// referendums whose points this rule allocates.
 fn points_burn(effect: RefEffect) -> Option<bool> {
     match effect {
-        RefEffect::BurnAllocated | RefEffect::BurnAllocatedChosenGains(_) => Some(true),
+        RefEffect::BurnAllocated
+        | RefEffect::BurnAllocatedChosenGains(_)
+        | RefEffect::BurnAllocatedChosenDiscardsUpTo(_) => Some(true),
         RefEffect::MoveAllocatedFromChosen => Some(false),
         _ => None,
     }
@@ -244,7 +246,7 @@ fn stake(e: &Engine, me: SeatId) -> Option<i32> {
         .filter(|&&m| owner(e, m) == me)
         .count() as i32;
     match def.effect {
-        RefEffect::BurnAllocated => Some(-alloc),
+        RefEffect::BurnAllocated | RefEffect::BurnAllocatedChosenDiscardsUpTo(_) => Some(-alloc),
         RefEffect::BurnAllocatedChosenGains(n) => Some(-alloc + if chosen { n as i32 } else { 0 }),
         RefEffect::MoveAllocatedFromChosen => Some(alloc - if chosen { total } else { 0 }),
         RefEffect::Banish | RefEffect::Expel | RefEffect::RemoveChosen => Some(-mine),

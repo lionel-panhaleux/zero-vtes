@@ -1791,7 +1791,7 @@ pub static PARIJAT: VampireDef = VampireDef {
     ..VAMP
 };
 
-pub static VAMPIRES: [&VampireDef; 692] = [
+pub static VAMPIRES: [&VampireDef; 726] = [
     &JOSEF_VON_BAUREN,
     &GABRIELLE_DI_RIGHETTI,
     &HAROLD_TANNER,
@@ -2484,6 +2484,40 @@ pub static VAMPIRES: [&VampireDef; 692] = [
     &TUSK_ADV,
     &ARDAN_LANE,
     &NEDAL_THE_CARELESS,
+    &ADDISON_PAYNE,
+    &AISLING_STURBRIDGE_G6,
+    &ARIETE,
+    &BRUXA_BRANCA,
+    &DORINHA,
+    &DUROK,
+    &EDUARDO,
+    &HOPE,
+    &KAISER,
+    &LUANA_DO_LAGO,
+    &MARIA_QUITERIA,
+    &MEL,
+    &REY,
+    &TEREZA_ROSSI,
+    &THARMAS,
+    &THOMAS_ARTURO,
+    &TORQUE,
+    &VALERIE_DUVAL,
+    &CAIQUE,
+    &PADRAIC_CONROY,
+    &HELLENE_PANHARD,
+    &JULIA_SOWINSKI,
+    &GIANNI_DANGELO,
+    &KATHERINE_WIESE,
+    &O_GRANDE_ARQUITETO,
+    &CARTER_VANDERWEYDEN,
+    &SAMIRA,
+    &O_ENCOURADO,
+    &QADIR_AL_ASMAI,
+    &SYDNELSON,
+    &VRITRA,
+    &TUBARAO,
+    &KALI,
+    &ELIE_SANSARICQ,
 ];
 
 /// "Anarch Baron of Miami: During your influence phase, Gilbert can burn 1
@@ -7860,6 +7894,7 @@ pub static MARIS_STRECK: VampireDef = VampireDef {
 /// attempting, live.
 pub static AISLING_STURBRIDGE: VampireDef = VampireDef {
     name: "Aisling Sturbridge",
+    group: Some(2),
     printed: &[own(
         Stat::CannotBeBlockedBy,
         1,
@@ -13470,6 +13505,552 @@ pub static ARDAN_LANE: VampireDef = VampireDef {
 pub static NEDAL_THE_CARELESS: VampireDef = VampireDef {
     name: "Nedal, The Careless",
     printed: &[own(Stat::CombatCardsHeldUntilUnlock, 1, &[])],
+    ..VAMP
+};
+
+// ---- Round 27: Secrets of New York, Noites Brasileiras vampires -----------
+//
+// Caçador de Raposas, Luíza and Marcela print no text but their sect and
+// title.
+
+/// "Camarilla primogen: Addison can play cards requiring a prince as if he
+/// were a prince." Victor Gerard's reading: the cards he plays only.
+pub static ADDISON_PAYNE: VampireDef = VampireDef {
+    name: "Addison Payne",
+    printed: &[own(Stat::PlaysAsPrince, 1, &[])],
+    ..VAMP
+};
+
+/// "Camarilla primogen: Once each turn, after Aisling performs a successful
+/// action, she can discard a card requiring Blood Sorcery [tha] to unlock."
+pub static AISLING_STURBRIDGE_G6: VampireDef = VampireDef {
+    name: "Aisling Sturbridge",
+    group: Some(6),
+    abilities: &[ModeDef {
+        terms: Some(Terms::Discard {
+            n: 1,
+            of: CardFilter::Discipline("tha"),
+        }),
+        limit: Some(Limit::PerTurn),
+        ..mode_of(
+            &[Window::ActionAfterResolution],
+            Actor::Host,
+            &[
+                R::ActorActing,
+                R::ActionSuccessful,
+                R::HandHas(CardFilter::Discipline("tha"), 1),
+            ],
+            &[Effect::UnlockHost],
+        )
+    }],
+    ..VAMP
+};
+
+/// "Sabbat bishop: Aríete can enter combat with a non-Sabbat vampire as a Ⓓ
+/// action."
+pub static ARIETE: VampireDef = VampireDef {
+    name: "Aríete",
+    abilities: &[enter_combat(&[
+        R::TargetVampire,
+        R::NotControlled,
+        R::ActorReady,
+        R::TargetSectNot(Sect::Sabbat),
+    ])],
+    ..VAMP
+};
+
+/// "Independent: Once each turn, Bruxa Branca can get +1 intercept for the
+/// current action." As she attempts to block, while intercept is needed.
+pub static BRUXA_BRANCA: VampireDef = VampireDef {
+    name: "Bruxa Branca",
+    abilities: &[ability(
+        &[Window::ActionStealthIntercept],
+        Actor::Host,
+        &[R::HostAttempting, R::YourAttemptNeedsIntercept],
+        Limit::PerTurn,
+        &[Effect::AttemptingIntercept(1)],
+    )],
+    ..VAMP
+};
+
+/// "Anarch: Action cards cost Dorinha +1 blood." Action cards are every
+/// action card type (rules-qa 60.4).
+pub static DORINHA: VampireDef = VampireDef {
+    name: "Dorinha, a Confusa",
+    printed: &[own(
+        Stat::BloodCostMore,
+        1,
+        &[R::PlayedCard(CardFilter::ActionCard)],
+    )],
+    ..VAMP
+};
+
+/// "Anarch: Durok gets +1 intercept during actions directed at a card you
+/// control." A minion or any other card in play.
+pub static DUROK: VampireDef = VampireDef {
+    name: "Durok",
+    printed: &[own(
+        Stat::Intercept,
+        1,
+        &[R::AnyOf(&[
+            &[R::DirectedAtYourMinion],
+            &[R::DirectedAtYourCard(&[CardFilter::Any])],
+        ])],
+    )],
+    ..VAMP
+};
+
+/// "Camarilla primogen: During the polling step of any referendum, if
+/// Eduardo is ready, he can discard 1 card at random to get +2 votes." Once
+/// a referendum (rules-digest D7).
+pub static EDUARDO: VampireDef = VampireDef {
+    name: "Eduardo, o Oráculo Mascarado",
+    abilities: &[ability(
+        &[Window::Referendum],
+        Actor::Host,
+        &[R::AnyPollingStep, R::HostReady, R::HandNotEmpty],
+        Limit::PerReferendum,
+        &[Effect::DiscardAtRandom(1), Effect::AddVotes(2)],
+    )],
+    ..VAMP
+};
+
+/// "Camarilla: During a bleed action, Hope can burn 1 blood to get +1
+/// stealth or +1 bleed." One use a bleed, either way (rules-digest D7,
+/// D32).
+pub static HOPE: VampireDef = VampireDef {
+    name: "Hope",
+    abilities: &[
+        ability(
+            &[Window::ActionDuring],
+            Actor::Host,
+            &[
+                R::ActorActing,
+                R::IsBleed,
+                R::HostBloodAtLeast(1),
+                R::StealthNeeded,
+            ],
+            Limit::PerActionCard,
+            &[Effect::HostBurnBlood(1), Effect::AddStealth(1)],
+        ),
+        ability(
+            &[Window::ActionDuring],
+            Actor::Host,
+            &[R::ActorActing, R::IsBleed, R::HostBloodAtLeast(1)],
+            Limit::PerActionCard,
+            &[Effect::HostBurnBlood(1), bleed(1, false)],
+        ),
+    ],
+    ..VAMP
+};
+
+/// "Camarilla: Once each action, if Kaiser is ready, he can discard a card
+/// requiring 1 or more Disciplines to reduce a bleed against you by 1."
+pub static KAISER: VampireDef = VampireDef {
+    name: "Kaiser",
+    abilities: &[ModeDef {
+        terms: Some(Terms::Discard {
+            n: 1,
+            of: CardFilter::RequiresDiscipline,
+        }),
+        limit: Some(Limit::PerAction),
+        ..mode_of(
+            &[Window::ReactionDuringAction],
+            Actor::Host,
+            &[
+                R::HostReady,
+                R::IsBleed,
+                R::DirectedAtYou,
+                R::HandHas(CardFilter::RequiresDiscipline, 1),
+            ],
+            &[Effect::ReduceBleed(1)],
+        )
+    }],
+    ..VAMP
+};
+
+/// "Camarilla Prince of Brasília: +1 hand size."
+pub static LUANA_DO_LAGO: VampireDef = VampireDef {
+    name: "Luana do Lago",
+    printed: &[own(Stat::HandSize, 1, &[])],
+    ..VAMP
+};
+
+/// "Sabbat: Maria gets 1 optional additional strike (limited) each combat."
+pub static MARIA_QUITERIA: VampireDef = VampireDef {
+    name: "Maria Quitéria",
+    abilities: &[ability(
+        &[Window::CombatAdditionalStrike],
+        Actor::Host,
+        &[],
+        Limit::PerCombat,
+        &[Effect::AdditionalStrikes {
+            n: 1,
+            limited: true,
+        }],
+    )],
+    ..VAMP
+};
+
+/// "Camarilla Prince of Campina Grande: Mel cannot block vampires with a
+/// city title." A prince, a baron or an archbishop, read live.
+pub static MEL: VampireDef = VampireDef {
+    name: "Mel, a Guerreira Vibrante",
+    printed: &[own(
+        Stat::CannotBlock,
+        1,
+        &[R::OpponentTitleIn(&[
+            TitleClass::Prince,
+            TitleClass::Baron,
+            TitleClass::Archbishop,
+        ])],
+    )],
+    ..VAMP
+};
+
+/// "Camarilla Prince of Juiz de Fora: +1 strength."
+pub static REY: VampireDef = VampireDef {
+    name: "Rey, o Mentor",
+    printed: &[own(Stat::Strength, 1, &[])],
+    ..VAMP
+};
+
+/// "Sabbat Archbishop of Curitiba: +1 strength."
+pub static TEREZA_ROSSI: VampireDef = VampireDef {
+    name: "Tereza Rossi",
+    printed: &[own(Stat::Strength, 1, &[])],
+    ..VAMP
+};
+
+/// "Independent: Once each combat, Tharmas can burn 1 blood to get 1
+/// optional maneuver."
+pub static THARMAS: VampireDef = VampireDef {
+    name: "Tharmas",
+    abilities: &[ability(
+        &[Window::CombatDetermineRange],
+        Actor::Host,
+        &[R::HostBloodAtLeast(1)],
+        Limit::PerCombat,
+        &[Effect::HostBurnBlood(1), Effect::Maneuver],
+    )],
+    ..VAMP
+};
+
+/// "Camarilla primogen: Thomas can lock a titled vampire controlled by
+/// another Methuselah as a +1 stealth Ⓓ action that costs 1 blood." In
+/// torpor too, locked or not (rules-qa 57.10).
+pub static THOMAS_ARTURO: VampireDef = VampireDef {
+    name: "Thomas Arturo",
+    abilities: &[printed_action(
+        target(
+            TargetKind::Minion,
+            &[
+                R::TargetVampire,
+                R::NotControlled,
+                R::TargetTitleIn(&[TitleClass::Any]),
+            ],
+        ),
+        &[
+            Effect::DeclareAction(ActionKind::Ability),
+            Effect::AddStealth(1),
+            Effect::PayBlood(1),
+            Effect::LockTarget,
+        ],
+    )],
+    ..VAMP
+};
+
+/// "Anarch Baron of New York: Torque gets 1 optional additional strike
+/// (limited) each combat. Titled vampires can enter combat with him as a Ⓓ
+/// action." Another Methuselah's, his title read live (Calebros's shape).
+pub static TORQUE: VampireDef = VampireDef {
+    name: "Torque",
+    abilities: &[
+        MARIA_QUITERIA.abilities[0],
+        ModeDef {
+            windows: &[Window::ActionDeclare],
+            actor: Actor::OtherMethuselahsMinion,
+            requires: &[R::ActorVampire, R::ActorTitleIn(&[TitleClass::Any])],
+            target: target(
+                TargetKind::Minion,
+                &[R::TargetIsHost, R::NotControlled, R::ActorReady],
+            ),
+            terms: None,
+            waives_needed: false,
+            limit: None,
+            effects: &[
+                Effect::DeclareAction(ActionKind::Ability),
+                Effect::EnterCombatWithTarget,
+            ],
+        },
+    ],
+    ..VAMP
+};
+
+/// "Camarilla: Valerie can enter combat with a younger non-Camarilla
+/// vampire as a Ⓓ action."
+pub static VALERIE_DUVAL: VampireDef = VampireDef {
+    name: "Valerie Duval",
+    abilities: &[enter_combat(&[
+        R::TargetVampire,
+        R::NotControlled,
+        R::ActorReady,
+        R::Younger,
+        R::TargetSectNot(Sect::Camarilla),
+    ])],
+    ..VAMP
+};
+
+/// "Anarch: After Caique enters combat, discard 1 card at random." Every
+/// combat, as it begins (Michael Luther's hook).
+pub static CAIQUE: VampireDef = VampireDef {
+    name: "Caique",
+    riders: &[Rider {
+        hook: Hook::HostEntersCombat,
+        scope: RiderScope::Controller,
+        requires: &[],
+        effects: &[Effect::DiscardAtRandom(1)],
+    }],
+    ..VAMP
+};
+
+/// "Anarch: If Padraic blocks an older vampire, discard 1 card at random
+/// before range is determined during the first round of the resulting
+/// combat." As that combat begins, before anything in it.
+pub static PADRAIC_CONROY: VampireDef = VampireDef {
+    name: "Padraic Conroy",
+    riders: &[Rider {
+        hook: Hook::HostEntersCombat,
+        scope: RiderScope::Controller,
+        requires: &[R::BlocksOlder],
+        effects: &[Effect::DiscardAtRandom(1)],
+    }],
+    ..VAMP
+};
+
+/// "Camarilla Prince of New York: After a referendum called by Hellene
+/// fails, stun her." Held and failed, not canceled; as the action resolves
+/// (Cedrick Calhoun's hook).
+pub static HELLENE_PANHARD: VampireDef = VampireDef {
+    name: "Hellene Panhard",
+    riders: &[Rider {
+        hook: Hook::OwnReferendumFailed,
+        scope: RiderScope::Every,
+        requires: &[R::ReferendumFailed],
+        effects: &[Effect::StunHost],
+    }],
+    ..VAMP
+};
+
+/// "Camarilla primogen: If Julia successfully bleeds, you get +1 transfer
+/// this turn." A bleed for 1 or more, the influence phase following.
+pub static JULIA_SOWINSKI: VampireDef = VampireDef {
+    name: "Julia Sowinski",
+    riders: &[Rider {
+        hook: Hook::OwnBleedSuccessful,
+        scope: RiderScope::Every,
+        requires: &[],
+        effects: &[Effect::TransfersThisTurn(1)],
+    }],
+    ..VAMP
+};
+
+/// "Camarilla: Once each turn, Gianni can burn 1 blood to give another
+/// Camarilla vampire you control +1 intercept." As it attempts to block,
+/// while it needs intercept (Oskar Anasov's shape).
+pub static GIANNI_DANGELO: VampireDef = VampireDef {
+    name: "Gianni D'Angelo",
+    abilities: &[ability(
+        &[Window::ActionStealthIntercept],
+        Actor::Host,
+        &[
+            R::YourAttemptNeedsIntercept,
+            R::AttemptingNotHost,
+            R::AttemptingSectIn(&[Sect::Camarilla]),
+            R::HostBloodAtLeast(1),
+        ],
+        Limit::PerTurn,
+        &[Effect::HostBurnBlood(1), Effect::AttemptingIntercept(1)],
+    )],
+    ..VAMP
+};
+
+/// "Camarilla: Once each turn, Katherine can burn 2 blood as she announces
+/// a directed action to lock a younger vampire controlled by the target
+/// Methuselah. +1 bleed." Alicia Cortez's target, as announced; a locked
+/// one kept (rules-qa 57.10).
+pub static KATHERINE_WIESE: VampireDef = VampireDef {
+    name: "Katherine Wiese",
+    printed: &[own(Stat::Bleed, 1, &[])],
+    abilities: &[ModeDef {
+        windows: &[Window::ActionAsAnnounced],
+        actor: Actor::Host,
+        requires: &[R::ActorActing, R::ActionDirected, R::HostBloodAtLeast(2)],
+        target: target(
+            TargetKind::Minion,
+            &[R::TargetVampire, R::Younger, R::ControlledByDirectedSeat],
+        ),
+        terms: None,
+        waives_needed: false,
+        limit: Some(Limit::PerTurn),
+        effects: &[Effect::HostBurnBlood(2), Effect::LockTarget],
+    }],
+    ..VAMP
+};
+
+/// "Sabbat: Once each turn, after O Grande Arquiteto performs a successful
+/// directed action, he can put 1 corruption counter on a minion controlled
+/// by the target Methuselah." Alicia Cortez's shape.
+pub static O_GRANDE_ARQUITETO: VampireDef = VampireDef {
+    name: "O Grande Arquiteto",
+    abilities: &[ModeDef {
+        windows: &[Window::ActionAfterResolution],
+        actor: Actor::Host,
+        requires: &[R::ActorActing, R::ActionDirected, R::ActionSuccessful],
+        target: target(TargetKind::Minion, &[R::ControlledByDirectedSeat]),
+        terms: None,
+        waives_needed: false,
+        limit: Some(Limit::PerTurn),
+        effects: &[Effect::CorruptTargetMinion],
+    }],
+    ..VAMP
+};
+
+/// "Camarilla primogen: During referendums he calls, Carter gets +1 vote
+/// for each other primogen you control." In torpor too (rules-digest D28).
+pub static CARTER_VANDERWEYDEN: VampireDef = VampireDef {
+    name: "Carter Vanderweyden",
+    printed: &[Printed {
+        stat: Stat::Votes,
+        n: 1,
+        to: PrintedTo::Itself,
+        per: Per::OtherOwnTitled(TitleClass::Primogen),
+        requires: &[R::SourceCalledReferendum],
+    }],
+    ..VAMP
+};
+
+/// "Camarilla primogen: Samira cannot cast votes or ballots against
+/// referendums called by a prince." An effective prince (rules-digest
+/// §3.15).
+pub static SAMIRA: VampireDef = VampireDef {
+    name: "Samira",
+    printed: &[own(
+        Stat::NoVotesAgainst,
+        1,
+        &[R::CallerTitleIn(&[TitleClass::Prince])],
+    )],
+    ..VAMP
+};
+
+/// "Camarilla primogen: O Encourado can prevent 1 aggravated damage each
+/// round." Rowena's shape, aggravated only.
+pub static O_ENCOURADO: VampireDef = VampireDef {
+    name: "O Encourado",
+    abilities: &[ability(
+        &[Window::CombatDamagePrevention],
+        Actor::Host,
+        &[R::AggravatedDamagePending],
+        Limit::PerRound,
+        &[Effect::PreventAggravated(1)],
+    )],
+    ..VAMP
+};
+
+/// "Camarilla: Once each game, during your unlock phase, Qadir can equip
+/// with a weapon card from your hand." Requirements and cost apply
+/// (`WEAPON_FROM_HAND`'s terms).
+pub static QADIR_AL_ASMAI: VampireDef = VampireDef {
+    name: "Qadir al-Asmai",
+    abilities: &[ModeDef {
+        windows: &[Window::UnlockPhaseOwn],
+        limit: Some(Limit::PerGame),
+        ..WEAPON_FROM_HAND
+    }],
+    ..VAMP
+};
+
+/// "Camarilla Prince of São João de Meriti: If Sydnelson is ready, he can
+/// lock before range is determined to end a combat involving two vampires
+/// controlled by other Methuselahs." Alfred Benezri's shape.
+pub static SYDNELSON: VampireDef = VampireDef {
+    name: "Sydnelson",
+    abilities: &[mode_of(
+        &[Window::CombatBeforeRange],
+        Actor::HostOutOfCombat,
+        &[
+            R::HostReady,
+            R::HostUnlocked,
+            R::BothCombatantsOthersVampires,
+        ],
+        &[Effect::LockHost, Effect::EndCombat],
+    )],
+    ..VAMP
+};
+
+/// "Independent: If a Methuselah controls more locations than you do,
+/// Vritra can steal one of those locations as a Ⓓ action that costs 1
+/// blood. +1 strength." The count read as announced and as it resolves.
+pub static VRITRA: VampireDef = VampireDef {
+    name: "Vritra",
+    printed: &[own(Stat::Strength, 1, &[])],
+    abilities: &[steal_equipment(
+        &[
+            R::TargetCard(CardFilter::Location),
+            R::NotControlled,
+            R::CardControllerMoreLocations,
+        ],
+        &[
+            Effect::DeclareAction(ActionKind::Ability),
+            Effect::PayBlood(1),
+            Effect::StealLocation,
+        ],
+    )],
+    ..VAMP
+};
+
+/// "Anarch Baron of Recife: During the polling step of any referendum, you
+/// can reveal the top card of your crypt, then move it to the bottom; if it
+/// is an older vampire, Tubarão gets +1 vote." Once a referendum
+/// (rules-digest D7), in torpor too (D25: his votes still not cast).
+pub static TUBARAO: VampireDef = VampireDef {
+    name: "Tubarão",
+    abilities: &[ability(
+        &[Window::Referendum],
+        Actor::Host,
+        &[R::AnyPollingStep, R::CryptNotEmpty],
+        Limit::PerReferendum,
+        &[Effect::RevealCryptTopVoteIfOlder],
+    )],
+    ..VAMP
+};
+
+/// "Independent: Once each turn, if Kali is ready, you can discard 1 card at
+/// random to reduce the cost of a location card or equipment card you play
+/// by 1 pool." Baldesar Rossellini's reduction, announced with the card,
+/// the discard paid with the cost.
+pub static KALI: VampireDef = VampireDef {
+    name: "Kali",
+    printed: &[own(
+        Stat::SeatPoolOffForRandomDiscard,
+        1,
+        &[
+            R::ThisVampireReady,
+            R::AnyOf(&[
+                &[R::PlayedCard(CardFilter::Location)],
+                &[R::PlayedCard(CardFilter::Type(CardType::Equipment))],
+            ]),
+        ],
+    )],
+    ..VAMP
+};
+
+/// "Anarch: Once each combat, after Elie successfully inflicts any damage
+/// on the opposing minion, put 1 corruption counter on that minion." Her
+/// strikes' damage landing (rules-digest §3.20), as it lands.
+pub static ELIE_SANSARICQ: VampireDef = VampireDef {
+    name: "Elie Sansaricq",
+    printed: &[own(Stat::CorruptOnDamageOncePerCombat, 1, &[])],
     ..VAMP
 };
 

@@ -131,6 +131,9 @@ impl Prompt<'_> {
                 self.minion()?
             ),
             P::MayAddCounter => format!("You can add 1 counter to {}", self.card()?),
+            P::MayBottomTop => "You can move the cards you reordered to the bottom of your library, \
+                 in the same order"
+                .into(),
             P::MayStoreAim => format!(
                 "You can move {} onto Light Intensifying Goggles",
                 self.card()?
@@ -413,6 +416,10 @@ impl Prompt<'_> {
                 "Choose {} more ash heap cards requiring an imbued to put on top of your library",
                 a.n?
             ),
+            P::AshToLibraryBottom => format!(
+                "You can put up to {} more ash heap cards on the bottom of your library",
+                a.n?
+            ),
             P::CutLibrary => "You can cut your library once".into(),
             P::RetakeFromAsh => format!(
                 "{}: replace it by taking it back from your ash heap, or draw",
@@ -442,6 +449,10 @@ impl Prompt<'_> {
                 a.n?,
                 a.cap?,
                 self.card()?
+            ),
+            P::CryptTopPick => format!(
+                "Choose one of the top {} cards of your crypt to move to your uncontrolled region",
+                a.n?
             ),
             P::CryptSearch => format!(
                 "Choose a {} in your crypt to move to your uncontrolled region",
@@ -514,6 +525,11 @@ impl Prompt<'_> {
             }
             P::StoreOwnAsh => format!(
                 "Choose the library card of your ash heap to move onto {}",
+                self.card()?
+            ),
+            P::StoreUpTo => format!(
+                "You can put up to {} more equipment cards of your hand, then of your ash heap, face down on {}",
+                a.n?,
                 self.card()?
             ),
             P::StoreOwnHand => format!(
@@ -1012,6 +1028,7 @@ mod tests {
         StoredToLibraryTop,
         LibraryToHand,
         CryptSearch,
+        CryptTopPick,
         PreySlotToPool,
         DistributeFrom,
         CircleBlood,
@@ -1030,6 +1047,7 @@ mod tests {
         MayPutOn,
         MayAddCounter,
         MayStoreAim,
+        MayBottomTop,
         MayTorture,
         MayGainPool,
         MayGainHandSize,
@@ -1037,12 +1055,14 @@ mod tests {
         NameMasterDiscipline,
         NameAshEquipment,
         StoreOwnHand,
+        StoreUpTo,
         BuyTitle,
         MoveForBlood,
         Redraw,
         ReductionAtResolution,
         DualFormKept,
         AshToLibraryTop,
+        AshToLibraryBottom,
         CutLibrary,
         RetakeFromAsh,
         MayLockForBlood,

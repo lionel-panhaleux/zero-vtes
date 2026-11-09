@@ -110,11 +110,14 @@ pub enum Interrupt {
         minion: crate::ids::MinionId,
     },
     /// `left` cards of the filter moved one at a time from `seat`'s ash
-    /// heap to the top of their library (Unity).
+    /// heap to the top of their library (Unity), the bottom with `bottom`,
+    /// `Pass` ending it with `up_to` (Academia de Campeões).
     AshToLibraryTop {
         seat: SeatId,
         left: u8,
         filter: crate::cards::CardFilter,
+        bottom: bool,
+        up_to: bool,
     },
     /// `seat` may cut their library once: the top n cards to the bottom
     /// (Unity; any n, LSJ 20060413).
@@ -219,6 +222,15 @@ pub enum Interrupt {
     /// Storage Annex as it is played: a card of `seat`'s hand put face down
     /// on `card`, replaced; Gift of Proteus: `left` cards of the filter, one
     /// at a time, not replaced.
+    /// Aaron Fletcher as he enters play: up to `left` more equipment cards
+    /// of `seat`'s hand (replaced), then of their ash heap, face down on
+    /// `card` (`FindCard`), `Pass` going on to the ash heap, then ending.
+    StoreUpTo {
+        seat: SeatId,
+        card: CardId,
+        left: u8,
+        from_ash: bool,
+    },
     StoreOwnHand {
         seat: SeatId,
         card: CardId,
@@ -281,6 +293,11 @@ pub enum Interrupt {
     EntryRemoveOrBurn {
         seat: SeatId,
         ally: crate::ids::MinionId,
+        /// Cards still to remove; `taken` removed so far (no burn then).
+        left: u8,
+        taken: u8,
+        /// Any card, not only an ally or a vampire (Mulher de Branco).
+        any: bool,
     },
     /// A toll landing on a block attempt under way (Where the Veil Thins
     /// [OBL], Tenebrous Form [OBT]): pay `n` blood or resign (LSJ
@@ -667,6 +684,10 @@ pub enum Interrupt {
     /// Disciple of Lazarus: a `clan` crypt card to the uncontrolled region
     /// (`AshVampire`, a CRYPT index) or none (Pass).
     CryptSearch { seat: SeatId, clan: &'static str },
+    /// Porto de Santos: one of `seat`'s top `n` crypt cards to their
+    /// uncontrolled region (`AshVampire`), the others to the crypt's
+    /// bottom.
+    CryptTopPick { seat: SeatId, n: u8 },
     /// Solomon Batanea: the slot of `of`'s uncontrolled region that gives 1
     /// blood to `of`'s pool (`Choice::Slot`, `of`'s region).
     PreySlotToPool { seat: SeatId, of: SeatId },
@@ -766,6 +787,10 @@ pub enum Interrupt {
         store: CardId,
         card: u16,
     },
+    /// St. Patrick's Cathedral: `seat` may move its library's top `n` cards
+    /// (just reordered) to the bottom, in the same order (`ResolveRider`
+    /// on `card`), or pass.
+    MayBottomTop { seat: SeatId, card: CardId, n: u8 },
     /// The Path of Lilith: `seat` may lock `card` to put a torture counter
     /// on `minion` (`ResolveRider`), or pass.
     MayTorture {
@@ -1053,6 +1078,7 @@ impl Interrupt {
             | Interrupt::StealForCorruption { seat, .. }
             | Interrupt::UncontrolledBlood { seat, .. }
             | Interrupt::CryptSearch { seat, .. }
+            | Interrupt::CryptTopPick { seat, .. }
             | Interrupt::LockOrPay { seat, .. }
             | Interrupt::PoolOrVampire { seat, .. }
             | Interrupt::PoolOrNoTransfers { seat, .. }
@@ -1082,12 +1108,14 @@ impl Interrupt {
             | Interrupt::StorePreyAsh { seat, .. }
             | Interrupt::StoreOwnAsh { seat, .. }
             | Interrupt::StoreOwnHand { seat, .. }
+            | Interrupt::StoreUpTo { seat, .. }
             | Interrupt::StoredToLibraryTop { seat, .. }
             | Interrupt::BeastDisciplines { seat, .. }
             | Interrupt::MayRecycleCanceled { seat, .. }
             | Interrupt::MayPutOn { seat, .. }
             | Interrupt::MayAddCounter { seat, .. }
             | Interrupt::MayStoreAim { seat, .. }
+            | Interrupt::MayBottomTop { seat, .. }
             | Interrupt::MayTorture { seat, .. }
             | Interrupt::MayLockForBlood { seat, .. }
             | Interrupt::BurnFromLibraryTop { seat, .. }
@@ -1845,6 +1873,7 @@ impl Engine {
                     self.state.cards[card.index()].present()
                         && !self.state.cards[card.index()].stored.is_empty()
                 }
+                Interrupt::StoreUpTo { card, .. } => self.state.cards[card.index()].present(),
                 Interrupt::StorePreyAsh { seat, card } => {
                     self.state.cards[card.index()].present()
                         && !self.state.seats[self.state.prey(seat).index()]
@@ -1867,6 +1896,7 @@ impl Engine {
                     self.state.cards[store.index()].present()
                         && self.state.seats[seat.index()].ash.contains(&card)
                 }
+                Interrupt::MayBottomTop { .. } => true,
                 Interrupt::MayTorture { card, minion, .. } => {
                     let c = &self.state.cards[card.index()];
                     c.present() && !c.locked && present(minion)
@@ -1980,7 +2010,9 @@ impl Engine {
                     self.action.as_ref().is_some_and(|a| a.acting == minion)
                 }
                 Interrupt::DualFormKept { root, .. } => self.state.dual_set(root).len() > 1,
-                Interrupt::AshToLibraryTop { seat, left, filter } => {
+                Interrupt::AshToLibraryTop {
+                    seat, left, filter, ..
+                } => {
                     left > 0
                         && self.state.seats[seat.index()]
                             .ash
@@ -2019,6 +2051,13 @@ impl Engine {
                 Interrupt::LibraryToHand { seat, .. } => !self.state.seats[seat.index()].ousted,
                 Interrupt::PutFoundOn { seat, minion, card } => {
                     self.may_put_found_on(seat, minion, card)
+                }
+                Interrupt::CryptTopPick { seat, .. } => {
+                    if self.state.seats[seat.index()].crypt.is_empty() {
+                        self.interrupts.remove(0);
+                        continue;
+                    }
+                    return;
                 }
                 Interrupt::CryptSearch { seat, clan } => {
                     if self.crypt_of_clan(seat, clan).is_empty() {
@@ -2808,6 +2847,17 @@ impl Engine {
                     )
                     .collect(),
             ),
+            Interrupt::CryptTopPick { seat, n } => {
+                let crypt = &st.seats[seat.index()].crypt;
+                let k = crypt.len().saturating_sub(n as usize);
+                (
+                    WindowLabel::ResolutionChoice,
+                    distinct(&crypt[k..], |_| true)
+                        .into_iter()
+                        .map(Choice::AshVampire)
+                        .collect(),
+                )
+            }
             Interrupt::CryptSearch { seat, clan } => (
                 WindowLabel::ResolutionChoice,
                 std::iter::once(Choice::Pass)
@@ -3102,7 +3152,8 @@ impl Engine {
             | Interrupt::MayTorture { card, .. }
             | Interrupt::MayLockForBlood { card, .. }
             | Interrupt::MayBurnLookedMaster { card, .. }
-            | Interrupt::MayStoreAim { store: card, .. } => (
+            | Interrupt::MayStoreAim { store: card, .. }
+            | Interrupt::MayBottomTop { card, .. } => (
                 WindowLabel::ResolutionChoice,
                 vec![Choice::Pass, Choice::ResolveRider { card: card.0 }],
             ),
@@ -3120,11 +3171,21 @@ impl Engine {
                 WindowLabel::ResolutionChoice,
                 vec![Choice::Pass, Choice::ResolvePrinted { minion }],
             ),
-            Interrupt::AshToLibraryTop { seat, filter, .. } => (
+            Interrupt::AshToLibraryTop {
+                seat,
+                filter,
+                up_to,
+                ..
+            } => (
                 WindowLabel::ResolutionChoice,
-                distinct(&st.seats[seat.index()].ash, |c| filter.matches(c))
+                up_to
+                    .then_some(Choice::Pass)
                     .into_iter()
-                    .map(Choice::FindCard)
+                    .chain(
+                        distinct(&st.seats[seat.index()].ash, |c| filter.matches(c))
+                            .into_iter()
+                            .map(Choice::FindCard),
+                    )
                     .collect(),
             ),
             Interrupt::CutLibrary { seat } => (
@@ -3203,6 +3264,22 @@ impl Engine {
                     .map(Choice::FindCard)
                     .collect(),
             ),
+            Interrupt::StoreUpTo { seat, from_ash, .. } => {
+                let s = &st.seats[seat.index()];
+                let pile = if from_ash { &s.ash } else { &s.hand };
+                (
+                    WindowLabel::ResolutionChoice,
+                    std::iter::once(Choice::Pass)
+                        .chain(
+                            crate::state::distinct(pile, |c| {
+                                crate::cards::CardFilter::EquipmentWithout(&[]).matches(c)
+                            })
+                            .into_iter()
+                            .map(Choice::FindCard),
+                        )
+                        .collect(),
+                )
+            }
             Interrupt::StoredToLibraryTop { card, .. } => (
                 WindowLabel::ResolutionChoice,
                 crate::state::distinct(&st.cards[card.index()].stored, |_| true)
@@ -3316,9 +3393,33 @@ impl Engine {
                     vec![Choice::ChooseMinion(first), Choice::Pass],
                 )
             }
-            Interrupt::EntryRemoveOrBurn { .. } => {
-                // One choice per card: copies are alike.
-                let mut options = vec![Choice::Pass];
+            Interrupt::EntryRemoveOrBurn {
+                left, taken, any, ..
+            } => {
+                // One choice per card: copies are alike; burned only before
+                // the first removal, and without enough cards.
+                let seat = &st.seats[s.index()];
+                let enough = seat.ash.len() + seat.ash_crypt.len() >= left as usize;
+                let mut options = Vec::new();
+                if taken == 0 {
+                    options.push(Choice::Pass);
+                }
+                if any && enough {
+                    options.extend(
+                        distinct(&seat.ash, |_| true)
+                            .into_iter()
+                            .map(Choice::FindCard),
+                    );
+                    options.extend(
+                        distinct(&seat.ash_crypt, |_| true)
+                            .into_iter()
+                            .map(Choice::AshVampire),
+                    );
+                    return Some(DecisionRequest::new(s, WindowLabel::EntryEffect, options));
+                }
+                if any {
+                    return Some(DecisionRequest::new(s, WindowLabel::EntryEffect, options));
+                }
                 options.extend(self.ash_allies(s, &[]).into_iter().map(Choice::FindCard));
                 options.extend(
                     distinct(&st.seats[s.index()].ash_crypt, crate::state::vampire_card)
@@ -4790,6 +4891,59 @@ impl Engine {
                     );
                 }
             }
+            (
+                Interrupt::StoreUpTo {
+                    seat,
+                    card: on,
+                    left,
+                    from_ash,
+                },
+                Choice::FindCard(card),
+            ) => {
+                self.interrupts.remove(0);
+                let s = &mut self.state.seats[seat.index()];
+                let pile = if from_ash { &mut s.ash } else { &mut s.hand };
+                let i = pile.iter().rposition(|&c| c == card).expect("in the pile");
+                let (_, copy) = pile.take(i);
+                self.state.cards[on.index()].stored.put(card, copy);
+                self.state.cards[on.index()].stored_owner = Some(seat);
+                if !from_ash {
+                    self.replace(seat, 1, None);
+                }
+                if left > 1 {
+                    self.interrupts.insert(
+                        0,
+                        Interrupt::StoreUpTo {
+                            seat,
+                            card: on,
+                            left: left - 1,
+                            from_ash,
+                        },
+                    );
+                }
+            }
+            (
+                Interrupt::StoreUpTo {
+                    seat,
+                    card,
+                    left,
+                    from_ash,
+                },
+                Choice::Pass,
+            ) => {
+                self.interrupts.remove(0);
+                if !from_ash {
+                    self.interrupts.insert(
+                        0,
+                        Interrupt::StoreUpTo {
+                            seat,
+                            card,
+                            left,
+                            from_ash: true,
+                        },
+                    );
+                }
+            }
             (Interrupt::StoredToLibraryTop { seat, card: on }, Choice::FindCard(card)) => {
                 self.interrupts.remove(0);
                 let stored = &mut self.state.cards[on.index()].stored;
@@ -5282,8 +5436,29 @@ impl Engine {
                     left: 0,
                 };
             }
-            (Interrupt::EntryRemoveOrBurn { ally, .. }, c) => {
+            (
+                Interrupt::EntryRemoveOrBurn {
+                    seat: who,
+                    ally,
+                    left,
+                    taken,
+                    any,
+                },
+                c,
+            ) => {
                 self.interrupts.remove(0);
+                if left > 1 && c != Choice::Pass {
+                    self.interrupts.insert(
+                        0,
+                        Interrupt::EntryRemoveOrBurn {
+                            seat: who,
+                            ally,
+                            left: left - 1,
+                            taken: taken + 1,
+                            any,
+                        },
+                    );
+                }
                 let seat = &mut self.state.seats[s.index()];
                 match c {
                     Choice::FindCard(card) => {
@@ -5738,15 +5913,33 @@ impl Engine {
                 self.interrupts.remove(0);
                 self.give_card_control(card, to);
             }
-            (Interrupt::AshToLibraryTop { seat, left, filter }, Choice::FindCard(card)) => {
+            (
+                Interrupt::AshToLibraryTop {
+                    seat,
+                    left,
+                    filter,
+                    bottom,
+                    up_to,
+                },
+                Choice::FindCard(card),
+            ) => {
                 let st = &mut self.state.seats[seat.index()];
                 let (card, copy) = st.ash.take_card(card).expect("in the ash heap");
-                st.library.put(card, copy);
+                if bottom {
+                    st.library.put_at(0, card, copy);
+                } else {
+                    st.library.put(card, copy);
+                }
                 self.interrupts[0] = Interrupt::AshToLibraryTop {
                     seat,
                     left: left - 1,
                     filter,
+                    bottom,
+                    up_to,
                 };
+            }
+            (Interrupt::AshToLibraryTop { .. }, Choice::Pass) => {
+                self.interrupts.remove(0);
             }
             (Interrupt::CutLibrary { .. }, Choice::Pass) => {
                 self.interrupts.remove(0);
@@ -5858,6 +6051,7 @@ impl Engine {
                 Interrupt::MayPutOn { .. }
                 | Interrupt::MayAddCounter { .. }
                 | Interrupt::MayStoreAim { .. }
+                | Interrupt::MayBottomTop { .. }
                 | Interrupt::MayTorture { .. }
                 | Interrupt::MayLockForBlood { .. }
                 | Interrupt::MayBurnLookedMaster { .. }
@@ -5888,6 +6082,16 @@ impl Engine {
                     .expect("in the ash heap");
                 let (_, copy) = ash.take(i);
                 self.state.cards[store.index()].stored.put(card, copy);
+            }
+            (Interrupt::MayBottomTop { seat, n, .. }, Choice::ResolveRider { .. }) => {
+                self.interrupts.remove(0);
+                let library = &mut self.state.seats[seat.index()].library;
+                // Top first, each put under the last: their order kept.
+                for _ in 0..n {
+                    if let Some((card, copy)) = library.take_top() {
+                        library.put_at(0, card, copy);
+                    }
+                }
             }
             (Interrupt::MayAddCounter { card, .. }, Choice::ResolveRider { .. }) => {
                 self.interrupts.remove(0);
@@ -6052,6 +6256,29 @@ impl Engine {
                 self.burn_minion(m);
                 if self.state.cards[card.index()].present() {
                     self.burn_card_in_play(card);
+                }
+            }
+            (Interrupt::CryptTopPick { seat, n }, Choice::AshVampire(card)) => {
+                self.interrupts.remove(0);
+                let st = &mut self.state.seats[seat.index()];
+                let len = st.crypt.len();
+                let from = len.saturating_sub(n as usize);
+                let k = (from..len)
+                    .rev()
+                    .find(|&k| st.crypt[k] == card)
+                    .expect("among the top cards");
+                let (card, copy) = st.crypt.take(k);
+                st.uncontrolled.push(crate::state::UncontrolledSlot {
+                    card,
+                    copy: crate::copies::Untracked(copy),
+                    counters: 0,
+                    banished: None,
+                });
+                // The others, top first, each under the last.
+                for _ in 0..(len - from - 1) {
+                    if let Some((c, copy)) = st.crypt.take_top() {
+                        st.crypt.put_at(0, c, copy);
+                    }
                 }
             }
             (Interrupt::CryptSearch { seat, .. }, Choice::AshVampire(card)) => {

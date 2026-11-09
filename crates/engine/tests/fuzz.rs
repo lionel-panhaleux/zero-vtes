@@ -5486,6 +5486,88 @@ fuzz_tests! {
         seeds: 8,
         ..BASE
     };
+    /// Round 27 (slice 16am): Noites Brasileiras' cards and vampires.
+    random_games_with_twda_round_27a_hold_invariants_and_replay: Fixture {
+        slice: &[
+            "Porto de Santos",
+            "Academia de Campeões, São Paulo",
+            "Bar Último Trago, Campina Grande",
+            "Cãoera",
+            "Chave de Braço",
+            "Convento da Penha, Vila Velha",
+            "Destilaria Estrela da Paraíba",
+            "Hálito Negro",
+            "Iara",
+            "Lambreta",
+            "Meia Lua",
+            "Mulher de Branco",
+            "Palavra Sagrada, Rio de Janeiro",
+            "Kine Resources Contested",
+        ],
+        covers: &["play:Meia Lua", "play:Chave de Braço"],
+        setup: |e, _| {
+            named(
+                e,
+                &[
+                    "Aríete",
+                    "Bruxa Branca",
+                    "Caique",
+                    "Dorinha, a Confusa",
+                    "Durok",
+                    "Eduardo, o Oráculo Mascarado",
+                    "Luana do Lago",
+                    "Maria Quitéria",
+                    "Mel, a Guerreira Vibrante",
+                    "O Encourado",
+                    "Rey, o Mentor",
+                    "Tubarão",
+                ],
+            );
+        },
+        seeds: 8,
+        ..BASE
+    };
+    /// Round 27 (slice 16am): Secrets of New York's cards and vampires.
+    random_games_with_twda_round_27b_hold_invariants_and_replay: Fixture {
+        slice: &[
+            "Aaron Fletcher, Silent Investor",
+            "Art Hole, New York, The",
+            "Backroom Deal",
+            "Circulatory System Outlet",
+            "Deadly Secrets",
+            "Double Spiral Corporation",
+            "Emboldened Councilor",
+            "Father Anthony",
+            "Information Exchange",
+            "Respected Representative",
+            "Ron Zertnert, S.A.D. Agent",
+            "St. Patrick's Cathedral, New York",
+            "Vial of Zapathasura's Vitae",
+            ".44 Magnum",
+        ],
+        covers: &["play:Deadly Secrets", "play:Respected Representative"],
+        setup: |e, _| {
+            named(
+                e,
+                &[
+                    "Addison Payne",
+                    "Carter Vanderweyden",
+                    "Elie Sansaricq",
+                    "Gianni D'Angelo",
+                    "Hellene Panhard",
+                    "Hope",
+                    "Julia Sowinski",
+                    "Kaiser",
+                    "Kali",
+                    "Katherine Wiese",
+                    "Thomas Arturo",
+                    "Vritra",
+                ],
+            );
+        },
+        seeds: 8,
+        ..BASE
+    };
     /// Round 25 (slice 16ak): Ebony Kingdom's Orun and Aye and the cards
     /// built on them, played by Laibon (Familial Bond first near seed 105).
     random_games_with_twda_round_25a_hold_invariants_and_replay: Fixture {

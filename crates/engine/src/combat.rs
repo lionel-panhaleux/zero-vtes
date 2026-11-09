@@ -139,6 +139,11 @@ impl Damage {
         n - (left - b)
     }
 
+    /// Prevent up to `n` aggravated points.
+    pub(crate) fn prevent_aggravated(&mut self, n: u8) {
+        self.aggravated -= n.min(self.aggravated);
+    }
+
     /// Prevent up to `n` points of gun-strike damage.
     pub(crate) fn prevent_gun(&mut self, n: u8) {
         let p = n.min(self.gun);
@@ -289,6 +294,9 @@ pub struct Side {
     /// Serpent's Numbing Kiss [PRE][SER]: its strike puts the card on the
     /// opposing minion after combat, at close range and not dodged.
     pub after_put_rider: Option<Held>,
+    /// Chave de Braço [POT]: its card, put on the opposing minion as the
+    /// round ends if the range is close and this side inflicted more.
+    pub round_end_put: Option<Held>,
     /// Oubliette [OBT]: its strike makes the opposing minion burn n blood
     /// or life after combat, at any range, not dodged.
     pub after_burn_rider: Option<u8>,
@@ -432,6 +440,9 @@ pub struct Side {
     /// minion as it lands (`held`).
     pub undodgeable_strike: bool,
     pub aggravated_strike: bool,
+    /// Damage its landing damage strike does to each retainer on the
+    /// opposing minion (Hálito Negro).
+    pub retainer_strike_damage: u8,
     /// Its strikes this round cannot be dodged (Sanguinary Wind).
     pub undodgeable_round: bool,
     /// The aim decision after this side's strike was chosen was passed
@@ -490,6 +501,8 @@ pub struct Side {
     /// Its strike, landing, burns the opposing minion if an ally
     /// (Entombment [obt]); nothing on a vampire.
     pub burns_ally_on_hit: bool,
+    /// Its strike, landing, stuns the opposing minion (Father Anthony).
+    pub stuns_on_hit: bool,
     /// Smite: the electronic equipment on both combatants burns as its
     /// strike resolves, dodged or not.
     pub burns_electronic: bool,
@@ -730,6 +743,7 @@ impl Side {
         self.nullifies_weapons = false;
         self.undodgeable_strike = false;
         self.aggravated_strike = false;
+        self.retainer_strike_damage = 0;
         self.never_aggravated = false;
         self.unpreventable_if_black_hand = false;
         self.aim_declined = false;
@@ -830,6 +844,8 @@ pub enum Landed {
     /// Elixir of Distillation: that vampire and blood, if it landed, that
     /// weapon.
     Distill(Option<(MinionId, u8)>, CardId),
+    /// Father Anthony: that minion stunned.
+    Stun(MinionId),
 }
 
 #[derive(Clone, Debug, Default)]
@@ -1755,8 +1771,21 @@ impl Engine {
         for m in [acting, opposing] {
             let owner = self.state.minions[m.index()].owner;
             for r in self.printed_riders(m, crate::cards::Hook::HostEntersCombat, None) {
+                // Padraic Conroy: the combat of his block of an older vampire.
+                if r.requires.contains(&crate::cards::Requirement::BlocksOlder)
+                    && !self.action.as_ref().is_some_and(|a| {
+                        a.blocker == Some(m) && self.state.younger_than(m, a.acting)
+                    })
+                {
+                    continue;
+                }
                 for e in r.effects {
                     match *e {
+                        crate::cards::Effect::DiscardAtRandom(n) => {
+                            let k = (n as usize).min(self.state.seats[owner.index()].hand.len());
+                            self.discard_at_random(owner, k);
+                            self.replace(owner, k, None);
+                        }
                         crate::cards::Effect::DrawThenDiscardDown(n) => {
                             for _ in 0..n {
                                 let seat = &mut self.state.seats[owner.index()];
@@ -2886,6 +2915,21 @@ impl Engine {
             // No new round once a combatant left the ready region (Disarm
             // after Telepathic Tracking): the combat ends.
             Step::EndOfRound => {
+                // Chave de Braço: as the round ends, its damage counted.
+                let close = c.range == Range::Close;
+                let puts: Vec<(Held, MinionId)> = (0..2)
+                    .filter_map(|i| {
+                        let h = c.sides[i].round_end_put.take()?;
+                        let more = c.sides[i].inflicted_round > c.sides[1 - i].inflicted_round;
+                        (close && more).then_some((h, c.sides[1 - i].minion))
+                    })
+                    .collect();
+                for (h, on) in puts {
+                    if self.may_put_held(Held { minion: on, ..h }) {
+                        self.place_held(h, on);
+                    }
+                }
+                let c = self.combat.as_mut().expect("combat context");
                 // Ossian: a life for each blood the opposing vampire lost to
                 // damage this round.
                 let mut gains = Vec::new();
@@ -3959,6 +4003,9 @@ impl Engine {
                 c.diablerie = Some((m, foe));
                 c.round_over = true;
             }
+            if std::mem::take(&mut c.sides[i].stuns_on_hit) && landed {
+                c.landed.push(Landed::Stun(foe));
+            }
             if std::mem::take(&mut c.sides[i].burns_ally_on_hit)
                 && landed
                 && st.minions[c.sides[1 - i].minion.index()].is_ally()
@@ -4180,6 +4227,19 @@ impl Engine {
                                 c.sides[j].keep_normal += n;
                             }
                             c.sides[j].strike_hit(n, aggravated, gun && !aggravated);
+                        }
+                        let r = c.sides[i].retainer_strike_damage;
+                        if r > 0 {
+                            for (ri, rc) in st.cards.iter().enumerate() {
+                                if rc.present()
+                                    && rc.host == Some(c.sides[j].minion)
+                                    && LIBRARY[rc.card as usize]
+                                        .types
+                                        .contains(&crate::library::CardType::Retainer)
+                                {
+                                    retainer_hits.push((CardId(ri as u32), r, false, i));
+                                }
+                            }
                         }
                     }
                 }
@@ -4463,6 +4523,7 @@ impl Engine {
     fn apply_damage_now(&mut self) -> bool {
         let mut clots = Vec::new();
         let mut poxed = Vec::new();
+        let mut corrupted = Vec::new();
         // Immune to non-aggravated damage: none inflicted (Tye Cooper).
         let c = self.combat.as_mut().expect("combat context");
         for s in &mut c.sides {
@@ -4543,6 +4604,19 @@ impl Engine {
             c.sides[i].combat_damage = c.sides[i].combat_damage.saturating_add(d);
             c.sides[i].strike_damage = Damage::default();
             c.sides[1 - i].inflicted_round += from_strikes;
+            let striker = c.sides[1 - i].minion;
+            let key = crate::state::once_corrupt_key(striker);
+            if from_strikes > 0
+                && !c.abilities_used.contains(&key)
+                && self.state.printed_mod(
+                    striker,
+                    cards::Stat::CorruptOnDamageOncePerCombat,
+                    crate::state::PrintedCtx::default(),
+                ) > 0
+            {
+                c.abilities_used.push(key);
+                corrupted.push((c.sides[1 - i].seat, c.sides[i].minion));
+            }
             c.sides[1 - i].hand_landed |= from_strikes > 0 && c.sides[1 - i].hand_struck;
             if from_strikes > 0 && c.sides[1 - i].hand_struck {
                 let striker = &mut c.sides[1 - i];
@@ -4637,6 +4711,9 @@ impl Engine {
         for m in poxed {
             let v = &mut self.state.minions[m.index()];
             v.pox = v.pox.saturating_add(1);
+        }
+        for (seat, m) in corrupted {
+            self.state.minions[m.index()].add_corruption(seat, 1);
         }
         // Burns and torpors land at once, their riders with them (rules-qa
         // 6.4): a Methuselah may be ousted here.
@@ -4856,6 +4933,11 @@ impl Engine {
         let mut end = false;
         for l in std::mem::take(&mut c.landed) {
             match l {
+                Landed::Stun(v) => {
+                    let x = &mut self.state.minions[v.index()];
+                    x.locked = true;
+                    x.skip_unlock = true;
+                }
                 Landed::Liquefy(v, n) => {
                     self.state.burn_blood(v, n);
                     end |= self.state.minions[v.index()].blood == 0;
@@ -5617,6 +5699,17 @@ impl Engine {
             }
             return;
         }
+        if let Effect::DamageOpposingOwnCombatantNow(n) = effect {
+            let c = self.combat.as_ref().expect("combat context");
+            let foes: Vec<MinionId> = (0..2)
+                .filter(|&i| c.sides[i].seat == play.seat)
+                .map(|i| c.sides[1 - i].minion)
+                .collect();
+            for m in foes {
+                self.damage_out_of_combat(m, n, false);
+            }
+            return;
+        }
         if let Effect::AggravatedAsNormal { lock: Some(h) } = effect {
             let actor = play.actor.expect("combat card actor");
             if self.state.holds_unlocked(actor, h) > 0 {
@@ -5887,6 +5980,7 @@ impl Engine {
                 }
             }
             Effect::UndodgeableStrike => c.sides[i].undodgeable_strike = true,
+            Effect::RetainerDamageWithStrike(n) => c.sides[i].retainer_strike_damage = n,
             Effect::UndodgeableThisRound => c.sides[i].undodgeable_round = true,
             Effect::AggravatedStrike => c.sides[i].aggravated_strike = true,
             Effect::BurnElectronicOnCombatants => c.sides[i].burns_electronic = true,
@@ -5927,6 +6021,7 @@ impl Engine {
                 c.sides[i].held_self = Some(Held::from_play(play, actor, 0));
             }
             Effect::BurnOpposingAllyOnHit => c.sides[i].burns_ally_on_hit = true,
+            Effect::StunOpponentOnHit => c.sides[i].stuns_on_hit = true,
             Effect::PutOnActorAfterCombat => c.after_combat.push(Held::from_play(play, actor, 0)),
             Effect::AimExtraDamage(n) => c.sides[i].aim = n,
             Effect::StrengthThisRound(n) => c.sides[i].strength_round += n,
@@ -6154,6 +6249,12 @@ impl Engine {
                 let by = c.sides[i].seat;
                 c.settle_source(i, before, false, by, Some(i));
             }
+            Effect::PreventAggravated(n) => {
+                let before = c.sides[i].pending;
+                c.sides[i].pending.prevent_aggravated(n);
+                let by = c.sides[i].seat;
+                c.settle_source(i, before, false, by, Some(i));
+            }
             Effect::PreventNonGun(n) => {
                 let d = c.sides[i].pending;
                 if d.normal > d.gun && d.aggravated > 0 && n < d.total() - d.gun {
@@ -6235,6 +6336,9 @@ impl Engine {
             Effect::StunAfterCombatIfClose => c.sides[i].after_stun_rider = true,
             Effect::PutOnOpponentAfterCombatIfClose => {
                 c.sides[i].after_put_rider = Some(Held::from_play(play, actor, 0));
+            }
+            Effect::PutOnOpponentAtRoundEndIfMore => {
+                c.sides[i].round_end_put = Some(Held::from_play(play, actor, 0));
             }
             // Hunting the Quarry [cel]/[tha]: on the opposing minion as the
             // combat ends, its player keeping control.
@@ -6381,7 +6485,7 @@ fn weather_amount(c: &CombatCtx) -> u8 {
 }
 
 /// `n` more for `round`, an earlier round's amount dropped.
-fn add_this_round(slot: &mut Option<(u8, u8)>, n: u8, round: u8) {
+pub(crate) fn add_this_round(slot: &mut Option<(u8, u8)>, n: u8, round: u8) {
     let k = slot.filter(|&(_, r)| r == round).map_or(0, |(k, _)| k);
     *slot = Some((k + n, round));
 }

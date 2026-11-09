@@ -629,6 +629,9 @@ ids!(
         /// uncontrolled region (shuffle afterward)" (Disciple of Lazarus): a
         /// crypt card (`Choice::AshVampire`, a CRYPT index), or none (Pass).
         CryptSearch,
+        /// Porto de Santos: one of the crypt's top cards to the uncontrolled
+        /// region (`AshVampire`), the others to the bottom.
+        CryptTopPick,
         /// Solomon Batanea: the slot of `of`'s uncontrolled region that gives
         /// 1 blood to `of`'s pool (`Choice::Slot`, `of`'s region).
         PreySlotToPool,
@@ -704,6 +707,9 @@ ids!(
         /// Intensifying Goggles): the card just used, from the ash heap onto
         /// it (`ResolveRider`), or pass.
         MayStoreAim,
+        /// St. Patrick's Cathedral: the library's top cards just reordered
+        /// moved to the bottom in the same order (`ResolveRider`), or pass.
+        MayBottomTop,
         /// The Path of Lilith: `seat` may lock `card` to put a torture counter
         /// on `minion` (`ResolveRider`), or pass.
         MayTorture,
@@ -729,6 +735,9 @@ ids!(
         /// announced number as its action resolves, one at a time (`n` left),
         /// not replaced.
         StoreOwnHand,
+        /// Aaron Fletcher: up to n more equipment cards of the hand, then of
+        /// the ash heap, put face down on the card (`FindCard`), or stop.
+        StoreUpTo,
         /// "When it enters play, you may pay n pool to make it <title>"
         /// (Victor Pelletier, `minion`): `SetX(n)` pays n pool for the title
         /// its option's effect names (`role`, `detail`: `primogen`,
@@ -784,6 +793,9 @@ ids!(
         /// moved one at a time from `seat`'s ash heap to the top of their
         /// library (`find_card`).
         AshToLibraryTop,
+        /// As `AshToLibraryTop`, to the bottom, up to the number (Academia
+        /// de Campeões): `Pass` stops.
+        AshToLibraryBottom,
         /// Unity: `seat` may cut their library once, `set_x` the cards
         /// moved from the top to the bottom (a pass: no cut).
         CutLibrary,

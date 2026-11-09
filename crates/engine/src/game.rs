@@ -2422,10 +2422,25 @@ impl Engine {
                     _ => None,
                 })
         }));
+        // Vial of Zapathasura's Vitae: its bearer to torpor.
+        let torpor = c.host.filter(|_| {
+            cards::lookup(c.card).is_some_and(|d| {
+                d.modes.iter().any(|md| {
+                    md.effects
+                        .contains(&cards::Effect::BurnedSendsBearerToTorpor)
+                })
+            })
+        });
         self.card_leaves_play(id, false);
         if let Some((h, n)) = hit {
             if self.state.minions[h.index()].present() {
                 self.damage_out_of_combat(h, n, false);
+            }
+        }
+        if let Some(h) = torpor {
+            let v = &self.state.minions[h.index()];
+            if v.present() && v.ready() {
+                self.minions_to_torpor(&[h]);
             }
         }
     }
@@ -3208,6 +3223,24 @@ impl Engine {
         self.last_standing();
     }
 
+    /// An ally leaves play shuffled into its owner's library, not burned
+    /// (Mulher de Branco): the cards on it burned.
+    pub(crate) fn shuffle_ally_into_library(&mut self, m: MinionId) {
+        self.about_to_leave_ready(&[m]);
+        let v = &mut self.state.minions[m.index()];
+        v.in_play = false;
+        v.clear_blood();
+        v.corruption.clear();
+        for ci in 0..self.state.cards.len() {
+            let c = &self.state.cards[ci];
+            if c.in_play && c.body == Some(m) {
+                self.shuffle_into_library(CardId(ci as u32));
+            } else if c.in_play && c.host == Some(m) {
+                self.burn_card_in_play(CardId(ci as u32));
+            }
+        }
+    }
+
     /// A minion out of the game with its Methuselah (a temporary control
     /// returning to an ousted one; not burned: nothing triggers), the cards
     /// on it with it — burned to their owners' ash heaps if another
@@ -3714,7 +3747,7 @@ mod tests {
     #[test]
     fn crypt_data_is_complete() {
         // The 200 V5 vampires, then the owner's legacy additions.
-        assert_eq!(CRYPT.len(), 1018);
+        assert_eq!(CRYPT.len(), 1055);
         assert_eq!(PRECONS.len(), 14);
         for (name, list) in PRECONS.iter() {
             let n: u32 = list.iter().map(|&(_, k)| k as u32).sum();

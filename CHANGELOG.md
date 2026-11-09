@@ -6,6 +6,21 @@ server runs.
 `python3 scripts/schema_compat.py` lists what a schema change adds or
 removes; its `--check` fails a removal without a major version.
 
+## 2.25.0
+
+- Round 27's cards (Secrets of New York, Noites Brasileiras) add four
+  `Purpose` ids: `may_bottom_top` (St. Patrick's Cathedral: the reordered
+  top cards to the library's bottom, `resolve_rider`, or pass),
+  `ash_to_library_bottom` (Academia de Campeões: `move` to the library's
+  bottom, a pass stopping), `crypt_top_pick` (Porto de Santos: one of the
+  crypt's top cards to the uncontrolled region, `about.n` how many) and
+  `store_up_to` (Aaron Fletcher: an equipment card of the hand, then of
+  the ash heap, put face down on him, a pass going on, `about.n` how many
+  more). Three effect `detail`s: `aggravated` (a prevention of aggravated
+  damage only: O Encourado), `if_passed` (a draw if the referendum
+  passes: Deadly Secrets) and `to_controller` (a pool cost paid to the
+  card's controller: Convento da Penha). No id removed.
+
 ## 2.24.2
 
 - A move of a vampire's own blood to an uncontrolled vampire (Zayyat,

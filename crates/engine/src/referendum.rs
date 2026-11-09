@@ -384,13 +384,21 @@ impl ReferendumCtx {
     }
 
     /// "Cannot cast votes or ballots against blood hunt referendums"
-    /// (Troius).
+    /// (Troius), "against referendums called by a prince" (Samira).
     pub(crate) fn barred_against(&self, st: &crate::state::GameState, m: MinionId) -> bool {
         matches!(self.kind, RefKind::BloodHunt { .. })
             && st.printed_mod(
                 m,
                 crate::cards::Stat::NoVotesAgainstBloodHunt,
                 crate::state::PrintedCtx::default(),
+            ) > 0
+            || st.printed_mod(
+                m,
+                crate::cards::Stat::NoVotesAgainst,
+                crate::state::PrintedCtx {
+                    calling: self.calling,
+                    ..Default::default()
+                },
             ) > 0
     }
 
@@ -948,6 +956,8 @@ impl Engine {
                 .into_iter()
                 .filter(|&c| {
                     cards::seat_filter_holds(filter, st, ctx.caller, c)
+                        && (filter != cards::SeatFilter::Allocated
+                            || ctx.terms.alloc.iter().any(|&(s, n)| s == c && n > 0))
                         && match ctx.next_term() {
                             Some(Term::Allocate {
                                 among, min_seats, ..
@@ -1728,6 +1738,7 @@ impl Engine {
                 {
                     let a = self.action.as_mut().expect("political action");
                     a.referendum_passed = passed;
+                    a.referendum_failed = !passed;
                     a.margin = if passed && !ctx.auto_pass {
                         favor - against
                     } else {
@@ -2012,6 +2023,17 @@ impl Engine {
                     for &(s, n) in &ctx.terms.alloc {
                         loss[s.index()] += n as i32;
                     }
+                }
+                RefEffect::BurnAllocatedChosenDiscardsUpTo(n) => {
+                    for &(s, k) in &ctx.terms.alloc {
+                        loss[s.index()] += k as i32;
+                    }
+                    self.interrupts
+                        .push(crate::draws::Interrupt::DiscardFromHandOf {
+                            seat: ctx.caller,
+                            of: ctx.terms.chosen,
+                            up_to: Some((n, 0, cards::CardFilter::Any)),
+                        });
                 }
                 RefEffect::BurnAllocatedChosenGains(n) => {
                     for &(s, k) in &ctx.terms.alloc {
@@ -2835,10 +2857,19 @@ impl Engine {
         if !self.state.minions[m.index()].ready() {
             return;
         }
+        let failed = a.referendum_failed;
         for r in self.printed_riders(m, hook, None) {
+            if r.requires.contains(&cards::Requirement::ReferendumFailed) && !failed {
+                continue;
+            }
             for e in r.effects {
                 match *e {
                     cards::Effect::GoToTorpor => self.minions_to_torpor(&[m]),
+                    cards::Effect::StunHost => {
+                        let v = &mut self.state.minions[m.index()];
+                        v.locked = true;
+                        v.skip_unlock = true;
+                    }
                     cards::Effect::HandSizeUntilUnlock(n) => {
                         self.state.seats[seat.index()].timed.add(
                             TimedStat::HandSize,
@@ -2899,8 +2930,18 @@ impl Engine {
             }
             cards::Effect::AddVotes(_)
             | cards::Effect::AddVotesPerReadySect(_)
-            | cards::Effect::AddVotesXLinear { .. } => {
+            | cards::Effect::AddVotesXLinear { .. }
+            | cards::Effect::RevealCryptTopVoteIfOlder => {
                 let n = match effect {
+                    cards::Effect::RevealCryptTopVoteIfOlder => {
+                        let than = play.actor.and_then(|m| self.state.capacity_of(m));
+                        self.reveal_top(play.seat, true);
+                        let crypt = &mut self.state.seats[play.seat.index()].crypt;
+                        let (card, copy) = crypt.take_top().expect("CryptNotEmpty");
+                        crypt.put_at(0, card, copy);
+                        let c = &crate::crypt::CRYPT[card as usize];
+                        u8::from(!c.imbued && than.is_some_and(|t| c.capacity > t))
+                    }
                     cards::Effect::AddVotesXLinear { mul, plus } => mul * play.x + plus,
                     cards::Effect::AddVotesPerReadySect(sect) => {
                         self.state

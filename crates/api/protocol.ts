@@ -1,6 +1,6 @@
-/* zvtes protocol 2.24.2 (docs/protocol.md): generated from
+/* zvtes protocol 2.25.0 (docs/protocol.md): generated from
  * crates/api/schema.json by scripts/gen_ts.py, do not edit. */
-export const PROTOCOL_VERSION = '2.24.2'
+export const PROTOCOL_VERSION = '2.25.0'
 
 /**
  * A command as sent: an optional client id, echoed by an `error` it
@@ -1351,6 +1351,7 @@ export type Purpose =
     | 'stored_to_library_top'
     | 'library_to_hand'
     | 'crypt_search'
+    | 'crypt_top_pick'
     | 'prey_slot_to_pool'
     | 'distribute_from'
     | 'circle_blood'
@@ -1369,6 +1370,7 @@ export type Purpose =
     | 'may_put_on'
     | 'may_add_counter'
     | 'may_store_aim'
+    | 'may_bottom_top'
     | 'may_torture'
     | 'may_gain_pool'
     | 'may_gain_hand_size'
@@ -1376,6 +1378,7 @@ export type Purpose =
     | 'name_master_discipline'
     | 'name_ash_equipment'
     | 'store_own_hand'
+    | 'store_up_to'
     | 'buy_title'
     | 'move_for_blood'
     | 'redraw'
@@ -1390,6 +1393,7 @@ export type Purpose =
     | 'reduction_at_resolution'
     | 'dual_form_kept'
     | 'ash_to_library_top'
+    | 'ash_to_library_bottom'
     | 'cut_library'
     | 'retake_from_ash'
     | 'may_lock_for_blood'

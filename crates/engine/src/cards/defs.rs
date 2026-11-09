@@ -2637,7 +2637,7 @@ pub static VOTER_CAPTIVATION: CardDef = CardDef {
     ..CARD
 };
 
-pub static DEFS: [&CardDef; 1214] = [
+pub static DEFS: [&CardDef; 1240] = [
     &TAUNT_THE_CAGED_BEAST,
     &PETRA_RESONANCE,
     &WAITING_GAME,
@@ -3852,6 +3852,32 @@ pub static DEFS: [&CardDef; 1214] = [
     &DELIVERY_TRUCK,
     &NOD,
     &UNDEAD_PERSISTENCE,
+    &BACKROOM_DEAL,
+    &DOUBLE_SPIRAL_CORPORATION,
+    &EMBOLDENED_COUNCILOR,
+    &LAMBRETA,
+    &MEIA_LUA,
+    &RESPECTED_REPRESENTATIVE,
+    &CIRCULATORY_SYSTEM_OUTLET,
+    &PALAVRA_SAGRADA,
+    &DEADLY_SECRETS,
+    &ST_PATRICKS_CATHEDRAL,
+    &ACADEMIA_DE_CAMPEOES,
+    &THE_ART_HOLE,
+    &CAOERA,
+    &VIAL_OF_ZAPATHASURAS_VITAE,
+    &RON_ZERTNERT,
+    &DESTILARIA_ESTRELA_DA_PARAIBA,
+    &CONVENTO_DA_PENHA,
+    &HALITO_NEGRO,
+    &FATHER_ANTHONY,
+    &CHAVE_DE_BRACO,
+    &MULHER_DE_BRANCO,
+    &BAR_ULTIMO_TRAGO,
+    &IARA,
+    &INFORMATION_EXCHANGE,
+    &PORTO_DE_SANTOS,
+    &AARON_FLETCHER,
 ];
 
 // ---- Cards in play with riders and granted actions -------------------------
@@ -5191,6 +5217,8 @@ pub static UNITY: CardDef = CardDef {
                 n: 2,
                 filter: CardFilter::RequiresImbued,
                 cut: true,
+                bottom: false,
+                up_to: false,
             },
         ],
     )],
@@ -39321,12 +39349,12 @@ pub static DELIVERY_TRUCK: CardDef = CardDef {
             Actor::AnyMethuselahsMinion,
             &[
                 Requirement::YouControlThisCard,
-                Requirement::ActorMayEquipStored,
+                Requirement::ActorMayEquipStored(0),
             ],
             &[
                 Effect::DeclareAction(ActionKind::EquipFound),
                 Effect::AddStealth(1),
-                Effect::EquipStored,
+                Effect::EquipStored(0),
             ],
         ),
     ],
@@ -39372,6 +39400,853 @@ pub static UNDEAD_PERSISTENCE: CardDef = CardDef {
             &[Window::CombatDamagePrevention],
             &[Requirement::DamagePending],
             &[Effect::Prevent(2)],
+        ),
+    ],
+    ..CARD
+};
+
+// ---- Round 27: Secrets of New York, Noites Brasileiras ---------------------
+
+const PRIMOGEN: Requirement = Requirement::ActorTitleIn(&[TitleClass::Primogen]);
+
+/// "Requires a ready primogen. Only one Backroom Deal can be played each
+/// action. [ACTION MODIFIER] +1 stealth. [ACTION MODIFIER] Only usable by a
+/// ready primogen other than the acting Camarilla vampire. The acting
+/// Camarilla vampire gets +1 stealth." Cloak the Gathering's second shape,
+/// locked or not.
+pub static BACKROOM_DEAL: CardDef = CardDef {
+    name: "Backroom Deal",
+    modes: &[
+        ModeDef {
+            limit: Some(Limit::OnePerAction),
+            requires: &[PRIMOGEN, Requirement::StealthNeeded],
+            ..stealth(&[Effect::AddStealth(1)])
+        },
+        ModeDef {
+            limit: Some(Limit::OnePerAction),
+            ..mode_of(
+                &[Window::ActionStealthIntercept],
+                Actor::OtherOwnMinion,
+                &[
+                    PRIMOGEN,
+                    Requirement::ActorVampire,
+                    Requirement::ActingVampire,
+                    Requirement::ActingSectIn(&[Sect::Camarilla]),
+                    Requirement::StealthNeeded,
+                ],
+                &[Effect::AddStealth(1)],
+            )
+        },
+    ],
+    ..CARD
+};
+
+/// "Unique location. You can lock this location to discard a card. During
+/// your influence phase, you can lock this location to get +1 transfer.
+/// Vampires can steal this location as a Ⓓ action." The Barrens' and
+/// Ennoia's Theater's locks, one a turn.
+pub static DOUBLE_SPIRAL_CORPORATION: CardDef = CardDef {
+    name: "Double Spiral Corporation",
+    modes: &[LOCATION],
+    abilities: &[
+        ModeDef {
+            terms: Some(Terms::Discard {
+                n: 1,
+                of: CardFilter::Any,
+            }),
+            ..mode_of(
+                &[Window::AnyImpulse],
+                Actor::Controller,
+                &[Requirement::CardUnlocked, Requirement::HandNotEmpty],
+                &[Effect::LockSelf],
+            )
+        },
+        mode_of(
+            &[Window::InfluencePhaseOwn],
+            Actor::Controller,
+            &[Requirement::CardUnlocked],
+            &[Effect::LockSelf, Effect::GainTransfers(1)],
+        ),
+        steal_this(&[Requirement::ActorVampire]),
+    ],
+    ..CARD
+};
+
+/// "Requires a primogen. [REACTION] +1 intercept. [REACTION] Only usable by
+/// a locked primogen. This primogen unlocks and attempts to block." Sense
+/// the Savage Way's shape.
+pub static EMBOLDENED_COUNCILOR: CardDef = CardDef {
+    name: "Emboldened Councilor",
+    modes: &[
+        intercept(
+            &[PRIMOGEN, Requirement::InterceptNeeded],
+            &[Effect::AddIntercept(1)],
+        ),
+        unlock_attempt!(
+            &[
+                Requirement::LockedActor,
+                PRIMOGEN,
+                Requirement::CanAttemptBlock,
+            ],
+            &[Effect::UnlockActor, Effect::AttemptBlock]
+        ),
+    ],
+    ..CARD
+};
+
+/// "Vehicle. If the bearer is acting, you can lock this vehicle to give a
+/// blocking minion -1 intercept for the current action. A minion can have
+/// only one vehicle." As a minion attempts to block (Form of the Bat's
+/// window); once, by the lock.
+pub static LAMBRETA: CardDef = CardDef {
+    name: "Lambreta",
+    modes: &[mode_of(
+        &[Window::ActionDeclareEquip],
+        Actor::ActingCandidate,
+        ONE_VEHICLE,
+        &[Effect::DeclareAction(ActionKind::Equip)],
+    )],
+    abilities: &[mode_of(
+        &[Window::ActionBlockAttempt],
+        Actor::Host,
+        &[Requirement::ActorActing, Requirement::CardUnlocked],
+        &[Effect::LockSelf, Effect::AttemptingIntercept(-1)],
+    )],
+    ..CARD
+};
+
+/// "[cel][pot] Strike: dodge or strike: hand strike at +1 damage.
+/// [CEL][POT] Strike: dodge, with 1 additional strike: hand strike at +2
+/// damage (limited)." The basic level splits in two (`lines`).
+pub static MEIA_LUA: CardDef = CardDef {
+    name: "Meia Lua",
+    lines: &[0, 0, 1],
+    modes: &[
+        combat(
+            &[Window::CombatStrikeDeclaration],
+            &[],
+            &[Effect::Strike(StrikeKind::Dodge)],
+        ),
+        combat(
+            &[Window::CombatStrikeDeclaration],
+            &[],
+            &[Effect::Strike(StrikeKind::Hand { bonus: 1 })],
+        ),
+        combat(
+            &[Window::CombatStrikeDeclaration],
+            &[],
+            &[
+                Effect::Strike(StrikeKind::Dodge),
+                Effect::AdditionalStrikeOnly {
+                    kind: StrikeKind::Hand { bonus: 2 },
+                    limited: true,
+                },
+            ],
+        ),
+    ],
+    ..CARD
+};
+
+/// "Title. Add 1 blood to a non-titled non-Caitiff Camarilla vampire with
+/// capacity 4 or more you control and put this card on them to represent
+/// the Camarilla title of primogen." Regent's shape; primogen is not
+/// unique, so no contest.
+pub static RESPECTED_REPRESENTATIVE: CardDef = CardDef {
+    name: "Respected Representative",
+    modes: &[ModeDef {
+        target: target(
+            TargetKind::Minion,
+            &[
+                Requirement::Controlled,
+                Requirement::TargetVampire,
+                Requirement::TargetSect(Sect::Camarilla),
+                Requirement::TargetUntitled,
+                Requirement::TargetClanNotIn(&["Caitiff"]),
+                Requirement::TargetCapacityAtLeast(4),
+            ],
+        ),
+        ..mode_of(
+            &[Window::MasterPhase],
+            Actor::Methuselah,
+            &[],
+            &[
+                Effect::PutOnTarget,
+                Effect::RepresentsTitle(crate::crypt::Title::Primogen),
+                Effect::BloodToTarget(1),
+            ],
+        )
+    }],
+    ..CARD
+};
+
+/// "Unique location. Hunting ground. During your unlock phase, a ready
+/// vampire you control with no blood can gain 1 blood. A vampire can gain
+/// blood from only one hunting ground each turn. Vampires can steal this
+/// location as a Ⓓ action."
+pub static CIRCULATORY_SYSTEM_OUTLET: CardDef = CardDef {
+    name: "Circulatory System Outlet",
+    modes: &[LOCATION],
+    abilities: &[
+        hunting_ground_pick!(
+            1,
+            &[
+                Requirement::TargetVampire,
+                Requirement::Controlled,
+                Requirement::ActorReady,
+                Requirement::NotHuntingGroundFed,
+                Requirement::BloodAtMost(0),
+            ]
+        ),
+        steal_this(&[Requirement::ActorVampire]),
+    ],
+    ..CARD
+};
+
+/// "Unique location. During an action, you can lock a ready Caitiff you
+/// control to give another vampire you control +1 stealth or +1
+/// intercept." The Caitiff named and locked as it is used; once each
+/// action (rules-digest D7), either way. An ally has no capacity: the
+/// attempting minion a vampire.
+pub static PALAVRA_SAGRADA: CardDef = CardDef {
+    name: "Palavra Sagrada, Rio de Janeiro",
+    modes: &[LOCATION],
+    abilities: &[
+        ModeDef {
+            target: target(
+                TargetKind::Minion,
+                &[
+                    Requirement::Controlled,
+                    Requirement::ActorReady,
+                    Requirement::TargetClan("Caitiff"),
+                    Requirement::TargetUnlocked,
+                    Requirement::TargetNotActing,
+                ],
+            ),
+            limit: Some(Limit::PerActionCard),
+            ..mode_of(
+                &[Window::ActionStealthIntercept],
+                Actor::Controller,
+                &[
+                    Requirement::OtherActingControlled,
+                    Requirement::ActingVampire,
+                    Requirement::StealthNeeded,
+                ],
+                &[Effect::LockTarget, Effect::AddStealth(1)],
+            )
+        },
+        ModeDef {
+            target: target(
+                TargetKind::Minion,
+                &[
+                    Requirement::Controlled,
+                    Requirement::ActorReady,
+                    Requirement::TargetClan("Caitiff"),
+                    Requirement::TargetUnlocked,
+                    Requirement::TargetNotAttempting,
+                ],
+            ),
+            limit: Some(Limit::PerActionCard),
+            ..mode_of(
+                &[Window::ActionStealthIntercept],
+                Actor::Controller,
+                &[
+                    Requirement::YourAttemptNeedsIntercept,
+                    Requirement::AttemptingCapacityAtLeast(1),
+                ],
+                &[Effect::LockTarget, Effect::AttemptingIntercept(1)],
+            )
+        },
+    ],
+    ..CARD
+};
+
+/// "[obf] Only usable during a bleed action. +1 bleed (limited). [OBF] Only
+/// usable during the polling step of a political action. Force another
+/// vampire to abstain. After action resolution, if the referendum was
+/// successful, you can draw 1 card." The draw made (Michael Luther's "may
+/// draw").
+pub static DEADLY_SECRETS: CardDef = CardDef {
+    name: "Deadly Secrets",
+    modes: &[
+        modifier(&[Requirement::IsBleed], &[LIMITED_BLEED]),
+        ModeDef {
+            target: target(
+                TargetKind::Minion,
+                &[Requirement::TargetVampire, Requirement::OtherThanActor],
+            ),
+            ..mode_of(
+                &[Window::Referendum],
+                Actor::ActingMinion,
+                &[Requirement::IsPolitical, Requirement::PollingStep],
+                &[
+                    Effect::Abstain {
+                        lock: false,
+                        burn: 0,
+                    },
+                    Effect::DrawIfReferendumPasses,
+                ],
+            )
+        },
+    ],
+    ..CARD
+};
+
+/// "Unique location. During your unlock phase, you can lock this location
+/// to look at and reorder the top 3 cards of your library. You can then
+/// move them to the bottom of your library (in the same order)." The move
+/// chosen after the look.
+pub static ST_PATRICKS_CATHEDRAL: CardDef = CardDef {
+    name: "St. Patrick's Cathedral, New York",
+    modes: &[LOCATION],
+    abilities: &[mode_of(
+        &[Window::UnlockPhaseOwn],
+        Actor::Controller,
+        &[Requirement::CardUnlocked],
+        &[Effect::LockSelf, Effect::ReorderTopMayBottom(3)],
+    )],
+    ..CARD
+};
+
+/// "Unique location. During your discard phase, you can lock this location
+/// to move up to two combat cards requiring Potence [pot] from your ash heap
+/// to the bottom of your library in any order." (Brujah.) Printed
+/// requirements (rules-digest D29), picked one at a time.
+pub static ACADEMIA_DE_CAMPEOES: CardDef = CardDef {
+    name: "Academia de Campeões, São Paulo",
+    modes: &[LOCATION],
+    abilities: &[mode_of(
+        &[Window::DiscardPhase],
+        Actor::Controller,
+        &[Requirement::CardUnlocked],
+        &[
+            Effect::LockSelf,
+            Effect::AshToLibraryTop {
+                n: 2,
+                filter: CardFilter::TypeRequiring(CardType::Combat, "pot"),
+                cut: false,
+                bottom: true,
+                up_to: true,
+            },
+        ],
+    )],
+    ..CARD
+};
+
+/// "Unique location. Requires a ready primogen. After a primogen you
+/// control performs a successful action, you can lock this location to
+/// unlock that primogen. Titled Camarilla vampires can steal this location
+/// as a Ⓓ action." (1 pool.) A fizzled action is successful (rules-digest
+/// §3.2).
+pub static THE_ART_HOLE: CardDef = CardDef {
+    name: "Art Hole, New York, The",
+    modes: &[ModeDef {
+        requires: &[Requirement::ControlsReadyTitled(&[TitleClass::Primogen])],
+        ..LOCATION
+    }],
+    abilities: &[
+        mode_of(
+            &[Window::ActionAfterResolution],
+            Actor::Controller,
+            &[
+                Requirement::CardUnlocked,
+                Requirement::OwnActing,
+                Requirement::ActingTitleIn(&[TitleClass::Primogen]),
+                Requirement::ActionSuccessful,
+            ],
+            &[Effect::LockSelf, Effect::UnlockActing],
+        ),
+        steal_this(&[
+            Requirement::ActorVampire,
+            Requirement::ActorSectIn(&[Sect::Camarilla]),
+            Requirement::ActorTitleIn(&[TitleClass::Any]),
+        ]),
+    ],
+    ..CARD
+};
+
+/// "Unique animal with 2 life. 2 strength, 0 bleed. This ally can steal 1
+/// blood or life from a minion controlled by another Methuselah as a +1
+/// stealth Ⓓ action. This ally gets +1 bleed for each life above 2 it has.
+/// This ally gets 1 optional maneuver each combat." (2 pool; Nosferatu.)
+/// Its life read live.
+pub static CAOERA: CardDef = CardDef {
+    name: "Cãoera",
+    modes: &[recruit(&[
+        Effect::DeclareAction(ActionKind::Recruit),
+        Effect::Layer(Modifier::BleedPerLifeAbove(2)),
+    ])],
+    abilities: &[
+        printed_action(
+            target(TargetKind::Minion, &[Requirement::NotControlled]),
+            &[
+                Effect::DeclareAction(ActionKind::Ability),
+                Effect::AddStealth(1),
+                Effect::StealBloodFromTarget(1),
+            ],
+        ),
+        MANEUVER_EACH_COMBAT,
+    ],
+    ..CARD
+};
+
+/// "Unique. Choose Animalism [ani], Obfuscate [obf] or Presence [pre]. This
+/// Ravnos gets +1 strength and +1 level of the chosen Discipline. This
+/// equipment cannot be moved or stolen. If this equipment is burned, send
+/// this vampire to torpor." (1 pool; Ravnos.) The Discipline chosen as it
+/// is played (rules-digest D1), one mode each (`lines`); a non-Ravnos
+/// bearer gets neither bonus (D31).
+pub static VIAL_OF_ZAPATHASURAS_VITAE: CardDef = CardDef {
+    name: "Vial of Zapathasura's Vitae",
+    lines: &[0, 0, 0],
+    modes: &[
+        ModeDef {
+            effects: &[
+                Effect::DeclareAction(ActionKind::Equip),
+                Effect::Layer(Modifier::Bearer {
+                    stat: Stat::Strength,
+                    n: 1,
+                    during: &[],
+                    who: Bearer::Clan("Ravnos"),
+                }),
+                Effect::Layer(Modifier::BearerClanDisciplineLevel {
+                    clan: "Ravnos",
+                    discipline: "ani",
+                }),
+                Effect::PinnedAlways,
+                Effect::BurnedSendsBearerToTorpor,
+            ],
+            ..EQUIP
+        },
+        ModeDef {
+            effects: &[
+                Effect::DeclareAction(ActionKind::Equip),
+                Effect::Layer(Modifier::Bearer {
+                    stat: Stat::Strength,
+                    n: 1,
+                    during: &[],
+                    who: Bearer::Clan("Ravnos"),
+                }),
+                Effect::Layer(Modifier::BearerClanDisciplineLevel {
+                    clan: "Ravnos",
+                    discipline: "obf",
+                }),
+                Effect::PinnedAlways,
+                Effect::BurnedSendsBearerToTorpor,
+            ],
+            ..EQUIP
+        },
+        ModeDef {
+            effects: &[
+                Effect::DeclareAction(ActionKind::Equip),
+                Effect::Layer(Modifier::Bearer {
+                    stat: Stat::Strength,
+                    n: 1,
+                    during: &[],
+                    who: Bearer::Clan("Ravnos"),
+                }),
+                Effect::Layer(Modifier::BearerClanDisciplineLevel {
+                    clan: "Ravnos",
+                    discipline: "pre",
+                }),
+                Effect::PinnedAlways,
+                Effect::BurnedSendsBearerToTorpor,
+            ],
+            ..EQUIP
+        },
+    ],
+    ..CARD
+};
+
+/// "Unique mortal with 2 life. 1 strength, 1 bleed. Government. Ron can
+/// prevent 1 damage each combat. He can strike: 1R damage. If another
+/// minion you control is in combat, he can lock during the press step to
+/// inflict 1 unpreventable damage on the opposing minion." (2 pool.) The
+/// lock from out of that combat (Alejandro Aguirre's shape).
+pub static RON_ZERTNERT: CardDef = CardDef {
+    name: "Ron Zertnert, S.A.D. Agent",
+    modes: &[recruit(&[Effect::DeclareAction(ActionKind::Recruit)])],
+    abilities: &[
+        ModeDef {
+            limit: Some(Limit::PerCombat),
+            ..mode_of(
+                &[Window::CombatDamagePrevention],
+                Actor::Host,
+                &[Requirement::DamagePending],
+                &[Effect::Prevent(1)],
+            )
+        },
+        mode_of(
+            &[Window::CombatStrikeDeclaration],
+            Actor::Host,
+            &[],
+            &[Effect::Strike(StrikeKind::Damage {
+                n: 1,
+                ranged: true,
+                aggravated: false,
+            })],
+        ),
+        mode_of(
+            &[Window::CombatPress],
+            Actor::HostOutOfCombat,
+            &[
+                Requirement::HostReady,
+                Requirement::HostUnlocked,
+                Requirement::OwnMinionInCombat,
+            ],
+            &[Effect::LockHost, Effect::DamageOpposingOwnCombatantNow(1)],
+        ),
+    ],
+    ..CARD
+};
+
+/// "Unique location. During an action directed at you (or a card you
+/// control), you can lock this location to give a Nosferatu you control +1
+/// intercept; if that Nosferatu blocks, you get +1 hand size during the
+/// resulting combat." (1 pool; Nosferatu.) Market Square's shape.
+pub static DESTILARIA_ESTRELA_DA_PARAIBA: CardDef = CardDef {
+    name: "Destilaria Estrela da Paraíba",
+    modes: &[LOCATION],
+    abilities: &[mode_of(
+        &[Window::ActionStealthIntercept],
+        Actor::Controller,
+        &[
+            Requirement::CardUnlocked,
+            Requirement::DirectedAtYou,
+            Requirement::YourAttemptNeedsIntercept,
+            Requirement::AttemptingClan("Nosferatu"),
+        ],
+        &[
+            Effect::LockSelf,
+            Effect::AttemptingIntercept(1),
+            Effect::IfAttemptingBlocks(BlockRider::HandSize(1)),
+        ],
+    )],
+    ..CARD
+};
+
+/// "Unique location. During a political action, any Methuselah can lock
+/// this location to give an acting vampire they control +1 stealth; other
+/// Methuselahs must give you 1 pool to use this effect." (1 pool.) The pool
+/// paid to use it (`PayPoolToCardController`); while stealth is needed.
+pub static CONVENTO_DA_PENHA: CardDef = CardDef {
+    name: "Convento da Penha, Vila Velha",
+    modes: &[LOCATION],
+    abilities: &[
+        mode_of(
+            &[Window::ActionStealthIntercept],
+            Actor::Controller,
+            &[
+                Requirement::CardUnlocked,
+                Requirement::IsPolitical,
+                Requirement::OwnActing,
+                Requirement::ActingVampire,
+                Requirement::StealthNeeded,
+            ],
+            &[Effect::LockSelf, Effect::AddStealth(1)],
+        ),
+        mode_of(
+            &[Window::ActionStealthIntercept],
+            Actor::Methuselah,
+            &[
+                Requirement::CardUnlocked,
+                Requirement::OthersControlThisCard,
+                Requirement::PoolAtLeast(1),
+                Requirement::IsPolitical,
+                Requirement::OwnActing,
+                Requirement::ActingVampire,
+                Requirement::StealthNeeded,
+            ],
+            &[
+                Effect::LockSelf,
+                Effect::PayPoolToCardController(1),
+                Effect::AddStealth(1),
+            ],
+        ),
+    ],
+    ..CARD
+};
+
+/// "[obl] or [tha] Strike: 2R damage on the opposing minion and 1R damage
+/// on all retainers on the opposing minion. [OBL] or [THA] Strike: 3R
+/// damage on the opposing minion and 2R damage on all retainers on the
+/// opposing minion." (1 blood.) The retainers' damage with the strike's,
+/// dodged with it.
+pub static HALITO_NEGRO: CardDef = CardDef {
+    name: "Hálito Negro",
+    modes: &[
+        combat(
+            &[Window::CombatStrikeDeclaration],
+            &[],
+            &[
+                Effect::Strike(StrikeKind::Damage {
+                    n: 2,
+                    ranged: true,
+                    aggravated: false,
+                }),
+                Effect::RetainerDamageWithStrike(1),
+            ],
+        ),
+        combat(
+            &[Window::CombatStrikeDeclaration],
+            &[],
+            &[
+                Effect::Strike(StrikeKind::Damage {
+                    n: 3,
+                    ranged: true,
+                    aggravated: false,
+                }),
+                Effect::RetainerDamageWithStrike(2),
+            ],
+        ),
+    ],
+    ..CARD
+};
+
+/// "Unique mortal with 2 life. 1 strength, 0 bleed. While Father Anthony is
+/// in combat with a vampire, cards requiring 1 or more Disciplines cost that
+/// vampire +1 blood. Once each combat, Father Anthony can strike: dodge or
+/// strike: stun the opposing minion." (1 pool.) Cards played using a
+/// Discipline (rules-digest D29); one use a combat, either strike; the stun
+/// at close range, as it lands (Mind Numb's lock and next unlock skipped).
+pub static FATHER_ANTHONY: CardDef = CardDef {
+    name: "Father Anthony",
+    modes: &[recruit(&[
+        Effect::DeclareAction(ActionKind::Recruit),
+        Effect::Layer(Modifier::OpposingVampireDisciplineCardsCost(1)),
+    ])],
+    abilities: &[
+        ModeDef {
+            limit: Some(Limit::PerCombatCard),
+            ..mode_of(
+                &[Window::CombatStrikeDeclaration],
+                Actor::Host,
+                &[],
+                &[Effect::Strike(StrikeKind::Dodge)],
+            )
+        },
+        ModeDef {
+            limit: Some(Limit::PerCombatCard),
+            ..mode_of(
+                &[Window::CombatStrikeDeclaration],
+                Actor::Host,
+                &[],
+                &[
+                    Effect::Strike(StrikeKind::CardEffect { ranged: false }),
+                    Effect::StunOpponentOnHit,
+                ],
+            )
+        },
+    ],
+    ..CARD
+};
+
+/// "Grapple. [pot] Strike: hand strike at +2 damage. [POT] As above, and at
+/// the end of the round, if the range is close and this vampire has
+/// successfully inflicted more damage than the opposing minion, put this
+/// card on the opposing minion. The attached minion gets -2 strength. They
+/// can burn 2 blood or 1 life to burn this card." Disarm's comparison
+/// (environmental damage not counted), the card itself put on (rules-qa
+/// 47.1); a vampire burns blood, an ally life.
+pub static CHAVE_DE_BRACO: CardDef = CardDef {
+    name: "Chave de Braço",
+    modes: &[
+        combat(
+            &[Window::CombatStrikeDeclaration],
+            &[],
+            &[Effect::Strike(StrikeKind::Hand { bonus: 2 })],
+        ),
+        combat(
+            &[Window::CombatStrikeDeclaration],
+            &[],
+            &[
+                Effect::Strike(StrikeKind::Hand { bonus: 2 }),
+                Effect::PutOnOpponentAtRoundEndIfMore,
+                strength_on_bearer(-2),
+            ],
+        ),
+    ],
+    abilities: &[
+        mode_of(
+            &[Window::AnyImpulse],
+            Actor::Host,
+            &[Requirement::HostVampire, Requirement::HostBloodAtLeast(2)],
+            &[Effect::HostBurnBlood(2), Effect::BurnSelf],
+        ),
+        mode_of(
+            &[Window::AnyImpulse],
+            Actor::Host,
+            &[Requirement::HostAlly, Requirement::HostBloodAtLeast(1)],
+            &[Effect::HostBurnLife(1), Effect::BurnSelf],
+        ),
+    ],
+    ..CARD
+};
+
+/// "Unique wraith with 1 life. 0 strength, 0 bleed. Burn this ally unless
+/// you remove three cards in your ash heap from the game. After a minion
+/// successfully bleeds you (for 1 or more), you can shuffle this ally into
+/// your library to inflict 2 damage on the acting minion." (Hecata.) Any
+/// three cards of the ash heap, burned vampires included (rules-digest
+/// §3.18); the shuffle the price, then the damage.
+pub static MULHER_DE_BRANCO: CardDef = CardDef {
+    name: "Mulher de Branco",
+    modes: &[recruit(&[
+        Effect::DeclareAction(ActionKind::Recruit),
+        Effect::EntryRemoveAshCardsOrBurn(3),
+    ])],
+    abilities: &[mode_of(
+        &[Window::ActionAfterResolution],
+        Actor::Host,
+        &[
+            Requirement::IsBleed,
+            Requirement::DirectedAtYou,
+            Requirement::BleedSuccessful,
+        ],
+        &[Effect::ShuffleHostIntoLibrary, Effect::DamageActingNow(2)],
+    )],
+    ..CARD
+};
+
+/// "Unique location. You can lock this location if a minion you control
+/// successfully blocks; during the resulting combat, neither combatant can
+/// use equipment and during the first round of that combat, both combatants
+/// take 1R environmental damage during normal strike resolution." As the
+/// block is made, before its combat.
+pub static BAR_ULTIMO_TRAGO: CardDef = CardDef {
+    name: "Bar Último Trago, Campina Grande",
+    modes: &[LOCATION],
+    abilities: &[mode_of(
+        &[Window::ActionBlocked],
+        Actor::Controller,
+        &[Requirement::CardUnlocked, Requirement::BlockerYours],
+        &[
+            Effect::LockSelf,
+            Effect::BlockRiderBoth(BlockRider::NoEquipment),
+            Effect::BlockRiderBoth(BlockRider::EnvironmentalFirstRound(1)),
+        ],
+    )],
+    ..CARD
+};
+
+/// "Unique changeling with 3 life. 1 strength, 1 bleed. During an action
+/// performed by a minion you control, you can lock Iara to give a blocking
+/// minion -1 intercept; if that action is blocked, instead of resolving the
+/// block, Iara enters combat with and locks the blocking minion." (2 pool;
+/// Malkavian.) As a minion attempts to block (Lambreta's window); once, by
+/// the lock; the acting minion out of the combat (`StandInIfBlocked`).
+pub static IARA: CardDef = CardDef {
+    name: "Iara",
+    modes: &[recruit(&[Effect::DeclareAction(ActionKind::Recruit)])],
+    abilities: &[mode_of(
+        &[Window::ActionBlockAttempt],
+        Actor::Host,
+        &[Requirement::OwnActing, Requirement::HostUnlocked],
+        &[
+            Effect::LockHost,
+            Effect::AttemptingIntercept(-1),
+            Effect::StandInIfBlocked,
+        ],
+    )],
+    ..CARD
+};
+
+static INFORMATION_EXCHANGE_REFERENDUM: ReferendumDef = ReferendumDef {
+    terms: &[
+        Term::Allocate {
+            points: Points::Fixed(3),
+            among: Among::Any,
+            min_seats: 1,
+        },
+        Term::ChooseSeat(SeatFilter::Allocated),
+    ],
+    effect: RefEffect::BurnAllocatedChosenDiscardsUpTo(1),
+    grants: &[],
+    non_anarch_titles_minus: false,
+    titled_minus: false,
+    edge_bonus: 0,
+    only_sect: None,
+};
+political!(
+    INFORMATION_EXCHANGE,
+    "Information Exchange",
+    "\"Allocate 3 points among one or more Methuselahs and choose one of \
+     those Methuselahs. Successful referendum means you look at the chosen \
+     Methuselah's hand and discard up to one card of your choice from it, \
+     and for each point allocated, each Methuselah burns 1 pool.\" \
+     (Nosferatu.) Terms are no target (rules-digest D6); the discard \
+     replaced by its owner.",
+    &[],
+    INFORMATION_EXCHANGE_REFERENDUM
+);
+
+/// "Each Methuselah can play only one Porto de Santos in a game. Gain 1
+/// pool. Each Methuselah looks at up to 3 cards from the top of their crypt
+/// and moves one of those cards to their uncontrolled region and the others
+/// to the bottom of their crypt." From its player on, each their three
+/// (fewer in a smaller crypt).
+pub static PORTO_DE_SANTOS: CardDef = CardDef {
+    name: "Porto de Santos",
+    modes: &[mode_of(
+        &[Window::MasterPhase],
+        Actor::Methuselah,
+        &[Requirement::NotPlayedThisGameBySeat],
+        &[Effect::GainPool(1), Effect::EachCryptTopPick(3)],
+    )],
+    ..CARD
+};
+
+/// "Unique mortal with 1 life. 1 strength, 1 bleed. Put up to three
+/// equipment cards from your hand and/or ash heap on Aaron, face down and
+/// out of play (you can look at the cards at any time). Minions you control
+/// can equip with one of those cards (face up) as a +1 stealth equip
+/// action." (2 pool.) As he enters play, hand cards first (replaced); the
+/// card equipped named with the action (rules-digest D1), one ability a
+/// stored card (Delivery Truck's equip, requirements and cost as normal).
+pub static AARON_FLETCHER: CardDef = CardDef {
+    name: "Aaron Fletcher, Silent Investor",
+    modes: &[recruit(&[
+        Effect::DeclareAction(ActionKind::Recruit),
+        Effect::EntryStoreEquipmentUpTo(3),
+    ])],
+    abilities: &[
+        mode_of(
+            &[Window::ActionDeclare],
+            Actor::AnyMethuselahsMinion,
+            &[
+                Requirement::YouControlThisCard,
+                Requirement::ActorMayEquipStored(0),
+            ],
+            &[
+                Effect::DeclareAction(ActionKind::EquipFound),
+                Effect::AddStealth(1),
+                Effect::EquipStored(0),
+            ],
+        ),
+        mode_of(
+            &[Window::ActionDeclare],
+            Actor::AnyMethuselahsMinion,
+            &[
+                Requirement::YouControlThisCard,
+                Requirement::ActorMayEquipStored(1),
+            ],
+            &[
+                Effect::DeclareAction(ActionKind::EquipFound),
+                Effect::AddStealth(1),
+                Effect::EquipStored(1),
+            ],
+        ),
+        mode_of(
+            &[Window::ActionDeclare],
+            Actor::AnyMethuselahsMinion,
+            &[
+                Requirement::YouControlThisCard,
+                Requirement::ActorMayEquipStored(2),
+            ],
+            &[
+                Effect::DeclareAction(ActionKind::EquipFound),
+                Effect::AddStealth(1),
+                Effect::EquipStored(2),
+            ],
         ),
     ],
     ..CARD

@@ -50,6 +50,18 @@ rows: when a draft is wrong, fix the generator's pattern, not the row
 (`scripts/rulings_v5.py vtes.json > data/rulings-v5.csv`). Both CSVs are
 CRLF: the csv module with `lineterminator="\r\n"`, or byte-wise.
 
+A newly released set (round 27): download KRCG's `vtes.json`, `twda.json`
+and `v5/expansions.json` into the job tmp; list the new ids by their set
+and bundle codes, and add them as one `ADDED_BATCHES` batch, so every
+card already in the tables keeps its index (the observation's). A set
+printed as bundles of an existing one (KRCG's `V5` "SoNY", "NBr") enters
+the pool as soon as the tables regenerate from that `vtes.json`: take it
+as its own round, or hold its bundles out of `in_pool` until then; a
+bundle KRCG types "Precon" that is no deck goes in `PACK_BUNDLES`, or the
+precon tables refuse it. Then the steps above: regenerate, the matrix drafts,
+the ledger (its generator reads `../vtes-advanced-rules`, its
+submodules initialised).
+
 ## 2. Research each card, in this order
 
 1. Its text and every KRCG ruling (`vtes.json`), and the

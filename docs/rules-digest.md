@@ -751,6 +751,10 @@ limit:
 - Asguresh: once each combat (D7), against a card played as a combat card
   (D18) by the minion opposing him; Thucimia: once each bleed action of hers
   (D7) (74.10).
+- Once a span: Bruxa Branca once each turn, Eduardo once each
+  referendum, Hope one use a bleed either way, Palavra Sagrada once each action
+  (112.5, 112.11, 112.15, 112.52); Qadir al-Asmai once each game per Qadir
+  (112.24).
 
 ### 4.3 Live reading and fixed amounts
 
@@ -825,6 +829,8 @@ limit:
   Laibon of any clan; Abombwe goes on a Laibon or a vampire with Protean —
   their Laibon clauses are live, Laibon being in the pool (77.34,
   corrected, amending 63.16).
+- Printed Discipline requirements for a discard or a move: Aisling Sturbridge
+  (G6), Kaiser, Academia de Campeões (112.3, 112.17, 112.33).
 
 ### 4.5 Discipline layouts and modes
 
@@ -1199,6 +1205,8 @@ simultaneous effects, §2.5 duration). The engine's window primitives are in
 - Len Konopka's +1 transfer read as the influence phase begins, none from
   torpor (80.12). Nosferatu Kingdom: the influence-location family, a
   Nosferatu antitribu only (80.19).
+- Julia Sowinski's +1 transfer this turn: that turn's influence phase, after the
+  minion phase; Double Spiral Corporation's transfer lock (112.16, 112.43).
 
 ### 6.5 Discard phase
 
@@ -1431,6 +1439,10 @@ Advanced rules §1.7 (costs and payment), §1.8 (playing and canceling).
   no pool card reaches the two (105.6). Salvador Garcia: cards requiring an
   Anarch or a baron, 1 off an Anarch's blood or pool (the pool first), a
   master card's or a non-Anarch's pool; never in torpor (104.15, 105.3).
+- Dorinha's +1 blood on action cards, on top of a pool cost; Kali's pool-only
+  reduction for a random discard, one reducer a play; Convento da Penha's 1 pool
+  from other Methuselahs, a cost; Father Anthony's +1 blood on the Discipline
+  cards of a vampire in combat with him (112.9, 112.18, 112.40, 112.45).
 
 ## 8. Actions
 
@@ -1493,6 +1505,8 @@ actions), §3.9 (mandatory actions), §3.10 (changing the acting minion).
   - Baltimore Purge's Ravnos +1 stealth is read as the action is announced
     (63.13); an action card's conditional stealth is read then and skipped
     at resolution (63.17).
+- Katherine Wiese's younger vampire targeted as she announces (owner); Aaron
+  Fletcher's stored card named as the equip is declared (112.19, 112.32).
 
 ### 8.2 Directed actions
 
@@ -1526,6 +1540,9 @@ actions), §3.9 (mandatory actions), §3.10 (changing the acting minion).
   at one's own minion or card undirected, never at the actor itself:
   Principia Discordia, Reformation [ser] (no steal), Sleep of Reason, Songs
   of the Distant Vitae [qui] (111.39).
+- Durok: a minion or card of his controller's targeted, never a bleed of the
+  Methuselah; O Grande Arquiteto's corruption on a minion of the target
+  Methuselah (112.10, 112.23).
 
 ### 8.3 An action's costs
 
@@ -1758,6 +1775,9 @@ Advanced rules §3.2 (stealth and intercept), §3.3 (blocking).
   the intercept is needed (80.13): need a threshold, not a cap (88.7).
 - Tusk (advanced)'s +1 stealth from his burned card applies even when not
   needed (the printed timing over 3.2): confirmed by the owner (111.52).
+- Intercept given while needed: Gianni D'Angelo's to another Camarilla vampire,
+  Destilaria's to a Nosferatu; Lambreta's -1 as the attempt is made; Emboldened
+  Councilor's attempt under the usual rules (112.13, 112.42, 112.49, 112.44).
 
 ### 9.3 Values
 
@@ -1916,6 +1936,9 @@ Advanced rules §3.2 (stealth and intercept), §3.3 (blocking).
   that block (78.14).
 - 48.3: the switch of blocker takes effect at once, with no impulse left to
   others for the abandoned attempt.
+- Bar Último Trago locked as its controller's minion's block is made; Iara's
+  combat for any block of the action (owner); Padraic Conroy's block of an older
+  vampire (112.36, 112.47, 112.7).
 
 ### Open or contested
 
@@ -2051,6 +2074,8 @@ Vocabulary: §3.2.
   action's own card, played that action (ANK 20180628), whichever of the
   action card types, blocked too — goes to her library, shuffled, instead
   (76.22).
+- The Art Hole's unlock and Aisling's after a successful action, a fizzle too;
+  Deadly Secrets' draw if the referendum passed (112.34, 112.41).
 
 ### 10.5 Continuing as if unblocked
 
@@ -2305,6 +2330,8 @@ torpor actions, diablerie). Referendums: §13.
   (31.4, RTR 19960112; 88.9).
 - Taking control of minions: §17.2.
 - Vivienne Géroux's steal: only by a vampire of another Methuselah (80.31).
+- Vritra's location of a Methuselah with more locations, read as announced and
+  at resolution; Cãoera's blood or life, as a vampire's steal (112.29, 112.37).
 
 ### 11.6 Leave torpor, rescue
 
@@ -2390,6 +2417,8 @@ torpor actions, diablerie). Referendums: §13.
   minion, a locked one too; +1 hand size in its combat only; the pool burned
   if the actor is not ready at the action's end, after its combats, blocked
   or not (80.27).
+- Aríete's and Valerie Duval's at a ready vampire of another Methuselah; titled
+  vampires of another Methuselah into combat with Torque (112.4, 112.20).
 
 ### 11.9 Other rulebook actions: become Anarch, merge
 
@@ -2438,6 +2467,7 @@ round (rulebook "Combat").
   if Egidia falls in the same event (16.5, advanced rules §6.4.4).
 - Harold Tanner: the hand of the controller of the minion in combat with
   him is open to every Methuselah for that combat (71.17).
+- Caique's random discard as each combat he enters begins (112.6).
 
 ### 12.2 Before range
 
@@ -2702,6 +2732,9 @@ round (rulebook "Combat").
   after the combat (Dawn Operation's, LSJ 20020314); [TEM] after a
   successful action, still in it (LSJ 19981028, ANK 20190425); one superior
   play per vampire each turn (78.27).
+- Elie Sansaricq's corruption on her strikes' damage landing; Hálito Negro's
+  retainers hit with its strike; Ron Zertnert's unpreventable point at the press
+  step from out of the combat (112.12, 112.46, 112.54).
 
 ### 12.8 Prevention and immunity
 
@@ -2763,6 +2796,7 @@ round (rulebook "Combat").
   [OBT]'s burn instead of torpor (111.25). Amaranth never by an ally, one
   playing cards as a vampire included (RTR 19970630, LSJ 20080717); its
   blood hunt's burn is in combat (Hector Trelane's 4 pool, LSJ 20091210).
+- O Encourado: 1 aggravated each combat round (112.22).
 
 ### 12.9 Additional strikes
 
@@ -2787,6 +2821,9 @@ round (rulebook "Combat").
   the first pair, taking the round's limited slot (63.8, PIB 20121028);
   Octopod's strikes each round after the normal pair (mandatory, limited)
   (68.4).
+- Maria Quitéria's and Torque's limited additional strike each combat; Meia
+  Lua's two basic strikes and superior dodge with a hand strike (112.20,
+  112.50).
 
 ### 12.10 Dodge
 
@@ -2861,6 +2898,11 @@ round (rulebook "Combat").
   (53.3); a fizzled action still has it, a failed one loses it (56.1). The
   Status Perfectus's second combat begins as the first ends, the acting
   minion first, then back to the after-resolution window (71.7).
+  The VEKN thread "Queued combats" (82396, ANK 2025-06-13 to 2025-11-03): an
+  action cannot continue while a combat is pending; it continues as if unblocked
+  (Form of Mist) only in the final combat; cards "usable after block resolution"
+  wait until every chained combat is over, and with no block are not playable;
+  the slave rule may be used after Hedonism queues a combat.
 - As the combat ends: Morbidity's blood goes back as the combat ends (after
   every round, a press included), then the card burns; the card takes as
   much of the opposing vampire's blood as it has, up to 2 (55.2). FBI's
@@ -2907,6 +2949,9 @@ round (rulebook "Combat").
   combat queued (RTR 20020501); the block combat's continuation lost, as
   Psyche!'s (65.1) (80.36); not after the combat a Fast Reaction queued
   (the owner) (80.37).
+- Chave de Braço [POT] on the opponent as the round ends (Disarm's comparison);
+  Sydnelson ends any round's combat of two other Methuselahs' vampires before
+  range (112.38, 112.26).
 
 ### 12.13 Weapons and equipment in combat
 
@@ -3128,6 +3173,8 @@ prisci's alone (52.9, 70.6) — read "a Methuselah's ballots" in rules-qa as
   hunt referendums, untitled (80.5). Fee Stake: Perth: Baron of Perth, no
   clan's calling vote; any vampire calls its burn referendum, non-Anarch
   titles -1 in it (32.9), the Priscus sub-referendum untouched (80.15).
+- Carter Vanderweyden's per other primogen in his own referendums; Tubarão's
+  crypt reveal for an older vampire's vote (112.8, 112.28).
 
 ### 13.3 Polling
 
@@ -3197,6 +3244,8 @@ prisci's alone (52.9, 70.6) — read "a Methuselah's ballots" in rules-qa as
   after the votes are cast too (111.14). Mob Rule's blood decided as it
   resolves, one at a time around the table until all pass, ready vampires
   locked or not (111.15).
+- Samira: no votes against an effective prince's referendum, read as she votes
+  (112.25).
 
 ### 13.4 Tally and costs of voting
 
@@ -3254,6 +3303,9 @@ prisci's alone (52.9, 70.6) — read "a Methuselah's ballots" in rules-qa as
   called passes, after all its effects, still if it ousted that predator
   (LSJ 20090115-2: the acting seat's place kept once ousted mid-action); in
   torpor too (D25) (78.12).
+- Hellene Panhard stunned after her referendum is held and fails (owner);
+  Information Exchange's chosen one given points, each burning their own
+  (112.14, 112.48).
 
 ### Open or contested
 
@@ -3474,6 +3526,8 @@ retainers, traits, titles, trait changes).
   Discipline as a vampire, never a card needing both of hers (111.26). Harry
   Reese's "non-mortal ally" any ally without the Mortal label, an Animal
   too: confirmed by the owner (111.47).
+- Mulher de Branco: three ash cards or burned, then shuffled into the library,
+  not burned (112.51).
 
 ### 14.6 The uncontrolled region, banishment
 
@@ -3525,6 +3579,8 @@ retainers, traits, titles, trait changes).
   burned (111.10); Gather in any Methuselah's influence phase, not into a
   contest; Virolax Facility's search may fail; San Lorenzo's minion and
   amount named as announced (111.18).
+- Porto de Santos: each Methuselah's top three crypt cards, one to the
+  uncontrolled region (112.31).
 
 ### 14.7 Created and new vampires
 
@@ -4005,6 +4061,7 @@ cards), §1.10 (burn and removal), §6.3 (control of a card in play).
 - Lady Scarlett does not take a hunting ground's blood for a Toreador
   (41.2). Neserian counts hunting grounds as locations (13.2).
 - Institution Hunting Ground: the hunting-ground family (6.5) (80.17).
+- Circulatory System Outlet feeds only a vampire with no blood (112.39).
 
 ### 16.3 Equipment
 
@@ -4047,6 +4104,8 @@ cards), §1.10 (burn and removal), §6.3 (control of a card in play).
   (ANK 20180817); Nod's moves chosen for each equipment, then made,
   requirements not re-checked, "only one" read against the cards placed
   (111.23).
+- Vial of Zapathasura's Vitae: a Ravnos bearer's only, never moved, its burn
+  sending the bearer to torpor (112.56).
 
 ### 16.4 Cards on minions
 
@@ -4319,6 +4378,10 @@ Advanced rules §1.13 (contests), §5.8 (titles).
 - A named Camarilla title (Karsh's Imperator) is a unique title by its name
   (111.19). Jezebelle's "referendum to declare a prince" one whose passing
   grants a prince's title (111.48).
+- Addison Payne as a prince for his cards only; Mel's city titles prince, baron,
+  archbishop (owner); Respected Representative's primogen, no contest; Thomas
+  Arturo's titled target, in torpor too; Backroom Deal's primogens (112.2,
+  112.21, 112.53, 112.27, 112.35).
 
 ### 18.5 The two-player variant
 
@@ -4430,6 +4493,7 @@ Advanced rules §1.9 (replacement), §6.8 (hand, draw and discard).
 - A hand over size waits for no pending choice but a draw's own (rulebook
   "Drawing Cards"): Flurry of Action's draw is discarded down before Curse
   of Nitocris's pick (78.51).
+- Luana do Lago's +1, Rey's and Tereza Rossi's strength: printed, live (112.30).
 
 ### 19.4 Searches and stored cards
 
@@ -4455,6 +4519,7 @@ Advanced rules §1.9 (replacement), §6.8 (hand, draw and discard).
   named as announced, burned with the Hold (LSJ 20021128) (111.12, 111.13).
   Delivery Truck's stored card face down, shown (111.23); Magazine's ammo
   (111.17).
+- St. Patrick's Cathedral: the bottom move chosen after the reorder (112.55).
 
 ## 20. Events and Gehenna
 
@@ -4621,6 +4686,8 @@ mixed item is stated in its section.
   requirement in play, 59.14; no mage ally, 41.8, superseded by 62.31; no
   demon or zombie retainer, 62.30, 55.6; no ammo card, 64.10; the G2 advanced
   Theo Bell, 60.1); implementation order of a vampire's text (13.1).
+- Bundles KRCG types "Precon" that are card packs (Secrets of New York, Noites
+  Brasileiras) give no precon deck (112.1).
 
 ## 23. Contradictions between sources
 
@@ -5046,7 +5113,7 @@ an owner ruling:
 Every rules-qa item, by batch, with the digest sections citing it: the
 section stating it and those cross-referring to it (§2 the default
 readings, §22 engine modeling, §23 the contradictions, §24 the open
-readings). 1216 items, Batches 1–111 (44.11 was removed, replaced by Batch
+readings). 1272 items, Batches 1–112 (44.11 was removed, replaced by Batch
 45). The index is derived from the citations: a bare `N.M` cites rules-qa
 item N.M in the section it appears in. A new rules-qa item gets its line in
 the section stating it, then its entry here: `python3
@@ -5444,3 +5511,14 @@ index or an item cited nowhere.
   §15.2; 111.44 §12.13,§15.2; 111.45 §10.3,§15.2; 111.46 §15.2,§24.1; 111.47
   §14.5,§24.1; 111.48 §15.2,§18.4,§24.1; 111.49 §15.2; 111.50 §7.2,§15.2;
   111.51 §15.2,§24.1; 111.52 §9.2,§24.1; 111.53 §16.1; 111.54 §14.10
+- **112** — 112.1 §22; 112.2 §18.4; 112.3 §4.4; 112.4 §11.8; 112.5 §4.2;
+  112.6 §12.1; 112.7 §9.6; 112.8 §13.2; 112.9 §7.3; 112.10 §8.2; 112.11
+  §4.2; 112.12 §12.7; 112.13 §9.2; 112.14 §13.5; 112.15 §4.2; 112.16 §6.4;
+  112.17 §4.4; 112.18 §7.3; 112.19 §8.1; 112.20 §11.8,§12.9; 112.21 §18.4;
+  112.22 §12.8; 112.23 §8.2; 112.24 §4.2; 112.25 §13.3; 112.26 §12.12;
+  112.27 §18.4; 112.28 §13.2; 112.29 §11.5; 112.30 §19.3; 112.31 §14.6;
+  112.32 §8.1; 112.33 §4.4; 112.34 §10.4; 112.35 §18.4; 112.36 §9.6; 112.37
+  §11.5; 112.38 §12.12; 112.39 §16.2; 112.40 §7.3; 112.41 §10.4; 112.42
+  §9.2; 112.43 §6.4; 112.44 §9.2; 112.45 §7.3; 112.46 §12.7; 112.47 §9.6;
+  112.48 §13.5; 112.49 §9.2; 112.50 §12.9; 112.51 §14.5; 112.52 §4.2; 112.53
+  §18.4; 112.54 §12.7; 112.55 §19.4; 112.56 §16.3

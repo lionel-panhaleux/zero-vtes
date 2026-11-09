@@ -67,7 +67,7 @@ by the owner. Apply them to every new card; only a ruling overrides them.
 ## Index
 
 - **Untimed abilities** — 7.7, 29.10, 15.2 (Kalinda)
-- **Legacy additions for TWDA decks** — 44.1–44.10, 57.1–57.10, 58.1–58.20, 59.1–59.19, 60.1–60.22, 62.2–62.31, 62.33, 63.1–63.17, 64.1–64.12, 65.1–65.3, 67.1–67.7, 68.1–68.17, 69.1–69.15, 70.1–70.22, 71.1–71.27, 74.1–74.13, 76.1–76.25, 77.1–77.35, 78.1–78.49, 78.54, 79.3, 80.1–80.45, 84.1–84.40, 85.1–85.34, 89.1–89.26, 102.1–102.26, 103.1–103.6, 104.1–104.20, 105.1–105.6, 106.1–106.22, 107.1–107.34, 109.1–109.50, 111.1–111.52
+- **Legacy additions for TWDA decks** — 44.1–44.10, 57.1–57.10, 58.1–58.20, 59.1–59.19, 60.1–60.22, 62.2–62.31, 62.33, 63.1–63.17, 64.1–64.12, 65.1–65.3, 67.1–67.7, 68.1–68.17, 69.1–69.15, 70.1–70.22, 71.1–71.27, 74.1–74.13, 76.1–76.25, 77.1–77.35, 78.1–78.49, 78.54, 79.3, 80.1–80.45, 84.1–84.40, 85.1–85.34, 89.1–89.26, 102.1–102.26, 103.1–103.6, 104.1–104.20, 105.1–105.6, 106.1–106.22, 107.1–107.34, 109.1–109.50, 111.1–111.52, 112.1–112.56
 - **Ousts, Life Boon's decision point** — 45.1–45.8, 88.2
 - **Impulse, sequencing, windows** — 1.2, 1.3, 1.5, 2.1, 2.2, 2.3, 2.4, 3.7, 4.1, 5.3, 7.7, 7.8, 7.9, 23.3, 24.2, 26.5, 66.1, 96.4, 110.1, 111.5
 - **Mandatory effects and their ordering** — 6.1, 6.4, 7.8, 7.9, 17.2, 27.1, 28.9, 32.10, 40.5, 88.5, 111.10, 111.22
@@ -2862,3 +2862,117 @@ Each contradiction read against the KRCG rulings, the advanced rules and the rul
 **111.53** Powerbase: Barranquilla emptied burns as its controller passes in the unlock phase, Church of the Order of St. Blaise adding a counter first (LSJ 20050105-1 says "before it burns", not when; the burn the moment the impulse is left, nothing reading an empty Barranquilla in between; green). Tests: `church_of_st_blaise_saves_an_emptied_barranquilla`.
 
 **111.54** Derange's sect holds over a later actual sect change of its vampire (Go Anarch, Into the Fire: LSJ 20100811, ANK 20190619); LSJ 20021209's "the most recent one takes precedence" holds between two overrides of clan or sect, and the pool has one (Derange; Clan Impersonation is not in the pool). Asked of the owner (2026-11-07, found by the round's ledger), confirmed (2026-11-08). Tests: `derange_holds_over_into_the_fire`.
+
+## Batch 112 — Round 27: Secrets of New York and Noites Brasileiras, 63 cards (the cards board; owner, 2026-11-08; red: 112.14, 112.19, 112.21, 112.47) (Claude, 2026-11-09; the owner: 112.14, 112.19, 112.21, 112.47 confirmed)
+
+**112.1** SoNY and NBr, KRCG's "Precon" bundles of the V5 set, are card packs: their cards are in the pool, no precon deck is built from them (`PACK_BUNDLES`). Tests: `crypt_data_is_complete`.
+
+**112.2** Addison Payne plays cards requiring a prince as if a prince, those cards only; cards in play read no prince in him (Victor Gerard's: LSJ 20101013). Tests: `addison_plays_a_princes_reaction`.
+
+**112.3** Aisling Sturbridge (G6): after her successful action (a fizzle too, §3.2), once each turn, a card printing Blood Sorcery discarded (D29: a discard reads the printed requirement) unlocks her; the G2 card's text is not hers. Tests: `aisling_g6_discards_blood_sorcery_to_unlock`.
+
+**112.4** Aríete's and Valerie Duval's combat actions aim at a ready vampire of another Methuselah; Valerie's younger by capacity in play (D30). Tests: `ariete_and_valerie_enter_combat_with_their_targets`.
+
+**112.5** Bruxa Branca's +1 intercept: as she attempts to block, while intercept is needed (3.2), once each turn. Tests: `bruxa_branca_intercepts_once_a_turn`.
+
+**112.6** Caique discards at random as each combat he enters begins, before anything in it, the card replaced (amber). Tests: `caique_discards_as_he_enters_combat`.
+
+**112.7** Padraic Conroy: the combat of his block of an older vampire (capacity, live), as it begins, before range in its first round; the random discard replaced. Tests: `padraic_discards_blocking_an_older_vampire`.
+
+**112.8** Carter Vanderweyden: +1 vote per other primogen his controller controls, torpid ones too (D28), in referendums he calls only. Tests: `carter_gets_a_vote_per_other_primogen`.
+
+**112.9** Dorinha, a Confusa: action cards (60.4) cost her 1 more blood, on top of a pool cost. Tests: `dorinha_pays_more_for_action_cards`.
+
+**112.10** Durok's +1 intercept: an action directed at a minion or other card his controller controls, never a bleed of the Methuselah. Tests: `durok_intercepts_actions_at_his_cards`.
+
+**112.11** Eduardo, o Oráculo Mascarado: once each referendum (D7), ready, a random discard (replaced) for +2 votes. Tests: `eduardo_discards_at_random_for_votes`.
+
+**112.12** Elie Sansaricq: once each combat, her strikes' damage landing (§3.20) puts 1 of her controller's corruption counters on the opposing minion, an ally too; damage of hers not from a strike not counted (amber). Tests: `elie_corrupts_the_minion_she_damages`.
+
+**112.13** Gianni D'Angelo: 1 blood for +1 intercept to another Camarilla vampire of his controller attempting to block, while intercept is needed, for the rest of the action; once each turn. Tests: `gianni_lends_intercept_to_another_camarilla_vampire`.
+
+**112.14** Hellene Panhard: after her referendum is held and fails (not canceled), she is stunned: locked, and she does not unlock in her controller's next unlock phase (Mind Numb's stun; the 2025-06-12 Black Chantry "Stun" term, §14.1 of the digest). Red, confirmed by the owner (2026-11-09). Tests: `hellene_is_stunned_after_her_referendum_fails`.
+
+**112.15** Hope: during a bleed she performs, one use for +1 stealth (when needed) or +1 bleed, either (D7, D32). Tests: `hope_burns_once_a_bleed_for_stealth_or_bleed`.
+
+**112.16** Julia Sowinski: a successful bleed (1 or more) gives her controller +1 transfer in that turn's influence phase, after the minion phase; in another Methuselah's turn, nothing (amber). Tests: `julia_gets_a_transfer_after_a_successful_bleed`.
+
+**112.17** Kaiser: ready, once each action, a discarded card printing a Discipline requirement (D29) reduces a bleed against his controller by 1. Tests: `kaiser_discards_a_discipline_card_against_a_bleed`.
+
+**112.18** Kali: ready, once each turn, a random discard (replaced, paid with the cost) takes 1 pool off a location or equipment her Methuselah plays, offered only for a pool cost (D4); one reducer a play, Baldesar Rossellini's (amber). Tests: `kali_discards_at_random_to_cheapen_equipment`.
+
+**112.19** Katherine Wiese: once each turn, 2 blood as she announces a directed action locks a younger vampire of the target Methuselah, targeted as she announces (Alicia Cortez's shape), a locked one a legal no-op. Red, confirmed by the owner (2026-11-09: targeted, so a card barring targeting protects it). Tests: `katherine_locks_a_younger_vampire_as_she_bleeds`.
+
+**112.20** Maria Quitéria and Torque: 1 optional limited additional strike each combat; Tharmas: once each combat, 1 blood for a maneuver, paid as used; Torque: titled vampires of another Methuselah (17.3) enter combat with him while he is ready. Tests: `maria_strikes_again_and_tharmas_maneuvers`, `titled_vampires_enter_combat_with_torque`.
+
+**112.21** Mel, a Guerreira Vibrante: city titles are prince, baron and archbishop, effective (§3.15), not primogen or bishop. Red, confirmed by the owner (2026-11-09: each city title is "associated with a particular city" in the rulebook; the titles she holds now). Tests: `mel_cannot_block_a_city_title`.
+
+**112.22** O Encourado prevents 1 aggravated damage pending on him once each combat round. Tests: `o_encourado_prevents_aggravated_damage`.
+
+**112.23** O Grande Arquiteto: once each turn, after his successful directed action, 1 of his controller's corruption counters on a minion of the target Methuselah. Tests: `o_grande_arquiteto_corrupts_after_a_directed_action`.
+
+**112.24** Qadir al-Asmai: once each game per Qadir, in his controller's unlock phase, in torpor too (D25), a weapon from hand equipped, requirements and cost as normal. Tests: `qadir_equips_a_weapon_once_a_game`.
+
+**112.25** Samira: no votes or ballots against a referendum whose caller is an effective prince, read as she votes. Tests: `samira_cannot_vote_against_a_prince`.
+
+**112.26** Sydnelson: ready and unlocked, before range in any round, any combat of two vampires of other Methuselahs, one Methuselah's two included. Tests: `sydnelson_ends_a_combat_between_others`.
+
+**112.27** Thomas Arturo's lock: a titled vampire of another Methuselah, in torpor too, locked or not (57.10). Tests: `thomas_arturo_locks_a_titled_vampire`.
+
+**112.28** Tubarão: once each referendum, in torpor too, the crypt's top card revealed and moved to the bottom; +1 vote if a vampire of more capacity than his in play (D30). Tests: `tubarao_reveals_his_crypt_top_for_a_vote`.
+
+**112.29** Vritra: a location of a Methuselah controlling more locations than his, read as announced and as it resolves (D1); a location on a minion goes to a minion of his controller's choice (Dominate Kine's; amber). Tests: `vritra_steals_a_location_from_a_richer_methuselah`.
+
+**112.30** Luana do Lago's hand size, Rey's and Tereza Rossi's strength: printed, read live. Tests: `luana_rey_and_tereza_print_their_stats`.
+
+**112.31** Porto de Santos: once each game for its player (D27); from the player clockwise, each Methuselah's top 3 crypt cards (fewer in a smaller crypt), one to the uncontrolled region, the others to the bottom; "up to" read as all three (amber). Tests: `porto_de_santos_moves_a_crypt_card_for_everyone`.
+
+**112.32** Aaron Fletcher: as he enters play, up to three equipment cards of the hand (replaced), then of the ash heap, face down on him; a minion of his controller equips one, named as the action is declared (D1), with Delivery Truck's +1 stealth equip, requirements and cost as normal, copies alike one choice (amber). Tests: `aaron_fletcher_stores_equipment_and_lends_it`.
+
+**112.33** Academia de Campeões: in the discard phase, up to two combat cards printing Potence (D29) from the ash heap to the library's bottom, one at a time. Tests: `academia_moves_potence_combat_cards_to_the_library_bottom`.
+
+**112.34** The Art Hole: played only with a ready primogen; after a successful action of its controller's primogen (a fizzle too), lock to unlock it; titled Camarilla vampires steal it. Tests: `the_art_hole_unlocks_a_successful_primogen`.
+
+**112.35** Backroom Deal: [1] the acting minion a primogen; [2] another ready primogen of the acting Methuselah's, the acting vampire Camarilla; one Backroom Deal each action, by anyone (Veil the Legions'). Tests: `backroom_deal_lends_a_primogens_stealth`.
+
+**112.36** Bar Último Trago: locked as its controller's minion's block is made; neither combatant uses equipment in that combat; each takes 1 environmental damage in its first round's strike resolution ("R" the ranged notation). Tests: `bar_ultimo_trago_hurts_both_combatants`.
+
+**112.37** Cãoera: its steal takes 1 blood or life as a vampire's steal (blood becoming its life); +1 bleed per life above 2, read live; 1 maneuver each combat. Tests: `caoera_bleeds_for_its_life_above_two`.
+
+**112.38** Chave de Braço: "Grapple." a label, no timing (Grasp of the Python prints "Only usable at close range" beside it); [POT] as the round ends, at close range, more damage inflicted (Disarm's comparison) puts the card itself on the opposing minion (D21), -2 strength; a vampire burns 2 blood, an ally 1 life, to burn it (amber). Tests: `chave_de_braco_goes_on_the_outdamaged_minion`.
+
+**112.39** Circulatory System Outlet feeds a ready vampire of its controller's with no blood, one hunting ground a turn. Tests: `circulatory_system_outlet_feeds_an_empty_vampire`.
+
+**112.40** Convento da Penha: during a political action, while stealth is needed, its controller locks it free; another Methuselah pays it 1 pool, a cost, to use it for their acting vampire. Tests: `convento_da_penha_sells_stealth_for_a_pool`.
+
+**112.41** Deadly Secrets [OBF]: another vampire forced to abstain (Telepathic Vote Counting's); its player draws 1 after resolution if the referendum passed, the draw made (Michael Luther's "may draw"; amber). Tests: `deadly_secrets_silences_and_draws_on_success`.
+
+**112.42** Destilaria Estrela da Paraíba: during an action directed at its controller (a card of theirs too), +1 intercept to their attempting Nosferatu while needed; that Nosferatu blocking, +1 hand size in the combat. Tests: `destilaria_gives_a_nosferatu_intercept_and_hand_size`.
+
+**112.43** Double Spiral Corporation: the discard lock at any impulse (The Barrens'), the transfer lock in its controller's influence phase: one lock a turn. Tests: `double_spiral_corporation_locks_to_discard`.
+
+**112.44** Emboldened Councilor's unlock and block attempt: the usual blocking rules. Tests: `emboldened_councilor_unlocks_a_primogen_to_block`.
+
+**112.45** Father Anthony: a vampire in combat with him pays 1 more blood for cards it plays using a Discipline (D29); once each combat, strike: dodge or strike: stun (close range, as it lands; the stun as 112.14). Tests: `father_anthony_stuns_the_opposing_minion`, `father_anthony_taxes_discipline_cards`.
+
+**112.46** Hálito Negro: the retainers' damage lands with the strike, dodged with it, prevented as retainer damage. Tests: `halito_negro_hits_the_opposing_retainers`.
+
+**112.47** Iara: as a minion attempts to block an action of her controller's minion, locked, -1 intercept to it; any block of that action then is her combat with the blocker, locked, the acting minion out of combat and still locked. Red, confirmed by the owner (2026-11-09: any block, the -1 minion's or another's). Tests: `iara_takes_the_blocked_combat`.
+
+**112.48** Information Exchange: the chosen Methuselah one given points; each burns their own points; up to one card of the chosen hand discarded, replaced; terms are no target (D6). Tests: `information_exchange_discards_from_the_chosen_hand`.
+
+**112.49** Lambreta's -1 intercept: as a minion attempts to block its bearer's action (Form of the Bat's moment), once by the lock. Tests: `lambreta_slows_a_blocker`.
+
+**112.50** Meia Lua: the basic level two strikes (dodge, hand +1); the superior a dodge with a limited additional hand strike at +2. Tests: `meia_lua_offers_its_three_strikes`.
+
+**112.51** Mulher de Branco: entering play, any three cards of the ash heap removed (burned vampires too, §3.18) or burned, the burn offered only before the first removal; after a successful bleed against her controller, shuffled into the library (not burned), then 2 damage on the acting minion. Tests: `mulher_de_branco_pays_three_ash_cards_then_strikes_back`.
+
+**112.52** Palavra Sagrada: once each action, the ready unlocked Caitiff named and locked as it is used gives another vampire of its controller's +1 stealth or +1 intercept, while needed. Tests: `palavra_sagrada_locks_a_caitiff_for_stealth`.
+
+**112.53** Respected Representative: a title card, Regent's shape; primogen not unique, no contest. Tests: `respected_representative_makes_a_primogen`.
+
+**112.54** Ron Zertnert: from out of the combat of another minion of his controller's, at the press step, locks for 1 unpreventable damage on its opponent at once. Tests: `ron_zertnert_hits_the_opponent_of_his_controllers_combatant`.
+
+**112.55** St. Patrick's Cathedral: the top three reordered, then the move to the bottom chosen after the look, their order kept. Tests: `st_patricks_reorders_then_bottoms_the_top_three`.
+
+**112.56** Vial of Zapathasura's Vitae: the Discipline chosen as played (D1); its strength and level a Ravnos bearer's only (D31); never moved or stolen; burned (a contest's yield too), its vampire to torpor. Tests: `the_vial_raises_a_discipline_and_its_burn_sends_to_torpor`.

@@ -128,11 +128,9 @@ def cost(card, kind):
     return c["value"] if c and c["type"] == kind else None
 
 
-def set_codes(card, skip=()):
-    """The codes of the sets the card is printed in ("V5", "EoG"), but for
-    its prints in the `skip` bundles, (set code, bundle code) pairs."""
-    return {p["set"]["code"] for p in card["prints"] for o in p["occurrences"]
-            if (p["set"]["code"], o["bundle"]) not in skip}
+def set_codes(card):
+    """The codes of the sets the card is printed in ("V5", "EoG")."""
+    return {p["set"]["code"] for p in card["prints"] if p["occurrences"]}
 
 
 def in_bundle(card, codes):
@@ -141,18 +139,18 @@ def in_bundle(card, codes):
                for p in card["prints"] for o in p["occurrences"])
 
 
-def sets(card, skip=()):
+def sets(card, packs=()):
     """{set name: [{release_date, copies, precon (a bundle's name)}]}, one
-    entry an occurrence, but for those in the `skip` bundles (`set_codes`)."""
+    entry an occurrence; the `packs` bundles, (set code, bundle code) pairs
+    typed "Precon" but sold as card packs, no deck, name no precon."""
     out = {}
     for p in card["prints"]:
-        occurrences = [o for o in p["occurrences"] if (p["set"]["code"], o["bundle"]) not in skip]
-        if not occurrences:
+        if not p["occurrences"]:
             continue
         entries = out.setdefault(p["set"]["name"], [])
-        for o in occurrences:
+        for o in p["occurrences"]:
             e = {"release_date": o["date"] or p["set"]["release_date"]}
-            if o["type"] == "Precon" and o["bundle_name"]:
+            if o["type"] == "Precon" and o["bundle_name"] and (p["set"]["code"], o["bundle"]) not in packs:
                 e["precon"] = o["bundle_name"]
             if o["copies"]:
                 e["copies"] = o["copies"]
