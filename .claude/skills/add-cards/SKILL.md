@@ -32,10 +32,10 @@ https://engine.krcg.org/admin/unsupported > demand.json`, run by whoever
 holds the token, never printed). Its summary goes in the cards board's
 header at the round's end.
 
-A round is whole sets (owner, 2026-10-30: "we are now working set by set
-and stopped running twda analysis to decide what cards to add"; promos
-skipped): offer the owner the incomplete sets from `--sets` and let the
-owner pick. `python3 scripts/round_choice.py <vtes.json> --twda
+A round is whole sets, the cards board's top line (owner, 2026-10-30: "we
+are now working set by set and stopped running twda analysis to decide what
+cards to add"; 2026-11-09: board lines by groups of sets, every card in the
+end, promos last). `python3 scripts/round_choice.py <vtes.json> --twda
 <twda.json> --set NAME… --steps 0 --cut 0` prints the chosen sets' missing
 ids and what `gen_twda.py`'s rules keep with them (kept, recent kept: a
 set's versions can displace kept decks, `VERSIONS`, `SAME_CRYPT`,

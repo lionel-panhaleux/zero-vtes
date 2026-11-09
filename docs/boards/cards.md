@@ -29,6 +29,22 @@ A shrinking list (CLAUDE.md "Harness"; the milestone tokens: roadmap
 behaviour in cards already defined first (beta games meet them), then a round of
 cards, then one review line before the next round; the cleanup lines ride with
 the rounds that meet their cards (the ship skill's scope rule). Rounds go set by
-set, the owner picking the sets; the TWDA analysis no longer chooses the cards,
-and promos are skipped (owner, 2026-10-30).
+set, the TWDA analysis no longer choosing the cards (owner, 2026-10-30); the
+lines below group the incomplete sets, newest first, a set's reprint with it,
+promo-only cards last (owner, 2026-11-09: "We aim to add all the cards
+ultimately. Let's work set by set. You can make board lines to work by groups
+that make sense"). A line's count is the cards it adds after the lines above it
+(an older set is mostly reprinted in a newer one); done when `coverage.py
+--sets` shows its sets at 100%.
+
+- **Complete Heirs to the Blood and its 2018 reprint**: 178 cards (62 crypt, 116 library). Done when `coverage.py --sets` shows both at 100%. Docs: rules-qa (a new batch), rules-digest, engine.md for a new mechanism, this header's coverage.
+- **Complete Keepers of Tradition and its 2018 reprint**: 166 cards (63 crypt, 103 library). Done when `coverage.py --sets` shows both at 100%. Docs: rules-qa (a new batch), rules-digest, engine.md for a new mechanism, this header's coverage.
+- **Complete Lords of the Night**: 172 cards (52 crypt, 120 library). Done when `coverage.py --sets` shows it at 100%. Docs: rules-qa (a new batch), rules-digest, engine.md for a new mechanism, this header's coverage.
+- **Complete Third Edition**: 212 cards (74 crypt, 138 library). Done when `coverage.py --sets` shows it at 100%. Docs: rules-qa (a new batch), rules-digest, engine.md for a new mechanism, this header's coverage.
+- **Complete Legacies of Blood**: 236 cards (63 crypt, 173 library). Done when `coverage.py --sets` shows it at 100%. Docs: rules-qa (a new batch), rules-digest, engine.md for a new mechanism, this header's coverage.
+- **Complete Kindred Most Wanted and Tenth Anniversary**: 269 cards (163 crypt, 106 library; Tenth is mostly vampires). Done when `coverage.py --sets` shows both at 100%. Docs: rules-qa (a new batch), rules-digest, engine.md for a new mechanism, this header's coverage.
+- **Complete Black Hand and Camarilla Edition**: 209 cards (97 crypt, 112 library). Done when `coverage.py --sets` shows both at 100%. Docs: rules-qa (a new batch), rules-digest, engine.md for a new mechanism, this header's coverage.
+- **Complete Bloodlines and Final Nights**: 234 cards (127 crypt, 107 library). Done when `coverage.py --sets` shows both at 100%. Docs: rules-qa (a new batch), rules-digest, engine.md for a new mechanism, this header's coverage.
+- **Complete the 1994–2000 sets and Print on Demand** (Sabbat War, Sabbat, Ancient Hearts, Dark Sovereigns, Vampire: The Eternal Struggle, Jyhad): 208 cards (64 crypt, 144 library; their other cards reprinted above). Done when `coverage.py --sets` shows every one of them at 100%. Docs: rules-qa (a new batch), rules-digest, engine.md for a new mechanism, this header's coverage.
+- **Complete the promo-only cards**: 13 library cards, the last of the pool (promos were skipped until the owner's 2026-11-09 "all the cards"). Done when `coverage.py` shows crypt and library at 100% and 51 of 51 sets complete. Docs: rules-qa (a new batch), rules-digest, this header's coverage.
 
