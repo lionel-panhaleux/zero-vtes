@@ -49,6 +49,9 @@ Before review, in the change itself:
   "Checks"); the tests that only drove the work dropped, the main path
   and the failure modes that matter kept (CLAUDE.md "Harness");
 - every comment repeating a page, another comment or the code deleted;
+- every guard, clamp or fallback for a state no input of today's pool
+  or protocol reaches deleted (the reviewer's item 5; owner,
+  2026-11-09: it removed one in 10 commits between two upkeeps);
 - for each behaviour the change writes into a standing page (a rule, a
   guarantee, a "never"), a test that fails without it, shown so: a stub
   probe (the behaviour removed or broken, the test failing, then
