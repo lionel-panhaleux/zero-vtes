@@ -61,11 +61,6 @@ decision: the owner's.
   opens to more players), bot-against-bot not degrading (owner,
   2026-11-09: the head-to-head against p14, flat since p10 and blind to
   the humans' 79%, is the not-degrading check only).
-- **M:recent-decks** — beta players meet bots playing recent TWDA decks,
-  and teach the bot the decks it plays worst. Done when a game on sc-bot
-  deals a TWDA deck from the last six months to a bot, the deck screen's
-  "Teach the bot" tab lists the decks it plays worst, and the owner has
-  seen both.
 
 ## Objectives
 
