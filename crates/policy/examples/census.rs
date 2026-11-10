@@ -15,14 +15,9 @@ use zvtes::decision::Choice;
 use zvtes::decks::Deck;
 use zvtes::game::{Engine, Step};
 use zvtes::library::LIBRARY;
-use zvtes_policy::{Net, NetAgent};
+use zvtes_policy::{choice_kind, Net, NetAgent};
 
-fn kind(o: &Choice) -> String {
-    let s = format!("{o:?}");
-    s.split([' ', '(', '{']).next().unwrap_or("").to_string()
-}
-
-/// `kind`, an ability with its source's name.
+/// `zvtes_policy::choice_kind`, an ability with its source's name.
 fn named(e: &Engine, o: &Choice) -> String {
     match *o {
         Choice::UseAbility {
@@ -35,7 +30,7 @@ fn named(e: &Engine, o: &Choice) -> String {
             };
             format!("UseAbility:{name}#{ability}")
         }
-        _ => kind(o),
+        _ => choice_kind(o),
     }
 }
 
@@ -65,7 +60,7 @@ fn main() {
                 if filter.is_some() {
                     named(&e, o)
                 } else {
-                    kind(o)
+                    choice_kind(o)
                 }
             };
             let mut kinds: Vec<String> = req.options.iter().map(name).collect();

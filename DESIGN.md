@@ -758,6 +758,19 @@ run. The full run journal to p17, cut on 2026-11-09: `git show
   the position's turn + 20; `--start-winner` puts the learner in the winner's
   seat of a human win (p17). The trainer reads players' games only (played
   out, a human seat, not a test client's; owner, 2026-10-29).
+- The exploration share (`--explore`, `--explore-kinds`; owner, 2026-11-09:
+  explore what the network collapsed): a trained network's decision
+  offering options of the named (window, kind) pairs (**Missed
+  opportunities** below; the pool's `opt_explore`) is drawn, at the share's
+  chance, from the policy flattened over them (each pair offered equally
+  likely, within it the logits over `--explore-temperature`, 4). PPO's
+  ratio is taken against that mixture: a collapsed option tried this way
+  has a ratio far under the clip's floor, so with a negative advantage it
+  moves nothing and with a positive one only by that small ratio; the
+  share acts mainly through the positions it reaches.
+  `kl` and `clipfrac` stay measured against the policy (importance
+  weighted); `explorable`, `explored` count the decisions. `--deck` pins
+  the learner's deck at its tables and evaluations (the probe's).
 - **Human games as data** (owner, 2026-10-03: "use the game log as a teaching
   vector"): a record replays exactly, every decision as (observation,
   options, choice) for any seat (`zvtes_py.replay_decisions`,
@@ -977,7 +990,7 @@ ActionBlock BurnBloodForIntercept 3 of 8):
 
 Where the decisions are many, blocks and combat barely collapse
 (ActionBlock Pass 1.4% / 6.2%, ActionBlocksDeclined Pass 2.5% / 5.1%); the
-turn's own choices do. The exploration share (training board) explores the
+turn's own choices do. The exploration share (**Training**) explores the
 kinds collapsed in both groups: the minion phase's choice of what to do
 (MinionPhase TakeAction, Play, UseAbility: 1,163 imitated decisions, the
 most) and the influence phase's crypt draws and transfers

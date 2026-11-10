@@ -125,16 +125,6 @@ impl Agreement {
     }
 }
 
-/// A choice's kind: its `Choice` variant's name.
-fn kind(c: &zvtes::decision::Choice) -> String {
-    let debug = format!("{c:?}");
-    debug
-        .split(['(', ' ', '{'])
-        .next()
-        .unwrap_or_default()
-        .to_string()
-}
-
 /// The winner's decisions read back, by (window, kind of the human's
 /// choice).
 fn agreement(net: &Net, w: &Won) -> BTreeMap<(String, String), Agreement> {
@@ -157,7 +147,10 @@ fn agreement(net: &Net, w: &Won) -> BTreeMap<(String, String), Agreement> {
             let top = (0..logits.len()).max_by(|&a, &b| logits[a].total_cmp(&logits[b]));
             let logp = (logits[i] - max) as f64 - sum.ln();
             let a = by
-                .entry((format!("{:?}", req.window), kind(&req.options[i])))
+                .entry((
+                    format!("{:?}", req.window),
+                    zvtes_policy::choice_kind(&req.options[i]),
+                ))
                 .or_default();
             a.n += 1;
             a.same += (top == Some(i)) as u64;

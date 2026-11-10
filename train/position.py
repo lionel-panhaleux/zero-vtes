@@ -69,7 +69,7 @@ def self_play(policy, critic, cfg, games, seats, seed, device, budget=20_000):
     while done < games:
         obs = pool.observe()
         feats = pool.positions()
-        actions, _, _ = act({0: policy}, obs, device, rng)
+        actions, *_ = act({0: policy}, obs, device, rng)
         idx = np.arange(len(obs["tok_n"]))
         part = shaped({k: obs[k] for k in CRITIC_KEYS}, idx)
         args = [torch.from_numpy(part[k]).to(device) for k in CRITIC_KEYS]
