@@ -7,3 +7,4 @@ __pycache__/
 /records
 data/server-records/
 data/sweeps/
+/.claude/worktrees/

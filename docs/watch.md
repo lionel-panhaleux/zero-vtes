@@ -17,10 +17,10 @@ Whether an item is due is read from its evidence (a report's date, a
 counter), never from state kept here. The harvest and the sweeps run on
 `main`'s tip with no edit, so not in the shared checkout (the lines'
 work in progress is there): Z-main keeps a detached checkout for them
-(and for a release's checks), `git worktree prune` then `git worktree add
---detach <job tmp>/pin main` when gone (a restart gives a new job tmp),
-`git -C <job tmp>/pin checkout --detach main` before each run; both write
-to the main checkout's ignored `data/`.
+(and for a release's checks), `git worktree prune` then `git worktree
+add --detach .claude/worktrees/pin main` when gone, `git -C
+.claude/worktrees/pin checkout --detach main` before each run; both
+write to the main checkout's ignored `data/`.
 
 ## Recurring
 

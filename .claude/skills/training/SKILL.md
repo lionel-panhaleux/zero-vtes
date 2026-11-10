@@ -46,7 +46,7 @@ checks it did not get worse).
    in them: `humanset` reports them apart, and a gain is read on the newer
    wins, which no ancestor met.
 2. **Launch** from a dedicated worktree at the launch commit (`git worktree
-   add ../zero-vtes-pN <sha>`, `uv sync` there: a fresh `.venv` builds the
+   add .claude/worktrees/pN <sha>`, `uv sync` there: a fresh `.venv` builds the
    extension at that commit): `uv run` rebuilds from whatever is on disk,
    and other sessions leave edits in the shared checkout. `nohup uv run
    python -m train.ppo --league true --resume <abs>/runs/pPREV/best.pt

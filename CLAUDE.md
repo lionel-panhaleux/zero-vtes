@@ -150,12 +150,14 @@ with its board companion), as applied here:
   and it ends the message (text written before a tool call is not shown).
 - **Where this repo departs from the pattern, and why**:
   - worktrees only for a pinned job, never for development: a training
-    run pins its engine (`../zero-vtes-pN`), a sweep or a harvest runs on
-    a detached checkout at `main`'s tip (docs/watch.md); the lines work
-    trunk-based in the shared checkout (owner, 2026-11-08); one
-    exception, a cards round's parallel implementers: each in a
-    temporary worktree, merged back by Z-add into the shared checkout
-    before the round's review, then removed (owner, 2026-11-10);
+    run pins its engine (`.claude/worktrees/pN`), a sweep or a harvest
+    runs on a detached checkout at `main`'s tip (docs/watch.md); every
+    worktree under the ignored `.claude/worktrees/<name>`, none beside
+    the repository (owner, 2026-11-10); the lines work trunk-based in
+    the shared checkout (owner, 2026-11-08); one exception, a cards
+    round's parallel implementers: each in a temporary worktree, merged
+    back by Z-add into the shared checkout before the round's review,
+    then removed (owner, 2026-11-10);
   - four line skills beside the three loop skills: each line's procedure
     is long and read by that line only; `ship` calls it;
   - four boards, one per line: each session reads its own;
@@ -197,7 +199,7 @@ ranking between lines and the owner's deferrals). Lines come in through
   host and server, performance, and the harness itself (CLAUDE.md, the
   loop skills, `docs/index.md`).
 - **Training** (`training` skill): runs from a pinned worktree
-  (`../zero-vtes-pN`); learns from the games humans play online.
+  (`.claude/worktrees/pN`); learns from the games humans play online.
 - **Platforms** (`sc-change` skill): the Succubus Club fork, its own
   platform (Thomas's upstream deferred); `docs/platforms/sc.md` is the
   log.

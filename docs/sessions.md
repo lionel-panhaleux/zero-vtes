@@ -75,7 +75,7 @@ work" and "Sessions"). Read CLAUDE.md, docs/boards/training.md, DESIGN
 §5 and §11.2, and the training, ship and intake skills.
 
 At start: ListAgents to find Z-main, Z-engine, Z-add and Z-succubus; check
-the runs in flight (runs/<name> in their pinned ../zero-vtes-pN
+the runs in flight (runs/<name> in their pinned .claude/worktrees/pN
 worktrees). Take the training board's top line through ship. A run takes
 the engine at its start from main and stays pinned; a run's weights are
 served by the measure (the training skill's "Serve"), Z-main deploying

@@ -1,7 +1,7 @@
 # Training board
 
 Goal: a really great opponent (roadmap objective A), trained in runs from
-a pinned worktree (`../zero-vtes-pN`) and fed by the games humans play on
+a pinned worktree (`.claude/worktrees/pN`) and fed by the games humans play on
 `engine.krcg.org`. Skill: `training`. Docs: DESIGN §5 (the agent), §11.2
 "Policy surface and training runs" (the agent's surface, what measurement
 settled, the measures, one entry a run), `data/records/README.md`, the
