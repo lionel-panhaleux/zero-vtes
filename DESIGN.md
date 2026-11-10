@@ -874,6 +874,25 @@ errors)
   `--apart` scores the held-out five apart from the newer wins; `--map`
   breaks the agreement down by window and kind of the human's choice, with
   the share under 1% (**Missed opportunities** below).
+- **The exploitability probe** (owner, 2026-11-09; 2026-11-10 at `066f47c`):
+  a learner from p17 on one deck (`--deck`) against p17 frozen at every other
+  seat, no imitation or starts, p17's nudges and served temperature, `--lr
+  1e-4 --lr-final 1`; its `vs_frozen4/5` (512 games each) after 100
+  iterations, against its seed's baseline (`--lr 0`, one iteration). On
+  Nosferatu, VP a seat at 4 / 5 seats, each ± 0.13–0.15:
+
+  | | Seed 0 | Seed 1 | Mean |
+  |---|---|---|---|
+  | p17 (baseline) | 1.20 / 1.32 | 1.17 / 1.20 | 1.22 |
+  | Plain PPO | 1.25 / 1.40 | 1.36 / 1.30 | 1.33 (+0.10 ± 0.10) |
+  | Share 0.1 | 1.16 / 1.12 | 1.22 / 1.22 | 1.18 (−0.05 ± 0.10) |
+
+  Plain PPO gains on both seeds; the exploration share (**Training**, the
+  map's five pairs, ~10% of the explorable decisions drawn) does not, below
+  plain PPO on both (−0.15 ± 0.10). The probe shows exploitation, not the
+  share; the reading: the share's tries teach a collapsed option almost
+  nothing (**Training**), while its detours spoil the training games'
+  returns. Not step 4 of the training skill.
 - **The critic against the position** (owner with Tom, 2026-10-22; `uv run
   python -m train.position`; `crates/env/src/position.rs`): the explained
   variance of each seat's result by the decision's share of the game, for the
@@ -919,8 +938,9 @@ numbers)
   (p5-self, p6-frozen).
 - An exploiter with the learner's reward and weights never led the learner
   (the league runs); a learner from p14 against p14 alone stayed level for 300
-  iterations (p17): plain PPO at this scale finds nothing even against a fixed
-  opponent.
+  iterations (p17). On one deck at a learning rate of 1e-4, plain PPO gains
+  ~0.1 VP on its frozen self in 100 iterations, at two errors; the exploration
+  share (0.1) loses it, −0.15 VP at two errors (the exploitability probe).
 - An option the network gives ~0 probability is never sampled, so never
   learned (the crypt draw: a median 6e-8 where the owner drew 11%); faded
   nudges let every nudged behaviour return (p8).

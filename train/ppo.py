@@ -265,7 +265,7 @@ class Config:
     # The learner's deck at every table not begun from a human game,
     # training and evaluation, over the weak decks' routing (a deck index,
     # `zvtes_py.deck_names`; -1: drawn): the exploitability probe's one
-    # deck at a time (the training skill).
+    # deck at a time (DESIGN §11.2 "The measures").
     deck: int = -1
     # The human winners' choices with a weak deck drawn into the imitation
     # minibatches `bc_weak_weight` times as often as the others (owner,
