@@ -16,9 +16,18 @@
 //!   anew each game (`zvtes_host::start`); the network's game wins and
 //!   VPs from where the human won.
 //!
+//! `--apart <part,…>`: the wins whose file name holds one of the parts are
+//! scored apart from the others (the training skill's held-out five, starts
+//! of every ancestor's tables). `--map`: the agreement by window and kind of
+//! the human's choice, with the share of the human's choices the network
+//! gives under 1% ("collapsed": the missed-opportunity map, DESIGN §11.2).
+//! With 0 games a position, no game is replayed.
+//!
 //! `cargo run -p zvtes-policy --profile ci --example humanset -- <network.zvp>
-//! <bots.zvp> <games a position> <record.json | records dir>...`
+//! <bots.zvp> <games a position> [--apart <part,…>] [--map]
+//! <record.json | records dir>...`
 
+use std::collections::BTreeMap;
 use std::sync::Arc;
 use zvtes::agent::Agent;
 use zvtes::game::{Engine, Step};
@@ -85,13 +94,54 @@ fn won(path: &str) -> Result<Won, String> {
     })
 }
 
-/// The winner's decisions read back: (with an alternative, the network's
-/// favourite was the human's, the log-probability of the human's).
-fn agreement(net: &Net, w: &Won) -> (u64, u64, f64) {
+/// The winner's decisions with an alternative: how many, how many the
+/// network's favourite was the human's choice, the sum of the
+/// log-probabilities it gives that choice, how many under 1%.
+#[derive(Clone, Copy, Default)]
+struct Agreement {
+    n: u64,
+    same: u64,
+    logp: f64,
+    collapsed: u64,
+}
+
+impl Agreement {
+    fn add(&mut self, o: &Agreement) {
+        self.n += o.n;
+        self.same += o.same;
+        self.logp += o.logp;
+        self.collapsed += o.collapsed;
+    }
+
+    fn line(&self) -> String {
+        let n = self.n as f64;
+        format!(
+            "{} decisions, favourite {:.1}%, mean log-probability {:.3}, under 1% {:.1}%",
+            self.n,
+            100.0 * self.same as f64 / n,
+            self.logp / n,
+            100.0 * self.collapsed as f64 / n
+        )
+    }
+}
+
+/// A choice's kind: its `Choice` variant's name.
+fn kind(c: &zvtes::decision::Choice) -> String {
+    let debug = format!("{c:?}");
+    debug
+        .split(['(', ' ', '{'])
+        .next()
+        .unwrap_or_default()
+        .to_string()
+}
+
+/// The winner's decisions read back, by (window, kind of the human's
+/// choice).
+fn agreement(net: &Net, w: &Won) -> BTreeMap<(String, String), Agreement> {
     let replay = Replay::new(&w.record).expect("read once");
     let mut e: Engine = replay.deal();
     let mut reader = replay.reader();
-    let (mut n, mut same, mut logp) = (0, 0, 0.0);
+    let mut by = BTreeMap::<(String, String), Agreement>::new();
     while let Step::Decision(req) = e.run() {
         if let Some(i) = replay.elided(&e, &req) {
             e.choose(i);
@@ -105,13 +155,18 @@ fn agreement(net: &Net, w: &Won) -> (u64, u64, f64) {
             let max = logits.iter().copied().fold(f32::MIN, f32::max);
             let sum: f64 = logits.iter().map(|&l| ((l - max) as f64).exp()).sum();
             let top = (0..logits.len()).max_by(|&a, &b| logits[a].total_cmp(&logits[b]));
-            n += 1;
-            same += (top == Some(i)) as u64;
-            logp += (logits[i] - max) as f64 - sum.ln();
+            let logp = (logits[i] - max) as f64 - sum.ln();
+            let a = by
+                .entry((format!("{:?}", req.window), kind(&req.options[i])))
+                .or_default();
+            a.n += 1;
+            a.same += (top == Some(i)) as u64;
+            a.logp += logp;
+            a.collapsed += (logp < 0.01f64.ln()) as u64;
         }
         e.choose(i);
     }
-    (n, same, logp)
+    by
 }
 
 /// The network in the winner's seat from decision `at`: its half VPs and
@@ -144,15 +199,28 @@ fn replayed(nets: [&Arc<Net>; 2], w: &Won, at: usize, seed: u64) -> (u32, bool) 
 
 fn main() {
     let mut args = std::env::args().skip(1);
-    let usage = "usage: humanset <network.zvp> <bots.zvp> <games a position> <record.json | records dir>...";
+    let usage = "usage: humanset <network.zvp> <bots.zvp> <games a position> [--apart <part,…>] [--map] <record.json | records dir>...";
     let load = |p: String| Arc::new(Net::load(&std::fs::read(p).expect(usage)).expect("a policy"));
     let (net, bots) = (
         load(args.next().expect(usage)),
         load(args.next().expect(usage)),
     );
     let games: u64 = args.next().and_then(|n| n.parse().ok()).expect(usage);
+    let (mut apart, mut map) = (Vec::<String>::new(), false);
     let mut paths = Vec::new();
-    for a in args {
+    while let Some(a) = args.next() {
+        match a.as_str() {
+            "--apart" => {
+                let parts = args.next().expect(usage);
+                apart.extend(parts.split(',').map(str::to_string));
+                continue;
+            }
+            "--map" => {
+                map = true;
+                continue;
+            }
+            _ => {}
+        }
         match std::fs::read_dir(&a) {
             Ok(dir) => {
                 let mut files: Vec<String> = dir
@@ -206,12 +274,26 @@ fn main() {
             .flat_map(|p| p.join().expect("a thread"))
             .collect()
     });
-    let (mut n, mut same, mut logp) = (0, 0, 0.0);
-    println!("game | seat | agreement (decisions) | from each position: wins, VP a game");
+    let is_apart = |w: &Won| apart.iter().any(|p| w.name.contains(p.as_str()));
+    // (the wins apart, the others): the agreement by (window, kind).
+    let mut groups = [BTreeMap::new(), BTreeMap::new()];
+    println!(
+        "game | seat | agreement (decisions){}",
+        if games > 0 {
+            " | from each position: wins, VP a game"
+        } else {
+            ""
+        }
+    );
     for (k, w) in set.iter().enumerate() {
-        let (dn, ds, dl) = agreement(&net, w);
-        (n, same, logp) = (n + dn, same + ds, logp + dl);
-        let points: Vec<String> = (0..POINTS.len())
+        let by = agreement(&net, w);
+        let mut game = Agreement::default();
+        for (key, a) in &by {
+            game.add(a);
+            let g: &mut BTreeMap<_, Agreement> = &mut groups[!is_apart(w) as usize];
+            g.entry(key.clone()).or_default().add(a);
+        }
+        let points: Vec<String> = (0..POINTS.len() * (games > 0) as usize)
             .map(|p| {
                 let r: Vec<_> = results.iter().filter(|r| r.0 == k && r.1 == p).collect();
                 let wins = r.iter().filter(|r| r.3).count();
@@ -220,19 +302,36 @@ fn main() {
             })
             .collect();
         println!(
-            "{} | {} | {:.0}% ({dn}) | {}",
+            "{}{} | {} | {:.0}% ({}){}",
             w.name,
+            if is_apart(w) { " (apart)" } else { "" },
             w.seat,
-            100.0 * ds as f64 / dn.max(1) as f64,
-            points.join(" | ")
+            100.0 * game.same as f64 / game.n.max(1) as f64,
+            game.n,
+            points.iter().map(|p| format!(" | {p}")).collect::<String>()
         );
     }
-    println!(
-        "agreement: {:.1}% of {n} decisions, mean log-probability of the human's choice {:.3}",
-        100.0 * same as f64 / n.max(1) as f64,
-        logp / n.max(1) as f64
-    );
-    for (p, (_, label)) in POINTS.iter().enumerate() {
+    let labels = ["the wins apart", "the other wins"];
+    for (g, label) in groups.iter().zip(labels) {
+        if g.is_empty() {
+            continue;
+        }
+        let mut all = Agreement::default();
+        g.values().for_each(|a| all.add(a));
+        println!("agreement, {label}: {}", all.line());
+        if map {
+            let mut rows: Vec<_> = g.iter().collect();
+            rows.sort_by_key(|a| std::cmp::Reverse(a.1.n));
+            for ((window, kind), a) in rows {
+                println!("  {window} | {kind} | {}", a.line());
+            }
+        }
+    }
+    for (p, (_, label)) in POINTS
+        .iter()
+        .enumerate()
+        .take(POINTS.len() * (games > 0) as usize)
+    {
         let r: Vec<_> = results.iter().filter(|r| r.1 == p).collect();
         let wins = r.iter().filter(|r| r.3).count();
         let vp = r.iter().map(|r| r.2 as f64).sum::<f64>() / 2.0 / r.len().max(1) as f64;

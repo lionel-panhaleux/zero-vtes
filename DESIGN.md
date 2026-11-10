@@ -858,6 +858,9 @@ errors)
   network's agreement with the human's choices, and from a quarter, half and
   three quarters of each game the network in the human's seat against the
   served bots, its wins (20 games a position) — the human-facing measure.
+  `--apart` scores the held-out five apart from the newer wins; `--map`
+  breaks the agreement down by window and kind of the human's choice, with
+  the share under 1% (**Missed opportunities** below).
 - **The critic against the position** (owner with Tom, 2026-10-22; `uv run
   python -m train.position`; `crates/env/src/position.rs`): the explained
   variance of each seat's result by the decision's share of the game, for the
@@ -942,6 +945,43 @@ rounds 4–5, landing twice the blocks from round 8. Hence the order of work
 (owner, 2026-11-09; the training board): the map of the choices humans win
 with that the network has collapsed, exploration over them, exploiters,
 judged on the human-facing measures (roadmap M:stronger-bot).
+
+**Missed opportunities** (2026-11-10; `humanset <p17.zvp> <p17.zvp> 0
+--apart <the five> --map data/records data/server-records`): p17
+(`f426338f6c80`, its plain logits, as imitation reads them) at each
+decision with an alternative of every human win the engine reads whole —
+49 wins p17's ancestors imitated (12,503 decisions; imitation raised these
+probabilities, so their collapse is a floor) and 3 of the five held out
+since p10 (880; the other two stop partway on today's engine). p17's
+favourite is the human's choice in 75.8% / 54.5% of them, the mean
+log-probability of that choice −0.83 / −1.64, under 1% ("collapsed")
+3.3% / 8.8%. By window and kind of the human's choice, each row with 50
+or more imitated decisions and 5% or more of them collapsed (decisions,
+favourite, mean log-probability, collapsed; smaller rows collapse too, on
+too few decisions to rank: the referendum's Play 11.8% of 34 and
+UseAbility 16.7% of 30, CombatDetermineRange UseAbility 19.0% of 21,
+ActionBlock BurnBloodForIntercept 3 of 8):
+
+| Window | Kind | Imitated wins | Held out |
+|---|---|---|---|
+| InfluenceTransfers | DrawCrypt | 65, 51%, −3.47, 26.2% | 5, 0%, −11.64, 100% |
+| MinionPhase | UseAbility | 157, 39%, −2.93, 21.7% | 26, 4%, −5.26, 61.5% |
+| MinionPhase | TakeAction | 448, 48%, −2.07, 11.2% | 44, 25%, −3.50, 25.0% |
+| ActionAsAnnounced | Pass | 217, 86%, −0.98, 9.7% | 26, 77%, −0.53, 0% |
+| MinionPhase | Play | 558, 60%, −1.51, 7.5% | 49, 37%, −2.54, 18.4% |
+| ActionBlock | UseAbility | 61, 44%, −1.65, 6.6% | 3, 0%, −3.81, 33.3% |
+| ActionBlock | Play | 452, 65%, −1.17, 6.0% | 22, 68%, −1.38, 9.1% |
+| InfluenceTransfers | Withdraw | 52, 81%, −0.77, 5.8% | 1, 100%, −0.22, 0% |
+| MinionPhase | Pass | 157, 63%, −1.52, 5.7% | 7, 14%, −1.65, 0% |
+| InfluenceTransfers | Transfer | 1,073, 80%, −0.85, 5.3% | 63, 49%, −2.19, 12.7% |
+
+Where the decisions are many, blocks and combat barely collapse
+(ActionBlock Pass 1.4% / 6.2%, ActionBlocksDeclined Pass 2.5% / 5.1%); the
+turn's own choices do. The exploration share (training board) explores the
+kinds collapsed in both groups: the minion phase's choice of what to do
+(MinionPhase TakeAction, Play, UseAbility: 1,163 imitated decisions, the
+most) and the influence phase's crypt draws and transfers
+(InfluenceTransfers DrawCrypt, Transfer).
 
 **The runs** (one entry a run, oldest first: its launch, the flags it changed,
 its numbers, what it settled; the last run's command in full, the next

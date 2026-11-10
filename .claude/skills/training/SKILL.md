@@ -65,8 +65,10 @@ checks it did not get worse).
 4. **Evaluate**, pN and the served weights alike, on the run's engine:
    `uv run python -m train.export runs/pN/best.pt runs/pN/best.zvp`, then
    - `humanset` (`cargo run -p zvtes-policy --profile ci --example humanset
-     -- <pN.zvp> <served.zvp> 20 <records>`) on the held-out wins of step 1:
-     the agreement and the wins from the positions — the human-facing
+     -- <pN.zvp> <served.zvp> 20 --apart <the five> --map <records>`) on the
+     held-out wins of step 1, the five scored apart: the agreement, by window
+     and choice kind with the share collapsed under 1% (DESIGN §11.2 "Missed
+     opportunities"), and the wins from the positions — the human-facing
      measure;
    - `decks.rs`: pN at one seat against three of the served weights (its
      last line the VP a seat and game wins with two standard errors), and
