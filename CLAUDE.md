@@ -152,7 +152,10 @@ with its board companion), as applied here:
   - worktrees only for a pinned job, never for development: a training
     run pins its engine (`../zero-vtes-pN`), a sweep or a harvest runs on
     a detached checkout at `main`'s tip (docs/watch.md); the lines work
-    trunk-based in the shared checkout (owner, 2026-11-08);
+    trunk-based in the shared checkout (owner, 2026-11-08); one
+    exception, a cards round's parallel implementers: each in a
+    temporary worktree, merged back by Z-add into the shared checkout
+    before the round's review, then removed (owner, 2026-11-10);
   - four line skills beside the three loop skills: each line's procedure
     is long and read by that line only; `ship` calls it;
   - four boards, one per line: each session reads its own;
@@ -207,7 +210,8 @@ Between lines:
 - Platforms read the protocol only, never engine code; a platform inferring
   what the protocol could say is an engine-board line.
 - Trunk-based: every line works in the shared checkout on `main` and
-  commits there (ship §5); no development branch, no worktree.
+  commits there (ship §5); no development branch, no worktree (but a
+  cards round's implementers, "Harness" above).
 
 ### Sessions
 
