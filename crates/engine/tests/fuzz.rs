@@ -32,8 +32,8 @@ const SEEDS: u64 = 300;
 const REPLAY_EVERY: u64 = 4;
 const DECISION_BUDGET: u64 = 200_000;
 
-/// Library-card conservation baseline per seat (library + hand + ash +
-/// cards in play), fixed at the start of a game.
+/// Library-card conservation baseline per seat (library, hand, ash heap,
+/// removed, research area, cards in play), fixed at the start of a game.
 fn zone_totals(e: &Engine) -> Vec<usize> {
     // Cards out of play on a banished vampire (Banishment: they stay with
     // it), gathered once.
@@ -77,7 +77,13 @@ fn zone_totals(e: &Engine) -> Vec<usize> {
                         && m.origin.or(m.temp_from).unwrap_or(m.owner).index() == i
                 })
                 .count();
-            s.library.len() + s.hand.len() + s.ash.len() + s.removed.len() + in_play + tokens
+            s.library.len()
+                + s.hand.len()
+                + s.ash.len()
+                + s.removed.len()
+                + s.research.len()
+                + in_play
+                + tokens
         })
         .collect()
 }
@@ -5568,6 +5574,203 @@ fuzz_tests! {
         seeds: 8,
         ..BASE
     };
+    /// Round 28 (slice 16an): Heirs to the Blood's library — Darkness
+    /// Within's drain, Blissful Agony's redirect, Pressing Flesh's zombies
+    /// (allies in play to burn; a Reanimated Corpse raised gone at once),
+    /// Research and Development, The Rising, Shatter the Gate on Annazir,
+    /// Hay Ride between Kiev's Blood Brothers, Momentary Delay (Code of
+    /// Samiel's ability first at seed 23).
+    random_games_with_twda_round_28a_hold_invariants_and_replay: Fixture {
+        slice: &[
+            "Darkness Within",
+            "Blissful Agony",
+            "Pressing Flesh",
+            "Research",
+            "Development",
+            "Rising, The",
+            "Shatter the Gate",
+            "Hay Ride",
+            "Momentary Delay",
+            "Reanimated Corpse",
+            "Groaning Corpse",
+            "Hide the Heart",
+            "Sword of the Righteous",
+            "Code of Samiel",
+            "Tend the Flock",
+            "Striga",
+            "Hunger Moon",
+            "Shattering Crescendo",
+            "Fanfare for Elysium",
+            "Flames of the Netherworld",
+            "Houngan",
+            "Gift of Sleep",
+            "Loving Agony",
+            "Vengeance of Samiel",
+            "Dagger",
+            "Horseshoes",
+            "Shattering Crescendo",
+        ],
+        covers: &[
+            "play:Darkness Within",
+            "play:Blissful Agony",
+            "play:Pressing Flesh",
+            "play:Research",
+            "play:Development",
+            "play:Rising, The",
+            "play:Shatter the Gate",
+            "play:Hay Ride",
+            "play:Momentary Delay",
+            "play:Sword of the Righteous",
+            "ability:Shatter the Gate",
+            "ability:Houngan",
+            "ability:Code of Samiel",
+        ],
+        setup: |e, seed| {
+            named(
+                e,
+                &[
+                    "Lord Vauxhall",
+                    "Azrael",
+                    "Josette",
+                    "Annazir",
+                    "Danylo",
+                    "Ariel",
+                    "Baroque",
+                    "Hillanvale",
+                    "Volo",
+                    "Virginie, Prodigy",
+                    "Brigitte Mandisa",
+                    "Xeper, Sultan of Lepers",
+                ],
+            );
+            for s in 0..4 {
+                e.add_ally(SeatId(s), zvtes::state::find_library("Underbridge Stray"));
+            }
+            // Half the seeds open with two Gehenna events in play, The
+            // Rising's requirement.
+            if seed % 2 == 0 {
+                use zvtes::cards::{Layer, Modifier, Scope};
+                for (s, (name, modifier)) in [
+                    ("Torpid Blood", Modifier::TorpidBlood),
+                    ("Thirst", Modifier::Thirst),
+                ]
+                .into_iter()
+                .enumerate()
+                {
+                    let card = zvtes::state::find_library(name);
+                    let id = CardId(e.state.cards.len() as u32);
+                    let c = zvtes::state::CardInPlay::new(card, SeatId(s as u8), None, 0);
+                    e.state.cards.push(c);
+                    e.state.layers.push(Layer {
+                        scope: Scope::InPlay,
+                        modifier,
+                        source: id,
+                    });
+                }
+            }
+        },
+        seeds: 48,
+        ..BASE
+    };
+    /// Round 28 (slice 16an): Heirs to the Blood's vampires — Byzar's burn
+    /// replacement, Azrael's hunt, Grotesque bound to a location (one in
+    /// play, influenced out), Lord Ephraim's mill (two Potio Martyrium),
+    /// Mikael's library aim, Slag's referendums, Troglodytia's masters
+    /// (Hillanvale's ability first at seed 28).
+    random_games_with_twda_round_28b_hold_invariants_and_replay: Fixture {
+        slice: &[
+            ".44 Magnum",
+            "Target Vitals",
+            "Foldable Machine Gun",
+            "Potio Martyrium",
+            "Potio Martyrium",
+            "Benefit Performance",
+            "Fanfare for Elysium",
+            "Lily Prelude",
+            "Agent of Power",
+            "Thaumaturgy",
+            "Capitalist",
+            "Cavalier",
+            "Din of the Damned",
+            "Threading the Path of Orpheus",
+            "Off Kilter",
+            "Little Mountain Cemetery",
+            "Brother in Arms",
+            "Blessing of the Name",
+            "Ensconced",
+            "Patrol",
+            "Pounce",
+        ],
+        covers: &[
+            "play:.44 Magnum",
+            "play:Target Vitals",
+            "play:Potio Martyrium",
+            "play:Threading the Path of Orpheus",
+            "play:Ensconced",
+            "play:Benefit Performance",
+            "ability:Mikael Birkholm",
+            "ability:La Viuda Blanca",
+            "ability:Evil Jensen",
+            "ability:Hillanvale",
+            "ability:Alcoan",
+            "ability:Nahum Enosh",
+            "ability:Serenna the White",
+            "ability:Titus Camille",
+        ],
+        setup: |e, _| {
+            named(
+                e,
+                &[
+                    "Byzar",
+                    "Azrael",
+                    "Lord Ephraim Wainwright",
+                    "Mikael Birkholm",
+                    "Slag",
+                    "Troglodytia",
+                    "Hillanvale",
+                    "La Viuda Blanca",
+                    "Evil Jensen",
+                    "Mordechai Ben-Nun",
+                    "Alcoan",
+                    "Baroque",
+                    "Nahum Enosh",
+                    "Matthew",
+                    "Titus Camille",
+                    "Serenna the White",
+                ],
+            );
+            // Mikael armed: a gun strike for his library aim.
+            let mikael = find_card("Mikael Birkholm");
+            let armed = e.state.minions.iter().position(|m| m.crypt_card() == Some(mikael));
+            if let Some(m) = armed {
+                let owner = e.state.minions[m].owner;
+                e.state.cards.push(zvtes::state::CardInPlay::new(
+                    zvtes::state::find_library(".44 Magnum"),
+                    owner,
+                    Some(zvtes::ids::MinionId(m as u32)),
+                    0,
+                ));
+            }
+            // Grotesque to influence out, a location in play to bind.
+            let grotesque = find_card("Grotesque");
+            for s in 0..4u8 {
+                e.state.seats[s as usize].uncontrolled.push(zvtes::state::UncontrolledSlot {
+                    card: grotesque,
+                    copy: Default::default(),
+                    counters: 3,
+                    banished: None,
+                });
+                e.state.cards.push(zvtes::state::CardInPlay::new(
+                    zvtes::state::find_library("Barrens, The"),
+                    SeatId(s),
+                    None,
+                    0,
+                ));
+            }
+        },
+        seeds: 58,
+        ..BASE
+    };
     /// Round 25 (slice 16ak): Ebony Kingdom's Orun and Aye and the cards
     /// built on them, played by Laibon (Familial Bond first near seed 105).
     random_games_with_twda_round_25a_hold_invariants_and_replay: Fixture {
@@ -5686,6 +5889,9 @@ fuzz_tests! {
             "Liquefy the Mortal Coil",
             "Touch of Pain",
             "Sanguinary Wind",
+            // A diablerie in combat, its blood hunt with the combat
+            // suspended (rules-qa 113.10).
+            "Amaranth",
             // Partners: strikes and equipment to play.
             "Body Flare",
             "Kevlar Vest",
@@ -5696,6 +5902,7 @@ fuzz_tests! {
             "play:Baseball Bat",
             "play:Anonymous Freight",
             "play:Enrage",
+            "play:Amaranth",
         ],
         setup: |e, _| {
             named(

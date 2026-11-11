@@ -184,7 +184,7 @@ impl<N: Names> Ctx<'_, N> {
             // From a card in play; from the ash heap, no card (the key's
             // `zone` says it).
             from: stored
-                .filter(|&s| !zvtes::state::from_ash(s))
+                .filter(|&s| !zvtes::state::virtual_source(s))
                 .map(|s| self.card(s)),
         }
     }
@@ -224,8 +224,8 @@ fn library(c: u16) -> CardRef {
 }
 
 /// Where the card a `Choice::FindCard` of `req` names is: the seat whose
-/// library, hand or ash heap it is taken from. None for a card named
-/// without taking it (Master: Discipline) or one stored on a card.
+/// library, hand, ash heap or research area it is taken from. None for a card
+/// named without taking it (Master: Discipline) or one stored on a card.
 fn found_in(e: &Engine, req: &DecisionRequest) -> Option<ZoneRef> {
     use zvtes::cards::Terms;
     use zvtes::decision::WindowLabel as W;
@@ -269,6 +269,7 @@ fn found_in(e: &Engine, req: &DecisionRequest) -> Option<ZoneRef> {
             | Interrupt::StoreFromAshOf { from: seat, .. },
         ) => return at(seat, Zone::AshHeap),
         Some(Interrupt::StorePreyAsh { seat, .. }) => return at(e.state.prey(seat), Zone::AshHeap),
+        Some(Interrupt::ReplaceFromResearch { seat, .. }) => return at(seat, Zone::Research),
         Some(Interrupt::ExchangeAnarch { .. } | Interrupt::EntryRemoveOrBurn { .. }) => {
             return at(req.seat, Zone::AshHeap)
         }
@@ -683,6 +684,7 @@ fn asked(x: &Ctx<impl Names>, i: Interrupt, choice: &Choice) -> Vec<Effect> {
             },
             P::BurnOfCrowdedClan(_) => chosen(EffectKind::Burn),
             P::OldestHuntingGround(_) => n(1, chosen(EffectKind::Blood)),
+            P::HuntBloodTo { n: d, .. } => n(d as i32, chosen(EffectKind::Blood)),
             P::BlockMark(_) => chosen(EffectKind::Intercept),
             P::Damage(d) | P::DamageVampire(d) | P::DamageImbued { n: d, .. } => {
                 n(d as i32, chosen(EffectKind::Damage))
@@ -1317,6 +1319,10 @@ pub fn about(e: &Engine, req: &DecisionRequest, names: &impl Names) -> Option<Ab
                 n: Some(left),
                 ..a()
             },
+            I::ResearchSearch { left, .. } => About {
+                n: Some(left),
+                ..a()
+            },
             I::LockOrDiscard { minion, .. }
             | I::BlockToll { minion, .. }
             | I::CancelAttempt { minion, .. }
@@ -1376,6 +1382,7 @@ pub fn about(e: &Engine, req: &DecisionRequest, names: &impl Names) -> Option<Ab
                     P::Damage(d) | P::DamageVampire(d) => ("damage", None, None, Some(d)),
                     P::DamageImbued { n: d, .. } => ("damage_imbued", None, None, Some(d)),
                     P::BlockMark(_) => ("block_mark", None, None, None),
+                    P::HuntBloodTo { n: d, .. } => ("hunt_blood_to", None, None, Some(d)),
                 };
                 About {
                     seat: Some(of.0),
@@ -1527,6 +1534,25 @@ pub fn about(e: &Engine, req: &DecisionRequest, names: &impl Names) -> Option<Ab
                 minion: m(minion),
                 ..a()
             },
+            I::SecondCopyOnto {
+                minion, card: c, ..
+            } => About {
+                minion: m(minion),
+                card: named(c),
+                ..a()
+            },
+            I::ReturnBeforeBurn { card: c, .. } => About {
+                card: card(c),
+                ..a()
+            },
+            I::DrawUpTo { max, .. } => About {
+                n: Some(max),
+                ..a()
+            },
+            I::BindLocation { minion, .. } => About {
+                minion: m(minion),
+                ..a()
+            },
             I::MayFailAction { minion, .. } => About {
                 minion: m(minion),
                 ..a()
@@ -1581,6 +1607,11 @@ pub fn about(e: &Engine, req: &DecisionRequest, names: &impl Names) -> Option<Ab
                 ..a()
             },
             I::CutLibrary { .. } => a(),
+            I::RedirectFirst { .. } => a(),
+            I::DrainBeforeSteals { card: c, .. } => About {
+                card: card(c),
+                ..a()
+            },
             I::MayLockCardForBlock {
                 card: c, minion, ..
             } => About {
@@ -1638,6 +1669,11 @@ pub fn about(e: &Engine, req: &DecisionRequest, names: &impl Names) -> Option<Ab
                 card: named(c),
                 ..a()
             },
+            I::ReplaceFromResearch { .. } => a(),
+            I::PlacedDiscipline { card: c, .. } => About {
+                card: card(c),
+                ..a()
+            },
             I::XConvictions {
                 minion, card: c, ..
             } => About {
@@ -1666,7 +1702,7 @@ pub fn about(e: &Engine, req: &DecisionRequest, names: &impl Names) -> Option<Ab
             },
             I::CryptTopPick { n, .. } => About { n: Some(n), ..a() },
             I::CryptSearch { clan, .. } => About {
-                clan: Some(snake(clan)),
+                clan: clan.map(snake),
                 ..a()
             },
             I::DistributeFrom {
@@ -1696,6 +1732,13 @@ pub fn about(e: &Engine, req: &DecisionRequest, names: &impl Names) -> Option<Ab
             },
             I::MayRecycleCanceled { card: c, .. } => About {
                 card: named(c),
+                ..a()
+            },
+            I::MayMillCopy {
+                minion, card: c, ..
+            } => About {
+                card: named(c),
+                minion: m(minion),
                 ..a()
             },
             I::MayPutOn { held, .. } => About {
@@ -1745,7 +1788,9 @@ pub fn about(e: &Engine, req: &DecisionRequest, names: &impl Names) -> Option<Ab
                 minion: m(minion),
                 ..a()
             },
-            I::MayGainPool { minion, n, .. } | I::MayGainHandSize { minion, n, .. } => About {
+            I::MayGainPool { minion, n, .. }
+            | I::MayBurnEdgeForPool { minion, n, .. }
+            | I::MayGainHandSize { minion, n, .. } => About {
                 minion: m(minion),
                 n: Some(n),
                 ..a()
@@ -1883,7 +1928,7 @@ pub fn about(e: &Engine, req: &DecisionRequest, names: &impl Names) -> Option<Ab
                         card: by_name(name),
                         ..a()
                     },
-                    Terms::AnyAshAlly => About {
+                    Terms::AnyAshAlly | Terms::AnyAshBurnedAlly => About {
                         detail: detail(match p.ash {
                             None => "ash_heap_ally",
                             Some(_) => "ally",

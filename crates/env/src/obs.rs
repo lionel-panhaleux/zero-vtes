@@ -229,7 +229,7 @@ fn library_id(card: u16) -> i32 {
 
 fn minion_id(kind: MinionKind) -> i32 {
     match kind {
-        MinionKind::Vampire(c) | MinionKind::Imbued(c) => crypt_id(c),
+        MinionKind::Vampire(c) | MinionKind::Imbued(c) | MinionKind::CryptAlly(c) => crypt_id(c),
         MinionKind::Ally { card, .. }
         | MinionKind::Created { card, .. }
         | MinionKind::GreatBeast { card, .. }

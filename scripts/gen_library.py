@@ -125,7 +125,12 @@ def labels_of(text):
     # A legacy master prints its type first ("Master: unique location.").
     text = re.sub(r"^Master: ", "", text)
     head = " ".join(line for line in text.split("\n")[:2])
-    return [name for name, pat in LABELS if re.search(pat, head, re.I)]
+    labels = [name for name, pat in LABELS if re.search(pat, head, re.I)]
+    # A later version's own "Unique." (Spirit Claws [PRO][SPI]): its card in
+    # play is unique, its other versions never enter play (ANK 20180629).
+    if "Unique" not in labels and re.search(r"\. unique\.", text, re.I):
+        labels.insert(0, "Unique")
+    return labels
 
 
 def body_of(c):

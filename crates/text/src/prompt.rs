@@ -139,6 +139,7 @@ impl Prompt<'_> {
                 self.card()?
             ),
             P::MayGainPool => format!("{}: you can gain {} pool", self.minion()?, a.n?),
+            P::MayBurnEdgeForPool => format!("You can burn the Edge to gain {} pool", a.n?),
             P::BuyTitle => format!("{}: you may pay pool for a title", self.minion()?),
             P::ReadyTitledLeft => format!(
                 "A titled vampire of {} left the ready region: you may play a card",
@@ -202,6 +203,10 @@ impl Prompt<'_> {
                     "lock_oldest" => {
                         format!("Choose one of the oldest {} {of} to lock", self.clan()?)
                     }
+                    "hunt_blood_to" => format!(
+                        "You can move {} blood of the hunt to another vampire of yours",
+                        a.n?
+                    ),
                     "oldest_gain_blood" => {
                         "Choose one of your two oldest ready vampires to gain 1 blood".into()
                     }
@@ -421,9 +426,25 @@ impl Prompt<'_> {
                 a.n?
             ),
             P::CutLibrary => "You can cut your library once".into(),
+            P::RedirectFirst => {
+                "Both strikes send the opposing vampire to a new combat: choose which resolves first"
+                    .into()
+            }
+            P::DrainBeforeSteals => format!(
+                "{} drains the opposing minion as blood is stolen: choose which comes first",
+                self.card()?
+            ),
             P::RetakeFromAsh => format!(
                 "{}: replace it by taking it back from your ash heap, or draw",
                 self.card()?
+            ),
+            P::ReplaceFromResearch => {
+                "Replace it with a card of your research area, or draw".into()
+            }
+            P::PlacedDiscipline => format!("{}: choose its Discipline", self.card()?),
+            P::ResearchSearch => format!(
+                "Search your library for a card to put in your research area ({} more at most)",
+                a.n?
             ),
             P::XConvictions => format!(
                 "{}: burn a conviction to add 1 to {}'s X?",
@@ -433,6 +454,7 @@ impl Prompt<'_> {
             P::BecomesAnarch => "Choose a non-titled vampire of yours to become Anarch".into(),
             P::LockOrPay => format!("Lock {} or burn {} pool", self.card()?, a.n?),
             P::LibraryToHand => "Choose a card in your library to put in your hand".into(),
+            P::LibraryToTop => "Choose a card in your library to put on top of it".into(),
             P::BloodOrCamarilla => format!("{} burns 1 blood or becomes Camarilla", self.minion()?),
             P::BloodOrPool => format!(
                 "A ready vampire of yours other than {} burns {} blood, or burn {} pool",
@@ -456,7 +478,7 @@ impl Prompt<'_> {
             ),
             P::CryptSearch => format!(
                 "Choose a {} in your crypt to move to your uncontrolled region",
-                self.clan()?
+                self.clan().unwrap_or_else(|| "vampire".into())
             ),
             P::PreySlotToPool => format!(
                 "Choose the uncontrolled vampire of {} whose blood goes to their pool",
@@ -511,6 +533,10 @@ impl Prompt<'_> {
             P::AllyFromAsh => {
                 "Choose the ally to move from your ash heap to your ready region".into()
             }
+            P::MayMillCopy => format!(
+                "You can search your library for another {} and move it to your ash heap",
+                self.card()?
+            ),
             P::MayRecycleCanceled => format!(
                 "You can move the canceled {} from your ash heap to your library",
                 self.card()?
@@ -581,6 +607,20 @@ impl Prompt<'_> {
             ),
             P::MayUnlock => format!("{} can unlock", self.minion()?),
             P::SearchOnto => format!("Search a card to put on {}", self.minion()?),
+            P::SecondCopyOnto => format!(
+                "You can put another {} on {} from your hand or ash heap",
+                self.card()?,
+                self.minion()?
+            ),
+            P::ReturnBeforeBurn => format!(
+                "{} returns and burns as the action ends: choose which comes first",
+                self.card()?
+            ),
+            P::DrawUpTo => format!("How many cards do you draw (up to {})?", a.n?),
+            P::BindLocation => format!(
+                "Choose a location you control for {}: it leaves the game without it",
+                self.minion()?
+            ),
             P::HandCardAway => "Move a card from your hand to your ash heap or library".into(),
             P::ExchangeLooked => format!("{} can exchange the card looked at", self.minion()?),
             P::BurnOverCapacity => format!(
@@ -876,6 +916,7 @@ mod tests {
                 Some("host_card"),
                 Some("lock_oldest"),
                 Some("oldest_gain_blood"),
+                Some("hunt_blood_to"),
                 Some("burn_crowded_clan"),
                 Some("damage"),
                 Some("damage_imbued"),
@@ -1027,6 +1068,7 @@ mod tests {
         StoreOwnAsh,
         StoredToLibraryTop,
         LibraryToHand,
+        LibraryToTop,
         CryptSearch,
         CryptTopPick,
         PreySlotToPool,
@@ -1037,6 +1079,7 @@ mod tests {
         ChooseCircle,
         AllyFromAsh,
         MayRecycleCanceled,
+        MayMillCopy,
         NameUncontrolled,
         NameSlotPair,
         BeastDisciplines,
@@ -1050,6 +1093,7 @@ mod tests {
         MayBottomTop,
         MayTorture,
         MayGainPool,
+        MayBurnEdgeForPool,
         MayGainHandSize,
         ReadyTitledLeft,
         NameMasterDiscipline,
@@ -1065,6 +1109,9 @@ mod tests {
         AshToLibraryBottom,
         CutLibrary,
         RetakeFromAsh,
+        ReplaceFromResearch,
+        PlacedDiscipline,
+        ResearchSearch,
         MayLockForBlood,
         MayBurnLookedMaster,
         BurnFromLibraryTop,
@@ -1079,6 +1126,12 @@ mod tests {
         MayFailAction,
         MayLockToFight,
         SearchOnto,
+        SecondCopyOnto,
+        ReturnBeforeBurn,
+        RedirectFirst,
+        DrainBeforeSteals,
+        DrawUpTo,
+        BindLocation,
         HandCardAway,
         ExchangeLooked,
         XConvictions,

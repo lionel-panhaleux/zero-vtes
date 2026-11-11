@@ -20,6 +20,22 @@ regenerated table or a re-bless records the whole tree, docs/hazards.md
 "The shared tree"); keep a progress file in the job's tmp (done, todo,
 readings, commit checklist): a round outlives one context window.
 
+Two standing rules (owner, 2026-11-11, after a Liquefy reading stated from
+memory, "since its text says so", that its text does not say):
+
+- **Never from memory.** Every claim about a card's text, a ruling or a
+  rules-qa item, to the owner, a peer or an agent, is read from its
+  source as it is made (`vtes.json`'s text and rulings, the ledger,
+  rules-qa, `../vtes-advanced-rules`) and quoted.
+- **A settled decision changed is examined first.** Before building an
+  overturned reading or a reversed rules-qa item, list everything that
+  rests on it: the cards and rulings citing it (grep rules-qa, the digest,
+  the ledger, the definitions), the cards sharing its mechanism (one
+  diablerie timing moved means Amaranth and Liquefy both), and the
+  interactions it reaches (chained combats, referendums, other
+  replacements); state the consequences critically, ask what the owner's
+  answer leaves open, then build.
+
 ## 1. Choose the round
 
 Start from `python3 scripts/coverage.py <vtes.json> --twda <twda.json>

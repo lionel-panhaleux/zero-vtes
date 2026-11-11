@@ -171,8 +171,7 @@ impl Engine {
         if matches!(self.flow, Flow::GameOver) {
             return;
         }
-        if self.combat.is_some() {
-            self.combat_ousts();
+        if self.combat.is_some() && self.combat_ousts() {
             return;
         }
         if self.state.seats[self.state.active.index()].ousted {
@@ -193,7 +192,7 @@ impl Engine {
         }
         self.caused(Cause::Effect(Source::Card(card)), |e| {
             e.state.seats[seat.index()].lose_pool(x as i32);
-            e.state.seats[target.index()].pool += x as i32;
+            e.state.gain_pool(target, x as i32);
         });
         self.state.seats[target.index()].oust_pending = false;
         self.state.cards[card.index()].against = crate::ids::SeatSet::single(target);

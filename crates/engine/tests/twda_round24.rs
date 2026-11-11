@@ -4417,10 +4417,13 @@ fn a_deferred_replacement_capuchin_takes_brings_no_extra_draw() {
     assert_eq!(extra_draw(&mut e), None, "no draw, no extra one");
 }
 
-/// Liquefy [VIC]'s diablerie ends the combat: Marie-Pierre is not offered
-/// the join, and the blood hunt is out of combat.
+/// Liquefy [VIC]'s diablerie is its strike's (owner, 2026-11-11: rules-qa
+/// 107.30, 113.10): made as the strike resolves, its blood hunt held in the
+/// combat, suspended; the victim gone, no new round, the combat ends as when
+/// a combatant leaves, Marie-Pierre's join then offered (a combat of her
+/// Samedi's), the action blocked.
 #[test]
-fn liquefy_diablerie_closes_the_end_of_combat_offers() {
+fn liquefy_diablerie_and_blood_hunt_inside_the_combat() {
     let mut e = game(2);
     let a = e.add_minion(SeatId(0), big(), 6, false);
     e.state.minions[a.index()].gained_levels = vec!["vic", "thn", "thn", "cel"];
@@ -4453,24 +4456,32 @@ fn liquefy_diablerie_closes_the_end_of_combat_offers() {
     pick_when(&mut e, play(0, 1, a));
     let stand_in = on(&e, "Liquefy the Mortal Coil", a).expect("the strike");
     pick_when(&mut e, ability(stand_in.0, 0));
-    for _ in 0..40 {
-        if !e.state.minions[z.index()].in_play {
-            break;
-        }
+    let mut hunted = false;
+    for _ in 0..80 {
         let req = request(&mut e);
-        assert!(!req.options.contains(&Choice::ChooseMinion(mp)), "no join");
         assert!(
             !req.options
                 .iter()
                 .any(|o| matches!(o, Choice::Play { mode: 2, .. })),
             "no new round"
         );
+        if req.window == WindowLabel::BloodHuntPolling {
+            assert!(!e.state.minions[z.index()].in_play, "diablerized");
+            assert!(e.combat().is_some(), "the hunt in the combat");
+            hunted = true;
+        }
+        if req.options.contains(&Choice::ChooseMinion(mp)) {
+            assert!(hunted && e.referendum().is_none(), "after the hunt");
+            break;
+        }
         e.choose(fallback(&req));
     }
-    assert!(!e.state.minions[z.index()].in_play, "diablerized");
+    assert!(hunted, "a blood hunt");
+    pick(&mut e, Choice::Pass);
+    request(&mut e);
     assert!(e.combat().is_none());
-    let a = e.action().expect("its blood hunt");
-    assert_eq!(a.outcome, Some(zvtes::actions::Outcome::Blocked));
+    until(&mut e, SeatId(0), WindowLabel::MinionPhase);
+    assert_eq!(e.last_outcome, Some(zvtes::actions::Outcome::Blocked));
 }
 
 /// Enrage [PRE]: the Red List hunt enters combat, free of the toll: offered

@@ -30,10 +30,10 @@ fn from() -> u32 {
 /// a vampire banished and back between two views (45), one influenced into a
 /// contest (81), a unique ally played into one (95), a crypt card come with
 /// counters (111), a contested minion's cards (118), a merge (119), training
-/// counters (152), a vampire moved within its uncontrolled region (376), two
+/// counters (152), a vampire moved within its uncontrolled region (406), two
 /// Methuselahs ousted at once (239), a unique card put into a contest (299), a
 /// vampire's excess drained in one (380), an action's intercept changed between
-/// two views (82), a play canceled as it is announced (88: Andrew Stuart), a
+/// two views (63), a play canceled as it is announced (88: Andrew Stuart), a
 /// cost reduced by a lasting effect whose card is in the ash heap (104: Inner
 /// Essence); and the causes a deeper sweep found missing: Camarilla Threat's
 /// discard toll (294), blood to an uncontrolled vampire (375), a diablerie in a
@@ -52,11 +52,11 @@ fn from() -> u32 {
 /// (695: Descent into Darkness); and an action its Methuselah's oust ended
 /// mid-way (389: Alastor's equipment paid with the last pool), one whose
 /// referendum ended the game, its card out of limbo (210: Kine Resources
-/// Contested).
-const KEPT: [u32; 47] = [
-    45, 70, 81, 82, 88, 95, 99, 104, 106, 111, 114, 118, 119, 132, 135, 142, 152, 172, 210, 219,
-    239, 286, 294, 299, 300, 332, 346, 375, 376, 380, 386, 389, 392, 411, 426, 474, 504, 516, 579,
-    591, 695, 728, 910, 913, 929, 933, 1153,
+/// Contested); and a minion's title changed between two views (80).
+const KEPT: [u32; 48] = [
+    45, 63, 70, 80, 81, 88, 95, 99, 104, 106, 111, 114, 118, 119, 132, 135, 142, 152, 172, 210,
+    219, 239, 286, 294, 299, 300, 332, 346, 375, 380, 386, 389, 392, 406, 411, 426, 474, 504, 516,
+    579, 591, 695, 728, 910, 913, 929, 933, 1153,
 ];
 
 /// The sweep's seeds: `HOST_SEED_FROM` to `HOST_SEEDS` (40), the kept

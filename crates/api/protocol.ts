@@ -1,6 +1,6 @@
-/* zvtes protocol 2.25.0 (docs/protocol.md): generated from
+/* zvtes protocol 2.26.0 (docs/protocol.md): generated from
  * crates/api/schema.json by scripts/gen_ts.py, do not edit. */
-export const PROTOCOL_VERSION = '2.25.0'
+export const PROTOCOL_VERSION = '2.26.0'
 
 /**
  * A command as sent: an optional client id, echoed by an `error` it
@@ -1056,6 +1056,7 @@ export type MarkerKind =
     | 'taint'
     | 'out_of_play'
     | 'contested'
+    | 'burn_counters'
     | 'unknown'
 
 export type MinionKind = 'vampire' | 'ally' | 'token' | 'created' | 'imbued' | 'unknown'
@@ -1416,6 +1417,18 @@ export type Purpose =
     | 'blood_to_card_up_to'
     | 'may_lock_card_for_block'
     | 'blood_or_pool'
+    | 'replace_from_research'
+    | 'placed_discipline'
+    | 'research_search'
+    | 'may_burn_edge_for_pool'
+    | 'library_to_top'
+    | 'second_copy_onto'
+    | 'return_before_burn'
+    | 'redirect_first'
+    | 'drain_before_steals'
+    | 'draw_up_to'
+    | 'bind_location'
+    | 'may_mill_copy'
     | 'unknown'
 
 export type Range = 'close' | 'long' | 'unknown'
@@ -1497,7 +1510,17 @@ export type SeatView = {
     prey: number
     ready: MinionView[]
     removed: Card[]
+    /**
+     * The research area (Research): face down, the cards seen by the
+     * seat only, backs to the others.
+     */
+    research?: Card[]
     seat: number
+    /**
+     * A shattered counter: the pool burned each unlock phase (Shatter
+     * the Gate); omitted with none.
+     */
+    shattered?: number
     torpor: MinionView[]
     /**
      * Library cards in the uncontrolled region with training counters
@@ -1847,6 +1870,7 @@ export type Zone =
     | 'stored'
     | 'training'
     | 'incapacitated'
+    | 'research'
     | 'unknown'
 
 export type ZoneRef = {

@@ -181,6 +181,9 @@ pub struct ReferendumCtx {
     /// Vampires whose bonus votes are against the referendum (Protected
     /// District): they can only cast against.
     pub forced_against: Vec<MinionId>,
+    /// Only vampires of these clans cast votes or ballots in favor, if any
+    /// (Warding the Beast [VAL]'s blood hunt).
+    pub favor_only_clans: &'static [&'static str],
     /// The vampires that forced another's cast this referendum (Mustafa's
     /// Toreador: once each, "during the polling step").
     pub forcers: Vec<MinionId>,
@@ -241,6 +244,16 @@ pub struct ReferendumCtx {
 }
 
 impl ReferendumCtx {
+    /// `m` cannot cast in favor: its bonus votes forced against (Protected
+    /// District), or not of the clans Warding the Beast [VAL] allows.
+    pub fn barred_favor(&self, st: &crate::state::GameState, m: MinionId) -> bool {
+        self.forced_against.contains(&m)
+            || !self.favor_only_clans.is_empty()
+                && !st.minions[m.index()]
+                    .clan()
+                    .is_some_and(|c| self.favor_only_clans.contains(&c))
+    }
+
     /// The title a vampire gets if this referendum passes (Jezebelle's "to
     /// declare a prince"), the chosen vampire's read live.
     pub fn title_given(&self, st: &crate::state::GameState) -> Option<crate::crypt::Title> {
@@ -592,6 +605,7 @@ impl Engine {
                 .unwrap_or_default(),
             abstaining: Vec::new(),
             forced_against: Vec::new(),
+            favor_only_clans: &[],
             forcers: Vec::new(),
             card_voted: Vec::new(),
             only_sect: def.and_then(|d| d.only_sect),
@@ -1187,7 +1201,7 @@ impl Engine {
             }
             // A priscus casts its prisci ballot even with no vote.
             let ballot = ctx.may_vote(st, id) && st.ballots(id) > 0;
-            if (ctx.votes_cast(st, id, true) > 0 || ballot) && !ctx.forced_against.contains(&id) {
+            if (ctx.votes_cast(st, id, true) > 0 || ballot) && !ctx.barred_favor(st, id) {
                 options.push(Choice::CastVotes {
                     minion: id,
                     favor: true,
@@ -1501,8 +1515,11 @@ impl Engine {
             Choice::BurnForVote { card, favor } => {
                 let s = &mut self.state.seats[seat.index()];
                 let (c, copy) = s.hand.take(*card as usize);
-                s.ash.put(c, copy);
+                s.to_ash(c, copy);
+                let before = s.library.len();
                 self.replace(seat, 1, None);
+                // The context is out of `self.referendum` here.
+                self.show_referendum_replacements(seat, before);
                 ctx.card_voted.push(seat);
                 let bonus = self
                     .state
@@ -1562,7 +1579,7 @@ impl Engine {
             } else {
                 0
             };
-        if (favor && ctx.forced_against.contains(&m)) || self.state.minions[m.index()].blood < toll
+        if (favor && ctx.barred_favor(&self.state, m)) || self.state.minions[m.index()].blood < toll
         {
             return None;
         }
@@ -1764,7 +1781,7 @@ impl Engine {
                                 .any(|r| r.seat == s && !r.canceled && r.favor == favor)
                         };
                         if s != p && cast(true) && !cast(false) {
-                            self.state.seats[i].pool += n as i32;
+                            self.state.gain_pool(s, n as i32);
                         }
                     }
                 }
@@ -2010,6 +2027,42 @@ impl Engine {
         self.after_referendum(true);
     }
 
+    /// The political action card put in play, its caller's (Raising the
+    /// Portcullis, Fanfare for Elysium [MEL]).
+    fn political_card_in_play(&mut self, ctx: &ReferendumCtx) {
+        let a = self.action.as_ref().expect("political action");
+        let (seat, play) = (a.seat, a.card.expect("a political action card"));
+        // "A Methuselah can have only one" (Raising the
+        // Portcullis): not a second.
+        let one = cards::lookup(play.card).is_some_and(|d| {
+            d.modes[play.mode as usize]
+                .requires
+                .contains(&cards::Requirement::OnePerMethuselah)
+        });
+        if !(one && self.state.controls_card_copy(seat, play.card)) {
+            // The Methuselahs its terms chose, remembered (Rumors of
+            // Gehenna, The Meddling of Semsith).
+            let mut against = crate::ids::SeatSet::EMPTY;
+            for &s in ctx.terms.seats.iter().chain(ctx.terms.chosen.iter()) {
+                against.0 |= crate::ids::SeatSet::single(s).0;
+            }
+            self.place_now(
+                crate::state::CardInPlay {
+                    against,
+                    ..crate::state::CardInPlay::entering(
+                        play.card, *play.copy, seat, None, play.mode,
+                    )
+                },
+                ModeLayers::Push,
+                false,
+            );
+            self.action
+                .as_mut()
+                .expect("political action")
+                .card_entered_play = true;
+        }
+    }
+
     /// Effects of a passed referendum; pool losses are simultaneous, ousts
     /// resolved as a batch (spec §6.5.4).
     fn apply_referendum_effect(&mut self, effect: RefEffect, ctx: &ReferendumCtx) {
@@ -2182,6 +2235,16 @@ impl Engine {
                 | RefEffect::DamageChosen(_)
                 | RefEffect::AshChosenToHand => {}
                 RefEffect::CallerGainsPool(n) => gain[ctx.caller.index()] += n as i32,
+                RefEffect::CallerPoolPerReadyClanVotersBlood(clan) => {
+                    gain[ctx.caller.index()] += st
+                        .minions_of(ctx.caller)
+                        .filter(|&m| {
+                            let v = &st.minions[m.index()];
+                            v.ready() && v.is_vampire() && v.clan() == Some(clan)
+                        })
+                        .count() as i32;
+                }
+                RefEffect::ChosenGainBlood { .. } => {}
                 RefEffect::PoolPerReadySect(sects) => {
                     for (i, v) in self.state.minions.iter().enumerate() {
                         let m = MinionId(i as u32);
@@ -2242,10 +2305,41 @@ impl Engine {
         }
         for (i, g) in gain.iter().enumerate() {
             if !self.state.seats[i].ousted {
-                self.state.seats[i].pool += g;
+                self.state.gain_pool(SeatId(i as u8), *g);
             }
         }
         match effect {
+            // Each still in play, in torpor too (no "ready").
+            RefEffect::ChosenGainBlood { n, put_in_play } => {
+                for &m in &ctx.terms.minions {
+                    if self.state.minions[m.index()].present() {
+                        self.state.gain_blood(m, n);
+                    }
+                }
+                if put_in_play {
+                    self.political_card_in_play(ctx);
+                }
+            }
+            // The votes and ballots standing in favor at the tally, a
+            // canceled casting not (Scalpel Tongue).
+            RefEffect::CallerPoolPerReadyClanVotersBlood(clan) => {
+                let mut voters: Vec<MinionId> = ctx
+                    .records
+                    .iter()
+                    .filter(|r| r.favor && !r.canceled && (r.n > 0 || r.ballots > 0))
+                    .filter_map(|r| match r.source {
+                        Source::Vampire(m) => Some(m),
+                        _ => None,
+                    })
+                    .collect();
+                voters.dedup();
+                for m in voters {
+                    let v = &self.state.minions[m.index()];
+                    if v.present() && v.is_vampire() && v.clan() != Some(clan) {
+                        self.state.gain_blood(m, 1);
+                    }
+                }
+            }
             RefEffect::UnlockCallerAndChosen => {
                 let caller = self.action.as_ref().map(|a| a.acting);
                 for m in caller.into_iter().chain(ctx.terms.minions.iter().copied()) {
@@ -2520,37 +2614,7 @@ impl Engine {
                         }
                     }
                 }
-                let a = self.action.as_ref().expect("political action");
-                let (seat, play) = (a.seat, a.card.expect("a political action card"));
-                // "A Methuselah can have only one" (Raising the
-                // Portcullis): not a second.
-                let one = cards::lookup(play.card).is_some_and(|d| {
-                    d.modes[play.mode as usize]
-                        .requires
-                        .contains(&cards::Requirement::OnePerMethuselah)
-                });
-                if !(one && self.state.controls_card_copy(seat, play.card)) {
-                    // The Methuselahs its terms chose, remembered (Rumors of
-                    // Gehenna, The Meddling of Semsith).
-                    let mut against = crate::ids::SeatSet::EMPTY;
-                    for &s in ctx.terms.seats.iter().chain(ctx.terms.chosen.iter()) {
-                        against.0 |= crate::ids::SeatSet::single(s).0;
-                    }
-                    self.place_now(
-                        crate::state::CardInPlay {
-                            against,
-                            ..crate::state::CardInPlay::entering(
-                                play.card, *play.copy, seat, None, play.mode,
-                            )
-                        },
-                        ModeLayers::Push,
-                        false,
-                    );
-                    self.action
-                        .as_mut()
-                        .expect("political action")
-                        .card_entered_play = true;
-                }
+                self.political_card_in_play(ctx);
             }
             RefEffect::ChosenTakesChosenCard => {
                 let c = ctx.terms.cards[0];
@@ -2711,6 +2775,8 @@ impl Engine {
         let seat = self.drop_action().expect("action").seat;
         self.release_action_scope();
         self.referendum = None;
+        // Its combat, suspended for a blood hunt (Amaranth), with it.
+        self.cut_combat();
         if self.state.living() <= 1 {
             self.flow = Flow::GameOver;
         } else if seat == self.state.active {
@@ -2731,10 +2797,6 @@ impl Engine {
         if torpor {
             self.minions_to_torpor(&[diablerist]);
         } else {
-            let victim = self.action.as_ref().and_then(|a| a.diablerized_in_combat);
-            if let Some(v) = victim {
-                self.burned_in_combat_gift(diablerist, v);
-            }
             self.burn_minion(diablerist);
         }
     }
@@ -2762,6 +2824,7 @@ impl Engine {
         if self.state.living() <= 1 {
             self.place_action_card();
             self.drop_action();
+            self.cut_combat();
             self.flow = Flow::GameOver;
             return;
         }
@@ -2772,12 +2835,16 @@ impl Engine {
             self.flow = Flow::GameOver;
             return;
         }
-        let a = self.action.as_ref().expect("action");
-        let (seat, blocked) = (a.seat, a.outcome == Some(Outcome::Blocked));
+        let seat = self.action.as_ref().expect("action").seat;
         if self.state.seats[seat.index()].ousted {
             self.acting_seat_ousted();
             return;
         }
+        if self.resume_hunted_combat() {
+            return;
+        }
+        let a = self.action.as_ref().expect("action");
+        let blocked = a.outcome == Some(Outcome::Blocked);
         // A blocked leave-torpor whose blocker diablerised (its blood hunt)
         // opens the after-resolution window too, for what the diablerie
         // triggers (rules-qa 16.2).

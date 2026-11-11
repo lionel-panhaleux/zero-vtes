@@ -548,6 +548,7 @@ fn zone(p: Place) -> Option<Zone> {
         Place::Zone(_, "hand") => Zone::Hand,
         Place::Zone(_, "ash" | "ash_crypt") => Zone::AshHeap,
         Place::Zone(_, "removed" | "removed_crypt") => Zone::Removed,
+        Place::Zone(_, "research") => Zone::Research,
         Place::Uncontrolled(_) => Zone::Uncontrolled,
         _ => return None,
     })

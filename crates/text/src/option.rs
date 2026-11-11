@@ -446,6 +446,7 @@ fn asked(
         (P::DiablerieEquipment, K::ChooseCard) => role("moves")?,
         (P::MoveBetween, K::ChooseMinion) => role("receives")?,
         (P::DualFormKept, K::ChooseMinion) => verb("Choose ", "Keep ")?,
+        (P::RedirectFirst, K::ChooseMinion) => format!("{}'s first", verb("Choose ", "")?),
         (P::MoveBetween, K::ChooseCard) => role("moves")?,
         (P::ChooseForCard, K::ChooseMinion) => {
             let e = has(EffectKind::Role)?;
@@ -488,6 +489,13 @@ fn asked(
         (P::MayBurnLookedMaster, K::ResolveRider) => "Burn blood to burn the master card".into(),
         (P::MayTorture, K::ResolveRider) => "Lock The Path of Lilith: a torture counter".into(),
         (P::MayGainPool, K::ResolvePrinted) => format!("Gain {} pool", about?.n?),
+        (P::ReturnBeforeBurn, K::ResolveRider) => "Return it first: Cleave burns it".into(),
+        (P::DrainBeforeSteals, K::ResolveRider) => {
+            "Drain first: the steals take what is left".into()
+        }
+        (P::MayBurnEdgeForPool, K::ResolvePrinted) => {
+            format!("Burn the Edge: gain {} pool", about?.n?)
+        }
         (P::AshToLibraryTop, K::FindCard) => format!("{} on top of your library", card()),
         (P::AshToLibraryBottom, K::FindCard) => {
             format!("{} on the bottom of your library", card())
@@ -496,6 +504,10 @@ fn asked(
         (P::CryptToReady, K::AshVampire) => format!("Put {} in play from your crypt", card()),
         (P::RetakeFromAsh, K::FindCard) => format!("Take {} back from your ash heap", card()),
         (P::RetakeFromAsh, K::DrawLibrary) => format!("Draw instead of taking {} back", named()?),
+        (P::ReplaceFromResearch, K::FindCard) => {
+            format!("Take {} from your research area", card())
+        }
+        (P::ReplaceFromResearch, K::DrawLibrary) => "Draw from your library".into(),
         (P::CutLibrary, K::SetX) => format!("Cut {} cards to the bottom", k.amount?),
         (P::BuyTitle, K::SetX) => {
             let pool = o.effects.iter().find(|e| e.cost)?.n?.unsigned_abs();
@@ -561,6 +573,12 @@ fn asked(
         ),
         (P::MayRecycleCanceled, K::ResolvePrinted) => {
             format!("Shuffle {} into your library", named()?)
+        }
+        (P::MayMillCopy, K::ResolvePrinted) => {
+            format!(
+                "Move another {} from your library to your ash heap",
+                named()?
+            )
         }
         (P::NameAshPair, K::FindCard) => format!("Remove two {}", card()),
         (P::AllyFromAsh, K::FindCard) => format!("Move {} to your ready region", card()),
@@ -820,9 +838,9 @@ fn pass(
         P::DiablerieEquipment => "Take nothing more".into(),
         P::MoveBetween | P::CircleBlood => "Move nothing more".into(),
         P::DistributeFrom => "Move no more blood".into(),
-        P::CryptSearch | P::BaseSearch | P::LibraryToHand => "Find none".into(),
+        P::CryptSearch | P::BaseSearch | P::LibraryToHand | P::LibraryToTop => "Find none".into(),
         P::ChooseCircle => "Keep his own circle".into(),
-        P::StoreSearch | P::DisciplineSearch => "Stop searching".into(),
+        P::StoreSearch | P::DisciplineSearch | P::ResearchSearch => "Stop searching".into(),
         P::AllySearch => "Find nothing".into(),
         P::MayDrawExtra => "Draw no more".into(),
         P::Redraw => format!("Keep {}", named()?),
@@ -839,6 +857,10 @@ fn pass(
         P::BurnFromLibraryTop => "Burn none".into(),
         P::CryptToReady => "Find none".into(),
         P::MayGainPool => "Gain no pool".into(),
+        P::MayBurnEdgeForPool => "Keep the Edge".into(),
+        P::SecondCopyOnto => "Put no second copy".into(),
+        P::ReturnBeforeBurn => "Burn first: it is spared".into(),
+        P::DrainBeforeSteals => "Steals first: the drain takes what is left".into(),
         P::BuyTitle => "Buy no title".into(),
         P::MayGainHandSize => "Keep your hand size".into(),
         P::MayPreventForBlood => "Burn no blood".into(),
@@ -871,6 +893,7 @@ fn pass(
             Some(c) => format!("Leave {c} in your ash heap"),
             None => "Leave it in your ash heap".into(),
         },
+        P::MayMillCopy => "Search for no copy".into(),
         P::NameOwnAshCard => "Name none".into(),
         P::PutInPlaySearch => "Put nothing in play".into(),
         P::ReadyTitledLeft => "Play no card for it".into(),
@@ -1171,6 +1194,7 @@ mod tests {
             P::DistributeFrom,
             P::EntryRemoveOrBurn,
             P::LibraryToHand,
+            P::LibraryToTop,
             P::LockOrDiscard,
             P::BurnBloodToAnarch,
             P::SwapEquipFromPrey,
@@ -1187,9 +1211,14 @@ mod tests {
             P::MayAddCounter,
             P::MayDrawExtra,
             P::MayGainPool,
+            P::MayBurnEdgeForPool,
+            P::SecondCopyOnto,
+            P::ReturnBeforeBurn,
+            P::DrainBeforeSteals,
             P::MayPutOn,
             P::PutFoundOn,
             P::MayRecycleCanceled,
+            P::MayMillCopy,
             P::MinionOf,
             P::MoveBetween,
             P::MoveOffBurnedBearer,
@@ -1203,6 +1232,7 @@ mod tests {
             P::SearchEquipFor,
             P::StealForCorruption,
             P::StoreSearch,
+            P::ResearchSearch,
             P::UncontrolledBlood,
         ];
         let mut generic = Vec::new();

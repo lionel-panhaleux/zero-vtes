@@ -689,7 +689,7 @@ impl Engine {
     /// As [`Engine::add_ally`], in the version of `mode` (its superior
     /// version with 1).
     pub fn add_ally_version(&mut self, owner: SeatId, card: u16, mode: u8) -> MinionId {
-        let m = self.recruit_ally(owner, card, crate::copies::CopyId::NONE, mode);
+        let m = self.recruit_ally(owner, card, crate::copies::CopyId::NONE, mode, 0);
         self.state.minions[m.index()].recruited = false;
         m
     }
@@ -792,9 +792,45 @@ impl Engine {
         }
     }
 
+    /// "If you control 4 or more True Brujah, burn Al-Muntathir": a printed
+    /// burn read live as each step settles (`Stat::BurnsWhile`; Infernal
+    /// Servitor's timing, rules-qa 70.19); a contested vampire gives nothing.
+    fn settle_printed_burns(&mut self) {
+        let st = &self.state;
+        let burned: Vec<MinionId> = (0..st.minions.len())
+            .map(|i| MinionId(i as u32))
+            .filter(|&m| {
+                st.minions[m.index()].present()
+                    && st.printed_mod(m, cards::Stat::BurnsWhile, Default::default()) > 0
+            })
+            .collect();
+        for m in burned {
+            if self.state.minions[m.index()].present() {
+                self.burn_minion(m);
+            }
+        }
+        // Grotesque: removed once its controller no longer controls its
+        // location (gone, contested or taken).
+        let st = &self.state;
+        let unbound: Vec<MinionId> = (0..st.minions.len())
+            .map(|i| MinionId(i as u32))
+            .filter(|&m| {
+                let v = &st.minions[m.index()];
+                v.present()
+                    && v.bound_location
+                        .0
+                        .is_some_and(|c| !st.controls_location(v.owner, c))
+            })
+            .collect();
+        for m in unbound {
+            self.remove_from_game(m);
+        }
+    }
+
     /// A card burning "if this vampire changes sect" whose host is no
     /// longer of the sect it made it: read live, an override landing too
-    /// (Field Training, The Red Question; LSJ 20100811).
+    /// (Field Training, The Red Question; LSJ 20100811); one whose host is
+    /// no longer infernal (Maleficia).
     fn settle_sect_bound(&mut self) {
         let st = &self.state;
         let due: Vec<CardId> = st
@@ -819,6 +855,12 @@ impl Engine {
                 cards::Modifier::GehennaBound if st.layer_active(l) => {
                     (st.cards[l.source.index()].in_play && st.gehenna_in_play() == 0)
                         .then_some(l.source)
+                }
+                cards::Modifier::InfernalBound if st.layer_active(l) => {
+                    let c = &st.cards[l.source.index()];
+                    c.host
+                        .filter(|&h| c.in_play && !st.is_infernal(h))
+                        .map(|_| l.source)
                 }
                 cards::Modifier::SectBound(sect) if st.layer_active(l) => {
                     let c = &st.cards[l.source.index()];
@@ -1104,6 +1146,7 @@ impl Engine {
             self.settle_burn_to_prevent();
             self.state.settle_entries();
             self.settle_servitors();
+            self.settle_printed_burns();
             self.settle_hunts_to_torpor();
             self.settle_sect_bound();
             self.settle_over_capacity();
@@ -1120,6 +1163,7 @@ impl Engine {
                 self.settle_ousting();
             }
             self.settle_acting_ousted();
+            self.settle_combat_diablerie();
             if self.settle_draw_up() {
                 continue;
             }
@@ -1526,7 +1570,7 @@ impl Engine {
             };
             let seat = &mut self.state.seats[s.index()];
             let (card, copy) = seat.hand.take(*i as usize);
-            seat.ash.put(card, copy);
+            seat.to_ash(card, copy);
             return;
         }
         let flow = std::mem::replace(&mut self.flow, Flow::GameOver);
@@ -1812,9 +1856,20 @@ impl Engine {
             }
         }
         self.state.unlock_phase = true;
+        self.state.in_master_phase = crate::state::Sparse(0);
         let s = self.state.active;
         for seat in &mut self.state.seats {
             seat.burn_option_used = false;
+        }
+        // A shattered counter: no card behind it, it outlasts its giver
+        // (Shatter the Gate; LSJ 20100206-2).
+        let shattered = self.state.seats[s.index()].shattered.0;
+        if shattered > 0 {
+            self.state.seats[s.index()].lose_pool(shattered as i32);
+            self.note_pool_burned(s);
+            if self.state.seats[s.index()].pool <= 0 && self.oust_and_pass(s) {
+                return;
+            }
         }
         let mut pending = Vec::new();
         for item in self.collect_contests() {
@@ -1889,6 +1944,41 @@ impl Engine {
         }
     }
 
+    /// "If Byzar would be burned, instead put 1 burn counter on him and move
+    /// him to torpor. If he has 3 burn counters, remove him from the game"
+    /// (`Stat::TorporInsteadOfBurn`): a replacement while controlled (LSJ
+    /// 20100423), nothing keyed to his burn fires (LSJ 20091217). Whether
+    /// it replaced the burn. Short of his last counter and not `to_torpor`,
+    /// the caller moves him to torpor (Amaranth's going-to-torpor step
+    /// again, ANK 20210424).
+    pub(crate) fn replace_burn(&mut self, m: MinionId, to_torpor: bool) -> bool {
+        let v = &self.state.minions[m.index()];
+        if !(v.present() && v.is_vampire()) {
+            return false;
+        }
+        let n = self.state.printed_mod(
+            m,
+            cards::Stat::TorporInsteadOfBurn,
+            crate::state::PrintedCtx::default(),
+        );
+        if n <= 0 {
+            return false;
+        }
+        let counters = &mut self.state.minions[m.index()].burn_counters;
+        counters.0 += 1;
+        let left = counters.0 < n as u8;
+        if left && !to_torpor {
+            return true;
+        }
+        if self.state.minions[m.index()].ready() {
+            self.minions_to_torpor(&[m]);
+        }
+        if !left && self.state.minions[m.index()].in_play {
+            self.remove_from_game(m);
+        }
+        true
+    }
+
     /// Hector Trelane: burned in combat against `foe`, its controller gains
     /// pool (a blood hunt's burn in it too, LSJ 20091210).
     pub(crate) fn burned_in_combat_gift(&mut self, m: MinionId, foe: MinionId) {
@@ -1899,13 +1989,16 @@ impl Engine {
         );
         if gift > 0 {
             let s = self.state.minions[foe.index()].owner;
-            self.state.seats[s.index()].pool += gift;
+            self.state.gain_pool(s, gift);
         }
     }
 
     /// A minion is burned, the cards on it to their owners' ash heaps
     /// (spec §1.12.1); "after a ready minion is burned" riders if it was ready.
     pub(crate) fn burn_minion(&mut self, m: MinionId) {
+        if self.replace_burn(m, true) {
+            return;
+        }
         if self.book_takes_ally(m) {
             return;
         }
@@ -2067,12 +2160,12 @@ impl Engine {
                     );
                     self.state.seats[controller.index()].transfers_next += n as u8;
                 } else {
-                    self.state.seats[owner.index()].ash_crypt.put(card, *v.copy);
+                    let controlled = !v.contested;
+                    let heap = &mut self.state.seats[owner.index()];
+                    heap.burn_vampire(card, *v.copy, controlled);
                     // Merged: both cards (rulebook "Advanced").
                     if let Some(base) = v.merged {
-                        self.state.seats[owner.index()]
-                            .ash_crypt
-                            .put(base, *v.merged_copy);
+                        heap.burn_vampire(base, *v.merged_copy, controlled);
                     }
                 }
             }
@@ -2085,6 +2178,7 @@ impl Engine {
         }
         // The cards on it, and an ally's own card, to their owners' ash
         // heaps.
+        let controlled = !self.state.minions[m.index()].contested;
         for ci in 0..self.state.cards.len() {
             let c = &self.state.cards[ci];
             // "If she is burned, shuffle her into her owner's library"
@@ -2100,7 +2194,19 @@ impl Engine {
             if shuffled {
                 self.shuffle_into_library(CardId(ci as u32));
             } else if c.host == Some(m) || c.body == Some(m) {
+                // An ally burned from play as itself (Pressing Flesh; LSJ
+                // 20100325-2).
+                let ally = c.body == Some(m)
+                    && controlled
+                    && crate::library::LIBRARY[c.card as usize]
+                        .types
+                        .contains(&crate::library::CardType::Ally);
+                let (owner, copy) = (c.owner, *c.copy);
                 self.burn_card_in_play(CardId(ci as u32));
+                let heap = &mut self.state.seats[owner.index()];
+                if ally && heap.ash.pairs().any(|(_, k)| k == copy) {
+                    heap.burned_allies.0.push(copy);
+                }
             }
         }
         if was_ready {
@@ -2194,7 +2300,7 @@ impl Engine {
         if let Some((card, copy)) = drawn.filter(|&(c, _)| {
             crate::crypt::CRYPT[c as usize].capacity < cap && self.state.controls_copy(seat, c)
         }) {
-            self.state.seats[seat.index()].ash_crypt.put(card, copy);
+            self.state.seats[seat.index()].burn_vampire(card, copy, false);
             return self.soul_gem(g, seat, crate::crypt::CRYPT[card as usize].capacity);
         }
         match drawn {
@@ -2549,7 +2655,7 @@ impl Engine {
         let stored = std::mem::take(&mut c.stored);
         // Raw Recruit: its vampire burned with it (LSJ 20021128).
         if let Some((v, vcopy, vowner)) = c.held_vampire.take() {
-            self.state.seats[vowner.index()].ash_crypt.put(v, vcopy.0);
+            self.state.seats[vowner.index()].burn_vampire(v, vcopy.0, false);
         }
         let c = &mut self.state.cards[id.index()];
         // The Erciyes Fragments: the card on it burns to its owner's.
@@ -2574,11 +2680,11 @@ impl Engine {
             if removed {
                 seat.removed.put(card, copy);
             } else {
-                seat.ash.put(card, copy);
+                seat.to_ash(card, copy);
             }
         }
         if !self.state.cards[id.index()].effect_only {
-            self.state.seats[stored_to.index()].ash.put_all(stored);
+            self.state.seats[stored_to.index()].to_ash_all(stored);
         }
         self.state
             .layers
@@ -2638,7 +2744,7 @@ impl Engine {
         let (owner, card, copy) = (c.owner, c.card, *c.copy);
         let stored = std::mem::take(&mut c.stored);
         let seat = &mut self.state.seats[owner.index()];
-        seat.ash.put_all(stored);
+        seat.to_ash_all(stored);
         seat.library.put(card, copy);
         self.state.seats[owner.index()]
             .library
@@ -2765,6 +2871,7 @@ impl Engine {
                 self.state.phase_actions = 0;
                 self.state.optional_action = false;
                 self.state.in_minion_phase = true;
+                self.state.in_master_phase = crate::state::Sparse(0);
                 self.flow = Flow::MinionPhase
             }
             Flow::MinionPhase => {
@@ -2776,6 +2883,7 @@ impl Engine {
                 self.state.seats[a.index()].minion_phase_end = self.state.entry_clock;
                 self.thirst();
                 self.minion_phase_end_riders();
+                self.unlocks_after_minion_phase();
                 // "During your influence phase" abilities: once per phase.
                 self.state.phase_uses.clear();
                 let a = self.state.active;
@@ -2893,6 +3001,24 @@ impl Engine {
         }
     }
 
+    /// The vampires that earned an unlock after this minion phase (Code of
+    /// Samiel): each offered it, if still present and locked.
+    fn unlocks_after_minion_phase(&mut self) {
+        for i in 0..self.state.minions.len() {
+            let v = &mut self.state.minions[i];
+            let before = v.timed.len();
+            v.timed
+                .retain(|&(l, ..)| l != crate::cards::Lasting::MayUnlockAfterMinionPhase);
+            if v.timed.len() < before && v.present() && v.locked {
+                let seat = v.owner;
+                self.interrupts.push(crate::draws::Interrupt::MayUnlock {
+                    seat,
+                    minion: MinionId(i as u32),
+                });
+            }
+        }
+    }
+
     /// The Uncoiling `u`, in its controller's discard phase: another event
     /// in play burned at random.
     pub(crate) fn uncoiling(&mut self, u: CardId) {
@@ -2973,6 +3099,7 @@ impl Engine {
         if self.state.seats[s.index()].held[Release::NextDiscardPhase] > 0 {
             self.replace_held(s, Release::NextDiscardPhase, 0, None);
         }
+        self.release_held(Release::TurnDiscardPhase);
         // The Uncoiling's and Dragonbound's effects: due again this phase.
         self.state.seats[s.index()].discard_resolved.clear();
         self.state.seats[s.index()].phase_discards = Some(Vec::new());
@@ -3141,8 +3268,10 @@ impl Engine {
         for (_, pred) in &preds {
             self.gain_half_vps(*pred, 2);
             if !seats.contains(pred) {
+                // "Do not replace until your prey is ousted" (The Rising).
+                self.replace_held(*pred, Release::PreyOusted, 0, None);
                 let oust = Cause::Effect(Source::Rule(Rule::Oust));
-                self.caused(oust, |e| e.state.seats[pred.index()].pool += 6);
+                self.caused(oust, |e| e.state.gain_pool(*pred, 6));
                 // "If your prey is ousted, you gain 4 additional pool"
                 // (Khabar: Glory), per copy.
                 let extra: Vec<(CardId, i32)> = self
@@ -3158,7 +3287,7 @@ impl Engine {
                     .collect();
                 for (id, n) in extra {
                     let glory = Cause::Effect(Source::Card(id));
-                    self.caused(glory, |e| e.state.seats[pred.index()].pool += n);
+                    self.caused(glory, |e| e.state.gain_pool(*pred, n));
                 }
                 // "After your prey is ousted, burn this card" (War of Ages).
                 let burned: Vec<CardId> = self
@@ -3314,7 +3443,7 @@ impl Engine {
                 // removed minion (owner, 2026-09-06; rules-qa 67.1).
                 let stored = std::mem::take(&mut self.state.cards[ci].stored);
                 match self.state.cards[ci].stored_owner {
-                    Some(o) if o != s => self.state.seats[o.index()].ash.put_all(stored),
+                    Some(o) if o != s => self.state.seats[o.index()].to_ash_all(stored),
                     _ => {}
                 }
                 // Absimiliard's Army: the other Methuselahs' ghouls too.
@@ -3371,18 +3500,7 @@ impl Engine {
         if self.drop_action().is_some() {
             self.release_action_scope();
         }
-        // A combat cut short with the turn (its Methuselah ousted) ends
-        // too, as told.
-        if let Some(c) = self.combat.take() {
-            self.note(crate::combat::CombatNote::Ends {
-                minions: c.sides.each_ref().map(|s| s.minion),
-            });
-            for id in c.stand_ins {
-                self.burn_card_in_play(id);
-            }
-            self.persisted_to_torpor(c.sides.each_ref().map(|s| s.minion));
-        }
-        self.state.leave_combat();
+        self.cut_combat();
         self.referendum = None;
         self.state
             .layers
@@ -3541,7 +3659,7 @@ impl Engine {
             .collect();
         for (m, n) in gains {
             let gain = Cause::Effect(Source::Minion(m));
-            self.caused(gain, |e| e.state.seats[s.index()].pool += n);
+            self.caused(gain, |e| e.state.gain_pool(s, n));
         }
         // Unlock phase: the active seat's minions unlock (torpor included).
         for i in 0..self.state.minions.len() {
@@ -3747,7 +3865,7 @@ mod tests {
     #[test]
     fn crypt_data_is_complete() {
         // The 200 V5 vampires, then the owner's legacy additions.
-        assert_eq!(CRYPT.len(), 1055);
+        assert_eq!(CRYPT.len(), 1117);
         assert_eq!(PRECONS.len(), 14);
         for (name, list) in PRECONS.iter() {
             let n: u32 = list.iter().map(|&(_, k)| k as u32).sum();

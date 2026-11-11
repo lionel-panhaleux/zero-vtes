@@ -374,11 +374,13 @@ impl Build<'_> {
             withdrawing: seat.withdrawal == zvtes::state::Withdrawal::Announced,
             withdrew: seat.withdrew,
             edge: seat.has_edge,
+            shattered: seat.shattered.0,
             prey: st.prey(sid).0,
             predator: st.predator(sid).0,
             crypt: self.backs(seat.crypt.len(), true),
             library: self.backs(seat.library.len(), false),
             hand: self.pile(&seat.hand, false),
+            research: self.pile(&seat.research, false),
             ash_heap: ash,
             removed,
             uncontrolled: seat
@@ -427,6 +429,7 @@ impl Build<'_> {
                 crypt: vec![],
                 library: vec![],
                 hand: vec![],
+                research: vec![],
                 ash_heap: vec![],
                 removed: vec![],
                 uncontrolled: vec![],
@@ -526,6 +529,7 @@ impl Build<'_> {
             (MarkerKind::Torture, m.torture),
             (MarkerKind::Pact, m.pact),
             (MarkerKind::Taint, m.taint),
+            (MarkerKind::BurnCounters, m.burn_counters.0),
         ] {
             if n > 0 {
                 markers.push(marker(kind, n));
@@ -658,7 +662,7 @@ pub(crate) fn minion_kind(m: &zvtes::state::Minion) -> MinionKind {
     match m.kind {
         Mk::Vampire(_) => MinionKind::Vampire,
         Mk::Imbued(_) => MinionKind::Imbued,
-        Mk::Ally { .. } => MinionKind::Ally,
+        Mk::Ally { .. } | Mk::CryptAlly(_) => MinionKind::Ally,
         Mk::Created { .. } | Mk::GreatBeast { .. } | Mk::Fury { .. } => MinionKind::Created,
         Mk::Token { .. } => MinionKind::Token,
     }
@@ -667,7 +671,7 @@ pub(crate) fn minion_kind(m: &zvtes::state::Minion) -> MinionKind {
 /// A minion's face: its card, crypt or library.
 pub(crate) fn minion_face(m: &zvtes::state::Minion) -> (u16, bool) {
     match m.kind {
-        Mk::Vampire(c) | Mk::Imbued(c) => (c, true),
+        Mk::Vampire(c) | Mk::Imbued(c) | Mk::CryptAlly(c) => (c, true),
         Mk::Ally { card, .. }
         | Mk::Created { card, .. }
         | Mk::GreatBeast { card, .. }
@@ -795,6 +799,19 @@ pub(crate) fn strike(k: Sk, card: Option<u32>) -> Strike {
             s.n = Some(n);
             s.ranged = true;
             StrikeKind::BurnLife
+        }
+        // Eye of Unforgiving Heaven: a ranged aggravated damage strike, `n`
+        // to each target.
+        Sk::Area { n, .. } => {
+            s.n = Some(n);
+            s.ranged = true;
+            s.aggravated = true;
+            StrikeKind::Damage
+        }
+        // Scourge of Alecto: a ranged damage strike, its amount told live.
+        Sk::CapacityGap { .. } => {
+            s.ranged = true;
+            StrikeKind::Damage
         }
     };
     s

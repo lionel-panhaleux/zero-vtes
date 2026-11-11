@@ -232,6 +232,9 @@ ids!(
         /// The incapacitated region: imbued that lost their last life,
         /// controlled, not ready (rulebook "Appendix: Imbued Rules" 5).
         Incapacitated,
+        /// The research area (Research): face down, its cards seen by
+        /// their owner only; the view's `research`.
+        Research,
     }
 );
 
@@ -870,6 +873,47 @@ ids!(
         /// `minion` burns 1 blood (`choose_minion`), or `seat` burns 1 pool
         /// (`burn_pool`).
         BloodOrPool,
+        /// Development: `seat` replaces it with a card of their research
+        /// area (`find_card`) or by drawing (`draw_library`).
+        ReplaceFromResearch,
+        /// A master: Discipline put on a vampire rather than played (Agent
+        /// of Power by Childe of the Revolution's search): `card`'s
+        /// Discipline (`choose_discipline`).
+        PlacedDiscipline,
+        /// Research: a library card to `seat`'s research area, face down
+        /// (`find_card`), `about.n` more at most, or no more (`pass`).
+        ResearchSearch,
+        /// Off Kilter: `seat` may burn the Edge to gain `about.n` pool
+        /// (`resolve_printed`, its acting `minion`), or keep it (`pass`).
+        MayBurnEdgeForPool,
+        /// Scarlet Lore [myt]: a card of `seat`'s library, revealed, to
+        /// its top once it is shuffled (`find_card`), or none (`pass`).
+        LibraryToTop,
+        /// Dagger: equipped from the hand, another copy of `card` from
+        /// `seat`'s hand or ash heap onto `minion` (`take_from`), or none
+        /// (`pass`).
+        SecondCopyOnto,
+        /// Dagger and Cleave: `card` out of play as the action ends; the
+        /// active Methuselah returns it before Cleave's burn
+        /// (`resolve_rider`), or burns first, the card spared (`pass`).
+        ReturnBeforeBurn,
+        /// Blissful Agony [VAL] played by both combatants: the striker
+        /// whose resolves first (`choose_minion`), the other lost.
+        RedirectFirst,
+        /// Darkness Within beside a steal strike: its drain first
+        /// (`resolve_rider`), or the steals first (`pass`).
+        DrainBeforeSteals,
+        /// La Viuda Blanca's action: how many cards `seat` draws, 1 up to
+        /// `about.n` (`set_x`), the hand then discarded down.
+        DrawUpTo,
+        /// Grotesque entering play: the location bound to `minion`
+        /// (`choose_card`); removed from the game once its controller no
+        /// longer controls it.
+        BindLocation,
+        /// Lord Ephraim Wainwright: another copy of `card`, the action card
+        /// `minion` just played, from `seat`'s library to their ash heap,
+        /// the library shuffled (`resolve_printed`), or none (`pass`).
+        MayMillCopy,
     }
 );
 ids!(
@@ -917,5 +961,7 @@ ids!(
         /// Contested yet in play and usable (a two-player game, §1): 1 pool
         /// in each of its controller's unlock phases, or yielded, burned.
         Contested,
+        /// Burn counters (`n`; Byzar: at 3, removed from the game).
+        BurnCounters,
     }
 );

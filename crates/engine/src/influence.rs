@@ -172,9 +172,8 @@ impl Engine {
                 }
             }
             Choice::Withdraw { slot } => {
-                let seat = &mut self.state.seats[s.index()];
-                seat.pool += 1;
-                seat.uncontrolled[*slot as usize].counters -= 1;
+                self.state.seats[s.index()].uncontrolled[*slot as usize].counters -= 1;
+                self.state.gain_pool(s, 1);
                 self.flow = Flow::Influence { left: left - 2 };
             }
             Choice::FollowPath { minion, path } => {
@@ -397,6 +396,12 @@ impl Engine {
                     library: true,
                 });
         }
+        // Grotesque: its location chosen as it enters, before any contest
+        // (LSJ 20080526).
+        if entry_has(card, crate::cards::Effect::BindLocationOnEntry) {
+            self.interrupts
+                .push(crate::draws::Interrupt::BindLocation { seat: s, minion: m });
+        }
         // New Blood: "choose any circle and draw 1 card from your
         // crypt" as he enters.
         if entry_has(card, crate::cards::Effect::ChooseCircleOnEntry) {
@@ -440,8 +445,11 @@ impl Engine {
         // Verbruch: "as he enters play, you can search your crypt", before
         // any contest (LSJ 20080526); the search reads nothing of him.
         if let Some(clan) = entry_crypt_search(card) {
-            self.interrupts
-                .push(crate::draws::Interrupt::CryptSearch { seat: s, clan });
+            self.interrupts.push(crate::draws::Interrupt::CryptSearch {
+                seat: s,
+                clan: Some(clan),
+                blood: 0,
+            });
         }
         // Anarch Convert: his entry ability before any contest.
         if is_anarch_convert(card) {

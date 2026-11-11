@@ -136,19 +136,20 @@ fn no_card_name_in_engine_code() {
 
 /// Pool and blood go down through their primitives only (`Seat::lose_pool`,
 /// `GameState::lose_blood` and the setters beside them), which break a
-/// withdrawal (rulebook "Withdrawing from the Game"); a gain may add in
-/// place.
+/// withdrawal (rulebook "Withdrawing from the Game"); pool goes up through
+/// `GameState::gain_pool` only (The Rising); a blood gain may add in place.
 #[test]
 fn pool_and_blood_go_down_through_their_primitives() {
     let primitives = [
         "lose_pool",
+        "gain_pool",
         "set_pool",
         "lose_blood",
         "set_blood",
         "clear_blood",
         "raise_blood",
     ];
-    let writes = [".pool -=", ".pool = ", ".blood -=", ".blood = "];
+    let writes = [".pool -=", ".pool +=", ".pool = ", ".blood -=", ".blood = "];
     let ends = [".pool =", ".blood ="];
     let mut found = Vec::new();
     for (file, src) in engine_sources() {
@@ -238,6 +239,10 @@ const DURING_ONCE_ELSEWHERE: &[(&str, &str)] = &[
     ),
     ("GREY_THORNE", "an unlock phase rider, offered once a phase"),
     (
+        "JOURNAL_OF_HRORSH",
+        "\"except during an action\": its use removes its Salubri, the Journal burned",
+    ),
+    (
         "RACHEL_BRANDYWINE",
         "asked once as the discard phase ends, its list of discards taken",
     ),
@@ -276,6 +281,10 @@ const DURING_ONCE_ELSEWHERE: &[(&str, &str)] = &[
         "MARTHE_DIZIER",
         "her cards of the combat taken out as one is taken back",
     ),
+    (
+        "MATTHEW",
+        "a printed reduction, spent once each turn (Baldesar's turn use)",
+    ),
     ("MONOCLE_OF_CLARITY", "no engine effect (rules-qa 68.11)"),
     (
         "MUSTAFA",
@@ -292,7 +301,6 @@ const DURING_ONCE_ELSEWHERE: &[(&str, &str)] = &[
         "PRECOGNITION",
         "a per-round prevention granted by the block",
     ),
-    ("SHEELA_NA_GIG", "a lock cost: once while she is unlocked"),
     ("SHOW_OF_FORCE", "its strength option taken once"),
     (
         "SPECTRAL_SERVITOR",

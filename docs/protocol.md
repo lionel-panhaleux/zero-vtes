@@ -18,7 +18,7 @@ is created by one request and played over one WebSocket. Every game is
 recorded, anonymously, and kept two years to train and test the engine
 (§11).
 
-Version **2.25.0**. The types: the models of the
+Version **2.26.0**. The types: the models of the
 [API reference](https://engine.krcg.org/docs), also as
 [JSON Schema](https://engine.krcg.org/schema.json) (2020-12) and
 [TypeScript](https://engine.krcg.org/protocol.ts).
@@ -298,20 +298,22 @@ the previous one, never the engine's state.
   ended), `decision` (the next one's number).
 - `seats[]`: `name`, `pool`, `vp_halves`, `ousted` (out of the game:
   ousted, or withdrawn), `withdrawing`? (a withdrawal announced, not
-  broken), `withdrew`? (out by a withdrawal), `edge`, `prey`,
-  `predator`; zones as cards `{copy?, id?, crypt?, nth?, numbered?}` — `crypt`,
-  `library` (top last; while the seat searches it, the cards it may take
-  show their `id`), `hand`, `ash_heap`, `removed`, `limbo` (cards
-  being played); an ousted seat's places empty (its cards out of the
-  game); `training[]` (library cards in the uncontrolled region
-  with training counters, Web of Knives Recruit: as `in_play[]`'s, the
-  counters the training's); `uncontrolled[]` (`card`, `counters`, `banished`,
-  `cards`); `ready[]`, `torpor[]` and `incapacitated[]` minions (an
-  imbued that lost its last life, controlled and not ready, its `blood`
-  the life it has gained there since (Rejuvenate): the rulebook's
-  incapacitated region, its own zone `incapacitated`); `in_play[]` (cards on no
-  minion).
-- Minion: `card`, `kind` (`vampire`, `ally`, `created`, `token`,
+  broken), `withdrew`? (out by a withdrawal), `edge`, `shattered`? (the
+  pool a shattered counter burns each unlock phase, Shatter the Gate),
+  `prey`, `predator`; zones as cards `{copy?, id?, crypt?, nth?, numbered?}` —
+  `crypt`, `library` (top last; while the seat searches it, the cards it may
+  take show their `id`), `hand`, `research`? (Research's face-down area: backs
+  to the other seats; zone `research`), `ash_heap`, `removed`, `limbo` (cards
+  being played); an ousted seat's places empty (its cards out of the game);
+  `training[]` (library cards in the uncontrolled region with training counters,
+  Web of Knives Recruit: as `in_play[]`'s, the counters the training's);
+  `uncontrolled[]` (`card`, `counters`, `banished`, `cards`); `ready[]`,
+  `torpor[]` and `incapacitated[]` minions (an imbued that lost its last life,
+  controlled and not ready, its `blood` the life it has gained there since
+  (Rejuvenate): the rulebook's incapacitated region, its own zone
+  `incapacitated`); `in_play[]` (cards on no minion).
+- Minion: `card`, `kind` (`vampire`, `ally`: a library card, or a crypt
+  one for an imbued raised as an ally (Pressing Flesh), `created`, `token`,
   `imbued`: a crypt card as a mortal ally, its `blood` its life), `name`,
   `blood`, `capacity`, `locked`, `contested`, `title` (id), `owner`,
   `cards[]` (in play on it), `markers[]` (`kind`, `seat`, `n`, `card`),
@@ -325,14 +327,17 @@ the previous one, never the engine's state.
   a `contested` one, its `contested` field false: a two-player game, §1).
 - `action`: `seat`, `acting`, `kind` (`bleed`, `hunt`, …, `card`), `step`
   (`announced`, `open`, `attempt`, `declined`, `would_succeed`,
-  `blocked`, `after_combat`, `resolved`), the `card` and its `mode` and
-  `x`, `source`, `target`, `bleed_target`, `bleed`, `stealth`, `blocker`,
-  `intercept`, `declined`, `declining` (the attempt under way is short of
-  the stealth and its Methuselah passed: blocks are not declined yet, and
-  it declines unless the table helps the attempt before the round ends,
-  rules-qa 82.1). `acting` is a minion on the table: the action ends
-  (`action_ends`, `ousted`) once its Methuselah is ousted, mid-way too (a
-  cost paying the last pool: rules-qa 51.5), and the effects under way
+  `blocked`, `after_combat`, `resolved`, `diablerie`: the cards played
+  on a diablerie and its blood hunt; a diablerie in combat, Amaranth's
+  or Liquefy [VIC]'s, holds them with `combat` still set, the combat
+  resuming after), the `card` and its `mode` and `x`, `source`, `target`,
+  `bleed_target`, `bleed`, `stealth`, `blocker`, `intercept`, `declined`,
+  `declining` (the attempt under way is short of the stealth and its
+  Methuselah passed: blocks are not declined yet, and it declines unless
+  the table helps the attempt before the round ends, rules-qa 82.1).
+  `acting` is a minion on the table: the action ends (`action_ends`,
+  `ousted`) once its Methuselah is ousted, mid-way too (a cost paying
+  the last pool: rules-qa 51.5), and the effects under way
   (other seats' interrupts, a Life Boon) have settled.
 - `combat`: `minions` (acting first), `round`, `range`, `sides[]`
   (`strike` once declared — the blocker chooses knowing the acting
@@ -576,7 +581,7 @@ heap (a marker on its minion, §6), no copy of its own.
 | `draw` | `seat`, `n`, `crypt` |
 | `revealed` | `seat`, `card` (its `id`, `crypt`; no number): a card of a crypt or library an effect revealed to all (a top card, a search's find) |
 | `hand` | `seat`, `open`, `cards`: `seat`'s hand as this seat sees it now, told as it turns face up (`open`) or face down for it (an open hand: Aura Reading, Revelations; a look), after the moves of its step: each card's face with its copy number, or its back; while open, a card moving into it is told with its face |
-| `looked` | `seat`, `cards` (their `id`s; no number), `zone`?: `seat`'s hand as it stood when an effect let this seat look at it (SchreckNET, Vaticination), told to the looking seat only; `zone: library`, the top of `seat`'s library, top first: its own (Anna "Dictatrix11" Suljic) or the active Methuselah's (Weirding Stone) |
+| `looked` | `seat`, `cards` (their `id`s; no number), `zone`?: `seat`'s hand as it stood when an effect let this seat look at it (SchreckNET, Vaticination), or only the replacements it drew during a referendum (Slag), told to the looking seat only; `zone: library`, the top of `seat`'s library, top first: its own (Anna "Dictatrix11" Suljic) or the active Methuselah's (Weirding Stone) |
 | `resolved` | `seat`, `card`, `effects`? (the options' vocabulary, §7, `on` as it applies): a card played resolved — what its mode does (none when it takes no effect: its payer burned paying), the changes it makes told by the events after it, so its `pool`, `blood` and `life` effects at once are not among `effects` (their events follow, the card their `cause`; one that comes later, its `when` set, stays); an action card's end is its `action_ends` |
 | `canceled` | `seat`, `card`: a card played canceled (still played: to the ash heap) |
 | `pool` | `seat`, `delta`, `pool`, `cause`? |

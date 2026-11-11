@@ -44,8 +44,9 @@ pub const DISCIPLINES: [&str; 25] = [
 ];
 
 /// Disciplines the pool gained after the context was made, appended after
-/// the profile in this order (Thanatosis: round 26).
-pub const LATE_DISCIPLINES: [&str; 1] = ["thn"];
+/// the profile in this order (Thanatosis: round 26; Melpominee, Valeren:
+/// round 28).
+pub const LATE_DISCIPLINES: [&str; 3] = ["thn", "mel", "val"];
 
 /// A seat's features: present, its position, its Disciplines, its
 /// profile per round, the Disciplines the pool gained since.

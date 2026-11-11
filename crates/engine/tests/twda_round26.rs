@@ -1078,6 +1078,26 @@ fn vampires_react_to_a_gehenna_card_played() {
     assert_eq!(e.state.seats[0].pool, 9);
 }
 
+/// Cyscek's pool burn ousting the Methuselah who played the Gehenna event
+/// in their own discard phase: the turn passes, the game goes on (a
+/// pool burn's oust does not pass the turn itself; the play's settling
+/// once left the game over with three Methuselahs, fuzz seed 45).
+#[test]
+fn cyscek_ousting_the_active_player_passes_the_turn() {
+    let mut e = game(3);
+    e.add_minion(SeatId(0), plain("Brujah", 0), 4, false);
+    e.add_minion(SeatId(1), plain("Ventrue", 0), 4, false);
+    e.add_minion(SeatId(2), find_card("Cyscek"), 4, false);
+    hand(&mut e, 0, &["Fueled by Heart's Blood"]);
+    to_window(&mut e, SeatId(0), WindowLabel::DiscardPhase);
+    e.state.seats[0].pool = 1;
+    pick(&mut e, play_at(0, 0, None, Target::None));
+    let next = request(&mut e);
+    assert!(e.state.seats[0].ousted);
+    assert_eq!(e.state.living(), 2);
+    assert_eq!((e.state.active, next.seat), (SeatId(1), SeatId(1)));
+}
+
 /// Marcel de Breau: with the Edge, a pool for a Gehenna card played.
 #[test]
 fn marcel_de_breau_gains_with_the_edge() {
@@ -5023,6 +5043,7 @@ fn ghouled_ally_strikes_with_potence_once_a_combat() {
             sect: Sect::Independent,
             strike_only: true,
             once_per_combat: true,
+            combat_only: false,
         }),
     ] {
         e.state.layers.push(zvtes::cards::Layer {
@@ -9426,11 +9447,13 @@ fn hermana(e: &mut Engine, blood: u8) -> MinionId {
 /// Slake the Thirst: "Only usable after this Blood Brother gains blood …
 /// The chosen Blood Brother gains the same amount of blood." [ANK 20201228]
 /// "Can be played after a diablerie, before the blood hunt ([san] after
-/// Amaranth …)": the Hermana's Amaranth on her empty blocker, Slake [san]
-/// offered before any blood hunt. [LSJ 20100325] "[SAN] Can be played at
-/// any time blood is gained during an action, including after action
-/// resolution (eg. Games of Instinct …)": the Hermana's Games of Instinct
-/// gain, Slake [SAN] offered after it.
+/// Amaranth …)": the Hermana's Amaranth on the blocker her Coma sent to
+/// torpor with its 3 blood, Slake [san] offered at once, the combat
+/// suspended for the window before the blood hunt (rules-qa 113.10;
+/// advanced rules §3.7.8.1), the hunt next in it.
+/// [LSJ 20100325] "[SAN] Can be played at any time blood is gained during
+/// an action, including after action resolution (eg. Games of Instinct
+/// …)": the Hermana's Games of Instinct gain, Slake [SAN] offered after it.
 #[test]
 fn slake_the_thirst_follows_amaranth_and_games_of_instinct() {
     let slake_at = |a: MinionId, b: MinionId| {
@@ -9440,16 +9463,42 @@ fn slake_the_thirst_follows_amaranth_and_games_of_instinct() {
         }
     };
     let mut e = game(2);
-    let a = hermana(&mut e, 1);
+    let a = hermana(&mut e, 4);
     give(&mut e, a, "san");
+    give(&mut e, a, "dem");
     let b = hermana(&mut e, 1);
-    let z = e.add_minion(SeatId(1), textless(|c| c.capacity <= 4, 0), 0, false);
-    e.add_minion(SeatId(1), plain("Ventrue", 1), 4, false);
-    hand(&mut e, 0, &["Amaranth", "Slake the Thirst"]);
+    let z = e.add_minion(SeatId(1), textless(|c| c.capacity <= 4, 0), 3, false);
+    let p = e.add_minion(SeatId(1), plain("Ventrue", 1), 4, false);
+    e.state.minions[p.index()].granted_title = Some(Title::Prince("Paris"));
+    hand(&mut e, 0, &["Coma", "Amaranth", "Slake the Thirst"]);
     bleed_blocked(&mut e, a, z);
+    pick_when(&mut e, play(0, 0, a));
     pick_when(&mut e, play_at(0, 0, Some(a), Target::None));
+    let req = loop {
+        let req = request(&mut e);
+        if req.options.iter().any(slake_at(a, b)) {
+            break req;
+        }
+        e.choose(fallback(&req));
+    };
+    assert!(!e.state.minions[z.index()].in_play, "diablerized");
+    let state = e.action().map(|x| x.state);
+    assert!(
+        matches!(state, Some(zvtes::actions::ActionState::AfterDiablerie(..)))
+            && e.combat().is_some(),
+        "its window, in the combat suspended: {req:?}"
+    );
     pick_matching(&mut e, slake_at(a, b));
-    assert!(e.referendum().is_none(), "before the blood hunt");
+    let req = loop {
+        let req = request(&mut e);
+        if req.window == WindowLabel::BloodHuntPolling {
+            break req;
+        }
+        assert!(e.referendum().is_none(), "{req:?}");
+        e.choose(fallback(&req));
+    };
+    assert_eq!(blood(&e, b), 4, "the same gain, before the hunt: {req:?}");
+    assert!(e.combat().is_some(), "the hunt in the combat");
 
     let mut e = game(2);
     let a = hermana(&mut e, 1);
@@ -9593,7 +9642,8 @@ fn church_of_st_blaise_saves_an_emptied_barranquilla() {
 /// Hector Trelane: [LSJ 20091210] "The opponent gains pool if he's burned
 /// because of a bloodhunt during combat (eg. after Amaranth)": Hector's
 /// Amaranth diablerizes the blocker, the blood hunt passes and burns him,
-/// the blocker's controller gains 4 pool.
+/// the combat suspended for it (rules-qa 113.10) then over, the blocker's
+/// controller gaining 4 pool once.
 #[test]
 fn hector_trelane_burned_by_a_blood_hunt_after_amaranth_pays_the_opponent() {
     let mut e = game(3);
@@ -9608,9 +9658,15 @@ fn hector_trelane_burned_by_a_blood_hunt_after_amaranth_pays_the_opponent() {
     pick_when(&mut e, play_at(0, 0, Some(h), Target::None));
     until(&mut e, SeatId(1), WindowLabel::BloodHuntPolling);
     assert!(!e.state.minions[b.index()].present(), "diablerized");
+    assert!(
+        e.combat().is_some(),
+        "the hunt in the combat (rules-qa 113.10)"
+    );
     pick(&mut e, votes(p, true));
-    until(&mut e, SeatId(1), WindowLabel::MinionPhase);
+    request(&mut e);
     assert!(!e.state.minions[h.index()].present(), "burned by the hunt");
+    assert!(e.combat().is_none(), "the combat over with him");
+    until(&mut e, SeatId(1), WindowLabel::MinionPhase);
     assert_eq!(e.state.seats[1].pool, 14);
 }
 

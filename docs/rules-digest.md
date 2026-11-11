@@ -358,6 +358,8 @@ below rely on these and do not repeat them.
   except one canceled before resolution (23.3, 5.8, 64.4); one ended
   (Change of Target, Yawp Court's combat) plays nothing there, its
   Daring the Dawn damage still taken (23.3, 88.1). §10.
+- A fizzle counts as a successful action for Journal of Hrorsh's counter and
+  Cheat the Fates [TEM]'s unlock (113.103, 113.66).
 
 ### 3.3 A bleed; "a bleed against your prey"
 
@@ -416,6 +418,8 @@ below rely on these and do not repeat them.
   played otherwise than from hand (RTR 20001020) (77.12).
 - A seat target never names an ousted Methuselah (Curse of Nitocris's
   choice) (78.52).
+- La Viuda Blanca's "draw up to 2": picked as the action resolves, before the
+  draw, as Dual Form's granted amount (113.23).
 
 ### 3.6 A vampire; unique; a minion
 
@@ -437,6 +441,9 @@ below rely on these and do not repeat them.
   animals (41.13); a "mage" or "demon" ally by its type line (41.8, 62.30,
   62.31).
 - A minion card is any library card but a master or an event (60.3).
+- Mortals by type line: an imbued is a mortal ally, a Ghouled ally is not (the
+  subtype Ghouled replaces); The Ailing Spirit's mortals and mages likewise
+  (113.129, 113.45).
 
 ### 3.7 Played, put in play, moved, equipped
 
@@ -551,6 +558,10 @@ D11; the per-card readings: 32.7, 49.5, 69.2, 71.7, 68.10, 70.2, 73.7.
   requiring Blood Sorcery; basic Blood Sorcery plays its combat cards at
   superior; its Ⓓ burn action at -1 stealth for a Malkavian (that clan)
   (80.33).
+- [mal] and [str] are not Disciplines: nothing counting, listing, requiring or
+  taxing Disciplines sees them; their cards are played through Maleficia's and
+  Striga's level (owner, 113.1). Blood Tempering's and Shadowed Eyes'
+  two-Discipline layouts are combos, both required (113.59, 113.138).
 
 ### 3.13 Younger, older
 
@@ -638,6 +649,8 @@ rulebook actions by kind and target for card texts (23.2). §8.5.
   (42.7, 67.7).
 - Library card kinds: 60.3 (minion card), 60.4 (action cards), 70.17, 71.26.
 - An ally with no card (a token) costs 0 (71.2).
+- Scarlet Lore's "minion card": any library card but a master or an event; Lord
+  Ephraim's "action card": every action card type (113.132, 113.24).
 
 ### 3.19 A frenzy card "played on"
 
@@ -755,6 +768,12 @@ limit:
   referendum, Hope one use a bleed either way, Palavra Sagrada once each action
   (112.5, 112.11, 112.15, 112.52); Qadir al-Asmai once each game per Qadir
   (112.24).
+- Once a span (Heirs to the Blood): Lydia, Veejay Vinod, Virginie, Sylvie
+  Helgon, Hillanvale once each action; Serenna once in each Methuselah's turn;
+  Matthew one master card a master phase; Silas once each discard phase; Myrna
+  Goldman and Nahum Enosh once each unlock phase; Federico di Padua once each
+  combat (113.26, 113.41, 113.36, 113.20, 113.33, 113.27, 113.34, 113.30,
+  113.15).
 
 ### 4.3 Live reading and fixed amounts
 
@@ -831,6 +850,9 @@ limit:
   corrected, amending 63.16).
 - Printed Discipline requirements for a discard or a move: Aisling Sturbridge
   (G6), Kaiser, Academia de Campeões (112.3, 112.17, 112.33).
+- Draeven Softfoot: no card printing a Chimerstry requirement targets him,
+  whatever mode is played; his play bar reads the mode played (D29; 113.82).
+  "Requires flight" is checked, an ally's printed flight meeting it (113.119).
 
 ### 4.5 Discipline layouts and modes
 
@@ -1024,6 +1046,9 @@ simultaneous effects, §2.5 duration). The engine's window primitives are in
   the controller choosing the order (53.6).
 - Order is a real choice (advanced rules §2.4.2); effects not ordered:
   advanced rules §2.4.5 (unlocking at the start of the unlock phase, 7.8).
+- Darkness Within's drain against the strikes' blood steals: ordered by the
+  acting minion's controller (LSJ 20020301; 113.76); Blissful Agony [VAL] by
+  both combatants: the acting Methuselah picks which resolves first (113.58).
 
 ### 5.4 All at once
 
@@ -1104,6 +1129,11 @@ simultaneous effects, §2.5 duration). The engine's window primitives are in
 - Feo Ramos: in his controller's unlock phase, each older Sabbat vampire of
   another Methuselah may burn 1 blood to lock him, once each (6.6), he
   locked or in torpor too (D25), Mustafa's shape (78.8).
+- Unlock-phase dues and abilities: Code of Samiel's blood, Houngan's lock and
+  blood (in the card's player's unlock phase, open with the owner's lean),
+  Blessing of the Name's burn and lock, Brother in Arms' excess check per copy,
+  Fustuk's unlock from torpor, Myrna Goldman's look and Nahum Enosh's blood
+  (113.69, 113.99, 113.54, 113.62, 113.16, 113.30).
 
 ### 6.2 Master phase
 
@@ -1139,6 +1169,9 @@ simultaneous effects, §2.5 duration). The engine's window primitives are in
   phase begins, read then, in torpor too (D25); her +2 bleed action costs 1
   blood at resolution and is her one bleed of the turn, the rulebook's
   included (1.4) (78.10).
+- Matthew's reduction in his controller's own master phase; Troglodytia's look
+  after each master card another Methuselah plays, a canceled one too (113.27,
+  113.40).
 
 ### 6.3 Minion phase
 
@@ -1216,7 +1249,8 @@ simultaneous effects, §2.5 duration). The engine's window primitives are in
   begins; Ayse Dhanial's uses each spend a discard phase action (twice with
   Sreelekha's), not offered at capacity (15.2); Unmada's, if she is ready as
   the phase begins, hand size read live (62.15). Powerbase: Los Angeles's:
-  the player spends whichever action serves best (28.12).
+  the player spends whichever action serves best (28.12). Silas buys one
+  with none left (113.34).
 - Mora, the Death Seer: once per discard phase; any library card in the ash
   heap, chosen by name (15.2).
 - Roy ("if unlocked during your discard phase, lock him"): applies as the
@@ -1348,6 +1382,10 @@ Advanced rules §1.7 (costs and payment), §1.8 (playing and canceling).
   corrected; 111.2). Emergency Preparations' and Jan Pieterzoon's cancel ends
   the card's "do not replace" (111.4); Nedal's canceled combat card is
   replaced at once (LSJ 20080630; 111.50).
+- Evil Eye [mal] cancels a strike card unpaid, the minion getting no strike in
+  that exchange; [MAL] any action card, the actor locked; Treat the Sick Mind
+  [OBE] cancels a card's own placement on a Dementation vampire, never a later
+  one (owner) (113.85, 113.151).
 
 ### 7.3 Costs and reductions
 
@@ -1443,6 +1481,18 @@ Advanced rules §1.7 (costs and payment), §1.8 (playing and canceling).
   reduction for a random discard, one reducer a play; Convento da Penha's 1 pool
   from other Methuselahs, a cost; Father Anthony's +1 blood on the Discipline
   cards of a vampire in combat with him (112.9, 112.18, 112.40, 112.45).
+- Surcharges and reductions: Darlene Killian's +1 blood on her allies and
+  retainers; Matthew's 1 pool off a master, spent as it is paid; Greater Curse's
+  +1 on bleeds (at resolution) and combat cards (as played); Decompose [THN]'s
+  presses; Cavalier reads the cost as paid, whoever paid it, a cost the Ravnos
+  Carnival's counters pay wholly being no blood cost (owner) (113.13, 113.27,
+  113.92, 113.78, 113.64).
+- Soul of the Earth: any hire by its controller of an ally or retainer requiring
+  a Gargoyle (owner); two copies for one hire asked (113.141, 113.142). Burned
+  blood is an effect, never reduced: Ears of the Hare, Folderol, Voices of the
+  Castle, Flames of the Netherworld, Lead Fist, Mole's Tunneling [SPI] (113.83);
+  Amulet of Temporal Perception's blood spent as the card is announced, not
+  refunded on a cancel (owner, 113.47).
 
 ## 8. Actions
 
@@ -1522,9 +1572,6 @@ actions), §3.9 (mandatory actions), §3.10 (changing the acting minion).
   declared: bleeds, rescue or diablerie of another Methuselah's vampire,
   action cards and granted actions aimed at another Methuselah, their
   minion or card (41.5).
-- Slaves: Tupdog ("Tremere antitribu slave", rulebook "Slave") takes no
-  directed action while his controller controls no ready Tremere
-  antitribu, read as it is offered (62.14, advanced rules §5.7.2).
 - Intercept "against actions directed at Mithras or a Mithraic Mysteries
   card or member" (Mithraic Cultist): a directed action whose target is
   Mithras, a member, The Mithraeum or a Mithraic Cultist (34.8).
@@ -1543,6 +1590,10 @@ actions), §3.9 (mandatory actions), §3.10 (changing the acting minion).
 - Durok: a minion or card of his controller's targeted, never a bleed of the
   Methuselah; O Grande Arquiteto's corruption on a minion of the target
   Methuselah (112.10, 112.23).
+- Directed at a card's controller: Blood Tempering on another's equipment,
+  Barrenness and Minor Curse on another's minion, Annazir at the card's
+  controller not its bearer; Defender of the Haven's +2 against any directed
+  action (113.6, 113.49, 113.79, 113.111).
 
 ### 8.3 An action's costs
 
@@ -1577,6 +1628,9 @@ actions), §3.9 (mandatory actions), §3.10 (changing the acting minion).
   successful, fizzled or failed; a block and its combat are the action's
   resolution, so the blood burns then too, once (30.2, LSJ 19990421).
 - Rescue: 48.8 (§11.6).
+- Paid as the action resolves, unpayable a fizzle: Evil Jensen's 2 pool,
+  Josette's 2 blood, Shatter the Gate's Edge, Safe Passage [OBE]'s toll (113.14,
+  113.22, 113.139, 113.131).
 
 ### 8.4 An action's stealth
 
@@ -1624,6 +1678,8 @@ actions), §3.9 (mandatory actions), §3.10 (changing the acting minion).
   as-announced plays remain possible before the flip (16.6).
 - Mask of a Thousand Faces: the masker takes the action's NRA marks
   (58.13).
+- One action of two kinds, once whichever kind: Annazir, Tanginé (113.6,
+  113.37).
 
 ### 8.6 Actions provided by cards in play
 
@@ -1680,9 +1736,10 @@ actions), §3.9 (mandatory actions), §3.10 (changing the acting minion).
   acting side in that combat (its Methuselah acts first each step); effects
   on "this acting vampire" (Invigorate [pro], Form of Mist's continuation)
   stay with the vampire that took the action (27.5).
-- Tupdog: as a Tremere antitribu of his controller's is blocked, he may lock
-  to fight the blocker instead — the acting vampire unlocked, the canceled
-  combat's riders gone (62.14, advanced rules §5.7.2).
+- A crypt slave (Tupdog, Chalcedony, Sheela Na Gig, …): as a vampire of its
+  master clan controlled by its Methuselah is blocked, it may lock to fight
+  the blocker instead — the acting vampire unlocked, the canceled combat's
+  riders gone (62.14, advanced rules §5.7.2, 113.2).
 - Advanced rules §3.10.
 
 ## 9. Stealth, intercept, blocks
@@ -1727,6 +1784,10 @@ Advanced rules §3.2 (stealth and intercept), §3.3 (blocking).
   attempt to block an action directed at his controller's location, several
   times an action (LSJ 20030605), not bound by "only when needed"; unlocked,
   a legal no-op shown with opportunities on only (owner) (80.4).
+- Bars and openings: Cheat the Fates bars minions without Temporis; Lord of
+  Serenity [for] opens the block to every other Methuselah's vampires; Morphean
+  Blow's minion neither acts nor blocks; Toy neither, yet fights as a slave;
+  Member of the Entourage acts not (113.66, 113.106, 113.113, 113.39, 113.110).
 
 ### 9.2 Only when needed
 
@@ -1778,6 +1839,9 @@ Advanced rules §3.2 (stealth and intercept), §3.3 (blocking).
 - Intercept given while needed: Gianni D'Angelo's to another Camarilla vampire,
   Destilaria's to a Nosferatu; Lambreta's -1 as the attempt is made; Emboldened
   Councilor's attempt under the usual rules (112.13, 112.42, 112.49, 112.44).
+- While needed: Strix [str] even if not needed (its text); Scry the Hearthstone,
+  Steadfastness, New Moon Sigil [SPI], Masca [STR], Virtuosa [mel]'s stealth
+  only while needed (113.145, 113.136, 113.144, 113.114, 113.109, 113.152).
 
 ### 9.3 Values
 
@@ -1801,6 +1865,11 @@ Advanced rules §3.2 (stealth and intercept), §3.3 (blocking).
   attempting to block, an ally or younger than the actor, for the rest of
   the action (78.37); it and Lost in Crowds exclude each other on one action
   both ways, any minion's play (78.37, 78.53).
+- Standing values: Harlan Graves' -1 off bleeds, Hillanvale's -1 against
+  Camarilla, Sabbat or Laibon, Rocia's +1 against Tremere, Defender of the
+  Haven's +2, Safe Passage's -1 to allies, Din of the Damned's equipment
+  intercept lost (positive only) (113.18, 113.20, 113.32, 113.79, 113.131,
+  113.81).
 
 ### 9.4 The block loop
 
@@ -1878,6 +1947,9 @@ Advanced rules §3.2 (stealth and intercept), §3.3 (blocking).
 - Aelswith and Terrifying Visage: the pool the blocker's controller burns
   as the block is declared may oust them; their minion leaves play with
   them, and the action is blocked with no combat (53.1).
+- Block tolls: Evil Jensen against an older vampire, Janet Langer, Stiff
+  Contempt (vampires only), Din of the Damned on intercept reactions and powers,
+  an ally paying life (owner) (113.14, 113.144, 113.81).
 
 ### 9.6 When a block succeeds
 
@@ -1939,6 +2011,12 @@ Advanced rules §3.2 (stealth and intercept), §3.3 (blocking).
 - Bar Último Trago locked as its controller's minion's block is made; Iara's
   combat for any block of the action (owner); Padraic Conroy's block of an older
   vampire (112.36, 112.47, 112.7).
+- Crypt slaves (rulebook "Slave"; Tupdog, "Tremere antitribu slave"): no
+  directed action without a ready vampire of the master clan, read as it is
+  offered (62.14, advanced rules §5.7.2); the slave's lock-and-fight in a
+  blocked master's place, Chalcedony and Sheela Na Gig too (113.2).
+- Member of the Entourage blocking a vampire burns before block resolution
+  (113.110).
 
 ### Open or contested
 
@@ -2002,6 +2080,10 @@ Vocabulary: §3.2.
   succeeds: The Red Question made its vampire Anarch, a Camarilla-only
   action fizzles (ANK 20210124); one playing as such still meets it
   (104.7).
+- Fizzles: Charge of the Buffalo [for] on a target unlocked, Lord of Serenity
+  and Warding the Beast on a target out of torpor, Threading the Path with the
+  card gone, Shattering Crescendo with no second copy (113.65, 113.106, 113.154,
+  113.149, 113.140).
 
 ### 10.3 Failed, ended, canceled
 
@@ -2030,6 +2112,9 @@ Vocabulary: §3.2.
   RV's mark, set as the as-announced window closes (111.34) (both amber,
   against 1.4's resolution trigger). Tapestry of Blood's fizzle skips its
   unlock (3.6; 111.42).
+- Failing an action: Ensconced (a locked vampire plays it only once woken:
+  owner), Hide the Heart [val], Scobax [STR] (failed, not blocked, NRA); Gift of
+  Sleep ends it at once (113.84, 113.97, 113.133, 113.91).
 
 ### 10.4 After resolution
 
@@ -2076,6 +2161,8 @@ Vocabulary: §3.2.
   (76.22).
 - The Art Hole's unlock and Aisling's after a successful action, a fizzle too;
   Deadly Secrets' draw if the referendum passed (112.34, 112.41).
+- Hay Ride after all combats, successful or not, waiting for its player's next
+  action declaration (owner) (113.95).
 
 ### 10.5 Continuing as if unblocked
 
@@ -2094,6 +2181,9 @@ Vocabulary: §3.2.
   and declines stand (ANK 20190116); an action card's resolution follows
   (LSJ 20070808-1) (63.6).
 - Effects scoped to one block: advanced rules §3.6.3; Melange stays (30.5).
+- Momentary Delay continues a blocked action after its combats, clearing its
+  outcome at once; "lost 3 or more blood" every decrease since the declaration
+  (owner); Morphean Blow [VAL] a blocked non-bleed action (113.112, 113.113).
 
 ## 11. The kinds of action
 
@@ -2179,6 +2269,8 @@ torpor actions, diablerie). Referendums: §13.
   the predator burns 1 pool, an effect (78.29).
 - Night Moves: the bleed amount kept, only the pool lost capped at 1 (LSJ
   20030211) (80.23).
+- The Horde lends +1 bleed to any Methuselah's acting infernal minion, from
+  torpor (113.21).
 
 ### 11.2 Hunt
 
@@ -2225,6 +2317,10 @@ torpor actions, diablerie). Referendums: §13.
   hunt, card hunts too, tops up from the bank, not the hunt's target (RTR
   20030519); a hunt gaining no blood is not successful (LSJ 20050720-2)
   (77.30).
+- Azrael moves 1 hunted blood as it lands, at capacity too; Obaluaye's stealth
+  on any hunt; Hunger Moon takes 1 from each successful hunt, none from a hunt
+  gaining nothing; Ritual Scalpel's bonus on every hunt (113.7, 113.31, 113.100,
+  113.129).
 
 ### 11.3 Equip
 
@@ -2266,6 +2362,8 @@ torpor actions, diablerie). Referendums: §13.
 - Dark Web Procurer: an equip action (TOM 19960130), not the same action as
   equipping from hand (ANK 20180817); a non-unique equipment of 1 or fewer
   pool, a blood cost no pool cost (caps read narrowly) (80.28).
+- Helen Fairchild takes no equip action and holds no equipment but a location
+  equipment Vast Wealth puts on her (113.19).
 
 ### 11.4 Employ and recruit
 
@@ -2332,6 +2430,10 @@ torpor actions, diablerie). Referendums: §13.
 - Vivienne Géroux's steal: only by a vampire of another Methuselah (80.31).
 - Vritra's location of a Methuselah with more locations, read as announced and
   at resolution; Cãoera's blood or life, as a vampire's steal (112.29, 112.37).
+- Steals: Annazir, Titus Camille (equipment he may hold, of his predator or
+  prey), Xeper (another's ally), Josette (a torpid vampire); a stolen card moves
+  onto the stealer, else fizzles (Shaal Fragment, Skaald) (113.6, 113.38,
+  113.42, 113.22, 113.137).
 
 ### 11.6 Leave torpor, rescue
 
@@ -2354,6 +2456,8 @@ torpor actions, diablerie). Referendums: §13.
   20181017); out of torpor by resolution, a fizzle (ANK 20220218). Root of
   Vitality [vic] is not the rulebook rescue nor a rescue for cards reading
   one (Boss Callihan; 111.38).
+- Card rescues pay no rulebook blood: Lord of Serenity [for], Warding the Beast
+  [val] (113.106, 113.154).
 
 ### 11.7 Diablerie and the blood hunt
 
@@ -2383,6 +2487,10 @@ torpor actions, diablerie). Referendums: §13.
   a card answering it (Redline), the referendum ending after; Redline takes
   the vampire for good, Independent held by its card (104.3), its rush only
   at another Methuselah's Camarilla vampire (111.5, 111.7).
+- Byzar: a diablerie of him is unsuccessful; Amaranth's diablerie resolving
+  inside the combat, his return to torpor is a new going-to-torpor moment, a
+  second Amaranth playable there (113.9, 113.10). Harlan Graves calls no blood
+  hunt (113.18).
 
 ### 11.8 Entering combat as an action (rushes)
 
@@ -2419,6 +2527,7 @@ torpor actions, diablerie). Referendums: §13.
   or not (80.27).
 - Aríete's and Valerie Duval's at a ready vampire of another Methuselah; titled
   vampires of another Methuselah into combat with Torque (112.4, 112.20).
+- Baroque, Jozz and Langa rush a ready vampire of another Methuselah (113.8).
 
 ### 11.9 Other rulebook actions: become Anarch, merge
 
@@ -2496,6 +2605,7 @@ round (rulebook "Combat").
   superior play per vampire each round; Weather Control's damage that round
   merges with it in a single damage window, unpreventable, added after the
   prevention (owner correction) (78.32).
+- Alcoan's and Nkechi's look before range in the first round (113.5).
 
 ### 12.3 Range and maneuvers
 
@@ -2554,6 +2664,10 @@ round (rulebook "Combat").
   matrix's maneuver rider); no maneuver without the strike (LSJ 20021028)
   (78.23).
 - IR Goggles: a maneuver each combat, any round, any bearer (80.16).
+- Federico di Padua's maneuver as range is determined in round 1; Foldable
+  Machine Gun none in round 1; Spirit Claws [pro][spi] as range is determined;
+  Olid Loa bars a maneuver to close and a press to continue (113.15, 113.89,
+  113.143, 113.116).
 
 ### 12.4 Choosing strikes
 
@@ -2633,6 +2747,14 @@ round (rulebook "Combat").
 - Mantle of the Bestial Majesty: the vampire's hand strikes are aggravated
   until its controller's next unlock phase, as blocker too, its other
   strikes not; [PRO] +1 strength as long (Gear Up's duration) (78.35).
+- Strikes barred or committed: Tanginé only dodges or ends against a Salubri;
+  Rock Cat's small opposing vampires none in round 1; Pounce none the rest of
+  the round as it lands; Charge of the Buffalo [spi] commits a close hand
+  strike; Joumlon's Axe commits its strike (113.37, 113.130, 113.122, 113.65,
+  113.102).
+- Named with the strike: Morlock's retainer (not offered with none), Absorb the
+  Mind [MYT]'s master: Discipline card (taken as it lands), Autonomic Mastery
+  [dom]'s kind (113.29, 113.43, 113.48).
 
 ### 12.5 Aims and plays on a chosen strike
 
@@ -2654,6 +2776,8 @@ round (rulebook "Combat").
   source, effective at the range, not aimed at a retainer) (44.8); on any
   Methuselah's vampire facing it, by any Methuselah but the active one
   (94.1).
+- Mikael Birkholm: the first aim of his library, played as if from hand, never
+  after another aim on that strike (113.28).
 
 ### 12.6 Strike resolution, first strike
 
@@ -2735,6 +2859,16 @@ round (rulebook "Combat").
 - Elie Sansaricq's corruption on her strikes' damage landing; Hálito Negro's
   retainers hit with its strike; Ron Zertnert's unpreventable point at the press
   step from out of the combat (112.12, 112.46, 112.54).
+- Environmental each round through a dodge: Blissful Agony [val], Groaning
+  Corpse, Razor Bat; Eye of Unforgiving Heaven on both combatants and their
+  demon retainers, a dodge sparing the dodger only (owner), the striker's own
+  damage bonuses on every recipient (owner); Potio Martyrium's 3 at any range;
+  Compress not a hand strike (113.56, 113.93, 113.125, 113.86, 113.87,
+  113.121, 113.71).
+- Added damage of the strike's kind, none on a strike dealing none: Blessing of
+  the Name, Blood Tempering, Sword of the Righteous, Vengeance of Samiel
+  (113.54, 113.59, 113.146). Scourge of Alecto's capacity gap, capped at 4,
+  every bonus counted, Dam the Heart's River's too (owner) (113.134, 113.135).
 
 ### 12.8 Prevention and immunity
 
@@ -2795,8 +2929,22 @@ round (rulebook "Combat").
   card resetting: confirmed by the owner (111.21). Ahriman's Demesne
   [OBT]'s burn instead of torpor (111.25). Amaranth never by an ally, one
   playing cards as a vampire included (RTR 19970630, LSJ 20080717); its
-  blood hunt's burn is in combat (Hector Trelane's 4 pool, LSJ 20091210).
+  diablerie resolves inside the combat, and its window (combat cards:
+  Slake the Thirst [san]) and blood hunt with the combat suspended, the
+  combat then ending as its victim left it, Marie-Pierre's join after;
+  Liquefy [VIC]'s strike alike (113.10, 107.30); its blood hunt's burn
+  is in combat (Hector Trelane's 4 pool, LSJ 20091210), and Hector
+  diablerized by it pays the diablerist's controller (113.10). A vampire
+  Liquefy [VIC]'s strike diablerizes is being burned: no Amaranth nor
+  Decapitate [POT] by it; the diablerie lands with the round's damage, its
+  user sent to torpor beside it; that victim is not going to torpor, so no
+  Amaranth nor Decapitate by the user against it (113.155).
 - O Encourado: 1 aggravated each combat round (112.22).
+- Chaundice both uses on one strike, never aggravated; Draeven Softfoot on any
+  Kiasyd, in his own combat too; Penitent Resilience: Flash Grenade no effect on
+  the vampire, its opposing bearer stunned (owner); Hexe [STR] unpreventable;
+  Blood Tempering's +1 to each prevention, a Kevlar Vest's allowance asked
+  (113.12, 113.82, 113.120, 113.96, 113.60).
 
 ### 12.9 Additional strikes
 
@@ -2824,6 +2972,9 @@ round (rulebook "Combat").
 - Maria Quitéria's and Torque's limited additional strike each combat; Meia
   Lua's two basic strikes and superior dodge with a hand strike (112.20,
   112.50).
+- Fractura's X mandatory limited hand strikes each round; Tinglestripe one
+  strike a round, either; Decompose bars additional strikes (113.90, 113.150,
+  113.78).
 
 ### 12.10 Dodge
 
@@ -2854,6 +3005,9 @@ round (rulebook "Combat").
 - "Cannot press this round" (Target Vitals) only when the aim lands (55.1).
 - Once-each-combat presses: Abaddon, Saku (14.2), Jacob Fermor (64.1),
   Nephandus (62.24), Ruins of Ceoris (62.27).
+- The Black Beast's press only at the press step to continue, not while one
+  stands; Lead Fist's likewise; Azrael cannot press to end (113.51, 113.83,
+  113.7).
 
 ### 12.12 End of round, end of combat, after combat
 
@@ -2952,6 +3106,11 @@ round (rulebook "Combat").
 - Chave de Braço [POT] on the opponent as the round ends (Disarm's comparison);
   Sydnelson ends any round's combat of two other Methuselahs' vampires before
   range (112.38, 112.26).
+- Blissful Agony [VAL]: a new combat with a minion chosen with the strike, the
+  striker itself too (owner), lost if the combat continues (113.57). After
+  combat: Cedric's unlock, Darkness Within's return (with a new combat asked),
+  Loving Agony, Morphean Blow, not if dodged or continued (113.11, 113.76,
+  113.77, 113.107, 113.113).
 
 ### 12.13 Weapons and equipment in combat
 
@@ -2978,6 +3137,9 @@ round (rulebook "Combat").
   staying on it (111.17). Count Germaine bars the weapons' strikes and
   maneuvers, not a passive bonus (111.44); Sword of Nuln, Sword of Troile,
   Meat Hook's destroy strike the opponent's only (111.37, 111.41).
+- Dagger's ranged strike out of play until the action ends, its second copy
+  fetched; Jar of Skin Eaters gated by a blood; Clockwerx moves a circle-mate's
+  equipment, another Methuselah's asked (113.75, 113.101, 113.67, 113.68).
 
 ### 12.14 Frenzy cards
 
@@ -2996,6 +3158,8 @@ round (rulebook "Combat").
   and Grab), the Trophies alike (94.5).
 - Drawing Out the Beast against an armed anarch restricts its strikes
   (Groundfighting, 71.6); not played against an ally (70.16).
+- Bliss cancels a frenzy card from out of the combat, in torpor too; Scourge of
+  Alecto is a frenzy card (113.55, 113.134).
 
 ### 12.15 Combat-wide effects and hand size
 
@@ -3017,6 +3181,7 @@ round (rulebook "Combat").
   card (63.7).
 - A card granting several strikes (Blur) bars further additional strike
   cards until all of them are made (48.2).
+- Uriel's open hand in combat (113.41).
 
 ### Open or contested
 
@@ -3095,6 +3260,9 @@ prisci's alone (52.9, 70.6) — read "a Methuselah's ballots" in rules-qa as
   the acting vampire, ready; the 3 blood allocated among other vampires (the
   acting one included) as the terms; short of blood as it passes, the caller
   picks which receive (LSJ 20010606) (77.15).
+- Terms chosen after the action succeeds, untargeted: Fanfare for Elysium's
+  older vampires, Lily Prelude's points; Command Performance's burn referendum
+  undirected (113.88, 113.104, 113.70).
 
 ### 13.2 Vote sources
 
@@ -3175,6 +3343,7 @@ prisci's alone (52.9, 70.6) — read "a Methuselah's ballots" in rules-qa as
   titles -1 in it (32.9), the Priscus sub-referendum untouched (80.15).
 - Carter Vanderweyden's per other primogen in his own referendums; Tubarão's
   crypt reveal for an older vampire's vote (112.8, 112.28).
+- Xeper's vote per ready unique infernal vampire, himself included (113.42).
 
 ### 13.3 Polling
 
@@ -3246,6 +3415,10 @@ prisci's alone (52.9, 70.6) — read "a Methuselah's ballots" in rules-qa as
   locked or not (111.15).
 - Samira: no votes against an effective prince's referendum, read as she votes
   (112.25).
+- Covincraft's and Knotted Cord's polling step, none in a referendum passing
+  automatically; Slag sees the replacements drawn during a referendum; Warding
+  the Beast [VAL]'s blood hunt open in favor to Baali and Tremere only (113.73,
+  113.35, 113.154).
 
 ### 13.4 Tally and costs of voting
 
@@ -3306,6 +3479,7 @@ prisci's alone (52.9, 70.6) — read "a Methuselah's ballots" in rules-qa as
 - Hellene Panhard stunned after her referendum is held and fails (owner);
   Information Exchange's chosen one given points, each burning their own
   (112.14, 112.48).
+- Benefit Performance feeds the vampires in favor at the tally (113.50).
 
 ### Open or contested
 
@@ -3442,6 +3616,8 @@ retainers, traits, titles, trait changes).
   20220916); one skin a minion; its extra bleed past the once-a-turn cap
   (1.4), any bleed; burned in its controller's discard phase; on a
   diablerie, before its blood hunt, not after (RTR 19991206; 78.39, 88.4).
+- Removed, not burned: Byzar at his third counter, Grotesque with his location
+  gone (113.9, 113.17).
 
 ### 14.4 Blood, capacity
 
@@ -3469,6 +3645,8 @@ retainers, traits, titles, trait changes).
   strike's gain as the strikes end; several gains: the one answered chosen
   by its amount (LSJ 20100203); also between a diablerie and its blood hunt
   (68.2); an end-of-round gain (Taste of Vitae) at the round's end (94.2).
+- Barrenness [MAL]: Orun's capacity added before the minimum of 1 (113.49);
+  Blooding by the Code on a superior Valeren (113.61).
 
 ### 14.5 Allies
 
@@ -3528,6 +3706,9 @@ retainers, traits, titles, trait changes).
   too: confirmed by the owner (111.47).
 - Mulher de Branco: three ash cards or burned, then shuffled into the library,
   not burned (112.51).
+- Pressing Flesh raises a burned ally, or a burned imbued as its crypt card, as
+  a zombie; Reanimated Corpse plays basic Fortitude as a capacity-1 vampire;
+  Horseshoes' ally burned by a Ⓓ action (113.123, 113.126, 113.98).
 
 ### 14.6 The uncontrolled region, banishment
 
@@ -3581,6 +3762,8 @@ retainers, traits, titles, trait changes).
   amount named as announced (111.18).
 - Porto de Santos: each Methuselah's top three crypt cards, one to the
   uncontrolled region (112.31).
+- Little Mountain Cemetery and Tend the Flock feed a younger vampire there, by
+  its printed capacity, from the bank, uncapped (113.105, 113.147).
 
 ### 14.7 Created and new vampires
 
@@ -3612,6 +3795,10 @@ retainers, traits, titles, trait changes).
   sect, basic Animalism, no blood; hunts only, no votes or ballots, no
   equipment (80.39); it may act the turn it enters (owner) (80.38). Dual
   Form's copy of a clanless vampire (the Great Beast) is clanless (80.45).
+- Create Gargoyle's slave and Hatchling (not unique, no slave); Brother in Arms
+  of its sire's clan; Blessed Resilience's burned vampire back with no blood;
+  Thicker than Blood's circle-mate, able to act (113.74, 113.62, 113.52,
+  113.148).
 
 ### 14.8 Retainers
 
@@ -3622,6 +3809,8 @@ retainers, traits, titles, trait changes).
   discard phase (41.7). Pack Alpha's retainer (22.2).
 - Advanced rules §5.6 (the retainer is not the bearer; using a weapon is not
   a strike; retainer damage is environmental).
+- Olid Loa: the opposing minion's retainers lose their text, still retainers
+  (113.116).
 
 ### 14.9 Merging and versions
 
@@ -3683,6 +3872,9 @@ retainers, traits, titles, trait changes).
 - Sect changes by card are actual (LSJ 20100811), kept once the card is
   gone, an old sect's title idle (LSJ 20060904), a sect-bound trait kept
   (Black Hand; 111.32).
+- Text-only vampires and printed traits generated (113.3); Al-Muntathir's True
+  Brujah and Obaluaye's Salubri counted torpid and himself included (113.4,
+  113.31).
 
 ### 14.11 Counters on minions
 
@@ -4003,6 +4195,12 @@ readings (vampires, allies, library cards) no mechanism section states.
   Winterlich's discount and Black Forest Base's burn live (89.24);
   Foresee's cancel offered as a cancel (89.25); "successfully hunts" at
   capacity (89.26).
+- Heirs to the Blood readings: Harmony's no-op without a Choir; Visionquest's
+  Spiritus level; the Paths of Harmony, Retribution and Service; Psalm of the
+  Damned (Unleashing the Bestial Soul no longer bars powers); Capitalist's
+  mandatory gain; Lord Ephraim's mill, "the card" any copy of the milled
+  card in the ash heap as the action succeeds; Coroner's Contact
+  (113.94, 113.153, 113.118, 113.124, 113.63, 113.24, 113.25, 113.72).
 
 ## 16. Cards in play
 
@@ -4050,6 +4248,8 @@ cards), §1.10 (burn and removal), §6.3 (control of a card in play).
   play; a minion its controller's predator or prey puts in play out of the
   unlock phase locked, a vampire younger than its bearer 1 blood (owner)
   (80.41).
+- Grotesque's location; Ensconced on a location, burned with it (113.17,
+  113.84).
 
 ### 16.2 Hunting grounds
 
@@ -4106,6 +4306,10 @@ cards), §1.10 (burn and removal), §6.3 (control of a card in play).
   (111.23).
 - Vial of Zapathasura's Vitae: a Ravnos bearer's only, never moved, its burn
   sending the bearer to torpor (112.56).
+- Amulet of Temporal Perception: once each turn per copy, a second copy entering
+  after the first a second use (ANK 20230316); Journal of Hrorsh's counters;
+  Shaal Fragment's hand size; Foldable Machine Gun (113.46, 113.103, 113.137,
+  113.89).
 
 ### 16.4 Cards on minions
 
@@ -4136,6 +4340,8 @@ cards), §1.10 (burn and removal), §6.3 (control of a card in play).
   its player's (7.5), used by the vampire's controller (ANK 20210309-3):
   locked to prevent 1 damage in combat or to gain a blood, in torpor too
   (D25); it unlocks only for a blood in its vampire's unlock phase (78.36).
+- Shadowed Eyes, Decompose, Minor Curse, Greater Curse on a minion, the card its
+  host's controller's (113.138, 113.78, 113.111, 113.92).
 
 ### 16.5 "Put this card on …"
 
@@ -4159,6 +4365,9 @@ cards), §1.10 (burn and removal), §6.3 (control of a card in play).
   once each combat, its own vampire's (ANK 20221021), read since 84.37
   (80.24). Praxis Seizure: York: on the calling vampire if still in play
   (80.26).
+- The card itself put on: The Black Beast, Spirit Claws, Darkness Within,
+  Morphean Blow, Safe Passage [OBE], Ensconced (113.51, 113.143, 113.76,
+  113.113, 113.131, 113.84).
 
 ### 16.6 Master cards on minions
 
@@ -4170,6 +4379,9 @@ cards), §1.10 (burn and removal), §6.3 (control of a card in play).
 - A master card's offer to the vampire it is on goes to that vampire's
   controller (ANK 20210309-3; 69.15's Flames of Insurrection, the offer to
   the Anarch's controller).
+- Agent of Power: a chosen Discipline at superior and +1 capacity, burned in the
+  discard phase; Maleficia and Striga on an infernal vampire, no capacity;
+  Obtenebration and Thaumaturgy (113.44, 113.108).
 
 ### 16.7 Counters on cards; moving them
 
@@ -4212,6 +4424,9 @@ cards), §1.10 (burn and removal), §6.3 (control of a card in play).
   meeting it (78.31).
 - The Red Question: its non-titled non-Anarch requirement read as a trait;
   a torpid such vampire bars it too (LSJ 20091204) (104.8).
+- The burn option with every vampire of the level in torpor (Barrenness, Evil
+  Eye, Minor Curse, Strix); unique has no bearing on it (Code of Samiel, Command
+  Performance, Draeven) (113.49, 113.69, 113.70).
 
 ## 17. Control and ownership
 
@@ -4274,6 +4489,9 @@ minions), §6.3 (of a card in play), §6.4 (leaving and re-entering play).
   two at once wait in turn, each asked of its own loser (111.5). The
   Thunderbolt played as a vampire is about to enter combat gives the blood
   only, the combat going on: confirmed by the owner (111.6).
+- The Ailing Spirit [OBE] takes another Methuselah's minion until the turn ends
+  (113.45); Houngan moved to another's Samedi stays its player's (open,
+  113.99).
 
 ### 17.3 Taking control of cards in play
 
@@ -4283,6 +4501,9 @@ minions), §6.3 (of a card in play), §6.4 (leaving and re-entering play).
   controller follows, owner stays (17.4).
 - Disputed Territory's location (39.4), Dominate Kine [DOM] (31.4),
   Confiscation (51.3), Fast Hands (70.11).
+- Absorb the Mind's and Clockwerx's moved cards follow their new host's
+  controller (113.43, 113.68); Threading the Path's "played by another" is the
+  card's owner (113.149).
 
 ## 18. Contests, uniqueness, titles
 
@@ -4309,6 +4530,8 @@ Advanced rules §1.13 (contests), §5.8 (titles).
   burns every other Jimmy in play, any Methuselah's, before any contest
   (60.9); during an action, a burn by the rule, not by the acting minion
   (94.6).
+- Spirit Claws: its "Unique." contests the action version across Methuselahs,
+  its combat versions nothing (113.143).
 
 ### 18.2 Contested cards
 
@@ -4334,6 +4557,8 @@ Advanced rules §1.13 (contests), §5.8 (titles).
   their contests again, its remembered title too; still its controller's for
   "controls a copy" (LSJ 20040526); not unlocked in the unlock phase, its
   blood not drained, its cards out of play (owner, confirmed) (78.54).
+- Agent of Power contested still gives its trifle; Fanfare for Elysium [MEL]
+  contests another's copy (113.44, 113.88).
 
 ### 18.3 Title contests
 
@@ -4382,6 +4607,7 @@ Advanced rules §1.13 (contests), §5.8 (titles).
   archbishop (owner); Respected Representative's primogen, no contest; Thomas
   Arturo's titled target, in torpor too; Backroom Deal's primogens (112.2,
   112.21, 112.53, 112.27, 112.35).
+- City titles are prince, baron and archbishop for Papillon too (113.117).
 
 ### 18.5 The two-player variant
 
@@ -4438,6 +4664,9 @@ Advanced rules §1.9 (replacement), §6.8 (hand, draw and discard).
   announcing it and his modifiers included, is replaced at the action's end,
   after its combats and after-resolution window (Bum's Rush's delay, LSJ
   20001120); a card with its own delay keeps it (78.18).
+- Held replacements: Minor Curse (until the action ends, or the discard phase);
+  Development keeps its research option on a held draw; Slag sees every
+  replacement, a draw alternative's too (113.111, 113.80, 113.35).
 
 ### 19.2 Extra draws and draw alternatives
 
@@ -4494,6 +4723,7 @@ Advanced rules §1.9 (replacement), §6.8 (hand, draw and discard).
   "Drawing Cards"): Flurry of Action's draw is discarded down before Curse
   of Nitocris's pick (78.51).
 - Luana do Lago's +1, Rey's and Tereza Rossi's strength: printed, live (112.30).
+- Nitidas' +1 hand size until the turn ends (113.30).
 
 ### 19.4 Searches and stored cards
 
@@ -4520,6 +4750,10 @@ Advanced rules §1.9 (replacement), §6.8 (hand, draw and discard).
   Delivery Truck's stored card face down, shown (111.23); Magazine's ammo
   (111.17).
 - St. Patrick's Cathedral: the bottom move chosen after the reorder (112.55).
+- Research's area, Development's draw from it, Blessing of the Beast's stored
+  cards, Evil Jensen's and Coroner's Contact's crypt searches, Scarlet Lore's
+  top card, Lord Ephraim's mill (113.127, 113.80, 113.53, 113.14, 113.72,
+  113.132, 113.24).
 
 ## 20. Events and Gehenna
 
@@ -4555,6 +4789,8 @@ Rulebook "Event Cards"; advanced rules §6.8.2.
   Preparations' cancel and unlock (111.4). Veil of Darkness: a vampire's
   first card requiring a Discipline each turn voided by a revealed master,
   still played, applied before any cancel; not an ally's (111.11).
+- Hunger Moon's counters; The Rising withholds a gain without the Edge or a VP,
+  waits for the prey ousted; Research (113.100, 113.128, 113.127).
 
 ## 21. Pool, ousting, victory points
 
@@ -4602,6 +4838,7 @@ Advanced rules §6.5 (pool, the Edge and ousting).
   for the Methuselah; broken at their next unlock phase, they are ousted
   (111.8); any withdrawal kept, a voluntary one too, ousts the card's
   player: confirmed by the owner (111.9).
+- Shatter the Gate's counters outlast their giver's oust and may oust (113.139).
 
 ### 21.2 Victory points, game end
 
@@ -4650,6 +4887,8 @@ Advanced rules §6.5 (pool, the Edge and ousting).
   included (D11); its controller burns 1 pool each unlock phase; each time a
   Methuselah who did not hold the Edge gets it (LSJ 19971006), its
   controller passes it to any Methuselah, itself included (78.49).
+- Off Kilter: the Edge gotten anew, or burned for 1 more pool, under The Rising
+  burned first (113.115).
 
 ## 22. Engine modeling (see docs/engine.md)
 
@@ -4994,6 +5233,12 @@ read, for the owner to confirm or correct:
   111.48–111.51 graded green or amber (111.2, 111.6, 111.9, 111.21, 111.47,
   111.52 red, answered by the owner, 2026-11-08: 111.2 corrected, 111.6,
   111.9, 111.21, 111.47 and 111.52 confirmed).
+- Batch 113 (round 28) graded green or amber but its reds: 113.57, 113.86 and
+  113.120 corrected, 113.1, 113.47, 113.64, 113.69, 113.81, 113.84, 113.95,
+  113.112, 113.141 and 113.151 confirmed by the owner (2026-11-10); 113.99 open
+  with the owner's lean; 113.10, 113.25, 113.87, 113.135 and 113.155
+  answered by the owner (2026-11-11); 113.60, 113.68, 113.77 and 113.142
+  asked 2026-11-10, built as stated.
 - 106.1–106.9, 106.11–106.17, 106.19–106.22 graded green or amber
   (106.10 and 106.18 red, confirmed by the owner).
 - 93.1–93.10 graded green (settled by KRCG rulings and 60.7, 60.19, 60.21).
@@ -5105,15 +5350,15 @@ an owner ruling:
 - Batch 107's reds, the owner's, each flipped: Topaz's swap before entry
   (107.6); Final Loosening [aus] on any gain (107.20); Grey Thorne and Blood
   Turnip across Methuselahs (107.25, 107.29); Liquefy [VIC]'s strike a choice
-  (107.30); Trophy: Chosen's Seraph while on it (107.32); Blessings of the
-  Loa's prey (107.34).
+  (107.30; its diablerie inside the combat, 113.10); Trophy: Chosen's Seraph
+  while on it (107.32); Blessings of the Loa's prey (107.34).
 
 ## 25. Index of rules-qa items
 
 Every rules-qa item, by batch, with the digest sections citing it: the
 section stating it and those cross-referring to it (§2 the default
 readings, §22 engine modeling, §23 the contradictions, §24 the open
-readings). 1272 items, Batches 1–112 (44.11 was removed, replaced by Batch
+readings). 1427 items, Batches 1–113 (44.11 was removed, replaced by Batch
 45). The index is derived from the citations: a bare `N.M` cites rules-qa
 item N.M in the section it appears in. A new rules-qa item gets its line in
 the section stating it, then its entry here: `python3
@@ -5299,7 +5544,7 @@ index or an item cited nowhere.
   62.4 §2,§11.5,§14.4,§14.9,§23.2; 62.5 §6.2; 62.6 §13.5,§21.2; 62.7
   §3.14,§7.3,§8.3; 62.8 §18.3; 62.9 §9.1; 62.10 §4.2,§6.1,§21.3; 62.11
   §4.2,§6.1; 62.12 §4.2,§19.2; 62.13 §2,§6.4,§19.4; 62.14
-  §6.3,§8.2,§8.8,§11.8,§14.6,§14.10,§23.4; 62.15 §6.5,§19.3; 62.16
+  §6.3,§8.8,§9.6,§11.8,§14.6,§14.10,§23.4; 62.15 §6.5,§19.3; 62.16
   §7.3,§11.1,§12.4; 62.17 §4.2,§9.3,§11.5,§12.8,§14.1; 62.18 §12.4; 62.19
   §2,§4.2,§5.3,§12.4,§14.11,§16.4,§16.5; 62.20 §16.2; 62.21
   §3.12,§11.9,§23.1; 62.22 §19.1; 62.23 §4.5,§12.6; 62.24
@@ -5483,8 +5728,8 @@ index or an item cited nowhere.
   107.16 §15.2; 107.17 §15.2; 107.18 §15.2; 107.19 §15.2; 107.20
   §15.2,§24.3; 107.21 §15.2; 107.22 §15.2; 107.23 §15.2; 107.24 §15.2;
   107.25 §15.2,§24.3; 107.26 §15.2; 107.27 §15.2; 107.28 §15.2; 107.29
-  §15.2,§24.3; 107.30 §15.2,§24.3; 107.31 §15.2; 107.32 §15.2,§24.3; 107.33
-  §15.2; 107.34 §15.2,§24.3
+  §15.2,§24.3; 107.30 §12.8,§15.2,§24.3; 107.31 §15.2; 107.32 §15.2,§24.3;
+  107.33 §15.2; 107.34 §15.2,§24.3
 - **108** — 108.1 §18.2
 - **109** — 109.1 §15.2,§24.1; 109.2 §15.2,§24.1; 109.3 §15.2,§24.1; 109.4
   §15.2,§24.1; 109.5 §15.2,§24.1; 109.6 §15.2,§24.1; 109.7 §15.2,§24.1;
@@ -5522,3 +5767,43 @@ index or an item cited nowhere.
   §9.2; 112.43 §6.4; 112.44 §9.2; 112.45 §7.3; 112.46 §12.7; 112.47 §9.6;
   112.48 §13.5; 112.49 §9.2; 112.50 §12.9; 112.51 §14.5; 112.52 §4.2; 112.53
   §18.4; 112.54 §12.7; 112.55 §19.4; 112.56 §16.3
+- **113** — 113.1 §3.12,§24.1; 113.2 §8.8,§9.6; 113.3 §14.10; 113.4 §14.10;
+  113.5 §12.2; 113.6 §8.2,§8.5,§11.5; 113.7 §11.2,§12.11; 113.8 §11.8; 113.9
+  §11.7,§14.3; 113.10 §11.7,§12.8,§24.1,§24.3; 113.11 §12.12; 113.12 §12.8;
+  113.13 §7.3; 113.14 §8.3,§9.5,§19.4; 113.15 §4.2,§12.3; 113.16 §6.1;
+  113.17 §14.3,§16.1; 113.18 §9.3,§11.7; 113.19 §11.3; 113.20 §4.2,§9.3;
+  113.21 §11.1; 113.22 §8.3,§11.5; 113.23 §3.5; 113.24 §3.18,§15.2,§19.4;
+  113.25 §15.2,§24.1; 113.26 §4.2; 113.27 §4.2,§6.2,§7.3; 113.28 §12.5;
+  113.29 §12.4; 113.30 §4.2,§6.1,§19.3; 113.31 §11.2,§14.10; 113.32 §9.3;
+  113.33 §4.2; 113.34 §4.2,§6.5; 113.35 §13.3,§19.1; 113.36 §4.2; 113.37
+  §8.5,§12.4; 113.38 §11.5; 113.39 §9.1; 113.40 §6.2; 113.41 §4.2,§12.15;
+  113.42 §11.5,§13.2; 113.43 §12.4,§17.3; 113.44 §16.6,§18.2; 113.45
+  §3.6,§17.2; 113.46 §16.3; 113.47 §7.3,§24.1; 113.48 §12.4; 113.49
+  §8.2,§14.4,§16.8; 113.50 §13.5; 113.51 §12.11,§16.5; 113.52 §14.7; 113.53
+  §19.4; 113.54 §6.1,§12.7; 113.55 §12.14; 113.56 §12.7; 113.57
+  §12.12,§24.1; 113.58 §5.3; 113.59 §3.12,§12.7; 113.60 §12.8,§24.1; 113.61
+  §14.4; 113.62 §6.1,§14.7; 113.63 §15.2; 113.64 §7.3,§24.1; 113.65
+  §10.2,§12.4; 113.66 §3.2,§9.1; 113.67 §12.13; 113.68 §12.13,§17.3,§24.1;
+  113.69 §6.1,§16.8,§24.1; 113.70 §13.1,§16.8; 113.71 §12.7; 113.72
+  §15.2,§19.4; 113.73 §13.3; 113.74 §14.7; 113.75 §12.13; 113.76
+  §5.3,§12.12,§16.5; 113.77 §12.12,§24.1; 113.78 §7.3,§12.9,§16.4; 113.79
+  §8.2,§9.3; 113.80 §19.1,§19.4; 113.81 §9.3,§9.5,§24.1; 113.82 §4.4,§12.8;
+  113.83 §7.3,§12.11; 113.84 §10.3,§16.1,§16.5,§24.1; 113.85 §7.2; 113.86
+  §12.7,§24.1; 113.87 §12.7,§24.1; 113.88 §13.1,§18.2; 113.89 §12.3,§16.3;
+  113.90 §12.9; 113.91 §10.3; 113.92 §7.3,§16.4; 113.93 §12.7; 113.94 §15.2;
+  113.95 §10.4,§24.1; 113.96 §12.8; 113.97 §10.3; 113.98 §14.5; 113.99
+  §6.1,§17.2,§24.1; 113.100 §11.2,§20; 113.101 §12.13; 113.102 §12.4;
+  113.103 §3.2,§16.3; 113.104 §13.1; 113.105 §14.6; 113.106
+  §9.1,§10.2,§11.6; 113.107 §12.12; 113.108 §16.6; 113.109 §9.2; 113.110
+  §9.1,§9.6; 113.111 §8.2,§16.4,§19.1; 113.112 §10.5,§24.1; 113.113
+  §9.1,§10.5,§12.12,§16.5; 113.114 §9.2; 113.115 §21.3; 113.116 §12.3,§14.8;
+  113.117 §18.4; 113.118 §15.2; 113.119 §4.4; 113.120 §12.8,§24.1; 113.121
+  §12.7; 113.122 §12.4; 113.123 §14.5; 113.124 §15.2; 113.125 §12.7; 113.126
+  §14.5; 113.127 §19.4,§20; 113.128 §20; 113.129 §3.6,§11.2; 113.130 §12.4;
+  113.131 §8.3,§9.3,§16.5; 113.132 §3.18,§19.4; 113.133 §10.3; 113.134
+  §12.7,§12.14; 113.135 §12.7,§24.1; 113.136 §9.2; 113.137 §11.5,§16.3;
+  113.138 §3.12,§16.4; 113.139 §8.3,§21.1; 113.140 §10.2; 113.141
+  §7.3,§24.1; 113.142 §7.3,§24.1; 113.143 §12.3,§16.5,§18.1; 113.144
+  §9.2,§9.5; 113.145 §9.2; 113.146 §12.7; 113.147 §14.6; 113.148 §14.7;
+  113.149 §10.2,§17.3; 113.150 §12.9; 113.151 §7.2,§24.1; 113.152 §9.2;
+  113.153 §15.2; 113.154 §10.2,§11.6,§13.3; 113.155 §12.8,§24.1

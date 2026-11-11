@@ -243,6 +243,7 @@ fn a_found_card_names_the_zone_it_is_in() {
                             Zone::Library => &s.library,
                             Zone::Hand => &s.hand,
                             Zone::AshHeap => &s.ash,
+                            Zone::Research => &s.research,
                             other => panic!("seed {seed}: {c:?} found in {other:?}"),
                         };
                         assert!(
@@ -391,4 +392,62 @@ fn a_play_from_another_ash_heap_names_whose() {
         .zone
         .expect("its zone");
     assert_eq!((z.seat, z.zone), (1, Zone::AshHeap));
+}
+
+/// Answer `e` with the first of `wants` offered, else a pass or a hand
+/// strike, until an option `found` takes is offered: that request and
+/// option.
+fn drive(
+    e: &mut Engine,
+    wants: &[zvtes::decision::Choice],
+    found: impl Fn(&Engine, &zvtes::decision::Choice) -> bool,
+) -> (zvtes::decision::DecisionRequest, zvtes::decision::Choice) {
+    use zvtes::decision::Choice;
+    for _ in 0..200 {
+        let Step::Decision(req) = e.run() else {
+            panic!("a decision")
+        };
+        if let Some(&c) = req.options.iter().find(|o| found(e, o)) {
+            return (req, c);
+        }
+        let i = wants
+            .iter()
+            .find_map(|w| req.options.iter().position(|o| o == w))
+            .or_else(|| {
+                req.options
+                    .iter()
+                    .position(|o| matches!(o, Choice::Pass | Choice::HandStrike))
+            })
+            .unwrap_or(0);
+        e.choose(i);
+    }
+    panic!("never offered")
+}
+
+/// Development's replacement taken from the research area is a
+/// `find_card` key whose `zone` is the seat's `research` (docs/protocol.md
+/// §8).
+#[test]
+fn a_replacement_from_research_names_the_research_area() {
+    use zvtes::decision::Choice;
+    use zvtes::ids::SeatId;
+    use zvtes::state::find_library;
+    use zvtes_api::ids::Zone;
+    let mut e = Engine::bare(2);
+    e.add_minion(SeatId(0), 0, 4, false);
+    e.add_minion(SeatId(1), 1, 4, false);
+    e.state.seats[0].hand.push(find_library("Development"));
+    let deflection = find_library("Deflection");
+    e.state.seats[0].research.push(deflection);
+    e.state.seats[0].library.push(find_library("Soak"));
+    e.at_master_phase();
+    let play = Choice::Play {
+        card: 0,
+        mode: 0,
+        actor: None,
+        target: zvtes::cards::Target::None,
+    };
+    let (req, find) = drive(&mut e, &[play], |_, o| *o == Choice::FindCard(deflection));
+    let z = key(&e, &req, &find, &EngineNames).zone.expect("its zone");
+    assert_eq!((z.seat, z.zone), (0, Zone::Research));
 }

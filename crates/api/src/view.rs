@@ -77,6 +77,10 @@ pub struct SeatView {
     #[serde(default, skip_serializing_if = "std::ops::Not::not")]
     pub withdrew: bool,
     pub edge: bool,
+    /// A shattered counter: the pool burned each unlock phase (Shatter
+    /// the Gate); omitted with none.
+    #[serde(default, skip_serializing_if = "is_zero")]
+    pub shattered: u8,
     pub prey: Seat,
     pub predator: Seat,
     /// Top last.
@@ -84,6 +88,10 @@ pub struct SeatView {
     /// Top last.
     pub library: Vec<Card>,
     pub hand: Vec<Card>,
+    /// The research area (Research): face down, the cards seen by the
+    /// seat only, backs to the others.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub research: Vec<Card>,
     pub ash_heap: Vec<Card>,
     pub removed: Vec<Card>,
     pub uncontrolled: Vec<SlotView>,

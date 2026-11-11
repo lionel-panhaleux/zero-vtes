@@ -239,7 +239,9 @@ tables; `limit_slot` matches every `Limit`.
   pool and blood are lowered only by `Seat::lose_pool` / `set_pool` and
   `GameState::lose_blood` / `set_blood` / `burn_blood` (a minion leaving
   play: `Minion::clear_blood`; a non-decreasing set: `raise_blood`), the
-  one place a loss breaks a withdrawal (§6.17); a gain may add in place.
+  one place a loss breaks a withdrawal (§6.17); pool rises only by
+  `GameState::gain_pool` (The Rising's bank, §6.16); a blood gain may add
+  in place.
 - `during_abilities_are_once` (`tests/lint.rs`): a definition whose quoted
   text grants a "during" ability has an ability of its own once in its span
   (a `Limit`, phase windows only, a cost spending the card or its host's
@@ -514,16 +516,17 @@ sources to the engine's conventions.
   vampire's forced hunt is offered beside untimed abilities, not instead.
 - Settle steps run beside the interrupts: `settle_sect_bound` (a
   card in play with `Modifier::SectBound` burns once its host's live sect
-  is another: Field Training, The Red Question), `settle_moving_titles`
-  (Osebo Kholo's standing move, marked by `Effect::MovesToOldestUntitled`;
-  a tie among the oldest is `Interrupt::MoveCardToOldest`, the card's
-  controller's) and `settle_burn_to_prevent` (Superior Mettle's offer each
-  later round, `Side::burn_to_prevent` and `burn_to_prevent_asked`,
+  is another: Field Training, The Red Question; `InfernalBound` once it
+  is not infernal: Maleficia), `settle_moving_titles` (Osebo Kholo's standing
+  move, marked by `Effect::MovesToOldestUntitled`; a tie among the oldest is
+  `Interrupt::MoveCardToOldest`, the card's controller's) and
+  `settle_burn_to_prevent` (Superior Mettle's offer each later round,
+  `Side::burn_to_prevent` and `burn_to_prevent_asked`,
   `Interrupt::MayPreventForBlood`), `settle_discard_looks` (Count Jocalo:
-  `GameState::discard_actions_used`, pushed at the discard phase action's
-  spend sites) and `settle_pool_losses` (Conniver: `Seat::lose_pool` flags
-  `Seat::lost_pool`, every loss a cost included; `Hook::PreyLosesPool`'s
-  cards offered `Interrupt::MayLockForBlood`).
+  `GameState::discard_actions_used`, pushed at the discard phase action's spend
+  sites) and `settle_pool_losses` (Conniver: `Seat::lose_pool` flags
+  `Seat::lost_pool`, every loss a cost included; `Hook::PreyLosesPool`'s cards
+  offered `Interrupt::MayLockForBlood`).
 - A hand over size waits for no pending choice but a draw's own
   (`Engine::discards_first`, read in `raw_request` and `apply`).
 - The notes (`notes.rs`; `Engine::notes`, `None` by default: training,
@@ -630,6 +633,11 @@ sources to the engine's conventions.
   canceled with it; a canceled limited bleed leaves the limit unused; cancelling
   abilities (The Vozhd of Gravesend) mark the play canceled as used
   (`as_played_apply`). Cancels by type/Discipline read the mode played.
+  `Effect::LockCanceledActor` locks the minion that played the card
+  canceled (Evil Eye [MAL]); `Requirement::PlayedFrenzy` cancels any frenzy
+  card (`frenzy_on`), by a combatant, any Methuselah's vampire out of the
+  combat (`Actor::OutOfCombatVampire`: locked or in torpor too) or a
+  reacting minion (Bliss).
 - An action card's as-played window, its action not declared yet
   (`reacting_candidates` with no `ActionCtx`): a cancel by another's ready
   minion, unlocked or woken; a wake by a locked one, only a wake with no
@@ -638,7 +646,11 @@ sources to the engine's conventions.
   into `ActionCtx::woken` as the action is declared, cleared when the stack
   ends with none (canceled, an oust). A woken minion meets `ActorUnlocked`
   for a reaction card only (`play_options`' `woken_reaction`; rules-qa
-  96.4).
+  96.4), never `ActorUnlockedToLock` (a reaction locking its vampire as
+  the effect: Hide the Heart [VAL], ANK 20230817).
+- "Younger" than the minion playing the card, a reactor too
+  (`Requirement::YoungerThanPlayer`, Knotted Cord), not `Younger`'s acting
+  minion: checked with the target in `play_options`.
 - A play's two ends, `resolve_play` (after its payment; an action card's
   end is its action's) and `settle_canceled`, are noted
   (`Note::Play`, `PlayNote`), which the host tells as `resolved` and
@@ -660,6 +672,19 @@ sources to the engine's conventions.
   only (`cards::plays_card_as_vampire`, its "non-action" limit included;
   `has_disciplines` reads it so): `holds`' `ActorSectIn` /
   `ActorCapacityAtLeast` read sect and capacity alone (rules-qa 73.6).
+  `AsVampire::combat_only`: cards played as combat cards only, a dual
+  card's combat mode (Reanimated Corpse). Cards requiring a Discipline a
+  minion shuns (`Modifier::ShunsDiscipline`) are barred from every minion
+  while it acts, attempts or succeeds to block or fights
+  (`Engine::discipline_barred`, its `bearer`: an ally's own card; the mode
+  played), and cannot target it at any mode of a card printing one
+  (`GameState::shuns_discipline`: Draeven Softfoot; rules-digest D29).
+- "Requires flight" (the `FLIGHT` tag: As the Crow, Dive Bomb, Pounce,
+  Patrol) is checked by `has_disciplines` with the Disciplines, an ally's
+  printed flight included (Herald of Topheth).
+- Treat the Sick Mind [OBE]'s `PlayedPutsOnUncontrolledWith(d)`: the card
+  played puts itself on its minion target (`PutOnTarget`), a vampire with
+  `d` its player does not control.
 - A play canceled as it opens (Andrew Stuart: `Hook::HostPlaysCard` →
   `Effect::RevealTopCancels`; Veil of Darkness:
   `Modifier::FirstDisciplineCardRevealsTop`, a vampire's first card
@@ -717,6 +742,10 @@ sources to the engine's conventions.
   checked by `ability_gate`, `may_take_granted` inside it). A granted action
   has only its printed stealth (rules-qa 6.2); an action card its printed
   stealth (`printed_stealth`), a bleed card's too (rules-qa 104.5).
+- The blood an action's costs took, as paid and whoever paid (a card's,
+  a surcharge, a rescue's share, leaving torpor; not a continuation's
+  burn): `ActionCtx::blood_cost`, recorded at each payment site, read by
+  `Requirement::ActionCostBlood` (Cavalier).
 - Steals: every steal of a card in play (`Effect::StealTarget*`,
   `StealLocation`) carries `Requirement::NotControlled` in its target, even
   where the text does not print "another Methuselah's": one cannot steal
@@ -729,6 +758,10 @@ sources to the engine's conventions.
   Nightmares) is hunting for everything reading one (LSJ 20050720-2;
   rules-qa 72.1–72.5). `ActionCtx::card_hunt` is the card's part only;
   `Requirement::RulebookHunt` is the rulebook hunt (Zöe's "usual +1").
+  Every hunt's blood goes through `Engine::hunt_gain`: Azrael's
+  `Stat::HuntBloodElsewhere` holds that part back for
+  `MinionPurpose::HuntBloodTo` (another vampire of his controller's, or
+  kept), still gained at capacity.
 - Directedness is `ActionCtx::directed_seat`: bleed target; rescue/diablerie of
   another's vampire; a minion, seat or card target's controller unless the acting
   Methuselah (a card target never makes the action directed at its minion). The
@@ -794,7 +827,7 @@ sources to the engine's conventions.
   its unlock, in the controller's order (rules-qa 53.6): a gain can be
   taken by the unlock first, a loss after it; the rest applies as the
   action ends.
-- **Diablerie's steps** (`diablerise`): one unit, nothing played between
+- **Diablerie's steps** (`diablerise_to`): one unit, nothing played between
   them (rulebook "Diablerie"); step 2, the victim's equipment the
   diablerist could hold, is `Interrupt::DiablerieEquipment` (a card at a
   time, `ResolutionChoice`), and steps 1 and 3 (`diablerie_burns`: the
@@ -807,11 +840,23 @@ sources to the engine's conventions.
   `Interrupt::DisciplineSearch` (Childe of the Revolution's) on the
   diablerist, not one of a Discipline it has at superior, the card's
   requirements ignored (LSJ 20051116-2), asked before the window of the
-  cards played on the diablerie (rules-qa 81.1).
+  cards played on the diablerie (rules-qa 81.1). A victim whose burn is
+  replaced (Byzar, `Engine::replace_burn`) makes it unsuccessful at its
+  first step: `diablerise_to` returns false, nothing taken, no blood hunt,
+  the action on to its after-resolution window (LSJ 20100228).
 - **Diablerie's blood hunt** (`end_action_into_blood_hunt`): part of the
   action (spec §3.7.8.1), which ends after it through its after-resolution
   window (rules-qa 5.8); the referendum's rotation starts at the
-  diablerist's controller, clockwise (DESIGN §4.2).
+  diablerist's controller, clockwise (DESIGN §4.2). A diablerie made in a
+  combat (§6.7) holds its window and hunt with the combat suspended, the
+  only referendum with `Engine::combat()` set: the window takes the combat
+  cards keyed to it (Slake the Thirst [san], advanced rules §3.7.8.1; no
+  action modifier, `actor_candidates`), the hunt's burn is a burn in
+  combat (Hector Trelane), and its end goes back into the combat
+  (`resume_hunted_combat`, before the after-resolution riders); an oust
+  meanwhile reads the combat as it resumes (`after_deferred_oust`,
+  `settle_acting_ousted`), and an action cut short cuts it
+  (`cut_combat`).
 - **Live conditions** (owner, 2026-09-25): an effect's conditions are evaluated
   throughout, never snapshotted (`Effect::If` → `ActionCtx.conditional`); a
   limited bleed increase counts against the limit only while its condition holds.
@@ -869,8 +914,78 @@ sources to the engine's conventions.
 - A card's action toll (Enrage [PRE], `Modifier::HostActionToll`) joins the
   printed one in `action_toll`: masked as announced, paid at resolution,
   hunts and combat entries free; `ActionCtx::tolled` burns after the action.
+  A bleed's (Greater Curse, `HostBleedToll`) too; an ally pays it in life,
+  its last life burning it.
+- An action card's layers for its whole action (The Ailing Spirit [obe]'s
+  intercept, Cheat the Fates [tem]'s `Modifier::CannotBlockWithout`, read in
+  `blocker_barred`): `Effect::DeclaredActionLayer`, pushed by
+  `declare_action` as an action-scope layer, inert at success.
+  `NoDisciplineCardsThisAction` on an action card is read there too. Lord
+  of Serenity [for]'s `Modifier::VampiresBlockAnywhere` opens the block to
+  every other Methuselah's vampires (`eligible_blockers`, `may_block_from`).
+- "Up to two" targets (`Terms::OptionalSecondTarget`, `same_controller` for
+  Shattering Crescendo [mel]; the pick a target, Secure Haven's bar
+  included): the action fizzles only once both no longer qualify; each
+  effect re-reads its own (`TargetsLeaveTorpor`, `DamageTargets`). A card
+  to discard as the action resolves (`DiscardNamedFromHand`) is checked
+  with the target: none left, it fizzles.
+- A granted burn paying the Edge (Shatter the Gate) or blood (Shadowed
+  Eyes [AUS]) pays at resolution in `succeed`'s `BurnCard` arm: the Edge
+  gone, it fizzles; an ally pays life, its last burning it.
+- A bleed card's "gain n pool" and "unlock this vampire" (Greater Curse
+  [dai], Cheat the Fates [TEM]) resolve in `succeed`'s bleed arm, read by
+  name, whatever the amount: the pool before the Edge.
 - Acting fails on a burn (`Interrupt::BurnOrFail`): not blocked; the same
   interrupt with `card` burns the card instead (Drink the Blood of Ahriman).
+- Failing into a combat (Champion, Ensconced's burn and [VIS]):
+  `Engine::fail_into_combat` marks the action failed and
+  `ActionCtx::fail_combat`; `action_request` yields to `action_advance`,
+  which starts that combat once the play or use resolving is over (both
+  still ready), the action going on until it ends, failed, not blocked.
+- "About to enter combat with an ally" (Gift of Sleep [obe]):
+  `ActionCtx::acting_foe` is the minion the acting one is about to fight
+  (its blocker, its rush's target, Psyche!'s opponent), read by
+  `FightsAlly`; `LockFoe` locks it (a blocker kept locked as the action
+  ends) or, played by the foe, the acting ally.
+- Din of the Damned: `ActionCtx::no_gear_intercept` drops an equipment's or
+  conviction's intercept (`cards::equipment_or_conviction`: its borne
+  layers in `host_intercept`, its `AddIntercept` / `AttemptingIntercept`
+  not given); `intercept_reaction_toll` adds blood or life to a reaction
+  mode or a power's reaction granting intercept (`cards::grants_intercept`,
+  `Engine::intercept_toll`: `reaction_surcharge` for a card, masked and
+  paid with the use for a power; an ally pays life).
+- One play of a card in a mode each action, by anyone
+  (`Limit::OnePerActionThisMode`, `ActionCtx::played_modes`: Hide the Heart
+  [val]).
+- Hay Ride: `Requirement::ActionCardToAsh` (`Engine::action_card_to_ash`:
+  the card `place_action_card` will put in the ash heap, which it reaches
+  only as the action ends); `Effect::NextActionFromAsh` sets
+  `Seat::next_from_ash`, cleared as the seat declares any action, and the
+  virtual hand offers that ash card (`state::ASH_NEXT_ACTION`) to the
+  chosen minion for an action only, as from hand, no replacement.
+- Strix [STR]: `BleedBurnsNoPool` (`ActionCtx::bleed_no_pool`) caps the
+  pool burned at 0 in `succeed`'s bleed arm, the bleed still successful
+  (the Edge); `FightActingAtResolution` (`resolution_combat`) begins the
+  combat at resolution after it (`start_combat_at_resolution`), the
+  after-resolution window after the combat. [str]'s `UnlockAtEndIfBlocks`
+  (`unlock_at_end_if_blocked`) unlocks a blocker as the action ends, next
+  to Big Game's.
+- `ActingBurnsOrFails { or_life }`: an ally pays life, its last burning it
+  (Scobax [STR]); without it an ally cannot pay (Detect Authority).
+- "Cannot block this action" played into the attempt of that minion fails
+  it (`barred_blockers`, re-checked after each action effect: Psalm of the
+  Damned [MAL]). `TargetNoReactionsOrPowers` bars reaction cards and
+  [REACTION] powers (`no_reaction_powers`, read by `HostMayReact`);
+  `TargetNoReactions` bars cards only.
+- Momentary Delay's conditions: `ActionCtx::combat_rounds` (every
+  combat's rounds, added in `close_combat`), `ended_combat_early` (a
+  combat ends strike, Anesthetic Touch), `Minion::blood_lost_action`
+  (every `lose_blood` since the action was declared, costs included).
+  `ContinueAfterResolution` clears the outcome at once: no after-resolution
+  card of the block follows it (LSJ 19981028).
+- Directed actions at a minion bearing
+  `Modifier::DirectedAtBearerCostsBloodOrLife` (Safe Passage [OBE]) pay it
+  with François Loehr's printed toll, blood or life, at resolution.
 
 ### 6.6 Block loop
 
@@ -914,13 +1029,13 @@ sources to the engine's conventions.
   non-acting Methuselah could strip the stealth (`stealth_strippable`): the
   blocker's own Methuselah by a playable card in hand, another by holding any
   card while one of their minions could play a stealth strip of the pool
-  (Night Terrors) — their hand is hidden from the blocker (DESIGN §4.3). An
-  intercept card in hand also counts its replacement draw (rules-qa 48.5: one
-  to play and a library may yet meet any stealth); conditional intercept
-  counts whether or not its condition holds now. The rule itself is the
-  closure comparison in `action_advance`. Any new third-party
-  intercept/stealth-strip card must be counted here, or the host hides a live
-  attempt.
+  (Night Terrors, Scobax [str]'s -1 during the action) — their hand is
+  hidden from the blocker (DESIGN §4.3). An intercept card in hand also counts
+  its replacement draw (rules-qa 48.5: one to play and a library may yet meet
+  any stealth); conditional intercept counts whether or not its condition holds
+  now. The rule itself is the closure comparison in `action_advance`. Any new
+  third-party intercept/stealth-strip card must be counted here, or the host
+  hides a live attempt.
 - **Failed attempts** (`ActionCtx::attempt_print`, `failed_alike`,
   `failed_attempts`, rules-qa 48.6): a minion that failed an attempt is not
   offered the same attempt again until what it faces changes, in public
@@ -953,13 +1068,14 @@ sources to the engine's conventions.
   prevention (Martyr's Resilience) the ring's order (29.1). A non-combatant
   is offered what its cards allow one outside the combat: a vampire's or a
   card's ability only when its actor is `HostOutOfCombat` (Randall, Maman
-  Boumba, Abjure; 15.2, 98.2). A combatant no longer ready ends the round at
-  once, the end-of-round window still opening (rulebook step 7). Its
-  Methuselah ousted, by a combat effect or a cost (a play's out of turn,
-  `oust_if_out`), ends the combat at once, no end-of-round window
-  (`combat_ousts`; DESIGN §10.8, rules-qa 45.4). A card there put on the
-  opposing minion carries `Requirement::OpponentPresent`: a burned one is no
-  target (rules-qa 75.1).
+  Boumba, Abjure; 15.2, 98.2), or `HostAnyCombat`, offered there to its
+  host in the combat too (Draeven Softfoot). A combatant no longer ready
+  ends the round at once, the end-of-round window still opening (rulebook
+  step 7). Its Methuselah ousted, by a combat effect or a cost (a play's
+  out of turn, `oust_if_out`), ends the combat at once, no end-of-round
+  window (`combat_ousts`; DESIGN §10.8, rules-qa 45.4). A card there put
+  on the opposing minion carries `Requirement::OpponentPresent`: a burned
+  one is no target (rules-qa 75.1).
 - Only combat cards are played during combat — no modifiers, reactions or wakes
   (spec §4.1.3). A combat is part of its action: `Engine::action` and its layers
   stay in force.
@@ -985,6 +1101,22 @@ sources to the engine's conventions.
   (`aggravated_strike_on`), the host's view of a declared strike, and
   `CombatNote::Strikes` (`told`, taken before resolving clears the
   strike's riders). A strike aimed at a retainer is resolved apart.
+  Melee weapon damage from cards in play (Blessing of the Name's chosen,
+  Blood Tempering on the weapon) is `GameState::melee_damage_bonus`, none
+  on a strike dealing none; an equipment's prevention abilities prevent what
+  the cards on it add (`GameState::tempered_prevention`). Shadowed Eyes'
+  `HostNoRangedStrikes` bars in `Combat::allows` every strike usable at long
+  range (`StrikeKind::ranged`) and a gun's maneuver committing to one.
+- Potio Martyrium (`Modifier::HostMartyrdom`): its Gargoyle burned or sent
+  to torpor by the combat's damage burns instead (`apply_damage_now`), and
+  the opposing minion and its retainers take the aggravated damage as
+  pending damage; `CombatCtx::martyrdom` sends `after_prevention_or_next`
+  back to their prevention before the combat goes on.
+- Charge of the Buffalo's `BlockRider::CloseFirstRound` sets round 1's range
+  as the combat begins and `InitialHandStrikeFirstRound(n)` commits the
+  initial strike (`committed_card`). Presses cost a Decompose [THN] host
+  more (`GameState::press_tax`): a card's through `card_surcharge`, an
+  ability's in `ability_gate` (masked unpayable) and `resolve_ability_now`.
 - Damage: prevention per side, acting side first, then third parties from outside
   the combat (`Step::OthersPrevent`); the preventer picks which damage a
   prevention covers (`Step::AllocateSource`); applied at once, normal then
@@ -1007,16 +1139,40 @@ sources to the engine's conventions.
   Decapitate [POT] there sets
   `Side::burn_instead_of_torpor`; `going_to_torpor` / `going_down` read
   the pending damage (`OpponentGoingToTorpor`, `ActorGoingToTorpor`,
-  `ActorNotGoingDown`). Each side is asked, the acting one first, about
-  either combatant; the first card played averts the torpor for the other
-  (`going_to_torpor` false once burned, diablerized or persisting; RTR
-  20010711). Undead Persistence (`Effect::TorporAfterCombat`):
+  `ActorNotGoingDown`): the victim of Liquefy [VIC]'s landed diablerie
+  is going down, not going to torpor (rules-qa 113.155). Each side is
+  asked, the acting one first, about either combatant; the first card
+  played averts the torpor for the other (`going_to_torpor` false once
+  burned, diablerized or persisting; RTR 20010711). Undead Persistence
+  (`Effect::TorporAfterCombat`):
   `Side::persisting` keeps the vampire ready and wounded (its damage read
   as a torpid one's), `Minion::torpor_after_combat` sends it to torpor in
   `close_combat`; a new combat (Psyche!) carries the flag, its torpor due
   as that combat begins (`sent_to_torpor`, staged with the pre-range
   damage); `CombatCtx::quiet_rounds` ends the combat after `quiet_limit`
   rounds (the card's three) with no card played (`card_played_round`).
+  Amaranth (`Side::diablerized_instead_of_torpor`) and Liquefy [VIC]'s
+  strike (`CombatCtx::diablerie`, landed) diablerize as the damage lands
+  (`apply_damage_now`), inside the combat (rules-qa 107.30, 113.10). Made,
+  `CombatCtx::diablerized` holds it until the combat is at rest (no
+  interrupt, oust or hunt burn pending, `Flow::Combat` itself):
+  `settle_combat_diablerie` suspends the combat (`suspend_for_hunt`:
+  `ActionCtx::hunt_in_combat` keeps the action's state) for the
+  after-diablerie window and the blood hunt (§6.8); `resume_hunted_combat`
+  puts the state back and `Flow::Combat` where it was, the victim gone
+  ending it as any combatant leaving (an end-of-round window, then
+  `end_combat`'s offers: Marie-Pierre may join against the diablerist).
+  A combat ended before the suspension (a deferred oust) takes the steps
+  at the top of `end_combat`, ending once they are over; an oust while it
+  is suspended waits for `resume_hunted_combat` (`combat_ousts` reads no
+  combatant's oust meanwhile). Liquefy's diablerie lands with the round's
+  damage (its user ready before it, both present after), an Amaranth on
+  its victim then diablerizing nothing. Each diablerie has its own hunt,
+  a second Amaranth in a chained combat included.
+  Byzar's burn replaced (`Engine::replace_burn` without the torpor) sets
+  his `sent_to_torpor` and `CombatCtx::back_to_torpor`, the
+  going-to-torpor step asked again, where another Amaranth may follow
+  (ANK 20210424).
 - Combat ends: `Effect::EndCombat` goes to the end-of-round window; no new round
   once a combatant left the ready region; mid-combat ousts DESIGN §10.8.
 - "Put this card on …" in combat: a card that says so as it resolves goes
@@ -1048,7 +1204,14 @@ sources to the engine's conventions.
   cards) read `Effect::WeaponStrikePlus` as a strike.
 - Aims (Target Vitals) come after the strike choice: a side whose strike
   is chosen gets one more `ChooseStrike` decision, an aim or pass
-  (`Side::aim_declined`; rules-qa 62.1). Damage reduction is not prevention:
+  (`Side::aim_declined`; rules-qa 62.1), an ability requiring
+  `R::NoAimYet` offered there too (Mikael Birkholm); one aim each strike,
+  a canceled one included (`Side::aim_played`, LSJ 20100511). Mikael's
+  `Effect::PlayFirstLibraryAim` sets `Side::library_aim`: the virtual hand
+  offers it (`state::LIBRARY_PLAY`, played from the library as if from
+  hand, not replaced) as the seat's forced next play
+  (`Engine::library_play_due`, Spiritual Guidance's shape), or, its
+  requirements unmet, spends the aim. Damage reduction is not prevention:
   `GameState::damage_reduction(m, from)` (Nephandus,
   `Modifier::OpposingDamageLess`; to 0 against a Baali, Saulot's
   `Stat::NoDamageFromOpponent`) lowers each opposing strike's damage, and a
@@ -1167,10 +1330,13 @@ sources to the engine's conventions.
   in combat" reads `sides[0]` in a combat of the action's acting minion
   (`CombatCtx::acting_in`: FBI Special Affairs Division, Powerbase:
   Savannah), `ActionCtx::acting` otherwise. Blight's `Side::strength_minus`
-  and `no_additional_strikes` outlast the round; Serpent's Numbing Kiss's
+  and `no_additional_strikes` outlast the round (a card on the minion,
+  Decompose's `HostNoAdditionalStrikes`, read live: in `allows` and as each
+  pair begins, `refresh_host_bars`); Serpent's Numbing Kiss's
   `after_put_rider` becomes `CombatCtx::after_combat_put`, placed (and the
-  striker's blood burned) as the combat ends, lost if it continues
-  (`discard_held`).
+  striker's blood burned, the minion locked: the effect's `blood` and
+  `lock`, none for Morphean Blow [val]) as the combat ends, lost if it
+  continues (`discard_held`).
 - Offers as a combat ends (`end_combat`, resumed by their answers): Haven
   Hunting's new combat (`Interrupt::MayNewCombat`, `c.psyche`), Marie-Pierre's
   entry (`Interrupt::MayJoinCombat`, `c.coordinate` with `c.joined`). Each is
@@ -1178,10 +1344,10 @@ sources to the engine's conventions.
 - `resolve_strikes` queues what lands that needs the engine
   (`CombatCtx::landed`, applied by `apply_landed`): Liquefy's burn, Elixir's
   stand-in. Liquefy [VIC]'s strike is a stand-in's ability
-  (`CombatCtx::stand_ins`); its diablerie follows `close_combat`, the
-  after-combat window skipped. Topaz's swap waits on
-  `Interrupt::SwapEquipFromPrey` before the equipment enters
-  (`equip_from_hand`).
+  (`CombatCtx::stand_ins`); its diablerie is made in the combat, as
+  Amaranth's (above).
+  Topaz's swap waits on `Interrupt::SwapEquipFromPrey` before the
+  equipment enters (`equip_from_hand`).
 - Blood Turnip moves as a combat begins (`turnips_move`); clot counters
   (`Minion::clots`) move on hand or melee damage (`Interrupt::MoveClot`) and
   bite in `start_unlock_effects`.
@@ -1196,22 +1362,111 @@ sources to the engine's conventions.
   aggravated-only prevention (`Effect::PreventAggravated`); printed riders as a
   combat begins (`Hook::HostEntersCombat`: Caique, Padraic Conroy's
   `BlocksOlder`).
+- Round 28's combat cards: the card named with a strike taken as it lands
+  (`Side::steal_card_on_hit`, Absorb the Mind [MYT]: a Discipline card,
+  `GameState::card_discipline`; `Requirement::OpponentHoldsNoCard` masks
+  the blood-only line while one is there); a hand strike reduced to zero
+  (`Side::strike_zero`) ending the combat unless dodged
+  (`CombatEndsAfterStrike { unless_dodged }`, Autonomic Mastery [DOM]); a
+  canceled strike card's minion left with no strike (`OpposingGetsNoStrike`,
+  Evil Eye [mal]); X limited hand-only additional strikes again after each
+  normal pair (`Side::hand_strikes_each_round`, `hand_only_pair` read by
+  `CombatCtx::hand_only` wherever `only_hand_strikes` is: Fractura); a card
+  in play drained of 1 blood or life each round, before or after the
+  strikes' steals as the acting Methuselah orders it beside a steal strike
+  (`Interrupt::DrainBeforeSteals`), half back as the combat ends
+  (`CombatCtx::drains`, Darkness Within; settled before a new combat
+  begins); unpreventable damage each close round
+  (`Side::resolution_damage_close`, Blissful Agony [val]); the opposing
+  vampire entering combat with a chosen minion, going first, as an undodged
+  combat ends strike ends the combat (`CombatCtx::redirect`, Blissful
+  Agony [VAL]: lost if the combat continues, read by `NoCombatQueued` and
+  the new-combat offers; played by both, the acting Methuselah picks the
+  one resolving first, `Interrupt::RedirectFirst` setting
+  `CombatCtx::redirect_first`); an area strike (`StrikeKind::Area`: the
+  opposing vampire or demon ally unless dodged, its demon retainers
+  regardless, the striking vampire and its own demon retainers always, in its
+  own pending; the striker's bonuses on each, `CombatCtx::area_damage`) and
+  pool for a striker burned by its pair's damage (`Side::pool_if_burned`,
+  Eye of Unforgiving Heaven). +n strength against a vampire of a sect from
+  a card on the vampire is `Modifier::BearerStrengthVsSect`, read in
+  `GameState::strength_against` (The Black Beast); `OpponentSectIn` is read
+  at play too (`GameState::sect_in`).
+- Round 28's combat cards, second chunk: X the copies already played in
+  the combat (`Terms::NamePlayedThisCombat`, `Engine::terms_x` over
+  `CombatCtx::played_cards`, read before the play is recorded: Groaning
+  Corpse); an unpreventable strike's damage kept aggravated
+  (`Side::unpreventable_strike`, `unpreventable_aggravated` beside
+  `unpreventable` wherever it is read: Hexe [STR]); a press only to
+  continue for blood, once a round (`Side::continue_press_blood`, the
+  press's last resort: Lead Fist [vis]); `Choice::UnlockForBlood` in each
+  of the side's impulse windows until the combat ends, a new round
+  keeping it (`Side::unlock_blood`, Loving Agony [VAL]); the opposing
+  retainers' text off this combat (`GameState::retainers_silenced`, read
+  by `text_suppressed`, cleared by `leave_combat`) and its close
+  maneuvers and continue presses barred, no frenzy (`Side::restrained`:
+  Olid Loa); `aggravated_as_normal` for the combat and a card name with no
+  effect on the minion (`Side::immune_to`, read by `CombatCtx::immune_to`:
+  its Flash Grenade strike barred, its bearer still stunned at close range
+  and the grenade burned, its own one stunning it not: Penitent
+  Resilience); landing, no more strike for the opposing minion this round
+  (its `no_strike_round`, a first strike's held strike dropped), dodged,
+  the striker's environmental damage and the opposing press (Pounce); the
+  capacity gap strike (`StrikeKind::CapacityGap`, read in `strike_hit`,
+  "capacity or cost" by `GameState::capacity_or_cost_by`, an ally's its
+  `ally_cost`, its cap counting the recipient's `more_damage_taken`:
+  Scourge of Alecto); a weapon's +n this combat (`Side::weapon_bonus`, in
+  `strike_hit`'s melee arm beside `melee_damage_bonus`: Sword of the
+  Righteous); the bearer's aggravated hand strikes
+  (`Modifier::BearerAggravatedHands`, Spirit Claws).
+- Round 28's weapons and minions: one strike a round for the card,
+  whichever of its abilities (`Limit::PerRoundCard`, its `use_key(0)`); a
+  maneuver committing one strike ability (`Effect::CommitStrikeOf`,
+  `Side::committed_ability`, filtered in the committed strike request:
+  Tinglestripe [MYT]); the round's initial strike's weapon
+  (`Side::initial_with`, set as a weapon strike is chosen in pair 0), read
+  by `Requirement::InitialStrikeIsOrMayBeThis` with the free-to-commit
+  case (Joumlon's Axe, its cancel `PlayedLabeledByOpponent`, Sword of the
+  Archangel's generalized); opposing vampires of small capacity barred
+  in round 1 (`Modifier::FoesUpToCapacityNoStrikeFirstRound`, set as
+  `no_strike_round` by `Engine::bar_small_foes_first_round` beside
+  Ossian's freeze, at the combat's start and each play: Rock Cat). A
+  weapon strike's own riders (`strike_rider`: the ability whose strike
+  kind resolved): burned if any of its damage was prevented
+  (`Side::prevented_watch`, read before immunity in
+  `dagger_after_prevention` at the top of `apply_damage_now`), out of
+  play once its damage is applied until the action ends, or the combat
+  without one (`Side::out_after`, `ActionCtx::return_at_end`,
+  `CombatCtx::return_at_end`, `Engine::return_out_of_play`: back on its
+  bearer, burned with it gone); one Cleave would burn too is ordered by
+  the active Methuselah (`Interrupt::ReturnBeforeBurn`, LSJ 20100211-2:
+  Dagger). `AggravatedAgainstClan` reaches a ranged strength strike too.
 
 ### 6.8 Referendums
 
 `referendum.rs`: `ReferendumCtx`, `RefKind`, `RefStep`, `Source`,
 `VoteRecord`, `TermsState`; `ReferendumDef`, `Term`, `RefEffect`.
 
+- A blood hunt may be held inside a suspended combat (§6.7, §6.5's
+  "Diablerie's blood hunt"): votes and ballots as in any blood hunt, the
+  combatants casting theirs; `after_referendum` resumes the combat first.
+
 - Terms stepwise by the caller after the action succeeds (feasibility masks);
   a `Term` choice is never a target (rules-qa 38.6). Polling with card plays as
   commitments; per-source vote records (abstentions cancel); Methuselah ballots
   (Edge, the calling card's vote, one political card burned from hand); tally:
   more for than against, ties fail; Scorn first.
+- Warding the Beast [VAL]'s blood hunt: `ReferendumCtx::favor_only_clans`,
+  read by `barred_favor` with Protected District's `forced_against`.
 - Votes are read live (`votes_of`, `clan_votes`, `calling_votes`, `host_votes`);
   grants (`ReferendumCtx.grants`) add to casts already made. An ousted
   Methuselah casts nothing. Mithras's toll on votes against his political
   action is `Engine::vote_against_toll` (beside `block_toll`); Alvaro's "if
   he abstained" gain is read after the referendum (`resolve_political`).
+  Benefit Performance reads the standing records in favor
+  (`RefEffect::CallerPoolPerReadyClanVotersBlood`); a card put in play by
+  its referendum goes through `political_card_in_play` (`RefEffect::PutInPlay`,
+  `ChosenGainBlood { put_in_play }`: Fanfare for Elysium [MEL]).
 - A canceled referendum returns the card, discarding down at once. Political
   action: +1 stealth, cost at resolution, no referendum if the acting minion is
   no longer ready.
@@ -1266,7 +1521,9 @@ sources to the engine's conventions.
   contested in play.
   Transfers: `influence::transfers_for_turn` reads the format.
 - Self-contest is masked (rules-qa 7.1; `controls_unique_copy` also for
-  searches); a forced one burns the incoming copy (The Coven,
+  searches), a unique card's combat modes excepted: they enter no play
+  (Spirit Claws, its "Unique." in its action's text: ANK 20180629); a
+  forced one burns the incoming copy (The Coven,
   `Engine::take_card_control`). A title card put on its caller is not
   called while its player claims the title (`Requirement::NoOwnClaimOf`,
   rules-qa 85.32).
@@ -1304,10 +1561,13 @@ sources to the engine's conventions.
 
 ### 6.10 Minions
 
-`state.rs`: `Minion`, `MinionKind::{Vampire, Ally, Imbued, Created, Token}`.
+`state.rs`: `Minion`, `MinionKind::{Vampire, Ally, Imbued, Created, Token,
+CryptAlly}`.
 
 - Capacity for another Methuselah: `capacity_by(m, seat)` and
-  `younger_by(a, b, seat)` add Orun's +2 (`Modifier::CapacityToOthers`).
+  `younger_by(a, b, seat)` add Orun's +2 (`Modifier::CapacityToOthers`),
+  before the minimum of 1 (ANK 20180719-1: Barrenness), over Wormwood's
+  ceiling (LSJ 20051205).
   Every card's or vampire ability's capacity read goes through them with
   its reader: the card's player (`CardInPlay::owner`), the referendum's
   caller, an ability's `AbilitySource::player` (who played the vampire or
@@ -1327,6 +1587,25 @@ sources to the engine's conventions.
   `discipline_level`). Blood gains are noted between decisions
   (`GameState::blood_gains`, `Engine::note_blood_gains`), a strike's as the
   strikes end (Slake the Thirst, rules-qa 68.2).
+- Burned from play: `Seat::burn_vampire` is the one way a vampire card
+  reaches the ash heap, `Seat::burned_from_play` naming the copies burned
+  while controlled (not contested, not from the crypt or the uncontrolled
+  region: ANK 20210813); `GameState::ash_burned_vampires` and
+  `Terms`/`Requirement::OwnAshBurnedVampire` read it (Blessed Resilience,
+  `Effect::AshVampireToReady`: a new minion, as an influenced one enters).
+  An ally's card burned with it, controlled, as an ally card (not a master
+  become an ally), is named in `Seat::burned_allies` (`burn_minion`, after
+  `Seat::to_ash`, every library card's way to the ash heap, cleared it;
+  both lists untracked like every copy):
+  `GameState::ash_burned_allies`, `Terms::AnyAshBurnedAlly` and
+  `Requirement::BurnedAllyInAnyAsh` read it. Pressing Flesh
+  (`Effect::RaiseAshAllyWithThis`) puts it in play as Split the Veil does,
+  its card its owner's, the card on it: `Modifier::BearerSubtypeOnly` its
+  one subtype (`has_subtype`, `is_mortal`, `ally_of`). A burned imbued
+  (`GameState::ash_burned_imbued`, `Choice::AshVampire` with
+  `PlayCtx::ash_crypt`) comes back as `MinionKind::CryptAlly`: its crypt
+  card and text, an ally but no imbued (no creed, virtue, conviction or
+  incapacitation; LSJ 20100211; `Engine::raise_crypt_ally`).
 - **Allies**: a minion and a card in play at once (`CardInPlay.body`, not
   `host`, so never "a card on a minion"; `CardInPlay::bearer()` = host or body).
   No clan, sect, Disciplines, title, capacity or votes; neither younger nor older
@@ -1337,6 +1616,12 @@ sources to the engine's conventions.
   "Burn n blood" lands on an ally as life (`GameState::burn_blood_or_life`,
   rules-qa 73.5); as an ability's blood cost an ally never pays it (advanced
   rules 5.5.1, `ability_gate`).
+  `recruit_ally` takes the recruit's X (0 put in play otherwise):
+  `Effect::EntryCountersXPlus` puts X + n counters on its card, none
+  removing it from the game at once, and `RemoveSelfWithoutCounters` its
+  unlock rider's (Reanimated Corpse). A card's "+n hunt" for a named
+  bearer is `Modifier::Bearer { stat: Hunt, who }`, read in
+  `GameState::hunt_bonus` (Ritual Scalpel).
 - **Imbued** (`MinionKind::Imbued(crypt)`, rulebook "Appendix: Imbued Rules";
   rules-digest §14.12): crypt cards influenced like vampires, in play an ally
   (`is_ally`, `is_imbued`) with its text in `VAMPIRES`: life = cost (the
@@ -1375,17 +1660,27 @@ sources to the engine's conventions.
   second copy fizzles).
 - **Created vampires** (`MinionKind::Created`: Childe of the Revolution, Waters of
   Duat): 1-capacity, sire's clan, printed or sire's sect, no Discipline or title;
-  their card is the body. **Tokens** (`MinionKind::Token`: Absimiliard's Army):
-  no card in play, name or label; removed without burning when the Army leaves.
-  `MinionKind::Fury` (Unleash Hell's Fury) is out of play but for its own
-  block attempts (`Engine::fury_tokens`). Infernal Servitor's removals (no
-  infernal vampire controlled; after a successful action) are read as each
-  step settles (`Engine::settle_servitors`) and as its action ends.
+  their card is the body. `Effect::BecomesVampire` sets a printed clan and a
+  slave of the sire's clan (Create Gargoyle, Hatchling) and its `Born`
+  (capacity, Disciplines); `ActingBloodToNew`, `ActingBloodToNewUpTo`,
+  `BankBloodToNew` give it blood; `BurnBodyIfExcessCreated` is Brother in
+  Arms' unlock due. Sterility: `GameState::is_sterile` (printed, or a
+  `HostSterile` card: Barrenness). **Tokens** (`MinionKind::Token`:
+  Absimiliard's Army): no card in play, name or label; removed without burning
+  when the Army leaves. `MinionKind::Fury` (Unleash Hell's Fury) is out of play
+  but for its own block attempts (`Engine::fury_tokens`). Infernal Servitor's
+  removals (no infernal vampire controlled; after a successful action) are read
+  as each step settles (`Engine::settle_servitors`) and as its action ends.
 - Leaving play has one path each: `burn_minion` (cards on it to owners' ash
   heaps; "ready minion burned" riders only if it was ready) and
   `minions_to_torpor`, both through `leave_riders` batching pool losses. Burned
   vampires reach the ash heap (`Seat.ash_crypt`; its owner's, `Minion::origin`,
-  even under stolen control).
+  even under stolen control). A burn replaced is checked first
+  (`Engine::replace_burn`, the torpor left to its caller unless
+  `to_torpor`; Byzar's `Stat::TorporInsteadOfBurn`: a burn counter,
+  `Minion::burn_counters`, and torpor; removed from the game at the
+  printed count), so no burn rider fires; a site reading the burn's
+  outcome reads `in_play` after it.
 - Control: permanent (`Minion::take_for_good`: its owner kept as `origin`,
   a temporary control over; every steal for good, a vampire's or an
   ally's, Form of Corruption's, an ally's card given), temporary
@@ -1420,16 +1715,16 @@ sources to the engine's conventions.
   this turn (`GameState::chosen_this_turn`: the Methuselah, the vampire,
   the chosen), its vampire present or not (rules-qa 74.2); read by
   `Requirement::TargetChosenByHostThisTurn`.
-- Slaves (rulebook "Slave", Tupdog): the directed-action bar is printed
-  (`Stat::NoDirectedActions` with `ControlsNoReadyOfClan`); the block swap is
-  the slave's ability in the blocked window (`Effect::SlaveTakesCombat`,
-  `ActionCtx::slave`): the slave fights the blocker, the acting vampire
-  unlocked, the block riders dropped, no `held_at_block` (Sniper Rifle,
-  ANK 20200115). The slave clan is generated (`CryptCard::slave`); a slave
-  a card creates (Raw Recruit's Gargoyle) carries it in `Minion::slave_of`
-  (`GameState::slave_clan` reads both) and the slave's ability through
-  `vampires::RECRUITED_SLAVE`, which `cards::vampire_of` returns for it
-  (`Requirement::ActingOfHostsMasterClan`).
+- Slaves (rulebook "Slave"): one reading of the master clan,
+  `GameState::slave_clan` (the generated `CryptCard::slave`, a created
+  slave's `Minion::slave_of`, none once freed). The directed-action bar is
+  the minion phase's filter beside `Stat::NoDirectedActions`; the block
+  swap is `vampires::SLAVE_FIGHTS` (`Requirement::ActingOfHostsMasterClan`,
+  `Effect::SlaveTakesCombat`, `ActionCtx::slave`), in every crypt slave's
+  definition (a walking test) and in `vampires::RECRUITED_SLAVE`, which
+  `cards::vampire_of` returns for a created one: the slave fights the
+  blocker, the acting vampire unlocked, the block riders dropped, no
+  `held_at_block` (Sniper Rifle, ANK 20200115).
 - Out of play (`Minion::out_of_play`, `CardInPlay::out_of_play`, read by
   `present()`; `in_play` stays true, so a site reading it excludes them):
   Descent into Darkness's `Engine::descend` and `ascend` (temporary control
@@ -1443,6 +1738,11 @@ sources to the engine's conventions.
   leaves ready, `about_to_leave_ready`; several leaving at once,
   `Interrupt::DualFormKept` keeps the one chosen, `GameState::dual_set`); a
   minion's discipline level is `own_printed_level` plus `granted_level`.
+  Maleficia and Striga are levels but no Discipline (`cards::is_discipline`:
+  what counts, lists or taxes Disciplines skips them — Dabbler's
+  `disciplines_played`, Blood Weakens, The Slow Withering, Concoction of
+  Vitality, `PlayedRequiresAnyDiscipline`; `state::disciplines()` never
+  lists them).
   Derange's `Minion::deranged` (clan and sect as played, read by `clan()` and
   `underlying_sect()`, moved with the card, cleared in `card_leaves_play`)
   over `sect_override`, the actual sect a card or action wrote
@@ -1466,7 +1766,9 @@ sources to the engine's conventions.
 - Blood Brother circles: `GameState::same_circle` (printed or chosen,
   rules-qa 68.1); `same_circle_for_play` adds Angelo's any circle
   (`Stat::AnyCircleForSanguinus`) and is read only for a card requiring
-  Sanguinus: by the `sanguinus` flag of `TargetSameCircle` and
+  Sanguinus: by the `sanguinus` flag of `TargetSameCircle`,
+  `TargetOnSameCircle` (a card target's host: Clockwerx, whose
+  `Effect::TargetCardToActor` is `StealTargetCard`'s move, not an equip) and
   `SameCircleAsOwnCombatant`, always by the other circle readers, which only
   Sanguinus cards carry (§3's `circle_requirements_read_angelo_only_on_
   sanguinus_cards`).
@@ -1482,6 +1784,24 @@ sources to the engine's conventions.
 - Host: `GameState::set_host` is the one way a card changes minion (every
   move, steal and transfer); a card marked `CountersClearOnNewBearer`
   (Seal of Veddartha) loses its counters there.
+  A granted action moving its card does it through `move_source_card`
+  (`Effect::MoveSourceToTarget`, `MoveSourceToActor`: Houngan; the card
+  stays its player's, `Requirement::CardControllerActive` reading their
+  turn).
+- An unlock earned by burning a ready vampire or sending one to torpor, in
+  combat or by a directed action (`Modifier::UnlockAfterMinionPhaseForClan`,
+  Code of Samiel): `unlock_after_minion_phase_earned` in `leave_riders`
+  marks the vampire (`Lasting::MayUnlockAfterMinionPhase`), offered
+  `Interrupt::MayUnlock` as that minion phase ends, anyone's.
+- Own-bleed riders on the bearer (`own_bleed_riders`): Capitalist's
+  `Effect::BearerBloodIfBledPrey`, its turn's use spent only when it
+  applies (`Requirement::OncePerTurn`, as Rebel's block rider).
+- Shatter the Gate (`Effect::ShatterAtCopies`): its third copy on the
+  Baali burns them and writes `Seat::shattered` (a `state::Sparse`, hashed
+  only when set) on each other Methuselah without one; the pool burns at
+  `start_unlock_effects`, no card behind it (LSJ 20100206-2). A card's
+  player for Threading the Path of Orpheus is `CardInPlay::owner`
+  (`Requirement::TargetCardPlayedByOther`).
 - Control: `CardInPlay.controller` is state; `GameState::card_controller`
   routes a minion card to its host's controller, a master card stays its
   player's (rules-qa 7.5), `Effect::StillYours` keeps a card its player's on
@@ -1494,20 +1814,30 @@ sources to the engine's conventions.
   for another). A once-each-turn bonus records its turn on the card
   (`CardInPlay::spent_turn`: Harvest Rites, spent in `GameState::hunt_blood`,
   a hunt at capacity too: rules-qa 89.1).
+- A master: Discipline put on rather than played (`put_on_minion`: Childe
+  of the Revolution, a diablerist) with `Terms::AnyDiscipline` asks its
+  Discipline then (`Interrupt::PlacedDiscipline`); one standing for
+  Legion's fledgling has no text (`GameState::text_suppressed`, LSJ
+  20071001-1).
 - **Oust**: cards the Methuselah *controlled* are removed (not burned, nothing
   triggers, spec §1.10); other players' cards on their removed minions burn to
   their owners' ash heaps.
-- Fields: `mode` (the version it entered with), `by` (the minion that played it),
-  `against` (remembered Methuselahs, `SeatSet`), `chosen`, `stored` (library
-  cards held on it, burned with it to `stored_owner`'s ash heap if set:
-  The Erciyes Fragments' prey, Storage Annex's last storer), `counters`,
+- Fields: `mode` (the version it entered with), `by` (the minion that played
+  it), `against` (remembered Methuselahs, `SeatSet`), `chosen` (Blessing of
+  the Name: `ChooseActorAndPicksUnlock` from `Terms::OwnOtherMinionsUpTo`,
+  `Modifier::ChosenStat`, its unlock rider `LockChosen`), `on_card` (a card on
+  a card: Magazine, Blood Tempering's and Ensconced's `PutOnTargetCard`, `by`
+  its player; an action at it read by `DirectedAtCardItIsOn`; Ensconced's burn
+  used by `by` itself, `Actor::AnyReadyVampire` with `ActingIsBy`), `stored`
+  (library cards held on it, burned with it to `stored_owner`'s ash heap if
+  set: The Erciyes Fragments' prey, Storage Annex's last storer), `counters`,
   `entered`, `effect_only`. Storage Annex stores a hand card as it is played
   (`Interrupt::StoreOwnHand`: `left`, `of`, `replace` — Gift of Proteus'
   several, unreplaced) and swaps one in its master phase
   (`Effect::SwapPickedWithStored`, in `ability_discards_done`, no
   replacement); another's card it puts in a hand is recorded by copy
-  (`GameState::foreign`) and routed back to its owner as it leaves the
-  hand (`settle_foreign_cards`, each `run`; rules-qa 96.2).
+  (`GameState::foreign`) and routed back to its owner as it leaves the hand
+  (`settle_foreign_cards`, each `run`; rules-qa 96.2).
 - Riders (`Rider { hook, scope, requires, effects }`, `RiderScope::{Every,
   Controller, Others, Prey}`): requirements read at collection and at
   resolution (`rider_fires` again as a chosen rider resolves; an unmet rider
@@ -1529,14 +1859,18 @@ sources to the engine's conventions.
   of an "own" event, none at a host-anchored hook; `Hook::reads_action`
   (`HostBlocks`, `HostBlocked`, `OwnBleedEnds` for cards;
   `ActionAnnouncedAtTarget` for vampires) reads requirements in the action's
-  context, the card's rider predicates besides (`rider_card_holds`). A site
-  applying effects one by one re-checks `present` before each;
-  `leave_riders` keeps its pool batch (rules-qa 6.9). Left outside the
-  collector on purpose: the resolution of a rider already chosen (draw,
-  replacement, master/discard phase choice), Saatet-ta's destination as she
-  burns, entry riders read on a crypt card before the vampire is in play,
-  the leave-play readers (torture, hostages). The hooks and their tenants:
-  the `Hook` enum's docs (`cards/mod.rs`); every hook has tenants
+  context, the card's rider predicates besides (`rider_card_holds`,
+  `EnteredBeforeThisAction` among them). `HostBlocks` reads an ally's own
+  card too (`bearer`): its `BurnSelf` burns the blocker, and the action is
+  then blocked with no combat (rules-qa 53.1: Member of the Entourage).
+  `Hook::HostActionSuccessful` fires beside `ClanActionSuccessful` on the
+  acting minion's cards (Journal of Hrorsh). A site applying effects one by one
+  re-checks `present` before each; `leave_riders` keeps its pool batch (rules-qa
+  6.9). Left outside the collector on purpose: the resolution of a rider already
+  chosen (draw, replacement, master/discard phase choice), Saatet-ta's
+  destination as she burns, entry riders read on a crypt card before the vampire
+  is in play, the leave-play readers (torture, hostages). The hooks and their
+  tenants: the `Hook` enum's docs (`cards/mod.rs`); every hook has tenants
   (DESIGN §7.4).
 - Entry: `enter_play` is the single entry point (contest checked by the
   caller after entry effects); `apply_entry_effects` (a retainer's layers on
@@ -1636,10 +1970,44 @@ sources to the engine's conventions.
   `NoRetainerDamage` (Carolina), `TitleContestToll` (Vasily,
   `GameState::title_contest_cost`); a printed rider on its own torpor
   (Thomas De Lutrius, `leave_riders`); `Stat::BurnedAfterTorpor` (Julius:
-  burned once in torpor, after the torpor riders, `minions_to_torpor`).
+  burned once in torpor, after the torpor riders, `minions_to_torpor`);
+  `Stat::BurnsWhile` (Al-Muntathir, Obaluaye with
+  `Requirement::ControlsOfClan`: burned as each step settles,
+  `Engine::settle_printed_burns`); `Stat::CannotAct` (Toy: no action
+  offer, `GameState::only_actions`); `Stat::NoBloodHuntIfDiablerized`
+  (Harlan Graves: read as `diablerise` begins, `ActionCtx::no_blood_hunt`
+  bars that diablerie's hunt, taken by it). Grotesque's
+  `Effect::BindLocationOnEntry`: an entry rider asking
+  `Interrupt::BindLocation` (`GameState::bindable_locations`; none,
+  removed at once), `Minion::bound_location`; the same settle
+  removes it from the game once its controller no longer controls that
+  location (`GameState::controls_location`).
   Printed surcharges read the card played (`PrintedCtx::card`):
   `Requirement::PlayedInStrikeMode` (Antoinette DuChamp, a dodge
   included).
+- Lord Ephraim Wainwright (`Stat::MillsPlayedActionCopy`): after an
+  action card he plays (declared or canceled: `Engine::may_mill_copy`),
+  `Interrupt::MayMillCopy` mills a library copy, its card recorded in
+  `ActionCtx::copy_back`: any copy of it in the ash heap (copies not told
+  apart there) goes back to hand as the action succeeds, before the played
+  card reaches the ash heap (`finish_action`, a fizzle included). Matthew's
+  `R::InOwnMasterPhase` reads `PrintedCtx::master_phase_of`, which
+  `Engine::seat_reducers` fills from `GameState::in_master_phase`
+  (state, a `Sparse` hashed while set: the flow is out while a choice
+  applies).
+- Round 28's looks and bars: `Stat::LooksAfterMaster` (Troglodytia) peeks
+  at the hand of a Methuselah who played a master, after its replacement,
+  in `Engine::others_master_draws` beside Sascha Vykos's draw;
+  `Stat::ShowsReferendumReplacements` (Slag) notes what another seat's
+  replacements put into its hand during a referendum
+  (`Engine::show_referendum_replacements`, from `replace` and from a
+  political card burned for a vote, where the referendum context is out;
+  `show_referendum_choice` for one chosen in an interrupt: a draw
+  alternative, the ash heap, the research area);
+  `Stat::StrikesOnlyDodgeOrCombatEnds` (Tanginé against a Salubri,
+  `GameState::strikes_only_dodge_or_ends`) refuses other strikes in
+  `CombatCtx::allows_from` and puts `Pass` in place of the hand strike;
+  `Per::OwnReadyUniqueInfernal` (Xeper).
 - An ability's Discipline term (`Terms::InferiorDiscipline`, Camarilla
   Vitae Slave: `ability_discipline_apply`, gated on one at inferior);
   `Effect::ActionCardToLibraryShuffled` sends the action's own card to the
@@ -1674,7 +2042,11 @@ sources to the engine's conventions.
   the named trait (a non-Ravnos holding Treasured Samadji gets nothing,
   rules-qa 9.1).
 - An action an equipment grants its bearer (`Actor::Host`) fizzles once the
-  equipment left the acting minion (RTR 19960221, in `succeed`). A combatant
+  equipment left the acting minion (RTR 19960221, in `succeed`). Another
+  minion's action on it (Jar of Skin Eaters: `ActorSlaveOfHostClan`, its
+  controller's slave of the bearer's clan, rules-qa 84.9) moves its blood
+  (`ActorBloodToSourceCard`, as much as it has); its out-of-combat
+  aggravated damage is `AggravatedDamageTarget`. A combatant
   barred from equipment (`GameState::equipment_barred`, set with the
   combat's flags by `Side::bar_equipment`, cleared by
   `GameState::leave_combat`) loses the Disciplines its equipment gives (rules-qa 76.16).
@@ -1687,6 +2059,18 @@ sources to the engine's conventions.
   however equipped (`put_equipment`; a take from another minion in
   `ActionKind::EquipFrom`); a card put on (Alastor's `SearchEquipFor`) runs
   no mode effect.
+- Equipped from hand, however (LSJ 20100421), a card with
+  `Effect::MaySecondCopyFromHandOrAsh` offers another copy from the hand
+  or ash heap (`Interrupt::SecondCopyOnto` from `equip_from_hand`): put on
+  through `put_equipment`, no cost, no fetch of its own, a hand card
+  replaced (Dagger). A steal of a card on a minion (`ActionKind::StealCard`
+  on a hosted card) moves it to the acting minion if it can hold it, else
+  fizzles (Shaal Fragment, Skaald). "This vampire can burn n blood to play a
+  card requiring basic X" (`Modifier::BearerPaysToPlayAsBasic`): a vampire
+  bearer lacking X meets the tag (`cards::has_disciplines`; not the Discipline
+  itself, `GameState::pays_to_play_as_basic`), the blood needed beyond the cost
+  in `play_options` and burned as the card is announced, the card's `spent_turn`
+  set (`cards::paid_discipline`: Amulet of Temporal Perception).
 - Stored equipment by index (`EquipStored(i)`, `ActorMayEquipStored(i)`:
   Delivery Truck's 0, Aaron Fletcher's three, a copy of an earlier slot not
   offered again), stored as an ally enters play (`Interrupt::StoreUpTo`); never
@@ -1725,6 +2109,10 @@ sources to the engine's conventions.
 - Draw alternatives (`Hook::WouldDraw`): a choice per card drawn (rules-qa 9.4);
   beside Visit from the Capuchin a replacement is the Capuchin's counter or a
   stored card.
+- "Draw up to n" (La Viuda Blanca, `Effect::DrawUpToThenDiscardDown`):
+  `Interrupt::DrawUpTo` asks the number as the action resolves
+  (`Choice::SetX`, capped by the library; rules-qa 11.1), drawn as Kaymakli
+  Fragment's, the hand discarded down as it settles.
 - Moise Kasavubu's search equips the action's target (`SearchEquipForTarget`)
   and offers the hand too (`Flow::LibrarySearch::hand`: `EmployFromHand`,
   the library unshuffled). Unity's picks: `Interrupt::AshToLibraryTop`, then
@@ -1787,6 +2175,9 @@ sources to the engine's conventions.
   `Effect::LookAtTurnLibraryTop` then `Effect::MayBurnLookedMaster`, which
   asks `Interrupt::MayBurnLookedMaster` only on a master — no option shows
   the card before the look.
+- A mode's own blood off (`Effect::CostsLessBlood`, Hay Ride [SAN]):
+  `mode_blood_off`, before the other reductions, in `play_cost` and as
+  paid.
 - Cards played from another Methuselah's ash heap (Vestgeir,
   `Stat::PlaysPoliticalFromOthersAsh`): `state::ash_of(seat)` sources in the
   virtual hand (`others_ash`), the card its owner's and removed instead of
@@ -1794,7 +2185,24 @@ sources to the engine's conventions.
 - Gift of Proteus: `Effect::BearerStore` (its bearer's plays only, burned
   once empty) and `Effect::StoreFromHandX` with `Terms::HandCards`, among
   the cards earmarked as the action is declared, before its replacement
-  (`Seat::earmarked`; `Interrupt::StoreOwnHand`'s `earmarked`).
+  (`Seat::earmarked`; `Interrupt::StoreOwnHand`'s `earmarked`); a master
+  (Blessing of the Beast) earmarks the hand as it resolves.
+- The research area (`Seat::research`, a pile `copies.rs` lists): a card
+  replaced from it instead of drawing (Development,
+  `CardDef::replace_from_research`: its own replacement asks
+  `Interrupt::ReplaceFromResearch`, `FindCard` or `DrawLibrary`, while the
+  area holds a card; a held one keeps the option to its release,
+  `Seat::research_holds` beside `held`, rules-qa 73.1). Research fills it
+  (`Effect::SearchLibraryToResearch`, `Interrupt::ResearchSearch`: a card
+  at a time, a pass stopping, the library shuffled after); the legal view
+  hides it from the others (§6.21).
+- Minor Curse (`Modifier::HostPlaysHeldUntil`): a card its host plays is
+  held to the end of the action under way or the one it declares ([mal];
+  none outside one) or to that turn's discard phase ([MAL],
+  `Release::TurnDiscardPhase`, every seat's, released in `end_influence`):
+  `cursed_hold` at both replacement sites of `resolve_play`.
+- A library search to the top (Scarlet Lore [myt]):
+  `Interrupt::LibraryToHand` with `top`, the library shuffled first.
 - A vampire holding replacements while unlocked (Hagar Stone,
   `Release::WhileUnlocked`): read live, as a vampire locks in dozens of ways
   (`settle_unlocked_holds` in `run`), the turn's end releasing them; a shorter
@@ -1838,7 +2246,11 @@ sources to the engine's conventions.
   `offer_reduction_at_resolution` (in `action_advance`, before `succeed`)
   asks `Interrupt::ReductionAtResolution` once (`ActionCtx::once_off_asked`;
   costs by `action_card_cost`, `action_card_payable`; rules-qa 96.3).
-- Surcharges: `card_surcharge` (Discipline and event surcharges; Suspension
+- Soul of the Earth: `CostSource::HireRequiringClan`, any recruit or
+  employ by its controller of a card requiring the clan (Piper's too),
+  burned as taken, its host present.
+- Surcharges: `card_surcharge` (Discipline and event surcharges, a host's
+  combat cards and presses: Greater Curse, Decompose [THN]; Suspension
   of Disbelief's `Effect::BleedChangeCardsCost`, a marker read on the
   current action's card for the minion cards reducing or redirecting it),
   `discipline_surcharge` (Libertas), `combat_card_surcharge` (Terror Frenzy,
@@ -1915,6 +2327,17 @@ sources to the engine's conventions.
   its controller's discard phase (`Engine::discard_dues`, read live; one played
   in a discard phase is due in it, rules-qa 57.5), Thirst as the minion phase
   ends, FBI's damage as the combat ends (`CombatCtx::fbi_damage`).
+- The Rising (`Modifier::PoolGainNeedsEdgeOrVp`): `GameState::gain_pool`,
+  the one way pool rises (the lint, §3), sends a gain to the bank in its
+  Methuselah's own turn without the Edge or a victory point. A bleed's own
+  pool (`ActionCtx::pool_if_successful`) is paid before its Edge (LSJ
+  20100206-2); the oust scores the victory point before the 6 pool.
+  `Until::PreyOusted` → `Release::PreyOusted`, released for the predator
+  only, in `oust`.
+- Hunger Moon: `Hook::VampireHuntsSuccessfully`, every card's, fired by
+  `successful_hunt_riders` after the hunter's own
+  (`Effect::HunterBloodToCounters`: the blood moved as counters, burned
+  at n).
 
 ### 6.17 Ousts and Life Boon
 
@@ -1971,6 +2394,15 @@ sources to the engine's conventions.
   `Effect::StealPoolFromBoonTarget` (`Requirement::BoonTargetActive`,
   `Window::UnlockPhaseAny`).
 
+- A pick from the uncontrolled region made as a master is played, read
+  against its minion target (`Terms::OwnUncontrolled(filter)`,
+  `cards::uncontrolled_picks` over `holds_for_uncontrolled`, the slot and
+  card in `PlayCtx::commanded[0]`; none, the card is not offered), read
+  again as it resolves (`picked_uncontrolled`): Tend the Flock
+  (`Effect::BloodToPickedUncontrolled`), Thicker than Blood
+  (`Effect::PickedUncontrolledToReady`, `slot_to_ready`, its counters and
+  cards kept; `Requirement::TargetWouldNotContest` reads
+  `GameState::name_in_play`, Gather's check).
 - Chain of Command (`Effect::CommandUncontrolled`, named as played by
   `Terms::CommandPicks` over `Engine::commandable`, `PlayCtx::commanded`,
   each re-checked as it resolves): its vampires enter as an influence
@@ -2099,6 +2531,7 @@ are in DESIGN §11.2.
   - Hands, but an open one (Owl Companion [ani], Harold Tanner, Revelations
     [AUS]: `PreyOpenHand`, `OpponentOpenHandInCombat`, a seat's
     `combat_open_hand`), read through `GameState::hand_visible_to`.
+  - The research area (`Seat::research`, Research): its owner's only.
   - Public: ash heaps (`ash`, `ash_crypt`), removed cards, minions and cards
     in play (a contested card turned face down keeps its identity), pool,
     blood, counters, `held` (a count); a banished vampire's uncontrolled

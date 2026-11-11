@@ -2,13 +2,15 @@
 //! dealt in decklist order (independent of the seed) and carried through
 //! every zone. Bookkeeping for clients and records, never part of the
 //! game's identity: a `Pile` hashes its card ids alone, `Untracked` nothing.
-//! Three rules read them: a hand card's owner (`GameState::foreign`,
+//! Four rules read them: a hand card's owner (`GameState::foreign`,
 //! rules-qa 96.2) and the ash heap card a replacement takes back
 //! (`Seat::retakes`, Steely Tenacity; `GameState::ash_index`), each
-//! skipped for a card with no copy; and the hand cards an action card
-//! announced (`Seat::earmarked`, Gift of Proteus), a fixture's unnumbered
-//! copies alike until `number_unnumbered`. A fixture's game and its replay
-//! are numbered alike: unnumbered, these rules match other cards.
+//! skipped for a card with no copy; the hand cards an action card
+//! announced (`Seat::earmarked`, Gift of Proteus); and the ash heap cards
+//! burned from play (`Seat::burned_from_play`, `burned_allies`: Blessed
+//! Resilience, Pressing Flesh), a fixture's unnumbered copies alike until
+//! `number_unnumbered`. A fixture's game and its replay are numbered alike:
+//! unnumbered, these rules match other cards.
 
 use std::hash::{Hash, Hasher};
 use std::ops::Deref;
@@ -38,6 +40,7 @@ pub fn number_unnumbered(e: &mut Engine) {
             &mut s.ash_crypt,
             &mut s.removed,
             &mut s.removed_crypt,
+            &mut s.research,
         ] {
             pile.copies.iter_mut().for_each(&mut fresh);
         }
@@ -59,7 +62,10 @@ pub fn number_unnumbered(e: &mut Engine) {
     for m in &mut st.minions {
         if matches!(
             m.kind,
-            MinionKind::Vampire(_) | MinionKind::Imbued(_) | MinionKind::Token { .. }
+            MinionKind::Vampire(_)
+                | MinionKind::Imbued(_)
+                | MinionKind::CryptAlly(_)
+                | MinionKind::Token { .. }
         ) {
             fresh(&mut m.copy.0);
         }
@@ -73,7 +79,7 @@ pub fn number_unnumbered(e: &mut Engine) {
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Place {
     /// A seat's zone: crypt, library, hand, ash heap (and its crypt
-    /// cards), removed cards (and vampires).
+    /// cards), removed cards (and vampires), research area.
     Zone(u8, &'static str),
     Uncontrolled(u8),
     /// A card in play, by its arena index; `stored`: a card stored on it
@@ -122,6 +128,7 @@ pub fn census(e: &Engine) -> Vec<(CopyId, u16, Place)> {
             ("ash_crypt", &s.ash_crypt),
             ("removed", &s.removed),
             ("removed_crypt", &s.removed_crypt),
+            ("research", &s.research),
         ] {
             for (card, copy) in pile.pairs() {
                 add(copy, card, Place::Zone(i, name));
@@ -179,6 +186,7 @@ pub fn census(e: &Engine) -> Vec<(CopyId, u16, Place)> {
         match m.kind {
             MinionKind::Vampire(card)
             | MinionKind::Imbued(card)
+            | MinionKind::CryptAlly(card)
             | MinionKind::Token { card, .. } => {
                 add(*m.copy, card, Place::Minion { id, merged: false });
             }

@@ -1898,6 +1898,189 @@ ADDED_BATCHES = [
         201822: "Valerie Duval (G7)",
         201823: "Vritra (G6)",
     },
+    # Round 28: Heirs to the Blood and its 2018 reprint completed (owner,
+    # 2026-11-09: "We aim to add all the cards ultimately. Let's work set
+    # by set."; the cards board's lines).
+    {
+        100013: "Absorb the Mind",
+        100025: "Agent of Power",
+        100030: "The Ailing Spirit",
+        100048: "Amulet of Temporal Perception",
+        100117: "Autonomic Mastery",
+        100134: "Barrenness",
+        100151: "Benefit Performance",
+        100164: "The Black Beast",
+        100181: "Blessed Resilience",
+        100184: "Blessing of the Beast",
+        100185: "Blessing of the Name",
+        100189: "Bliss",
+        100190: "Blissful Agony",
+        100213: "Blood Tempering",
+        100221: "Blooding by the Code",
+        100256: "Brother in Arms",
+        100292: "Capitalist",
+        100310: "Cavalier",
+        100330: "Charge of the Buffalo",
+        100336: "Cheat the Fates",
+        100363: "Clockwerx",
+        100372: "Code of Samiel",
+        100383: "Command Performance",
+        100389: "Compress",
+        100424: "Coroner's Contact",
+        100437: "Covincraft",
+        100440: "Create Gargoyle",
+        100487: "Dagger",
+        100497: "Darkness Within",
+        100512: "Decompose",
+        100517: "Defender of the Haven",
+        100535: "Development",
+        100544: "Din of the Damned",
+        100579: "Draeven Softfoot",
+        100599: "Ears of the Hare",
+        100648: "Ensconced",
+        100668: "Evil Eye",
+        100679: "Eye of Unforgiving Heaven",
+        100700: "Fanfare for Elysium",
+        100741: "Flames of the Netherworld",
+        100754: "Foldable Machine Gun",
+        100755: "Folderol",
+        100783: "Fractura",
+        100828: "Gift of Sleep",
+        100854: "Greater Curse",
+        100859: "Groaning Corpse",
+        100888: "Harmony",
+        100892: "Hatchling",
+        100899: "Hay Ride",
+        100915: "Hexe",
+        100920: "Hide the Heart",
+        100937: "Horseshoes",
+        100940: "Houngan",
+        100944: "Hunger Moon",
+        101020: "Jar of Skin Eaters",
+        101025: "Joumlon's Axe",
+        101026: "Journal of Hrorsh",
+        101064: "Knotted Cord",
+        101077: "Lead Fist",
+        101109: "Lily Prelude",
+        101113: "Little Mountain Cemetery",
+        101123: "Lord of Serenity",
+        101128: "Loving Agony",
+        101149: "Maleficia",
+        101177: "Masca",
+        101197: "Member of the Entourage",
+        101220: "Minor Curse",
+        101234: "Mole's Tunneling",
+        101236: "Momentary Delay",
+        101244: "Morphean Blow",
+        101281: "New Moon Sigil",
+        101312: "Obtenebration",
+        101316: "Off Kilter",
+        101319: "Olid Loa",
+        101362: "The Path of Harmony",
+        101367: "The Path of Retribution",
+        101368: "The Path of Service",
+        101374: "Patrol",
+        101382: "Penitent Resilience",
+        101425: "Potio Martyrium",
+        101426: "Pounce",
+        101481: "Pressing Flesh",
+        101505: "Psalm of the Damned",
+        101556: "Razor Bat",
+        101563: "Reanimated Corpse",
+        101607: "Research",
+        101640: "The Rising",
+        101643: "Ritual Scalpel",
+        101645: "Rock Cat",
+        101673: "Safe Passage",
+        101688: "Scarlet Lore",
+        101691: "Scobax",
+        101696: "Scourge of Alecto",
+        101701: "Scry the Hearthstone",
+        101732: "Shaal Fragment",
+        101747: "Shadowed Eyes",
+        101757: "Shatter the Gate",
+        101761: "Shattering Crescendo",
+        101833: "Soul of the Earth",
+        101847: "Spirit Claws",
+        101864: "Steadfastness",
+        101870: "Stiff Contempt",
+        101884: "Striga",
+        101887: "Strix",
+        101921: "Sword of the Righteous",
+        101956: "Tend the Flock",
+        101965: "Thaumaturgy",
+        101969: "Thicker than Blood",
+        101977: "Threading the Path of Orpheus",
+        101985: "Tinglestripe",
+        102016: "Treat the Sick Mind",
+        102106: "Vengeance of Samiel",
+        102124: "Virtuosa",
+        102125: "Visionquest",
+        102130: "Voices of the Castle",
+        102146: "Warding the Beast",
+        200006: "Abebe (G4)",
+        200038: "Al-Muntathir, God's Witness (G5)",
+        200042: "Alcoan (G6)",
+        200089: "Angel Chavarria (G6)",
+        200104: "Annazir (G5)",
+        200129: "Aredhel (G4)",
+        200134: "Ariel (G6)",
+        200156: "Azrael (G6)",
+        200169: "Baroque (G5)",
+        200203: "Black Wallace (G4)",
+        200219: "Brigitte Mandisa (G6)",
+        200229: "Byzar (G6)",
+        200257: "Cedric (G4)",
+        200269: "Chaundice (G4)",
+        200322: "Darlene Killian (G5)",
+        200371: "Dovey Ebfwe (G6)",
+        200447: "Evil Jensen (G4)",
+        200460: "Federico di Padua (G5)",
+        200481: "Frank Weisshadel (G4)",
+        200486: "Fustuk (G5)",
+        200537: "Greer Worder (G6)",
+        200541: "Grotesque (G6)",
+        200570: "Harlan Graves (G6)",
+        200585: "Helen Fairchild (G6)",
+        200598: "Hillanvale (G6)",
+        200605: "The Horde (G6)",
+        200672: "Janet Langer (G5)",
+        200725: "Josette (G6)",
+        200728: "Jozz (G6)",
+        200801: "La Viuda Blanca (G6)",
+        200813: "Langa (G4)",
+        200854: "Lord Ephraim Wainwright (G5)",
+        200857: "Lord Vauxhall (G4)",
+        200891: "Lydia, Grand Praetor (G6)",
+        200895: "Macoute (G4)",
+        200901: "Malachai (G6)",
+        200930: "Mariel St. John (G4)",
+        200961: "Matthew (G6)",
+        200988: "Mikael Birkholm (G6)",
+        201009: "Mordechai Ben-Nun (G5)",
+        201011: "Morlock (G4)",
+        201028: "Myrna Goldman (G6)",
+        201031: "Nahum Enosh (G6)",
+        201061: "Nitidas (G6)",
+        201063: "Nkechi (G4)",
+        201070: "Obaluaye (G5)",
+        201167: "Rashiel (G4)",
+        201194: "Rocia (G4)",
+        201211: "Rusticus (G5)",
+        201266: "Serenna the White (G6)",
+        201287: "Silas (G6)",
+        201298: "Slag (G5)",
+        201330: "Sylvie Helgon (G6)",
+        201339: "Tanginé (G4)",
+        201346: "Tarrence Moore (G5)",
+        201374: "Titus Camille (G4)",
+        201385: "Toy (G5)",
+        201387: "Troglodytia (G4)",
+        201416: "Uriel (G4)",
+        201433: "Veejay Vinod (G6)",
+        201452: "Virginie, Prodigy (G4)",
+        201480: "Xeper, Sultan of Lepers (G6)",
+    },
 ]
 ADDED_CARDS = {k: v for batch in ADDED_BATCHES for k, v in batch.items()}
 
@@ -2037,6 +2220,8 @@ RIDERS = [
     r"\d (optional )?(maneuver|press)s?\b[^.;]*",     # "with 1 optional press", "gets 1 maneuver…"
     # "As above, with an optional press" (Thrown Sewer Lid [POT]).
     r"with an optional (maneuver|press)\b[^.;]*",
+    # A strike's own rider for the opposing minion if dodged (Pounce).
+    r"gets an optional (maneuver|press)\b[^.;]*",
     r"with \d additional strikes?\b[^.]*",
     r"\d maneuver or press",
     # Damage in the press step, no play there (Necrosis [THN]).
@@ -2189,6 +2374,11 @@ MODIFIER_TIMING = [
     # political action's resolution, its referendum passed.
     (r"only usable on a successful referendum", "ACTION_AFTER_RESOLUTION"),
     (r"polling step|during (a|the|this) referendum", "REFERENDUM"),
+    # "Only usable if this vampire is about to enter combat with an ally"
+    # (Gift of Sleep [obe]): Obedience's moments, for the acting vampire too.
+    (r"about to enter combat with", "ACTION_BLOCKED"),
+    (r"about to enter combat with", "ACTION_BLOCKS_DECLINED"),
+    (r"about to enter combat with", "ACTION_QUEUED_COMBAT"),
     # Taking over the action: also after it is blocked, before the block
     # resolves (Mask of a Thousand Faces; LSJ 20010803).
     (r"the action continues with this vampire as the acting minion", "ACTION_BLOCKED"),
@@ -2246,6 +2436,9 @@ REACTION_TIMING = [
     # "Only usable if a minion controlled by your predator successfully
     # bleeds you" (Burnt Offerings [AUS]): the bleed resolved.
     (r"successfully bleeds you", "ACTION_AFTER_RESOLUTION"),
+    # "Only usable when a bleed against you is about to be successful"
+    # (Strix [STR]): the bleed would succeed.
+    (r"is about to be successful", "ACTION_WOULD_BE_SUCCESSFUL"),
     # "Play after resolution" (Touch of Pain); "… is successful, after
     # resolution" (Follow the Blood).
     (r"play after resolution|successful, after resolution", "ACTION_AFTER_RESOLUTION"),
@@ -2303,7 +2496,7 @@ FLAGS = [
     (r"at random", "randomness"),
     # "To represent a fledgling" (Legion), "to turn this card into a
     # Gargoyle" (Raw Recruit).
-    (r"becomes an? \d-capacity|becomes an? [^.]{0,30}?\bally\b|ally[^.]*to (your|the) ready region"
+    (r"(becomes|represents) an? \d-capacity|becomes an? [^.]{0,30}?\bally\b|ally[^.]*to (your|the) ready region"
      r"|to represent a fledgling|to turn this card into an? \w+",
      "token_entity"),
     (r"cancel [^.]{0,160}?as it is (being )?played"
@@ -2428,7 +2621,13 @@ def modes_for(card):
     text = krcg.text(card)
     wins = []
     flags = [f for pat, f in FLAGS if re.search(pat, text, re.I)]
-    if re.search(IN_PLAY_ACTION, re.sub(r"[^.]*(announces?\b|burns a minion)[^.]*\.", "", text), re.I):
+    # A condition naming an action ("sends a vampire to torpor in combat or
+    # as a Ⓓ action": Code of Samiel) grants none.
+    if re.search(
+        IN_PLAY_ACTION,
+        re.sub(r"[^.]*(announces?\b|burns a minion|in combat or as an? )[^.]*\.", "", text),
+        re.I,
+    ):
         flags.append("in_play_action")
 
     # A power is gained as a +1 stealth action, a conviction played onto an
@@ -2523,6 +2722,10 @@ def modes_for(card):
                         {"COMBAT_BEFORE_RANGE", "COMBAT_WOULD_END"} & set(prev):
                     got = [w for w in got if w not in GRANTED_LATER]
                 mwins += got
+        # "As above, but usable any time during combat" (Clockwerx [SAN]):
+        # the inherited step lifted.
+        if as_above and re.search(r"but usable any time during combat", mtext, re.I):
+            mwins = [w for w in mwins if not w.startswith("COMBAT_")] + [COMBAT_DEFAULT]
         if "WAKE" in mwins:
             mwins.append("CARD_AS_PLAYED")          # rules-qa 2.4
         if "COMBAT_STRIKE_DECLARATION" in mwins and \

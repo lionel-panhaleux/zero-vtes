@@ -6,6 +6,56 @@ server runs.
 `python3 scripts/schema_compat.py` lists what a schema change adds or
 removes; its `--check` fails a removal without a major version.
 
+## 2.26.0
+
+- Round 28's cards (Heirs to the Blood) add two `Purpose` ids:
+  `replace_from_research` (Development: its replacement taken from the
+  research area, `find_card`, or drawn, `draw_library`) and
+  `placed_discipline` (a master: Discipline put on a vampire rather than
+  played, Agent of Power by Childe of the Revolution's search: its
+  Discipline, `choose_discipline`). No id removed.
+- Research adds the seat view's `research` (its face-down research area:
+  the cards to the seat, backs to the others; omitted while empty), the
+  `Zone` id `research` (a card's move into it, Development's take from
+  it) and the `Purpose` id `research_search` (a library card to the
+  research area, `find_card`, `about.n` more at most, or `pass`).
+- Off Kilter and Scarlet Lore add two `Purpose` ids:
+  `may_burn_edge_for_pool` (the Edge burned for `about.n` pool,
+  `resolve_printed`, or kept, `pass`) and `library_to_top` (a library
+  card, revealed, to the library's top once it is shuffled, `find_card`,
+  or none, `pass`). Shatter the Gate adds the seat view's `shattered`
+  (the pool its shattered counter burns each unlock phase; omitted with
+  none).
+- Dagger adds two `Purpose` ids: `second_copy_onto` (equipped from the
+  hand, another copy of `card` from the hand or ash heap onto `minion`,
+  `take_from`, or none, `pass`) and `return_before_burn` (Dagger out of
+  play as the action ends with Cleave's burn due: the active Methuselah
+  returns it first, `resolve_rider`, the burn then reaching it, or burns
+  first, `pass`, the card spared).
+- Byzar adds the `MarkerKind` id `burn_counters` (a minion's burn
+  counters, `n`).
+- La Viuda Blanca and Grotesque add two `Purpose` ids: `draw_up_to`
+  (how many cards the action draws, 1 up to `about.n`, `set_x`) and
+  `bind_location` (Grotesque entering play: the location bound to
+  `minion`, `choose_card`).
+- Lord Ephraim Wainwright adds the `Purpose` id `may_mill_copy` (another
+  copy of `card`, the action card `minion` just played, from the library
+  to the ash heap, `resolve_printed`, or none, `pass`).
+- Slag: a `looked` event (no `zone`) may carry only the replacements
+  `seat` drew during a referendum, not its whole hand. Troglodytia's look
+  at a hand after a master card is a `looked` event as other looks.
+- Blissful Agony adds the `Purpose` id `redirect_first` (played by both
+  combatants: the acting Methuselah picks the striker whose resolves
+  first, `choose_minion`, the other lost).
+- Darkness Within adds the `Purpose` id `drain_before_steals` (beside a
+  steal strike: the acting Methuselah has the card's drain first,
+  `resolve_rider`, or the steals first, `pass`).
+- Pressing Flesh: an imbued raised as a zombie is a Minion of `kind`
+  `ally` whose `card` is its crypt card.
+- The action step `diablerie` is listed in §6; a diablerie in combat
+  (Amaranth's, Liquefy [VIC]'s) holds that step and its blood hunt with
+  `combat` still set, the combat resuming after (rules-qa 113.10).
+
 ## 2.25.0
 
 - Round 27's cards (Secrets of New York, Noites Brasileiras) add four

@@ -201,7 +201,9 @@ impl Engine {
     fn set_card_contest(&mut self, m: MinionId, contested: bool) {
         let crypt_card = matches!(
             self.state.minions[m.index()].kind,
-            crate::state::MinionKind::Vampire(_) | crate::state::MinionKind::Imbued(_)
+            crate::state::MinionKind::Vampire(_)
+                | crate::state::MinionKind::Imbued(_)
+                | crate::state::MinionKind::CryptAlly(_)
         );
         if self.state.format == crate::state::Format::TwoPlayer && crypt_card {
             self.state.minions[m.index()].contested_in_play = contested;

@@ -16,7 +16,36 @@ review finding); one the code or a page now makes impossible leaves it.
   `expect`/`pick` pass it.
 - Test fixtures: blood above capacity drains at the first `run()`;
   library cards carry clan requirements (check `LIBRARY` clans before
-  picking test vampires).
+  picking test vampires). Copies of one card in hand are offered once, at
+  the first copy's index.
+- Fixture finders (`plain`, `textless`, `with_cap`, `vampire_with`) take
+  the first vampire with no definition: each round's definitions move or
+  exhaust them. One moved silently can break a fixture (blood above its
+  capacity drains). Fix by the trait: a Discipline is a plain vampire's
+  `gained_levels`, infernal its `made_infernal`, an age a capacity the
+  pool still has; a clan or a capacity no plain vampire has names its
+  vampire (`find_card`), its text read for what it bars there
+  (Hillanvale's -1 intercept makes her block of a Camarilla bleed
+  futile); a count's fodder need not be textless.
+- A minion's lock asserted after `until(its seat, MinionPhase)` is gone:
+  that seat's unlock phase ran first. Assert it at the acting seat's next
+  minion phase, or read what the lock caused (blood, pool).
+- A committed strike (a weapon's maneuver, Joumlon's Axe's cancel) left
+  with one option elides, its pair-0 request never seen: assert the damage
+  it dealt, or read the next pair's optional request (a `Pass` first).
+- A play's cost is paid as it resolves, after its as-played window: assert
+  it after the next `request`, with a choice still pending in that window
+  (a second card), or the elided combat runs on past it.
+- `pick_when` passes through every window until its choice is offered: a
+  choice that never comes (an allocation's last seat, forced and elided;
+  a card the play window does not offer) plays the game out to "game
+  over". Allocations walk the seats in order, one `AllocateTo` each.
+- New state in `GameState` moves every fuzz golden's hash, the games
+  unchanged: a field or a `Release` added with a hash written only when
+  set (`state::Sparse`, `Held`'s later releases) or kept untracked (a
+  copy list) leaves them green; a `Modifier`, `Release` or other hashed
+  enum variant goes at the end, and a field of a struct a `Modifier`
+  carries (`AsVampire`) is hashed only when set.
 - Adding a card to a fuzz fixture reshuffles its random games: rare
   coverage keys may starve and latent bugs surface. A fixture's `seeds`
   is about twice the seed where its last key first appears (at most
@@ -47,6 +76,27 @@ review finding); one the code or a page now makes impossible leaves it.
   "something is on the vampire" passes for a stand-in too.
 - `data/rulings-v5.csv` is CRLF: edit it byte-wise. Tests in
   `tests/rulings.rs` must back a ledger row; put regressions elsewhere.
+- A Discipline new to the crypt data (Thanatosis in round 26, Melpominee
+  and Valeren in round 28) needs its seat-context feature appended in
+  `crates/env` (`context::LATE_DISCIPLINES`; `tests/context.rs` fails
+  otherwise): an observation change, told to the training line.
+- A library mode's requirement tag other than a three-letter Discipline
+  (`FLIGHT`) was once read as no requirement: `cards::has_disciplines`
+  filters the tags it checks, so a new kind of tag needs its arm there.
+- A layer's `source` is `CardId::NONE` for a layer of no card in play (an
+  action's): match the modifier before indexing `cards[l.source]`.
+- While a polling commitment applies, the referendum context is out of
+  `Engine::referendum` (`referendum_apply_now` takes it): code reached
+  from it (a vote card burned and replaced) cannot tell a referendum is
+  under way by that field.
+- While a choice applies, `Engine::flow` is out (`Flow::GameOver`):
+  `Engine::phase()` reads `Over` in an announce or a cost-terms apply. A
+  phase a printed predicate needs there is read from state
+  (`GameState::in_minion_phase`, `in_master_phase`).
+- An action card is out of play for its whole action and reaches the ash
+  heap only as the action ends (`place_action_card`): a card reading "the
+  action card … in your ash heap" during the action reads where it is
+  bound (`Engine::action_card_to_ash`), not the ash heap.
 
 ## The shared tree
 

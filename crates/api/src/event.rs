@@ -78,7 +78,8 @@ pub enum EventKind {
     },
     /// `seat`'s hand looked at, told to the looking Methuselah only
     /// (SchreckNET, Vaticination): its cards as they stood, each `id`
-    /// told, no copy number. The look lasts while the action does; a view
+    /// told, no copy number, or only the replacements it drew during a
+    /// referendum (Slag). The look lasts while the action does; a view
     /// after it hides the hand again.
     Looked {
         seat: Seat,
