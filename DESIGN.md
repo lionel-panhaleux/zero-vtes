@@ -730,17 +730,22 @@ run. The full run journal to p17, cut on 2026-11-09: `git show
   the learner's, with `--exploiter true` one the exploiter's (a second trained
   network playing only the learner's tables, frozen into the pool and
   restarted from the learner's weights once the learner beats it under
-  `exploiter_beaten` or after `exploiter_reset` iterations), the others by
-  PFSP (weight (1 − p)² + 0.02, p the learner's beat rate against that seat)
-  among the bots and the learner's last snapshots — or, with `--opponents
-  a.pt,b.pt`, frozen checkpoints only (owner, 2026-10-03: "the opponents should
-  be good enough to learn from"; each reads its own encoding). The learning
-  rate tapers to `lr_final` × `lr` at the last iteration. Evaluation every
-  `eval_every` (20): the learner at every seat against every order of the
-  opponents (`eval_tables`: a fixed seating once made fake plateaus and fake
-  gains), all games at once, `vs_frozen4`/`vs_frozen5` (VPs + `gw_weight` ×
-  wins, averaged); `best.pt` moves only when a candidate within `best_margin`
-  (0.05) of the best is beaten again on `best_seeds` − 1 more seeds.
+  `exploiter_beaten` or after `exploiter_reset` iterations; at its own rate,
+  `--exploiter-lr`, and on one deck, the next of `--exploiter-decks` at each
+  restart, its retired copies keeping it, but at a table begun from a human
+  game, which keeps that game's decks), the others by PFSP (weight (1 −
+  p)² + 0.02, p the learner's beat rate against that seat) among the bots and
+  the learner's last snapshots — or, with `--opponents a.pt,b.pt`, frozen
+  checkpoints only (owner, 2026-10-03: "the opponents should be good enough to
+  learn from"; each reads its own encoding), with the exploiter's retired
+  copies at the training tables (never the evaluations', `vs_held` included).
+  The learning rate tapers to `lr_final` × `lr` at the last iteration.
+  Evaluation every `eval_every` (20): the learner at every seat against every
+  order of the opponents (`eval_tables`: a fixed seating once made fake
+  plateaus and fake gains), all games at once, `vs_frozen4`/`vs_frozen5`
+  (VPs + `gw_weight` × wins, averaged); `best.pt` moves only when a candidate
+  within `best_margin` (0.05) of the best is beaten again on `best_seeds` − 1
+  more seeds.
   Game-win benchmarks at a 5-seat table (owner): over 16% very good, over 30%
   very strong, near 50% top level.
 - Imitation (AlphaStar's recipe: RL leads, the human term guides): `--bc`
@@ -1077,6 +1082,19 @@ its entry when it ends — the training skill's "A run")
   test failed; served as a trial (owner, 2026-11-06; back to p14 if the human
   games worsen, docs/watch.md), `runs/p17/last.zvp` (`f426338f6c80`), the
   previous `runs/served-prev-2026-11-06-p14.zvp` (`a78e74292acb`).
+- **p18, prepared** (owner, 2026-11-09 and 11-11: a run against exploiters,
+  without the exploration share). Why: plain PPO on one deck at 1e-4 found
+  +0.10 VP on p17 frozen in 100 iterations (**The exploitability probe**);
+  exploiters that keep finding such gains, each on a deck humans beat the bot
+  with, their last 4 retired copies kept at the learner's tables, are what p17
+  frozen alone never showed it. Settings: p17's command, with `--exploiter
+  true --exploiter-lr 1e-4 --exploiter-decks 9,5,0,29,13,30` (the named decks
+  humans won most with against the bots, `reports/total.md`: Gangrel,
+  Tremere, Hecata, The Endless Dance, Tzimisce, Path of Power and the Inner
+  Voice; at most 50 iterations each, `--exploiter-reset 50`, off its deck at
+  the start tables), `--weak-rate 0`, the held-out wins listed at launch.
+  Baseline: p17 (`f426338f6c80`), measured beside p18 by step 4 on the run's
+  engine (round 28's, after 2.26.0's deploy).
 
 ### 11.3 Open gaps
 

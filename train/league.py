@@ -15,15 +15,21 @@ iteration's mean. The random seat retires once the learner beats it over
 `retire_random` of the time. The exploiter is retired into the pool and
 restarted from the learner's weights once the learner's beat rate against
 it falls under `exploiter_beaten`, or after `exploiter_reset` iterations.
+With `exploiter_decks`, each exploiter plays one deck, the next of the
+list at each restart, and its retired copies keep it (but at a table
+begun from a human game, which keeps that game's decks).
 
 With `opponents` (checkpoint paths, comma-separated), every other seat is
 one of those frozen networks (`net:FROZEN + k`, by PFSP among them): no
-bots, no snapshots (owner, 2026-10-03: only good opponents, the previous
-bests). They read the encoding they were trained on (`frozen_versions`).
-With `habit_seats`, that share of those seats plays with the punishing
-habits (`net:k+habits`, `zvtes_env::habits`: rescues, burns others' Ⓓ-burnable
-cards, diablerizes, keeps its last minion home); their beat rates are kept
-apart."""
+bots, no learner snapshots (owner, 2026-10-03: only good opponents, the
+previous bests); with `exploiter`, the exploiter's retired copies too
+(what an exploiter found stays at the learner's tables), never in
+`candidates`, the evaluation's. They read the encoding they were trained
+on (`frozen_versions`).
+With `habit_seats`, that share of the frozen seats (never the exploiter's
+copies) plays with the punishing habits (`net:k+habits`,
+`zvtes_env::habits`: rescues, burns others' Ⓓ-burnable cards, diablerizes,
+keeps its last minion home); their beat rates are kept apart."""
 
 import copy
 import json
@@ -80,6 +86,10 @@ class League:
         self.p = {}  # opponent name -> the learner's beat rate
         self.pending = {}  # opponent name -> this iteration's outcomes
         self.exploiter_since = 0
+        # The exploiters restarted so far, and each retired copy's deck.
+        self.generation = 0
+        self.decks_of = {}
+        self.exploiter_decks = [int(d) for d in cfg.exploiter_decks.split(",") if d.strip()]
         self.frozen = {}  # net id -> frozen opponent (`opponents`)
         self.frozen_labels = []
         self.frozen_versions = {}  # net id -> the encoding it reads
@@ -146,11 +156,27 @@ class League:
             + [f"net:{k}" for k in self.exploiter_snapshots()[-n:]]
         )
 
-    def draw(self, bots_ok=True):
+    def opponents(self):
+        """The training tables' candidates: `candidates`, and with frozen
+        opponents the exploiter's retired copies."""
+        names = self.candidates()
+        if self.frozen and self.cfg.exploiter:
+            names += [f"net:{k}" for k in self.exploiter_snapshots()[-self.cfg.opponents_kept :]]
+        return names
+
+    def deck_of(self, name):
+        """The deck an exploiter seat plays (`exploiter_decks`), else None."""
+        k = net_id(name)
+        if k == EXPLOITER and self.exploiter_decks:
+            return self.exploiter_decks[self.generation % len(self.exploiter_decks)]
+        return self.decks_of.get(k)
+
+    def draw(self, bots_ok=True, evaluation=False):
         """An opponent: a bot with probability `bot_seats` (else a
         snapshot, when there is one; always one once `bots_ok` is off),
-        then by PFSP within the group."""
-        names = self.candidates()
+        then by PFSP within the group; in `evaluation`, among `candidates`
+        and without habits."""
+        names = self.candidates() if evaluation else self.opponents()
         bots = [n for n in names if n in BOTS]
         nets = [n for n in names if n not in BOTS]
         if nets and (not bots_ok or self.rng.random() >= self.cfg.bot_seats):
@@ -159,29 +185,30 @@ class League:
             names = bots
         w = [(1 - self.p.get(n, 0.5)) ** 2 + 0.02 for n in names]
         name = names[self.rng.choice(len(names), p=[x / sum(w) for x in w])]
-        if self.frozen and self.rng.random() < self.cfg.habit_seats:
+        if not evaluation and net_id(name) in self.frozen and self.rng.random() < self.cfg.habit_seats:
             name += HABITS
         return name
 
-    def spec(self, n=None, at=None):
+    def spec(self, n=None, at=None, evaluation=False):
         """A table: `n` seats (4 or 5 drawn when None), the learner at seat
-        `at` (drawn when None)."""
+        `at` (drawn when None); in `evaluation`, the others drawn as
+        `draw` does there, no partner and no exploiter."""
         n = int(self.rng.choice(TABLES)) if n is None else n
         seats = []
         for _ in range(n):
             bots_ok = sum(x in BOTS for x in seats) < self.cfg.table_bots
-            seats.append(self.draw(bots_ok))
+            seats.append(self.draw(bots_ok, evaluation))
         order = self.rng.permutation(n)
         if at is not None:
             order = np.concatenate([[at], order[order != at]])
         k = self.cfg.learner_seats
-        if self.cfg.partner_rate > 0 and self.rng.random() < self.cfg.partner_rate:
+        if not evaluation and self.cfg.partner_rate > 0 and self.rng.random() < self.cfg.partner_rate:
             mate = (order[0] + int(self.rng.choice(range(2, n - 1)))) % n
             order = np.concatenate([[order[0], mate], order[(order != order[0]) & (order != mate)]])
             k = max(k, 2)
         for i in order[:k]:
             seats[i] = "net:0"
-        if self.cfg.exploiter:
+        if self.cfg.exploiter and not evaluation:
             seats[order[k]] = EXP
         return {"seats": seats}
 
@@ -215,12 +242,16 @@ class League:
         )
 
     def retire_exploiter(self, iteration, exploiter):
-        """The exploiter joins the pool as a frozen copy (its beat rate
-        carried over); the live one restarts at ½."""
+        """The exploiter joins the pool as a frozen copy (its beat rate and
+        deck carried over); the live one restarts at ½, on the next deck."""
         name = f"net:{EXPLOITER + iteration}"
+        deck = self.deck_of(EXP)
+        if deck is not None:
+            self.decks_of[EXPLOITER + iteration] = deck
         self.add(EXPLOITER + iteration, exploiter)
         self.p[name] = self.p.pop(EXP, 0.5)
         self.exploiter_since = 0
+        self.generation += 1
 
     def nets(self, learner, exploiter=None):
         nets = {0: learner, **self.snapshots, **self.frozen}
@@ -233,10 +264,17 @@ class League:
         return snaps[-1] if snaps else None
 
     def state(self):
-        return {"p": self.p, "exploiter_since": self.exploiter_since}
+        return {
+            "p": self.p,
+            "exploiter_since": self.exploiter_since,
+            "generation": self.generation,
+            "decks_of": self.decks_of,
+        }
 
     def restore(self, state):
         if "p" in state:  # older checkpoints saved the beat rates alone
             self.p, self.exploiter_since = state["p"], state["exploiter_since"]
+            self.generation = state.get("generation", 0)
+            self.decks_of = state.get("decks_of", {})
         else:
             self.p = state

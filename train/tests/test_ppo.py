@@ -797,3 +797,47 @@ def test_one_deck_for_the_learner(tmp_path):
                  if ep["game"] < 4]
     assert all(ep["decks"][ep["seats"].index("net:0")] == 5 for ep in done)
     assert {"vps_2se", "gw_2se"} <= set(trainer.evaluate(trainer.league.candidates()[:1] * 3, 4))
+
+
+def test_deck_specialized_exploiters_against_frozen_opponents(tmp_path):
+    # The run against exploiters (training board; owner, 2026-11-11): each
+    # exploiter at its own rate on one deck, the next at each restart; its
+    # retired copies keep their deck and join the frozen opponents at the
+    # training tables, never at the evaluation's.
+    old = tmp_path / "old"
+    Trainer(Config(games=4, steps=8, iterations=1, epochs=1, minibatch=64, d=32, layers=1, eval_every=1,
+                   eval_games=4, device="cpu", out=str(old), critic_warmup=0)).run()
+    cfg = Config(games=4, steps=16, iterations=2, epochs=1, minibatch=64, d=32, layers=1, eval_every=2,
+                 eval_games=4, device="cpu", out=str(tmp_path / "t"), critic_warmup=0, league=True,
+                 opponents=str(old / "model.pt"), exploiter=True, exploiter_reset=1, lr=1e-4, lr_final=1.0,
+                 exploiter_lr=1e-3, exploiter_decks="5,7")
+    trainer = Trainer(cfg)
+    spec = trainer.spec()
+    assert spec["decks"][spec["seats"].index(EXP)] == 5
+    trainer.run()
+    assert trainer.exploiter.opt.param_groups[0]["lr"] == 1e-3
+    assert trainer.learner.opt.param_groups[0]["lr"] == 1e-4
+    league = trainer.league
+    copies = [f"net:{k}" for k in league.exploiter_snapshots()]
+    assert league.generation == 2 and [league.deck_of(c) for c in copies] == [5, 7]
+    assert league.deck_of(EXP) == 5, "the third exploiter starts the list again"
+    assert set(copies) <= set(league.opponents()) and not set(copies) & set(league.candidates())
+    seen = set()
+    for _ in range(200):
+        spec = trainer.spec()
+        for s, d in zip(spec["seats"], spec["decks"]):
+            if s in copies:
+                assert d == league.deck_of(s)
+                seen.add(s)
+    assert seen == set(copies), "the retired copies are drawn"
+    resumed = Trainer(Config(**{**vars(cfg), "iterations": 3, "resume": str(tmp_path / "t" / "model.pt")}))
+    assert resumed.league.generation == 2 and resumed.league.decks_of == league.decks_of
+    for _ in range(20):
+        seats = league.spec(4, 0, evaluation=True)["seats"]
+        assert seats[0] == "net:0" and set(seats[1:]) <= set(league.candidates()), "vs_held: p17 frozen only"
+    # The rates as `run` tapers them, with no restart after.
+    tapered = Trainer(Config(**{**vars(cfg), "out": str(tmp_path / "taper"), "exploiter_reset": 10,
+                                "lr_final": 0.5}))
+    tapered.run()
+    assert np.isclose(tapered.exploiter.opt.param_groups[0]["lr"], 5e-4)
+    assert np.isclose(tapered.learner.opt.param_groups[0]["lr"], 5e-5)

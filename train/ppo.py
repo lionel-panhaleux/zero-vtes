@@ -25,7 +25,7 @@ import numpy as np
 import torch
 import zvtes_py
 
-from train.league import EXPLOITER, HABITS, TABLES, League, label, net_id
+from train.league import EXP, EXPLOITER, HABITS, TABLES, League, label, net_id
 from train.model import Critic, Policy, remap_vocab
 
 
@@ -172,6 +172,12 @@ class Config:
     exploiter: bool = False
     exploiter_beaten: float = 0.3
     exploiter_reset: int = 50
+    # The exploiter's own learning rate, tapered as the learner's (0: the
+    # learner's), and the decks it specializes on (`train/league.py`;
+    # owner, 2026-11-11: deck-specialized exploiters at 1e-4, what gained
+    # on p17 frozen, DESIGN §11.2 "The exploitability probe").
+    exploiter_lr: float = 0.0
+    exploiter_decks: str = ""
     # Frozen opponents (checkpoint paths, comma-separated): with `league`,
     # every other seat is one of them, and `best.pt` is selected on games
     # against them (train/league.py).
@@ -729,6 +735,8 @@ class Learner:
     def __init__(self, agent, model, lr):
         self.agent = agent
         self.model = model
+        # The base rate `run` tapers.
+        self.lr = lr
         self.opt = torch.optim.Adam(model.parameters(), lr=lr)
         # (slot, seat) -> transitions [obs, action, logp, value, reward, done]
         self.chains = {}
@@ -855,10 +863,10 @@ class Trainer:
             if "pfsp" in saved:
                 self.league.restore(saved["pfsp"])
             if cfg.opponents:  # beat rates of other runs' opponents: noise
-                names = set(self.league.candidates())
+                names = set(self.league.opponents()) | {EXP}
                 self.league.p = {k: v for k, v in self.league.p.items() if k in names}
             if cfg.exploiter:
-                self.exploiter = Learner(EXPLOITER, copy.deepcopy(model), cfg.lr)
+                self.exploiter = Learner(EXPLOITER, copy.deepcopy(model), cfg.exploiter_lr or cfg.lr)
                 if "exploiter" in saved:
                     old = saved.get("vocab", self.vocab)
                     fresh = self.exploiter.model.state_dict()
@@ -991,12 +999,18 @@ class Trainer:
         else:
             spec = {"seats": ["net:0"] * (n or int(self.rng.choice(TABLES)))}
         if start is not None:
-            spec["start"] = start
-        elif self.league and self.weak and self.rng.random() < self.cfg.weak_rate:
+            return spec | {"start": start}
+        if self.league and self.weak and self.rng.random() < self.cfg.weak_rate:
             decks = [None] * len(spec["seats"])
             decks[spec["seats"].index("net:0")] = int(self.rng.choice(self.weak))
             spec["decks"] = decks
-        return spec if start is not None else self.pinned(spec)
+        spec = self.pinned(spec)
+        if self.league and self.league.exploiter_decks:
+            decks = spec.get("decks") or [None] * len(spec["seats"])
+            spec["decks"] = [
+                d if (e := self.league.deck_of(s)) is None else e for s, d in zip(spec["seats"], decks)
+            ]
+        return spec
 
     def rollout(self):
         """Play `steps` pool steps; each learner's transitions with their
@@ -1244,12 +1258,12 @@ class Trainer:
 
     def held_tables(self, games):
         """`games` tables from the held-out human wins, taken in turn, the
-        learner in the winner's seat."""
+        learner in the winner's seat, the others an evaluation's."""
         tables = []
         for g in range(games):
             i = g % len(self.held_starts)
             (_, _, n), winner = self.held_starts[i]
-            tables.append({**self.league.spec(n, winner), "start": i})
+            tables.append({**self.league.spec(n, winner, evaluation=True), "start": i})
         return tables
 
     def evaluate_held(self, games, seed=0):
@@ -1353,13 +1367,14 @@ class Trainer:
             t0 = time.perf_counter()
             self.pool.nudges = nudges(cfg, it)
             done = (it - self.start) / max(1, cfg.iterations - self.start)
-            lr = cfg.lr * (1 - (1 - cfg.lr_final) * done)
-            opts = [learner.opt for learner in self.learners()]
+            taper = 1 - (1 - cfg.lr_final) * done
+            lr = cfg.lr * taper
+            opts = [(learner.opt, learner.lr * taper) for learner in self.learners()]
             if self.critic is not None:
-                opts.append(self.critic_opt)
-            for opt in opts:
+                opts.append((self.critic_opt, lr))
+            for opt, rate in opts:
                 for group in opt.param_groups:
-                    group["lr"] = lr
+                    group["lr"] = rate
             for learner in self.learners():
                 learner.model.eval()
             if self.critic is not None:
@@ -1408,7 +1423,7 @@ class Trainer:
             if self.league:
                 if self.league.step():
                     self.league.retire_exploiter(it, self.exploiter.model)
-                    self.exploiter.restart(self.model.state_dict(), cfg.lr)
+                    self.exploiter.restart(self.model.state_dict(), self.exploiter.lr)
                     row["exploiter_retired"] = True
                 if it % cfg.snapshot_every == 0 and not self.league.frozen:
                     self.league.add(it, self.model)
