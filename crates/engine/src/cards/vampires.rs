@@ -5647,7 +5647,7 @@ pub static APPOLONIUS_MERGED: VampireDef = VampireDef {
 /// Merged vampires (rulebook "Advanced"): the base card's text and the
 /// advanced card's in full, its [MERGED] clauses with them — the
 /// definition `cards::vampire_of` reads for a merged vampire.
-pub static MERGED: [&VampireDef; 18] = [
+pub static MERGED: [&VampireDef; 19] = [
     &APPOLONIUS_MERGED,
     &HELENA_MERGED,
     &XAVIAR_MERGED,
@@ -5662,6 +5662,7 @@ pub static MERGED: [&VampireDef; 18] = [
     &MARCUS_VITEL_MERGED,
     &ALFRED_BENEZRI_MERGED,
     &THEO_BELL_MERGED,
+    &THEO_BELL_G6_MERGED,
     &BOSS_CALLIHAN_MERGED,
     &MALDAVIS_MERGED,
     &SUNDOWN_MERGED,
@@ -12853,7 +12854,7 @@ static THEO_BELL_BURN: ReferendumDef = ReferendumDef {
 /// play, any justicar or Inner Circle member can call a referendum to burn
 /// Theo as a +1 stealth political action. If that referendum is canceled or
 /// fails, the acting vampire goes to torpor." Any Methuselah's justicar or
-/// Inner Circle member; merged: `THEO_BELL_MERGED`.
+/// Inner Circle member; merged: `THEO_BELL_MERGED`, `THEO_BELL_G6_MERGED`.
 pub static THEO_BELL_ADV: VampireDef = VampireDef {
     name: "Theo Bell",
     adv: true,
@@ -12879,14 +12880,28 @@ pub static THEO_BELL_ADV: VampireDef = VampireDef {
     ..VAMP
 };
 
-/// Theo Bell merged (the G2 base): his base card's combat action and
+/// Theo Bell merged, the G2 base: his base card's combat action and
 /// blood hunt shield, the advanced card's strength and referendum.
 /// Independent, the base's sect gone with the merge (ANK 20180524).
 pub static THEO_BELL_MERGED: VampireDef = VampireDef {
     name: "Theo Bell",
     adv: true,
+    group: Some(2),
     printed: &[THEO_BELL_G2.printed[0], THEO_BELL_ADV.printed[0]],
     abilities: &[THEO_BELL_G2.abilities[0], THEO_BELL_ADV.abilities[0]],
+    ..VAMP
+};
+
+/// Theo Bell merged, the G6 base under the G2 advanced card (ANK
+/// 20220805-2: the groups bind the crypt, not the merge): the base card's
+/// combat action and strength, the advanced card's strength and
+/// referendum.
+pub static THEO_BELL_G6_MERGED: VampireDef = VampireDef {
+    name: "Theo Bell",
+    adv: true,
+    group: Some(6),
+    printed: &[THEO_BELL.printed[0], THEO_BELL_ADV.printed[0]],
+    abilities: &[THEO_BELL.abilities[0], THEO_BELL_ADV.abilities[0]],
     ..VAMP
 };
 

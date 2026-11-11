@@ -1538,6 +1538,59 @@ fn appolonius_merges_in_the_influence_phase() {
     );
 }
 
+// [ANK 20220805-2] Theo Bell (G6): "Can be merged with Theo Bell (G2 ADV)
+// if you get to control one (eg. Graverobbing)": groups bind the crypt, not
+// the merge. Seat 0 holds the G2 advanced Theo uncontrolled and steals the
+// G6 one from torpor: the merge is offered in its influence phase, the
+// merged vampire the G6 card's text with the advanced one's.
+#[test]
+fn a_stolen_theo_bell_merges_with_the_other_groups_advanced() {
+    let theo = |group: u8, adv: bool| {
+        zvtes::crypt::CRYPT
+            .iter()
+            .position(|c| c.name == "Theo Bell" && c.group == group && c.adv == adv)
+            .expect("Theo Bell") as u16
+    };
+    let (g6, adv) = (theo(6, false), theo(2, true));
+    let mut e = game(2);
+    let a = e.add_minion(SeatId(0), vampire_with("dom", 0), 4, false);
+    let t = e.add_minion(SeatId(1), g6, 2, true);
+    e.add_minion(SeatId(1), plain("Ventrue", 0), 4, false);
+    e.state.seats[0]
+        .uncontrolled
+        .push(zvtes::state::UncontrolledSlot {
+            card: adv,
+            copy: Default::default(),
+            counters: 3,
+            banished: None,
+        });
+    hand(&mut e, 0, &["Graverobbing"]);
+    pick(
+        &mut e,
+        Choice::Play {
+            card: 0,
+            mode: 0,
+            actor: Some(a),
+            target: Target::Minion(t),
+        },
+    );
+    let req = until(&mut e, SeatId(0), WindowLabel::InfluenceTransfers);
+    assert_eq!(e.state.minions[t.index()].owner, SeatId(0), "stolen");
+    assert!(!req.options.contains(&Choice::InfluenceOut { slot: 0 }));
+    e.choose(index_of(&req, Choice::Merge { slot: 0 }));
+    let v = &e.state.minions[t.index()];
+    assert_eq!((v.crypt_card(), v.merged), (Some(adv), Some(g6)));
+    assert!(e.state.seats[0].uncontrolled.is_empty());
+    // Both cards' text: the G6 card's +1 strength and the advanced one's,
+    // not the G2 card's blood hunt shield.
+    use zvtes::cards::Stat;
+    let printed = |s: Stat| e.state.printed_mod(t, s, Default::default());
+    assert_eq!(
+        (printed(Stat::Strength), printed(Stat::NoBloodHunt)),
+        (2, 0)
+    );
+}
+
 // Appolonius (advanced): "+1 bleed for each titled vampire controlled by
 // the target Methuselah": 2 titled (one in torpor): 1 + 2; merged, the base
 // card's +1 too.

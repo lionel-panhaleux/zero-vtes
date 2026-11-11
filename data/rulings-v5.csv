@@ -1860,9 +1860,9 @@ card_id,card,via,references,ruling,status
 201585,Elen Kamjian,key,[ANK 20211009-2],Another bleed action (eg. {100752|Flurry of Action}) does not count as the bleed action her ability forces her to take.,test:elen_kamjian_must_bleed_while_you_control_a_locked_minion
 201585,Elen Kamjian,key,[ANK 20211009-2],"If her ability makes a bleed mandatory but she has performed a bleed already this turn, she is stuck and cannot act.",test:elen_kamjian_is_stuck_if_she_bled_before_her_bleed_became_mandatory
 201608,Nonu Dis,key,[ANK 20220617],His ability can be used only once per master phase.,test:nonu_dis_adds_blood_once_per_master_phase_after_a_master_card
-100852,Graverobbing,mention in Theo Bell,[ANK 20220805-2],Can be merged with {201363|Theo Bell (G2 ADV)} if you get to control one (eg. {100852|Graverobbing}).,n/a:no advanced vampire in the V5 pool
-201363,Theo Bell,mention in Theo Bell,[ANK 20220805-2],Can be merged with {201363|Theo Bell (G2 ADV)} if you get to control one (eg. {100852|Graverobbing}).,n/a:the G2 advanced Theo Bell is absent from the pool
-201613,Theo Bell,key,[ANK 20220805-2],Can be merged with {201363|Theo Bell (G2 ADV)} if you get to control one (eg. {100852|Graverobbing}).,n/a:Theo Bell (G2 ADV) is not in V5
+100852,Graverobbing,mention in Theo Bell,[ANK 20220805-2],Can be merged with {201363|Theo Bell (G2 ADV)} if you get to control one (eg. {100852|Graverobbing}).,test:a_stolen_theo_bell_merges_with_the_other_groups_advanced
+201363,Theo Bell,mention in Theo Bell,[ANK 20220805-2],Can be merged with {201363|Theo Bell (G2 ADV)} if you get to control one (eg. {100852|Graverobbing}).,test:a_stolen_theo_bell_merges_with_the_other_groups_advanced
+201613,Theo Bell,key,[ANK 20220805-2],Can be merged with {201363|Theo Bell (G2 ADV)} if you get to control one (eg. {100852|Graverobbing}).,test:a_stolen_theo_bell_merges_with_the_other_groups_advanced
 201621,Karl Schrekt,key,[LSJ 20050128],"When considered a Justicar, he is also implicitly considered Camarilla.",test:closed_session_callers_playing_it_as_camarilla_still_vote
 102270,Camarilla's Iron Fist,mention in Karl Schrekt,[ANK 20250410],"When he changes Sects, he can't play votes that ""requires a titled camarilla Vampire"" (e.g. {102270|Camarilla's Iron Fist})",test:karl_schrekt_no_longer_camarilla_cannot_call_camarillas_iron_fist
 201621,Karl Schrekt,key,[ANK 20250410],"When he changes Sects, he can't play votes that ""requires a titled camarilla Vampire"" (e.g. {102270|Camarilla's Iron Fist})",test:karl_schrekt_no_longer_camarilla_cannot_call_camarillas_iron_fist

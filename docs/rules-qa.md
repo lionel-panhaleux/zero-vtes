@@ -1104,7 +1104,7 @@ Readings no ruling settles, implemented with slice 16l; questions for the owner.
 
 Readings no ruling settles, implemented with slice 16m; questions for the owner.
 
-**60.1** Theo Bell (G2): the ready prince or justicar is another vampire of his controller's, read live; the G2 and G6 cards are one vampire for contests (no merge: the G2 advanced card is not in the pool). Confirmed (owner, 2026-10-09). The G2 advanced card has since entered the pool (round 26) and merges with the base (111.19).
+**60.1** Theo Bell (G2): the ready prince or justicar is another vampire of his controller's, read live; the G2 and G6 cards are one vampire for contests. Confirmed (owner, 2026-10-09). Corrected (ANK 20220805-2: "Can be merged with Theo Bell (G2 ADV) if you get to control one (eg. Graverobbing)"): the G6 card merges with the G2 advanced one, as the G2 base does (111.19), by the ordinary merge once one Methuselah holds both (the G6 stolen, the advanced one in the uncontrolled region), the groups binding the crypt only; merged, the G6 card's text with the advanced card's (`THEO_BELL_G6_MERGED`, by the base card's group). Taking the other version already in play is a copy's take (58.19). (Test a_stolen_theo_bell_merges_with_the_other_groups_advanced.)
 
 **60.2** Juliet Parr: the referendum of her own political action (not a blood hunt); each one passed adds 2 hand size, until her controller's next unlock phase begins. Confirmed (owner, 2026-10-09).
 

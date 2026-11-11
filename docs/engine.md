@@ -1587,6 +1587,12 @@ sources to the engine's conventions.
 `state.rs`: `Minion`, `MinionKind::{Vampire, Ally, Imbued, Created, Token,
 CryptAlly}`.
 
+- Merging (`Engine::merge_partner`, `Choice::Merge`; rules-qa 69.5): by
+  name and advanced flag, never by group — the groups bind the crypt only
+  (ANK 20220805-2: a stolen G6 Theo Bell under the G2 advanced card). A
+  merged vampire's text is its `vampires::MERGED` definition, found by
+  the base card it keeps (`Minion::merged`): a name with several bases
+  has one definition a base group (`VampireDef::group`).
 - Capacity for another Methuselah: `capacity_by(m, seat)` and
   `younger_by(a, b, seat)` add Orun's +2 (`Modifier::CapacityToOthers`),
   before the minimum of 1 (ANK 20180719-1: Barrenness), over Wormwood's

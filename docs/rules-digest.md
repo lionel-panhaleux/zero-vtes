@@ -3823,9 +3823,10 @@ retainers, traits, titles, trait changes).
   cards on the incoming card burn, the vampire in play keeping its own
   (rulebook "Advanced") (90.5).
 - Group versions are one vampire for contests, each with its own text:
-  Theo Bell G2 and G6 (his ready prince or justicar is another vampire of
-  his controller's, read live; the G2 advanced card merges with the base,
-  111.19) (60.1); François Villon G2 and G6 (62.4).
+  Theo Bell G2 and G6 (each merging with the G2 advanced card, 111.19, the
+  G6 one as any base, ANK 20220805-2; his ready prince or justicar is
+  another vampire of his controller's, read live) (60.1); François Villon
+  G2 and G6 (62.4).
 - A merged vampire keeps its entry into play (71.3, LSJ 20030519-2; 70.3).
 - A merged vampire: both cards' text, the advanced card's sect (ANK
   20180524); a named Camarilla title held as the Laibon titles are (Karsh:

@@ -8637,7 +8637,7 @@ pub struct VampireDef {
     /// The advanced card of the name (`CryptCard::adv`).
     pub adv: bool,
     /// The group, when versions share the name (Theo Bell G2, G6); `None`
-    /// matches any.
+    /// matches any. A merged definition's: its base card's.
     pub group: Option<u8>,
     pub printed: &'static [Printed],
     /// Printed abilities; the actor `Host` is the vampire.
@@ -8721,13 +8721,15 @@ pub fn vampire_of(m: &crate::state::Minion) -> Option<&'static VampireDef> {
         return Some(&vampires::RECRUITED_SLAVE);
     }
     let card = m.crypt_card()?;
-    // Merged: the definition of both cards' text (`vampires::MERGED`).
+    // Merged: the definition of both cards' text (`vampires::MERGED`), by
+    // the base card's group: the advanced card merges with any group's
+    // base (ANK 20220805-2).
     m.merged
-        .and_then(|_| {
-            let c = &crate::crypt::CRYPT[card as usize];
+        .and_then(|base| {
+            let b = &crate::crypt::CRYPT[base as usize];
             vampires::MERGED
                 .iter()
-                .find(|d| d.name == c.name && d.group.is_none_or(|g| g == c.group))
+                .find(|d| d.name == b.name && d.group.is_none_or(|g| g == b.group))
                 .copied()
         })
         .or_else(|| vampire(card))
