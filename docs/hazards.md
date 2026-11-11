@@ -119,8 +119,9 @@ Every line works in the one checkout on `main` (CLAUDE.md "Sessions").
   docs/engine.md, rules-qa, the ledger). Before writing a shared file,
   `git diff -- <file>` shows others' hunks; a file you commit holding
   another session's hunks waits until that session agrees they go in, or
-  commits first. Imperfect isolation is accepted where files overlap;
-  silent inclusion is not.
+  commits first, or the change moves to a temporary worktree (CLAUDE.md
+  "Harness", owner 2026-11-10). Imperfect isolation is accepted where
+  files overlap; silent inclusion is not.
 - Green checks in the shared tree prove the tree, not your commit: a
   change reading another session's uncommitted file (a helper, a table,
   a schema) lands a broken `main`. Your change uses only committed code

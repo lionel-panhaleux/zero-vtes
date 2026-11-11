@@ -47,10 +47,10 @@ Pool = the V5-era products (KRCG set data): Fifth Edition, Fifth Edition (Anarch
 Fifth Edition (Companion), New Blood, New Blood II, New Blood III, Fall of London,
 Shadows of Berlin, Echoes of Gehenna — plus legacy cards the owner added
 (`EXTRA_CARDS` in `scripts/window_matrix.py`, read by every generator and the
-ledger), and legacy cards making tournament-winning decks (TWDA) playable,
-appended after the V5 tables in batches so existing indices stay put
-(`ADDED_BATCHES`, merged as `ADDED_CARDS`). The script holds the lists; the
-cards line adds them in rounds (the `add-cards` skill).
+ledger), and every other card (roadmap objective B), appended after the V5
+tables in batches so existing indices stay put (`ADDED_BATCHES`, merged as
+`ADDED_CARDS`). The script holds the lists; the cards line adds them in
+rounds, set by set (the `add-cards` skill, the cards board).
 
 - **The pool's counts**: DESIGN §11's count line (definitions) and the
   cards board's header (the pool against KRCG's, the TWDA decks in it).
@@ -196,8 +196,9 @@ hosts a window.
   where the same Methuselah may attempt again (82.2). A pass **with no
   ongoing attempt is a final decline**, reopened only by a change of target
   (bounces: Deflection, Telepathic Misdirection — not the card Change of Target,
-  which ends the action). Hence a third-party helper needs the defender to
-  attempt first.
+  which ends the action). Hence a third party's help cannot reopen a final
+  decline; a reduction of stealth or intercept needs no attempt (rules-qa
+  1.3, LSJ 20020612).
   **NRA** (rules-qa 1.4): enforced in legal-action generation; locked on
   *resolution* (blocked counts, canceled-as-announced does not); identity by card
   **name** for played cards, by **copy** for cards in play; one bleed and one
@@ -971,9 +972,8 @@ R −2.18 a turn (the owner's prey −6.06), its own −2.81, its predator's
 −0.34: it builds less, hits a third as hard and barely touches the seat
 eating it. The humans are level on actions to round 6, ahead on blood from
 rounds 4–5, landing twice the blocks from round 8. Hence the order of work
-(owner, 2026-11-09; the training board): the map of the choices humans win
-with that the network has collapsed, exploration over them, exploiters,
-judged on the human-facing measures (roadmap M:stronger-bot).
+(owner, 2026-11-09 and 11-11; the training board): exploiters, judged on the
+human-facing measures (roadmap M:stronger-bot).
 
 **Missed opportunities** (2026-11-10; `humanset <p17.zvp> <p17.zvp> 0
 --apart <the five> --map data/records data/server-records`): p17
@@ -1057,7 +1057,7 @@ its entry when it ends — the training skill's "A run")
   served.
 - **p16** (2026-10-27 → 30, `a4d184d`): RL from d16, `gw_weight` 2 by
   omission; stopped at 478 of 680 (owner: going nowhere); not served.
-- **p17** (`runs/p17`, `../zero-vtes-p17` at `08c5665`; 2026-11-03 → 04, 5281
+- **p17** (`runs/p17`, launched at `08c5665`; 2026-11-03 → 04, 5281
   → 5580). Half the tables start from a human's win, the learner in the
   winner's seat (owner, 2026-11-02); p14 the only frozen opponent at the served
   temperature; a flat learning rate 3e-5; held out of imitation and starts, 13

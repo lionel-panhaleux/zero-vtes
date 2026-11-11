@@ -14,10 +14,10 @@ Key facts:
   window elision (auto-pass provably empty windows); replay = (seed, decision log).
 - Card legality and execution derive from one representation — masks are
   generated, never hand-written.
-- v1 scope: full V5 engine pool (200 crypt, 425 library — all
-  defined) plus owner-added legacy cards for TWDA decks (`ADDED_CARDS`,
-  appended after the V5 tables); training on the precons and DESIGN §3's
-  decks. Stack: Rust engine + PyO3 + PyTorch training.
+- Scope: every card (roadmap objective B): the V5 pool (200 crypt, 425
+  library) first, then the rest appended after the V5 tables
+  (`ADDED_CARDS`), set by set (the cards board); training on the precons
+  and DESIGN §3's decks. Stack: Rust engine + PyO3 + PyTorch training.
 - `docs/rules-qa.md`: the owner's rulings (a VEKN judge and author of the
   KRCG library/API), one line per item, with a topical index; code cites items
   as `rules-qa N.M` (never renumber). New questions go in a new batch at the

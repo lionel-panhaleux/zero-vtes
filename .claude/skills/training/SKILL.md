@@ -35,7 +35,8 @@ checks it did not get worse).
    tree, so run them in the run's worktree (or another at a commit), never in
    the shared checkout. Settled, not to retry without new information
    (§11.2 "Settled by measurement"): reward shaping, the pairing, faded
-   nudges, the weak-deck routing (`--weak-rate`), search at play time.
+   nudges, the weak-deck routing (`--weak-rate`), search at play time, the
+   exploration share.
    Held out of imitation and starts (`--bc-held-games`, parts of file
    names): the five games held since p10 (`2026-10-11T12-31-56`,
    `2026-10-11T15-45-47`, `2026-10-12T21-02-13`, `2026-10-12T21-50-21`,
@@ -135,7 +136,7 @@ checks it did not get worse).
   first clan's id; a new `ActionKind` after `Ability` needs its
   `action_slot` arm. Interrupts, purposes, a new marker kind and the api's
   wire ids are not encoded. `git diff -M <pin> <main> --
-  crates/engine/src/obs.rs crates/env/src/obs.rs crates/env/src/context.rs
+  crates/env/src/obs.rs crates/env/src/context.rs
   crates/engine/src/profile.rs crates/engine/src/decision.rs` says whether a
   table the networks read moved; a change to how an encoded state is
   counted moves a value, not a table.

@@ -24,8 +24,9 @@ write to the main checkout's ignored `data/`.
 
 ## Recurring
 
-- **Daily — the harvest**: no report of the day under the main
-  checkout's `data/server-records/reports/` → run the training skill's
+- **Daily — the harvest**: the main checkout's
+  `data/server-records/reports/total.md` not rewritten today (a day with no
+  new game writes no day's report) → run the training skill's
   "Harvest" (`python3 scripts/harvest.py`, in the detached checkout). Its
   weaknesses and anything it shows → Z-train's `intake`.
 - **Daily — p17's trial** (served as a trial, owner 2026-11-06: back to
@@ -43,6 +44,15 @@ write to the main checkout's ignored `data/`.
   checkout's `data/sweeps/` → `python3 scripts/sweeps.py`, in the
   detached checkout. Refused (a training run) → retried the next day; a
   failure → Z-engine's `intake`.
+
+## On a date
+
+- **2026-11-14 — the seventh upkeep's proposals** (asked in the digest,
+  2026-11-11: the changed-decision rule for every line with its
+  `harness.py stale` check; add-cards' re-check of "not in the pool"
+  clauses; DESIGN §11's test counts dropped; the session settings
+  committed): unanswered → asked again in the digest; each answer → made,
+  or an engine-board line when it is code; then the item is deleted.
 
 ## On an event
 

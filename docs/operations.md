@@ -3,10 +3,11 @@
 ## Environments
 
 - **This machine**: the sessions (CLAUDE.md "Sessions") in the one shared
-  checkout on `main`; the pinned jobs' worktrees only: the training runs
-  (`.claude/worktrees/pN`; DESIGN §11.2) and Z-main's detached checkout at
-  `main`'s tip (docs/watch.md). Shared: docs/hazards.md "The shared tree"
-  and "The shared machine".
+  checkout on `main`; the pinned jobs' worktrees (the training runs,
+  `.claude/worktrees/pN`, DESIGN §11.2; Z-main's detached checkout at
+  `main`'s tip, docs/watch.md) and CLAUDE.md "Harness"'s two temporary
+  ones, each under `.claude/worktrees/<name>`. Shared: docs/hazards.md
+  "The shared tree" and "The shared machine".
 - **frankfurt**: an OVH VPS, 6 vCPU / 12 GB, shared with archon beta and
   the forum (Discourse); pyinfra-deployed systemd units behind nginx and
   certbot, sops secrets, Alloy to Loki and Prometheus, Postgres 17 with

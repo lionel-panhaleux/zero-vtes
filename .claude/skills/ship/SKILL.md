@@ -27,8 +27,9 @@ it crosses lines), which runs `intake` on it.
 
 Follow the line's skill: `add-cards` (cards), `engine-review` (engine
 commits), `training`, `sc-change`. Work in the shared checkout on `main`
-(CLAUDE.md "Sessions": trunk-based, the tree shared). Task notes (plan,
-progress, hazards) go in the session's job tmp; they die with the task.
+(CLAUDE.md "Sessions": trunk-based, the tree shared; "Harness" names the
+two temporary worktrees). Task notes (plan, progress, hazards) go in the
+session's job tmp; they die with the task.
 
 Scope grows in place (owner, 2026-10-15): what the work discovers (a
 bug, a rough edge, a stale page, a missing test) and every relevant

@@ -17,8 +17,11 @@ policy), `docs/rules-digest.md` (settled readings by mechanism; its
 "Default readings" and "What counts as X" sections always). Work in the
 shared checkout on `main` (CLAUDE.md "Sessions": trunk-based; a
 regenerated table or a re-bless records the whole tree, docs/hazards.md
-"The shared tree"); keep a progress file in the job's tmp (done, todo,
-readings, commit checklist): a round outlives one context window.
+"The shared tree"); parallel implementers, if used, each in a temporary
+worktree under `.claude/worktrees/`, merged by Z-add into the shared
+checkout before the round's review, then removed (owner, 2026-11-10);
+keep a progress file in the job's tmp (done, todo, readings, commit
+checklist): a round outlives one context window.
 
 Two standing rules (owner, 2026-11-11, after a Liquefy reading stated from
 memory, "since its text says so", that its text does not say):
