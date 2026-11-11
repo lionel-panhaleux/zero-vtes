@@ -45,15 +45,6 @@ write to the main checkout's ignored `data/`.
   detached checkout. Refused (a training run) → retried the next day; a
   failure → Z-engine's `intake`.
 
-## On a date
-
-- **2026-11-14 — the seventh upkeep's proposals** (asked in the digest,
-  2026-11-11: the changed-decision rule for every line with its
-  `harness.py stale` check; add-cards' re-check of "not in the pool"
-  clauses; DESIGN §11's test counts dropped; the session settings
-  committed): unanswered → asked again in the digest; each answer → made,
-  or an engine-board line when it is code; then the item is deleted.
-
 ## On an event
 
 - **The platform opened to more players** (owner, 2026-11-09: planned

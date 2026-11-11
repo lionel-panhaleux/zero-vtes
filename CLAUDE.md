@@ -280,6 +280,14 @@ its skill and its task notes.
   no ruling settles is implemented and recorded as a question in a new
   rules-qa batch. Card text addresses its controller by default (32.7); Ⓓ
   is only indicative (20.1).
+- A settled decision changed is examined first (owner, 2026-11-11; every
+  line): before building an overturned reading or a reversed rules-qa item,
+  list everything that rests on it: the cards and rulings citing it (grep
+  rules-qa, the digest, the ledger, the definitions, the pages), the cards
+  sharing its mechanism (one diablerie timing moved means Amaranth and
+  Liquefy both), and the interactions it reaches (chained combats,
+  referendums, other replacements); state the consequences critically, ask
+  what the owner's answer leaves open, then build.
 - The owner may add legacy cards to close test loops (e.g. a sterile baron);
   hard cards to stress the engine later: Rötschreck, Outside the Hourglass,
   Rewind Time.

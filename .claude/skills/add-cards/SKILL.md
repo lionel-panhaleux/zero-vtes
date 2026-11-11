@@ -23,21 +23,14 @@ checkout before the round's review, then removed (owner, 2026-11-10);
 keep a progress file in the job's tmp (done, todo, readings, commit
 checklist): a round outlives one context window.
 
-Two standing rules (owner, 2026-11-11, after a Liquefy reading stated from
-memory, "since its text says so", that its text does not say):
+A standing rule (owner, 2026-11-11, after a Liquefy reading stated from
+memory, "since its text says so", that its text does not say), beside
+CLAUDE.md "Owner rules"' "A settled decision changed is examined first":
 
 - **Never from memory.** Every claim about a card's text, a ruling or a
   rules-qa item, to the owner, a peer or an agent, is read from its
   source as it is made (`vtes.json`'s text and rulings, the ledger,
   rules-qa, `../vtes-advanced-rules`) and quoted.
-- **A settled decision changed is examined first.** Before building an
-  overturned reading or a reversed rules-qa item, list everything that
-  rests on it: the cards and rulings citing it (grep rules-qa, the digest,
-  the ledger, the definitions), the cards sharing its mechanism (one
-  diablerie timing moved means Amaranth and Liquefy both), and the
-  interactions it reaches (chained combats, referendums, other
-  replacements); state the consequences critically, ask what the owner's
-  answer leaves open, then build.
 
 ## 1. Choose the round
 
@@ -187,13 +180,18 @@ hashes (a trajectory change there is a behaviour change to explain).
 ## 6. Finish
 
 All CLAUDE.md checks green (including `cargo test -p zvtes-policy`, the
-py side, generators, window matrix, ledger, DESIGN count line) and
+py side, generators, window matrix, ledger, DESIGN's definitions count) and
 `python3 scripts/digest_index.py --check` (every rules-qa item cited in
 the digest, its line in the section stating it, and §25 rewritten); the
 `engine-review` skill on the round's diff (the `ship` skill's egress);
 anything found fixed in the round, only what is clearly outside it taken
 through `intake`; the round's line deleted from the
 cards board (`docs/boards/cards.md`).
+Every "not in the pool" or "no … in the pool" clause in the definitions
+and pages (`grep -rn -i "in the pool" crates/engine/src/cards DESIGN.md
+docs`) is re-checked against the round's cards: one whose tenant the
+round added is implemented in the round, its rules-qa item and comment
+corrected (owner, 2026-11-11: seven were found stale at once).
 Ask the red items before committing (through Z-main's digest, or the
 owner directly): a "no" lands in the same commit, and the commit waits
 for their answers only. Commit the round's files by path (CLAUDE.md
