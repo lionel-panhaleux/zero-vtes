@@ -6,6 +6,11 @@ server runs.
 `python3 scripts/schema_compat.py` lists what a schema change adds or
 removes; its `--check` fails a removal without a major version.
 
+## 2.27.0
+
+- The effect `detail` `all_boons`: a `burn` of every boon in play, any
+  Methuselah's (Blood Trade). No id removed.
+
 ## 2.26.0
 
 - Round 28's cards (Heirs to the Blood) add two `Purpose` ids:

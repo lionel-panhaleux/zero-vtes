@@ -18,7 +18,7 @@ is created by one request and played over one WebSocket. Every game is
 recorded, anonymously, and kept two years to train and test the engine
 (§11).
 
-Version **2.26.0**. The types: the models of the
+Version **2.27.0**. The types: the models of the
 [API reference](https://engine.krcg.org/docs), also as
 [JSON Schema](https://engine.krcg.org/schema.json) (2020-12) and
 [TypeScript](https://engine.krcg.org/protocol.ts).
@@ -438,7 +438,8 @@ seat 2; burn 2 pool to keep card 9.)
     `beyond_first_non_aggravated`, `to_pool`,
     `from_pool`, `per_counter`, `then_bottom`, `master_phase`,
     `conviction` (a burn of the imbued's convictions, `n` of them),
-    `opponent_strength`….
+    `all_boons` (a `burn` of every boon in play, any Methuselah's: Blood
+    Trade), `opponent_strength`….
   - A vote's: `votes` (`n` cast, `favor`; `detail: prisci_ballot` the
     ballots a priscus casts with them; `on: card` the political action
     card's own vote); in Business Pressure's round, a `cast_card_vote`
