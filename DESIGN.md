@@ -169,11 +169,11 @@ hosts a window.
   active Methuselah's phases ends on an impulse rotation over the other seats
   (`Flow::PhaseRotation`, rules-qa 7.9). Unlock-phase ordering: §10.7.
   **Contest upkeep factoring**: each Methuselah settles *their side* of each
-  contest during *their own* unlock phase, so nobody orders both sides and no
-  cross-player simultaneity exists (a contest with oneself is masked where
-  chosen, the incoming title lost where forced: rules-qa 100.1). Each contested
-  object is a binary pay/yield decision (1 pool for a card, 1 blood for a
-  contesting titled vampire); forced yields (no resource, torpor) are elided;
+  contest during *their own* unlock phase, so no cross-player simultaneity
+  exists; two of their own vampires claiming one title (rules-qa 3.1) are
+  both settled there, in their order. Each contested object is a binary
+  pay/yield decision (1 pool for a card, 1 blood for a contesting titled
+  vampire); forced yields (no resource, torpor) are elided;
   gaining another title while contesting yields the contested one. Two broke
   princes resolve naturally: whoever's unlock phase comes first is
   force-yielded. Yielded cards burn with everything on them; a card whose
@@ -1194,10 +1194,9 @@ The owner's settled answers; they hold until the owner reopens them.
   always simply be discarded. Hence the non-minion play windows (Master
   phase, Discard phase) are first-class offer windows (§4.4).
 - **Contest upkeep factoring**: each Methuselah resolves their side of a
-  contest during their own unlock phase, so no player orders both sides (a
-  contest with oneself is masked where chosen, the incoming title lost where
-  forced: rules-qa 100.1); per-object binary pay/yield decisions in canonical
-  order; forced yields elided (§4.4).
+  contest during their own unlock phase, two of their own vampires claiming
+  one title included (rules-qa 3.1); per-object binary pay/yield decisions
+  in canonical order; forced yields elided (§4.4).
 - **Window census vs per-card reality**: the matrix is generated, then
   hand-reviewed card by card and arbitrated by the owner (rules-qa Batch
   2); the generator reproduces the reviewed matrix (§6).

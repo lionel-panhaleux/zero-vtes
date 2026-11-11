@@ -311,17 +311,6 @@ impl Engine {
         if rivals.is_empty() {
             return;
         }
-        // A contest with oneself forced on its controller: the incoming
-        // title is lost (advanced rules §1.13.1; owner, 2026-10-25:
-        // rules-qa 100.1).
-        let own = self.state.minions[m.index()].owner;
-        if rivals
-            .iter()
-            .any(|&r| self.state.minions[r.index()].owner == own)
-        {
-            self.lose_title(m);
-            return;
-        }
         // Victor Pelletier: "if his title would be contested, he
         // immediately yields instead of contesting"; a vampire under two No
         // Confidence too (LSJ 20080602).

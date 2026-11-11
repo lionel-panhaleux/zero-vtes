@@ -1501,8 +1501,7 @@ fn chameleon_steals_a_vampire_that_entered_not_one_that_merged() {
 }
 
 // [LSJ 20080803-2] Chameleon: "Can be used on one of your own vampire to
-// make it Anarch." A titled one too: its own claim is no contest with
-// oneself (rules-qa 100.1).
+// make it Anarch." A titled one too.
 #[test]
 fn chameleon_makes_ones_own_vampire_anarch() {
     let mut e = game(2);
@@ -1515,33 +1514,6 @@ fn chameleon_makes_ones_own_vampire_anarch() {
     until(&mut e, SeatId(0), WindowLabel::MinionPhase);
     assert_eq!(e.state.minions[own.index()].owner, SeatId(0));
     assert_eq!(e.state.sect_of(own), Some(zvtes::crypt::Sect::Anarch));
-}
-
-// No Chameleon on another Methuselah's vampire whose unique title one's
-// own vampire claims (rules-qa 100.1: a contest with oneself); another
-// city's prince is taken.
-#[test]
-fn chameleon_takes_no_vampire_whose_title_its_methuselah_claims() {
-    use zvtes::crypt::Title;
-    for (city, offered) in [("Paris", false), ("Berlin", true)] {
-        let mut e = game(2);
-        let b = e.add_minion(SeatId(0), big_baron(), 8, false);
-        assert!(!matches!(
-            CRYPT[big_baron() as usize].title,
-            Title::Baron("Paris" | "Berlin")
-        ));
-        let own = e.add_minion(SeatId(0), plain("Brujah", 0), 4, false);
-        e.state.minions[own.index()].granted_title = Some(Title::Prince("Paris"));
-        request(&mut e);
-        let clock = e.state.entry_clock;
-        e.state.seats[0].minion_phase_end = clock;
-        let fresh = e.add_minion(SeatId(1), small(0), 4, false);
-        e.state.minions[fresh.index()].granted_title = Some(Title::Prince(city));
-        hand(&mut e, 0, &["Chameleon"]);
-        let req = request(&mut e);
-        let on = play_at(0, 0, b, Target::Minion(fresh));
-        assert_eq!(req.options.contains(&on), offered, "{city}");
-    }
 }
 
 // Infernal Servitor: "Requires an infernal vampire. [dai] Infernal Servitor

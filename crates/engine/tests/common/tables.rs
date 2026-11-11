@@ -390,21 +390,28 @@ pub fn table(seed: u64, slice: &[&str], extra: &[&str]) -> Engine {
             chosen: Vec::new(),
         });
     }
+    untwin(&mut e);
     e
 }
 
-/// `table` may give a seat's torpid vampire the name of a later seat's
-/// titled one, both uncontested: no game reaches that, and Graverobbing
-/// would put both under one Methuselah. The torpid copy leaves.
-pub fn untwin(e: &mut Engine) {
+/// `table` deals each seat on its own: two Methuselahs may hold copies of
+/// one vampire, uncontested, which no game reaches (rulebook "Contested
+/// Cards"). One copy stays, a ready one before a torpid one, else the
+/// first.
+fn untwin(e: &mut Engine) {
     let st = &mut e.state;
     for i in 0..st.minions.len() {
-        let (name, owner) = (st.minions[i].name(), st.minions[i].owner);
-        let twin = st
-            .minions
-            .iter()
-            .any(|o| o.in_play && !o.in_torpor && o.owner != owner && o.name() == name);
-        if twin && st.minions[i].in_torpor {
+        let m = &st.minions[i];
+        let leaves = m.in_play
+            && m.vampire().is_some_and(|c| c.unique)
+            && st.minions.iter().enumerate().any(|(j, o)| {
+                j != i
+                    && o.in_play
+                    && o.owner != m.owner
+                    && o.name() == m.name()
+                    && (o.in_torpor, j) < (m.in_torpor, i)
+            });
+        if leaves {
             st.minions[i].in_play = false;
         }
     }

@@ -1980,6 +1980,10 @@ impl Engine {
                                         // Moore and the Tremere).
                                         && !(mode.effects.contains(&Effect::EnterCombatWithTarget)
                                             && actor.is_some_and(|a| st.shuns(a, id)))
+                                        // A take of control never contests
+                                        // with oneself (owner, 2026-11-10).
+                                        && !(mode.effects.iter().any(|e| e.takes_control())
+                                            && st.controls_vampire_copy(seat, id))
                                         // Hiding in the Open: nor on it.
                                         && !(titled_card
                                             && st.bears(id, cards::Modifier::NoNonLaibonTitleCards))
@@ -8776,7 +8780,7 @@ impl Engine {
                         if gate(None).is_none() {
                             continue;
                         }
-                        for target in self.ability_targets(seat, source, ability.target, c.host) {
+                        for target in self.ability_targets(seat, source, ability, c.host) {
                             // A vampire younger than this card's counters
                             // (Pit of Contemplation).
                             if let (true, Target::Minion(t)) = (
@@ -8859,7 +8863,7 @@ impl Engine {
                             })
                             .collect();
                         for m in users {
-                            for target in self.ability_targets(seat, source, ability.target, None) {
+                            for target in self.ability_targets(seat, source, ability, None) {
                                 out.push(use_card(id, ai, Some(m), target));
                             }
                         }
@@ -8899,7 +8903,7 @@ impl Engine {
                     // window, whoever controls the card.
                     Actor::Methuselah => {
                         if gate(None).is_some() {
-                            for target in self.ability_targets(seat, source, ability.target, None) {
+                            for target in self.ability_targets(seat, source, ability, None) {
                                 out.push(use_card(id, ai, None, target));
                             }
                         }
@@ -8953,8 +8957,7 @@ impl Engine {
                         }
                         let declares = declared_kind(ability);
                         // A target of its own (War Ghoul's rush).
-                        for target in self.ability_targets(seat, source, ability.target, Some(host))
-                        {
+                        for target in self.ability_targets(seat, source, ability, Some(host)) {
                             if declares.is_some() && !self.may_direct(seat, host, target) {
                                 continue;
                             }
@@ -8972,7 +8975,7 @@ impl Engine {
                             .filter(|&m| st.minions[m.index()].ready() && gate(Some(m)).is_some())
                             .collect();
                         for m in users {
-                            for target in self.ability_targets(seat, source, ability.target, None) {
+                            for target in self.ability_targets(seat, source, ability, None) {
                                 out.push(use_card(id, ai, Some(m), target));
                             }
                         }
@@ -9634,22 +9637,28 @@ impl Engine {
         &self,
         seat: SeatId,
         source: AbilitySource,
-        spec: Option<TargetSpec>,
+        ability: &cards::ModeDef,
         host: Option<MinionId>,
     ) -> Vec<Target> {
-        self.ability_targets_by(seat, source, spec, host, None)
+        self.ability_targets_by(seat, source, ability, host, None)
     }
 
     fn ability_targets_by(
         &self,
         seat: SeatId,
         source: AbilitySource,
-        spec: Option<TargetSpec>,
+        ability: &cards::ModeDef,
         host: Option<MinionId>,
         actor: Option<MinionId>,
     ) -> Vec<Target> {
         let st = &self.state;
-        match spec {
+        let takes = ability.effects.iter().any(|e| e.takes_control());
+        if ability.effects.contains(&Effect::TakeControlOfHost)
+            && host.is_some_and(|h| st.controls_vampire_copy(seat, h))
+        {
+            return Vec::new();
+        }
+        match ability.target {
             None => vec![Target::None],
             Some(
                 spec @ TargetSpec {
@@ -9692,6 +9701,7 @@ impl Engine {
                 .filter(|&id| {
                     let reader = source.player(st);
                     self.minion_target_qualifies_by(seat, reader, spec, host, actor, id)
+                        && !(takes && st.controls_vampire_copy(seat, id))
                 })
                 // In combat with damage pending (engine-checked).
                 .filter(|&id| {
@@ -9892,7 +9902,7 @@ impl Engine {
             let other = ability
                 .target
                 .is_some_and(|sp| sp.filter.contains(&Requirement::OtherThanActor));
-            for target in self.ability_targets_by(seat, source, ability.target, host, Some(m)) {
+            for target in self.ability_targets_by(seat, source, ability, host, Some(m)) {
                 if other && target == Target::Minion(m) {
                     continue;
                 }
@@ -10047,7 +10057,7 @@ impl Engine {
                 // library … as a +1 stealth action"), taken by the vampire
                 // itself.
                 let declares = declared_kind(ability);
-                for target in self.ability_targets(seat, source, ability.target, Some(m)) {
+                for target in self.ability_targets(seat, source, ability, Some(m)) {
                     if declares.is_some() && !self.may_direct(seat, m, target) {
                         continue;
                     }

@@ -1718,8 +1718,8 @@ pub static TOMMASO_SFORZA: VampireDef = VampireDef {
 /// "If Valerius is Camarilla and not a prince, he can steal the title held
 /// by a prince as a Ⓓ action. +1 bleed." The prince loses the title and
 /// Valerius gains it (a title he held is lost: one title per vampire), a
-/// baron of the same city contesting it — never his own Methuselah's
-/// (advanced rules §1.13.1; rules-qa 100.1).
+/// baron of the same city contesting it, his own Methuselah's too
+/// (rules-qa 3.1).
 pub static VALERIUS: VampireDef = VampireDef {
     name: "Valerius",
     printed: &[own(Stat::Bleed, 1, &[])],
@@ -1735,9 +1735,6 @@ pub static VALERIUS: VampireDef = VampireDef {
                     R::TargetVampire,
                     R::NotControlled,
                     R::TargetTitleIn(&[TitleClass::Prince]),
-                    R::NoOwnClaimOfTargetTitle {
-                        besides_actor: true,
-                    },
                 ],
             ),
             &[
@@ -6712,17 +6709,7 @@ pub static DR_MORROW: VampireDef = VampireDef {
 
 static ZANE_REFERENDUM: ReferendumDef = ReferendumDef {
     terms: &[Term::ChooseMinions {
-        // Never his own controller's prince, nor a city his controller
-        // claims: no contest with oneself (advanced rules §1.13.1;
-        // rules-qa 100.1).
-        filter: &[
-            R::TargetVampire,
-            R::NotControlled,
-            R::TargetTitleIn(&[TitleClass::Prince]),
-            R::NoOwnClaimOfTargetTitle {
-                besides_actor: false,
-            },
-        ],
+        filter: &[R::TargetVampire, R::TargetTitleIn(&[TitleClass::Prince])],
         min: 1,
         max: 1,
     }],
@@ -8663,9 +8650,8 @@ pub static TORI_LONGWOOD: VampireDef = VampireDef {
 /// primogen, 2 pool to make him Prince of Paris, or 3 pool to make him
 /// Ventrue Justicar. If Victor's title would be contested, he immediately
 /// yields instead of contesting." Bought before he enters contest (LSJ
-/// 20080526, LSJ 20100902), payable down to 0 pool (a cost), never a title
-/// his Methuselah already holds (no contest with oneself, rules-qa 76.2);
-/// the yield loses the title, whether he or a rival came second.
+/// 20080526, LSJ 20100902), payable down to 0 pool (a cost); the yield
+/// loses the title, whether he or a rival came second.
 pub static VICTOR_PELLETIER: VampireDef = VampireDef {
     name: "Victor Pelletier",
     printed: &[own(Stat::YieldsTitleInsteadOfContest, 1, &[])],

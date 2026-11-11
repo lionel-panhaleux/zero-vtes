@@ -3233,7 +3233,9 @@ impl Engine {
     }
 
     /// Oust these Methuselahs at once (simultaneous pool losses,
-    /// spec §6.5.4), unless a Life Boon may save one (`ousting`).
+    /// spec §6.5.4), unless a Life Boon may save one (`ousting`). The turn
+    /// does not pass: on the ousted one's turn, the caller passes it
+    /// (`oust_and_pass`; a play's pool burn: `resolve_play`).
     pub(crate) fn oust_batch(&mut self, seats: &[SeatId]) {
         if self.defer_oust(seats) {
             return;

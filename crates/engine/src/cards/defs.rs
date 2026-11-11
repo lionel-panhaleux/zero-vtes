@@ -7105,7 +7105,6 @@ static TOREADOR_JUSTICAR_REFERENDUM: ReferendumDef = ReferendumDef {
             Requirement::ActorReady,
             Requirement::TargetClan("Toreador"),
             Requirement::ActorSectIn(&[Sect::Camarilla]),
-            Requirement::NoSelfContest(crate::crypt::Title::Justicar("Toreador")),
         ],
         min: 1,
         max: 1,
@@ -7162,7 +7161,6 @@ static MALKAVIAN_JUSTICAR_REFERENDUM: ReferendumDef = ReferendumDef {
             Requirement::ActorReady,
             Requirement::TargetClan("Malkavian"),
             Requirement::ActorSectIn(&[Sect::Camarilla]),
-            Requirement::NoSelfContest(crate::crypt::Title::Justicar("Malkavian")),
         ],
         min: 1,
         max: 1,
@@ -9601,7 +9599,6 @@ pub static PUPPET_MASTER: CardDef = CardDef {
         &[
             Requirement::OwnMinionPhase,
             Requirement::EnteredBeforeThisTurn,
-            Requirement::HostNoCopyOfControllers,
         ],
         &[Effect::TakeControlOfHost, Effect::BurnSelf],
     )],
@@ -12165,9 +12162,6 @@ pub(super) const GRAVEROBBING_TARGET: Option<TargetSpec> = target(
         Requirement::NotControlled,
         Requirement::TargetVampire,
         Requirement::TargetInTorpor,
-        Requirement::NoOwnClaimOfTargetTitle {
-            besides_actor: false,
-        },
     ],
 );
 
@@ -12441,8 +12435,7 @@ static FEE_STAKE_BURN: ReferendumDef = ReferendumDef {
 /// that referendum, non-Anarch titles are worth -1 vote." A contested
 /// title: the card face down, its action unusable (LSJ 20070808-2).
 macro_rules! fee_stake {
-    // No clan's vote when calling (Fee Stake: Perth). Not while its player
-    // claims the city: a contest with oneself (rules-qa 100.1).
+    // No clan's vote when calling (Fee Stake: Perth).
     ($name:ident, $printed:expr, $city:expr) => {
         pub static $name: CardDef = CardDef {
             name: $printed,
@@ -12450,7 +12443,6 @@ macro_rules! fee_stake {
                 &[
                     Requirement::ActorSectIn(&[Sect::Anarch]),
                     Requirement::ActorCapacityAtLeast(5),
-                    Requirement::NoOwnClaimOf(crate::crypt::Title::Baron($city)),
                 ],
                 None,
                 &[
@@ -12480,7 +12472,6 @@ macro_rules! fee_stake {
                 &[
                     Requirement::ActorSectIn(&[Sect::Anarch]),
                     Requirement::ActorCapacityAtLeast(5),
-                    Requirement::NoOwnClaimOf(crate::crypt::Title::Baron($city)),
                 ],
                 None,
                 &[
@@ -15996,8 +15987,7 @@ pub static ABSOLUTE_TYRANNY: CardDef = CardDef {
 /// diablerizes this vampire, move this card to the diablerist (before the
 /// blood hunt is called)." (1 pool.) Contested, the card is out of play and
 /// its action not usable (LSJ 20070808-2); the action requires a Sabbat
-/// vampire (LSJ 20080604), not one's own (rules-qa 17.3, 52.6). Not played
-/// while its player claims the regent (rules-qa 100.1).
+/// vampire (LSJ 20080604), not one's own (rules-qa 17.3, 52.6).
 pub static REGENT: CardDef = CardDef {
     name: "Regent",
     modes: &[ModeDef {
@@ -16013,7 +16003,7 @@ pub static REGENT: CardDef = CardDef {
         ..mode_of(
             &[Window::MasterPhase],
             Actor::Methuselah,
-            &[Requirement::NoOwnClaimOf(crate::crypt::Title::Regent)],
+            &[],
             &[
                 Effect::PutOnTarget,
                 Effect::RepresentsTitle(crate::crypt::Title::Regent),
@@ -23437,9 +23427,6 @@ pub static CHAMELEON: CardDef = CardDef {
                     Requirement::TargetVampire,
                     Requirement::Younger,
                     Requirement::TargetEnteredSinceYourLastMinionPhase,
-                    Requirement::NoOwnClaimOfTargetTitle {
-                        besides_actor: false,
-                    },
                 ],
             ),
             &[
@@ -25139,7 +25126,6 @@ static BANU_HAQIM_JUSTICAR_REFERENDUM: ReferendumDef = ReferendumDef {
             Requirement::ActorReady,
             Requirement::TargetClan("Banu Haqim"),
             Requirement::ActorSectIn(&[Sect::Camarilla]),
-            Requirement::NoSelfContest(crate::crypt::Title::Justicar("Banu Haqim")),
         ],
         min: 1,
         max: 1,
@@ -25179,7 +25165,6 @@ static LASOMBRA_JUSTICAR_REFERENDUM: ReferendumDef = ReferendumDef {
             Requirement::ActorReady,
             Requirement::TargetClan("Lasombra"),
             Requirement::ActorSectIn(&[Sect::Camarilla]),
-            Requirement::NoSelfContest(crate::crypt::Title::Justicar("Lasombra")),
         ],
         min: 1,
         max: 1,
@@ -25602,9 +25587,6 @@ const fn corruption_steal(version: &'static [Requirement], effects: &'static [Ef
                 Requirement::ControlledByPrey,
                 Requirement::NotControlled,
                 Requirement::TargetBloodAtMostCounters,
-                Requirement::NoOwnClaimOfTargetTitle {
-                    besides_actor: false,
-                },
             ],
         ),
         ..mode_of(&[Window::MasterPhase], Actor::Controller, version, effects)
@@ -26014,7 +25996,7 @@ pub static SUMMON_HISTORY: CardDef = CardDef {
 /// of) the oldest ready untitled Laibon Osebo (if any)." Not during a
 /// referendum passing automatically (PIB 20150105, LSJ 19980107: no polling
 /// step). As an action modifier by the acting vampire, a reaction by
-/// another; not while its player claims the title (rules-qa 100.1).
+/// another.
 pub static OSEBO_KHOLO: CardDef = CardDef {
     name: "Osebo Kholo",
     lines: &[0, 0],
@@ -26042,10 +26024,6 @@ const OSEBO_KHOLO_REQUIRES: &[Requirement] = &[
         clan: "Osebo",
         sect: Sect::Laibon,
     },
-    Requirement::NoOwnClaimOf(crate::crypt::Title::Laibon {
-        name: "Osebo Kholo",
-        votes: 2,
-    }),
 ];
 
 const OSEBO_KHOLO_REQUIRES_LOCKED: &[Requirement] = &[
@@ -26056,10 +26034,6 @@ const OSEBO_KHOLO_REQUIRES_LOCKED: &[Requirement] = &[
         clan: "Osebo",
         sect: Sect::Laibon,
     },
-    Requirement::NoOwnClaimOf(crate::crypt::Title::Laibon {
-        name: "Osebo Kholo",
-        votes: 2,
-    }),
 ];
 
 const OSEBO_KHOLO_EFFECTS: &[Effect] = &[
@@ -27904,18 +27878,13 @@ static PRAXIS_SEIZURE_YORK_REFERENDUM: ReferendumDef = ReferendumDef {
 
 /// "Title. Requires a Camarilla vampire. Successful referendum means this
 /// card is put on this vampire to represent the unique Camarilla title of
-/// Prince of York." On the vampire who called it, if still in play; not
-/// while its player claims that title (no contest with oneself, rules-qa
-/// 76.2).
+/// Prince of York." On the vampire who called it, if still in play.
 pub static PRAXIS_SEIZURE_YORK: CardDef = CardDef {
     name: "Praxis Seizure: York",
     modes: &[mode_of(
         &[Window::ActionDeclarePolitical],
         Actor::ActingCandidate,
-        &[
-            Requirement::ActorSectIn(&[Sect::Camarilla]),
-            Requirement::NoOwnClaimOf(crate::crypt::Title::Prince("York")),
-        ],
+        &[Requirement::ActorSectIn(&[Sect::Camarilla])],
         &[
             Effect::DeclareAction(ActionKind::Political),
             Effect::CallReferendum(&PRAXIS_SEIZURE_YORK_REFERENDUM),
@@ -29959,14 +29928,11 @@ static CRUSADE_CHICAGO_REFERENDUM: ReferendumDef = ReferendumDef {
 /// "Requires a Sabbat vampire. Title. If this referendum passes, put this
 /// card on the acting vampire to represent the unique Sabbat title of
 /// Archbishop of Chicago. This could lead to a contested title." As
-/// Praxis Seizure: York's; never a contest with oneself (rules-qa 76.2).
+/// Praxis Seizure: York's.
 pub static CRUSADE_CHICAGO: CardDef = CardDef {
     name: "Crusade: Chicago",
     modes: &[political(
-        &[
-            Requirement::ActorSectIn(&[Sect::Sabbat]),
-            Requirement::NoOwnClaimOf(crate::crypt::Title::Archbishop("Chicago")),
-        ],
+        &[Requirement::ActorSectIn(&[Sect::Sabbat])],
         &[
             Effect::DeclareAction(ActionKind::Political),
             Effect::CallReferendum(&CRUSADE_CHICAGO_REFERENDUM),
@@ -29995,10 +29961,7 @@ static CRUSADE_ISTANBUL_REFERENDUM: ReferendumDef = ReferendumDef {
 pub static CRUSADE_ISTANBUL: CardDef = CardDef {
     name: "Crusade: Istanbul",
     modes: &[political(
-        &[
-            Requirement::ActorSectIn(&[Sect::Sabbat]),
-            Requirement::NoOwnClaimOf(crate::crypt::Title::Archbishop("Istanbul")),
-        ],
+        &[Requirement::ActorSectIn(&[Sect::Sabbat])],
         &[
             Effect::DeclareAction(ActionKind::Political),
             Effect::CallReferendum(&CRUSADE_ISTANBUL_REFERENDUM),
@@ -30028,10 +29991,7 @@ static CRUSADE_LONDON_REFERENDUM: ReferendumDef = ReferendumDef {
 pub static CRUSADE_LONDON: CardDef = CardDef {
     name: "Crusade: London",
     modes: &[political(
-        &[
-            Requirement::ActorSectIn(&[Sect::Sabbat]),
-            Requirement::NoOwnClaimOf(crate::crypt::Title::Archbishop("London")),
-        ],
+        &[Requirement::ActorSectIn(&[Sect::Sabbat])],
         &[
             Effect::DeclareAction(ActionKind::Political),
             Effect::CallReferendum(&CRUSADE_LONDON_REFERENDUM),
@@ -30181,7 +30141,6 @@ static NOSFERATU_JUSTICAR_REFERENDUM: ReferendumDef = ReferendumDef {
             Requirement::ActorReady,
             Requirement::TargetClan("Nosferatu"),
             Requirement::ActorSectIn(&[Sect::Camarilla]),
-            Requirement::NoSelfContest(crate::crypt::Title::Justicar("Nosferatu")),
         ],
         min: 1,
         max: 1,
@@ -32060,9 +32019,7 @@ pub static OPHIDIAN_GAZE: CardDef = CardDef {
 /// more. Only one From a Sinking Ship can be played in a game." (1 pool.)
 /// Another Methuselah's minion, an ally or a vampire in torpor too, the
 /// pool and capacity read live; one in the game, every Methuselah's. No
-/// vampire whose title its player claims (no contest with oneself: rules-qa
-/// 100.1); a unique minion of a name its player holds is contested, out of
-/// play.
+/// copy of a vampire its player controls (rules-qa 58.19).
 pub static FROM_A_SINKING_SHIP: CardDef = CardDef {
     name: "From a Sinking Ship",
     modes: &[ModeDef {
@@ -32072,9 +32029,6 @@ pub static FROM_A_SINKING_SHIP: CardDef = CardDef {
                 Requirement::NotControlled,
                 Requirement::TargetControllerPoolAtMost(3),
                 Requirement::TargetAllyOrCapacityAtMost(6),
-                Requirement::NoOwnClaimOfTargetTitle {
-                    besides_actor: false,
-                },
             ],
         ),
         ..mode_of(
@@ -35756,10 +35710,7 @@ static CRUSADE_AMSTERDAM_REFERENDUM: ReferendumDef = ReferendumDef {
 pub static CRUSADE_AMSTERDAM: CardDef = CardDef {
     name: "Crusade: Amsterdam",
     modes: &[political(
-        &[
-            Requirement::ActorSectIn(&[Sect::Sabbat]),
-            Requirement::NoOwnClaimOf(crate::crypt::Title::Archbishop("Amsterdam")),
-        ],
+        &[Requirement::ActorSectIn(&[Sect::Sabbat])],
         &[
             Effect::DeclareAction(ActionKind::Political),
             Effect::CallReferendum(&CRUSADE_AMSTERDAM_REFERENDUM),
@@ -35788,10 +35739,7 @@ static CRUSADE_BERLIN_REFERENDUM: ReferendumDef = ReferendumDef {
 pub static CRUSADE_BERLIN: CardDef = CardDef {
     name: "Crusade: Berlin",
     modes: &[political(
-        &[
-            Requirement::ActorSectIn(&[Sect::Sabbat]),
-            Requirement::NoOwnClaimOf(crate::crypt::Title::Archbishop("Berlin")),
-        ],
+        &[Requirement::ActorSectIn(&[Sect::Sabbat])],
         &[
             Effect::DeclareAction(ActionKind::Political),
             Effect::CallReferendum(&CRUSADE_BERLIN_REFERENDUM),
@@ -35821,10 +35769,7 @@ static CRUSADE_DUBLIN_REFERENDUM: ReferendumDef = ReferendumDef {
 pub static CRUSADE_DUBLIN: CardDef = CardDef {
     name: "Crusade: Dublin",
     modes: &[political(
-        &[
-            Requirement::ActorSectIn(&[Sect::Sabbat]),
-            Requirement::NoOwnClaimOf(crate::crypt::Title::Archbishop("Dublin")),
-        ],
+        &[Requirement::ActorSectIn(&[Sect::Sabbat])],
         &[
             Effect::DeclareAction(ActionKind::Political),
             Effect::CallReferendum(&CRUSADE_DUBLIN_REFERENDUM),
@@ -35847,14 +35792,11 @@ static CRUSADE_FRANKFURT_REFERENDUM: ReferendumDef = ReferendumDef {
 /// "Requires a Sabbat vampire. Title. If this referendum passes, put this
 /// card on the acting vampire to represent the unique Sabbat title of
 /// Archbishop of Frankfurt. This could lead to a contested title." As
-/// Crusade: Chicago's; never a contest with oneself (rules-qa 76.2).
+/// Crusade: Chicago's.
 pub static CRUSADE_FRANKFURT: CardDef = CardDef {
     name: "Crusade: Frankfurt",
     modes: &[political(
-        &[
-            Requirement::ActorSectIn(&[Sect::Sabbat]),
-            Requirement::NoOwnClaimOf(crate::crypt::Title::Archbishop("Frankfurt")),
-        ],
+        &[Requirement::ActorSectIn(&[Sect::Sabbat])],
         &[
             Effect::DeclareAction(ActionKind::Political),
             Effect::CallReferendum(&CRUSADE_FRANKFURT_REFERENDUM),
@@ -35883,10 +35825,7 @@ static CRUSADE_GENEVA_REFERENDUM: ReferendumDef = ReferendumDef {
 pub static CRUSADE_GENEVA: CardDef = CardDef {
     name: "Crusade: Geneva",
     modes: &[political(
-        &[
-            Requirement::ActorSectIn(&[Sect::Sabbat]),
-            Requirement::NoOwnClaimOf(crate::crypt::Title::Archbishop("Geneva")),
-        ],
+        &[Requirement::ActorSectIn(&[Sect::Sabbat])],
         &[
             Effect::DeclareAction(ActionKind::Political),
             Effect::CallReferendum(&CRUSADE_GENEVA_REFERENDUM),
@@ -35909,14 +35848,11 @@ static CRUSADE_PARIS_REFERENDUM: ReferendumDef = ReferendumDef {
 /// "Requires a Sabbat vampire. Title. If this referendum passes, put this
 /// card on the acting vampire to represent the unique Sabbat title of
 /// Archbishop of Paris. This could lead to a contested title." As Crusade:
-/// Chicago's; never a contest with oneself (rules-qa 76.2).
+/// Chicago's.
 pub static CRUSADE_PARIS: CardDef = CardDef {
     name: "Crusade: Paris",
     modes: &[political(
-        &[
-            Requirement::ActorSectIn(&[Sect::Sabbat]),
-            Requirement::NoOwnClaimOf(crate::crypt::Title::Archbishop("Paris")),
-        ],
+        &[Requirement::ActorSectIn(&[Sect::Sabbat])],
         &[
             Effect::DeclareAction(ActionKind::Political),
             Effect::CallReferendum(&CRUSADE_PARIS_REFERENDUM),
@@ -35946,10 +35882,7 @@ static CRUSADE_WASHINGTON_DC_REFERENDUM: ReferendumDef = ReferendumDef {
 pub static CRUSADE_WASHINGTON_DC: CardDef = CardDef {
     name: "Crusade: Washington, D.C.",
     modes: &[political(
-        &[
-            Requirement::ActorSectIn(&[Sect::Sabbat]),
-            Requirement::NoOwnClaimOf(crate::crypt::Title::Archbishop("Washington, D.C.")),
-        ],
+        &[Requirement::ActorSectIn(&[Sect::Sabbat])],
         &[
             Effect::DeclareAction(ActionKind::Political),
             Effect::CallReferendum(&CRUSADE_WASHINGTON_DC_REFERENDUM),
@@ -41214,8 +41147,7 @@ pub static THICKER_THAN_BLOOD: CardDef = CardDef {
 /// Malkavian antitribu, mortal, or mage until the end of the turn." The
 /// [obe] strip on any Methuselah's such minions, read live at the attempt;
 /// [OBE] another Methuselah's minion, any type line saying mortal (imbued
-/// too) or mage; its holder ousted, it is removed (LSJ 20081105); never
-/// a title its Methuselah claims (rules-qa 100.1).
+/// too) or mage; its holder ousted, it is removed (LSJ 20081105).
 pub static THE_AILING_SPIRIT: CardDef = CardDef {
     name: "Ailing Spirit, The",
     modes: &[

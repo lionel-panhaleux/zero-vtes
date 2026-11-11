@@ -2304,26 +2304,6 @@ fn valerius_steals_a_princes_title() {
     );
 }
 
-// Rules-qa 100.1 (owner, 2026-10-25): Valerius never steals a title his
-// own Methuselah's baron of that city would contest — no choice of a
-// contest with oneself (advanced rules §1.13.1).
-#[test]
-fn valerius_cannot_steal_a_title_his_methuselahs_baron_contests() {
-    let mut e = Engine::bare(3);
-    let v = e.add_minion(SeatId(0), crypt("Valerius"), 5, false);
-    let b = e.add_minion(SeatId(0), plain("Ventrue", "", 0), 5, false);
-    e.state.minions[b.index()].granted_title = Some(Title::Baron("Pittsburgh"));
-    let p = e.add_minion(SeatId(1), crypt("Donny Kowalczyk"), 5, false);
-    let steal = Choice::UseAbility {
-        source: AbilitySource::Vampire(v),
-        ability: 0,
-        actor: Some(v),
-        target: Target::Minion(p),
-    };
-    let req = expect(&mut e, SeatId(0), WindowLabel::MinionPhase);
-    assert!(!req.options.contains(&steal));
-}
-
 // Valerius's stolen title is his without a card: contested by the Baron of
 // the same city (a prince and a baron of one city contest, rulebook
 // "Titles") and yielded, it is gone — no card to burn, no printed title
@@ -10042,25 +10022,6 @@ fn graverobbing_superior_steals_a_torpid_vampire_and_may_rescue_it() {
     }
 }
 
-// Rules-qa 100.1 (owner, 2026-10-25): no Graverobbing of a torpid prince
-// whose title the robber's Methuselah claims already — no choice of a
-// contest with oneself (advanced rules §1.13.1); another city's is stolen.
-#[test]
-fn graverobbing_never_steals_a_title_its_methuselah_claims() {
-    for (city, offered) in [("Paris", false), ("Berlin", true)] {
-        let mut e = Engine::bare(3);
-        let a = e.add_minion(SeatId(0), with(&["dom"], 0), 4, false);
-        let p = e.add_minion(SeatId(0), plain("Brujah", "", 1), 4, false);
-        e.state.minions[p.index()].granted_title = Some(Title::Prince("Paris"));
-        let z = e.add_minion(SeatId(1), plain("Ventrue", "", 0), 1, true);
-        e.state.minions[z.index()].granted_title = Some(Title::Prince(city));
-        hand(&mut e, 0, &["Graverobbing"]);
-        let req = expect(&mut e, SeatId(0), WindowLabel::MinionPhase);
-        let rob = play_at(0, 0, Some(a), Target::Minion(z));
-        assert_eq!(req.options.contains(&rob), offered, "{city}");
-    }
-}
-
 // [ANK 20210124] [LSJ 20070411] [LSJ 20090514] "If the action is unblocked
 // when it resolves and the target is locked (Mind Numb) / unlocked (Make
 // the Misere), the action fizzles (cost, if any, is paid, and it is
@@ -12349,40 +12310,44 @@ fn cave_of_apples_corrupts_and_steals_at_capacity() {
     assert_eq!((v.owner, v.corruption_of(SeatId(0))), (SeatId(0), 0));
 }
 
-// Cave of Apples' steal takes no vampire whose unique title its
-// Methuselah claims (rules-qa 100.1: a contest with oneself), the counter
-// put all the same; another city's prince is stolen.
+// Cave of Apples' steal takes no copy of a vampire its Methuselah
+// controls (rules-qa 58.19; two players: both copies in play), the counter
+// put all the same; another vampire is stolen.
 #[test]
-fn cave_of_apples_steals_no_title_its_methuselah_claims() {
-    for (city, stolen) in [("Paris", false), ("Berlin", true)] {
-        let mut e = Engine::bare(3);
+fn cave_of_apples_steals_no_copy_of_its_methuselahs_vampire() {
+    for copy in [true, false] {
+        let mut e = Engine::bare(2);
+        e.state.format = zvtes::state::Format::TwoPlayer;
         let m = e.add_minion(
             SeatId(0),
             vampire(|c| c.clan == "Ministry" && c.capacity >= 7, 0),
             4,
             false,
         );
-        let other = e.add_minion(SeatId(0), plain("Ventrue", "", 0), 4, false);
-        e.state.minions[other.index()].granted_title = Some(Title::Prince("Paris"));
-        let z = e.add_minion(SeatId(1), vampire(|c| c.capacity == 2, 0), 2, false);
-        e.state.minions[z.index()].granted_title = Some(Title::Prince(city));
+        let card = vampire(|c| c.capacity == 2, 0);
+        let z = e.add_minion(SeatId(1), card, 2, false);
+        if copy {
+            let mine = e.add_minion(SeatId(0), card, 2, false);
+            e.stage_contests(mine);
+            assert!(e.state.minions[z.index()].contested_in_play);
+        }
         let cave = location(&mut e, 0, "Cave of Apples");
         e.state.minions[z.index()].add_corruption(SeatId(0), 1);
         pick(&mut e, use_on(cave, 0, Some(m), Target::Minion(z)));
-        if stolen {
-            pick_when(&mut e, Choice::ChooseMinion(z));
-        } else {
+        if copy {
             never_offered_until(
                 &mut e,
                 SeatId(0),
                 WindowLabel::MinionPhase,
                 Choice::ChooseMinion(z),
             );
+        } else {
+            pick_when(&mut e, Choice::ChooseMinion(z));
         }
         request(&mut e);
         let v = &e.state.minions[z.index()];
-        assert_eq!(v.owner == SeatId(0), stolen, "{city}");
-        assert_eq!(v.corruption_of(SeatId(0)), if stolen { 0 } else { 2 });
+        assert_eq!(v.owner == SeatId(0), !copy, "copy {copy}");
+        assert_eq!(v.corruption_of(SeatId(0)), if copy { 2 } else { 0 });
     }
 }
 

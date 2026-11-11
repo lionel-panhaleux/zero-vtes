@@ -1999,33 +1999,6 @@ fn gift_of_proteus_ignores_its_replacement() {
     );
 }
 
-/// From a Sinking Ship takes no vampire whose title its player claims:
-/// no contest with oneself (rules-qa 100.1, advanced rules §1.13.1).
-#[test]
-fn from_a_sinking_ship_takes_no_title_its_player_claims() {
-    let mut e = game(2);
-    let own = e.add_minion(SeatId(0), clan("Ventrue", 0), 4, false);
-    e.add_minion(SeatId(0), clan("Ventrue", 1), 4, false);
-    let rival = e.add_minion(SeatId(1), clan("Brujah", 0), 4, false);
-    let plain = e.add_minion(SeatId(1), clan("Brujah", 1), 4, false);
-    for m in [own, rival] {
-        let v = &mut e.state.minions[m.index()];
-        v.granted_title = Some(Title::Prince("Paris"));
-        v.title_contested = true;
-    }
-    hand(&mut e, 0, &["From a Sinking Ship", "Pentex(TM) Subversion"]);
-    hand(&mut e, 1, &["Deflection"]);
-    until(&mut e, SeatId(0), WindowLabel::MasterPhase);
-    e.state.seats[1].pool = 3;
-    let req = request(&mut e);
-    let at = |m: MinionId| play_at(0, 0, None, Target::Minion(m));
-    assert!(
-        !req.options.contains(&at(rival)),
-        "its title claimed: not a target"
-    );
-    assert!(req.options.contains(&at(plain)));
-}
-
 /// Two Steely Tenacity due at one action's end ([dom] bleeding, blocked,
 /// [ani] striking in the combat): each offered back from the ash heap in turn,
 /// none lost to a plain draw (LSJ 20100527: each keeps its choice).

@@ -5843,6 +5843,35 @@ fn redline_may_let_the_hunt_burn() {
     assert!(!e.state.minions[d.index()].in_play, "burned");
 }
 
+/// Redline taking a vampire that claims a unique title one of its player's
+/// vampires claims: taken, and the two contest the title (rules-qa 3.1;
+/// owner, 2026-11-11; fuzz seed 110 once left the taken one's lost title
+/// contested).
+#[test]
+fn redline_taking_a_rival_of_its_players_title_contests_it() {
+    let (mut e, d) = blood_hunt_at_a_redline();
+    let r = e.add_minion(SeatId(2), of_sect(Sect::Sabbat, 2), 4, false);
+    for m in [d, r] {
+        e.state.minions[m.index()].granted_title = Some(Title::Archbishop("Paris"));
+    }
+    e.stage_contests(d);
+    pick_when(
+        &mut e,
+        Choice::Play {
+            card: 0,
+            mode: 0,
+            actor: None,
+            target: Target::Minion(d),
+        },
+    );
+    until(&mut e, SeatId(0), WindowLabel::MinionPhase);
+    assert_eq!(e.state.minions[d.index()].owner, SeatId(2));
+    for m in [d, r] {
+        assert_eq!(e.state.claimed_title(m), Title::Archbishop("Paris"));
+        assert!(e.state.minions[m.index()].title_contested, "{m:?}");
+    }
+}
+
 /// "… and can enter combat with any Camarilla vampire as a +1 stealth Ⓓ
 /// action": any Methuselah's, not a non-Camarilla one.
 #[test]

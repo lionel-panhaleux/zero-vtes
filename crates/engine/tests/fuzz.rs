@@ -11,7 +11,7 @@ use std::collections::{HashMap, HashSet};
 
 mod common;
 
-use common::tables::{table, untwin, ALLY_SLICE, PRECON_SLICE, SLICE};
+use common::tables::{table, ALLY_SLICE, PRECON_SLICE, SLICE};
 use zvtes::agent::RandomLegal;
 use zvtes::cards::AbilitySource;
 use zvtes::copies::{census, CopyId};
@@ -870,8 +870,6 @@ struct Fixture {
     extra: &'static [&'static str],
     plays: usize,
     covers: &'static [&'static str],
-    /// Remove torpid twins (`untwin`).
-    untwin: bool,
     setup: fn(&mut Engine, u64),
     /// At least one game must end before the time limit with an oust and
     /// a full VP awarded.
@@ -885,7 +883,6 @@ const BASE: Fixture = Fixture {
     extra: &[],
     plays: 0,
     covers: &[],
-    untwin: false,
     setup: |_, _| {},
     ousts: false,
     seeds: 100,
@@ -894,9 +891,6 @@ const BASE: Fixture = Fixture {
 fn run(name: &str, f: &Fixture) {
     let (seen, ousted) = fuzz(name, f.seeds, &|seed| {
         let mut e = table(seed, f.slice, f.extra);
-        if f.untwin {
-            untwin(&mut e);
-        }
         (f.setup)(&mut e, seed);
         e
     });
@@ -1439,7 +1433,6 @@ fuzz_tests! {
                 e.add_minion(SeatId((seed % 4) as u8), valerius, 4, false);
             }
         },
-        untwin: true,
         seeds: 300,
         ..BASE
     };
@@ -1827,6 +1820,7 @@ fuzz_tests! {
             "ability:Dogged Pursuit",
             "ability:Melange",
         ],
+        seeds: 300,
         ..BASE
     };
     /// Slice 11u: the pool's actions, wave 1.
@@ -1855,7 +1849,6 @@ fuzz_tests! {
         plays: 14,
         covers: &[
         ],
-        untwin: true,
         ..BASE
     };
     /// Slice 11v: the pool's actions, wave 2.
@@ -1894,7 +1887,6 @@ fuzz_tests! {
             "rider:Judgment: Camarilla Segregation",
             "rider:Khabar: Glory",
         ],
-        untwin: true,
         seeds: 250,
         ..BASE
     };
@@ -1939,7 +1931,6 @@ fuzz_tests! {
             "ability:Parthenon, The",
             "rider:Black Throne, The",
         ],
-        untwin: true,
         seeds: 200,
         ..BASE
     };
@@ -1975,7 +1966,6 @@ fuzz_tests! {
             "ability:Twilight Camp",
             "ability:WMRH Talk Radio",
         ],
-        untwin: true,
         seeds: 300,
         ..BASE
     };
@@ -2007,7 +1997,6 @@ fuzz_tests! {
             "ability:Cave of Apples",
             "ability:Yoruba Shrine",
         ],
-        untwin: true,
         ..BASE
     };
     /// Slice 11z: the cost-reduction masters.
@@ -2037,7 +2026,6 @@ fuzz_tests! {
             "rider:Ravnos Cache",
             "rider:Ravnos Carnival",
         ],
-        untwin: true,
         // Ravnos Cache's rider first comes near seed 120.
         seeds: 240,
         ..BASE
@@ -2075,7 +2063,6 @@ fuzz_tests! {
             // tests/precon.rs ritual_goblet_discounts_a_rescue_and_unlocks_once_a_turn
             // scripts it.
         ],
-        untwin: true,
         seeds: 300,
         ..BASE
     };
@@ -2117,7 +2104,6 @@ fuzz_tests! {
             "ability:Rise of the Nephtali",
             "ability:Conquest of Humanity",
         ],
-        untwin: true,
         seeds: 200,
         ..BASE
     };
@@ -2197,7 +2183,6 @@ fuzz_tests! {
                 ],
             )
         },
-        untwin: true,
         seeds: 300,
         ..BASE
     };
@@ -3731,7 +3716,7 @@ fuzz_tests! {
                 }
             }
         },
-        seeds: 16,
+        seeds: 36,
         ..BASE
     };
     /// Legacy cards for TWDA decks, round 11 (slice 16w): the masters, the
@@ -4314,6 +4299,11 @@ fuzz_tests! {
             per_seat(e, |c| has(c, "abo"), 4);
             per_seat(e, |c| has(c, "for") || has(c, "spi"), 4);
             per_seat(e, |c| has(c, "thn") || has(c, "obf"), 4);
+            // A frail ally each: Taking the Skin: Minion needs a minion
+            // burned in combat, too rare among vampires at 300 seeds.
+            for s in 0..4 {
+                e.add_ally(SeatId(s), zvtes::state::find_library("Underbridge Stray"));
+            }
         },
         seeds: 300,
         ..BASE
@@ -4489,8 +4479,7 @@ fuzz_tests! {
                 });
             }
             // A Corpse Minion on each seat's first vampire: employed in play,
-            // its intercept came only on a contest with oneself (rules-qa
-            // 100.1) at 300 seeds.
+            // its intercept came too rarely from random play at 300 seeds.
             for s in 0..e.state.seats.len() {
                 let owner = SeatId(s as u8);
                 if let Some(m) = (0..e.state.minions.len())

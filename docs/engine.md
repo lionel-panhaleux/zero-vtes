@@ -1532,9 +1532,7 @@ sources to the engine's conventions.
   searches), a unique card's combat modes excepted: they enter no play
   (Spirit Claws, its "Unique." in its action's text: ANK 20180629); a
   forced one burns the incoming copy (The Coven,
-  `Engine::take_card_control`). A title card put on its caller is not
-  called while its player claims the title (`Requirement::NoOwnClaimOf`,
-  rules-qa 85.32).
+  `Engine::take_card_control`).
 - Titles are read live (`GameState::title_of`): **claimed** (`claimed_title`: a
   title card on the vampire, else `Minion.granted_title`, else printed unless
   lost) vs **effective** (none while contested, out of play, off-sect, or its
@@ -1544,19 +1542,21 @@ sources to the engine's conventions.
   (Toreador Justicar) contests as its title (blood). `steal_title` (Valerius)
   burns the card and gains the title itself (rules-qa 19.6). Liaison is
   `Title::Independent { "Liaison", 4 }`, the younger claimant yielding.
-- No choice of a contest with oneself: a title card's terms skip the caller's
-  own vampires while the caller claims the title (`Requirement::NoSelfContest`);
-  a card putting a title on one's own vampire is not played while one claims
-  it (`Requirement::NoOwnClaimOf`, by `title_key`: a city's three titles are
-  one); a title or a titled vampire is not taken nor influenced out while one's
-  own vampire claims a unique title it would contest
-  (`Requirement::NoOwnClaimOfTargetTitle`: Valerius, Graverobbing,
-  Chameleon, Form of Corruption, Zane's referendum; Victor Pelletier's price;
-  `Engine::corruption_steal_reached`: Cave of Apples, Contagion; the influence
-  phase's mask in `influence.rs`; all on `GameState::seat_claims_title`);
-  forced, the incoming title is lost (`enter_title_contest`; rules-qa 100.1,
-  100.2). Zane's referendum (`RefEffect::CallerContestsChosenTitle`) gains the
-  chosen prince's very title, contested with its holder.
+- Titles are no part of the self-contest bar (owner, 2026-11-11; rules-qa 3.1):
+  two of one Methuselah's vampires claiming the same unique title contest it,
+  chosen or forced, through `enter_title_contest` as any two claimants (a title
+  card on one's own vampire, a title stolen or gained, a vampire taken or
+  influenced out). Zane's referendum (`RefEffect::CallerContestsChosenTitle`)
+  gains the chosen prince's very title, contested with its holder.
+- A take of control by choice never takes a copy of a vampire the taker holds, a
+  contested one too (two players: both in play)
+  (`GameState::controls_vampire_copy`; rules-qa 58.19). The mask is generated,
+  never a card's requirement (owner, 2026-11-10): every mode or ability whose
+  effects take control (`Effect::takes_control`) filters its minion targets by
+  it, a card's play (`play_options`) and an ability's (`ability_targets_by`); a
+  host take (Puppet Master's `TakeControlOfHost`) is not offered; the corruption
+  steal checks it (`corruption_steal_reached`: Cave of Apples, Contagion).
+  Forced, the incoming copy burns (`take_control_now`; 58.19).
 - Laibon titles: `Title::Laibon { name, votes }` (from `gen_crypt.py`;
   the host's title id `laibon`); Osebo Kholo moves as §6.2 says, gaining
   through `gain_title`. A named Camarilla title likewise
@@ -2366,7 +2366,9 @@ CryptAlly}`.
   referendum under way list the Methuselah about to be ousted, but the
   Boon's own play (its as-played window: not ousted yet).
 - `oust_and_pass` returns whether the oust applied: its callers return (the
-  turn passed) only then, else go on as if the pool had not run out.
+  turn passed) only then, else go on as if the pool had not run out. A
+  batch oust (`oust_batch`, `burn_pool_batch`) passes no turn: a play
+  ousting its own player so settles it in `resolve_play` (Cyscek).
   A cost the acting Methuselah pays for their action goes through
   `acting_pool_out` instead: off their turn (Enkil Cog, Madness Network)
   the action ends with them and the active Methuselah's phase goes on

@@ -63,8 +63,9 @@ impl Effect {
     }
 
     /// Does this effect take control of its target minion? The one list
-    /// (React with Conviction's `PlayedTakesControlOfActor` reads it): a new
-    /// control-taking effect joins it.
+    /// (React with Conviction's `PlayedTakesControlOfActor`; the target
+    /// masks of `GameState::controls_vampire_copy`): a new control-taking
+    /// effect joins it.
     pub fn takes_control(self) -> bool {
         matches!(
             self,
@@ -73,6 +74,7 @@ impl Effect {
                 | Effect::TakeControlOfTargetUntilUnlock
                 | Effect::TakeControlOfTargetUntilEndOfTurn
                 | Effect::TakeControlOfTargetUntilNextTurn
+                | Effect::UnlockAndControlTargetUntilEndOfTurn
         )
     }
 

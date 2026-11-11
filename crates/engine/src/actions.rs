@@ -2367,18 +2367,7 @@ impl Engine {
         }
         // A forced self-contest: the incoming copy burns (advanced rules
         // 1.13.1).
-        let name = self.state.minions[m.index()].name();
-        let unique = self.state.minions[m.index()]
-            .vampire()
-            .is_some_and(|c| c.unique);
-        let dup = unique
-            && self
-                .state
-                .minions
-                .iter()
-                .enumerate()
-                .any(|(j, o)| j != m.index() && o.owner == to && o.in_play && o.name() == name);
-        if dup {
+        if self.state.controls_vampire_copy(to, m) {
             self.burn_minion(m);
             return;
         }
@@ -2432,7 +2421,7 @@ impl Engine {
     /// `seat`'s corruption counters on `t` equal or exceed "their capacity
     /// or cost" (Cave of Apples, Contagion): a vampire's capacity, an
     /// ally's printed cost (rules-qa 35.2); `t` is not `seat`'s (rules-qa
-    /// 90.4) and claims no unique title `seat` claims (100.1).
+    /// 90.4) nor a copy of one of `seat`'s (58.19).
     pub(crate) fn corruption_steal_reached(&self, seat: SeatId, t: MinionId) -> bool {
         let v = &self.state.minions[t.index()];
         let need = match v.ally_id() {
@@ -2446,13 +2435,9 @@ impl Engine {
             }
             None => self.state.capacity_by(t, seat).unwrap_or(u8::MAX),
         };
-        // No steal from oneself (rules-qa 90.4); no contest with oneself
-        // (100.1).
         v.owner != seat
             && v.corruption_of(seat) >= need
-            && !self
-                .state
-                .seat_claims_title(seat, self.state.claimed_title(t), None)
+            && !self.state.controls_vampire_copy(seat, t)
     }
 
     /// What `m` pays to attempt to block, (blood, library cards), if it

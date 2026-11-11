@@ -1941,22 +1941,6 @@ pub enum Requirement {
     TargetTitle(Title),
     /// The target's title is under contest (Ephor).
     TargetTitleContested,
-    /// Not one of the player's own vampires while the player claims this
-    /// title already: no choice of a contest with oneself (advanced rules
-    /// §1.13.1; Banu Haqim Justicar beside one's own Kasim Bayar).
-    NoSelfContest(Title),
-    /// The unique title another Methuselah's target claims is claimed by no
-    /// vampire of the player's (but the actor, whose own title goes, with
-    /// `besides_actor`): taking it or the vampire is no contest with
-    /// oneself (advanced rules §1.13.1; rules-qa 100.1: Valerius,
-    /// Graverobbing).
-    NoOwnClaimOfTargetTitle {
-        besides_actor: bool,
-    },
-    /// The player claims this unique title (a city's by any of its titles)
-    /// with none of its vampires: a card putting it on one is no contest
-    /// with oneself (advanced rules §1.13.1; rules-qa 76.2, 100.1).
-    NoOwnClaimOf(Title),
     /// The prey's ash heap holds two copies of a card (Giovanni del
     /// Georgio).
     PreyAshHasPair,
@@ -2278,9 +2262,6 @@ pub enum Requirement {
     /// requirements, modifiers within clan and Disciplines (RTR 19980623,
     /// RTR 20030519).
     MaskCapable,
-    /// The card's controller controls no other copy of its host vampire,
-    /// never a self-contest (advanced rules 1.13.1; Puppet Master).
-    HostNoCopyOfControllers,
     /// The target is not immune to Gehenna events (Blood Trade, Karen
     /// Suadela).
     NotGehennaImmune,
@@ -9470,8 +9451,6 @@ pub fn holds(
         | Requirement::TargetWithout(_)
         | Requirement::TargetTitleIn(_)
         | Requirement::TargetTitle(_)
-        | Requirement::NoSelfContest(_)
-        | Requirement::NoOwnClaimOfTargetTitle { .. }
         | Requirement::TargetTitleContested
         | Requirement::HostOutOfCombat
         | Requirement::OncePerTurn
@@ -9938,7 +9917,6 @@ pub fn holds(
         }
         Requirement::HostCombatOpponentNotReady
         | Requirement::HostCombatOpposingVampireNotReady
-        | Requirement::HostNoCopyOfControllers
         | Requirement::HostUsedDisciplines(_) => true, // engine-checked
         Requirement::DirectedAtYourOtherOfSect(sect) => action.is_some_and(|a| {
             a.directed_seat(st).is_some()
@@ -10074,7 +10052,6 @@ pub fn holds(
         Requirement::OwnTurn => st.active == seat,
         Requirement::ActorMustHunt => actor.is_some_and(|m| st.must_hunt(m)),
         Requirement::DiscardPhaseActionLeft => st.seats[seat.index()].dpa > 0,
-        Requirement::NoOwnClaimOf(t) => !st.seat_claims_title(seat, t, None),
         Requirement::NoActionAnnouncedThisTurn => !st.seats[seat.index()].acted_this_turn,
         Requirement::MasterCardPlayed => st.seats[seat.index()].master_played,
         Requirement::AshNotEmpty => !st.seats[seat.index()].ash.is_empty(),
@@ -10856,15 +10833,6 @@ pub fn holds_for_minion(
         }
         Requirement::TargetTitle(t) => st.title_of(m) == t,
         Requirement::TargetTitleContested => v.title_contested,
-        Requirement::NoSelfContest(t) => v.owner != seat || !st.seat_claims_title(seat, t, None),
-        Requirement::NoOwnClaimOfTargetTitle { besides_actor } => {
-            v.owner == seat
-                || !st.seat_claims_title(
-                    seat,
-                    st.claimed_title(m),
-                    acting.filter(|_| besides_actor),
-                )
-        }
         Requirement::TargetSubtypeIn(labels) => st.ally_of(m, labels),
         Requirement::TargetSlave => st.slave_clan(m).is_some(),
         Requirement::BleedTargetPoolAtMost(n) => action
@@ -11114,14 +11082,6 @@ pub fn holds_for_card(
         Requirement::HostOutOfPlay => c.host.is_some_and(|h| {
             let v = &st.minions[h.index()];
             v.in_play && v.out_of_play && v.is_vampire()
-        }),
-        Requirement::HostNoCopyOfControllers => c.host.is_none_or(|h| {
-            let v = &st.minions[h.index()];
-            let to = st.card_controller(id);
-            !v.vampire().is_some_and(|cc| cc.unique)
-                || !st.minions.iter().enumerate().any(|(j, o)| {
-                    j != h.index() && o.owner == to && o.in_play && o.name() == v.name()
-                })
         }),
         // The host in the combat that just ended, its opponent not ready
         // (Monster).

@@ -3061,6 +3061,13 @@ impl GameState {
             })
     }
 
+    /// Another Methuselah's vampire `m` is a copy of one `seat` holds
+    /// (`controls_copy`; rules-qa 58.19).
+    pub fn controls_vampire_copy(&self, seat: SeatId, m: MinionId) -> bool {
+        let v = &self.minions[m.index()];
+        v.owner != seat && v.crypt_card().is_some_and(|c| self.controls_copy(seat, c))
+    }
+
     /// Printed modifiers to `m`'s `stat` from the vampires in play, its own
     /// and others', read live: in torpor too (LSJ 20011022).
     pub fn printed_mod(&self, m: MinionId, stat: Stat, ctx: PrintedCtx) -> i32 {
@@ -5783,26 +5790,6 @@ impl GameState {
                 .flatten()
                 .map(|t| (CardId(i as u32), t))
         })
-    }
-
-    /// Does a vampire of `s`'s other than `besides` claim a unique title
-    /// that would contest `t` (advanced rules §1.13.1: no contest with
-    /// oneself)? One out of play for now counts, a contested copy or under
-    /// Descent into Darkness: it contests the title as it returns (rules-qa
-    /// 7.1, 100.4).
-    pub fn seat_claims_title(&self, s: SeatId, t: Title, besides: Option<MinionId>) -> bool {
-        let Some(key) = title_key(t) else {
-            return false;
-        };
-        (0..self.minions.len())
-            .map(|i| MinionId(i as u32))
-            .any(|o| {
-                let v = &self.minions[o.index()];
-                v.owner == s
-                    && v.in_play
-                    && Some(o) != besides
-                    && title_key(self.claimed_title(o)) == Some(key)
-            })
     }
 
     /// The title vampire `m` claims, contested or not: its title card's,

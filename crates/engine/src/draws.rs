@@ -3314,22 +3314,11 @@ impl Engine {
                     },
                 )
             }
-            // Each price, payable down to 0 pool (a cost, Default readings);
-            // not a title its Methuselah already holds: no contest with
-            // oneself (rules-qa 76.2).
-            Interrupt::BuyTitle {
-                seat,
-                minion,
-                offers,
-            } => (
+            // Each price, payable down to 0 pool (a cost, Default readings).
+            Interrupt::BuyTitle { offers, .. } => (
                 WindowLabel::EntryEffect,
                 std::iter::once(Choice::Pass)
-                    .chain(
-                        offers
-                            .iter()
-                            .filter(|&&(_, t)| !self.state.seat_claims_title(seat, t, Some(minion)))
-                            .map(|&(n, _)| Choice::SetX(n)),
-                    )
+                    .chain(offers.iter().map(|&(n, _)| Choice::SetX(n)))
                     .collect(),
             ),
             Interrupt::DistributeFrom { seat, clan, .. } => (

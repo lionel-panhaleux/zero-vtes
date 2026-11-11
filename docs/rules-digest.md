@@ -605,14 +605,11 @@ one), 26.8 (younger than the acting vampire), 60.11, 60.13, 71.1.
 - A justicar requirement met by Karl Schrekt makes him a titled Camarilla
   vampire for that card (59.14).
 - A title card replaces a printed title for good (19.2).
-- No contest with oneself: a title card (and Zane's referendum) cannot
-  choose a vampire whose controller already claims that title (76.2, 76.3).
-  Another Methuselah's title card passed on such a vampire: the incoming
-  title is lost, the holder's uncontested (100.1). No title card is played
-  (the Fee Stakes, Regent, Osebo Kholo), no prince chosen (Zane), no title
-  or titled vampire stolen (Valerius, Graverobbing) nor influenced out
-  while one's own vampire claims that unique title (100.1, 100.2), one
-  out of play for now included (100.4).
+- Two vampires of one Methuselah claiming the same unique title contest it,
+  chosen or forced: a title card on one's own vampire or passed by another
+  Methuselah, a prince chosen (Zane), a title stolen (Valerius), a titled
+  vampire taken or influenced out (3.1; owner, 2026-11-11: the self-contest
+  bar is for cards only, superseding 76.2, 76.3, 100.1, 100.2, 100.4).
 - Shakar: the Hunt: the contract's combat against another Methuselah's
   minion only (17.3); "every Black Hand vampire is considered chosen" read
   by no pool card beyond its own action (inert); Gerald FitzGerald's Black
@@ -4467,8 +4464,8 @@ minions), §6.3 (of a card in play), §6.4 (leaving and re-entering play).
   it should return to an ousted Methuselah; only a return that can no longer
   occur (Parmenides) leaves it with the current controller (28.13).
 - Taking control of a unique vampire whose copy one already controls: by
-  choice (Puppet Master's take) not offered; forced, the incoming copy burns
-  (advanced rules §1.13.1) (58.19).
+  choice (any take of control, a two-player contested copy too) not offered;
+  forced, the incoming copy burns (advanced rules §1.13.1) (58.19).
 - Graverobbing's steal: 31.5 (§11.5).
 - Form of Corruption: "anew" — the prey did not hold the Edge before; the
   counter optional; the steal in its controller's master phase, no master
@@ -4514,12 +4511,9 @@ Advanced rules §1.13 (contests), §5.8 (titles).
 - No self-contest: a unique card cannot be played while a copy is in play
   under the same Methuselah — including while that copy is contested (out of
   play, but still contesting incoming copies). It also bars a search from
-  placing such a unique (7.1, 11.2, 12.3). A title card put on its caller
-  (Praxis Seizure: York, the Crusades) is not called while its player
-  claims that title (85.32). Anarch Convert moved out beside a
-  copy in play must use his ability (no voluntary self-contest, 57.9).
-  Titles likewise: none chosen, stolen or influenced out against one's own
-  claim; forced, the incoming title is lost (100.1, 100.2).
+  placing such a unique (7.1, 11.2, 12.3). Anarch Convert moved out beside a
+  copy in play must use his ability (no voluntary self-contest, 57.9). Not
+  titles: one Methuselah's two claimants contest (3.1, §18.3).
 - Unique cards on record: Shilmulo Tarot (11.2), Ravnos Cache (36.3),
   Camarilla Conclave (51.2), Enkil Cog (50.1), Zaire River Ferry (70.20). Not
   unique: Ashur Tablets — copies never contest, every copy in play counts;
@@ -5004,6 +4998,12 @@ rules-qa batch.
   filter keeps their reading); 44.11 removed (replaced by Batch 45); 28.13 records
   advanced rules §6.4.1 fixed to agree with §6.2.4.
 
+- **K47** Titles and the self-contest bar: 76.2, 76.3 (its bar), 84.10
+  (its mask), 85.32, 100.1, 100.2 and 100.4 read the advanced rules'
+  §1.13.1 as barring a contest with oneself over a title — superseded by
+  3.1 (owner, 2026-11-11): the rulebook's bar is for cards only, two of one
+  Methuselah's vampires claiming the same unique title contest it.
+
 ### 23.3 rules-qa vs the advanced rules
 
 - **K11** "During X" is once per X (6.6, 15.2, 42.3, 58.7; the rulebook's
@@ -5248,8 +5248,7 @@ read, for the owner to confirm or correct:
 - 97.1–97.4 graded green or amber (Sabbat paths followed).
 - 98.1, 98.2 graded amber (combat polled past the combatants).
 - 99.1–99.3 graded green (the owner's playtest: Wall of Filth).
-- 100.3 graded green, 100.4 amber (100.1 and 100.2 answered by the
-  owner).
+- 100.3 graded green (100.1, 100.2 and 100.4 superseded by 3.1: K47).
 - 101.2 graded green (101.1 and 101.3 answered by the owner).
 - 102.1–102.8, 102.10, 102.12–102.14, 102.16–102.26 graded green or amber
   (round 21's cards; 102.9, 102.11, 102.15 answered by the owner).
@@ -5370,8 +5369,8 @@ index or an item cited nowhere.
   §3.2,§3.16,§6.2,§8.5,§10.3,§11.1,§11.3,§14.1,§14.3; 1.5 §6.2; 1.6 §9.2
 - **2** — 2.1 §5.2,§12.12; 2.2 §5.1; 2.3 §5.2,§22; 2.4 §5.2,§9.1,§9.2,§14.1;
   2.5 §5.2,§12.3,§12.11,§22
-- **3** — 3.1 §14.2,§18.2,§18.3; 3.2 §2,§9.2,§23.3; 3.3 §6.2; 3.4
-  §9.4,§10.5; 3.5 §2,§13.1; 3.6
+- **3** — 3.1 §3.15,§14.2,§18.1,§18.2,§18.3,§23.2,§24.1; 3.2 §2,§9.2,§23.3;
+  3.3 §6.2; 3.4 §9.4,§10.5; 3.5 §2,§13.1; 3.6
   §2,§3.2,§3.14,§7.3,§8.3,§10.2,§10.3,§10.4,§11.6; 3.7 §5.1,§6.1
 - **4** — 4.1 §10.5,§12.12; 4.2 §12.7; 4.3 §2,§12.4,§12.10; 4.4
   §2,§12.9,§23.2; 4.5 §3.10,§12.1
@@ -5607,11 +5606,11 @@ index or an item cited nowhere.
   74.6 §3.20,§24.1; 74.7 §24.1; 74.8 §13.2; 74.9 §12.4; 74.10 §4.2; 74.11
   §15.2; 74.12 §3.15,§24.1; 74.13 §14.2,§24.1
 - **75** — 75.1 §12.12,§24.1; 75.2 §12.12,§24.1; 75.3 §12.12,§24.1
-- **76** — 76.1 §24.1; 76.2 §3.15; 76.3 §3.15; 76.4 §18.4; 76.5 §13.3; 76.6
-  §13.3; 76.7 §14.5; 76.8 §11.4; 76.9 §3.17; 76.10 §12.4; 76.11 §12.4; 76.12
-  §11.1; 76.13 §17.2; 76.14 §15.2; 76.15 §3.17; 76.16 §3.17; 76.17 §8.8;
-  76.18 §14.7; 76.19 §12.8; 76.20 §15.2; 76.21 §6.5; 76.22 §10.4; 76.23
-  §24.1; 76.24 §5.5,§23.1,§24.1; 76.25 §24.1
+- **76** — 76.1 §24.1; 76.2 §3.15,§23.2; 76.3 §3.15,§23.2; 76.4 §18.4; 76.5
+  §13.3; 76.6 §13.3; 76.7 §14.5; 76.8 §11.4; 76.9 §3.17; 76.10 §12.4; 76.11
+  §12.4; 76.12 §11.1; 76.13 §17.2; 76.14 §15.2; 76.15 §3.17; 76.16 §3.17;
+  76.17 §8.8; 76.18 §14.7; 76.19 §12.8; 76.20 §15.2; 76.21 §6.5; 76.22
+  §10.4; 76.23 §24.1; 76.24 §5.5,§23.1,§24.1; 76.25 §24.1
 - **77** — 77.1 §18.4,§24.1; 77.2 §4.4; 77.3 §3.7; 77.4 §7.2; 77.5 §13.4;
   77.6 §2; 77.7 §7.2; 77.8 §2; 77.9 §7.2; 77.10 §10.3; 77.11 §7.2; 77.12
   §3.5; 77.13 §18.4; 77.14 §13.3; 77.15 §13.1; 77.16 §11.8; 77.17 §6.1;
@@ -5646,11 +5645,11 @@ index or an item cited nowhere.
 - **83** — 83.1 §18.2
 - **84** — 84.1 §15.2,§24.1; 84.2 §15.2; 84.3 §15.2; 84.4 §15.2,§24.1; 84.5
   §15.2,§24.1; 84.6 §12.7; 84.7 §15.2; 84.8 §12.7; 84.9 §14.10,§15.2; 84.10
-  §15.2; 84.11 §15.2; 84.12 §15.2; 84.13 §15.2; 84.14 §15.2; 84.15 §15.2;
-  84.16 §15.2; 84.17 §15.2; 84.18 §15.2; 84.19 §15.2; 84.20 §15.2; 84.21
-  §15.2; 84.22 §15.2; 84.23 §15.2; 84.24 §15.2; 84.25 §15.2; 84.26 §15.2;
-  84.27 §15.2; 84.28 §15.2; 84.29 §15.2; 84.30 §15.2; 84.31 §15.2; 84.32
-  §15.2; 84.33 §15.2; 84.34 §15.2; 84.35 §15.2; 84.36 §15.2; 84.37
+  §15.2,§23.2; 84.11 §15.2; 84.12 §15.2; 84.13 §15.2; 84.14 §15.2; 84.15
+  §15.2; 84.16 §15.2; 84.17 §15.2; 84.18 §15.2; 84.19 §15.2; 84.20 §15.2;
+  84.21 §15.2; 84.22 §15.2; 84.23 §15.2; 84.24 §15.2; 84.25 §15.2; 84.26
+  §15.2; 84.27 §15.2; 84.28 §15.2; 84.29 §15.2; 84.30 §15.2; 84.31 §15.2;
+  84.32 §15.2; 84.33 §15.2; 84.34 §15.2; 84.35 §15.2; 84.36 §15.2; 84.37
   §14.10,§15.2,§16.5,§22; 84.38 §15.2; 84.39 §15.2; 84.40 §15.2,§24.1
 - **85** — 85.1 §15.2,§16.3,§24.1; 85.2 §15.2,§24.1; 85.3 §15.2,§24.1; 85.4
   §15.2; 85.5 §15.2; 85.6 §15.2; 85.7 §15.2; 85.8 §15.2; 85.9 §15.2; 85.10
@@ -5658,7 +5657,7 @@ index or an item cited nowhere.
   85.16 §15.2; 85.17 §15.2; 85.18 §15.2; 85.19 §15.2; 85.20 §15.2; 85.21
   §15.2,§21.2; 85.22 §15.2; 85.23 §15.2; 85.24 §15.2; 85.25 §15.2; 85.26
   §15.2; 85.27 §15.2; 85.28 §15.2; 85.29 §15.2; 85.30 §15.2; 85.31 §15.2;
-  85.32 §18.1; 85.33 §15.2; 85.34 §15.2,§24.1
+  85.32 §23.2; 85.33 §15.2; 85.34 §15.2,§24.1
 - **86** — 86.1 §5.2
 - **87** — 87.1 §14.12,§24.1; 87.2 §14.12; 87.3 §14.12; 87.4 §14.12; 87.5
   §14.12; 87.6 §14.12; 87.7 §14.12,§24.1; 87.8 §14.12,§24.1; 87.9 §14.12;
@@ -5698,8 +5697,8 @@ index or an item cited nowhere.
 - **97** — 97.1 §3.12,§24.1; 97.2 §3.12; 97.3 §3.12; 97.4 §3.12,§24.1
 - **98** — 98.1 §12.1,§24.1; 98.2 §12.1,§24.1
 - **99** — 99.1 §3.17,§24.1; 99.2 §3.17; 99.3 §3.17,§24.1
-- **100** — 100.1 §3.15,§18.1,§24.1; 100.2 §3.15,§18.1,§24.1; 100.3
-  §7.3,§24.1; 100.4 §3.15,§24.1
+- **100** — 100.1 §3.15,§23.2,§24.1; 100.2 §3.15,§23.2,§24.1; 100.3
+  §7.3,§24.1; 100.4 §3.15,§23.2,§24.1
 - **101** — 101.1 §7.2,§24.1; 101.2 §21.1,§24.1; 101.3 §2,§21.1,§24.1
 - **102** — 102.1 §14.12,§24.1; 102.2 §14.12; 102.3 §14.12; 102.4 §15.2;
   102.5 §15.2; 102.6 §14.12; 102.7 §14.12; 102.8 §14.12,§24.1; 102.9

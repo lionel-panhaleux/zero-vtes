@@ -1236,10 +1236,9 @@ fn dr_morrow_grafts_an_ally_for_minus_one_stealth() {
 
 // Zane: "If Zane is not a prince, he can call a referendum to receive (and
 // contest) the title held by a prince as a +1 stealth political action."
-// No prince in play, no referendum [LSJ 20100129] [ANK 20191228]; never his
-// own controller's (no contest with oneself). A prince chosen (one in
-// torpor holds his title): passed, Zane holds the title, contested with
-// its holder; a prince himself, he cannot call it again.
+// No prince in play, no referendum [LSJ 20100129] [ANK 20191228]. A prince
+// chosen (one in torpor holds his title): passed, Zane holds the title,
+// contested with its holder; a prince himself, he cannot call it again.
 #[test]
 fn zane_takes_and_contests_a_princes_title() {
     let mut e = game(3);
@@ -1247,13 +1246,6 @@ fn zane_takes_and_contests_a_princes_title() {
     e.add_minion(SeatId(0), with_disc("", None, 0), 5, false);
     e.add_minion(SeatId(1), with_disc("", None, 2), 5, false);
     e.add_minion(SeatId(2), with_disc("", None, 1), 5, false);
-    // His own controller's prince: no choice (a contest with oneself).
-    e.add_minion(
-        SeatId(0),
-        textless(|c| matches!(c.title, Title::Prince(_)), 0),
-        4,
-        false,
-    );
     let call = printed(zane, 0, Target::None);
     assert!(
         !request(&mut e).options.contains(&call),
@@ -1275,25 +1267,6 @@ fn zane_takes_and_contests_a_princes_title() {
     e.state.minions[zane.index()].locked = false;
     e.state.minions[zane.index()].political_this_turn = false;
     assert!(!request(&mut e).options.contains(&call), "a prince now");
-}
-
-// Zane chooses no prince of a city his Methuselah claims (rules-qa 100.1:
-// a contest with oneself, his own baron of Pittsburgh); another city's,
-// he does.
-#[test]
-fn zane_chooses_no_prince_of_a_city_his_methuselah_claims() {
-    for (city, offered) in [("Pittsburgh", false), ("Paris", true)] {
-        let mut e = game(3);
-        let zane = e.add_minion(SeatId(0), find_card("Zane"), 5, false);
-        let baron = e.add_minion(SeatId(0), with_disc("", None, 0), 5, false);
-        e.state.minions[baron.index()].granted_title = Some(Title::Baron(city));
-        e.add_minion(SeatId(1), with_disc("", None, 2), 5, false);
-        e.add_minion(SeatId(2), with_disc("", None, 1), 5, false);
-        let donny = e.add_minion(SeatId(1), find_card("Donny Kowalczyk"), 0, true);
-        assert_eq!(e.state.title_of(donny), Title::Prince("Pittsburgh"));
-        let call = printed(zane, 0, Target::None);
-        assert_eq!(request(&mut e).options.contains(&call), offered, "{city}");
-    }
 }
 
 // Mustafa: "During the polling step of a political action, each older
@@ -1780,35 +1753,6 @@ fn form_of_corruption_steals_a_drained_vampire() {
     assert!(!e.state.cards[form.index()].in_play, "burned");
 }
 
-// Form of Corruption steals no vampire whose unique title its Methuselah
-// claims (rules-qa 100.1: a contest with oneself); another city's prince
-// is stolen.
-#[test]
-fn form_of_corruption_steals_no_title_its_methuselah_claims() {
-    use zvtes::crypt::Title;
-    for (city, offered) in [("Paris", false), ("Berlin", true)] {
-        let mut e = game(3);
-        let own = e.add_minion(SeatId(0), plain("Ministry", 0), 4, false);
-        e.state.minions[own.index()].granted_title = Some(Title::Prince("Paris"));
-        e.add_minion(SeatId(0), plain("Ministry", 1), 4, false);
-        e.add_minion(SeatId(1), plain("Ventrue", 0), 4, false);
-        let weak = e.add_minion(SeatId(1), plain("Ventrue", 1), 1, false);
-        e.state.minions[weak.index()].granted_title = Some(Title::Prince(city));
-        e.add_minion(SeatId(2), plain("Brujah", 0), 4, false);
-        let form = in_play(&mut e, 0, "Form of Corruption", None);
-        e.state.cards[form.index()].counters = 1;
-        e.at_master_phase();
-        let req = request(&mut e);
-        let steal = use_at(form, 0, None, Target::Minion(weak));
-        assert_eq!(
-            req.options.contains(&steal),
-            offered,
-            "{city}: {:?}",
-            req.options
-        );
-    }
-}
-
 // "Anew": the prey holding the Edge already, a bleed of theirs adds none.
 #[test]
 fn form_of_corruption_counts_only_a_new_edge() {
@@ -1977,14 +1921,23 @@ fn the_text_only_vampires_carry_their_printed_traits() {
     }
 }
 
-// Banu Haqim Justicar beside one's own Kasim Bayar: no vampire of his
-// controller's can be chosen (a title card never makes its holder contest
-// themselves, advanced rules §1.13.1), Kasim neither, so the card cannot be
-// played: its terms cannot be met [LSJ 20100129] [ANK 20191228].
+// Banu Haqim Justicar: no ready Camarilla Banu Haqim to choose, the card
+// cannot be played: its terms cannot be met [LSJ 20100129] [ANK 20191228].
+// Beside one's own Kasim Bayar it can: the two would contest the title
+// (rules-qa 3.1).
 #[test]
-fn banu_haqim_justicar_never_contests_its_own_kasim() {
+fn banu_haqim_justicar_needs_a_vampire_to_choose() {
     let mut e = game(2);
-    let b = e.add_minion(
+    let caller = e.add_minion(SeatId(0), plain("Brujah", 0), 4, false);
+    e.add_minion(SeatId(1), plain("Ventrue", 0), 4, false);
+    hand(&mut e, 0, &["Banu Haqim Justicar"]);
+    let req = request(&mut e);
+    assert!(
+        !req.options.contains(&play(0, 0, caller)),
+        "{:?}",
+        req.options
+    );
+    e.add_minion(
         SeatId(0),
         textless(
             |c| c.clan == "Banu Haqim" && c.sect == Some(Sect::Camarilla) && c.title == Title::None,
@@ -1994,10 +1947,12 @@ fn banu_haqim_justicar_never_contests_its_own_kasim() {
         false,
     );
     e.add_minion(SeatId(0), find_card("Kasim Bayar"), 6, false);
-    e.add_minion(SeatId(1), plain("Ventrue", 0), 4, false);
-    hand(&mut e, 0, &["Banu Haqim Justicar"]);
     let req = request(&mut e);
-    assert!(!req.options.contains(&play(0, 0, b)), "{:?}", req.options);
+    assert!(
+        req.options.contains(&play(0, 0, caller)),
+        "{:?}",
+        req.options
+    );
 }
 
 /// A justicar of seat 0's calls Alastor on himself, `cards` deep in the

@@ -262,7 +262,6 @@ impl Requirement {
             | R::OwnTurn
             | R::ActorMustHunt
             | R::DiscardPhaseActionLeft
-            | R::NoOwnClaimOf(..)
             | R::NoActionAnnouncedThisTurn
             | R::MasterCardPlayed
             | R::AshNotEmpty
@@ -411,7 +410,6 @@ impl Requirement {
             | R::StoreEmpty
             | R::StoreNotEmpty
             | R::EnteredBeforeThisTurn
-            | R::HostNoCopyOfControllers
             | R::HostOutOfPlay
             | R::LifeAtLeast(..)
             | R::BoonTargetActive
@@ -486,8 +484,6 @@ impl Requirement {
             | R::TargetUntitled
             | R::TargetSubtypeIn(..)
             | R::TargetNotOfPredator
-            | R::NoSelfContest(..)
-            | R::NoOwnClaimOfTargetTitle { .. }
             | R::TargetNotOfOpposingController => &[S::MinionTarget],
             R::YoungerThanPlayer => &[S::Engine(Site::PlayTarget)],
             R::TargetCirclelessBloodBrother | R::TargetUnique | R::TargetWouldNotContest => {

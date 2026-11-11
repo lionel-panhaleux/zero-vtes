@@ -105,6 +105,37 @@ fn a_contested_crypt_card_stays_in_play_its_upkeep_pool() {
     );
 }
 
+// Both copies in play here: no take of control by choice takes the rival
+// copy of a vampire its player holds (rules-qa 58.19) — a card's play
+// (Malkavian Dementia), an ability's target (Form of Corruption's steal)
+// or a host take (Puppet Master's).
+#[test]
+fn a_contested_copy_is_never_taken_by_its_rival() {
+    use zvtes::cards::{AbilitySource, Target};
+    use zvtes::state::{find_library, CardId, CardInPlay};
+    let (mut e, copy) = contested_copy(plain("Malkavian", 0));
+    hand(&mut e, 0, &["Malkavian Dementia"]);
+    let put = |e: &mut Engine, name: &str, host: Option<MinionId>, mode: u8| {
+        let card = CardInPlay::new(find_library(name), SeatId(0), host, mode);
+        e.state.cards.push(card);
+        CardId(e.state.cards.len() as u32 - 1)
+    };
+    let form = put(&mut e, "Form of Corruption", None, 0);
+    e.state.cards[form.index()].counters = 9;
+    let puppet = put(&mut e, "Puppet Master", Some(copy), 1);
+    let takes = |o: &Choice| match *o {
+        Choice::Play { target, .. } => target == Target::Minion(copy),
+        Choice::UseAbility { source, target, .. } => {
+            source == AbilitySource::Card(puppet)
+                || source == AbilitySource::Card(form) && target == Target::Minion(copy)
+        }
+        _ => false,
+    };
+    pick(&mut e, Choice::PayContest(Contest::Card(MinionId(1))));
+    never_offered_where(&mut e, SeatId(0), WindowLabel::MinionPhase, takes);
+    assert!(e.state.minions[copy.index()].contested_in_play);
+}
+
 /// Two unique princes of one city (their texts beside the point: only
 /// their titles are read).
 fn two_princes() -> (u16, u16) {
@@ -132,28 +163,4 @@ fn two_contested_copies_keep_their_title() {
         assert!(!e.state.minions[m.index()].title_contested, "{m:?}");
         assert_ne!(e.state.title_of(m), Title::None, "{m:?}");
     }
-}
-
-// Another vampire claiming that title is its Methuselah's own claim: no
-// second copy influenced out beside it (rules-qa 91.6, 100.2).
-#[test]
-fn another_claimant_bars_a_second_copy_of_its_title() {
-    let (prince, rival) = two_princes();
-    let mut e = Engine::bare(2);
-    e.state.format = Format::TwoPlayer;
-    e.add_minion(SeatId(0), plain("Ventrue", 0), 4, false);
-    e.add_minion(SeatId(0), prince, 4, false);
-    let other = e.add_minion(SeatId(1), rival, 4, false);
-    e.stage_contests(other);
-    e.state.seats[1].uncontrolled.push(UncontrolledSlot {
-        card: prince,
-        copy: Default::default(),
-        counters: CRYPT[prince as usize].capacity,
-        banished: None,
-    });
-    e.state.turn = 4;
-    pick(&mut e, Choice::Pass);
-    until(&mut e, SeatId(1), WindowLabel::InfluenceTransfers);
-    let req = request(&mut e);
-    assert!(!req.options.contains(&Choice::InfluenceOut { slot: 0 }));
 }
