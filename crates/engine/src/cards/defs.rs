@@ -850,8 +850,9 @@ pub static RAPTOR: CardDef = CardDef {
 /// have it fail." The stealth goes off the acting minion; the failure comes
 /// after the acting Methuselah's own as-announced effects (LSJ 20081105)
 /// and before any other (ANK 20190425); the failed action reached
-/// resolution (NRA) and was not blocked. The -1 stealth waits for the
-/// blocks: not printed "as announced" (rules-qa 66.1).
+/// resolution (NRA) and was not blocked. The -1 stealth comes from the
+/// block window on, with no block attempt needed (rules-qa 66.1, LSJ
+/// 20020612): not printed "as announced".
 pub static SCREAMER: CardDef = CardDef {
     name: "Screamer",
     modes: &[recruit(&[Effect::DeclareAction(ActionKind::Recruit)])],
@@ -14214,7 +14215,7 @@ pub static FUELED_BY_HEARTS_BLOOD: CardDef = CardDef {
 /// "Requires 2 or more Gehenna events in play. After this card enters
 /// play, burn all Gehenna events and conviction cards, then send all
 /// vampires with capacity 3 or less to torpor. Gehenna events cannot be
-/// played." No conviction card in V5.
+/// played." Every imbued's conviction cards, any Methuselah's.
 pub static FOURTH_CYCLE: CardDef = CardDef {
     name: "Fourth Cycle, The",
     modes: &[event(
@@ -14262,11 +14263,19 @@ pub static UNCOILING: CardDef = CardDef {
 /// "Gehenna. Burn all boons. No more boons can be put in play. During each
 /// Methuselah's unlock phase, that Methuselah can move 1 blood from a
 /// vampire they control to a vampire controlled by another Methuselah."
-/// No boon enters play in V5 (Consanguineous Boon is a political action,
-/// still playable: LSJ 20040531-2).
+/// Every Methuselah's boons in play (Life Boon, Major Boon) burned; a boon
+/// entering play is not played (Consanguineous Boon still is: LSJ
+/// 20040531-2).
 pub static BLOOD_TRADE: CardDef = CardDef {
     name: "Blood Trade",
-    modes: &[event(&[], &[Effect::PutInPlay])],
+    modes: &[event(
+        &[],
+        &[
+            Effect::PutInPlay,
+            Effect::Layer(Modifier::NoBoons),
+            Effect::BurnAllBoons,
+        ],
+    )],
     abilities: &[ModeDef {
         target: target(
             TargetKind::Minion,
@@ -19147,9 +19156,10 @@ pub static NEPHANDUS: CardDef = CardDef {
 /// vampire. Veneficti has +1 stealth. He can steal a demon ally or burn a
 /// demon retainer as a Ⓓ action. He cannot be the target of a directed
 /// action performed by an ally or a vampire with capacity 6 or less."
-/// (Baali; 1 pool.) No demon is in the pool: his action is never offered
-/// (rules-qa 17.4). The burn option needs only infernal vampires in torpor
-/// (LSJ 20091203), not a copy in play (LSJ 20100203-2).
+/// (Baali; 1 pool.) The steal at another Methuselah's ally, the burn at
+/// any retainer, his own Methuselah's undirected (D12). The burn option
+/// needs only infernal vampires in torpor (LSJ 20091203), not a copy in
+/// play (LSJ 20100203-2).
 pub static VENEFICTI: CardDef = CardDef {
     name: "Veneficti",
     modes: &[ModeDef {

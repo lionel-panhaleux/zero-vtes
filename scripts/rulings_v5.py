@@ -114,9 +114,13 @@ def implemented():
     # A name may hold escaped quotes ("\"Mother\" Anja Giovanni").
     vnames = {k: v.replace('\\"', '"') for k, v in re.findall(
         r'pub static ([A-Z_0-9]+): VampireDef = VampireDef \{\s*name: "((?:[^"\\]|\\.)*)"', src)}
-    m = re.search(r"VAMPIRES: \[&VampireDef; (\d+)\] = \[(.*?)\];", src, re.S)
-    idents = re.findall(r"&([A-Z_0-9]+)", m.group(2))
-    assert len(idents) == int(m.group(1)), "VAMPIRES length literal out of sync"
+    # A merged definition implements a text-only vampire too (Louis Fortier).
+    idents = []
+    for table in ("VAMPIRES", "MERGED"):
+        m = re.search(table + r": \[&VampireDef; (\d+)\] = \[(.*?)\];", src, re.S)
+        found_here = re.findall(r"&([A-Z_0-9]+)", m.group(2))
+        assert len(found_here) == int(m.group(1)), f"{table} length literal out of sync"
+        idents += found_here
     missing = [i for i in idents if i not in vnames]
     assert not missing, f"cannot read the printed name of {missing}"
     return found | {vnames[i] for i in idents}

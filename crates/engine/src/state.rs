@@ -3139,6 +3139,18 @@ impl GameState {
                     })
     }
 
+    /// Does `m` recruit ally `card` as if it met its clan requirement
+    /// (Winterlich): to play it only, never for its burn option (LSJ
+    /// 20050225).
+    pub fn recruits_as_if(&self, m: MinionId, card: u16) -> bool {
+        let v = &self.minions[m.index()];
+        let lib = &LIBRARY[card as usize];
+        v.present()
+            && cards::vampire_of(v)
+                .and_then(|d| d.recruits_as_if)
+                .is_some_and(|l| lib.types.contains(&CardType::Ally) && lib.labels.contains(&l))
+    }
+
     /// Is `m` itself of the clan `card` requires (its effects in play; not
     /// one playing as the clan, ANK 20220816-2).
     pub fn of_card_clan(&self, m: MinionId, card: u16) -> bool {
@@ -5463,6 +5475,13 @@ impl GameState {
     /// "Gehenna events cannot be played" (The Fourth Cycle in play).
     pub fn gehenna_barred(&self) -> bool {
         self.global(Modifier::NoGehennaEvents).is_some()
+    }
+
+    /// "No more boons can be put in play" (Blood Trade in play): a boon
+    /// entering play is not played (Consanguineous Boon still is, LSJ
+    /// 20040531-2).
+    pub fn boons_barred(&self) -> bool {
+        self.global(Modifier::NoBoons).is_some()
     }
 
     /// Is `m` barred from blocking or entering combat with `other`

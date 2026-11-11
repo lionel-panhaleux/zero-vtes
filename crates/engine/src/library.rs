@@ -68,6 +68,7 @@ pub enum Label {
     Haven,
     Watchtower,
     Ammo,
+    Boon,
 }
 
 /// One playable mode of a card: its bracket tags as printed (`DOM`,
@@ -1944,7 +1945,7 @@ pub static LIBRARY: [LibraryCard; 1356] = [
         conviction_cost: Cost::None,
         burn_option: false,
         combo: false,
-        labels: &[],
+        labels: &[Label::Boon],
         body: None,
         modes: &[
             Mode {
@@ -10624,7 +10625,7 @@ pub static LIBRARY: [LibraryCard; 1356] = [
         conviction_cost: Cost::None,
         burn_option: false,
         combo: false,
-        labels: &[Label::OutOfTurn],
+        labels: &[Label::OutOfTurn, Label::Boon],
         body: None,
         modes: &[
             Mode {
@@ -15926,7 +15927,7 @@ pub static LIBRARY: [LibraryCard; 1356] = [
         conviction_cost: Cost::None,
         burn_option: false,
         combo: false,
-        labels: &[Label::OutOfTurn],
+        labels: &[Label::OutOfTurn, Label::Boon],
         body: None,
         modes: &[
             Mode {

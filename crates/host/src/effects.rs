@@ -187,6 +187,7 @@ fn add(e: &E, w: Whom, when: Option<When>, out: &mut Vec<Effect>) {
         E::CountersToPool => push(detail(of(K::Pool), "all_counters")),
         E::BurnSelf | E::BurnSource => push(on(of(K::Burn), On::Card)),
         E::BurnTargetCard => push(detail(on(of(K::Burn), On::Target), "card")),
+        E::BurnAllBoons => push(detail(of(K::Burn), "all_boons")),
         E::BurnTargetMinion => push(on(of(K::Burn), On::Target)),
         E::TargetLosesTitle => push(detail(on(of(K::Burn), On::Target), "title")),
         E::PlayerBurnsPool(v) | E::BurnOwnPool(v) => push(n(K::Pool, -i(v))),

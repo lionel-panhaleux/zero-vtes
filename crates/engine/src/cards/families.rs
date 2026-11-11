@@ -245,6 +245,7 @@ impl Effect {
             | E::CryptTopToUncontrolled
             | E::BurnRangedWeaponsOnTarget { .. }
             | E::FourthCycle(..)
+            | E::BurnAllBoons
             | E::AutoPassFirstSabbatReferendum
             | E::BloodToEachUncontrolledOfSect(..)
             | E::StealTargetCard

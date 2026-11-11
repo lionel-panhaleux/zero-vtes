@@ -1969,7 +1969,9 @@ CryptAlly}`.
 - "Plays cards requiring a <clan> as if" (`VampireDef::plays_as`) counts at
   card plays only (`GameState::meets_clan`: clan requirement, target, terms,
   `R::ControlsReadyClan`); a card's effects in play read the clan itself
-  (`GameState::of_card_clan`).
+  (`GameState::of_card_clan`). Allies of a label recruited "as if he met
+  the requirements" (Winterlich: `VampireDef::recruits_as_if`) count at the
+  recruit's clan check alone, never for a burn option (LSJ 20050225).
 - Vampire unlock-phase riders are pending mandatory effects
   (`Pending::Printed`, `Choice::ResolvePrinted`); `Stat::NoDirectedActions`
   filters the minion phase's offers (`Engine::directed_actor`); a combat an
@@ -2358,7 +2360,9 @@ CryptAlly}`.
 - A discard phase action, one per phase (`Seat::event_played`), each event once a
   game per player (`GameState::once_played`), controlled by its player.
   `Requirement::GehennaInPlay` is checked as played only (PIB 20121031);
-  `Modifier::NoGehennaEvents` bars Gehenna plays; `Hook::GehennaPlayed`.
+  `Modifier::NoGehennaEvents` bars Gehenna plays, `Modifier::NoBoons` a
+  boon entering play (Blood Trade, which burns those in play:
+  `Effect::BurnAllBoons`, `Label::Boon`); `Hook::GehennaPlayed`.
 - Global layers read live: `VampireMakingTaxed` (Blood Cult Awareness Network,
   while a ready imbued is in play), `capacity_ceiling` (Wormwood), `SectFallen`,
   `OnlyMustHunt`, `torpid_surcharge`. Timed effects: The Uncoiling's burn due in

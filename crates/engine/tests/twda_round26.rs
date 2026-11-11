@@ -1681,7 +1681,9 @@ fn ramona_merged_moves_blood_to_the_pool() {
 }
 
 /// Quentin King III merged: "Once each action, Quentin can burn 1 blood to
-/// get +1 bleed"; unmerged, nothing.
+/// get +1 bleed"; unmerged, nothing. [ANK 20231124] [LSJ 19970718] "can
+/// only be used during a bleed action before Action Resolution": taken in
+/// his bleed, the prey burns 2.
 #[test]
 fn quentin_king_merged_bleeds_more() {
     for merged in [true, false] {
@@ -1695,7 +1697,32 @@ fn quentin_king_merged_bleeds_more() {
         let abilities =
             zvtes::cards::vampire_of(&e.state.minions[q.index()]).map_or(0, |d| d.abilities.len());
         assert_eq!(abilities, if merged { 2 } else { 0 });
+        if merged {
+            pick(&mut e, bleed(q));
+            let mut req = request(&mut e);
+            while vampire_use(&req, q, 1).is_none() {
+                e.choose(fallback(&req));
+                req = request(&mut e);
+            }
+            assert!(e.action().is_some(), "before resolution");
+            pick(&mut e, vampire_use(&req, q, 1).expect("the bleed"));
+            until(&mut e, SeatId(1), WindowLabel::MinionPhase);
+            assert_eq!((blood(&e, q), e.state.seats[1].pool), (2, 8));
+        }
     }
+    // A hunt: never offered.
+    let mut e = game(2);
+    let q = e.add_minion(SeatId(0), find_vampire("Quentin King III", true), 3, false);
+    e.state.minions[q.index()].merged = Some(find_vampire("Quentin King III", false));
+    e.add_minion(SeatId(0), plain("Brujah", 1), 4, false);
+    e.add_minion(SeatId(1), plain("Ventrue", 0), 4, false);
+    pick(&mut e, action(q, zvtes::decision::ActionKind::Hunt));
+    never_offered_where(
+        &mut e,
+        SeatId(1),
+        WindowLabel::MinionPhase,
+        |o| matches!(o, Choice::UseAbility { source: zvtes::cards::AbilitySource::Vampire(v), ability: 1, .. } if *v == q),
+    );
 }
 
 /// Lucita (advanced): "During an action Lucita performs, she can burn 2
@@ -6300,8 +6327,10 @@ fn chain_of_command_skips_a_vampire_in_play() {
     assert_eq!(e.state.seats[0].uncontrolled.len(), 1, "the other stays");
 }
 
-/// Karsh (advanced): "[MERGED] Imperator (3 votes)": merged, a unique
-/// Camarilla title worth 3 votes; not before.
+/// Karsh (advanced): "[MERGED] Imperator (3 votes): +1 intercept": merged,
+/// a unique Camarilla title worth 3 votes and +1 intercept; not before.
+/// [ANK 20190407] "[MERGED] Imperator is a unique Camarilla title worth 3
+/// votes, it is the same as the one granted by Imperator."
 #[test]
 fn karsh_merged_is_the_imperator() {
     for merged in [false, true] {
@@ -6320,7 +6349,39 @@ fn karsh_merged_is_the_imperator() {
         };
         assert_eq!(e.state.claimed_title(k), want);
         assert_eq!(e.state.title_votes_of(k), if merged { 3 } else { 0 });
+        assert_eq!(
+            e.state
+                .printed_mod(k, zvtes::cards::Stat::Intercept, Default::default()),
+            i32::from(merged)
+        );
     }
+}
+
+/// Menele merged: "[MERGED] Menele can strike: steal 2 blood or life
+/// (becoming blood)": blocked, he steals 2 of the blocker's blood; his
+/// base card's +1 bleed kept.
+#[test]
+fn menele_merged_strikes_to_steal_two_blood() {
+    let mut e = game(2);
+    let m = e.add_minion(SeatId(0), find_vampire("Menele", true), 4, false);
+    e.state.minions[m.index()].merged = Some(find_vampire("Menele", false));
+    e.add_minion(SeatId(0), plain("Brujah", 1), 4, false);
+    let b = e.add_minion(SeatId(1), plain("Ventrue", 0), 4, false);
+    assert_eq!(
+        e.state
+            .printed_mod(m, zvtes::cards::Stat::Bleed, Default::default()),
+        1
+    );
+    pick(&mut e, bleed(m));
+    pick(&mut e, block(b));
+    let mut req = request(&mut e);
+    while vampire_use(&req, m, 1).is_none() {
+        e.choose(fallback(&req));
+        req = request(&mut e);
+    }
+    pick(&mut e, vampire_use(&req, m, 1).expect("the strike"));
+    until(&mut e, SeatId(0), WindowLabel::MinionPhase);
+    assert_eq!(blood(&e, b), 2);
 }
 
 /// Ardan Lane: "When stealing blood with a strike that requires Blood
@@ -7603,15 +7664,21 @@ fn peace_treaty_burns_a_free_weapon_not_kept() {
 
 /// Merging changes the sect: [ANK 20180524] "[MERGED] Is Independent / Is
 /// Sabbat / Is Anarch. If the base version was the one in play, it changes
-/// sect as it is merged. If it had an anarch token, it is burned." Theo
-/// Bell, Marcus Vitel and Sundown, their base card in play (made Anarch by
-/// a card: its token), advanced from the crypt by Gift of Experience.
+/// sect as it is merged. If it had an anarch token, it is burned." Each
+/// merging vampire's base card in play (made Anarch by a card: its token),
+/// advanced from the crypt by Gift of Experience.
 #[test]
 fn a_merge_takes_the_advanced_cards_sect() {
     for (name, sect) in [
         ("Theo Bell", Sect::Independent),
         ("Marcus Vitel", Sect::Sabbat),
         ("Sundown", Sect::Anarch),
+        ("Brunhilde", Sect::Anarch),
+        ("Xaviar", Sect::Camarilla),
+        ("Louis Fortier", Sect::Anarch),
+        ("Gengis", Sect::Anarch),
+        ("Marguerite Foccart", Sect::Anarch),
+        ("Menele", Sect::Independent),
     ] {
         let mut e = game(2);
         let v = e.add_minion(SeatId(0), find_vampire(name, false), 4, false);
@@ -9857,4 +9924,200 @@ fn derange_holds_over_into_the_fire() {
         Some(Sect::Camarilla),
         "Derange holds"
     );
+}
+
+// ---- Inert clauses that gained a pool tenant (rules-qa Batch 115) ----------
+
+/// Louis Fortier merged: "[MERGED] Louis gets +1 level of Dominate [dom]
+/// and Presence [pre]"; unmerged, his printed inferior levels.
+#[test]
+fn louis_fortier_merged_gains_superior_dominate_and_presence() {
+    for merged in [true, false] {
+        let mut e = game(2);
+        let l = e.add_minion(SeatId(0), find_vampire("Louis Fortier", true), 4, false);
+        if merged {
+            e.state.minions[l.index()].merged = Some(find_vampire("Louis Fortier", false));
+        }
+        let want = if merged { 2 } else { 1 };
+        for d in ["dom", "pre"] {
+            assert_eq!(e.state.discipline_level(l, d), want, "{d}");
+        }
+        assert_eq!(e.state.discipline_level(l, "aus"), 1);
+    }
+}
+
+/// Gengis merged: "[MERGED] Gengis gets +1 level of Auspex [aus] and
+/// Celerity [cel]", his base card's Brujah takeover kept (a Brujah of
+/// another Methuselah may take it).
+#[test]
+fn gengis_merged_gains_levels_and_keeps_the_brujah_takeover() {
+    let mut e = game(2);
+    let g = e.add_minion(SeatId(1), find_vampire("Gengis", true), 4, false);
+    e.state.minions[g.index()].merged = Some(find_vampire("Gengis", false));
+    e.add_minion(SeatId(1), plain("Ventrue", 0), 4, false);
+    let b = e.add_minion(SeatId(0), plain("Brujah", 0), 4, false);
+    for d in ["aus", "cel"] {
+        assert_eq!(e.state.discipline_level(g, d), 2, "{d}");
+    }
+    assert_eq!(e.state.discipline_level(g, "pot"), 1);
+    let req = request(&mut e);
+    assert!(req.options.iter().any(|o| matches!(o,
+        Choice::UseAbility { actor: Some(a), target: Target::Minion(t), .. }
+            if *a == b && *t == g)));
+}
+
+/// Marguerite Foccart merged: "[MERGED] +1 strength", her base card's +1
+/// intercept against political actions kept.
+#[test]
+fn marguerite_foccart_merged_strikes_harder() {
+    for merged in [true, false] {
+        let mut e = game(2);
+        let m = e.add_minion(
+            SeatId(0),
+            find_vampire("Marguerite Foccart", true),
+            4,
+            false,
+        );
+        if merged {
+            e.state.minions[m.index()].merged = Some(find_vampire("Marguerite Foccart", false));
+        }
+        let d = zvtes::cards::vampire_of(&e.state.minions[m.index()]).expect("defined");
+        let printed = |stat| d.printed.iter().filter(|p| p.stat == stat).count();
+        assert_eq!(
+            e.state
+                .printed_mod(m, zvtes::cards::Stat::Strength, Default::default()),
+            i32::from(merged)
+        );
+        assert_eq!(printed(zvtes::cards::Stat::Intercept), usize::from(merged));
+    }
+}
+
+/// Tegyrius, Vizier merged: his base card's "+1 strength" kept beside his
+/// advanced card's polling votes; unmerged, the advanced card alone.
+#[test]
+fn tegyrius_merged_keeps_his_base_cards_strength() {
+    for merged in [true, false] {
+        let mut e = game(2);
+        let t = e.add_minion(SeatId(0), find_vampire("Tegyrius, Vizier", true), 4, false);
+        if merged {
+            e.state.minions[t.index()].merged = Some(find_vampire("Tegyrius, Vizier", false));
+        }
+        let d = zvtes::cards::vampire_of(&e.state.minions[t.index()]).expect("defined");
+        assert_eq!(d.abilities.len(), 1, "the polling votes");
+        assert_eq!(
+            e.state
+                .printed_mod(t, zvtes::cards::Stat::Strength, Default::default()),
+            i32::from(merged)
+        );
+    }
+}
+
+/// A merged vampire has both cards' text (rules-qa 111.19, 115.5): every
+/// base and advanced pair in the pool whose base card's text does
+/// something reads a merged definition, not the advanced card's alone.
+#[test]
+fn every_merge_keeps_its_base_cards_text() {
+    use zvtes::cards::{vampire, vampire_of};
+    let acts = |d: &zvtes::cards::VampireDef| {
+        !d.printed.is_empty()
+            || !d.abilities.is_empty()
+            || !d.riders.is_empty()
+            || d.plays_as.is_some()
+            || !d.levels.is_empty()
+    };
+    let mut missing = Vec::new();
+    for (adv, c) in CRYPT.iter().enumerate().filter(|(_, c)| c.adv) {
+        let Some(base) = CRYPT.iter().position(|b| !b.adv && b.name == c.name) else {
+            continue;
+        };
+        if !vampire(base as u16).is_some_and(acts) {
+            continue;
+        }
+        let mut e = game(2);
+        let m = e.add_minion(SeatId(0), adv as u16, 4, false);
+        e.state.minions[m.index()].merged = Some(base as u16);
+        let merged = vampire_of(&e.state.minions[m.index()]);
+        if merged.is_none_or(|d| vampire(adv as u16).is_some_and(|a| std::ptr::eq(a, d))) {
+            missing.push(c.name);
+        }
+    }
+    assert!(missing.is_empty(), "no merged definition: {missing:?}");
+}
+
+/// The Fourth Cycle: "burn all Gehenna events and conviction cards": an
+/// imbued's conviction, another Methuselah's, to its owner's ash heap.
+#[test]
+fn the_fourth_cycle_burns_the_conviction_cards() {
+    let mut e = game(2);
+    e.add_minion(SeatId(0), of_sect(Sect::Camarilla, 0), 6, false);
+    let c = find_card("Marion \"Teacher193\" Perks");
+    let i = e.add_minion(SeatId(1), c, CRYPT[c as usize].capacity, false);
+    let strike = find_library("Strike with Conviction");
+    e.state
+        .cards
+        .push(CardInPlay::new(strike, SeatId(1), Some(i), 0));
+    in_play(&mut e, 1, "Thirst", None);
+    in_play(&mut e, 1, "Torpid Blood", None);
+    assert_eq!(e.state.convictions(i).len(), 1);
+    hand(&mut e, 0, &["Fourth Cycle, The"]);
+    until(&mut e, SeatId(0), WindowLabel::DiscardPhase);
+    pick(&mut e, play_at(0, 0, None, Target::None));
+    request(&mut e);
+    assert!(e.state.convictions(i).is_empty());
+    assert!(e.state.seats[1].ash.contains(&strike));
+}
+
+/// Blood Trade: "Burn all boons": Life Boon and Major Boon in play, any
+/// Methuselah's, to their owners' ash heaps.
+#[test]
+fn blood_trade_burns_the_boons_in_play() {
+    let mut e = game(3);
+    for s in 0..3 {
+        e.add_minion(SeatId(s), plain("Ventrue", s as usize), 4, false);
+    }
+    let life = in_play(&mut e, 1, "Life Boon", None);
+    let major = in_play(&mut e, 2, "Major Boon", None);
+    hand(&mut e, 0, &["Blood Trade"]);
+    until(&mut e, SeatId(0), WindowLabel::DiscardPhase);
+    pick(&mut e, play_at(0, 0, None, Target::None));
+    request(&mut e);
+    assert!(!e.state.cards[life.index()].in_play && !e.state.cards[major.index()].in_play);
+    assert!(e.state.seats[1].ash.contains(&find_library("Life Boon")));
+    assert!(e.state.seats[2].ash.contains(&find_library("Major Boon")));
+}
+
+/// Blood Trade: "No more boons can be put in play": Major Boon and Life
+/// Boon, which enter play, are not played (rules-qa 115.7); without Blood
+/// Trade both are offered. Seat 1 bleeds seat 2, who has 1 pool; seat 0
+/// holds the boons.
+#[test]
+fn blood_trade_bars_the_boons_entering_play() {
+    for trade in [false, true] {
+        for boon in ["Major Boon", "Life Boon"] {
+            let mut e = game(3);
+            e.add_minion(SeatId(0), plain("Ventrue", 0), 4, false);
+            let y = e.add_minion(SeatId(1), plain("Ventrue", 1), 4, false);
+            e.add_minion(SeatId(2), plain("Ventrue", 2), 4, false);
+            e.state.seats[2].pool = 1;
+            if trade {
+                hand(&mut e, 0, &[boon, "Blood Trade"]);
+                until(&mut e, SeatId(0), WindowLabel::DiscardPhase);
+                pick(&mut e, play_at(1, 0, None, Target::None));
+            } else {
+                hand(&mut e, 0, &[boon]);
+            }
+            until(&mut e, SeatId(1), WindowLabel::MinionPhase);
+            pick(&mut e, bleed(y));
+            let want = if boon == "Major Boon" {
+                master_play(0)
+            } else {
+                play_at(0, 0, None, Target::Seat(SeatId(2)))
+            };
+            let offered = offered_before(&mut e, want, SeatId(0), WindowLabel::MinionPhase);
+            assert_eq!(offered, !trade, "{boon}, Blood Trade {trade}");
+            if trade && boon == "Life Boon" {
+                assert!(e.state.seats[2].ousted, "the oust waits on no boon");
+            }
+        }
+    }
 }

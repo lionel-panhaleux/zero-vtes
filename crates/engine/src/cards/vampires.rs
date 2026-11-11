@@ -4278,8 +4278,9 @@ pub static ANTONIO_D_ERLETTE: VampireDef = VampireDef {
 /// less blood. Tupdog may enter combat with any minion as a Ⓓ action.
 /// Tupdogs are not unique. After the end of your minion phase, burn Tupdog
 /// and move the top card from your crypt to your uncontrolled region.
-/// Flight [FLIGHT]." Another Methuselah's minion (rules-qa 17.3). No
-/// Visceratika card is in the pool; Flight generated (rules-qa 84.37).
+/// Flight [FLIGHT]." Another Methuselah's minion (rules-qa 17.3). A
+/// [vis]/[tha] card by the mode played (rules-qa 115.4); Flight generated
+/// (rules-qa 84.37).
 pub static TUPDOG: VampireDef = VampireDef {
     name: "Tupdog",
     printed: &[own(
@@ -5647,7 +5648,7 @@ pub static APPOLONIUS_MERGED: VampireDef = VampireDef {
 /// Merged vampires (rulebook "Advanced"): the base card's text and the
 /// advanced card's in full, its [MERGED] clauses with them — the
 /// definition `cards::vampire_of` reads for a merged vampire.
-pub static MERGED: [&VampireDef; 19] = [
+pub static MERGED: [&VampireDef; 27] = [
     &APPOLONIUS_MERGED,
     &HELENA_MERGED,
     &XAVIAR_MERGED,
@@ -5667,6 +5668,14 @@ pub static MERGED: [&VampireDef; 19] = [
     &MALDAVIS_MERGED,
     &SUNDOWN_MERGED,
     &SASCHA_VYKOS_MERGED,
+    &LOUIS_FORTIER_MERGED,
+    &GENGIS_MERGED,
+    &MARGUERITE_FOCCART_MERGED,
+    &KARSH_MERGED,
+    &MENELE_MERGED,
+    &TEGYRIUS_MERGED,
+    &NERGAL_MERGED,
+    &REVEREND_ADAMS_MERGED,
 ];
 
 // ---- Round 10: the 2025-2026 TWDA decks ------------------------------------
@@ -7411,10 +7420,10 @@ pub static MALDAVIS: VampireDef = VampireDef {
 /// "Sabbat: Winterlich can recruit a changeling ally as if he met the
 /// requirements of playing that card. While he is ready, changelings cost
 /// you 1 fewer pool." Himself and the other minions recruiting or employing
-/// one. No changeling in the pool has requirements (Mylan Horseed): the
-/// first clause inert.
+/// one. The pool's changelings require only a clan (Iara: Malkavian).
 pub static WINTERLICH: VampireDef = VampireDef {
     name: "Winterlich",
+    recruits_as_if: Some(Label::Changeling),
     printed: &[
         own(
             Stat::PoolCostOff,
@@ -7496,11 +7505,18 @@ pub static APPIUS_CLAUDIUS_CORVUS: VampireDef = VampireDef {
 };
 
 /// "Independent: Abdelsobek can unlock a vampire or mummy you control as a
-/// +1 stealth action." No mummy is in the pool; himself included (D28).
+/// +1 stealth action." Himself included (D28); a mummy is an ally
+/// (Saatet-ta).
 pub static ABDELSOBEK: VampireDef = VampireDef {
     name: "Abdelsobek",
     abilities: &[printed_action(
-        target(TargetKind::Minion, &[R::Controlled, R::TargetVampire]),
+        target(
+            TargetKind::Minion,
+            &[
+                R::Controlled,
+                R::AnyOf(&[&[R::TargetVampire], &[R::TargetSubtypeIn(&[Label::Mummy])]]),
+            ],
+        ),
         &[
             Effect::DeclareAction(ActionKind::Ability),
             Effect::AddStealth(1),
@@ -7976,8 +7992,8 @@ pub static GENERAL_PERFIDIO_DIOS: VampireDef = VampireDef {
 /// "Camarilla: Karsh can play cards named Blood Hunt from your hand or ash
 /// heap as a prince. He gets +3 votes in blood hunt referendums. He cannot
 /// block infernal vampires. [MERGED] Imperator (3 votes): +1 intercept."
-/// (Advanced.) Blood Hunt is not in the pool: its play is inert, as is the
-/// [MERGED] text without the base card (DESIGN §11.3).
+/// (Advanced.) Blood Hunt is not in the pool: its play is inert. Merged:
+/// `KARSH_MERGED`.
 pub static KARSH_ADV: VampireDef = VampireDef {
     name: "Karsh",
     adv: true,
@@ -8028,8 +8044,8 @@ pub static MARIE_FAUCIGNY: VampireDef = VampireDef {
 
 /// "Independent: While Helena is ready, minion cards cost Menele 1 fewer
 /// blood. [MERGED] Menele can strike: steal 2 blood or life (becoming
-/// blood)." (Advanced.) Any Helena, any Methuselah's; the [MERGED] text
-/// inert without the base card (DESIGN §11.3).
+/// blood)." (Advanced.) Any Helena, any Methuselah's. Merged:
+/// `MENELE_MERGED`.
 pub static MENELE_ADV: VampireDef = VampireDef {
     name: "Menele",
     adv: true,
@@ -9436,12 +9452,12 @@ pub static QUINCY_THE_TRAPPER: VampireDef = VampireDef {
 // Cao Nguyen ("Sabbat."), Desiree Narayan, Irena ("Anarch."), Dhita
 // Choudhair, Domenic Giovanni, Dr. Lawrence Mayhew, Shahara al-Rashwa
 // ("Independent.") and Flavia ("Independent: Blood cursed.", a crypt
-// trait) print no other text. Dancin' Dana, Louis Fortier and Zack North
-// (ADV, "Anarch.") and Sarrasine (ADV, "Camarilla Prince of Sydney.")
-// print only [MERGED] text: their base cards are not in the pool, so no
-// merge, the [MERGED] text never applies (nor Gengis's, Javier's or
-// Marguerite's below). Sundown (ADV, "Anarch.") merges with his base:
-// `SUNDOWN_MERGED`.
+// trait) print no other text. Dancin' Dana and Zack North (ADV,
+// "Anarch.") and Sarrasine (ADV, "Camarilla Prince of Sydney.") print only
+// [MERGED] text: their base cards are not in the pool, so no merge, the
+// [MERGED] text never applies (nor Javier's below). Sundown and Louis
+// Fortier (ADV, "Anarch.") merge with their bases: `SUNDOWN_MERGED`,
+// `LOUIS_FORTIER_MERGED`.
 
 /// "Anarch: Callihan gets -1 intercept against Sabbat vampires. [MERGED]
 /// Baron of New York." The acting minion's sect read live; an ally has none.
@@ -9475,7 +9491,7 @@ pub static DALIAH: VampireDef = VampireDef {
 /// "Anarch: If Gengis is blocked by a titled vampire, he does not unlock as
 /// normal during your next unlock phase. [MERGED] Gengis gets +1 level of
 /// Auspex [aus] and Celerity [cel]." The blocker's title read as it blocks;
-/// an unlock effect still unlocks him.
+/// an unlock effect still unlocks him. Merged: `GENGIS_MERGED`.
 pub static GENGIS: VampireDef = VampireDef {
     name: "Gengis",
     adv: true,
@@ -9528,7 +9544,8 @@ pub static JENNA_CROSS: VampireDef = VampireDef {
 };
 
 /// "Anarch: Marguerite gets +1 strength in combat with a titled vampire.
-/// [MERGED] +1 strength." Roy's shape, the title read live.
+/// [MERGED] +1 strength." Roy's shape, the title read live. Merged:
+/// `MARGUERITE_FOCCART_MERGED`.
 pub static MARGUERITE_FOCCART: VampireDef = VampireDef {
     name: "Marguerite Foccart",
     adv: true,
@@ -10467,15 +10484,7 @@ pub static SEAN_RYCEK: VampireDef = VampireDef {
         printed_action(
             Some(TargetSpec {
                 kind: TargetKind::Card,
-                filter: &[R::TargetCard(CardFilter::NamedAny(&[
-                    "Consanguineous Boon",
-                    "Extremis Boon",
-                    "King's Favor",
-                    "Lesser Boon",
-                    "Life Boon",
-                    "Major Boon",
-                    "Minor Boon",
-                ]))],
+                filter: &[R::TargetCard(CardFilter::HasLabel(Label::Boon))],
             }),
             &[
                 Effect::DeclareAction(ActionKind::Ability),
@@ -13119,6 +13128,114 @@ pub static MALDAVIS_MERGED: VampireDef = VampireDef {
     ..VAMP
 };
 
+/// "Advanced, Anarch. [MERGED] Louis gets +1 level of Dominate [dom] and
+/// Presence [pre]." Merged with his base card ("Camarilla."): Anarch, the
+/// advanced card's sect (ANK 20180524).
+pub static LOUIS_FORTIER_MERGED: VampireDef = VampireDef {
+    name: "Louis Fortier",
+    adv: true,
+    levels: &["dom", "pre"],
+    ..VAMP
+};
+
+/// Marguerite Foccart merged: her base card's intercept against political
+/// actions, her advanced card's strength against a titled vampire, and
+/// "[MERGED] +1 strength"; Anarch, the advanced card's sect (ANK 20180524).
+pub static MARGUERITE_FOCCART_MERGED: VampireDef = VampireDef {
+    name: "Marguerite Foccart",
+    adv: true,
+    printed: &[
+        MARGUERITE_FOCCART_BASE.printed[0],
+        MARGUERITE_FOCCART.printed[0],
+        own(Stat::Strength, 1, &[]),
+    ],
+    ..VAMP
+};
+
+/// Karsh merged: his base card's rush and aggravated damage as normal, his
+/// advanced card's text, and "[MERGED] Imperator (3 votes): +1 intercept":
+/// the title generated (`CryptCard::merged_title`; ANK 20190407), the
+/// intercept his own.
+pub static KARSH_MERGED: VampireDef = VampireDef {
+    name: "Karsh",
+    adv: true,
+    printed: &[
+        KARSH_ADV.printed[0],
+        KARSH_ADV.printed[1],
+        own(Stat::Intercept, 1, &[]),
+    ],
+    abilities: KARSH.abilities,
+    ..VAMP
+};
+
+/// Menele merged: his base card's unlock-phase move and +1 bleed, his
+/// advanced card's discount while Helena is ready, and "[MERGED] Menele can
+/// strike: steal 2 blood or life (becoming blood)": Goratrix's strike, not
+/// ranged; Independent, the advanced card's sect, an anarch token burned
+/// (ANK 20180524).
+pub static MENELE_MERGED: VampireDef = VampireDef {
+    name: "Menele",
+    adv: true,
+    printed: &[MENELE.printed[0], MENELE_ADV.printed[0]],
+    abilities: &[
+        MENELE.abilities[0],
+        mode_of(
+            &[Window::CombatStrikeDeclaration],
+            Actor::Host,
+            &[],
+            &[Effect::Strike(StrikeKind::StealBlood {
+                n: 2,
+                ranged: false,
+            })],
+        ),
+    ],
+    ..VAMP
+};
+
+/// Tegyrius merged: his base card's votes while Victoria Ash is ready and
+/// +1 strength, his advanced card's polling votes for Camarilla Banu
+/// Haqim; the [MERGED] Justicar title generated (`CryptCard::merged_title`).
+pub static TEGYRIUS_MERGED: VampireDef = VampireDef {
+    name: "Tegyrius, Vizier",
+    adv: true,
+    printed: TEGYRIUS.printed,
+    abilities: TEGYRIUS_ADV.abilities,
+    ..VAMP
+};
+
+/// Nergal merged: his base card's discount once each turn and +2 bleed,
+/// his advanced card's reaction tax and stealth.
+pub static NERGAL_MERGED: VampireDef = VampireDef {
+    name: "Nergal",
+    adv: true,
+    printed: &[NERGAL.printed[0], NERGAL.printed[1], NERGAL_ADV.printed[0]],
+    abilities: NERGAL_ADV.abilities,
+    ..VAMP
+};
+
+/// Reverend Adams merged: his base card's -1 stealth on political actions,
+/// his advanced card's master-phase look; the blockers' clause both cards
+/// print, once.
+pub static REVEREND_ADAMS_MERGED: VampireDef = VampireDef {
+    name: "Reverend Adams",
+    adv: true,
+    printed: REVEREND_ADAMS.printed,
+    abilities: REVEREND_ADAMS_ADV.abilities,
+    ..VAMP
+};
+
+/// Gengis merged: his base card's Brujah takeover, his advanced card's
+/// unlock lost to a titled blocker, and its [MERGED] levels of Auspex and
+/// Celerity; Anarch, the advanced card's sect (ANK 20180524).
+pub static GENGIS_MERGED: VampireDef = VampireDef {
+    name: "Gengis",
+    adv: true,
+    abilities: GENGIS_G3.abilities,
+    riders: GENGIS.riders,
+    levels: &["aus", "cel"],
+    ..VAMP
+};
+
 /// Sundown merged: his base card's vote for blood, and "[MERGED] During
 /// the polling step of any referendum, Sundown can discard a political
 /// action card to force any vampire to abstain (this can cancel that
@@ -13263,7 +13380,7 @@ pub static SEREN_SUKARDI: VampireDef = VampireDef {
 /// can burn 1 blood to get +1 vote during the polling step of any
 /// referendum. Blood cursed. [MERGED] Assamite Justicar." Any Methuselah's
 /// Camarilla Banu Haqim, Tegyrius too, once each a referendum; the curse
-/// and the merged title generated crypt data.
+/// and the merged title generated crypt data. Merged: `TEGYRIUS_MERGED`.
 pub static TEGYRIUS_ADV: VampireDef = VampireDef {
     name: "Tegyrius, Vizier",
     adv: true,

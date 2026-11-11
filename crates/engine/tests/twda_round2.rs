@@ -1587,6 +1587,61 @@ fn veneficti_steals_a_demon_ally() {
     assert_eq!(e.state.minions[herald.index()].owner, SeatId(0));
 }
 
+// Veneficti: "He can steal a demon ally or burn a demon retainer as a Ⓓ
+// action." Charnas the Imp, a demon retainer on another Methuselah's
+// vampire, burned to its owner's ash heap, the action directed at them; his
+// own Methuselah's offered too, undirected (Ⓓ only a reminder: rules-qa
+// 20.1).
+#[test]
+fn veneficti_burns_a_demon_retainer() {
+    let mut e = game(2);
+    let u = e.add_minion(SeatId(0), find_card("unnamed, The"), 4, false);
+    let ven = e.add_ally(SeatId(0), find_library("Veneficti"));
+    let z = e.add_minion(SeatId(1), plain("Brujah", 1), 4, false);
+    let theirs = in_play(&mut e, 1, "Charnas the Imp", Some(z));
+    let mine = in_play(&mut e, 0, "Charnas the Imp", Some(u));
+    let v = card_in_play(&e, "Veneficti");
+    let req = request(&mut e);
+    assert!(req
+        .options
+        .contains(&use_at(v, 1, Some(ven), Target::Card(mine))));
+    pick(&mut e, use_at(v, 1, Some(ven), Target::Card(theirs)));
+    let req = request(&mut e);
+    assert_eq!(
+        (req.seat, req.window),
+        (SeatId(1), WindowLabel::ActionBlock)
+    );
+    assert!(req.options.contains(&block(z)), "directed at seat 1");
+    pick(&mut e, Choice::Pass);
+    to_minion_phase(&mut e, SeatId(0));
+    assert!(!e.state.cards[theirs.index()].in_play);
+    assert!(e.state.seats[1]
+        .ash
+        .contains(&find_library("Charnas the Imp")));
+}
+
+// Tupdog: "Visceratika [vis] cards cost Tupdog 1 less blood." [PIB
+// 20150924-2] "Card with disciplines choices (eg. [vis]/[tha]) are
+// considered of the discipline they are played as": Brick by Brick played
+// as [vis] or [VIS] costs him 1 less, as [tha] not.
+#[test]
+fn tupdog_plays_visceratika_for_one_blood_less() {
+    let mut e = game(2);
+    let t = e.add_minion(SeatId(0), find_card("Tupdog"), 4, false);
+    let brick = find_library("Brick by Brick");
+    let off = |mode: u8| {
+        e.state.printed_mod(
+            t,
+            zvtes::cards::Stat::BloodCostOff,
+            zvtes::state::PrintedCtx {
+                card: Some((brick, mode)),
+                ..Default::default()
+            },
+        )
+    };
+    assert_eq!((off(0), off(1), off(2)), (0, 1, 1), "[tha], [vis], [VIS]");
+}
+
 // Herald of Topheth: "Infernal. … If it has 4 or fewer life during your
 // unlock phase, it gains 1 life." It does not unlock as normal — its
 // controller may burn 1 pool to unlock it —, and it heals 1 life.

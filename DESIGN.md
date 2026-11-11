@@ -1074,15 +1074,12 @@ its entry when it ends — the training skill's "A run")
 
 What the engine does not yet do or does only in part, true today.
 
-- **Inert clauses, no pool tenant**: Blood Trade's boons; The Fourth Cycle's
-  conviction cards; self-damaging weapons (rows n/a); Winterlich's "as if
-  he met the requirements" (no changeling with one); the [MERGED]
-  text of Brunhilde, Danielle Diron, Claudio Severino, Masika, Bulscu and
-  Maldavis (their base cards are not in the pool); Veneficti's demon steal
-  or burn (no demon); Tupdog's Visceratika reduction (no Visceratika card);
+- **Inert clauses, no pool tenant**: self-damaging weapons (rows n/a); an
+  advanced vampire's [MERGED] text while its base card is not in the pool
+  (rules-qa 104.20);
   Orlando Oriundus's bar on other multipliers (no other multiplier);
-  Shakar: the Hunt's "considered chosen" (read by no pool card);
-  Abdelsobek's mummy (no mummy) and Onaedo's Otieno (not in the pool).
+  Shakar: the Hunt's "considered chosen" (read by no pool card); Onaedo's
+  Otieno (not in the pool).
 - **Paths in the observations**: the policy sees a vampire's sect, not its
   path, and the networks never follow one (`zvtes_policy::untrained`): the
   training board's "Paths in the observation".

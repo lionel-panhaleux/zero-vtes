@@ -3544,10 +3544,10 @@ retainers, traits, titles, trait changes).
   phase, usable from torpor (58.9). Mylan Horseed's unlock can target an
   unlocked vampire (57.10). Zizi "can lock to unlock another Blood Brother
   of the same circle": no printed timing — any impulse, Viri ready (68.16).
-- Abdelsobek: any vampire his controller controls (or mummy, none in the
-  pool), himself and one in torpor included (D28); an unlocked one offered,
-  a legal no-op (17.4); once a turn, whatever the target, the same printed
-  action (1.4) (78.2).
+- Abdelsobek: any vampire his controller controls (or mummy: an ally whose
+  type line says so, Saatet-ta, 115.1), himself and one in torpor included
+  (D28); an unlocked one offered, a legal no-op (17.4); once a turn,
+  whatever the target, the same printed action (1.4) (78.2).
 - Shalmath: unlocks once in each Methuselah's turn (ANK 20180719-4), in
   torpor too (D25); only a card's Celerity mode is barred to him (LSJ
   20050322-2), equipment and abilities not (78.9).
@@ -3841,7 +3841,10 @@ retainers, traits, titles, trait changes).
 - A merged vampire keeps its entry into play (71.3, LSJ 20030519-2; 70.3).
 - A merged vampire: both cards' text, the advanced card's sect (ANK
   20180524); a named Camarilla title held as the Laibon titles are (Karsh:
-  Imperator); [MERGED] text inert unmerged (111.19).
+  Imperator); [MERGED] text inert unmerged (111.19). Louis Fortier's and
+  Gengis's levels, Marguerite Foccart's strength, Karsh's intercept with
+  his title, Menele's steal-2 strike (Goratrix's, not ranged), Tegyrius's
+  base votes and strength, Nergal's and Reverend Adams's base text (115.5).
 
 ### 14.10 Traits, sects, clans
 
@@ -4006,7 +4009,9 @@ readings (vampires, allies, library cards) no mechanism section states.
   second combat in the action too (104.11, 105.5); Gengis's skipped unlock,
   the title read as he is blocked (104.12); Javier Montoya's younger than him,
   any Methuselah's (104.13); Vulture's unfizzled vehicle equip, once each turn
-  (104.19); [MERGED] text inert without the base card (104.20).
+  (104.19); [MERGED] text inert without the base card (104.20; Louis
+  Fortier, Gengis and Marguerite Foccart merge since their base cards came
+  in, 115.5).
 - Round 26's cards: combat Discipline cards' levels and presses (111.24);
   Aura of Invincibility's counter and Bear-Baiting's bound bonus (111.27);
   the Crusades' unlock, Curmudgeon, Ecstatic Agony, Esgrima (111.30);
@@ -4083,8 +4088,10 @@ readings (vampires, allies, library cards) no mechanism section states.
   action, political action, ally, equipment and retainer cards (60.4).
 - Veneficti: +1 stealth; not the target of a directed action of an ally or
   of a vampire of capacity 6 or less (read as offered); he steals a demon
-  ally (Herald of Topheth, added for it); his burn option per his printed
-  clan, Baali — any of the pool's Baali is infernal (62.30).
+  ally (Herald of Topheth, added for it), another Methuselah's, and burns
+  any demon retainer (Charnas the Imp), his own Methuselah's undirected
+  (D12) (115.2); his burn option per his printed clan, Baali — any of the
+  pool's Baali is infernal (62.30).
 - Marciana Giovanni: "during an action, you can lock her" — any action, her
   Methuselah's or another's; the non-Sabbat vampire chosen any
   Methuselah's, herself included (LSJ 20100527); locking her during her own
@@ -4129,8 +4136,19 @@ readings (vampires, allies, library cards) no mechanism section states.
   revealed, the gains and burns at once (76.14).
 - Thadius Zho: any vampire, a torpid one too (Apolonia's precedent); a
   0-blood target a legal no-op (76.20).
-- Winterlich: his changeling discount live with Mylan Horseed, his "as if
-  he met the requirements" inert (77.32, revised by 89.24).
+- Winterlich: his changeling discount live with Mylan Horseed (77.32,
+  revised by 89.24); his "as if he met the requirements": the pool's
+  changelings require only a clan, Iara recruited as if Malkavian, at the
+  recruit's clan check alone — no burn option (LSJ 20050225), no card not
+  played normally (LSJ 20050119) (115.3).
+- Tupdog: a [vis]/[tha] card costs him 1 less blood as [vis] only, the mode
+  played (PIB 20150924-2) (115.4).
+- The Fourth Cycle burns every conviction card in play, any Methuselah's,
+  with the Gehenna events, before the torpor (115.6). Blood Trade burns
+  every boon in play ("Boon." on the type line: Life Boon, Major Boon) as
+  it enters, and while in play a boon entering play is not played at all —
+  Life Boon saves no one; Consanguineous Boon, never in play, still is (LSJ
+  20040531-2) (115.7, the owner).
 - Read as printed, by the default readings and their KRCG rulings: Aimery,
   Alex Camille (a threshold, 88.7), Bulscu (an action at another's
   equipment or location is directed, D12), Carna (torpor too), Claudio
@@ -4929,7 +4947,7 @@ mixed item is stated in its section.
   (67.6, superseded by 68.1); bare traits with no card reading them yet
   (Red List on Ossian, 64.6; Flight until 84.37); "no tenant"
   clauses (Abraham Mellon's minion clause, 41.1; Elysium, 44.7; no mage
-  ally, 41.8, superseded by 62.31; no demon or zombie retainer, 62.30, 55.6;
+  ally, 41.8, superseded by 62.31; no zombie retainer, 55.6;
   no ammo card, 64.10); implementation order of a vampire's text (13.1).
 - Bundles KRCG types "Precon" that are card packs (Secrets of New York, Noites
   Brasileiras) give no precon deck (112.1).
@@ -5406,7 +5424,7 @@ an owner ruling:
 Every rules-qa item, by batch, with the digest sections citing it: the
 section stating it and those cross-referring to it (§2 the default
 readings, §22 engine modeling, §23 the contradictions, §24 the open
-readings). 1429 items, Batches 1–114 (44.11 was removed, replaced by Batch
+readings). 1436 items, Batches 1–115 (44.11 was removed, replaced by Batch
 45). The index is derived from the citations: a bare `N.M` cites rules-qa
 item N.M in the section it appears in. A new rules-qa item gets its line in
 the section stating it, then its entry here: `python3
@@ -5597,7 +5615,7 @@ index or an item cited nowhere.
   §3.12,§11.9,§23.1; 62.22 §19.1; 62.23 §4.5,§12.6; 62.24
   §3.20,§4.2,§12.4,§12.7,§12.11,§14.5; 62.25 §4.2,§16.1,§16.7; 62.26
   §12.7,§14.10,§23.3; 62.27 §4.2,§12.3,§12.11; 62.28 §9.3; 62.29 §9.3,§19.1;
-  62.30 §3.6,§8.2,§15.2,§16.8,§22; 62.31 §3.6,§14.5,§22,§23.2; 62.32 §2,§22;
+  62.30 §3.6,§8.2,§15.2,§16.8; 62.31 §3.6,§14.5,§22,§23.2; 62.32 §2,§22;
   62.33 §3.6,§11.8,§14.1,§14.5
 - **63** — 63.1 §8.8,§9.6,§11.7,§14.10; 63.2 §3.1,§8.7,§11.2,§11.7; 63.3
   §3.12,§13.3; 63.4 §2,§3.13,§12.2,§12.6,§12.12,§14.5; 63.5
@@ -5855,3 +5873,5 @@ index or an item cited nowhere.
   113.149 §10.2,§17.3; 113.150 §12.9; 113.151 §7.2,§24.1; 113.152 §9.2;
   113.153 §15.2; 113.154 §10.2,§11.6,§13.3; 113.155 §12.8,§24.1
 - **114** — 114.1 §9.4,§23.3,§24.1; 114.2 §9.4,§22,§24.1
+- **115** — 115.1 §14.1; 115.2 §15.2; 115.3 §15.2; 115.4 §15.2; 115.5
+  §14.9,§15.2; 115.6 §15.2; 115.7 §15.2

@@ -113,6 +113,7 @@ pub fn part(e: &Effect, names: &Names) -> Option<String> {
             (_, Some("conviction")) => format!("burn {n} conviction"),
             (Some(On::Card), _) => "burn it".into(),
             (_, Some("card")) => "burn the card".into(),
+            (_, Some("all_boons")) => "burn every boon in play".into(),
             _ => "burn the target".into(),
         },
         K::Stealth if d == Some("on_hunts") => format!("+{n} stealth on hunts"),

@@ -475,7 +475,7 @@ pub enum CardFilter {
     Clan(&'static str),
     /// A card of this name ("a card named Golconda: Inner Peace").
     Named(&'static str),
-    /// A card of one of these names (a boon).
+    /// A card of one of these names.
     NamedAny(&'static [&'static str]),
     /// A minion card: any library card but a master or an event (rules-qa
     /// 60.3).
@@ -4688,6 +4688,8 @@ pub enum Modifier {
     /// A Methuselah gains no pool in their own turn without the Edge or a
     /// victory point: it goes to the bank (The Rising; ANK 20181105).
     PoolGainNeedsEdgeOrVp,
+    /// No boons can be put in play (Blood Trade).
+    NoBoons,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
@@ -6840,8 +6842,8 @@ pub enum Effect {
     /// Unlock rider: with 3+ vampires of a clan, burn one; capacity 6+, the
     /// card is ignored for the rest of the game (Recalled to the Founder).
     BurnOfCrowdedClan,
-    /// After entering play, burn all Gehenna events, then torpor every
-    /// vampire of capacity n or less (The Fourth Cycle; no conviction in V5).
+    /// After entering play, burn all Gehenna events and conviction cards,
+    /// then torpor every vampire of capacity n or less (The Fourth Cycle).
     FourthCycle(u8),
     /// Pay 1 pool per other event in play, paid down to 0 ousting (The
     /// Uncoiling's burn).
@@ -7814,6 +7816,8 @@ pub enum Effect {
     /// if from hand on the chosen strike, the library shuffled (Mikael
     /// Birkholm; LSJ 20100511).
     PlayFirstLibraryAim,
+    /// Every boon in play burned, any Methuselah's (Blood Trade).
+    BurnAllBoons,
 }
 
 /// Trigger points where riders of cards in play fire (mandatory
@@ -8629,6 +8633,7 @@ pub const VAMP: VampireDef = VampireDef {
     abilities: &[],
     riders: &[],
     plays_as: None,
+    recruits_as_if: None,
     incomplete: None,
     levels: &[],
     pool_surcharge: &[],
@@ -8652,6 +8657,9 @@ pub struct VampireDef {
     pub riders: &'static [Rider],
     /// The clan it plays cards requiring as if it were of it.
     pub plays_as: Option<PlaysAs>,
+    /// The allies of this label it recruits as if it met their clan
+    /// requirement (Winterlich's changelings).
+    pub recruits_as_if: Option<crate::library::Label>,
     /// The printed text not implemented yet, if any (rules-qa 13.1).
     pub incomplete: Option<&'static str>,
     /// "+1 level of" these Disciplines (merged Helena).

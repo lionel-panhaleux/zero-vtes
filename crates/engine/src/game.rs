@@ -2502,6 +2502,17 @@ impl Engine {
         self.state.minions[h.index()].present()
     }
 
+    /// Burn every card in play, any Methuselah's, whose library card
+    /// matches `f`.
+    pub(crate) fn burn_in_play_where(&mut self, f: impl Fn(&crate::library::LibraryCard) -> bool) {
+        for i in 0..self.state.cards.len() {
+            let c = &self.state.cards[i];
+            if c.present() && !c.effect_only && f(&crate::library::LIBRARY[c.card as usize]) {
+                self.burn_card_in_play(CardId(i as u32));
+            }
+        }
+    }
+
     /// Burn a card in play: to its owner's ash heap with the cards on it
     /// (LSJ 20021128), its layers dropped.
     pub(crate) fn burn_card_in_play(&mut self, id: CardId) {

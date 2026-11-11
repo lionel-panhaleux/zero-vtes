@@ -962,8 +962,7 @@ fn fee_stakes_corte_and_los_angeles_make_a_baron() {
 }
 
 // Winterlich: "While he is ready, changelings cost you 1 fewer pool" —
-// Mylan Horseed, himself recruiting or another of his Methuselah's; the
-// first clause inert (no changeling in the pool has requirements).
+// Mylan Horseed, himself recruiting or another of his Methuselah's.
 #[test]
 fn winterlich_makes_changelings_cost_one_pool_less() {
     let mut e = game(2);
@@ -981,6 +980,21 @@ fn winterlich_makes_changelings_cost_one_pool_less() {
         ..PrintedCtx::default()
     };
     assert_eq!(st.printed_mod(x, Stat::PoolCostOff, other), 0);
+}
+
+// Winterlich: "can recruit a changeling ally as if he met the
+// requirements of playing that card": Iara (requires a Malkavian), he
+// alone of his Methuselah's non-Malkavians (rules-qa 115.3).
+#[test]
+fn winterlich_recruits_a_changeling_as_if_he_met_its_requirement() {
+    let mut e = game(2);
+    let w = e.add_minion(SeatId(0), find_card("Winterlich"), 4, false);
+    let x = e.add_minion(SeatId(0), of_clan("Brujah", 0), 4, false);
+    e.add_minion(SeatId(1), of_clan("Ventrue", 0), 4, false);
+    hand(&mut e, 0, &["Iara"]);
+    let req = request(&mut e);
+    assert!(req.options.contains(&play(0, 0, w)));
+    assert!(!req.options.contains(&play(0, 0, x)));
 }
 
 // Black Forest Base: "Changeling allies can burn this location as a +1

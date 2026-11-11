@@ -227,9 +227,31 @@ fn abdelsobek_unlocks_a_vampire_of_his_controller() {
     e.state.minions[theirs.index()].locked = true;
     let req = request(&mut e);
     assert!(!req.options.contains(&printed(a, 0, Target::Minion(theirs))));
+    let turn = e.state.turn;
     pick(&mut e, printed(a, 0, Target::Minion(mine)));
     until(&mut e, SeatId(0), WindowLabel::MinionPhase);
+    assert_eq!(e.state.turn, turn, "no unlock phase on the way");
     assert!(!e.state.minions[mine.index()].locked);
+}
+
+// Abdelsobek: "can unlock a vampire or mummy you control": Saatet-ta, a
+// mummy ally (rules-qa 78.2, 115.1); another ally not.
+#[test]
+fn abdelsobek_unlocks_a_mummy_ally() {
+    let mut e = game(2);
+    let a = e.add_minion(SeatId(0), find_card("Abdelsobek"), 4, false);
+    let mummy = e.add_ally(SeatId(0), find_library("Saatet-ta"));
+    let other = e.add_ally(SeatId(0), find_library("Mylan Horseed"));
+    e.add_minion(SeatId(1), plain("Ventrue", 0), 4, false);
+    e.state.minions[mummy.index()].locked = true;
+    e.state.minions[other.index()].locked = true;
+    let req = request(&mut e);
+    assert!(!req.options.contains(&printed(a, 0, Target::Minion(other))));
+    let turn = e.state.turn;
+    pick(&mut e, printed(a, 0, Target::Minion(mummy)));
+    until(&mut e, SeatId(0), WindowLabel::MinionPhase);
+    assert_eq!(e.state.turn, turn, "no unlock phase on the way");
+    assert!(!e.state.minions[mummy.index()].locked);
 }
 
 // Ghede: "can enter combat with a minion as a Ⓓ action. Combat cards

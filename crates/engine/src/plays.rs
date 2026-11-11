@@ -1401,6 +1401,12 @@ impl Engine {
                     {
                         continue;
                     }
+                    if LIBRARY[card as usize].labels.contains(&Label::Boon)
+                        && mode.effects.contains(&Effect::PutInPlay)
+                        && st.boons_barred()
+                    {
+                        continue;
+                    }
                     if mode.requires.contains(&Requirement::OnePerMethuselah)
                         && st.controls_card_copy(seat, card)
                     {
@@ -1576,10 +1582,10 @@ impl Engine {
                     // Clan requirement: the playing minion's clan, or (a
                     // Methuselah's card) a ready vampire of the clan, or
                     // one playing as it (Abraham Mellon, Lady Scarlett
-                    // Churchill).
+                    // Churchill), or recruiting it as if (Winterlich).
                     if !clans.is_empty() {
                         let ok = match actor {
-                            Some(m) => st.meets_clan(m, clans, false),
+                            Some(m) => st.meets_clan(m, clans, false) || st.recruits_as_if(m, card),
                             None => st.minions_of(seat).any(|m| {
                                 st.minions[m.index()].ready() && st.meets_clan(m, clans, true)
                             }),
@@ -7487,15 +7493,10 @@ impl Engine {
             // the player's, their choice, or is burned if none can hold it
             // (RTR 19960112, rules-qa 88.9).
             Effect::FourthCycle(cap) => {
-                for i in 0..self.state.cards.len() {
-                    let c = &self.state.cards[i];
-                    if c.present()
-                        && !c.effect_only
-                        && LIBRARY[c.card as usize].labels.contains(&Label::Gehenna)
-                    {
-                        self.burn_card_in_play(CardId(i as u32));
-                    }
-                }
+                self.burn_in_play_where(|lib| {
+                    lib.labels.contains(&Label::Gehenna)
+                        || lib.types.contains(&CardType::Conviction)
+                });
                 let small: Vec<MinionId> = (0..self.state.minions.len())
                     .map(|i| MinionId(i as u32))
                     .filter(|&m| {
@@ -7511,6 +7512,9 @@ impl Engine {
                 if !small.is_empty() {
                     self.minions_to_torpor(&small);
                 }
+            }
+            Effect::BurnAllBoons => {
+                self.burn_in_play_where(|lib| lib.labels.contains(&Label::Boon));
             }
             // The others first, clockwise, the player last; the last pick
             // reveals.
