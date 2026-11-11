@@ -45,7 +45,12 @@ checks it did not get worse).
    only in `runs/` (p17's was lost with its machine). The five were starts
    of the p10–p16 tables, so every network since descends from tables begun
    in them: `humanset` reports them apart, and a gain is read on the newer
-   wins, which no ancestor met.
+   wins, which no ancestor met. `--weak-decks` (imitation's
+   `--bc-weak-weight`, no routing): the served weights' per-deck file's
+   recent decks under a VP share of 0.10 the pool holds, by
+   `zvtes_py.deck_names()` index in the run's worktree; the log's first
+   `bc_weak` counts the human decisions on them (0: the flag weighs
+   nothing that run).
 2. **Launch** from a dedicated worktree at the launch commit (`git worktree
    add .claude/worktrees/pN <sha>`, `uv sync` there: a fresh `.venv` builds the
    extension at that commit): `uv run` rebuilds from whatever is on disk,

@@ -868,28 +868,15 @@ errors)
   served bots, its wins (20 games a position) — the human-facing measure.
   `--apart` scores the held-out five apart from the newer wins; `--map`
   breaks the agreement down by window and kind of the human's choice, with
-  the share under 1% (**Missed opportunities** below).
-- **The exploitability probe** (owner, 2026-11-09; 2026-11-10 at `066f47c`):
-  a learner from p17 on one deck (`--deck`) against p17 frozen at every other
-  seat, no imitation or starts, p17's nudges and served temperature, `--lr
-  1e-4 --lr-final 1`; its `vs_frozen4/5` (512 games each) after 100
-  iterations, against its seed's baseline (`--lr 0`, one iteration). On
-  Nosferatu, VP a seat at 4 / 5 seats, each ± 0.13–0.15:
-
-  | | Seed 0 | Seed 1 | Mean |
-  |---|---|---|---|
-  | p17 (baseline) | 1.20 / 1.32 | 1.17 / 1.20 | 1.22 |
-  | Plain PPO | 1.25 / 1.40 | 1.36 / 1.30 | 1.33 (+0.10 ± 0.10) |
-  | Share 0.1 | 1.16 / 1.12 | 1.22 / 1.22 | 1.18 (−0.05 ± 0.10) |
-
-  Plain PPO gains on both seeds. The exploration share (`066f47c`: the
-  learner's decisions offering the map's five pairs drawn, at the share's
-  chance, from the policy flattened over them, PPO's ratio against that
-  mixture; ~10% of those decisions) does not, below plain PPO on both
-  (−0.15 ± 0.10); dropped (owner, 2026-11-11). The reading: a collapsed
-  option it tries has a ratio far under the clip's floor, so the try
-  teaches it almost nothing, while the detours spoil the training games'
-  returns. The probe shows exploitation; not step 4 of the training skill.
+  the share under 1% ("Settled by measurement").
+- **The exploitability probe** (owner, 2026-11-09): a learner from p17 on one
+  deck (`--deck`) against p17 frozen at every other seat, no imitation or
+  starts, p17's nudges and served temperature, `--lr 1e-4 --lr-final 1`; its
+  `vs_frozen4/5` (512 games each) after 100 iterations, against its seed's
+  baseline (`--lr 0`, one iteration). On Nosferatu, two seeds (2026-11-10,
+  `066f47c`), VP a seat as the mean of 4 and 5 seats: p17 1.22, plain PPO
+  1.33 (+0.10 ± 0.10, both seeds up). It shows exploitation; not step 4 of
+  the training skill.
 - **The critic against the position** (owner with Tom, 2026-10-22; `uv run
   python -m train.position`; `crates/env/src/position.rs`): the explained
   variance of each seat's result by the decision's share of the game, for the
@@ -920,9 +907,10 @@ errors)
   (owner, 2026-11-08: beside the precons, the decks dated within six months
   with a VP share of at least 0.15; a deck the file lacks stays out until
   measured), hence the re-measure when the kept TWDA decks gain one. p17's
-  (2026-11-06, 100 games a deck, 2 h 30): a TWDA deck at one seat wins 16.4%
-  and takes a VP share of 0.19, the decks from 0.00 to 0.64, 51 under 0.10;
-  a deck's win rate at 100 games carries about ± 6 points.
+  (2026-11-11 at `b1de838`, 216 decks, 100 games a deck, ~5 h on a shared
+  machine): a TWDA deck at one seat wins 15.1% and takes a VP share of 0.18,
+  the decks from 0.005 to 0.71, 75 under 0.10; a deck's win rate at 100 games
+  carries about ± 6 points.
 
 **Settled by measurement** (one line each; the entry or run named holds the
 numbers)
@@ -936,8 +924,20 @@ numbers)
 - An exploiter with the learner's reward and weights never led the learner
   (the league runs); a learner from p14 against p14 alone stayed level for 300
   iterations (p17). On one deck at a learning rate of 1e-4, plain PPO gains
-  ~0.1 VP on its frozen self in 100 iterations, at two errors; the exploration
-  share (0.1) loses it, −0.15 VP at two errors (the exploitability probe).
+  ~0.1 VP on its frozen self in 100 iterations, at two errors (the
+  exploitability probe).
+- An exploration share (`066f47c`: a share of the decisions offering the
+  collapsed kinds drawn from the policy flattened over them, PPO's ratio
+  against that mixture) loses that gain, −0.15 VP at two errors (the probe,
+  share 0.1): a collapsed option it tries sits under the clip's floor and
+  learns almost nothing. Dropped (owner, 2026-11-11).
+- The network departs from the human winners mostly on the turn's own
+  choices, barely on blocks' and combat's passes: p17 gives the human's
+  choice under 1% on 49 imitated wins (and 3 held out) for 26.2% (100%) of
+  the influence phase's crypt draws, 21.7% (61.5%) of the minion phase's
+  abilities, 11.2% (25.0%) of its actions, 7.5% (18.4%) of its plays, 5.3%
+  (12.7%) of transfers; blocks' passes 1.4% (6.2%) (`humanset --map`,
+  2026-11-10).
 - An option the network gives ~0 probability is never sampled, so never
   learned (the crypt draw: a median 6e-8 where the owner drew 11%); faded
   nudges let every nudged behaviour return (p8).
@@ -964,53 +964,13 @@ numbers)
   result enters none of the first quarter's advantages.
 
 **Where the bots stand** (2026-11-09, the owner's review). Humans (mostly the
-owner, until the platform opens to more players) win 79% of their games
-against p14 (39 games, 2.79 VP a seat; p10 79%, p11 68%; a fair share 25%);
-over all 80 counted games the bots won 5 of their 240 seats. At p14's tables
-its ledger: A&B 1.60 a round (2.4 in self-play, the owner 3.03), its prey's
-R −2.18 a turn (the owner's prey −6.06), its own −2.81, its predator's
-−0.34: it builds less, hits a third as hard and barely touches the seat
-eating it. The humans are level on actions to round 6, ahead on blood from
-rounds 4–5, landing twice the blocks from round 8. Hence the order of work
-(owner, 2026-11-09 and 11-11; the training board): exploiters, judged on the
-human-facing measures (roadmap M:stronger-bot).
-
-**Missed opportunities** (2026-11-10; `humanset <p17.zvp> <p17.zvp> 0
---apart <the five> --map data/records data/server-records`): p17
-(`f426338f6c80`, its plain logits, as imitation reads them) at each
-decision with an alternative of every human win the engine reads whole —
-49 wins p17's ancestors imitated (12,503 decisions; imitation raised these
-probabilities, so their collapse is a floor) and 3 of the five held out
-since p10 (880; the other two stop partway on today's engine). p17's
-favourite is the human's choice in 75.8% / 54.5% of them, the mean
-log-probability of that choice −0.83 / −1.64, under 1% ("collapsed")
-3.3% / 8.8%. By window and kind of the human's choice, each row with 50
-or more imitated decisions and 5% or more of them collapsed (decisions,
-favourite, mean log-probability, collapsed; smaller rows collapse too, on
-too few decisions to rank: the referendum's Play 11.8% of 34 and
-UseAbility 16.7% of 30, CombatDetermineRange UseAbility 19.0% of 21,
-ActionBlock BurnBloodForIntercept 3 of 8):
-
-| Window | Kind | Imitated wins | Held out |
-|---|---|---|---|
-| InfluenceTransfers | DrawCrypt | 65, 51%, −3.47, 26.2% | 5, 0%, −11.64, 100% |
-| MinionPhase | UseAbility | 157, 39%, −2.93, 21.7% | 26, 4%, −5.26, 61.5% |
-| MinionPhase | TakeAction | 448, 48%, −2.07, 11.2% | 44, 25%, −3.50, 25.0% |
-| ActionAsAnnounced | Pass | 217, 86%, −0.98, 9.7% | 26, 77%, −0.53, 0% |
-| MinionPhase | Play | 558, 60%, −1.51, 7.5% | 49, 37%, −2.54, 18.4% |
-| ActionBlock | UseAbility | 61, 44%, −1.65, 6.6% | 3, 0%, −3.81, 33.3% |
-| ActionBlock | Play | 452, 65%, −1.17, 6.0% | 22, 68%, −1.38, 9.1% |
-| InfluenceTransfers | Withdraw | 52, 81%, −0.77, 5.8% | 1, 100%, −0.22, 0% |
-| MinionPhase | Pass | 157, 63%, −1.52, 5.7% | 7, 14%, −1.65, 0% |
-| InfluenceTransfers | Transfer | 1,073, 80%, −0.85, 5.3% | 63, 49%, −2.19, 12.7% |
-
-Where the decisions are many, blocks and combat barely collapse
-(ActionBlock Pass 1.4% / 6.2%, ActionBlocksDeclined Pass 2.5% / 5.1%); the
-turn's own choices do. Collapsed in both groups (what the exploration share
-explored, **The exploitability probe**): the minion phase's choice of what to do
-(MinionPhase TakeAction, Play, UseAbility: 1,163 imitated decisions, the
-most) and the influence phase's crypt draws and transfers
-(InfluenceTransfers DrawCrypt, Transfer).
+owner) win 79% of their games against p14 (39 games, 2.79 VP a seat; a fair
+share 25%), 6 of 9 against p17 by 2026-11-11; over 80 counted games the bots
+won 5 of 240 seats. At p14's tables its ledger: A&B 1.60 a round (the owner
+3.03), its prey's R −2.18 a turn (the owner's prey −6.06), its own −2.81, its
+predator's −0.34. Order of work (owner, 2026-11-09 and 11-11; the training
+board): exploiters, judged on the human-facing measures (roadmap
+M:stronger-bot).
 
 **The runs** (one entry a run, oldest first: its launch, the flags it changed,
 its numbers, what it settled; the last run's command in full, the next
@@ -1082,19 +1042,33 @@ its entry when it ends — the training skill's "A run")
   test failed; served as a trial (owner, 2026-11-06; back to p14 if the human
   games worsen, docs/watch.md), `runs/p17/last.zvp` (`f426338f6c80`), the
   previous `runs/served-prev-2026-11-06-p14.zvp` (`a78e74292acb`).
-- **p18, prepared** (owner, 2026-11-09 and 11-11: a run against exploiters,
+- **p18** (`runs/p18`, launched 2026-11-11 at `c8d753e`, the engine of
+  2.26.1; 5581 → 5880; owner, 2026-11-09 and 11-11: a run against exploiters,
   without the exploration share). Why: plain PPO on one deck at 1e-4 found
   +0.10 VP on p17 frozen in 100 iterations (**The exploitability probe**);
   exploiters that keep finding such gains, each on a deck humans beat the bot
   with, their last 4 retired copies kept at the learner's tables, are what p17
-  frozen alone never showed it. Settings: p17's command, with `--exploiter
-  true --exploiter-lr 1e-4 --exploiter-decks 9,5,0,29,13,30` (the named decks
-  humans won most with against the bots, `reports/total.md`: Gangrel,
-  Tremere, Hecata, The Endless Dance, Tzimisce, Path of Power and the Inner
-  Voice; at most 50 iterations each, `--exploiter-reset 50`, off its deck at
-  the start tables), `--weak-rate 0`, the held-out wins listed at launch.
-  Baseline: p17 (`f426338f6c80`), measured beside p18 by step 4 on the run's
-  engine (round 28's, after 2.26.0's deploy).
+  frozen alone never showed it. The command: p17's, with `--out runs/p18
+  --resume runs/p17/best.pt --opponents runs/p17/best.pt --exploiter true
+  --exploiter-lr 1e-4 --exploiter-decks 9,5,0,29,13,30 --exploiter-reset 50`
+  (the named decks humans won most with against the bots, `reports/total.md`:
+  Gangrel, Tremere, Hecata, The Endless Dance, Tzimisce, Path of Power and the
+  Inner Voice; at most 50 iterations each, off its deck at the start tables),
+  `--weak-rate 0 --weak-decks` with
+  `160,87,182,186,111,151,163,179,178,144,133,122,180,173,181,134,124,171,`
+  `102,143,110,183,99,112,93,96,98,89,107,136,132,154,158,187,188,91` (the
+  36 recent decks under a VP share of 0.10 in `served-p17.decks.json`,
+  2026-11-11), `--iterations 5880`, and held out (16): the five, then the
+  human wins since p17's launch, `5dba3e6fc049f0b8`, `479c5dc6325e31b8`,
+  `af299e69cc626225`, `2bee9103be47dfdc`, `1fdb12a004b14be8`,
+  `3f390e5601f7bfd4`, `5af4d2bd173094f6`, `e79edc1df3520df7`,
+  `7512b54e87ee02ee`, `40044b3e5a53807d`, `5150436d1548ad14`. Imitation reads
+  10,482 decisions, 56 records stopping partway on this engine, none on the
+  weak decks (`bc_weak` 0: no human has played them yet, so `--weak-decks`
+  weighs nothing in this run). A first launch at `b1de838` was stopped after
+  one iteration (its exploiter retired at once, p17's count carried over;
+  `c8d753e`). Baseline: p17 (`f426338f6c80`), measured beside p18 by step 4
+  on the run's engine.
 
 ### 11.3 Open gaps
 
