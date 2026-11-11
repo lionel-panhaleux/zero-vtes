@@ -27,7 +27,7 @@ use zvtes_env::bots::{Scripted, Style};
 use zvtes_env::obs::{encode, encode_critic, Obs, Version, OPT_F, OPT_IDS, TOK_F, TOK_IDS};
 use zvtes_env::{habits, politics};
 use zvtes_host::start::Start;
-use zvtes_policy::{Explore, Nudges};
+use zvtes_policy::Nudges;
 
 mod human;
 use zvtes_env::position;
@@ -513,8 +513,6 @@ struct GamePool {
     /// Added to every network seat's logits (`opt_bias`; owner,
     /// 2026-10-05: encouraged, not forced): `zvtes_policy::Nudges`.
     nudges: Nudges,
-    /// The options the exploration share samples over (`opt_explore`).
-    explore: Explore,
     /// The learner's minion-phase decisions offering each habit
     /// (`zvtes_env::habits::Habit`: rescue, burn, diablerie) and those taking
     /// it, since the last `habits()`.
@@ -786,7 +784,6 @@ impl GamePool {
             habits: habits::Set::parse(habits).map_err(PyValueError::new_err)?,
             chores,
             nudges: Nudges::default(),
-            explore: Explore::default(),
             discard_counts: [(0, 0); 2],
         };
         if let Some(tables) = tables {
@@ -804,8 +801,7 @@ impl GamePool {
     /// token and option counts: a dict of arrays `tok_ids` [B, T, 4] i32,
     /// `tok_f` [B, T, F] f32, `tok_n` [B], `opt_ids` [B, O, 5] i32, `opt_f`
     /// [B, O, G] f32, `opt_n` [B], `opt_bias` [B, O] f32 (added to the
-    /// logits before sampling: the `nudges`), `opt_explore` [B, O] u8 (an
-    /// option's `explore` pair, from 1; 0 none), `seat` [B] (the deciding
+    /// logits before sampling: the `nudges`), `seat` [B] (the deciding
     /// seat), `agent` [B] (its network id), `window` [B].
     fn observe<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyDict>> {
         let obs: Vec<(&DecisionRequest, &Obs)> = self
@@ -886,19 +882,6 @@ impl GamePool {
             }
         }
         d.set_item("opt_bias", PyArray1::from_vec(py, bias).reshape([b, n])?)?;
-        let mut flags = vec![0u8; b * n];
-        if !self.explore.is_empty() {
-            for (i, g) in self.games.iter().enumerate() {
-                let (r, _) = g.pending.as_ref().expect("a pending decision");
-                for (k, o) in r.options.iter().enumerate() {
-                    flags[i * n + k] = self.explore.pair(r, o).map_or(0, |p| p as u8 + 1);
-                }
-            }
-        }
-        d.set_item(
-            "opt_explore",
-            PyArray1::from_vec(py, flags).reshape([b, n])?,
-        )?;
         d.set_item("seat", PyArray1::from_vec(py, seat))?;
         d.set_item("agent", PyArray1::from_vec(py, agent))?;
         d.set_item("window", PyArray1::from_vec(py, window))?;
@@ -1109,14 +1092,6 @@ impl GamePool {
                 }
             }
         }
-        Ok(())
-    }
-
-    /// The (window, choice kind) pairs `opt_explore` flags, as
-    /// `Window:Kind,…` (`zvtes_policy::Explore`; empty: none).
-    #[setter]
-    fn set_explore(&mut self, pairs: &str) -> PyResult<()> {
-        self.explore = Explore::parse(pairs).map_err(PyValueError::new_err)?;
         Ok(())
     }
 

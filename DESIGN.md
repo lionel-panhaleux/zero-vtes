@@ -758,19 +758,8 @@ run. The full run journal to p17, cut on 2026-11-09: `git show
   the position's turn + 20; `--start-winner` puts the learner in the winner's
   seat of a human win (p17). The trainer reads players' games only (played
   out, a human seat, not a test client's; owner, 2026-10-29).
-- The exploration share (`--explore`, `--explore-kinds`; owner, 2026-11-09:
-  explore what the network collapsed): a trained network's decision
-  offering options of the named (window, kind) pairs (**Missed
-  opportunities** below; the pool's `opt_explore`) is drawn, at the share's
-  chance, from the policy flattened over them (each pair offered equally
-  likely, within it the logits over `--explore-temperature`, 4). PPO's
-  ratio is taken against that mixture: a collapsed option tried this way
-  has a ratio far under the clip's floor, so with a negative advantage it
-  moves nothing and with a positive one only by that small ratio; the
-  share acts mainly through the positions it reaches.
-  `kl` and `clipfrac` stay measured against the policy (importance
-  weighted); `explorable`, `explored` count the decisions. `--deck` pins
-  the learner's deck at its tables and evaluations (the probe's).
+- `--deck` pins the learner's deck at its tables and evaluations, over the
+  weak-deck routing (the exploitability probe's).
 - **Human games as data** (owner, 2026-10-03: "use the game log as a teaching
   vector"): a record replays exactly, every decision as (observation,
   options, choice) for any seat (`zvtes_py.replay_decisions`,
@@ -887,12 +876,14 @@ errors)
   | Plain PPO | 1.25 / 1.40 | 1.36 / 1.30 | 1.33 (+0.10 ± 0.10) |
   | Share 0.1 | 1.16 / 1.12 | 1.22 / 1.22 | 1.18 (−0.05 ± 0.10) |
 
-  Plain PPO gains on both seeds; the exploration share (**Training**, the
-  map's five pairs, ~10% of the explorable decisions drawn) does not, below
-  plain PPO on both (−0.15 ± 0.10). The probe shows exploitation, not the
-  share; the reading: the share's tries teach a collapsed option almost
-  nothing (**Training**), while its detours spoil the training games'
-  returns. Not step 4 of the training skill.
+  Plain PPO gains on both seeds. The exploration share (`066f47c`: the
+  learner's decisions offering the map's five pairs drawn, at the share's
+  chance, from the policy flattened over them, PPO's ratio against that
+  mixture; ~10% of those decisions) does not, below plain PPO on both
+  (−0.15 ± 0.10); dropped (owner, 2026-11-11). The reading: a collapsed
+  option it tries has a ratio far under the clip's floor, so the try
+  teaches it almost nothing, while the detours spoil the training games'
+  returns. The probe shows exploitation; not step 4 of the training skill.
 - **The critic against the position** (owner with Tom, 2026-10-22; `uv run
   python -m train.position`; `crates/env/src/position.rs`): the explained
   variance of each seat's result by the decision's share of the game, for the
@@ -1010,8 +1001,8 @@ ActionBlock BurnBloodForIntercept 3 of 8):
 
 Where the decisions are many, blocks and combat barely collapse
 (ActionBlock Pass 1.4% / 6.2%, ActionBlocksDeclined Pass 2.5% / 5.1%); the
-turn's own choices do. The exploration share (**Training**) explores the
-kinds collapsed in both groups: the minion phase's choice of what to do
+turn's own choices do. Collapsed in both groups (what the exploration share
+explored, **The exploitability probe**): the minion phase's choice of what to do
 (MinionPhase TakeAction, Play, UseAbility: 1,163 imitated decisions, the
 most) and the influence phase's crypt draws and transfers
 (InfluenceTransfers DrawCrypt, Transfer).

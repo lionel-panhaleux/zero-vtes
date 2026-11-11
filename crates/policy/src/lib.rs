@@ -660,42 +660,6 @@ pub fn choice_kind(c: &Choice) -> String {
         .to_string()
 }
 
-/// The (window, choice kind) pairs the exploration share samples over
-/// (`train/ppo.py`'s `explore_kinds`, DESIGN §11.2 "Missed
-/// opportunities"), named as `humanset --map` prints them.
-#[derive(Clone, Debug, Default, PartialEq)]
-pub struct Explore(Vec<(String, String)>);
-
-impl Explore {
-    /// `Window:Kind,…` (`MinionPhase:TakeAction,InfluenceTransfers:DrawCrypt`);
-    /// empty: none.
-    pub fn parse(s: &str) -> Result<Explore, String> {
-        s.split(',')
-            .map(str::trim)
-            .filter(|p| !p.is_empty())
-            .map(|p| match p.split_once(':') {
-                Some((w, k)) if !w.is_empty() && !k.is_empty() => {
-                    Ok((w.to_string(), k.to_string()))
-                }
-                _ => Err(format!("{p:?}: Window:Kind")),
-            })
-            .collect::<Result<_, _>>()
-            .map(Explore)
-    }
-
-    pub fn is_empty(&self) -> bool {
-        self.0.is_empty()
-    }
-
-    /// The pair option `o` of `req` is of (its kind, in its window), by
-    /// index.
-    pub fn pair(&self, req: &DecisionRequest, o: &Choice) -> Option<usize> {
-        let window = format!("{:?}", req.window);
-        let kind = choice_kind(o);
-        self.0.iter().position(|(w, k)| *w == window && *k == kind)
-    }
-}
-
 /// The choices no run has trained with (their observation folded into
 /// another kind, `obs::option`), never a network's: a withdrawal, a path
 /// followed. `None` when none is offered.

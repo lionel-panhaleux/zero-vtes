@@ -172,14 +172,6 @@ class Config:
     exploiter: bool = False
     exploiter_beaten: float = 0.3
     exploiter_reset: int = 50
-    # The exploration share (DESIGN §11.2 "Training"), never in evaluation:
-    # the pairs as `humanset --map` names them.
-    explore: float = 0.0
-    explore_kinds: str = (
-        "MinionPhase:TakeAction,MinionPhase:Play,MinionPhase:UseAbility,"
-        "InfluenceTransfers:DrawCrypt,InfluenceTransfers:Transfer"
-    )
-    explore_temperature: float = 4.0
     # Frozen opponents (checkpoint paths, comma-separated): with `league`,
     # every other seat is one of them, and `best.pt` is selected on games
     # against them (train/league.py).
@@ -447,8 +439,7 @@ def forward(model, batch):
 
 
 def step(chain, t, cfg):
-    """Append transition `t` ([obs, action, logp, value, reward, done, Φ,
-    the policy's logp]; logp the distribution sampled's, `act`)
+    """Append transition `t` ([obs, action, logp, value, reward, done, Φ])
     to a seat's chain, the previous one's reward gaining the shaping
     γΦ(t) − Φ(previous) (`Config.shaping`; Φ is 0 without)."""
     if chain:
@@ -496,35 +487,13 @@ def eval_tables(opponents, games):
     return out
 
 
-def flattened(logits, flags, temperature):
-    """The exploration share's distribution (`Config.explore`): each
-    `flags` pair offered (`opt_explore`, from 1) equally likely, within it
-    softmax(`logits` / `temperature`); rows offering none all 0."""
-    flat, kinds = np.zeros_like(logits), np.zeros(len(logits))
-    for g in range(1, int(flags.max(initial=0)) + 1):
-        m = flags == g
-        present = m.any(1)
-        z = np.where(m, logits / temperature, -np.inf)
-        z = np.exp(z - np.where(present, z.max(1), 0)[:, None])
-        flat += np.where(present[:, None], z / np.maximum(z.sum(1, keepdims=True), 1e-300), 0)
-        kinds += present
-    return flat / np.maximum(kinds, 1)[:, None]
-
-
 @torch.no_grad()
-def act(nets, obs, device, rng, temperature=None, explore=None):
+def act(nets, obs, device, rng, temperature=None):
     """Sample every row's option from its network (`obs["agent"]` → `nets`),
     at its `temperature` ({agent: t}, 1 for one not named; after the nudges,
-    as `NetAgent`). `explore` ({agent: (share, temperature)},
-    `Config.explore`): those agents' rows offering `opt_explore` options
-    sample from (1 − share) × the policy + share × `flattened`. Returns the
-    actions, their log-probabilities under the distribution sampled, the
-    values, their log-probabilities under the policy, and per row 0 (no
-    option to explore), 1 (some, the policy's draw) or 2 (drawn from
-    `flattened`)."""
+    as `NetAgent`): actions, their log-probabilities and the values."""
     b = len(obs["tok_n"])
     actions, logp, values = np.zeros(b, np.int64), np.zeros(b), np.zeros(b, np.float32)
-    policy_logp, explored = np.zeros(b), np.zeros(b, np.int8)
     for agent in np.unique(obs["agent"]):
         idx = np.nonzero(obs["agent"] == agent)[0]
         part = shaped({k: obs[k] for k in (*FIELDS, "tok_n", "opt_n", "deck_n", "ctx")}, idx)
@@ -536,22 +505,11 @@ def act(nets, obs, device, rng, temperature=None, explore=None):
             logits = logits / temperature.get(int(agent), 1.0)
         probs = torch.softmax(logits.float(), -1).cpu().numpy().astype(np.float64)
         probs /= probs.sum(1, keepdims=True)
-        q, draw = probs, probs
-        if explore and int(agent) in explore:
-            share, t = explore[int(agent)]
-            flags = obs["opt_explore"][idx]
-            flat = flattened(logits.cpu().numpy().astype(np.float64), flags, t)
-            offered = flags.any(1)
-            coin = offered & (rng.random(len(idx)) < share)
-            q = np.where(offered[:, None], (1 - share) * probs + share * flat, probs)
-            draw = np.where(coin[:, None], flat, probs)
-            explored[idx] = offered.astype(np.int8) + coin
-        a = np.array([rng.choice(len(p), p=p) for p in draw])
+        a = np.array([rng.choice(len(p), p=p) for p in probs])
         actions[idx] = a
-        logp[idx] = np.log(q[np.arange(len(a)), a] + 1e-12)
-        policy_logp[idx] = np.log(probs[np.arange(len(a)), a] + 1e-12)
+        logp[idx] = np.log(probs[np.arange(len(a)), a] + 1e-12)
         values[idx] = v.float().cpu().numpy()
-    return actions, logp, values, policy_logp, explored
+    return actions, logp, values
 
 
 def nudges(cfg, it):
@@ -990,8 +948,6 @@ class Trainer:
             replays=[text for _, text, _ in self.starts],
             habits=cfg.habits,
         )
-        if cfg.explore > 0:
-            self.pool.explore = cfg.explore_kinds
         if self.starts:
             readable = dict(zip((p.name for p, _, _ in self.starts), self.pool.starts))
             print(json.dumps({"starts": readable}), flush=True)
@@ -1003,13 +959,6 @@ class Trainer:
         if not self.league:
             return {0: self.model}
         return self.league.nets(self.model, self.exploiter.model if self.exploiter else None)
-
-    def exploring(self):
-        """`act`'s exploration share (`Config.explore`): the trained
-        networks', in training."""
-        if self.cfg.explore <= 0:
-            return None
-        return {lr.agent: (self.cfg.explore, self.cfg.explore_temperature) for lr in self.learners()}
 
     def pinned(self, spec):
         """`spec` with the learner's deck pinned (`Config.deck`)."""
@@ -1053,17 +1002,12 @@ class Trainer:
         """Play `steps` pool steps; each learner's transitions with their
         advantages and returns, and episode statistics."""
         stats = {"episodes": 0, "truncated": 0, "turns": 0, "starts": 0, "start_won": 0, "panics": 0}
-        stats |= {"explorable": 0, "explored": 0}
         by_agent = {lr.agent: lr for lr in self.learners()}
         closed = {a: [] for a in by_agent}
         self.pool.queue([self.spec() for _ in range(self.cfg.games)])
         for _ in range(self.cfg.steps):
             obs = self.pool.observe()
-            actions, logp, values, policy_logp, explored = act(
-                self.nets(), obs, self.device, self.rng, self.temperatures(False), self.exploring()
-            )
-            stats["explorable"] += int((explored > 0).sum())
-            stats["explored"] += int((explored == 2).sum())
+            actions, logp, values = act(self.nets(), obs, self.device, self.rng, self.temperatures(False))
             if self.critic is not None:
                 values = self.critic_values(obs, values)
             phi = self.potentials(obs)
@@ -1072,8 +1016,7 @@ class Trainer:
                 if learner is None:
                     continue
                 chain = learner.chains.setdefault((i, int(obs["seat"][i])), [])
-                t = [row, int(actions[i]), float(logp[i]), float(values[i]), 0.0, False, float(phi[i])]
-                step(chain, t + [float(policy_logp[i])], self.cfg)
+                step(chain, [row, int(actions[i]), float(logp[i]), float(values[i]), 0.0, False, float(phi[i])], self.cfg)
             for ep in self.pool.act(actions.tolist()):
                 if "panic" in ep:
                     # An engine bug (named on stderr): the game's chains
@@ -1141,12 +1084,12 @@ class Trainer:
     def advantages(self, chain, bootstrap):
         cfg, out, gae = self.cfg, [], 0.0
         next_value = bootstrap if bootstrap is not None else 0.0
-        for row, a, logp, v, r, done, _, policy_logp in reversed(chain):
+        for row, a, logp, v, r, done, _ in reversed(chain):
             if done:
                 next_value, gae = 0.0, 0.0
             delta = r + cfg.gamma * next_value - v
             gae = delta + cfg.gamma * cfg.lam * gae
-            out.append((row, a, logp, gae, gae + v, policy_logp))
+            out.append((row, a, logp, gae, gae + v))
             next_value = v
         return out
 
@@ -1233,14 +1176,9 @@ class Trainer:
                     with torch.no_grad():
                         # How far the update has moved the policy from the
                         # one that played (k3 estimator), and the share of
-                        # samples the clip holds: against the policy, each
-                        # sample weighted p/q where the exploration share
-                        # sampled from q.
-                        played = torch.tensor([samples[i][5] for i in part], device=self.device)
-                        iw = torch.exp(played - old)
-                        r = torch.exp(logp - played)
-                        kl = (iw * ((r - 1) - (logp - played))).mean()
-                        clipped = (iw * ((r - 1).abs() > cfg.clip).float()).mean()
+                        # samples the clip holds.
+                        kl = ((ratio - 1) - (logp - old)).mean()
+                        clipped = ((ratio - 1).abs() > cfg.clip).float().mean()
                     totals += w * np.array([pg.item(), vf.item(), ent.item(), kl.item(), clipped.item()])
                 if self.bc and learner.agent == 0 and not warming and len(losses) % cfg.bc_every == 0:
                     pick = self.rng.choice(
@@ -1354,7 +1292,7 @@ class Trainer:
         # The queued tables are games 0..games-1; later ones (the default
         # table, once the queue runs out) are not counted.
         while done < games:
-            actions, *_ = act(self.nets(), pool.observe(), self.device, rng, self.temperatures(True))
+            actions, _, _ = act(self.nets(), pool.observe(), self.device, rng, self.temperatures(True))
             for ep in pool.act(actions.tolist()):
                 if ep["game"] >= games:
                     continue

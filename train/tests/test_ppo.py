@@ -15,7 +15,7 @@ from train.league import EXP, EXPLOITER, FROZEN, League
 from train.model import remap_vocab
 from train.ppo import (
     BIAS, CTX, FIELDS, HIDDEN, TEST_CLIENTS, Config, Trainer, act, batch_of, collate, collate_bias, deck_index, end,
-    eval_tables, flattened, forward, games_weight, imitation, load_replays, made, rewards, sampling, shaped, start_won, step,
+    eval_tables, forward, games_weight, imitation, load_replays, made, rewards, sampling, shaped, start_won, step,
 )
 
 
@@ -368,14 +368,14 @@ def test_the_served_temperature(tmp_path):
     with torch.no_grad():
         logits = forward(model, batch)[0][: len(obs["tok_n"]), : obs["opt_ids"].shape[1]].float()
     logits = logits + torch.from_numpy(obs["opt_bias"])
-    best, lp_best, *_ = act({0: model}, obs, trainer.device, np.random.default_rng(1), {0: 1e-4})
+    best, lp_best, _ = act({0: model}, obs, trainer.device, np.random.default_rng(1), {0: 1e-4})
     # An untrained network may score two options within 1e-4 of each other,
     # which this temperature cannot make certain: only clear favourites count.
     top = logits.topk(2, dim=1).values
     clear = ((top[:, 0] - top[:, 1]) > 0.01).numpy()
     assert clear.mean() > 0.5, "most rows have a clear favourite"
     assert (best[clear] == logits.argmax(1).numpy()[clear]).all() and np.allclose(lp_best[clear], 0, atol=1e-6)
-    _, lp, *_ = act({0: model}, obs, trainer.device, np.random.default_rng(1))
+    _, lp, _ = act({0: model}, obs, trainer.device, np.random.default_rng(1))
     assert (lp < -1e-3).any(), "at 1 the same options are sampled from their distribution"
 
 
@@ -775,37 +775,6 @@ def test_starts_and_imitation_read_only_players_games(tmp_path):
     report = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(report)
     assert report.TEST_CLIENTS == TEST_CLIENTS
-
-
-def test_the_exploration_share(tmp_path):
-    # The exploration share (DESIGN §11.2 "Training").
-    small = dict(games=8, steps=24, d=32, layers=1, device="cpu", critic_warmup=0)
-    with pytest.raises(ValueError):
-        zvtes_py.GamePool(1, ["net:0"] * 4).explore = "MinionPhase"
-    trainer = Trainer(Config(**small, out=str(tmp_path / "t"), explore=1.0))
-    model, rng = trainer.model, np.random.default_rng(0)
-    seen = 0
-    for _ in range(200):
-        obs = trainer.pool.observe()
-        flags = obs["opt_explore"]
-        a, logp, _, policy_logp, explored = act({0: model}, obs, trainer.device, rng, explore={0: (1.0, 4.0)})
-        offered = flags.any(1)
-        assert ((explored == 2) == offered).all() and (explored != 1).all()
-        assert (flags[offered, a[offered]] > 0).all(), "a share of 1 draws only the named kinds"
-        assert np.allclose(logp[~offered], policy_logp[~offered])
-        seen += offered.sum()
-        plain = act({0: model}, obs, trainer.device, rng)
-        assert np.allclose(plain[1], plain[3]) and (plain[4] == 0).all()
-        trainer.pool.act(a.tolist())
-        if seen > 20:
-            break
-    assert seen > 20, "the default pairs come up in random games"
-    # The flattened distribution: each pair offered equally likely.
-    flat = flattened(np.array([[0.0, 9.0, -9.0, 5.0]]), np.array([[1, 1, 2, 0]], np.uint8), 4.0)
-    assert np.isclose(flat[0, :2].sum(), 0.5) and np.isclose(flat[0, 2], 0.5) and flat[0, 3] == 0
-    samples, stats = trainer.rollout()
-    assert stats["explored"] > 0 and stats["explored"] == stats["explorable"]
-    assert any(s[2] != s[5] for s in samples[0]), "the mixture's log-probability, not the policy's"
 
 
 def test_one_deck_for_the_learner(tmp_path):
