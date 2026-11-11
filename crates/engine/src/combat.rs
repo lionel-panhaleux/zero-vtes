@@ -5671,8 +5671,7 @@ impl Engine {
         // After-combat riders are lost when the combat continues (spec
         // §4.9.2).
         if let Some(a) = self.action.as_mut() {
-            a.continuation = None;
-            a.continue_free = false;
+            a.drop_continuations();
         }
         c.fresh_window(Step::BeforeRange);
     }
@@ -6024,8 +6023,7 @@ impl Engine {
             let ready = |m: MinionId| self.state.minions[m.index()].ready();
             if ready(x) && ready(y) {
                 if let Some(a) = self.action.as_mut() {
-                    a.continue_free = false;
-                    a.continued = false;
+                    a.drop_continuations();
                     a.last_combat = Some([x, y]);
                 }
                 let (at_resolution, after_resolution, queued, yawp) =

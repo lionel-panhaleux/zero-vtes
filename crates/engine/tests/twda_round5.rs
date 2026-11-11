@@ -877,6 +877,29 @@ fn psyche_loses_the_first_combats_continuation() {
     assert_eq!(pool(&e)[1], 10, "no continuation: blocked");
 }
 
+// [ANK 20250613] Psyche!'s chain: Form of Mist [PRO] continues "only in the
+// final combat". Its strike ends the first combat, Psyche! queues another:
+// no continuation is offered, the bleed stays blocked.
+#[test]
+fn psyche_loses_form_of_mists_continuation() {
+    let mut e = game(2);
+    let a = e.add_minion(SeatId(0), vampire_with("CEL", 0), 6, false);
+    superior(&mut e, a, "pro");
+    e.add_minion(SeatId(0), plain("Brujah", 0), 4, false);
+    let z = e.add_minion(SeatId(1), plain("Ventrue", 0), 8, false);
+    hand(&mut e, 0, &["Form of Mist", "Psyche!"]);
+    blocked_bleed(&mut e, a, z);
+    pick_when(&mut e, play(0, 1, a));
+    pick_when(&mut e, play(0, 1, a));
+    never_offered_until(
+        &mut e,
+        SeatId(0),
+        WindowLabel::MinionPhase,
+        Choice::ContinueAction,
+    );
+    assert_eq!(pool(&e)[1], 10, "no continuation: blocked");
+}
+
 // [RTR 20020501] Psyche!: "Cannot be played if there is already a combat
 // queued." [ANK 20191219] "Replacements effects that are played when a
 // combat 'would end' (eg. Telepathic Tracking) cannot be play afterwards"

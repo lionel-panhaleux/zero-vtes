@@ -809,8 +809,10 @@ sources to the engine's conventions.
   +1 blood (`card_surcharge`). A two-action printed ability keeps its
   progress on the minion (`Minion::progress`, Quincy, The Trapper).
 - **Queued combat** (Hedonism: `ActionCtx::queued_combat`,
-  `begin_queued_combat`, `resume_after_queued_combat`): it begins once the
-  block's own combat is over (block resolution), or after a successful
+  `begin_queued_combat`, `resume_after_queued_combat`): it begins right
+  after the block's own combat (`after_combat`), the after-combat window
+  opening once both are over (ANK 20250613, 20250710: "usable after block
+  resolution" waits for every chained combat), or after a successful
   action's effects, still part of its resolution (Sabbat V5 rules "Queue a
   combat"; rules-qa 53.3; a fizzled action counts as successful, 56.1);
   begun after the effects, its end goes on to the after-resolution window
@@ -818,9 +820,12 @@ sources to the engine's conventions.
   4.9.3); an action failing or ending first loses it (LSJ 20090826).
   Psyche!'s queue is the combat's (§6.7). Fast Reaction queues from the
   after-combat window (`QueueCombatAfterBlock`, its riders in
-  `ActionCtx::queued_riders`), dropping the block combat's continuation
-  as Psyche! does; `Requirement::BlockerOwn` reads `last_combat`, so it
-  follows the block's combat only, never its own.
+  `ActionCtx::queued_riders`); `Requirement::BlockerOwn` reads
+  `last_combat`, so it follows the block's combat only, never its own. No
+  action continues while a combat is queued (`Choice::ContinueAction`
+  withheld), and a queued combat beginning drops the continuations before
+  it (`drop_continuations`): only the final combat may continue the action
+  (ANK 20250613; RTR 20020501).
 - **Forward Momentum** (`ActionCtx::momentum`, `bleed_ends_riders`,
   `finish_action`): +1 counter after a successful bleed, −1 otherwise (a
   blocked bleed included), pending in the after-resolution window beside
@@ -1240,16 +1245,19 @@ sources to the engine's conventions.
   `Modifier::AdditionalStrikeEachRound` (Renegade Garou) adds a mandatory
   strike after the first pair, in the limited slot. Torrent's "continues as
   if unblocked" is `Side::continue_free` → `ActionCtx::continue_free`, taken
-  as the after-combat window closes, cleared if the combat goes on.
+  as the after-combat window closes; it and Form of Mist's
+  `ActionCtx::continuation` are dropped together
+  (`ActionCtx::drop_continuations`) if the combat goes on or another follows
+  it.
 - Psyche! [CEL] queues a combat as one would end (`CombatCtx::psyche`):
-  `end_combat` releases the after-combat held cards, drops the ended
-  combat's after-combat effects and begins the new one with the same
-  routing flags (`at_resolution`, `after_resolution`, `queued`, `yawp`),
-  no `held_at_block` (rules-qa 65.1; `begin_psyche_combat`). A new combat
-  with the action's acting minion waits first in
-  `ActionState::QueuedCombat` (`ActionCtx::psyche_next`), a window where
-  "about to enter combat with" reactions are played (Obedience, Promise of
-  1528: rules-qa 88.10, 88.11); elided when none can be.
+  `end_combat` releases the after-combat held cards, drops the ended combat's
+  after-combat effects, its continuations included, and begins the new one with
+  the same routing flags (`at_resolution`, `after_resolution`, `queued`,
+  `yawp`), no `held_at_block` (rules-qa 65.1; `begin_psyche_combat`). A new
+  combat with the action's acting minion waits first in
+  `ActionState::QueuedCombat` (`ActionCtx::psyche_next`), a window where "about
+  to enter combat with" reactions are played (Obedience, Promise of 1528:
+  rules-qa 88.10, 88.11); elided when none can be.
 - Flames of Insurrection's offers come as a minion opposing an Anarch leaves
   the ready region, to both controllers when both Anarchs leave
   (`Engine::flames_offers`).

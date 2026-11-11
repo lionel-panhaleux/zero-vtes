@@ -487,6 +487,138 @@ fn hedonisms_combat_is_lost_if_the_action_ends_first() {
     assert_eq!(e.state.seats[1].pool, 9);
 }
 
+// The Rules Director on queued combats (VEKN 82396): [ANK 20250613] "The
+// queued combat occurs right after the combat induced by the block"; [ANK
+// 20250710] cards "usable after block resolution" wait until all chained
+// combats are over. Hedonism fails z's attempt, y blocks: Devorah's
+// combat with z comes at once, Cats' Guidance only after it.
+#[test]
+fn hedonisms_combat_follows_the_blocks_at_once() {
+    let (mut e, bleeder, z) = table("Ximena");
+    let devorah = e.add_minion(SeatId(0), card("Devorah"), 4, false);
+    let y = e.add_minion(SeatId(1), with("ani"), 4, false);
+    hand(&mut e, 0, &["Hedonism"]);
+    hand(&mut e, 1, &["Cats' Guidance"]);
+    bleed_blocked(&mut e, bleeder, z);
+    pick_when(&mut e, play(0, 0, devorah));
+    pick_when(&mut e, block(y));
+    let guidance = play(0, 0, y);
+    loop {
+        let req = request(&mut e);
+        if req.options.contains(&guidance) {
+            break;
+        }
+        e.choose(fallback(&req));
+    }
+    assert_eq!(
+        (blood(&e, devorah), blood(&e, z)),
+        (3, 3),
+        "the queued combat first"
+    );
+}
+
+// [ANK 20250613] "No, actions cannot be continued while there is a pending
+// combat"; a continuation only in the final combat. Form of Mist [PRO]
+// ends the block's combat with Hedonism's queued: no continuation, the
+// bleed stays blocked.
+#[test]
+fn form_of_mist_continues_no_action_before_hedonisms_combat() {
+    let (mut e, _, z) = table("Ximena");
+    let mist = e.add_minion(SeatId(0), with("PRO"), 4, false);
+    let devorah = e.add_minion(SeatId(0), card("Devorah"), 4, false);
+    let y = e.add_minion(SeatId(1), plain("Brujah", 2), 4, false);
+    hand(&mut e, 0, &["Form of Mist", "Hedonism"]);
+    bleed_blocked(&mut e, mist, z);
+    pick_when(&mut e, play(1, 0, devorah));
+    pick_when(&mut e, block(y));
+    pick_when(&mut e, play(0, 1, mist));
+    never_offered_until(
+        &mut e,
+        SeatId(0),
+        WindowLabel::MinionPhase,
+        Choice::ContinueAction,
+    );
+    assert_eq!(
+        (blood(&e, devorah), blood(&e, z)),
+        (3, 3),
+        "the queued combat"
+    );
+    assert_eq!((blood(&e, mist), pool(&e)[1]), (4, 10), "not continued");
+}
+
+// Nor once Fast Reaction queues its combat in the after-combat window: the
+// continuation Form of Mist left is no longer offered.
+#[test]
+fn form_of_mist_continues_no_action_once_fast_reaction_queues_a_combat() {
+    let mut e = game(2);
+    let mist = e.add_minion(SeatId(0), with("PRO"), 4, false);
+    e.add_minion(SeatId(0), plain("Brujah", 0), 4, false);
+    let b = e.add_minion(SeatId(1), plain("Ventrue", 0), 4, false);
+    let v = e.add_minion(SeatId(1), with("aus"), 4, false);
+    hand(&mut e, 0, &["Form of Mist"]);
+    hand(&mut e, 1, &["Fast Reaction"]);
+    bleed_blocked(&mut e, mist, b);
+    pick_when(&mut e, play(0, 1, mist));
+    pick_when(&mut e, play(0, 0, v));
+    never_offered_until(
+        &mut e,
+        SeatId(0),
+        WindowLabel::MinionPhase,
+        Choice::ContinueAction,
+    );
+    assert_eq!(pool(&e)[1], 10, "blocked");
+}
+
+// [ANK 20250716] "If there's no block, you cannot play cards 'usable after
+// block resolution' at all": Hedonism fails the only attempt, the bleed
+// resolves and Hedonism's combat follows; Cats' Guidance never offered.
+#[test]
+fn cats_guidance_needs_a_block_after_hedonisms_combat() {
+    let (mut e, bleeder, _) = table("Ximena");
+    let devorah = e.add_minion(SeatId(0), card("Devorah"), 4, false);
+    let z = e.add_minion(SeatId(1), with("ani"), 4, false);
+    hand(&mut e, 0, &["Hedonism"]);
+    hand(&mut e, 1, &["Cats' Guidance"]);
+    bleed_blocked(&mut e, bleeder, z);
+    pick_when(&mut e, play(0, 0, devorah));
+    never_offered_until(&mut e, SeatId(0), WindowLabel::MinionPhase, play(0, 0, z));
+    assert_eq!((blood(&e, devorah), blood(&e, z), pool(&e)[1]), (3, 3, 9));
+}
+
+// [ANK 20251103] The slave rule after Hedonism queues a combat: "Yes".
+// Hedonism fails z's attempt, y blocks Antonio d'Erlette, Tupdog takes the
+// block's combat; Devorah's combat with z follows.
+#[test]
+fn a_slave_takes_the_block_after_hedonism_queues_a_combat() {
+    let (mut e, _, z) = table("Ximena");
+    let antonio = e.add_minion(SeatId(0), card("Antonio d'Erlette"), 4, false);
+    let tupdog = e.add_minion(SeatId(0), card("Tupdog"), 4, false);
+    let devorah = e.add_minion(SeatId(0), card("Devorah"), 4, false);
+    let y = e.add_minion(SeatId(1), plain("Brujah", 2), 4, false);
+    hand(&mut e, 0, &["Hedonism"]);
+    bleed_blocked(&mut e, antonio, z);
+    pick_when(&mut e, play(0, 0, devorah));
+    pick_when(&mut e, block(y));
+    pick_when(
+        &mut e,
+        Choice::UseAbility {
+            source: AbilitySource::Vampire(tupdog),
+            ability: 1,
+            actor: None,
+            target: Target::None,
+        },
+    );
+    until(&mut e, SeatId(0), WindowLabel::MinionPhase);
+    assert!(e.state.minions[tupdog.index()].locked);
+    assert_eq!(blood(&e, antonio), 4, "the slave fought");
+    assert!(blood(&e, tupdog) < 4 && blood(&e, y) < 4);
+    assert_eq!(
+        (blood(&e, devorah), blood(&e, z)),
+        (3, 3),
+        "then the queued combat"
+    );
+}
+
 // The Hungry Coyote: "Sabbat vampires you control get +1 hunt": 2 blood
 // for a Sabbat vampire, 1 for another sect's. [RTR 20030519] [RTR
 // 20180511] "The hunt bonus applies to non-standard hunt actions, blood

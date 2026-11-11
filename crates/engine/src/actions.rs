@@ -131,6 +131,15 @@ pub struct PsycheNext {
 }
 
 impl ActionCtx {
+    /// The combat just ended continues no action: it goes on, or another
+    /// follows it (a queued one, Psyche!'s); only the final combat may
+    /// (ANK 20250613; RTR 20020501).
+    pub(crate) fn drop_continuations(&mut self) {
+        self.continuation = None;
+        self.continue_free = false;
+        self.continued = false;
+    }
+
     /// The minion `m` is about to enter combat with in the combat Psyche!
     /// queued (`ActionState::QueuedCombat`).
     pub fn queued_opponent(&self, m: MinionId) -> Option<MinionId> {
@@ -289,7 +298,8 @@ pub struct ActionCtx {
     /// The minion whose block resolved (for "who has blocked").
     pub blocker: Option<MinionId>,
     /// Form of Mist [PRO]: after combat, burn `blood` to continue with
-    /// +`stealth` as if unblocked. Lost if the combat continues.
+    /// +`stealth` as if unblocked. Lost if the combat continues or another
+    /// follows it (`drop_continuations`).
     pub continuation: Option<(u8, u8)>,
     /// Torrent [CEL]: the action continues as if unblocked as the
     /// after-combat window closes, mandatory and free (rules-qa 63.6).
@@ -3506,7 +3516,12 @@ impl Engine {
         }
         // Only after a block's combat: an unblocked action has nothing to
         // continue (rules-qa 17.3).
-        if a.state == ActionState::AfterCombat && seat == a.seat && !a.resolved {
+        // Not while a combat is queued (ANK 20250613).
+        if a.state == ActionState::AfterCombat
+            && seat == a.seat
+            && !a.resolved
+            && a.queued_combat.is_none()
+        {
             if let Some((blood, _)) = a.continuation {
                 let m = &self.state.minions[a.acting.index()];
                 // A directed action whose target Methuselah left the game
@@ -3871,8 +3886,9 @@ impl Engine {
         {
             return;
         }
-        // A combat queued (Hedonism) begins once the block's combat or the
-        // one the resolution began is over (rules-qa 53.3).
+        // A combat queued from the after-combat window itself (Fast
+        // Reaction, Pocket Out of Time) begins as it closes; Hedonism's
+        // began in `after_combat` (rules-qa 53.3).
         if self.action.as_ref().expect("action context").state == ActionState::AfterCombat
             && self.begin_queued_combat()
         {
@@ -4348,6 +4364,10 @@ impl Engine {
         if !ready(x) || !ready(y) {
             return false;
         }
+        self.action
+            .as_mut()
+            .expect("action context")
+            .drop_continuations();
         self.start_combat(x, y);
         self.combat.as_mut().expect("combat").queued = true;
         let riders = std::mem::take(&mut self.action.as_mut().expect("action").queued_riders);
@@ -4453,11 +4473,15 @@ impl Engine {
     }
 
     /// The combat ended: open the after-combat window (rules-qa 2.1: once,
-    /// after all combats of the block).
+    /// after all combats of the block). A combat queued meanwhile (Hedonism)
+    /// comes right after the block's, the window once both are over (ANK
+    /// 20250613, 20250710).
     pub(crate) fn after_combat(&mut self) {
-        let a = self.action.as_mut().expect("action context");
-        a.state = ActionState::AfterCombat;
-        a.fresh_window();
+        self.action.as_mut().expect("action context").state = ActionState::AfterCombat;
+        if self.begin_queued_combat() {
+            return;
+        }
+        self.action.as_mut().expect("action context").fresh_window();
         self.flow = Flow::Action;
     }
 
@@ -5016,8 +5040,7 @@ impl Engine {
             }
             // Fast Reaction: the acting minion in combat with this vampire
             // once the after-combat window closes, unable to strike in its
-            // first round; [AUS] a press for this vampire. The block's
-            // combat's continuation lost, as Psyche!'s (RTR 20020501).
+            // first round; [AUS] a press for this vampire.
             Effect::QueueCombatAfterBlock {
                 with_blocker,
                 press,
@@ -5028,8 +5051,6 @@ impl Engine {
                 } else {
                     a.acting
                 };
-                a.continue_free = false;
-                a.continued = false;
                 a.queued_combat = Some((opponent, m));
                 a.queued_riders = vec![(opponent, cards::BlockRider::NoStrikeFirstRound)];
                 if press {
