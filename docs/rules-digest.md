@@ -601,8 +601,9 @@ one), 26.8 (younger than the acting vampire), 60.11, 60.13, 71.1.
   20180807). Seraph is one too, not a title (78.1).
 - A contract is any card whose type line says so (Priority Contract,
   Clandestine Contract): The Black Throne pays for each (74.12).
-- A justicar requirement met by Karl Schrekt makes him a titled Camarilla
-  vampire for that card (59.14).
+- A justicar requirement met by Karl Schrekt makes him Camarilla for that
+  card (Closed Session: he votes), never "a titled Camarilla vampire", nor
+  an ability's justicar (Theo Bell) (59.14).
 - A title card replaces a printed title for good (19.2).
 - Two vampires of one Methuselah claiming the same unique title contest it,
   chosen or forced: a title card on one's own vampire or passed by another
@@ -822,10 +823,10 @@ limit:
     Toreador Grand Ball's locked and second Toreador); the card's effects in
     play never do (41.2, ANK 20220816-2).
   - Karl Schrekt meets a justicar requirement on the cards he plays, never a
-    master card's (Camarilla Conclave), whatever his sect; a title
-    requirement met this way makes him a titled Camarilla vampire from the
-    card's point of view (Camarilla's Iron Fist even when no longer
-    Camarilla; owner 2026-10-09 over ANK 20250410) (59.14).
+    master card's (Camarilla Conclave) nor an ability's (Theo Bell),
+    whatever his sect, and is Camarilla for that card (his Closed Session
+    leaves him a vote); only a list naming a justicar, so no longer
+    Camarilla he cannot call Camarilla's Iron Fist (ANK 20250410) (59.14).
   - An ally playing as a vampire: D16.
 - Mozambique Allure's "Requires a Laibon or non-titled vampire": a Laibon
   (titled or not) with a crypt card (LSJ 20070411-2), or a non-titled
@@ -3822,9 +3823,9 @@ retainers, traits, titles, trait changes).
   cards on the incoming card burn, the vampire in play keeping its own
   (rulebook "Advanced") (90.5).
 - Group versions are one vampire for contests, each with its own text:
-  Theo Bell G2 and G6 (no merge, the G2 advanced card not in the pool; his
-  ready prince or justicar is another vampire of his controller's, read
-  live) (60.1); François Villon G2 and G6 (62.4).
+  Theo Bell G2 and G6 (his ready prince or justicar is another vampire of
+  his controller's, read live; the G2 advanced card merges with the base,
+  111.19) (60.1); François Villon G2 and G6 (62.4).
 - A merged vampire keeps its entry into play (71.3, LSJ 20030519-2; 70.3).
 - A merged vampire: both cards' text, the advanced card's sect (ANK
   20180524); a named Camarilla title held as the Laibon titles are (Karsh:
@@ -4915,10 +4916,9 @@ mixed item is stated in its section.
   question changes no state (68.11); New Blood's circle first left unmodeled
   (67.6, superseded by 68.1); bare traits with no card reading them yet
   (Red List on Ossian, 64.6; Flight until 84.37); "no tenant"
-  clauses (Abraham Mellon's minion clause, 41.1; Elysium, 44.7; a justicar
-  requirement in play, 59.14; no mage ally, 41.8, superseded by 62.31; no
-  demon or zombie retainer, 62.30, 55.6; no ammo card, 64.10; the G2 advanced
-  Theo Bell, 60.1); implementation order of a vampire's text (13.1).
+  clauses (Abraham Mellon's minion clause, 41.1; Elysium, 44.7; no mage
+  ally, 41.8, superseded by 62.31; no demon or zombie retainer, 62.30, 55.6;
+  no ammo card, 64.10); implementation order of a vampire's text (13.1).
 - Bundles KRCG types "Precon" that are card packs (Secrets of New York, Noites
   Brasileiras) give no precon deck (112.1).
 
@@ -4931,11 +4931,12 @@ rules-qa batch.
 
 ### 23.1 The owner over a KRCG ruling (settled)
 
-- **K1** Karl Schrekt: 59.14 (owner, 2026-10-09) — met as a justicar he is a
-  titled Camarilla vampire for the card, so he calls Camarilla's Iron Fist
-  when no longer Camarilla — over ANK 20250410 ("when he changes sects he
-  cannot play votes that require a titled Camarilla vampire"); the ledger
-  rows are `n/a: superseded`. Advanced rules §5.8.3 agrees with the owner.
+- **K1** Karl Schrekt: 59.14 (owner, 2026-10-09) read him, met as a
+  justicar, as a titled Camarilla vampire for the card, calling Camarilla's
+  Iron Fist when no longer Camarilla, over ANK 20250410 — superseded by
+  that ruling, a Rules Director's (owner, 2026-11-11): only a list naming a
+  justicar is met, never "a titled Camarilla vampire"; advanced rules
+  §5.8.3 agrees.
 - **K2** CrimethInc.: 62.21 (owner, 2026-10-11) — a recruit, employ or equip
   of a card requiring an Anarch is an action requiring one — over ANK
   20180817, LSJ 20100303, LSJ 20100725 ("requirements apply but do not count
@@ -5535,16 +5536,15 @@ index or an item cited nowhere.
   §3.12,§7.3,§11.4; 59.6 §3.10,§12.12; 59.7 §3.15,§11.7,§13.3; 59.8
   §4.2,§5.1,§12.1,§12.8; 59.9 §3.3,§4.3,§13.5; 59.10 §3.20,§4.2,§12.8; 59.11
   §3.15,§14.6; 59.12 §7.2,§19.1,§19.4; 59.13 §3.15,§8.6,§16.4,§18.3; 59.14
-  §3.15,§4.4,§18.4,§22,§23.1; 59.15 §9.1,§14.4,§16.3; 59.16
-  §4.2,§11.1,§19.1; 59.17 §4.6,§12.11,§12.12,§16.7; 59.18 §4.2,§13.3; 59.19
-  §3.15,§4.3,§13.3
-- **60** — 60.1 §14.9,§22; 60.2 §5.5,§13.1,§19.3; 60.3
-  §3.6,§3.18,§7.3,§15.2; 60.4 §3.8,§3.18,§15.2; 60.5 §3.12,§7.3,§14.1; 60.6
-  §2,§4.2,§14.1; 60.7 §4.2,§7.3,§24.1; 60.8 §6.4,§14.3; 60.9 §18.1; 60.10
-  §8.1; 60.11 §3.13,§4.2,§12.4; 60.12 §9.2,§16.4; 60.13 §2,§3.13,§9.5,§14.5;
-  60.14 §13.5,§16.4; 60.15 §3.2,§4.5; 60.16 §2,§13.1; 60.17 §2,§8.1,§19.4;
-  60.18 §2,§3.13,§14.4,§14.7,§23.4; 60.19
-  §3.9,§5.1,§7.1,§16.1,§17.1,§19.4,§24.1; 60.20 §3.6,§4.2,§12.8,§14.7; 60.21
+  §3.15,§4.4,§18.4,§23.1; 59.15 §9.1,§14.4,§16.3; 59.16 §4.2,§11.1,§19.1;
+  59.17 §4.6,§12.11,§12.12,§16.7; 59.18 §4.2,§13.3; 59.19 §3.15,§4.3,§13.3
+- **60** — 60.1 §14.9; 60.2 §5.5,§13.1,§19.3; 60.3 §3.6,§3.18,§7.3,§15.2;
+  60.4 §3.8,§3.18,§15.2; 60.5 §3.12,§7.3,§14.1; 60.6 §2,§4.2,§14.1; 60.7
+  §4.2,§7.3,§24.1; 60.8 §6.4,§14.3; 60.9 §18.1; 60.10 §8.1; 60.11
+  §3.13,§4.2,§12.4; 60.12 §9.2,§16.4; 60.13 §2,§3.13,§9.5,§14.5; 60.14
+  §13.5,§16.4; 60.15 §3.2,§4.5; 60.16 §2,§13.1; 60.17 §2,§8.1,§19.4; 60.18
+  §2,§3.13,§14.4,§14.7,§23.4; 60.19 §3.9,§5.1,§7.1,§16.1,§17.1,§19.4,§24.1;
+  60.20 §3.6,§4.2,§12.8,§14.7; 60.21
   §3.2,§3.4,§3.6,§8.2,§9.6,§10.3,§14.5,§23.1,§24.1; 60.22 §2,§5.3,§6.2,§23.2
 - **61** — 61.1 §12.12; 61.2 §3.3,§6.3,§11.1,§21.2
 - **62** — 62.1 §12.5; 62.2 §2,§3.8,§3.14,§7.3; 62.3 §2,§4.2,§9.1,§14.1;

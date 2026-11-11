@@ -8431,30 +8431,33 @@ pub fn played_action_card_targets(st: &GameState, seat: SeatId, p: &PlayCtx) -> 
     }
 }
 
-/// `m` meets requirement `r` of the card it plays in `mode` as if it were
-/// a Camarilla vampire or a prince (Victor Gerard), or a justicar (Karl
-/// Schrekt: a card whose title requirement he meets so sees a titled
-/// Camarilla vampire; owner, 2026-10-09: rules-qa 59.14): read on the play
-/// and as its action resolves, never by the card's effects in play (LSJ
-/// 20101013), so not in `holds`.
-pub fn plays_as_sect_or_title(st: &GameState, m: MinionId, mode: &ModeDef, r: Requirement) -> bool {
+/// `m` meets requirement `r` of the card it plays as if it were a Camarilla
+/// vampire or a prince (Victor Gerard), or a justicar (Karl Schrekt: a list
+/// naming one, never "a titled Camarilla vampire", ANK 20250410, rules-qa
+/// 59.14): read on the play and as its action resolves, never by the
+/// card's effects in play nor by an ability (LSJ 20101013), so not in
+/// `holds`.
+pub fn plays_as_sect_or_title(st: &GameState, m: MinionId, r: Requirement) -> bool {
     let has = |stat| st.printed_mod(m, stat, crate::state::PrintedCtx::default()) > 0;
-    let as_justicar = || {
-        has(Stat::PlaysAsJusticar)
-            && mode.requires.iter().any(|r| {
-                matches!(r, Requirement::ActorTitleIn(cs)
-                    if cs.iter().any(|c| matches!(c, TitleClass::Justicar | TitleClass::Any)))
-            })
-    };
     match r {
         Requirement::ActorSectIn(sects) => {
-            sects.contains(&Sect::Camarilla) && (has(Stat::PlaysAsCamarilla) || as_justicar())
+            sects.contains(&Sect::Camarilla) && has(Stat::PlaysAsCamarilla)
         }
         Requirement::ActorTitleIn(classes) => {
             classes.contains(&TitleClass::Prince) && has(Stat::PlaysAsPrince)
+                || classes.contains(&TitleClass::Justicar) && has(Stat::PlaysAsJusticar)
         }
         _ => false,
     }
+}
+
+/// `m` plays the card in `mode` as a Camarilla vampire: a requirement met
+/// as if, a Camarilla title implying the sect for that card (LSJ 20050128,
+/// LSJ 20050128-2: Closed Session's caller votes; advanced rules §5.8.3).
+pub fn plays_as_camarilla(st: &GameState, m: MinionId, mode: &ModeDef) -> bool {
+    mode.requires
+        .iter()
+        .any(|&r| plays_as_sect_or_title(st, m, r))
 }
 
 /// A title requirement beside a Camarilla one that `m` meets only as if: its
@@ -9731,12 +9734,7 @@ pub fn holds(
         }
         Requirement::ActorTitleIn(classes) => actor.is_some_and(|m| {
             let t = st.title_of(m);
-            classes.iter().any(|c| c.matches(t))
-                // Karl Schrekt: "as if he were a justicar".
-                || classes.contains(&TitleClass::Justicar)
-                    && st.printed_mod(m, Stat::PlaysAsJusticar, crate::state::PrintedCtx::default())
-                        > 0
-                || st.meets_sect_and_title_requirements(m)
+            classes.iter().any(|c| c.matches(t)) || st.meets_sect_and_title_requirements(m)
         }),
         Requirement::ActorTitleNotIn(classes) => actor.is_some_and(|m| {
             let t = st.title_of(m);

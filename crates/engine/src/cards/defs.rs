@@ -2582,7 +2582,11 @@ pub static CLOSED_SESSION: CardDef = CardDef {
     modes: &[polling_mode!(
         Actor::ActingMinion,
         &[
-            Requirement::ActorTitleIn(&[TitleClass::Prince, TitleClass::Justicar]),
+            Requirement::ActorTitleIn(&[
+                TitleClass::Prince,
+                TitleClass::Justicar,
+                TitleClass::InnerCircle
+            ]),
             Requirement::PollingStep,
             Requirement::NoVotesCast
         ],

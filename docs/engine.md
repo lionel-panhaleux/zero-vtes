@@ -232,7 +232,6 @@ tables; `limit_slot` matches every `Limit`.
   `data/window-matrix-reviewed.csv`;
 - `plain_stat_halves_apply_and_every_vampire_has_all_its_text`
   (`tests/vampires.rs`): no `incomplete` left (rules-qa 13.1);
-- `no_in_play_effect_requires_a_justicar` (`tests/twda_unlocks.rs`);
 - `legal_no_ops_are_offered_and_known_to_gain_nothing` (`tests/precon.rs`).
 - `no_card_name_in_engine_code` (`tests/lint.rs`): no card name as a string
   in hand-written engine code (`crates/env`'s included) outside the
@@ -694,11 +693,15 @@ sources to the engine's conventions.
   requiring a Discipline each turn, `Minion::discipline_card_turn`, unpaid;
   Two Wrongs) settles at once in `open_as_played`, with no as-played
   window.
-- Karl Schrekt (`Stat::PlaysAsJusticar`, his Camarilla requirement) and
-  Victor Gerard (`Stat::PlaysAsCamarilla`, `Stat::PlaysAsPrince`) meet a
-  card's requirement through `cards::plays_as_sect_or_title`, read on the
-  play and as its action resolves (`card_traits_lapsed`), never in `holds`:
-  the card's effects in play do not take them for one (LSJ 20101013).
+- Karl Schrekt (`Stat::PlaysAsJusticar`: a title list naming a justicar,
+  rules-qa 59.14) and Victor Gerard (`Stat::PlaysAsCamarilla`,
+  `Stat::PlaysAsPrince`) meet a card's requirement through
+  `cards::plays_as_sect_or_title`, read on the play and as its action
+  resolves (`card_traits_lapsed`), never in `holds`: the card's effects in
+  play and an ability's requirement do not take them for one (LSJ
+  20101013). Met so, the title implies the Camarilla for that card
+  (`cards::plays_as_camarilla`): Closed Session's bar leaves its caller a
+  vote (`ReferendumCtx::only_sect_caller`).
 - Vlad Tepes (`Stat::MeetsSectAndTitleRequirements`,
   `GameState::meets_sect_and_title_requirements`) holds `ActorSectIn` and
   `ActorTitleIn` for what he plays or uses; a referendum's terms are read

@@ -4195,7 +4195,7 @@ impl Engine {
             matches!(
                 r,
                 cards::Requirement::ActorSectIn(_) | cards::Requirement::ActorTitleIn(_)
-            ) && !cards::plays_as_sect_or_title(st, m, mode, r)
+            ) && !cards::plays_as_sect_or_title(st, m, r)
                 && (cards::title_dormant_as_camarilla(st, m, mode, r)
                     || !cards::holds(
                         r,

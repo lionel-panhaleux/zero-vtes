@@ -1822,6 +1822,26 @@ fn theo_bell_can_be_hunted_by_a_justicar() {
     }
 }
 
+// Theo Bell (advanced): "any justicar or Inner Circle member can call a
+// referendum to burn Theo" is an ability, no card Karl plays: [LSJ 20101013]
+// "not treated as meeting the requirements for effects the card has from
+// being in play" — with a Gehenna card in play, Karl is not offered it.
+#[test]
+fn karl_schrekt_cannot_call_theo_bells_referendum() {
+    let mut e = game(2);
+    e.add_minion(SeatId(0), find_card("Karl Schrekt"), 6, false);
+    e.add_minion(SeatId(0), plain("Brujah", 0), 4, false);
+    let theo = e.add_minion(SeatId(1), find_vampire("Theo Bell", true), 4, false);
+    e.add_minion(SeatId(1), plain("Ventrue", 1), 4, false);
+    in_play(&mut e, 1, "Fueled by Heart's Blood", None);
+    let req = to_minion_phase(&mut e, SeatId(0));
+    assert!(
+        !req.options.iter().any(|o| matches!(o, Choice::UseAbility { source: zvtes::cards::AbilitySource::Vampire(x), .. } if *x == theo)),
+        "{:?}",
+        req.options
+    );
+}
+
 /// Gharston Roland: "cannot perform an action if any minion has already
 /// performed an action (successful or not) this turn."
 #[test]

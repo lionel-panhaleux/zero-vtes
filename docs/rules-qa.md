@@ -1088,7 +1088,7 @@ Readings no ruling settles, implemented with slice 16l; questions for the owner.
 
 **59.13** Ephor: put on any Methuselah's Ventrue with capacity 8 or more (read at play; it stays if the capacity drops, but the action then needs it); the +1 vote is no title; the action targets any vampire whose title is contested, which loses it — its rivals' claims return free in their unlock phase. Confirmed (owner, 2026-10-09).
 
-**59.14** Karl Schrekt: he meets a justicar requirement on the cards he plays (never a master card's, Camarilla Conclave), whatever his sect — a justicar implying the Camarilla (LSJ 20050128); a title requirement he meets this way makes him a titled Camarilla vampire from the card's point of view, so he can call Camarilla's Iron Fist even when no longer Camarilla; no in-play effect of the pool requires a justicar. (Owner, 2026-10-09, over ANK 20250410.)
+**59.14** Karl Schrekt: he meets a justicar requirement on the cards he plays (never a master card's, Camarilla Conclave), whatever his sect — a justicar implying the Camarilla for that card (LSJ 20050128): playing Closed Session so, he still votes under its bar, as Kemintiri (LSJ 20050128-2; Victor Gerard alike as a prince, advanced rules §5.8.3); only a requirement whose list names a justicar (Parity Shift's "prince or justicar", Closed Session's "prince, justicar or Inner Circle member"), never an open one: no longer Camarilla, he cannot call Camarilla's Iron Fist ("a titled Camarilla vampire"); an ability is no card he plays: not Theo Bell (advanced)'s referendum (LSJ 20101013). (Owner, 2026-10-09; its reading that Karl calls Iron Fist superseded by ANK 20250410, a Rules Director ruling (owner, 2026-11-11).)
 
 **59.15** The Signet of King Saul: the capacity is read live at the block attempt (Discipline masters count); allies may block; any action of the bearer. Confirmed (owner, 2026-10-09).
 
@@ -1104,7 +1104,7 @@ Readings no ruling settles, implemented with slice 16l; questions for the owner.
 
 Readings no ruling settles, implemented with slice 16m; questions for the owner.
 
-**60.1** Theo Bell (G2): the ready prince or justicar is another vampire of his controller's, read live; the G2 and G6 cards are one vampire for contests (no merge: the G2 advanced card is not in the pool). Confirmed (owner, 2026-10-09).
+**60.1** Theo Bell (G2): the ready prince or justicar is another vampire of his controller's, read live; the G2 and G6 cards are one vampire for contests (no merge: the G2 advanced card is not in the pool). Confirmed (owner, 2026-10-09). The G2 advanced card has since entered the pool (round 26) and merges with the base (111.19).
 
 **60.2** Juliet Parr: the referendum of her own political action (not a blood hunt); each one passed adds 2 hand size, until her controller's next unlock phase begins. Confirmed (owner, 2026-10-09).
 
@@ -3153,7 +3153,7 @@ Each contradiction read against the KRCG rulings, the advanced rules and the rul
 
 **113.87** Eye of Unforgiving Heaven and a striker's own damage bonus (Noluthando's +1 with ranged strikes, Harry Reese's +1): the bonus raises every recipient's damage, the opposing minion's, the striker's own share and each demon retainer's (3 each with Noluthando); a dodge still spares the dodger only (113.86). Red, answered by the owner (2026-11-11: "every recipient"). Tests: `eye_of_unforgiving_heaven_carries_the_strikers_bonus_to_every_recipient`.
 
-**113.88** Fanfare for Elysium: up to five vampires (zero allowed, D4) chosen in the terms after the action succeeds, untargeted (3.5, 38.6, D6), any Methuselah's, torpid too, older than the calling vampire by capacity in play, equal not older (Stealing Years', D30; amber), each still in play gaining 1 as it passes, capped (amber); [MEL] put in play under the caller's control, another's copy contesting (76.2; amber), ending any combat, its controller's choice, before range. Tests: `fanfare_for_elysium_feeds_older_vampires`, `fanfare_for_elysium_superior_stays_to_end_a_combat`.
+**113.88** Fanfare for Elysium: up to five vampires (zero allowed, D4) chosen in the terms after the action succeeds, untargeted (3.5, 38.6, D6), any Methuselah's, torpid too, older than the calling vampire by capacity in play, equal not older (Stealing Years', D30; amber), each still in play gaining 1 as it passes, capped (amber); [MEL] put in play under the caller's control, another's copy contesting (rulebook "Contested Cards"; 7.1, 113.143; amber), ending any combat, its controller's choice, before range. Tests: `fanfare_for_elysium_feeds_older_vampires`, `fanfare_for_elysium_superior_stays_to_end_a_combat`.
 
 **113.89** Foldable Machine Gun: no maneuver in the first round of any combat (amber), none while its strike is barred (LSJ 20021028); its additional strike AK-47's, one limited source. Tests: `foldable_machine_gun_maneuvers_only_after_the_first_round`, `a_guns_maneuver_is_not_used_while_its_strike_is_barred`.
 

@@ -1886,7 +1886,7 @@ impl Engine {
                     if !mode.requires.iter().all(|&r| {
                         (woken_reaction && r == Requirement::ActorUnlocked)
                             || (sorcery_first_round && r == Requirement::NotFirstRound)
-                            || actor.is_some_and(|m| cards::plays_as_sect_or_title(st, m, mode, r))
+                            || actor.is_some_and(|m| cards::plays_as_sect_or_title(st, m, r))
                             || as_vampire.is_some_and(|g| match r {
                                 Requirement::ActorSectIn(ss) => ss.contains(&g.sect),
                                 Requirement::ActorCapacityAtLeast(n) => g.capacity >= n,

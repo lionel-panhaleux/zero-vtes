@@ -1976,11 +1976,9 @@ fn fakir_al_sidi_fails_a_referendum_while_locked() {
     assert_eq!(pool(&e), vec![10, 10], "failed: no pool moved");
 }
 
-// Karl Schrekt [LSJ 20050128] "When considered a Justicar, he is also
-// implicitly considered Camarilla", [LSJ 20101013] [ANK 20190228] [ANK
-// 20200705-2] [LSJ 20070708] [RTR 20070707] "treated as such for all the
-// effects of the card": Karl calls Parity Shift ("requires a prince or
-// justicar") — made Anarch too, a justicar implying the Camarilla; [ANK
+// Karl Schrekt [LSJ 20101013] [ANK 20190228] [ANK 20200705-2] [LSJ
+// 20070708] [RTR 20070707] "treated as such for all the effects of the
+// card": Karl calls Parity Shift ("requires a prince or justicar"); [ANK
 // 20231221] "When meeting a title requirement for a political action, the
 // vampire does not get the title's votes": he casts his own 2, not a
 // justicar's 3.
@@ -2004,16 +2002,6 @@ fn karl_schrekt_plays_justicar_cards_with_his_own_votes() {
     to_window(&mut e, SeatId(0), WindowLabel::ReferendumPolling);
     let r = e.referendum().expect("referendum");
     assert_eq!(r.votes_of(&e.state, karl), 2);
-
-    let mut e = game(2);
-    let karl = e.add_minion(SeatId(0), find_card("Karl Schrekt"), 6, false);
-    e.add_minion(SeatId(0), plain("Brujah", 0), 4, false);
-    e.add_minion(SeatId(1), plain("Ventrue", 0), 4, false);
-    e.state.minions[karl.index()].sect_override = Some(Sect::Anarch);
-    e.state.seats[1].pool = 20;
-    hand(&mut e, 0, &["Parity Shift"]);
-    let req = request(&mut e);
-    assert!(req.options.contains(&shift), "{:?}", req.options);
 }
 
 // Karl Schrekt [ANK 20230503] [LSJ 20050124] "Can meet a sect-specific
@@ -2043,14 +2031,13 @@ fn karl_schrekt_meets_a_justicar_requirement_after_the_fall() {
     }));
 }
 
-// Karl Schrekt [LSJ 20010714] "Keeps their title and votes if they changes
-// sects"; Randall [LSJ 20010714] alike: made Anarch, Karl keeps his 2 votes
-// and Randall his 1. Camarilla's Iron Fist ("requires a titled Camarilla
-// vampire"): Karl, met as a justicar, is a titled Camarilla vampire for
-// the card (owner, 2026-10-09: rules-qa 59.14, over ANK 20250410) — he
-// calls it, as Tara does.
+// Karl Schrekt [ANK 20250410] "When he changes Sects, he can't play votes
+// that "requires a titled camarilla Vampire" (e.g. Camarilla's Iron
+// Fist)": made Anarch, Karl is not offered Iron Fist, which Tara is; he is
+// still offered Parity Shift, whose list ("a prince or justicar") names a
+// justicar (rules-qa 59.14).
 #[test]
-fn personal_vote_titles_survive_a_sect_change() {
+fn karl_schrekt_no_longer_camarilla_cannot_call_camarillas_iron_fist() {
     // Four seats: Iron Fist's terms need two Methuselahs besides the
     // chosen one.
     let mut e = game(4);
@@ -2060,25 +2047,61 @@ fn personal_vote_titles_survive_a_sect_change() {
         e.add_minion(SeatId(s), plain("Ventrue", s as usize), 4, false);
     }
     e.state.minions[karl.index()].sect_override = Some(Sect::Anarch);
-    hand(&mut e, 0, &["Camarilla's Iron Fist"]);
+    e.state.seats[1].pool = 20;
+    hand(&mut e, 0, &["Camarilla's Iron Fist", "Parity Shift"]);
     let req = request(&mut e);
-    let fist_by = |m: MinionId| {
-        req.options
-            .iter()
-            .any(|o| matches!(o, Choice::Play { actor: Some(a), .. } if *a == m))
+    let plays = |card: u8, m: MinionId| {
+        req.options.iter().any(
+            |o| matches!(o, Choice::Play { card: c, actor: Some(a), .. } if *c == card && *a == m),
+        )
     };
-    assert!(fist_by(tara) && fist_by(karl));
-    // Called by Karl, it reaches its referendum.
-    let fist = req
-        .options
-        .iter()
-        .copied()
-        .find(|o| matches!(o, Choice::Play { actor: Some(a), .. } if *a == karl))
-        .expect("Karl's Iron Fist");
-    pick(&mut e, fist);
-    to_referendum(&mut e);
-    assert!(e.referendum().is_some());
+    assert!(plays(0, tara), "{:?}", req.options);
+    assert!(!plays(0, karl), "{:?}", req.options);
+    assert!(plays(1, karl), "{:?}", req.options);
+}
 
+// Closed Session: "Requires a prince, justicar or Inner Circle member. [...]
+// Non-Camarilla vampires cannot cast votes or ballots during this
+// referendum." [LSJ 20050128] Karl "when considered a Justicar, he is also
+// implicitly considered Camarilla", as Kemintiri [LSJ 20050128-2] "can still
+// vote, because she played it as a Camarilla vampire": made Anarch, Karl
+// plays it and votes; so does Victor Gerard, an Anarch baron playing it as
+// a prince (advanced rules §5.8.3); an Inner Circle member plays it.
+#[test]
+fn closed_session_callers_playing_it_as_camarilla_still_vote() {
+    for caller in ["Karl Schrekt", "Victor Gerard", "Inner Circle"] {
+        let mut e = game(2);
+        let c = match caller {
+            "Inner Circle" => e.add_minion(SeatId(0), plain("Ventrue", 1), 6, false),
+            name => e.add_minion(SeatId(0), find_card(name), 6, false),
+        };
+        match caller {
+            "Karl Schrekt" => e.state.minions[c.index()].sect_override = Some(Sect::Anarch),
+            "Victor Gerard" => {
+                e.state.minions[c.index()].granted_title = Some(Title::Baron("Montreal"))
+            }
+            _ => e.state.minions[c.index()].granted_title = Some(Title::InnerCircle("Ventrue")),
+        }
+        e.add_minion(SeatId(0), plain("Brujah", 0), 4, false);
+        e.add_minion(SeatId(1), plain("Ventrue", 0), 4, false);
+        hand(&mut e, 0, &["Kine Resources Contested", "Closed Session"]);
+        pick(&mut e, play(0, 0, c));
+        pick(&mut e, alloc(0, 3));
+        pick_when(&mut e, play(0, 0, c));
+        let req = to_window(&mut e, SeatId(0), WindowLabel::ReferendumPolling);
+        assert!(
+            req.options.contains(&votes(c, true)),
+            "{caller}: {:?}",
+            req.options
+        );
+    }
+}
+
+// Karl Schrekt [LSJ 20010714] "Keeps their title and votes if they changes
+// sects"; Randall [LSJ 20010714] alike: made Anarch, Karl keeps his 2 votes
+// and Randall his 1.
+#[test]
+fn personal_vote_titles_survive_a_sect_change() {
     let mut e = game(2);
     let caller = e.add_minion(SeatId(0), find_card("Tara"), 4, false);
     let karl = e.add_minion(SeatId(0), find_card("Karl Schrekt"), 6, false);
@@ -2653,24 +2676,6 @@ fn ephor_gives_its_ventrue_a_vote() {
     to_window(&mut e, SeatId(0), WindowLabel::ReferendumPolling);
     let r = e.referendum().expect("referendum");
     assert_eq!(r.votes_of(&e.state, lodin), 3);
-}
-
-// Karl Schrekt's justicar reading stays the cards' (G00073 "not treated as
-// meeting the requirements for effects the card has from being in play"):
-// no ability or rider of a card in play requires a justicar, so reading it
-// in `holds` reaches card plays only — this guards that.
-#[test]
-fn no_in_play_effect_requires_a_justicar() {
-    use zvtes::cards::{Requirement, TitleClass};
-    let justicar = |r: &Requirement| matches!(r, Requirement::ActorTitleIn(cs) if cs.contains(&TitleClass::Justicar));
-    for def in zvtes::cards::defs::DEFS.iter() {
-        for m in def.abilities {
-            assert!(!m.requires.iter().any(justicar), "{}", def.name);
-        }
-        for r in def.riders {
-            assert!(!r.requires.iter().any(justicar), "{}", def.name);
-        }
-    }
 }
 
 // ---- Slice 16m: steps 16-20 ---------------------------------------------------------------

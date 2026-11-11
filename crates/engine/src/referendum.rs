@@ -192,6 +192,9 @@ pub struct ReferendumCtx {
     /// Only vampires of this sect vote (Closed Session, Fall of the
     /// Camarilla's ban, Private Audience, Cardinal Benediction).
     pub only_sect: Option<Sect>,
+    /// The vampire that played Closed Session as a Camarilla vampire,
+    /// voting under its bar (`cards::plays_as_camarilla`).
+    pub only_sect_caller: Option<MinionId>,
     /// Vampires of this sect do not vote (Bruce de Guy).
     pub barred_sect: Option<Sect>,
     /// Votes each non-Camarilla vampire loses (Camarilla Conclave), but
@@ -374,7 +377,8 @@ impl ReferendumCtx {
                 ) > 0
             })
             && st.sect_of(m).is_some_and(|s| {
-                self.only_sect.is_none_or(|o| s == o) && self.barred_sect != Some(s)
+                (self.only_sect.is_none_or(|o| s == o) || self.only_sect_caller == Some(m))
+                    && self.barred_sect != Some(s)
             })
     }
 
@@ -609,6 +613,7 @@ impl Engine {
             forcers: Vec::new(),
             card_voted: Vec::new(),
             only_sect: def.and_then(|d| d.only_sect),
+            only_sect_caller: None,
             barred_sect: match kind {
                 RefKind::Political => self.action.as_ref().and_then(|a| a.barred_vote_sect),
                 RefKind::BloodHunt { .. } => None,
@@ -3185,7 +3190,13 @@ impl Engine {
                 let t = play.target.minion();
                 self.state.minions[t.index()].add_corruption(play.seat, 1);
             }
-            cards::Effect::BarNonCamarillaVotes => ctx.only_sect = Some(Sect::Camarilla),
+            cards::Effect::BarNonCamarillaVotes => {
+                ctx.only_sect = Some(Sect::Camarilla);
+                let mode = &cards::lookup(play.card).expect("definition").modes[play.mode as usize];
+                ctx.only_sect_caller = play
+                    .actor
+                    .filter(|&m| cards::plays_as_camarilla(&self.state, m, mode));
+            }
             cards::Effect::NextReferendumPassesIfPasses => ctx.rider_clauses.push(play.seat),
             cards::Effect::BarNonSectVotes(sect) => ctx.only_sect = Some(sect),
             cards::Effect::PoolForVotesRound { per, own } => {
