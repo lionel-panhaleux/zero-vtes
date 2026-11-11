@@ -873,6 +873,13 @@ class Trainer:
                     self.exploiter.model.load_state_dict(remap_vocab(saved["exploiter"], old, self.vocab, fresh))
                     if same_shapes:
                         self.exploiter.opt.load_state_dict(saved["exploiter_optimizer"])
+                else:
+                    # A checkpoint without an exploiter: its league's count
+                    # of iterations, deck rotation and EXP rate are not this
+                    # exploiter's.
+                    self.league.exploiter_since = 0
+                    self.league.generation = 0
+                    self.league.p.pop(EXP, None)
         families = dict(zvtes_py.deck_families())
         names = [f.strip() for f in cfg.decks.split(",")]
         if not set(names) <= {"precons", "anniversary", "sabbat", "twda"}:

@@ -835,6 +835,14 @@ def test_deck_specialized_exploiters_against_frozen_opponents(tmp_path):
     for _ in range(20):
         seats = league.spec(4, 0, evaluation=True)["seats"]
         assert seats[0] == "net:0" and set(seats[1:]) <= set(league.candidates()), "vs_held: p17 frozen only"
+    # Resumed from a league run without an exploiter, the first exploiter
+    # starts fresh: its count, the deck rotation, no beat rate.
+    plain = Trainer(Config(**{**vars(cfg), "exploiter": False, "exploiter_decks": "", "out": str(tmp_path / "plain")}))
+    plain.league.p[EXP], plain.league.generation = 0.1, 3
+    plain.run()
+    first = Trainer(Config(**{**vars(cfg), "out": str(tmp_path / "first"), "iterations": 4,
+                              "resume": str(tmp_path / "plain" / "model.pt")}))
+    assert first.league.exploiter_since == 0 and first.league.generation == 0 and EXP not in first.league.p
     # The rates as `run` tapers them, with no restart after.
     tapered = Trainer(Config(**{**vars(cfg), "out": str(tmp_path / "taper"), "exploiter_reset": 10,
                                 "lr_final": 0.5}))
