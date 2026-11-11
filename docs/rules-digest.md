@@ -1886,8 +1886,8 @@ Advanced rules §3.2 (stealth and intercept), §3.3 (blocking).
   (1.3). Declines are per Methuselah, not per minion; after a Form of Mist
   continuation earlier declines stand (3.4).
 - A blocker short of the stealth attempts with another minion or passes:
-  that pass is its decline once the table passed on the attempt still
-  under way (KRCG, Night Terrors may still help it; a play voids the
+  that pass is its decline (114.1) once the table passed on the attempt
+  still under way (KRCG, Night Terrors may still help it; a play voids the
   decline, 1.2); then the impulse goes on from the next Methuselah after
   it, the acting one's coming once blocks are declined, and the acting
   Methuselah's impulse in the open window is only its first and the one
@@ -1909,9 +1909,10 @@ Advanced rules §3.2 (stealth and intercept), §3.3 (blocking).
 - Changing blocker: while its minion's attempt is short of the stealth, a
   Methuselah may attempt with another minion instead — by declaring that
   one's attempt, or with a card whose unlocked minion attempts to block
-  (Organized Resistance's second mode); the attempt under way fails then
-  (48.3). A forced attempt on the minion already attempting keeps it (48.3,
-  52.8, ANK 20181122-2).
+  (Organized Resistance's second mode; Second Tradition: Domain and its
+  kind, 114.2); the attempt under way fails then, never two at a time
+  (48.3; owner, 2026-11-11, 114.1). A forced attempt on the minion
+  already attempting keeps it (48.3, 52.8, ANK 20181122-2).
 - Dawn Operation [for]: the attempting vampire's controller is asked once,
   as the card resolves, whether to cancel the attempt; a canceled attempt
   is withdrawn, not failed — the vampire may attempt again (30.1).
@@ -4903,7 +4904,8 @@ mixed item is stated in its section.
 
 - Offer pruning, not rules (each repeat or offer is legal): a failed
   attempt is not offered again while nothing changed, nor swapped back
-  after a change of blocker (48.6: "an engine reading, not a rule"); an
+  after a change of blocker (48.6: "an engine reading, not a rule"), and
+  a blocker is not changed while its attempt meets the stealth (114.2); an
   ability whose only effect unlocks its own unlocked minion is not offered
   (48.7, an exception to D14 — advanced rules §5.2.4 holds the unlock
   legal). A block attempt is offered whether or not it can reach the
@@ -5049,15 +5051,15 @@ rules-qa batch.
   ready Anarch earlier). 6.1 lets the burn resolve early while an Anarch is
   present — settled by 88.5: read as the phase ends, the burn
   resolving as the active Methuselah passes.
-- **K17** Withdrawing a block attempt: 48.3 (owner, 2026-10-03: change of
-  blocker, the attempt under way failing) and 30.1 (Dawn Operation's
-  canceled attempt withdrawn, the vampire may attempt again) vs advanced
-  rules §3.3.2 (a declared attempt cannot be withdrawn, the only exception
-  resigning under a blood cost, 69.12 — generalizing LSJ 20081202 on
-  Faceless Night: "a minion attempting to block before it is played cannot
-  back out") and the rulebook's
-  "Detailed course of an action" (no other minion attempts until the current
-  attempt is resolved). Owner rules; the digest marks them so.
+- **K17** Withdrawing a block attempt: 48.3 (owner, 2026-10-03, confirmed
+  2026-11-11, 114.1: change of blocker, the attempt under way failing, never
+  two at a time) and 30.1 (Dawn Operation's canceled attempt withdrawn, the
+  vampire may attempt again) vs advanced rules §3.3.2 (a declared attempt
+  cannot be withdrawn, the only exception resigning under a blood cost, 69.12 —
+  generalizing LSJ 20081202 on Faceless Night: "a minion attempting to block
+  before it is played cannot back out") and the rulebook's "Detailed course of
+  an action" (no other minion attempts until the current attempt is resolved).
+  Owner rules; the digest marks them so.
 - **K18** Elen Kamjian at 0 blood: 17.1 (the rulebook hunt takes over) vs
   advanced rules §3.9 (a minion with two different mandatory actions — must
   hunt, must bleed — is stuck; its footnote's LSJ 20001127 is, in the
@@ -5282,6 +5284,10 @@ read, for the owner to confirm or correct:
   with the owner's lean; 113.10, 113.25, 113.87, 113.135 and 113.155
   answered by the owner (2026-11-11); 113.60, 113.68, 113.77 and 113.142
   asked 2026-11-10, built as stated.
+- 114.1 the owner's answer (2026-11-11: 48.3 and 82.1 stand); 114.2
+  graded green (a card's own minion's attempt changes the blocker) and
+  amber (the change not offered while the attempt meets the stealth: an
+  offer pruning, confirmed by the owner 2026-11-11).
 - 106.1–106.9, 106.11–106.17, 106.19–106.22 graded green or amber
   (106.10 and 106.18 red, confirmed by the owner).
 - 93.1–93.10 graded green (settled by KRCG rulings and 60.7, 60.19, 60.21).
@@ -5400,7 +5406,7 @@ an owner ruling:
 Every rules-qa item, by batch, with the digest sections citing it: the
 section stating it and those cross-referring to it (§2 the default
 readings, §22 engine modeling, §23 the contradictions, §24 the open
-readings). 1427 items, Batches 1–113 (44.11 was removed, replaced by Batch
+readings). 1429 items, Batches 1–114 (44.11 was removed, replaced by Batch
 45). The index is derived from the citations: a bare `N.M` cites rules-qa
 item N.M in the section it appears in. A new rules-qa item gets its line in
 the section stating it, then its entry here: `python3
@@ -5532,8 +5538,8 @@ index or an item cited nowhere.
 - **46** — 46.1 §2,§7.1,§7.2,§13.3; 46.2 §8.6,§13.2; 46.3 §13.2,§16.1; 46.4
   §2,§16.5,§23.2
 - **47** — 47.1 §2,§16.5,§23.2; 47.2 §2,§12.9,§12.15,§23.2,§23.3
-- **48** — 48.1 §2,§9.3; 48.2 §2,§12.9,§12.15; 48.3 §9.4,§9.6,§23.3; 48.4
-  §5.2,§12.3; 48.5 §9.4,§22,§23.2; 48.6 §22; 48.7
+- **48** — 48.1 §2,§9.3; 48.2 §2,§12.9,§12.15; 48.3 §9.4,§9.6,§23.3,§24.1;
+  48.4 §5.2,§12.3; 48.5 §9.4,§22,§23.2; 48.6 §22; 48.7
   §2,§6.3,§6.5,§14.1,§22,§23.2; 48.8 §2,§8.3,§11.6
 - **49** — 49.1 §13.1; 49.2 §13,§13.4,§23.3; 49.3 §4.6,§12.13,§14.8; 49.4
   §14.3,§16.4,§23.3; 49.5 §2,§3.11,§4.1,§11.2,§16.1; 49.6 §5.1,§6.3,§24.1;
@@ -5683,7 +5689,7 @@ index or an item cited nowhere.
   §11.4,§14.7,§24.1; 80.40 §11.4,§24.1; 80.41 §16.1,§24.1; 80.42 §19.4;
   80.43 §14.2,§24.1; 80.44 §3.7,§24.1; 80.45 §14.7,§24.1
 - **81** — 81.1 §5.2
-- **82** — 82.1 §9.4; 82.2 §9.4
+- **82** — 82.1 §9.4,§24.1; 82.2 §9.4
 - **83** — 83.1 §18.2
 - **84** — 84.1 §15.2,§24.1; 84.2 §15.2; 84.3 §15.2; 84.4 §15.2,§24.1; 84.5
   §15.2,§24.1; 84.6 §12.7; 84.7 §15.2; 84.8 §12.7; 84.9 §14.10,§15.2; 84.10
@@ -5848,3 +5854,4 @@ index or an item cited nowhere.
   §9.2,§9.5; 113.145 §9.2; 113.146 §12.7; 113.147 §14.6; 113.148 §14.7;
   113.149 §10.2,§17.3; 113.150 §12.9; 113.151 §7.2,§24.1; 113.152 §9.2;
   113.153 §15.2; 113.154 §10.2,§11.6,§13.3; 113.155 §12.8,§24.1
+- **114** — 114.1 §9.4,§23.3,§24.1; 114.2 §9.4,§22,§24.1

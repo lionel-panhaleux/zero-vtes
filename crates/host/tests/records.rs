@@ -20,6 +20,13 @@ const KNOWN_STOPS: &[(&str, u64, &str)] = &[
         "Villein on a vampire with no blood (LSJ 20100216, ANK 20180512-2)",
     ),
     (
+        "zero-vtes-replay-2026-10-10T15-01-52-455Z.json",
+        185,
+        "rules-qa 114.2: Second Tradition: Domain, played for another \
+         vampire during a short attempt (184), now makes him the blocker: \
+         he blocks, where the game's engine only unlocked him",
+    ),
+    (
         "zero-vtes-replay-2026-10-09T22-52-40-908Z.json",
         569,
         "Smiling Jack's rider offers no ally's blood (Z-succubus playtest, round 25)",

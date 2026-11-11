@@ -436,6 +436,19 @@ impl Reader<'_> {
             }
             self.next += 1;
         }
+        // Before rules-qa 114.2, a card unlocking another minion to block
+        // during an attempt left the attempt to declare: recorded for the
+        // minion the card now made the blocker, it is read past.
+        let blocker = e.action().and_then(|a| match a.state {
+            zvtes::actions::ActionState::Attempt(x) => Some(x),
+            _ => None,
+        });
+        if let (Some(x), Some(d)) = (blocker, self.replay.decisions.get(self.next)) {
+            let made = describe::key(e, req, &Choice::DeclareBlock { minion: x }, &EngineNames);
+            if d.seat == e.state.minions[x.index()].owner.0 && covers(&d.choice, &made) {
+                self.next += 1;
+            }
+        }
         let rest = self.replay.decisions.get(self.next..).unwrap_or_default();
         match past(e, req, rest) {
             Ok(n) => self.next += n,

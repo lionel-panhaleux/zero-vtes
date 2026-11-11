@@ -1404,6 +1404,62 @@ fn organized_resistance_lets_an_unlocked_baron_block_a_hunt() {
     assert_eq!(e.last_outcome, Some(Outcome::Blocked));
 }
 
+// No change of blocker while the attempt under way meets the stealth
+// (rules-qa 114.2, an offer pruning): X meets the bleed's 0 stealth, so
+// neither Y's attempt nor Second Tradition's for the locked prince is
+// offered, and X blocks.
+#[test]
+fn a_blocker_meeting_the_stealth_is_not_changed() {
+    let mut e = Engine::bare(3);
+    let a = e.add_minion(SeatId(0), plain("", "", 0), 4, false);
+    e.add_minion(SeatId(0), plain("Brujah", "", 1), 4, false);
+    let x = e.add_minion(SeatId(1), plain("", "", 1), 4, false);
+    let y = e.add_minion(SeatId(1), plain("", "", 2), 4, false);
+    let p = e.add_minion(SeatId(1), prince(0), 3, false);
+    e.state.minions[p.index()].locked = true;
+    hand(&mut e, 1, &["Second Tradition: Domain"]);
+    pick(&mut e, action(a, ActionKind::Bleed));
+    let req = expect(&mut e, SeatId(1), WindowLabel::ActionBlock);
+    assert!(
+        req.options.contains(&play(0, 1, p)),
+        "offered with no attempt"
+    );
+    pick(&mut e, Choice::DeclareBlock { minion: x });
+    never_offered_where(&mut e, SeatId(0), WindowLabel::MinionPhase, |o| {
+        *o == Choice::DeclareBlock { minion: y } || *o == play(0, 1, p)
+    });
+    assert_eq!(e.last_outcome, Some(Outcome::Blocked));
+    assert_eq!((blood(&e, x), blood(&e, y)), (3, 4), "X fought");
+}
+
+// Second Tradition: Domain during another of its Methuselah's attempts:
+// "this vampire … unlock[s] and attempt[s] to block", so the prince is the
+// one blocking — X's attempt fails, the prince's is made with +2 intercept
+// (rules-qa 48.3, 114.1).
+#[test]
+fn second_tradition_changes_the_blocker_to_its_prince() {
+    let mut e = Engine::bare(3);
+    let a = e.add_minion(SeatId(0), plain("", "obf", 0), 4, false);
+    e.add_minion(SeatId(0), plain("Brujah", "", 1), 4, false);
+    let x = e.add_minion(SeatId(1), plain("", "", 1), 4, false);
+    let p = e.add_minion(SeatId(1), prince(0), 3, false);
+    e.state.minions[p.index()].locked = true;
+    hand(&mut e, 0, &["Lost in Crowds"]);
+    hand(&mut e, 1, &["Second Tradition: Domain"]);
+    pick(&mut e, action(a, ActionKind::Bleed));
+    pick(&mut e, Choice::DeclareBlock { minion: x });
+    pick_when(&mut e, play(0, 0, a)); // +1 stealth: X is short
+    pick_when(&mut e, play(0, 1, p));
+    until(&mut e, SeatId(0), WindowLabel::MinionPhase);
+    assert_eq!(e.last_outcome, Some(Outcome::Blocked));
+    assert_eq!(
+        (blood(&e, x), blood(&e, p)),
+        (4, 3 - 1 - 1),
+        "the prince fought"
+    );
+    assert_eq!(pool(&e, 1), 30);
+}
+
 // A change of blocker (rules-qa 48.3): X attempts, the acting minion's
 // stealth leaves it short; its Methuselah attempts with Y instead (X's
 // attempt fails then), and Y blocks with Enhanced Senses.

@@ -1029,6 +1029,11 @@ sources to the engine's conventions.
   the action stays blocked.
 - Forced attempts (`Effect::AttemptBlock`, `R::CanAttemptBlock` →
   `can_attempt_block`). A card-made failure bars re-attempts this action.
+- A change of blocker (`ActionCtx::changes_blocker`, rules-qa 48.3): during
+  its own minion's attempt, short of the stealth, a Methuselah may attempt
+  with another, declared or forced by a card (`AttemptBlock`,
+  `TargetAttemptsBlock`); the attempt under way fails then
+  (`ActionCtx::attempt`), one attempt at a time.
 - Tolls (`block_toll`): paid as the attempt is made; an attempt under way when a
   toll lands pays or resigns (`Interrupt::BlockToll`). A forced attempt
   (`can_attempt_block[_anyone]`, `AttemptBlock`, `TargetAttemptsBlock`) needs

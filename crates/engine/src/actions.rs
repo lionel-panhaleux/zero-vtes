@@ -1479,6 +1479,38 @@ impl ActionCtx {
         }
     }
 
+    /// Would `m`'s attempt, `seat`'s, be a change of blocker: another of
+    /// its minions attempting now, whose attempt fails then (rules-qa
+    /// 48.3, 114.1)? Only while that attempt is short of the stealth: an
+    /// offer pruning (114.2).
+    pub(crate) fn changes_blocker(
+        &self,
+        st: &crate::state::GameState,
+        seat: SeatId,
+        m: MinionId,
+    ) -> bool {
+        matches!(self.state, ActionState::Attempt(x)
+            if x != m
+                && st.minions[x.index()].owner == seat
+                && self.stealth(st) > self.intercept_of(st, x))
+    }
+
+    /// Does a card's forced attempt by `m`, `seat`'s, begin now: no attempt
+    /// under way, or a change of blocker?
+    fn begins_attempt(&self, st: &crate::state::GameState, seat: SeatId, m: MinionId) -> bool {
+        self.state == ActionState::Open || self.changes_blocker(st, seat, m)
+    }
+
+    /// `m` attempts to block. Another blocker instead (rules-qa 48.3): the
+    /// attempt under way fails, as at its closure, not offered again alike
+    /// (rules-qa 48.6).
+    fn attempt(&mut self, st: &crate::state::GameState, m: MinionId) {
+        if let ActionState::Attempt(x) = self.state {
+            self.record_failed(st, x, false);
+        }
+        self.state = ActionState::Attempt(m);
+    }
+
     /// `m`'s block attempt failed: `barred`, it cannot attempt to block this
     /// action again (Forced Confessional, Enchanting Gaze); else not offered
     /// again alike (rules-qa 48.6).
@@ -2292,16 +2324,7 @@ impl Engine {
         let Some(a) = self.action.as_ref() else {
             return false;
         };
-        // Another of the same Methuselah's minions during its attempt: a
-        // change of blocker (rules-qa 48.3).
-        let switching = match a.state {
-            ActionState::Attempt(x) => {
-                x != m
-                    && self.state.minions[x.index()].owner == seat
-                    && a.stealth(&self.state) > a.intercept_of(&self.state, x)
-            }
-            _ => false,
-        };
+        let switching = a.changes_blocker(&self.state, seat, m);
         match a.state {
             ActionState::Attempt(x) if !switching => x == m,
             ActionState::Open | ActionState::Attempt(_) => {
@@ -3484,20 +3507,15 @@ impl Engine {
                 }
             }
         }
-        // A change of blocker: during its own minion's attempt, left short
-        // of the stealth, its Methuselah may attempt with another instead —
-        // the attempt under way fails then (rules-qa 48.3).
-        if let ActionState::Attempt(x) = a.state {
-            if self.state.minions[x.index()].owner == seat
-                && a.stealth(&self.state) > a.intercept_of(&self.state, x)
-                && !a.failed
-                && !a.declined.contains(&seat)
-                && self.eligible_blockers(a).contains(&seat)
-            {
-                for m in self.block_candidates(a, seat) {
-                    if m != x && !a.failed_alike(&self.state, m) {
-                        options.push(Choice::DeclareBlock { minion: m });
-                    }
+        // A change of blocker (rules-qa 48.3).
+        if matches!(a.state, ActionState::Attempt(_))
+            && !a.failed
+            && !a.declined.contains(&seat)
+            && self.eligible_blockers(a).contains(&seat)
+        {
+            for m in self.block_candidates(a, seat) {
+                if a.changes_blocker(&self.state, seat, m) && !a.failed_alike(&self.state, m) {
+                    options.push(Choice::DeclareBlock { minion: m });
                 }
             }
         }
@@ -3682,13 +3700,7 @@ impl Engine {
                 self.flow = Flow::Action;
             }
             Choice::DeclareBlock { minion } => {
-                // Another blocker instead (rules-qa 48.3): the attempt under
-                // way fails, as at its closure: not offered again alike
-                // (rules-qa 48.6).
-                if let ActionState::Attempt(x) = a.state {
-                    a.record_failed(&self.state, x, false);
-                }
-                a.state = ActionState::Attempt(*minion);
+                a.attempt(&self.state, *minion);
                 a.window.play();
                 self.flow = Flow::Action;
                 // Unleash Hell's Fury: a vampire for its attempt.
@@ -5170,22 +5182,9 @@ impl Engine {
                 self.unlock_minion(t);
                 a.intercept_given.push((t, n as i8));
                 // Its toll unpayable by now (the card's own blood paid
-                // first): no attempt (rules-qa 42.8). During another of
-                // its Methuselah's minions' attempt, a change of blocker:
-                // that attempt fails (rules-qa 48.3).
-                let switch = match a.state {
-                    ActionState::Attempt(x) => {
-                        x != t
-                            && self.state.minions[x.index()].owner == play.seat
-                            && a.stealth(&self.state) > a.intercept_of(&self.state, x)
-                    }
-                    _ => false,
-                };
-                if (a.state == ActionState::Open || switch) && self.block_toll(&a, t).is_some() {
-                    if let ActionState::Attempt(x) = a.state {
-                        a.record_failed(&self.state, x, false);
-                    }
-                    a.state = ActionState::Attempt(t);
+                // first): no attempt (rules-qa 42.8).
+                if a.begins_attempt(&self.state, play.seat, t) && self.block_toll(&a, t).is_some() {
+                    a.attempt(&self.state, t);
                     self.action = Some(a);
                     self.pay_block_toll(t, true);
                     return;
@@ -5331,8 +5330,8 @@ impl Engine {
             }
             Effect::AttemptBlock => {
                 let m = play.actor.expect("attempting minion");
-                if a.state == ActionState::Open && self.block_toll(&a, m).is_some() {
-                    a.state = ActionState::Attempt(m);
+                if a.begins_attempt(&self.state, play.seat, m) && self.block_toll(&a, m).is_some() {
+                    a.attempt(&self.state, m);
                     self.action = Some(a);
                     self.pay_block_toll(m, true);
                     return;
