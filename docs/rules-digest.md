@@ -195,10 +195,9 @@ more than needed (advanced rules §3.2.1, Angelica, LSJ 20010111; 88.7).
 Exceptions are the card's words ("even if …
 not yet needed") and standing bonuses of cards in play (Loup, a Repulsion
 on the vampire) (3.2, 51.7). Reducing the opposing value is legal even to
-no effect (on zero or negative stealth, LSJ 20021211, 48.1), within its own
-timing: a third party's stealth strip needs the defender attempting (1.3),
-"during the action" reductions wait for the block attempts (66.1),
-Gwenllian Arwyn's -1 intercept only while stealth is needed (15.2). A
+no effect (on zero or negative stealth, LSJ 20021211, 48.1), and needs no
+block attempt nor any need: any time during the action before resolution
+(LSJ 20020612; 1.3, 15.2, 66.1 as corrected: owner, 2026-11-11). A
 gift of intercept "to a minion" (London Evening Star, Masika) goes to a
 minion attempting to block that needs it (77.20). §9.2.
 
@@ -977,8 +976,9 @@ simultaneous effects, §2.5 duration). The engine's window primitives are in
   the action is announced", "as … announces": Seduction, Warsaw Station,
   Yoruba Shrine, Screamer's fail); an effect usable "during the action"
   (Screamer's and Aranthebes's -1 stealth, Haqim's Law: Retribution's +1
-  bleed) waits for the block attempts (66.1, advanced rules §2.2). Action
-  cost reductions may be announced there (36.1).
+  bleed) comes from the block window on, a reduction with no attempt made
+  (66.1, LSJ 20020612; advanced rules §2.2). Action cost reductions may
+  be announced there (36.1).
 - **Blocks declined → would be successful**: once blocks are declined, a
   bleed of ≥ 1 opens a "would be successful" window over the action's order
   (acting Methuselah first) for cards timed "if a bleed would be
@@ -1788,19 +1788,18 @@ Advanced rules §3.2 (stealth and intercept), §3.3 (blocking).
 
 ### 9.2 Only when needed
 
-- Gaining stealth is legal only while a block attempt is pending with
-  intercept ≥ stealth; intercept only while stealth exceeds it; a play
-  once it is no longer needed is illegal, but once needed a play may give
-  more (a threshold, not a cap: 88.7); no pre-emptive stealth without an
-  attempt (3.2, 1.6, advanced rules §3.2.1). It applies to cards, printed abilities and
-  in-play abilities alike: Abraham DuSable, Daria (lock while the acting
-  Nosferatu — anyone's — needs stealth), Oskar Anasov, Gwenllian Arwyn
-  (15.2); Saatet-ta (44.3); Maila, once each of her Methuselah's turns
-  (57.2, ANK 20230122); WMRH Talk Radio, the minion attempting to block,
-  whoever controls it (34.1); The Rumor Mill, any ready vampire, once
-  (34.2); Monastery of Shadows' lock, by any Methuselah controlling it
-  (50.4); Under My Skin's burn, in any later action (60.12); Bowl of
-  Convergence (9.6); Shadow Cast's burn (24.5); Nergal (advanced)'s stealth
+- Gaining stealth is legal only while a block attempt is pending with intercept
+  ≥ stealth; intercept only while stealth exceeds it; a play once it is no
+  longer needed is illegal, but once needed a play may give more (a threshold,
+  not a cap: 88.7); no pre-emptive stealth without an attempt (3.2, 1.6,
+  advanced rules §3.2.1). It applies to cards, printed abilities and in-play
+  abilities alike: Abraham DuSable, Daria (lock while the acting Nosferatu —
+  anyone's — needs stealth), Oskar Anasov (15.2); Saatet-ta (44.3); Maila, once
+  each of her Methuselah's turns (57.2, ANK 20230122); WMRH Talk Radio, the
+  minion attempting to block, whoever controls it (34.1); The Rumor Mill, any
+  ready vampire, once (34.2); Monastery of Shadows' lock, by any Methuselah
+  controlling it (50.4); Under My Skin's burn, in any later action (60.12); Bowl
+  of Convergence (9.6); Shadow Cast's burn (24.5); Nergal (advanced)'s stealth
   burn, once each action (79.1); Mask of a Thousand Faces [OBF] (58.13); Mind of
   the Wilds [ANI][AUS] (64.5).
 - Exceptions by text: "even if … not yet needed" (Form of the Cobra
@@ -1821,9 +1820,10 @@ Advanced rules §3.2 (stealth and intercept), §3.3 (blocking).
   set the current action is directed at (24.5).
 - Reducing the opposing value is legal even to no effect (zero or negative
   stealth: Draba, Night Terrors, LSJ 20021211; advanced rules §3.2.2),
-  within the card's own timing: a third party's strip needs the defender
-  attempting (1.3); "during the action" reductions wait for the block
-  attempts (66.1); Gwenllian Arwyn's only while stealth is needed (15.2).
+  any time during the action before resolution, no block attempt nor need
+  required (LSJ 20020612; 1.3, 15.2, 66.1): a third party's strip, an
+  in-play ability's, Smoke and Mirrors [obt] played before any attempt;
+  Gwenllian Arwyn's and Mélusine d'Anjou's against any attempt.
 - Changeling Skin Mask, Marked Territory: the intercept burn only once the
   bearer's block attempt needs it (D15); Marked Territory's during an action
   directed at its controller (77.18); Changeling Skin Mask's "the vampire
@@ -1897,9 +1897,9 @@ Advanced rules §3.2 (stealth and intercept), §3.3 (blocking).
   normally after the acting and target Methuselahs both passed; "+X
   intercept" applies to the minion playing the card; granting intercept to
   another's minion (KRCG News Radio) is the exception (1.3).
-- No bait or retraction: a third party wanting to strip stealth needs the
-  defender to attempt first; once attempting, the defender needs no
-  matching intercept to keep the attempt alive (1.3).
+- No bait or retraction: sequencing orders effects; a third party's strip needs
+  no attempt (LSJ 20020612); once attempting, the defender needs no matching
+  intercept to keep the attempt alive (1.3).
 - Changing blocker: while its minion's attempt is short of the stealth, a
   Methuselah may attempt with another minion instead — by declaring that
   one's attempt, or with a card whose unlocked minion attempts to block
@@ -5004,6 +5004,14 @@ rules-qa batch.
   3.1 (owner, 2026-11-11): the rulebook's bar is for cards only, two of one
   Methuselah's vampires claiming the same unique title contest it.
 
+- **K48** Reductions and "only when needed": 1.3 (a third party's strip
+  needing the defender's attempt), 66.1 ("during the action" reductions
+  waiting for the block attempts) and 15.2 (Gwenllian Arwyn's -1 intercept
+  only while stealth is needed) — superseded by LSJ 20020612 (owner,
+  2026-11-11): an effect reducing stealth or intercept is played or used
+  any time during the action before resolution, no block attempt required;
+  additions stay under 3.2.
+
 ### 23.3 rules-qa vs the advanced rules
 
 - **K11** "During X" is once per X (6.6, 15.2, 42.3, 58.7; the rulebook's
@@ -5365,12 +5373,12 @@ scripts/digest_index.py` writes the entries, `--check` fails on a stale
 index or an item cited nowhere.
 
 - **1** — 1.1 §13,§13.2,§21.3,§23.3; 1.2 §3.21,§5.1,§9.4,§12.1; 1.3
-  §2,§3.8,§9.2,§9.4,§11.1,§23.3; 1.4
+  §2,§3.8,§9.2,§9.4,§11.1,§23.2,§23.3; 1.4
   §3.2,§3.16,§6.2,§8.5,§10.3,§11.1,§11.3,§14.1,§14.3; 1.5 §6.2; 1.6 §9.2
 - **2** — 2.1 §5.2,§12.12; 2.2 §5.1; 2.3 §5.2,§22; 2.4 §5.2,§9.1,§9.2,§14.1;
   2.5 §5.2,§12.3,§12.11,§22
-- **3** — 3.1 §3.15,§14.2,§18.1,§18.2,§18.3,§23.2,§24.1; 3.2 §2,§9.2,§23.3;
-  3.3 §6.2; 3.4 §9.4,§10.5; 3.5 §2,§13.1; 3.6
+- **3** — 3.1 §3.15,§14.2,§18.1,§18.2,§18.3,§23.2,§24.1; 3.2
+  §2,§9.2,§23.2,§23.3; 3.3 §6.2; 3.4 §9.4,§10.5; 3.5 §2,§13.1; 3.6
   §2,§3.2,§3.14,§7.3,§8.3,§10.2,§10.3,§10.4,§11.6; 3.7 §5.1,§6.1
 - **4** — 4.1 §10.5,§12.12; 4.2 §12.7; 4.3 §2,§12.4,§12.10; 4.4
   §2,§12.9,§23.2; 4.5 §3.10,§12.1
@@ -5398,7 +5406,7 @@ index or an item cited nowhere.
   §2,§3.4,§3.15,§4.3,§5.5,§9.3,§12.4,§14.2,§15.1,§16.2,§18.2
 - **14** — 14.1 §12.11; 14.2 §2,§4.2,§12.3,§12.4,§12.7,§12.8,§12.9,§12.11
 - **15** — 15.1 §2,§4.2,§9.2; 15.2
-  §2,§3.12,§4.2,§5.1,§5.5,§6.2,§6.5,§9.2,§9.3,§11.1,§11.7,§12.1,§13.3,§14.2,§15.1,§23.3
+  §2,§3.12,§4.2,§5.1,§5.5,§6.2,§6.5,§9.2,§9.3,§11.1,§11.7,§12.1,§13.3,§14.2,§15.1,§23.2,§23.3
 - **16** — 16.1 §2,§4.2,§14.1; 16.2 §9.6,§11.7; 16.3 §4.2,§11.1,§19.1; 16.4
   §2,§3.2,§3.4,§4.2,§10.4,§11.6,§11.7; 16.5
   §3.10,§6.5,§9.6,§10.4,§12.1,§13.4,§13.5; 16.6 §4.2,§8.5,§14.10,§15.2
@@ -5565,7 +5573,7 @@ index or an item cited nowhere.
   §4.5,§9.6,§19.1; 64.10 §3.17,§12.2,§12.3,§12.7,§12.13,§22,§23.3; 64.11
   §4.5,§22; 64.12 §13.3,§13.5,§23.5
 - **65** — 65.1 §12.12,§12.15,§23.4; 65.2 §10.4,§12.7; 65.3 §6.1,§15.2
-- **66** — 66.1 §2,§5.2,§9.2; 66.2 §9.4,§22,§23.2
+- **66** — 66.1 §2,§5.2,§9.2,§23.2; 66.2 §9.4,§22,§23.2
 - **67** — 67.1 §3.9,§7.1,§17.1,§21.1,§22; 67.2 §14.5; 67.3 §11.1; 67.4
   §7.1; 67.5 §3.14,§8.3,§8.6,§11.8,§14.10; 67.6 §14.10,§22,§23.2; 67.7
   §3.14,§3.18,§8.1

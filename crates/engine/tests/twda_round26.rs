@@ -639,6 +639,32 @@ fn smoke_and_mirrors_obfuscate_is_not_for_a_bleed() {
     );
 }
 
+/// Smoke and Mirrors [obt]: "The blocking vampire gets -1 intercept." A
+/// reduction: [LSJ 20020612] "Can be played any time during the action
+/// before resolution; a block attempt is not required" — played before any
+/// attempt, to no effect.
+#[test]
+fn smoke_and_mirrors_obtenebration_needs_no_block_attempt() {
+    let mut e = game(2);
+    let a = e.add_minion(SeatId(0), vampire_with("obt", 0), 4, false);
+    e.state.minions[a.index()].sect_override = Some(Sect::Anarch);
+    e.add_minion(SeatId(0), plain("Brujah", 1), 4, false);
+    e.add_minion(SeatId(1), plain("Ventrue", 0), 4, false);
+    hand(&mut e, 0, &["Smoke and Mirrors"]);
+    pick_when(&mut e, bleed(a));
+    let req = request(&mut e);
+    let obt = play_at(0, 2, Some(a), Target::None);
+    assert_eq!(req.seat, SeatId(0));
+    assert!(e.action().expect("the action").blocker.is_none());
+    assert!(req.options.contains(&obt), "{req:?}");
+    pick(&mut e, obt);
+    until(&mut e, SeatId(0), WindowLabel::MinionPhase);
+    assert!(e.state.seats[0]
+        .ash
+        .contains(&find_library("Smoke and Mirrors")));
+    assert_eq!(e.state.seats[1].pool, 9, "the bleed went on");
+}
+
 /// Sleep Unseen: "Only usable at the end of a successful action … Minions
 /// without Auspex cannot perform actions directed at the vampire with this
 /// card." On the actor; a vampire without Auspex cannot bleed-target it

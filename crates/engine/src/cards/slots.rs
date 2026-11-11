@@ -1137,6 +1137,50 @@ mod tests {
         assert!(failures.is_empty(), "{}", failures.join("\n"));
     }
 
+    /// "Only when needed" is for additions: a mode or ability requiring a
+    /// need for a reduction of stealth or intercept adds some as well
+    /// (Obedient Flesh), else it wrongly waits (LSJ 20020612; rules-qa 3.2).
+    #[test]
+    fn no_reduction_waits_for_a_need() {
+        let reduces = |e: &Effect| {
+            matches!(
+                e,
+                Effect::ReduceStealth(_)
+                    | Effect::ReduceStealthToZero
+                    | Effect::ActionStealthMinus(_)
+            ) || matches!(e, Effect::AttemptingIntercept(n) | Effect::YoungerIntercept(n) if *n < 0)
+        };
+        let adds = |e: &Effect| {
+            matches!(e, Effect::AddStealth(_) | Effect::AddIntercept(_))
+                || matches!(e, Effect::AttemptingIntercept(n) if *n > 0)
+        };
+        let modes = DEFS
+            .iter()
+            .flat_map(|d| d.modes.iter().chain(d.abilities).map(move |m| (d.name, m)))
+            .chain(
+                VAMPIRES
+                    .iter()
+                    .flat_map(|v| v.abilities.iter().map(move |m| (v.name, m))),
+            );
+        let mut checked = 0;
+        for (name, m) in modes {
+            if !m.effects.iter().any(reduces) {
+                continue;
+            }
+            checked += 1;
+            let needs = m
+                .requires
+                .iter()
+                .any(|r| matches!(r, Requirement::StealthNeeded | Requirement::InterceptNeeded));
+            assert!(
+                !needs || m.effects.iter().any(adds),
+                "{name}: {:?}",
+                m.effects
+            );
+        }
+        assert!(checked >= 15, "{checked} reductions walked");
+    }
+
     /// A card put on the opposing minion needs it there: no target once it
     /// burned (rules-qa 75.1).
     #[test]

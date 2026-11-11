@@ -913,9 +913,21 @@ fn martin_franckel_bleeds_less_without_tremere() {
 
 // Mélusine d'Anjou: "During an action she performs, Mélusine can burn 1
 // blood to give a younger blocking vampire -2 intercept." Not an ally's
-// attempt.
+// attempt. A reduction: stealth need not be needed [LSJ 20020612] — her
+// hunt at +1 stealth against an attempt at 0 intercept.
 #[test]
 fn melusine_blinds_a_younger_blocker() {
+    let mut e = game(2);
+    let m = e.add_minion(SeatId(0), find_card("Mélusine d'Anjou"), 4, false);
+    e.add_minion(SeatId(0), plain("Brujah", 1), 4, false);
+    let z = e.add_minion(SeatId(1), of_sect(Sect::Camarilla, 4..=7, 0), 4, false);
+    pick(&mut e, action(m, zvtes::decision::ActionKind::Hunt));
+    pick_when(&mut e, block(z));
+    let req = until(&mut e, SeatId(0), WindowLabel::ActionBlock);
+    let a = e.action().expect("the action");
+    assert!(a.stealth(&e.state) > a.intercept_of(&e.state, z));
+    assert!(vamp_ability(&req, m, 0).is_some(), "stealth not needed");
+
     let mut e = game(2);
     let m = e.add_minion(SeatId(0), find_card("Mélusine d'Anjou"), 4, false);
     e.add_minion(SeatId(0), plain("Brujah", 1), 4, false);

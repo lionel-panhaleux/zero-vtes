@@ -804,14 +804,15 @@ pub static GUARDIAN_THE: VampireDef = VampireDef {
 pub static GWENLLIAN_ARWYN: VampireDef = VampireDef {
     name: "Gwenllian Arwyn",
     printed: &[own(Stat::Strength, 1, &[])],
-    // The minion attempting to block her action, while stealth is needed,
-    // for the rest of the action; once per action (rules-qa 15.2).
+    // The minion attempting to block her action, for the rest of the
+    // action, stealth needed or not (a reduction: LSJ 20020612); once per
+    // action (rules-qa 15.2).
     abilities: &[ModeDef {
         limit: Some(Limit::PerAction),
         ..mode_of(
-            &[Window::ActionDuring],
+            &[Window::ActionBlockAttempt],
             Actor::Host,
-            &[R::ActorActing, R::StealthNeeded, R::HostBloodAtLeast(1)],
+            &[R::ActorActing, R::HostBloodAtLeast(1)],
             &[Effect::HostBurnBlood(1), Effect::AttemptingIntercept(-1)],
         )
     }],
@@ -7084,11 +7085,10 @@ pub static MELUSINE_D_ANJOU: VampireDef = VampireDef {
     abilities: &[ModeDef {
         limit: Some(Limit::PerAction),
         ..mode_of(
-            &[Window::ActionDuring],
+            &[Window::ActionBlockAttempt],
             Actor::Host,
             &[
                 R::ActorActing,
-                R::StealthNeeded,
                 R::AttemptingYoungerVampire,
                 R::HostBloodAtLeast(1),
             ],

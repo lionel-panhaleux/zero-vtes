@@ -223,6 +223,9 @@ tables; `limit_slot` matches every `Limit`.
   cost carries its `implied_requirement`;
 - `every_card_put_on_the_opponent_needs_it_present` (same file): a mode
   with `PutOnOpponent` carries `OpponentPresent` (rules-qa 75.1);
+- `no_reduction_waits_for_a_need` (same file): a mode or ability reducing
+  stealth or intercept requires no `StealthNeeded` / `InterceptNeeded`
+  unless it adds some too (LSJ 20020612; rules-qa 3.2);
 - `every_card_is_defined_and_its_modes_match_the_reviewed_windows`
   (`tests/plays.rs`): every library card defined, every vampire definition
   resolving to its crypt card, the modes' windows equal to
@@ -869,6 +872,15 @@ sources to the engine's conventions.
   20030519).
 - Intercept given to a minion lasts the whole action, across failed attempts
   (`ActionCtx.intercept_given`, rules-qa 15.2).
+- "Only when needed" (`Requirement::StealthNeeded`, `InterceptNeeded`;
+  rules-qa 3.2) is for additions. A reduction of stealth or intercept never
+  carries it (`no_reduction_waits_for_a_need`, `cards/slots.rs`) and needs
+  no block attempt unless its text names one (LSJ 20020612; owner,
+  2026-11-11): "only usable if a minion attempts to block", "the vampire
+  attempting to block" sit in the attempt's window (Form of the Bat,
+  Gwenllian Arwyn, Mélusine d'Anjou); one stating an effect is played from
+  the block window on, to no effect with no attempt (Smoke and Mirrors
+  [obt]).
 - An attempt whose window closed short of the stealth: its Methuselah's
   pass in that round, short, was its decline (`ActionCtx::declining` while
   the table's round runs, the view's `declining`); it is marked declined

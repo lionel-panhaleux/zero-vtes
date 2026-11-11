@@ -36706,8 +36706,10 @@ pub static SMOKE_AND_MIRRORS: CardDef = CardDef {
             ],
             ..stealth(&[Effect::AddStealth(2)])
         },
+        // A reduction: any time before resolution, no attempt needed
+        // (LSJ 20020612).
         ModeDef {
-            requires: &[ANARCH, Requirement::StealthNeeded],
+            requires: &[ANARCH],
             ..stealth(&[Effect::AttemptingIntercept(-1)])
         },
     ],

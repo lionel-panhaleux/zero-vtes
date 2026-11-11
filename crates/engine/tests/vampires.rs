@@ -859,6 +859,17 @@ fn oskar_anasov_in_torpor_gives_intercept_to_a_blocker() {
 // Rulings: [LSJ 20011022].
 #[test]
 fn gwenllian_arwyn_lowers_a_blockers_intercept_as_she_leaves_torpor() {
+    // A reduction: offered against an attempt already short of the
+    // stealth [LSJ 20020612].
+    let mut e = bare();
+    let gwen = e.add_minion(SeatId(0), find_card("Gwenllian Arwyn"), 4, true);
+    e.add_minion(SeatId(0), plain("Ventrue", 0), 4, false);
+    let z = e.add_minion(SeatId(1), plain("Brujah", 0), 4, false);
+    pick(&mut e, action(gwen, ActionKind::LeaveTorpor));
+    pick(&mut e, Choice::DeclareBlock { minion: z });
+    let req = until(&mut e, SeatId(0), WindowLabel::ActionBlock);
+    assert!(req.options.contains(&vampire_ability(gwen, 0)));
+
     let mut e = bare();
     let gwen = e.add_minion(SeatId(0), find_card("Gwenllian Arwyn"), 4, true);
     e.add_minion(SeatId(0), plain("Ventrue", 0), 4, false);
