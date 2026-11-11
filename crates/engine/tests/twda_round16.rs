@@ -571,10 +571,11 @@ fn dark_web_procurer_finds_only_cheap_non_unique_equipment() {
 }
 
 // NRA PAC: "an equip action" read as Hag's Wrinkles' (rules-qa 80.44,
-// 78.28): the equip from another minion moves equipment and is not one; a
-// granted search equipping from the library (Dark Web Procurer) is.
+// 78.28): the take from another minion is one (LSJ 20060222, ANK 20170326;
+// 78.28 and 80.44 superseded, owner 2026-11-11); a granted search
+// equipping from the library (Dark Web Procurer) too.
 #[test]
-fn nra_pac_unlocks_a_search_equip_but_not_a_move_from_another_minion() {
+fn nra_pac_unlocks_a_take_from_another_minion_and_a_search_equip() {
     let mut e = game(2);
     let a = e.add_minion(SeatId(0), plain("Brujah", 0), 4, false);
     let b = e.add_minion(SeatId(0), plain("Brujah", 0), 4, false);
@@ -595,7 +596,7 @@ fn nra_pac_unlocks_a_search_equip_but_not_a_move_from_another_minion() {
     decline_futile(&mut e);
     until(&mut e, SeatId(0), WindowLabel::MinionPhase);
     assert_eq!(e.state.cards[vest.index()].host, Some(b));
-    assert!(!e.state.minions[b.index()]
+    assert!(e.state.minions[b.index()]
         .timed
         .iter()
         .any(|&(l, ..)| l == zvtes::cards::Lasting::UnlockAtEndOfTurn));

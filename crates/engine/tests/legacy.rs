@@ -866,24 +866,37 @@ fn bow_bleed_with(acting: u16, blocker: u16) -> (Engine, MinionId, MinionId, Car
 // successfully inflicted or not. Combat ends. This vampire is locked and
 // sent to torpor. This vampire does not unlock as normal. During this
 // vampire's next unlock phase, burn this card." On the vampire facing it
-// (RTR 19980623), after strikes are declared (LSJ 19990217), dodged or not
-// (LSJ 20011005); nothing resolves, no prevention (LSJ 19990217); both
+// (RTR 19980623), "any time during the 'announce strike' phase in which
+// that strike is announced" (LSJ 19990217; rules-qa 44.8 superseded,
+// owner 2026-11-11): before the vampire chooses its strike or after, dodged
+// or not (LSJ 20011005); nothing resolves, no prevention (LSJ 19990217); both
 // still ready as combat ends (LSJ 20070907); the unlock ban ends with the
 // card (ANK 20191025); Soul Burn or Blood Fury does not stop it (ANK
 // 20170519: the weapon damage is nullified only as it resolves).
 // Rulings: [RTR 19980623]; [LSJ 19990217] [RTR 20041202] [LSJ 20100119]; [LSJ 20011005] [ANK 20211102]; [LSJ 19990217] [LSJ 20020715] [LSJ 20060803]; [LSJ 20070907] [LSJ 20020402]; [ANK 20191025]; [ANK 20170519].
 #[test]
 fn rotschreck_ends_combat_against_an_aggravated_strike() {
-    let (mut e, a, z, bow) = bow_bleed();
+    // Before z chooses its strike.
+    let (mut e, _, z, bow) = bow_bleed();
     let rot = play_at(0, 0, None, Target::Minion(z));
-    // Not before both strikes are chosen.
+    // Not before the aggravated strike is announced.
     let req = until(&mut e, SeatId(0), WindowLabel::CombatStrike);
     assert!(!req.options.contains(&rot));
     pick(&mut e, use_at(bow, 0, None, Target::None));
-    // z dodges: still playable.
+    let req = expect(&mut e, SeatId(1), WindowLabel::CombatBeforeResolution);
+    assert!(req.options.contains(&rot), "{:?}", req.options);
+    pick(&mut e, rot);
+    until(&mut e, SeatId(0), WindowLabel::MinionPhase);
+    assert!(e.state.minions[z.index()].in_torpor);
+    // Or after: z dodges, then plays it.
+    let (mut e, a, z, bow) = bow_bleed();
+    until(&mut e, SeatId(0), WindowLabel::CombatStrike);
+    pick(&mut e, use_at(bow, 0, None, Target::None));
+    pick(&mut e, Choice::Pass);
     let req = offering(&mut e, rot);
     assert_eq!(req.window, WindowLabel::CombatBeforeResolution);
     assert_eq!(req.seat, SeatId(1));
+    assert!(e.combat().expect("combat").sides[1].strike.is_some());
     pick(&mut e, rot);
     until(&mut e, SeatId(0), WindowLabel::MinionPhase);
     // Nothing resolved: no damage either way; z locked, in torpor, the
@@ -900,6 +913,31 @@ fn rotschreck_ends_combat_against_an_aggravated_strike() {
     to_window(&mut e, SeatId(1), WindowLabel::MinionPhase);
     assert!(e.state.minions[z.index()].locked);
     assert!(!e.state.cards[card.index()].in_play);
+}
+
+// The step between strikes is Rötschreck's moment only (LSJ 19990217;
+// rules-qa 44.8), no impulse of its own: blocking, Shalmath ("Once each
+// turn, Shalmath can unlock", any impulse) is locked, no Rötschreck held;
+// after the bow's strike his Methuselah is asked his strike next.
+#[test]
+fn the_step_between_strikes_offers_no_other_impulse() {
+    let mut e = Engine::bare(2);
+    e.state.turn = 4;
+    let a = e.add_minion(SeatId(0), plain("Brujah", &[], 0), 4, false);
+    e.add_minion(SeatId(0), plain("Brujah", &[], 1), 4, false);
+    let z = e.add_minion(SeatId(1), find_card("Shalmath"), 4, false);
+    e.add_minion(SeatId(1), plain("Ventrue", &[], 1), 4, false);
+    let bow = in_play(&mut e, 0, "Ivory Bow", Some(a));
+    pick(&mut e, bleed(a));
+    pick(&mut e, block(z));
+    until(&mut e, SeatId(0), WindowLabel::CombatStrike);
+    pick(&mut e, use_at(bow, 0, None, Target::None));
+    let req = request(&mut e);
+    assert!(e.state.minions[z.index()].locked);
+    assert_eq!(
+        (req.seat, req.window),
+        (SeatId(1), WindowLabel::CombatStrike)
+    );
 }
 
 // Not against a strike that inflicts no aggravated damage (a hand strike),

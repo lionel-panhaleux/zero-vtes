@@ -584,9 +584,9 @@ pub struct ActionCtx {
     /// Minions locked after the action unless they blocked it (Eyes of the
     /// Wild).
     pub lock_if_no_block: Vec<MinionId>,
-    /// A hunt that gained blood: "successfully hunts" (The Anarch Free
-    /// Press; LSJ 20050720-2).
-    pub hunt_gained: bool,
+    /// A successful hunt (`GameState::hunt_gains`): "successfully hunts"
+    /// (The Anarch Free Press), Abactor's "successful resolution".
+    pub hunt_successful: bool,
     /// An action a card makes a hunt (Week of Nightmares, Loki's Gift):
     /// `is_hunt` reads it with the rulebook hunt.
     pub card_hunt: bool,
@@ -1233,19 +1233,21 @@ impl ActionCtx {
     }
 
     /// An equip action (rules-digest §3.7, rules-qa 78.28): an equip from
-    /// hand or of an equipment found (Vast Wealth), or an action whose card
-    /// or granted ability searches the library and equips (Magic of the
-    /// Smith; Michael Harris, Dark Web Procurer: TOM 19960130); not a move
-    /// from another minion.
+    /// hand or of an equipment found (Vast Wealth), a take from another
+    /// minion (LSJ 20060222, ANK 20170326), or an action whose card or
+    /// granted ability searches the library and equips (Magic of the Smith;
+    /// Michael Harris, Dark Web Procurer: TOM 19960130).
     pub fn is_equip_action(&self, st: &crate::state::GameState) -> bool {
         let effects = self.mode_effects(st);
-        matches!(self.kind, ActionKind::Equip | ActionKind::EquipFound)
-            || effects.iter().any(|e| {
-                matches!(
-                    e,
-                    Effect::SearchEquip(_) | Effect::SearchEquipFree(_) | Effect::EquipNamed
-                )
-            })
+        matches!(
+            self.kind,
+            ActionKind::Equip | ActionKind::EquipFound | ActionKind::EquipFrom
+        ) || effects.iter().any(|e| {
+            matches!(
+                e,
+                Effect::SearchEquip(_) | Effect::SearchEquipFree(_) | Effect::EquipNamed
+            )
+        })
     }
 
     /// The action card's mode effects, for those read where they bite
@@ -4009,6 +4011,11 @@ impl Engine {
                 self.after_resolution();
             }
             ActionState::Blocked(blocker) => {
+                // Unleash Hell's Fury, burned as it blocked: no combat.
+                let fury = matches!(
+                    self.state.minions[blocker.index()].kind,
+                    crate::state::MinionKind::Fury { .. }
+                );
                 if a.continued {
                     // Continued as if unblocked before block resolution:
                     // back to A, declines standing (ANK 20190116).
@@ -4016,6 +4023,9 @@ impl Engine {
                     a.state = ActionState::Open;
                     a.fresh_window();
                     self.flow = Flow::Action;
+                } else if fury {
+                    a.outcome = Some(Outcome::Blocked);
+                    self.after_resolution();
                 } else if a.kind == ActionKind::LeaveTorpor || a.from_torpor {
                     self.flow = Flow::TorporBlock;
                 } else if let Some(f) = a.framed {
@@ -5534,7 +5544,9 @@ impl Engine {
         let owner = self.state.minions[blocker.index()].owner;
         self.profiles[owner.index()].add(crate::profile::Count::BlocksLanded, 1);
         // Unleash Hell's Fury: its damage and burn before any other effect,
-        // even if the action is ended (ANK 20210627, LSJ 20100301).
+        // even if the action is ended (ANK 20210627, LSJ 20100301); then
+        // before block resolution, modifiers may still be played (Change of
+        // Target; ANK 20220116; rules-qa 60.21 superseded), no combat.
         if let crate::state::MinionKind::Fury { id, .. } = self.state.minions[blocker.index()].kind
         {
             let (acting, kind) = {
@@ -5547,8 +5559,9 @@ impl Engine {
             self.burn_card_in_play(id);
             self.damage_out_of_combat(acting, 1, true);
             if let Some(a) = self.action.as_mut() {
-                a.outcome = Some(Outcome::Blocked);
-                self.after_resolution();
+                a.state = ActionState::Blocked(blocker);
+                a.fresh_window();
+                self.flow = Flow::Action;
             }
             return;
         }
@@ -6675,14 +6688,8 @@ impl Engine {
             ActionKind::Hunt => {
                 self.state.minions[a.acting.index()].must_hunt = false;
                 let hunt = 1 + self.state.hunt_bonus(a.acting);
-                let successful;
-                // Gained blood is Abactor's narrower "successful resolution"
-                // (63.2).
-                (successful, a.hunt_gained) = self.hunt_gain(a.acting, hunt);
-                if a.hunt_gained {
-                    self.state.minions[a.acting.index()].hunted_turn = Some(self.state.turn);
-                }
-                if successful {
+                a.hunt_successful = self.hunt_gain(a.acting, hunt);
+                if a.hunt_successful {
                     self.successful_hunt_riders(a.acting);
                 }
             }
@@ -7159,6 +7166,7 @@ impl Engine {
                     {
                         let (card, mode) = (c.card, c.mode);
                         self.state.set_host(id, acting);
+                        self.state.cards[id.index()].entered_action = self.state.action_serial;
                         // Equipped, it comes locked (Helicopter; LSJ
                         // 20100119).
                         if cards::lookup(card).is_some_and(|d| {
@@ -7316,7 +7324,7 @@ impl Engine {
                                 | Effect::UnlockActor
                                 | Effect::HuntAction
                                 | Effect::HuntAt(_)
-                                | Effect::BloodHuntIfHuntGained
+                                | Effect::BloodHuntIfHuntSuccessful
                                 | Effect::CoagulateFromPicks { .. }
                                 | Effect::UnlockAtEndIfReady
                                 | Effect::BleedPoolCap(_)
@@ -7408,17 +7416,15 @@ impl Engine {
                 }
                 let target_ok = target_ok && !a.canceled;
                 // "Hunt at +n hunt" (Abactor): 1 + n blood, hunt bonuses
-                // included (rules-qa 59.1); none gained (at capacity, a
-                // disease) is no successful hunt.
+                // included (rules-qa 59.1).
                 if let Some(n) = mode.effects.iter().find_map(|e| match e {
                     Effect::HuntAt(n) => Some(*n),
                     _ => None,
                 }) {
                     let acting = a.acting;
                     let n = 1 + n + self.state.hunt_bonus(acting);
-                    let successful;
-                    (successful, a.hunt_gained) = self.hunt_gain(acting, n);
-                    if successful {
+                    a.hunt_successful = self.hunt_gain(acting, n);
+                    if a.hunt_successful {
                         self.action = Some(a);
                         self.successful_hunt_riders(acting);
                         a = self.action.take().expect("action context");
@@ -7545,11 +7551,11 @@ impl Engine {
                 {
                     self.unlock_minion(a.acting);
                 }
-                // Abactor's blood hunt: after a hunt that gained blood (LSJ
-                // 20090411), inside the resolution (LSJ 20100112), no
-                // diablerie (LSJ 20090724).
-                if mode.effects.contains(&Effect::BloodHuntIfHuntGained)
-                    && a.hunt_gained
+                // Abactor's blood hunt: after a successful hunt, at capacity
+                // too (LSJ 20090411; rules-qa 63.2 superseded), inside the
+                // resolution (LSJ 20100112), no diablerie (LSJ 20090724).
+                if mode.effects.contains(&Effect::BloodHuntIfHuntSuccessful)
+                    && a.hunt_successful
                     && self.state.minions[a.acting.index()].present()
                     && !self.state.blood_hunt_barred(a.acting)
                 {
@@ -8039,9 +8045,9 @@ impl Engine {
                                     ps.removed.put(card, copy);
                                 }
                                 let n = 1 + bonus + self.state.hunt_bonus(acting);
-                                let (successful, gained) = self.hunt_gain(acting, n);
+                                let successful = self.hunt_gain(acting, n);
                                 if let Some(a) = self.action.as_mut() {
-                                    a.hunt_gained = gained;
+                                    a.hunt_successful = successful;
                                 }
                                 if successful {
                                     self.successful_hunt_riders(acting);
@@ -8182,21 +8188,20 @@ impl Engine {
                                 } else {
                                     0
                                 };
-                                // Diseased: no blood to gain, none taken.
-                                let n = if hunt && self.state.minions[acting.index()].disease {
-                                    0
-                                } else {
-                                    n
-                                };
                                 let taken = n.min(self.state.minions[t.index()].blood);
                                 self.state.lose_blood(t, taken);
-                                self.state.gain_blood(acting, taken);
+                                // Blood the hunter cannot gain (a disease
+                                // counter, at capacity) goes to the bank
+                                // (LSJ 20010809-1; rules-qa 59.4 superseded).
+                                let gains = !hunt || self.state.hunt_gains(acting);
+                                if gains {
+                                    self.state.gain_blood(acting, taken);
+                                }
                                 self.stealer_damaged(Some(acting), t, taken);
                                 // A hunt stealing no blood is not successful
-                                // (LSJ 20050720-2); blood it cannot hold goes
-                                // to the bank (LSJ 20010809-1).
-                                if hunt && taken > 0 {
-                                    self.action.as_mut().expect("action").hunt_gained = true;
+                                // (LSJ 20050720-2).
+                                if hunt && gains && taken > 0 {
+                                    self.action.as_mut().expect("action").hunt_successful = true;
                                     self.state.spend_once_hunt(acting);
                                     self.successful_hunt_riders(acting);
                                 }
@@ -8490,16 +8495,15 @@ impl Engine {
     }
 
     /// A hunt's n blood to `m` (`GameState::hunt_blood`): whether it is
-    /// successful and gains blood. "Can move 1 of the blood he would gain
+    /// successful. "Can move 1 of the blood he would gain
     /// from a hunt to another vampire you control instead" (Azrael): that
     /// part is held back for its controller's pick
     /// (`MinionPurpose::HuntBloodTo`), still gained at capacity (89.26),
     /// none to move for a diseased hunter (59.4).
-    pub(crate) fn hunt_gain(&mut self, m: MinionId, n: u8) -> (bool, bool) {
+    pub(crate) fn hunt_gain(&mut self, m: MinionId, n: u8) -> bool {
         let st = &self.state;
-        let before = st.minions[m.index()].blood;
         let owner = st.minions[m.index()].owner;
-        let held = if st.minions[m.index()].disease {
+        let held = if !st.hunt_gains(m) {
             0
         } else {
             (st.printed_mod(m, Stat::HuntBloodElsewhere, Default::default())
@@ -8523,14 +8527,15 @@ impl Engine {
                 purpose: crate::draws::MinionPurpose::HuntBloodTo { hunter: m, n: held },
             });
         }
-        let gained = held > 0 || self.state.minions[m.index()].blood > before;
-        (successful, gained)
+        successful
     }
 
     /// Riders of a successful hunt: the hunter's (Adisa), the cards that
     /// became another on it (Enhanced Coagulant, not as equipment), any card
-    /// watching vampires hunt (Hunger Moon).
+    /// watching vampires hunt (Hunger Moon); the turn noted (Songs of the
+    /// Distant Vitae's "successfully hunted").
     pub(crate) fn successful_hunt_riders(&mut self, m: MinionId) {
+        self.state.minions[m.index()].hunted_turn = Some(self.state.turn);
         // Festivo dello Estinto: up to its capacity, from the bank.
         let fill = self.state.in_play_layers().any(|l| {
             matches!(l.modifier, cards::Modifier::SectHuntToCapacity(s)

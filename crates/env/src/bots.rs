@@ -285,6 +285,17 @@ impl Scripted {
         let Some(r) = e.referendum() else { return 0 };
         let mine = r.caller == me;
         match *o {
+            // Business Pressure's round: a pool at a time, while its side is
+            // not ahead and pool is to spare.
+            Choice::CastCardVote { favor } if r.pressure.is_some() => {
+                let (yes, no) = r.tally(&e.state);
+                let behind = if mine { yes <= no } else { no <= yes };
+                if favor == mine && behind && e.state.seats[me.index()].pool > 4 {
+                    15
+                } else {
+                    -5
+                }
+            }
             Choice::CastVotes { favor, .. } | Choice::CastCardVote { favor } => {
                 if favor == mine {
                     50

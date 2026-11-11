@@ -40,12 +40,13 @@ Citation conventions:
   `references/rules/rulebook.md`).
 - "owner (date)": an owner correction or answer, as recorded in rules-qa.
 
-Precedence: the owner's latest word (rules-qa, newest item first) settles a
-reading, over a KRCG ruling when they differ (each case listed in §23);
-an item revised later is indexed to the section stating the current
-reading. A card's own text overrides every default here ("even if …
-not yet needed", "cannot be canceled", "requirements and cost apply as
-normal").
+Precedence: a Rules Director ruling over the owner's reading (owner, 2026-11-11:
+"Ankha's ruling is right and is a Rules Director ruling, it supersedes my
+rules-qa"; §23.7); otherwise the owner's latest word (rules-qa, newest item
+first) settles a reading, over a KRCG paraphrase when they differ (each case
+listed in §23); an item revised later is indexed to the section stating the
+current reading. A card's own text overrides every default here ("even if … not
+yet needed", "cannot be canceled", "requirements and cost apply as normal").
 
 Card names are as printed; Disciplines in brackets (`[pot]` inferior,
 `[POT]` superior); clan names in their V5 forms (Banu Haqim for Assamite,
@@ -312,17 +313,19 @@ below rely on these and do not repeat them.
   must take the special hunt (28.8).
 - "Did not hunt" (Thirst): a vampire that took a hunt action this turn
   hunted, blocked or not (40.2, LSJ 20050727).
-- A hunt's action is successful unblocked, at capacity or diseased too
-  (63.12, 59.4). "Successfully hunts" (Adisa, Eddie Gaines, Restricted
-  Vitae, Harvest Rites spent) is a hunt getting its blood: at capacity, its
-  blood drained off, yes; a diseased vampire's, which gets none, no (owner,
-  89.1, 89.26; 59.4); an action that is not a hunt, never. Abactor's
-  "successful resolution" is narrower: blood gained (63.2, LSJ 20090411,
-  advanced rules §3.7.2; 17.3), so no blood hunt at capacity.
+- A hunt's action is successful unblocked, at capacity or diseased too (63.12,
+  59.4). "Successfully hunts" (Adisa, Eddie Gaines, Restricted Vitae, Harvest
+  Rites spent, Songs of the Distant Vitae, The Anarch Free Press) is a hunt
+  getting its blood: at capacity, its blood drained off, yes; a diseased
+  vampire's, which gets none, no (owner, 89.1, 89.26; 59.4); an action that is
+  not a hunt, never. Abactor's "successful resolution" is that successful hunt,
+  unblocked (63.2, LSJ 20090411, advanced rules §3.7.2; 17.3): at capacity its
+  blood hunt is called, diseased not.
 - "+n hunt" adds to every hunt of the vampire, non-standard ones too (64.1,
   RTR 20030519); a hunt taking blood from a target takes the bonus from it
   (53.8, RTR 20030519); "cannot gain blood by hunting" covers every hunt
-  (59.4).
+  (59.4): a hunt stealing blood still takes it, to the blood bank (LSJ
+  20010809-1).
 - Hunting grounds are not hunts (§16.2).
 
 ### 3.2 Success, failure, fizzle, cancel (of an action)
@@ -454,9 +457,10 @@ below rely on these and do not repeat them.
   not employed (22.2).
 - Moving equipment (a steal, the equip-from-another-minion action, a
   locquipment move) is not equipping: no requirement checked, nothing stored
-  (17.4, 12.2, 38.7, 70.11); nor "an equip action" for Hag's Wrinkles,
-  which an equip from hand, Vast Wealth's or an action card equipping from
-  the library (Magic of the Smith) is (78.28).
+  (17.4, 12.2, 38.7, 70.11); yet the take from another minion is "an equip
+  action" (LSJ 20060222, ANK 20170326), as an equip from hand, Vast
+  Wealth's or an action card equipping from the library (Magic of the
+  Smith) are (78.28); Journal of Hrorsh gets no counter for it (113.103).
 - "Comes into play under your control" from the uncontrolled region =
   influenced out (58.12, 34.7, 57.9).
 - "Entered play since …", "entered your ready region during …": a move out
@@ -468,9 +472,10 @@ below rely on these and do not repeat them.
   played — no requirement, its own X cost 0 (PIB 20111101); a vampire comes
   with no blood and may act this turn (LSJ 20100204) (77.3).
 - NRA PAC's "an equip action" is Hag's Wrinkles' (78.28), one reading for
-  both: an equip from hand, Vast Wealth's, an action card or granted action
-  equipping from the library (Magic of the Smith, Michael Harris, Dark Web
-  Procurer); the move from another minion is not (80.44).
+  both, Roderick Phillips March's and Carmen's too: an equip from hand,
+  Vast Wealth's, the take from another minion, an action card or granted
+  action equipping from the library (Magic of the Smith, Michael Harris,
+  Dark Web Procurer) (80.44).
 
 ### 3.8 Action modifier, reaction, combat card
 
@@ -1052,9 +1057,9 @@ simultaneous effects, §2.5 duration). The engine's window primitives are in
 
 - What a card does at once is not sequenced: Baltimore Purge's torpor
   (63.13, LSJ 20050111); Constant Revolution's random discards (7.10, LSJ
-  20090618); Business Pressure's pool burn and votes once all chose (51.5);
-  Marcos Belegrad's burns at the tally (51.1); Golconda's removal with its
-  cards (33.5); Heart of Nizchetus's draws (11.1).
+  20090618); Marcos Belegrad's burns at the tally (51.1); Golconda's
+  removal, the cards on it burned (33.5); Heart of Nizchetus's draws
+  (11.1).
 - Pool losses in one batch oust together (45.1, 69.10, §21.1).
 - A cost paid with several counters is burned all at once (Cave of Apples,
   35.2).
@@ -1721,15 +1726,15 @@ actions), §3.9 (mandatory actions), §3.10 (changing the acting minion).
 
 ### 8.8 Changing the acting minion
 
-- Mask of a Thousand Faces: the masker must be capable of the action's
-  kind (not a granted action, a torpor action or one needing a locked
-  minion), of its action card (clan, Disciplines, title and sect
-  requirements) and of each card the acting minion played on it (clan, one
-  of its Disciplines); the masked minion's inherent stealth already used
-  does not bar it; [OBF] only when stealth is needed (owner 2026-10-09)
-  (58.13). No Mask take-over of a blood-cursed vampire's diablerie (63.1),
-  nor once a card on the acting minion applied its effect to the action
-  (Aching Beauty's burn, 76.17).
+- Mask of a Thousand Faces: the masker must be capable of the action's kind (not
+  a granted action, a torpor action or one needing a locked minion), of its
+  action card (clan, Disciplines, title and sect requirements) and of each card
+  the acting minion played on it (clan, one of its Disciplines); the masked
+  minion's inherent stealth on the action bars it, "not even a minion that has a
+  similar stealth bonus" may mask (RTR 20041202); [OBF] only when stealth is
+  needed (owner 2026-10-09) (58.13). No Mask take-over of a blood-cursed
+  vampire's diablerie (63.1), nor once a card on the acting minion applied its
+  effect to the action (Aching Beauty's burn, 76.17).
 - Deep Song [ANI]'s "considered the acting minion": the target takes the
   acting side in that combat (its Methuselah acts first each step); effects
   on "this acting vampire" (Invigorate [pro], Form of Mist's continuation)
@@ -1987,15 +1992,18 @@ Advanced rules §3.2 (stealth and intercept), §3.3 (blocking).
   the acting minion stays locked (64.4).
 - Unleash Hell's Fury: the card itself is a minion for the duration of its
   block attempt (a 9-capacity infernal vampire, +2 intercept, 0 blood); its
-  successful block ends the action at once — damage and burn, no combat,
-  nothing played on it afterward; never locked (60.21).
+  successful block: damage and burn first, then cards before block
+  resolution may still be played (Change of Target, ANK 20220116), no
+  combat; never locked (60.21).
 - The Fury against later plays: the same minion for every attempt (Elder
   Impersonation fails it for good, 93.1); never locked, a locked Fury still
   attempts (Faceless Night, 93.2); its intercept takes others' cards (KRCG
   News Radio), it pays no blood cost, burned it is no minion (93.3);
   Mirror Walk's end of the action and its damage at the same moment, both
-  apply (93.4); nothing before its damage and burn (Crypt's Sons, 93.5);
-  its burn option reads ready infernal vampires (93.6).
+  apply (93.4); nothing before its damage and burn, and an Anarch it sent
+  to torpor cannot continue the action (Crypt's Sons, Horrific
+  Countenance; ANK 20211207; 93.5); its burn option reads ready infernal
+  vampires (93.6).
 - Dogged Pursuit [ANI]: the card goes on the vampire after resolution when
   it did not block, unless it already has one; its +1 intercept serves any
   later attempt of that vampire, burned then (30.4).
@@ -2274,17 +2282,17 @@ torpor actions, diablerie). Referendums: §13.
 
 - What a hunt is, successful hunts, card hunts: §3.1 (72.1–72.5, 40.2,
   32.13, 63.12, 64.1).
-- Adisa "successfully hunts" only when the hunt gains blood (17.3, advanced
-  rules §3.7.2.1).
+- Adisa "successfully hunts" as 89.26 reads it: a diseased hunt no, a hunt
+  at capacity yes (17.3, 89.1, advanced rules §3.7.2.1).
 - Abactor: +4 hunt is 5 blood with the hunt bonuses on top (Aaron's Feeding
-  Razor, Hospital Food); "successful resolution" is an unblocked action that
-  gained blood (LSJ 20090411) — at capacity or diseased, no blood hunt; the
-  blood hunt is part of the action, before its after-resolution window
-  (Freak Drive, CrimethInc. after it; Heidelberg Castle not during it), its
-  rotation from the hunting vampire's controller; no diablerie is recorded
-  (Carlton Van Wyk, Rebirth); a special hunt, once per minion each turn,
-  open to a vampire that must hunt and to a Ravnos under Week of Nightmares
-  (Week's own steal does not combine) (63.2).
+  Razor, Hospital Food); "successful resolution" is an unblocked action whose
+  hunt is successful (LSJ 20090411) — at capacity, its blood hunt called;
+  diseased, none; the blood hunt is part of the action, before its
+  after-resolution window (Freak Drive, CrimethInc. after it; Heidelberg Castle
+  not during it), its rotation from the hunting vampire's controller; no
+  diablerie is recorded (Carlton Van Wyk, Rebirth); a special hunt, once per
+  minion each turn, open to a vampire that must hunt and to a Ravnos under Week
+  of Nightmares (Week's own steal does not combine) (63.2).
 - Giovanni del Georgio's +2 hunt is 3 blood (59.1). The Hungry Coyote's +1
   hunt: a hunt taking blood from a target takes 1 more from it (RTR
   20030519); Psychophagia, which eats an ally from the ash heap, gets 1 more
@@ -2302,7 +2310,8 @@ torpor actions, diablerie). Referendums: §13.
 - Loki's Gift [PRO]'s bite is directed at the bitten vampire's Methuselah
   when another's (68.17); Volo hunting with it at 0 stealth (72.1).
 - Vampiric Disease: "cannot gain blood by hunting" covers every hunt —
-  rulebook, granted or card hunts; a hunt stealing blood takes none (59.4).
+  rulebook, granted or card hunts; a hunt stealing blood still takes it, to
+  the blood bank (LSJ 20010809-1), no successful hunt (59.4).
 - Ariadne: her "+1 hunt" adds to every hunt of hers, non-standard ones too
   (RTR 20030519) (64.1).
 - KRCG (not in rules-qa): a hunt stealing blood must target a vampire, one
@@ -2760,16 +2769,17 @@ round (rulebook "Combat").
   played on top of it — the striking minion's Methuselah gets one decision
   after its strike choice, an aim or pass, before the strikes resolve; a
   strike committed at the maneuver likewise (62.1, owner 2026-10-11).
-- Target Vitals: the aim's +2 damage is added once the strike's damage is
-  successfully inflicted (after prevention, so it cannot be prevented), of
-  the strike's kind (RTR 19970630); "the opposing minion cannot press this
-  round" only when the aim lands (55.1). Under Immortal Grapple it can be
-  played on a hand strike; on a committed strike (a .44 Magnum's) it is
-  played in the strike phase while that strike can still be used; a grapple
-  forbidding it, the committed strike is not usable and Target Vitals
-  cannot be used on it (55.8, LSJ 20080409).
-- Rötschreck is played once both strikes of a pair are chosen (before they
-  resolve), additional pairs included; "an opposing minion attempts to
+- Target Vitals: the aim's +2 damage joins a damaging strike's damage as it
+  resolves, of its kind and preventable with it ("additional damage inherits all
+  of the properties of the base damage", RTR 19970630); "the opposing minion
+  cannot press this round" only when damage lands after prevention (55.1). Under
+  Immortal Grapple it can be played on a hand strike; on a committed strike (a
+  .44 Magnum's) it is played in the strike phase while that strike can still be
+  used; a grapple forbidding it, the committed strike is not usable and Target
+  Vitals cannot be used on it (55.8, LSJ 20080409).
+- Rötschreck is played any time in the announce-strike step once the
+  opposing strike is announced, before or after the vampire's own (LSJ
+  19990217), additional pairs included; "an opposing minion attempts to
   inflict aggravated damage" reads the chosen strike (aggravated at its
   source, effective at the range, not aimed at a retainer) (44.8); on any
   Methuselah's vampire facing it, by any Methuselah but the active one
@@ -2825,7 +2835,8 @@ round (rulebook "Combat").
 - Nephandus's reduction is its own step, before prevention, for each strike
   of the opposing minion — hand, melee weapon, ranged, unpreventable
   included — and a strike's damage after combat (Catatonic Fear); not
-  environmental damage (Carrion Crows), nor an aim's add-on (62.24).
+  environmental damage (Carrion Crows); an aim's add-on joins the strike's
+  damage, not reduced separately (LSJ 20091123-2) (62.24).
 - FBI Special Affairs Division: the 2 damage dealt as the combat ends,
   before after-combat effects (40.9). Zip Gun: its bearer takes 1
   environmental damage the first time it strikes with it each combat, none
@@ -3000,7 +3011,7 @@ round (rulebook "Combat").
   burned as the combat ends (59.17).
 - Drawing Out the Beast [ANI]'s damage lands as the press step begins,
   before any press (70.16). Mob Connections: one press to continue (33.6).
-- "Cannot press this round" (Target Vitals) only when the aim lands (55.1).
+- "Cannot press this round" (Target Vitals) only when damage lands (55.1).
 - Once-each-combat presses: Abaddon, Saku (14.2), Jacob Fermor (64.1),
   Nephandus (62.24), Ruins of Ceoris (62.27).
 - The Black Beast's press only at the press step to continue, not while one
@@ -3292,12 +3303,11 @@ prisci's alone (52.9, 70.6) — read "a Methuselah's ballots" in rules-qa as
   casts them (52.7).
 - Oxford University, England: X from 1 up to the player's pool, named as it
   locks; paying the last pool ousts them and they cast nothing (33.2, as
-  Ferraille, LSJ 20081105). Business Pressure: as each Methuselah, in
-  impulse order from its player, chooses once how much pool to burn — so how
-  many votes — and on which side, then passes; once everyone has chosen,
-  the votes are counted and the pool burned at once, the last pool ousting;
-  not paid vote by vote; [PRE]'s +3 votes a pool are its player's only
-  (51.5, owner over RTR 19960530, §23).
+  Ferraille, LSJ 20081105). Business Pressure: a round in impulse order
+  from its player, each Methuselah in turn burning one pool for its votes
+  on a side, burned at once (the last pool ousting), or passing; give and
+  take until all pass in a row (RTR 19960530); [PRE]'s +3 votes a pool are
+  its player's only (51.5).
 - Propaganda of the Deed: the +2 votes are its controller's own, cast for or
   against, in any political action's polling step (71.4). Alamut, Dead
   Pool: a vampire abstaining can still burn counters for votes it cannot
@@ -3325,9 +3335,9 @@ prisci's alone (52.9, 70.6) — read "a Methuselah's ballots" in rules-qa as
   Netted: a vampire's votes may go net negative, kept against votes it
   gains later, and only the total, tallied, stops at 0 (ANK 20251125, LSJ
   20050221-2): -1, then Awe's +1, is 0 (90.3).
-- Tyler McGill: the +1 vote counts in votes he casts after a Methuselah
-  burned the Edge for a vote in that referendum; votes already cast are not
-  revised; "Nosferatu" is the clan only (74.8).
+- Tyler McGill: the +1 vote counts once a Methuselah burned the Edge for a
+  vote in that referendum, joining a cast he already made (5.1);
+  "Nosferatu" is the clan only (74.8).
 - Bruce de Guy's bar, used as he announces a political action, keeps
   Camarilla vampires from casting votes and ballots in its referendum, not
   their Methuselahs' votes; Maldavis gives +1 vote to any Methuselah's
@@ -3582,8 +3592,8 @@ retainers, traits, titles, trait changes).
   from the game leaves its card out of the game (not in the ash heap); the
   cards on it are burned, and nothing keyed to a burn fires (50.6). Golconda:
   Inner Peace: capacity read at resolution (Discipline master cards
-  included); the vampire is removed from the game, cards on it removed with
-  it (another Methuselah's burned) (33.5).
+  included); the vampire is removed from the game, every card on it burned
+  (rulebook "Burn"; 33.5).
 - "Burns n blood or is burned" (Hermana Hambrienta's 2 blood, Robert
   Carter's employer's 1): the controller's choice, as Society of Leopold's
   wording; the Hermanas only as influenced out, after the excess drained
@@ -4312,10 +4322,10 @@ cards), §1.10 (burn and removal), §6.3 (control of a card in play).
 
 ### 16.4 Cards on minions
 
-- A card on a minion leaves play with it: burned with it, removed from the
-  game with it (owner's cards; other Methuselahs' cards burned to their
-  ash heaps) (27.4, 33.5) — an ally Permanent Vacation removes has all its
-  cards burned, nothing keyed to a burn firing (50.6); face down with it in banishment (5.7);
+- A card on a minion leaves play with it: burned with it, burned as it is
+  removed from the game, whoever owns it (rulebook "Burn"; 27.4, 33.5) —
+  an ally Permanent Vacation removes has all its cards burned, nothing
+  keyed to a burn firing (50.6); face down with it in banishment (5.7);
   moved with a stolen minion (minion cards), staying their player's (master
   cards) (31.5). Advanced rules §1.12.1.
 - Who controls it: §3.9 (7.5, 38.4).
@@ -4460,11 +4470,10 @@ minions), §6.3 (of a card in play), §6.4 (leaving and re-entering play).
   a stolen combatant's combat ends after the damage still pending resolves
   (27.3, LSJ 20020618).
 - Return: a temporarily controlled minion that cannot return (its Methuselah
-  ousted) is removed from the game (ANK 20181110); its owner's cards on it
-  go with it; other Methuselahs' cards on it are burned to their ash heaps
-  (27.4). Advanced rules §6.4.1 was fixed to agree with §6.2.4: removed when
-  it should return to an ousted Methuselah; only a return that can no longer
-  occur (Parmenides) leaves it with the current controller (28.13).
+  ousted) is removed from the game (ANK 20181110); every card on it is burned,
+  its owner's too (27.4). Advanced rules §6.4.1 was fixed to agree with §6.2.4:
+  removed when it should return to an ousted Methuselah; only a return that can
+  no longer occur (Parmenides) leaves it with the current controller (28.13).
 - Taking control of a unique vampire whose copy one already controls: by
   choice (any take of control, a two-player contested copy too) not offered;
   forced, the incoming copy burns (advanced rules §1.13.1) (58.19).
@@ -4932,36 +4941,22 @@ rules-qa batch.
 
 ### 23.1 The owner over a KRCG ruling (settled)
 
-- **K1** Karl Schrekt: 59.14 (owner, 2026-10-09) read him, met as a
-  justicar, as a titled Camarilla vampire for the card, calling Camarilla's
-  Iron Fist when no longer Camarilla, over ANK 20250410 — superseded by
-  that ruling, a Rules Director's (owner, 2026-11-11): only a list naming a
-  justicar is met, never "a titled Camarilla vampire"; advanced rules
-  §5.8.3 agrees.
 - **K2** CrimethInc.: 62.21 (owner, 2026-10-11) — a recruit, employ or equip
   of a card requiring an Anarch is an action requiring one — over ANK
   20180817, LSJ 20100303, LSJ 20100725 ("requirements apply but do not count
   as requirements for the action") and advanced rules §3.7.4.1, §1.6.3. They
-  agree only on a card another card fetches in the action.
-- **K3** Business Pressure: 51.5 (owner, 2026-10-07) — each Methuselah
-  chooses once, in impulse order, "not paid vote by vote" — against the
-  "give and take during the resolution" of RTR 19960530 (and LSJ 20030602)
-  that advanced rules §3.7.5.3 reads as one pool at a time, each waiting to
-  see; the ledger row for RTR 19960530 is test-backed by the owner's
-  one-choice reading, its give-and-take sentence unaddressed.
+  agree only on a card another card fetches in the action. Confirmed
+  (owner, 2026-11-11), with 41.12 (Keegan, "Mother" Anja Giovanni) alike:
+  the groups G00131, G00132, G00140 settle the fetched case only.
 - **K4** Parijat's toll on a canceled card: 18.1 follows ANK 20260317, which
-  supersedes ANK 20260216 (Eagle's Sight example); ledger rows `n/a`.
+  supersedes ANK 20260216 (Eagle's Sight example); ledger rows `n/a`. 42.8
+  with it: a forced attempt is offered only while its toll is payable.
+  Confirmed (owner, 2026-11-11).
 - **K45** Camarilla Vitae Slave: 76.24 (owner, 2026-10-16) — the chosen
   Discipline lasts until its controller's next master phase, as printed —
   over LSJ 19970224 ("until his controller's next unlock phase"); the
   ledger row is test-backed by the owner's reading, its "burned or stolen"
   half tested, its timing overridden.
-- **K46** Unleash Hell's Fury: 60.21 (owner, 2026-10-09) — its successful
-  block ends the action at once, nothing played on it afterward (Change of
-  Target named) — over ANK 20210627's "other effects and modifiers can be
-  played after (e.g. Change of Target)"; those two ledger rows are `n/a:
-  superseded`, the ruling's first half (no effect before its damage and
-  burn) test-backed (93.5).
 
 ### 23.2 Within rules-qa
 
@@ -5046,7 +5041,8 @@ rules-qa batch.
   fit between the diablerie and the blood hunt); 68.2 gives Slake the
   Thirst a window there; settled by 88.4 (owner, 2026-10-22):
   only the cards keyed to the diablerie there (Slake the Thirst, Taking the
-  Skin: Minion), Freak Drive after the hunt (5.8 kept).
+  Skin: Minion), Freak Drive after the hunt (5.8 kept). Confirmed (owner,
+  2026-11-11); advanced rules §3.7.8.1 now agrees.
 - **K16** Anarch Revolt's burn condition: 6.1 (read when the effect
   resolves, ordered freely) vs LSJ 20080106 and advanced rules §5.2.2
   (checked at the end of the unlock phase, even if the Methuselah had a
@@ -5109,6 +5105,16 @@ rules-qa batch.
   rules §4.3.1) vs advanced rules §4.10.1 ("never commits … may still strike
   with that gun"): the advanced rules contradict themselves; rules-qa
   follows §4.3.1.
+- **K49** Unneeded stealth inside a card that does more: 8.1 (Bonding
+  [DOM]) and 25.3 (Revelation of the Serpent's stealth option) only when
+  stealth is needed, with TOM 19951109, over rulemonger R-012's "only a
+  play whose whole effect is the unneeded one". Confirmed (owner,
+  2026-11-11); advanced rules §1.6.5 now agrees (Gathii's random stealth:
+  ANK 20231031, §3.2.1).
+- **K51** Mask of a Thousand Faces and NRA: 58.13 (the masker takes the
+  action's NRA marks) over advanced rules §3.5.2, which extended Malleable
+  Visage's rulings (LSJ 20011023, RTR 20020501) to Mask with no Mask
+  ruling. Confirmed (owner, 2026-11-11); §3.5.2 now agrees.
 
 ### 23.4 rules-qa vs the KRCG ledger
 
@@ -5150,6 +5156,12 @@ rules-qa batch.
 - **K34** ANK 20210309-3 (a master card on a vampire offering it an effect:
   the vampire's controller decides, Chanjelin Ward) refines 7.5 and 32.7;
   69.15 follows it; the reference dangles upstream (vtes-rulings).
+- **K50** Field Training and The Red Question: 104.3 (the sect change ends
+  with the card; Derange taken off, the earlier sect back) over the
+  database's extension of LSJ 20100811 ("a change of the actual sect",
+  about Go Anarch and Writ of Acceptance) to these "is considered" cards.
+  Confirmed (owner, 2026-11-11); advanced rules §5.9.1 now reads "is
+  considered" as an override.
 
 ### 23.5 rules-qa vs the rulebook
 
@@ -5200,6 +5212,27 @@ rules-qa batch.
   (2026-07-22). Unreachable: no pool card steals the Edge (Tereza Rostas
   is not in it; Hand Intervention and Sabbat Threat only burn it) — settled
   by 90.7 (owner): the steal still gets it.
+
+### 23.7 Superseded by a Rules Director ruling (owner, 2026-11-11)
+
+- **K1** Karl Schrekt: 59.14 (owner, 2026-10-09) read him, met as a
+  justicar, as a titled Camarilla vampire for the card, calling Camarilla's
+  Iron Fist when no longer Camarilla, over ANK 20250410 — superseded by
+  that ruling, a Rules Director's (owner, 2026-11-11): only a list naming a
+  justicar is met, never "a titled Camarilla vampire"; advanced rules
+  §5.8.3 agrees.
+- **K3** Business Pressure: 51.5 (owner, 2026-10-07) read each Methuselah
+  choosing once, in impulse order, "not paid vote by vote", over the "give
+  and take during the resolution" of RTR 19960530 — superseded by that
+  ruling, a Rules Director's (owner, 2026-11-11): one pool at a time, each
+  burned at once, until all pass in a row; advanced rules §3.7.5.3 agrees.
+- **K46** Unleash Hell's Fury: 60.21 (owner, 2026-10-09) read its
+  successful block as ending the action at once, nothing played on it
+  afterward (Change of Target named), over ANK 20210627's "other effects
+  and modifiers can be played after (e.g. Change of Target)" — superseded
+  by ANK 20220116, a Rules Director's (owner, 2026-11-11): its damage and
+  burn first (93.5), then Change of Target; an Anarch it sent to torpor
+  cannot continue the action (ANK 20211207: Crypt's Sons).
 
 ## 24. Open readings
 
@@ -5395,7 +5428,7 @@ index or an item cited nowhere.
   §2,§3.9,§16.4,§16.6,§17.1,§21.1,§23.3,§23.4; 7.6 §14.2; 7.7
   §5.1,§16.7,§21.3; 7.8 §5.3,§6.1,§18.2,§21.3; 7.9 §5.1,§6.2; 7.10
   §5.4,§19.2
-- **8** — 8.1 §9.2; 8.2 §5.5,§6.6,§15.1,§18.2,§19.3,§23.3; 8.3
+- **8** — 8.1 §9.2,§23.3; 8.2 §5.5,§6.6,§15.1,§18.2,§19.3,§23.3; 8.3
   §3.22,§10.3,§19.1,§19.2,§19.3; 8.4 §3.2,§6.5,§9.6,§10.3,§19.1
 - **9** — 9.1 §2,§4.4,§16.1,§16.3; 9.2 §3.17,§11.3; 9.3 §11.3,§19.4; 9.4
   §19.1,§19.2; 9.5 §19.2; 9.6 §4.2,§9.2
@@ -5431,7 +5464,7 @@ index or an item cited nowhere.
 - **24** — 24.1 §10.1,§21.1,§21.3,§23.2; 24.2 §5.2,§10.1; 24.3 §3.3,§10.1;
   24.4 §3.2,§10.4,§11.1,§21.3; 24.5 §2,§3.4,§9.2
 - **25** — 25.1 §3.9,§14.6,§14.11,§21.1; 25.2 §4.5,§12.2,§12.7; 25.3
-  §4.5,§9.2; 25.4 §14.11; 25.5 §2,§4.1,§9.2,§14.1,§14.11,§23.2; 25.6
+  §4.5,§9.2,§23.3; 25.4 §14.11; 25.5 §2,§4.1,§9.2,§14.1,§14.11,§23.2; 25.6
   §2,§4.5,§11.1,§23.2
 - **26** — 26.1 §8.1,§10.2,§11.8; 26.2 §12.2; 26.3 §8.1; 26.4 §8.1; 26.5
   §2,§6.3,§14.1; 26.6 §2,§12.4,§12.6,§12.10; 26.7 §5.1,§12.4; 26.8
@@ -5482,13 +5515,13 @@ index or an item cited nowhere.
   §2,§3.4,§3.6,§8.2,§10.4,§11.7,§12.1,§14.7,§18.1; 41.6 §2,§8.1; 41.7
   §2,§4.2,§14.8,§16.4; 41.8 §2,§3.6,§4.2,§14.5,§22,§23.2; 41.9
   §2,§3.12,§4.2,§7.3,§12.1,§12.3; 41.10 §4.2,§5.1,§12.1,§12.2; 41.11
-  §5.3,§6.1; 41.12 §3.12,§14.1; 41.13 §2,§3.6,§7.1,§7.3,§23.4; 41.14
+  §5.3,§6.1; 41.12 §3.12,§14.1,§23.1; 41.13 §2,§3.6,§7.1,§7.3,§23.4; 41.14
   §2,§3.13,§15.2
 - **42** — 42.1 §2,§3.14,§7.3,§8.3; 42.2
   §2,§3.8,§7.3,§12.4,§12.10,§14.5,§23.2; 42.3 §2,§4.2,§23.3; 42.4
   §2,§3.13,§9.5,§11.7,§13,§13.4,§23.3; 42.5 §2,§3.12,§7.3; 42.6
-  §3.2,§7.3,§8.3,§10.2; 42.7 §3.3,§3.18,§8.1,§11.1; 42.8 §3.14,§9.1,§9.4;
-  42.9 §2,§4.2
+  §3.2,§7.3,§8.3,§10.2; 42.7 §3.3,§3.18,§8.1,§11.1; 42.8
+  §3.14,§9.1,§9.4,§23.1; 42.9 §2,§4.2
 - **43** — 43.1 §3.2,§8.1,§10.2,§13.1,§13.5
 - **44** — 44.1 §4.2,§12.12,§24.1; 44.2 §5.1,§19.3; 44.3 §3.3,§9.2,§11.1;
   44.4 §3.7,§11.4,§14.5,§14.7; 44.5 §3.5,§4.2,§6.4,§14.10; 44.6 §9.3,§11.7;
@@ -5509,7 +5542,7 @@ index or an item cited nowhere.
   §9.2,§16.1; 50.5 §2,§3.10,§13.1; 50.6 §14.3,§16.4
 - **51** — 51.1 §5.4,§13,§13.4,§23.3; 51.2
   §2,§4.2,§11.7,§13.2,§13.5,§18.1,§23.4; 51.3 §3.17,§11.3,§17.3; 51.4
-  §5.1,§6.3; 51.5 §5.4,§13.2,§23.1; 51.6 §7.2,§13.3; 51.7 §2,§6.6,§9.2; 51.8
+  §5.1,§6.3; 51.5 §13.2,§23.7; 51.6 §7.2,§13.3; 51.7 §2,§6.6,§9.2; 51.8
   §7.2,§13.3
 - **52** — 52.1 §4.5; 52.2 §2,§3.8,§13.2,§13.5,§23.3,§23.4; 52.3 §2,§13.1;
   52.4 §3.3,§11.1; 52.5 §4.3,§13.1; 52.6 §3.4,§8.6,§11.8; 52.7 §13.2,§16.1;
@@ -5529,15 +5562,15 @@ index or an item cited nowhere.
 - **58** — 58.1 §3.14,§8.3,§8.4,§11.9,§15.1,§18.2; 58.2 §12.6,§12.10; 58.3
   §3.15,§18.4; 58.4 §2,§14.1; 58.5 §2,§15.2,§18.1; 58.6 §4.6,§11.8; 58.7
   §2,§4.2,§15.2,§23.3; 58.8 §2,§13.3; 58.9 §4.2,§7.3,§14.1; 58.10 §4.6,§20;
-  58.11 §18.4,§21.3; 58.12 §2,§3.7,§11.3,§14.6; 58.13 §8.5,§8.8,§9.2; 58.14
-  §3.2,§13.5,§19.4; 58.15 §5.5,§13.1,§19.3; 58.16 §13.1,§14.4; 58.17
+  58.11 §18.4,§21.3; 58.12 §2,§3.7,§11.3,§14.6; 58.13 §8.5,§8.8,§9.2,§23.3;
+  58.14 §3.2,§13.5,§19.4; 58.15 §5.5,§13.1,§19.3; 58.16 §13.1,§14.4; 58.17
   §7.3,§11.3; 58.18 §12.8; 58.19 §17.2; 58.20 §6.3,§21.1
 - **59** — 59.1 §3.14,§4.2,§8.1,§11.2; 59.2 §4.2,§12.3; 59.3
   §3.4,§8.6,§14.3,§16.4; 59.4 §3.1,§11.2,§12.2,§14.1,§14.11,§16.4; 59.5
   §3.12,§7.3,§11.4; 59.6 §3.10,§12.12; 59.7 §3.15,§11.7,§13.3; 59.8
   §4.2,§5.1,§12.1,§12.8; 59.9 §3.3,§4.3,§13.5; 59.10 §3.20,§4.2,§12.8; 59.11
   §3.15,§14.6; 59.12 §7.2,§19.1,§19.4; 59.13 §3.15,§8.6,§16.4,§18.3; 59.14
-  §3.15,§4.4,§18.4,§23.1; 59.15 §9.1,§14.4,§16.3; 59.16 §4.2,§11.1,§19.1;
+  §3.15,§4.4,§18.4,§23.7; 59.15 §9.1,§14.4,§16.3; 59.16 §4.2,§11.1,§19.1;
   59.17 §4.6,§12.11,§12.12,§16.7; 59.18 §4.2,§13.3; 59.19 §3.15,§4.3,§13.3
 - **60** — 60.1 §14.9; 60.2 §5.5,§13.1,§19.3; 60.3 §3.6,§3.18,§7.3,§15.2;
   60.4 §3.8,§3.18,§15.2; 60.5 §3.12,§7.3,§14.1; 60.6 §2,§4.2,§14.1; 60.7
@@ -5546,7 +5579,7 @@ index or an item cited nowhere.
   §13.5,§16.4; 60.15 §3.2,§4.5; 60.16 §2,§13.1; 60.17 §2,§8.1,§19.4; 60.18
   §2,§3.13,§14.4,§14.7,§23.4; 60.19 §3.9,§5.1,§7.1,§16.1,§17.1,§19.4,§24.1;
   60.20 §3.6,§4.2,§12.8,§14.7; 60.21
-  §3.2,§3.4,§3.6,§8.2,§9.6,§10.3,§14.5,§23.1,§24.1; 60.22 §2,§5.3,§6.2,§23.2
+  §3.2,§3.4,§3.6,§8.2,§9.6,§10.3,§14.5,§23.7,§24.1; 60.22 §2,§5.3,§6.2,§23.2
 - **61** — 61.1 §12.12; 61.2 §3.3,§6.3,§11.1,§21.2
 - **62** — 62.1 §12.5; 62.2 §2,§3.8,§3.14,§7.3; 62.3 §2,§4.2,§9.1,§14.1;
   62.4 §2,§11.5,§14.4,§14.9,§23.2; 62.5 §6.2; 62.6 §13.5,§21.2; 62.7
@@ -5682,12 +5715,12 @@ index or an item cited nowhere.
   §5.2,§14.3,§23.3; 88.5 §5.3,§23.3; 88.6 §8.7,§23.3; 88.7
   §2,§9.2,§15.2,§23.3; 88.8 §19.1,§23.3; 88.9 §11.5,§16.1,§17.3,§23.3; 88.10
   §3.2,§9.6,§11.8,§23.4; 88.11 §9.6,§23.4
-- **89** — 89.1 §3.1,§15.2,§24.1; 89.2 §15.2,§24.1; 89.3 §15.2,§24.1; 89.4
-  §15.2; 89.5 §15.2; 89.6 §15.2; 89.7 §15.2; 89.8 §15.2; 89.9 §15.2; 89.10
-  §15.2,§16.1; 89.11 §15.2; 89.12 §15.2; 89.13 §15.2; 89.14 §15.2; 89.15
-  §15.2; 89.16 §15.2; 89.17 §15.2; 89.18 §15.2; 89.19 §15.2; 89.20 §15.2;
-  89.21 §15.2; 89.22 §15.2; 89.23 §15.2; 89.24 §15.2; 89.25 §15.2; 89.26
-  §3.1,§15.2,§24.1
+- **89** — 89.1 §3.1,§11.2,§15.2,§24.1; 89.2 §15.2,§24.1; 89.3 §15.2,§24.1;
+  89.4 §15.2; 89.5 §15.2; 89.6 §15.2; 89.7 §15.2; 89.8 §15.2; 89.9 §15.2;
+  89.10 §15.2,§16.1; 89.11 §15.2; 89.12 §15.2; 89.13 §15.2; 89.14 §15.2;
+  89.15 §15.2; 89.16 §15.2; 89.17 §15.2; 89.18 §15.2; 89.19 §15.2; 89.20
+  §15.2; 89.21 §15.2; 89.22 §15.2; 89.23 §15.2; 89.24 §15.2; 89.25 §15.2;
+  89.26 §3.1,§11.2,§15.2,§24.1
 - **90** — 90.1 §12.7,§23.3,§24.1; 90.2 §14.5,§23.5; 90.3 §13.2,§23.4,§24.1;
   90.4 §2,§11.5,§23.5,§24.1; 90.5 §14.9,§23.5,§24.1; 90.6 §16.8,§23.5,§24.1;
   90.7 §23.6,§24.1; 90.8 §13.2,§23.4,§24.1; 90.9 §21.2,§23.5; 90.10
@@ -5696,7 +5729,7 @@ index or an item cited nowhere.
   §18.5; 91.7 §18.5; 91.8 §18.5
 - **92** — 92.1 §9.1,§24.1; 92.2 §9.1,§24.1; 92.3 §9.1,§24.1
 - **93** — 93.1 §9.6,§24.1; 93.2 §9.6; 93.3 §9.6; 93.4 §9.6; 93.5
-  §9.6,§23.1; 93.6 §9.6; 93.7 §14.6; 93.8 §7.2; 93.9 §7.3; 93.10 §7.1,§24.1
+  §9.6,§23.7; 93.6 §9.6; 93.7 §14.6; 93.8 §7.2; 93.9 §7.3; 93.10 §7.1,§24.1
 - **94** — 94.1 §12.5; 94.2 §14.4; 94.3 §14.6; 94.4 §16.1; 94.5 §12.14; 94.6
   §18.1
 - **95** — 95.1 §21.2,§24.1; 95.2 §21.2; 95.3 §21.2; 95.4 §21.2; 95.5
@@ -5718,8 +5751,8 @@ index or an item cited nowhere.
   §14.12; 102.26 §14.12,§24.1
 - **103** — 103.1 §14.12,§24.1; 103.2 §14.12,§24.1; 103.3 §14.12,§24.1;
   103.4 §14.12; 103.5 §14.12,§24.1; 103.6 §14.12,§24.1
-- **104** — 104.1 §15.2,§24.1; 104.2 §24.1; 104.3 §11.7,§14.10,§24.1; 104.4
-  §4.5,§24.1; 104.5 §8.4; 104.6 §9.1; 104.7 §10.2,§14.10,§24.1; 104.8
+- **104** — 104.1 §15.2,§24.1; 104.2 §24.1; 104.3 §11.7,§14.10,§23.4,§24.1;
+  104.4 §4.5,§24.1; 104.5 §8.4; 104.6 §9.1; 104.7 §10.2,§14.10,§24.1; 104.8
   §16.8,§24.1; 104.9 §10.4,§24.1; 104.10 §9.1; 104.11 §15.2; 104.12 §15.2;
   104.13 §15.2; 104.14 §7.3; 104.15 §7.3; 104.16 §4.4; 104.17 §4.4,§24.1;
   104.18 §4.4,§24.1; 104.19 §15.2,§24.1; 104.20 §15.2,§24.1
@@ -5801,7 +5834,7 @@ index or an item cited nowhere.
   113.90 §12.9; 113.91 §10.3; 113.92 §7.3,§16.4; 113.93 §12.7; 113.94 §15.2;
   113.95 §10.4,§24.1; 113.96 §12.8; 113.97 §10.3; 113.98 §14.5; 113.99
   §6.1,§17.2,§24.1; 113.100 §11.2,§20; 113.101 §12.13; 113.102 §12.4;
-  113.103 §3.2,§16.3; 113.104 §13.1; 113.105 §14.6; 113.106
+  113.103 §3.2,§3.7,§16.3; 113.104 §13.1; 113.105 §14.6; 113.106
   §9.1,§10.2,§11.6; 113.107 §12.12; 113.108 §16.6; 113.109 §9.2; 113.110
   §9.1,§9.6; 113.111 §8.2,§16.4,§19.1; 113.112 §10.5,§24.1; 113.113
   §9.1,§10.5,§12.12,§16.5; 113.114 §9.2; 113.115 §21.3; 113.116 §12.3,§14.8;

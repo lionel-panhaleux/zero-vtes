@@ -2464,7 +2464,9 @@ REACTION_TIMING = [
     (r"play this card during your minion phase", "ANY_IMPULSE"),
     # An out-of-turn master before range (Frenzy).
     (r"only usable before range is (determined|chosen)", "COMBAT_BEFORE_RANGE"),
-    # An out-of-turn master triggered by the opposing strike (Rötschreck).
+    # An out-of-turn master triggered by the opposing strike (Rötschreck),
+    # before or after the vampire's own strike (LSJ 19990217).
+    (r"attempts to inflict aggravated damage", "COMBAT_STRIKE_ANNOUNCED"),
     (r"attempts to inflict aggravated damage", "COMBAT_BEFORE_RESOLUTION"),
     # An out-of-turn master saving a Methuselah from an oust (Life Boon).
     (r"methuselah with no pool to keep them in the game", "OUSTING"),

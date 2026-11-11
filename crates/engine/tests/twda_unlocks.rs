@@ -1396,6 +1396,23 @@ fn mask_of_a_thousand_faces_takes_over_a_blocked_action() {
     assert!(blood(&e, b) < 5, "B fought the blocker");
 }
 
+// Mask of a Thousand Faces [RTR 20041202] "nor if any effect (modifier,
+// reaction, Aching Beauty, inherent stealth), has been played on this
+// action that could not have been played if the masking minion were the
+// acting minion" (rules-qa 58.13 superseded, owner 2026-11-11): Jost
+// Werner's bleed ("Sabbat: +1 stealth") blocked, no Mask.
+#[test]
+fn mask_of_a_thousand_faces_is_barred_by_inherent_stealth() {
+    let mut e = game(2);
+    let jost = e.add_minion(SeatId(0), find_card("Jost Werner"), 4, false);
+    let b = e.add_minion(SeatId(0), obf(0), 5, false);
+    let x = e.add_minion(SeatId(1), plain("Brujah", 0), 4, false);
+    hand(&mut e, 0, &["Mask of a Thousand Faces"]);
+    pick(&mut e, bleed(jost));
+    pick_when(&mut e, block(x));
+    never_offered_until(&mut e, SeatId(0), WindowLabel::MinionPhase, mask(0, b));
+}
+
 // Mask of a Thousand Faces [RTR 19951110] [LSJ 19971201] [RTR 20030519] [LSJ
 // 20030521] [ANK 20210309] "The action remains the same. All action
 // modifiers remain in effect, but inherent modifiers (a minion's inherent +1
@@ -3948,9 +3965,10 @@ fn mirror_walk_ends_the_action_the_fury_still_burns() {
 // Crypt's Sons, Change of Target) before burning Unleash Hell's Fury and
 // inflicting aggravated damage", and [ANK 20220116] [ANK 20211207] [ANK
 // 20210627] [RTR 19991206] [LSJ 20091125] (triggered by block) its effect
-// "applied ... before any other card or effect can be used": the Anarch's
-// retainer is never offered; against a vampire's block it is (rules-qa
-// 93.5).
+// "applied ... before any other card or effect can be used"; [ANK 20211207]
+// "So the Anarch takes 1 aggravated damage first. If they are in torpor,
+// they cannot continue the action": the Anarch's retainer is never offered;
+// against a vampire's block it is (rules-qa 93.5).
 #[test]
 fn crypts_sons_cannot_answer_the_furys_block() {
     for fury in [true, false] {
@@ -3979,6 +3997,31 @@ fn crypts_sons_cannot_answer_the_furys_block() {
         assert!(!e.state.cards[card.index()].in_play);
         assert_eq!(pool(&e)[0], 10);
     }
+}
+
+// Unleash Hell's Fury [ANK 20210627] [ANK 20211207] [ANK 20220116] "Other
+// effects and modifiers can be played after (e.g. Change of Target)"; [ANK
+// 20220116] "Being wounded does not prevent from playing action modifiers"
+// (rules-qa 60.21 superseded, owner 2026-11-11). Once the damage is dealt
+// and the card burned, the bleeder, in torpor, plays Change of Target: it
+// unlocks; no combat. [ANK 20211207] "If they are in torpor, they cannot
+// continue the action": not Horrific Countenance.
+#[test]
+fn change_of_target_follows_the_furys_block() {
+    let (mut e, card, token, z) = fury_game(vampire_with("pro", 0));
+    hand(&mut e, 1, &["Change of Target", "Horrific Countenance"]);
+    pick(&mut e, bleed(z));
+    pick(&mut e, block(token));
+    let req = until(&mut e, SeatId(1), WindowLabel::ActionBlocked);
+    assert!(e.state.minions[z.index()].in_torpor);
+    assert!(!e.state.cards[card.index()].in_play);
+    assert!(req.options.contains(&play(0, 0, z)), "{:?}", req.options);
+    assert!(!req.options.contains(&play(1, 0, z)), "no continuing");
+    pick(&mut e, play(0, 0, z));
+    until(&mut e, SeatId(1), WindowLabel::MinionPhase);
+    assert!(!e.state.minions[z.index()].locked);
+    assert!(e.combat().is_none());
+    assert_eq!(pool(&e)[0], 10, "not bled");
 }
 
 // Unleash Hell's Fury [LSJ 20091203] "The burn option can be used if all

@@ -441,7 +441,8 @@ seat 2; burn 2 pool to keep card 9.)
     `opponent_strength`….
   - A vote's: `votes` (`n` cast, `favor`; `detail: prisci_ballot` the
     ballots a priscus casts with them; `on: card` the political action
-    card's own vote).
+    card's own vote); in Business Pressure's round, a `cast_card_vote`
+    burns 1 pool for its votes: `pool` (`cost`, -1) and `votes`.
   - A referendum's terms: what the chosen Methuselah or minion gets
     (`on: chosen`: `pool` gained, burned or — `detail: allocated` —
     given, `steal`, `move` `to: removed` banished or the card put on it,
@@ -469,8 +470,7 @@ seat 2; burn 2 pool to keep card 9.)
     (`to: library`, `detail: hand_to_bottom`), `discard` (`detail:
     at_random`, from `seat`'s hand); a rider's units: `burn` (`detail:
     hand_at_random`) or `move` (`to: removed`, `detail: ash_at_random`),
-    the rest in `pool` (`cost`); burning pool for votes: `pool` (`cost`)
-    and `votes`.
+    the rest in `pool` (`cost`).
     A `discard` putting the card on the source instead (Fleshforge
     Chamber): `move` (`to: in_play`, `on: card`, `card` the source,
     `detail: on_source`).

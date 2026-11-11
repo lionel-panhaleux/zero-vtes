@@ -11329,10 +11329,11 @@ fn journal_of_hrorsh_counts_a_fizzled_action() {
 }
 
 /// Journal of Hrorsh taken by another Salubri: "burn these counters if
-/// this card is moved", then the take, a successful action of its new
-/// Salubri, adds 1 (the take is no equip; rules-qa 3.7, 80.44).
+/// this card is moved"; the take equips it [ANK 20180719-3], and
+/// "Equipping it does not put a counter on it" [LSJ 20100207-2]: none
+/// (rules-qa 80.44 superseded, owner 2026-11-11).
 #[test]
-fn journal_of_hrorsh_taken_by_a_salubri_restarts_at_one() {
+fn journal_of_hrorsh_taken_by_a_salubri_restarts_at_zero() {
     let mut e = game(2);
     let s = e.add_minion(SeatId(0), of_clan("Salubri", 0), 4, false);
     let t = e.add_minion(SeatId(0), of_clan("Salubri", 1), 4, false);
@@ -11343,7 +11344,7 @@ fn journal_of_hrorsh_taken_by_a_salubri_restarts_at_one() {
     pick(&mut e, take_from(t, s));
     until(&mut e, SeatId(0), WindowLabel::MinionPhase);
     assert_eq!(e.state.cards[j.index()].host, Some(t));
-    assert_eq!(e.state.cards[j.index()].counters, 1, "2 burned, 1 added");
+    assert_eq!(e.state.cards[j.index()].counters, 0, "2 burned, none added");
 }
 
 /// Tinglestripe: "This weapon can be used to strike only once each round":

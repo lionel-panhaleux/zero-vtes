@@ -251,7 +251,7 @@ fn base(
             match v.on {
                 Some(On::Card) => format!("The political action card's vote {}", votes(k.favor)),
                 // Business Pressure's round.
-                _ => format!("The {} votes {}", v.n?, votes(k.favor)),
+                _ => format!("Burn 1 pool for {} votes {}", v.n?, votes(k.favor)),
             }
         }
         K::ChooseMinion
@@ -656,14 +656,6 @@ fn detail(e: &Effect) -> Option<&str> {
 /// An amount chosen (`set_x`), by what it does.
 fn amount(o: &OptionView, n: &Names) -> Option<String> {
     let a = o.key.amount?;
-    let has = |k| o.effects.iter().find(|e| e.kind == k);
-    // Business Pressure: pool burned for votes.
-    if let Some(v) = has(EffectKind::Votes) {
-        return Some(match a {
-            0 => "Burn no pool".into(),
-            _ => format!("Burn {a} pool for {} votes", v.n?),
-        });
-    }
     // Constant Revolution, The Gate of Acheron: cards, the rest in pool.
     let rest = || {
         o.effects

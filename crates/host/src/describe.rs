@@ -444,20 +444,28 @@ pub fn effects(
             }
             out
         }
-        // The political action card's vote; Business Pressure's round:
-        // the pool burned times the rate.
-        Choice::CastCardVote { favor } => {
-            let (n, on) = match e.referendum().and_then(|r| r.pressure.as_ref()) {
-                Some(p) => ((p.amount.unwrap_or(0) * p.rate(req.seat)) as i32, None),
-                None => (1, Some(On::Card)),
-            };
-            vec![Effect {
-                n: Some(n),
-                on,
+        // The political action card's vote; Business Pressure's round: a
+        // pool burned for its rate of votes.
+        Choice::CastCardVote { favor } => match e.referendum().and_then(|r| r.pressure.as_ref()) {
+            Some(p) => vec![
+                Effect {
+                    n: Some(-1),
+                    cost: true,
+                    ..Effect::new(EffectKind::Pool)
+                },
+                Effect {
+                    n: Some(p.rate(req.seat) as i32),
+                    favor: Some(favor),
+                    ..Effect::new(EffectKind::Votes)
+                },
+            ],
+            None => vec![Effect {
+                n: Some(1),
+                on: Some(On::Card),
                 favor: Some(favor),
                 ..Effect::new(EffectKind::Votes)
-            }]
-        }
+            }],
+        },
         // A cost's terms: a card's counters, a vampire's own (Nergal, Jack)
         // reducing it.
         Choice::ResolveRider { .. } | Choice::ResolvePrinted { .. }
@@ -1036,17 +1044,6 @@ fn amount(x: &Ctx<impl Names>, req: &DecisionRequest, n: u8) -> Vec<Effect> {
                 },
             ]
         }
-        // Business Pressure: pool burned for votes.
-        W::ReferendumPolling => match e.referendum().and_then(|r| r.pressure.as_ref()) {
-            Some(p) => vec![
-                Effect {
-                    cost: true,
-                    ..of(EffectKind::Pool, -n)
-                },
-                of(EffectKind::Votes, n * p.rate(x.seat) as i32),
-            ],
-            None => Vec::new(),
-        },
         // An interrupt's number (Victor Pelletier's price).
         _ => e
             .interrupt()

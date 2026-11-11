@@ -7424,7 +7424,7 @@ impl Engine {
                     seat.removed.put(card, copy);
                     if self.state.minions[acting.index()].present() {
                         let successful = if hunt {
-                            self.hunt_gain(acting, blood).0
+                            self.hunt_gain(acting, blood)
                         } else {
                             // Not a hunt: no "successfully hunts" (89.26).
                             self.state.gain_blood(acting, blood);

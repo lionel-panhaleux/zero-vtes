@@ -932,7 +932,9 @@ fn domain_of_evernight_aggravates_a_blocked_combat_and_unlocks_after_success() {
 // Hag's Wrinkles: "Only usable during an equip action. [thn] Unlock this
 // vampire after action resolution if this action is successful. [THN] As
 // [thn] above, but with +1 stealth": [THN] only while stealth is needed
-// (rules-qa 8.1); Magic of the Smith an equip action (rules-qa 78.28).
+// (rules-qa 8.1); Magic of the Smith an equip action (rules-qa 78.28); a
+// take from another minion too (LSJ 20060222, ANK 20170326; 78.28
+// superseded, owner 2026-11-11).
 #[test]
 fn hags_wrinkles_unlocks_after_a_successful_equip() {
     let mut e = game(2);
@@ -965,6 +967,26 @@ fn hags_wrinkles_unlocks_after_a_successful_equip() {
     e.state.seats[0].library = vec![find_library("Kevlar Vest"); 3].into();
     pick(&mut e, play_at(1, 0, a, Target::None));
     pick_when(&mut e, play(0, 1, a));
+    // The take of a vest from another minion.
+    let mut e = game(2);
+    let a = e.add_minion(SeatId(0), vampire_with("obf", 0), 4, false);
+    superior(&mut e, a, "THN");
+    let b = e.add_minion(SeatId(0), plain("Brujah", 1), 4, false);
+    e.add_minion(SeatId(1), plain("Ventrue", 0), 4, false);
+    let vest = in_play(&mut e, 0, "Kevlar Vest", Some(b));
+    hand(&mut e, 0, &["Hag's Wrinkles"]);
+    pick(
+        &mut e,
+        Choice::TakeAction {
+            minion: a,
+            action: ActionKind::EquipFrom,
+            target: Some(b),
+        },
+    );
+    pick_when(&mut e, play(0, 1, a));
+    until(&mut e, SeatId(0), WindowLabel::MinionPhase);
+    assert_eq!(e.state.cards[vest.index()].host, Some(a));
+    assert!(!e.state.minions[a.index()].locked);
 }
 
 // Burnt Offerings: "[AUS] Only usable if a minion controlled by your
@@ -2534,10 +2556,12 @@ fn forced_march_is_not_played_by_a_diablerist_the_hunt_burned() {
 }
 
 // Malkavian Dementia returning its Malkavian to an ousted Methuselah: the
-// minion is removed [ANK 20181110], the taker's own card on it burned
-// (owner, 2026-09-06), not removed with it.
+// minion is removed [ANK 20181110], every card on it burned (rulebook
+// "Burn": "When a card is burned or removed from the game, any counters or
+// other cards on it are burned"), the taker's and its owner's alike
+// (rules-qa 27.4 superseded, owner 2026-11-11).
 #[test]
-fn malkavian_dementia_back_to_an_ousted_methuselah_burns_the_takers_card() {
+fn malkavian_dementia_back_to_an_ousted_methuselah_burns_every_card_on_it() {
     let mut e = game(3);
     e.add_minion(SeatId(0), plain("Brujah", 0), 4, false);
     e.add_minion(SeatId(0), plain("Brujah", 1), 4, false);
@@ -2550,6 +2574,7 @@ fn malkavian_dementia_back_to_an_ousted_methuselah_burns_the_takers_card() {
     request(&mut e);
     assert_eq!(e.state.minions[malk.index()].owner, SeatId(0));
     let jacket = in_play(&mut e, 0, "Flak Jacket", Some(malk));
+    let own = in_play(&mut e, 1, "Kevlar Vest", Some(malk));
     e.state.seats[1].pool = 1;
     pick_when(&mut e, bleed(malk));
     until(&mut e, SeatId(2), WindowLabel::MinionPhase);
@@ -2561,6 +2586,9 @@ fn malkavian_dementia_back_to_an_ousted_methuselah_burns_the_takers_card() {
     );
     assert!(!e.state.cards[jacket.index()].in_play);
     assert!(ash_has(&e, 0, "Flak Jacket"), "the taker's card burned");
+    assert!(!e.state.cards[own.index()].in_play);
+    assert!(ash_has(&e, 1, "Kevlar Vest"), "its owner's card burned");
+    assert!(e.state.seats[1].removed.is_empty());
 }
 
 // A hand over size waits for no pending choice but a draw's own (rulebook

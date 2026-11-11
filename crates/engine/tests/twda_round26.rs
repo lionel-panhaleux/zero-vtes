@@ -8848,17 +8848,19 @@ fn smoke_and_mirrors_maneuver_is_not_carried_into_psyches_combat() {
 /// Songs of the Distant Vitae [QUI]: "+1 bleed against the controller of any
 /// vampire who has successfully hunted since your last turn." [LSJ
 /// 20050720-2] "A hunt is not successful if no blood is gained, even if the
-/// hunt action is still successful": seat 1's vampire hunting at its
-/// capacity gains none, so no +1; below it, +1.
+/// hunt action is still successful": seat 1's diseased vampire gains none,
+/// so no +1; one at its capacity gains it, drained off (rules-qa 89.1,
+/// 89.26), and one below it: +1.
 #[test]
 fn songs_of_the_distant_vitae_counts_no_hunt_gaining_nothing() {
-    for full in [true, false] {
+    for (case, more) in [("diseased", 0), ("full", 1), ("below", 1)] {
         let mut e = game(2);
         let a = e.add_minion(SeatId(0), vampire_with("QUI", 0), 4, false);
         e.add_minion(SeatId(0), plain("Brujah", 1), 4, false);
         let hv = plain("Ventrue", 0);
         let cap = CRYPT[hv as usize].capacity;
-        let h = e.add_minion(SeatId(1), hv, if full { cap } else { 1 }, false);
+        let h = e.add_minion(SeatId(1), hv, if case == "full" { cap } else { 1 }, false);
+        e.state.minions[h.index()].disease = case == "diseased";
         e.add_minion(SeatId(1), plain("Ventrue", 1), 4, false);
         hand(&mut e, 0, &["Songs of the Distant Vitae"]);
         to_minion_phase(&mut e, SeatId(1));
@@ -8867,11 +8869,7 @@ fn songs_of_the_distant_vitae_counts_no_hunt_gaining_nothing() {
         let pool = e.state.seats[1].pool;
         pick_when(&mut e, play(0, 1, a));
         to_window(&mut e, SeatId(1), WindowLabel::MinionPhase);
-        assert_eq!(
-            e.state.seats[1].pool,
-            pool - 1 - i32::from(!full),
-            "at capacity {full}"
-        );
+        assert_eq!(e.state.seats[1].pool, pool - 1 - more, "{case}");
     }
 }
 

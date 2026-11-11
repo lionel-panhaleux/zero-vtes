@@ -231,14 +231,16 @@ fn awe_adds_x_plus_1_votes_and_x_may_be_0() {
     }
 }
 
-// [RTR 19960530] Business Pressure: "Each Methuselah must decide how much
-// pool to burn for it during the resolution of the effect": once each, in
-// order from its player, the amount then the side; the card resolves once
-// all have chosen (rules-qa 51.5). [PRE]: its player gets 3 votes a pool,
-// the others 2. [RTR 20040501] "Cannot be used before the terms are set":
-// first offered in the polling step.
+// [RTR 19960530] Business Pressure: "there can be some give and take
+// during the resolution of the effect. For example, each Methuselah can
+// choose to burn one pool at a time as pool is burned for votes" (rules-qa
+// 51.5 superseded, owner 2026-11-11): in turn from its player, one pool at
+// a time, burned at once, on a side; the card resolves once all have
+// passed in a row. [PRE]: its player gets 3 votes a pool, the others 2.
+// [RTR 20040501] "Cannot be used before the terms are set": first offered
+// in the polling step.
 #[test]
-fn business_pressure_has_each_methuselah_choose_the_pool_they_burn() {
+fn business_pressure_burns_one_pool_at_a_time_until_all_pass() {
     let (mut e, diana) = table("Diana Iadanza");
     e.add_minion(SeatId(1), plain("Brujah", 1), 4, false);
     e.add_minion(SeatId(2), plain("Brujah", 2), 4, false);
@@ -257,25 +259,30 @@ fn business_pressure_has_each_methuselah_choose_the_pool_they_burn() {
     );
     pick(&mut e, pressure);
     let side = |favor| Choice::CastCardVote { favor };
-    for (seat, choice) in [
-        (0, set_x(2)),
-        (0, side(true)),
-        (1, set_x(3)),
-        (1, side(false)),
-        (2, set_x(0)),
+    // Each pool burned at once: the pools after each choice.
+    for (seat, choice, pools) in [
+        (0, side(true), [9, 10, 10]),
+        (1, side(false), [9, 9, 10]),
+        (2, Choice::Pass, [9, 9, 10]),
+        (0, Choice::Pass, [9, 9, 10]),
+        // Seat 1 answers again.
+        (1, side(false), [9, 8, 10]),
+        (2, Choice::Pass, [9, 8, 10]),
+        (0, side(true), [8, 8, 10]),
+        (1, Choice::Pass, [8, 8, 10]),
+        (2, Choice::Pass, [8, 8, 10]),
+        (0, Choice::Pass, [8, 8, 10]),
     ] {
         let req = expect(&mut e, SeatId(seat), WindowLabel::ReferendumPolling);
+        assert!(e.referendum().expect("referendum").pressure.is_some());
         assert!(req.options.contains(&choice), "{seat}: {:?}", req.options);
-        if choice == set_x(0) {
-            assert_eq!(req.options.len(), 11, "0 to all of its 10 pool");
-        }
         pick(&mut e, choice);
+        assert_eq!(pool(&e), pools.to_vec());
     }
     request(&mut e);
     let r = e.referendum().expect("referendum");
     assert!(r.pressure.is_none(), "resolved");
-    assert_eq!(r.tally(&e.state), (6, 6));
-    assert_eq!(pool(&e), vec![8, 7, 10]);
+    assert_eq!(r.tally(&e.state), (6, 4));
 }
 
 // [ANK 20251125] [LSJ 20050221-2] "A vampire can have net negative votes,

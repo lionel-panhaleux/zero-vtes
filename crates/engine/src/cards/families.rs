@@ -883,7 +883,7 @@ impl Effect {
             | E::PreySlotToOwnSlot
             | E::PreyAshPairHunt(..)
             | E::HuntAt(..)
-            | E::BloodHuntIfHuntGained
+            | E::BloodHuntIfHuntSuccessful
             | E::RemoveActorToBurnTarget
             | E::ReorderTop { .. }
             | E::AllyFromAshLocked(..)

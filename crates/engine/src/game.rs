@@ -3208,10 +3208,10 @@ impl Engine {
         m.temp_from = None;
         m.temp_until_unlock = false;
         m.owner = back;
-        // Back first: the temporary controller's cards on it burn, the
-        // ousted Methuselah's are removed (remove_minion reads the owner).
+        // Removed: every card on it burned, its owner's too (rulebook
+        // "Burn"; rules-qa 27.4 superseded).
         if self.state.seats[back.index()].ousted {
-            self.remove_minion(MinionId(i as u32));
+            self.remove_from_game(MinionId(i as u32));
         }
     }
 
@@ -3368,31 +3368,6 @@ impl Engine {
                 self.shuffle_into_library(CardId(ci as u32));
             } else if c.in_play && c.host == Some(m) {
                 self.burn_card_in_play(CardId(ci as u32));
-            }
-        }
-    }
-
-    /// A minion out of the game with its Methuselah (a temporary control
-    /// returning to an ousted one; not burned: nothing triggers), the cards
-    /// on it with it — burned to their owners' ash heaps if another
-    /// Methuselah's (as an ousted Methuselah's minions, spec §1.10);
-    /// otherwise `remove_from_game`.
-    pub(crate) fn remove_minion(&mut self, m: MinionId) {
-        self.about_to_leave_ready(&[m]);
-        let v = &mut self.state.minions[m.index()];
-        v.in_play = false;
-        v.corruption.clear();
-        let owner = v.owner;
-        for ci in 0..self.state.cards.len() {
-            let c = &self.state.cards[ci];
-            if c.in_play && c.body == Some(m) {
-                self.card_leaves_play(CardId(ci as u32), true);
-            } else if c.in_play && c.host == Some(m) {
-                if c.owner == owner {
-                    self.state.cards[ci].in_play = false;
-                } else {
-                    self.burn_card_in_play(CardId(ci as u32));
-                }
             }
         }
     }

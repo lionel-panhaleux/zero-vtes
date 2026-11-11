@@ -1251,6 +1251,33 @@ fn tyler_mcgill_votes_after_the_edge_is_burned_for_a_vote() {
     assert!(r.records.iter().any(|v| v.n == 1 && !v.favor));
 }
 
+// Tyler McGill: his +1 joins a cast he made before the Edge was burned
+// (rules-qa 74.8 superseded, owner 2026-11-11: as 5.1). A prince, he casts
+// 2 against; seat 0 then burns the Edge: his cast stands at 3.
+#[test]
+fn tyler_mcgill_vote_joins_his_cast_when_the_edge_is_burned_after() {
+    let mut e = game(2);
+    let a = e.add_minion(SeatId(0), plain("Brujah", 0), 4, false);
+    e.add_minion(SeatId(0), plain("Brujah", 1), 4, false);
+    let t = e.add_minion(SeatId(1), find_card("Tyler McGill"), 4, false);
+    e.state.minions[t.index()].granted_title = Some(Title::Prince("Paris"));
+    e.state.seats[0].has_edge = true;
+    hand(&mut e, 0, &["Rumors of Gehenna"]);
+    pick(&mut e, play(0, 0, a));
+    pick_when(&mut e, Choice::ChooseSeat(SeatId(1)));
+    pick_when(&mut e, Choice::Pass);
+    to_referendum(&mut e);
+    pick_when(&mut e, votes(t, false));
+    pick_when(&mut e, Choice::CastEdge { favor: true });
+    let r = e.referendum().expect("referendum");
+    let cast = r
+        .records
+        .iter()
+        .find(|v| v.source == zvtes::referendum::Source::Vampire(t))
+        .expect("Tyler cast");
+    assert_eq!((cast.n, cast.favor), (3, false));
+}
+
 // Tyler McGill: "He cannot block Nosferatu." Not a Nosferatu's bleed; a
 // Ventrue's, yes.
 #[test]

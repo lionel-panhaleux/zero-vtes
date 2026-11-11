@@ -10700,7 +10700,7 @@ pub static LIBRARY: [LibraryCard; 1356] = [
         modes: &[
             Mode {
                 tags: &[],
-                windows: &["COMBAT_BEFORE_RESOLUTION"],
+                windows: &["COMBAT_STRIKE_ANNOUNCED", "COMBAT_BEFORE_RESOLUTION"],
                 flags: &["out_of_turn"],
             },
         ],

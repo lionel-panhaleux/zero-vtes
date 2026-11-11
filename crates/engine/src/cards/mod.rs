@@ -77,6 +77,10 @@ pub enum Window {
     /// Both strikes chosen, before they resolve, for a card triggered by
     /// the opposing strike (Rötschreck; LSJ 19990217).
     CombatBeforeResolution,
+    /// The first strike announced, before the second is chosen
+    /// (`Step::BetweenStrikes`): Rötschreck, before or after the vampire's
+    /// own strike (LSJ 19990217).
+    CombatStrikeAnnounced,
     /// A Methuselah with no pool, before the oust applies (Life Boon).
     Ousting,
     /// Control of a minion about to change, before it does: its
@@ -151,6 +155,7 @@ impl Window {
                 | CombatWouldEnd
                 | CombatUntimed
                 | CombatBeforeResolution
+                | CombatStrikeAnnounced
         )
     }
 
@@ -199,6 +204,7 @@ impl Window {
             "COMBAT_WOULD_END" => CombatWouldEnd,
             "COMBAT_UNTIMED" => CombatUntimed,
             "COMBAT_BEFORE_RESOLUTION" => CombatBeforeResolution,
+            "COMBAT_STRIKE_ANNOUNCED" => CombatStrikeAnnounced,
             "OUSTING" => Ousting,
             "READY_TITLED_LEFT" => ReadyTitledLeft,
             "ANY_IMPULSE" => AnyImpulse,
@@ -1660,8 +1666,8 @@ pub enum Requirement {
     ActionUndirected,
     /// Not the first action announced in this minion phase (Channel 10).
     NotFirstActionOfPhase,
-    /// The current action is a hunt, by an Anarch the user controls, that
-    /// gained blood (The Anarch Free Press).
+    /// The current action is a successful hunt (`ActionCtx::hunt_successful`)
+    /// by an Anarch the user controls (The Anarch Free Press).
     AnarchHuntedYours,
     /// The user's ash heap holds a card requiring an Anarch, and their hand
     /// a card (Garibaldi-Meucci Museum).
@@ -5907,9 +5913,9 @@ pub enum Effect {
     /// An action card's hunt at +n: 1 + n blood, hunt bonuses included, as
     /// it resolves (Abactor).
     HuntAt(u8),
-    /// After that hunt, if blood was gained, a blood hunt referendum on the
-    /// actor, no diablerie (Abactor).
-    BloodHuntIfHuntGained,
+    /// After that hunt, if successful, a blood hunt referendum on the actor,
+    /// no diablerie (Abactor).
+    BloodHuntIfHuntSuccessful,
     /// Burn the top n cards of the player's library (Liquidation).
     BurnLibraryTop(u8),
     /// Search library and/or hand for a mage ally the host could play, put
@@ -9379,7 +9385,7 @@ pub fn holds(
         Requirement::NotFirstActionOfPhase => st.phase_actions >= 2,
         Requirement::AnarchHuntedYours => action.is_some_and(|a| {
             a.is_hunt()
-                && a.hunt_gained
+                && a.hunt_successful
                 && a.seat == seat
                 && st.sect_of(a.acting) == Some(Sect::Anarch)
         }),
@@ -9588,9 +9594,6 @@ pub fn holds(
         Requirement::ActorSeraph => actor.is_some_and(|m| st.is_seraph(m)),
         // Meat Hook: the bearer's opponent with Potence, read live.
         Requirement::ActorHasDiscipline(d) => actor.is_some_and(|m| st.has_discipline(m, d)),
-        // An equip from hand, Vast Wealth's, or an action card equipping
-        // from the library (Magic of the Smith: owner, 2026-10-17); not a
-        // move from another minion (rules-digest §3.7).
         Requirement::IsEquipAction => action.is_some_and(|a| a.is_equip_action(st)),
         Requirement::LastCombatantsReady => action
             .and_then(|a| a.last_combat)
@@ -11426,8 +11429,10 @@ pub fn mask_capable(st: &GameState, a: &ActionCtx, m: MinionId) -> bool {
     use crate::decision::ActionKind as K;
     let v = &st.minions[m.index()];
     // An effect of a card on the acting minion used this action (Aching
-    // Beauty): not the masking vampire's (RTR 19980623). The block's combat
-    // canceled, the action stays blocked (Bear-Baiting: LSJ 20090322).
+    // Beauty): not the masking vampire's (RTR 19980623); nor its inherent
+    // stealth, "not even a minion that has a similar stealth bonus" (RTR
+    // 20041202; rules-qa 58.13). The block's combat canceled, the action stays
+    // blocked (Bear-Baiting: LSJ 20090322).
     if m == a.acting
         || a.block_combat_canceled
         || !v.is_vampire()
@@ -11435,6 +11440,7 @@ pub fn mask_capable(st: &GameState, a: &ActionCtx, m: MinionId) -> bool {
         || v.locked
         || a.source.is_some()
         || a.host_card_applied
+        || st.printed_mod(a.acting, Stat::Stealth, a.printed_ctx(st, None)) > 0
     {
         return false;
     }

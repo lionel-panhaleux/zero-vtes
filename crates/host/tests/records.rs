@@ -10,6 +10,16 @@ use zvtes_host::replay::{Replay, Replayer, Step};
 /// asks cannot be read past (`replay::past`).
 const KNOWN_STOPS: &[(&str, u64, &str)] = &[
     (
+        "da59eaaa7e4abda6.json",
+        93,
+        "rules-qa 51.5: Business Pressure's round, one pool at a time (RTR 19960530)",
+    ),
+    (
+        "zero-vtes-replay-2026-10-10T16-45-56-513Z.json",
+        179,
+        "Villein on a vampire with no blood (LSJ 20100216, ANK 20180512-2)",
+    ),
+    (
         "zero-vtes-replay-2026-10-09T22-52-40-908Z.json",
         569,
         "Smiling Jack's rider offers no ally's blood (Z-succubus playtest, round 25)",

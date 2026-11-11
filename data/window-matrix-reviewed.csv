@@ -381,7 +381,7 @@ id,name,types,disciplines,in_precon,windows,flags,needs_review,review
 102304,Rotting Behemoth,Ally,obl,yes,ACTION_DECLARE_RECRUIT,in_play_action,,corrected
 102215,Roundhouse,Combat,pot,yes,COMBAT_STRIKE_DECLARATION,,,ok
 101664,Rutor's Hand,Action,tha,yes,ACTION_DECLARE,,,ok
-101654,Rötschreck,Master,,no,COMBAT_BEFORE_RESOLUTION,out_of_turn,,corrected
+101654,Rötschreck,Master,,no,COMBAT_STRIKE_ANNOUNCED;COMBAT_BEFORE_RESOLUTION,out_of_turn,,corrected
 101665,Saatet-ta,Ally,,no,ACTION_DECLARE_RECRUIT,,,ok
 102257,Saulot's Avenging Fist,Master,,yes,MASTER_PHASE,in_play_action,,corrected
 102258,Saulot's Guiding Wisdom,Master,,yes,MASTER_PHASE,,,ok

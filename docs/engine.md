@@ -615,9 +615,9 @@ sources to the engine's conventions.
   rules-qa 6.6; a copy's modes share it); an ability spending a resource
   with no "during" clause (`DiscardPhaseAction`, `Transfers`) is limited only
   by the resource.
-- A temporarily controlled minion returns through `return_temporary`: its
-  owner set back first, then removed if that Methuselah is ousted (the
-  taker's cards on it burn, `remove_minion`). Malkavian Dementia's
+- A temporarily controlled minion returns through `return_temporary`: its owner
+  set back first, then removed if that Methuselah is ousted (`remove_from_game`:
+  every card on it burns, rules-qa 27.4). Malkavian Dementia's
   (`Minion::temp_until_unlock`) returns as its taker's unlock phase opens;
   Puppet Master's at the turn's end.
 
@@ -764,7 +764,10 @@ sources to the engine's conventions.
   Nightmares) is hunting for everything reading one (LSJ 20050720-2;
   rules-qa 72.1–72.5). `ActionCtx::card_hunt` is the card's part only;
   `Requirement::RulebookHunt` is the rulebook hunt (Zöe's "usual +1").
-  Every hunt's blood goes through `Engine::hunt_gain`: Azrael's
+  Every hunt's blood goes through `Engine::hunt_gain`, successful when
+  `GameState::hunt_gains` (no disease counter, no bar on gaining blood; at
+  capacity too, rules-qa 89.1), the one test of `ActionCtx::hunt_successful`
+  (The Anarch Free Press, Abactor's blood hunt; rules-qa 63.2): Azrael's
   `Stat::HuntBloodElsewhere` holds that part back for
   `MinionPurpose::HuntBloodTo` (another vampire of his controller's, or
   kept), still gained at capacity.
@@ -2060,9 +2063,10 @@ CryptAlly}`.
   requirements. Nod (`RearrangeEquipment`): one `MinionPurpose::Rearrange`
   per equipment, each Methuselah's in turn; "only one" read against the
   cards already placed (`rearrange_fits`), so vehicles may swap.
-- "An equip action" (Hag's Wrinkles, NRA PAC): `ActionCtx::is_equip_action`,
-  an equip from hand or a search equipping (`SearchEquip`), never the
-  equip-from-another-minion move (rules-qa 78.28, digest §3.7).
+- "An equip action" (Hag's Wrinkles, NRA PAC, Roderick Phillips March):
+  `ActionCtx::is_equip_action`, an equip from hand, the take from another
+  minion (`EquipFrom`) or a search equipping (`SearchEquip`) (rules-qa
+  78.28, digest §3.7).
 - "An employ action" (Rosa Hernández, Frau Schädel):
   `ActionCtx::is_employ_action` (`PrintedCtx::employ_action`), a retainer's
   own or an action card's (Jack of Both Sides, TOM 19960130), not one
@@ -2524,9 +2528,12 @@ Slice 16a; `defs.rs` section "Legacy cards for tournament decks",
   pool's only one burns an equipment or retainer (Donnybrook [obf]), so a
   weapon burned so loses its strike; a dodge still protects.
 - Before-resolution combat window (`Window::CombatBeforeResolution`): cards
-  triggered by the chosen opposing strike (Rötschreck, with
-  `CombatCtx::aggravated_strike_on`, any Methuselah's vampire: its target's
-  `Requirement::TargetFacesAggravatedStrike` is read in `play_options`,
+  triggered by the chosen opposing strike (Rötschreck, which also lists
+  `Window::CombatStrikeAnnounced`, the window of `Step::BetweenStrikes`: after
+  the first strike chosen, before the second, under the same label, only the
+  cards listing that window offered, no ability, no any-impulse one; rules-qa
+  44.8; with `CombatCtx::aggravated_strike_on`, any Methuselah's vampire: its
+  target's `Requirement::TargetFacesAggravatedStrike` is read in `play_options`,
   which sees the combat; rules-qa 94.1). Rötschreck ends combat at once
   (`end_combat_now`), the lock and torpor landing as the combat ends
   (`CombatCtx::rotschreck`), dropped if the combat continues.

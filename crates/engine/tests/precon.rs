@@ -6430,22 +6430,32 @@ fn garibaldi_meucci_museum_ends_a_combat_between_anarchs() {
 
 // "You can lock this card after an Anarch successfully hunts to add 1 blood
 // to that Anarch." [LSJ 20050720-2] A hunt gaining no blood is not
-// successful. [ANK 20220317] Not a hunt requiring an Anarch.
+// successful: a diseased Anarch's. At capacity it is (rules-qa 89.1: it
+// gets the blood, which drains off). [ANK 20220317] Not a hunt requiring an
+// Anarch.
 #[test]
 fn the_anarch_free_press_adds_blood_after_a_successful_hunt_only() {
     let mut e = Engine::bare(3);
     let a = e.add_minion(SeatId(0), anarch_with(&[], &[], 0), 1, false);
-    let full = e.add_minion(SeatId(0), anarch_with(&[], &[], 1), 3, false);
-    e.state.minions[full.index()].blood = e.state.capacity_of(full).unwrap();
+    let sick = e.add_minion(SeatId(0), anarch_with(&[], &[], 1), 3, false);
+    e.state.minions[sick.index()].disease = true;
     e.add_minion(SeatId(1), plain("", "", 0), 4, false);
     let press = location(&mut e, 0, "Anarch Free Press, The");
     let add = use_on(press, 1, None, Target::None);
-    pick(&mut e, action(full, ActionKind::Hunt));
+    pick(&mut e, action(sick, ActionKind::Hunt));
     never_offered_until(&mut e, SeatId(0), WindowLabel::MinionPhase, add);
     pick(&mut e, action(a, ActionKind::Hunt));
     pick_when(&mut e, add);
     request(&mut e);
     assert_eq!(blood(&e, a), 3, "1, +1 hunting, +1");
+    // At capacity: offered too.
+    let mut e = Engine::bare(3);
+    let a = e.add_minion(SeatId(0), anarch_with(&[], &[], 0), 1, false);
+    e.state.minions[a.index()].blood = e.state.capacity_of(a).unwrap();
+    e.add_minion(SeatId(1), plain("", "", 0), 4, false);
+    let press = location(&mut e, 0, "Anarch Free Press, The");
+    pick(&mut e, action(a, ActionKind::Hunt));
+    pick_when(&mut e, use_on(press, 1, None, Target::None));
 }
 
 // Channel 10: "You can lock this card to give a minion you control +2
@@ -7810,6 +7820,23 @@ fn week_of_nightmares_replaces_the_ravnos_hunt_with_a_theft() {
     pick(&mut e, action(r, ActionKind::Bleed));
     until(&mut e, SeatId(0), WindowLabel::MinionPhase);
     assert_eq!(pool(&e, 1), p1 - 2);
+}
+
+// [LSJ 20010809-1] "The blood stolen by this special hunt goes to the blood
+// bank if it cannot be gained by the vampire": a Ravnos with a disease
+// counter still takes it (rules-qa 59.4 superseded, owner 2026-11-11).
+#[test]
+fn week_of_nightmares_theft_by_a_diseased_ravnos_sends_the_blood_to_the_bank() {
+    let mut e = Engine::bare(3);
+    let r = e.add_minion(SeatId(0), ravnos(0), 1, false);
+    e.add_minion(SeatId(0), plain("Brujah", "", 0), 4, false);
+    let victim = e.add_minion(SeatId(1), ravnos(1), 2, false);
+    e.state.minions[r.index()].disease = true;
+    let week = location(&mut e, 0, "Week of Nightmares");
+    e.state.cards[week.index()].counters = 10;
+    pick(&mut e, use_on(week, 0, Some(r), Target::Minion(victim)));
+    until(&mut e, SeatId(0), WindowLabel::MinionPhase);
+    assert_eq!((blood(&e, r), blood(&e, victim)), (1, 1));
 }
 
 // [RBK action-card-or-card-in-play] "A minion can only perform this special

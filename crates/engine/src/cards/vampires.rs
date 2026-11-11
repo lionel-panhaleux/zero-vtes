@@ -9395,7 +9395,7 @@ pub static PHERYDIMA: VampireDef = VampireDef {
 
 /// "Sabbat: While Roderick is ready, your minions get an additional +1
 /// stealth on equip actions." Himself too; an equip action as rules-qa
-/// 78.28 and 80.44 read it (not a move from another minion).
+/// 78.28 and 80.44 read it (a take from another minion included).
 pub static RODERICK_PHILLIPS_MARCH: VampireDef = VampireDef {
     name: "Roderick Phillips March",
     printed: &[

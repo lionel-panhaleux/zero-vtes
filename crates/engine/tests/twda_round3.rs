@@ -136,7 +136,8 @@ fn decline_blood_hunt(e: &mut Engine) {
 // Hunt": the blood hunt polling opens. [LSJ 20100112] [PIB 20121028] [LSJ
 // 20090722-2] [LSJ 20030618] "part of the action resolution": Heidelberg
 // Castle ("Cannot be used during an action") is not offered during it, and
-// Freak Drive ("after resolution") only once it is over.
+// Freak Drive ("after resolution") only once it is over. A successful hunt
+// for Songs of the Distant Vitae's "successfully hunted" too.
 #[test]
 fn abactor_hunts_at_plus_four_then_calls_a_blood_hunt_inside_the_action() {
     let mut e = game(2);
@@ -161,6 +162,7 @@ fn abactor_hunts_at_plus_four_then_calls_a_blood_hunt_inside_the_action() {
             assert!(!castle_used, "no Heidelberg Castle during the blood hunt");
             assert!(!freak_drive, "Freak Drive after the blood hunt");
             assert_eq!(blood(&e, a), 1 + 1 + 4, "hunt at +4 hunt");
+            assert_eq!(e.state.minions[a.index()].hunted_turn, Some(e.state.turn));
         }
         if freak_drive {
             assert!(polled, "the blood hunt came first");
@@ -174,10 +176,17 @@ fn abactor_hunts_at_plus_four_then_calls_a_blood_hunt_inside_the_action() {
 // [LSJ 20090411] Abactor: "'Successful resolution' means the action must
 // not be blocked and the vampire must have gained blood. If the vampire
 // cannot gain blood (eg. Vampiric Disease), the blood hunt is not called."
-// With a disease counter, or at capacity: no blood hunt; blocked, none.
+// With a disease counter, under Punish ("cannot gain blood"), or blocked:
+// no blood hunt. At capacity it gains the blood, which drains off: called
+// (rules-qa 63.2 superseded, owner 2026-11-11; 89.1).
 #[test]
-fn abactor_calls_no_blood_hunt_without_blood_gained() {
-    for case in ["disease", "full", "blocked"] {
+fn abactor_calls_its_blood_hunt_only_after_a_successful_hunt() {
+    for (case, called) in [
+        ("disease", false),
+        ("punished", false),
+        ("blocked", false),
+        ("full", true),
+    ] {
         let mut e = game(2);
         let a = e.add_minion(SeatId(0), plain("Brujah", 0), 2, false);
         e.add_minion(SeatId(0), plain("Brujah", 1), 4, false);
@@ -185,6 +194,9 @@ fn abactor_calls_no_blood_hunt_without_blood_gained() {
         match case {
             "disease" => e.state.minions[a.index()].disease = true,
             "full" => e.state.minions[a.index()].blood = e.state.capacity_of(a).unwrap(),
+            "punished" => {
+                in_play(&mut e, 1, "Punish", Some(a));
+            }
             _ => hand(&mut e, 1, &["Eagle's Sight"]),
         }
         hand(&mut e, 0, &["Abactor"]);
@@ -193,14 +205,17 @@ fn abactor_calls_no_blood_hunt_without_blood_gained() {
             pick_when(&mut e, block(z));
             pick_when(&mut e, play(0, 0, z));
         }
-        loop {
+        let polled = loop {
             let req = request(&mut e);
-            assert_ne!(req.window, WindowLabel::BloodHuntPolling, "{case}");
+            if req.window == WindowLabel::BloodHuntPolling {
+                break true;
+            }
             if (req.seat, req.window) == (SeatId(0), WindowLabel::MinionPhase) {
-                break;
+                break false;
             }
             e.choose(fallback(&req));
-        }
+        };
+        assert_eq!(polled, called, "{case}");
     }
 }
 

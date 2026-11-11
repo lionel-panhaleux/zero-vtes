@@ -123,6 +123,22 @@ fn villein_targets_terms_blood_move_layers_and_trifle() {
     assert!(e.state.seats[0].ash.is_empty());
 }
 
+// [LSJ 20100216] [ANK 20180512-2] "you take what you can": "any amount of
+// blood" includes none (advanced rules §3.1; a player's report, game
+// 02663047f37b00de). Played on an empty vampire, terms 2, it moves nothing.
+#[test]
+fn villein_plays_on_a_vampire_with_no_blood() {
+    let mut e = table();
+    e.state.seats[0].hand.push(find_library("Villein"));
+    e.state.minions[0].blood = 0;
+    let pool = e.state.seats[0].pool;
+    pick(&mut e, play(0, MinionId(0)));
+    pick(&mut e, Choice::SetX(2));
+    request(&mut e);
+    assert_eq!(e.state.seats[0].pool, pool);
+    assert_eq!(e.state.cards[0].host, Some(MinionId(0)));
+}
+
 // Rulings: [LSJ 20020620]; [ANK 20210714].
 #[test]
 fn villein_costs_one_more_on_a_vampire_that_already_has_one() {

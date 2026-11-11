@@ -56,6 +56,9 @@ pub enum Step {
     BeforeStrikes,
     /// Side `i` chooses its strike.
     ChooseStrike(usize),
+    /// The first strike chosen, before the second
+    /// (`Window::CombatStrikeAnnounced`; rules-qa 44.8).
+    BetweenStrikes,
     /// Both strikes chosen, before they resolve.
     BeforeResolution,
     /// Side `i` prevents the damage pending on it.
@@ -1632,6 +1635,7 @@ impl CombatCtx {
             Step::DetermineRange => vec![Window::CombatDetermineRange, Window::CombatUntimed],
             Step::BeforeStrikes => vec![Window::CombatBeforeStrikes, Window::CombatUntimed],
             Step::ChooseStrike(_) => vec![Window::CombatStrikeDeclaration],
+            Step::BetweenStrikes => vec![Window::CombatStrikeAnnounced],
             Step::BeforeResolution => vec![Window::CombatUntimed, Window::CombatBeforeResolution],
             Step::Prevent(_)
             | Step::Allocate { .. }
@@ -1658,7 +1662,7 @@ impl CombatCtx {
             Step::DetermineRange => WindowLabel::CombatDetermineRange,
             Step::BeforeStrikes => WindowLabel::CombatBeforeStrikes,
             Step::ChooseStrike(_) => WindowLabel::CombatStrike,
-            Step::BeforeResolution => WindowLabel::CombatBeforeResolution,
+            Step::BetweenStrikes | Step::BeforeResolution => WindowLabel::CombatBeforeResolution,
             Step::Prevent(_) | Step::OthersPrevent | Step::GoingToTorpor(_) => {
                 WindowLabel::CombatPrevention
             }
@@ -2767,6 +2771,14 @@ impl Engine {
                     options,
                 ))
             }
+            // Only the cards timed by the announced strike (Rötschreck): no
+            // impulse of its own for anything else.
+            Step::BetweenStrikes => {
+                let seat = c.window.current()?;
+                let mut options = vec![Choice::Pass];
+                options.extend(self.play_options(seat, &c.windows(), None));
+                Some(DecisionRequest::new(seat, c.label(), options))
+            }
             _ => {
                 let seat = c.window.current()?;
                 let mut options = vec![Choice::Pass];
@@ -3272,7 +3284,8 @@ impl Engine {
                 c.fresh_window(Step::BeforeStrikes);
             }
             Step::BeforeStrikes => c.begin_pair(&self.state),
-            Step::ChooseStrike(0) => c.fresh_window(Step::ChooseStrike(1)),
+            Step::ChooseStrike(0) => c.fresh_window(Step::BetweenStrikes),
+            Step::BetweenStrikes => c.fresh_window(Step::ChooseStrike(1)),
             Step::ChooseStrike(_) => {
                 if self.pay_strike_tolls() {
                     return;
@@ -5038,6 +5051,17 @@ impl Engine {
                 lifeless.push(r);
             }
         }
+        // An aimed strike dealing damage (Target Vitals): +n of its kind,
+        // preventable with the rest (RTR 19970630; rules-qa 55.1
+        // superseded); on one dealing none, no effect (RTR 19960221).
+        for i in 0..2 {
+            let aim = c.sides[1 - i].aim;
+            if aim > 0 && c.sides[i].strike_damage.total() > 0 {
+                let aggravated = c.sides[i].strike_damage.aggravated > 0;
+                c.sides[i].pending.add(aim, aggravated);
+                c.sides[i].strike_damage.add(aim, aggravated);
+            }
+        }
         // Improvised Flamethrower: a bearer struck at long range, the
         // damage prevented or not (LSJ 20040802).
         let mut backfired = Vec::new();
@@ -5254,9 +5278,8 @@ impl Engine {
             self.retainer_loses_life(r, n);
         }
         let c = self.combat.as_mut().expect("combat context");
-        // An aimed strike that landed (Target Vitals): +n of its kind — not
-        // to be prevented, the prevention step past — and no press this
-        // round (rules-qa 55.1).
+        // An aimed strike that landed (Target Vitals): no press this round
+        // (rules-qa 55.1).
         for i in 0..2 {
             let aim = std::mem::take(&mut c.sides[1 - i].aim);
             let landed = c.sides[i]
@@ -5264,9 +5287,6 @@ impl Engine {
                 .total()
                 .min(c.sides[i].strike_damage.total());
             if aim > 0 && landed > 0 {
-                let aggravated = c.sides[i].strike_damage.aggravated > 0;
-                c.sides[i].pending.add(aim, aggravated);
-                c.sides[i].strike_damage.add(aim, aggravated);
                 c.sides[i].no_press_round = true;
             }
         }

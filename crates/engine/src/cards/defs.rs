@@ -45,18 +45,15 @@ pub static MINION_TAP: CardDef = CardDef {
 /// "Trifle. Put this card on a vampire you control who has any amount of
 /// blood and move 2 to 5 blood from that vampire to your pool. Cards named
 /// Minion Tap cost you +1 pool to play. Villein costs +1 pool to play on this
-/// vampire."
+/// vampire." "Any amount" includes none: the terms still 2 to 5, what is
+/// there is taken (LSJ 20100216, ANK 20180512-2; advanced rules §3.1).
 pub static VILLEIN: CardDef = CardDef {
     name: "Villein",
     trifle: true,
     modes: &[ModeDef {
         target: target(
             TargetKind::Minion,
-            &[
-                Requirement::TargetVampire,
-                Requirement::Controlled,
-                Requirement::BloodAtLeast(1),
-            ],
+            &[Requirement::TargetVampire, Requirement::Controlled],
         ),
         terms: Some(Terms::BloodRange { min: 2, max: 5 }),
         ..mode_of(
@@ -575,7 +572,8 @@ pub static BONE_SHAMBLER: CardDef = CardDef {
 /// This retainer inflicts 1R damage on the opposing minion each round of
 /// combat during normal strike resolution." The blocker is locked already
 /// (LSJ 20080611); modifiers and reactions stand and the declines too (RTR
-/// 19941109, ANK 20190116).
+/// 19941109, ANK 20190116); an Anarch sent to torpor first (Unleash Hell's
+/// Fury) cannot continue the action (ANK 20211207).
 pub static CRYPTS_SONS: CardDef = CardDef {
     name: "Crypt's Sons",
     modes: &[mode_of(
@@ -593,6 +591,7 @@ pub static CRYPTS_SONS: CardDef = CardDef {
         Actor::Host,
         &[
             Requirement::ActorActing,
+            Requirement::ActorReady,
             Requirement::NotContinued,
             Requirement::LifeAtLeast(1),
         ],
@@ -10034,11 +10033,12 @@ const fn master_in_play(requires: &'static [Requirement], effects: &'static [Eff
     }
 }
 
-/// "Unique. Requires a ready Anarch. Put this card in play. You can lock
-/// this card to give an Anarch you control +1 intercept. You can lock this
-/// card after an Anarch successfully hunts to add 1 blood to that Anarch."
-/// A hunt gaining no blood is not successful (LSJ 20050720-2); the bonus
-/// does not make the hunt one requiring an Anarch (ANK 20220317).
+/// "Unique. Requires a ready Anarch. Put this card in play. You can lock this
+/// card to give an Anarch you control +1 intercept. You can lock this card
+/// after an Anarch successfully hunts to add 1 blood to that Anarch." A hunt
+/// gaining no blood (a diseased hunter) is not successful (LSJ 20050720-2), one
+/// at capacity is (rules-qa 89.1, 89.26); the bonus does not make the hunt one
+/// requiring an Anarch (ANK 20220317).
 pub static ANARCH_FREE_PRESS: CardDef = CardDef {
     name: "Anarch Free Press, The",
     modes: &[master_in_play(
@@ -10706,21 +10706,20 @@ pub static MEDITATIVE_GROVE: CardDef = CardDef {
     ..CARD
 };
 
-/// "Only one Week of Nightmares can be played in a game. Put this card in
-/// play with 10 nightmare counters. Ravnos get +1 bleed and +1 strength and
-/// do not hunt as normal. Any Ravnos can steal 1 blood from another Ravnos
-/// as a +1 stealth hunt action. During each Methuselah's unlock phase, that
-/// Methuselah can move 1 nightmare counter from this card to a Ravnos. If
-/// this card has no counters, each Ravnos burns 1 blood for each nightmare
-/// counter on them or is burned, then burn this card and the nightmare
-/// counters." (Ravnos.) The special hunt: once a turn by a minion (RBK
-/// action-card-or-card-in-play), at another Ravnos even with no blood,
-/// never without one (LSJ 19970224); successful only if it steals blood
-/// (LSJ 20050720-2), what the thief cannot hold going to the blood bank
-/// (LSJ 20010809-1); it requires a Ravnos (LSJ 20080604); other special
-/// hunts stay allowed (LSJ 20090606). A Ravnos that must hunt takes it if it
-/// can. Paying its nightmare blood when it can, a Ravnos is burned only if
-/// it cannot.
+/// "Only one Week of Nightmares can be played in a game. Put this card in play
+/// with 10 nightmare counters. Ravnos get +1 bleed and +1 strength and do not
+/// hunt as normal. Any Ravnos can steal 1 blood from another Ravnos as a +1
+/// stealth hunt action. During each Methuselah's unlock phase, that Methuselah
+/// can move 1 nightmare counter from this card to a Ravnos. If this card has no
+/// counters, each Ravnos burns 1 blood for each nightmare counter on them or is
+/// burned, then burn this card and the nightmare counters." (Ravnos.) The
+/// special hunt: once a turn by a minion (RBK action-card-or-card-in-play), at
+/// another Ravnos even with no blood, never without one (LSJ 19970224);
+/// successful only if it steals blood the thief may gain (LSJ 20050720-2), what
+/// it cannot hold going to the blood bank, a diseased thief's all of it (LSJ
+/// 20010809-1); it requires a Ravnos (LSJ 20080604); other special hunts stay
+/// allowed (LSJ 20090606). A Ravnos that must hunt takes it if it can. Paying
+/// its nightmare blood when it can, a Ravnos is burned only if it cannot.
 pub static WEEK_OF_NIGHTMARES: CardDef = CardDef {
     name: "Week of Nightmares",
     modes: &[master_in_play(
@@ -14922,21 +14921,21 @@ pub static ASHUR_TABLETS: CardDef = CardDef {
     ..CARD
 };
 
-/// "Master: out-of-turn. Frenzy. Put this card on a vampire when an
-/// opposing minion attempts to inflict aggravated damage on him or her,
-/// whether the damage would be successfully inflicted or not. Combat ends.
-/// This vampire is locked and sent to torpor. This vampire does not unlock
-/// as normal. During this vampire's next unlock phase, burn this card."
-/// On the vampire facing the damage, any Methuselah's (RTR 19980623; LSJ
-/// 20080821: the acting vampire, by the Yawp Court's player; rules-qa
-/// 94.1), once both strikes are declared, before they resolve (LSJ
-/// 19990217); a strike's damage only (ANK 20220114), effective at the
-/// range (RTR 19980928), dodged or not (LSJ 20011005), aggravated at its
+/// "Master: out-of-turn. Frenzy. Put this card on a vampire when an opposing
+/// minion attempts to inflict aggravated damage on him or her, whether the
+/// damage would be successfully inflicted or not. Combat ends. This vampire is
+/// locked and sent to torpor. This vampire does not unlock as normal. During
+/// this vampire's next unlock phase, burn this card." On the vampire facing the
+/// damage, any Methuselah's (RTR 19980623; LSJ 20080821: the acting vampire, by
+/// the Yawp Court's player; rules-qa 94.1), once the opposing strike is
+/// announced, before or after the vampire's own, before they resolve (LSJ
+/// 19990217; rules-qa 44.8); a strike's damage only (ANK 20220114), effective
+/// at the range (RTR 19980928), dodged or not (LSJ 20011005), aggravated at its
 /// source (ANK 20200130-1). Combat ends at once: nothing resolves, no
-/// prevention, no second Rötschreck (LSJ 19990217); both minions still
-/// ready as it ends (LSJ 20070907); a combat that continues keeps the card
-/// on but no lock nor torpor (RTR 20020501). The unlock ban ends with the
-/// card (ANK 20191025).
+/// prevention, no second Rötschreck (LSJ 19990217); both minions still ready as
+/// it ends (LSJ 20070907); a combat that continues keeps the card on but no
+/// lock nor torpor (RTR 20020501). The unlock ban ends with the card (ANK
+/// 20191025).
 pub static ROTSCHRECK: CardDef = CardDef {
     name: "Rötschreck",
     out_of_turn: true,
@@ -14949,7 +14948,10 @@ pub static ROTSCHRECK: CardDef = CardDef {
             ],
         ),
         ..mode_of(
-            &[Window::CombatBeforeResolution],
+            &[
+                Window::CombatStrikeAnnounced,
+                Window::CombatBeforeResolution,
+            ],
             Actor::Methuselah,
             &[
                 Requirement::NotOwnTurn,
@@ -15586,10 +15588,9 @@ pub static CAMARILLA_CONCLAVE: CardDef = CardDef {
 /// card (resolve this card before moving on). A Methuselah gets +2 votes
 /// for each pool they burn. [PRE] As above, but you get +3 votes for each
 /// pool you burn." A round of its own as it resolves, from its player
-/// clockwise: each chooses once how much pool to burn and the side of
-/// the votes, then the card resolves, the pool burned at once (RTR
-/// 19960530; rules-qa 51.5); nothing left for the rest of the action;
-/// after the terms are set (RTR 20040501).
+/// clockwise: one pool at a time for votes on a side, burned at once, until
+/// all pass in a row (RTR 19960530; rules-qa 51.5); nothing left for the
+/// rest of the action; after the terms are set (RTR 20040501).
 pub static BUSINESS_PRESSURE: CardDef = CardDef {
     name: "Business Pressure",
     modes: &[
@@ -19435,13 +19436,13 @@ pub static AARONS_FEEDING_RAZOR: CardDef = CardDef {
 };
 
 /// "+1 stealth action. Hunt at +4 hunt. After successful resolution, a
-/// referendum is called to call a blood hunt on this vampire (independent
-/// of the action, just as if they had committed diablerie)." 5 blood, hunt
-/// bonuses on top (rules-qa 59.1); "successful" means unblocked and blood
-/// gained (LSJ 20090411): none gained, no blood hunt; not a diablerie (LSJ
-/// 20090724, ANK 20180129-1); still a blood hunt (LSJ 20091026), part of
-/// the action, before its after-resolution window (LSJ 20100112, PIB
-/// 20121028). A special hunt: once each turn (rulebook).
+/// referendum is called to call a blood hunt on this vampire (independent of
+/// the action, just as if they had committed diablerie)." 5 blood, hunt bonuses
+/// on top (rules-qa 59.1); "successful" means unblocked and a successful hunt
+/// (LSJ 20090411), at capacity too (rules-qa 63.2); not a diablerie (LSJ
+/// 20090724, ANK 20180129-1); still a blood hunt (LSJ 20091026), part of the
+/// action, before its after-resolution window (LSJ 20100112, PIB 20121028). A
+/// special hunt: once each turn (rulebook).
 pub static ABACTOR: CardDef = CardDef {
     name: "Abactor",
     modes: &[action_at(
@@ -19452,7 +19453,7 @@ pub static ABACTOR: CardDef = CardDef {
             Effect::AddStealth(1),
             Effect::HuntAction,
             Effect::HuntAt(4),
-            Effect::BloodHuntIfHuntGained,
+            Effect::BloodHuntIfHuntSuccessful,
         ],
     )],
     ..CARD
@@ -22977,13 +22978,14 @@ pub static REDEEM_THE_LOST_SOUL: CardDef = CardDef {
 
 /// "Only usable when this vampire is blocked. [pro] Unlock the blocking
 /// minion. This action is not blocked, and it is now unblockable." (4
-/// blood.) Crypt's Sons' continuation, no one able to attempt again.
+/// blood.) Crypt's Sons' continuation, no one able to attempt again; not
+/// by a vampire in torpor (ANK 20211207).
 pub static HORRIFIC_COUNTENANCE: CardDef = CardDef {
     name: "Horrific Countenance",
     modes: &[mode_of(
         &[Window::ActionBlocked],
         Actor::ActingMinion,
-        &[Requirement::NotContinued],
+        &[Requirement::ActorReady, Requirement::NotContinued],
         &[
             Effect::UnlockBlocker,
             Effect::Unblockable,
@@ -26689,9 +26691,10 @@ pub static DOMAIN_OF_EVERNIGHT: CardDef = CardDef {
 
 /// "Only usable during an equip action. [obf] +2 stealth. [thn] Unlock this
 /// vampire after action resolution if this action is successful. [THN] As
-/// [thn] above, but with +1 stealth." An equip from hand, Vast Wealth's or
-/// Magic of the Smith's, not a move from another minion (rules-qa 78.28);
-/// [THN] only while stealth is needed (rules-qa 8.1).
+/// [thn] above, but with +1 stealth." An equip action as
+/// `ActionCtx::is_equip_action` reads it, a take from another minion
+/// included (rules-qa 78.28); [THN] only while stealth is needed (rules-qa
+/// 8.1).
 pub static HAGS_WRINKLES: CardDef = CardDef {
     name: "Hag's Wrinkles",
     modes: &[
@@ -37542,13 +37545,14 @@ pub static SLEEP_OF_REASON: CardDef = CardDef {
     ..CARD
 };
 
-/// "+1 stealth action. [qui] Ⓓ Send a vampire who has committed diablerie
-/// since your last turn to torpor, and burn 2 blood from them. [QUI] Ⓓ
-/// Bleed. This action gets +1 bleed against the controller of any vampire
-/// who has successfully hunted since your last turn." A hunt gaining no
-/// blood is not successful (LSJ 20050720-2); since your last turn: from its
-/// end, this turn included (LSJ 20020429). [qui] at one's own vampire too,
-/// undirected (D12, rules-qa 20.1).
+/// "+1 stealth action. [qui] Ⓓ Send a vampire who has committed diablerie since
+/// your last turn to torpor, and burn 2 blood from them. [QUI] Ⓓ Bleed. This
+/// action gets +1 bleed against the controller of any vampire who has
+/// successfully hunted since your last turn." A hunt gaining no blood (a
+/// diseased hunter) is not successful (LSJ 20050720-2), one at capacity is
+/// (rules-qa 89.1, 89.26); since your last turn: from its end, this turn
+/// included (LSJ 20020429). [qui] at one's own vampire too, undirected (D12,
+/// rules-qa 20.1).
 pub static SONGS_OF_THE_DISTANT_VITAE: CardDef = CardDef {
     name: "Songs of the Distant Vitae",
     modes: &[
@@ -44278,9 +44282,10 @@ pub static JOUMLONS_AXE: CardDef = CardDef {
 /// "Unique. Add 1 counter to this card after this Salubri performs a
 /// successful action. Burn these counters if this card is moved. You can
 /// remove this ready Salubri from the game to move these counters to your
-/// pool, except during an action." None for the equip that brings it (LSJ
-/// 20100207-2); "this Salubri" its current bearer (rules-qa 9.1); locked
-/// too, in any Methuselah's turn.
+/// pool, except during an action." None for the equip that brings it, a
+/// take from another minion included (LSJ 20100207-2, ANK 20180719-3);
+/// "this Salubri" its current bearer (rules-qa 9.1); locked too, in any
+/// Methuselah's turn.
 pub static JOURNAL_OF_HRORSH: CardDef = CardDef {
     name: "Journal of Hrorsh",
     modes: &[ModeDef {

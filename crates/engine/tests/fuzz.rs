@@ -4553,7 +4553,7 @@ fuzz_tests! {
                 ));
             }
         },
-        seeds: 10,
+        seeds: 20,
         ..BASE
     };
     /// Legacy cards for TWDA decks, round 17 (slice 16ac): the library cards.

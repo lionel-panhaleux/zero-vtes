@@ -53,26 +53,25 @@ pub enum Source {
     Card(SeatId),
     /// Votes a card in play gives its Methuselah (Ventrue Headquarters).
     InPlay(crate::state::CardId),
-    /// Votes a Methuselah got for pool burned (Business Pressure): one
+    /// Votes a Methuselah got for a pool burned (Business Pressure): one
     /// record per pool, each its own side.
     Pool(SeatId),
 }
 
-/// Business Pressure resolving: each Methuselah in turn, clockwise from
-/// its player, chooses once how much pool to burn for votes and on which
-/// side; the card resolves once all have chosen (rules-qa 51.5).
+/// Business Pressure resolving: in turn, clockwise from its player, each
+/// Methuselah burns one pool for votes on a side, or passes; the card
+/// resolves once all have passed in a row (give and take, RTR 19960530;
+/// rules-qa 51.5 superseded).
 #[derive(Clone, Debug)]
 pub struct Pressure {
     /// The card's player: `own` votes a pool; the others `per`.
     pub player: SeatId,
     pub per: u8,
     pub own: u8,
-    /// The Methuselahs still to choose, in order.
-    pub pending: Vec<SeatId>,
-    /// The pool the first of them chose, its side still to choose.
-    pub amount: Option<u8>,
-    /// The choices so far: (Methuselah, pool burned, in favor).
-    pub picks: Vec<(SeatId, u8, bool)>,
+    /// The Methuselah whose turn it is.
+    pub turn: SeatId,
+    /// Passes in a row.
+    pub passes: usize,
 }
 
 impl Pressure {
@@ -330,7 +329,7 @@ impl ReferendumCtx {
         let calling = own_call + st.caller_clan_votes(m, self.calling);
         // "+1 vote after a Methuselah burns the Edge for a vote" (Tyler
         // McGill).
-        let edge = if (0..st.seats.len()).any(|s| self.spent(Source::Edge(SeatId(s as u8)))) {
+        let edge = if self.edge_burned() {
             st.printed_mod(
                 m,
                 crate::cards::Stat::VotesAfterEdgeBurned,
@@ -441,6 +440,13 @@ impl ReferendumCtx {
 
     fn spent(&self, source: Source) -> bool {
         self.records.iter().any(|r| r.source == source)
+    }
+
+    /// Has a Methuselah burned the Edge for a vote?
+    fn edge_burned(&self) -> bool {
+        self.records
+            .iter()
+            .any(|r| matches!(r.source, Source::Edge(_)))
     }
 
     /// (for, against) over the standing records, the prisci block's 3 votes
@@ -1126,70 +1132,58 @@ impl Engine {
             .max(0) as u8
     }
 
-    /// Business Pressure's round: the first Methuselah still to choose
-    /// names the pool they burn (0: none), then the side of its votes.
+    /// Business Pressure's round: the Methuselah whose turn it is burns a
+    /// pool for votes on a side, or passes.
     fn pressure_request(&self, ctx: &ReferendumCtx) -> Option<DecisionRequest> {
         let p = ctx.pressure.as_ref().expect("pressure round");
-        let seat = *p.pending.first()?;
-        let options = match p.amount {
-            None => {
-                let pool = self.state.seats[seat.index()]
-                    .pool
-                    .max(0)
-                    .min(u8::MAX as i32) as u8;
-                (0..=pool).map(Choice::SetX).collect()
-            }
-            Some(_) => vec![
+        Some(DecisionRequest::new(
+            p.turn,
+            WindowLabel::ReferendumPolling,
+            vec![
+                Choice::Pass,
                 Choice::CastCardVote { favor: true },
                 Choice::CastCardVote { favor: false },
             ],
-        };
-        Some(DecisionRequest::new(
-            seat,
-            WindowLabel::ReferendumPolling,
-            options,
         ))
     }
 
     fn pressure_apply(&mut self, ctx: &mut ReferendumCtx, choice: &Choice) {
         let p = ctx.pressure.as_mut().expect("pressure round");
-        let seat = p.pending[0];
-        match (*choice, p.amount) {
-            (Choice::SetX(0), None) => {
-                p.pending.remove(0);
-            }
-            (Choice::SetX(n), None) => p.amount = Some(n),
-            (Choice::CastCardVote { favor }, Some(n)) => {
-                p.picks.push((seat, n, favor));
-                p.amount = None;
-                p.pending.remove(0);
+        let seat = p.turn;
+        match *choice {
+            Choice::Pass => p.passes += 1,
+            Choice::CastCardVote { favor } => {
+                p.passes = 0;
+                ctx.records.push(VoteRecord {
+                    source: Source::Pool(seat),
+                    seat,
+                    favor,
+                    n: p.rate(seat),
+                    canceled: false,
+                    ballots: 0,
+                });
+                // Burned at once: the last pool ousts.
+                let mut loss = vec![0i32; self.state.seats.len()];
+                loss[seat.index()] = 1;
+                let votes = Cause::Cost(notes::Source::Rule(Rule::Vote));
+                self.caused(votes, |e| e.burn_pool_batch(&loss));
+                if self.state.seats[seat.index()].ousted {
+                    ctx.window.remove(seat);
+                }
             }
             _ => unreachable!("illegal pressure choice {choice:?}"),
         }
-        if !p.pending.is_empty() {
-            return;
-        }
-        // All have chosen: the votes and the pool burned at once (the
-        // last pool ousts, simultaneous ousts as a batch).
-        let p = ctx.pressure.take().expect("pressure round");
-        let mut loss = vec![0i32; self.state.seats.len()];
-        for &(s, n, favor) in &p.picks {
-            ctx.records.push(VoteRecord {
-                source: Source::Pool(s),
-                seat: s,
-                favor,
-                n: n.saturating_mul(p.rate(s)),
-                canceled: false,
-                ballots: 0,
-            });
-            loss[s.index()] += n as i32;
-        }
-        let votes = Cause::Cost(notes::Source::Rule(Rule::Vote));
-        self.caused(votes, |e| e.burn_pool_batch(&loss));
-        for (i, seat) in self.state.seats.iter().enumerate() {
-            if seat.ousted {
-                ctx.window.remove(SeatId(i as u8));
-            }
+        // The next Methuselah still in the game, clockwise.
+        let p = ctx.pressure.as_mut().expect("pressure round");
+        let n = self.state.seats.len();
+        let live = self.state.seats.iter().filter(|s| !s.ousted).count();
+        if p.passes < live {
+            p.turn = (1..=n)
+                .map(|k| SeatId(((p.turn.index() + k) % n) as u8))
+                .find(|s| !self.state.seats[s.index()].ousted)
+                .expect("a Methuselah in the game");
+        } else {
+            ctx.pressure = None;
         }
     }
 
@@ -1507,6 +1501,20 @@ impl Engine {
             // "Burning the Edge is worth 1 additional vote" (Eat the Rich).
             Choice::CastEdge { favor } => {
                 self.state.seats[seat.index()].has_edge = false;
+                // Tyler McGill's +1 joins a cast already made (rules-qa
+                // 74.8, as 5.1).
+                if !ctx.edge_burned() {
+                    for r in ctx.records.iter_mut().filter(|r| !r.canceled) {
+                        if let Source::Vampire(m) = r.source {
+                            let n = self.state.printed_mod(
+                                m,
+                                crate::cards::Stat::VotesAfterEdgeBurned,
+                                crate::state::PrintedCtx::default(),
+                            );
+                            r.n = (r.n as i32 + n).max(0) as u8;
+                        }
+                    }
+                }
                 let bonus = ctx.def.map_or(0, |d| d.edge_bonus) as i32
                     + self
                         .state
@@ -3200,14 +3208,12 @@ impl Engine {
             cards::Effect::NextReferendumPassesIfPasses => ctx.rider_clauses.push(play.seat),
             cards::Effect::BarNonSectVotes(sect) => ctx.only_sect = Some(sect),
             cards::Effect::PoolForVotesRound { per, own } => {
-                let order = self.state.clockwise_from(play.seat);
                 ctx.pressure = Some(Pressure {
                     player: play.seat,
                     per,
                     own,
-                    pending: order,
-                    amount: None,
-                    picks: Vec::new(),
+                    turn: play.seat,
+                    passes: 0,
                 });
             }
             // Votes already cast lose it too, down to 0 (ANK 20251125).

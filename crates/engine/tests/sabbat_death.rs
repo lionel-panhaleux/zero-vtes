@@ -869,6 +869,23 @@ fn target_vitals_adds_damage_to_a_landing_strike() {
     assert_eq!(blood(&e, z), 4);
 }
 
+// [RTR 19970630] [TOM 19960225] Target Vitals: "Additional damage inherits
+// all of the properties of the base damage", preventability included
+// (rules-qa 55.1 superseded, owner 2026-11-11). The hand strike's 1 and the
+// +2 are 3, Soak [for] prevents 2 of them: 1 lands.
+#[test]
+fn target_vitals_damage_is_prevented_with_the_strike() {
+    let (mut e, aitana, _) = table(AITANA);
+    let z = e.add_minion(SeatId(1), with("FOR", 4..=11), 4, false);
+    hand(&mut e, 0, &["Target Vitals"]);
+    hand(&mut e, 1, &["Soak"]);
+    bleed_blocked(&mut e, aitana, z);
+    pick_when(&mut e, play(0, 0, aitana));
+    pick_when(&mut e, play(0, 0, z));
+    until(&mut e, SeatId(0), WindowLabel::MinionPhase);
+    assert_eq!(blood(&e, z), 4 - 1);
+}
+
 // Target Vitals: "They can discard two combat cards to cancel this card as
 // it is played." [PIB 20121031] "If it is canceled, any blood cost (eg.
 // Terror Frenzy) has to be paid": Terror Frenzy [ANI] makes it cost 1

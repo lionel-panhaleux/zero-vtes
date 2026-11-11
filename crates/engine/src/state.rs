@@ -477,8 +477,9 @@ pub struct Minion {
     pub made_red_list: bool,
     /// The game turn of its last diablerie (Carlton Van Wyk).
     pub diablerie_turn: Option<u32>,
-    /// The game turn of its last successful hunt, blood gained (Songs of
-    /// the Distant Vitae; LSJ 20050720-2).
+    /// The game turn of its last successful hunt
+    /// (`Engine::successful_hunt_riders`; Songs of the Distant Vitae,
+    /// rules-qa 89.26).
     pub hunted_turn: Option<u32>,
     /// The game turn it last played a card requiring a Discipline (Veil
     /// of Darkness: "his or her first card that turn").
@@ -1018,7 +1019,9 @@ pub struct CardInPlay {
     /// Puppet Master [DOM]).
     pub entered: u32,
     /// `GameState::action_serial` as it entered play: "during any action
-    /// after this one" (Under My Skin).
+    /// after this one" (Under My Skin); or as a take from another minion
+    /// equipped it (Journal of Hrorsh: no counter for its equip, LSJ
+    /// 20100207-2).
     pub entered_action: u32,
     /// Removed from the game whenever it would burn: played from The
     /// Erciyes Fragments.
@@ -2734,11 +2737,17 @@ impl GameState {
         self.ally_body(m).map_or(1, |b| b.bleed) + extra
     }
 
+    /// Can `m`'s hunt be successful: no disease counter (59.4), nothing
+    /// barring its blood gain (LSJ 20090411); at capacity it is (89.1).
+    pub fn hunt_gains(&self, m: MinionId) -> bool {
+        !self.minions[m.index()].disease && !self.cannot_gain_blood(m)
+    }
+
     /// `m`'s hunt gets n blood from the bank: whether it successfully hunts
-    /// (at capacity too, rules-qa 89.26; none with a disease counter, 59.4),
-    /// its once-each-turn bonus then spent (`spend_once_hunt`).
+    /// (`hunt_gains`), its once-each-turn bonus then spent
+    /// (`spend_once_hunt`).
     pub fn hunt_blood(&mut self, m: MinionId, n: u8) -> bool {
-        if self.minions[m.index()].disease {
+        if !self.hunt_gains(m) {
             return false;
         }
         self.gain_blood(m, n);

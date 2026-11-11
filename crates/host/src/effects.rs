@@ -907,7 +907,7 @@ fn add(e: &E, w: Whom, when: Option<When>, out: &mut Vec<Effect>) {
         | E::AshCardToHandOnSuccess(..)
         | E::AshVampireToUncontrolled
         | E::BleedPoolCap(..)
-        | E::BloodHuntIfHuntGained
+        | E::BloodHuntIfHuntSuccessful
         | E::BurnCorruptionFromTarget
         | E::BurnPoolAtEndIfNotReady(..)
         | E::CoagulateFromPicks { prevent: false }
