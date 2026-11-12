@@ -703,7 +703,8 @@ run. The full run journal to p17, cut on 2026-11-09: `git show
   in the rollout's statistics).
 - Vocabulary keys (`obs::vocab_keys`: `crypt:<KRCG id>`, `library:<KRCG id>`,
   `window:<k>`, `clan:<name>`): checkpoints record them; loading under another
-  vocabulary moves each embedding row to its key's new id, new keys fresh
+  vocabulary moves each embedding row to its key's new id, new keys fresh,
+  appended choice kinds and their event token types at zero
   (`model.remap_vocab`; the optimizer's moments dropped) — a card round keeps
   trained networks.
 - Model: token embedding (vocabulary + type + features + its pointers' bases),

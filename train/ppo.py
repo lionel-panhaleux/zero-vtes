@@ -766,8 +766,6 @@ class Trainer:
             saved = torch.load(cfg.resume, map_location=self.device)
             old = saved.get("vocab", self.vocab)
             model.load_state_dict(remap_vocab(saved["model"], old, self.vocab, model.state_dict()))
-            # The optimizer's moments are shaped by the vocabulary and the
-            # token types: kept only when neither changed.
             same_shapes = old == self.vocab and all(
                 k in saved["model"] and v.shape == saved["model"][k].shape for k, v in model.state_dict().items()
             )

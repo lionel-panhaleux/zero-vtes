@@ -156,18 +156,20 @@ def remap_vocab(state, old_keys, new_keys, fresh):
     """A state dict saved under vocabulary `old_keys`, for a network built
     on `new_keys` (the pool grew, ids shifted): each embedding row follows
     its key; rows of new keys come from `fresh` (a new network's state).
-    Token types added since (they are appended) start at zero, and so does
-    the seats' context layer of a network saved before it, or its columns
-    for the context's features appended since (`zvtes_env::context`)."""
+    Choice kinds appended since, and their event token types, start at
+    zero, and so does the seats' context layer of a network saved before it, or
+    its columns for the context's features appended since
+    (`zvtes_env::context`)."""
     out = dict(state)
     if "ctx.weight" in fresh:
         w = state.get("ctx.weight", fresh["ctx.weight"][:, :0])
         width = fresh["ctx.weight"].shape[1]
         if w.shape[1] < width:
             out["ctx.weight"] = torch.cat([w, w.new_zeros(w.shape[0], width - w.shape[1])], dim=1)
-    types, n = state["token_type.weight"], len(fresh["token_type.weight"])
-    if len(types) < n:
-        out["token_type.weight"] = torch.cat([types, types.new_zeros(n - len(types), types.shape[1])])
+    for key in ("token_type.weight", "opt_kind.weight"):
+        if key in fresh and len(state[key]) < len(fresh[key]):
+            rows = state[key]
+            out[key] = torch.cat([rows, rows.new_zeros(len(fresh[key]) - len(rows), rows.shape[1])])
     if list(old_keys) == list(new_keys):
         return out
     old = {k: i for i, k in enumerate(old_keys)}

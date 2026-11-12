@@ -135,10 +135,16 @@ checks it did not get worse).
   `Interrupt::DisciplineSearch`, `draws.rs`, told in `replay_decisions`'
   `before`), so it is cut at the last such change before its stop.
 - Observation changes (a new `Choice` kind, `WindowLabel`, `ActionKind` or
-  token type) touch `obs`'s fixed id tables: a new `obs::Version` or a slot
-  shown unused; the engine side tells this line before committing
-  (`add-cards` §3). A `WindowLabel` after `CombatEndOfRound` would take the
-  first clan's id; a new `ActionKind` after `Ability` needs its
+  token type) touch `obs`'s fixed id tables; the engine side tells this line
+  before committing (`add-cards` §3). Appended, a choice kind (and its event
+  token type, `T_EVENT` + kind) starts at zero on load (`remap_vocab`; the
+  server's `Net` reads a zero row past its table): no new `obs::Version`.
+  Renumbered or inserted, an id takes another's trained row, and a new plain
+  token type shifts `T_EVENT`: a new `obs::Version` or a shared slot
+  (`T_REVEAL`).
+  A `WindowLabel` goes after `CombatEndOfRound` with `N_WINDOWS` moved to it
+  (else it takes the first clan's id; mid-enum, it shifts the later windows'
+  `window:<k>` keys); a new `ActionKind` after `Ability` needs its
   `action_slot` arm. Interrupts, purposes, a new marker kind and the api's
   wire ids are not encoded. `git diff -M <pin> <main> --
   crates/env/src/obs.rs crates/env/src/context.rs
