@@ -270,6 +270,10 @@ pub struct ActionView {
     pub blocker: Option<CopyId>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub intercept: Option<i32>,
+    /// The second vampire of a joint block attempt (Coterie Tactics), or of
+    /// a joint block the one not picked as the blocker.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub joint_blocker: Option<CopyId>,
     /// The Methuselahs who declined to block.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub declined: Vec<Seat>,

@@ -104,6 +104,16 @@ pub fn purpose(i: &Interrupt) -> Purpose {
     use Interrupt as I;
     match i {
         I::MoveCardToTitled { .. } => Purpose::MoveCardToTitled,
+        I::MaySkipTurn { .. } => Purpose::MaySkipTurn,
+        I::LookedToHand { .. } => Purpose::LookedToHand,
+        I::MastersFromHand { .. } => Purpose::MastersFromHand,
+        I::MayTakeTitle { .. } => Purpose::MayTakeTitle,
+        I::MayTakeEdge { .. } => Purpose::MayTakeEdge,
+        I::TorporMassacre { .. } => Purpose::TorporMassacre,
+        I::TakeCountersUpTo { .. } => Purpose::TakeCountersUpTo,
+        I::GuessNumber { .. } => Purpose::GuessNumber,
+        I::Bid { .. } => Purpose::Bid,
+        I::NamedX { .. } => Purpose::NamedX,
         I::GiveBlood { .. } => Purpose::GiveBlood,
         I::MoveBetween { .. } => Purpose::MoveBetween,
         I::DiablerieEquipment { .. } => Purpose::DiablerieEquipment,

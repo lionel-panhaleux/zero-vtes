@@ -76,8 +76,9 @@ rounds, set by set (the `add-cards` skill, the cards board).
   trained on; the singles-only cards (Fall of London, Echoes of Gehenna,
   part of Shadows of Berlin — all the events) are in no precon.
 - **No V5 tenant**: burn replacement, bidding free-for-alls, torpor
-  replacement outside combat (the combat's going-to-torpor step,
-  `Step::GoingToTorpor`, serves a legacy card: Decapitate).
+  replacement outside combat (legacy cards serve the last two: Hostile
+  Takeover's bids, Minor Boon; in combat the going-to-torpor step,
+  `Step::GoingToTorpor`, serves Decapitate and Undying Tenacity).
 
 The set list is configuration: extending toward legacy means adding cards and
 enabling deferred windows, not changing the framework.
@@ -1148,7 +1149,7 @@ What the engine does not yet do or does only in part, true today.
 
 The objectives still open are the roadmap's (`docs/roadmap.md`).
 
-Definitions: 1356 library, 774 vampires
+Definitions: 1459 library, 825 vampires
 
 ## Outlook: deck building (post-v1)
 

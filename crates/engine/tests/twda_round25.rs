@@ -1725,7 +1725,11 @@ fn alan_sovereign_has_nothing_to_use() {
 
 /// Alejandro Aguirre: "he may lock before range is determined in any combat
 /// that does not involve him to inflict 1 unpreventable damage on each
-/// combatant."
+/// combatant." [ANK 20170930] "Both minions can play prevention and
+/// non-prevention pre-range effects before mending the damage. If another
+/// pre-range damaging effect is played then, all damages are prevented and
+/// mended together": staged as he locks, mended as the before-range step
+/// closes, then each hand strike.
 #[test]
 fn alejandro_aguirre_hurts_both_combatants() {
     let mut e = game(2);
@@ -1733,18 +1737,18 @@ fn alejandro_aguirre_hurts_both_combatants() {
     let b = e.add_minion(SeatId(0), plain("Brujah", 0), 4, false);
     let v = e.add_minion(SeatId(1), plain("Ventrue", 0), 4, false);
     e.add_minion(SeatId(1), plain("Ventrue", 1), 4, false);
-    e.notes = Some(Vec::new());
-    let before = e.table();
+    hand(&mut e, 1, &["Outside the Hourglass"]);
     pick_when(&mut e, bleed(b));
     pick_when(&mut e, block(v));
     pick_when(&mut e, own_ability(a, 0));
-    request(&mut e);
     assert!(e.state.minions[a.index()].locked);
-    let hurt: Vec<_> = noted_changes(&mut e, before)
-        .into_iter()
-        .filter(|(c, _, n)| *n == -1 && matches!(c, Some(zvtes::notes::Cause::Effect(zvtes::notes::Source::Minion(x))) if *x == a))
-        .collect();
-    assert_eq!(hurt.len(), 2, "{hurt:?}");
+    assert_eq!((blood(&e, b), blood(&e, v)), (4, 4), "not mended yet");
+    until(&mut e, SeatId(0), WindowLabel::MinionPhase);
+    assert_eq!(
+        (blood(&e, b), blood(&e, v)),
+        (4 - 1 - 1, 4 - 1 - 1),
+        "Alejandro's, then the strikes"
+    );
 }
 
 /// Alfred Benezri: "-1 strength in combat with an ally."

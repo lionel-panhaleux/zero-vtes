@@ -53,6 +53,7 @@ fn names_a_token(c: &Choice) -> bool {
             | Choice::StrikeCombatEnds
             | Choice::RoundStrike { at: None }
             | Choice::TakeDamageAfterResolution
+            | Choice::TorporAfterResolution
             | Choice::CommittedStrike
             | Choice::EmployFromHand { .. }
             | Choice::ContinueAction

@@ -3117,11 +3117,14 @@ fn crocodiles_tongue_bars_the_blockers_methuselah() {
         );
         if pay {
             pick(&mut e, Choice::PayToCancel);
-            request(&mut e);
             assert_eq!(blood(&e, z1), 3);
             assert!(
                 matches!(e.action().expect("action").state, zvtes::actions::ActionState::Attempt(m) if m == z1)
             );
+            // Canceled, the card is not offered for canceling again: the
+            // window elides on.
+            let req = request(&mut e);
+            assert!(!req.options.contains(&Choice::PayToCancel));
         } else {
             pick(&mut e, Choice::Pass);
             never_offered_until(&mut e, SeatId(0), WindowLabel::MinionPhase, block(z2));

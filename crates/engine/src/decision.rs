@@ -331,6 +331,18 @@ pub enum Choice {
         minion: MinionId,
         path: u8,
     },
+    /// Skip one's entire turn (First Tradition: The Masquerade).
+    SkipTurn,
+    /// After resolution: the acting vampire goes to torpor (Day Operation),
+    /// ordered among the window's effects (LSJ 20040120-2).
+    TorporAfterResolution,
+    /// As a card is played, the alternative of its requirement `minion`
+    /// meets once each game (Vidal Jarbeaux: "prince or justicar", a clan
+    /// list, "titled"; owner, 2026-11-12).
+    MeetAs {
+        minion: MinionId,
+        key: crate::cards::MetKey,
+    },
 }
 
 /// Where a card is taken from (`Choice::TakeFrom`).

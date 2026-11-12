@@ -1934,6 +1934,53 @@ fn punish_bars_blood_from_a_blood_doll() {
     assert_eq!(blood(&e, v), 2, "no blood gained");
 }
 
+// Punish's "cannot gain blood" on blood taken from another vampire [ANK
+// 20221019-2] "Any effect that gives a vampire more blood counts as
+// gaining blood (e.g. moving blood with Heidelberg Castle, Germany,
+// stealing blood with Theft of Vitae, etc.) and the blood is moved to the
+// blood bank instead": a Punished thief's victim loses the 2 blood, the
+// thief gains none.
+#[test]
+fn theft_of_vitae_by_a_punished_vampire_sends_the_blood_to_the_bank() {
+    let mut e = game(2);
+    let t = e.add_minion(SeatId(0), find_card("Trevon Parker"), 4, false); // THA
+    e.add_minion(SeatId(0), find_card("Asmin Kobane"), 4, false);
+    let x = e.add_minion(SeatId(1), find_card("Farah Sarroub"), 4, false);
+    equipped(&mut e, "Punish", t);
+    hand(&mut e, 0, &["Theft of Vitae"]);
+    pick(&mut e, bleed(t));
+    pick(&mut e, block(x));
+    pick(&mut e, play(0, 1, t)); // [THA]: steal 2
+    expect(&mut e, SeatId(0), WindowLabel::MinionPhase);
+    assert_eq!(blood(&e, x), 4 - 2, "the victim loses what is stolen");
+    assert_eq!(blood(&e, t), 4 - 1, "x's hand strike lands; nothing gained");
+}
+
+// Heidelberg Castle's blood moved onto a Punished vampire [ANK
+// 20221019-2] (as above): the source loses the 2, the Punished receiver
+// gains none.
+#[test]
+fn heidelberg_castle_moves_blood_to_a_punished_vampire_into_the_bank() {
+    let mut e = game(2);
+    let a = e.add_minion(SeatId(0), plain("Brujah", 0), 3, false);
+    let b = e.add_minion(SeatId(0), plain("Brujah", 1), 1, false);
+    e.add_minion(SeatId(1), plain("Ventrue", 0), 4, false);
+    equipped(&mut e, "Punish", b);
+    let castle = in_play(&mut e, 0, "Heidelberg Castle, Germany", None);
+    // B, the only other ready vampire, is chosen at once.
+    pick(
+        &mut e,
+        Choice::UseAbility {
+            source: AbilitySource::Card(castle),
+            ability: 0,
+            actor: None,
+            target: Target::Minion(a),
+        },
+    );
+    pick(&mut e, set_x(2));
+    assert_eq!((blood(&e, a), blood(&e, b)), (3 - 2, 1));
+}
+
 // Julia Prima's "bleed any Methuselah" is not offered at her prey: the
 // plain bleed is (no choice offered twice; rules-qa 103.5).
 #[test]

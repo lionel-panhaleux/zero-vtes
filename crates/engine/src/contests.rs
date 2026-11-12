@@ -379,7 +379,9 @@ impl Engine {
     /// rules-qa 19.6).
     pub(crate) fn steal_title(&mut self, thief: MinionId, from: MinionId) {
         let title = self.state.title_of(from);
-        if title == crate::crypt::Title::None {
+        // A thief who cannot gain it (Persona Non Grata) takes nothing: the
+        // steal is that gain, a legal no-op.
+        if title == crate::crypt::Title::None || !self.state.may_gain_title(thief, title) {
             return;
         }
         self.lose_title(from);
@@ -394,6 +396,12 @@ impl Engine {
         title: crate::crypt::Title,
         card: Option<CardId>,
     ) {
+        // Persona Non Grata: a title gained without a card is a legal no-op;
+        // a title card is masked from its bearer where it is played or
+        // moved (`GameState::may_gain_title`).
+        if card.is_none() && !self.state.may_gain_title(m, title) {
+            return;
+        }
         let old = self
             .state
             .title_card_on(m)

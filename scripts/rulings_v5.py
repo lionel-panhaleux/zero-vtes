@@ -45,6 +45,7 @@ GROUPS = os.path.join(RULINGS_DIR, "groups.yaml")
 
 # A card or group key line; keys holding a colon or an apostrophe are quoted.
 KEY_RE = r"^(['\"]?)(G?\d+)\|(.+?)\1:$"
+REF_RE = r"\[(?:TOM|SFC|JON|LSJ|PIB|ANK|RTR|RBK) [0-9-]+\]"
 
 
 def parse_groups(path):
@@ -63,7 +64,11 @@ def parse_groups(path):
 
 
 def parse(path):
-    """Yield (key_id, key_name, ruling_text) from the hand-formatted YAML."""
+    """Yield ((key_id, key_name), ruling_text) from the hand-formatted YAML.
+
+    A group ruling may be a mapping, `overrides:` (card key: its own text)
+    then `text:` (the others'); it is yielded raw, for `split_overrides`.
+    """
     key = None
     buf = None
     for line in open(path, encoding="utf-8"):
@@ -86,10 +91,41 @@ def parse(path):
             nxt = line.strip()
             if buf.endswith("\\"):
                 buf = buf[:-1] + (" " + nxt[2:] if nxt.startswith("\\ ") else nxt)
+            elif buf.startswith("overrides:"):
+                buf += "\n" + line
             else:
                 buf += " " + nxt
     if buf is not None:
         yield key, buf
+
+
+def unquote(text):
+    """A single-quoted scalar's text (doubled quotes undone), else as is."""
+    if len(text) > 1 and text[0] == text[-1] == "'":
+        return text[1:-1].replace("''", "'")
+    return text
+
+
+def split_overrides(raw):
+    """(text, {card_id: text}) of a ruling: per-card texts take the default
+    text's references (the overrides print none)."""
+    if not raw.startswith("overrides:"):
+        return raw, {}
+    entries, cur = [], None
+    for line in raw.split("\n")[1:]:
+        m = re.match(r"^ {6}(['\"]?)(\d+)\|(.+?)\1: (.*)$", line)
+        t = re.match(r"^ {4}text: (.*)$", line)
+        if m:
+            cur = [int(m.group(2)), m.group(4)]
+            entries.append(cur)
+        elif t:
+            cur = [None, t.group(1)]
+            entries.append(cur)
+        else:
+            cur[1] += " " + line.strip()
+    text = next(unquote(v) for k, v in entries if k is None)
+    refs = " ".join(re.findall(REF_RE, text))
+    return text, {k: f"{unquote(v)} {refs}" for k, v in entries if k is not None}
 
 
 ENGINE = os.path.join(os.path.dirname(__file__), "..", "crates", "engine")
@@ -228,10 +264,9 @@ def main():
     out = csv.writer(sys.stdout)
     out.writerow(["card_id", "card", "via", "references", "ruling", "status"])
     n = 0
-    for (kid, kname), text in parse(RULINGS):
+    for (kid, kname), raw in parse(RULINGS):
+        text, overrides = split_overrides(raw)
         text = text.strip().strip("'\"")
-        refs = " ".join(re.findall(r"\[(?:TOM|SFC|JON|LSJ|PIB|ANK|RTR|RBK) [0-9-]+\]", text))
-        body = re.sub(r"\s*\[(?:TOM|SFC|JON|LSJ|PIB|ANK|RTR|RBK) [0-9-]+\]", "", text).strip()
         targets = {}
         if not kid.startswith("G") and int(kid) in v5:
             targets[int(kid)] = "key"
@@ -239,11 +274,15 @@ def main():
             for gid, _ in groups.get(kid, []):
                 if gid in v5:
                     targets[gid] = f"group {kname}"
-        for mid, mname in re.findall(r"\{(\d+)\|([^}]+)\}", text):
-            if int(mid) in v5:
-                targets.setdefault(int(mid), "mention")
+        for t in [text, *overrides.values()]:
+            for mid, mname in re.findall(r"\{(\d+)\|([^}]+)\}", t):
+                if int(mid) in v5:
+                    targets.setdefault(int(mid), "mention")
         for cid, via in sorted(targets.items()):
             via = via if via != "mention" else f"mention in {kname}"
+            own = overrides.get(cid, text)
+            refs = " ".join(re.findall(REF_RE, own))
+            body = re.sub(r"\s*" + REF_RE, "", own).strip()
             key = (str(cid), via, refs, body)
             out.writerow([cid, v5[cid], via, refs, body, previous.pop(key, "")])
             n += 1

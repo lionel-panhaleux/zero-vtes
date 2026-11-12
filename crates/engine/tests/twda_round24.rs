@@ -3255,6 +3255,58 @@ fn baseball_bat_replaced_at_once_unless_played_normally() {
     assert!(on(&e, "Baseball Bat", a).is_none(), "blocked");
 }
 
+/// Blade Clot moves a counter only on damage successfully inflicted
+/// [LSJ 20080820] (rules-qa 116.138): the anarch's hand strike all
+/// prevented (Armor of Vitality [for]), none; its Baseball Bat on
+/// Mictlantecuhtli, immune to weapons, none; the bat landing on another
+/// vampire, one.
+#[test]
+fn blade_clot_moves_only_on_damage_successfully_inflicted() {
+    for case in ["prevented", "immune", "landed"] {
+        let mut e = game(2);
+        let a = e.add_minion(SeatId(0), anarch(&[], 0), 4, false);
+        e.add_minion(SeatId(0), clan("Brujah", 0), 4, false);
+        let opp = if case == "immune" {
+            find_card("Mictlantecuhtli")
+        } else {
+            clan("Ventrue", 0)
+        };
+        let b = e.add_minion(SeatId(1), opp, 4, false);
+        e.add_minion(SeatId(1), clan("Ventrue", 1), 4, false);
+        e.state.minions[b.index()].gained_levels = vec!["for"];
+        let c = in_play_with_layers(&mut e, 0, "Blade Clot", None);
+        e.state.cards[c.index()].counters = 3;
+        let bat = in_play(&mut e, 0, "Baseball Bat", Some(a));
+        hand(&mut e, 1, &["Armor of Vitality"]);
+        pick(&mut e, bleed(a));
+        pick_when(&mut e, block(b));
+        let moved = Choice::ResolveRider { card: c.0 };
+        if case == "prevented" {
+            pick_when(&mut e, Choice::HandStrike);
+            pick_when(&mut e, play(0, 0, b));
+        } else {
+            pick_when(
+                &mut e,
+                Choice::UseAbility {
+                    source: AbilitySource::Card(bat),
+                    ability: 0,
+                    actor: None,
+                    target: Target::None,
+                },
+            );
+        }
+        if case == "landed" {
+            pick_when(&mut e, moved);
+            request(&mut e);
+        } else {
+            never_offered_until(&mut e, SeatId(0), WindowLabel::MinionPhase, moved);
+        }
+        let landed = u8::from(case == "landed");
+        assert_eq!(e.state.minions[b.index()].clots, landed, "{case}");
+        assert_eq!(e.state.cards[c.index()].counters, 3 - landed, "{case}");
+    }
+}
+
 /// Blade Clot: clots add up on a vampire hit twice, an older rescuer burns
 /// them all; in torpor its controller keeps it there or burns it; an ally
 /// burns at its unlock phase.

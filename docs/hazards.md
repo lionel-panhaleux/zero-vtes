@@ -30,9 +30,30 @@ review finding); one the code or a page now makes impossible leaves it.
 - A minion's lock asserted after `until(its seat, MinionPhase)` is gone:
   that seat's unlock phase ran first. Assert it at the acting seat's next
   minion phase, or read what the lock caused (blood, pool).
+- A fixture's hand cards (`hand`) carry `CopyId::NONE`: a copy id is no
+  sentinel for "taken from hand" (Charming Lobby's named card: an explicit
+  `ActionCtx::named_played`).
+- A card put in play by a fixture (`CardInPlay::new`) carries none of its
+  mode's layers: a retainer's damage (Ghoul Retainer's bite) or a bearer
+  modifier is missing until the mode's `Effect::Layer`s are pushed too (an
+  `equipped` helper).
+- A non-strike ability used in the strike step (Ghoul Retainer's weapon
+  use) leaves the strike to choose; a single strike left (the hand strike)
+  elides, its request never seen.
 - A committed strike (a weapon's maneuver, Joumlon's Axe's cancel) left
   with one option elides, its pair-0 request never seen: assert the damage
   it dealt, or read the next pair's optional request (a `Pass` first).
+- A blood total that another strike's damage also explains proves no cost:
+  Target Vitals' canceled cost (PIB 20121031) was never paid while its test
+  passed on the opposing hand strike's 1. Pin a cost apart (the strikes
+  out of the way, or both counted).
+- A referendum no one can vote in (no titled vampire, no Edge, no vote
+  card) resolves with no decision: `to_referendum` never sees it and the
+  game plays on. Give a seat the Edge to stop at a blood hunt.
+- A loop stopping once `Engine::referendum()` is none must start inside the
+  referendum (`to_referendum`): before the political action's blocks it is
+  none too, and the loop passes the whole polling away (Elder Kindred
+  Network's control run did).
 - A play's cost is paid as it resolves, after its as-played window: assert
   it after the next `request`, with a choice still pending in that window
   (a second card), or the elided combat runs on past it.
@@ -64,6 +85,11 @@ review finding); one the code or a page now makes impossible leaves it.
   `{:#?}` dump of `DEFS`/`VAMPIRES`.
 - The engine has legal unbounded repeats (block re-attempts, DESIGN
   §11.3): cap decisions in any exploratory driver or scratch run.
+- `Engine::at_master_phase` leaves a bare fixture's flow in the minion
+  phase: "during your minion phase" abilities are still offered there.
+  Prove a master-phase non-offer at a real master phase (`until` it).
+- A vampire that must hunt is offered only its hunt: that minion phase
+  window elides and the hunt is taken on the way (`until` passes it).
 
 ## Cards
 
@@ -93,10 +119,27 @@ review finding); one the code or a page now makes impossible leaves it.
   `Engine::phase()` reads `Over` in an announce or a cost-terms apply. A
   phase a printed predicate needs there is read from state
   (`GameState::in_minion_phase`, `in_master_phase`).
+- A title card on a vampire is its title (`claimed_title` reads
+  `title_card_on`): "cannot gain a title" (Persona Non Grata,
+  `GameState::may_gain_title`) is a mask where the card is played or its
+  vampire chosen, and a guard at each site moving a title card (Regent,
+  `oldest_for`); `gain_title` only no-ops a title gained without a card.
 - An action card is out of play for its whole action and reaches the ash
   heap only as the action ends (`place_action_card`): a card reading "the
   action card … in your ash heap" during the action reads where it is
   bound (`Engine::action_card_to_ash`), not the ash heap.
+- A strike card's mode holds `Effect::Strike(k)` or, committing at the
+  maneuver, `Effect::CommittedStrike(k)` (Thrown Gate, Slam): code asking
+  whether a mode strikes matches both (`is_strike_mode`). Matching only
+  `Strike` once charged Lucian's toll twice on a Thrown Gate played as
+  the strike.
+- A granted action's `terms` are not asked like an ability's: `use_ability`
+  declares the action and returns before `Flow::AbilityTerms`, so a term
+  with no arm in its `DeclareAction` branch is silently skipped (Talbot's
+  master discard was; it is now paid as the action resolves, `succeed`).
+- An immunity is not a reduction: `Stat::DamageImmuneFromOpponent`
+  (`GameState::damage_immune`), not `NoDamageFromOpponent`, or Haymaker,
+  the Walking Stick and the Flamethrower miss it (rules-qa 116.138).
 
 ## The shared tree
 

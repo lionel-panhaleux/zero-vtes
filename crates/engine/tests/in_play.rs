@@ -604,8 +604,8 @@ fn fame_goes_on_any_ready_vampire() {
 // that Methuselah burns 1 pool": every Methuselah, on their own unlock
 // phase, while the host is in torpor; nothing once it is ready. The rider
 // is ordered by the active Methuselah among their unlock effects and
-// resolved before the impulse passes (LSJ 20010121; rules-qa 6.1).
-// Rulings: [LSJ 20010121].
+// resolved before the impulse passes (rules-qa 6.1).
+// Rulings: [LSJ 20110121].
 #[test]
 fn fame_burns_1_pool_from_each_methuselah_while_its_host_is_in_torpor() {
     let (mut e, _a, x, _z) = bleed_table();

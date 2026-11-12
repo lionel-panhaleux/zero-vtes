@@ -78,6 +78,9 @@ def main():
     twda_path, demand_path = opt("--twda"), opt("--demand")
     steps, bundle = int(opt("--steps", 15)), int(opt("--bundle", 8))
     cut = opt("--cut")
+    # One --set a set name: a second name after one flag would be dropped.
+    if len(args) > 1:
+        sys.exit(f"unexpected arguments {args[1:]}: one --set per set name")
     cards = krcg.load_cards(args[0] if args else None)
     twda = krcg.load_twda(twda_path)
     by_id = {c["id"]: c for c in cards}

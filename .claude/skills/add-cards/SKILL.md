@@ -44,14 +44,15 @@ https://engine.krcg.org/admin/unsupported > demand.json`, run by whoever
 holds the token, never printed). Its summary goes in the cards board's
 header at the round's end.
 
-A round is whole sets, the cards board's top line (owner, 2026-10-30: "we
-are now working set by set and stopped running twda analysis to decide what
-cards to add"; 2026-11-09: board lines by groups of sets, every card in the
-end, promos last). `python3 scripts/round_choice.py <vtes.json> --twda
-<twda.json> --set NAME… --steps 0 --cut 0` prints the chosen sets' missing
-ids and what `gen_twda.py`'s rules keep with them (kept, recent kept: a
-set's versions can displace kept decks, `VERSIONS`, `SAME_CRYPT`,
-`SAME_LIBRARY`), for the board's header, not the choice.
+A round is whole sets, the cards board's top line (owner, 2026-10-30:
+"we are now working set by set and stopped running twda analysis to
+decide what cards to add"; 2026-11-09: board lines by groups of sets,
+every card in the end, promos last). `python3 scripts/round_choice.py
+<vtes.json> --twda <twda.json> --set NAME [--set NAME …] --steps 0 --cut
+0` (one `--set` a set: a reprint is its own set) prints the chosen sets'
+missing ids and what `gen_twda.py`'s rules keep with them (kept, recent
+kept: a set's versions can displace kept decks, `VERSIONS`,
+`SAME_CRYPT`, `SAME_LIBRARY`), for the board's header, not the choice.
 Count cards by id, never by splitting names on commas. Then add the round
 to `ADDED_BATCHES` in `scripts/window_matrix.py` (the owner's words in a
 comment) and regenerate `crypt.rs`, `library.rs`, `twda.rs`; check the

@@ -646,7 +646,8 @@ fn smash_and_grab_burns_life_from_an_ally_or_a_retainer() {
 // Ponticulus: "He can lock to give any Tremere +1 intercept … He cannot
 // act and he cannot have or use equipment." No action offered him; locked,
 // he gives a Tremere attempting to block the intercept it needs.
-// [LSJ 20010627] [LSJ 20010629] [LSJ 20090304-1] Immune: the damage is not inflicted.
+// [LSJ 20010627] [LSJ 20010629] [LSJ 20090304-1] Immune: none lands
+// (inflicted, never successfully: rules-qa 116.138).
 #[test]
 fn ponticulus_cannot_act_but_locks_to_give_a_tremere_intercept() {
     let mut e = game(2);

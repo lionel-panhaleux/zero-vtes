@@ -388,6 +388,8 @@ pub fn table(seed: u64, slice: &[&str], extra: &[&str]) -> Engine {
             on_card: None,
             chosen_crypt: None,
             chosen: Vec::new(),
+            tally: Default::default(),
+            named: Default::default(),
         });
     }
     untwin(&mut e);

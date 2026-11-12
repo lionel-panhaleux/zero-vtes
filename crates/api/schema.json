@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "title": "zvtes protocol",
-  "version": "2.28.0",
+  "version": "2.29.0",
   "$defs": {
     "About": {
       "description": "What a choice is about (`Decision::about`): each field given where\nthe purpose (or the terms) has it (docs/protocol.md §5).",
@@ -325,6 +325,15 @@
             "null"
           ],
           "format": "int32"
+        },
+        "joint_blocker": {
+          "description": "The second vampire of a joint block attempt (Coterie Tactics), or of\na joint block the one not picked as the blocker.",
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint32",
+          "minimum": 0
         },
         "kind": {
           "$ref": "#/$defs/ActionKind"
@@ -4077,6 +4086,21 @@
           "const": "follow_path"
         },
         {
+          "description": "Skip one's entire turn (First Tradition: The Masquerade).",
+          "type": "string",
+          "const": "skip_turn"
+        },
+        {
+          "description": "After resolution: the acting vampire goes to torpor, ordered\namong the window's effects (§1).",
+          "type": "string",
+          "const": "torpor_after_resolution"
+        },
+        {
+          "description": "As a card is played, the alternative of its requirement `minion`\nmeets once each game (§1): `value` a clan, sect, title or trait\n(`black_hand`, `seraph`, `slave`, `circle`, a path, `flight`,\n`untitled`, `not_red_list`, `not_sterile`), or `votes` (a\nnondescript \"X votes\" title for \"titled\").",
+          "type": "string",
+          "const": "meet_as"
+        },
+        {
           "description": "A value this reader does not know.",
           "type": "string",
           "const": "unknown"
@@ -5258,6 +5282,56 @@
           "description": "Minions lost together, their controllers each burning pool\n(Tension in the Ranks): `seat`, the acting Methuselah, sets\nthe order, the Methuselah burning next (`choose_seat`) among\nthose who would burn their last pool, asked while two or more\nof them are left to place.",
           "type": "string",
           "const": "burn_order"
+        },
+        {
+          "description": "First Tradition: The Masquerade: `seat` may skip their entire\nturn before it begins (`skip_turn`), or play it (`pass`).",
+          "type": "string",
+          "const": "may_skip_turn"
+        },
+        {
+          "description": "Scrounging: `seat` looked at the top `about.n` cards of their\nlibrary and moves `about.m` more of them to hand (`find_card`),\nor no more (`pass`); the library then shuffled.",
+          "type": "string",
+          "const": "looked_to_hand"
+        },
+        {
+          "description": "The Becoming: `about.n` more master Discipline cards of `seat`'s\nhand put on `minion` (`take_from`), or no more (`pass`).",
+          "type": "string",
+          "const": "masters_from_hand"
+        },
+        {
+          "description": "Will of the Council: `seat` may burn `card` (`resolve_rider`) for\nits bearer to take the title `about.detail` of a prince gone to\ntorpor, contested; or not (`pass`).",
+          "type": "string",
+          "const": "may_take_title"
+        },
+        {
+          "description": "Instability: `seat` may take the Edge no Methuselah has\n(`choose_seat`, their own), or leave it (`pass`).",
+          "type": "string",
+          "const": "may_take_edge"
+        },
+        {
+          "description": "White Nights Massacre: `seat` burns a vampire in torpor\n(`choose_minion`), or every one by locking a ready werewolf ally\nof theirs (`choose_minion`) or discarding a copy (`discard`); or\nnone (`pass`).",
+          "type": "string",
+          "const": "torpor_massacre"
+        },
+        {
+          "description": "Bounty: `seat` takes 0 to `about.n` counters from `card` to\ntheir pool (`set_x`).",
+          "type": "string",
+          "const": "take_counters_up_to"
+        },
+        {
+          "description": "Malkavian Prank: `seat` guesses the number, 1 to `about.n`, that\n`about.seat` secretly holds (`set_x`).",
+          "type": "string",
+          "const": "guess_number"
+        },
+        {
+          "description": "Hostile Takeover: `seat` bids pool for control of `minion`\n(`set_x`), above `about.seat`'s high bid of `about.n` if any, or\npasses (`pass`).",
+          "type": "string",
+          "const": "bid"
+        },
+        {
+          "description": "Charming Lobby: the X of the political action card `minion`'s\naction named, chosen as the action succeeds (`set_x`, 0 up to\nits blood).",
+          "type": "string",
+          "const": "named_x"
         },
         {
           "description": "A value this reader does not know.",

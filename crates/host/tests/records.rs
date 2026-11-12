@@ -53,6 +53,12 @@ const KNOWN_STOPS: &[(&str, u64, &str)] = &[
         STEALTH_COUNTED,
     ),
     (
+        "zero-vtes-replay-2026-10-12T21-50-21-712Z.json",
+        325,
+        "a card canceled as it is played is not canceled again: Target \
+         Vitals' two-combat-card cancel was paid at 322, 325 and 328",
+    ),
+    (
         "zero-vtes-replay-2026-10-12T21-02-13-473Z.json",
         242,
         "rules-qa 110.1: the On the Qui Vive played here was the \

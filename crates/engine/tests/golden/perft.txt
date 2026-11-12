@@ -2,24 +2,25 @@
 opening/1 depth 5: 5250 leaves
   DiscardPhase 635 nodes 4440 options
   InfluenceTransfers 361 nodes 1805 options
-midgame/3 depth 6: 72912 leaves
-  DiscardPhase 1712 nodes 11704 options
-  InfluenceTransfers 7813 nodes 70116 options
-  MinionPhase 196 nodes 812 options
+midgame/3 depth 6: 96271 leaves
+  DiscardPhase 1379 nodes 9513 options
+  InfluenceTransfers 7996 nodes 74446 options
+  MinionPhase 6391 nodes 28077 options
 midgame/5 depth 4: 1716 leaves
   ActionBlock 7 nodes 35 options
   DiscardPhase 174 nodes 1218 options
   InfluenceTransfers 64 nodes 301 options
   MasterPhase 357 nodes 714 options
   MinionPhase 7 nodes 56 options
-action depth 7: 1680 leaves
-  ActionAfterCombat 14 nodes 28 options
+action depth 7: 1656 leaves
+  ActionAfterCombat 26 nodes 52 options
+  ActionAfterResolution 12 nodes 24 options
   ActionAsAnnounced 2 nodes 6 options
   ActionBlock 262 nodes 579 options
   ActionBlocksDeclined 15 nodes 45 options
   DiscardPhase 186 nodes 784 options
   MinionPhase 251 nodes 753 options
-  UnlockAbilities 214 nodes 428 options
+  UnlockAbilities 166 nodes 332 options
 combat depth 7: 1063 leaves
   ActionBlock 130 nodes 296 options
   CombatBeforeRange 10 nodes 30 options

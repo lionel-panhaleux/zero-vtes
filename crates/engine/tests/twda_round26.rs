@@ -2435,7 +2435,8 @@ fn border_skirmish_shakes_every_hand() {
 /// locks an unlocked ready younger vampire he or she controls." Directed at
 /// each other Methuselah (PIB 20150821): seat 1 locks its younger vampire,
 /// not its older one; seat 2, holding only older ones, locks nothing.
-/// [PIB 20150821] [RTR 20080808] Directed at all other Methuselahs.
+/// [LSJ 20010925] [LSJ 20100713] [PIB 20121230] [PIB 20150821] [RTR 20080808]
+/// Directed at all other Methuselahs.
 #[test]
 fn sowing_dissension_locks_a_younger_vampire_at_each_other_table() {
     let mut e = game(3);

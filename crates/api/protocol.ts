@@ -1,6 +1,6 @@
-/* zvtes protocol 2.28.0 (docs/protocol.md): generated from
+/* zvtes protocol 2.29.0 (docs/protocol.md): generated from
  * crates/api/schema.json by scripts/gen_ts.py, do not edit. */
-export const PROTOCOL_VERSION = '2.28.0'
+export const PROTOCOL_VERSION = '2.29.0'
 
 /**
  * A command as sent: an optional client id, echoed by an `error` it
@@ -257,6 +257,11 @@ export type ActionView = {
      */
     declining?: boolean
     intercept?: number | null
+    /**
+     * The second vampire of a joint block attempt (Coterie Tactics), or of
+     * a joint block the one not picked as the blocker.
+     */
+    joint_blocker?: number | null
     kind: ActionKind
     /** Its mode (Disciplines, level) and X. */
     mode?: Mode | null
@@ -1185,6 +1190,9 @@ export type OptionKind =
     | 'cancel_combat'
     | 'withdraw_from_game'
     | 'follow_path'
+    | 'skip_turn'
+    | 'torpor_after_resolution'
+    | 'meet_as'
     | 'unknown'
 
 /**
@@ -1430,6 +1438,16 @@ export type Purpose =
     | 'bind_location'
     | 'may_mill_copy'
     | 'burn_order'
+    | 'may_skip_turn'
+    | 'looked_to_hand'
+    | 'masters_from_hand'
+    | 'may_take_title'
+    | 'may_take_edge'
+    | 'torpor_massacre'
+    | 'take_counters_up_to'
+    | 'guess_number'
+    | 'bid'
+    | 'named_x'
     | 'unknown'
 
 export type Range = 'close' | 'long' | 'unknown'

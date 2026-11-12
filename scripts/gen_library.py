@@ -35,7 +35,7 @@ LABELS = [
     ("Location", r"(^|\. )(unique )?location\.|represents a location|in play, this is a (unique )?location"),
     ("HuntingGround", r"(^|\. )hunting ground\."),
     ("Weapon", r"^(unique )?(melee )?weapon\b"),
-    ("Gun", r"^weapon: gun"),
+    ("Gun", r"^weapon[:,] gun"),
     ("Vehicle", r"^vehicle\."),
     ("Electronic", r"^electronic\b"),
     ("Archetype", r"\barchetype\."),

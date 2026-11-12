@@ -304,6 +304,7 @@ fn found_in(e: &Engine, req: &DecisionRequest) -> Option<ZoneRef> {
     match e.ability_terms()?.1.terms {
         Some(Terms::AshCard) => at(req.seat, Zone::AshHeap),
         Some(Terms::DirectedHandCard) => at(e.action()?.directed_seat(&e.state)?, Zone::Hand),
+        Some(Terms::ActingHandCard(_)) => at(e.action()?.seat, Zone::Hand),
         _ => None,
     }
 }
@@ -565,6 +566,11 @@ fn referendum_terms(x: &Ctx<impl Names>, choice: &Choice) -> Vec<Effect> {
             on: Some(On::Card),
             ..Effect::new(EffectKind::Steal)
         }],
+        // Montecalme: the chosen location burns, passed.
+        (Choice::ChooseCard(_), _, R::BurnChosenCard) => vec![Effect {
+            on: Some(On::Card),
+            ..Effect::new(EffectKind::Burn)
+        }],
         (Choice::ChooseSeat(_), Term::ChooseSeats { .. }, R::BurnChosen { base, .. }) => {
             vec![n(-(base as i32), chosen(EffectKind::Pool))]
         }
@@ -685,7 +691,7 @@ fn asked(x: &Ctx<impl Names>, i: Interrupt, choice: &Choice) -> Vec<Effect> {
             P::Corrupt => n(1, chosen(EffectKind::Corruption)),
             P::UnlockAnarch => chosen(EffectKind::Unlock),
             P::BurnBloodOfClan(_) => n(-1, chosen(EffectKind::Blood)),
-            P::HostCard(card) => Effect {
+            P::HostCard(card) | P::HolderAtSuccess(card) => Effect {
                 copy: Some(x.card(card)),
                 card: Some(LIBRARY[x.e.state.cards[card.index()].card as usize].id),
                 ..chosen(EffectKind::Move)
@@ -694,9 +700,13 @@ fn asked(x: &Ctx<impl Names>, i: Interrupt, choice: &Choice) -> Vec<Effect> {
             P::OldestHuntingGround(_) => n(1, chosen(EffectKind::Blood)),
             P::HuntBloodTo { n: d, .. } => n(d as i32, chosen(EffectKind::Blood)),
             P::BlockMark(_) => chosen(EffectKind::Intercept),
-            P::Damage(d) | P::DamageVampire(d) | P::DamageImbued { n: d, .. } => {
-                n(d as i32, chosen(EffectKind::Damage))
-            }
+            P::JointBlocker(..) => chosen(EffectKind::Block),
+            P::Damage(d)
+            | P::WeaponDamage(d)
+            | P::DamageVampire(d)
+            | P::DamageVampireBy { n: d, .. }
+            | P::DamageOtherVampire { n: d, .. }
+            | P::DamageImbued { n: d, .. } => n(d as i32, chosen(EffectKind::Damage)),
         }],
         // Unity: on top of the library.
         (Interrupt::AshToLibraryTop { .. }, Choice::FindCard(c)) => vec![Effect {
@@ -920,7 +930,7 @@ fn amount(x: &Ctx<impl Names>, req: &DecisionRequest, n: u8) -> Vec<Effect> {
     };
     match req.window {
         W::PlayTerms => {
-            if let Some(p) = e.play_terms() {
+            if let Some(p) = e.play_terms().filter(|p| p.meeting.is_none()) {
                 let Some(terms) = zvtes::cards::lookup(p.card)
                     .and_then(|d| d.modes.get(p.mode as usize))
                     .and_then(|m| m.terms)
@@ -1235,6 +1245,38 @@ pub fn about(e: &Engine, req: &DecisionRequest, names: &impl Names) -> Option<Ab
     let a = About::default;
     if let Some(i) = e.interrupt() {
         return Some(match i {
+            I::MaySkipTurn { .. } | I::MayTakeEdge { .. } | I::TorporMassacre { .. } => a(),
+            I::Bid { target, high, .. } => About {
+                minion: m(target),
+                seat: high.map(|(s, _)| s.0),
+                n: high.map(|(_, b)| b),
+                ..a()
+            },
+            I::GuessNumber { of, max, .. } => About {
+                seat: Some(of.0),
+                n: Some(max),
+                ..a()
+            },
+            I::TakeCountersUpTo { card: c, max, .. } => About {
+                card: card(c),
+                n: Some(max),
+                ..a()
+            },
+            I::LookedToHand { n, left, .. } => About {
+                n: Some(n),
+                m: Some(left),
+                ..a()
+            },
+            I::MastersFromHand { minion, left, .. } => About {
+                minion: m(minion),
+                n: Some(left),
+                ..a()
+            },
+            I::MayTakeTitle { card: c, title, .. } => About {
+                card: card(c),
+                detail: Some(crate::view::title_detail(title)),
+                ..a()
+            },
             I::MoveCardToTitled { card: c, .. } => About {
                 card: card(c),
                 ..a()
@@ -1372,14 +1414,19 @@ pub fn about(e: &Engine, req: &DecisionRequest, names: &impl Names) -> Option<Ab
                     P::LockVampire => ("lock_vampires", None, None, None),
                     P::UnlockAnarch => ("unlock_anarch", None, None, None),
                     P::BurnBloodOfClan(k) => ("burn_blood", Some(k), None, None),
-                    P::HostCard(h) => ("host_card", None, card(h), None),
+                    P::HostCard(h) | P::HolderAtSuccess(h) => ("host_card", None, card(h), None),
                     P::LockOldest(k, _) => ("lock_oldest", Some(k), None, None),
                     P::OldestHuntingGround(_) => ("oldest_gain_blood", None, None, None),
                     P::BurnOfCrowdedClan(_) => ("burn_crowded_clan", None, None, None),
-                    P::Damage(d) | P::DamageVampire(d) => ("damage", None, None, Some(d)),
+                    P::Damage(d)
+                    | P::WeaponDamage(d)
+                    | P::DamageVampire(d)
+                    | P::DamageVampireBy { n: d, .. }
+                    | P::DamageOtherVampire { n: d, .. } => ("damage", None, None, Some(d)),
                     P::DamageImbued { n: d, .. } => ("damage_imbued", None, None, Some(d)),
                     P::BlockMark(_) => ("block_mark", None, None, None),
                     P::HuntBloodTo { n: d, .. } => ("hunt_blood_to", None, None, Some(d)),
+                    P::JointBlocker(..) => ("joint_blocker", None, None, None),
                 };
                 About {
                     seat: Some(of.0),
@@ -1854,6 +1901,7 @@ pub fn about(e: &Engine, req: &DecisionRequest, names: &impl Names) -> Option<Ab
             },
             I::MayUnlock { minion, .. }
             | I::ReductionAtResolution { minion, .. }
+            | I::NamedX { minion, .. }
             | I::DualFormKept { root: minion, .. } => About {
                 minion: m(minion),
                 ..a()
@@ -1868,6 +1916,14 @@ pub fn about(e: &Engine, req: &DecisionRequest, names: &impl Names) -> Option<Ab
     match req.window {
         W::PlayTerms => {
             if let Some(p) = e.play_terms() {
+                // The requirement its vampire meets once (Vidal Jarbeaux).
+                if let Some(v) = p.meeting {
+                    return Some(About {
+                        minion: m(v),
+                        detail: detail("meet_as"),
+                        ..a()
+                    });
+                }
                 let mode = zvtes::cards::lookup(p.card)?.modes.get(p.mode as usize)?;
                 // A second vampire chosen (Toreador Grand Ball).
                 if let Some(Terms::OwnOfClan { clan, .. }) = mode.terms {
@@ -2032,7 +2088,7 @@ pub fn about(e: &Engine, req: &DecisionRequest, names: &impl Names) -> Option<Ab
                     detail: detail("ash_card"),
                     ..a()
                 },
-                Terms::DirectedHandCard => About {
+                Terms::DirectedHandCard | Terms::ActingHandCard(_) => About {
                     detail: detail("hand_card"),
                     ..a()
                 },
@@ -2162,6 +2218,7 @@ pub fn key(e: &Engine, req: &DecisionRequest, choice: &Choice, names: &impl Name
         Choice::Pass
         | Choice::BurnEdge
         | Choice::WithdrawFromGame
+        | Choice::SkipTurn
         | Choice::BurnPool
         | Choice::DrawLibrary
         | Choice::DrawCrypt
@@ -2176,7 +2233,9 @@ pub fn key(e: &Engine, req: &DecisionRequest, choice: &Choice, names: &impl Name
         | Choice::CommittedStrike
         | Choice::GainStrength
         | Choice::CancelCombat => k.actor = combatant(),
-        Choice::TakeDamageAfterResolution | Choice::ContinueAction => k.actor = acting(),
+        Choice::TakeDamageAfterResolution
+        | Choice::TorporAfterResolution
+        | Choice::ContinueAction => k.actor = acting(),
         // The torpid acting vampire, by the vampire that blocked it.
         Choice::Diablerise => {
             k.actor = e.action().and_then(|a| a.blocker).map(|m| x.minion(m));
@@ -2367,6 +2426,10 @@ pub fn key(e: &Engine, req: &DecisionRequest, choice: &Choice, names: &impl Name
             k.minion = Some(x.minion(minion));
             k.value = Some(snake(zvtes::state::SABBAT_PATHS[path as usize]));
         }
+        Choice::MeetAs { minion, key } => {
+            k.minion = Some(x.minion(minion));
+            k.value = Some(met_value(key));
+        }
         Choice::EmployFromHand { card, mode: m } => {
             k.card = Some(library(card));
             k.mode = Some(mode(card, m));
@@ -2375,12 +2438,43 @@ pub fn key(e: &Engine, req: &DecisionRequest, choice: &Choice, names: &impl Name
     k
 }
 
+/// A requirement met once (`Choice::MeetAs`) as an option's `value`: the
+/// clan, sect, title or trait in snake_case.
+fn met_value(k: zvtes::cards::MetKey) -> String {
+    use zvtes::cards::MetKey as M;
+    match k {
+        M::Clan(c) | M::Path(c) => snake(c),
+        M::Sect(s) => snake(&format!("{s:?}")),
+        M::Title(t) => {
+            let t = format!("{t:?}");
+            let mut out = String::new();
+            for (i, ch) in t.chars().enumerate() {
+                if ch.is_uppercase() && i > 0 {
+                    out.push('_');
+                }
+                out.extend(ch.to_lowercase());
+            }
+            out
+        }
+        M::BlackHand => "black_hand".into(),
+        M::Seraph => "seraph".into(),
+        M::Flight => "flight".into(),
+        M::Votes => "votes".into(),
+        M::Slave => "slave".into(),
+        M::Circle => "circle".into(),
+        M::Untitled => "untitled".into(),
+        M::NotRedList => "not_red_list".into(),
+        M::NotSterile => "not_sterile".into(),
+    }
+}
+
 pub fn kind(c: &Choice) -> OptionKind {
     use OptionKind as K;
     match c {
         Choice::Pass => K::Pass,
         Choice::BurnEdge => K::EdgePool,
         Choice::WithdrawFromGame => K::WithdrawFromGame,
+        Choice::SkipTurn => K::SkipTurn,
         Choice::FollowPath { .. } => K::FollowPath,
         Choice::PayContest(_) => K::PayContest,
         Choice::YieldContest(_) => K::YieldContest,
@@ -2430,6 +2524,8 @@ pub fn kind(c: &Choice) -> OptionKind {
         Choice::StrikeCombatEnds => K::StrikeCombatEnds,
         Choice::RoundStrike { .. } => K::RoundStrike,
         Choice::TakeDamageAfterResolution => K::TakeDamageAfterResolution,
+        Choice::TorporAfterResolution => K::TorporAfterResolution,
+        Choice::MeetAs { .. } => K::MeetAs,
         Choice::CommittedStrike => K::CommittedStrike,
         Choice::BurnWeaponStrike { .. } => K::BurnWeaponStrike,
         Choice::EmployFromHand { .. } => K::EmployFromHand,

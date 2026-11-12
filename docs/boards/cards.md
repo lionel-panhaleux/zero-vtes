@@ -9,14 +9,15 @@ their readings and the ledger; a rulebook mechanism no card carries is on
 the engine board.
 
 Pool (`scripts/coverage.py`, KRCG `vtes.json` and `twda.json` of 2026-11-09; 2
-crypt and 18 library cards banned, out of scope, owner 2026-10-14): crypt 1,117
-of 1,820 (61.4%), library 1,356 of 2,372 (57.2%); 32 of 51 sets complete (KRCG's
-v5 sets: every promo in one "Promo" set, 142 of 159), Heirs to the Blood and its
-reprint the last in (round 28). TWDA decks in the pool 1,050 of 4,709, kept 216;
-recent (2025+) 463 of 644 in the pool, kept 101. Demand (the server's counts to
-2026-10-23): every card asked for in the pool since round 20; 299999 (asked 12
-times) is a client's placeholder, no card. VEKN's two-player allowed list all in
-the pool (round 20).
+crypt and 18 library cards banned, out of scope, owner 2026-10-14): crypt 1,180
+of 1,820 (64.8%), library 1,459 of 2,372 (61.5%); 34 of 51 sets complete (KRCG's
+v5 sets: every promo in one "Promo" set, 142 of 159), Keepers of Tradition and
+its reprint the last in (round 29). TWDA decks in the pool 1,235 of 4,709, kept
+237; recent (2025+) 487 of 644 in the pool, kept 97. Demand (the server's counts
+to 2026-11-12): 150 ids asked, 72 cards not in the pool, none asked more than 3
+times (Nangila Were, Palace Hunting Ground); 299999 (asked 61 times) is a
+client's placeholder, no card. VEKN's two-player allowed list all in the pool
+(round 20).
 
 A shrinking list (CLAUDE.md "Harness"; the milestone tokens: roadmap
 "Milestones"). Order (owner, 2026-10-15: "you're supposed to add cards"): wrong
@@ -31,7 +32,7 @@ that make sense"). A line's count is the cards it adds after the lines above it
 (an older set is mostly reprinted in a newer one); done when `coverage.py
 --sets` shows its sets at 100%.
 
-- **Complete Keepers of Tradition and its 2018 reprint**: 166 cards (63 crypt, 103 library). Done when `coverage.py --sets` shows both at 100%. Docs: rules-qa (a new batch), rules-digest, engine.md for a new mechanism, this header's coverage.
+- **Flight among the "any Discipline" choices** (found in round 29's fuzz review): `state::disciplines()` lists only Disciplines some vampire holds at basic level, so Flight (superior only in the crypt) is never offered by Spontaneous Power, Agent of Power or Sanguine Instruction; Temporis was missing the same way until Gwyedd (round 29). Done when the owner has ruled whether Flight is "any Discipline" (a rules-qa question, recommended: yes, Flight is a Discipline), the list built from basic and superior alike if so, with a test and the observation context told to the training line (a new `discipline:` feature). Docs: rules-qa (a new item), rules-digest.
 - **Complete Lords of the Night**: 172 cards (52 crypt, 120 library). Done when `coverage.py --sets` shows it at 100%. Docs: rules-qa (a new batch), rules-digest, engine.md for a new mechanism, this header's coverage.
 - **Complete Third Edition**: 212 cards (74 crypt, 138 library). Done when `coverage.py --sets` shows it at 100%. Docs: rules-qa (a new batch), rules-digest, engine.md for a new mechanism, this header's coverage.
 - **Complete Legacies of Blood**: 236 cards (63 crypt, 173 library). Done when `coverage.py --sets` shows it at 100%. Docs: rules-qa (a new batch), rules-digest, engine.md for a new mechanism, this header's coverage.

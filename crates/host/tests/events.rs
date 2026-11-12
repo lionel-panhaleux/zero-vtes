@@ -30,7 +30,7 @@ fn from() -> u32 {
 /// a vampire banished and back between two views (45), one influenced into a
 /// contest (81), a unique ally played into one (95), a crypt card come with
 /// counters (111), a contested minion's cards (118), a merge (119), training
-/// counters (152), a vampire moved within its uncontrolled region (406), two
+/// counters (152), a vampire moved within its uncontrolled region (689), two
 /// Methuselahs ousted at once (239), a unique card put into a contest (299), a
 /// vampire's excess drained in one (380), an action's intercept changed between
 /// two views (63), a play canceled as it is announced (88: Andrew Stuart), a
@@ -40,23 +40,24 @@ fn from() -> u32 {
 /// torpor block (411), Yawp Court's yawp (591), a burn to prevent (728), a
 /// rider fired as its bearer blocks (913), a diseased vampire's paid infernal
 /// unlock (504), a discard-phase rider's damage (579), Paragon's younger
-/// blocker's blood (1153), Amelia's or Jason's after-combat burn (426); and the
-/// view paths the events missed: an ally stolen for good (99, 300:
-/// Entrancement), a contested vampire's capacity (114, 286), Call the Great
-/// Beast become a vampire (300), a card burned to an ousted owner's ash heap
-/// (474, 933: Disarm), an open hand (142), cards into one (106, 135), one
-/// closed with a card leaving it in the same step (910, 929); and a line naming
-/// no minion: an advanced vampire merged before a view (332: Helena (ADV)),
-/// Anathema's pool (392); and a contested vampire keeping its excess (386), a
-/// created vampire removed (516: Golconda), a marker gone as a vampire returns
-/// (695: Descent into Darkness); and an action its Methuselah's oust ended
-/// mid-way (389: Alastor's equipment paid with the last pool), one whose
-/// referendum ended the game, its card out of limbo (210: Kine Resources
-/// Contested); and a minion's title changed between two views (80).
-const KEPT: [u32; 48] = [
-    45, 63, 70, 80, 81, 88, 95, 99, 104, 106, 111, 114, 118, 119, 132, 135, 142, 152, 172, 210,
-    219, 239, 286, 294, 299, 300, 332, 346, 375, 380, 386, 389, 392, 406, 411, 426, 474, 504, 516,
-    579, 591, 695, 728, 910, 913, 929, 933, 1153,
+/// blocker's blood (1153), Amelia's or Jason's after-combat burn (426), Petra's
+/// press toll (246); and the view paths the events missed: an ally stolen for
+/// good (99, 300: Entrancement), a contested vampire's capacity (114, 286),
+/// Call the Great Beast become a vampire (300), a card burned to an ousted
+/// owner's ash heap (474, 933: Disarm), an open hand (142), cards into one
+/// (106, 135), one closed with a card leaving it in the same step (910, 929);
+/// and a line naming no minion: an advanced vampire merged before a view (332:
+/// Helena (ADV)), Anathema's pool (392); and a contested vampire keeping its
+/// excess (386), a created vampire removed (516: Golconda), a marker gone as a
+/// vampire returns (695: Descent into Darkness); and an action its Methuselah's
+/// oust ended mid-way (389: Alastor's equipment paid with the last pool), one
+/// whose referendum ended the game, its card out of limbo (210: Kine Resources
+/// Contested); and a minion's title changed between two views (80); and a turn
+/// begun with its skip asked (78: First Tradition: The Masquerade).
+const KEPT: [u32; 50] = [
+    45, 63, 70, 78, 80, 81, 88, 95, 99, 104, 106, 111, 114, 118, 119, 132, 135, 142, 152, 172, 210,
+    219, 239, 246, 286, 294, 299, 300, 332, 346, 375, 380, 386, 389, 392, 411, 426, 474, 504, 516,
+    579, 591, 689, 695, 728, 910, 913, 929, 933, 1153,
 ];
 
 /// The sweep's seeds: `HOST_SEED_FROM` to `HOST_SEEDS` (40), the kept

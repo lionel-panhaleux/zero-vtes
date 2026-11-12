@@ -2081,6 +2081,177 @@ ADDED_BATCHES = [
         201452: "Virginie, Prodigy (G4)",
         201480: "Xeper, Sultan of Lepers (G6)",
     },
+    # Round 29: Keepers of Tradition and its 2018 reprint completed (owner,
+    # 2026-11-09: "We aim to add all the cards ultimately. Let's work set
+    # by set."; the cards board's lines).
+    {
+        100010: "Abomination",
+        100024: "Agate Talisman",
+        100035: "Al's Army Apparatus",
+        100068: "Anima Gathering",
+        100080: "Arcane Appraiser",
+        100089: "Armor of Vitality",
+        100090: "Arms Dealer",
+        100125: "Backstep",
+        100130: "Bang Nakh — Tiger's Claws",
+        100147: "The Becoming",
+        100152: "Beretta 9mm",
+        100176: "Blade of Enoch",
+        100202: "Blood Hunt",
+        100204: "Blood of Sandman",
+        100233: "Bomb",
+        100242: "Bounty",
+        100253: "Brick Laying",
+        100262: "Brujah Justicar",
+        100264: "Brute Force",
+        100267: "Bundi",
+        100273: "Burst of Sunlight",
+        100289: "Can't Take it with You",
+        100334: "Charming Lobby",
+        100338: "Childling Muse",
+        100419: "Contingency Planning",
+        100432: "Coterie Tactics",
+        100494: "Dark Mirror of the Mind",
+        100502: "Day Operation",
+        100580: "Dragon's Breath Rounds",
+        100619: "Elder Kindred Network",
+        100631: "Elysium: The Arboretum",
+        100683: "Eyes of the Beast",
+        100737: "First Tradition: The Masquerade",
+        100758: "Force of Personality",
+        100768: "Forgery",
+        100819: "Ghoul Retainer",
+        100894: "The Haunting",
+        100900: "Haymaker",
+        100925: "High Ground",
+        100926: "High Museum of Art, Atlanta",
+        100933: "Honor the Elders",
+        100939: "Hostile Takeover",
+        100993: "Instability",
+        101038: "Keep it Simple",
+        101059: "King's Rising",
+        101083: "Leech",
+        101129: "Loyal Street Gang",
+        101155: "Malkavian Prank",
+        101168: "Mark V",
+        101174: "Martinelli's Ring",
+        101219: "Minor Boon",
+        101221: "Minor Irritation",
+        101245: "Mouthpiece",
+        101250: "Muddled Vampire Hunter",
+        101266: "National Guard Support",
+        101280: "New Management",
+        101294: "Nocturn Theater",
+        101307: "The Oath",
+        101393: "Persona Non Grata",
+        101398: "Phased Motion Detector",
+        101400: "Pier 13, Port of Baltimore",
+        101434: "Powerbase: Chicago",
+        101449: "Praxis Seizure: Atlanta",
+        101455: "Praxis Seizure: Chicago",
+        101462: "Praxis Seizure: Houston",
+        101465: "Praxis Seizure: Miami",
+        101472: "Praxis Seizure: Washington, D.C.",
+        101510: "Psychic Veil",
+        101558: "Read Intentions",
+        101594: "Relentless Pursuit",
+        101604: "Repair the Undead Flesh",
+        101655: "Rowan Ring",
+        101695: "Scourge",
+        101700: "Scrounging",
+        101715: "Sengir Dagger",
+        101754: "Shape Mastery",
+        101758: "Shattered Mirror",
+        101788: "Sixth Tradition: Destruction",
+        101820: "Social Ladder",
+        101824: "Sonar",
+        101835: "Soul Scan",
+        101841: "Special Report",
+        101842: "Specialization",
+        101871: "Still the Mortal Flesh",
+        101878: "Storm Sewers",
+        101889: "Stutter-Step",
+        101902: "The Summoning",
+        101907: "Suppressing Fire",
+        101941: "Target Retainer",
+        102021: "Tremere Justicar",
+        102068: "Undying Tenacity",
+        102099: "Veles' Hunt",
+        102102: "Veneficorum Artum Sanguis",
+        102111: "Ventrue Justicar",
+        102118: "Victim of Habit",
+        102129: "Voice of Madness",
+        102173: "Wendell Delburton",
+        102178: "White Nights Massacre",
+        102182: "Will of the Council",
+        102184: "Winchester Mansion",
+        102192: "Wooden Stake",
+        102198: "XTC-Laced Blood",
+        102211: "Zoning Board",
+        200043: "Aleister Crowley (G5)",
+        200048: "Alex Wilkins (G5)",
+        200055: "Allanyan Serata (G5)",
+        200101: "The Ankou (G5)",
+        200168: "Baron Dieudonne (G4)",
+        200191: "Bernard, the Scourge (G4)",
+        200193: "Beth Malcolm (G5)",
+        200194: "Bethany Ray (G5)",
+        200209: "Bloody Mary (G5)",
+        200226: "Bulscu (G5)",
+        200244: "Carlak (G5)",
+        200297: "Count Zaroff (G5)",
+        200360: "Don Caravelli (G5)",
+        200361: "Don Cerro (G5)",
+        200377: "Dr. John Dee (G4)",
+        200451: "Ezra Hawthorne (G4)",
+        200471: "Florentina Lengauer (G4)",
+        200473: "Foureyes (G4)",
+        200482: "Freddy Gage (G5)",
+        200494: "Garret (G4)",
+        200530: "Gotsdam, The Tired Warrior (G4)",
+        200531: "Gracetius (G5)",
+        200550: "Gustav Breidenstein (G4)",
+        200556: "Gwyedd (G4)",
+        200591: "Herbert Westin (G4)",
+        200601: "Honest Abe (G5)",
+        200657: "Jack Tredegar (G5)",
+        200675: "Jann Berger (G4)",
+        200711: "Johan Wrede (G4)",
+        200713: "Johannes Castelein (G4)",
+        200722: "Joseph DiGiaccomo (G5)",
+        200744: "Kalila (G5)",
+        200768: "Keller Thiel (G5)",
+        200838: "Lindsay Yates (G5)",
+        200841: "Lisé (G5)",
+        200855: "Lord Fianna (G5)",
+        200893: "Lynn Thompson (G5)",
+        200894: "MacAlister Marshall (G5)",
+        200949: "Masdela (G5)",
+        200984: "Mictlantecuhtli (G5)",
+        200986: "Miguel Cordovera (G5)",
+        201007: "Montecalme (G5)",
+        201099: "Paul Calderone (G5)",
+        201107: "Pedrag Hasek (G5)",
+        201122: "Philippe de Marseilles (G5)",
+        201131: "Portia (G5)",
+        201168: "Rathmere (G5)",
+        201177: "Reiner Stoschka (G5)",
+        201214: "Ruxandra (G5)",
+        201235: "Santaleous (G5)",
+        201254: "Sean Andrews (G4)",
+        201267: "Sergei Voshkov, The Eye (G5)",
+        201283: "Sheva Carr (G5)",
+        201284: "Shiloh Marie, Vengeance (G5)",
+        201336: "Talbot (G5)",
+        201361: "Themistocles (G5)",
+        201379: "Tomaine (G4)",
+        201390: "Tryphosa (G4)",
+        201446: "Vidal Jarbeaux (G5)",
+        201447: "Viktor, The Night General (G5)",
+        201470: "William Thorbecke (G5)",
+        201504: "Zelios (G5)",
+        200599: 'Hiram "Hide" DeVries (G5)',
+    },
 ]
 ADDED_CARDS = {k: v for batch in ADDED_BATCHES for k, v in batch.items()}
 
@@ -2223,6 +2394,8 @@ RIDERS = [
     # A strike's own rider for the opposing minion if dodged (Pounce).
     r"gets an optional (maneuver|press)\b[^.;]*",
     r"with \d additional strikes?\b[^.]*",
+    # A bar on its own play, no window (Stutter-Step [CEL]).
+    r"not usable as an additional strike",
     r"\d maneuver or press",
     # Damage in the press step, no play there (Necrosis [THN]).
     r"during the press step this round[^.]*",
@@ -2256,6 +2429,12 @@ RIDERS = [
 COMBAT_TIMING = [
     # "Before range is chosen" (Disguised Weapon) is the same moment.
     (r"before range is (determined|chosen)", "COMBAT_BEFORE_RANGE"),
+    # After range, before strikes (Haymaker), as Immortal Grapple.
+    (r"play after range is determined", "COMBAT_BEFORE_STRIKES"),
+    # A gain read as it lands (The Oath), as Slake the Thirst's: a steal
+    # resolving with the strikes, a Taste of Vitae at the end of the round.
+    (r"gains blood from a taste of vitae or steals blood", "COMBAT_UNTIMED"),
+    (r"gains blood from a taste of vitae or steals blood", "COMBAT_END_OF_ROUND"),
     # An aim, "only usable as this minion chooses a strike" (Target Vitals);
     # "usable when choosing a strike" (Disguised Weapon [OBF]).
     (r"as this minion chooses a strike|when choosing a strike", "COMBAT_STRIKE_DECLARATION"),
@@ -2313,8 +2492,9 @@ MODIFIER_TIMING = [
     # (Bear-Baiting): the block made, before its resolution.
     (r"when an? [^.]{0,40}?successfully blocks", "ACTION_BLOCKED"),
     # "Only usable at the end of a successful action (after resolving the
-    # action)" (Sleep Unseen).
-    (r"after resolving the action", "ACTION_AFTER_RESOLUTION"),
+    # action)" (Sleep Unseen); not an effect's moment ("the acting vampire
+    # goes to torpor after resolving the action", Day Operation).
+    (r"(?<!goes to torpor )after resolving the action", "ACTION_AFTER_RESOLUTION"),
     # "… another one who has just been blocked, before block resolution"
     # (Claiming the Body).
     (r"has just been blocked", "ACTION_BLOCKED"),
@@ -2328,6 +2508,9 @@ MODIFIER_TIMING = [
     # … and after a diablerie, before its blood hunt (ANK 20201228).
     (r"after this [^.]{0,30}gains blood", "ACTION_AFTER_DIABLERIE"),
     (r"if a minion attempts to block", "ACTION_BLOCK_ATTEMPT"),
+    # "As above, but usable if a minion is attempting to block" (Day
+    # Operation [FOR]).
+    (r"usable if an? [^.]{0,40}?is attempting to block", "ACTION_BLOCK_ATTEMPT"),
     # "Only usable if an ally or younger vampire attempts to block"
     # (Crocodile's Tongue).
     (r"if an? [^.]{0,40}? attempts to block", "ACTION_BLOCK_ATTEMPT"),
@@ -2386,8 +2569,9 @@ MODIFIER_TIMING = [
 ]
 MODIFIER_GENERIC = [
     (r"\+\d+ stealth", "ACTION_STEALTH_INTERCEPT"),
-    # "The blocking vampire gets -1 intercept" (Smoke and Mirrors [obt]).
-    (r"blocking vampire gets -\d+ intercept", "ACTION_STEALTH_INTERCEPT"),
+    # "The blocking vampire gets -1 intercept" (Smoke and Mirrors [obt]);
+    # "the blocking minion" (Suppressing Fire).
+    (r"blocking (vampire|minion) gets -\d+ intercept", "ACTION_STEALTH_INTERCEPT"),
     (r"\+\d+ bleed|\+\d+ votes?", "ACTION_DURING"),
 ]
 MODIFIER_DEFAULT = "ACTION_DURING"
@@ -2402,6 +2586,8 @@ REACTION_TIMING = [
     (r"a vampire you control is about to enter combat", "ACTION_BLOCKS_DECLINED"),
     (r"a vampire you control is about to enter combat", "ACTION_QUEUED_COMBAT"),
     (r"blood hunt referendum passes and would burn", "BLOOD_HUNT_WOULD_BURN"),
+    # A vampire about to go to torpor, before it does (Minor Boon).
+    (r"controlled by another methuselah is going into torpor", "GOING_TO_TORPOR"),
     # "Under the control of another Methuselah during his or her unlock
     # phase" (Regarhagan's Hold).
     (r"another Methuselah during his or her unlock phase", "UNLOCK_PHASE_ANY"),
@@ -2425,23 +2611,31 @@ REACTION_TIMING = [
     # A ready minion made to attempt (Guardian Vigil): until the block
     # succeeds (ANK 20180926).
     (r"\bthis \w+ attempts to block\.", "ACTION_STEALTH_INTERCEPT"),
+    # "These two vampires attempt to block" (Coterie Tactics).
+    (r"these two \w+ attempt to block", "ACTION_STEALTH_INTERCEPT"),
     (r"unlock this (vampire|minion)|burns? \d blood to unlock\.", "REACTION_UNLOCK"),
     (r"after blocks are declined", "ACTION_BLOCKS_DECLINED"),
     # Another Methuselah's, after the acting one's own (Car Bomb; LSJ
     # 20081105).
-    (r"as (an?|the|this)\b[^.]{0,60}?\bis announced|cancel (an?|the|that) action",
+    # Not "cancel an action modifier" (Shape Mastery [PRO]).
+    (r"as (an?|the|this)\b[^.]{0,60}?\bis announced|cancel (an?|the|that) action(?! modifier)",
      "REACTION_AS_ANNOUNCED"),
     (r"polling step|during (a|the|this) referendum", "REFERENDUM"),
     (r"reduce (a|the) bleed", "REACTION_DURING_ACTION"),   # legality: a bleed against you
     # "Only usable if a minion controlled by your predator successfully
     # bleeds you" (Burnt Offerings [AUS]): the bleed resolved.
     (r"successfully bleeds you", "ACTION_AFTER_RESOLUTION"),
+    # "Only usable when a vampire successfully hunts" (XTC-Laced Blood): the
+    # hunt resolved, its blood gained.
+    (r"only usable when a vampire successfully hunts", "ACTION_AFTER_RESOLUTION"),
     # "Only usable when a bleed against you is about to be successful"
     # (Strix [STR]): the bleed would succeed.
     (r"is about to be successful", "ACTION_WOULD_BE_SUCCESSFUL"),
     # "Play after resolution" (Touch of Pain); "… is successful, after
     # resolution" (Follow the Blood).
     (r"play after resolution|successful, after resolution", "ACTION_AFTER_RESOLUTION"),
+    # A steal by an action against this vampire, resolved (The Oath).
+    (r"gains blood from a taste of vitae or steals blood", "ACTION_AFTER_RESOLUTION"),
     # "Only usable if this vampire is about to enter combat with an acting
     # … vampire" (Obedience): the block made, before its resolution; or the
     # blocks declined, before the combat the action begins (owner,
@@ -2454,7 +2648,12 @@ REACTION_TIMING = [
     # before block resolution" (Mental Maze): the block made.
     # "Only usable if this vampire blocks, before block resolution"
     # (Diabolic Lure [dai]).
-    (r"if this \w+ blocks\b[^.]{0,40}?before block resolution", "ACTION_BLOCKED"),
+    # "… blocks an ally or younger vampire bleeding you, before block
+    # resolution" (Shattered Mirror).
+    (r"if this \w+ blocks\b[^.]{0,60}?before block resolution", "ACTION_BLOCKED"),
+    # "Only usable when this vampire successfully blocks …" (Minor
+    # Irritation).
+    (r"when this \w+ successfully blocks", "ACTION_BLOCKED"),
     # "Not usable during combat" with no other timing (Angel of Berlin):
     # any time its player holds the impulse, outside combat (owner,
     # rules-qa 103.6).
@@ -2512,7 +2711,9 @@ FLAGS = [
 # Card in play grants a minion action (Ⓓ actions, referendum-to-burn, granted
 # hunt/equip variants); MPA/DPA-consuming abilities excluded; "as an action …
 # is announced" timing clauses are not grants.
-IN_PLAY_ACTION = (r"\bas an? [^.;]{0,40}?\baction\b(?! to )(?! modifier)(?![^.]* is announced)"
+# "… as a vampire until the end of this action" (Mouthpiece) grants none.
+IN_PLAY_ACTION = (r"\bas an? (?!vampire\b)[^.;]{0,40}?\baction\b(?! to )(?! modifier)"
+                  r"(?![^.]* is announced)"
                   # "… as a +1 stealth action to turn this card into a
                   # Gargoyle" (Raw Recruit).
                   r"|\baction to turn this card into\b")
@@ -2592,6 +2793,10 @@ def classify_mode(mtype, text, as_above=False):
     for only in ("COMBAT_BEFORE_RESOLUTION", "COMBAT_GOING_TO_TORPOR"):
         if mtype == "Combat" and only in hits:
             hits = [only]
+    # "Play after range is determined" (Haymaker): that moment alone, the
+    # strike it commits no play of its own.
+    if mtype == "Combat" and re.search(r"play after range is determined", text, re.I):
+        hits = ["COMBAT_BEFORE_STRIKES"]
     # Blade Clot's combat half: timed by the diablerie, no combat step.
     if mtype == "Combat" and re.search(r"when this anarch diablerizes", text, re.I):
         hits = ["ACTION_AFTER_DIABLERIE"]

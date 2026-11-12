@@ -186,10 +186,12 @@ fn copies_conserved(
     *last = seen;
 }
 
-fn invariants(e: &Engine, totals: &[usize], seed: u64, window: WindowLabel) {
-    let st = &e.state;
+fn invariants(e: &Engine, totals: &[usize], seed: u64, req: &DecisionRequest) {
+    let (st, window) = (&e.state, req.window);
+    // First Tradition's skip is asked before the turn begins, the previous
+    // turn's seat still active, ousted perhaps.
     assert!(
-        !st.seats[st.active.index()].ousted,
+        !st.seats[st.active.index()].ousted || req.options.contains(&Choice::SkipTurn),
         "active seat is ousted (seed {seed})"
     );
     let mut edges = 0;
@@ -397,6 +399,7 @@ fn kind_of(c: &Choice) -> &'static str {
         Choice::Pass => "pass",
         Choice::BurnEdge => "burn_edge",
         Choice::WithdrawFromGame => "withdraw_from_game",
+        Choice::SkipTurn => "skip_turn",
         Choice::FollowPath { .. } => "follow_path",
         Choice::PayContest(_) => "pay_contest",
         Choice::YieldContest(_) => "yield_contest",
@@ -464,6 +467,8 @@ fn kind_of(c: &Choice) -> &'static str {
         Choice::RoundStrike { .. } => "round_strike",
         Choice::CommittedStrike => "committed_strike",
         Choice::TakeDamageAfterResolution => "take_damage_after_resolution",
+        Choice::TorporAfterResolution => "torpor_after_resolution",
+        Choice::MeetAs { .. } => "meet_as",
         Choice::BurnWeaponStrike { .. } => "burn_weapon_strike",
         Choice::EmployFromHand { .. } => "employ_from_hand",
         Choice::PayBlockToll => "pay_block_toll",
@@ -528,7 +533,7 @@ fn play(seed: u64, start: &dyn Fn(u64) -> Engine) -> Played {
                     "decision requested from an ousted seat (seed {seed}, {:?})",
                     req.window
                 );
-                invariants(&e, &totals, seed, req.window);
+                invariants(&e, &totals, seed, &req);
                 // Nothing is asked between a pool reaching 0 and its oust
                 // but the Boon and its play (ANK 20220210).
                 if e.state.seats.iter().any(|s| s.oust_pending) {
@@ -5772,6 +5777,153 @@ fuzz_tests! {
             }
         },
         seeds: 58,
+        ..BASE
+    };
+    /// Round 29 (slice 16ao): Keepers of Tradition's library — Veles' Hunt
+    /// and the other referendums at their pool cost, Charming Lobby's named
+    /// referendum, First Tradition's skip, National Guard Support's burn,
+    /// Will of the Council's votes, Haymaker, Day Operation's torpor after
+    /// resolution, High Museum's control toll, Agate Talisman's vote,
+    /// Wooden Stake, Ghoul Retainer (Veles' Hunt first at seed 65).
+    random_games_with_twda_round_29a_hold_invariants_and_replay: Fixture {
+        slice: &[
+            "Veles' Hunt",
+            "First Tradition: The Masquerade",
+            "Charming Lobby",
+            "National Guard Support",
+            "Scourge",
+            "Persona Non Grata",
+            "Victim of Habit",
+            "Leech",
+            "Will of the Council",
+            "Blood Hunt",
+            "Becoming, The",
+            "Hostile Takeover",
+            "Malkavian Prank",
+            "Minor Boon",
+            "Bounty",
+            "High Museum of Art, Atlanta",
+            "Storm Sewers",
+            "Haymaker",
+            "Backstep",
+            "Undying Tenacity",
+            "Target Retainer",
+            "Coterie Tactics",
+            "Day Operation",
+            "Ghoul Retainer",
+            "Wooden Stake",
+            "Bundi",
+            "Martinelli's Ring",
+            "Arcane Appraiser",
+            "Winchester Mansion",
+            "Agate Talisman",
+        ],
+        plays: 30,
+        covers: &[
+            "skip_turn",
+            "torpor_after_resolution",
+            "rider:First Tradition: The Masquerade",
+            "rider:National Guard Support",
+            "rider:Will of the Council",
+            "ability:Blood Hunt",
+            "ability:Victim of Habit",
+            "ability:Scourge",
+            "ability:National Guard Support",
+            "ability:Will of the Council",
+            "ability:High Museum of Art, Atlanta",
+            "ability:Storm Sewers",
+            "ability:Agate Talisman",
+            "ability:Wooden Stake",
+            "ability:Bundi",
+            "ability:Ghoul Retainer",
+        ],
+        seeds: 130,
+        ..BASE
+    };
+    /// Round 29 (slice 16ao): Keepers of Tradition's vampires — the Ankou's
+    /// burn, Bernard's blood hunt and Count Zaroff's escape, Vidal meeting
+    /// requirements, Talbot's master-card rush, Themistocles' location burn,
+    /// Miguel taken by his predator, Gotsdam, Don Caravelli, Gustav, Sergei,
+    /// Montecalme, Baron Dieudonne, William Thorbecke, Alex Wilkins stolen,
+    /// among the round's locations (Alex Wilkins first at seed 22).
+    random_games_with_twda_round_29b_hold_invariants_and_replay: Fixture {
+        slice: &[
+            "High Museum of Art, Atlanta",
+            "Storm Sewers",
+            "Elysium: The Arboretum",
+            "Powerbase: Chicago",
+            "Nocturn Theater",
+            "Al's Army Apparatus",
+            "Hostile Takeover",
+            "Malkavian Prank",
+            "Bounty",
+            "Minor Boon",
+            "Arms Dealer",
+            "Veles' Hunt",
+            "Scourge",
+            "Charming Lobby",
+            "Haymaker",
+            "Backstep",
+            "Wooden Stake",
+            "Bang Nakh — Tiger's Claws",
+            "Deflection",
+            "Conditioning",
+        ],
+        covers: &[
+            "play:Veles' Hunt",
+            "play:Al's Army Apparatus",
+            "play:Nocturn Theater",
+            "meet_as",
+            "ability:Elysium: The Arboretum",
+            "ability:Powerbase: Chicago",
+            "ability:Nocturn Theater",
+            "ability:Al's Army Apparatus",
+            "ability:Ankou, The",
+            "ability:Bernard, the Scourge",
+            "ability:Count Zaroff",
+            "ability:Don Caravelli",
+            "ability:Gotsdam, The Tired Warrior",
+            "ability:Gustav Breidenstein",
+            "ability:Miguel Cordovera",
+            "ability:Montecalme",
+            "ability:Sergei Voshkov, The Eye",
+            "ability:Talbot",
+            "ability:Themistocles",
+            "ability:William Thorbecke",
+            "ability:Baron Dieudonne",
+            "ability:Alex Wilkins",
+        ],
+        setup: |e, _| {
+            named(
+                e,
+                &[
+                    "Ankou, The",
+                    "Bernard, the Scourge",
+                    "Count Zaroff",
+                    "Vidal Jarbeaux",
+                    "Johannes Castelein",
+                    "Carlak",
+                    "Gotsdam, The Tired Warrior",
+                    "Talbot",
+                    "Zelios",
+                    "Themistocles",
+                    "Tryphosa",
+                    "Miguel Cordovera",
+                    "Mictlantecuhtli",
+                    "Hiram \"Hide\" DeVries",
+                    "Kalila",
+                    "Keller Thiel",
+                    "Don Caravelli",
+                    "Gustav Breidenstein",
+                    "Montecalme",
+                    "Sergei Voshkov, The Eye",
+                    "William Thorbecke",
+                    "Baron Dieudonne",
+                    "Alex Wilkins",
+                ],
+            );
+        },
+        seeds: 46,
         ..BASE
     };
     /// Round 25 (slice 16ak): Ebony Kingdom's Orun and Aye and the cards

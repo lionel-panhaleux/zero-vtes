@@ -599,7 +599,7 @@ fn encode_as(e: &Engine, req: &DecisionRequest, v: Version, omniscient: bool) ->
 
 /// Choice variant ids (`opt_ids[0]`) are 1-based: `N_CHOICE_KINDS` counts the
 /// padding 0.
-pub const N_CHOICE_KINDS: usize = 59;
+pub const N_CHOICE_KINDS: usize = 62;
 
 /// `choice` as `viewer` would be offered it; `played`: the card its hand
 /// index named, for a past choice (`Event::card`).
@@ -795,6 +795,37 @@ fn option(
         // `zvtes_policy::untrained`).
         Choice::Diablerise | Choice::WithdrawFromGame => [58, 0, 0, 0, 0],
         Choice::FollowPath { minion, .. } => [58, minion_v(minion), ix.minion(minion), 0, 0],
+        // Offered beside TakeDamageAfterResolution (LSJ 20040120-2): a kind
+        // of its own.
+        Choice::TorporAfterResolution => [59, 0, 0, 0, 0],
+        Choice::SkipTurn => [60, 0, 0, 0, 0],
+        // A clan by its token; a sect or title by its index in the count.
+        Choice::MeetAs { minion, key } => {
+            use zvtes::cards::MetKey as M;
+            let clan = match key {
+                M::Clan(c) => clans
+                    .iter()
+                    .position(|&x| x == c)
+                    .map(|k| V_CLAN + k as i32),
+                _ => None,
+            };
+            n(match key {
+                M::Clan(_) => 0,
+                M::Sect(s) => 10 + s as u8,
+                M::Title(t) => 20 + t as u8,
+                M::Votes => 40,
+                M::BlackHand => 41,
+                M::Seraph => 42,
+                M::Slave => 43,
+                M::Circle => 44,
+                M::Path(_) => 45,
+                M::Flight => 46,
+                M::Untitled => 47,
+                M::NotRedList => 48,
+                M::NotSterile => 49,
+            });
+            [61, clan.unwrap_or(0), ix.minion(minion), 0, 0]
+        }
     };
     (ids, f)
 }

@@ -357,6 +357,17 @@ ids!(
         /// Burn 1 blood from a Sabbat vampire following no path for it to
         /// follow one (§1): `minion`, the path its `value`.
         FollowPath,
+        /// Skip one's entire turn (First Tradition: The Masquerade).
+        SkipTurn,
+        /// After resolution: the acting vampire goes to torpor, ordered
+        /// among the window's effects (§1).
+        TorporAfterResolution,
+        /// As a card is played, the alternative of its requirement `minion`
+        /// meets once each game (§1): `value` a clan, sect, title or trait
+        /// (`black_hand`, `seraph`, `slave`, `circle`, a path, `flight`,
+        /// `untitled`, `not_red_list`, `not_sterile`), or `votes` (a
+        /// nondescript "X votes" title for "titled").
+        MeetAs,
     }
 );
 
@@ -920,6 +931,42 @@ ids!(
         /// those who would burn their last pool, asked while two or more
         /// of them are left to place.
         BurnOrder,
+        /// First Tradition: The Masquerade: `seat` may skip their entire
+        /// turn before it begins (`skip_turn`), or play it (`pass`).
+        MaySkipTurn,
+        /// Scrounging: `seat` looked at the top `about.n` cards of their
+        /// library and moves `about.m` more of them to hand (`find_card`),
+        /// or no more (`pass`); the library then shuffled.
+        LookedToHand,
+        /// The Becoming: `about.n` more master Discipline cards of `seat`'s
+        /// hand put on `minion` (`take_from`), or no more (`pass`).
+        MastersFromHand,
+        /// Will of the Council: `seat` may burn `card` (`resolve_rider`) for
+        /// its bearer to take the title `about.detail` of a prince gone to
+        /// torpor, contested; or not (`pass`).
+        MayTakeTitle,
+        /// Instability: `seat` may take the Edge no Methuselah has
+        /// (`choose_seat`, their own), or leave it (`pass`).
+        MayTakeEdge,
+        /// White Nights Massacre: `seat` burns a vampire in torpor
+        /// (`choose_minion`), or every one by locking a ready werewolf ally
+        /// of theirs (`choose_minion`) or discarding a copy (`discard`); or
+        /// none (`pass`).
+        TorporMassacre,
+        /// Bounty: `seat` takes 0 to `about.n` counters from `card` to
+        /// their pool (`set_x`).
+        TakeCountersUpTo,
+        /// Malkavian Prank: `seat` guesses the number, 1 to `about.n`, that
+        /// `about.seat` secretly holds (`set_x`).
+        GuessNumber,
+        /// Hostile Takeover: `seat` bids pool for control of `minion`
+        /// (`set_x`), above `about.seat`'s high bid of `about.n` if any, or
+        /// passes (`pass`).
+        Bid,
+        /// Charming Lobby: the X of the political action card `minion`'s
+        /// action named, chosen as the action succeeds (`set_x`, 0 up to
+        /// its blood).
+        NamedX,
     }
 );
 ids!(

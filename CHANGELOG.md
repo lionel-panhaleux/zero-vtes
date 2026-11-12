@@ -6,6 +6,62 @@ server runs.
 `python3 scripts/schema_compat.py` lists what a schema change adds or
 removes; its `--check` fails a removal without a major version.
 
+## 2.29.0
+
+- Vidal Jarbeaux adds the `OptionKind` id `meet_as`: on a requirement
+  listing alternatives ("prince or justicar", a clan list, "titled"), his
+  Methuselah chooses which he meets as the card is played (`minion`, the
+  alternative its `value`), the decision's `about.detail` `meet_as`; a
+  "non-" requirement (non-titled, non-Red List, non-sterile) he meets too,
+  once each. No id removed.
+- First Tradition: The Masquerade adds the `OptionKind` id `skip_turn` and
+  the `Purpose` id `may_skip_turn`: as a turn begins, its Methuselah skips
+  it entirely (`skip_turn`) or plays it (`pass`). National Guard Support's
+  counter votes are `in_play` votes of its card. No id removed.
+- Scrounging, The Becoming and Will of the Council add the `Purpose` ids
+  `looked_to_hand` (the top cards looked at moved to hand, `find_card`,
+  `about.m` more), `masters_from_hand` (master Discipline cards from hand
+  put on the new vampire, `take_from`, `about.n` more) and `may_take_title`
+  (burn the card, `resolve_rider`, for its bearer to take the torpid
+  prince's title, `about.detail`). Anima Gathering's stay-locked choice is
+  `may_unlock`; The Summoning's recruit is `ally_search`, its prompt no
+  longer mage-only. No id removed.
+- Keepers of Tradition's masters add the `Purpose` ids `may_take_edge`
+  (Instability: the prey takes the uncontrolled Edge, `choose_seat`, or
+  `pass`), `torpor_massacre` (White Nights Massacre: one torpid vampire, or
+  all by locking a werewolf ally, `choose_minion`, or discarding a copy,
+  `discard`), `take_counters_up_to` (Bounty: 0 to `about.n` counters from
+  `card`, `set_x`), `guess_number` (Malkavian Prank: the number
+  `about.seat` holds, `set_x`) and `bid` (Hostile Takeover: a bid for
+  `minion` above `about.seat`'s `about.n`, `set_x`, or `pass`). Special
+  Report's pool for intercept is `burn_pool` in the block window. No id
+  removed.
+- Day Operation adds the `OptionKind` id `torpor_after_resolution`: after
+  resolution, the acting vampire goes to torpor, its `actor` the acting minion,
+  ordered by the acting Methuselah among the window's effects beside
+  `take_damage_after_resolution` (no `pass` while either is due). Coterie
+  Tactics adds the `minion_of` detail `joint_blocker`: of two vampires of a
+  successful joint block, the one to be the blocking vampire (`choose_minion`,
+  no `pass`); the effect `block` on the minion chosen. The action view adds the
+  optional `joint_blocker`: the second vampire of a joint block attempt, or of a
+  joint block the one not picked. Bundi's prevention is a `prevent` effect of
+  detail `melee_weapon_strike`. No id removed.
+- A wake (a wake card, Gracetius) is offered to the other Methuselahs after
+  combat and after resolution too (LSJ 20091123), for the reactions played
+  there; a record before 2.29.0 reads past it. No id added or removed.
+- A card canceled as it is played is no longer offered for canceling again
+  (a cancelling ability, a cancel card, a pay-to-cancel): the as-played
+  window after a cancel may elide.
+- Charming Lobby adds the `Purpose` id `named_x`: the X of the political
+  action card the action named, chosen as the action succeeds (`set_x`, 0
+  up to `minion`'s blood; My Kin Against the World). Its terms name that
+  card with the existing `employ_from_hand` option (the card and its mode,
+  shown to its player only), or a political action a card in play allows
+  with the existing `use_ability` option. No id removed.
+- Minor Boon: a vampire about to go to torpor that another Methuselah may
+  save is asked of them in turn (`resolution_choice`, `pass` or the card's
+  `play` at that vampire), in combat as the combat ends; no new id.
+
 ## 2.28.0
 
 - The `Purpose` id `burn_order`: minions burned or sent to torpor

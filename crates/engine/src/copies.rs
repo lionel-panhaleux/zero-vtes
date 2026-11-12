@@ -211,11 +211,14 @@ pub fn census(e: &Engine) -> Vec<(CopyId, u16, Place)> {
         }
     }
     // The action's card, until it enters play or goes back to the hand.
-    if let Some(a) = e
-        .action()
-        .filter(|a| !a.card_entered_play && !a.card_returned)
-    {
-        if let Some(p) = &a.card {
+    // Charming Lobby's: in flight until the action ends, the card it named
+    // in hand until played (`ActionCtx::lobby`).
+    if let Some(a) = e.action() {
+        if let Some(p) = &a.lobby {
+            add(*p.copy, p.card, Place::InFlight(p.seat.0));
+        }
+        let card = a.card.filter(|_| a.lobby.is_none() || a.named_played);
+        if let Some(p) = card.filter(|_| !a.card_entered_play && !a.card_returned) {
             add(*p.copy, p.card, Place::InFlight(p.seat.0));
         }
     }

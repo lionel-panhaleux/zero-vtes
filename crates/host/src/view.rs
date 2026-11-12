@@ -208,6 +208,12 @@ impl Build<'_> {
                     stealth: a.stealth(&e.state),
                     blocker: blocker.map(|m| self.minion_ref(m)),
                     intercept: blocker.map(|m| a.intercept_of(&e.state, m)),
+                    joint_blocker: match a.state {
+                        ActionState::Attempt(_) => a.joint,
+                        ActionState::Blocked(_) => a.joint_blocked.map(|(j, _)| j),
+                        _ => None,
+                    }
+                    .map(|m| self.minion_ref(m)),
                     declined: a.declined.iter().map(|s| s.0).collect(),
                     declining: a.declining(&e.state),
                 }
@@ -314,7 +320,9 @@ impl Build<'_> {
                                 }
                                 Source::Edge(_) => (VoteSource::Edge, None),
                                 Source::Card(_) => (VoteSource::Card, None),
-                                Source::InPlay(c) => (VoteSource::InPlay, Some(self.card_ref(c))),
+                                Source::InPlay(c) | Source::Counters(c) => {
+                                    (VoteSource::InPlay, Some(self.card_ref(c)))
+                                }
                                 Source::Pool(_) => (VoteSource::Pool, None),
                             };
                             Vote {

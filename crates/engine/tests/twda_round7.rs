@@ -1057,6 +1057,30 @@ fn petra_taxes_a_press_to_continue() {
     assert_eq!(left(None) - left(Some("Petra")), 1);
 }
 
+// Petra's press toll is told with its cause, her printed text (the events
+// a seat is told carry every blood change's cause).
+#[test]
+fn petra_tells_her_press_toll() {
+    let mut e = game(2);
+    let r = e.add_minion(SeatId(0), find_card("Rurik Rakoczy"), 5, false);
+    e.add_minion(SeatId(0), plain("Brujah", 0), 4, false);
+    let p = e.add_minion(SeatId(1), find_card("Petra"), 8, false);
+    blocked_bleed(&mut e, r, p);
+    e.notes = Some(Vec::new());
+    let before = e.table();
+    pick_when(&mut e, vamp_use(r, 0));
+    until(&mut e, SeatId(0), WindowLabel::MinionPhase);
+    let changes = noted_changes(&mut e, before);
+    let petra = Some(zvtes::notes::Cause::Effect(zvtes::notes::Source::Minion(p)));
+    let toll: Vec<_> = changes
+        .iter()
+        .filter(|(c, at, _)| *at == Err(r) && *c == petra)
+        .collect();
+    assert_eq!(toll.len(), 1, "{changes:?}");
+    assert_eq!(toll[0].2, -1, "{changes:?}");
+    assert!(changes.iter().all(|(c, ..)| c.is_some()), "{changes:?}");
+}
+
 // Petra: "Damage Petra inflicts on Baali is aggravated." Her hand strike
 // on Arishat (Baali), as she blocks: the point wounds her — torpor, her 2
 // blood kept (rulebook "Damage") — where a normal one is mended.

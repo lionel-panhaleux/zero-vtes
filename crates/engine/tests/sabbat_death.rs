@@ -632,9 +632,9 @@ fn morbidity_holds_blood_for_the_combat() {
 
 // Obedience [dom]: an older blocker about to enter combat with the acting
 // vampire unlocks it and ends the action. [LSJ 20070709] "The action has
-// reached resolution, so is subject to NRA." [RTR 20180719] [ANK 20170105]
-// [ANK 20200207] "The action ends unsuccessfully immediately, combat does
-// not happen." [DOM]: the acting vampire stays locked.
+// reached resolution, so is subject to NRA." [ANK 20170105] [RTR 20180719] [ANK
+// 20200207] "The action ends unsuccessfully immediately, combat does not
+// happen." [DOM]: the acting vampire stays locked.
 #[test]
 fn obedience_ends_a_younger_vampires_action() {
     for (mode, unlocked) in [(0u8, true), (1, false)] {
@@ -906,7 +906,7 @@ fn target_vitals_is_canceled_for_two_combat_cards_its_cost_paid() {
     pick_when(&mut e, Choice::PayToCancel);
     request(&mut e);
     assert_eq!(e.state.seats[1].hand.len(), 0, "the two combat cards");
-    assert_eq!(blood(&e, aitana), 4 - 1, "its cost");
+    assert_eq!(blood(&e, aitana), 4 - 1 - 1, "its cost and z's hand strike");
 }
 
 // Wall Street Night: during an undirected action, locked to give a minion

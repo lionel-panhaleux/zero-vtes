@@ -901,7 +901,8 @@ fn entombment_burns_an_ally_or_torpors_a_vampire() {
 
 // Carolina Vález: "immune to damage from allies and retainers": a blocking
 // ally's 2-strength strike, a vampire's retainer's damage, none.
-// Immune: not inflicted [LSJ 20010627] [LSJ 20010629] [LSJ 20090304-1].
+// Immune: none lands [LSJ 20010627] [LSJ 20010629] [LSJ 20090304-1]
+// (inflicted, never successfully: rules-qa 116.138).
 #[test]
 fn carolina_takes_no_damage_from_allies_and_retainers() {
     let mut e = game(2);

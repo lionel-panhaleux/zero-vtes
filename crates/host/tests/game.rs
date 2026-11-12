@@ -1570,7 +1570,7 @@ fn undo_against_bots_takes_back_a_vote_order() {
     };
     let political = &decks.iter().max_by_key(|d| politics(&d.1)).unwrap().1;
     let mut checked = 0;
-    for seed in 1..=300u64 {
+    for seed in 1..=500u64 {
         if checked == 3 {
             break;
         }
@@ -1711,4 +1711,213 @@ fn two_seats_take_the_variant_s_decks_only() {
     four.seats[1].deck = precon.clone();
     assert!(new(four).is_ok(), "a precon at four seats");
     assert!(new(two(&lists[0].1, &lists[1].1)).is_ok());
+}
+
+/// Coterie Tactics: the action view names both vampires of a joint block
+/// attempt, the second as `joint_blocker` (docs/protocol.md §8's
+/// `action`): X attempts, then plays it with Y; the block made, Y picked,
+/// X is the joint blocker.
+#[test]
+fn a_joint_block_attempt_shows_both_vampires() {
+    use zvtes::cards::Target;
+    use zvtes::crypt::{Sect, Title, CRYPT};
+    use zvtes::decision::{ActionKind, Choice};
+    use zvtes::game::{Engine, Step};
+    use zvtes::ids::SeatId;
+    use zvtes::state::find_library;
+    let camarilla = |nth: usize| {
+        CRYPT
+            .iter()
+            .enumerate()
+            .filter(|(i, c)| {
+                c.sect == Some(Sect::Camarilla)
+                    && (4..=8).contains(&c.capacity)
+                    && c.title == Title::None
+                    && !c.imbued
+                    && zvtes::cards::vampire(*i as u16).is_none()
+            })
+            .nth(nth)
+            .map(|(i, _)| i as u16)
+            .expect("a textless Camarilla vampire")
+    };
+    let mut e = Engine::bare(2);
+    e.state.turn = 4;
+    let a = e.add_minion(SeatId(0), camarilla(0), 4, false);
+    e.add_minion(SeatId(0), camarilla(1), 4, false);
+    let x = e.add_minion(SeatId(1), camarilla(2), 4, false);
+    let y = e.add_minion(SeatId(1), camarilla(3), 4, false);
+    e.state.minions[a.index()].next_action_stealth = 1;
+    // Copies of their own, for the view to number them.
+    for (k, m) in e.state.minions.iter_mut().enumerate() {
+        m.copy = zvtes::copies::Untracked(zvtes::copies::CopyId(k as u16 + 1));
+    }
+    e.state.seats[1].hand.push(find_library("Coterie Tactics"));
+    let wants = [
+        Choice::TakeAction {
+            minion: a,
+            action: ActionKind::Bleed,
+            target: None,
+        },
+        Choice::DeclareBlock { minion: x },
+        Choice::Play {
+            card: 0,
+            mode: 0,
+            actor: Some(x),
+            target: Target::Minion(y),
+        },
+    ];
+    for want in wants {
+        for _ in 0..50 {
+            let Step::Decision(req) = e.run() else {
+                panic!("a decision")
+            };
+            if let Some(i) = req.options.iter().position(|o| *o == want) {
+                e.choose(i);
+                break;
+            }
+            let pass = req.options.iter().position(|o| *o == Choice::Pass);
+            e.choose(pass.unwrap_or(0));
+        }
+    }
+    let Step::Decision(_) = e.run() else {
+        panic!("a decision")
+    };
+    assert_eq!(e.action().expect("the bleed").joint, Some(y));
+    let decks = zvtes_host::numbering::Decks::dealt(&e);
+    let names = vec![String::new(); e.state.seats.len()];
+    let mut v = zvtes_host::view::Viewer::new(None);
+    let view = v.view(&e, &decks, &names);
+    let action = view.action.expect("the action");
+    let (xr, yr) = (v.minion(&e, x), v.minion(&e, y));
+    assert!(xr.is_some() && yr.is_some() && xr != yr);
+    assert_eq!((action.blocker, action.joint_blocker), (xr, yr));
+    // X's [aus] Eagle's Sight (+1 intercept) meets the stealth: the block
+    // succeeds, Y picked as the blocking vampire: in the combat, X is the
+    // joint blocker.
+    e.state.minions[x.index()].gained_levels = vec!["aus"];
+    e.state.seats[1].hand.push(find_library("Eagle's Sight"));
+    // A's [cel] Side Strike: the combat's strike step is asked, the block
+    // still in view.
+    e.state.minions[a.index()].gained_levels = vec!["cel"];
+    e.state.seats[0].hand.push(find_library("Side Strike"));
+    let sight = Choice::Play {
+        card: 0,
+        mode: 0,
+        actor: Some(x),
+        target: Target::None,
+    };
+    let Step::Decision(req) = e.run() else {
+        panic!("a decision")
+    };
+    let i = req
+        .options
+        .iter()
+        .position(|o| *o == sight)
+        .expect("Eagle's Sight");
+    e.choose(i);
+    let pick_y = Choice::ChooseMinion(y);
+    let picked = (0..50).any(|_| {
+        let Step::Decision(req) = e.run() else {
+            panic!("a decision")
+        };
+        let at = req.options.iter().position(|o| *o == pick_y);
+        let pass = req.options.iter().position(|o| *o == Choice::Pass);
+        e.choose(at.or(pass).unwrap_or(0));
+        at.is_some()
+    });
+    assert!(picked, "Y offered as the blocking vampire");
+    let Step::Decision(_) = e.run() else {
+        panic!("a decision")
+    };
+    let view = v.view(&e, &decks, &names);
+    let action = view.action.expect("the action");
+    assert_eq!((action.blocker, action.joint_blocker), (yr, xr));
+}
+
+/// Will of the Council's title claim names the torpid prince's title as
+/// every other title on the wire, a snake_case id (`view::title_detail`):
+/// a primogen bearing it is blocked by a prince of Chicago, who goes to
+/// torpor; its `may_take_title` decision's `about.detail` is
+/// `prince_of_chicago`.
+#[test]
+fn a_title_claim_names_the_title_by_its_id() {
+    use zvtes::cards::{lookup, Effect, Layer, Scope};
+    use zvtes::crypt::{Sect, Title, CRYPT};
+    use zvtes::decision::{ActionKind, Choice};
+    use zvtes::game::{Engine, Step};
+    use zvtes::ids::SeatId;
+    use zvtes::state::{find_library, CardId, CardInPlay};
+    let camarilla = |nth: usize| {
+        CRYPT
+            .iter()
+            .enumerate()
+            .filter(|(i, c)| {
+                c.sect == Some(Sect::Camarilla)
+                    && (4..=8).contains(&c.capacity)
+                    && c.title == Title::None
+                    && !c.imbued
+                    && zvtes::cards::vampire(*i as u16).is_none()
+            })
+            .nth(nth)
+            .map(|(i, _)| i as u16)
+            .expect("a textless Camarilla vampire")
+    };
+    let mut e = Engine::bare(2);
+    e.state.turn = 4;
+    let p = e.add_minion(SeatId(0), camarilla(0), 4, false);
+    e.add_minion(SeatId(0), camarilla(1), 4, false);
+    let z = e.add_minion(SeatId(1), camarilla(2), 0, false);
+    e.add_minion(SeatId(1), camarilla(3), 4, false);
+    e.state.minions[p.index()].granted_title = Some(Title::Primogen);
+    e.state.minions[z.index()].granted_title = Some(Title::Prince("Chicago"));
+    let card = find_library("Will of the Council");
+    e.state
+        .cards
+        .push(CardInPlay::new(card, SeatId(0), Some(p), 0));
+    let will = CardId(e.state.cards.len() as u32 - 1);
+    for effect in lookup(card).expect("definition").modes[0].effects {
+        if let Effect::Layer(modifier) = effect {
+            e.state.layers.push(Layer {
+                scope: Scope::InPlay,
+                modifier: *modifier,
+                source: will,
+            });
+        }
+    }
+    let wants = [
+        Choice::TakeAction {
+            minion: p,
+            action: ActionKind::Bleed,
+            target: None,
+        },
+        Choice::DeclareBlock { minion: z },
+        Choice::ResolveRider { card: will.0 },
+    ];
+    for want in wants {
+        let mut found = None;
+        for _ in 0..50 {
+            let Step::Decision(req) = e.run() else {
+                panic!("a decision")
+            };
+            if req.options.contains(&want) {
+                found = Some(req);
+                break;
+            }
+            let pass = req.options.iter().position(|o| *o == Choice::Pass);
+            e.choose(pass.unwrap_or(0));
+        }
+        let req = found.unwrap_or_else(|| panic!("{want:?} never offered"));
+        if want == (Choice::ResolveRider { card: will.0 }) {
+            let about = zvtes_host::describe::about(&e, &req, &zvtes_host::describe::EngineNames)
+                .expect("told");
+            assert_eq!(about.detail.as_deref(), Some("prince_of_chicago"));
+        } else {
+            let i = req
+                .options
+                .iter()
+                .position(|o| *o == want)
+                .expect("offered");
+            e.choose(i);
+        }
+    }
 }

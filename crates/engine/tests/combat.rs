@@ -533,7 +533,13 @@ fn no_reaction_cards_during_combat() {
         pick(&mut e, Choice::Pass);
     }
     pick(&mut e, play(0, 0, a));
-    // No as-played wake for seat 2; the rest of seat 0's turn elides.
+    // No as-played wake for seat 2: its next offer is after the combat
+    // and after resolution (LSJ 20091123), declined; the rest of seat 0's
+    // turn elides.
+    expect(&mut e, SeatId(2), WindowLabel::ActionAfterCombat);
+    pick(&mut e, Choice::Pass);
+    expect(&mut e, SeatId(2), WindowLabel::ActionAfterResolution);
+    pick(&mut e, Choice::Pass);
     expect(&mut e, SeatId(1), WindowLabel::MinionPhase);
     assert!(e.state.minions[w.index()].locked);
     assert_eq!(blood(&e, x), 1);

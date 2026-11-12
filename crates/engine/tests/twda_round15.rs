@@ -2259,8 +2259,9 @@ fn taking_the_skin_ignores_a_war_ghouls_entry_burn() {
 }
 
 // Helena (ADV): "[MERGED] Helena is immune to damage from demons." Immune:
-// none inflicted [LSJ 20010627] [LSJ 20010629] [LSJ 20090304-1]; Herald of
-// Topheth, a demon ally, inflicts none on her.
+// none lands [LSJ 20010627] [LSJ 20010629] [LSJ 20090304-1] (inflicted,
+// never successfully: rules-qa 116.138); Herald of Topheth, a demon ally,
+// lands none on her.
 #[test]
 fn merged_helena_takes_no_damage_from_demons() {
     let mut e = game(2);
@@ -2276,9 +2277,10 @@ fn merged_helena_takes_no_damage_from_demons() {
     assert_eq!(e.state.damage_reduction(h, other), 0);
 }
 
-// Tye Cooper: "He is immune to non-aggravated damage." Immune means damage
-// is not inflicted, even if non-preventable [LSJ 20010627] [LSJ 20010629]
-// [LSJ 20090304-1]: a vampire's hand strike leaves him whole.
+// Tye Cooper: "He is immune to non-aggravated damage." Immune means none
+// lands, even if non-preventable [LSJ 20010627] [LSJ 20010629] [LSJ
+// 20090304-1] (inflicted, never successfully: rules-qa 116.138): a vampire's
+// hand strike leaves him whole.
 #[test]
 fn tye_cooper_takes_no_normal_damage() {
     let mut e = game(2);

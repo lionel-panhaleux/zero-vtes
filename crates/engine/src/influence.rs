@@ -84,14 +84,17 @@ impl Engine {
         let s = st.active;
         let seat = &st.seats[s.index()];
         let mut options = vec![Choice::Pass];
+        let moves = !st
+            .controlled_layers(s)
+            .any(|l| l.modifier == crate::cards::Modifier::NoTransferCounterMoves);
         for (i, slot) in seat.uncontrolled.iter().enumerate() {
             let i = i as u8;
             let (capacity, _) = st.slot_vampire(s, i as usize);
             // Any amount, over capacity too (rules-qa 28.3).
-            if left >= 1 && seat.pool > 0 {
+            if moves && left >= 1 && seat.pool > 0 {
                 options.push(Choice::Transfer { slot: i });
             }
-            if left >= 2 && slot.counters > 0 {
+            if moves && left >= 2 && slot.counters > 0 {
                 options.push(Choice::Withdraw { slot: i });
             }
             // No voluntary self-contest, but Anarch Convert: he leaves as
@@ -292,6 +295,7 @@ impl Engine {
                 v.in_play = true;
                 v.locked = false;
                 v.in_torpor = false;
+                v.no_unlock_in_torpor = crate::state::Sparse(0);
                 for c in on {
                     let c = &mut self.state.cards[c.index()];
                     c.in_play = true;
@@ -448,6 +452,8 @@ impl Engine {
                 seat: s,
                 clan: Some(clan),
                 blood: 0,
+                below: None,
+                max_level: None,
             });
         }
         // Anarch Convert: his entry ability before any contest.

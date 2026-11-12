@@ -224,6 +224,9 @@ impl Prompt<'_> {
                     "block_mark" => {
                         "Choose a ready minion your vampire gets intercept against until your next unlock".into()
                     }
+                    "joint_blocker" => {
+                        "Choose which of your two vampires is the blocking one".into()
+                    }
                     _ => return None,
                 }
             }
@@ -327,7 +330,7 @@ impl Prompt<'_> {
                 self.minion()?
             ),
             P::AllySearch => format!(
-                "{}: you can search for a mage ally to put in play",
+                "{}: you can search for an ally to put in play",
                 self.minion()?
             ),
             P::GainConviction => format!("{}: you can give them a conviction", self.minion()?),
@@ -533,6 +536,42 @@ impl Prompt<'_> {
             P::AllyFromAsh => {
                 "Choose the ally to move from your ash heap to your ready region".into()
             }
+            P::MaySkipTurn => "You can skip your entire turn (First Tradition)".into(),
+            P::LookedToHand => format!(
+                "Scrounging: you can move {} more of the cards looked at to your hand",
+                a.m?
+            ),
+            P::MastersFromHand => format!(
+                "You can put {} more master Discipline cards from your hand on {}",
+                a.n?,
+                self.minion()?
+            ),
+            P::MayTakeTitle => "Will of the Council: you can burn it to take the torpid prince's title".into(),
+            P::MayTakeEdge => "Instability: you can take the Edge".into(),
+            P::Bid => match (a.seat, a.n) {
+                (Some(_), Some(n)) => format!(
+                    "Hostile Takeover: bid more than {}'s {} pool for {}",
+                    self.seat()?,
+                    n,
+                    self.minion()?
+                ),
+                _ => format!("Hostile Takeover: bid pool for {}", self.minion()?),
+            },
+            P::GuessNumber => format!(
+                "Malkavian Prank: guess the number from 1 to {} {} holds",
+                a.n?,
+                self.seat()?
+            ),
+            P::TakeCountersUpTo => format!(
+                "Take up to {} counters from {} to your pool",
+                a.n?,
+                self.card()?
+            ),
+            P::NamedX => format!(
+                "Charming Lobby: choose X for the political action card {} called",
+                self.minion()?
+            ),
+            P::TorporMassacre => "White Nights Massacre: burn a vampire in torpor, or all of them by locking a werewolf ally or discarding a White Nights Massacre".into(),
             P::MayMillCopy => format!(
                 "You can search your library for another {} and move it to your ash heap",
                 self.card()?
@@ -737,6 +776,7 @@ impl Prompt<'_> {
                     self.clan()?
                 ),
                 "second_chosen" => format!("choose the card's chosen {}", self.clan()?),
+                "meet_as" => format!("choose the requirement {} meets", self.minion()?),
                 // `to` may be an uncontrolled vampire (Grooming the Protégé).
                 "blood_range" => match (self.minion(), self.a.to.map(|c| self.n.copy_bare(c))) {
                     (Some(m), Some(t)) => format!("how much blood to move from {m} to {t}"),
@@ -922,6 +962,7 @@ mod tests {
                 Some("damage"),
                 Some("damage_imbued"),
                 Some("block_mark"),
+                Some("joint_blocker"),
             ],
             Purpose::ChooseForCard => &[
                 Some("unblockable_non_bleed"),
@@ -1082,6 +1123,16 @@ mod tests {
         AllyFromAsh,
         MayRecycleCanceled,
         MayMillCopy,
+        MaySkipTurn,
+        LookedToHand,
+        MastersFromHand,
+        MayTakeTitle,
+        MayTakeEdge,
+        TorporMassacre,
+        TakeCountersUpTo,
+        GuessNumber,
+        Bid,
+        NamedX,
         NameUncontrolled,
         NameSlotPair,
         BeastDisciplines,

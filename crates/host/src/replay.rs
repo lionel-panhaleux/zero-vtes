@@ -100,7 +100,8 @@ pub struct Replay {
 /// card's as-played window, Nergal's reduction at resolution, the Dual
 /// Form kept (rules-qa 96.1, 96.3, 96.4); before 2.12.0 the burn option of
 /// a master card requiring a ready Seraph (Watchtower: Four Ride Forth,
-/// fixed within 2.11.0: no record of it after the fix met the card).
+/// fixed within 2.11.0: no record of it after the fix met the card); before
+/// 2.29.0 a wake after combat or resolution (LSJ 20091123).
 #[derive(Clone, Copy, Debug, Default)]
 pub(crate) struct Then {
     before_withdrawals: bool,
@@ -108,6 +109,7 @@ pub(crate) struct Then {
     before_combat_poll: bool,
     before_batch_96: bool,
     before_seraph_burn: bool,
+    before_late_wake: bool,
 }
 
 impl Then {
@@ -118,6 +120,7 @@ impl Then {
             before_combat_poll: before(protocol, (2, 15)),
             before_batch_96: before(protocol, (2, 16)),
             before_seraph_burn: before(protocol, (2, 12)),
+            before_late_wake: before(protocol, (2, 29)),
         }
     }
 
@@ -138,6 +141,34 @@ impl Then {
                         zvtes::cards::trait_requirements(card)
                             .any(|r| r == zvtes::cards::Requirement::ControlsReadySeraph)
                     })
+            }
+            Choice::Play { .. } | Choice::UseAbility { .. }
+                if self.before_late_wake
+                    && matches!(
+                        req.window,
+                        zvtes::decision::WindowLabel::ActionAfterCombat
+                            | zvtes::decision::WindowLabel::ActionAfterResolution
+                    ) =>
+            {
+                let mode = match *c {
+                    Choice::UseAbility {
+                        source, ability, ..
+                    } => Some(source.mode(&e.state, ability)),
+                    Choice::Play { card, mode, .. } => e
+                        .virtual_hand(req.seat)
+                        .get(card as usize)
+                        .and_then(|&(c, _)| zvtes::cards::lookup(c))
+                        .and_then(|d| d.modes.get(mode as usize)),
+                    _ => None,
+                };
+                mode.is_some_and(|m| {
+                    m.effects.iter().any(|e| {
+                        matches!(
+                            e,
+                            zvtes::cards::Effect::Wake | zvtes::cards::Effect::WakeTarget
+                        )
+                    })
+                })
             }
             Choice::ResolvePrinted { .. } if self.before_batch_96 => {
                 matches!(e.interrupt(), Some(I::ReductionAtResolution { .. }))

@@ -41,7 +41,7 @@ use zvtes::game::{Engine, Step};
 use zvtes::ids::SeatId;
 use zvtes::library::{CardType, LIBRARY};
 
-const SEEDS: u64 = 100;
+const SEEDS: u64 = 150;
 const DECISION_BUDGET: u64 = 200_000;
 
 /// A choice that depends on the cards in the deciding seat's hand.

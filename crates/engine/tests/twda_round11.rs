@@ -828,6 +828,31 @@ fn petra_resonance_steals_for_the_highest_or_taxes_a_tie() {
     );
 }
 
+// Petra Resonance [LSJ 20010925] [LSJ 20100713] [PIB 20121230] [PIB
+// 20150821] [RTR 20080808] "Is a Directed Action against all (other)
+// Methuselah": at a table of four, the Methuselah across (neither prey nor
+// predator) may block it, as only a directed action's target may.
+#[test]
+fn petra_resonance_is_blocked_from_across_the_table() {
+    let cap = |c: u8| quiet_where(|v| v.capacity == c);
+    let mut e = game(4);
+    let m = e.add_minion(SeatId(0), plain("Malkavian", 0), 4, false);
+    e.add_minion(SeatId(1), plain("Ventrue", 1), 4, false);
+    let across = e.add_minion(SeatId(2), plain("Ventrue", 2), 4, false);
+    e.add_minion(SeatId(3), plain("Ventrue", 3), 4, false);
+    for s in 0..4 {
+        e.state.seats[s].crypt = vec![cap(5)].into();
+    }
+    hand(&mut e, 0, &["Petra Resonance"]);
+    pick(&mut e, play(0, 0, m));
+    assert!(offered_before(
+        &mut e,
+        block(across),
+        SeatId(0),
+        WindowLabel::MinionPhase
+    ));
+}
+
 // Waiting Game: "Transient. Put this card in play with 10 counters.
 // Whenever a non-Anarch vampire takes an action, burn a counter from this
 // card. Burn this card when it has no counters." An Anarch's bleed costs no

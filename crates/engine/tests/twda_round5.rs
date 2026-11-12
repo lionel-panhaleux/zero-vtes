@@ -219,14 +219,14 @@ fn bone_spur_superior_lasts_the_combat() {
 // ---- The Kiss of Ra ------------------------------------------------------------------
 
 // The Kiss of Ra: "Only usable when a vampire who does not have Fortitude
-// attempts to block this acting minion. [for] The block attempt is
-// canceled, the blocking vampire burns 2 blood, and the current action is
-// ended (without combat). [FOR] As above, and send the blocking vampire to
-// torpor." [RTR 20180719] "No reaction or modifier can be played
-// afterwards: the action ends immediately." [ANK 20211015] [ANK 20210124]
-// [LSJ 20090220] [LSJ 20070709] "The action has not reached resolution, it
-// is effectively canceled. The same vampire can undertake the same action
-// again": no bleed lands, the vampire (unlocked) may bleed again.
+// attempts to block this acting minion. [for] The block attempt is canceled,
+// the blocking vampire burns 2 blood, and the current action is ended (without
+// combat). [FOR] As above, and send the blocking vampire to torpor." [RTR
+// 20180719] [ANK 20200207] "The action ends immediately, no other action
+// modifier or reaction can be played afterwards." [ANK 20211015] [ANK 20210124]
+// [LSJ 20090220] [LSJ 20070709] "The action has not reached resolution, it is
+// effectively canceled. The same vampire can undertake the same action again":
+// no bleed lands, the vampire (unlocked) may bleed again.
 #[test]
 fn the_kiss_of_ra_ends_the_action_on_a_block_attempt() {
     for superior_kiss in [false, true] {

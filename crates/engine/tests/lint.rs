@@ -237,7 +237,19 @@ const DURING_ONCE_ELSEWHERE: &[(&str, &str)] = &[
         "EMERGENCY_PREPARATIONS",
         "a card played in the minion phase, gone to the ash heap",
     ),
+    (
+        "ANIMA_GATHERING",
+        "its stay-locked choice asked once as its bearer would unlock in the unlock phase",
+    ),
     ("GREY_THORNE", "an unlock phase rider, offered once a phase"),
+    (
+        "CONTINGENCY_PLANNING",
+        "\"during your turn\" lets an out-of-turn master be played then: a card, spent",
+    ),
+    (
+        "WHITE_NIGHTS_MASSACRE",
+        "a discard phase rider that burns its card as it resolves",
+    ),
     (
         "JOURNAL_OF_HRORSH",
         "\"except during an action\": its use removes its Salubri, the Journal burned",
@@ -433,6 +445,8 @@ fn during_abilities_are_once() {
 // another Methuselah's (`NotControlled` in its target), whatever the text
 // prints. Chameleon's "take control" may take one's own vampire, its ruling
 // over the glossary (LSJ 20080803-2: "to make it Anarch").
+// New Management's "take control" may take one's own location (LSJ
+// 20080803-2), a legal no-op.
 #[test]
 fn steals_never_target_ones_own_cards() {
     use zvtes::cards::{defs::DEFS, vampires::VAMPIRES, Effect, ModeDef, Requirement};
@@ -462,6 +476,7 @@ fn steals_never_target_ones_own_cards() {
         for (i, m) in modes.iter().enumerate() {
             if steals(m)
                 && name != "Chameleon"
+                && name != "New Management"
                 && !m
                     .target
                     .is_some_and(|t| t.filter.contains(&Requirement::NotControlled))

@@ -127,7 +127,8 @@ fn every_option_s_key_names_what_it_is_about() {
                             | C::CancelCombat
                             | C::RoundStrike { .. }
                             | C::ContinueAction
-                            | C::TakeDamageAfterResolution => k.actor.is_some(),
+                            | C::TakeDamageAfterResolution
+                            | C::TorporAfterResolution => k.actor.is_some(),
                             C::Diablerise => k.actor.is_some() && k.minion.is_some(),
                             C::Discard(_)
                             | C::Bottom(_)
@@ -147,7 +148,9 @@ fn every_option_s_key_names_what_it_is_about() {
                                 k.target.is_some() && k.amount.is_some()
                             }
                             C::ChooseSeat(_) => k.target.is_some(),
-                            C::FollowPath { .. } => k.minion.is_some() && k.value.is_some(),
+                            C::FollowPath { .. } | C::MeetAs { .. } => {
+                                k.minion.is_some() && k.value.is_some()
+                            }
                             C::ChooseClan(_) | C::ChooseCircle(_) | C::ChooseDiscipline(_) => {
                                 k.value.is_some()
                             }
@@ -158,6 +161,7 @@ fn every_option_s_key_names_what_it_is_about() {
                             C::Pass
                             | C::BurnEdge
                             | C::WithdrawFromGame
+                            | C::SkipTurn
                             | C::BurnPool
                             | C::DrawLibrary
                             | C::DrawCrypt
