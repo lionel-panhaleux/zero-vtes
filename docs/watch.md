@@ -29,11 +29,12 @@ write to the main checkout's ignored `data/`.
   new game writes no day's report) → run the training skill's
   "Harvest" (`python3 scripts/harvest.py`, in the detached checkout). Its
   weaknesses and anything it shows → Z-train's `intake`.
-- **Daily — p17's trial** (served as a trial, owner 2026-11-06: back to
-  p14 if the human games worsen): the day's report, the humans' win rate
-  and VP against p17 beside p14's. Worse beyond the report's small-sample
-  mark → the owner (serving p14 again is a deploy); otherwise nothing.
-  Deleted when a run replaces p17.
+- **Daily — p18 against the humans** (served 2026-11-12 on a gain at bot
+  tables only, owner): the day's report, the humans' win rate and VP
+  against p18 (`0535d0a0be63`) beside p17's (`f426338f6c80`). Worse beyond
+  the report's small-sample mark → the owner (serving p17 again is a
+  deploy, `runs/served-prev-2026-11-12-p17.zvp`); otherwise nothing.
+  Deleted when a run replaces p18.
 - **Daily — the outside's reports**: the players' feedback since the last
   check (`GET /admin/feedback?since=`, intake "Sources"), `gh issue list`
   and `gh pr list` here and on `lionel-panhaleux/succubus-club` → each new
