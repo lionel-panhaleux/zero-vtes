@@ -1199,8 +1199,8 @@ fn a_bleed_cards_printed_stealth_counts() {
 }
 
 // Vulture after "successfully equipping": an equip action that fizzled
-// (its vehicle unpayable as the action resolves) equipped nothing — no
-// unlock (rules-qa 104.19).
+// (a vehicle on its vampire by the resolution, one each) equipped nothing
+// — no unlock (rules-qa 104.19).
 #[test]
 fn vulture_needs_an_equip_that_did_not_fizzle() {
     let mut e = game(2);
@@ -1208,12 +1208,12 @@ fn vulture_needs_an_equip_that_did_not_fizzle() {
     let a = e.add_minion(SeatId(0), anarch(&[], 0), 4, false);
     e.add_minion(SeatId(1), plain("Ventrue", 0), 4, false);
     hand(&mut e, 0, &["Helicopter"]);
+    let pool = e.state.seats[0].pool;
     pick(&mut e, play(0, 0, a));
-    // Short of its 3 pool by the resolution: the action fizzles.
-    e.state.seats[0].pool = 2;
+    in_play(&mut e, 0, "Helicopter", Some(a));
     never_offered_until(&mut e, SeatId(1), WindowLabel::MinionPhase, own(vu, 0));
     assert!(e.state.minions[a.index()].locked);
-    assert_eq!(e.state.seats[0].pool, 2, "nothing paid");
+    assert_eq!(e.state.seats[0].pool, pool, "not paid");
 }
 
 // Synner-G's "after successfully equipping" likewise (rules-qa 104.19): a

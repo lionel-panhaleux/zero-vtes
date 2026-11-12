@@ -2900,7 +2900,8 @@ fn warding_the_beast_presence_unlocks_a_younger_vampire() {
 /// when it resolves and the target is no longer in torpor, the action
 /// 'fizzles' (cost, if any, is paid, and it is considered successful, but
 /// has no effect)." Warding the Beast [val]'s target out of torpor before
-/// it resolves: fizzled.
+/// it resolves: fizzled (not paid: the database misreads ANK 20210124,
+/// rules-qa 117.1).
 #[test]
 fn warding_the_beast_fizzles_once_its_target_left_torpor() {
     let mut e = game(2);
@@ -6924,6 +6925,33 @@ fn safe_passage_goes_on_the_vampire_and_taxes_directed_actions() {
         }
     }
     assert_eq!(paid[1] - paid[0], 1, "1 blood more: {paid:?}");
+}
+
+/// A surcharge the acting minion is short of as the action resolves is
+/// paid as far as it goes and fizzles the action (ANK 20210124; rules-qa
+/// 117.4): Safe Passage [OBE] on François "Warden" Loehr, 2 blood more for
+/// a Bum's Rush at him, its vampire down to 1 blood by then.
+#[test]
+fn a_short_surcharge_is_paid_as_far_as_it_goes() {
+    let mut e = game(2);
+    let a = e.add_minion(SeatId(0), find_card("François \"Warden\" Loehr"), 2, false);
+    e.state.minions[a.index()].gained_levels = vec!["obe", "obe"];
+    e.add_minion(SeatId(0), plain("Brujah", 1), 4, false);
+    let r = e.add_minion(SeatId(1), plain("Ventrue", 0), 6, false);
+    e.add_minion(SeatId(1), plain("Ventrue", 1), 4, false);
+    hand(&mut e, 0, &["Safe Passage"]);
+    hand(&mut e, 1, &["Bum's Rush"]);
+    pick(&mut e, bleed(a));
+    pick_when(&mut e, act(0, 2, a, Target::None));
+    until(&mut e, SeatId(1), WindowLabel::MinionPhase);
+    pick(&mut e, act(0, 0, r, Target::Minion(a)));
+    expect(&mut e, SeatId(0), WindowLabel::ActionBlock);
+    e.state.minions[r.index()].blood = 1;
+    let before = blood(&e, a);
+    pick(&mut e, Choice::Pass);
+    until(&mut e, SeatId(0), WindowLabel::MinionPhase);
+    assert_eq!(blood(&e, r), 0, "the 1 it had");
+    assert_eq!(blood(&e, a), before, "no combat");
 }
 
 /// [LSJ 20020612] Safe Passage [for]: "Allies get -1 intercept this action",

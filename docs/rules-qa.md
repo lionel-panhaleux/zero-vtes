@@ -73,7 +73,7 @@ by the owner. Apply them to every new card; only a ruling overrides them.
 - **Mandatory effects and their ordering** — 6.1, 6.4, 7.8, 7.9, 17.2, 27.1, 28.9, 32.10, 40.5, 88.5, 111.10, 111.22
 - **Periodicity ("during X" = once per X, once each …)** — 6.6, 7.4, 9.6, 10.4, 11.2, 15.1, 15.2, 16.1, 36.3, 36.4, 37.1, 38.8, 42.3, 42.9, 79.1–79.4, 111.14, 113.26, 113.27, 113.33, 113.34
 - **No-repeat-action, "same action"** — 1.4, 6.2, 16.6, 23.2, 25.4, 32.1, 88.1, 89.2, 89.15
-- **Action outcomes: fizzle, fail, success, after resolution** — 3.6, 5.8, 5.9, 17.1, 17.3, 17.4, 23.3, 24.1, 24.4, 26.1, 26.4, 28.7, 30.2, 30.3, 34.6, 42.6, 43.1, 55.3, 55.4, 55.5, 56.1, 58.1, 58.13, 73.3, 73.4, 77.13, 78.13, 78.38, 78.50, 88.1, 88.2, 88.3, 89.4, 111.34, 111.42, 111.45, 113.84, 113.95, 113.112
+- **Action outcomes: fizzle, fail, success, after resolution** — 3.6, 5.8, 5.9, 17.1, 17.3, 17.4, 23.3, 24.1, 24.4, 26.1, 26.4, 28.7, 30.2, 30.3, 34.6, 42.6, 43.1, 55.3, 55.4, 55.5, 56.1, 58.1, 58.13, 73.3, 73.4, 77.13, 78.13, 78.38, 78.50, 88.1, 88.2, 88.3, 89.4, 111.34, 111.42, 111.45, 113.84, 113.95, 113.112, 117.1–117.6
 - **Directed / undirected, targeting, choosing** — 6.8, 17.2, 17.4, 20.1, 24.5, 26.3, 27.2, 32.5, 33.3, 34.8, 35.1, 38.2, 38.6, 39.4, 42.1, 57.10, 75.1, 77.12, 77.26, 77.27, 78.30, 78.36, 78.52, 89.3, 89.9, 94.5, 111.28, 111.39, 113.6, 113.120, 113.140, 113.149
 - **When choices are made (play vs resolution vs use)** — 3.5, 6.7, 22.2, 26.8, 28.5, 31.2, 31.3, 32.11, 32.12, 33.4, 38.1, 111.10, 111.12, 111.13, 111.18, 113.23, 113.58
 - **Bleeds** — 18.4, 23.5, 24.1–24.4, 25.6, 30.5, 31.2, 32.2, 32.4, 32.8, 33.9, 34.4, 34.5, 39.5, 42.3, 42.7, 53.6, 53.8, 57.1, 57.2, 61.2, 76.12, 111.10, 113.63, 113.128
@@ -86,7 +86,7 @@ by the owner. Apply them to every new card; only a ruling overrides them.
 - **Titles** — 3.1, 13.2, 19.1, 19.2, 19.6, 32.9, 49.4, 52.5, 52.6, 52.9, 58.3, 58.11, 59.13, 59.14, 60.1, 76.1–76.4, 77.1, 77.2, 78.1, 78.7, 78.16, 91.6, 111.19, 111.48, 113.117
 - **Contests, uniqueness** — 3.1, 7.1, 7.3, 7.5, 8.2, 11.2, 12.3, 19.1, 36.3, 38.7, 39.4, 40.1, 57.9, 58.5, 58.19, 59.13, 60.1, 60.9, 60.20, 76.2, 76.3, 85.32, 91.2–91.6, 94.6, 100.1, 100.2, 100.4, 108.1, 113.44, 113.143
 - **Control, steals, ousts, removal from game** — 6.9, 7.5, 17.4, 25.1, 27.3, 27.4, 27.7, 28.13, 31.4, 31.5, 31.6, 33.5, 33.7, 38.4, 39.4, 42.7, 55.4, 55.6, 88.9, 90.4, 90.7, 90.10, 101.2, 101.3, 111.5, 111.6, 111.7, 111.8, 111.9, 113.45, 113.68, 113.99, 113.137
-- **Costs and reductions** — 3.6, 5.9, 9.3, 18.1, 18.2, 23.4, 29.6, 27.6, 36.1–36.5, 38.5, 42.1, 42.2, 42.5, 42.6, 54.1, 58.12, 59.5, 60.5, 60.7, 77.24, 78.3, 78.17, 78.21, 89.3, 89.10, 89.11, 89.15, 89.24, 93.9, 96.3, 100.3, 101.1, 101.3, 111.12, 111.45, 111.46, 113.13, 113.64, 113.83, 113.141, 113.142
+- **Costs and reductions** — 3.6, 5.9, 9.3, 18.1, 18.2, 23.4, 29.6, 27.6, 36.1–36.5, 38.5, 42.1, 42.2, 42.5, 42.6, 54.1, 58.12, 59.5, 60.5, 60.7, 77.24, 78.3, 78.17, 78.21, 89.3, 89.10, 89.11, 89.15, 89.24, 93.9, 96.3, 100.3, 101.1, 101.3, 111.12, 111.45, 111.46, 113.13, 113.64, 113.83, 113.141, 113.142, 117.1–117.6
 - **Replacement, draws, stored and held cards** — 5.5, 7.10, 8.2, 8.3, 8.4, 9.4, 9.5, 11.1–11.3, 12.1–12.5, 22.2, 37.1, 40.4, 53.4, 53.5, 73.1, 73.2, 77.35, 78.18, 78.26, 78.51, 88.8, 93.8, 93.10, 96.2, 96.5, 110.1, 111.12, 111.13, 111.17, 111.23, 111.50, 113.35, 113.53, 113.80, 113.111, 113.127
 - **Card destination (ash heap, limbo, lingering effects)** — 21.1, 22.1, 31.6, 46.4, 47.1
 - **Equipment and weapons** — 9.1–9.6, 10.1–10.5, 17.4, 18.3, 22.4, 29.7, 35.3, 38.4, 38.5, 38.7, 76.9, 76.10, 76.15, 76.16, 77.19, 77.29, 78.28, 78.42, 99.1–99.3, 111.17, 111.23, 111.41, 113.46, 113.59, 113.60, 113.75, 113.150
@@ -146,7 +146,7 @@ by the owner. Apply them to every new card; only a ruling overrides them.
 
 **3.5** Numeric terms are chosen and announced when the card is played (Villein's "2 to 5 blood") — they may change others' play. For a referendum (Kine Resources Contested's allocation) the terms are announced as the referendum's terms: after the action succeeds, before votes.
 
-**3.6** A cost paid at resolution (rescue's / leave torpor's 2 blood) that became unpayable: the action *fizzles* — it is successful (not blocked; e.g. Freak Drive playable) but has no effect.
+**3.6** A cost paid at resolution (rescue's / leave torpor's 2 blood) that became unpayable: the action *fizzles* — it is successful (not blocked; e.g. Freak Drive playable) but has no effect, the acting minion paying as much as it can (ANK 20210124: "the acting minion must pay as much as possible, and the action fizzles"; owner, 2026-11-11; read first as paying nothing; what "as much as possible" covers: Batch 117).
 
 **3.7** Unlock-phase impulse: the active Methuselah does all the unlock-phase effects they want, then passes the impulse so others' unlock-phase abilities (Homunculus: "during any Methuselah's unlock phase") can be used; a use returns the impulse to the active player.
 
@@ -358,7 +358,7 @@ by the owner. Apply them to every new card; only a ruling overrides them.
 - Apolonia: any younger vampire, torpor or no blood included (takes what is there); excess over capacity drains off.
 - Stolen equipment changes host (controller follows, owner stays); no requirement checked (moving is not equipping). A locquipment (Living Manse) is a location in play: not stealable as equipment nor taken by the equip action, but stealable by cards that steal locations. Targeting a card on a minion does not target the minion (Evan Klein does not flip).
 - A steal that would give a second vehicle is not offered. Principle: an action sure to aim at an illegal target is not allowed; one whose object comes from a choice/randomness at resolution (Vast Wealth's search) may be taken even if it will fail.
-- Target gone by resolution (burned, moved, not ready, no longer younger): successful, no effect, cost paid.
+- Target gone by resolution (burned, moved, not ready, no longer younger): successful, no effect, not paid (ANK 20210124: "If the action fizzles because of 1/ or 2/, the action is not paid", 1/ the target, every target, become illegal, 2/ something preventing the action; owner, 2026-11-11, correcting "cost paid"; Batch 117).
 - Darius: "non-weapon" excludes melee weapons. Camera Phone and Laptop Computer (electronic) may join the pool.
 - Aniel: "a card requiring a Discipline" = any library card printing a discipline requirement.
 
@@ -450,7 +450,7 @@ by the owner. Apply them to every new card; only a ruling overrides them.
 
 ## Batch 26 — actions, wave 1
 
-**26.1** "Enter combat with a minion" from an action card: target another Methuselah's ready minion (17.3), re-checked at resolution; Fleetness [CEL]'s "locked minion" unlocked by then fizzles the action (ANK 20210124). The combat is the resolution; the action succeeds after it.
+**26.1** "Enter combat with a minion" from an action card: target another Methuselah's ready minion (17.3), re-checked at resolution; Fleetness [CEL]'s "locked minion" unlocked by then fizzles the action, not paid (ANK 20210124; owner, 2026-11-11; 17.4). The combat is the resolution; the action succeeds after it.
 
 **26.2** Show of Force's "can gain +N strength" is a choice offered before range in round 1 of the block's combat, not automatic.
 
@@ -496,7 +496,7 @@ by the owner. Apply them to every new card; only a ruling overrides them.
 
 **28.6** Wasserschloss Anif's "a Tremere you control" is not limited to ready: a Tremere in torpor can move its blood.
 
-**28.7** Out of torpor before resolution: a leave-torpor action fizzles paid (ANK 20220218, Warsaw Station); a rescue whose vampire left torpor also fizzles paid (split as normal; a vampire gone from play pays nothing, the rescuer pays what it can); a diablerie fizzles with no blood hunt.
+**28.7** Out of torpor before resolution: a leave-torpor action fizzles (ANK 20220218, Warsaw Station), not paid: what the action aims at is gone, the cost is not why it fizzles (ANK 20210124; owner, 2026-11-11, correcting "fizzles paid", which followed the rulings database's "cost, if any, is paid" paraphrase); a rescue whose vampire left torpor or left play also fizzles, nobody paying; a diablerie fizzles with no blood hunt.
 
 **28.8** Week of Nightmares: a Ravnos that must hunt must take the special hunt; with no target it is frozen (takes no action; other minions act). At the end a Ravnos pays its nightmare blood if it can, burned only if it cannot. "Only one … per game" counts a play canceled as played.
 
@@ -752,7 +752,7 @@ by the owner. Apply them to every new card; only a ruling overrides them.
 
 **42.5** Ragnar Nordstrom: "cards requiring Protean" are cards played using Protean (38.4); the discount applies wherever he pays the card's blood, combat cards included.
 
-**42.6** Daria's +1 at resolution is paid first, before the action's own cost: unpayable by then (blood spent during the action), the action fizzles (3.6); paid, then the action card's own cost unpayable, it fizzles with the +1 paid (a fizzled action's cost is paid, ANK 20220218).
+**42.6** Daria's +1 at resolution is paid first, before the action's own cost: unpayable by then (blood spent during the action), the action fizzles (3.6); paid, then the action card's own cost unpayable, it fizzles with the +1 paid and the card's cost as far as her blood goes (3.6); her action's target gone, neither is paid (17.4).
 
 **42.7** Marchesa Liliana: her additional +1 bleed is not the rulebook's limited bleed bonus (a "(limited)" card still adds to it). The seven cards are her Methuselah's picks, by name (copies alike), one at a time as she uses the ability. "Cards in your ash heap" are all its cards, burned vampires included (owner correction) — for Shroud of Decay's seven too.
 
@@ -762,7 +762,7 @@ by the owner. Apply them to every new card; only a ruling overrides them.
 
 ## Batch 43 — found by training (P4)
 
-**43.1** A political action whose referendum terms have no legal choice when they are chosen (after the action succeeds, 3.5) — Parity Shift's Methuselah with more pool than the caller, richer at play but no longer (Tension in the Ranks burning their pool as their ally burns during the action): the action fizzles (3.6) — successful, no referendum held, no effect; a rider keyed to the referendum failing or being canceled (Cedrick Calhoun) does not apply. The play itself is masked when the terms cannot be met (LSJ 20100129). (Owner confirmed, 2026-09-28.)
+**43.1** A political action whose referendum terms have no legal choice when they are chosen (after the action succeeds, 3.5) — Parity Shift's Methuselah with more pool than the caller, richer at play but no longer (Tension in the Ranks burning their pool as their ally burns during the action): the action fizzles (3.6) — successful, no referendum held, no effect, not paid (117.6); a rider keyed to the referendum failing or being canceled (Cedrick Calhoun) does not apply. The play itself is masked when the terms cannot be met (LSJ 20100129). (Owner confirmed, 2026-09-28.)
 
 ## Batch 44 — legacy cards for tournament decks (slice 16a)
 
@@ -844,7 +844,7 @@ Owner ruled 46.1–46.4 from play (2026-09-30).
 
 **48.7** An ability whose only effect is to unlock its own minion is not offered while that minion is unlocked (owner, 2026-10-04, from play: Rutor's Hand offered to unlock an unlocked vampire — "legal, but really useless, no card cycled or anything"). An exception to 17.4's legal no-op plays: locking the card or spending a once-each-turn use buys nothing. Rutor's Hand, Valerie Diaz, Sword of the Archangel; the vampires' unlock abilities required it already.
 
-**48.8** Rescue's cost: who pays it (the acting vampire, the rescued one, or a split) is chosen as the action is announced; the blood is paid as it resolves (3.6) (owner, 2026-10-04, from play: "it should ask when the action is declared (who pays)"). The cost is read again at resolution (live conditions). The split stands: a share its payer can no longer meet at resolution fizzles the action, the other paying nothing in its place (owner, 2026-10-20; read first as falling to the other); a vampire gone from play pays nothing (28.7). (Test rescue_cost_split_is_chosen_as_announced_and_paid_at_resolution.)
+**48.8** Rescue's cost: who pays it (the acting vampire, the rescued one, or a split) is chosen as the action is announced; the blood is paid as it resolves (3.6) (owner, 2026-10-04, from play: "it should ask when the action is declared (who pays)"). The cost is read again at resolution (live conditions). The split stands: a share its payer can no longer meet at resolution fizzles the action, the other paying nothing in its place (owner, 2026-10-20; read first as falling to the other), each paying its own share as far as it goes (3.6, 117.5); the rescued vampire gone from play or out of torpor, nobody pays (28.7). (Test rescue_cost_split_is_chosen_as_announced_and_paid_at_resolution.)
 
 ## Batch 49 — Reign of Stanislava (25th Anniversary) and Sabbat paths (scoping, 2026-10-05)
 
@@ -1062,7 +1062,7 @@ Readings no ruling settles, implemented with slice 16k; questions for the owner.
 
 Readings no ruling settles, implemented with slice 16l; questions for the owner.
 
-**59.1** Giovanni del Georgio: the card is named as the action is announced (a card two copies of which are in his prey's ash heap; the action is not offered without such a pair); both copies are removed at resolution as its cost — fewer left by then, the action fizzles; +2 hunt is 3 blood; once each turn. Confirmed (owner, 2026-10-09).
+**59.1** Giovanni del Georgio: the card is named as the action is announced (a card two copies of which are in his prey's ash heap; the action is not offered without such a pair); both copies are removed at resolution as its cost — fewer left by then, the action fizzles (read as the effect prevented, nothing removed: 117.3); +2 hunt is 3 blood; once each turn. Confirmed (owner, 2026-10-09).
 
 **59.2** Quick Meld [PRO]: the additional maneuver is usable later in the same determine-range step (after an opposing maneuver), at either range, once this round, for 1 blood paid as it is used. Confirmed (owner, 2026-10-09).
 
@@ -1943,7 +1943,7 @@ Eighty-one cards (45 library, 36 crypt: 31 defined, 5 text-only), graded per the
 
 **84.10** Victor Pelletier: as he enters play, before any contest (LSJ 20080526, LSJ 20100902), his controller may pay 1, 2 or 3 pool (down to 0: a cost) for primogen, Prince of Paris or Ventrue Justicar; a contest he would join, he yields instead: the title lost, whether he or the rival came second. Amber. Its mask of a title his Methuselah already holds is superseded by 3.1 (owner, 2026-11-11: two of one Methuselah's vampires claiming the same unique title contest it; the rulebook's self-contest bar is for cards only): bought, he yields it. (Test victor_pelletier_buys_a_title_and_yields_a_contest.)
 
-**84.11** Filchware's Pawn Shop: any minion equips with a non-location equipment from any Methuselah's ash heap as an undirected +1 stealth equip action (78.28), the card named with the announcement (32.12), gone by resolution: no effect; 1 more pool from its controller's ash heap, 1 less pool or blood from another's; a cost it cannot pay: no effect, the card left (38.5: found by the diff); another Methuselah's card stays theirs, burned to their ash heap (found by the fuzz's card count); not a card playable once a game (LSJ 20040518); the trifle's action even contested (RBK contested-cards). Green. (Tests filchwares_pawn_shop_equips_from_an_ash_heap, filchwares_pawn_shop_fizzles_on_an_unpayable_cost.)
+**84.11** Filchware's Pawn Shop: any minion equips with a non-location equipment from any Methuselah's ash heap as an undirected +1 stealth equip action (78.28), the card named with the announcement (32.12), gone by resolution: no effect; 1 more pool from its controller's ash heap, 1 less pool or blood from another's; an equipment it cannot pay for with the reductions it may take is not named (38.5; it was, a no-effect then, an oust under 117.1); a cost no longer payable as it resolves: the action fizzles, the card left, paid as far as it goes (117.1); another Methuselah's card stays theirs, burned to their ash heap (found by the fuzz's card count); not a card playable once a game (LSJ 20040518); the trifle's action even contested (RBK contested-cards). Green. (Tests filchwares_pawn_shop_equips_from_an_ash_heap, filchwares_pawn_shop_fizzles_on_an_unpayable_cost.)
 
 **84.12** Baldesar Rossellini: once in each Methuselah's turn (ANK 20180719-4), while ready, 1 blood or pool off a location or equipment his controller plays, announced with it, spent as it is paid (60.7) — a card another card plays included (Contraband's named equipment, a search: 41.13, found by the diff). Green. (Tests baldesar_takes_one_off_an_equipment_once_each_turn, baldesar_reduces_contrabands_equipment.)
 
@@ -3310,3 +3310,17 @@ Each contradiction read against the KRCG rulings, the advanced rules and the rul
 **115.6** The Fourth Cycle's "burn all Gehenna events and conviction cards": every conviction card in play (on an imbued), any Methuselah's, to its owner's ash heap, with the Gehenna events, before the torpor; none in a hand. Green (the card's text). (Test the_fourth_cycle_burns_the_conviction_cards.)
 
 **115.7** Blood Trade's "Burn all boons. No more boons can be put in play": a boon is a card whose type line says "Boon." (Life Boon, Major Boon, Consanguineous Boon: the generated `Label::Boon`); as Blood Trade enters play every Methuselah's boons in play are burned (green, the text); while it is in play a boon whose play puts it in play (Life Boon, Major Boon) is not played at all, as a unique that cannot enter play is not (7.1), Consanguineous Boon still played (LSJ 20040531-2); so a Life Boon never defers an oust. Red, answered by the owner (2026-11-11: "(a) no": not played); the second reader had read them played, the card to the ash heap, the pool given. (Tests blood_trade_burns_the_boons_in_play, blood_trade_bars_the_boons_entering_play.)
+
+## Batch 117 — What a fizzle pays (the engine board's "A fizzle pays no cost unless the cost is why it fizzled" line; owner, 2026-11-11; what it left open asked of the owner through Z-main and ruled, 2026-11-12: "1. b 2. a 3. a 4. a 5. a 6. (.9 a and 43.1 a") (Claude, 2026-11-12)
+
+**117.1** The ruling (ANK 20210124, https://usenet.krcg.org/t/vekn-79001/#m2): a fizzle is a successful action whose effects cannot be applied because "1/ the target (or ALL the targets) has become illegal during the course of the action", "2/ things happened during the course of the action that prevent the action from happening" (a Bomb gone from its bearer) or "3/ the cost of the action cannot be paid anymore"; "If the action fizzles because of 1/ or 2/, the action is not paid. If the action fizzles because of 3/, the acting minion must pay as much as possible, and the action fizzles." Its one example of 3/: a vampire left with 1 blood as Dominate Kine (2 blood) resolves burns the 1. The rulings database's "cost, if any, is paid" on its fizzle groups (Action targeting locked minion, Action only usable by vampire in torpor, Action targeting vampire in torpor, Action targeting unlocked minion; Harass, Sleep of Reason) paraphrases it wrongly (owner, 2026-11-11). Corrected by it: 3.6, 17.4, 26.1, 28.7, 42.6, 48.8. The thread says nothing of pool; the owner (2026-11-12): a pool cost its Methuselah can no longer pay is paid as far as it goes too, their pool burned to 0, and they are ousted by the fizzle (read first as no pool burned). The oust is a cost's (38.5, 41.4): the predator's victory point and pool, the turn passing if it was theirs, the action over with its Methuselah (49.6); a Life Boon may still be played. (Tests a_leave_torpor_action_short_of_its_cost_pays_what_blood_is_left, a_recruit_the_methuselah_cannot_pay_at_resolution_fizzles_paying_their_last_pool.)
+
+**117.2** A cost of several parts, one of them short: every part still payable is paid, the blood and the pool as far as they go (owner, 2026-11-12), an ally its life, the last burning it; a conviction named and still there is burned, of an X of convictions those still there. A reduction used once (Nergal's, LSJ 20091021-2) and the counters that would have paid stay unspent. (Test living_wood_staff_short_of_its_convictions_burns_those_left.)
+
+**117.3** Cause 1/ or 2/ is read before anything is paid: an action that lost its target and could not pay either is not paid (owner, 2026-11-12). Read as 2/, the effect prevented, nothing paid (amber): the card or vampire granting the action gone from the acting minion (Talbot's Chainsaw, Codex of the Edenic Groundskeepers, Vast Wealth), a vampire out of the torpor its card is played from, an equipment no longer holdable (a second vehicle), a second copy of a power, a vampire who may no longer become Anarch, the Edge the action burns no longer its Methuselah's (Inside Dirt, Shatter the Gate), the copy to discard gone from the hand (Shattering Crescendo [mel]), the ash heap card or pair named gone (Cold Amber's Hold; Giovanni del Georgio's pair, which 59.1 calls the action's cost: read here as what the hunt needs, so the copy left stays), a Red List hunt whose marked minion is no longer ready. (Tests a_leave_torpor_action_fizzles_once_warsaw_station_raised_its_vampire, a_rescue_fizzles_unpaid_once_warsaw_station_raised_its_vampire, a_rescue_fizzles_unpaid_once_its_vampire_left_play, fleetness_superior_enters_combat_with_a_locked_minion_or_fizzles, mind_numb_and_make_the_misere_fizzle_on_a_target_no_longer_eligible.)
+
+**117.4** The surcharges on an action are its cost (42.1): Daria's and Marcellus's blood, François "Warden" Loehr's and Safe Passage's, Blood Cult Awareness Network's, Lock's, Transcendent Laibon's, Chanjelin Ward's, Ambrosio Luis Monçada's and Alia's pool. None is paid by an action fizzling for 1/ or 2/; on 3/ they are paid first (42.6), each as far as it goes, then the action's own cost likewise (owner, 2026-11-12). (Tests daria_pays_a_blood_more_for_directed_actions, a_short_surcharge_is_paid_as_far_as_it_goes.)
+
+**117.5** Rescue's announced split (48.8), a share short as it resolves: each payer pays its own share as far as it goes (owner, 2026-11-12). (Test rescue_cost_split_is_chosen_as_announced_and_paid_at_resolution.)
+
+**117.6** Political actions (owner, 2026-11-12). A cost paid before the cause arose stays paid: the card's cost paid ahead of Yawp Court's combat (LSJ 20080201; 5.9). Terms with no legal choice when they are chosen (43.1) are cause 1/: the action is not paid, the terms' legality read as it resolves, before its cost. Only the first term can be read then: a later one left without a legal choice by the earlier choices is found once the cost is paid. (Tests parity_shift_with_nobody_richer_at_resolution_fizzles, a_political_action_without_legal_terms_does_not_pay_marcellus.)

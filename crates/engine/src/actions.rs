@@ -4233,6 +4233,401 @@ impl Engine {
         })
     }
 
+    /// The action's target lost (every target, where it has several) or
+    /// its effect prevented by resolution: ANK 20210124's causes 1/ and
+    /// 2/ of a fizzle, read before anything is paid.
+    fn resolution_void(&self, a: &ActionCtx) -> bool {
+        let st = &self.state;
+        let acting = a.acting;
+        let on_acting = |c: CardId| {
+            let card = &st.cards[c.index()];
+            card.present() && card.host == Some(acting)
+        };
+        let torpid = |t: Option<MinionId>| {
+            let v = &st.minions[t.expect("target").index()];
+            v.present() && v.in_torpor
+        };
+        match a.kind {
+            // Its target ousted (the cost of a cancel, LSJ 20050607); the
+            // card granting it gone from the acting minion (Codex of the
+            // Edenic Groundskeepers; RTR 19960221).
+            ActionKind::Bleed => {
+                st.seats[a.bleed_target.expect("bleed target").index()].ousted
+                    || matches!(a.source, Some(cards::AbilitySource::Card(c)) if !on_acting(c))
+            }
+            ActionKind::RedListHunt => a
+                .torpor_target
+                .is_some_and(|t| !st.minions[t.index()].ready()),
+            ActionKind::BecomeAnarch => !st.may_become_anarch(acting),
+            // Out of torpor already (Warsaw Station; ANK 20220218,
+            // 20181107).
+            ActionKind::LeaveTorpor => !st.minions[acting.index()].in_torpor,
+            ActionKind::Rescue | ActionKind::Diablerie => !torpid(a.torpor_target),
+            ActionKind::BurnImbued => {
+                let v = &st.minions[a.torpor_target.expect("imbued target").index()];
+                !(v.present() && v.incapacitated)
+            }
+            // A retainer put on a target minion (Charnas the Imp).
+            ActionKind::Employ | ActionKind::Recruit => {
+                matches!(a.card.expect("action card").target, Target::Minion(t)
+                    if t != acting && !st.minions[t.index()].present())
+            }
+            // No longer holdable (one vehicle).
+            ActionKind::Equip => !st.can_hold(acting, a.card.expect("equipment card").card, &[]),
+            // A second copy of the name (rulebook "Appendix: Imbued
+            // Rules" 3).
+            ActionKind::Power => {
+                let name = LIBRARY[a.card.expect("power card").card as usize].name;
+                st.holds_a(acting, cards::Holding::Named(name))
+            }
+            // Vast Wealth, once the card left; a card naming or storing
+            // its equipment (Filchware's Pawn Shop, Delivery Truck) reads
+            // it as it resolves.
+            ActionKind::EquipFound => {
+                let stored = self
+                    .granted_effects(a)
+                    .iter()
+                    .any(|e| matches!(e, Effect::EquipStored(_)));
+                let c = &st.cards[a.source.expect("source").card().index()];
+                a.ash_pick.is_none() && !stored && !(c.present() && c.bearer() == Some(acting))
+            }
+            ActionKind::Card => self.card_void(a),
+            // Shatter the Gate: the Edge it burns no longer held.
+            ActionKind::BurnCard => {
+                self.granted_effects(a).contains(&Effect::BurnEdge)
+                    && !st.seats[a.seat.index()].has_edge
+            }
+            // An equipment the acting minion can no longer take (Shaal
+            // Fragment; Saankaláxt's steal).
+            ActionKind::StealCard => {
+                let src = a.source.expect("source").card();
+                let c = &st.cards[src.index()];
+                !c.present()
+                    || c.host.is_some() && !(st.can_hold(acting, c.card, &[]) && !st.pinned(src))
+            }
+            ActionKind::Ability => self.ability_void(a),
+            _ => false,
+        }
+    }
+
+    /// A political action's first term has no legal choice left (Parity
+    /// Shift with nobody richer; rules-qa 43.1), read before its cost
+    /// (owner, rules-qa 117.6).
+    fn political_void(&self) -> bool {
+        let a = self.action.as_ref().expect("action context");
+        let effects = match a.card {
+            Some(play) => {
+                cards::lookup(play.card).expect("definition").modes[play.mode as usize].effects
+            }
+            None => self.granted_effects(a),
+        };
+        effects.iter().any(|e| match e {
+            Effect::CallReferendum(r) => self.terms_unchoosable(a.seat, r),
+            _ => false,
+        })
+    }
+
+    /// An action card's target no longer legal (burned, taken back, no
+    /// longer the predator's; LSJ 20020725, PIB 20121031), what its
+    /// effect needs gone, or its vampire out of the torpor it is played
+    /// from.
+    fn card_void(&self, a: &ActionCtx) -> bool {
+        let seat = a.seat;
+        let play = a.card.expect("action card");
+        let mode = &cards::lookup(play.card).expect("definition").modes[play.mode as usize];
+        if a.from_torpor && !self.state.minions[a.acting.index()].in_torpor {
+            return true;
+        }
+        let qualifies = |spec: cards::TargetSpec, m: MinionId| {
+            self.state.minions[m.index()].present()
+                && spec.filter.iter().all(|&r| {
+                    cards::holds_for_minion(r, &self.state, seat, None, Some(a.acting), m, None)
+                })
+        };
+        // "Up to two": one target still legal is enough (Lord of
+        // Serenity; ANK 20210124).
+        let second = matches!(mode.terms, Some(cards::Terms::OptionalSecondTarget { .. }))
+            .then_some(play.picks[0])
+            .flatten();
+        let target_ok = match (mode.target, play.target) {
+            (Some(spec), Target::Minion(m)) => {
+                qualifies(spec, m) || second.is_some_and(|p| qualifies(spec, p))
+            }
+            (Some(spec), t) => self.target_still_qualifies(seat, spec, a, t),
+            (None, _) => true,
+        }
+            // The Edge it burns no longer its player's: nothing
+            // happens (Inside Dirt; Patsy's rules-qa 58.11).
+            && (!mode.effects.contains(&Effect::BurnEdge)
+                || self.state.seats[seat.index()].has_edge)
+            // The copy to discard, gone (Shattering Crescendo [mel];
+            // rules-qa 59.1).
+            && mode.effects.iter().all(|e| match e {
+                Effect::DiscardNamedFromHand(name) => self.state.seats[seat.index()]
+                    .hand
+                    .iter()
+                    .any(|&c| crate::library::LIBRARY[c as usize].name == *name),
+                _ => true,
+            })
+            // The ash heap card named, gone (Cold Amber's Hold, D1).
+            && (mode.terms != Some(cards::Terms::HoldCardOfTarget)
+                || play
+                    .ash
+                    .is_some_and(|(s, c)| self.state.seats[s.index()].ash.contains(&c)));
+        !target_ok
+    }
+
+    /// A granted action's target no longer qualifies (spec §3.4.1), or the
+    /// equipment granting it left its bearer.
+    fn ability_void(&self, a: &ActionCtx) -> bool {
+        let (seat, acting) = (a.seat, a.acting);
+        let src = a.source.expect("source");
+        let reader = src.player(&self.state);
+        let spec = src.mode(&self.state, a.ability.expect("ability")).target;
+        let qualifies = match (a.target, spec) {
+            // "Enter combat with this vampire": the card still on it
+            // (Haven Uncovered, Priority Contract); the vampire
+            // whose text it is (Calebros).
+            (Target::Minion(t), Some(spec))
+                if spec.filter.contains(&cards::Requirement::TargetIsHost) =>
+            {
+                let host = match src {
+                    cards::AbilitySource::Card(c) => self.state.cards[c.index()]
+                        .present()
+                        .then_some(self.state.cards[c.index()].host)
+                        .flatten()
+                        .or(a.burned_source_host),
+                    cards::AbilitySource::Vampire(v) => Some(v),
+                };
+                // Read against the acting minion ("older", Calebros):
+                // the action is out of `self` here.
+                self.minion_target_qualifies_by(seat, reader, spec, host, Some(acting), t)
+            }
+            (Target::Minion(t), Some(spec)) => {
+                self.minion_target_qualifies_by(seat, reader, spec, Some(acting), None, t)
+            }
+            (t, Some(spec)) => self.target_still_qualifies(seat, spec, a, t),
+            (_, None) => true,
+        };
+        // An action an equipment grants its bearer fizzles once the
+        // equipment left it (Talbot's Chainsaw; RTR 19960221).
+        let bearers =
+            src.mode(&self.state, a.ability.expect("ability")).actor == cards::Actor::Host;
+        let detached = match src {
+            cards::AbilitySource::Card(c) => {
+                let card = &self.state.cards[c.index()];
+                bearers && is_equipment(card.card) && !(card.present() && card.host == Some(acting))
+            }
+            cards::AbilitySource::Vampire(_) => false,
+        };
+        // The pair named in the prey's ash heap, gone.
+        let unpaired = self.granted_effects(a).iter().any(|e| {
+            matches!(e, Effect::PreyAshPairHunt(_))
+                && !a.ash_named.is_some_and(|c| {
+                    let ash = &self.state.seats[self.state.prey(seat).index()].ash;
+                    ash.iter().filter(|&&x| x == c).count() >= 2
+                })
+        });
+        !qualifies || detached || unpaired
+    }
+
+    /// The surcharges of an action, paid as it resolves ahead of its own
+    /// cost (rules-qa 42.6), each as far as it goes: true once one was
+    /// short, the action to fizzle after its own cost is paid likewise
+    /// (rules-qa 117.2, 117.4). `None`: its Methuselah ousted by the pool
+    /// paid, the action over.
+    fn pay_surcharges(&mut self, mut a: ActionCtx) -> Option<(ActionCtx, bool)> {
+        let seat = a.seat;
+        let mut short = false;
+        // Daria's, Marcellus's surcharge: paid first (rules-qa 42.1, 42.6).
+        let toll = self.action_toll(a.acting, a.printed_ctx(&self.state, None));
+        if toll > 0 {
+            // An ally pays life, its last burning it (Greater Curse;
+            // rules-qa 73.5).
+            let acting = a.acting;
+            if self.state.minions[acting.index()].blood < toll {
+                self.pay_short(&mut a, toll);
+                short = true;
+            } else if self.state.minions[acting.index()].is_ally() {
+                if self.paying(|e| e.state.burn_blood_or_life(acting, toll)) {
+                    self.lifeless(acting);
+                }
+            } else {
+                self.paying(|e| e.state.lose_blood(acting, toll));
+                a.blood_cost += toll;
+            }
+        }
+        // François "Warden" Loehr, Safe Passage [OBE]: the acting minion's
+        // blood or life, paid with the cost; unpayable, it fizzles (rules-qa
+        // 3.6).
+        if let Some(t) = a
+            .directed_minion()
+            .filter(|&t| self.state.minions[t.index()].owner != seat)
+        {
+            let borne: i32 = self
+                .state
+                .borne(t)
+                .map(|l| match l.modifier {
+                    cards::Modifier::DirectedAtBearerCostsBloodOrLife(k) => i32::from(k),
+                    _ => 0,
+                })
+                .sum();
+            let n = self.state.printed_mod(
+                t,
+                cards::Stat::TargetedCostsBlood,
+                crate::state::PrintedCtx::default(),
+            ) + borne;
+            if n > 0 {
+                let acting = a.acting;
+                if self.state.minions[acting.index()].blood < n as u8 {
+                    self.pay_short(&mut a, n as u8);
+                    short = true;
+                } else if self.paying(|e| e.state.burn_blood_or_life(acting, n as u8)) {
+                    self.lifeless(acting);
+                }
+            }
+        }
+        // Blood Cult Awareness Network: a blood or life, read as it
+        // resolves; unpayable, it fizzles (rules-qa 3.6).
+        if let Some(bcan) = self
+            .state
+            .vampire_making_taxed()
+            .filter(|_| a.makes_vampires(&self.state))
+        {
+            let acting = a.acting;
+            if self.state.minions[acting.index()].blood < 1 {
+                short = true;
+            } else if self.caused(Cause::Cost(crate::notes::Source::Card(bcan)), |e| {
+                e.state.burn_blood_or_life(acting, 1)
+            }) {
+                self.lifeless(acting);
+            }
+        }
+        // Lock: a monster's blood or life, any one target enough (LSJ
+        // 20080809-2); paid with the cost, unpayable it fizzles (rules-qa
+        // 3.6).
+        if let Some((n, lock)) = a
+            .target_minions()
+            .find_map(|t| self.state.targeted_monster_surcharge(t, seat))
+            .filter(|_| self.state.is_monster(a.acting))
+        {
+            let acting = a.acting;
+            if self.state.minions[acting.index()].blood < n {
+                self.caused(Cause::Cost(crate::notes::Source::Card(lock)), |e| {
+                    e.pay_short(&mut a, n)
+                });
+                short = true;
+            } else if self.caused(Cause::Cost(crate::notes::Source::Card(lock)), |e| {
+                e.state.burn_blood_or_life(acting, n)
+            }) {
+                self.lifeless(acting);
+            }
+        }
+        // Transcendent Laibon: an ally or a younger vampire burns blood or
+        // life; unpayable, the action fizzles.
+        let acting = a.acting;
+        let small = |st: &crate::state::GameState, t: MinionId| {
+            Some(st.small_targeters_cost(t, acting)).filter(|&n| n > 0)
+        };
+        if let Some(n) = a.target_minions().find_map(|t| small(&self.state, t)) {
+            if self.state.minions[acting.index()].blood < n {
+                self.pay_short(&mut a, n);
+                short = true;
+            } else if self.paying(|e| e.state.burn_blood_or_life(acting, n)) {
+                self.lifeless(acting);
+            }
+        }
+        // Chanjelin Ward: blood only, any one target enough (LSJ
+        // 20080809-2); paid with the cost, unpayable it fizzles (rules-qa
+        // 3.6).
+        if let Some(n) = a
+            .target_minions()
+            .map(|t| self.state.targeted_surcharge(t, seat))
+            .find(|&n| n > 0)
+        {
+            let acting = a.acting;
+            if self.state.minions[acting.index()].is_ally() {
+                short = true;
+            } else if self.state.minions[acting.index()].blood < n {
+                self.pay_short(&mut a, n);
+                short = true;
+            } else {
+                self.paying(|e| e.state.lose_blood(acting, n));
+                a.blood_cost += n;
+            }
+        }
+        // Ambrosio Luis Monçada: paid with the cost; his own Methuselah's
+        // action is not directed (LSJ 20030214-2).
+        if a.directed_seat(&self.state).is_some() {
+            if let Some(t) = a.directed_minion() {
+                // Alia, God's Messenger: her card's.
+                let on_card: i32 = self
+                    .state
+                    .borne(t)
+                    .map(|l| match l.modifier {
+                        cards::Modifier::DirectedAtBearerCostsPool(k) => i32::from(k),
+                        _ => 0,
+                    })
+                    .sum();
+                let n = self.state.printed_mod(
+                    t,
+                    cards::Stat::DirectedAtCostsPool,
+                    crate::state::PrintedCtx::default(),
+                ) + on_card;
+                if n > 0 {
+                    let pool = self.state.seats[seat.index()].pool;
+                    short |= pool < n;
+                    self.paying(|e| e.state.seats[seat.index()].lose_pool(n.min(pool)));
+                    self.note_pool_burned(seat);
+                    self.action = Some(a);
+                    if self.state.seats[seat.index()].pool <= 0 && self.acting_pool_out(seat) {
+                        return None;
+                    }
+                    a = self.action.take().expect("action");
+                }
+            }
+        }
+        Some((a, short))
+    }
+
+    /// The acting minion pays `blood` of its action's cost as far as its
+    /// blood goes (an ally its life, the last burning it).
+    fn pay_short(&mut self, a: &mut ActionCtx, blood: u8) {
+        let acting = a.acting;
+        let due = blood.min(self.state.minions[acting.index()].blood);
+        if self.state.minions[acting.index()].is_ally() {
+            if self.paying(|e| e.state.burn_blood_or_life(acting, due)) {
+                self.lifeless(acting);
+            }
+        } else {
+            self.paying(|e| e.state.lose_blood(acting, due));
+            a.blood_cost += due;
+        }
+    }
+
+    /// The action fizzles on a cost that can no longer be paid, each part
+    /// paid as far as it goes (ANK 20210124): the acting minion's blood,
+    /// its Methuselah's pool, the last ousting them (owner, rules-qa
+    /// 117.1, 117.2).
+    fn fizzle_short(&mut self, mut a: ActionCtx, blood: u8, pool: i32) {
+        self.pay_short(&mut a, blood);
+        let seat = a.seat;
+        self.mark_resolved(a.acting, a.kind);
+        let pool = pool.min(self.state.seats[seat.index()].pool);
+        if pool > 0 {
+            self.paying(|e| e.state.seats[seat.index()].lose_pool(pool));
+            if self.state.seats[seat.index()].pool == 0 {
+                a.outcome = Some(Outcome::Fizzled);
+                self.action = Some(a);
+                if self.acting_pool_out(seat) {
+                    return;
+                }
+                a = self.action.take().expect("action");
+            }
+        }
+        self.fizzle(a)
+    }
+
     /// The action fizzles at resolution: on to after resolution.
     fn fizzle(&mut self, mut a: ActionCtx) {
         a.outcome = Some(Outcome::Fizzled);
@@ -6280,182 +6675,68 @@ impl Engine {
             return self.fizzle(a);
         }
 
-        // Daria's, Marcellus's surcharge: paid first; unpayable by then, the
-        // action fizzles (rules-qa 3.6, 42.1, 42.6).
-        let toll = self.action_toll(a.acting, a.printed_ctx(&self.state, None));
-        if toll > 0 {
-            if self.state.minions[a.acting.index()].blood < toll {
-                // It reached resolution: NRA holds (rules-qa 1.4).
+        // Its target lost or its effect prevented, the action is not paid
+        // (ANK 20210124; rules-qa 117.3); these two go on to what their
+        // cards still do.
+        let void = match a.kind {
+            // Its terms are read with the action in place.
+            ActionKind::Political => {
+                self.action = Some(a);
+                let void = self.political_void();
+                a = self.action.take().expect("action context");
+                void
+            }
+            _ => self.resolution_void(&a),
+        };
+        let mut short = false;
+        if void {
+            if !matches!(a.kind, ActionKind::Card | ActionKind::Ability) {
                 self.mark_resolved(a.acting, a.kind);
                 return self.fizzle(a);
             }
-            // An ally pays life, its last burning it (Greater Curse;
-            // rules-qa 73.5).
-            let acting = a.acting;
-            if self.state.minions[acting.index()].is_ally() {
-                if self.paying(|e| e.state.burn_blood_or_life(acting, toll)) {
-                    self.lifeless(acting);
-                }
-            } else {
-                self.paying(|e| e.state.lose_blood(acting, toll));
-                a.blood_cost += toll;
-            }
+        } else {
+            (a, short) = match self.pay_surcharges(a) {
+                Some(paid) => paid,
+                None => return,
+            };
         }
-        // François "Warden" Loehr, Safe Passage [OBE]: the acting minion's
-        // blood or life, paid with the cost; unpayable, it fizzles (rules-qa
-        // 3.6).
-        if let Some(t) = a
-            .directed_minion()
-            .filter(|&t| self.state.minions[t.index()].owner != seat)
+        // A surcharge was short: an action with no cost of its own
+        // fizzles here (a found equipment's is not known yet); the others
+        // read `short` as they pay theirs.
+        if short
+            && match a.kind {
+                ActionKind::Bleed => a.source.is_none() && a.card.is_none(),
+                ActionKind::Hunt
+                | ActionKind::BurnImbued
+                | ActionKind::Diablerie
+                | ActionKind::Power
+                | ActionKind::EquipFound
+                | ActionKind::EquipFrom
+                | ActionKind::StealCard => true,
+                ActionKind::RedListHunt
+                | ActionKind::BecomeAnarch
+                | ActionKind::LeaveTorpor
+                | ActionKind::Rescue
+                | ActionKind::Employ
+                | ActionKind::Recruit
+                | ActionKind::Equip
+                | ActionKind::Card
+                | ActionKind::BurnCard
+                | ActionKind::Ability
+                | ActionKind::Political => false,
+            }
         {
-            let borne: i32 = self
-                .state
-                .borne(t)
-                .map(|l| match l.modifier {
-                    cards::Modifier::DirectedAtBearerCostsBloodOrLife(k) => i32::from(k),
-                    _ => 0,
-                })
-                .sum();
-            let n = self.state.printed_mod(
-                t,
-                cards::Stat::TargetedCostsBlood,
-                crate::state::PrintedCtx::default(),
-            ) + borne;
-            if n > 0 {
-                let acting = a.acting;
-                if self.state.minions[acting.index()].blood < n as u8 {
-                    self.mark_resolved(acting, a.kind);
-                    return self.fizzle(a);
-                }
-                if self.paying(|e| e.state.burn_blood_or_life(acting, n as u8)) {
-                    self.lifeless(acting);
-                }
-            }
-        }
-        // Blood Cult Awareness Network: a blood or life, read as it
-        // resolves; unpayable, it fizzles (rules-qa 3.6).
-        if let Some(bcan) = self
-            .state
-            .vampire_making_taxed()
-            .filter(|_| a.makes_vampires(&self.state))
-        {
-            let acting = a.acting;
-            if self.state.minions[acting.index()].blood < 1 {
-                self.mark_resolved(acting, a.kind);
-                return self.fizzle(a);
-            }
-            if self.caused(Cause::Cost(crate::notes::Source::Card(bcan)), |e| {
-                e.state.burn_blood_or_life(acting, 1)
-            }) {
-                self.lifeless(acting);
-            }
-        }
-        // Lock: a monster's blood or life, any one target enough (LSJ
-        // 20080809-2); paid with the cost, unpayable it fizzles (rules-qa
-        // 3.6).
-        if let Some((n, lock)) = a
-            .target_minions()
-            .find_map(|t| self.state.targeted_monster_surcharge(t, seat))
-            .filter(|_| self.state.is_monster(a.acting))
-        {
-            let acting = a.acting;
-            if self.state.minions[acting.index()].blood < n {
-                self.mark_resolved(acting, a.kind);
-                return self.fizzle(a);
-            }
-            if self.caused(Cause::Cost(crate::notes::Source::Card(lock)), |e| {
-                e.state.burn_blood_or_life(acting, n)
-            }) {
-                self.lifeless(acting);
-            }
-        }
-        // Transcendent Laibon: an ally or a younger vampire burns blood or
-        // life; unpayable, the action fizzles.
-        let acting = a.acting;
-        let small = |st: &crate::state::GameState, t: MinionId| {
-            Some(st.small_targeters_cost(t, acting)).filter(|&n| n > 0)
-        };
-        if let Some(n) = a.target_minions().find_map(|t| small(&self.state, t)) {
-            if self.state.minions[acting.index()].blood < n {
-                self.mark_resolved(acting, a.kind);
-                return self.fizzle(a);
-            }
-            if self.paying(|e| e.state.burn_blood_or_life(acting, n)) {
-                self.lifeless(acting);
-            }
-        }
-        // Chanjelin Ward: blood only, any one target enough (LSJ
-        // 20080809-2); paid with the cost, unpayable it fizzles (rules-qa
-        // 3.6).
-        if let Some(n) = a
-            .target_minions()
-            .map(|t| self.state.targeted_surcharge(t, seat))
-            .find(|&n| n > 0)
-        {
-            let acting = a.acting;
-            if self.state.minions[acting.index()].is_ally()
-                || self.state.minions[acting.index()].blood < n
-            {
-                self.mark_resolved(acting, a.kind);
-                return self.fizzle(a);
-            }
-            self.paying(|e| e.state.lose_blood(acting, n));
-            a.blood_cost += n;
-        }
-        // Ambrosio Luis Monçada: paid with the cost; his own Methuselah's
-        // action is not directed (LSJ 20030214-2).
-        if a.directed_seat(&self.state).is_some() {
-            if let Some(t) = a.directed_minion() {
-                // Alia, God's Messenger: her card's.
-                let on_card: i32 = self
-                    .state
-                    .borne(t)
-                    .map(|l| match l.modifier {
-                        cards::Modifier::DirectedAtBearerCostsPool(k) => i32::from(k),
-                        _ => 0,
-                    })
-                    .sum();
-                let n = self.state.printed_mod(
-                    t,
-                    cards::Stat::DirectedAtCostsPool,
-                    crate::state::PrintedCtx::default(),
-                ) + on_card;
-                if n > 0 {
-                    self.paying(|e| e.state.seats[seat.index()].lose_pool(n));
-                    self.note_pool_burned(seat);
-                    self.action = Some(a);
-                    if self.state.seats[seat.index()].pool <= 0 && self.acting_pool_out(seat) {
-                        return;
-                    }
-                    a = self.action.take().expect("action");
-                }
-            }
+            return self.fizzle_short(a, 0, 0);
         }
         match a.kind {
             ActionKind::Bleed => {
                 let prey = a.bleed_target.expect("bleed target");
-                self.state.minions[a.acting.index()].mark_bled();
-                // The bleed's target was ousted before it resolved (the
-                // cost of a cancel, LSJ 20050607): it resolves without
-                // effect — no pool, no Edge.
-                if self.state.seats[prey.index()].ousted {
-                    return self.fizzle(a);
-                }
-                // A bleed granted by a card on the acting minion (Codex of
-                // the Edenic Groundskeepers) fizzles once it left (RTR
-                // 19960221) or unpayable (rules-qa 3.6).
+                // A granted bleed's cost (Codex of the Edenic
+                // Groundskeepers).
                 if let Some(src) = a.source {
                     let (_, cost) = self.granted_cost(&a);
-                    // A vampire's own printed bleed has no card to lose.
-                    let attached = match src {
-                        cards::AbilitySource::Card(c) => {
-                            let card = &self.state.cards[c.index()];
-                            card.present() && card.host == Some(a.acting)
-                        }
-                        cards::AbilitySource::Vampire(_) => true,
-                    };
-                    if !attached || self.state.minions[a.acting.index()].blood < cost {
-                        return self.fizzle(a);
+                    if short || self.state.minions[a.acting.index()].blood < cost {
+                        return self.fizzle_short(a, cost, 0);
                     }
                     self.paying(|e| e.state.lose_blood(a.acting, cost));
                     a.blood_cost += cost;
@@ -6473,14 +6754,15 @@ impl Engine {
                 // §1.7.1, rules-qa 3.6).
                 if let Some(play) = a.card {
                     let (blood, once, used) = self.card_blood_due(&a, play);
-                    if self.state.minions[a.acting.index()].blood < blood {
-                        return self.fizzle(a);
+                    if short || self.state.minions[a.acting.index()].blood < blood {
+                        return self.fizzle_short(a, blood, 0);
                     }
                     self.spend_once_cost_off(&play, once);
                     self.spend_counters(&used);
                     self.paying(|e| e.state.lose_blood(a.acting, blood));
                     a.blood_cost += blood;
                 }
+                self.state.minions[a.acting.index()].mark_bled();
                 // About to bleed for 1 pool or more: the cards remembering
                 // this prey burn for their bonus (Spying Mission [OBF]).
                 if a.bleed_amount(&self.state) > 0 {
@@ -6697,15 +6979,13 @@ impl Engine {
             // still ready.
             ActionKind::RedListHunt => {
                 let acting = a.acting;
-                if self.state.minions[acting.index()].blood < 1 {
-                    return self.fizzle(a);
+                if short || self.state.minions[acting.index()].blood < 1 {
+                    return self.fizzle_short(a, 1, 0);
                 }
                 self.paying(|e| e.state.lose_blood(acting, 1));
                 a.blood_cost += 1;
                 if let Some(t) = a.torpor_target {
-                    if self.state.minions[t.index()].ready()
-                        && self.state.minions[acting.index()].ready()
-                    {
+                    if self.state.minions[acting.index()].ready() {
                         self.action = Some(a);
                         self.start_combat_at_resolution(acting, t);
                         return;
@@ -6713,50 +6993,29 @@ impl Engine {
                 }
             }
             ActionKind::BecomeAnarch => {
-                // Unpayable by now, or no longer eligible: it fizzles
-                // (rules-qa 3.6).
                 let acting = a.acting;
                 let cost = self.state.become_anarch_cost(acting);
-                if self.state.minions[acting.index()].blood < cost
-                    || !self.state.may_become_anarch(acting)
-                {
-                    a.outcome = Some(Outcome::Fizzled);
-                } else {
-                    self.paying(|e| e.state.lose_blood(acting, cost));
-                    a.blood_cost += cost;
-                    self.make_anarch(acting);
+                if short || self.state.minions[acting.index()].blood < cost {
+                    return self.fizzle_short(a, cost, 0);
                 }
+                self.paying(|e| e.state.lose_blood(acting, cost));
+                a.blood_cost += cost;
+                self.make_anarch(acting);
             }
             ActionKind::LeaveTorpor => {
-                // Unpayable by now: it fizzles (rules-qa 3.6).
                 let acting = a.acting;
                 // Torpid Blood: +1.
                 let cost = 2 + self.state.torpid_surcharge(None, acting);
-                let m = &self.state.minions[acting.index()];
-                if !m.in_torpor {
-                    // Out of torpor already (Warsaw Station): it fizzles,
-                    // its cost paid (ANK 20220218).
-                    self.paying(|e| e.state.burn_blood(acting, cost));
-                    a.outcome = Some(Outcome::Fizzled);
-                } else if m.blood >= cost {
-                    self.paying(|e| e.state.lose_blood(acting, cost));
-                    a.blood_cost += cost;
-                    self.leave_torpor(acting);
-                } else {
-                    a.outcome = Some(Outcome::Fizzled);
+                if short || self.state.minions[acting.index()].blood < cost {
+                    return self.fizzle_short(a, cost, 0);
                 }
+                self.paying(|e| e.state.lose_blood(acting, cost));
+                a.blood_cost += cost;
+                self.leave_torpor(acting);
             }
             ActionKind::Rescue => {
-                // Unpayable by now: it fizzles (rules-qa 3.6).
                 let acting = self.state.minions[a.acting.index()].blood;
                 let target = a.torpor_target.expect("target");
-                // The target gone: paid as far as it goes, it fizzles (ANK
-                // 20220218; rules-qa 28.7); out of torpor, `rescue_apply`.
-                if !self.state.minions[target.index()].present() {
-                    let rescuer = a.acting;
-                    self.paying(|e| e.state.burn_blood(rescuer, 2));
-                    return self.fizzle(a);
-                }
                 let t = self.state.minions[target.index()].blood;
                 // Blade Clot: an older rescuer burns them all (PIB 20150122),
                 // as the clots' player reads capacities.
@@ -6769,19 +7028,17 @@ impl Engine {
                 a.rescue_cost = self.rescue_cost_now(a.acting, target);
                 a.rescue_gain = self.state.rescue_discount(a.acting, target).1;
                 // The split chosen as it was announced stands: a share its
-                // payer can no longer meet fizzles it (owner, rules-qa 48.8).
+                // payer can no longer meet fizzles it, each paying its own
+                // as far as it goes (owner, rules-qa 48.8, 117.5).
                 let declared = a.rescue_split.unwrap_or(a.rescue_cost);
                 let from_acting = declared.min(a.rescue_cost);
-                let payable = acting >= from_acting && t >= a.rescue_cost - from_acting;
-                if !payable {
-                    a.outcome = Some(Outcome::Fizzled);
+                let from_target = a.rescue_cost - from_acting;
+                if short || acting < from_acting || t < from_target {
+                    self.paying(|e| e.state.lose_blood(target, from_target.min(t)));
+                    return self.fizzle_short(a, from_acting, 0);
                 }
                 self.action = Some(a);
-                if payable {
-                    self.rescue_apply(from_acting);
-                } else {
-                    self.end_action();
-                }
+                self.rescue_apply(from_acting);
                 return;
             }
             // Its equipment taken, the imbued burned; then each ready imbued
@@ -6790,10 +7047,6 @@ impl Engine {
             ActionKind::BurnImbued => {
                 let victim = a.torpor_target.expect("imbued target");
                 let acting = a.acting;
-                let v = &self.state.minions[victim.index()];
-                if !(v.present() && v.incapacitated) {
-                    return self.fizzle(a);
-                }
                 self.interrupts
                     .push(crate::draws::Interrupt::DiablerieEquipment {
                         seat,
@@ -6816,13 +7069,6 @@ impl Engine {
             ActionKind::Diablerie => {
                 let victim = a.torpor_target.expect("diablerie target");
                 let diablerist = a.acting;
-                // Out of torpor before it resolves (Warsaw Station): the
-                // action is successful with no effect — no diablerie (ANK
-                // 20220218, 20181107).
-                let v = &self.state.minions[victim.index()];
-                if !(v.present() && v.in_torpor) {
-                    return self.fizzle(a);
-                }
                 // A diablerie card's own text, once it is done.
                 let play = a.card;
                 self.action = Some(a);
@@ -6840,13 +7086,6 @@ impl Engine {
                 // (rules-qa 3.6).
                 let play = a.card.expect("action card");
                 let acting = a.acting;
-                // A retainer put on a target minion (Charnas the Imp): gone,
-                // the action fizzles.
-                if let Target::Minion(t) = play.target {
-                    if t != acting && !self.state.minions[t.index()].present() {
-                        return self.fizzle(a);
-                    }
-                }
                 let mut pool =
                     cards::pool_cost(&self.state, seat, play.card, Target::Minion(acting));
                 let mut blood = cards::blood_cost(&self.state, play.card, play.x)
@@ -6866,10 +7105,11 @@ impl Engine {
                 }
                 let (pool, blood, used) = self.reduced_cost_with(&a, pool, blood);
                 let blood = self.blood_if_any(acting, play.card, play.mode, blood);
-                if self.state.seats[seat.index()].pool < pool
+                if short
+                    || self.state.seats[seat.index()].pool < pool
                     || self.state.minions[acting.index()].blood < blood
                 {
-                    return self.fizzle(a);
+                    return self.fizzle_short(a, blood, pool);
                 }
                 // Paid: Nergal's reduction spent (unpayable, it is not, LSJ
                 // 20091021-2).
@@ -6959,8 +7199,8 @@ impl Engine {
                 }
             }
             ActionKind::Equip => {
-                // Paid now (spec §1.7.1); unpayable, or no longer holdable
-                // (one vehicle), it fizzles (rules-qa 3.6).
+                // Paid now (spec §1.7.1); unpayable, it fizzles (rules-qa
+                // 3.6).
                 let play = a.card.expect("equipment card");
                 let acting = a.acting;
                 let mut pool =
@@ -6986,47 +7226,59 @@ impl Engine {
                 // "[X CONVICTION]": X as announced, burned now (Living Wood
                 // Staff; rules-qa 102.1).
                 let convictions = cards::conviction_cost(play.card, play.mode, play.x);
-                if self.state.seats[seat.index()].pool < pool
+                let held = self
+                    .state
+                    .convictions(acting)
+                    .len()
+                    .min(convictions as usize);
+                if short
+                    || self.state.seats[seat.index()].pool < pool
                     || self.state.minions[acting.index()].blood < blood
-                    || self.state.convictions(acting).len() < convictions as usize
-                    || !self.state.can_hold(acting, play.card, &[])
+                    || held < convictions as usize
                 {
-                    a.outcome = Some(Outcome::Fizzled);
-                } else {
-                    self.spend_once_cost_off(&play, once);
-                    if reduced {
-                        self.spend_reducer(&play);
-                    }
-                    self.spend_counters(&used);
-                    self.paying(|e| {
-                        if let Some(r) = paid_by {
-                            e.state.lose_blood(r, 1);
-                        }
-                        e.state.seats[seat.index()].lose_pool(pool);
-                        e.state.lose_blood(acting, blood);
-                    });
-                    a.blood_cost += blood;
-                    if convictions > 0 {
+                    if held > 0 {
                         self.interrupts
                             .push(crate::draws::Interrupt::BurnConvictions {
                                 seat,
                                 minion: acting,
-                                n: convictions,
+                                n: held as u8,
                             });
                     }
-                    if play.from.is_none() {
-                        self.equip_from_hand(seat, acting, play);
-                    } else {
-                        self.put_equipment(seat, acting, play);
+                    return self.fizzle_short(a, blood, pool);
+                }
+                self.spend_once_cost_off(&play, once);
+                if reduced {
+                    self.spend_reducer(&play);
+                }
+                self.spend_counters(&used);
+                self.paying(|e| {
+                    if let Some(r) = paid_by {
+                        e.state.lose_blood(r, 1);
                     }
-                    a.card_entered_play = true;
-                    if pool > 0 && self.state.seats[seat.index()].pool == 0 {
-                        self.action = Some(a);
-                        if self.acting_pool_out(seat) {
-                            return;
-                        }
-                        a = self.action.take().expect("action");
+                    e.state.seats[seat.index()].lose_pool(pool);
+                    e.state.lose_blood(acting, blood);
+                });
+                a.blood_cost += blood;
+                if convictions > 0 {
+                    self.interrupts
+                        .push(crate::draws::Interrupt::BurnConvictions {
+                            seat,
+                            minion: acting,
+                            n: convictions,
+                        });
+                }
+                if play.from.is_none() {
+                    self.equip_from_hand(seat, acting, play);
+                } else {
+                    self.put_equipment(seat, acting, play);
+                }
+                a.card_entered_play = true;
+                if pool > 0 && self.state.seats[seat.index()].pool == 0 {
+                    self.action = Some(a);
+                    if self.acting_pool_out(seat) {
+                        return;
                     }
+                    a = self.action.take().expect("action");
                 }
             }
             // The power on the imbued, who unlocks; a second copy of the
@@ -7034,14 +7286,9 @@ impl Engine {
             ActionKind::Power => {
                 let play = a.card.expect("power card");
                 let acting = a.acting;
-                let name = LIBRARY[play.card as usize].name;
-                if self.state.holds_a(acting, cards::Holding::Named(name)) {
-                    a.outcome = Some(Outcome::Fizzled);
-                } else {
-                    self.put_equipment(seat, acting, play);
-                    a.card_entered_play = true;
-                    self.effect_unlock(acting);
-                }
+                self.put_equipment(seat, acting, play);
+                a.card_entered_play = true;
+                self.effect_unlock(acting);
             }
             // Filchware's Pawn Shop: the equipment named, still in that ash
             // heap and equippable, else no effect.
@@ -7087,16 +7334,10 @@ impl Engine {
                 }
             }
             ActionKind::EquipFound => {
-                // Vast Wealth: fizzles once the card left. The first
-                // equipment from the top is equipped, else burned (TOM
-                // 19950407, rules-qa 9.3), its pool paid even if that ousts
-                // (RTR 19941109).
-                let src = a.source.expect("source").card();
+                // Vast Wealth: the first equipment from the top is equipped,
+                // else burned (TOM 19950407, rules-qa 9.3), its pool paid
+                // even if that ousts (RTR 19941109).
                 let acting = a.acting;
-                let c = &self.state.cards[src.index()];
-                if !(c.present() && c.bearer() == Some(acting)) {
-                    return self.fizzle(a);
-                }
                 let (label, on_any_own) = a
                     .source
                     .zip(a.ability)
@@ -7184,9 +7425,7 @@ impl Engine {
                 let play = a.card.expect("action card");
                 let def = cards::lookup(play.card).expect("definition");
                 let mode = &def.modes[play.mode as usize];
-                if a.from_torpor && !self.state.minions[a.acting.index()].in_torpor {
-                    return self.fizzle(a);
-                }
+                let target_ok = !void;
                 let (x, pool, cost, once, used) = self.action_card_cost(&a, play);
                 // Its conviction, named as announced: still on the acting
                 // imbued (rules-qa 102.1, 48.8's declared payment).
@@ -7198,30 +7437,37 @@ impl Engine {
                         c.present() && c.host == Some(a.acting)
                     })
                 });
-                if self.state.minions[a.acting.index()].blood < cost
-                    || self.state.seats[seat.index()].pool < pool
-                    || unpaid
+                if target_ok
+                    && (short
+                        || self.state.minions[a.acting.index()].blood < cost
+                        || self.state.seats[seat.index()].pool < pool
+                        || unpaid)
                 {
-                    return self.fizzle(a);
-                }
-                if let Some(Some(c)) = conviction {
-                    self.burn_card_in_play(c);
-                }
-                self.spend_once_cost_off(&play, once);
-                self.spend_counters(&used);
-                // Its pool cost too (Biothaumaturgic Experiment).
-                let acting = a.acting;
-                self.paying(|e| {
-                    e.state.lose_blood(acting, cost);
-                    a.blood_cost += cost;
-                    e.state.seats[seat.index()].lose_pool(pool);
-                });
-                if pool > 0 && self.state.seats[seat.index()].pool == 0 {
-                    self.action = Some(a);
-                    if self.acting_pool_out(seat) {
-                        return;
+                    if let (Some(Some(c)), false) = (conviction, unpaid) {
+                        self.burn_card_in_play(c);
                     }
-                    a = self.action.take().expect("action");
+                    return self.fizzle_short(a, cost, pool);
+                }
+                if target_ok {
+                    if let Some(Some(c)) = conviction {
+                        self.burn_card_in_play(c);
+                    }
+                    self.spend_once_cost_off(&play, once);
+                    self.spend_counters(&used);
+                    // Its pool cost too (Biothaumaturgic Experiment).
+                    let acting = a.acting;
+                    self.paying(|e| {
+                        e.state.lose_blood(acting, cost);
+                        a.blood_cost += cost;
+                        e.state.seats[seat.index()].lose_pool(pool);
+                    });
+                    if pool > 0 && self.state.seats[seat.index()].pool == 0 {
+                        self.action = Some(a);
+                        if self.acting_pool_out(seat) {
+                            return;
+                        }
+                        a = self.action.take().expect("action");
+                    }
                 }
                 if let Some(&Effect::SearchEquip(equip)) = mode
                     .effects
@@ -7244,53 +7490,6 @@ impl Engine {
                 }
                 let ctx = PlayCtx { x, ..play };
                 let mut in_play = None;
-                // A target no longer legal (burned, taken back, no longer
-                // the predator's): the action fizzles — successful, no
-                // effect, paid (LSJ 20020725, PIB 20121031).
-                let qualifies = |spec: cards::TargetSpec, m: MinionId| {
-                    self.state.minions[m.index()].present()
-                        && spec.filter.iter().all(|&r| {
-                            cards::holds_for_minion(
-                                r,
-                                &self.state,
-                                seat,
-                                None,
-                                Some(a.acting),
-                                m,
-                                None,
-                            )
-                        })
-                };
-                // "Up to two": one target still legal is enough (Lord of
-                // Serenity; ANK 20210124).
-                let second = matches!(mode.terms, Some(cards::Terms::OptionalSecondTarget { .. }))
-                    .then_some(ctx.picks[0])
-                    .flatten();
-                let target_ok = match (mode.target, ctx.target) {
-                    (Some(spec), Target::Minion(m)) => {
-                        qualifies(spec, m) || second.is_some_and(|p| qualifies(spec, p))
-                    }
-                    (Some(spec), t) => self.target_still_qualifies(seat, spec, &a, t),
-                    (None, _) => true,
-                }
-                    // The Edge it burns no longer its player's: nothing
-                    // happens (Inside Dirt; Patsy's rules-qa 58.11).
-                    && (!mode.effects.contains(&Effect::BurnEdge)
-                        || self.state.seats[seat.index()].has_edge)
-                    // The copy to discard, gone (Shattering Crescendo [mel];
-                    // rules-qa 59.1).
-                    && mode.effects.iter().all(|e| match e {
-                        Effect::DiscardNamedFromHand(name) => self.state.seats[seat.index()]
-                            .hand
-                            .iter()
-                            .any(|&c| crate::library::LIBRARY[c as usize].name == *name),
-                        _ => true,
-                    })
-                    // The ash heap card named, gone (Cold Amber's Hold, D1).
-                    && (mode.terms != Some(cards::Terms::HoldCardOfTarget)
-                        || ctx
-                            .ash
-                            .is_some_and(|(s, c)| self.state.seats[s.index()].ash.contains(&c)));
                 if !target_ok {
                     a.outcome = Some(Outcome::Fizzled);
                 }
@@ -7569,110 +7768,120 @@ impl Engine {
                 // blood), paid now; unpayable, it fizzles (rules-qa 3.6).
                 let (cost, blood) = self.granted_cost(&a);
                 let src = a.source.expect("source").card();
-                // Shatter the Gate: the Edge burned as it resolves, no longer
-                // held by then it fizzles (rules-qa 3.6).
+                // Shatter the Gate: the Edge burned as it resolves.
                 let edge = self.granted_effects(&a).contains(&Effect::BurnEdge);
-                if self.state.seats[seat.index()].pool < cost as i32
+                if short
+                    || self.state.seats[seat.index()].pool < cost as i32
                     || self.state.minions[a.acting.index()].blood < blood
-                    || edge && !self.state.seats[seat.index()].has_edge
                 {
-                    a.outcome = Some(Outcome::Fizzled);
-                } else {
-                    let acting = a.acting;
-                    self.paying(|e| {
-                        e.state.lose_blood(acting, blood);
-                        e.state.seats[seat.index()].lose_pool(cost as i32);
-                    });
-                    if edge {
-                        self.state.seats[seat.index()].has_edge = false;
-                    }
-                    a.blood_cost += blood;
-                    // An ally pays life, its last burning it (Shadowed Eyes
-                    // [AUS]; rules-qa 73.5).
-                    if blood > 0
-                        && self.state.minions[acting.index()].is_ally()
-                        && self.state.minions[acting.index()].blood == 0
-                    {
-                        self.lifeless(acting);
-                    }
-                    let host = self.state.cards[src.index()].host;
-                    let effects = self.granted_effects(&a);
-                    // Pulled Fangs: burned by the second such action,
-                    // whoever takes them (ANK 20170202-2).
-                    let at = effects.iter().find_map(|e| match e {
-                        Effect::BurnSelfAtCounters(n) => Some(*n),
-                        _ => None,
-                    });
-                    if effects.contains(&Effect::ShuffleSourceIntoLibrary) {
-                        self.shuffle_into_library(src);
-                    } else if let Some(n) = at {
-                        let add: u8 = effects
-                            .iter()
-                            .map(|e| match e {
-                                Effect::AddCounter(k) => *k,
-                                _ => 0,
-                            })
-                            .sum();
-                        let c = &mut self.state.cards[src.index()];
-                        c.counters += add;
-                        if c.counters >= n {
-                            self.burn_card_in_play(src);
-                        }
-                    } else {
+                    return self.fizzle_short(a, blood, cost as i32);
+                }
+                let acting = a.acting;
+                self.paying(|e| {
+                    e.state.lose_blood(acting, blood);
+                    e.state.seats[seat.index()].lose_pool(cost as i32);
+                });
+                if edge {
+                    self.state.seats[seat.index()].has_edge = false;
+                }
+                a.blood_cost += blood;
+                // An ally pays life, its last burning it (Shadowed Eyes
+                // [AUS]; rules-qa 73.5).
+                if blood > 0
+                    && self.state.minions[acting.index()].is_ally()
+                    && self.state.minions[acting.index()].blood == 0
+                {
+                    self.lifeless(acting);
+                }
+                let host = self.state.cards[src.index()].host;
+                let effects = self.granted_effects(&a);
+                // Pulled Fangs: burned by the second such action,
+                // whoever takes them (ANK 20170202-2).
+                let at = effects.iter().find_map(|e| match e {
+                    Effect::BurnSelfAtCounters(n) => Some(*n),
+                    _ => None,
+                });
+                if effects.contains(&Effect::ShuffleSourceIntoLibrary) {
+                    self.shuffle_into_library(src);
+                } else if let Some(n) = at {
+                    let add: u8 = effects
+                        .iter()
+                        .map(|e| match e {
+                            Effect::AddCounter(k) => *k,
+                            _ => 0,
+                        })
+                        .sum();
+                    let c = &mut self.state.cards[src.index()];
+                    c.counters += add;
+                    if c.counters >= n {
                         self.burn_card_in_play(src);
                     }
-                    // The Path of Bone: its burner, a vampire, damaged.
-                    for e in effects {
-                        if let Effect::ActingVampireTakesDamage(n) = *e {
-                            if self.state.minions[a.acting.index()].is_vampire() {
-                                self.damage_out_of_combat(a.acting, n, false);
-                            }
+                } else {
+                    self.burn_card_in_play(src);
+                }
+                // The Path of Bone: its burner, a vampire, damaged.
+                for e in effects {
+                    if let Effect::ActingVampireTakesDamage(n) = *e {
+                        if self.state.minions[a.acting.index()].is_vampire() {
+                            self.damage_out_of_combat(a.acting, n, false);
                         }
                     }
-                    for e in effects {
-                        if let (Effect::LockHostSkipNextUnlock(who), Some(h)) = (e, host) {
-                            // Stolen Police Cruiser: "this Anarch is locked
-                            // and does not unlock as normal during their
-                            // next unlock phase".
-                            if self.state.minions[h.index()].present() && who.is(&self.state, h) {
-                                let v = &mut self.state.minions[h.index()];
-                                v.locked = true;
-                                v.skip_unlock = true;
-                            }
+                }
+                for e in effects {
+                    if let (Effect::LockHostSkipNextUnlock(who), Some(h)) = (e, host) {
+                        // Stolen Police Cruiser: "this Anarch is locked
+                        // and does not unlock as normal during their
+                        // next unlock phase".
+                        if self.state.minions[h.index()].present() && who.is(&self.state, h) {
+                            let v = &mut self.state.minions[h.index()];
+                            v.locked = true;
+                            v.skip_unlock = true;
                         }
                     }
-                    if self.state.seats[seat.index()].pool == 0 {
-                        self.action = Some(a);
-                        if self.acting_pool_out(seat) {
-                            return;
-                        }
-                        a = self.action.take().expect("action");
+                }
+                if self.state.seats[seat.index()].pool == 0 {
+                    self.action = Some(a);
+                    if self.acting_pool_out(seat) {
+                        return;
                     }
+                    a = self.action.take().expect("action");
                 }
             }
             // Still in play, the card is the acting Methuselah's.
             ActionKind::StealCard => {
                 let src = a.source.expect("source").card();
-                let c = &self.state.cards[src.index()];
-                if !c.present() {
-                    a.outcome = Some(Outcome::Fizzled);
-                } else if c.host.is_some() {
-                    // An equipment moves to the acting minion, if it can
-                    // hold it (Shaal Fragment; Saankaláxt's steal).
-                    if self.state.can_hold(a.acting, c.card, &[]) && !self.state.pinned(src) {
-                        self.state.set_host(src, a.acting);
-                    } else {
-                        a.outcome = Some(Outcome::Fizzled);
-                    }
+                // An equipment moves to the acting minion (Shaal
+                // Fragment; Saankaláxt's steal).
+                if self.state.cards[src.index()].host.is_some() {
+                    self.state.set_host(src, a.acting);
                 } else {
                     self.give_card_control(src, seat);
                 }
             }
             ActionKind::Ability => {
-                // Unpayable, it fizzles (rules-qa 3.6); paid, a target no
-                // longer qualifying leaves it without effect (spec §3.4.1,
-                // ANK 20210124).
                 let effects = self.granted_effects(&a);
+                if void {
+                    // Tye Cooper: a fizzle is a success, its ash card still
+                    // fetched (owner, 2026-10-17; rules-qa 78.38).
+                    for e in effects {
+                        if let Effect::AshCardToHandOnSuccess(of) = *e {
+                            a.ash_to_hand_on_name = true;
+                            self.interrupts
+                                .push(crate::draws::Interrupt::NameOwnAshCard { seat, of });
+                        }
+                        // Respire's "if this action is successful" gain
+                        // likewise (rules-qa 56.1, 78.38).
+                        if *e == Effect::ActingGainsConviction {
+                            self.interrupts
+                                .push(crate::draws::Interrupt::GainConviction {
+                                    seat,
+                                    minion: a.acting,
+                                    library: false,
+                                });
+                        }
+                    }
+                    return self.fizzle(a);
+                }
                 let counters = match a.source {
                     Some(cards::AbilitySource::Card(c)) => self.state.cards[c.index()].counters,
                     _ => 0,
@@ -7697,11 +7906,15 @@ impl Engine {
                         c.present() && c.host == Some(acting)
                     })
                 });
-                if self.state.minions[acting.index()].blood < blood
+                if short
+                    || self.state.minions[acting.index()].blood < blood
                     || self.state.seats[seat.index()].pool < pool as i32
                     || unpaid
                 {
-                    return self.fizzle(a);
+                    if let (Some(Some(c)), false) = (conviction, unpaid) {
+                        self.burn_card_in_play(c);
+                    }
+                    return self.fizzle_short(a, blood, i32::from(pool));
                 }
                 if let Some(Some(c)) = conviction {
                     self.burn_card_in_play(c);
@@ -7726,68 +7939,6 @@ impl Engine {
                     a = self.action.take().expect("action");
                 }
                 let src = a.source.expect("source");
-                let reader = src.player(&self.state);
-                let spec = src.mode(&self.state, a.ability.expect("ability")).target;
-                let qualifies = match (a.target, spec) {
-                    // "Enter combat with this vampire": the card still on it
-                    // (Haven Uncovered, Priority Contract); the vampire
-                    // whose text it is (Calebros).
-                    (Target::Minion(t), Some(spec))
-                        if spec.filter.contains(&cards::Requirement::TargetIsHost) =>
-                    {
-                        let host = match src {
-                            cards::AbilitySource::Card(c) => self.state.cards[c.index()]
-                                .present()
-                                .then_some(self.state.cards[c.index()].host)
-                                .flatten()
-                                .or(a.burned_source_host),
-                            cards::AbilitySource::Vampire(v) => Some(v),
-                        };
-                        // Read against the acting minion ("older", Calebros):
-                        // the action is out of `self` here.
-                        self.minion_target_qualifies_by(seat, reader, spec, host, Some(acting), t)
-                    }
-                    (Target::Minion(t), Some(spec)) => {
-                        self.minion_target_qualifies_by(seat, reader, spec, Some(acting), None, t)
-                    }
-                    (t, Some(spec)) => self.target_still_qualifies(seat, spec, &a, t),
-                    (_, None) => true,
-                };
-                // An action an equipment grants its bearer fizzles once the
-                // equipment left it (Talbot's Chainsaw; RTR 19960221).
-                let bearers =
-                    src.mode(&self.state, a.ability.expect("ability")).actor == cards::Actor::Host;
-                let detached = match src {
-                    cards::AbilitySource::Card(c) => {
-                        let card = &self.state.cards[c.index()];
-                        bearers
-                            && is_equipment(card.card)
-                            && !(card.present() && card.host == Some(acting))
-                    }
-                    cards::AbilitySource::Vampire(_) => false,
-                };
-                if !qualifies || detached {
-                    // Tye Cooper: a fizzle is a success, its ash card still
-                    // fetched (owner, 2026-10-17; rules-qa 78.38).
-                    for e in effects {
-                        if let Effect::AshCardToHandOnSuccess(of) = *e {
-                            a.ash_to_hand_on_name = true;
-                            self.interrupts
-                                .push(crate::draws::Interrupt::NameOwnAshCard { seat, of });
-                        }
-                        // Respire's "if this action is successful" gain
-                        // likewise (rules-qa 56.1, 78.38).
-                        if *e == Effect::ActingGainsConviction {
-                            self.interrupts
-                                .push(crate::draws::Interrupt::GainConviction {
-                                    seat,
-                                    minion: acting,
-                                    library: false,
-                                });
-                        }
-                    }
-                    return self.fizzle(a);
-                }
                 let (target, exchange) = (a.target, a.exchange);
                 let card = match src {
                     cards::AbilitySource::Card(c) => self.state.cards[c.index()].card,
@@ -8034,10 +8185,7 @@ impl Engine {
                                 let ps = &mut self.state.seats[prey.index()];
                                 let pair = named
                                     .filter(|&c| ps.ash.iter().filter(|&&x| x == c).count() >= 2);
-                                let Some(card) = pair else {
-                                    let a = self.action.take().expect("action context");
-                                    return self.fizzle(a);
-                                };
+                                let card = pair.expect("the pair read before the cost");
                                 for _ in 0..2 {
                                     let i = ps.ash.iter().position(|&x| x == card).expect("copy");
                                     let (_, copy) = ps.ash.take(i);
@@ -8422,15 +8570,16 @@ impl Engine {
                     None => self.granted_cost(&a).0,
                     Some(_) => 0,
                 };
-                if self.state.seats[seat.index()].pool < printed as i32 {
-                    return self.fizzle(a);
+                let due = if a.cost_paid_early { 0 } else { cost };
+                // Unpayable by resolution: fizzles (rules-qa 3.6), no
+                // referendum.
+                if short
+                    || self.state.seats[seat.index()].pool < printed as i32
+                    || self.state.minions[acting.index()].blood < due
+                {
+                    return self.fizzle_short(a, due, printed as i32);
                 }
                 if !a.cost_paid_early {
-                    if self.state.minions[acting.index()].blood < cost {
-                        // Unpayable by resolution: fizzles (rules-qa 3.6),
-                        // no referendum.
-                        return self.fizzle(a);
-                    }
                     self.paying(|e| e.state.lose_blood(acting, cost));
                     a.blood_cost += cost;
                     if let Some(play) = a.card {
@@ -9214,15 +9363,9 @@ impl Engine {
             e.state.lose_blood(target, cost - from_acting);
         });
         self.action.as_mut().expect("action context").blood_cost += cost;
-        if self.state.minions[target.index()].in_torpor {
-            // Rescued: to the ready region, lock state untouched.
-            self.leave_torpor(target);
-            self.state.gain_blood(target, gain);
-        } else {
-            // Out of torpor already (Warsaw Station): paid, it fizzles
-            // (rules-qa 28.7).
-            self.action.as_mut().expect("action context").outcome = Some(Outcome::Fizzled);
-        }
+        // Rescued: to the ready region, lock state untouched.
+        self.leave_torpor(target);
+        self.state.gain_blood(target, gain);
         self.after_resolution();
     }
 
@@ -10047,16 +10190,16 @@ impl Engine {
         // Baldesar: 1 off, announced with the card (rules-qa 41.13).
         let reduced = self.reducer_off(&ctx, &mut pool, &mut blood);
         let (pool, blood) = self.pay_named_discounts(&ctx, pool, blood);
-        // Filchware's Pawn Shop: a cost it cannot pay leaves the card in
-        // its ash heap, no effect (rules-qa 38.5). Vast Wealth's pool is
-        // paid even if that ousts (RTR 19941109).
+        // Filchware's Pawn Shop: a cost no longer payable leaves the card
+        // in its ash heap, paid as far as it goes (rules-qa 117.1). Vast
+        // Wealth's pool is paid even if that ousts (RTR 19941109).
         if let Some((from, _)) = self.action.as_ref().and_then(|a| a.ash_pick) {
             if self.state.seats[seat.index()].pool < pool
                 || self.state.minions[minion.index()].blood < blood
             {
                 self.state.seats[from.index()].to_ash(card, *ctx.copy);
                 let a = self.action.take().expect("action");
-                return self.fizzle(a);
+                return self.fizzle_short(a, blood, pool);
             }
         }
         if reduced {

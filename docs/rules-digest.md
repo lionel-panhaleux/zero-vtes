@@ -335,11 +335,11 @@ below rely on these and do not repeat them.
 - **Successful**: unblocked and resolved, whatever its effect did; a
   **fizzle** is a successful action with no effect — its target gone, a cost
   unpayable at resolution, a requirement lapsed (3.6, 17.3, 17.4, 28.7, 42.6,
-  43.1, advanced rules §3.4.1). After-resolution cards keyed to success
-  apply (Freak Drive, 3.6; Aline Gädeke, 16.4; Hedonism's queued combat,
-  56.1; Infernal Servitor, 70.19; I am Legion's pool, 60.15), and so does
-  the action's own "if successful" clause beside the lost effect (Tye
-  Cooper's ash card, 78.38).
+  43.1, advanced rules §3.4.1); what it pays: §10.2. After-resolution
+  cards keyed to success apply (Freak Drive, 3.6; Aline Gädeke, 16.4;
+  Hedonism's queued combat, 56.1; Infernal Servitor, 70.19; I am Legion's
+  pool, 60.15), and so does the action's own "if successful" clause beside
+  the lost effect (Tye Cooper's ash card, 78.38).
 - **Failed**: ended unsuccessfully by an effect at or before resolution
   (Archon Investigation, Spying Mission [OBF], Obedience; 56.1, 56.2,
   88.10). Ended by Yawp Court's combat: successful with no effect, as a
@@ -1394,10 +1394,10 @@ Advanced rules §1.7 (costs and payment), §1.8 (playing and canceling).
 
 - When paid: a card's cost as it is played (a card) or as the action
   resolves (an action card, an action's own cost: D20, 3.6); a cost paid at
-  resolution that became unpayable fizzles the action (3.6). A strike's
-  blood as it is chosen, not refunded if dodged (62.16); Preternatural
-  Evasion's burn as the strike is chosen, not offered with no blood (63.5,
-  ANK 20200703-2).
+  resolution that became unpayable fizzles the action, paid as far as it
+  goes (3.6; §10.2). A strike's blood as it is chosen, not refunded if
+  dodged (62.16); Preternatural Evasion's burn as the strike is chosen,
+  not offered with no blood (63.5, ANK 20200703-2).
 - What may be paid: D3. A strike card its player cannot pay for is not
   offered (42.2, 58.17).
 - Reductions (The Line, The Shard, Ravnos Carnival's and Ravnos Cache's
@@ -1506,7 +1506,7 @@ actions), §3.9 (mandatory actions), §3.10 (changing the acting minion).
 
 - Everything the action names is chosen as it is announced (D1); the
   targets are re-checked at resolution: gone, moved, no longer ready or
-  younger → successful, no effect, cost paid (17.4, 26.1, 60.10).
+  younger → successful, no effect, not paid (17.4, 26.1, 60.10; §10.2).
 - Legality at announcement: an action sure to aim at an illegal target is
   not offered; one whose object comes from a choice or randomness at
   resolution (Vast Wealth's search) may be taken even if it will fail
@@ -1531,7 +1531,8 @@ actions), §3.9 (mandatory actions), §3.10 (changing the acting minion).
     41.6).
   - Giovanni del Georgio: the card named as announced (two copies in his
     prey's ash heap; not offered without such a pair); both removed at
-    resolution as its cost — fewer left, it fizzles (59.1).
+    resolution as its cost — fewer left, it fizzles, nothing removed
+    (59.1, 117.3).
   - The Sargon Fragment: the card named in the bearer's controller's ash
     heap as the action is announced; not offered with an empty ash heap; an
     ally bearer gets nothing ("this vampire") (60.17).
@@ -1612,7 +1613,8 @@ actions), §3.9 (mandatory actions), §3.10 (changing the acting minion).
   cost as announced, paid as it resolves; her undirected actions are
   unaffected (42.1). At resolution the +1 is paid first: unpayable by then,
   the action fizzles; paid, then the card's own cost unpayable, it fizzles
-  with the +1 paid (42.6, ANK 20220218).
+  with the +1 paid and the card's cost as far as her blood goes; the
+  target gone, neither is paid (42.6, 17.4).
 - Marcellus: an action cost as Daria's, on every Nosferatu's political
   action, card or granted, any Methuselah's; his readiness read at both
   points (62.7).
@@ -2060,21 +2062,34 @@ Vocabulary: §3.2.
 ### 10.2 Resolution and fizzle
 
 - Resolution reads everything again (D13, advanced rules §3.4.2): targets,
-  costs, conditions. Gone or illegal → a fizzle: successful, no effect, the
-  cost paid (3.6, 17.3, 17.4, 26.1, 42.6, ANK 20220218).
-- Out of torpor before resolution: a leave-torpor action fizzles paid (ANK
-  20220218, Warsaw Station); a rescue whose vampire left torpor fizzles
-  paid (split as normal; a vampire gone from play pays nothing, the rescuer
-  pays what it can); a diablerie fizzles with no blood hunt (28.7).
+  costs, conditions. Gone or illegal → a fizzle: successful, no effect
+  (3.6, 17.3, 17.4, 26.1, 42.6, ANK 20220218).
+- What a fizzle pays (ANK 20210124; owner, 2026-11-11): its target lost
+  (every target, where it has several) or its effect prevented, nothing,
+  the surcharges on the action neither (17.4, 26.1, 28.7); its cost no
+  longer payable, the acting minion pays as much as it can (3.6, 42.6):
+  its blood as far as it goes, an ally its life; its Methuselah's pool
+  likewise, to 0, the fizzle ousting them (owner, 2026-11-12; 117.1);
+  every part still payable is paid (117.2). The first cause is read
+  before anything is paid, a card or an Edge the effect needs gone
+  counting as the effect prevented (117.3). The surcharges on the action
+  are paid first, each as far as it goes (117.4). A political card's cost
+  paid ahead of Yawp Court's combat stays paid; terms with no legal
+  choice are read before the cost, not paid (117.6, 5.9, 43.1).
+- Out of torpor before resolution: a leave-torpor action fizzles (ANK
+  20220218, Warsaw Station), not paid; a rescue whose vampire left torpor
+  or left play fizzles, nobody paying; a diablerie fizzles with no blood
+  hunt (28.7).
 - "Enter combat with a minion" from an action card: target another
   Methuselah's ready minion, re-checked at resolution; Fleetness [CEL]'s
-  "locked minion" unlocked by then fizzles the action (ANK 20210124); the
-  combat is the resolution, the action succeeds after it (26.1).
+  "locked minion" unlocked by then fizzles the action, not paid (ANK
+  20210124); the combat is the resolution, the action succeeds after it
+  (26.1).
 - A political action whose acting vampire is no longer ready at resolution
   ends with no referendum (Yawp Court ruling); the card's cost still paid
   (5.9). One whose terms have no legal choice when they are chosen fizzles:
-  successful, no referendum, no effect; a rider keyed to the referendum
-  failing (Cedrick Calhoun) does not apply (43.1).
+  successful, no referendum, no effect, not paid (117.6); a rider keyed
+  to the referendum failing (Cedrick Calhoun) does not apply (43.1).
 - Yoruba Shrine: the referendum fails and polling ends at once (no votes,
   nothing keyed to passing); the political action is not canceled, its card
   spent (35.4).
@@ -2446,12 +2461,14 @@ torpor actions, diablerie). Referendums: §13.
 ### 11.6 Leave torpor, rescue
 
 - The cost is paid at resolution; unpayable then, the action fizzles —
-  successful, not blocked (Freak Drive playable), no effect (3.6). Out of
-  torpor by resolution: 28.7 (§10.2).
+  successful, not blocked (Freak Drive playable), no effect, the vampire
+  paying as much as it can (3.6). Out of torpor by resolution: 28.7
+  (§10.2).
 - Rescue: who pays (the acting vampire, the rescued one, or a split) is
   chosen as the action is announced; the blood is paid as it resolves; the
   cost is read again at resolution, the split standing: a share its payer
-  can no longer meet fizzles the action (48.8).
+  can no longer meet fizzles the action, each paying its own share as far
+  as it goes (48.8, 117.5).
 - Torpid Blood's "actions performed by vampires in torpor": the leave
   torpor action and action cards played by a torpid vampire; +1 blood once
   (40.6).
@@ -5253,6 +5270,13 @@ rules-qa batch.
   by ANK 20220116, a Rules Director's (owner, 2026-11-11): its damage and
   burn first (93.5), then Change of Target; an Anarch it sent to torpor
   cannot continue the action (ANK 20211207: Crypt's Sons).
+- **K52** What a fizzle pays: 17.4, 26.1 and 28.7 read a fizzle for a
+  lost target as paid, after the rulings database's "cost, if any, is
+  paid" on its fizzle groups (G00078–G00081, Harass, Sleep of Reason) —
+  a wrong paraphrase of ANK 20210124, which pays nothing on a lost target
+  or a prevented effect and as much as possible on a cost no longer
+  payable (owner, 2026-11-11; 117.1). The ledger rows keep the database's
+  text; their tests assert the ruling.
 
 ## 24. Open readings
 
@@ -5306,6 +5330,9 @@ read, for the owner to confirm or correct:
   graded green (a card's own minion's attempt changes the blocker) and
   amber (the change not offered while the attempt meets the stealth: an
   offer pruning, confirmed by the owner 2026-11-11).
+- Batch 117 (what a fizzle pays): ruled by the owner (2026-11-12),
+  117.1's pool reading corrected (pool paid to 0, the oust); 117.3's
+  list of prevented effects amber.
 - 106.1–106.9, 106.11–106.17, 106.19–106.22 graded green or amber
   (106.10 and 106.18 red, confirmed by the owner).
 - 93.1–93.10 graded green (settled by KRCG rulings and 60.7, 60.19, 60.21).
@@ -5424,7 +5451,7 @@ an owner ruling:
 Every rules-qa item, by batch, with the digest sections citing it: the
 section stating it and those cross-referring to it (§2 the default
 readings, §22 engine modeling, §23 the contradictions, §24 the open
-readings). 1436 items, Batches 1–115 (44.11 was removed, replaced by Batch
+readings). 1442 items, Batches 1–117 (44.11 was removed, replaced by Batch
 45). The index is derived from the citations: a bare `N.M` cites rules-qa
 item N.M in the section it appears in. A new rules-qa item gets its line in
 the section stating it, then its entry here: `python3
@@ -5472,7 +5499,7 @@ index or an item cited nowhere.
 - **17** — 17.1 §2,§6.3,§8.1,§8.7,§14.4,§15.1,§19.4,§23.3; 17.2
   §2,§3.4,§5.3,§6.3,§8.7; 17.3
   §3.1,§3.2,§3.4,§3.15,§9.1,§10.2,§10.5,§11.2,§11.8,§15.1; 17.4
-  §2,§3.2,§3.4,§3.5,§3.7,§3.12,§3.17,§4.4,§8.1,§10.2,§11.5,§14.1,§14.4,§15.1,§16.1,§17.3,§23.2,§23.5
+  §2,§3.2,§3.4,§3.5,§3.7,§3.12,§3.17,§4.4,§8.1,§8.3,§10.2,§11.5,§14.1,§14.4,§15.1,§16.1,§17.3,§23.2,§23.5,§23.7
 - **18** — 18.1 §7.2,§9.4,§23.1; 18.2 §2,§21.1; 18.3 §4.6,§12.13; 18.4
   §2,§4.3,§11.1
 - **19** — 19.1 §18.3,§23.5; 19.2 §3.15,§18.4; 19.3 §2,§4.3,§13.2,§23.3;
@@ -5490,16 +5517,17 @@ index or an item cited nowhere.
 - **25** — 25.1 §3.9,§14.6,§14.11,§21.1; 25.2 §4.5,§12.2,§12.7; 25.3
   §4.5,§9.2,§23.3; 25.4 §14.11; 25.5 §2,§4.1,§9.2,§14.1,§14.11,§23.2; 25.6
   §2,§4.5,§11.1,§23.2
-- **26** — 26.1 §8.1,§10.2,§11.8; 26.2 §12.2; 26.3 §8.1; 26.4 §8.1; 26.5
-  §2,§6.3,§14.1; 26.6 §2,§12.4,§12.6,§12.10; 26.7 §5.1,§12.4; 26.8
+- **26** — 26.1 §8.1,§10.2,§11.8,§23.7; 26.2 §12.2; 26.3 §8.1; 26.4 §8.1;
+  26.5 §2,§6.3,§14.1; 26.6 §2,§12.4,§12.6,§12.10; 26.7 §5.1,§12.4; 26.8
   §3.13,§8.1
 - **27** — 27.1 §5.3,§17.2; 27.2 §3.4,§8.1,§11.8,§17.2,§23.5; 27.3
   §9.1,§12.1,§17.2; 27.4 §16.4,§17.2,§21.1; 27.5 §3.21,§8.8,§11.8,§12.1;
   27.6 §7.3; 27.7 §3.9,§14.6
 - **28** — 28.1 §3.6,§8.7,§14.7,§19.4; 28.2 §2,§4.1,§16.1; 28.3
   §3.6,§14.4,§14.6; 28.4 §14.4; 28.5 §2; 28.6 §2,§14.4,§16.1; 28.7
-  §3.2,§10.2,§11.6,§11.7; 28.8 §2,§3.1,§8.7,§11.2; 28.9 §5.3,§6.4; 28.10
-  §7.1,§11.4; 28.11 §3.19,§12.14; 28.12 §6.5,§16.1; 28.13 §17.2,§21.1,§23.2
+  §3.2,§10.2,§11.6,§11.7,§23.7; 28.8 §2,§3.1,§8.7,§11.2; 28.9 §5.3,§6.4;
+  28.10 §7.1,§11.4; 28.11 §3.19,§12.14; 28.12 §6.5,§16.1; 28.13
+  §17.2,§21.1,§23.2
 - **29** — 29.1 §12.1,§12.8; 29.2 §12.7,§12.13,§14.8; 29.3 §3.20,§12.7; 29.4
   §3.20,§12.2,§12.7; 29.5 §12.14; 29.6 §7.3; 29.7 §12.4; 29.8
   §12.9,§12.15,§23.5; 29.9 §12.1; 29.10 §5.1; 29.11 §7.2
@@ -5875,3 +5903,5 @@ index or an item cited nowhere.
 - **114** — 114.1 §9.4,§23.3,§24.1; 114.2 §9.4,§22,§24.1
 - **115** — 115.1 §14.1; 115.2 §15.2; 115.3 §15.2; 115.4 §15.2; 115.5
   §14.9,§15.2; 115.6 §15.2; 115.7 §15.2
+- **117** — 117.1 §10.2,§23.7,§24.1; 117.2 §10.2; 117.3 §8.1,§10.2,§24.1;
+  117.4 §10.2; 117.5 §11.6; 117.6 §10.2

@@ -3033,13 +3033,28 @@ impl Engine {
     /// Equipment searched for only: no surcharge reaches it, unlike
     /// `play_cost`'s.
     pub(crate) fn payable_with_potential(&self, ctx: &PlayCtx, pool_may_oust: bool) -> bool {
+        self.payable_adjusted(ctx, 0, pool_may_oust)
+    }
+
+    /// `payable_with_potential` with Filchware's Pawn Shop's adjustment
+    /// (`ActionCtx::ash_cost_adjust`), taken after the equip discount as
+    /// `equip_found_now` pays it.
+    fn payable_adjusted(&self, ctx: &PlayCtx, ash: i8, pool_may_oust: bool) -> bool {
         let st = &self.state;
         let m = ctx.actor.expect("minion");
         let mut blood = cards::blood_cost(st, ctx.card, ctx.x);
         let mut pool = cards::pool_cost(st, ctx.seat, ctx.card, ctx.target);
         st.printed_cost_off(m, ctx.card, ctx.mode)
             .apply(&mut pool, &mut blood);
-        let (pool, blood) = self.with_potential(ctx, pool, blood, st.equip_discount(m, ctx.card));
+        let mut either = st.equip_discount(m, ctx.card);
+        if ash != 0 {
+            reduce(&mut pool, &mut blood, std::mem::take(&mut either));
+            match ash {
+                k if k > 0 => pool += i32::from(k),
+                k => reduce(&mut pool, &mut blood, k.unsigned_abs()),
+            }
+        }
+        let (pool, blood) = self.with_potential(ctx, pool, blood, either);
         let have = (st.seats[ctx.seat.index()].pool, st.minions[m.index()].blood);
         payable((pool, blood), have, pool_may_oust)
     }
@@ -3348,8 +3363,9 @@ impl Engine {
     }
 
     /// Filchware's Pawn Shop: each non-location equipment in a Methuselah's
-    /// ash heap minion `m` could equip, by ash heap (not one played once a
-    /// game already: LSJ 20040518).
+    /// ash heap minion `m` could equip and pay for with the reductions it
+    /// may take (rules-qa 38.5), by ash heap (not one played once a game
+    /// already: LSJ 20040518).
     pub(crate) fn ash_equipment_for(&self, m: MinionId) -> Vec<(SeatId, u16)> {
         let st = &self.state;
         (0..st.seats.len())
@@ -3360,6 +3376,7 @@ impl Engine {
                     cards::CardFilter::EquipmentWithout(&[Label::Location]).matches(c)
                         && cards::lookup(c).is_some()
                         && self.equip_requirements_met(m, c)
+                        && self.payable_from_ash(m, s, c)
                         && !(cards::lookup(c).is_some_and(|d| {
                             d.modes
                                 .iter()
@@ -3370,6 +3387,15 @@ impl Engine {
                 .map(move |c| (s, c))
             })
             .collect()
+    }
+
+    /// `payable_with_potential` for an equipment of `from`'s ash heap
+    /// under Filchware's Pawn Shop.
+    fn payable_from_ash(&self, m: MinionId, from: SeatId, card: u16) -> bool {
+        let seat = self.state.minions[m.index()].owner;
+        let ctx = crate::actions::found_play(seat, m, card, crate::copies::CopyId::NONE);
+        let ash = if from == seat { 1 } else { -1 };
+        self.payable_adjusted(&ctx, ash, false)
     }
 
     /// The most of `card`'s pool cost minion `m` may pay in blood

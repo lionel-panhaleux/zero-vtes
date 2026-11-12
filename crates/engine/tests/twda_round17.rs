@@ -2821,22 +2821,31 @@ fn baldesar_reduces_contrabands_equipment() {
     assert_eq!(e.state.seats[0].pool, p0 - 1, "2 pool, 1 off");
 }
 
-// Filchware's Pawn Shop: a cost the equipping Methuselah cannot pay (rules-qa
-// 38.5): no effect, the card left in its ash heap.
+// Filchware's Pawn Shop: an equipment its Methuselah cannot pay for is not
+// named (rules-qa 38.5); the pool gone during the action, it fizzles, not
+// equipped, the pool paid as far as it goes: the last of it (rules-qa
+// 117.1).
 #[test]
 fn filchwares_pawn_shop_fizzles_on_an_unpayable_cost() {
-    let mut e = game(2);
+    let mut e = game(3);
     let a = e.add_minion(SeatId(0), plain("Brujah", 0), 4, false);
     e.add_minion(SeatId(0), plain("Brujah", 1), 4, false);
     e.add_minion(SeatId(1), plain("Ventrue", 0), 4, false);
+    e.add_minion(SeatId(2), plain("Ventrue", 1), 4, false);
     let f = in_play(&mut e, 0, "Filchware's Pawn Shop", None);
     let magnum = find_library(".44 Magnum");
     e.state.seats[0].ash.push(magnum);
     e.state.seats[0].pool = 2;
-    pick(&mut e, use_on(f, 0, Some(a), Target::None));
-    until(&mut e, SeatId(0), WindowLabel::MinionPhase);
-    assert_eq!(e.state.seats[0].pool, 2, "2 pool, 1 more: unpayable");
-    assert!(e.state.seats[0].ash.contains(&magnum));
+    let shop = use_on(f, 0, Some(a), Target::None);
+    let req = expect(&mut e, SeatId(0), WindowLabel::MinionPhase);
+    assert!(!req.options.contains(&shop), "2 pool, 1 more: unpayable");
+    e.state.seats[0].pool = 3;
+    pick(&mut e, shop);
+    expect(&mut e, SeatId(1), WindowLabel::ActionBlock);
+    e.state.seats[0].pool = 2;
+    until(&mut e, SeatId(1), WindowLabel::MinionPhase);
+    assert!(e.state.seats[0].ousted, "its last pool paid");
+    assert!(!e.state.cards.iter().any(|c| c.in_play && c.card == magnum));
 }
 
 // Thoughts Betrayed [dom] twice (no limit printed): 2 additional damage.

@@ -4549,7 +4549,7 @@ fn nergal_may_take_his_reduction_at_resolution() {
             assert_eq!(blood(&e, n), 0);
             assert!(pool(&e)[1] < 10, "bled");
         } else {
-            assert_eq!(blood(&e, n), 1);
+            assert_eq!(blood(&e, n), 0, "paid as far as it goes");
             assert_eq!(pool(&e)[1], 10, "fizzled");
             // Still his: offered on his next card.
             nergal_bleeds_again(&mut e, n);

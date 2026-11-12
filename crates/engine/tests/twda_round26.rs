@@ -8753,16 +8753,16 @@ fn mid_action(e: &mut Engine, f: impl FnOnce(&mut Engine)) {
     until(e, SeatId(1), WindowLabel::MinionPhase);
 }
 
-/// Actions whose target or actor no longer qualifies by resolution
-/// "fizzle" (cost, if any, is paid, and it is considered successful, but
-/// has no effect): Karsh's combat at a target unlocked by then ([ANK
-/// 20210124] [LSJ 20070411] [LSJ 20090514]: "If the action is unblocked
-/// when it resolves and the target is unlocked"); Root of Vitality's rescue
-/// of a vampire out of torpor by then ("and the target is no longer in
-/// torpor"); Sleep of Reason at a target with two blood by then ([LSJ
-/// 20090514] [LSJ 20070411]: "If the action is not blocked and the target
-/// has 2 or more blood, the action "fizzles""); Rapid Healing and
-/// Movement of the Slow Body by a vampire out of torpor by then ([ANK
+/// Actions whose target or actor no longer qualifies by resolution "fizzle"
+/// (successful, no effect, not paid: ANK 20210124, rules-qa 17.4, against
+/// the database's "cost, if any, is paid"): Karsh's combat at a target
+/// unlocked by then ([ANK 20210124] [LSJ 20070411] [LSJ 20090514]: "If the
+/// action is unblocked when it resolves and the target is unlocked"); Root
+/// of Vitality's rescue of a vampire out of torpor by then ("and the target
+/// is no longer in torpor"); Sleep of Reason at a target with two blood by
+/// then ([LSJ 20090514] [LSJ 20070411]: "If the action is not blocked and
+/// the target has 2 or more blood, the action "fizzles""); Rapid Healing
+/// and Movement of the Slow Body by a vampire out of torpor by then ([ANK
 /// 20220218]: "When the acting vampire leaves torpor before the action
 /// resolves (e.g. Warsaw Station) the action immediately "fizzles"").
 #[test]
@@ -8812,7 +8812,7 @@ fn actions_fizzle_on_what_changed_by_resolution() {
     mid_action(&mut e, |e| e.state.minions[t.index()].blood = 2);
     assert_eq!(e.last_outcome, Some(Outcome::Fizzled), "Sleep of Reason");
     assert!(!e.state.minions[t.index()].in_torpor);
-    assert_eq!(blood(&e, a), 4 - 2, "its cost paid");
+    assert_eq!(blood(&e, a), 4, "not paid");
 
     // Rapid Healing [FOR], Movement of the Slow Body [pro].
     for (card, disc, mode) in [

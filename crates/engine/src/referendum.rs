@@ -588,16 +588,26 @@ fn feasible_points(
 }
 
 impl Engine {
-    /// Open a referendum. Rotations start at the caller, clockwise (DESIGN
-    /// §4.2). Terms first, if the card has any.
-    pub(crate) fn start_referendum(
-        &mut self,
+    /// The first of `def`'s terms has no legal choice (rules-qa 43.1), as
+    /// its referendum would find it once called.
+    pub(crate) fn terms_unchoosable(&self, caller: SeatId, def: &'static ReferendumDef) -> bool {
+        if def.terms.is_empty() {
+            return false;
+        }
+        let mut ctx = self.referendum_ctx(RefKind::Political, caller, Some(def));
+        ctx.step = RefStep::Terms;
+        self.begin_term(&mut ctx);
+        ctx.fizzled
+    }
+
+    fn referendum_ctx(
+        &self,
         kind: RefKind,
         caller: SeatId,
         def: Option<&'static ReferendumDef>,
-    ) {
+    ) -> ReferendumCtx {
         let order = self.state.clockwise_from(caller);
-        let mut ctx = ReferendumCtx {
+        ReferendumCtx {
             coalition: Vec::new(),
             calling: match kind {
                 RefKind::Political => self.action.as_ref().map(|a| a.acting),
@@ -649,7 +659,18 @@ impl Engine {
                     .and_then(|p| cards::card_title(p.card)),
                 RefKind::BloodHunt { .. } => None,
             },
-        };
+        }
+    }
+
+    /// Open a referendum. Rotations start at the caller, clockwise (DESIGN
+    /// §4.2). Terms first, if the card has any.
+    pub(crate) fn start_referendum(
+        &mut self,
+        kind: RefKind,
+        caller: SeatId,
+        def: Option<&'static ReferendumDef>,
+    ) {
+        let mut ctx = self.referendum_ctx(kind, caller, def);
         // Printed votes in favor of a blood hunt called on the diablerist
         // (Styles Margs), counted as it is called.
         if let RefKind::BloodHunt { diablerist } = ctx.kind {

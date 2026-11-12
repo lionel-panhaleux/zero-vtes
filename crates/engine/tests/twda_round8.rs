@@ -1013,7 +1013,8 @@ fn unwholesome_bond_lets_new_blood_feed_a_circle_of_one() {
 // 20090514] "If the action is unblocked when it resolves and the target is
 // unlocked, the action "fizzles" (cost, if any, is paid, and it is
 // considered successful, but has no effect)": an unlocked minion is no
-// target; the locked one unlocked before resolution, no combat.
+// target; the locked one unlocked before resolution, no combat (not paid:
+// the database misreads ANK 20210124, rules-qa 117.1).
 #[test]
 fn ambush_needs_a_locked_minion() {
     for unlocked_later in [false, true] {

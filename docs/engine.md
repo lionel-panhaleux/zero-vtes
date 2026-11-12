@@ -630,7 +630,7 @@ sources to the engine's conventions.
 - Announcement: terms (`Flow::PlayTerms`), cost reductions (`Flow::CostTerms`),
   then the as-played window (`Flow::AsPlayed`, a nested cancel stack, spec §1.8).
   Costs are folded through layers and paid at resolution for actions (unpayable
-  → fizzle: successful, no effect; rules-qa 3.6).
+  → fizzle: successful, no effect, paid as far as it goes; rules-qa 3.6).
 - Cancel as played: the card is replaced; its own "do not replace until" is
   canceled with it; a canceled limited bleed leaves the limit unused; cancelling
   abilities (The Vozhd of Gravesend) mark the play canceled as used
@@ -791,8 +791,14 @@ sources to the engine's conventions.
   is played there; rules-qa 88.1). Only a cancel before resolution or an
   acting minion leaving skips it (`action_windows`).
   Damage "after resolution" is ordered there by the acting Methuselah.
-- Resolution: costs paid then; targets re-read — gone or illegal → fizzle, paid
-  (card actions) or successful with no effect (granted actions, spec §3.4.1);
+- Resolution (`Engine::succeed`): the targets and what the effect needs are
+  re-read first (`resolution_void`): gone or illegal → fizzle, nothing paid
+  (ANK 20210124; rules-qa 17.4); then the action's surcharges
+  (`pay_surcharges`) and its own cost: one no longer payable → fizzle,
+  every part paid as far as it goes, the minion's blood and its
+  Methuselah's pool, the last ousting them (`fizzle_short`; rules-qa 3.6,
+  Batch 117); a political action's terms are read there too
+  (`political_void`, rules-qa 43.1);
   an action card's sect or title requirement re-read as it succeeds
   (`card_traits_lapsed`: The Red Question's Anarch, rules-qa 104.7);
   a card, uncontrolled or Methuselah target by `target_still_qualifies` on
@@ -954,7 +960,8 @@ sources to the engine's conventions.
   with the target: none left, it fizzles.
 - A granted burn paying the Edge (Shatter the Gate) or blood (Shadowed
   Eyes [AUS]) pays at resolution in `succeed`'s `BurnCard` arm: the Edge
-  gone, it fizzles; an ally pays life, its last burning it.
+  gone, it fizzles unpaid (`resolution_void`); an ally pays life, its last
+  burning it.
 - A bleed card's "gain n pool" and "unlock this vampire" (Greater Curse
   [dai], Cheat the Fates [TEM]) resolve in `succeed`'s bleed arm, read by
   name, whatever the amount: the pool before the Edge.
@@ -1980,7 +1987,8 @@ CryptAlly}`.
 - `Stat::ActionCost` is any action's surcharge, read with its kind and
   directedness (Daria's directed actions, Marcellus's political ones;
   `Engine::action_toll`): masked at announce with the action's own blood
-  (`announced_blood`), paid first in `succeed` (unpayable: fizzle).
+  (`announced_blood`), paid first (`pay_surcharges`; short: paid as far
+  as it goes, the action fizzles).
   `Stat::StrikeCardToll` (Djeneba, `strike_card_toll` inside
   `combat_card_surcharge`): on the opposing combatant's strike-mode cards
   (`plays::is_strike_mode`), an ally paying life. Liliana's seven cards:
@@ -2082,7 +2090,7 @@ CryptAlly}`.
   the named trait (a non-Ravnos holding Treasured Samadji gets nothing,
   rules-qa 9.1).
 - An action an equipment grants its bearer (`Actor::Host`) fizzles once the
-  equipment left the acting minion (RTR 19960221, in `succeed`). Another
+  equipment left the acting minion (RTR 19960221, `ability_void`). Another
   minion's action on it (Jar of Skin Eaters: `ActorSlaveOfHostClan`, its
   controller's slave of the bearer's clan, rules-qa 84.9) moves its blood
   (`ActorBloodToSourceCard`, as much as it has); its out-of-combat
@@ -2306,7 +2314,7 @@ CryptAlly}`.
   what it has if short); Blood Cult Awareness Network's −1 stealth and
   blood or life on an action making a vampire (`ActionCtx::makes_vampires`,
   `GameState::vampire_making_taxed`, read live in `stealth` and
-  `succeed`). An ally combatant burned by paying its last life for a card
+  `pay_surcharges`). An ally combatant burned by paying its last life for a card
   ends the combat (`pay_play_blood`). A minion's printed surcharge (Tom's,
   `CostOff::blood_extra`) is paid there too (`printed_extra`); Jenna
   Cross's is added last, on blood left after every reduction

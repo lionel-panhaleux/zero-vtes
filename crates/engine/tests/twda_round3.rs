@@ -516,7 +516,8 @@ fn renewed_vigor_is_directed_at_another_methuselahs_vampire() {
 // when it resolves and the target is no longer in torpor, the action
 // 'fizzles' (cost, if any, is paid, and it is considered successful, but
 // has no effect)": the target out of torpor before resolution, nothing
-// happens to it.
+// happens to it (not paid: the database misreads ANK 20210124, rules-qa
+// 117.1).
 // [LSJ 20011204-3] [PIB 20130704] "When played, a multi-Disciplines card
 // counts as requiring the Discipline(s) being used": a [for]-only vampire
 // is offered the [for] mode only.

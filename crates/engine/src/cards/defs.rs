@@ -21683,8 +21683,8 @@ pub static UNWHOLESOME_BOND: CardDef = CardDef {
 
 /// "Ⓓ Enter combat with a locked minion. This acting minion gets 1 optional
 /// maneuver during that combat." Unblocked with the target unlocked at
-/// resolution, it fizzles: cost paid, successful, no effect (ANK 20210124,
-/// LSJ 20070411, LSJ 20090514).
+/// resolution, it fizzles: successful, no effect, not paid (ANK 20210124,
+/// LSJ 20070411, LSJ 20090514; rules-qa 17.4).
 pub static AMBUSH: CardDef = CardDef {
     name: "Ambush",
     modes: &[action_at(

@@ -482,8 +482,8 @@ fn instantaneous_transformation_unlocks_once_a_turn_at_superior() {
 }
 
 // [ANK 20220218] "The after action resolution effect can be used if the
-// action 'fizzles'": a Raptor employed for its blood by Stanislava down to
-// 1 blood at resolution fizzles; Forced March and Instantaneous
+// action 'fizzles'": Stanislava's rescue of a vampire out of torpor by its
+// resolution fizzles, not paid; Forced March and Instantaneous
 // Transformation still unlock.
 #[test]
 fn forced_march_and_instantaneous_transformation_unlock_after_a_fizzled_action() {
@@ -507,16 +507,24 @@ fn forced_march_and_instantaneous_transformation_unlock_after_a_fizzled_action()
                 });
             }
         }
-        hand(&mut e, 0, &["Raptor", card]);
-        pick(&mut e, play(0, 0, stan));
+        let n = e.add_minion(SeatId(0), plain("Brujah", 2), 1, true);
+        hand(&mut e, 0, &[card]);
+        pick(
+            &mut e,
+            Choice::TakeAction {
+                minion: stan,
+                action: ActionKind::Rescue,
+                target: Some(n),
+            },
+        );
+        pick(&mut e, Choice::PayRescue { from_acting: 2 });
         expect(&mut e, SeatId(1), WindowLabel::ActionBlock);
-        e.state.minions[stan.index()].blood = 1;
+        e.state.minions[n.index()].in_torpor = false;
         let req = until(&mut e, SeatId(0), WindowLabel::ActionAfterResolution);
         assert_eq!(
             e.action().and_then(|x| x.outcome),
             Some(zvtes::actions::Outcome::Fizzled)
         );
-        // Raptor left the hand: the modifier is its first card.
         assert!(req.options.contains(&play(0, mode, stan)), "{card}");
         pick(&mut e, play(0, mode, stan));
         request(&mut e);

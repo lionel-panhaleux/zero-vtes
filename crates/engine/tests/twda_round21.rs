@@ -875,6 +875,29 @@ fn living_wood_staff_spends_x_convictions_for_x_more_damage() {
     assert_eq!(blood(&e, z), 4 - 3);
 }
 
+// A cost of several parts short as the action resolves is paid as far as
+// it goes (ANK 20210124; rules-qa 117.2): Living Wood Staff announced at
+// X = 2, one conviction gone by then: the action fizzles, the conviction
+// left is burned, nothing equipped.
+#[test]
+fn living_wood_staff_short_of_its_convictions_burns_those_left() {
+    let mut e = game(2);
+    let john = imbued(&mut e, 0, "John \"Cop90\" O'Malley");
+    e.add_minion(SeatId(0), plain("Brujah", 0), 4, false);
+    e.add_minion(SeatId(1), plain("Ventrue", 0), 4, false);
+    let held = convictions(&mut e, john, 2);
+    hand(&mut e, 0, &["Living Wood Staff"]);
+    pick(&mut e, play_at(0, 0, Some(john), Target::None));
+    pick_when(&mut e, Choice::SetX(2));
+    expect(&mut e, SeatId(1), WindowLabel::ActionBlock);
+    e.state.cards[held[0].index()].in_play = false;
+    until(&mut e, SeatId(1), WindowLabel::MinionPhase);
+    assert_eq!(e.last_outcome, Some(zvtes::actions::Outcome::Fizzled));
+    assert!(!e.state.cards[held[1].index()].in_play, "the one left");
+    let staff = find_library("Living Wood Staff");
+    assert!(!e.state.cards.iter().any(|c| c.in_play && c.card == staff));
+}
+
 // Cleave: "[ven] Choose a melee weapon this imbued has or spend 1
 // conviction [1 CONVICTION] to put this card on this imbued to represent a
 // melee weapon that does strength damage each strike. This melee weapon

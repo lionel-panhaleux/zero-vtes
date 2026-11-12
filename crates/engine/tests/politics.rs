@@ -512,19 +512,22 @@ fn the_allocation_under_way_is_read_whole() {
 // Parity Shift whose richer Methuselah is no longer richer when its terms
 // are chosen (Tension in the Ranks burning their pool as an ally burns, in
 // play): no legal term, the action fizzles — successful, no referendum
-// (rules-qa 43.1). Found by training (a panic on an empty terms request).
+// (rules-qa 43.1), not paid: the terms are read before the cost (owner,
+// rules-qa 117.6). Found by training (a panic on an empty terms request).
 #[test]
 fn parity_shift_with_nobody_richer_at_resolution_fizzles() {
     let Table { mut e, alexa, .. } = table();
     e.state.seats[0].pool = 5;
     e.state.seats[2].pool = 4;
     hand(&mut e, 0, &["Parity Shift"]);
+    let blood = e.state.minions[alexa.index()].blood;
     pick(&mut e, play(0, 0, alexa));
     e.state.seats[1].pool = 5;
     let req = expect(&mut e, SeatId(0), WindowLabel::MinionPhase);
     assert!(!req.options.is_empty());
     assert!(e.referendum().is_none());
-    assert_eq!(e.last_outcome, Some(Outcome::Successful));
+    assert_eq!(e.last_outcome, Some(Outcome::Fizzled));
+    assert_eq!(e.state.minions[alexa.index()].blood, blood, "not paid");
     assert!(e.state.minions[alexa.index()].locked);
     assert_eq!(pool(&e), vec![5, 5, 4]);
     assert_eq!(e.state.seats[0].ash, vec![find_library("Parity Shift")]);
@@ -990,7 +993,7 @@ fn own_referendum_oust_pops_action_layers() {
 
 // rules-qa 3.6 — a political action whose cost became unpayable by
 // resolution fizzles: successful, no referendum, the political action
-// spent for the turn.
+// spent for the turn, the vampire paying what blood it has (ANK 20210124).
 #[test]
 fn unpayable_political_cost_fizzles() {
     let Table { mut e, .. } = table();
@@ -1006,7 +1009,11 @@ fn unpayable_political_cost_fizzles() {
     pick(&mut e, Choice::Pass);
     expect(&mut e, SeatId(0), WindowLabel::MinionPhase);
     assert_eq!(e.last_outcome, Some(Outcome::Fizzled));
-    assert_eq!(e.state.minions[saku.index()].blood, 1);
+    assert_eq!(
+        e.state.minions[saku.index()].blood,
+        0,
+        "paid as far as it goes"
+    );
     assert!(e.state.minions[saku.index()].political_this_turn);
     assert_eq!(pool(&e), vec![10, 10, 10]);
 }

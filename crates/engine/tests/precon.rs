@@ -4709,7 +4709,8 @@ fn plays_by(req: &DecisionRequest, m: MinionId) -> Vec<(u8, u8)> {
 // (1 blood.) [ANK 20210124] [LSJ 20070411] [LSJ 20090514] "If the action is
 // unblocked when it resolves and the target is unlocked, the action
 // 'fizzles' (cost, if any, is paid, and it is considered successful, but
-// has no effect)."
+// has no effect)." The database's "cost, if any, is paid" misreads ANK
+// 20210124: a fizzle for a lost target is not paid (rules-qa 17.4, 117.1).
 #[test]
 fn fleetness_superior_enters_combat_with_a_locked_minion_or_fizzles() {
     for unlocked in [false, true] {
@@ -4724,7 +4725,7 @@ fn fleetness_superior_enters_combat_with_a_locked_minion_or_fizzles() {
             e.state.minions[z.index()].locked = false;
             never_offered(&mut e, &Choice::UseManeuver);
             assert_eq!(e.last_outcome, Some(Outcome::Fizzled));
-            assert_eq!((blood(&e, a), blood(&e, z)), (4, 5), "paid, no combat");
+            assert_eq!((blood(&e, a), blood(&e, z)), (5, 5), "not paid, no combat");
         } else {
             let req = until(&mut e, SeatId(0), WindowLabel::CombatDetermineRange);
             assert!(req.options.contains(&Choice::UseManeuver));
@@ -7519,9 +7520,9 @@ fn warsaw_station_unlocks_after_the_referendum() {
     assert!(!e.state.minions[n.index()].locked);
 }
 
-// [ANK 20220218] "When the acting vampire leaves torpor before the action
-// resolves (e.g. Warsaw Station) the action immediately fizzles (cost, if
-// any, is paid, and it is considered successful, but has no effect)."
+// [ANK 20220218] A vampire out of torpor before its leave-torpor action
+// resolves (Warsaw Station): the action fizzles, and a fizzle for what the
+// action aims at is not paid (ANK 20210124; rules-qa 28.7).
 #[test]
 fn a_leave_torpor_action_fizzles_once_warsaw_station_raised_its_vampire() {
     let mut e = Engine::bare(3);
@@ -7532,16 +7533,34 @@ fn a_leave_torpor_action_fizzles_once_warsaw_station_raised_its_vampire() {
     pick(&mut e, action(n, ActionKind::LeaveTorpor));
     pick_when(&mut e, use_on(w, 1, None, Target::Minion(n)));
     until(&mut e, SeatId(0), WindowLabel::MinionPhase);
+    assert_eq!(e.last_outcome, Some(zvtes::actions::Outcome::Fizzled));
     let v = &e.state.minions[n.index()];
     assert!(!v.in_torpor);
-    assert_eq!(v.blood, 1, "its cost paid");
+    assert_eq!(v.blood, 3, "not paid");
 }
 
-// Rules-qa 28.7 (owner, 2026-09-26): a rescue whose vampire left torpor
-// before it resolves fizzles as the leave-torpor action does — its cost
-// paid (ANK 20220218), no effect.
+// A cost its vampire can no longer pay as the action resolves fizzles it,
+// the vampire paying as much as it has (ANK 20210124; rules-qa 3.6): the
+// blood gone to a modifier played during the action.
 #[test]
-fn a_rescue_fizzles_paid_once_warsaw_station_raised_its_vampire() {
+fn a_leave_torpor_action_short_of_its_cost_pays_what_blood_is_left() {
+    let mut e = Engine::bare(3);
+    let n = e.add_minion(SeatId(0), plain("", "", 0), 2, true);
+    e.add_minion(SeatId(0), plain("", "", 1), 4, false);
+    e.add_minion(SeatId(1), plain("", "", 2), 4, false);
+    pick(&mut e, action(n, ActionKind::LeaveTorpor));
+    e.state.minions[n.index()].blood = 1;
+    until(&mut e, SeatId(0), WindowLabel::MinionPhase);
+    assert_eq!(e.last_outcome, Some(zvtes::actions::Outcome::Fizzled));
+    let v = &e.state.minions[n.index()];
+    assert!(v.in_torpor);
+    assert_eq!(v.blood, 0, "paid as far as it goes");
+}
+
+// Rules-qa 28.7: a rescue whose vampire left torpor before it resolves
+// fizzles as the leave-torpor action does, not paid.
+#[test]
+fn a_rescue_fizzles_unpaid_once_warsaw_station_raised_its_vampire() {
     let mut e = Engine::bare(3);
     let a = e.add_minion(SeatId(0), plain("", "", 0), 4, false);
     // Another minion to act: the phase stops right after the rescue.
@@ -7564,15 +7583,15 @@ fn a_rescue_fizzles_paid_once_warsaw_station_raised_its_vampire() {
     until(&mut e, SeatId(0), WindowLabel::MinionPhase);
     assert_eq!(e.last_outcome, Some(zvtes::actions::Outcome::Fizzled));
     assert!(!e.state.minions[n.index()].in_torpor);
-    assert_eq!((blood(&e, a), blood(&e, n)), (2, 1), "its cost paid");
+    assert_eq!((blood(&e, a), blood(&e, n)), (4, 1), "not paid");
 }
 
-// Rules-qa 28.7, ANK 20220218: a rescue whose vampire is no longer in play
-// as it resolves fizzles, its cost paid by the rescuer. Here the vampire's
-// Methuselah pays their last pool for Direct Intervention (canceling The
-// Sleeping Mind) and is ousted mid-action.
+// Rules-qa 28.7: a rescue whose vampire is no longer in play as it
+// resolves fizzles, not paid. Here the vampire's Methuselah pays their
+// last pool for Direct Intervention (canceling The Sleeping Mind) and is
+// ousted mid-action.
 #[test]
-fn a_rescue_fizzles_paid_once_its_vampire_left_play() {
+fn a_rescue_fizzles_unpaid_once_its_vampire_left_play() {
     let mut e = Engine::bare(3);
     let a = e.add_minion(SeatId(0), plain("", "dom", 0), 4, false);
     e.add_minion(SeatId(0), plain("", "", 3), 4, false);
@@ -7600,7 +7619,7 @@ fn a_rescue_fizzles_paid_once_its_vampire_left_play() {
     assert!(e.state.seats[1].ousted);
     assert!(!e.state.minions[n.index()].in_play);
     assert_eq!(e.last_outcome, Some(zvtes::actions::Outcome::Fizzled));
-    assert_eq!(blood(&e, a), 2, "its cost paid");
+    assert_eq!(blood(&e, a), 4, "not paid");
 }
 
 // Anarch Railroad: "You can lock this card to give an Anarch +1 stealth."
@@ -10108,7 +10127,8 @@ fn graverobbing_superior_steals_a_torpid_vampire_and_may_rescue_it() {
 // [ANK 20210124] [LSJ 20070411] [LSJ 20090514] "If the action is unblocked
 // when it resolves and the target is locked (Mind Numb) / unlocked (Make
 // the Misere), the action fizzles (cost, if any, is paid, and it is
-// considered successful, but has no effect)."
+// considered successful, but has no effect)." Not paid: the database
+// misreads ANK 20210124 (rules-qa 17.4, 117.1).
 #[test]
 fn mind_numb_and_make_the_misere_fizzle_on_a_target_no_longer_eligible() {
     for misere in [false, true] {
@@ -10137,7 +10157,7 @@ fn mind_numb_and_make_the_misere_fizzle_on_a_target_no_longer_eligible() {
         assert_eq!(e.last_outcome, Some(Outcome::Fizzled));
         let v = &e.state.minions[z.index()];
         assert_eq!((v.blood, v.skip_unlock), (5, false));
-        assert_eq!(blood(&e, a), if misere { 4 } else { 3 }, "paid");
+        assert_eq!(blood(&e, a), 4, "not paid");
     }
 }
 
@@ -14066,7 +14086,7 @@ fn torpid_blood_taxes_torpor_and_waits_for_a_vampire_to_leave_it() {
 // Rescue: who pays the 2 blood is chosen as the action is announced, the
 // blood paid as it resolves (owner, 2026-10-04: rules-qa 48.8); the split
 // stands, a share its payer can no longer meet fizzling the action (owner,
-// 2026-10-20).
+// 2026-10-20), each paying its own share as far as it goes (rules-qa 117.5).
 #[test]
 fn rescue_cost_split_is_chosen_as_announced_and_paid_at_resolution() {
     for (late_blood, paid) in [(4, Some((2, 3))), (1, None)] {
@@ -14095,8 +14115,8 @@ fn rescue_cost_split_is_chosen_as_announced_and_paid_at_resolution() {
         assert_eq!(e.state.minions[n.index()].in_torpor, paid.is_none());
         assert_eq!(
             (blood(&e, a), blood(&e, n)),
-            paid.unwrap_or((late_blood, 3)),
-            "nothing paid by the other"
+            paid.unwrap_or((0, 3)),
+            "the rescuer's share as far as it goes, nothing by the other"
         );
     }
 }
@@ -15273,21 +15293,17 @@ fn freak_drive_is_not_played_after_a_failed_action() {
 // [ANK 20220218] Freak Drive: "The after action resolution effect can be
 // used if the action 'fizzles' (is unblocked at resolution, but has no
 // effect because some requirement cannot be met or cost can't be paid in
-// full)." A Raptor employed for 2 blood by a vampire down to 1 blood at
-// resolution: the action fizzles, and Freak Drive [for] unlocks — the
-// vampire, now with no blood, must then hunt (locking it again).
+// full)." Mind Numb [pre] at a minion locked by resolution: the action
+// fizzles, not paid, and Freak Drive [for] unlocks.
 #[test]
 fn freak_drive_unlocks_after_a_fizzled_action() {
     let mut e = Engine::bare(3);
-    let a = e.add_minion(SeatId(0), with(&["for", "ANI"], 0), 4, false);
+    let a = e.add_minion(SeatId(0), with(&["for", "pre"], 0), 4, false);
     e.add_minion(SeatId(0), plain("Ventrue", "", 0), 5, false);
-    // The prey may attempt to block (a Raven Spy's intercept): a window.
     let z = e.add_minion(SeatId(1), plain("", "", 1), 5, false);
-    equip(&mut e, "Raven Spy", z);
-    hand(&mut e, 0, &["Raptor", "Freak Drive"]);
-    pick(&mut e, play(0, 0, a));
-    expect(&mut e, SeatId(1), WindowLabel::ActionBlock);
-    e.state.minions[a.index()].blood = 1;
+    hand(&mut e, 0, &["Mind Numb", "Freak Drive"]);
+    pick(&mut e, play_at(0, 0, Some(a), Target::Minion(z)));
+    e.state.minions[z.index()].locked = true;
     let req = until(&mut e, SeatId(0), WindowLabel::ActionAfterResolution);
     assert_eq!(
         e.action().and_then(|x| x.outcome),
@@ -15295,15 +15311,12 @@ fn freak_drive_unlocks_after_a_fizzled_action() {
     );
     assert!(req.options.contains(&play(0, 0, a)), "Freak Drive [for]");
     pick(&mut e, play(0, 0, a));
-    // Unlocked with no blood left, it must hunt (a forced hunt, elided).
     until(&mut e, SeatId(0), WindowLabel::MinionPhase);
-    assert!(e.state.minions[a.index()].locked, "locked by the hunt");
-    assert_eq!(blood(&e, a), 1, "Freak Drive's blood; no Raptor paid; fed");
-    assert!(!e
-        .state
-        .cards
-        .iter()
-        .any(|c| c.in_play && c.card == find_library("Raptor")));
+    assert!(
+        !e.state.minions[a.index()].locked,
+        "unlocked by Freak Drive"
+    );
+    assert_eq!(blood(&e, a), 3, "Freak Drive's blood; Mind Numb not paid");
 }
 
 // ---- Rulings re-triage: Change of Target, cancels ---------------------------

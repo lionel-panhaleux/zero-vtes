@@ -483,6 +483,28 @@ fn marcellus_makes_nosferatu_political_actions_cost_blood() {
     }
 }
 
+// Marcellus's blood is a cost of the political action: a Parity Shift
+// whose terms have no legal choice as it resolves fizzles before any cost,
+// not paid (rules-qa 43.1; owner, 2026-11-12: 117.6).
+#[test]
+fn a_political_action_without_legal_terms_does_not_pay_marcellus() {
+    let mut e = game(3);
+    let caller = e.add_minion(SeatId(0), find_card("Calebros, The Martyr"), 4, false);
+    e.add_minion(SeatId(0), plain("Brujah", 2), 4, false);
+    e.add_minion(SeatId(1), find_card("Marcellus"), 4, false);
+    e.add_minion(SeatId(2), plain("Brujah", 1), 4, false);
+    e.state.seats[0].pool = 5;
+    e.state.seats[1].pool = 10;
+    e.state.seats[2].pool = 4;
+    hand(&mut e, 0, &["Parity Shift"]);
+    pick(&mut e, play(0, 0, caller));
+    e.state.seats[1].pool = 5;
+    until(&mut e, SeatId(0), WindowLabel::MinionPhase);
+    assert!(e.referendum().is_none());
+    assert_eq!(e.last_outcome, Some(zvtes::actions::Outcome::Fizzled));
+    assert_eq!(blood(&e, caller), 4, "not paid");
+}
+
 // ---- Unlock phase abilities -------------------------------------------------------------
 
 // [LSJ 20040127] Owain Evans: "His ability can only be used once each

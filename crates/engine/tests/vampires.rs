@@ -3292,7 +3292,7 @@ fn ragnar_nordstrom_pays_a_blood_less_for_protean_cards() {
 // 1, a 0-cost directed card (Deep Song's bleed) 1, a 1-blood one
 // (Revelations [aus] at her prey) 2, not offered at 1 blood; her undirected
 // actions are not affected (Revelations [AUS], hunting). Unpayable by
-// resolution, the action fizzles.
+// resolution, the action fizzles; its target gone, it is not paid.
 #[test]
 fn daria_pays_a_blood_more_for_directed_actions() {
     let setup = |b: u8| {
@@ -3349,6 +3349,33 @@ fn daria_pays_a_blood_more_for_directed_actions() {
     until(&mut e, SeatId(0), WindowLabel::MinionPhase);
     assert_eq!(e.state.seats[1].pool, before);
     assert!(e.state.minions[daria.index()].bled_this_turn);
+
+    // Short of the +1 and the card's blood by resolution: the +1 is paid
+    // from what she has, the action fizzles (rules-qa 42.6, 117.4).
+    let (mut e, daria) = setup(2);
+    pick(&mut e, at_prey(daria));
+    e.state.minions[daria.index()].blood = 1;
+    until(&mut e, SeatId(0), WindowLabel::MinionPhase);
+    assert_eq!(e.last_outcome, Some(zvtes::actions::Outcome::Fizzled));
+    assert_eq!(blood(&e, daria), 0, "paid as far as it goes");
+
+    // Her action's target gone by resolution (a diablerie whose vampire
+    // left torpor): fizzled for it, the +1 is not paid (ANK 20210124;
+    // rules-qa 117.4).
+    let (mut e, daria) = setup(2);
+    let n = e.add_minion(SeatId(1), plain("Brujah", 1), 1, true);
+    pick(
+        &mut e,
+        Choice::TakeAction {
+            minion: daria,
+            action: ActionKind::Diablerie,
+            target: Some(n),
+        },
+    );
+    e.state.minions[n.index()].in_torpor = false;
+    until(&mut e, SeatId(0), WindowLabel::MinionPhase);
+    assert_eq!(e.last_outcome, Some(zvtes::actions::Outcome::Fizzled));
+    assert_eq!(blood(&e, daria), 2, "not paid");
 }
 
 // Djeneba: the strike cards of the minion in combat with her cost it 1

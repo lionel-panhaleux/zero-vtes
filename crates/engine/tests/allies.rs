@@ -378,9 +378,11 @@ fn taste_of_vitae_cannot_be_played_against_an_ally() {
 }
 
 // The cost is paid at resolution (spec §1.7.1): unpayable by then, the
-// recruit fizzles and the card is discarded (rules-qa 3.6).
+// recruit fizzles (rules-qa 3.6), the pool paid as far as it goes: the
+// last of it, and its Methuselah is ousted (owner, 2026-11-12; rules-qa
+// 117.1).
 #[test]
-fn a_recruit_the_methuselah_cannot_pay_at_resolution_fizzles_and_the_card_is_discarded() {
+fn a_recruit_the_methuselah_cannot_pay_at_resolution_fizzles_paying_their_last_pool() {
     let mut e = Engine::bare(3);
     let v = e.add_minion(SeatId(0), plain("Ventrue", 0), 4, false);
     e.add_minion(SeatId(0), plain("Ventrue", 1), 4, false);
@@ -391,12 +393,13 @@ fn a_recruit_the_methuselah_cannot_pay_at_resolution_fizzles_and_the_card_is_dis
     pick(&mut e, play(0, 0, v));
     expect(&mut e, SeatId(1), WindowLabel::ActionBlock);
     e.state.seats[0].pool = 1;
+    let rich = e.state.seats[2].pool;
     pick(&mut e, Choice::Pass);
-    until(&mut e, SeatId(0), WindowLabel::MinionPhase);
-    assert_eq!(e.state.seats[0].pool, 1);
+    to_minion_phase(&mut e, SeatId(1));
     assert!(e.state.minions.iter().all(|m| !m.is_ally()));
-    assert_eq!(e.state.seats[0].ash, vec![find_library("Political Ally")]);
-    assert_eq!(e.last_outcome, Some(zvtes::actions::Outcome::Fizzled));
+    let s = &e.state.seats[0];
+    assert!(s.ousted && s.pool == 0, "its last pool paid");
+    assert_eq!(e.state.seats[2].pool, rich + 6, "its predator's");
 }
 
 // ---- Slice 10b: the pre-built-deck allies' and retainers' text -----------
