@@ -320,11 +320,11 @@ generators' `--check` (`gen_crypt.py`, `gen_library.py`, `gen_twda.py`).
 1. **Read the rulings first** (CLAUDE.md "Owner rules"): the card's KRCG
    rulings, its rows in `data/rulings-v5.csv`, `../vtes-advanced-rules`,
    and rules-qa (its topical index, then the "Default readings": choices
-   at declaration; a card played by another card is still played; costs
-   payable even if the payer burns; caps read narrowly; card text
-   addresses its controller, 32.7; Ⓓ only indicative, 20.1). The design
-   satisfies each ruling. Read `docs/rules-digest.md`'s sections for the
-   card's mechanisms first.
+   at declaration; a card another card plays or puts in play is played,
+   by that card and not in the normal fashion; costs payable even if the
+   payer burns; caps read narrowly; card text addresses its controller,
+   32.7; Ⓓ only indicative, 20.1). The design satisfies each ruling. Read
+   `docs/rules-digest.md`'s sections for the card's mechanisms first.
 2. **Find an existing primitive** before adding a variant. Search
    `Effect` by family: the arms of `Effect::family` in `cards/families.rs`
    list every variant of a family together; grep a sibling card's
@@ -1971,6 +1971,16 @@ CryptAlly}`.
   41.13); Regina Blake's blood is announced with the card like a reduction
   (`PlayCtx::blood_payer`, `Engine::blood_payers`), paid with the named or
   found card's cost in `Engine::pay_named_discounts`.
+- A card another card plays or puts in play (`Effect::EmployNamed`,
+  `EquipNamed`, the searches, `Engine::put_on_minion`,
+  `Interrupt::PutInPlaySearch`) is played by that card, not in the normal
+  fashion (rules-qa 119): it never goes through `announce_play`, so no
+  as-played window opens and nothing keyed to who plays a card runs (a
+  recruit or employ rider still does: Baba Yaga, PIB 20150105-2). What
+  reads the card itself is applied where it is placed or paid: "only one
+  … can be played or equipped in a game" (`Engine::note_once_played`,
+  `once_played_out`), and what it costs its minion more
+  (`Engine::card_surcharge`, beside the reductions above).
 - "Plays cards requiring a <clan> as if" (`VampireDef::plays_as`) counts at
   card plays only (`GameState::meets_clan`: clan requirement, target, terms,
   `R::ControlsReadyClan`); a card's effects in play read the clan itself
@@ -2069,7 +2079,8 @@ CryptAlly}`.
   `GameState::can_hold`, which bars a no-equipment minion only from what is
   still equipment in play: a locquipment is a location (rules-qa 94.4).
   `Engine::put_equipment` is shared by equip, searches and Vast Wealth;
-  "only one played or equipped in a game" is recorded there.
+  "only one played or equipped in a game" is recorded there, and where
+  Summon History puts an equipment in play (`Engine::note_once_played`).
 - Found or stored equipment (Vast Wealth, Repo Man, Delivery Truck's
   `EquipStored`) is checked by `equip_requirements_met`: clan, path,
   Disciplines, "only one" and its equip mode's sect and title
@@ -2202,8 +2213,10 @@ CryptAlly}`.
 - Summon History (`Effect::SearchPutInPlayUpToX`, `Interrupt::PutInPlaySearch`,
   `put_in_play_finds`; the host shows the crypt as the `AshVampire` zone): the
   card put in play, a vampire through `influence::vampire_entered` (shared
-  with influence-out). `Effect::HandToBottomX` (Nehemiah) moves the picked
-  count to the library's bottom (`Interrupt::Bottom`).
+  with influence-out), a Flaming Candle found whatever was played (LSJ
+  20060209) and counted as the game's one. `Effect::HandToBottomX`
+  (Nehemiah) moves the picked count to the library's bottom
+  (`Interrupt::Bottom`).
 
 - "You can get +n hand size until the end of the turn" (Sascha Vykos:
   `Interrupt::MayGainHandSize`, once each turn); Port Authority's delayed

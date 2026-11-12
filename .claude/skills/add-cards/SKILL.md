@@ -125,8 +125,9 @@ For each card, two independent reads:
   entry, the digest's "Default readings" and "What counts as X" sections,
   and these rules stated outright: card text addresses its controller
   (32.7); Ⓓ is only indicative (20.1): an action that picks another
-  Methuselah's minions targets them; a card played by another card is
-  played. It answers, per card:
+  Methuselah's minions targets them; a card another card plays or puts
+  in play is played, by that card and not in the normal fashion (no
+  as-played window, no minion-plays trigger). It answers, per card:
   1. Who chooses what, and when (declaration vs resolution)?
   2. What is targeted; is the action directed, and at whom?
   3. What does the card or its subject count as (hunt, bleed, directed,

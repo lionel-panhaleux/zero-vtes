@@ -82,14 +82,16 @@ fizzle, §10.2).
 
 **D2. A played card is played, however it came.** A card played from a
 search, from the ash heap, by Contraband, Piper, Vast Wealth, Spiritual
-Guidance, The Erciyes Fragments… is played — not "the normal way", but
-played: cost reductions apply, "when played" effects and "cannot play" bans
-apply, it counts for "only one … each turn / per game" (36.5, 38.5, 40.10,
-41.13, 38.7). Only an effect that says *put in play* does not play the card
-(and bypasses requirements and cost); "equip", "recruit", "employ" keep
-requirements and cost (advanced rules §1.6.3, §1.8.2). Exceptions are the
-reductions whose own text needs the card played normally through an action
-(Charisma's "recruit ally actions", 36.5, 62.13, 63.9).
+Guidance, The Erciyes Fragments…, or put in play by another card, is played
+— not "the normal way", but played: cost reductions apply, limits on the
+card and "cannot play" bans apply, it counts for "only one … each turn / per
+game" (36.5, 38.5, 40.10, 41.13, 38.7, 119.2). A card another card brings in
+opens no as-played window, and that card played it, not a minion: an effect
+keyed to a minion playing a card does not see it (119.1; ANK 20201229). An
+effect that says *put in play* only bypasses requirements and cost; "equip",
+"recruit", "employ" keep them (advanced rules §1.6.3, §1.8.2). Exceptions
+are the reductions whose own text needs the card played normally through an
+action (Charisma's "recruit ally actions", 36.5, 62.13, 63.9).
 
 **D3. A cost may be paid even if paying burns or ousts the payer**, as long
 as the payer has it: an ally pays its last life and burns, its attempt or
@@ -449,12 +451,13 @@ below rely on these and do not repeat them.
 
 ### 3.7 Played, put in play, moved, equipped
 
-- Played: D2. Put in play: no play, no requirement, no cost (D2; 40.10
-  Absimiliard's Army's ghoul, 44.4 Jake Washington's ally).
-- Recruited / employed: the normal action, requirements and cost; a card
-  another card puts in play is not "recruited" (40.10, 44.4) — it may act the
-  turn it enters (§14.7); Pack Alpha's retainer is paid and put in play,
-  not employed (22.2).
+- Played: D2. Put in play: played, not in the normal fashion, with no
+  requirement and no cost (D2, 119.1); Absimiliard's Army's ghoul is a
+  nameless stand-in, no card played (40.10, 119.4).
+- Recruited / employed: the normal action, requirements and cost; an ally
+  a master card becomes, or a card another card puts in play, is not
+  "recruited" (40.10, 44.4) — it may act the turn it enters (§14.7); Pack
+  Alpha's retainer is paid and put in play, not employed (22.2).
 - Moving equipment (a steal, the equip-from-another-minion action, a
   locquipment move) is not equipping: no requirement checked, nothing stored
   (17.4, 12.2, 38.7, 70.11); yet the take from another minion is "an equip
@@ -468,9 +471,11 @@ below rely on these and do not repeat them.
   (70.3, 71.3).
 - Summon History: X chosen as it is played, 0 or more (LSJ 20100314); the
   search at resolution, library and/or ash heap ([TEM]: crypt and/or ash
-  heap), against the printed cost or capacity; the card is put in play, not
-  played — no requirement, its own X cost 0 (PIB 20111101); a vampire comes
-  with no blood and may act this turn (LSJ 20100204) (77.3).
+  heap), against the printed cost or capacity; the card is put in play,
+  played though not in the normal fashion — no requirement, its own X cost
+  0 (PIB 20111101); a vampire comes with no blood and may act this turn
+  (LSJ 20100204) (77.3); a Flaming Candle is found whatever was played
+  (LSJ 20060209), and so put in play is the game's one (119.2).
 - NRA PAC's "an equip action" is Hag's Wrinkles' (78.28), one reading for
   both, Roderick Phillips March's and Carmen's too: an equip from hand,
   Vast Wealth's, the take from another minion, an action card or granted
@@ -1301,6 +1306,15 @@ Advanced rules §1.7 (costs and payment), §1.8 (playing and canceling).
 
 ### 7.1 Playing a card
 
+- A card another card plays or puts in play is played by that card, not
+  in the normal fashion: no as-played window, and nothing keyed to who
+  plays a card sees it — a minion (Veil of Darkness, Andrew Stuart, Ira
+  Rivers, Marthe Dizier; 119.1) or a Methuselah (Troglodytia's look,
+  Sascha Vykos's draw; 119.3); a limit on the card itself counts it
+  (Flaming Candle's one a game), and what it costs the minion paying it
+  follows it (the reductions, Darlene Killian's surcharge; 119.2). The
+  diablerie's Discipline card and Absimiliard's Army's ghoul are played by
+  no card (119.4).
 - A played card is played however it came (D2, 41.13); a card played from
   another zone "as if from your hand" is played immediately as the
   resolution of the card that plays it, the impulse not going around; its
@@ -5196,7 +5210,8 @@ rules-qa batch.
   fashion: not Piper's ally, not Disguised Weapon's weapon); reconciled by
   advanced rules §1.8.2 (played, but with no as-played window, so never
   canceled as played); a card played "as if from hand" can be canceled as
-  played (LSJ 20060106, Approximation of Loyalty).
+  played (LSJ 20060106, Approximation of Loyalty). Settled by the owner
+  (2026-11-11; 119.1): a card put in play is played so too.
 - **K33** Empty crypt or library draws: LSJ 20060620 (draw as much as you
   can, even from an empty deck) vs RTR 20000501 and LSJ 20070411-2 (a card
   needing a crypt card cannot be played with an empty crypt, Mozambique
@@ -5367,6 +5382,11 @@ read, for the owner to confirm or correct:
   amber, the engine's limit, told to the owner (the rest of the effect in
   flight applied before a held Life Boon is asked; exact takes replaying
   the step from a snapshot).
+- Batch 119 (a card put in play by another card is played): 119.1 green;
+  119.2 green but a Flaming Candle put in play barring a later equip,
+  amber; 119.3 (an effect keyed to a Methuselah playing a card does not
+  see it either) and 119.4 (the diablerie's Discipline card and
+  Absimiliard's Army's ghoul played by no card) amber.
 
 ### 24.2 Questions for a new rules-qa batch
 
@@ -5469,7 +5489,7 @@ an owner ruling:
 Every rules-qa item, by batch, with the digest sections citing it: the
 section stating it and those cross-referring to it (§2 the default
 readings, §22 engine modeling, §23 the contradictions, §24 the open
-readings). 1446 items, Batches 1–118 (44.11 was removed, replaced by Batch
+readings). 1450 items, Batches 1–119 (44.11 was removed, replaced by Batch
 45). The index is derived from the citations: a bare `N.M` cites rules-qa
 item N.M in the section it appears in. A new rules-qa item gets its line in
 the section stating it, then its entry here: `python3
@@ -5925,3 +5945,5 @@ index or an item cited nowhere.
   117.4 §10.2; 117.5 §11.6; 117.6 §10.2
 - **118** — 118.1 §21.1,§24.1; 118.2 §5.3,§5.4; 118.3 §5.4,§21.1,§24.1;
   118.4 §21.1,§24.1
+- **119** — 119.1 §2,§3.7,§7.1,§23.4,§24.1; 119.2 §2,§3.7,§7.1,§24.1; 119.3
+  §7.1,§24.1; 119.4 §3.7,§7.1,§24.1

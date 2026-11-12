@@ -7121,6 +7121,114 @@ fn piper_employs_by_the_anarchs_disciplines_and_is_no_action() {
     assert!(plays_by(&req, a).iter().any(|&(c, _)| c == k));
 }
 
+// Veil of Darkness: "when a vampire plays his or her first card that turn
+// that requires any Disciplines". [ANK 20201229] The retainer Piper employs
+// is not played by the minion, Piper plays it (rules-qa 119.1): a master on
+// top of the library voids nothing, and no Discipline card is counted.
+#[test]
+fn a_retainer_piper_employs_is_not_played_by_the_anarch() {
+    let mut e = Engine::bare(3);
+    let superior_ani = vampire(
+        |c| {
+            c.sect == Some(zvtes::crypt::Sect::Anarch)
+                && c.title == Title::None
+                && c.disciplines.contains(&"ANI")
+        },
+        0,
+    );
+    let a = e.add_minion(SeatId(0), superior_ani, 4, false);
+    e.add_minion(SeatId(0), plain("", "", 0), 4, false);
+    e.add_minion(SeatId(1), plain("", "", 1), 4, false);
+    e.state.cards.push(CardInPlay::new(
+        find_library("Veil of Darkness"),
+        SeatId(1),
+        None,
+        0,
+    ));
+    let veil = CardId(e.state.cards.len() as u32 - 1);
+    e.state.layers.push(zvtes::cards::Layer {
+        scope: zvtes::cards::Scope::InPlay,
+        modifier: zvtes::cards::Modifier::FirstDisciplineCardRevealsTop {
+            disc: "obt",
+            burn: 2,
+        },
+        source: veil,
+    });
+    hand(&mut e, 0, &["Piper", "Raven Spy"]);
+    e.state.seats[0].library.push(find_library("Blood Doll"));
+    e.state.minions[a.index()].blood = e.state.capacity_of(a).unwrap().min(4);
+    e.at_master_phase();
+    pick(&mut e, play(0, 0, a));
+    let spy = find_library("Raven Spy");
+    pick_when(&mut e, Choice::EmployFromHand { card: spy, mode: 1 });
+    until(&mut e, SeatId(0), WindowLabel::MinionPhase);
+    let employed = e
+        .state
+        .cards
+        .iter()
+        .any(|c| c.card == spy && c.host == Some(a) && c.present());
+    assert!(employed, "not voided");
+    assert_eq!(e.state.minions[a.index()].discipline_card_turn, None);
+}
+
+// Darlene Killian: "Allies and retainers cost Darlene 1 additional blood."
+// What a card costs a minion follows the card another card plays (rules-qa
+// 113.13): Piper's ally costs her its pool and 1 blood.
+#[test]
+fn darlene_pays_a_blood_more_for_pipers_ally() {
+    let mut e = Engine::bare(3);
+    let d = e.add_minion(SeatId(0), crypt("Darlene Killian"), 2, false);
+    e.state.minions[d.index()].sect_override = Some(zvtes::crypt::Sect::Anarch);
+    e.add_minion(SeatId(0), plain("", "", 0), 4, false);
+    e.add_minion(SeatId(1), plain("", "", 1), 4, false);
+    // A pool-cost ally with no requirement.
+    let name = zvtes::library::LIBRARY
+        .iter()
+        .enumerate()
+        .find(|(i, l)| {
+            l.types == [zvtes::library::CardType::Ally]
+                && l.clans.is_empty()
+                && l.disciplines.is_empty()
+                && l.blood_cost == zvtes::library::Cost::None
+                && matches!(l.pool_cost, zvtes::library::Cost::Fixed(_))
+                && cards::lookup(*i as u16).is_some()
+        })
+        .map(|(_, l)| l.name)
+        .expect("a plain ally");
+    hand(&mut e, 0, &["Piper", name]);
+    let pool = e.state.seats[0].pool;
+    let ally = find_library(name);
+    let cost = |c: u16| match zvtes::library::LIBRARY[c as usize].pool_cost {
+        zvtes::library::Cost::Fixed(n) => n as i32,
+        _ => 0,
+    };
+    e.at_master_phase();
+    // The one ally in hand: its choice elides.
+    pick(&mut e, play(0, 0, d));
+    until(&mut e, SeatId(0), WindowLabel::MinionPhase);
+    assert!(e
+        .state
+        .minions
+        .iter()
+        .any(|m| m.in_play && m.kind.ally_card() == Some(ally)));
+    assert_eq!(
+        e.state.seats[0].pool,
+        pool - cost(find_library("Piper")) - cost(ally)
+    );
+    assert_eq!(e.state.minions[d.index()].blood, 1, "a blood more");
+    // With no blood for it, the ally is not hers to recruit.
+    let mut e = Engine::bare(3);
+    let d = e.add_minion(SeatId(0), crypt("Darlene Killian"), 0, false);
+    e.state.minions[d.index()].sect_override = Some(zvtes::crypt::Sect::Anarch);
+    e.add_minion(SeatId(0), plain("", "", 0), 4, false);
+    e.add_minion(SeatId(1), plain("", "", 1), 4, false);
+    hand(&mut e, 0, &["Piper", name]);
+    e.at_master_phase();
+    // Piper not offered, the master phase elides.
+    expect(&mut e, SeatId(0), WindowLabel::MinionPhase);
+    assert_eq!(e.state.seats[0].hand.len(), 2);
+}
+
 // [TOM 19960528] Toreador Grand Ball: "The same vampire can serve as the
 // 'second Toreador' for multiple Toreador Grand Balls."
 #[test]
@@ -14842,7 +14950,7 @@ fn absimiliards_army_raises_textless_ghouls_from_the_library() {
     assert_eq!(
         e.state.seats[0].library.len(),
         2,
-        "not a play: no replacement"
+        "no card played from hand: no replacement"
     );
     // Burned: removed from the game.
     e.burn(g);

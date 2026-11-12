@@ -1078,6 +1078,103 @@ fn summon_history_puts_a_cheap_card_in_play() {
     assert_eq!(blood(&e, a), 3, "X paid");
 }
 
+// Summon History's card is played, though not in the normal fashion
+// (rules-qa 119.2): "Only one Flaming Candle can be played or equipped in a
+// game" counts the one put in play, so the hand's is not equipped after.
+// [LSJ 20060209] "If it has been equipped or played already, an effect can
+// still 'put it into play' provided it is not an 'equip' action": a second
+// Summon History finds the ash heap's.
+#[test]
+fn summon_history_puts_a_flaming_candle_in_play_whatever_was_played() {
+    let mut e = game(2);
+    let a = e.add_minion(SeatId(0), plain("Brujah", 0), 5, false);
+    superior(&mut e, a, "tem");
+    let b = e.add_minion(SeatId(0), plain("Brujah", 1), 4, false);
+    superior(&mut e, b, "tem");
+    e.add_minion(SeatId(1), plain("Ventrue", 0), 4, true);
+    let candle = find_library("Flaming Candle");
+    // One in the library, one in the ash heap, out of the draws' way.
+    let doll = find_library("Blood Doll");
+    e.state.seats[0].library = vec![candle, doll, doll, doll].into();
+    e.state.seats[0].ash.put(candle, Default::default());
+    hand(
+        &mut e,
+        0,
+        &["Summon History", "Summon History", "Flaming Candle"],
+    );
+    fill_hand(&mut e, 0);
+    let take = |zone| Choice::TakeFrom { zone, card: candle };
+    pick(&mut e, play(0, 0, a));
+    pick_when(&mut e, set_x(1));
+    let req = until(&mut e, SeatId(0), WindowLabel::LibrarySearch);
+    assert!(req.options.contains(&take(zvtes::decision::Zone::Library)));
+    pick(&mut e, take(zvtes::decision::Zone::Library));
+    let req = until(&mut e, SeatId(0), WindowLabel::MinionPhase);
+    let on = |e: &Engine, m| {
+        e.state
+            .cards
+            .iter()
+            .any(|c| c.card == candle && c.host == Some(m) && c.present())
+    };
+    assert!(on(&e, a));
+    // The hand's Candle, now its second card: played already, not equipped.
+    assert_eq!(e.state.seats[0].hand[1], candle);
+    assert!(!req.options.contains(&play(1, 0, b)), "{:?}", req.options);
+    pick(&mut e, play(0, 0, b));
+    pick_when(&mut e, set_x(1));
+    let req = until(&mut e, SeatId(0), WindowLabel::LibrarySearch);
+    assert!(req.options.contains(&take(zvtes::decision::Zone::AshHeap)));
+    pick(&mut e, take(zvtes::decision::Zone::AshHeap));
+    request(&mut e);
+    assert!(on(&e, b));
+}
+
+// [RTR 20001020] "Can only cancel minion cards played from the hand in the
+// normal fashion": the card Summon History puts in play opens no as-played
+// window (rules-qa 119.1); Summon History itself does.
+#[test]
+fn summon_history_card_opens_no_as_played_window() {
+    let mut e = game(2);
+    let a = e.add_minion(SeatId(0), plain("Brujah", 0), 5, false);
+    superior(&mut e, a, "tem");
+    e.add_minion(SeatId(0), plain("Brujah", 1), 4, false);
+    e.add_minion(SeatId(1), plain("Ventrue", 0), 4, false);
+    let vest = find_library("Kevlar Vest");
+    e.state.seats[0].ash.put(vest, Default::default());
+    hand(&mut e, 0, &["Summon History"]);
+    fill_hand(&mut e, 0);
+    hand(&mut e, 1, &["Direct Intervention"]);
+    pick(&mut e, play(0, 0, a));
+    pick_when(&mut e, set_x(2));
+    let cancel = Choice::Play {
+        card: 0,
+        mode: 0,
+        actor: None,
+        target: Target::None,
+    };
+    let req = until(&mut e, SeatId(1), WindowLabel::CardAsPlayed);
+    assert!(
+        req.options.contains(&cancel),
+        "Summon History: {:?}",
+        req.options
+    );
+    pick(&mut e, Choice::Pass);
+    until(&mut e, SeatId(0), WindowLabel::LibrarySearch);
+    pick(
+        &mut e,
+        Choice::TakeFrom {
+            zone: zvtes::decision::Zone::AshHeap,
+            card: vest,
+        },
+    );
+    never_offered_until(&mut e, SeatId(0), WindowLabel::MinionPhase, cancel);
+    assert!(e
+        .state
+        .cards
+        .iter()
+        .any(|c| c.card == vest && c.host == Some(a) && c.present()));
+}
+
 // Summon History [TEM]: "Search your crypt and/or ash heap for a non-scarce
 // vampire card with capacity X or less and put that vampire in play (with
 // no blood)." No requirement, and it may act this turn [LSJ 20100204] [LSJ

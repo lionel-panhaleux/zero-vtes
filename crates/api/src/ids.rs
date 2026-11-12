@@ -500,7 +500,7 @@ ids!(
         /// "You can search your library (shuffle afterward), hand and/or ash
         /// heap for a Discipline master card and put it on this new vampire"
         /// (Childe of the Revolution), or on the diablerist of an older
-        /// vampire (advanced rules 4): put on, not played.
+        /// vampire (advanced rules 4): put on, with no as-played window.
         DisciplineSearch,
         /// Learjet, Ira Rivers, Duality: `seat` may draw an additional card
         /// (`DrawLibrary`), the hand then discarded down; or pass.

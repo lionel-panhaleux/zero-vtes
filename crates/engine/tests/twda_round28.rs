@@ -8315,7 +8315,7 @@ fn amulet_burns_its_blood_as_the_card_is_played() {
 /// non-standard way." Dagger: "You can put a second Dagger from your hand
 /// or ash heap on this minion after they equip this Dagger from your hand."
 /// Equipped from hand, a copy is offered from the hand and from the ash
-/// heap; the ash heap's goes on too, put on, not played: the pool paid
+/// heap; the ash heap's goes on too, put on with no cost: the pool paid
 /// once, the hand's copy kept.
 #[test]
 fn dagger_fetches_a_second_dagger_from_hand_or_ash_heap() {

@@ -3377,11 +3377,7 @@ impl Engine {
                         && cards::lookup(c).is_some()
                         && self.equip_requirements_met(m, c)
                         && self.payable_from_ash(m, s, c)
-                        && !(cards::lookup(c).is_some_and(|d| {
-                            d.modes
-                                .iter()
-                                .any(|md| md.requires.contains(&Requirement::NotPlayedThisGame))
-                        }) && st.once_played.contains(&c))
+                        && !self.once_played_out(c)
                 })
                 .into_iter()
                 .map(move |c| (s, c))
@@ -3456,11 +3452,14 @@ impl Engine {
             let mut pool = cards::pool_cost(st, seat, card, Target::Minion(m));
             let mut blood = cards::blood_cost(st, card, 0);
             st.printed_cost_off(m, card, 0).apply(&mut pool, &mut blood);
-            if st.seats[seat.index()].pool < pool || st.minions[m.index()].blood < blood {
+            if st.seats[seat.index()].pool < pool {
                 continue;
             }
             for (mi, _) in def.modes.iter().enumerate() {
-                if (ignore && mi == 0) || cards::has_disciplines(st, m, card, mi) {
+                let blood = blood + self.card_surcharge(m, card, mi as u8);
+                if st.minions[m.index()].blood >= blood
+                    && ((ignore && mi == 0) || cards::has_disciplines(st, m, card, mi))
+                {
                     out.push((card, mi as u8));
                 }
             }
@@ -6666,6 +6665,9 @@ impl Engine {
                     );
                     named_card_off(ctx, &mut pool, &mut blood);
                     let (pool, blood) = self.pay_named_discounts(ctx, pool, blood);
+                    // What the card costs this minion more, played by
+                    // another card too (Darlene Killian, rules-qa 113.13).
+                    let blood = blood + self.card_surcharge(m, card, mode);
                     self.state.seats[s.index()].lose_pool(pool);
                     if pool > 0 {
                         self.note_pool_burned(s);

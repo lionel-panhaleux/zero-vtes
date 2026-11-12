@@ -9459,9 +9459,10 @@ impl Engine {
         }
     }
 
-    /// Put the master card `card` on `m` without playing it (no cost, no
-    /// requirement, nothing to cancel), its first mode's effects applying
-    /// as it enters play (Childe of the Revolution's Discipline card).
+    /// Put the master card `card` on `m`, not played in the normal fashion
+    /// (no cost, no requirement, nothing to cancel; rules-qa 119.1), its
+    /// first mode's effects applying as it enters play (Childe of the
+    /// Revolution's Discipline card).
     pub(crate) fn put_on_minion(
         &mut self,
         seat: SeatId,
@@ -9655,6 +9656,24 @@ impl Engine {
         }
     }
 
+    /// "Only one … can be played or equipped in a game" (Flaming Candle): a
+    /// card another card equips or puts in play is played too (rules-qa
+    /// 38.7, 119.2).
+    pub(crate) fn note_once_played(&mut self, card: u16) {
+        if lib_requires(card, cards::Requirement::NotPlayedThisGame)
+            && !self.state.once_played.contains(&card)
+        {
+            self.state.once_played.push(card);
+        }
+    }
+
+    /// Whether `card` is one "only one … can be played or equipped in a
+    /// game" already played.
+    pub(crate) fn once_played_out(&self, card: u16) -> bool {
+        lib_requires(card, cards::Requirement::NotPlayedThisGame)
+            && self.state.once_played.contains(&card)
+    }
+
     /// Put an equipment card from outside play on `acting`, its cost paid:
     /// its mode's own effects apply, and a unique enters contest.
     pub(crate) fn put_equipment(
@@ -9664,13 +9683,7 @@ impl Engine {
         play: PlayCtx,
     ) -> Option<CardId> {
         let def = cards::lookup(play.card).expect("definition");
-        // "Only one … can be played or equipped in a game" (Flaming
-        // Candle): found in the library and equipped counts too.
-        if lib_requires(play.card, cards::Requirement::NotPlayedThisGame)
-            && !self.state.once_played.contains(&play.card)
-        {
-            self.state.once_played.push(play.card);
-        }
+        self.note_once_played(play.card);
         let ctx = PlayCtx {
             target: Target::Minion(acting),
             ..play
@@ -9843,10 +9856,7 @@ impl Engine {
                 })
             })
             && st.can_hold(m, card, &[])
-            // "Only one … can be played or equipped in a game" (Flaming
-            // Candle).
-            && !(lib_requires(card, cards::Requirement::NotPlayedThisGame)
-                && st.once_played.contains(&card))
+            && !self.once_played_out(card)
     }
 
     /// The search of a successful Magic of the Smith: every equipment the

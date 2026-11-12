@@ -11752,7 +11752,7 @@ pub static TYLER: VampireDef = VampireDef {
 /// "Laibon magaji: You may use a master phase action to search your
 /// library or ash heap for an Aye or Orun to place on a ready Laibon." Any
 /// Methuselah's Laibon, named as it is used, still ready as it resolves;
-/// from torpor too; the card put in play, not played.
+/// from torpor too; the card put in play, with no as-played window.
 pub static UMDAVA: VampireDef = VampireDef {
     name: "Umdava",
     abilities: &[ModeDef {
@@ -13535,8 +13535,9 @@ pub static SHAHID: VampireDef = VampireDef {
 /// library for an Animalism, Fortitude or Protean Master: Discipline card
 /// and move it to himself or herself as a +1 stealth action." Any
 /// Methuselah's Gangrel, Lord Ashton in torpor too (rules-digest D25); an
-/// action requiring a Gangrel (LSJ 20080604); the card moved, not played,
-/// never onto a vampire with that Discipline superior; shuffled after.
+/// action requiring a Gangrel (LSJ 20080604); the card moved by his
+/// ability, not played in the normal fashion (rules-qa 119.3), never onto
+/// a vampire with that Discipline superior; shuffled after.
 pub static LORD_ASHTON: VampireDef = VampireDef {
     name: "Lord Ashton",
     abilities: &[ModeDef {

@@ -389,9 +389,9 @@ pub enum Interrupt {
         pool: u8,
     },
     /// A Discipline master from library, hand or ash heap put on `minion`,
-    /// not played: Childe of the Revolution's new vampire, a diablerist of
-    /// an older vampire (advanced rules 4); `named`, one of these from the
-    /// library only (Lord Ashton).
+    /// with no as-played window: Childe of the Revolution's new vampire, a
+    /// diablerist of an older vampire (advanced rules 4); `named`, one of
+    /// these from the library only (Lord Ashton).
     DisciplineSearch {
         seat: SeatId,
         minion: crate::ids::MinionId,
@@ -4424,8 +4424,8 @@ impl Engine {
     ) -> Vec<Choice> {
         let st = &self.state;
         let seat = &st.seats[s.index()];
-        // Put on, not played: the card's requirements ignored (LSJ
-        // 20051116-2: "eg. diablerie"), the level it adds still capped.
+        // Put on: the card's requirements ignored (LSJ 20051116-2: "eg.
+        // diablerie"), the level it adds still capped.
         let fits = |c: u16| {
             cards::lookup(c).is_some_and(|d| {
                 d.modes[0].target.is_none_or(|t| {
@@ -5639,8 +5639,9 @@ impl Engine {
                         let (_, copy) = from.take(k);
                         self.shuffle_searched(s, false);
                         let lib = &crate::library::LIBRARY[card as usize];
-                        // Put in play, not recruited, employed or equipped:
-                        // inferior, able to act this turn (LSJ 20100204).
+                        // Put in play: played, though not recruited, employed
+                        // or equipped: inferior, able to act this turn (LSJ
+                        // 20100204).
                         if lib.types.contains(&crate::library::CardType::Ally) {
                             self.put_ally_in_play(s, card, copy);
                         } else if lib.types.contains(&crate::library::CardType::Retainer) {
@@ -5657,6 +5658,7 @@ impl Engine {
                             };
                             self.put_retainer(s, minion, play, true);
                         } else {
+                            self.note_once_played(card);
                             let entering = CardInPlay::entering(card, copy, s, Some(minion), 0);
                             if let Some(id) =
                                 self.place_now(entering, crate::plays::ModeLayers::Push, false)
@@ -7021,8 +7023,8 @@ impl Engine {
                     crate::state::CardInPlay::entering(card, copy, seat, Some(minion), 0);
                 self.place_now(entering, crate::plays::ModeLayers::Push, false);
             }
-            // Put on, not played: no cost, no fetch of its own; a hand card
-            // replaced (spec §6.8.3).
+            // Put on: no cost, no fetch of its own; a hand card replaced
+            // (spec §6.8.3).
             (Interrupt::SecondCopyOnto { seat, minion, .. }, Choice::TakeFrom { zone, card }) => {
                 use crate::decision::Zone;
                 self.interrupts.remove(0);
@@ -7376,7 +7378,7 @@ impl Engine {
     }
 
     /// Put the haven from `seat`'s hand on `minion`, its cost paid: in play
-    /// with its own layers, not played.
+    /// with its own layers, with no as-played window.
     fn put_found_on(&mut self, seat: SeatId, minion: crate::ids::MinionId, card: u16) {
         let (pool, blood) = self.found_on_cost(seat, minion, card);
         let s = &mut self.state.seats[seat.index()];

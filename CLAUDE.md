@@ -275,11 +275,12 @@ its skill and its task notes.
 - Keep legal no-op plays (cycling a card is a real option); only illegal-target
   actions are masked (rules-qa 17.4).
 - Before designing a card, apply rules-qa's "Default readings" (choices at
-  declaration; a card played by another card is still played, reductions
-  apply; costs payable even if the payer burns; caps read narrowly). A reading
-  no ruling settles is implemented and recorded as a question in a new
-  rules-qa batch. Card text addresses its controller by default (32.7); Ⓓ
-  is only indicative (20.1).
+  declaration; a card another card plays or puts in play is played, by that
+  card and not in the normal fashion: reductions apply, no as-played window,
+  no minion-plays trigger; costs payable even if the payer burns; caps read
+  narrowly). A reading no ruling settles is implemented and recorded as a
+  question in a new rules-qa batch. Card text addresses its controller by
+  default (32.7); Ⓓ is only indicative (20.1).
 - A settled decision changed is examined first (owner, 2026-11-11; every
   line): before building an overturned reading or a reversed rules-qa item,
   list everything that rests on it: the cards and rulings citing it (grep

@@ -31720,8 +31720,8 @@ pub static NOCTURN: CardDef = CardDef {
 /// haven, you may put it on this vampire instead (requirements and cost, if
 /// any, must be met and paid as normal)." [pot] directed at the location's
 /// controller, undirected at one's own (LSJ 20090324). Discarded down to the
-/// hand size afterward; the haven put on, not played (Secure Haven, Zaire
-/// River Ferry), one a vampire.
+/// hand size afterward; the haven put on, not played in the normal fashion
+/// (Secure Haven, Zaire River Ferry), one a vampire.
 pub static GOBLINISM: CardDef = CardDef {
     name: "Goblinism",
     modes: &[
@@ -35169,7 +35169,8 @@ pub static NEEBI: CardDef = CardDef {
 
 /// "Unique equipment. Requires a Laibon. You may use a master phase action
 /// to search your library or ash heap for an Aye or an Orun and put that
-/// card on this Laibon." Put on, not played: no trifle's extra action.
+/// card on this Laibon." Put on by Nkishi, not in the normal fashion: no
+/// trifle's extra action.
 pub static NKISHI: CardDef = CardDef {
     name: "Nkishi",
     modes: &[ModeDef {
