@@ -594,7 +594,7 @@ def test_imitation_draws_the_weak_decks_choices_more_often():
     deck, and the minibatches draw a weak deck's choices `bc_weak_weight`
     times as often as the others."""
     a = "data/records/zero-vtes-replay-2026-10-08T20-32-01-306Z.json"
-    b = "data/records/zero-vtes-replay-2026-10-12T21-50-21-712Z.json"
+    b = "data/records/zero-vtes-replay-2026-10-04T19-47-18-904Z.json"
     replays = load_replays(",".join([a, b]))
     train, _, _, _, decks, sources = imitation(replays, 3, 0)
     assert len(decks) == len(train)
