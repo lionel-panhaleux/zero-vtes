@@ -47,15 +47,6 @@ write to the main checkout's ignored `data/`.
 
 ## On an event
 
-- **The rulemongers on damage inflicted** (owner, 2026-11-12: Haymaker's
-  "inflicts" against Pulled Fangs' "successfully inflicted"; the
-  advanced rules' §4.5.5 "Immunity" correction held in primogen's
-  session): Haymaker is built to the owner's ruling (rules-qa 116,
-  damage not dodged and not prevented) meanwhile. Their answer → the
-  owner's word to primogen on §4.5.5, and a changed reading to Z-add
-  (Haymaker; a "prevented still inflicted" answer reverses it); then the
-  item is deleted.
-
 - **The platform opened to more players** (owner, 2026-11-09: planned
   for about 2026-11-23; the roadmap's phase): the online A/B — each game
   on engine.krcg.org served the current or the candidate weights at
