@@ -847,7 +847,9 @@ errors)
   windows (reachable, futile), rushes and their targets, combats — and the
   impact lines. `--by-deck` splits each group by deck (**Combat play by
   deck**, owner 2026-10-20: the rush decks seldom rush and their combats seldom
-  put the opposing minion down).
+  put the opposing minion down); each group's combats are split by how they
+  began (its rush, rushed, its block, its action blocked, other: no action
+  under way or neither minion in it).
 - **The impact ledger** (owner, 2026-10-25: "more actions and more impactful
   meaningful actions … missing opportunities in many places"; runs are judged
   by it, not by single counters): A&B a round — the seat's actions declared,
@@ -940,7 +942,22 @@ numbers)
   the influence phase's crypt draws, 21.7% (61.5%) of the minion phase's
   abilities, 11.2% (25.0%) of its actions, 7.5% (18.4%) of its plays, 5.3%
   (12.7%) of transfers; blocks' passes 1.4% (6.2%) (`humanset --map`,
-  2026-11-10).
+  2026-11-10). Inside a combat p18 plays as they did (its favourite their
+  choice in 79–92% of most combat windows' decisions, on all human wins),
+  but for the hand strike (65% of 101) and the range's abilities (47% of 36).
+- The bots lose on which combats they enter (owner, 2026-11-12: "examine all
+  combats"; `waste` on the harvest, every combat: p17 at the humans' tables,
+  the humans at every network's): the combats p17's rushes began 23 (the
+  opposing minion down 17%), the humans' 124 (54%); rushed, its minion down
+  44% (the humans' 16%); its blocks put the actor down 18% (the humans' 32%);
+  its actions blocked lose the minion 25% (the humans' 9%). 10% of p17's
+  rushes there go at a seat neither prey nor predator (the humans' 2%; 17% in
+  p18's self-play). Under p18 the rush-capable TWDA decks (a rush offered on
+  30% of their turns, 35 of 216 at its measure) take a VP share of 0.14
+  against the others' 0.20 (more rushes a turn, a weaker deck: r −0.19, a weak
+  tendency). The lever (owner, 2026-11-12): the human winners' rush and block
+  declarations weighted up in imitation, and frozen opponents on the
+  rush-capable decks (the training board's p19).
 - An option the network gives ~0 probability is never sampled, so never
   learned (the crypt draw: a median 6e-8 where the owner drew 11%); faded
   nudges let every nudged behaviour return (p8).

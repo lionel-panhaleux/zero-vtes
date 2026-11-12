@@ -61,7 +61,8 @@
 //!   its minion fought, the cards it played, the combat cards it held as
 //!   the combat began, those with some held and none played, the blood
 //!   the opposing minion lost, whether it or its own went to torpor or
-//!   burned;
+//!   burned, and those combats by how they began (`Origin`; owner,
+//!   2026-11-12: "examine all combats");
 //! - the impact ledger (owner, 2026-10-25: "do the bot network improve on
 //!   getting more actions and more impactful meaningful actions?"): A&B a
 //!   round (`zvtes::profile`: its actions declared, its blocks that landed
@@ -186,6 +187,9 @@ struct Counts {
     fight_damage: u64,
     fight_down: u64,
     fight_lost: u64,
+    /// Those combats by how they began (`Origin`): each [combats, the
+    /// opposing minion down, its own down].
+    fight_origin: [[u64; 3]; Origin::ALL.len()],
     /// The impact ledger: own turns, the profile's actions, blocks landed
     /// and hindrances, and R's change over those turns [its own, its
     /// prey's, its predator's].
@@ -288,6 +292,67 @@ struct Fight {
     blood: [u8; 2],
     plays: [u64; 2],
     held: [u64; 2],
+    origin: [Origin; 2],
+}
+
+/// How a combat began for a side.
+#[derive(Clone, Copy, Debug, Default, PartialEq)]
+enum Origin {
+    /// Its minion's action, unblocked: a rush (the action's effect).
+    Rush,
+    Rushed,
+    Block,
+    Blocked,
+    /// No action under way, or neither minion acting in it.
+    #[default]
+    Other,
+}
+
+impl Origin {
+    const ALL: [Origin; 5] = [
+        Origin::Rush,
+        Origin::Rushed,
+        Origin::Block,
+        Origin::Blocked,
+        Origin::Other,
+    ];
+
+    fn label(self) -> &'static str {
+        match self {
+            Origin::Rush => "its rush",
+            Origin::Rushed => "rushed",
+            Origin::Block => "its block",
+            Origin::Blocked => "its action blocked",
+            Origin::Other => "other",
+        }
+    }
+
+    /// For each side of a combat between `minions` as it begins, from the
+    /// action under way (`acting`) and its blocker (`blocker`).
+    fn of(
+        minions: [MinionId; 2],
+        acting: Option<MinionId>,
+        blocker: Option<MinionId>,
+    ) -> [Origin; 2] {
+        let side = |i: usize| match acting {
+            Some(a) if a == minions[i] => {
+                if blocker == Some(minions[1 - i]) {
+                    Origin::Blocked
+                } else {
+                    Origin::Rush
+                }
+            }
+            Some(a) if a == minions[1 - i] => {
+                if blocker == Some(minions[i]) {
+                    Origin::Block
+                } else {
+                    Origin::Rushed
+                }
+            }
+            _ => Origin::Other,
+        };
+        [side(0), side(1)]
+    }
 }
 
 fn combat_cards(e: &Engine, seat: SeatId) -> u64 {
@@ -324,6 +389,10 @@ struct Watch {
     /// Each seat's group: cross-table counts go to the seat they describe.
     groups: Vec<String>,
     combat: Option<Fight>,
+    /// From the notes: the minion acting in the action under way, and the
+    /// minion attempting to block it or that blocked it (`Ledger::blocker`).
+    acting: Option<MinionId>,
+    blocker: Option<MinionId>,
     /// Block attempts on a bleed with stealth offered: (action, blocker,
     /// `relation`, stealth played).
     attempts: Vec<(ActionKey, MinionId, usize, bool)>,
@@ -495,8 +564,19 @@ impl Watch {
                         blood: minions.map(|m| self.blood.get(m.index()).copied().unwrap_or(0)),
                         plays: [0; 2],
                         held: seats.map(|s| self.held.get(s.index()).copied().unwrap_or(0)),
+                        origin: Origin::of(*minions, self.acting, self.blocker),
                     });
                 }
+                Note::Action(n) if n.ended => {
+                    self.acting = None;
+                    self.blocker = None;
+                }
+                Note::Action(n) => {
+                    self.acting = Some(n.action.acting);
+                    self.blocker = n.action.blocker;
+                }
+                Note::Acting { minion, .. } => self.acting = Some(*minion),
+                Note::Ledger { ledger, .. } => self.blocker = ledger.blocker,
                 Note::Combat(CombatNote::Ends { .. }) => {
                     if let Some(f) = self.combat.take() {
                         self.fought(e, &f, counts);
@@ -531,6 +611,10 @@ impl Watch {
             c.fight_damage += damage;
             c.fight_down += down(f.minions[1 - i]);
             c.fight_lost += down(f.minions[i]);
+            let o = &mut c.fight_origin[f.origin[i] as usize];
+            o[0] += 1;
+            o[1] += down(f.minions[1 - i]);
+            o[2] += down(f.minions[i]);
             if let Some(rel) = f.rel {
                 c.combats[rel] += 1;
                 c.combat_plays[rel] += f.plays[i];
@@ -1250,5 +1334,19 @@ fn main() {
             pct(c.fight_down, c.fights),
             pct(c.fight_lost, c.fights)
         );
+        let origins: Vec<String> = Origin::ALL
+            .iter()
+            .map(|&origin| (origin, c.fight_origin[origin as usize]))
+            .map(|(origin, o)| {
+                format!(
+                    "{} {} (the opposing minion down {:.0}%, its own {:.0}%)",
+                    origin.label(),
+                    o[0],
+                    pct(o[1], o[0]),
+                    pct(o[2], o[0])
+                )
+            })
+            .collect();
+        println!("  combats by how they began: {}", origins.join(", "));
     }
 }
