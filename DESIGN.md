@@ -756,8 +756,10 @@ run. The full run journal to p17, cut on 2026-11-09: `git show
   human who won a game played out (owner, 2026-10-15), among the options they
   were shown (a record's `shown`, read from the entry each decision took);
   held-out games named with `--bc-held-games` (out of imitation and starts);
-  `--bc-weak-weight`, `--bc-games-weight` weights by deck and by game. Each
-  iteration logs `bc_nll`, `bc_val_nll/acc` (held out) and `bc_fit_nll/acc`.
+  `--bc-weak-weight`, `--bc-games-weight`, `--bc-combat-weight` weight by
+  deck, by game and on the combat entries (a rush or a block declared, p19:
+  `replay_decisions`' `combat`, logged `bc_combat`). Each iteration logs
+  `bc_nll`, `bc_val_nll/acc` (held out) and `bc_fit_nll/acc`.
 - Starts (`zvtes_host::start`, `GamePool(replays=)`): a training table begun
   from a decision in the last four fifths of a human game (`--starts`,
   `--start-tables`), every library and crypt shuffled again at the branch,
@@ -767,6 +769,9 @@ run. The full run journal to p17, cut on 2026-11-09: `git show
   out, a human seat, not a test client's; owner, 2026-10-29).
 - `--deck` pins the learner's deck at its tables and evaluations, over the
   weak-deck routing (the exploitability probe's).
+- `--opponent-decks`, `--opponent-deck-rate`: that share of the frozen
+  seats at a table not begun from a human game plays one of those decks
+  (p19: the rush decks, `waste --by-deck`'s rush offered).
 - **Human games as data** (owner, 2026-10-03: "use the game log as a teaching
   vector"): a record replays exactly, every decision as (observation,
   options, choice) for any seat (`zvtes_py.replay_decisions`,

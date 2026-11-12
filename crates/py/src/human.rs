@@ -9,6 +9,8 @@ use pyo3::exceptions::PyValueError;
 use pyo3::prelude::*;
 use pyo3::types::PyDict;
 use zvtes::crypt::CRYPT;
+use zvtes::decision::{Choice, DecisionRequest, WindowLabel};
+use zvtes::game::Engine;
 use zvtes::library::LIBRARY;
 use zvtes_api::record::GameRecord;
 use zvtes_env::obs::{encode, encode_critic, Obs, OPT_F, OPT_IDS, TOK_F, TOK_IDS};
@@ -63,9 +65,10 @@ fn put(py: Python<'_>, d: &Bound<'_, PyDict>, prefix: &str, o: Obs, options: boo
 /// `window` (its id), `options` (told), `cards` (the KRCG id each option
 /// names, else None), `chosen` (None for the decision the record ends on),
 /// `choice` (its text), `entry` (with `chosen`: the index in the record's
-/// `entries` of the decision entry it took), `before` (what happened since the previous
-/// decision), the deciding seat's policy encoding (`tok_ids`, `tok_f`,
-/// `opt_ids`, `opt_f`) and critic encoding (`critic_tok_ids`,
+/// `entries` of the decision entry it took), `combat` (with `chosen`: the
+/// choice enters a combat, `combat_entry`), `before` (what happened since
+/// the previous decision), the deciding seat's policy encoding (`tok_ids`,
+/// `tok_f`, `opt_ids`, `opt_f`) and critic encoding (`critic_tok_ids`,
 /// `critic_tok_f`), both in observation version `obs`, the seats' context
 /// (`ctx`, `zvtes_env::context::features`), and `position`
 /// (`position_names`' features for the deciding seat). The dict `over`
@@ -121,6 +124,8 @@ pub fn replay_decisions<'py>(
                         x.set_item("chosen", i)?;
                         x.set_item("entry", d.entry)?;
                         x.set_item("choice", d.options.get(i).cloned())?;
+                        let req = r.request().expect("a decision is pending");
+                        x.set_item("combat", combat_entry(r.engine(), req, i))?;
                         samples.push(x);
                         r.take();
                     }
@@ -157,6 +162,18 @@ pub fn replay_decisions<'py>(
         r.humans().iter().map(|&s| s as usize).collect::<Vec<_>>(),
     )?;
     Ok(out)
+}
+
+/// Option `i` of `req` enters a combat: a rush declared in the acting
+/// seat's minion phase (`zvtes::profile::rush`, as `waste` counts one), or
+/// a block declared (the p19 plan: the human winners' combat entries
+/// weighted up in imitation, DESIGN §11.2).
+fn combat_entry(e: &Engine, req: &DecisionRequest, i: usize) -> bool {
+    let o = &req.options[i];
+    matches!(o, Choice::DeclareBlock { .. })
+        || (e.state.active == req.seat
+            && req.window == WindowLabel::MinionPhase
+            && zvtes::profile::rush(e, req.seat, o).is_some())
 }
 
 /// Deck `d`'s cards (`deck_names` order), crypt then library: (KRCG id,

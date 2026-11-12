@@ -184,8 +184,9 @@ checks it did not get worse).
   <file>` drops the short games too (`--bc data/records,$(cat <file>)`).
   Imitation keeps only the human who won (§11.2 "Training"); the held-out
   games as step 1 says; `--bc-weak-weight`, `--bc-games-weight` (the
-  owner's games, `zero-vtes-replay`, a harvested id) weight by deck and
-  game; `--start-winner` puts the learner in a human winner's seat;
+  owner's games, `zero-vtes-replay`, a harvested id), `--bc-combat-weight`
+  (a rush or a block declared) weight by deck, game and combat entry;
+  `--start-winner` puts the learner in a human winner's seat;
   `--held-games N` evaluates from the held-out wins (`vs_held`).
 - **Weakness mining**: a recurring bad choice becomes a `waste` counter
   first; the fix is looked for in exploration and opponents that punish it

@@ -187,6 +187,12 @@ class Config:
     # punish what the replays show the network never does); evaluated as
     # `vs_habits4/5`, not used for `best.pt`.
     habit_seats: float = 0.0
+    # The share of frozen opponent seats at a table not begun from a human
+    # game given one of `opponent_decks` (deck indices, comma-separated;
+    # owner, 2026-11-12, p19: the rush decks, against which the bots' combat
+    # lost most, DESIGN §11.2 "Settled by measurement"), else drawn as ever.
+    opponent_decks: str = ""
+    opponent_deck_rate: float = 0.0
     # Which habits those seats play (`zvtes_env::habits::Set`): a forced rescue
     # costs nothing measurable, a forced burn, diablerie or minion kept home
     # costs strength (DESIGN §11.2).
@@ -269,6 +275,10 @@ class Config:
     # minibatches `bc_weak_weight` times as often as the others (owner,
     # 2026-10-21, p14: the rush and wall decks).
     bc_weak_weight: float = 1.0
+    # The human winners' combat entries (a rush or a block declared,
+    # `replay_decisions`' `combat`) drawn `bc_combat_weight` times as often,
+    # times the other weights (owner, 2026-11-12, p19).
+    bc_combat_weight: float = 1.0
     # Named games' winners drawn more often (`part=W,…`: parts of file
     # names, as `bc_held_games`, and their weight — the first part a name
     # holds, not their product; times the weak deck's):
@@ -648,12 +658,13 @@ def imitation(replays, obs, holdout, games=()):
     choices up to the stop would train on a game cut short, and a held-out
     one would shrink the evaluation set unseen (2026-10-18: rules-qa 82.1
     stopped six harvested games). Last, each trained choice's deck (the
-    winner's pool deck index, `deck_index`; None for a list of their own)
-    and its game's file name."""
+    winner's pool deck index, `deck_index`; None for a list of their own),
+    its game's file name, and whether it enters a combat
+    (`replay_decisions`' `combat`)."""
     for part in games:
         if not any(part in path.name for path, _, _ in replays):
             raise ValueError(f"no replay named like {part!r} to hold out")
-    train, held, names, stopped, decks, sources = [], [], [], [], [], []
+    train, held, names, stopped, decks, sources, combat = [], [], [], [], [], [], []
     for g, (path, text, _) in enumerate(replays):
         game = zvtes_py.replay_decisions(text, obs)
         if "stopped" in game:
@@ -697,18 +708,21 @@ def imitation(replays, obs, holdout, games=()):
                 if out is train:
                     decks.append(deck)
                     sources.append(path.name)
-    return train, held, names, stopped, decks, sources
+                    combat.append(d["combat"])
+    return train, held, names, stopped, decks, sources, combat
 
 
-def sampling(decks, weak, weight, sources, games):
+def sampling(decks, weak, weight, sources, games, combat, combat_weight):
     """The imitation minibatches' draw over choices of `decks` from games
-    `sources` (`imitation`'s last two): a weak deck's `weight` times
-    another's, times the weight of the first part of `games` ({part of a
-    file name: weight}) its game's name holds; None, uniform, when every
-    weight is 1."""
+    `sources` entering a combat or not (`combat`; `imitation`'s last
+    three): a weak deck's `weight` times another's, times the weight of the
+    first part of `games` ({part of a file name: weight}) its game's name
+    holds, times `combat_weight` for a combat entry; None, uniform, when
+    every weight is 1."""
     w = np.array([weight if d in weak else 1.0 for d in decks])
     if games:
         w = w * np.array([next((g for part, g in games.items() if part in s), 1.0) for s in sources])
+    w = w * np.where(combat, combat_weight, 1.0)
     if (w == 1).all():
         return None
     return w / w.sum()
@@ -842,6 +856,11 @@ class Trainer:
             raise ValueError("--partner-rate needs --league true")
         if cfg.habit_seats > 0 and not cfg.opponents:
             raise ValueError("--habit-seats needs --opponents (frozen seats)")
+        self.opponent_decks = [int(d) for d in cfg.opponent_decks.split(",") if d.strip()]
+        if (self.opponent_decks or cfg.opponent_deck_rate > 0) and not (
+            cfg.opponents and self.opponent_decks and cfg.opponent_deck_rate > 0
+        ):
+            raise ValueError("--opponent-decks and --opponent-deck-rate go together, with --opponents (frozen seats)")
         if cfg.league:
             self.league = League(cfg, self.rng, self.out)
             if cfg.opponents:
@@ -917,7 +936,7 @@ class Trainer:
         self.weak = [int(d) for d in cfg.weak_decks.split(",") if d.strip()]
         self.bc, self.bc_held, self.bc_p = [], [], None
         if cfg.bc_coef > 0:
-            self.bc, self.bc_held, held, stopped, decks, sources = imitation(
+            self.bc, self.bc_held, held, stopped, decks, sources, combat = imitation(
                 load_replays(cfg.bc),
                 cfg.obs,
                 cfg.bc_holdout,
@@ -929,12 +948,15 @@ class Trainer:
             for part in weights:
                 if not any(part in s for s in sources):
                     raise ValueError(f"--bc-games-weight: no trained game named like {part!r}")
-            self.bc_p = sampling(decks, self.weak, cfg.bc_weak_weight, sources, weights)
+            self.bc_p = sampling(
+                decks, self.weak, cfg.bc_weak_weight, sources, weights, combat, cfg.bc_combat_weight
+            )
             print(
                 json.dumps(
                     {
                         "bc": len(self.bc),
                         "bc_weak": sum(d in self.weak for d in decks),
+                        "bc_combat": sum(combat),
                         "bc_games": {p: sum(p in s for s in sources) for p in weights},
                         "bc_held": len(self.bc_held),
                         "held_out": held,
@@ -1010,6 +1032,14 @@ class Trainer:
             decks[spec["seats"].index("net:0")] = int(self.rng.choice(self.weak))
             spec["decks"] = decks
         spec = self.pinned(spec)
+        if self.opponent_decks:
+            decks = spec.get("decks") or [None] * len(spec["seats"])
+            spec["decks"] = [
+                int(self.rng.choice(self.opponent_decks))
+                if net_id(s) in self.league.frozen and self.rng.random() < self.cfg.opponent_deck_rate
+                else d
+                for s, d in zip(spec["seats"], decks)
+            ]
         if self.league and self.league.exploiter_decks:
             decks = spec.get("decks") or [None] * len(spec["seats"])
             spec["decks"] = [
