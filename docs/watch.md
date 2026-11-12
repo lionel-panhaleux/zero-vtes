@@ -56,13 +56,3 @@ write to the main checkout's ignored `data/`.
   `intake` (the server's random choice of weights, the report's split by
   arm) and Z-train's (the candidate), and the item is deleted; no
   candidate yet → the item stays until one exists.
-- **50 of the owner's cross-table combats harvested** (the `humans` group
-  of `waste - 0 data/server-records`, in the detached checkout, its
-  combats with no seat ousted: the report keeps the bots' groups only;
-  30 on 2026-11-09): the pairing taught cross-table restraint in neither
-  p11 nor p12 and is off from p13 (owner, 2026-10-17); the owner's 4-seat
-  games are its target (at 4 seats, cooperate with the cross-table seat);
-  at 50 → Z-train's `intake`: compare the owner's cross-table play with
-  the served network's, decision by decision, and propose the lever it
-  points at (done when the comparison is in DESIGN §11.2 and the owner
-  has chosen).
