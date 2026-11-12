@@ -926,7 +926,9 @@ numbers)
   (the league runs); a learner from p14 against p14 alone stayed level for 300
   iterations (p17). On one deck at a learning rate of 1e-4, plain PPO gains
   ~0.1 VP on its frozen self in 100 iterations, at two errors (the
-  exploitability probe).
+  exploitability probe). Deck-specialized exploiters at that rate, six of 50
+  iterations each, never beat a learner from p17: none retired as beaten,
+  its beat rate on the live one 0.59 to 0.69 at its 12 logged readings (p18).
 - An exploration share (`066f47c`: a share of the decisions offering the
   collapsed kinds drawn from the policy flattened over them, PPO's ratio
   against that mixture) loses that gain, −0.15 VP at two errors (the probe,
@@ -969,9 +971,7 @@ owner) win 79% of their games against p14 (39 games, 2.79 VP a seat; a fair
 share 25%), 6 of 9 against p17 by 2026-11-11; over 80 counted games the bots
 won 5 of 240 seats. At p14's tables its ledger: A&B 1.60 a round (the owner
 3.03), its prey's R −2.18 a turn (the owner's prey −6.06), its own −2.81, its
-predator's −0.34. Order of work (owner, 2026-11-09 and 11-11; the training
-board): exploiters, judged on the human-facing measures (roadmap
-M:stronger-bot).
+predator's −0.34. The order of work: the training board.
 
 **The runs** (one entry a run, oldest first: its launch, the flags it changed,
 its numbers, what it settled; the last run's command in full, the next
@@ -1068,8 +1068,18 @@ its entry when it ends — the training skill's "A run")
   weak decks (`bc_weak` 0: no human has played them yet, so `--weak-decks`
   weighs nothing in this run). A first launch at `b1de838` was stopped after
   one iteration (its exploiter retired at once, p17's count carried over;
-  `c8d753e`). Baseline: p17 (`f426338f6c80`), measured beside p18 by step 4
-  on the run's engine.
+  `c8d753e`). Ended 2026-11-12 (`best.pt` at 5860). Step 4 on 5860 against
+  p17 (`f426338f6c80`), on the run's engine: `humanset` on the 11 held-out
+  wins it reads whole (5 stop partway), the 8 newer ones' wins from
+  positions 41.7% against 37.3% (480 games each, ± 4.5), agreement 49.9%
+  against 52.2% (± 2.4); at one seat against three p17 1.086 ± 0.093 VP,
+  24.4% ± 2.7 wins (1,000 games); the ledger better beyond two errors on 5
+  of 6 lines (A&B 2.11 / 2.20 / 1.80 against 2.08 / 2.12 / 1.66 at 4 and 5
+  seats and on TWDA; its prey's R −3.47 / −3.76 / −3.05 against −3.25 /
+  −3.46 / −2.72); the critic on the human records −0.35 / 0.07 / 0.53 from
+  a quarter in. Not degrading, a gain at bot tables by the ledger: served
+  (owner, 2026-11-12), `runs/served-p18.zvp` (`0535d0a0be63`), the previous
+  `runs/served-prev-2026-11-12-p17.zvp` (`f426338f6c80`).
 
 ### 11.3 Open gaps
 

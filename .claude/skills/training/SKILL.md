@@ -94,9 +94,10 @@ checks it did not get worse).
    gain, beyond two standard errors: on the human-facing measures
    (`humanset`'s wins on the held-out wins no ancestor met; the online A/B
    once it runs, docs/watch.md) — what closes M:stronger-bot; or one at bot
-   tables (a deck's VPs in `decks.rs`), which serves but does not close
-   it. Z-train sends Z-main the numbers; a run failing the not-degrading
-   test goes to the owner instead. Before the deploy:
+   tables (a deck's VPs in `decks.rs`; the ledger's A&B or its prey's R,
+   owner 2026-11-12 on p18), which serves but does not close it. Z-train
+   sends Z-main the numbers; a run failing the not-degrading test goes to
+   the owner instead. Before the deploy:
    - the per-deck file, at the commit being deployed (a clean worktree at
      main's tip): `cargo run -p zvtes-policy --profile ci --example decks --
      --file <served.zvp> 100` (about two and a half hours), written as
