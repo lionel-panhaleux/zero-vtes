@@ -154,9 +154,11 @@ impl Engine {
             // kept out of the action's burns.
             let burned = self.action.as_ref().map(|a| a.burned_owners.len());
             let card_burned = self.card_burns.as_ref().map(Vec::len);
-            for o in firsts {
-                self.burn_minion(o);
-            }
+            self.lost_together(|e| {
+                for o in firsts {
+                    e.burn_minion(o);
+                }
+            });
             if let (Some(a), Some(n)) = (self.action.as_mut(), burned) {
                 a.burned_owners.truncate(n);
             }

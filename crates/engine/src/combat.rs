@@ -3835,10 +3835,12 @@ impl Engine {
             for card in held.into_iter().take(5) {
                 self.burn_card_in_play(card);
             }
-            self.burn_minion(m);
-            if self.state.minions[foe.index()].ready() {
-                self.burn_minion(foe);
-            }
+            self.lost_together(|e| {
+                e.burn_minion(m);
+                if e.state.minions[foe.index()].ready() {
+                    e.burn_minion(foe);
+                }
+            });
         }
     }
 
@@ -5494,22 +5496,24 @@ impl Engine {
         let liquefy = self.combat.as_mut().and_then(|c| c.diablerie.take());
         let st = &self.state;
         let liquefy = liquefy.filter(|(d, _)| st.minions[d.index()].ready());
-        for &m in &burned {
-            let by = self.combat.as_ref().and_then(|c| c.opponent_of(m));
-            if let Some(by) = by {
-                self.red_list_burned(by, m);
+        self.lost_together(|e| {
+            for &m in &burned {
+                let by = e.combat.as_ref().and_then(|c| c.opponent_of(m));
+                if let Some(by) = by {
+                    e.red_list_burned(by, m);
+                }
+                e.burn_minion(m);
             }
-            self.burn_minion(m);
-        }
-        for m in aye {
-            if self.state.minions[m.index()].in_play {
-                self.burn_one_burning(m);
+            for m in aye {
+                if e.state.minions[m.index()].in_play {
+                    e.burn_one_burning(m);
+                }
             }
-        }
-        self.incapacitate(&lifeless);
-        if !wounded.is_empty() {
-            self.minions_to_torpor(&wounded);
-        }
+            e.incapacitate(&lifeless);
+            if !wounded.is_empty() {
+                e.minions_to_torpor(&wounded);
+            }
+        });
         let st = &self.state;
         let liquefy = liquefy
             .filter(|(d, v)| st.minions[d.index()].present() && st.minions[v.index()].present());

@@ -1042,6 +1042,11 @@ simultaneous effects, §2.5 duration). The engine's window primitives are in
   inside whatever sent the vampire to torpor, mid-combat, before the
   after-combat window, ordered with Tension in the Ranks by the controller
   (6.4).
+- The pool burns of minions lost together (Tension in the Ranks) are
+  separate triggers: the acting Methuselah sets their order, the active
+  one outside an action, whole before any pool is burned; asked only when
+  two Methuselahs or more would burn their last pool (118.2, LSJ
+  20090208-2).
 - After-resolution effects are ordered by their player among their
   after-resolution effects before passing: Daring the Dawn's damage (23.3,
   LSJ 20010715); Forward Momentum's counters with its unlock — after "you
@@ -1060,7 +1065,8 @@ simultaneous effects, §2.5 duration). The engine's window primitives are in
   20090618); Marcos Belegrad's burns at the tally (51.1); Golconda's
   removal, the cards on it burned (33.5); Heart of Nizchetus's draws
   (11.1).
-- Pool losses in one batch oust together (45.1, 69.10, §21.1).
+- Pool losses in one batch oust together (45.1, 69.10, 118.3, §21.1);
+  those of separate triggers do not (118.2).
 - A cost paid with several counters is burned all at once (Cave of Apples,
   35.2).
 
@@ -4844,30 +4850,37 @@ Advanced rules §6.5 (pool, the Edge and ousting).
   a card as it is played, the card is canceled (True Love's Face, Golconda;
   101.3, revising 18.2): polled no more, the game over with one left; to
   give another's minion intercept (KRCG News Radio), ousted with the card
-  before it is given (101.3) — a Life Boon's deferral aside, the effect
-  that ran the pool out finishing first (45.1). A torpor ousting the active
-  Methuselah inside a play ousts at once, the turn passing (101.2).
-- Life Boon's decision point: when a Methuselah's pool reaches 0 or below,
-  the oust waits while a Methuselah holding Life Boon may save them: each
-  holder in turn, clockwise from the active Methuselah, never the active one
-  (out-of-turn), nor one ousted by the same effect; one pass over the
-  holders; those saved leave the batch and the rest are ousted together, as
-  one simultaneous oust; a Methuselah may save any Methuselah of the batch
-  (45.1). Life Boon's pool is chosen as it is played (its terms): at least
+  before it is given (101.3), Life Boon played right before the oust
+  (45.1). A torpor ousting the active Methuselah inside a play ousts at
+  once, the turn passing (101.2).
+- An oust happens as the pool reaches 0, part of the effect that ran it
+  out: nothing is played in between but Life Boon, right before it (ANK
+  20220210; owner, 2026-11-11): each holder in turn, clockwise from the
+  active Methuselah, never the active one (out-of-turn), nor one ousted
+  by the same effect; one pass over the holders; those saved leave the
+  batch and the rest are ousted together, as one simultaneous oust; a
+  Methuselah may save any Methuselah of the batch (45.1).
+  Life Boon's pool is chosen as it is played (its terms): at least
   what keeps the Methuselah in — what they owe below 0, plus 1 — and at most
   the Boon player's pool less 1: giving never ousts the Boon player (45.2).
   The pool moves as the Boon resolves (a gift, not a cost: no reduction);
   canceled as played, the out-of-turn master phase action is spent and the
   next holder may still save them (45.3).
-- While the oust waits, the effect that ran the pool out goes on as if the
-  Methuselah were still in the game (the rest of a referendum's effects, the
-  action it is part of); if nobody saves them, the oust applies then — on
-  their own turn, the turn passes then; a combatant's Methuselah ousted ends
-  the combat at once (45.4). The pool a Methuselah is below 0 by is kept
-  until the oust applies: what they owe is what a Boon must make good (45.8,
-  RTR 19970630).
+- The Boon is the first thing asked once a pool has run out, ahead of
+  any choice left pending; declined, the oust applies before anything
+  else is asked or played — on their own turn, the turn passes then; a
+  combatant's Methuselah ousted ends the combat at once (45.4). The engine
+  still applies the rest of the effect in flight first, no decision in it
+  (118.4). The pool a Methuselah is below 0 by is kept until the oust
+  applies: what they owe is what a Boon must make good (45.8, RTR
+  19970630).
+- Pools running out one after the other (separate triggers, §5.3) are
+  ousted one after the other: each oust's victory point and 6 pool paid
+  before the next pool is judged, the Boon asked for the first alone
+  (118.1). One effect burning several pools at once stays one simultaneous
+  oust (118.3, 69.10).
 - A bleed whose target is ousted before it resolves: the oust first, then
-  the bleed fizzles (24.1, §10.1) — read against 45.4 in §23.
+  the bleed fizzles (24.1, §10.1), the Boon declined before it (88.2).
 - A bleed ousting the active Methuselah: the turn passes with the action
   (58.20). Simultaneous pool losses in one batch: Poison Pill (69.10).
 - The Black Throne by its controller's oust (33.7). An ousted Methuselah's
@@ -5005,13 +5018,13 @@ rules-qa batch.
   before resolution, 54.1 card-specific — settled by 88.1 (owner,
   2026-10-22): it ends having reached resolution (successful, no effect;
   NRA; Daring the Dawn's damage), nothing more played.
-- **K6** 45.4 (the oust waits; the effect that ran the pool out goes on as
-  if the Methuselah were still seated) vs 24.1 (a bleed whose target is
-  ousted before it resolves: the oust first, then the bleed fizzles) and
+- **K6** 45.4 first read the oust as waiting, the effect that ran the pool
+  out going on as if the Methuselah were still seated, against 24.1 and
   advanced rules §1.7.1, §6.5.2 ("handle the oust before the canceled
-  card"). 24.1 is an oust by another effect mid-action (a cancel cost), 45.4
-  the effect that drained the pool — settled by 88.2: the decision point first,
-  then 24.1's oust before the bleed.
+  card") — superseded by ANK 20220210, a Rules Director's (owner,
+  2026-11-11): the oust is part of the effect reducing the pool to 0,
+  nothing slipped in between, Life Boon right before it (45.1, 45.4,
+  88.2).
 - **K7** Default readings' "an ally pays its last life … its attempt/effect
   then fails" (41.4, 42.2) may be too broad: an ally's last life paid for its own
   action's cost leaves the action resolving (LSJ 20080512, Rotting
@@ -5350,6 +5363,11 @@ read, for the owner to confirm or correct:
   answered by the owner).
 - 49.6's several-holders question is moot (50.1: the Cog is unique).
 
+- Batch 118 (an oust as the pool reaches 0): 118.1–118.3 green; 118.4
+  amber, the engine's limit, told to the owner (the rest of the effect in
+  flight applied before a held Life Boon is asked; exact takes replaying
+  the step from a snapshot).
+
 ### 24.2 Questions for a new rules-qa batch
 
 From §23: K11 (the "during" template, for the advanced rules), K19 (live
@@ -5451,7 +5469,7 @@ an owner ruling:
 Every rules-qa item, by batch, with the digest sections citing it: the
 section stating it and those cross-referring to it (§2 the default
 readings, §22 engine modeling, §23 the contradictions, §24 the open
-readings). 1442 items, Batches 1–117 (44.11 was removed, replaced by Batch
+readings). 1446 items, Batches 1–118 (44.11 was removed, replaced by Batch
 45). The index is derived from the citations: a bare `N.M` cites rules-qa
 item N.M in the section it appears in. A new rules-qa item gets its line in
 the section stating it, then its entry here: `python3
@@ -5578,7 +5596,7 @@ index or an item cited nowhere.
 - **44** — 44.1 §4.2,§12.12,§24.1; 44.2 §5.1,§19.3; 44.3 §3.3,§9.2,§11.1;
   44.4 §3.7,§11.4,§14.5,§14.7; 44.5 §3.5,§4.2,§6.4,§14.10; 44.6 §9.3,§11.7;
   44.7 §12.2,§16.1,§22; 44.8 §12.5; 44.9 §12.4,§12.6,§12.10; 44.10 §2,§18.1
-- **45** — 45.1 §5.4,§21.1; 45.2 §21.1; 45.3 §2,§3.14,§6.2,§21.1; 45.4
+- **45** — 45.1 §5.4,§21.1,§23.2; 45.2 §21.1; 45.3 §2,§3.14,§6.2,§21.1; 45.4
   §10.1,§12.1,§21.1,§23.2; 45.5 §21.2,§23.5; 45.6 §6.1,§21.2; 45.7 §21.2;
   45.8 §21.1
 - **46** — 46.1 §2,§7.1,§7.2,§13.3; 46.2 §8.6,§13.2; 46.3 §13.2,§16.1; 46.4
@@ -5763,8 +5781,8 @@ index or an item cited nowhere.
   87.35 §14.12; 87.36 §14.12; 87.37 §14.12; 87.38 §14.12; 87.39 §14.12;
   87.40 §14.12; 87.41 §14.12,§24.1; 87.42 §12.3,§14.12,§24.1; 87.43
   §14.12,§24.1
-- **88** — 88.1 §3.2,§5.5,§10.1,§23.2; 88.2 §10.1,§23.2; 88.3 §2,§23.2; 88.4
-  §5.2,§14.3,§23.3; 88.5 §5.3,§23.3; 88.6 §8.7,§23.3; 88.7
+- **88** — 88.1 §3.2,§5.5,§10.1,§23.2; 88.2 §10.1,§21.1,§23.2; 88.3
+  §2,§23.2; 88.4 §5.2,§14.3,§23.3; 88.5 §5.3,§23.3; 88.6 §8.7,§23.3; 88.7
   §2,§9.2,§15.2,§23.3; 88.8 §19.1,§23.3; 88.9 §11.5,§16.1,§17.3,§23.3; 88.10
   §3.2,§9.6,§11.8,§23.4; 88.11 §9.6,§23.4
 - **89** — 89.1 §3.1,§11.2,§15.2,§24.1; 89.2 §15.2,§24.1; 89.3 §15.2,§24.1;
@@ -5905,3 +5923,5 @@ index or an item cited nowhere.
   §14.9,§15.2; 115.6 §15.2; 115.7 §15.2
 - **117** — 117.1 §10.2,§23.7,§24.1; 117.2 §10.2; 117.3 §8.1,§10.2,§24.1;
   117.4 §10.2; 117.5 §11.6; 117.6 §10.2
+- **118** — 118.1 §21.1,§24.1; 118.2 §5.3,§5.4; 118.3 §5.4,§21.1,§24.1;
+  118.4 §21.1,§24.1

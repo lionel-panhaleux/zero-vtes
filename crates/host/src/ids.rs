@@ -237,6 +237,7 @@ pub fn purpose(i: &Interrupt) -> Purpose {
         I::ReductionAtResolution { .. } => Purpose::ReductionAtResolution,
         I::DualFormKept { .. } => Purpose::DualFormKept,
         I::GiveCardTo { .. } => Purpose::GiveCardTo,
+        I::BurnOrder { .. } => Purpose::BurnOrder,
         I::NameAshPair { .. } => Purpose::NameAshPair,
         I::MayPutOn { .. } => Purpose::MayPutOn,
         I::PutFoundOn { .. } => Purpose::PutFoundOn,

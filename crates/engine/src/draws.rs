@@ -141,6 +141,10 @@ pub enum Interrupt {
     /// Curse of Nitocris: `seat`, its controller, picks the Methuselah,
     /// any, who takes control of `card`.
     GiveCardTo { seat: SeatId, card: CardId },
+    /// Pool burns owed by separate triggers of one event
+    /// (`Engine::burn_order`): `seat`, the acting Methuselah, picks who
+    /// burns next.
+    BurnOrder { seat: SeatId },
     /// Public Vilification short of blood: `seat` picks, one blood at a
     /// time, which of the vampires allotted it receive from `from`.
     ShortfallPicks {
@@ -1133,6 +1137,7 @@ impl Interrupt {
             | Interrupt::ReductionAtResolution { seat, .. }
             | Interrupt::DualFormKept { seat, .. }
             | Interrupt::GiveCardTo { seat, .. }
+            | Interrupt::BurnOrder { seat }
             | Interrupt::StealUpTo { seat, .. }
             | Interrupt::MoveBloodUpTo { seat, .. }
             | Interrupt::PurgePick { seat, .. }
@@ -1489,6 +1494,13 @@ impl Engine {
                 if let Interrupt::MoveOffBurnedBearer { card, .. } = front {
                     if self.state.cards[card.index()].in_play {
                         self.burn_card_in_play(card);
+                    }
+                }
+                // No one to set the order: the burns left are one batch.
+                if let Interrupt::BurnOrder { .. } = front {
+                    self.burn_in_order(true);
+                    if self.ousting.is_some() {
+                        break;
                     }
                 }
                 // The diablerie goes on without its choice.
@@ -2161,6 +2173,17 @@ impl Engine {
                 }
                 Interrupt::CutLibrary { seat } => self.state.seats[seat.index()].library.len() > 1,
                 Interrupt::GiveCardTo { card, .. } => self.state.cards[card.index()].present(),
+                Interrupt::BurnOrder { .. } => {
+                    if self.burn_order_left().len() < 2 {
+                        self.interrupts.remove(0);
+                        self.burn_in_order(true);
+                        if self.ousting.is_some() {
+                            break;
+                        }
+                        continue;
+                    }
+                    true
+                }
                 Interrupt::MayPreventForBlood { minion, n, .. } => {
                     present(minion)
                         && self.state.minions[minion.index()].blood >= n
@@ -3427,6 +3450,13 @@ impl Engine {
                 WindowLabel::ResolutionChoice,
                 vec![Choice::Pass, Choice::ResolvePrinted { minion }],
             ),
+            Interrupt::BurnOrder { .. } => (
+                WindowLabel::ResolutionChoice,
+                self.burn_order_left()
+                    .into_iter()
+                    .map(Choice::ChooseSeat)
+                    .collect(),
+            ),
             Interrupt::GiveCardTo { .. } => (
                 WindowLabel::ResolutionChoice,
                 (0..st.seats.len())
@@ -4065,11 +4095,13 @@ impl Engine {
             }
             self.state.linked_leaving.push(m);
             self.state.linked_leaving.extend(&together);
-            for o in others {
-                if self.state.minions[o.index()].present() {
-                    self.burn_minion(o);
+            self.lost_together(|e| {
+                for o in others {
+                    if e.state.minions[o.index()].present() {
+                        e.burn_minion(o);
+                    }
                 }
-            }
+            });
             self.state
                 .linked_leaving
                 .retain(|x| *x != m && !together.contains(x));
@@ -6224,6 +6256,13 @@ impl Engine {
                     n as i8,
                 );
                 self.draw_up(seat);
+            }
+            (Interrupt::BurnOrder { .. }, Choice::ChooseSeat(next)) => {
+                self.burn_order
+                    .as_mut()
+                    .expect("burn order")
+                    .picked
+                    .push(next);
             }
             (Interrupt::GiveCardTo { card, .. }, Choice::ChooseSeat(to)) => {
                 self.interrupts.remove(0);

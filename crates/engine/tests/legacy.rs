@@ -1236,6 +1236,183 @@ fn a_deferred_oust_mid_action_lists_its_methuselah_in_no_window() {
     }
 }
 
+/// 3 seats, Tension in the Ranks in play; seats 0 and 1 at 1 pool, each
+/// with an empty vampire: seat 0's hunts, seat 1's blocks, the hand
+/// strikes send both to torpor together.
+fn tension_torpors() -> Engine {
+    tension_torpors_with(|_, _| ())
+}
+
+fn tension_torpors_with(more: impl Fn(&mut Engine, MinionId)) -> Engine {
+    let mut e = Engine::bare(3);
+    e.state.turn = 4;
+    let a = e.add_minion(SeatId(0), plain("Brujah", &[], 0), 0, false);
+    let z = e.add_minion(
+        SeatId(1),
+        vampire(|c| c.disciplines.contains(&"aus"), 0),
+        0,
+        false,
+    );
+    e.add_minion(SeatId(2), plain("Gangrel", &[], 0), 4, false);
+    in_play(&mut e, 2, "Tension in the Ranks", None);
+    e.state.seats[0].pool = 1;
+    e.state.seats[1].pool = 1;
+    e.state.seats[2].pool = 10;
+    more(&mut e, a);
+    // The hunt's stealth met: [aus] Eagle's Sight, +1 intercept.
+    hand(&mut e, 1, &["Eagle's Sight"]);
+    pick_when(&mut e, block(z));
+    pick_when(&mut e, play_at(0, 0, Some(z), Target::None));
+    e
+}
+
+// Tension in the Ranks [LSJ 20090208-2]: "When several minions burn or
+// enter Torpor simultaneously, the acting Methuselah sets the order in
+// wich the pool is burned." Their prey first: ousted, its 6 pool gained
+// before their own burn.
+#[test]
+fn the_acting_methuselah_orders_the_pool_burns_of_minions_lost_together() {
+    let mut e = tension_torpors();
+    let req = offering(&mut e, Choice::ChooseSeat(SeatId(1)));
+    assert_eq!(
+        (req.seat, req.window),
+        (SeatId(0), WindowLabel::ResolutionChoice)
+    );
+    assert_eq!(
+        req.options,
+        vec![Choice::ChooseSeat(SeatId(0)), Choice::ChooseSeat(SeatId(1))]
+    );
+    assert_eq!((pool(&e, 0), pool(&e, 1)), (1, 1), "nothing burned yet");
+    pick(&mut e, Choice::ChooseSeat(SeatId(1)));
+    request(&mut e);
+    assert!(e.state.seats[1].ousted && !e.state.seats[0].ousted);
+    assert_eq!(pool(&e, 0), 1 + 6 - 1);
+    assert_eq!(half(&e), vec![2, 0, 0]);
+}
+
+// Themselves first: ousted before their prey, both victory points their
+// predator's.
+#[test]
+fn pool_burns_ordered_against_oneself_oust_one_after_the_other() {
+    let mut e = tension_torpors();
+    pick_when(&mut e, Choice::ChooseSeat(SeatId(0)));
+    assert!(matches!(e.run(), zvtes::game::Step::Over(_)));
+    assert!(e.state.seats[0].ousted && e.state.seats[1].ousted);
+    assert_eq!(half(&e), vec![0, 0, 2 + 2 + 2], "and the last one standing");
+}
+
+// rules-qa 118.2: Fame's burn is ordered with them, one event's triggers
+// all: the acting Methuselah, run out by Fame's 3 pool, has their prey
+// burn first and stays in on its 6 pool.
+#[test]
+fn fame_is_ordered_with_the_burns_of_minions_lost_together() {
+    let mut e = tension_torpors_with(|e, a| {
+        in_play(e, 2, "Fame", Some(a));
+        e.state.seats[0].pool = 3;
+    });
+    pick_when(&mut e, Choice::ChooseSeat(SeatId(1)));
+    request(&mut e);
+    assert!(e.state.seats[1].ousted && !e.state.seats[0].ousted);
+    assert_eq!(pool(&e, 0), 3 + 6 - 3 - 1);
+}
+
+// ANK 20220210: "If your pool goes down to 0, then you are ousted …
+// you cannot slip something in between"; Life Boon is played "right
+// before it happens". Two pools run out one after the other: the Boon is
+// asked for the first alone, and declined, its oust pays the second's
+// Methuselah the 6 pool that keeps them in.
+#[test]
+fn a_declined_life_boon_ousts_before_the_next_pool_runs_out() {
+    let mut e = tension_torpors();
+    hand(&mut e, 2, &["Life Boon"]);
+    pick_when(&mut e, Choice::ChooseSeat(SeatId(1)));
+    let req = request(&mut e);
+    assert_eq!(
+        (req.seat, req.window),
+        (SeatId(2), WindowLabel::ResolutionChoice)
+    );
+    assert_eq!(
+        req.options,
+        vec![Choice::Pass, play_at(0, 0, None, Target::Seat(SeatId(1)))],
+        "the first to run out alone"
+    );
+    pick(&mut e, Choice::Pass);
+    let req = request(&mut e);
+    assert_ne!(req.window, WindowLabel::ResolutionChoice, "no second Boon");
+    assert!(e.state.seats[1].ousted && !e.state.seats[0].ousted);
+    assert_eq!(
+        pool(&e, 0),
+        6,
+        "their last pool burned, the oust's 6 gained"
+    );
+    assert_eq!(half(&e), vec![2, 0, 0]);
+}
+
+/// Seat 1's last pool burned by Tension in the Ranks as both Anarchs fall,
+/// Flames of Insurrection's counter queued for seat 0 by the same event;
+/// seat 2 holds a Life Boon. Stopped at the first decision past the burn:
+/// the Boon's play on seat 1, the Flames' slot.
+fn boon_behind_flames() -> (Engine, Choice, Choice) {
+    let mut e = Engine::bare(3);
+    e.state.turn = 4;
+    let a = e.add_minion(SeatId(0), plain("Brujah", &[], 0), 0, false);
+    let z = e.add_minion(
+        SeatId(1),
+        vampire(|c| c.disciplines.contains(&"aus"), 0),
+        0,
+        false,
+    );
+    for m in [a, z] {
+        e.state.minions[m.index()].sect_override = Some(Sect::Anarch);
+    }
+    e.add_minion(SeatId(2), plain("Gangrel", &[], 0), 4, false);
+    in_play(&mut e, 2, "Tension in the Ranks", None);
+    in_play(&mut e, 0, "Flames of Insurrection", None);
+    let slot = uncontrolled(&mut e, 0, plain("Brujah", &[], 1));
+    e.state.seats[1].pool = 1;
+    e.state.seats[2].pool = 10;
+    hand(&mut e, 1, &["Eagle's Sight"]);
+    hand(&mut e, 2, &["Life Boon"]);
+    pick_when(&mut e, block(z));
+    pick_when(&mut e, play_at(0, 0, Some(z), Target::None));
+    loop {
+        let req = request(&mut e);
+        if e.state.seats[1].oust_pending {
+            break;
+        }
+        e.choose(fallback(&req));
+    }
+    let save = play_at(0, 0, None, Target::Seat(SeatId(1)));
+    (e, save, Choice::Slot(slot))
+}
+
+// rules-qa 45.4: the Boon is asked ahead of a choice the same event
+// queued, and declined, the oust applies before that choice is asked.
+#[test]
+fn life_boon_is_asked_before_a_choice_already_queued() {
+    let (mut e, save, counter) = boon_behind_flames();
+    let req = request(&mut e);
+    assert_eq!(req.options, vec![Choice::Pass, save], "the Boon first");
+    assert!(e.interrupt().is_none(), "the counter not the choice asked");
+    pick(&mut e, Choice::Pass);
+    let req = request(&mut e);
+    assert!(e.state.seats[1].ousted && e.interrupt().is_some());
+    assert_eq!(req.seat, SeatId(0));
+    assert!(req.options.contains(&counter), "then the counter");
+}
+
+// Played, the Boon's own decisions come before that choice too.
+#[test]
+fn a_life_boon_play_goes_before_a_choice_already_queued() {
+    let (mut e, save, counter) = boon_behind_flames();
+    pick(&mut e, save);
+    let req = expect(&mut e, SeatId(2), WindowLabel::PlayTerms);
+    e.choose(0);
+    let req2 = request(&mut e);
+    assert!(!req.options.contains(&counter) && req2.options.contains(&counter));
+    assert!(!e.state.seats[1].ousted && pool(&e, 1) > 0);
+}
+
 // No Boon on one's own turn (out-of-turn), none without the pool to give
 // (1 kept): the oust applies at once, no decision.
 #[test]

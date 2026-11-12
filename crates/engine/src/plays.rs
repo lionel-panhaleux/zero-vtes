@@ -14316,8 +14316,9 @@ impl Engine {
 
     /// Riders of `hook` fired for each minion of `subjects` that left the
     /// ready region: a host's own (`HostToTorpor`) or every card in play's
-    /// (`ReadyMinionBurnedOrTorpor`). Pool losses are batched, a Methuselah
-    /// at 0 ousted here; the caller tears the combat or action down.
+    /// (`ReadyMinionBurnedOrTorpor`). Their pool losses go to
+    /// `burn_separately`, burned as the event ends (`lost_together`); the
+    /// caller tears the combat or action down.
     pub(crate) fn leave_riders(&mut self, hook: Hook, subjects: &[MinionId]) {
         if hook == Hook::ReadyMinionBurnedOrTorpor {
             for &m in subjects {
@@ -14446,10 +14447,7 @@ impl Engine {
             }
         }
         if loss.iter().any(|&n| n > 0) {
-            match by {
-                Some(by) => self.caused(Cause::Effect(by), |e| e.burn_pool_batch(&loss)),
-                None => self.burn_pool_batch(&loss),
-            }
+            self.burn_separately(loss, by);
         }
     }
 

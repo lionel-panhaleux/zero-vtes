@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "title": "zvtes protocol",
-  "version": "2.27.0",
+  "version": "2.28.0",
   "$defs": {
     "About": {
       "description": "What a choice is about (`Decision::about`): each field given where\nthe purpose (or the terms) has it (docs/protocol.md §5).",
@@ -5253,6 +5253,11 @@
           "description": "Lord Ephraim Wainwright: another copy of `card`, the action card\n`minion` just played, from `seat`'s library to their ash heap,\nthe library shuffled (`resolve_printed`), or none (`pass`).",
           "type": "string",
           "const": "may_mill_copy"
+        },
+        {
+          "description": "Minions lost together, their controllers each burning pool\n(Tension in the Ranks): `seat`, the acting Methuselah, sets\nthe order, the Methuselah burning next (`choose_seat`) among\nthose who would burn their last pool, asked while two or more\nof them are left to place.",
+          "type": "string",
+          "const": "burn_order"
         },
         {
           "description": "A value this reader does not know.",

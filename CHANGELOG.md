@@ -6,6 +6,14 @@ server runs.
 `python3 scripts/schema_compat.py` lists what a schema change adds or
 removes; its `--check` fails a removal without a major version.
 
+## 2.28.0
+
+- The `Purpose` id `burn_order`: minions burned or sent to torpor
+  together under Tension in the Ranks, the acting Methuselah sets the
+  order in which their controllers burn pool, one `choose_seat` at a
+  time, asked only when two Methuselahs or more would burn their last
+  pool. No id removed.
+
 ## 2.27.0
 
 - The effect `detail` `all_boons`: a `burn` of every boon in play, any

@@ -914,6 +914,12 @@ ids!(
         /// `minion` just played, from `seat`'s library to their ash heap,
         /// the library shuffled (`resolve_printed`), or none (`pass`).
         MayMillCopy,
+        /// Minions lost together, their controllers each burning pool
+        /// (Tension in the Ranks): `seat`, the acting Methuselah, sets
+        /// the order, the Methuselah burning next (`choose_seat`) among
+        /// those who would burn their last pool, asked while two or more
+        /// of them are left to place.
+        BurnOrder,
     }
 );
 ids!(

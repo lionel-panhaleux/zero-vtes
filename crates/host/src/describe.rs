@@ -1862,6 +1862,7 @@ pub fn about(e: &Engine, req: &DecisionRequest, names: &impl Names) -> Option<Ab
                 card: card(c),
                 ..a()
             },
+            I::BurnOrder { .. } => a(),
         });
     }
     match req.window {

@@ -249,6 +249,12 @@ pub struct Engine {
     /// Methuselahs about to be ousted while someone may save them with a
     /// Life Boon (`ousting`): the oust waits on that decision.
     pub(crate) ousting: Option<crate::ousting::Ousting>,
+    /// Pool burns waiting on the order the acting Methuselah sets
+    /// (`Interrupt::BurnOrder`).
+    pub(crate) burn_order: Option<crate::ousting::BurnOrder>,
+    /// An event losing several minions is under way
+    /// (`Engine::lost_together`): its pool burns wait for its end.
+    pub(crate) burns_collected: bool,
     /// Baltimore Purge's vampires chosen so far (`Interrupt::PurgePick`),
     /// sent to torpor together once every pick is made.
     pub(crate) purge_picks: Vec<MinionId>,
@@ -619,6 +625,8 @@ impl Engine {
             opening: None,
             interrupts: Vec::new(),
             ousting: None,
+            burn_order: None,
+            burns_collected: false,
             purge_picks: Vec::new(),
             secret_numbers: Vec::new(),
             rng,
@@ -804,11 +812,13 @@ impl Engine {
                     && st.printed_mod(m, cards::Stat::BurnsWhile, Default::default()) > 0
             })
             .collect();
-        for m in burned {
-            if self.state.minions[m.index()].present() {
-                self.burn_minion(m);
+        self.lost_together(|e| {
+            for m in burned {
+                if e.state.minions[m.index()].present() {
+                    e.burn_minion(m);
+                }
             }
-        }
+        });
         // Grotesque: removed once its controller no longer controls its
         // location (gone, contested or taken).
         let st = &self.state;
@@ -1113,9 +1123,21 @@ impl Engine {
     }
 
     /// The choice an effect asks as it resolves, if one is pending: it
-    /// comes before anything else the engine asks.
+    /// comes before anything else the engine asks, but an oust
+    /// (`asking_queued`): none while it waits behind one.
     pub fn interrupt(&self) -> Option<Interrupt> {
-        self.interrupts.first().copied()
+        self.interrupts
+            .first()
+            .copied()
+            .filter(|_| self.asking_queued())
+    }
+
+    /// Are the queued choices (interrupts, a control change, a hunt burn,
+    /// a discard down) asked and settled now? Not while an oust is
+    /// pending: between a pool reaching 0 and its oust nothing is asked
+    /// but the Boon and its play (ANK 20220210).
+    pub(crate) fn asking_queued(&self) -> bool {
+        self.ousting.is_none()
     }
 
     /// The referendum under way, if any (read-only).
@@ -1155,13 +1177,18 @@ impl Engine {
             self.settle_unlocked_holds();
             self.settle_pool_losses();
             self.state.settle_foreign_cards();
-            self.settle_interrupts();
-            if self.interrupts.is_empty() {
+            // Twice: here so `asking_queued` sees an oust that just ended,
+            // below for one the settling in between deferred.
+            self.settle_ousting();
+            if self.asking_queued() {
+                self.settle_interrupts();
+            }
+            if self.interrupts.is_empty() && self.asking_queued() {
                 self.settle_control_change();
                 self.settle_hunt_burn();
                 self.settle_commands();
-                self.settle_ousting();
             }
+            self.settle_ousting();
             self.settle_acting_ousted();
             self.settle_combat_diablerie();
             if self.settle_draw_up() {
@@ -1415,25 +1442,26 @@ impl Engine {
 
     fn raw_request(&self) -> Option<DecisionRequest> {
         let st = &self.state;
+        if let Some(req) = self.ousting_request() {
+            return Some(req);
+        }
+        let queued = self.asking_queued();
         // Draws first: a hand is discarded down once its draws are done
         // (Heart of Nizchetus: "without discarding"); any other choice
         // pending waits for the discard, at once (rulebook "Drawing Cards":
         // Flurry of Action's draw before Curse of Nitocris's pick).
         if !self.discards_first() {
-            if let Some(req) = self.interrupt_request() {
+            if let Some(req) = self.interrupt_request().filter(|_| queued) {
                 return Some(req);
             }
-            if let Some(req) = self.ousting_request() {
+            if let Some(req) = self.control_request().filter(|_| queued) {
                 return Some(req);
             }
-            if let Some(req) = self.control_request() {
-                return Some(req);
-            }
-            if let Some(req) = self.hunt_burn_request() {
+            if let Some(req) = self.hunt_burn_request().filter(|_| queued) {
                 return Some(req);
             }
         }
-        if let Some(s) = self.discard_down_seat() {
+        if let Some(s) = self.discard_down_seat().filter(|_| queued) {
             return Some(DecisionRequest {
                 seat: s,
                 window: WindowLabel::DiscardDown,
@@ -1531,7 +1559,8 @@ impl Engine {
         ) {
             return false;
         }
-        self.discard_down_seat().is_some()
+        self.asking_queued()
+            && self.discard_down_seat().is_some()
             && self.interrupt_request().is_some_and(|r| {
                 !matches!(
                     r.window,
@@ -1548,23 +1577,24 @@ impl Engine {
 
     fn apply_now(&mut self, choice: &Choice) {
         let discards_first = self.discards_first();
-        if !self.interrupts.is_empty() && !discards_first {
-            self.interrupt_apply(choice);
-            return;
-        }
-        if self.ousting.as_ref().is_some_and(|o| !o.playing) && !discards_first {
+        if self.ousting.as_ref().is_some_and(|o| !o.playing) {
             self.ousting_apply(choice);
             return;
         }
-        if self.control_request().is_some() && !discards_first {
+        let queued = self.asking_queued();
+        if queued && !self.interrupts.is_empty() && !discards_first {
+            self.interrupt_apply(choice);
+            return;
+        }
+        if queued && self.control_request().is_some() && !discards_first {
             self.control_apply(choice);
             return;
         }
-        if self.hunt_burn_request().is_some() && !discards_first {
+        if queued && self.hunt_burn_request().is_some() && !discards_first {
             self.hunt_burn_apply(choice);
             return;
         }
-        if let Some(s) = self.discard_down_seat() {
+        if let Some(s) = self.discard_down_seat().filter(|_| queued) {
             let Choice::Discard(i) = choice else {
                 unreachable!("illegal discard-down choice {choice:?}");
             };
@@ -2379,6 +2409,10 @@ impl Engine {
     /// (rules-qa 6.4); an ally is burned instead (advanced rules 5.3.3), an
     /// imbued incapacitated (rules-qa 87.2).
     pub(crate) fn minions_to_torpor(&mut self, ms: &[MinionId]) {
+        self.lost_together(|e| e.torpor_together(ms));
+    }
+
+    fn torpor_together(&mut self, ms: &[MinionId]) {
         // Who went to torpor during the combat under way (Yawp Court: out of
         // it again at once, still not ready at its end, LSJ 20090325-1).
         if let Some(c) = self.combat.as_mut() {

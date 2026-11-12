@@ -529,6 +529,20 @@ fn play(seed: u64, start: &dyn Fn(u64) -> Engine) -> Played {
                     req.window
                 );
                 invariants(&e, &totals, seed, req.window);
+                // Nothing is asked between a pool reaching 0 and its oust
+                // but the Boon and its play (ANK 20220210).
+                if e.state.seats.iter().any(|s| s.oust_pending) {
+                    let boon = |c: &Choice| kind(&e, req.seat, c).1 == Some("Life Boon");
+                    assert!(
+                        match req.window {
+                            WindowLabel::ResolutionChoice => req.options.iter().any(boon),
+                            w => matches!(w, WindowLabel::PlayTerms | WindowLabel::CardAsPlayed),
+                        },
+                        "asked before an oust: {:?} (seed {seed}, decision {})",
+                        req.window,
+                        e.log.len()
+                    );
+                }
                 // At every decision of the replayed seeds, every 16th of the
                 // others (the census is the fuzz's dearest check).
                 if seed.is_multiple_of(REPLAY_EVERY) || e.decisions.is_multiple_of(16) {

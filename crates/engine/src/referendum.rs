@@ -2391,9 +2391,11 @@ impl Engine {
                         v.present() && v.is_vampire() && self.state.current_bleed(m) >= n
                     })
                     .collect();
-                for m in burned {
-                    self.burn_minion(m);
-                }
+                self.lost_together(|e| {
+                    for m in burned {
+                        e.burn_minion(m);
+                    }
+                });
             }
             RefEffect::AnarchSalon => {
                 for i in 0..self.state.minions.len() {

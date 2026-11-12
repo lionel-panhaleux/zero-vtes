@@ -2331,6 +2331,34 @@ fn justicar_retribution_burns_the_big_bleeders() {
         .all(|m| e.state.minions[m.index()].in_play));
 }
 
+// rules-qa 118.2: Justicar Retribution burns two Methuselahs' vampires at
+// once under Tension in the Ranks, each at their last pool: its caller
+// sets the order of their burns.
+#[test]
+fn justicar_retribution_burns_are_ordered_by_its_caller() {
+    let mut e = game(3);
+    let tara = e.add_minion(SeatId(0), find_card("Tara"), 4, false);
+    e.add_minion(SeatId(1), find_card("Stanislava"), 4, false);
+    // A second copy, staged: no other vampire of the pool bleeds for 3.
+    e.add_minion(SeatId(2), find_card("Stanislava"), 4, false);
+    in_play(&mut e, 0, "Tension in the Ranks", None);
+    e.state.seats[1].pool = 1;
+    e.state.seats[2].pool = 1;
+    hand(&mut e, 0, &["Justicar Retribution"]);
+    pick(&mut e, play(0, 0, tara));
+    pick_when(&mut e, votes(tara, true));
+    let first = Choice::ChooseSeat(SeatId(2));
+    let req = offering(&mut e, first);
+    assert_eq!(req.seat, SeatId(0));
+    assert_eq!(req.options, vec![Choice::ChooseSeat(SeatId(1)), first]);
+    pick(&mut e, first);
+    request(&mut e);
+    // Seat 2 first: its predator, seat 1, gains 6 pool before its burn.
+    let seats = &e.state.seats;
+    assert!(seats[2].ousted && !seats[1].ousted);
+    assert_eq!(seats[1].pool, 1 + 6 - 1);
+}
+
 // Randall [LSJ 20040812-2] [PIB 20130327] "Cannot be used to prevent
 // aggravated damage": out of the combat, he burns 1 blood to prevent 1 of
 // the hand strike on his Methuselah's Brujah; not the aggravated one Wolf

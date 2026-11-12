@@ -665,6 +665,7 @@ impl Prompt<'_> {
                 self.minion()?
             ),
             P::GiveCardTo => format!("Choose who takes control of {}", self.card()?),
+            P::BurnOrder => "Choose who burns their pool next".into(),
             P::MoveOffBurnedBearer => format!(
                 "{} is about to be burned: put {} on another minion?",
                 self.minion()?,
@@ -999,6 +1000,7 @@ mod tests {
         ShortfallPicks,
         MayUnlock,
         GiveCardTo,
+        BurnOrder,
         GiveBlood,
         MoveBetween,
         DiablerieEquipment,

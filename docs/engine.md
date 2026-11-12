@@ -505,7 +505,8 @@ sources to the engine's conventions.
   opponent as a combat ends). `GameState::hand_load` counts the hand,
   `held` and `held_in_play`.
 - A choice owed by a specific player in the middle of a resolution is an
-  `Interrupt` (`Engine.interrupts`), served in order before any other decision:
+  `Interrupt` (`Engine.interrupts`), served in order before any other
+  decision but a Life Boon's (§6.17):
   discard-down, draw alternatives, replacement treatment, entry effects
   (`EntryBurn`), margin distribution, `MinionOf` picks, block tolls, etc. A player
   with nothing to choose resolves at once.
@@ -1717,14 +1718,14 @@ CryptAlly}`.
   as each step settles (`Engine::settle_servitors`) and as its action ends.
 - Leaving play has one path each: `burn_minion` (cards on it to owners' ash
   heaps; "ready minion burned" riders only if it was ready) and
-  `minions_to_torpor`, both through `leave_riders` batching pool losses. Burned
-  vampires reach the ash heap (`Seat.ash_crypt`; its owner's, `Minion::origin`,
-  even under stolen control). A burn replaced is checked first
-  (`Engine::replace_burn`, the torpor left to its caller unless
-  `to_torpor`; Byzar's `Stat::TorporInsteadOfBurn`: a burn counter,
-  `Minion::burn_counters`, and torpor; removed from the game at the
-  printed count), so no burn rider fires; a site reading the burn's
-  outcome reads `in_play` after it.
+  `minions_to_torpor`, both through `leave_riders`, its pool losses burned last
+  (`burn_separately`, §6.17). Burned vampires reach the ash heap
+  (`Seat.ash_crypt`; its owner's, `Minion::origin`, even under stolen control).
+  A burn replaced is checked first (`Engine::replace_burn`, the torpor left to
+  its caller unless `to_torpor`; Byzar's `Stat::TorporInsteadOfBurn`: a burn
+  counter, `Minion::burn_counters`, and torpor; removed from the game at the
+  printed count), so no burn rider fires; a site reading the burn's outcome
+  reads `in_play` after it.
 - Control: permanent (`Minion::take_for_good`: its owner kept as `origin`,
   a temporary control over; every steal for good, a vampire's or an
   ally's, Form of Corruption's, an ally's card given), temporary
@@ -1884,38 +1885,35 @@ CryptAlly}`.
   (`settle_foreign_cards`, each `run`; rules-qa 96.2).
 - Riders (`Rider { hook, scope, requires, effects }`, `RiderScope::{Every,
   Controller, Others, Prey}`): requirements read at collection and at
-  resolution (`rider_fires` again as a chosen rider resolves; an unmet rider
-  is not pending, its window elides); unlock riders are pending mandatory
-  effects ordered by their resolver (DESIGN §10.7), but for one whose
-  condition is read as the phase ends (`Hook::UnlockPhaseEnd`: Anarch
-  Revolt's), resolved as its Methuselah passes (rules-qa 88.5); a
-  burn-when-empty one (Powerbase: Barranquilla, room for Church of the
-  Order of St. Blaise, LSJ 20050105-1) pending again after its card's
-  ability; one burn per copy;
-  `R::OneCopyPerTurn` drops the other copies once one resolves. An unlock
-  rider paid unit by unit as it resolves (Smiling Jack: pool or a vampire's
-  blood, per counter) runs through `Flow::RiderTerms`.
-  `GameState::card_riders` lists every arena card's riders on a hook, in
-  play or not, in arena order (one per hook, but for `Hook::UnlockPhase`).
-  Every hook
-  site collects through `Engine::fired_riders` and `Engine::printed_riders`
-  (§2). `HookAt::seat` is the active Methuselah at a phase hook, the seat
-  of an "own" event, none at a host-anchored hook; `Hook::reads_action`
-  (`HostBlocks`, `HostBlocked`, `OwnBleedEnds` for cards;
-  `ActionAnnouncedAtTarget` for vampires) reads requirements in the action's
-  context, the card's rider predicates besides (`rider_card_holds`,
-  `EnteredBeforeThisAction` among them). `HostBlocks` reads an ally's own
-  card too (`bearer`): its `BurnSelf` burns the blocker, and the action is
-  then blocked with no combat (rules-qa 53.1: Member of the Entourage).
-  `Hook::HostActionSuccessful` fires beside `ClanActionSuccessful` on the
-  acting minion's cards (Journal of Hrorsh). A site applying effects one by one
-  re-checks `present` before each; `leave_riders` keeps its pool batch (rules-qa
-  6.9). Left outside the collector on purpose: the resolution of a rider already
-  chosen (draw, replacement, master/discard phase choice), Saatet-ta's
-  destination as she burns, entry riders read on a crypt card before the vampire
-  is in play, the leave-play readers (torture, hostages). The hooks and their
-  tenants: the `Hook` enum's docs (`cards/mod.rs`); every hook has tenants
-  (DESIGN §7.4).
+  resolution (`rider_fires` again as a chosen rider resolves; an unmet rider is
+  not pending, its window elides); unlock riders are pending mandatory effects
+  ordered by their resolver (DESIGN §10.7), but for one whose condition is read
+  as the phase ends (`Hook::UnlockPhaseEnd`: Anarch Revolt's), resolved as its
+  Methuselah passes (rules-qa 88.5); a burn-when-empty one (Powerbase:
+  Barranquilla, room for Church of the Order of St. Blaise, LSJ 20050105-1)
+  pending again after its card's ability; one burn per copy;
+  `R::OneCopyPerTurn` drops the other copies once one resolves. An unlock rider
+  paid unit by unit as it resolves (Smiling Jack: pool or a vampire's blood,
+  per counter) runs through `Flow::RiderTerms`. `GameState::card_riders` lists
+  every arena card's riders on a hook, in play or not, in arena order (one per
+  hook, but for `Hook::UnlockPhase`). Every hook site collects through
+  `Engine::fired_riders` and `Engine::printed_riders` (§2). `HookAt::seat` is
+  the active Methuselah at a phase hook, the seat of an "own" event, none at a
+  host-anchored hook; `Hook::reads_action` (`HostBlocks`, `HostBlocked`,
+  `OwnBleedEnds` for cards; `ActionAnnouncedAtTarget` for vampires) reads
+  requirements in the action's context, the card's rider predicates besides
+  (`rider_card_holds`, `EnteredBeforeThisAction` among them). `HostBlocks`
+  reads an ally's own card too (`bearer`): its `BurnSelf` burns the blocker,
+  and the action is then blocked with no combat (rules-qa 53.1: Member of the
+  Entourage). `Hook::HostActionSuccessful` fires beside `ClanActionSuccessful`
+  on the acting minion's cards (Journal of Hrorsh). A site applying effects one
+  by one re-checks `present` before each; `leave_riders` keeps its pool burns
+  for its end (rules-qa 6.9). Left outside the collector on purpose: the
+  resolution of a rider already chosen (draw, replacement, master/discard phase
+  choice), Saatet-ta's destination as she burns, entry riders read on a crypt
+  card before the vampire is in play, the leave-play readers (torture,
+  hostages). The hooks and their tenants: the `Hook` enum's docs
+  (`cards/mod.rs`); every hook has tenants (DESIGN §7.4).
 - Entry: `enter_play` is the single entry point (contest checked by the
   caller after entry effects); `apply_entry_effects` (a retainer's layers on
   its employer, an ally's on itself); `push_mode_layers`. "Put this card on
@@ -2393,20 +2391,43 @@ CryptAlly}`.
 
 `ousting.rs`: `Ousting`; slice 16b, rules-qa Batch 45.
 
-- `oust_batch` defers when a Methuselah other than the active one and outside
-  the batch holds a Life Boon (`defer_oust`): the batch is marked
-  `Seat::oust_pending`, the caller goes on as if the pool had not run out
-  (pools below 0 kept: what the Boon must make good), and `Engine::ousting`
-  is served after the interrupts, before the flow: each holder, clockwise from
-  the active one, passes or plays the Boon through `announce_play` (terms
-  `Terms::BoonPool`, as-played window, cancels), `playing` while the play is
-  in flight. `settle_ousting` then drops the saved and ousts the rest
-  (`oust_now`), settling what the oust interrupts (`after_deferred_oust`:
-  `combat_ousts`, the turn passing, the action's order). With no Boon in an
-  eligible hand the oust applies at once, as before. Served before the
-  flow's own request, the Boon decision lets no window of the action or
-  referendum under way list the Methuselah about to be ousted, but the
-  Boon's own play (its as-played window: not ousted yet).
+- An oust is part of the effect that ran the pool out, Life Boon played right
+  before it (rules-qa 45.1, 45.4; ANK 20220210). `oust_batch` ousts at once
+  (`oust_now`) unless a Methuselah other than the active one and outside the
+  batch holds a Life Boon (`defer_oust`): an effect cannot suspend, so the
+  batch is marked `Seat::oust_pending` and the caller ends as if the pool had
+  not run out (pools below 0 kept: what the Boon must make good; the limit
+  recorded as rules-qa 118.4), and `Engine::ousting` is served before any other
+  decision: the queued choices (interrupts, a control change, a hunt burn, a
+  discard down) wait, unsettled and not told by `Engine::interrupt`, until the
+  ousts are done, the Boon's play included (`asking_queued`): each holder,
+  clockwise from the active one, passes or plays the Boon through
+  `announce_play` (terms `Terms::BoonPool`, as-played window, cancels),
+  `playing` while the play is in flight. `settle_ousting` then drops the saved
+  and ousts the rest, settling what the oust interrupts (`after_deferred_oust`:
+  `combat_ousts`, the turn passing, the action's order). Served first, the Boon
+  decision lets no window of the action or referendum under way list the
+  Methuselah about to be ousted, but the Boon's own play (its as-played window:
+  not ousted yet).
+- Pools running out behind a waiting oust queue up, one batch an event
+  (`Ousting::batches`), each ousted in turn: `Pending::at` is the pool as
+  it ran out plus what the ousts ahead paid it (a predator's 6 pool), a
+  Methuselah so kept above 0 spared; the Boon is asked for the front batch
+  alone (rules-qa 118.1).
+- The pool burns of one event's separate triggers (`leave_riders`:
+  Tension in the Ranks, Fame, a vampire's own torpor burn, for minions
+  lost together) go through `burn_separately` into `Engine::burn_order`,
+  collected over the event (`lost_together`: a strike resolution's burns
+  and torpors, `minions_to_torpor` with its riders, Expiation's pair, a
+  referendum's burns (Justicar Retribution), `settle_printed_burns`, a
+  contest's copies, linked burns) and ordered as it ends
+  (`order_burns`): one batch unless two Methuselahs or
+  more would burn their last pool; then `Interrupt::BurnOrder` asks the
+  acting Methuselah (`acting_seat`) which of those burns next
+  (`Choice::ChooseSeat`), the whole order set before `burn_in_order`
+  burns them one at a time, each oust applied, or queued behind a waiting
+  Boon (`Ousting::batches`), before the next burn, the others' together
+  last (rules-qa 118.2, LSJ 20090208-2).
 - `oust_and_pass` returns whether the oust applied: its callers return (the
   turn passed) only then, else go on as if the pool had not run out. A
   batch oust (`oust_batch`, `burn_pool_batch`) passes no turn: a play
