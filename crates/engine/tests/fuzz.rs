@@ -639,37 +639,71 @@ fn play(seed: u64, start: &dyn Fn(u64) -> Engine) -> Played {
     }
 }
 
-/// Plays `seeds` seeds (replaying every `REPLAY_EVERY`th), then checks the
-/// games against the golden file of `name`: the decision kinds taken, and
-/// whether a game ended before the time limit with an oust and a full VP
-/// awarded.
-fn fuzz(name: &str, seeds: u64, start: &dyn Fn(u64) -> Engine) -> (HashSet<String>, bool) {
-    let (mut seen, mut ousted) = (HashSet::new(), false);
+/// Plays `seeds` seeds (replaying every `REPLAY_EVERY`th) across threads,
+/// each seed its own game, then checks the games against the golden file of
+/// `name` in seed order: the decision kinds taken, and whether a game ended
+/// before the time limit with an oust and a full VP awarded.
+fn fuzz(name: &str, seeds: u64, start: &(dyn Fn(u64) -> Engine + Sync)) -> (HashSet<String>, bool) {
+    use std::sync::atomic::{AtomicU64, Ordering::SeqCst};
     // `SEED_FROM=n` starts the sweep at seed n (debugging one failure).
     let from = std::env::var("SEED_FROM").ok().and_then(|v| v.parse().ok());
-    let mut lines = Vec::new();
     let sweep = std::env::var("FUZZ_SEEDS")
         .ok()
         .and_then(|v| v.parse().ok());
     let seeds = sweep.unwrap_or(seeds);
-    for seed in from.unwrap_or(0)..seeds {
-        // A panic inside the engine (an index out of range) knows no seed:
-        // name it.
-        let one = std::panic::AssertUnwindSafe(|| one_seed(seed, start, &mut seen, &mut ousted));
-        match std::panic::catch_unwind(one) {
-            Ok(line) => lines.push(line),
-            Err(p) => {
-                let what = p
-                    .downcast_ref::<String>()
-                    .map(String::as_str)
-                    .or_else(|| p.downcast_ref::<&str>().copied())
-                    .unwrap_or("a panic");
-                if what.contains("(seed ") {
-                    std::panic::resume_unwind(p);
-                }
-                panic!("{what} (seed {seed})");
-            }
-        }
+    // A trace is one game's decisions in order: one thread.
+    let threads = match std::env::var("FUZZ_TRACE") {
+        Ok(_) => 1,
+        Err(_) => cores(),
+    };
+    let next = AtomicU64::new(from.unwrap_or(0));
+    // Seeds are taken in order: when one fails every lower one is taken
+    // already, so the lowest failure is found; no higher seed starts after.
+    let failed = AtomicU64::new(u64::MAX);
+    let mut games: Vec<(u64, Result<Seed, String>)> = std::thread::scope(|s| {
+        let workers: Vec<_> = (0..threads)
+            .map(|_| {
+                s.spawn(|| {
+                    let mut games = Vec::new();
+                    loop {
+                        let _core = Core::take();
+                        let seed = next.fetch_add(1, SeqCst);
+                        if seed >= seeds || seed > failed.load(SeqCst) {
+                            return games;
+                        }
+                        let one = std::panic::AssertUnwindSafe(|| one_seed(seed, start));
+                        let game = std::panic::catch_unwind(one).map_err(|p| {
+                            failed.fetch_min(seed, SeqCst);
+                            let what = p
+                                .downcast_ref::<String>()
+                                .map(String::as_str)
+                                .or_else(|| p.downcast_ref::<&str>().copied())
+                                .unwrap_or("a panic");
+                            // A panic inside the engine (an index out of
+                            // range) knows no seed: name it.
+                            if what.contains("(seed ") {
+                                what.to_string()
+                            } else {
+                                format!("{what} (seed {seed})")
+                            }
+                        });
+                        games.push((seed, game));
+                    }
+                })
+            })
+            .collect();
+        workers
+            .into_iter()
+            .flat_map(|w| w.join().unwrap())
+            .collect()
+    });
+    games.sort_by_key(|&(seed, _)| seed);
+    let (mut seen, mut ousted, mut lines) = (HashSet::new(), false, Vec::new());
+    for (_, game) in games {
+        let game = game.unwrap_or_else(|what| panic!("{what}"));
+        seen.extend(game.seen);
+        ousted |= game.ousted;
+        lines.push(game.line);
     }
     if from.is_none() {
         golden(name, &lines, sweep.is_none());
@@ -677,26 +711,61 @@ fn fuzz(name: &str, seeds: u64, start: &dyn Fn(u64) -> Engine) -> (HashSet<Strin
     (seen, ousted)
 }
 
-/// One seed of `fuzz`: played, replayed every `REPLAY_EVERY`th; its golden
-/// line.
-fn one_seed(
-    seed: u64,
-    start: &dyn Fn(u64) -> Engine,
-    seen: &mut HashSet<String>,
-    ousted: &mut bool,
-) -> String {
+fn cores() -> usize {
+    std::thread::available_parallelism().map_or(1, |n| n.get())
+}
+
+/// A core held while a seed plays: the fixtures run in parallel too, and
+/// a seed per core across them all keeps the machine busy without
+/// oversubscribing it (each fixture's workers wait their turn).
+struct Core;
+
+static FREE: std::sync::Mutex<Option<usize>> = std::sync::Mutex::new(None);
+static FREED: std::sync::Condvar = std::sync::Condvar::new();
+
+impl Core {
+    fn take() -> Core {
+        let mut free = FREE.lock().unwrap();
+        while *free.get_or_insert_with(cores) == 0 {
+            free = FREED.wait(free).unwrap();
+        }
+        *free = Some(free.unwrap() - 1);
+        Core
+    }
+}
+
+impl Drop for Core {
+    fn drop(&mut self) {
+        let mut free = FREE.lock().unwrap();
+        *free = free.map(|n| n + 1);
+        FREED.notify_one();
+    }
+}
+
+/// One seed's game: the decision kinds it took, whether it ended with an
+/// oust and a full VP, its golden line.
+struct Seed {
+    seen: HashSet<String>,
+    ousted: bool,
+    line: String,
+}
+
+/// One seed of `fuzz`: played, replayed every `REPLAY_EVERY`th.
+fn one_seed(seed: u64, start: &dyn Fn(u64) -> Engine) -> Seed {
     let Played {
         e: played,
         vps,
         chosen,
         trail,
     } = play(seed, start);
-    seen.extend(chosen.into_iter().map(spell));
-    let line = trail.line(seed, &played, &vps);
-    *ousted |= played.state.seats.iter().any(|s| s.ousted) && vps.iter().any(|&v| v >= 2);
+    let game = Seed {
+        seen: chosen.into_iter().map(spell).collect(),
+        ousted: played.state.seats.iter().any(|s| s.ousted) && vps.iter().any(|&v| v >= 2),
+        line: trail.line(seed, &played, &vps),
+    };
     let hash = played.state.hash();
     if !seed.is_multiple_of(REPLAY_EVERY) {
-        return line;
+        return game;
     }
 
     // Replay: the recorded decision log reproduces the identical game.
@@ -727,7 +796,7 @@ fn one_seed(
         hash,
         "state hash mismatch on replay (seed {seed})"
     );
-    line
+    game
 }
 
 // ---- Golden replays (DESIGN §7.3) ---------------------------------------------

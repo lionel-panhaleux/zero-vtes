@@ -810,10 +810,12 @@ impl Engine {
     /// Servitor's timing, rules-qa 70.19); a contested vampire gives nothing.
     fn settle_printed_burns(&mut self) {
         let st = &self.state;
+        let burns = st.printed_in_play(cards::Stat::BurnsWhile);
         let burned: Vec<MinionId> = (0..st.minions.len())
             .map(|i| MinionId(i as u32))
             .filter(|&m| {
-                st.minions[m.index()].present()
+                burns
+                    && st.minions[m.index()].present()
                     && st.printed_mod(m, cards::Stat::BurnsWhile, Default::default()) > 0
             })
             .collect();

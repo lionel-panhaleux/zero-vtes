@@ -3221,19 +3221,32 @@ impl GameState {
         v.owner != seat && v.crypt_card().is_some_and(|c| self.controls_copy(seat, c))
     }
 
+    /// The vampires in play whose text prints a modifier to `stat`.
+    fn printers(
+        &self,
+        stat: Stat,
+    ) -> impl Iterator<Item = (MinionId, &Minion, &'static cards::VampireDef)> {
+        self.minions.iter().enumerate().filter_map(move |(i, v)| {
+            (v.present() && v.crypt_card().is_some())
+                .then(|| cards::printing(v, stat))
+                .flatten()
+                .map(|def| (MinionId(i as u32), v, def))
+        })
+    }
+
+    /// A vampire in play prints a modifier to `stat`: what a caller asking
+    /// `printed_mod` of many minions or cards checks first.
+    pub fn printed_in_play(&self, stat: Stat) -> bool {
+        self.printers(stat).next().is_some()
+    }
+
     /// Printed modifiers to `m`'s `stat` from the vampires in play, its own
     /// and others', read live: in torpor too (LSJ 20011022).
     pub fn printed_mod(&self, m: MinionId, stat: Stat, ctx: PrintedCtx) -> i32 {
         use crate::cards::PrintedTo;
         let owner = self.minions[m.index()].owner;
         let mut total = 0;
-        for (i, v) in self.minions.iter().enumerate() {
-            let source = MinionId(i as u32);
-            let Some(def) =
-                cards::vampire_of(v).filter(|_| v.present() && v.crypt_card().is_some())
-            else {
-                continue;
-            };
+        for (source, v, def) in self.printers(stat) {
             for p in def.printed.iter().filter(|p| p.stat == stat) {
                 let applies = match p.to {
                     PrintedTo::Itself => source == m,

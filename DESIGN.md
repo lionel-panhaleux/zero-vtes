@@ -403,13 +403,15 @@ negative resources, capacity ceilings, every card in play has a living
 controller, a game ends only with ≤1 Methuselah or at the time limit, step budget
 (every window terminates), no empty request, decision-log resimulation reproduces
 identical state hashes (every 4th seed; the goldens pin the rest). A fixture
-plays 100–300 seeds: about twice the seed where its last coverage key first
-appears (the midgame's at 163; the opening plays 300); `FUZZ_SEEDS=n` sweeps
-deeper: weekly at `main`'s tip, with the host's `HOST_SEEDS`
-(`scripts/sweeps.py`, 600 and 400 seeds; Z-main's schedule, never beside a
-training run), its report in the main checkout's `data/sweeps/`, a failure
-through `intake` and its seed kept. The cost is the engine itself (half of it
-`GameState::printed_mod` on the late tables), not the harness.
+plays about twice the seed where its last coverage key first appears (the
+midgame's at 163; the opening plays 300); `FUZZ_SEEDS=n` sweeps deeper:
+weekly at `main`'s tip, with the host's `HOST_SEEDS` (`scripts/sweeps.py`, 600
+and 400 seeds; Z-main's schedule, never beside a training run), its report in
+the main checkout's `data/sweeps/`, a failure through `intake` and its seed
+kept. A fixture's seeds play across threads, a seed a core over all the
+fixtures (`Core`), merged in seed order; a failure is the lowest failing
+seed's, and `FUZZ_TRACE` plays on one thread. The suite runs in under 300 s
+wall on the 12-core machine, most of its CPU the engine's.
 
 `tests/elision.rs`: elision's observational equivalence (§4.3), from the opening
 and three fuzz tables (`tests/common/tables.rs`), 100 seeds each. At every real

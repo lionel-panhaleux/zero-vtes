@@ -2887,13 +2887,15 @@ impl Engine {
             }
         }
         // Karsh: the cards his text plays from the ash heap, one per name.
-        out.extend(
-            crate::state::distinct(&st.seats[seat.index()].ash, |c| {
-                st.minions_of(seat).any(|m| st.plays_from_own_ash(m, c))
-            })
-            .into_iter()
-            .map(|c| (c, Some(crate::state::ASH_GRANTED))),
-        );
+        if st.printed_in_play(cards::Stat::PlaysFromOwnAsh) {
+            out.extend(
+                crate::state::distinct(&st.seats[seat.index()].ash, |c| {
+                    st.minions_of(seat).any(|m| st.plays_from_own_ash(m, c))
+                })
+                .into_iter()
+                .map(|c| (c, Some(crate::state::ASH_GRANTED))),
+            );
+        }
         // Mikael Birkholm: the aim found in the library.
         if let Some(c) = self.combat.as_ref() {
             out.extend(

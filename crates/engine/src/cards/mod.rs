@@ -9271,29 +9271,93 @@ pub fn removed_once_played(card: u16, mode: u8) -> bool {
     })
 }
 
+/// Where a minion's text comes from: `vampire_of` and `printing` both
+/// read it.
+enum TextOf {
+    /// The Great Beast's text is its card's.
+    GreatBeast,
+    /// A created slave (Raw Recruit's Gargoyle): the slave's ability.
+    Slave,
+    /// A crypt card's; merged, the definition of both cards' text
+    /// (`vampires::MERGED`) found by the base card, else the card's own.
+    Crypt { card: u16, merged: Option<u16> },
+}
+
+fn text_of(m: &crate::state::Minion) -> Option<TextOf> {
+    if let crate::state::MinionKind::GreatBeast { .. } = m.kind {
+        return Some(TextOf::GreatBeast);
+    }
+    if m.slave_of.is_some() {
+        return Some(TextOf::Slave);
+    }
+    Some(TextOf::Crypt {
+        card: m.crypt_card()?,
+        merged: m.merged,
+    })
+}
+
+/// The merged definition of base card `base`, by its group: the advanced
+/// card merges with any group's base (ANK 20220805-2).
+fn merged_def(base: u16) -> Option<&'static VampireDef> {
+    let b = &crate::crypt::CRYPT[base as usize];
+    vampires::MERGED
+        .iter()
+        .find(|d| d.name == b.name && d.group.is_none_or(|g| g == b.group))
+        .copied()
+}
+
 /// A vampire's `VampireDef` (an ally's text is its `CardDef`).
 pub fn vampire_of(m: &crate::state::Minion) -> Option<&'static VampireDef> {
-    // The Great Beast's text is its card's.
-    if let crate::state::MinionKind::GreatBeast { .. } = m.kind {
-        return Some(&vampires::GREAT_BEAST);
+    match text_of(m)? {
+        TextOf::GreatBeast => Some(&vampires::GREAT_BEAST),
+        TextOf::Slave => Some(&vampires::RECRUITED_SLAVE),
+        TextOf::Crypt { card, merged } => merged.and_then(merged_def).or_else(|| vampire(card)),
     }
-    // A created slave (Raw Recruit's Gargoyle): the slave's ability.
-    if m.slave_of.is_some() {
-        return Some(&vampires::RECRUITED_SLAVE);
+}
+
+/// A bit per `Stat`.
+type StatSet = [u64; 4];
+
+fn stat_set(d: Option<&VampireDef>) -> StatSet {
+    let mut set = [0; 4];
+    for p in d.map_or(&[][..], |d| d.printed) {
+        set[p.stat as usize / 64] |= 1 << (p.stat as usize % 64);
     }
-    let card = m.crypt_card()?;
-    // Merged: the definition of both cards' text (`vampires::MERGED`), by
-    // the base card's group: the advanced card merges with any group's
-    // base (ANK 20220805-2).
-    m.merged
-        .and_then(|base| {
-            let b = &crate::crypt::CRYPT[base as usize];
-            vampires::MERGED
-                .iter()
-                .find(|d| d.name == b.name && d.group.is_none_or(|g| g == b.group))
-                .copied()
-        })
-        .or_else(|| vampire(card))
+    set
+}
+
+/// `vampire_of(m)` if it prints a modifier to `stat`, found by a static
+/// index: `GameState::printed_mod` asks it of every minion on every stat
+/// read, and most stats are printed by one to three vampires.
+pub fn printing(m: &crate::state::Minion, stat: Stat) -> Option<&'static VampireDef> {
+    struct Index {
+        beast: StatSet,
+        slave: StatSet,
+        card: Vec<StatSet>,
+        merged: Vec<Option<StatSet>>,
+    }
+    static INDEX: std::sync::OnceLock<Index> = std::sync::OnceLock::new();
+    let i = INDEX.get_or_init(|| {
+        let crypt = 0..crate::crypt::CRYPT.len() as u16;
+        Index {
+            beast: stat_set(Some(&vampires::GREAT_BEAST)),
+            slave: stat_set(Some(&vampires::RECRUITED_SLAVE)),
+            card: crypt.clone().map(|c| stat_set(vampire(c))).collect(),
+            merged: crypt
+                .map(|b| merged_def(b).map(|d| stat_set(Some(d))))
+                .collect(),
+        }
+    });
+    let set = match text_of(m)? {
+        TextOf::GreatBeast => &i.beast,
+        TextOf::Slave => &i.slave,
+        TextOf::Crypt { card, merged } => merged
+            .and_then(|b| i.merged[b as usize].as_ref())
+            .unwrap_or(&i.card[card as usize]),
+    };
+    (set[stat as usize / 64] >> (stat as usize % 64) & 1 == 1)
+        .then(|| vampire_of(m))
+        .flatten()
 }
 
 /// Whether crypt card `card` prints `stat` unconditionally, read out of

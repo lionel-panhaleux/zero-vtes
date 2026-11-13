@@ -2199,8 +2199,10 @@ CryptAlly}`.
 - `crypt.rs` stays generated; behavior is `VampireDef` keyed by name. Plain stat
   modifiers are **not layers** (a vampire is not a card in play): read live by
   `GameState::printed_mod`, so nothing is pushed or retracted on torpor, contest,
-  burn or oust. Printed text applies in torpor; a contested vampire gives
-  nothing. Abilities are `ModeDef`s with actor `Host` = the vampire;
+  burn or oust; it reads only the minions whose text prints the stat
+  (`cards::printing`, a static index of the definitions, never a state
+  cache). Printed text applies in torpor; a contested vampire gives nothing.
+  Abilities are `ModeDef`s with actor `Host` = the vampire;
   `AbilitySource::{Card, Vampire}` keys uses and resolution.
 - A vampire may land with part of its text, the rest quoted in `incomplete`
   (rules-qa 13.1; none left); fixtures wanting a plain vampire pin one by name.

@@ -79,7 +79,9 @@ review finding); one the code or a page now makes impossible leaves it.
   `HOST_SEEDS=400` and replace the ones that lost it.
 - Refactors: the fuzz golden replays and perft counts (`tests/golden/`,
   DESIGN §7.3/§7.5) must stay green; a failure names the seed and
-  decision range (`FUZZ_TRACE=1 SEED_FROM=n` traces it). Re-bless an
+  decision range (`FUZZ_TRACE=1 SEED_FROM=n` traces it, on one thread).
+  A fixture's seeds run across threads: stderr may show several seeds'
+  panics, the test's failure names the lowest. Re-bless an
   intended change with `GOLDEN_BLESS=1 cargo test --profile ci --test
   fuzz --test perft`. Games never reach every definition: also diff a
   `{:#?}` dump of `DEFS`/`VAMPIRES`.
