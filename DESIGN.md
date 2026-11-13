@@ -1103,6 +1103,29 @@ its entry when it ends — the training skill's "A run")
   a quarter in. Not degrading, a gain at bot tables by the ledger: served
   (owner, 2026-11-12), `runs/served-p18.zvp` (`0535d0a0be63`), the previous
   `runs/served-prev-2026-11-12-p17.zvp` (`f426338f6c80`).
+- **p19, prepared** (`runs/p19`, 2026-11-13, the engine of 2.29.0, round
+  29; 5861 → 6160; owner, 2026-11-12: the combats the bots enter, "Settled
+  by measurement"). Both levers in one run: `--bc-combat-weight 3` (the
+  human winners' rush and block declarations drawn three times as often,
+  the weak decks' weight) and `--opponent-deck-rate 0.2` on 39 decks
+  offering a rush on 30% or more of their own turns under p18 (`waste
+  --by-deck`): 34 TWDA decks (35 at p18's measure, one since out of the
+  kept TWDA) and the Banu Haqim, Brujah, Gangrel (Anarch), Hecata and
+  Nosferatu precons; already 14% of the decks drawn, about one a table at
+  0.2. The command: p18's without the exploiter's flags, with `--out
+  runs/p19 --resume runs/served-p18.pt --opponents runs/served-p18.pt
+  --bc-combat-weight 3 --opponent-decks
+  0,3,7,8,9,42,53,70,74,75,78,80,84,92,103,104,111,113,115,116,124,130,`
+  `136,137,144,159,163,166,175,187,192,204,225,243,244,247,250,253,260
+  --opponent-deck-rate 0.2 --iterations 6160 --weak-decks`
+  `186,91,146,115,124,92,183,134,137,172,163,170,127,180,181,135,145,159,`
+  `97,112,125,184,116,179,152` (the 25 recent decks under a VP share of
+  0.10 in `served-p18.decks.json`, 2026-11-13), held out (21, of which 11
+  read whole on this engine): p18's 16 and the human wins since its launch,
+  `c6cf44988231afc0`, `2eba4903300cc1ce`, `02663047f37b00de`,
+  `ddea072d86e8dddd`, `6306d19620836c71`. Baseline: p18 (its entry), its
+  combat split in `waste` (by how a combat began) measured beside p19's on
+  this engine.
 
 ### 11.3 Open gaps
 
