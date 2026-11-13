@@ -6489,8 +6489,10 @@ pub fn circles() -> Vec<&'static str> {
     out
 }
 
-/// The Disciplines printed in the crypt, lower case, in crypt order
-/// (Sanguine Instruction's choices); an imbued's virtues are none.
+/// The Disciplines some vampire prints at basic level (lowercase tokens),
+/// in crypt order (Sanguine Instruction's choices): this keeps out Flight,
+/// a Trait printed only at superior (rules-qa 120.1). An imbued's virtues
+/// are none.
 pub fn disciplines() -> Vec<&'static str> {
     let mut out: Vec<&'static str> = Vec::new();
     for d in CRYPT

@@ -4077,7 +4077,8 @@ retainers, traits, titles, trait changes).
   striker (62.26). Red List: 67.5, 71.22; "Red List" on Ossian a bare trait
   (64.6). Flight: generated crypt data and a Discipline level, read
   wherever gained — As the Crow, Dive Bomb, Earthshock (84.37, superseding
-  16.6, 62.14). A slave a card creates carries the slave's text (84.9).
+  16.6, 62.14); a Trait, never among "any Discipline" choices (120.1). A
+  slave a card creates carries the slave's text (84.9).
 - Clans with their V5 names (§1).
 - Text naming a trait of the current bearer: D31.
 - Derange: either clan plays it (ANK 20190203); on a younger vampire, torpid
@@ -5694,7 +5695,7 @@ an owner ruling:
 Every rules-qa item, by batch, with the digest sections citing it: the
 section stating it and those cross-referring to it (§2 the default
 readings, §22 engine modeling, §23 the contradictions, §24 the open
-readings). 1588 items, Batches 1–119 (44.11 was removed, replaced by Batch
+readings). 1589 items, Batches 1–120 (44.11 was removed, replaced by Batch
 45). The index is derived from the citations: a bare `N.M` cites rules-qa
 item N.M in the section it appears in. A new rules-qa item gets its line in
 the section stating it, then its entry here: `python3
@@ -6188,3 +6189,4 @@ index or an item cited nowhere.
   118.4 §21.1,§24.1
 - **119** — 119.1 §2,§3.7,§7.1,§23.4,§24.1; 119.2 §2,§3.7,§7.1,§11.4,§24.1;
   119.3 §7.1,§24.1; 119.4 §3.7,§7.1,§24.1
+- **120** — 120.1 §14.10

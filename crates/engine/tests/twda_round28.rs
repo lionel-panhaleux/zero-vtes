@@ -150,6 +150,25 @@ fn agent_of_power_lends_a_chosen_discipline_until_the_discard_phase() {
     assert_eq!(e.state.discipline_level(a, "dom"), 0);
 }
 
+/// Agent of Power's "choose a Discipline": Flight is a Trait, not a
+/// Discipline (rulebook 2024: "Flight: This Trait allows a minion to play or
+/// use cards requiring Flight"; owner, 2026-11-13, rules-qa 120.1): never
+/// offered, Temporis is.
+#[test]
+fn agent_of_power_never_offers_flight() {
+    let mut e = game(2);
+    let a = e.add_minion(SeatId(0), plain("Brujah", 0), 4, false);
+    e.add_minion(SeatId(1), plain("Ventrue", 0), 4, false);
+    hand(&mut e, 0, &["Agent of Power"]);
+    e.at_master_phase();
+    pick(&mut e, master_on(0, Target::Minion(a)));
+    let req = offering(&mut e, Choice::ChooseDiscipline("tem"));
+    assert!(!req
+        .options
+        .iter()
+        .any(|o| matches!(o, Choice::ChooseDiscipline(d) if d.eq_ignore_ascii_case("flight"))));
+}
+
 /// [RBK contested-cards] "You still gain the trifle master phase action,
 /// even if this card contests when played." Another Methuselah's copy in
 /// play: the new one contests, gives no level, and its trifle action is
