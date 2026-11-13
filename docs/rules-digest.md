@@ -3552,10 +3552,13 @@ prisci's alone (52.9, 70.6) — read "a Methuselah's ballots" in rules-qa as
 - Before votes: as a political referendum's polling step opens, the other
   Methuselahs get a chance to play the cards usable "before any votes and
   ballots are cast" before the caller casts — Confusion of the Eye [OBF],
-  Fakir al Sidi, Closed Session — a pre-vote rotation from the caller's
-  left, the caller last, those cards (and abilities) alone, no vote; once it
-  closes, the polling proper rotates from the caller; not for a blood hunt,
-  nor a referendum passing automatically (64.12, owner 2026-10-11).
+  Fakir al Sidi, Closed Session — a pre-vote stage, those cards (and
+  abilities) alone, no vote, in normal sequencing: the acting Methuselah
+  first, then the prey, the predator and the rest clockwise, a play giving
+  the impulse back to the acting Methuselah, no vote cast until all have
+  passed (owner 2026-11-11); once it closes, the polling proper rotates
+  from the caller, polled still after a fail in it (116.34); not for a blood
+  hunt, nor a referendum passing automatically (64.12).
   Confusion of the Eye [OBF]: in a political action's polling step only,
   before any vote; the acting vampire casts nothing; "if the referendum
   requires a titled vampire" reads any title requirement on the calling card
@@ -3691,9 +3694,6 @@ prisci's alone (52.9, 70.6) — read "a Methuselah's ballots" in rules-qa as
 
 - Vote floors: rules-qa's "stop at 0" (51.2, 52.2, 70.6) and ANK 20251125's
   net negative votes (§23).
-- The pre-vote rotation (64.12) runs from the caller's left, the caller
-  last — an exception to the acting Methuselah's usual first impulse
-  (rulebook "Sequencing"), settled by the owner.
 
 ## 14. Minions and their states
 
@@ -5448,9 +5448,10 @@ rules-qa batch.
   no ruling; the glossary "Limited" allows one card or effect per round; LSJ
   20030224 (a canceled limited effect does not trigger the limit) supports
   29.8 by analogy.
-- **K39** The pre-vote rotation: 64.12 (from the caller's left, the caller
-  last) inverts the rulebook's acting-Methuselah-first impulse (rulebook
-  "Sequencing", polling step) — the owner's ruling; an explicit exception.
+- **K39** The pre-vote stage: 64.12 had it from the caller's left, the
+  caller last, against the rulebook's acting-Methuselah-first impulse
+  (rulebook "Sequencing", polling step). Corrected (owner, 2026-11-11):
+  normal sequencing, the acting Methuselah first; 64.12 now agrees.
 - **K40** Card actions and the basic actions: 6.2, 72.2 (a granted or card
   action has only its printed stealth; "the usual +1" is the rulebook
   hunt's) vs the rulebook's "Action Card (or Card in Play)": a card's special
@@ -5901,7 +5902,7 @@ index or an item cited nowhere.
   64.5 §9.2,§12.3; 64.6 §11.8,§12.3,§12.12,§14.5,§14.10,§22; 64.7
   §12.12,§14.11; 64.8 §3.8,§4.5,§9.2,§10.4,§12.12,§12.14; 64.9
   §4.5,§9.6,§19.1; 64.10 §3.17,§12.2,§12.3,§12.7,§12.13,§22,§23.3; 64.11
-  §4.5,§22; 64.12 §13.3,§13.5,§23.5
+  §4.5,§22; 64.12 §13.3,§23.5
 - **65** — 65.1 §12.12,§12.15,§23.4; 65.2 §10.4,§12.7; 65.3 §6.1,§15.2
 - **66** — 66.1 §2,§5.2,§9.2,§23.2; 66.2 §9.4,§22,§23.2
 - **67** — 67.1 §3.9,§7.1,§17.1,§21.1,§22; 67.2 §14.5; 67.3 §11.1; 67.4
@@ -6155,7 +6156,7 @@ index or an item cited nowhere.
   116.18 §3.17,§15.2; 116.19 §13.5,§18.4; 116.20 §12.4; 116.21 §12.8; 116.22
   §3.20; 116.23 §15.2; 116.24 §3.12,§13.1; 116.25 §3.12,§13.1; 116.26 §11.4;
   116.27 §6.2; 116.28 §9.4; 116.29 §9.4,§24.1; 116.30 §11.1,§15.2; 116.31
-  §9.1; 116.32 §12.5; 116.33 §13.4; 116.34 §13.4,§24.1; 116.35
+  §9.1; 116.32 §12.5; 116.33 §13.4; 116.34 §13.3,§13.4,§24.1; 116.35
   §3.4,§12.2,§13.2; 116.36 §6.5,§16.4; 116.37 §6.1,§21.1; 116.38 §6.1,§24.1;
   116.39 §9.1; 116.40 §12.13,§14.8; 116.41 §3.20,§12.13,§14.8,§24.1; 116.42
   §12.13,§14.8,§24.1; 116.43 §12.4; 116.44 §3.20,§12.11,§24.1; 116.45 §12.3;

@@ -14,7 +14,7 @@ use crate::library::{CardType, LIBRARY};
 use crate::notes::{self, Cause, Rule};
 use crate::plays::{HookAt, ModeLayers};
 use crate::state::{title_votes, ActionId, CardId, Expiry, TimedStat, UncontrolledSlot};
-use crate::window::PollingWindow;
+use crate::window::{OrderedWindow, PollingWindow};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum RefKind {
@@ -208,11 +208,11 @@ pub struct ReferendumCtx {
     /// nothing "during the polling step" or "during a referendum" is
     /// played, a margin it passed by is none (LSJ 19980107).
     pub auto_pass: bool,
-    /// A political referendum's opening rotation, before the polling
-    /// proper: the other Methuselahs first, the caller last, may play the
-    /// cards usable "before any votes" (Confusion of the Eye [OBF], Fakir
-    /// al Sidi) — nothing else, no vote (owner, 2026-10-11: rules-qa 64.12).
-    pub pre_vote: bool,
+    /// A political referendum's opening stage, before the polling proper:
+    /// the cards usable "before any votes" (Confusion of the Eye [OBF],
+    /// Fakir al Sidi) and nothing else, no vote, in the action's normal
+    /// sequencing, the acting Methuselah first (rules-qa 64.12).
+    pub pre_vote: Option<OrderedWindow>,
     /// Made to fail (Yoruba Shrine): no tally.
     pub forced_fail: bool,
     /// Corrupted minions cast no votes or ballots (Velvet Tongue [SER]).
@@ -662,7 +662,7 @@ impl Engine {
             penalties: Vec::new(),
             pressure: None,
             auto_pass: false,
-            pre_vote: kind == RefKind::Political,
+            pre_vote: None,
             forced_fail: false,
             corrupted_barred: false,
             rider_clauses: Vec::new(),
@@ -689,7 +689,8 @@ impl Engine {
     }
 
     /// Open a referendum. Rotations start at the caller, clockwise (DESIGN
-    /// §4.2). Terms first, if the card has any.
+    /// §4.2); a political one's pre-vote stage follows the action's order.
+    /// Terms first, if the card has any.
     pub(crate) fn start_referendum(
         &mut self,
         kind: RefKind,
@@ -769,13 +770,14 @@ impl Engine {
                 ctx.bonus.push((a.acting, n));
             }
         }
-        // The pre-vote rotation: from the caller's left, the caller last.
-        if ctx.auto_pass {
-            ctx.pre_vote = false;
-        } else if ctx.pre_vote {
-            let mut order = self.state.clockwise_from(caller);
-            order.rotate_left(1);
-            ctx.window = PollingWindow::new(order);
+        if kind == RefKind::Political && !ctx.auto_pass {
+            let order = self
+                .action
+                .as_ref()
+                .expect("a political referendum inside its action")
+                .order
+                .clone();
+            ctx.pre_vote = Some(OrderedWindow::new(order));
         }
         if def.is_some_and(|d| !d.terms.is_empty()) {
             ctx.step = RefStep::Terms;
@@ -1336,10 +1338,10 @@ impl Engine {
 
     fn polling_request(&self, ctx: &ReferendumCtx) -> Option<DecisionRequest> {
         let st = &self.state;
-        let seat = ctx.window.current()?;
-        if ctx.pre_vote {
-            return Some(self.pre_vote_request(ctx, seat));
+        if let Some(w) = &ctx.pre_vote {
+            return Some(self.pre_vote_request(ctx, w.current()?));
         }
+        let seat = ctx.window.current()?;
         let mut options = vec![Choice::Pass];
         for id in st.minions_of(seat) {
             if ctx.spent(Source::Vampire(id)) {
@@ -1416,7 +1418,7 @@ impl Engine {
         Some(DecisionRequest::new(seat, window, options))
     }
 
-    /// The pre-vote rotation's decision: the plays and abilities "only
+    /// The pre-vote stage's decision: the plays and abilities "only
     /// usable … before any votes and ballots are cast", or pass.
     fn pre_vote_request(&self, ctx: &ReferendumCtx, seat: SeatId) -> DecisionRequest {
         let st = &self.state;
@@ -1474,6 +1476,38 @@ impl Engine {
                 {
                     self.acting_seat_ousted();
                     return;
+                }
+            }
+            RefStep::Polling if ctx.pre_vote.is_some() => {
+                let w = ctx.pre_vote.as_mut().expect("the pre-vote stage");
+                let seat = w.current().expect("impulse on a closed window");
+                match *choice {
+                    Choice::Pass => w.pass(),
+                    Choice::UseAbility {
+                        source,
+                        ability,
+                        actor,
+                        target,
+                    } => {
+                        w.play();
+                        self.referendum = Some(ctx);
+                        self.flow = Flow::Referendum;
+                        self.use_ability(seat, source, ability, actor, target, Flow::Referendum);
+                        return;
+                    }
+                    Choice::Play {
+                        card,
+                        mode,
+                        actor,
+                        target,
+                    } => {
+                        w.play();
+                        self.referendum = Some(ctx);
+                        self.flow = Flow::Referendum;
+                        self.announce_play(seat, card, mode, actor, target, Flow::Referendum);
+                        return;
+                    }
+                    ref other => unreachable!("illegal pre-vote choice {other:?}"),
                 }
             }
             RefStep::Polling => {
@@ -1766,9 +1800,10 @@ impl Engine {
 
     fn referendum_advance_now(&mut self) {
         let mut ctx = self.referendum.take().expect("referendum context");
-        // The pre-vote rotation over: the polling proper, from the caller.
-        if ctx.pre_vote && !ctx.fizzled && !ctx.canceled {
-            ctx.pre_vote = false;
+        // The pre-vote stage over: the polling proper, from the caller,
+        // built now: a seat ousted in the stage is not polled, a referendum
+        // made to fail in it still is (rules-qa 116.34).
+        if ctx.pre_vote.take().is_some() && !ctx.fizzled && !ctx.canceled {
             ctx.window = PollingWindow::new(self.state.clockwise_from(ctx.caller));
             self.referendum = Some(ctx);
             self.flow = Flow::Referendum;

@@ -1663,6 +1663,11 @@ sources to the engine's conventions.
   commitments; per-source vote records (abstentions cancel); Methuselah ballots
   (Edge, the calling card's vote, one political card burned from hand); tally:
   more for than against, ties fail; Scorn first.
+- A political referendum's polling opens with `ReferendumCtx::pre_vote`, an
+  `OrderedWindow` over the action's order (`action_order`), offering the
+  `Requirement::NoVotesCast` plays and abilities alone; then the polling
+  proper from the caller, its window built as the stage closes (a fail in
+  the stage still polled: rules-qa 116.34; rules-qa 64.12).
 - Warding the Beast [VAL]'s blood hunt: `ReferendumCtx::favor_only_clans`,
   read by `barred_favor` with Protected District's `forced_against`.
 - Votes are read live (`votes_of`, `clan_votes`, `calling_votes`, `host_votes`);

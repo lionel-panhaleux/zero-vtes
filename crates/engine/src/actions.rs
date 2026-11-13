@@ -2231,15 +2231,15 @@ impl Engine {
     }
 
     /// Sequencing order during an action: the acting Methuselah, then the
-    /// target of a directed action, then the rest clockwise.
+    /// target of a directed action, or the prey then the predator of an
+    /// undirected one, then the rest clockwise (rulebook "Sequencing").
     pub(crate) fn action_order(&self, seat: SeatId, directed: Option<SeatId>) -> Vec<SeatId> {
         let mut order = vec![seat];
-        if let Some(t) = directed {
-            if t != seat {
-                order.push(t);
-            }
-        }
-        for s in self.state.clockwise_from(seat) {
+        let next = match directed {
+            Some(t) => vec![t],
+            None => vec![self.state.prey(seat), self.state.predator(seat)],
+        };
+        for s in next.into_iter().chain(self.state.clockwise_from(seat)) {
             if !order.contains(&s) {
                 order.push(s);
             }

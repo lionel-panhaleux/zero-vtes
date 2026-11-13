@@ -804,10 +804,16 @@ by their key, a last one too as the game ends before it; one from before
 (Watchtower: Four Ride Forth), never offered then; one from before rules-qa 98
 (protocol before 2.15.0), whose engine polled the combatants' Methuselahs
 alone, passes unread a combat's ordered window asked of a Methuselah outside
-the combat; and any record reads past a Pass recorded by a seat this engine
-elides there, as sure as the digest of the decision after it: a second Wall
-of Filth before rules-qa 99.1, refused, left the seat a lone Pass). Kept two
-years, to train and test the engine; anonymous.
+the combat; one from before rules-qa 64.12's correction (2026-11-13), whose
+engine gave an undirected action's impulse clockwise from the acting
+Methuselah, the predator last, reads the decision of the seat asked now when
+the passes before it are those of seats that order asked first and the prey,
+then the predator, order asks after it, those passes read at their seats'
+turns (a play among them, the record stops); and any record reads past a Pass
+recorded by a seat this engine elides there, as sure as the digest of the
+decision after it: a second Wall of Filth before rules-qa 99.1, refused, left
+the seat a lone Pass). Kept two years, to train and test the engine;
+anonymous.
 
 ## 12. Open sets
 

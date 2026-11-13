@@ -6272,7 +6272,7 @@ fuzz_tests! {
                 ],
             );
         },
-        seeds: 36,
+        seeds: 130,
         ..BASE
     };
 }

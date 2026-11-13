@@ -328,6 +328,8 @@ impl Replay {
             declines: 0,
             elided: 0,
             round: None,
+            deferred: Vec::new(),
+            taken: 0,
         }
     }
 
@@ -379,6 +381,11 @@ pub struct Reader<'a> {
     elided: usize,
     /// A reopened block window's round a play interrupted (`Reader::next`).
     round: Option<Vec<Reasked>>,
+    /// Recorded passes an undirected action's old order took before the
+    /// seat now asked (`Reader::reordered`), read when their seats are.
+    deferred: Vec<usize>,
+    /// The record's decision the last answer took.
+    taken: usize,
 }
 
 impl Reader<'_> {
@@ -416,6 +423,11 @@ impl Reader<'_> {
     /// recorded index among several alike). `None` when the record ends;
     /// an error when no option is it (the rules changed).
     pub fn next(&mut self, e: &Engine, req: &DecisionRequest) -> Option<Result<usize, String>> {
+        if let Some(k) = self.deferred_pass(req) {
+            self.taken = k;
+            let d = &self.replay.decisions[k];
+            return Some(recorded_option(e, req, d, self.replay.then));
+        }
         // Before rules-qa 82.1, an attempt failed short of the stealth
         // reopened the block window at the acting Methuselah, the seats
         // through the blocker asked again (the blocker's pass its decline):
@@ -480,14 +492,76 @@ impl Reader<'_> {
                 self.next += 1;
             }
         }
+        self.reordered(e, req);
         let rest = self.replay.decisions.get(self.next..).unwrap_or_default();
         match past(e, req, rest) {
             Ok(n) => self.next += n,
             Err(why) => return Some(Err(why)),
         }
         let d = self.replay.decisions.get(self.next)?;
+        self.taken = self.next;
         self.next += 1;
         Some(recorded_option(e, req, d, self.replay.then))
+    }
+
+    /// The deferred pass of the seat `req` asks in its window, if it is
+    /// the next; any other decision drops them all: a play gave the
+    /// impulse back to the acting Methuselah, voiding the passes before it
+    /// in the game recorded too.
+    fn deferred_pass(&mut self, req: &DecisionRequest) -> Option<usize> {
+        let &k = self.deferred.first()?;
+        let d = &self.replay.decisions[k];
+        let window = crate::ids::window(req.window);
+        if d.seat == req.seat.0 && d.window.is_none_or(|w| w == window) {
+            self.deferred.remove(0);
+            Some(k)
+        } else {
+            self.deferred.clear();
+            None
+        }
+    }
+
+    /// Before rules-qa 64.12's correction (2026-11-13), an undirected
+    /// action's impulse went clockwise from the acting Methuselah, the
+    /// predator last; it now goes to the prey, then the predator (rulebook
+    /// "Sequencing"). The seat asked now, its recorded decision after the
+    /// passes of seats the old order asked first and the new asks after
+    /// it, all in this window: that decision is read now, those passes
+    /// deferred to their seats' turns (a record before 2.4.0 holds no
+    /// windows: its seats alone tell). Passes change no position: the
+    /// digests still hold.
+    fn reordered(&mut self, e: &Engine, req: &DecisionRequest) {
+        let Some(a) = e.action() else {
+            return;
+        };
+        let old = e.state.clockwise_from(a.seat);
+        if old == a.order {
+            return;
+        }
+        let at = |order: &[zvtes::ids::SeatId], s: u8| order.iter().position(|x| x.0 == s);
+        let (Some(was), Some(now)) = (at(&old, req.seat.0), at(&a.order, req.seat.0)) else {
+            return;
+        };
+        let window = crate::ids::window(req.window);
+        let here = |d: &Recorded| d.window.is_none_or(|w| w == window);
+        let rest = self.replay.decisions.get(self.next..).unwrap_or_default();
+        let run = rest
+            .iter()
+            .take_while(|d| {
+                here(d)
+                    && d.choice.kind == zvtes_api::ids::OptionKind::Pass
+                    && at(&old, d.seat).is_some_and(|i| i < was)
+                    && at(&a.order, d.seat).is_some_and(|i| i > now)
+            })
+            .count();
+        if run > 0
+            && rest
+                .get(run)
+                .is_some_and(|d| d.seat == req.seat.0 && here(d))
+        {
+            self.deferred = (self.next..self.next + run).collect();
+            self.next += run;
+        }
     }
 }
 
@@ -669,10 +743,12 @@ pub enum Step {
 pub struct Replayer {
     replay: Replay,
     next: usize,
-    /// `Reader::declines`, `elided` and `round`, kept between steps.
+    /// `Reader::declines`, `elided`, `round` and `deferred`, kept between
+    /// steps.
     declines: usize,
     elided: usize,
     round: Option<Vec<Reasked>>,
+    deferred: Vec<usize>,
     session: Session,
     viewer: Viewer,
     dealt: Decks,
@@ -700,6 +776,7 @@ impl Replayer {
             declines: 0,
             elided: 0,
             round: None,
+            deferred: Vec::new(),
             session,
             viewer,
             dealt,
@@ -835,6 +912,8 @@ impl Replayer {
             declines: self.declines,
             elided: self.elided,
             round: self.round.clone(),
+            deferred: self.deferred.clone(),
+            taken: 0,
         };
         match reader.next(e, &req) {
             None => Step::Decision(read),
@@ -844,9 +923,10 @@ impl Replayer {
                 self.declines = reader.declines;
                 self.elided = reader.elided;
                 self.round = reader.round;
+                self.deferred = reader.deferred;
                 self.pending = Some(i);
                 read.chosen = Some(i);
-                read.entry = Some(self.replay.decisions[reader.next - 1].entry);
+                read.entry = Some(self.replay.decisions[reader.taken].entry);
                 Step::Decision(read)
             }
         }

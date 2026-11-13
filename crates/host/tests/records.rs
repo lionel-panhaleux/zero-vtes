@@ -9,6 +9,23 @@ use zvtes_host::replay::{Replay, Replayer, Step};
 /// from before 2.4.0 records no windows, so a window the engine no longer
 /// asks cannot be read past (`replay::past`).
 const KNOWN_STOPS: &[(&str, u64, &str)] = &[
+    ("57b15cfc6c44ad37.json", 200, UNDIRECTED_ORDER),
+    ("ec8d47141b6b38e9.json", 107, UNDIRECTED_ORDER),
+    (
+        "zero-vtes-replay-2026-10-10T21-16-37-859Z.json",
+        158,
+        UNDIRECTED_ORDER,
+    ),
+    (
+        "zero-vtes-replay-2026-10-10T22-05-29-762Z.json",
+        372,
+        UNDIRECTED_ORDER,
+    ),
+    (
+        "zero-vtes-replay-2026-10-11T15-45-47-868Z.json",
+        221,
+        UNDIRECTED_ORDER,
+    ),
     (
         "da59eaaa7e4abda6.json",
         93,
@@ -21,10 +38,8 @@ const KNOWN_STOPS: &[(&str, u64, &str)] = &[
     ),
     (
         "zero-vtes-replay-2026-10-10T15-01-52-455Z.json",
-        185,
-        "rules-qa 114.2: Second Tradition: Domain, played for another \
-         vampire during a short attempt (184), now makes him the blocker: \
-         he blocks, where the game's engine only unlocked him",
+        88,
+        UNDIRECTED_ORDER,
     ),
     (
         "zero-vtes-replay-2026-10-09T22-52-40-908Z.json",
@@ -70,6 +85,12 @@ const KNOWN_STOPS: &[(&str, u64, &str)] = &[
 /// Protocol [obf]): a block attempt is now short of it, its Methuselah
 /// asked again.
 const STEALTH_COUNTED: &str = "a bleed card's printed stealth counted";
+
+/// Played when an undirected action's impulse went clockwise from the
+/// acting Methuselah: it now goes to the prey, then the predator (rulebook
+/// "Sequencing"; the reader takes a reordered round of passes,
+/// `Reader::reordered`, not a play or a block among them).
+const UNDIRECTED_ORDER: &str = "an undirected action's impulse: the prey, then the predator";
 
 #[test]
 fn every_record_reads_whole() {

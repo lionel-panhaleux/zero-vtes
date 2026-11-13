@@ -760,9 +760,8 @@ fn closed_session_bars_non_camarilla_votes() {
         &["Ancilla Empowerment", "Closed Session", "Closed Session"],
     );
     pick(&mut e, play(0, 0, alexa));
-    // The pre-vote rotation, the caller last (owner, 2026-10-11: rules-qa
-    // 64.12): Closed Session (one each referendum: the rotation then
-    // closes).
+    // The pre-vote stage, the caller first (rules-qa 64.12): Closed
+    // Session (one each referendum: the stage then closes).
     pick(&mut e, play(0, 0, alexa));
     // The polling proper, from the caller. Votes cast: the second copy is
     // no longer usable.

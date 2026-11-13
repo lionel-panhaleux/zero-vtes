@@ -3001,7 +3001,8 @@ impl Engine {
     }
 
     /// A card in play shuffled into its owner's library (Aranthebes, The
-    /// Immortal); the cards stored on it to the ash heap.
+    /// Immortal), an ousted owner's out of the game; the cards stored on it
+    /// to the ash heap.
     pub(crate) fn shuffle_into_library(&mut self, id: CardId) {
         let c = &mut self.state.cards[id.index()];
         if !c.in_play {
@@ -3012,10 +3013,12 @@ impl Engine {
         let stored = std::mem::take(&mut c.stored);
         let seat = &mut self.state.seats[owner.index()];
         seat.to_ash_all(stored);
-        seat.library.put(card, copy);
-        self.state.seats[owner.index()]
-            .library
-            .shuffle(&mut self.rng);
+        if seat.ousted {
+            seat.removed.put(card, copy);
+        } else {
+            seat.library.put(card, copy);
+            seat.library.shuffle(&mut self.rng);
+        }
         self.state
             .layers
             .retain(|l| l.scope == crate::cards::Scope::Action || l.source != id);

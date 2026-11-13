@@ -106,7 +106,7 @@ fn pass_referendum(e: &mut Engine, a: MinionId) {
     close_polling(e);
 }
 
-/// The referendum's polling step opened (the pre-vote rotation over).
+/// The referendum's polling step opened (the pre-vote stage over).
 fn to_polling(e: &mut Engine) {
     to_referendum(e);
     for _ in 0..50 {

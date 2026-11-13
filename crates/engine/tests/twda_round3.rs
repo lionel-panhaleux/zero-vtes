@@ -1656,11 +1656,11 @@ fn confusion_of_the_eye_fails_a_titled_referendum() {
     assert!(!e.state.cards.iter().any(|x| x.in_play && x.card == war));
 }
 
-// Owner, 2026-10-11 (rules-qa 64.12): as a political referendum's polling
-// opens, the other Methuselahs may play the cards usable "before any votes"
-// before the caller casts. Seat 0 calls Kine Resources Contested; seat 2,
-// across the table, is offered Confusion of the Eye [OBF] first — then the
-// caller's vampire casts nothing.
+// rules-qa 64.12: as a political referendum's polling opens, the other
+// Methuselahs may play the cards usable "before any votes" before the caller
+// casts. Seat 0 calls Kine Resources Contested; seat 2, across the table, is
+// offered Confusion of the Eye [OBF] before any vote — then the caller's
+// vampire casts nothing.
 #[test]
 fn confusion_of_the_eye_comes_before_the_callers_votes() {
     let mut e = game(4);
@@ -1697,6 +1697,50 @@ fn confusion_of_the_eye_comes_before_the_callers_votes() {
         }
         e.choose(fallback(&req));
     }
+}
+
+// rules-qa 64.12 (owner, 2026-11-11): the stage "before any votes and
+// ballots are cast" follows normal sequencing (rulebook "Sequencing"): the
+// acting Methuselah first, then, a political action being undirected, the
+// prey, the predator and the rest clockwise; a play gives the impulse back
+// to the acting Methuselah, and no vote is cast until all have passed.
+#[test]
+fn the_before_votes_stage_follows_the_actions_sequencing() {
+    let mut e = game(5);
+    let c = e.add_minion(SeatId(0), find_card("Tara"), 4, false);
+    let mut voters = vec![c];
+    for s in 1..5 {
+        voters.push(e.add_minion(SeatId(s), plain("Ventrue", 0), 4, false));
+        hand(&mut e, s, &["Elder Kindred Network"]);
+    }
+    // Closed Session keeps the caller asked in the stage, not elided.
+    hand(&mut e, 0, &["Kine Resources Contested", "Closed Session"]);
+    pick(&mut e, play(0, 0, c));
+    let mut asked = Vec::new();
+    loop {
+        let req = request(&mut e);
+        if req.window != WindowLabel::ReferendumPolling {
+            e.choose(fallback(&req));
+            continue;
+        }
+        if req
+            .options
+            .iter()
+            .any(|o| matches!(o, Choice::CastVotes { .. }))
+        {
+            assert_eq!(req.seat, SeatId(0), "the polling proper, from the caller");
+            break;
+        }
+        asked.push(req.seat.0);
+        if req.seat == SeatId(4) && !asked[..asked.len() - 1].contains(&4) {
+            e.choose(index_of(&req, play(0, 0, voters[4])));
+        } else {
+            e.choose(index_of(&req, Choice::Pass));
+        }
+    }
+    // The predator plays: the impulse back to the caller, the passes before
+    // it voided; the predator, its card spent, is not asked again.
+    assert_eq!(asked, vec![0, 1, 4, 0, 1, 2, 3]);
 }
 
 // [PIB 20150105] [LSJ 19980107] "Cannot be used during a referendum that is

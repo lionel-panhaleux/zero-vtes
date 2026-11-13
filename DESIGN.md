@@ -216,9 +216,9 @@ hosts a window.
   exist: first opportunity goes to the acting Methuselah's minion, else clockwise.
 - **Referendum**: terms (stepwise, factored) → polling (unordered votes + ordered
   plays; "before votes are cast" is a requirement inside polling, not a window
-  — a political referendum opens with a pre-vote rotation for those cards,
-  the caller last: rules-qa 64.12) → tally → the action's after-resolution
-  window.
+  — a political referendum opens with a pre-vote stage for those cards, in
+  the action's normal sequencing: rules-qa 64.12) → tally → the action's
+  after-resolution window.
 - **Diablerie / blood hunt**: one workflow whatever the entry path; the blood hunt
   is a restricted referendum (vote sources only, no cards, no terms) inside the
   diablerie action, the after-resolution window after it.

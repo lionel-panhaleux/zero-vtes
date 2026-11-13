@@ -549,6 +549,27 @@ fn saatet_ta_locks_for_a_followers_stealth_or_intercept() {
     assert_eq!(e.last_outcome, Some(zvtes::actions::Outcome::Blocked));
 }
 
+// Saatet-ta another Methuselah keeps in play past her owner's oust,
+// burned: out of the game with her owner's other cards (rulebook "Ending
+// the Game"), not shuffled into a library no one plays (found by the round
+// 23b fuzz sweep at seed 351).
+#[test]
+fn saatet_ta_burned_after_her_owners_oust_leaves_the_game() {
+    let mut e = Engine::bare(3);
+    let s = e.add_ally(SeatId(1), find_library("Saatet-ta"));
+    let card = ally_card(&e, s);
+    e.state.cards[card.index()].owner = SeatId(0);
+    let seat = &mut e.state.seats[0];
+    seat.ousted = true;
+    seat.library.clear();
+    seat.hand.clear();
+    e.burn(s);
+    assert!(e.state.seats[0].library.is_empty());
+    assert!(e.state.seats[0]
+        .removed
+        .contains(&find_library("Saatet-ta")));
+}
+
 /// The library card of ally `m`.
 fn ally_card(e: &Engine, m: MinionId) -> CardId {
     match e.state.minions[m.index()].kind {
