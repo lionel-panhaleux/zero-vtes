@@ -909,7 +909,22 @@ errors)
   than it began on the held-out games), measured as the critic is, by
   stage, beside it on the same decisions (`measure`). Its reward is used
   only if it reads better than the critic at every stage, on self-play
-  and on the human records (the training board's "A turn-level value").
+  and on the human records. On p18 (2026-11-14; the engine at `b28d786`,
+  `train.value` at `9a18a0f`: 20,000 self-play games, 3% of their
+  decisions; 1,000 held out, 5%; 67 human records), fitted from p18's
+  critic (`runs/value/v-critic.pt`): 0.14 / 0.21 / 0.41 / 0.70 by quarter
+  against the critic's −0.09 / 0.12 / 0.38 / 0.68 on self-play, −0.33 /
+  −0.17 / 0.15 / 0.54 against −1.21 / −0.41 / 0.04 / 0.49 on the human
+  records: it passes. Most of that is the critic's offset (in the first
+  quarter it expects 0.64 where the seats average 0.40: it learned at
+  tables of frozen opponents); offset removed (the squared correlation),
+  the value gains +0.04 ± 0.03 in each of the first two quarters of
+  self-play and +0.02 ± 0.02 after, nothing measurable on the human
+  records, where neither reads the first half (0.04 at most). Fitted new
+  at p18's size, it reads worse late. Even from the omniscient view,
+  20,000 games leave about 85% of the first quarter's result unread (its
+  squared correlation 0.15): its turn reward can take only a little of
+  the noise out.
 - The harvest report (`scripts/games_report.py`, `reports/total.md`): the
   humans' win rate and VP a seat against each served weights, the bots' waste
   and ledger at human tables.
@@ -986,7 +1001,9 @@ numbers)
 - Imitation of winners only holds the owner's style; imitation memorises (0.89
   on trained choices, 0.52 held out, the held-out loss rising through every
   run from p10 to p16).
-- A potential-based shaping by the position cut the rushes (p15): no shaping.
+- A potential-based shaping by the position cut the rushes (p15): no shaping
+  by the position's features; the turn-level value's reward is on the
+  bench (the measures' "The turn-level value").
 - A larger network distilled from p14 plays p14's game, no gain, nor in RL
   from it (d16, p16).
 - Search in the minion phase on legal views: +0.10 ± 0.17 VP, 10 CPU-seconds a
