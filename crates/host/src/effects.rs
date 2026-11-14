@@ -67,6 +67,33 @@ pub fn mode(m: &zvtes::cards::ModeDef, whom: Whom) -> Vec<Effect> {
     out
 }
 
+/// The wire's range.
+pub(crate) fn range(r: R) -> Range {
+    match r {
+        R::Close => Range::Close,
+        R::Long => Range::Long,
+    }
+}
+
+/// The range a maneuver moves to from `r`.
+pub(crate) fn away(r: R) -> R {
+    match r {
+        R::Close => R::Long,
+        R::Long => R::Close,
+    }
+}
+
+/// Each maneuver among `effects` named with the range it moves to; an
+/// optional one moves nothing yet.
+pub(crate) fn maneuver_to(effects: &mut [Effect], to: R) {
+    for e in effects
+        .iter_mut()
+        .filter(|e| e.kind == K::Maneuver && e.detail.is_none())
+    {
+        e.range = Some(range(to));
+    }
+}
+
 /// The effects of `effects`, in order.
 pub fn curated(effects: &[E], whom: Whom) -> Vec<Effect> {
     let mut out = Vec::new();
@@ -259,12 +286,11 @@ fn add(e: &E, w: Whom, when: Option<When>, out: &mut Vec<Effect>) {
         E::ImmuneEffectNonAggravated => push(detail(of(K::Immune), "effects")),
         E::Press | E::OptionalPress => push(of(K::Press)),
         E::ContinuePressForOwnCombatant => push(detail(of(K::Press), "continue")),
-        E::Maneuver | E::OptionalManeuver => push(of(K::Maneuver)),
+        E::Maneuver => push(of(K::Maneuver)),
+        // Banked, taken later either way: no range of its own.
+        E::OptionalManeuver => push(detail(of(K::Maneuver), "optional")),
         E::SetRange(r) => push(Effect {
-            range: Some(match r {
-                R::Close => Range::Close,
-                R::Long => Range::Long,
-            }),
+            range: Some(range(r)),
             ..of(K::Range)
         }),
         E::EndCombat => push(of(K::EndCombat)),

@@ -1120,6 +1120,138 @@ mod tests {
         (told, view)
     }
 
+    /// Two maneuvers told in one batch (a seat's, then its opponent's back)
+    /// each name the range it moved to, not where the batch left the
+    /// combat (`PlayNote::range`).
+    #[test]
+    fn maneuvers_told_in_one_batch_name_each_its_range() {
+        use zvtes_api::ids::Range;
+        let (mut s, _) = session();
+        let plain = |clan: &str| {
+            (0..zvtes::crypt::CRYPT.len() as u16)
+                .find(|&i| {
+                    let c = &zvtes::crypt::CRYPT[i as usize];
+                    c.clan == clan && c.capacity >= 4 && zvtes::cards::vampire(i).is_none()
+                })
+                .expect("a vampire")
+        };
+        let mut e = Engine::bare(3);
+        let a = e.add_minion(SeatId(0), plain("Brujah"), 4, false);
+        e.add_minion(SeatId(0), plain("Brujah"), 4, false);
+        let b = e.add_minion(SeatId(1), plain("Gangrel"), 4, false);
+        e.add_minion(SeatId(2), plain("Ventrue"), 4, false);
+        for seat in [0, 1] {
+            e.state.seats[seat].hand.push(find_library("Fake Out"));
+        }
+        e.notes = Some(Vec::new());
+        s.engine = e;
+        s.observe(false);
+        let names = vec![String::new(); 3];
+        let mut v = crate::view::Viewer::new(None);
+        v.view(&s.engine, &s.dealt, &names);
+        let bleed = Choice::TakeAction {
+            minion: a,
+            action: ActionKind::Bleed,
+            target: None,
+        };
+        let mut played = 0;
+        for _ in 0..60 {
+            let Step::Decision(req) = s.engine.run() else {
+                panic!("a decision");
+            };
+            s.observe(true);
+            let at = |c: &Choice| req.options.iter().position(|o| o == c);
+            let fake = req.options.iter().position(|o| {
+                matches!(o, Choice::Play { card, .. }
+                    if s.engine.state.seats[req.seat.index()].hand[*card as usize]
+                        == find_library("Fake Out"))
+            });
+            let i = at(&bleed)
+                .or_else(|| at(&Choice::DeclareBlock { minion: b }))
+                .or(fake);
+            played += usize::from(fake.is_some() && i == fake);
+            if played == 2 && i.is_none() {
+                break;
+            }
+            s.engine
+                .choose(i.or_else(|| at(&Choice::Pass)).unwrap_or(0));
+        }
+        assert_eq!(played, 2, "both maneuvers played");
+        // Told at once, as a batch of bot decisions is.
+        let ranges: Vec<_> = s
+            .take_told()
+            .iter()
+            .filter_map(|t| v.event(&s.engine, &s.dealt, t))
+            .filter_map(|k| match k {
+                EventKind::Resolved { effects, .. } => effects
+                    .iter()
+                    .find(|f| f.kind == zvtes_api::option::EffectKind::Maneuver)
+                    .map(|f| f.range),
+                _ => None,
+            })
+            .collect();
+        assert_eq!(ranges, vec![Some(Range::Long), Some(Range::Close)]);
+    }
+
+    /// An optional maneuver (Darkness Within [OBT]) is banked, taken later
+    /// either way: offered, it names no range.
+    #[test]
+    fn an_optional_maneuver_names_no_range() {
+        let find = |clan: &str, disc: Option<&str>| {
+            (0..zvtes::crypt::CRYPT.len() as u16)
+                .find(|&i| {
+                    let c = &zvtes::crypt::CRYPT[i as usize];
+                    c.capacity >= 4
+                        && zvtes::cards::vampire(i).is_none()
+                        && disc.map_or(c.clan == clan, |d| c.disciplines.contains(&d))
+                })
+                .expect("a vampire")
+        };
+        let mut e = Engine::bare(3);
+        let a = e.add_minion(SeatId(0), find("", Some("OBT")), 4, false);
+        e.add_minion(SeatId(0), find("Brujah", None), 4, false);
+        let b = e.add_minion(SeatId(1), find("Gangrel", None), 4, false);
+        e.add_minion(SeatId(2), find("Ventrue", None), 4, false);
+        e.state.seats[0].hand.push(find_library("Darkness Within"));
+        let bleed = Choice::TakeAction {
+            minion: a,
+            action: ActionKind::Bleed,
+            target: None,
+        };
+        let within = Choice::Play {
+            card: 0,
+            mode: 1,
+            actor: Some(a),
+            target: Target::None,
+        };
+        let names = crate::describe::EngineNames;
+        for _ in 0..60 {
+            let Step::Decision(req) = e.run() else {
+                panic!("a decision");
+            };
+            let at = |c: &Choice| req.options.iter().position(|o| o == c);
+            if at(&within).is_some() {
+                let m: Vec<_> = crate::describe::effects(&e, &req, &within, &names)
+                    .into_iter()
+                    .filter(|f| f.kind == zvtes_api::option::EffectKind::Maneuver)
+                    .collect();
+                assert_eq!(m.len(), 1, "{m:?}");
+                assert_eq!(
+                    (m[0].detail.as_deref(), m[0].range),
+                    (Some("optional"), None)
+                );
+                assert_eq!(
+                    zvtes_text::label(&m, &zvtes_text::Names::new(crate::cards::cards())),
+                    "an optional maneuver"
+                );
+                return;
+            }
+            let i = at(&bleed).or_else(|| at(&Choice::DeclareBlock { minion: b }));
+            e.choose(i.or_else(|| at(&Choice::Pass)).unwrap_or(0));
+        }
+        panic!("Darkness Within [OBT] offered");
+    }
+
     /// A blocker whose Methuselah a combat card's cost ousted (Pack Alpha
     /// employing a Dog Pack with the last pool) is named nowhere after: the
     /// action's end tells no blocker, no view an unnumbered one.
@@ -1488,6 +1620,7 @@ mod tests {
             target: Target::None,
             canceled: false,
             no_effect: false,
+            range: None,
         };
         let mut paid = s.engine.table();
         paid.pools[0] -= 1;

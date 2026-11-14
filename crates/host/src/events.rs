@@ -247,13 +247,16 @@ impl Namer<'_> {
                 };
                 // Pool and blood (life) it moves at once: told by their
                 // events, the card their cause.
-                let effects = zvtes::cards::lookup(p.card)
+                let mut effects: Vec<_> = zvtes::cards::lookup(p.card)
                     .and_then(|d| d.modes.get(p.mode as usize))
                     .filter(|_| !p.no_effect)
                     .map_or(Vec::new(), |m| crate::effects::mode(m, whom))
                     .into_iter()
                     .filter(|e| !(e.when.is_none() && told_by_events(e.kind)))
                     .collect();
+                if let Some(r) = p.range {
+                    crate::effects::maneuver_to(&mut effects, crate::effects::away(r));
+                }
                 EventKind::Resolved {
                     seat: p.seat.0,
                     card,

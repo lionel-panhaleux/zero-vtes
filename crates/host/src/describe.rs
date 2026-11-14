@@ -317,8 +317,23 @@ fn found_in(e: &Engine, req: &DecisionRequest) -> Option<ZoneRef> {
 
 /// What taking `choice` does (docs/protocol.md §7): an ability's
 /// effects, a play's mode's, each naming whom it applies to by copy; a
-/// play choosing a second vampire after its target says its role.
+/// play choosing a second vampire after its target says its role; a
+/// maneuver, the range it moves to.
 pub fn effects(
+    e: &Engine,
+    req: &DecisionRequest,
+    choice: &Choice,
+    names: &impl Names,
+) -> Vec<Effect> {
+    let mut out = effects_of(e, req, choice, names);
+    // A maneuver moves away from the range standing.
+    if let Some(c) = e.combat() {
+        crate::effects::maneuver_to(&mut out, crate::effects::away(c.range));
+    }
+    out
+}
+
+fn effects_of(
     e: &Engine,
     req: &DecisionRequest,
     choice: &Choice,
@@ -401,6 +416,7 @@ pub fn effects(
             mode_effects(a, whom)
         }
         Choice::SetX(n) => amount(&x, req, n),
+        Choice::UseManeuver => vec![Effect::new(EffectKind::Maneuver)],
         // Fleshforge Chamber: the card picked put on it, not discarded.
         Choice::Discard(_)
             if e.ability_terms().is_some_and(|(_, m, _)| {

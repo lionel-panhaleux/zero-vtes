@@ -10,6 +10,7 @@ use std::collections::HashMap;
 
 use zvtes_api::event::{Event, EventKind};
 use zvtes_api::ids::{MinionKind, OptionKind};
+use zvtes_api::option::EffectKind;
 use zvtes_api::spec::Views;
 use zvtes_api::view::{Card, TableView};
 use zvtes_api::{Command, GameSpec, In, Message, Out, Player, SeatSpec, Settings};
@@ -1329,10 +1330,11 @@ fn the_events_tell_what_the_views_show() {
 /// was never shown is a field missing. A pass reads the same without the
 /// options beside it and the action or referendum under way: what it
 /// does is in its data, never only in its English (docs/protocol.md §7).
+/// A maneuver offered names the range it moves to; an optional one none.
 #[test]
 fn every_option_and_choice_is_told() {
     let seeds = seeds();
-    let (mut options, mut decided, mut prompts) = (0, 0, 0);
+    let (mut options, mut decided, mut prompts, mut maneuvers) = (0, 0, 0, 0);
     let mut unnamed: std::collections::BTreeMap<String, (usize, String)> = Default::default();
     let decks = zvtes_host::catalog();
     for &seed in &seeds {
@@ -1398,6 +1400,14 @@ fn every_option_and_choice_is_told() {
                 if let Message::Events { events, view, .. } = &o.message {
                     for e in events {
                         bare.hear(&e.kind);
+                        // An optional maneuver told names no range.
+                        if let EventKind::Resolved { effects, .. } = &e.kind {
+                            for f in effects.iter().filter(|f| f.kind == EffectKind::Maneuver) {
+                                if f.detail.as_deref() == Some("optional") {
+                                    assert_eq!(f.range, None, "seed {seed}");
+                                }
+                            }
+                        }
                         if let EventKind::Decided { choice, window, .. } = &e.kind {
                             let t = e.text.as_deref();
                             // A pass told only where it does something.
@@ -1447,6 +1457,22 @@ fn every_option_and_choice_is_told() {
                 );
                 options += 1;
                 check(format!("{:?} in {:?}", o.key.kind, d.window), t.unwrap());
+                // A maneuver names the range it moves to, away from the one
+                // standing; an optional one, banked, none.
+                if let Some(standing) = d.view.combat.as_ref().and_then(|c| c.range) {
+                    let away = match standing {
+                        zvtes_api::ids::Range::Close => zvtes_api::ids::Range::Long,
+                        _ => zvtes_api::ids::Range::Close,
+                    };
+                    for e in o.effects.iter().filter(|e| e.kind == EffectKind::Maneuver) {
+                        let want = match e.detail.as_deref() {
+                            Some("optional") => None,
+                            _ => Some(away),
+                        };
+                        assert_eq!(e.range, want, "seed {seed}: {o:?}");
+                        maneuvers += 1;
+                    }
+                }
                 if o.key.kind == OptionKind::Pass {
                     let alone = zvtes_text::option(
                         o,
@@ -1503,9 +1529,11 @@ fn every_option_and_choice_is_told() {
         eprintln!("unnamed: {n:6} {what} (e.g. {eg:?})");
     }
     eprintln!(
-        "{} games: {options} options, {decided} decisions, {prompts} prompts told",
+        "{} games: {options} options, {decided} decisions, {prompts} prompts told, \
+         {maneuvers} maneuvers",
         seeds.len()
     );
+    assert!(maneuvers > 0, "no maneuver offered");
     assert!(
         unnamed.is_empty(),
         "{} kinds of lines name nothing",

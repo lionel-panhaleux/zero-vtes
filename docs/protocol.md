@@ -442,6 +442,10 @@ seat 2; burn 2 pool to keep card 9.)
     below; §12).
   - `n` signed (+ gained, − lost or spent), per X with `x`; `cost`: paid
     to take the option; `when`: `successful`, `bleed_successful`.
+  - `range`: the one a `range` effect sets; a `maneuver`'s, in combat,
+    the one it moves to (offered: away from the range standing; told:
+    where it moved), none for an optional one (`detail: optional`, a
+    maneuver banked for later); `use_maneuver` carries one `maneuver`.
   - `on`: whom, from the option — `target`, `host` (the minion the card
     or ability is on), `actor`, `acting`, `chosen`, `card` (the card
     itself), `uncontrolled`, `prey`; the seat's own when absent; `copy`
@@ -450,7 +454,7 @@ seat 2; burn 2 pool to keep card 9.)
     `this_round`, `guns`, `not_guns`, `non_aggravated`, `strike` (of
     the opposing strike's damage only), `strike_non_aggravated`,
     `strike_all`, `x_plus` (X + `n`), `each_round`, `beyond_first`,
-    `beyond_first_non_aggravated`, `to_pool`,
+    `beyond_first_non_aggravated`, `to_pool`, `optional` (a maneuver),
     `from_pool`, `per_counter`, `then_bottom`, `master_phase`,
     `conviction` (a burn of the imbued's convictions, `n` of them),
     `all_boons` (a `burn` of every boon in play, any Methuselah's: Blood

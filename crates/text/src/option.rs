@@ -2,7 +2,7 @@
 //! effects, the window it is offered in and the names the client knows.
 //! `None`: a kind not rendered, or an option missing what its text needs.
 
-use zvtes_api::ids::{ActionKind, OptionKind as K, Purpose, Role, Window, Zone};
+use zvtes_api::ids::{ActionKind, OptionKind as K, Purpose, Range, Role, Window, Zone};
 use zvtes_api::message::About;
 use zvtes_api::option::{Effect, EffectKind, Mode, On, OptionView};
 use zvtes_api::view::Target;
@@ -195,7 +195,11 @@ fn base(
             let m = k.mode.as_ref()?;
             format!("Employ {}{}{}", card(), mode(m), apart(m, n))
         }
-        K::UseManeuver => "Use a maneuver".into(),
+        K::UseManeuver => match o.effects.iter().find_map(|e| e.range) {
+            Some(Range::Long) => "Use a maneuver to long range".into(),
+            Some(Range::Close) => "Use a maneuver to close range".into(),
+            _ => "Use a maneuver".into(),
+        },
         K::UsePress => "Use a press".into(),
         K::UsePrevent => "Prevent 1 damage".into(),
         K::PayBlockToll => "Pay the block toll".into(),

@@ -436,6 +436,10 @@ pub struct PlayNote {
     pub canceled: bool,
     /// Its effects not applied (canceled, its payer burned paying).
     pub no_effect: bool,
+    /// The combat's range as it resolves, before its effects: a maneuver
+    /// moves away from it (noted now, the combat perhaps over before the
+    /// narrator reads it).
+    pub range: Option<crate::combat::Range>,
 }
 
 impl Engine {
@@ -463,6 +467,7 @@ impl Engine {
             target: ctx.target,
             canceled,
             no_effect,
+            range: self.combat.as_ref().map(|c| c.range),
         }));
     }
 

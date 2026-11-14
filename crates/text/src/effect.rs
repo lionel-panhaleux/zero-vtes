@@ -156,7 +156,12 @@ pub fn part(e: &Effect, names: &Names) -> Option<String> {
         K::Immune => "immune: effects".into(),
         K::Press if d == Some("continue") => "press to continue".into(),
         K::Press => "a press".into(),
-        K::Maneuver => "a maneuver".into(),
+        K::Maneuver if d == Some("optional") => "an optional maneuver".into(),
+        K::Maneuver => match e.range {
+            Some(Range::Long) => "a maneuver to long range".into(),
+            Some(Range::Close) => "a maneuver to close range".into(),
+            _ => "a maneuver".into(),
+        },
         K::Range => match e.range {
             Some(Range::Long) => "long range".into(),
             _ => "close range".into(),
