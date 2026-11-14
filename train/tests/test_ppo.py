@@ -760,6 +760,39 @@ def test_shaping_trains(tmp_path):
             Trainer(Config(**small, out=str(tmp_path / "bad"), shaping=str(tmp_path / "bad.json")))
 
 
+def test_shaping_by_a_value_network(tmp_path):
+    # The bench's third variant (training board): Φ a `train.value fit`
+    # network on the omniscient view, the learner's rows its own values;
+    # named by its file's hash, refused at another game-win weight or
+    # without the critic's tokens.
+    from train.model import Critic
+
+    schema = json.loads(zvtes_py.schema())
+    torch.manual_seed(5)
+    net = Critic(schema, d=32, layers=1)
+    saved = {"value": net.state_dict(), "size": {"d": 32, "layers": 1}, "vocab": zvtes_py.vocab_keys(), "gw_weight": 5.0}
+    torch.save(saved, tmp_path / "v.pt")
+    small = dict(games=8, steps=24, iterations=1, epochs=1, minibatch=64, d=32, layers=1,
+                 eval_every=1, eval_games=4, device="cpu", critic_warmup=0)
+    cfg = Config(**small, out=str(tmp_path / "run"), shaping=str(tmp_path / "v.pt"))
+    trainer = Trainer(cfg)
+    obs = trainer.pool.observe()
+    phi = trainer.potentials(obs)
+    assert np.allclose(phi, trainer.critic_values(obs, np.zeros(8, np.float32), trainer.phi_net))
+    assert np.abs(phi).sum() > 0
+    trainer.run()
+    assert torch.load(tmp_path / "run" / "model.pt", weights_only=False)["shaping"]["value"] == trainer.phi_sha
+    (tmp_path / "copy.pt").write_bytes((tmp_path / "v.pt").read_bytes())
+    same = Trainer(Config(**{**vars(cfg), "out": str(tmp_path / "same"), "critic_warmup": 3,
+                             "shaping": str(tmp_path / "copy.pt"), "resume": str(tmp_path / "run" / "model.pt")}))
+    assert same.warmup == 0
+    torch.save({**saved, "gw_weight": 2.0}, tmp_path / "bad.pt")
+    with pytest.raises(ValueError):
+        Trainer(Config(**small, out=str(tmp_path / "bad"), shaping=str(tmp_path / "bad.pt")))
+    with pytest.raises(ValueError):
+        Trainer(Config(**small, out=str(tmp_path / "nocritic"), shaping=str(tmp_path / "v.pt"), critic=False))
+
+
 def test_shaping_in_the_rollout(tmp_path):
     # A constant potential c: every step's term is c − c = 0 and the end's
     # −c, so against the same rollout unshaped (same seed, λ 1) a sample's

@@ -23,7 +23,7 @@ import torch
 import zvtes_py
 
 from train.assess import load
-from train.model import Critic, remap_vocab
+from train.model import Critic, load_value
 from train.position import STAGES, from_records, play, played_out, r2, record_paths, stage, table
 from train.ppo import C_TOK, Config, collate_critic, device_of, rewards
 
@@ -145,13 +145,6 @@ def load_rows(path):
     return [x for load_shard in shard_loaders(path) for x in load_shard()]
 
 
-def load_value(path):
-    saved = torch.load(path, map_location="cpu")
-    net = Critic(json.loads(zvtes_py.schema()), **saved["size"])
-    net.load_state_dict(remap_vocab(saved["value"], saved["vocab"], zvtes_py.vocab_keys(), net.state_dict()))
-    return net.eval()
-
-
 def main():
     ap = argparse.ArgumentParser()
     sub = ap.add_subparsers(dest="cmd", required=True)
@@ -215,9 +208,13 @@ def main():
             net = Critic(schema, d=a.d or cfg.get("d", 96), layers=a.layers or cfg.get("layers", 2))
         net = fit(net, shard_loaders(a.train), held, device, a.epochs, a.lr, log=lambda s: print(s, flush=True))
         size = {"d": net.tok_f.out_features, "layers": len(net.trunk.layers)}
-        torch.save({"value": net.cpu().state_dict(), "size": size, "vocab": zvtes_py.vocab_keys(), "checkpoint": a.checkpoint}, a.out)
+        gw = cfg.get("gw_weight", Config.gw_weight)
+        torch.save(
+            {"value": net.cpu().state_dict(), "size": size, "vocab": zvtes_py.vocab_keys(), "checkpoint": a.checkpoint, "gw_weight": gw},
+            a.out,
+        )
     else:
-        net = load_value(a.value)
+        net, _ = load_value(a.value, json.loads(zvtes_py.schema()), zvtes_py.vocab_keys())
         report = {"checkpoint": a.checkpoint, "value": a.value}
         report |= measure(net.to(device), critic.to(device), cfg, load_rows(a.held), record_paths(a.records), device)
         print(json.dumps(report, indent=1))

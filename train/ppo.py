@@ -15,6 +15,7 @@ random seats and the scripted bots, or the `--opponents`.
 import argparse
 import copy
 import dataclasses
+import hashlib
 import itertools
 import json
 import math
@@ -26,7 +27,7 @@ import torch
 import zvtes_py
 
 from train.league import EXP, EXPLOITER, HABITS, TABLES, League, deck_list, label, net_id
-from train.model import Critic, Policy, remap_vocab
+from train.model import Critic, Policy, load_value, remap_vocab
 
 
 @dataclasses.dataclass
@@ -72,11 +73,14 @@ class Config:
     # omission: a different reward and selection score from p9-p15's.
     gw_weight: float = 5.0
     # Potential-based shaping (DESIGN §11.2 "The critic against the
-    # position"): a `train.position --phi` file, Φ a linear fit of the
-    # deciding seat's position (`zvtes_py.position_names`) to its result;
-    # each learner decision's reward gains `shaping_coef` × (γΦ(next) −
-    # Φ(this)), the last −Φ(last): a game's shaped return is its result
-    # less Φ at its first decision, so the best play is unchanged.
+    # position", "The turn-level value"): a `train.position --phi` file, Φ
+    # a linear fit of the deciding seat's position
+    # (`zvtes_py.position_names`) to its result, or a `train.value fit`
+    # checkpoint (`.pt`), Φ that network on the decision's omniscient view
+    # (needs the critic's tokens: `critic`); each learner decision's reward
+    # gains `shaping_coef` × (γΦ(next) − Φ(this)), the last −Φ(last): a
+    # game's shaped return is its result less Φ at its first decision, so
+    # the best play is unchanged.
     shaping: str = ""
     shaping_coef: float = 1.0
     # Distillation (owner, 2026-10-25: a larger network from p14 before
@@ -801,8 +805,16 @@ class Trainer:
                 remap_vocab(taught["model"], taught.get("vocab", self.vocab), self.vocab, self.teacher.state_dict())
             )
             self.teacher.eval()
-        self.phi = None
-        if cfg.shaping:
+        self.phi = self.phi_net = None
+        if cfg.shaping.endswith(".pt"):
+            if not cfg.critic:
+                raise ValueError("--shaping with a value network needs --critic (its tokens)")
+            net, fitted = load_value(cfg.shaping, self.schema, self.vocab)
+            if fitted.get("gw_weight") != cfg.gw_weight:
+                raise ValueError(f"{cfg.shaping}: fitted at --gw-weight {fitted.get('gw_weight')}")
+            self.phi_net = net.to(self.device)
+            self.phi_sha = hashlib.sha256(Path(cfg.shaping).read_bytes()).hexdigest()
+        elif cfg.shaping:
             phi = json.load(open(cfg.shaping))
             if phi["names"] != zvtes_py.position_names():
                 raise ValueError(f"{cfg.shaping}: features other than zvtes_py.position_names()")
@@ -1102,30 +1114,37 @@ class Trainer:
 
     def shaping_state(self):
         """The potential in use and its coefficient (None without
-        shaping), as checkpoints keep it."""
+        shaping), as checkpoints keep it: a network by its file's hash."""
+        if self.phi_net is not None:
+            return {"value": self.phi_sha, "coef": self.cfg.shaping_coef}
         if self.phi is None:
             return None
         return {"weights": self.phi[0].tolist(), "intercept": self.phi[1], "coef": self.cfg.shaping_coef}
 
     def potentials(self, obs):
         """Φ of each pending decision's position (`obs`' rows,
-        `Config.shaping`), 0 without shaping."""
+        `Config.shaping`), 0 without shaping; a network's on the learners'
+        rows only, the only ones shaped."""
+        if self.phi_net is not None:
+            zeros = np.zeros(len(obs["tok_n"]), np.float32)
+            return self.critic_values(obs, zeros, self.phi_net, [lr.agent for lr in self.learners()])
         if self.phi is None:
             return np.zeros(len(obs["tok_n"]), np.float32)
         w, b = self.phi
         return self.pool.positions() @ w + b
 
     @torch.no_grad()
-    def critic_values(self, obs, values):
-        """The learner's rows valued by the omniscient critic."""
-        idx = np.nonzero(obs["agent"] == 0)[0]
+    def critic_values(self, obs, values, net=None, agents=(0,)):
+        """The learner's rows (`agents`') valued by the omniscient critic
+        (or `net`, a network reading the same tokens)."""
+        idx = np.nonzero(np.isin(obs["agent"], agents))[0]
         if len(idx):
             keys = [f"critic_{a}_{b}" for a in ("tok", "deck") for b in ("ids", "f", "n")] + ["ctx"]
             part = shaped({k: obs[k] for k in keys}, idx)
             t = {k: torch.from_numpy(part[k]).to(self.device) for k in keys}
             args = [t[k].long() if not k.endswith(("_f", "ctx")) else t[k].float() for k in keys]
             values = values.copy()
-            values[idx] = self.critic(*args).cpu().numpy()[: len(idx)]
+            values[idx] = (net or self.critic)(*args).cpu().numpy()[: len(idx)]
         return values
 
     def advantages(self, chain, bootstrap):

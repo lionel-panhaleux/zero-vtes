@@ -287,6 +287,10 @@ def main():
     if critic is None:
         raise SystemExit("the checkpoint has no critic")
     shaping = torch.load(a.checkpoint, map_location="cpu").get("shaping")
+    # A value network's potential cannot be added back as `unshaped` adds
+    # a linear one.
+    if shaping and "weights" not in shaping:
+        raise SystemExit("the checkpoint trained with a value network's potential: its critic does not predict the result")
     samples, over, dropped = self_play(policy, critic, cfg, a.games, a.seats, a.seed, device_of(a.device), a.budget)
     t = unshaped(table(samples, over), shaping)
     games = sorted(over)

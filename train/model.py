@@ -179,3 +179,12 @@ def remap_vocab(state, old_keys, new_keys, fresh):
             rows[i] = state["vocab.weight"][old[k]]
     out["vocab.weight"] = rows
     return out
+
+
+def load_value(path, schema, vocab):
+    """A `train.value fit` checkpoint: its network (vocabulary remapped to
+    `vocab`, in eval mode) and the saved dict (`gw_weight`, `checkpoint`)."""
+    saved = torch.load(path, map_location="cpu")
+    net = Critic(schema, **saved["size"])
+    net.load_state_dict(remap_vocab(saved["value"], saved["vocab"], vocab, net.state_dict()))
+    return net.eval(), saved
