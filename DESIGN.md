@@ -963,9 +963,10 @@ numbers)
   p18's self-play). Under p18 the rush-capable TWDA decks (a rush offered on
   30% of their turns, 35 of 216 at its measure) take a VP share of 0.14
   against the others' 0.20 (more rushes a turn, a weaker deck: r −0.19, a weak
-  tendency). The lever (owner, 2026-11-12): the human winners' rush and block
-  declarations weighted up in imitation, and frozen opponents on the
-  rush-capable decks (the training board's p19).
+  tendency). The lever tried (owner, 2026-11-12; p19): the human winners'
+  rush and block declarations weighted up in imitation, and frozen
+  opponents on the rush-capable decks — more rushes, more of them at the
+  prey, no better outcome, the ledger worse.
 - An option the network gives ~0 probability is never sampled, so never
   learned (the crypt draw: a median 6e-8 where the owner drew 11%); faded
   nudges let every nudged behaviour return (p8).
@@ -1105,18 +1106,18 @@ its entry when it ends — the training skill's "A run")
   a quarter in. Not degrading, a gain at bot tables by the ledger: served
   (owner, 2026-11-12), `runs/served-p18.zvp` (`0535d0a0be63`), the previous
   `runs/served-prev-2026-11-12-p17.zvp` (`f426338f6c80`).
-- **p19, prepared** (`runs/p19`, 2026-11-13, the engine of 2.29.0, round
-  29; 5861 → 6160; owner, 2026-11-12: the combats the bots enter, "Settled
-  by measurement"). Both levers in one run: `--bc-combat-weight 3` (the
-  human winners' rush and block declarations drawn three times as often,
-  the weak decks' weight) and `--opponent-deck-rate 0.2` on 39 decks
-  offering a rush on 30% or more of their own turns under p18 (`waste
-  --by-deck`): 34 TWDA decks (35 at p18's measure, one since out of the
-  kept TWDA) and the Banu Haqim, Brujah, Gangrel (Anarch), Hecata and
-  Nosferatu precons; already 14% of the decks drawn, about one a table at
-  0.2. The command: p18's without the exploiter's flags, with `--out
-  runs/p19 --resume runs/served-p18.pt --opponents runs/served-p18.pt
-  --bc-combat-weight 3 --opponent-decks
+- **p19** (`runs/p19`, launched 2026-11-13 at `b28d786`, the engine of
+  2.29.0, round 29; 5861 → 6160; owner, 2026-11-12: the combats the bots
+  enter, "Settled by measurement"). Both levers in one run:
+  `--bc-combat-weight 3` (the human winners' rush and block declarations
+  drawn three times as often, the weak decks' weight) and
+  `--opponent-deck-rate 0.2` on 39 decks offering a rush on 30% or more of
+  their own turns under p18 (`waste --by-deck`): 34 TWDA decks (35 at
+  p18's measure, one since out of the kept TWDA) and the Banu Haqim,
+  Brujah, Gangrel (Anarch), Hecata and Nosferatu precons; already 14% of
+  the decks drawn, about one a table at 0.2. The command: p18's without
+  the exploiter's flags, with `--out runs/p19 --resume runs/served-p18.pt
+  --opponents runs/served-p18.pt --bc-combat-weight 3 --opponent-decks
   0,3,7,8,9,42,53,70,74,75,78,80,84,92,103,104,111,113,115,116,124,130,`
   `136,137,144,159,163,166,175,187,192,204,225,243,244,247,250,253,260
   --opponent-deck-rate 0.2 --iterations 6160 --weak-decks`
@@ -1125,9 +1126,23 @@ its entry when it ends — the training skill's "A run")
   0.10 in `served-p18.decks.json`, 2026-11-13), held out (21, of which 11
   read whole on this engine): p18's 16 and the human wins since its launch,
   `c6cf44988231afc0`, `2eba4903300cc1ce`, `02663047f37b00de`,
-  `ddea072d86e8dddd`, `6306d19620836c71`. Baseline: p18 (its entry), its
-  combat split in `waste` (by how a combat began) measured beside p19's on
-  this engine.
+  `ddea072d86e8dddd`, `6306d19620836c71`. Imitation reads 7,993 decisions,
+  257 of them combat entries (`bc_combat`), 79 records stopping partway,
+  `bc_weak` 0. Ended 2026-11-13, no panics (`best.pt` at 5980). Step 4 on
+  5980 against p18 (`0535d0a0be63`), on the run's engine: at one seat
+  against three p18 0.919 ± 0.086 VP, 21.5% ± 2.6 wins (1,000 games);
+  `humanset` on the 10 newer held-out wins it reads whole, wins from
+  positions 40.3% against 42.2% (600 games each, ± 4.0), agreement 47.5%
+  against 50.1% (2,425 decisions, ± 2.0); the ledger worse beyond two
+  errors on 5 of 6 lines (A&B 2.03 / 2.11 / 1.73 against 2.13 / 2.18 / 1.79
+  at 4 and 5 seats and on TWDA, its prey's R −3.23 / −3.58 / −2.90 against
+  −3.53 / −3.75 / −3.14; TWDA's A&B within). The combats moved as aimed,
+  not their outcome: rushes declared on 27 / 22 / 28% of the turns offering
+  one (p18 24 / 20 / 23%), at the prey 64 / 59 / 55% (54 / 48 / 56%), the
+  opposing minion down 37 / 37 / 32% (39 / 41 / 31%), its own 13 / 17 / 8%
+  (17 / 20 / 9%). The critic by quarter, self-play 0.09 / 0.16 / 0.33 /
+  0.65, the human records −0.18 / −0.09 / 0.12 / 0.54. Degrading by the
+  agreement and the ledger: not served (owner, 2026-11-14).
 
 ### 11.3 Open gaps
 
