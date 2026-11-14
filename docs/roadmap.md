@@ -60,7 +60,11 @@ decision: the owner's.
   (`humanset` on held-out human wins; the online A/B once the platform
   opens to more players), bot-against-bot not degrading (owner,
   2026-11-09: the head-to-head against p14, flat since p10 and blind to
-  the humans' 79%, is the not-degrading check only).
+  the humans' 79%, is the not-degrading check only). The way there
+  (owner, 2026-11-14, after p19 failed): no full-pool run until a
+  five-deck bench shows the learner gaining on p18 (the training board);
+  nothing learning there makes game volume the limit, and a compute ask
+  goes to the owner.
 
 ## Objectives
 
