@@ -22,6 +22,7 @@ import numpy as np
 import torch
 import zvtes_py
 
+from train.league import deck_list
 from train.model import Critic, Policy, remap_vocab
 from train.ppo import ROW_KEYS, collate, collate_critic, forward
 
@@ -41,8 +42,7 @@ def load(path):
         critic = Critic(schema, **size)
         critic.load_state_dict(remap_vocab(saved["critic"], old, vocab, critic.state_dict()))
         critic.eval()
-    families = dict(zvtes_py.deck_families())
-    decks = [d for f in cfg.get("decks", "precons").split(",") for d in families[f.strip()]]
+    decks = deck_list(cfg.get("decks", "precons"))
     trained = {c for d in decks for c, _ in zvtes_py.deck_cards(d)}
     return policy.eval(), critic, cfg | {"iteration": saved.get("iteration", "?")}, trained
 

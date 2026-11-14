@@ -23,7 +23,8 @@ import torch
 import zvtes_py
 
 from train.assess import load
-from train.ppo import Config, act, collate_critic, device_of, nudges, rewards, shaped
+from train.league import deck_list
+from train.ppo import C_TOK, Config, act, collate_critic, device_of, nudges, rewards, shaped
 
 STAGES = ((0.0, 0.25), (0.25, 0.5), (0.5, 0.75), (0.75, 1.01))
 CRITIC_KEYS = [f"critic_{a}_{b}" for a in ("tok", "deck") for b in ("ids", "f", "n")] + ["ctx"]
@@ -34,8 +35,7 @@ def trained_pool(cfg, games, seats, seed, budget):
     config) trained on. A pool's defaults are no politics, no chores and no
     nudges: games the network never met, which the critic reads far worse
     in the first half (DESIGN §11.2 "The critic against the position")."""
-    families = dict(zvtes_py.deck_families())
-    decks = [d for f in cfg.get("decks", "precons").split(",") for d in families[f.strip()]]
+    decks = deck_list(cfg.get("decks", "precons"))
     tables = [{"seats": ["net:0"] * (seats or 4 + g % 2)} for g in range(games)]
     pool = zvtes_py.GamePool(
         games,
@@ -54,42 +54,97 @@ def trained_pool(cfg, games, seats, seed, budget):
     return pool
 
 
+def critic_inputs(tok_ids, tok_f, deck_ids, deck_f, ctx):
+    """The critic's inputs laid out as `train.ppo`'s rows (`collate_critic`
+    reads them), the policy's items empty."""
+    return (None,) * C_TOK + (tok_ids, tok_f, deck_ids, deck_f, None, ctx)
+
+
+def critic_row(obs, i):
+    """Row `i` of a pool observation as `critic_inputs`."""
+    c, k = obs["critic_tok_n"][i], obs["critic_deck_n"][i]
+    return critic_inputs(
+        obs["critic_tok_ids"][i, :c].astype(np.int32),
+        obs["critic_tok_f"][i, :c].astype(np.float16),
+        obs["critic_deck_ids"][i, :k].astype(np.int32),
+        obs["critic_deck_f"][i, :k].astype(np.float16),
+        obs["ctx"][i].astype(np.float32),
+    )
+
+
 @torch.no_grad()
-def self_play(policy, critic, cfg, games, seats, seed, device, budget=20_000):
-    """Every decision of `games` self-play games: (game, seat, features,
-    critic value); per game its turns and per-seat targets; the games
-    dropped (a panic, or truncated at `budget` decisions)."""
-    pool = trained_pool(cfg, games, seats, seed, budget)
-    # Refilled, so a row stays its slot's (`observe` reads every game);
-    # the games past the queued ones are not counted.
+def play(policy, critic, cfg, games, seats, seed, device, budget=20_000, parallel=0, keep=None):
+    """`games` self-play games, `parallel` at a time (0: all), each yielded
+    as it ends: (game, its episode, its decisions' rows). A row: (seat,
+    position features, critic value, the critic's inputs — `critic_row` —
+    with `keep`, else None); with `keep`, only that share of the decisions,
+    drawn. Games are counted in the order they began: the ones a refill
+    begins past `games` are played, never yielded (counted as they end,
+    the long games still running would be left out)."""
+    parallel = min(parallel or games, games)
+    pool = trained_pool(cfg, parallel, seats, seed, budget)
+    if parallel < games:
+        pool.queue([{"seats": ["net:0"] * (seats or 4 + g % 2)} for g in range(parallel, games)])
+    # Refilled, so a row stays its slot's (`observe` reads every game).
     policy, critic = policy.to(device), critic.to(device)
     rng = np.random.default_rng(seed)
+    # Its own stream: the draws leave the games as they are without `keep`.
+    sample = np.random.default_rng(seed + 1)
     open_rows = {}
-    out, over, done, dropped = [], {}, 0, 0
-    while done < games:
+    left = games
+    while left:
         obs = pool.observe()
         feats = pool.positions()
         actions, *_ = act({0: policy}, obs, device, rng)
         idx = np.arange(len(obs["tok_n"]))
-        part = shaped({k: obs[k] for k in CRITIC_KEYS}, idx)
-        args = [torch.from_numpy(part[k]).to(device) for k in CRITIC_KEYS]
-        args = [a.long() if not k.endswith(("_f", "ctx")) else a.float() for k, a in zip(CRITIC_KEYS, args)]
-        values = critic(*args).float().cpu().numpy()[: len(idx)]
-        for i in idx:
-            open_rows.setdefault(i, []).append((int(obs["seat"][i]), feats[i], float(values[i])))
+        if keep is not None:
+            idx = idx[sample.random(len(idx)) < keep]
+        if len(idx):
+            part = shaped({k: obs[k] for k in CRITIC_KEYS}, idx)
+            args = [torch.from_numpy(part[k]).to(device) for k in CRITIC_KEYS]
+            args = [a.long() if not k.endswith(("_f", "ctx")) else a.float() for k, a in zip(CRITIC_KEYS, args)]
+            values = critic(*args).float().cpu().numpy()[: len(idx)]
+            for j, i in enumerate(idx):
+                inputs = critic_row(obs, i) if keep is not None else None
+                open_rows.setdefault(i, []).append((int(obs["seat"][i]), feats[i], float(values[j]), inputs))
         for ep in pool.act(actions.tolist()):
             rows = open_rows.pop(ep["slot"], [])
             if ep["game"] >= games:
                 continue
-            done += 1
-            # A panic or a truncated game has no result to predict.
-            if "panic" in ep or ep["truncated"]:
-                dropped += 1
-                continue
-            g = ep["game"]
-            over[g] = (ep["turns"], rewards(ep, cfg.get("gw_weight", Config.gw_weight)))
-            out += [(g, s, f, v) for s, f, v in rows]
+            left -= 1
+            yield ep["game"], ep, rows
+
+
+def played_out(ep):
+    """A game with a result to predict: not a panic, nor truncated."""
+    return "panic" not in ep and not ep["truncated"]
+
+
+def self_play(policy, critic, cfg, games, seats, seed, device, budget=20_000):
+    """Every decision of `games` self-play games: (game, seat, features,
+    critic value); per game its turns and per-seat targets; the games
+    dropped (a panic, or truncated at `budget` decisions)."""
+    out, over, dropped = [], {}, 0
+    for g, ep, rows in play(policy, critic, cfg, games, seats, seed, device, budget):
+        if not played_out(ep):
+            dropped += 1
+            continue
+        over[g] = (ep["turns"], rewards(ep, cfg.get("gw_weight", Config.gw_weight)))
+        out += [(g, s, f, v) for s, f, v, _ in rows]
     return out, over, dropped
+
+
+def stage(turn, turns):
+    """A decision's share of its game: its position's turn feature over the
+    game's turns."""
+    return turn * 60 / max(turns, 1)
+
+
+def record_paths(spec):
+    """`--records`: record files and directories of them, comma-separated."""
+    return sorted(
+        p for s in spec.split(",") if s for p in (glob.glob(os.path.join(s, "*.json")) if os.path.isdir(s) else [s])
+    )
 
 
 def from_records(critic, cfg, paths):
@@ -115,8 +170,8 @@ def from_records(critic, cfg, paths):
 
 @torch.no_grad()
 def critic_values(critic, decisions, batch=64):
-    keys = ("critic_tok_ids", "critic_tok_f", "critic_deck_ids", "critic_deck_f")
-    rows = [(None,) * 6 + tuple(d[k] for k in keys) + (None, d["ctx"]) for d in decisions]
+    keys = ("critic_tok_ids", "critic_tok_f", "critic_deck_ids", "critic_deck_f", "ctx")
+    rows = [critic_inputs(*(d[k] for k in keys)) for d in decisions]
     values = []
     for i in range(0, len(rows), batch):
         values += critic(*collate_critic(rows[i : i + batch], "cpu")).tolist()
@@ -131,9 +186,9 @@ def table(samples, over):
     X = np.array([f for _, _, f, _ in samples], np.float64)
     v = np.array([c for _, _, _, c in samples], np.float64)
     y = np.array([over[g][1][s] for g, s, _, _ in samples], np.float64)
-    stage = np.array([f[turn] * 60 / max(over[g][0], 1) for g, _, f, _ in samples])
+    stages = np.array([stage(f[turn], over[g][0]) for g, _, f, _ in samples])
     games = np.array([g for g, _, _, _ in samples])
-    return X, v, y, stage, games
+    return X, v, y, stages, games
 
 
 def unshaped(t, shaping):
@@ -239,7 +294,7 @@ def main():
     train, test = split(t, held)
     tests = {"self-play (held out)": test}
     if a.records:
-        paths = sorted(p for spec in a.records.split(",") for p in (glob.glob(os.path.join(spec, "*.json")) if os.path.isdir(spec) else [spec]))
+        paths = record_paths(a.records)
         rs, ro = from_records(critic.cpu(), cfg, paths)
         if rs:
             tests["human records"] = unshaped(table(rs, ro), shaping)

@@ -61,7 +61,8 @@ rounds, set by set (the `add-cards` skill, the cards board).
   replacement, tokens, global capacity/sect layers, randomness, mandatory unlock
   decisions). Playing an event is an optional discard-phase action, so events
   stress the effects framework, not the decision protocol.
-- **Training decks**: deck families drawn per seat (`--decks`): the 14
+- **Training decks**: deck families drawn per seat (`--decks`, beside deck
+  indices naming decks one by one: `train.league.deck_list`): the 14
   full-size precons (Fifth Edition 7 · Anarch 4 · Companion 3, from KRCG's
   precon bundles, `krcg.sets`: 379 unique cards), the reviewed anniversary
   decks (`Deck::anniversary`), the Sabbat V5 precons (`Deck::sabbat`) and the
@@ -901,6 +902,14 @@ errors)
   or nudges, which no network trained on) it reads far worse in the first
   half (0.02 / 0.11). `--phi` writes the features' fit as Φ
   (`runs/phi-p14.json`, p15's shaping, dropped).
+- **The turn-level value** (owner, 2026-11-14; `train.value`): a critic
+  fitted offline, supervised, to the seat's result on decisions sampled
+  from a checkpoint's self-play at its training settings (`gen`, shards
+  of rows; `fit`, from the checkpoint's critic or new, never ending worse
+  than it began on the held-out games), measured as the critic is, by
+  stage, beside it on the same decisions (`measure`). Its reward is used
+  only if it reads better than the critic at every stage, on self-play
+  and on the human records (the training board's "A turn-level value").
 - The harvest report (`scripts/games_report.py`, `reports/total.md`): the
   humans' win rate and VP a seat against each served weights, the bots' waste
   and ledger at human tables.

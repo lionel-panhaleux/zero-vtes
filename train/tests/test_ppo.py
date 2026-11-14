@@ -11,7 +11,7 @@ import pytest
 import torch
 import zvtes_py
 
-from train.league import EXP, EXPLOITER, FROZEN, League
+from train.league import EXP, EXPLOITER, FROZEN, League, deck_list
 from train.model import remap_vocab
 from train.ppo import (
     BIAS, CTX, FIELDS, HIDDEN, TEST_CLIENTS, Config, Trainer, act, batch_of, collate, collate_bias, deck_index, end,
@@ -910,3 +910,15 @@ def test_deck_specialized_exploiters_against_frozen_opponents(tmp_path):
     tapered.run()
     assert np.isclose(tapered.exploiter.opt.param_groups[0]["lr"], 5e-4)
     assert np.isclose(tapered.learner.opt.param_groups[0]["lr"], 5e-5)
+
+
+def test_decks_by_family_or_index():
+    # The bench (training board) names its decks one by one, beside the
+    # families.
+    families = dict(zvtes_py.deck_families())
+    assert deck_list("precons") == families["precons"]
+    assert deck_list("0, 3,5,9,111") == [0, 3, 5, 9, 111]
+    assert deck_list("sabbat,7") == families["sabbat"] + [7]
+    for bad in ("minis", "-1", str(len(zvtes_py.deck_names()))):
+        with pytest.raises(ValueError):
+            deck_list(bad)

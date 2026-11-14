@@ -25,7 +25,7 @@ import numpy as np
 import torch
 import zvtes_py
 
-from train.league import EXP, EXPLOITER, HABITS, TABLES, League, label, net_id
+from train.league import EXP, EXPLOITER, HABITS, TABLES, League, deck_list, label, net_id
 from train.model import Critic, Policy, remap_vocab
 
 
@@ -136,7 +136,11 @@ class Config:
     # Stanislava, The Endless Dance), "sabbat" (the Sabbat V5 precons, drawn by
     # path), "twda" (tournament winners fully in the pool). The New Blood
     # minis are half decks, not legal: never trained on. A seat draws a clan,
-    # then a deck of it (Reign of Stanislava is a Gangrel deck).
+    # then a deck of it (Reign of Stanislava is a Gangrel deck). Deck indices
+    # (`zvtes_py.deck_names()`) name decks one by one, but only on the engine
+    # they were read from: the TWDA decks follow the precons in TWDA order,
+    # so a card round keeping a new one shifts every index past it, a
+    # checkpoint's `decks` included.
     decks: str = "precons,anniversary"
     league: bool = False
     snapshot_every: int = 10
@@ -856,7 +860,7 @@ class Trainer:
             raise ValueError("--partner-rate needs --league true")
         if cfg.habit_seats > 0 and not cfg.opponents:
             raise ValueError("--habit-seats needs --opponents (frozen seats)")
-        self.opponent_decks = [int(d) for d in cfg.opponent_decks.split(",") if d.strip()]
+        self.opponent_decks = deck_list(cfg.opponent_decks)
         if (self.opponent_decks or cfg.opponent_deck_rate > 0) and not (
             cfg.opponents and self.opponent_decks and cfg.opponent_deck_rate > 0
         ):
@@ -897,13 +901,7 @@ class Trainer:
                     self.league.exploiter_since = 0
                     self.league.generation = 0
                     self.league.p.pop(EXP, None)
-        families = dict(zvtes_py.deck_families())
-        names = [f.strip() for f in cfg.decks.split(",")]
-        if not set(names) <= {"precons", "anniversary", "sabbat", "twda"}:
-            raise ValueError(
-                f"deck families: precons, anniversary, sabbat, twda (got {cfg.decks!r})"
-            )
-        self.decks = [i for f in names for i in families[f]]
+        self.decks = deck_list(cfg.decks)
         # Players' games only (`players_game`): a harvest also holds
         # abandoned, unfinished and test clients' games, kept for its
         # report; those and the held-out games left out, and named.
@@ -933,7 +931,7 @@ class Trainer:
         self.start_decks = [
             [deck_index(s) for s in json.loads(text)["spec"]["seats"]] for _, text, _ in self.starts
         ]
-        self.weak = [int(d) for d in cfg.weak_decks.split(",") if d.strip()]
+        self.weak = deck_list(cfg.weak_decks)
         self.bc, self.bc_held, self.bc_p = [], [], None
         if cfg.bc_coef > 0:
             self.bc, self.bc_held, held, stopped, decks, sources, combat = imitation(

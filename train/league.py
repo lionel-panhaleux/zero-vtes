@@ -37,6 +37,7 @@ from pathlib import Path
 
 import numpy as np
 import torch
+import zvtes_py
 
 from train.model import remap_vocab
 
@@ -51,6 +52,25 @@ FROZEN = 20_000
 
 
 HABITS = "+habits"
+
+
+FAMILIES = ("precons", "anniversary", "sabbat", "twda")
+
+
+def deck_list(spec):
+    """A deck list (`--decks`, `--opponent-decks`, `--weak-decks`,
+    `--exploiter-decks`): deck families (`FAMILIES`) and deck indices,
+    comma-separated, as the decks' indices."""
+    families, n = dict(zvtes_py.deck_families()), len(zvtes_py.deck_names())
+    out = []
+    for f in filter(None, (x.strip() for x in spec.split(","))):
+        if f.isdigit() and int(f) < n:
+            out.append(int(f))
+        elif f in FAMILIES:
+            out += families[f]
+        else:
+            raise ValueError(f"decks: {', '.join(FAMILIES)} or deck indices below {n} (got {f!r})")
+    return out
 
 
 def net_id(name):
@@ -89,7 +109,7 @@ class League:
         # The exploiters restarted so far, and each retired copy's deck.
         self.generation = 0
         self.decks_of = {}
-        self.exploiter_decks = [int(d) for d in cfg.exploiter_decks.split(",") if d.strip()]
+        self.exploiter_decks = deck_list(cfg.exploiter_decks)
         self.frozen = {}  # net id -> frozen opponent (`opponents`)
         self.frozen_labels = []
         self.frozen_versions = {}  # net id -> the encoding it reads
