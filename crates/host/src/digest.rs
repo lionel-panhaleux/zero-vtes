@@ -51,7 +51,11 @@ pub fn digest(e: &Engine) -> String {
                     MinionKind::Vampire(c) | MinionKind::Imbued(c) | MinionKind::CryptAlly(c) => {
                         crypt(c)
                     }
-                    MinionKind::Ally { card, .. }
+                    MinionKind::Represented {
+                        card, crypt: true, ..
+                    } => crypt(card),
+                    MinionKind::Represented { card, .. }
+                    | MinionKind::Ally { card, .. }
                     | MinionKind::Created { card, .. }
                     | MinionKind::GreatBeast { card, .. }
                     | MinionKind::Fury { card, .. }

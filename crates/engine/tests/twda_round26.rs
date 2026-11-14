@@ -2284,11 +2284,15 @@ fn amaranth_diablerizes_instead_of_torpor() {
     let b = e.add_minion(SeatId(1), textless(|c| c.capacity <= 4, 0), 0, false);
     e.add_minion(SeatId(1), plain("Ventrue", 1), 4, false);
     hand(&mut e, 0, &["Amaranth"]);
+    // The diablerie recorded with its turn and the victim's clan (rules-qa
+    // 121.26: Community Justice reads it).
+    let (turn, clan) = (e.state.turn, e.state.minions[b.index()].clan());
+    assert!(clan.is_some());
     bleed_blocked(&mut e, a, b);
     pick_when(&mut e, play_at(0, 0, Some(a), Target::None));
     until(&mut e, SeatId(1), WindowLabel::MinionPhase);
     assert!(!e.state.minions[b.index()].present(), "diablerized");
-    assert!(e.state.minions[a.index()].diablerie_turn.is_some());
+    assert_eq!(e.state.minions[a.index()].diableries.0, vec![(turn, clan)]);
 }
 
 /// Personal Involvement: "If your prey has more pool than you (after paying
@@ -6562,7 +6566,10 @@ fn sleep_of_reason_and_songs_send_ones_own_to_torpor() {
     e.add_minion(SeatId(1), plain("Ventrue", 0), 4, false);
     e.state.seats[0].previous_turn = e.state.turn - 2;
     for m in [a, t] {
-        e.state.minions[m.index()].diablerie_turn = Some(e.state.turn);
+        e.state.minions[m.index()]
+            .diableries
+            .0
+            .push((e.state.turn, None));
     }
     hand(&mut e, 0, &["Songs of the Distant Vitae"]);
     let req = request(&mut e);

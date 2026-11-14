@@ -1448,8 +1448,8 @@ fn sixth_tradition_destruction_burns_a_recent_diablerist() {
     let plain_v = e.add_minion(SeatId(0), camarilla("Toreador", 1), 4, false);
     let recent = e.add_minion(SeatId(1), camarilla("Ventrue", 0), 4, false);
     let old = e.add_minion(SeatId(1), camarilla("Ventrue", 1), 4, false);
-    e.state.minions[recent.index()].diablerie_turn = Some(3);
-    e.state.minions[old.index()].diablerie_turn = Some(2);
+    e.state.minions[recent.index()].diableries.0.push((3, None));
+    e.state.minions[old.index()].diableries.0.push((2, None));
     hand(&mut e, 0, &["Sixth Tradition: Destruction"]);
     let req = expect(&mut e, SeatId(0), WindowLabel::MinionPhase);
     assert!(!req.options.contains(&play_on(0, 0, p, Target::Minion(old))));
@@ -2774,7 +2774,10 @@ fn will_of_the_council_plays_a_prince_card() {
         &["Will of the Council", "Sixth Tradition: Destruction"],
     );
     until(&mut e, SeatId(1), WindowLabel::MinionPhase);
-    e.state.minions[d.index()].diablerie_turn = Some(e.state.turn);
+    e.state.minions[d.index()]
+        .diableries
+        .0
+        .push((e.state.turn, None));
     let req = until(&mut e, SeatId(0), WindowLabel::MinionPhase);
     assert!(!req.options.contains(&play(0, 0, p)), "one per vampire");
     e.choose(index_of(&req, play_on(1, 0, p, Target::Minion(d))));
@@ -2852,7 +2855,10 @@ fn will_of_the_council_needs_its_bearer_still_a_primogen() {
         let will = in_play(&mut e, 0, "Will of the Council", Some(p));
         let z = e.add_minion(SeatId(1), camarilla("Ventrue", 0), 0, false);
         e.state.minions[z.index()].granted_title = Some(Title::Prince("Chicago"));
-        e.state.minions[z.index()].diablerie_turn = Some(e.state.turn);
+        e.state.minions[z.index()]
+            .diableries
+            .0
+            .push((e.state.turn, None));
         e.add_minion(SeatId(1), camarilla("Ventrue", 1), 4, false);
         e.state.minions[p.index()].title_contested = contested;
         (e, caller, p, will, z)

@@ -234,7 +234,7 @@ fn a_found_card_names_the_zone_it_is_in() {
                                 Interrupt::NameMasterDiscipline { .. }
                                     | Interrupt::StoredToLibraryTop { .. }
                             )
-                        );
+                        ) || e.play_terms().is_some_and(names_a_card);
                         let Some(z) = k.zone else {
                             assert!(
                                 named,
@@ -272,6 +272,15 @@ fn a_found_card_names_the_zone_it_is_in() {
     ] {
         assert!(met.contains_key(&want), "{want:?} never met: {met:?}");
     }
+}
+
+/// A play's terms naming a card, taking none (Precision, Gramle).
+fn names_a_card(p: &zvtes::cards::PlayCtx) -> bool {
+    use zvtes::cards::Terms;
+    matches!(
+        zvtes::cards::lookup(p.card).and_then(|d| d.modes[p.mode as usize].terms),
+        Some(Terms::AnyCardName | Terms::NameInPlayOrAsh)
+    )
 }
 
 /// A pass on the seat's own block attempt says so (docs/protocol.md §7):
@@ -497,4 +506,141 @@ fn a_replacement_from_research_names_the_research_area() {
     let (req, find) = drive(&mut e, &[play], |_, o| *o == Choice::FindCard(deflection));
     let z = key(&e, &req, &find, &EngineNames).zone.expect("its zone");
     assert_eq!((z.seat, z.zone), (0, Zone::Research));
+}
+
+/// The textless untitled vampire of `clan` with `disc`, capacity 4 or more.
+fn textless_of(clan: &str, disc: &str) -> u16 {
+    use zvtes::crypt::CRYPT;
+    (0..CRYPT.len())
+        .find(|&i| {
+            let c = &CRYPT[i];
+            c.clan == clan
+                && c.capacity >= 4
+                && !c.imbued
+                && c.disciplines.iter().any(|d| d.eq_ignore_ascii_case(disc))
+                && zvtes::cards::vampire(i as u16).is_none()
+        })
+        .expect("a textless vampire") as u16
+}
+
+/// Khazar's Diary raising another Methuselah's ash heap vampire: its
+/// `ash_vampire` key names that heap (seat 2's), not its player's
+/// (docs/protocol.md §7 `zone`; Z-engine's rule, docs/hazards.md "Cards").
+#[test]
+fn khazars_diary_names_the_ash_heap_it_raises_from() {
+    use zvtes::cards::{AbilitySource, Target};
+    use zvtes::decision::Choice;
+    use zvtes::ids::SeatId;
+    use zvtes::state::{find_library, CardId, CardInPlay};
+    use zvtes_api::ids::Zone;
+    let mut e = Engine::bare(3);
+    let g = e.add_minion(SeatId(0), textless_of("Giovanni", "nec"), 4, false);
+    e.add_minion(SeatId(0), 0, 4, false);
+    e.add_minion(SeatId(1), 1, 4, false);
+    e.add_minion(SeatId(2), 2, 4, false);
+    // Two vampires: a lone one is named unasked (elided).
+    e.state.seats[2].ash_crypt = vec![3, 4].into();
+    let diary = find_library("Khazar's Diary (Endless Night)");
+    e.state
+        .cards
+        .push(CardInPlay::new(diary, SeatId(0), None, 0));
+    let d = CardId(e.state.cards.len() as u32 - 1);
+    e.state.cards[d.index()].counters = 7;
+    let raise = Choice::UseAbility {
+        source: AbilitySource::Card(d),
+        ability: 0,
+        actor: Some(g),
+        target: Target::None,
+    };
+    let (req, c) = drive(&mut e, &[raise], |_, o| matches!(o, Choice::AshVampire(_)));
+    let z = key(&e, &req, &c, &EngineNames).zone.expect("its zone");
+    assert_eq!((z.seat, z.zone), (2, Zone::AshHeap));
+}
+
+/// Luna Giovanni removing a political action card from another
+/// Methuselah's ash heap, that heap picked first: the `find_card` key names
+/// it (seat 1's), not her player's.
+#[test]
+fn luna_giovanni_names_the_ash_heap_she_removes_from() {
+    use zvtes::cards::{AbilitySource, Target};
+    use zvtes::crypt::{Sect, CRYPT};
+    use zvtes::decision::Choice;
+    use zvtes::ids::SeatId;
+    use zvtes::state::{find_card, find_library};
+    use zvtes_api::ids::Zone;
+    let camarilla = (0..CRYPT.len())
+        .find(|&i| {
+            CRYPT[i].sect == Some(Sect::Camarilla)
+                && !CRYPT[i].imbued
+                && zvtes::cards::vampire(i as u16).is_none()
+        })
+        .expect("a textless Camarilla vampire") as u16;
+    let mut e = Engine::bare(2);
+    for s in &mut e.state.seats {
+        s.pool = 10;
+    }
+    let caller = e.add_minion(SeatId(0), camarilla, 4, false);
+    let luna = e.add_minion(SeatId(0), find_card("Luna Giovanni"), 4, false);
+    e.state.minions[luna.index()].locked = true;
+    e.add_minion(SeatId(1), 1, 4, false);
+    e.state.seats[0]
+        .ash
+        .push(find_library("Autarkis Persecution"));
+    // Two names in seat 1's heap: a lone one is found unasked (elided).
+    e.state.seats[1]
+        .ash
+        .push(find_library("Autarkis Persecution"));
+    e.state.seats[1]
+        .ash
+        .push(find_library("Kine Resources Contested"));
+    e.state.seats[0]
+        .hand
+        .push(find_library("Kine Resources Contested"));
+    let call = Choice::Play {
+        card: 0,
+        mode: 0,
+        actor: Some(caller),
+        target: Target::None,
+    };
+    let remove = Choice::UseAbility {
+        source: AbilitySource::Vampire(luna),
+        ability: 0,
+        actor: None,
+        target: Target::None,
+    };
+    let (req, c) = drive(
+        &mut e,
+        &[call, remove, Choice::ChooseSeat(SeatId(1))],
+        |e, o| matches!(o, Choice::FindCard(_)) && e.ability_terms().is_some(),
+    );
+    let z = key(&e, &req, &c, &EngineNames).zone.expect("its zone");
+    assert_eq!((z.seat, z.zone), (1, Zone::AshHeap));
+}
+
+/// Precision names a card, taking none: its `find_card` keys carry no
+/// `zone` (docs/protocol.md §7), not its player's ash heap.
+#[test]
+fn precision_names_a_card_in_no_zone() {
+    use zvtes::cards::Target;
+    use zvtes::crypt::CRYPT;
+    use zvtes::decision::Choice;
+    use zvtes::ids::SeatId;
+    use zvtes::state::find_library;
+    let cel = CRYPT
+        .iter()
+        .position(|c| c.disciplines.contains(&"cel") && !c.imbued)
+        .expect("a Celerity vampire") as u16;
+    let mut e = Engine::bare(2);
+    let a = e.add_minion(SeatId(0), cel, 4, false);
+    e.add_minion(SeatId(0), 0, 4, false);
+    e.add_minion(SeatId(1), 1, 4, false);
+    e.state.seats[0].hand.push(find_library("Precision"));
+    let play = Choice::Play {
+        card: 0,
+        mode: 0,
+        actor: Some(a),
+        target: Target::Seat(SeatId(1)),
+    };
+    let (req, c) = drive(&mut e, &[play], |_, o| matches!(o, Choice::FindCard(_)));
+    assert_eq!(key(&e, &req, &c, &EngineNames).zone, None);
 }

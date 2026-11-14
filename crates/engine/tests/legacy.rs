@@ -597,8 +597,14 @@ fn carlton_van_wyk_burns_a_recent_diablerist() {
     let recent = e.add_minion(SeatId(1), plain("Ventrue", &[], 0), 4, false);
     let old = e.add_minion(SeatId(1), plain("Ventrue", &[], 1), 4, false);
     let this = e.state.seats[0].this_turn;
-    e.state.minions[recent.index()].diablerie_turn = Some(this);
-    e.state.minions[old.index()].diablerie_turn = Some(e.state.seats[0].previous_turn);
+    e.state.minions[recent.index()]
+        .diableries
+        .0
+        .push((this, None));
+    e.state.minions[old.index()]
+        .diableries
+        .0
+        .push((e.state.seats[0].previous_turn, None));
     let card = ally_card(&e, carlton);
     let burn = |t| use_at(card, 2, None, Target::Minion(t));
     let req = to_window(&mut e, SeatId(0), WindowLabel::DiscardPhase);

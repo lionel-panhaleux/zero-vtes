@@ -148,10 +148,45 @@ impl Prompt<'_> {
             P::NameMasterDiscipline => {
                 "Choose the master Discipline card to become the fledgling".into()
             }
+            P::NameAnyAshMinion => match a.seat {
+                Some(_) => format!("Choose the minion card in {}'s ash heap", self.seat()?),
+                None => "Choose the ash heap of the minion to put in play".into(),
+            },
+            P::RepresentPicks => format!(
+                "Put a vampire of your uncontrolled region in play as a mummy ({} more at most)",
+                a.n?
+            ),
+            P::BurnCopiesPick => format!(
+                "Choose a copy of {} in play to burn ({} more)",
+                self.card()?,
+                a.n?
+            ),
+            P::KeepSpentBlood => format!(
+                "Choose the card on {} keeping the {} blood spent on {}",
+                self.minion()?,
+                a.n?,
+                self.card()?
+            ),
+            P::BurnReplacement => format!(
+                "{} would burn: choose the replacement applying",
+                self.minion()?
+            ),
             P::NameAshEquipment => match self.detail() {
                 Some(_) => format!("Choose the equipment in {}'s ash heap", self.seat()?),
                 None => format!("{}: choose the ash heap to equip from", self.minion()?),
             },
+            P::MayBurnBloodToBurnPool => format!(
+                "{}: you can burn {} blood to burn {} of {}'s pool",
+                self.minion()?,
+                a.m?,
+                a.n?,
+                self.seat()?
+            ),
+            P::MayGainBlood => format!(
+                "{}: a wraith enters play, you can gain {} blood",
+                self.minion()?,
+                a.n?
+            ),
             P::MayGainHandSize => format!(
                 "{}: you can get +{} hand size until the end of the turn",
                 self.minion()?,
@@ -444,6 +479,9 @@ impl Prompt<'_> {
             P::ReplaceFromResearch => {
                 "Replace it with a card of your research area, or draw".into()
             }
+            P::ReplaceFromAsh => {
+                "Replace the card discarded with another library card of your ash heap".into()
+            }
             P::PlacedDiscipline => format!("{}: choose its Discipline", self.card()?),
             P::ResearchSearch => format!(
                 "Search your library for a card to put in your research area ({} more at most)",
@@ -456,7 +494,10 @@ impl Prompt<'_> {
             ),
             P::BecomesAnarch => "Choose a non-titled vampire of yours to become Anarch".into(),
             P::LockOrPay => format!("Lock {} or burn {} pool", self.card()?, a.n?),
-            P::LibraryToHand => "Choose a card in your library to put in your hand".into(),
+            P::LibraryToHand => match self.detail() {
+                Some(_) => format!("{}: search your library?", self.minion()?),
+                None => "Choose a card in your library to put in your hand".into(),
+            },
             P::LibraryToTop => "Choose a card in your library to put on top of it".into(),
             P::BloodOrCamarilla => format!("{} burns 1 blood or becomes Camarilla", self.minion()?),
             P::BloodOrPool => format!(
@@ -567,6 +608,14 @@ impl Prompt<'_> {
                 a.n?,
                 self.card()?
             ),
+            P::MayBurnInsteadOfUnlock => format!(
+                "{} can burn {} instead of unlocking as normal",
+                self.minion()?,
+                self.card()?
+            ),
+            P::MayBurnWeapon => format!("You can burn a weapon {} has", self.minion()?),
+            P::MaySetNextRange => "You can set the range for the next round".into(),
+            P::BlockWouldSucceed => format!("{}'s block is about to succeed", self.minion()?),
             P::NamedX => format!(
                 "Charming Lobby: choose X for the political action card {} called",
                 self.minion()?
@@ -1133,6 +1182,13 @@ mod tests {
         GuessNumber,
         Bid,
         NamedX,
+        MayBurnInsteadOfUnlock,
+        MayBurnWeapon,
+        MaySetNextRange,
+        BlockWouldSucceed,
+        MayGainBlood,
+        KeepSpentBlood,
+        BurnReplacement,
         NameUncontrolled,
         NameSlotPair,
         BeastDisciplines,
@@ -1147,6 +1203,11 @@ mod tests {
         MayTorture,
         MayGainPool,
         MayBurnEdgeForPool,
+        MayBurnBloodToBurnPool,
+        NameAnyAshMinion,
+        RepresentPicks,
+        BurnCopiesPick,
+        ReplaceFromAsh,
         MayGainHandSize,
         ReadyTitledLeft,
         NameMasterDiscipline,

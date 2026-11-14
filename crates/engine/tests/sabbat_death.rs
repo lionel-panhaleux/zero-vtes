@@ -485,23 +485,39 @@ fn freakish_conglomeration_rushes_and_rots() {
 }
 
 // Gifts From Hereafter [DOM] or [OBL]: another vampire gives the acting
-// zombie ally +1 bleed, then burns 1 blood to unlock it (rules-qa 55.5).
+// zombie ally +1 bleed, then burns 1 blood to unlock it after action
+// resolution, a blocked bleed's too, after its combat (rules-qa 55.5, 23.3).
 #[test]
 fn gifts_from_hereafter_bleed_and_unlock_a_zombie() {
-    let mut e = game(3);
-    let zbig = e.add_minion(SeatId(0), card(ZBIGNIEW), 4, false);
-    let el = e.add_minion(SeatId(0), card("El Monseñor"), 4, false);
-    let drone = e.add_ally(SeatId(0), find_library("Gravebound Drone"));
-    e.add_minion(SeatId(1), plain("Brujah", 1), 4, false);
-    let _ = zbig;
-    hand(&mut e, 0, &["Gifts From Hereafter"]);
-    pick(&mut e, bleed(drone));
-    pick_when(&mut e, play(0, 1, el));
-    pick_when(&mut e, Choice::UnlockForBlood { minion: drone });
-    until(&mut e, SeatId(0), WindowLabel::MinionPhase);
-    assert_eq!(e.state.seats[1].pool, 8);
-    assert!(!e.state.minions[drone.index()].locked);
-    assert_eq!(blood(&e, el), 3);
+    for blocked in [false, true] {
+        let mut e = game(3);
+        e.add_minion(SeatId(0), card(ZBIGNIEW), 4, false);
+        let el = e.add_minion(SeatId(0), card("El Monseñor"), 4, false);
+        let drone = e.add_ally(SeatId(0), find_library("Gravebound Drone"));
+        let z = e.add_minion(SeatId(1), plain("Brujah", 1), 4, false);
+        hand(&mut e, 0, &["Gifts From Hereafter"]);
+        pick(&mut e, bleed(drone));
+        pick_when(&mut e, play(0, 1, el));
+        if blocked {
+            pick_when(&mut e, block(z));
+        }
+        let req = offering(&mut e, Choice::UnlockForBlood { minion: drone });
+        assert_eq!(req.window, WindowLabel::ActionAfterResolution);
+        e.choose(index_of(&req, Choice::UnlockForBlood { minion: drone }));
+        until(&mut e, SeatId(0), WindowLabel::MinionPhase);
+        let bled = if blocked { 0 } else { 2 };
+        assert_eq!(e.state.seats[1].pool, 10 - bled);
+        assert_eq!(
+            e.last_outcome,
+            Some(if blocked {
+                zvtes::actions::Outcome::Blocked
+            } else {
+                zvtes::actions::Outcome::Successful
+            })
+        );
+        assert!(!e.state.minions[drone.index()].locked);
+        assert_eq!(blood(&e, el), 3);
+    }
 }
 
 // Glancing Blow: prevents 1 damage from the opposing strike. [LSJ 20001114]

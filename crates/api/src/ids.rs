@@ -252,13 +252,19 @@ ids!(StrikeKind {
     /// A strike whose effect is its card's text.
     CardEffect,
     BurnWeapon,
-    /// The opponent's weapon named with the strike moves to the striker.
+    /// The opponent's weapon named with the strike moves to the striker;
+    /// not sent since 2.30.0 (`StealEquipment`).
     StealWeapon,
     BurnEquipment,
     RangedBurnEquipment,
     Corrupt,
     /// Life burned from the opposing ally (`n`), not damage (Argent Baton).
     BurnLife,
+    /// The opponent's equipment named with the strike moves to the striker
+    /// (a weapon for Fast Hands and Spider, any for Durga Syn).
+    StealEquipment,
+    /// The opposing minion taken for good (Pentweret).
+    StealMinion,
 });
 
 ids!(ReferendumStep {
@@ -967,6 +973,50 @@ ids!(
         /// action named, chosen as the action succeeds (`set_x`, 0 up to
         /// its blood).
         NamedX,
+        /// Precision [CEL]: `minion` may burn `about.m` blood to burn
+        /// `about.n` of `about.seat`'s pool (`resolve_printed`), or not
+        /// (`pass`).
+        MayBurnBloodToBurnPool,
+        /// Khazar's Diary's action announced: the minion card named in an
+        /// ash heap, the heap first (`choose_seat`), then the card
+        /// (`ash_vampire` a crypt card, `find_card` an ally card;
+        /// `about.seat` the heap once chosen).
+        NameAnyAshMinion,
+        /// Spell of Life: up to `about.n` more vampires of `seat`'s
+        /// uncontrolled region into play as mummies (`slot`), or no more
+        /// (`pass`).
+        RepresentPicks,
+        /// Spell of Life with more copies in play than it burns: `seat`
+        /// picks a copy of `card` to burn (`choose_card`), anyone's,
+        /// `about.n` still to pick.
+        BurnCopiesPick,
+        /// Lady Constancia: the card discarded at random replaced by
+        /// another library card of `seat`'s ash heap (`find_card`).
+        ReplaceFromAsh,
+        /// Fata Amria: `seat` may burn `card` on `minion` instead of
+        /// unlocking it as normal (`burn_in_play`), or unlock it (`pass`).
+        MayBurnInsteadOfUnlock,
+        /// Target Hand: `seat` may burn a weapon `minion` has
+        /// (`burn_in_play`), or none (`pass`).
+        MayBurnWeapon,
+        /// Target Head: `seat` may set the next round's range, close
+        /// (`set_x` 0) or long (`set_x` 1), or not (`pass`).
+        MaySetNextRange,
+        /// `minion`'s block is about to succeed: `seat` may play a card for
+        /// the moment (Lesser Boon), or let it succeed (`pass`).
+        BlockWouldSucceed,
+        /// Paolo Sardenzo: `minion` may gain `about.n` blood as a wraith
+        /// enters play (`resolve_printed`), or not (`pass`).
+        MayGainBlood,
+        /// Retain the Quick Blood, two or more on `minion`: `seat` picks the
+        /// one keeping the `about.n` blood `minion` spent on `about.card`
+        /// (`choose_card`).
+        KeepSpentBlood,
+        /// Two or more standing replacements of `minion`'s burn: `seat`,
+        /// the acting Methuselah, picks the one applying: `minion`'s own
+        /// (`resolve_printed`, Byzar) or a card's in play (`resolve_rider`,
+        /// Charigger, The Axe).
+        BurnReplacement,
     }
 );
 ids!(
@@ -1016,5 +1066,8 @@ ids!(
         Contested,
         /// Burn counters (`n`; Byzar: at 3, removed from the game).
         BurnCounters,
+        /// Founder counters (`n`; Gwen Brand: at 4, her Disciplines, bleed
+        /// and capacity).
+        FounderCounters,
     }
 );

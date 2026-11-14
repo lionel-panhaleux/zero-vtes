@@ -87,6 +87,14 @@ review finding); one the code or a page now makes impossible leaves it.
   `{:#?}` dump of `DEFS`/`VAMPIRES`.
 - The engine has legal unbounded repeats (block re-attempts, DESIGN
   §11.3): cap decisions in any exploratory driver or scratch run.
+- A fixture change made after a request was built (a minion unlocked,
+  counters set) is not in that request: the window was computed before, and
+  "not offered" then proves nothing. Change the state before the window
+  opens, or let another minion act so the next window is built anew, and
+  assert something the change makes offered too.
+- The `noted_*` helpers read `Engine::notes`, off in a bare fixture: they
+  panic "noting" unless `e.notes = Some(Vec::new())` was set before the
+  play they read.
 - `Engine::at_master_phase` leaves a bare fixture's flow in the minion
   phase: "during your minion phase" abilities are still offered there.
   Prove a master-phase non-offer at a real master phase (`until` it).
@@ -102,6 +110,16 @@ review finding); one the code or a page now makes impossible leaves it.
   reached the ash heap (after combat, on a hit). Its test asserts the
   card in play is not `effect_only` and the ash heap lacks it —
   "something is on the vampire" passes for a stand-in too.
+- `scripts/window_matrix.py --check` compares each card's windows as a
+  union: a generator change can move another card's per-mode windows
+  (library.rs) with no divergence. Diff `scripts/gen_library.py`'s output
+  too (Slake the Thirst, Shape Mastery: an "as above" across card types).
+- A `Rider`'s `requires` reads no `AnyOf` (not a rider slot): one rider
+  per alternative (Scorpion's Touch's `CardMode(2)`, `CardMode(3)`).
+- A granted `ActionKind::BurnCard` resolves only the effects its arm in
+  `succeed` names (the families walk lists them, `K::BurnCard`): "burn this
+  card and unlock" (Burden the Mind) needed both; any other effect there is
+  silently dropped.
 - `data/rulings-v5.csv` is CRLF: edit it byte-wise. Tests in
   `tests/rulings.rs` must back a ledger row; put regressions elsewhere.
 - A Discipline new to the crypt data (Thanatosis in round 26, Melpominee
@@ -146,9 +164,31 @@ review finding); one the code or a page now makes impossible leaves it.
   declares the action and returns before `Flow::AbilityTerms`, so a term
   with no arm in its `DeclareAction` branch is silently skipped (Talbot's
   master discard was; it is now paid as the action resolves, `succeed`).
+- An action window opened where none opened before (a hunt's
+  would-be-successful window, for Foul Blood) is offered to every card and
+  ability already timed there: fuzz trajectories move and recorded games
+  (`data/records`) stop, though the new card never meets them. Prefer the
+  existing window of the same moment (Foul Blood: blocks declined).
+- A contested vampire is not `present()`: an entry interrupt that reads
+  its vampire (Seterpenre's masters put on him) is dropped by its settle arm
+  if the contest is staged with it; such an entry stages its contests once
+  it ends (`Interrupt::DisciplineSearch::entering`, Victor Pelletier's
+  `BuyTitle`), "before contest" (LSJ 20080526).
 - An immunity is not a reduction: `Stat::DamageImmuneFromOpponent`
   (`GameState::damage_immune`), not `NoDamageFromOpponent`, or Haymaker,
   the Walking Stick and the Flamethrower miss it (rules-qa 116.138).
+- The would-be-successful window opens for a bleed of 1 or more and a
+  political action only (`ActionState::WouldSucceed`); for any other action
+  the acting Methuselah's moment after blocks are declined is
+  `Window::ActionDuring` with `Requirement::BlocksDeclined` (Forger's
+  Hammer). A card timed there never offered is this.
+- `Effect::FirstStrike` before its `Effect::Strike` in a mode is lost: a
+  strike chosen resets the side's strike state (`Side::set_strike`). Meat
+  Hook's [POT] tear lost its first strike so; list it after the strike.
+- A Shell Break become a retainer is no `CardType::Retainer` card: a new
+  reader of a card in play asks `GameState::is_retainer` or
+  `card_in_play_matches`, never the printed type (hand, library and ash
+  heap only).
 
 ## The shared tree
 

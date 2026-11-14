@@ -6,6 +6,83 @@ server runs.
 `python3 scripts/schema_compat.py` lists what a schema change adds or
 removes; its `--check` fails a removal without a major version.
 
+## 2.30.0
+
+- Precision [CEL] adds the `Purpose` id `may_burn_blood_to_burn_pool`: after
+  the prey discarded the named card, the acting `minion` may burn
+  `about.m` blood to burn `about.n` of `about.seat`'s pool
+  (`resolve_printed`), or not (`pass`). Precision's name is chosen among
+  every library card name (`find_card`, a play's terms). No id removed.
+- Khazar's Diary and Spell of Life add the `Purpose` ids
+  `name_any_ash_minion` (the Diary's action announced: the ash heap first,
+  `choose_seat`, then the minion card in it, `ash_vampire` a crypt card or
+  `find_card` an ally card, `about.seat` the heap) and `represent_picks`
+  (up to `about.n` more uncontrolled vampires into play as mummies,
+  `slot`, or `pass`); with more than five copies in play, Spell of Life's
+  user first picks the five to burn, anyone's, one at a time
+  (`burn_copies_pick`: `choose_card`, `about.card` the card, `about.n`
+  still to pick). A minion representing a card (a mummy, the Diary's
+  wraith) is an `ally` `MinionKind`, its face the card it is (crypt or
+  library), nameless for the wraith. No id removed.
+- Lady Constancia adds the `Purpose` id `replace_from_ash`: the card she
+  discarded at random replaced by another library card of `seat`'s ash
+  heap (`find_card`), or, beside Visit from the Capuchin, as the rules
+  replace it (`draw_library`: the Capuchin's counter). Gwen Brand adds the
+  `MarkerKind` id `founder_counters` (`n`). The `StrikeKind` id
+  `steal_equipment` is sent for Fast Hands', Spider's and Durga Syn's
+  steal, any equipment for Durga's; `steal_weapon` is no longer sent. No
+  id removed.
+- Fata Amria, Target Hand and Target Head add the `Purpose` ids
+  `may_burn_instead_of_unlock` (in its unlock phase, burn `card` instead
+  of unlocking `minion` as normal, `burn_in_play`, or unlock it, `pass`),
+  `may_burn_weapon` (burn a weapon `minion` has, `burn_in_play`, or none,
+  `pass`) and `may_set_next_range` (the next round's range, `set_x` 0
+  close or 1 long, or none, `pass`). No id removed.
+- Lesser Boon adds the `Purpose` id `block_would_succeed`: `minion`'s
+  block is about to succeed; its controller may play a card for the
+  moment (`play`, the acting minion its target) or let it succeed
+  (`pass`), with the `resolution_choice` window label. Proxy Kissed is
+  offered in the influence phase's own request (`influence_transfers`)
+  after a Giovanni moves to the ready region. No id removed.
+- Paolo Sardenzo adds the `Purpose` id `may_gain_blood`: as a wraith
+  enters play, `minion` may gain `about.n` blood (`resolve_printed`), or
+  not (`pass`). Pentweret adds the `StrikeKind` id `steal_minion` (the
+  opposing minion taken for good). Luna Giovanni's terms are a
+  `choose_seat` (the ash heap), then a `find_card` per card removed, a
+  `pass` ending after one. No id removed.
+- Behaviour: a wake of another minion is offered in an action card's
+  as-played window (Fillip, Shadow Sentinel [OBL]: a `play`, its `target`
+  the woken minion; rules-qa 96.4); records before 2.30.0 read past it.
+  `take_damage_after_resolution` also takes the acting minion's
+  after-resolution burn (Ecstasy [SER]). The going-to-torpor step (label
+  `combat_prevention`) also opens when the opposing minion would be
+  burned (Lorenzo Detuono). A trophy has no effect until awarded and, on
+  a vampire, is that vampire's controller's.
+- Behaviour: Porphyrion's "you can search" first asks whether to search
+  (`library_to_hand` with `about.detail` `may_search`, `about.minion` him:
+  `resolve_printed` searches, `pass` neither searches nor shuffles).
+- Behaviour: a card or vampire only named (Precision's, Gramle's
+  `find_card` and `ash_vampire`) has no `zone`; the Diary's minion card
+  and Luna Giovanni's removal name the ash heap chosen (`zone.seat`), not
+  the player's. Alan Sovereign's investment counters paying an equip are
+  a cost reduction option (`resolve_rider` with the investment card, then
+  `set_x`), as Ravnos Cache's.
+- Retain the Quick Blood adds the `Purpose` id `keep_spent_blood`: with
+  two or more on `minion`, `seat` picks the one keeping the `about.n`
+  blood `minion` spent on `about.card` (`choose_card`), at each payment.
+  No id removed.
+- Two or more standing replacements of a minion's burn (Byzar's own,
+  Charigger, The Axe's, the Book of Going Forth by Night's) add the
+  `Purpose` id `burn_replacement`: `seat`, the acting Methuselah (else
+  the one whose turn it is), picks the one applying to `about.minion`:
+  `resolve_printed` its own, `resolve_rider` a card's. No id removed.
+- Behaviour: a diablerie or Sacrificial Lamb whose victim Charigger
+  removes is unsuccessful, as with Byzar: no blood, no equipment, no
+  Discipline, no blood hunt.
+- Behaviour: Ambulance's burn of an incapacitated imbued is its own
+  action (`ActionKind` `ability`, no longer `burn_imbued`), not the
+  rulebook's: no equipment taken, no conviction burned to avenge it.
+
 ## 2.29.0
 
 - Vidal Jarbeaux adds the `OptionKind` id `meet_as`: on a requirement

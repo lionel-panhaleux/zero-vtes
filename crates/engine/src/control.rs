@@ -526,3 +526,37 @@ impl Engine {
         }
     }
 }
+
+impl Engine {
+    /// `blocker`'s attempt is about to succeed: its controller, holding a
+    /// card for the moment (Lesser Boon), is asked first; else block
+    /// resolution begins.
+    pub(crate) fn block_would_succeed(&mut self, blocker: MinionId) {
+        let seat = self.state.minions[blocker.index()].owner;
+        if self.holds_card_for(seat, Window::BlockWouldSucceed)
+            && !self.block_moment_plays(seat).is_empty()
+        {
+            self.interrupts
+                .push(crate::draws::Interrupt::BlockWouldSucceed { seat, blocker });
+            self.flow = crate::game::Flow::Action;
+        } else {
+            self.blocked(blocker);
+        }
+    }
+
+    /// The plays `seat` may make as its minion's block would succeed.
+    pub(crate) fn block_moment_plays(&self, seat: SeatId) -> Vec<Choice> {
+        self.play_options(seat, &[Window::BlockWouldSucceed], None)
+    }
+
+    /// The attempt under way does not succeed: the action resolves as if
+    /// unblocked, no further attempt made (Lesser Boon; RTR 20080808).
+    pub(crate) fn void_block(&mut self) {
+        if let Some(a) = self.action.as_mut() {
+            if matches!(a.state, crate::actions::ActionState::Attempt(_)) {
+                a.state = crate::actions::ActionState::Declined;
+                a.fresh_window();
+            }
+        }
+    }
+}

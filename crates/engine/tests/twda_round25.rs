@@ -1714,15 +1714,6 @@ fn own_ability(m: MinionId, ability: u8) -> Choice {
     }
 }
 
-/// Alan Sovereign: his investment text inert (no investment card in the
-/// pool): nothing to use.
-#[test]
-fn alan_sovereign_has_nothing_to_use() {
-    let card = find_card("Alan Sovereign");
-    let def = zvtes::cards::vampire(card).expect("defined");
-    assert!(def.abilities.is_empty() && def.printed.is_empty() && def.riders.is_empty());
-}
-
 /// Alejandro Aguirre: "he may lock before range is determined in any combat
 /// that does not involve him to inflict 1 unpreventable damage on each
 /// combatant." [ANK 20170930] "Both minions can play prevention and

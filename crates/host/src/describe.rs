@@ -256,6 +256,7 @@ fn found_in(e: &Engine, req: &DecisionRequest) -> Option<ZoneRef> {
             | Interrupt::AshurPicks { seat, .. }
             | Interrupt::AshToLibraryTop { seat, .. }
             | Interrupt::RetakeFromAsh { seat, .. }
+            | Interrupt::ReplaceFromAsh { seat, .. }
             | Interrupt::NameAshEquipment {
                 from: Some(seat), ..
             }
@@ -272,6 +273,8 @@ fn found_in(e: &Engine, req: &DecisionRequest) -> Option<ZoneRef> {
             | Interrupt::ExchangeLooked { of: seat, .. },
         ) => return at(seat, Zone::AshHeap),
         Some(Interrupt::StorePreyAsh { seat, .. }) => return at(e.state.prey(seat), Zone::AshHeap),
+        // Khazar's Diary: the heap chosen first, any Methuselah's.
+        Some(Interrupt::NameAnyAshMinion { from: Some(t), .. }) => return at(t, Zone::AshHeap),
         Some(Interrupt::SwapEquipFromPrey { seat, .. }) => {
             return at(e.state.prey(seat), Zone::Hand)
         }
@@ -297,6 +300,9 @@ fn found_in(e: &Engine, req: &DecisionRequest) -> Option<ZoneRef> {
     if let Some(r) = e.referendum().filter(ash_named) {
         return at(r.caller, Zone::AshHeap);
     }
+    if names_only(e) {
+        return None;
+    }
     if let Some(p) = e.play_terms() {
         let terms = zvtes::cards::lookup(p.card).and_then(|d| d.modes[p.mode as usize].terms);
         let heap = match (p.ash, p.target) {
@@ -309,10 +315,24 @@ fn found_in(e: &Engine, req: &DecisionRequest) -> Option<ZoneRef> {
     }
     match e.ability_terms()?.1.terms {
         Some(Terms::AshCard | Terms::CombatPlayedAshCard) => at(req.seat, Zone::AshHeap),
+        // Luna Giovanni: the heap picked first.
+        Some(Terms::RemoveFromAnyAsh { .. }) => at(e.ability_terms_heap()?, Zone::AshHeap),
         Some(Terms::DirectedHandCard) => at(e.action()?.directed_seat(&e.state)?, Zone::Hand),
         Some(Terms::ActingHandCard(_)) => at(e.action()?.seat, Zone::Hand),
         _ => None,
     }
+}
+
+/// A play's terms naming a card, taking none: its library or crypt card in
+/// no zone (Precision, Gramle).
+fn names_only(e: &Engine) -> bool {
+    use zvtes::cards::Terms;
+    e.play_terms().is_some_and(|p| {
+        matches!(
+            zvtes::cards::lookup(p.card).and_then(|d| d.modes[p.mode as usize].terms),
+            Some(Terms::AnyCardName | Terms::NameInPlayOrAsh)
+        )
+    })
 }
 
 /// What taking `choice` does (docs/protocol.md §7): an ability's
@@ -746,8 +766,11 @@ fn asked(x: &Ctx<impl Names>, i: Interrupt, choice: &Choice) -> Vec<Effect> {
             }),
             ..Effect::new(EffectKind::Move)
         }],
-        // Steely Tenacity: back to the hand.
-        (Interrupt::RetakeFromAsh { .. }, Choice::FindCard(c)) => vec![Effect {
+        // Steely Tenacity, Lady Constancia: to the hand.
+        (
+            Interrupt::RetakeFromAsh { .. } | Interrupt::ReplaceFromAsh { .. },
+            Choice::FindCard(c),
+        ) => vec![Effect {
             card: library(c),
             to: Some(Zone::Hand),
             ..Effect::new(EffectKind::Move)
@@ -1267,7 +1290,25 @@ pub fn about(e: &Engine, req: &DecisionRequest, names: &impl Names) -> Option<Ab
     let a = About::default;
     if let Some(i) = e.interrupt() {
         return Some(match i {
-            I::MaySkipTurn { .. } | I::MayTakeEdge { .. } | I::TorporMassacre { .. } => a(),
+            I::MaySkipTurn { .. }
+            | I::MayTakeEdge { .. }
+            | I::TorporMassacre { .. }
+            | I::MaySetNextRange { .. } => a(),
+            I::MayBurnInsteadOfUnlock {
+                minion, card: c, ..
+            } => About {
+                minion: m(minion),
+                card: card(c),
+                ..a()
+            },
+            I::MayBurnWeapon { minion, .. } => About {
+                minion: m(minion),
+                ..a()
+            },
+            I::BlockWouldSucceed { blocker, .. } => About {
+                minion: m(blocker),
+                ..a()
+            },
             I::Bid { target, high, .. } => About {
                 minion: m(target),
                 seat: high.map(|(s, _)| s.0),
@@ -1337,6 +1378,11 @@ pub fn about(e: &Engine, req: &DecisionRequest, names: &impl Names) -> Option<Ab
             I::PayOrBurn { card: c, pool, .. } | I::LockOrPay { card: c, pool, .. } => About {
                 card: card(c),
                 n: Some(pool),
+                ..a()
+            },
+            I::LibraryToHand { may: Some(v), .. } => About {
+                minion: m(v),
+                detail: detail("may_search"),
                 ..a()
             },
             I::LibraryToHand { .. } => a(),
@@ -1735,7 +1781,7 @@ pub fn about(e: &Engine, req: &DecisionRequest, names: &impl Names) -> Option<Ab
                 card: named(c),
                 ..a()
             },
-            I::ReplaceFromResearch { .. } => a(),
+            I::ReplaceFromResearch { .. } | I::ReplaceFromAsh { .. } => a(),
             I::PlacedDiscipline { card: c, .. } => About {
                 card: card(c),
                 ..a()
@@ -1844,6 +1890,31 @@ pub fn about(e: &Engine, req: &DecisionRequest, names: &impl Names) -> Option<Ab
                 seat: Some(of.0),
                 ..a()
             },
+            I::NameAnyAshMinion { from, .. } => About {
+                seat: from.map(|s| s.0),
+                ..a()
+            },
+            I::RepresentPicks { left, .. } => About {
+                n: Some(left),
+                ..a()
+            },
+            I::BurnCopiesPick { card: c, left, .. } => About {
+                n: Some(left),
+                card: named(c),
+                ..a()
+            },
+            I::KeepSpentBlood {
+                minion, card: c, n, ..
+            } => About {
+                minion: m(minion),
+                n: Some(n),
+                card: named(c),
+                ..a()
+            },
+            I::BurnReplacement { minion, .. } => About {
+                minion: m(minion),
+                ..a()
+            },
             I::NameAshEquipment { minion, from, .. } => About {
                 minion: m(minion),
                 seat: from.map(|s| s.0),
@@ -1856,9 +1927,23 @@ pub fn about(e: &Engine, req: &DecisionRequest, names: &impl Names) -> Option<Ab
             },
             I::MayGainPool { minion, n, .. }
             | I::MayBurnEdgeForPool { minion, n, .. }
-            | I::MayGainHandSize { minion, n, .. } => About {
+            | I::MayGainHandSize { minion, n, .. }
+            | I::MayGainBlood { minion, n, .. } => About {
                 minion: m(minion),
                 n: Some(n),
+                ..a()
+            },
+            I::MayBurnBloodToBurnPool {
+                minion,
+                of,
+                blood,
+                pool,
+                ..
+            } => About {
+                minion: m(minion),
+                seat: Some(of.0),
+                n: Some(pool),
+                m: Some(blood),
                 ..a()
             },
             I::MoveForBlood {
@@ -2389,18 +2474,20 @@ pub fn key(e: &Engine, req: &DecisionRequest, choice: &Choice, names: &impl Name
                 _ => false,
             };
             // Else the ash heap it is taken from, another seat's too
-            // (Shroud of Decay: the prey's).
-            k.zone = Some(if crypt {
-                ZoneRef {
+            // (Shroud of Decay: the prey's); a name only, none (Gramle).
+            k.zone = if crypt {
+                Some(ZoneRef {
                     seat: req.seat.0,
                     zone: Zone::Crypt,
-                }
+                })
+            } else if names_only(e) {
+                None
             } else {
-                found_in(e, req).unwrap_or(ZoneRef {
+                Some(found_in(e, req).unwrap_or(ZoneRef {
                     seat: req.seat.0,
                     zone: Zone::AshHeap,
-                })
-            });
+                }))
+            };
         }
         Choice::DrawStored { card, stored } => {
             k.card = Some(CardRef {

@@ -1129,12 +1129,18 @@ fn danielle_diron_buys_a_vote_once_a_referendum() {
 // Rulebook "Infernal" and [LSJ 20050114] "The "does not unlock as normal"
 // effect is redundant with being infernal. If the minion is infernal, his
 // controller can still pay a pool to unlock him" (Mind Numb's stun, Puppet
-// Master, Rötschreck): Arishat stays locked through the unlock, unless her
-// Methuselah burns 1 pool — offered whatever keeps her from unlocking as
-// normal.
+// Master, Rötschreck, Fantasy World): Arishat stays locked through the
+// unlock, unless her Methuselah burns 1 pool — offered whatever keeps her
+// from unlocking as normal.
 #[test]
 fn an_infernal_vampire_unlocks_for_a_pool() {
-    for how in ["none", "stun", "Puppet Master", "Rötschreck"] {
+    for how in [
+        "none",
+        "stun",
+        "Puppet Master",
+        "Rötschreck",
+        "Fantasy World",
+    ] {
         let mut e = game(2);
         e.add_minion(SeatId(0), plain("Brujah", 0), 4, false);
         e.add_minion(SeatId(1), plain("Ventrue", 0), 4, false);

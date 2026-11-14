@@ -2252,6 +2252,183 @@ ADDED_BATCHES = [
         201504: "Zelios (G5)",
         200599: 'Hiram "Hide" DeVries (G5)',
     },
+    # Round 30: Lords of the Night completed (owner, 2026-11-09: "We aim
+    # to add all the cards ultimately. Let's work set by set."; the cards
+    # board's lines).
+    {
+        100045: "Ambulance",
+        100047: "Amria",
+        100076: "Apparition",
+        100092: "Army of Apparitions",
+        100121: "Baal's Bloody Talons",
+        100155: "Bestow Vigor",
+        100191: "Blithe Acceptance",
+        100193: "Blood Awakening",
+        100222: "Bloodlust",
+        100268: "Burden the Mind",
+        100318: "Chair of Hades",
+        100331: "Charigger, The Axe",
+        100341: "Chill of Oblivion",
+        100342: "Chimerstry",
+        100370: "Cobra Fangs",
+        100384: "Command the Legion",
+        100387: "Community Justice",
+        100388: "Compel the Spirit",
+        100396: "Condemn the Sins of the Father",
+        100449: "The Crocodile Temple",
+        100565: "Divine Image",
+        100587: "Dream World",
+        100610: "Ecstasy",
+        100615: "Edged Illusion",
+        100650: "Enticement",
+        100665: "The Eternal Mask",
+        100667: "The Eternals of Sirius",
+        100669: "Ex Nihilo",
+        100681: "Eyes of Blades",
+        100697: "False Resonance",
+        100701: "Fantasy World",
+        100706: "Fata Amria",
+        100707: "Fata Morgana",
+        100708: "Fatuus Mastery",
+        100729: "Fillip",
+        100748: "Flesh Bond",
+        100763: "Forearm Block",
+        100767: "Forger's Hammer",
+        100778: "Foul Blood",
+        100810: "Garrote",
+        100814: "Gemini's Mirror",
+        100846: "Gramle",
+        100884: "Haqim's Law: Judgment",
+        100885: "Haqim's Law: Leadership",
+        100887: "Hard Case",
+        100905: "Heart's Desire",
+        100923: "Hierophant",
+        100948: "Ignis Fatuus",
+        100992: "Inspire Greatness",
+        101022: "Jericho Founding",
+        101023: "The Jones",
+        101033: "Karavalanisha Vrana",
+        101044: "The Khabar: Honor",
+        101046: "Khazar's Diary (Endless Night)",
+        101065: "Kpist m/45",
+        101095: "Lesser Boon",
+        101126: "Lost in Translation",
+        101148: "Malajit Chandramouli",
+        101162: "Mantle of the Moon",
+        101188: "Mayaparisatya",
+        101202: "Mercury's Arrow",
+        101222: "Mirror Image",
+        101224: "Mirror's Visage",
+        101232: "Mokolé Blood",
+        101267: "Necromancy",
+        101273: "Nephren-Ka",
+        101274: "Nest of Eagles",
+        101284: "Nightmare Curse",
+        101287: "Nightstick",
+        101320: "Omael Kuman",
+        101322: "Open Dossier",
+        101358: "The Path of Blood",
+        101366: "The Path of Paradox",
+        101407: "Poison the Well of Life",
+        101423: "Possession",
+        101445: "Powerbase: Zürich",
+        101474: "Precision",
+        101504: "Proxy Kissed",
+        101506: "Pseudo-Blindness",
+        101529: "Quick Jab",
+        101534: "Quietus",
+        101616: "Resume the Coil",
+        101618: "Retain the Quick Blood",
+        101623: "Revelation of Despair",
+        101624: "Revelation of Ecstasy",
+        101626: "Revelation of Wrath",
+        101651: "Rooftop Shadow",
+        101694: "Scorpion's Touch",
+        101714: "Selective Silence",
+        101728: "Serpentis",
+        101731: "Set's Curse",
+        101738: "Shadow Feint",
+        101751: "Shambling Hordes",
+        101762: "Sheepdog",
+        101763: "Shell Break",
+        101776: "Shroudsight",
+        101831: "Soul Feasting",
+        101845: "Spell of Life",
+        101885: "Strike at the True Flesh",
+        101912: "Svadharma",
+        101917: "Swiss Cut",
+        101923: "Sympathetic Agony",
+        101927: "Tajdid",
+        101932: "Talith",
+        101938: "Target Hand",
+        101939: "Target Head",
+        101940: "Target Leg",
+        101954: "Temptation",
+        102033: "Trophy: Library",
+        102034: "Trophy: No Questions",
+        102037: "Trophy: Revered",
+        102044: "Truth of a Thousand Lies",
+        102045: "Truth of Blood",
+        102048: "Tutu the Doubly Evil One",
+        102072: "Unholy Penance",
+        102085: "Urban Jungle",
+        102148: "Warrant",
+        102175: "Whispers from the Dead",
+        102183: "Will-o'-the-Wisp",
+        102204: "Zapaderin",
+        200024: "Ahmose Chambers (G5)",
+        200097: "Anjalika Underwood (G5)",
+        200140: "Arnulf Jormungandrsson (G5)",
+        200163: "Bakr (G5)",
+        200188: "Belle Equitone (G4)",
+        200192: "Bertrand d'Anjou (G4)",
+        200218: "Brian Thompson (G4)",
+        200270: "Chavi Oraczko (G5)",
+        200282: "Clea Auguste d'Holford (G5)",
+        200350: "Dmitri Borodin (G4)",
+        200393: "Durga Syn (G4)",
+        200445: "Evan Rogers (G4)",
+        200475: "Francis Milliner (G4)",
+        200492: "Ganesh (G5)",
+        200553: "Gwen Brand (G5)",
+        200559: "Hafsa, The Watcher (G5)",
+        200561: "Halim Bey (G4)",
+        200650: "Izhim abd Azrael (G5)",
+        200668: "Jamal (G5)",
+        200682: "Jayakumar (G5)",
+        200712: "Johann Matheson (G5)",
+        200741: "Kabede Maru (G5)",
+        200759: "Kashan (G4)",
+        200765: "Kay Polerno (G5)",
+        200784: "Kiradin (G4)",
+        200804: "Lady Constancia (G4)",
+        200818: "Layla bint-Nadr (G4)",
+        200847: "Lizette (G4)",
+        200858: "Lorenzo Detuono (G5)",
+        200885: "Luna Giovanni (G5)",
+        200912: "Marcia Felicia Licinia (G5)",
+        200917: "Margaret Milliner (G4)",
+        200938: "Marla Kenyon (G4)",
+        201008: "Monty Coven (G5)",
+        201033: "Nakhthorheb (G4)",
+        201041: "Neel Ramanathan (G4)",
+        201072: "Ogwon (G5)",
+        201092: "Paolo Sardenzo (G5)",
+        201093: "Papa Legba (G5)",
+        201109: "Pentweret (G5)",
+        201118: "Phaedyme (G5)",
+        201129: "Porphyrion (G5)",
+        201179: "Renenet (G4)",
+        201223: "Sajid al Misbah (G5)",
+        201269: "Seterpenre (G5)",
+        201282: "Shemti (G5)",
+        201293: "Sisocharis (G5)",
+        201316: "Stephen Milliner (G5)",
+        201323: "Sukainah (G5)",
+        201324: "Sundervere, The Devil Brahmin (G4)",
+        201429: "Vasiliy Vasilevich (G5)",
+        201431: "Vassily Taltos (G4)",
+    },
 ]
 ADDED_CARDS = {k: v for batch in ADDED_BATCHES for k, v in batch.items()}
 
@@ -2401,7 +2578,10 @@ RIDERS = [
     r"during the press step this round[^.]*",
     r"(cannot|can't) [^.]*",                              # "cannot maneuver…, press…"
     r"can (also )?strike(, ranged)?:[^.]*",                          # granted strike ability
-    r"(can|could) prevent \d[^.]*",                       # granted prevention
+    r"(can|could|may) prevent \d[^.]*",                   # granted prevention
+    # A strike's own prevention of the next opposing hand strike (Forearm
+    # Block): resolved with it, no window of its own.
+    r"prevent \d damage from the opposing minion's next hand strike[^.]*",
     r"can burn this card to prevent[^.]*",                # granted prevention (Wall of Filth)
     # A strike's own prevention, resolved with it, and the opposing
     # minion's burn against it (Stunt Cycle): no window of their own.
@@ -2473,8 +2653,9 @@ COMBAT_TIMING = [
     # Persistence [for]): the same moment.
     (r"vampire should go (in)?to torpor", "COMBAT_GOING_TO_TORPOR"),
     # Ammo, "Only usable before resolution of a gun's strike" (Scattershot,
-    # Caseless Rounds): the strike chosen, before it resolves.
-    (r"before resolution of a gun's strike", "COMBAT_BEFORE_RESOLUTION"),
+    # Caseless Rounds), a melee weapon's (Baal's Bloody Talons): the strike
+    # chosen, before it resolves.
+    (r"before resolution of a (gun|melee weapon)'s strike", "COMBAT_BEFORE_RESOLUTION"),
     # "Only usable after this Blood Brother gains blood" (Slake the
     # Thirst): any step after the gain, the round's end too (Taste of
     # Vitae's gain; LSJ 20100206-2, rules-qa 94.2).
@@ -2588,10 +2769,19 @@ REACTION_TIMING = [
     (r"blood hunt referendum passes and would burn", "BLOOD_HUNT_WOULD_BURN"),
     # A vampire about to go to torpor, before it does (Minor Boon).
     (r"controlled by another methuselah is going into torpor", "GOING_TO_TORPOR"),
+    # A block about to succeed, before the blocker locks (Lesser Boon).
+    (r"would successfully block", "BLOCK_WOULD_SUCCEED"),
+    # The influence phase, after a vampire moved to the ready region (Proxy
+    # Kissed).
+    (r"after you move an? \w+ from your uncontrolled region to your ready region",
+     "INFLUENCED_OUT"),
     # "Under the control of another Methuselah during his or her unlock
     # phase" (Regarhagan's Hold).
     (r"another Methuselah during his or her unlock phase", "UNLOCK_PHASE_ANY"),
     (r"\bwakes?\b", "WAKE"),                                   # rules-qa 2.4
+    # "Can play reaction cards and attempt to block as though unlocked"
+    # (Fillip): a wake of the chosen vampire (advanced rules §5.2.3).
+    (r"as though unlocked", "WAKE"),
     (r"unlocks?( and| to)? attempts? to block|unlock[^.]*; that \w+ attempts to block",
      "REACTION_UNLOCK_ATTEMPT"),
     (r"only usable[^.]*after block resolution", "ACTION_AFTER_COMBAT"),  # rules-qa 2.1
@@ -2631,9 +2821,15 @@ REACTION_TIMING = [
     # "Only usable when a bleed against you is about to be successful"
     # (Strix [STR]): the bleed would succeed.
     (r"is about to be successful", "ACTION_WOULD_BE_SUCCESSFUL"),
+    # "Only usable if a vampire would successfully hunt" (Foul Blood): the
+    # hunt unblocked, before its blood is gained.
+    (r"would successfully hunt", "ACTION_BLOCKS_DECLINED"),
     # "Play after resolution" (Touch of Pain); "… is successful, after
     # resolution" (Follow the Blood).
     (r"play after resolution|successful, after resolution", "ACTION_AFTER_RESOLUTION"),
+    # "After resolution of a successful action directed at you" (Fata
+    # Amria [CHI]).
+    (r"after resolution of a successful (directed )?action", "ACTION_AFTER_RESOLUTION"),
     # A steal by an action against this vampire, resolved (The Oath).
     (r"gains blood from a taste of vitae or steals blood", "ACTION_AFTER_RESOLUTION"),
     # "Only usable if this vampire is about to enter combat with an acting
@@ -2698,7 +2894,9 @@ FLAGS = [
     # "To represent a fledgling" (Legion), "to turn this card into a
     # Gargoyle" (Raw Recruit).
     (r"(becomes|represents) an? \d-capacity|becomes an? [^.]{0,30}?\bally\b|ally[^.]*to (your|the) ready region"
-     r"|to represent a fledgling|to turn this card into an? \w+",
+     r"|to represent a fledgling|to turn this card into an? \w+"
+     # "… to represent a wraith ally" (Khazar's Diary).
+     r"|to represent an? [^.]{0,30}?\bally\b",
      "token_entity"),
     (r"cancel [^.]{0,160}?as it is (being )?played"
      r"|as the opposing minion plays a card[\s\S]{0,300}?the played card is canceled", "cancel_as_played"),
@@ -2716,7 +2914,10 @@ IN_PLAY_ACTION = (r"\bas an? (?!vampire\b)[^.;]{0,40}?\baction\b(?! to )(?! modi
                   r"(?![^.]* is announced)"
                   # "… as a +1 stealth action to turn this card into a
                   # Gargoyle" (Raw Recruit).
-                  r"|\baction to turn this card into\b")
+                  r"|\baction to turn this card into\b"
+                  # "… as a +1 stealth action to represent a wraith ally"
+                  # (Khazar's Diary).
+                  r"|\baction to represent\b")
 
 # "[cel] or [for]" (the Sabbat V5 layout): either Discipline, one mode
 # (rules-qa 52.1); side by side, a combo (rules-qa 25.2).
@@ -2871,12 +3072,17 @@ def modes_for(card):
         return [(raw, list(dict.fromkeys(wins)), flags) for _, raw, _ in modes]
 
     prev = []
+    prev_tags = None
     result = []
     for tags, raw, mtext in modes:
         raw_text = preamble + " " + mtext
         stripped = strip_riders(raw_text)
         # "As above", or "As [dai][obf] above" (I am Legion).
         as_above = bool(re.match(r"\s*as (?:\[\w+\])*\s*above", mtext, re.I))
+        # "As above" over a [COMBAT] mode, a [REACTION] with its own printed
+        # timing (Fata Amria [CHI]): that timing alone.
+        reaction_after_combat = as_above and prev_tags == {"Combat"} and \
+            {t for t in tags if t in MODE_TABLES} == {"Reaction"}
         mwins = list(prev) if as_above else []
         # "As above, with +1 stealth" over a mode with no printed timing
         # (Mind of the Wilds [ANI][AUS]): the stealth only when needed
@@ -2923,6 +3129,8 @@ def modes_for(card):
             either = as_above and re.search(r"\band/or\b", mtext, re.I)
             for mt in mts:
                 got = classify_mode(mt, stripped, as_above and not either)
+                if reaction_after_combat and got:
+                    mwins = []
                 # "As [san] above, but with two additional strikes" over a
                 # mode only usable before range (Octopod [SAN]).
                 if as_above and mt == "Combat" and \
@@ -2956,6 +3164,7 @@ def modes_for(card):
         type_wins = wins if (action_mode or not multi) else []
         result.append((raw, list(dict.fromkeys(type_wins + mwins)), mflags))
         prev = mwins
+        prev_tags = {t for t in tags if t in MODE_TABLES}
     return result
 
 

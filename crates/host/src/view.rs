@@ -320,7 +320,7 @@ impl Build<'_> {
                                 }
                                 Source::Edge(_) => (VoteSource::Edge, None),
                                 Source::Card(_) => (VoteSource::Card, None),
-                                Source::InPlay(c) | Source::Counters(c) => {
+                                Source::InPlay(c) | Source::Counters(c) | Source::Event(c) => {
                                     (VoteSource::InPlay, Some(self.card_ref(c)))
                                 }
                                 Source::Pool(_) => (VoteSource::Pool, None),
@@ -538,6 +538,7 @@ impl Build<'_> {
             (MarkerKind::Pact, m.pact),
             (MarkerKind::Taint, m.taint),
             (MarkerKind::BurnCounters, m.burn_counters.0),
+            (MarkerKind::FounderCounters, m.founder_counters.0),
         ] {
             if n > 0 {
                 markers.push(marker(kind, n));
@@ -670,7 +671,7 @@ pub(crate) fn minion_kind(m: &zvtes::state::Minion) -> MinionKind {
     match m.kind {
         Mk::Vampire(_) => MinionKind::Vampire,
         Mk::Imbued(_) => MinionKind::Imbued,
-        Mk::Ally { .. } | Mk::CryptAlly(_) => MinionKind::Ally,
+        Mk::Ally { .. } | Mk::CryptAlly(_) | Mk::Represented { .. } => MinionKind::Ally,
         Mk::Created { .. } | Mk::GreatBeast { .. } | Mk::Fury { .. } => MinionKind::Created,
         Mk::Token { .. } => MinionKind::Token,
     }
@@ -680,6 +681,7 @@ pub(crate) fn minion_kind(m: &zvtes::state::Minion) -> MinionKind {
 pub(crate) fn minion_face(m: &zvtes::state::Minion) -> (u16, bool) {
     match m.kind {
         Mk::Vampire(c) | Mk::Imbued(c) | Mk::CryptAlly(c) => (c, true),
+        Mk::Represented { card, crypt, .. } => (card, crypt),
         Mk::Ally { card, .. }
         | Mk::Created { card, .. }
         | Mk::GreatBeast { card, .. }
@@ -791,13 +793,14 @@ pub(crate) fn strike(k: Sk, card: Option<u32>) -> Strike {
         Sk::Torpor { .. } => StrikeKind::Torpor,
         Sk::CardEffect { .. } => StrikeKind::CardEffect,
         Sk::BurnWeapon => StrikeKind::BurnWeapon,
-        Sk::StealWeapon => StrikeKind::StealWeapon,
+        Sk::StealEquipment => StrikeKind::StealEquipment,
         Sk::BurnEquipment => StrikeKind::BurnEquipment,
         Sk::RangedBurnEquipment => {
             s.ranged = true;
             StrikeKind::RangedBurnEquipment
         }
         Sk::Corrupt => StrikeKind::Corrupt,
+        Sk::StealOpponent { .. } => StrikeKind::StealMinion,
         // Earthshock: a ranged damage strike, its amount told live.
         Sk::RangedStrength { .. } => {
             s.ranged = true;

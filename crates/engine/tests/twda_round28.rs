@@ -8900,7 +8900,7 @@ fn byzar_survives_a_diablerie_unsuccessfully() {
     assert_eq!((blood(&e, by), burn_counters(&e, by)), (3, 1));
     assert_eq!(e.state.cards[vest.index()].host, Some(by));
     assert_eq!(blood(&e, d), 2, "the diablerist gets nothing");
-    assert!(e.state.minions[d.index()].diablerie_turn.is_none());
+    assert!(e.state.minions[d.index()].diableries.0.is_empty());
     assert!(e.state.minions[d.index()].in_play, "no blood hunt");
 }
 
@@ -9028,7 +9028,7 @@ fn byzar_back_in_torpor_after_amaranth_faces_a_second_one() {
         let v = &e.state.minions[by.index()];
         assert!(v.in_play && v.in_torpor, "second {second}");
         assert_eq!(burn_counters(&e, by), 1 + second as u8);
-        assert!(e.state.minions[a.index()].diablerie_turn.is_none());
+        assert!(e.state.minions[a.index()].diableries.0.is_empty());
     }
 }
 
@@ -9764,7 +9764,7 @@ fn harlan_diablerized_calls_no_blood_hunt() {
         }
         assert_eq!(hunted, !harlan);
         assert!(!e.state.minions[h.index()].in_play, "diablerized");
-        assert!(e.state.minions[d.index()].diablerie_turn.is_some());
+        assert!(!e.state.minions[d.index()].diableries.0.is_empty());
     }
 }
 

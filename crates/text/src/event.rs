@@ -386,6 +386,7 @@ pub fn marker(m: &Marker, n: &Names) -> String {
         MarkerKind::Pact => counters("pact"),
         MarkerKind::Taint => counters("taint"),
         MarkerKind::BurnCounters => counters("burn"),
+        MarkerKind::FounderCounters => counters("founder"),
         MarkerKind::Disease => "a disease counter".into(),
         MarkerKind::TitleContested => "its title contested".into(),
         MarkerKind::Expelled => "expelled".into(),
@@ -424,10 +425,12 @@ pub fn strike(s: Option<&Strike>) -> String {
         StrikeKind::CardEffect | StrikeKind::Unknown => "strike".into(),
         StrikeKind::BurnWeapon => "burn weapon".into(),
         StrikeKind::StealWeapon => "steal weapon".into(),
+        StrikeKind::StealEquipment => "steal equipment".into(),
         StrikeKind::BurnEquipment => "burn equipment".into(),
         StrikeKind::RangedBurnEquipment => "burn equipment, ranged".into(),
         StrikeKind::Corrupt => "corruption counter".into(),
         StrikeKind::BurnLife => format!("burn {n} life, ranged"),
+        StrikeKind::StealMinion => "steal the minion".into(),
     }
 }
 
@@ -683,6 +686,7 @@ mod tests {
                 K::Pact => (m(k, None, Some(1), None), "1 pact counter"),
                 K::Taint => (m(k, None, Some(2), None), "2 taint counters"),
                 K::BurnCounters => (m(k, None, Some(1), None), "1 burn counter"),
+                K::FounderCounters => (m(k, None, Some(4), None), "4 founder counters"),
                 K::Disease => (m(k, None, None, None), "a disease counter"),
                 K::TitleContested => (m(k, None, None, None), "its title contested"),
                 K::Expelled => (m(k, None, None, None), "expelled"),
@@ -719,6 +723,7 @@ mod tests {
             Pact,
             Taint,
             BurnCounters,
+            FounderCounters,
             Disease,
             TitleContested,
             Expelled,

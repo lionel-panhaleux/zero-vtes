@@ -101,7 +101,9 @@ pub struct Replay {
 /// Form kept (rules-qa 96.1, 96.3, 96.4); before 2.12.0 the burn option of
 /// a master card requiring a ready Seraph (Watchtower: Four Ride Forth,
 /// fixed within 2.11.0: no record of it after the fix met the card); before
-/// 2.29.0 a wake after combat or resolution (LSJ 20091123).
+/// 2.29.0 a wake after combat or resolution (LSJ 20091123); before 2.30.0
+/// another minion's wake in an action card's as-played window (Shadow
+/// Sentinel [OBL], Fillip; rules-qa 96.4).
 #[derive(Clone, Copy, Debug, Default)]
 pub(crate) struct Then {
     before_withdrawals: bool,
@@ -110,6 +112,7 @@ pub(crate) struct Then {
     before_batch_96: bool,
     before_seraph_burn: bool,
     before_late_wake: bool,
+    before_target_wake: bool,
 }
 
 impl Then {
@@ -121,6 +124,7 @@ impl Then {
             before_batch_96: before(protocol, (2, 16)),
             before_seraph_burn: before(protocol, (2, 12)),
             before_late_wake: before(protocol, (2, 29)),
+            before_target_wake: before(protocol, (2, 30)),
         }
     }
 
@@ -169,6 +173,18 @@ impl Then {
                         )
                     })
                 })
+            }
+            Choice::Play { card, mode, .. }
+                if self.before_target_wake
+                    && req.window == zvtes::decision::WindowLabel::CardAsPlayed
+                    && e.action().is_none()
+                    && e.virtual_hand(req.seat)
+                        .get(*card as usize)
+                        .and_then(|&(c, _)| zvtes::cards::lookup(c))
+                        .and_then(|d| d.modes.get(*mode as usize))
+                        .is_some_and(|m| m.effects == [zvtes::cards::Effect::WakeTarget]) =>
+            {
+                true
             }
             Choice::ResolvePrinted { .. } if self.before_batch_96 => {
                 matches!(e.interrupt(), Some(I::ReductionAtResolution { .. }))

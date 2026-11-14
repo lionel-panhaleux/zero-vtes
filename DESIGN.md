@@ -1161,8 +1161,7 @@ What the engine does not yet do or does only in part, true today.
   advanced vampire's [MERGED] text while its base card is not in the pool
   (rules-qa 104.20);
   Orlando Oriundus's bar on other multipliers (no other multiplier);
-  Shakar: the Hunt's "considered chosen" (read by no pool card); Onaedo's
-  Otieno (not in the pool).
+  Onaedo's Otieno (not in the pool).
 - **Paths in the observations**: the policy sees a vampire's sect, not its
   path, and the networks never follow one (`zvtes_policy::untrained`): the
   training board's "Paths in the observation".
@@ -1198,7 +1197,7 @@ What the engine does not yet do or does only in part, true today.
 
 The objectives still open are the roadmap's (`docs/roadmap.md`).
 
-Definitions: 1459 library, 825 vampires
+Definitions: 1579 library, 861 vampires
 
 ## Outlook: deck building (post-v1)
 

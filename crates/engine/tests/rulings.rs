@@ -2683,8 +2683,9 @@ fn the_erciyes_fragments_card_is_seen_by_every_player() {
 // Dual Form [LSJ 20050805] "[PRO] If more than one go to torpor at the same
 // time (eg. from Edged Illusion), the controller chooses which one they
 // keep": a vampire and its copy, both empty and both under Pulled Fangs,
-// must hunt and go to torpor at once (Edged Illusion is not in the pool);
-// their controller keeps the copy, the original burns (rules-qa 96.1).
+// must hunt and go to torpor at once (Edged Illusion's own case:
+// edged_illusion_superior_sends_a_dual_form_pair_down_together); their
+// controller keeps the copy, the original burns (rules-qa 96.1).
 #[test]
 fn dual_form_keeps_the_one_chosen_of_a_set_going_down_together() {
     let mut e = game(2);

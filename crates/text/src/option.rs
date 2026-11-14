@@ -205,7 +205,7 @@ fn base(
         K::PayBlockToll => "Pay the block toll".into(),
         K::PayToCancel => "Pay to cancel the card".into(),
         K::StrikeCombatEnds => "Strike: combat ends".into(),
-        K::TakeDamageAfterResolution => "Take the damage".into(),
+        K::TakeDamageAfterResolution => "Take the after-resolution damage or burn".into(),
         K::TorporAfterResolution => "Go to torpor".into(),
         K::CommittedStrike => "Strike: the committed strike".into(),
         K::DrawLibrary => "Draw from the library".into(),
@@ -500,6 +500,7 @@ fn asked(
         (P::MayBurnLookedMaster, K::ResolveRider) => "Burn blood to burn the master card".into(),
         (P::MayTorture, K::ResolveRider) => "Lock The Path of Lilith: a torture counter".into(),
         (P::MayGainPool, K::ResolvePrinted) => format!("Gain {} pool", about?.n?),
+        (P::LibraryToHand, K::ResolvePrinted) => "Search your library".into(),
         (P::ReturnBeforeBurn, K::ResolveRider) => "Return it first: Cleave burns it".into(),
         (P::DrainBeforeSteals, K::ResolveRider) => {
             "Drain first: the steals take what is left".into()
@@ -519,17 +520,26 @@ fn asked(
             format!("Take {} from your research area", card())
         }
         (P::ReplaceFromResearch, K::DrawLibrary) => "Draw from your library".into(),
+        (P::ReplaceFromAsh, K::FindCard) => format!("Take {} from your ash heap", card()),
         (P::CutLibrary, K::SetX) => format!("Cut {} cards to the bottom", k.amount?),
         (P::BuyTitle, K::SetX) => {
             let pool = o.effects.iter().find(|e| e.cost)?.n?.unsigned_abs();
             let title = o.effects.iter().find_map(|e| e.detail.as_deref())?;
             format!("Pay {pool} pool: {}", title.replace('_', " "))
         }
+        (P::MayBurnBloodToBurnPool, K::ResolvePrinted) => {
+            format!("Burn {} blood to burn {} pool", about?.m?, about?.n?)
+        }
         (P::MayGainHandSize, K::ResolvePrinted) => format!("Get +{} hand size", about?.n?),
+        (P::MayGainBlood, K::ResolvePrinted) => format!("Gain {} blood", about?.n?),
         (P::MayPreventForBlood, K::ResolvePrinted) => {
             format!("Burn {} blood to prevent the damage", about?.n?)
         }
         (P::MayUnlock, K::ResolvePrinted) => "Unlock".into(),
+        (P::MaySetNextRange, K::SetX) => match k.amount? {
+            0 => "Close range next round".into(),
+            _ => "Long range next round".into(),
+        },
         (P::MayMoveBlood, K::ResolvePrinted) => format!("Move {} blood", about?.n?),
         (P::MayFailAction, K::ResolvePrinted) => "Make the action fail".into(),
         (P::MayLockToFight, K::ResolvePrinted) => "Lock and enter combat".into(),
@@ -833,6 +843,7 @@ fn pass(
         P::AshurPicks if detail == Some("to_library") => "No more".into(),
         P::AshurPicks => "None to your hand".into(),
         P::CutLibrary => "Do not cut".into(),
+        P::LibraryToHand if detail == Some("may_search") => "Do not search".into(),
         P::XConvictions => "No more".into(),
         // A distribution walks the recipients: the pass skips this one.
         P::MarginBlood => match about.and_then(|a| a.minion) {
@@ -866,9 +877,16 @@ fn pass(
         P::ReturnBeforeBurn => "Burn first: it is spared".into(),
         P::DrainBeforeSteals => "Steals first: the drain takes what is left".into(),
         P::BuyTitle => "Buy no title".into(),
+        P::MayBurnBloodToBurnPool => "Burn no blood".into(),
+        P::RepresentPicks => "Put no more in play".into(),
         P::MayGainHandSize => "Keep your hand size".into(),
         P::MayPreventForBlood => "Burn no blood".into(),
         P::MayUnlock => "Stay locked".into(),
+        P::MayBurnInsteadOfUnlock => "Unlock as normal".into(),
+        P::MayBurnWeapon => "Burn no weapon".into(),
+        P::MaySetNextRange => "Leave the range".into(),
+        P::BlockWouldSucceed => "Let the block succeed".into(),
+        P::MayGainBlood => "Gain no blood".into(),
         P::MayMoveBlood => "Move no blood".into(),
         P::MayFailAction => "Let the action go on".into(),
         P::MayLockToFight => "Stay out of combat".into(),
@@ -1186,6 +1204,11 @@ mod tests {
             P::MayGainHandSize,
             P::MayPreventForBlood,
             P::MayUnlock,
+            P::MayBurnInsteadOfUnlock,
+            P::MayBurnWeapon,
+            P::MaySetNextRange,
+            P::BlockWouldSucceed,
+            P::MayGainBlood,
             P::MayMoveBlood,
             P::MayFailAction,
             P::MayLockToFight,
@@ -1224,6 +1247,8 @@ mod tests {
             P::MayDrawExtra,
             P::MayGainPool,
             P::MayBurnEdgeForPool,
+            P::MayBurnBloodToBurnPool,
+            P::RepresentPicks,
             P::SecondCopyOnto,
             P::ReturnBeforeBurn,
             P::DrainBeforeSteals,

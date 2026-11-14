@@ -265,8 +265,9 @@ pub enum Choice {
     RoundStrike {
         at: Option<crate::state::CardId>,
     },
-    /// After resolution: take the damage an action modifier inflicts then
-    /// (Daring the Dawn), ordered among the window's effects.
+    /// After resolution: the acting minion's harms due then, the damage
+    /// (Daring the Dawn, Foul Blood) and burn (Ecstasy [SER]), ordered among
+    /// the window's effects.
     TakeDamageAfterResolution,
     /// Combat, choose strike: the strike a card played at the maneuver
     /// committed (Slam [POT]).

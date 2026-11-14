@@ -133,7 +133,10 @@ impl Requirement {
             | R::OwnActionCardToAsh
             | R::NoOptionalActionThisTurn
             | R::AllyInAnyAsh
+            | R::MinionInAnyAsh
             | R::BurnedAllyInAnyAsh
+            | R::OwnAshMinionCardBurnedSinceLastTurn
+            | R::UniqueVampireInAnyAsh
             | R::AshHasAlly(..)
             | R::PlayedCardIsMaster
             | R::PlayedByOtherSeat
@@ -191,6 +194,9 @@ impl Requirement {
             | R::CryptNotEmpty
             | R::ActorBurnedPreyMinion
             | R::ActorBurnedMinion
+            | R::ActorBurnedTitled { .. }
+            | R::OpponentGoingDownUnreplaced
+            | R::OpponentCapacityOrCostAtMost(..)
             | R::ControlsReadyClan(..)
             | R::OwnReadyClanWithBlood(..)
             | R::ActingVampire
@@ -373,6 +379,7 @@ impl Requirement {
             | R::NoCombatEndsStrike
             | R::CombatFromBlock
             | R::NoSlaveTookCombat
+            | R::ActorStayedReady
             | R::OthersHuntingGroundsAtLeast(..)
             | R::PreyUncontrolledHasBlood
             | R::BleedTargetAshAtLeast(..)
@@ -415,6 +422,7 @@ impl Requirement {
             | R::StoreNotEmpty
             | R::HostOutOfPlay
             | R::LifeAtLeast(..)
+            | R::ChosenInPlay
             | R::BoonTargetActive
             | R::FewerCopiesThanReadyOfClan(..)
             | R::CardControllerActive => &[S::Card],
@@ -486,9 +494,12 @@ impl Requirement {
             | R::TargetFacesAggravatedStrike
             | R::BloodAtMost(..)
             | R::TargetDiablerieSinceYourLastTurn
+            | R::TargetDiablerizedActorClanSinceYourLastTurn
             | R::TargetBledSinceYourLastTurn { .. }
             | R::TargetUntitled
             | R::TargetSubtypeIn(..)
+            | R::TargetSubtypeNotIn(..)
+            | R::TargetUniqueMinion
             | R::TargetNotOfPredator
             | R::TargetNotOfOpposingController => &[S::MinionTarget],
             R::YoungerThanPlayer | R::SameSectAsPlayer => &[S::Engine(Site::PlayTarget)],
@@ -555,6 +566,7 @@ impl Requirement {
             | R::OpponentAllyOrYounger
             | R::OpponentTitled
             | R::ActorCorruptedBySource
+            | R::OpponentCorruptedBySource
             | R::ControlsLocation
             | R::ControlsNoLocation
             | R::ControlsVampireNamed(..)
@@ -605,9 +617,13 @@ impl Requirement {
             R::ActorDamagedThisRound
             | R::StrikingWithUnloadedGun
             | R::StrikingWithGun
+            | R::StrikingWithMeleeWeapon
+            | R::ActorChosenForContractOnOpponent
+            | R::OpponentInflictedThisRound { .. }
             | R::OpponentIsActing
             | R::PreviousRoundLong
-            | R::ActorUndamagedLastRound => &[S::Play],
+            | R::ActorUndamagedLastRound
+            | R::EquipFromHand(..) => &[S::Play],
             R::AnyOf(..) => &[S::Play, S::MinionTarget, S::CardTarget, S::Printed],
             R::ActorTitleIn(..) | R::ActorClan(..) => &[S::Play, S::MinionTarget, S::Printed],
             R::ActorSubtype(..) => &[S::Play, S::Printed],
@@ -668,7 +684,9 @@ impl Requirement {
             R::HostMayReact => &[S::Engine(Site::AbilityGate)],
             R::HostClan(..) | R::HostDiscipline(..) => &[S::Card, S::Host],
             R::ActorHasDiscipline(..) => &[S::Printed, S::Card, S::Play],
-            R::CountersAtLeast(..)
+            R::CountersAtLeast(..) => &[S::Card, S::Rider, S::Engine(Site::AbilityGateCard)],
+            R::CountersAtLeastHostBlood
+            | R::CopiesInPlayAtLeast(..)
             | R::CountersAtMost(..)
             | R::BasicVersion
             | R::EnteredBeforeThisAction => &[S::Card, S::Rider],
@@ -701,12 +719,20 @@ impl Requirement {
             R::PreyHasEdgeOrNoneHas
             | R::HandHasCopies(..)
             | R::PlayedCardRedirectsBleed
-            | R::ActionHuntSucceeded => &[S::Play],
+            | R::ActionHuntSucceeded
+            | R::ActingLacksSuperior(..)
+            | R::ActingNotClan(..)
+            | R::ActingNotAllyOf(..)
+            | R::HuntWouldSucceed
+            | R::ActorChosenForContractOnActing => &[S::Play],
+            R::TargetOnActing => &[S::Engine(Site::CardTargetQualifies)],
+            R::CanAttemptBlockLocked => &[S::Engine(Site::PlayOptions)],
             R::HoldRecipient(..) => &[S::Engine(Site::PlayOptions)],
             // A card's host or a vampire's own (Dive into Madness, Mustafa).
             R::ActorOlderThanHost
             | R::ActorOlderThanChosen
             | R::StrikingWithItsGun
+            | R::StrikingWithSource
             | R::HandHasStoredCopy
             | R::OwnActingAllyOrYounger
             | R::BloodHuntOnHost
@@ -725,6 +751,7 @@ impl Requirement {
             R::ActionTargetsHost => &[S::Card, S::Engine(Site::AbilityGate)],
             R::DirectedAtCardItIsOn => &[S::Card],
             R::ActorIsChosen
+            | R::ActorAmongChosen
             | R::ActorOfByCircle
             | R::ActorIsBysMaster
             | R::ActingIsBy
@@ -798,7 +825,8 @@ impl Requirement {
                 &[S::Engine(Site::VampireRider(Hook::OwnBleedSuccessful))]
             }
             R::GehennaInPlay(..) | R::NoGehennaInPlay => &[S::Play, S::Host, S::Printed],
-            R::GehennaOfOthersInPlay(..) => &[S::Play],
+            R::GehennaOfOthersInPlay(..) => &[S::Play, S::Host],
+            R::SourceFounderCountersAtLeast(..) => &[S::Printed],
             R::PlayedActionCardAtYour(..) => &[S::Play, S::Engine(Site::AsPlayed)],
             R::CardUnlocked | R::CardLocked => &[S::Card, S::Engine(Site::AbilityGateCard)],
             R::ReferendumToBurnThisCard => &[S::Card],
@@ -1017,6 +1045,9 @@ mod tests {
                         self.effects(name, at, std::slice::from_ref(then));
                     }
                     Effect::IfBleedSuccessful(es) => self.effects(name, at, es),
+                    Effect::AttemptFailsIf(requires) => {
+                        self.check(name, at, requires, &[Slot::Play])
+                    }
                     Effect::CallReferendum(d) => {
                         for t in d.terms {
                             if let Term::ChooseMinions { filter, .. }
@@ -1183,7 +1214,7 @@ mod tests {
                 Effect::ReduceStealth(_)
                     | Effect::ReduceStealthToZero
                     | Effect::ActionStealthMinus(_)
-            ) || matches!(e, Effect::AttemptingIntercept(n) | Effect::YoungerIntercept(n) if *n < 0)
+            ) || matches!(e, Effect::AttemptingIntercept(n) | Effect::YoungerIntercept(n) | Effect::PointsInterceptThisAction(n) if *n < 0)
         };
         let adds = |e: &Effect| {
             matches!(e, Effect::AddStealth(_) | Effect::AddIntercept(_))

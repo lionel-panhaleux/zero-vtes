@@ -65,6 +65,7 @@ pub fn number_unnumbered(e: &mut Engine) {
             MinionKind::Vampire(_)
                 | MinionKind::Imbued(_)
                 | MinionKind::CryptAlly(_)
+                | MinionKind::Represented { .. }
                 | MinionKind::Token { .. }
         ) {
             fresh(&mut m.copy.0);
@@ -187,6 +188,7 @@ pub fn census(e: &Engine) -> Vec<(CopyId, u16, Place)> {
             MinionKind::Vampire(card)
             | MinionKind::Imbued(card)
             | MinionKind::CryptAlly(card)
+            | MinionKind::Represented { card, .. }
             | MinionKind::Token { card, .. } => {
                 add(*m.copy, card, Place::Minion { id, merged: false });
             }

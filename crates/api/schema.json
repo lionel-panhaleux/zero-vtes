@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "title": "zvtes protocol",
-  "version": "2.29.0",
+  "version": "2.30.0",
   "$defs": {
     "About": {
       "description": "What a choice is about (`Decision::about`): each field given where\nthe purpose (or the terms) has it (docs/protocol.md §5).",
@@ -3793,6 +3793,11 @@
           "const": "burn_counters"
         },
         {
+          "description": "Founder counters (`n`; Gwen Brand: at 4, her Disciplines, bleed\nand capacity).",
+          "type": "string",
+          "const": "founder_counters"
+        },
+        {
           "description": "A value this reader does not know.",
           "type": "string",
           "const": "unknown"
@@ -5334,6 +5339,66 @@
           "const": "named_x"
         },
         {
+          "description": "Precision [CEL]: `minion` may burn `about.m` blood to burn\n`about.n` of `about.seat`'s pool (`resolve_printed`), or not\n(`pass`).",
+          "type": "string",
+          "const": "may_burn_blood_to_burn_pool"
+        },
+        {
+          "description": "Khazar's Diary's action announced: the minion card named in an\nash heap, the heap first (`choose_seat`), then the card\n(`ash_vampire` a crypt card, `find_card` an ally card;\n`about.seat` the heap once chosen).",
+          "type": "string",
+          "const": "name_any_ash_minion"
+        },
+        {
+          "description": "Spell of Life: up to `about.n` more vampires of `seat`'s\nuncontrolled region into play as mummies (`slot`), or no more\n(`pass`).",
+          "type": "string",
+          "const": "represent_picks"
+        },
+        {
+          "description": "Spell of Life with more copies in play than it burns: `seat`\npicks a copy of `card` to burn (`choose_card`), anyone's,\n`about.n` still to pick.",
+          "type": "string",
+          "const": "burn_copies_pick"
+        },
+        {
+          "description": "Lady Constancia: the card discarded at random replaced by\nanother library card of `seat`'s ash heap (`find_card`).",
+          "type": "string",
+          "const": "replace_from_ash"
+        },
+        {
+          "description": "Fata Amria: `seat` may burn `card` on `minion` instead of\nunlocking it as normal (`burn_in_play`), or unlock it (`pass`).",
+          "type": "string",
+          "const": "may_burn_instead_of_unlock"
+        },
+        {
+          "description": "Target Hand: `seat` may burn a weapon `minion` has\n(`burn_in_play`), or none (`pass`).",
+          "type": "string",
+          "const": "may_burn_weapon"
+        },
+        {
+          "description": "Target Head: `seat` may set the next round's range, close\n(`set_x` 0) or long (`set_x` 1), or not (`pass`).",
+          "type": "string",
+          "const": "may_set_next_range"
+        },
+        {
+          "description": "`minion`'s block is about to succeed: `seat` may play a card for\nthe moment (Lesser Boon), or let it succeed (`pass`).",
+          "type": "string",
+          "const": "block_would_succeed"
+        },
+        {
+          "description": "Paolo Sardenzo: `minion` may gain `about.n` blood as a wraith\nenters play (`resolve_printed`), or not (`pass`).",
+          "type": "string",
+          "const": "may_gain_blood"
+        },
+        {
+          "description": "Retain the Quick Blood, two or more on `minion`: `seat` picks the\none keeping the `about.n` blood `minion` spent on `about.card`\n(`choose_card`).",
+          "type": "string",
+          "const": "keep_spent_blood"
+        },
+        {
+          "description": "Two or more standing replacements of `minion`'s burn: `seat`,\nthe acting Methuselah, picks the one applying: `minion`'s own\n(`resolve_printed`, Byzar) or a card's in play (`resolve_rider`,\nCharigger, The Axe).",
+          "type": "string",
+          "const": "burn_replacement"
+        },
+        {
           "description": "A value this reader does not know.",
           "type": "string",
           "const": "unknown"
@@ -6130,7 +6195,7 @@
           "const": "card_effect"
         },
         {
-          "description": "The opponent's weapon named with the strike moves to the striker.",
+          "description": "The opponent's weapon named with the strike moves to the striker;\nnot sent since 2.30.0 (`StealEquipment`).",
           "type": "string",
           "const": "steal_weapon"
         },
@@ -6138,6 +6203,16 @@
           "description": "Life burned from the opposing ally (`n`), not damage (Argent Baton).",
           "type": "string",
           "const": "burn_life"
+        },
+        {
+          "description": "The opponent's equipment named with the strike moves to the striker\n(a weapon for Fast Hands and Spider, any for Durga Syn).",
+          "type": "string",
+          "const": "steal_equipment"
+        },
+        {
+          "description": "The opposing minion taken for good (Pentweret).",
+          "type": "string",
+          "const": "steal_minion"
         },
         {
           "description": "A value this reader does not know.",

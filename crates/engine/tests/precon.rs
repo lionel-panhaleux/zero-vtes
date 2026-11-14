@@ -15294,13 +15294,13 @@ fn forced_block_attempts_are_not_offered_under_daring_the_dawn() {
     }
 }
 
-// [LSJ 20021028] .44 Magnum, AK-47, Assault Rifle: "The optional maneuver
-// cannot be used if the strike cannot be used (eg. Hidden Lurker)." No
-// strike in the first round (One With the Land [PRO]): neither the gun's
-// strike nor its maneuver is offered.
+// [LSJ 20021028] .44 Magnum, AK-47, Assault Rifle, Kpist m/45: "The optional
+// maneuver cannot be used if the strike cannot be used (eg. Hidden Lurker)." No
+// strike in the first round (One With the Land [PRO]): neither the gun's strike
+// nor its maneuver is offered.
 #[test]
 fn a_guns_maneuver_is_not_used_while_its_strike_is_barred() {
-    for gun in [".44 Magnum", "AK-47", "Assault Rifle"] {
+    for gun in [".44 Magnum", "AK-47", "Assault Rifle", "Kpist m/45"] {
         let mut e = Engine::bare(3);
         let a = e.add_minion(SeatId(0), plain("Brujah", "", 0), 5, false);
         e.add_minion(SeatId(0), plain("Brujah", "", 1), 4, false);

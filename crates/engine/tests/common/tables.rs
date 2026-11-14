@@ -389,6 +389,7 @@ pub fn table(seed: u64, slice: &[&str], extra: &[&str]) -> Engine {
             chosen_crypt: None,
             chosen: Vec::new(),
             tally: Default::default(),
+            became: Default::default(),
             named: Default::default(),
         });
     }

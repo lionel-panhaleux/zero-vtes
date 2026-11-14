@@ -262,6 +262,32 @@ pub enum MinionKind {
     /// 20100211): its card and text, no longer an imbued (no creed,
     /// virtue or conviction), 1 strength and 1 bleed.
     CryptAlly(u16),
+    /// A minion card in play representing an ally (`of`), its own text
+    /// inert: `card` a CRYPT index if `crypt`, else a LIBRARY one (Spell of
+    /// Life's mummies, Khazar's Diary's wraiths).
+    Represented {
+        card: u16,
+        crypt: bool,
+        body: Body,
+        of: &'static Represent,
+    },
+}
+
+/// What a represented minion is, as the card putting it in play prints it
+/// (`MinionKind::Represented`).
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+pub struct Represent {
+    pub subtype: crate::library::Label,
+    /// Its life; `None`, its card's capacity (Spell of Life).
+    pub life: Option<u8>,
+    pub strength: u8,
+    pub bleed: u8,
+    /// Stealth on each of its actions (Khazar's Diary's wraith).
+    pub stealth: u8,
+    /// Unique, its card's name in play and contested (LSJ 20070928-2).
+    pub named: bool,
+    /// It can enter combat with a minion as a Ⓓ action.
+    pub rush: bool,
 }
 
 /// What a created vampire is beyond its clan and sect, as its card prints
@@ -360,6 +386,7 @@ impl MinionKind {
             MinionKind::Vampire(_)
             | MinionKind::Imbued(_)
             | MinionKind::CryptAlly(_)
+            | MinionKind::Represented { .. }
             | MinionKind::Created { .. }
             | MinionKind::Token { .. }
             | MinionKind::GreatBeast { .. }
@@ -453,8 +480,9 @@ pub struct Minion {
     /// The minions its two-action ability has had one action at, and the
     /// turn (Quincy, The Trapper).
     pub progress: Vec<(MinionId, u32)>,
-    /// Recruited this turn, so cannot act (rulebook "Recruit Ally"; one put
-    /// in play otherwise can, advanced rules 5.5.4).
+    /// Cannot act this turn: recruited (rulebook "Recruit Ally"; one put
+    /// in play otherwise can, advanced rules 5.5.4) or barred by a card
+    /// (Mirror's Visage).
     pub recruited: bool,
     /// Successful recruit ally actions this turn (Spectral Servitor
     /// unlocks its recruiter on the first).
@@ -497,8 +525,9 @@ pub struct Minion {
     pub bleeds: Vec<(u32, SeatId, u8)>,
     /// Made Red List by a card (Public Enemy), for good.
     pub made_red_list: bool,
-    /// The game turn of its last diablerie (Carlton Van Wyk).
-    pub diablerie_turn: Option<u32>,
+    /// Its diableries: (turn, the victim's clan as it was diablerized)
+    /// (Carlton Van Wyk, Community Justice).
+    pub diableries: SparseVec<(u32, Option<&'static str>)>,
     /// The game turn of its last successful hunt
     /// (`Engine::successful_hunt_riders`; Songs of the Distant Vitae,
     /// rules-qa 89.26).
@@ -605,6 +634,8 @@ pub struct Minion {
     /// The requirements met once each game and the card each was spent on
     /// (Vidal Jarbeaux: `Stat::MeetsRequirementsOncePerGame`).
     pub met_once: SparseVec<(cards::MetKey, u16)>,
+    /// Founder counters (Gwen Brand).
+    pub founder_counters: Sparse,
 }
 
 /// Identity of an action for the no-repeat-action rule (spec §3.5.2).
@@ -758,7 +789,7 @@ impl Minion {
             corruption: Vec::new(),
             grafts: 0,
             diablerie_shield: false,
-            diablerie_turn: None,
+            diableries: SparseVec::default(),
             hunted_turn: None,
             discipline_card_turn: None,
             diablerized_older: false,
@@ -800,6 +831,7 @@ impl Minion {
             oaths: SparseVec(Vec::new()),
             no_unlock_in_torpor: Sparse(0),
             met_once: SparseVec(Vec::new()),
+            founder_counters: Sparse(0),
             entered_at: 0,
         }
     }
@@ -811,6 +843,7 @@ impl Minion {
             MinionKind::Vampire(c) => Some(&CRYPT[c as usize]),
             MinionKind::Imbued(_)
             | MinionKind::CryptAlly(_)
+            | MinionKind::Represented { .. }
             | MinionKind::Ally { .. }
             | MinionKind::Created { .. }
             | MinionKind::Token { .. }
@@ -820,11 +853,13 @@ impl Minion {
     }
 
     /// The CRYPT index of a vampire, an imbued or a raised one (printed text
-    /// lookup); `None` for a library ally or a created vampire.
+    /// lookup); `None` for a library ally, a created vampire or a card
+    /// representing an ally (its text inert).
     pub fn crypt_card(&self) -> Option<u16> {
         match self.kind {
             MinionKind::Vampire(c) | MinionKind::Imbued(c) | MinionKind::CryptAlly(c) => Some(c),
             MinionKind::Ally { .. }
+            | MinionKind::Represented { .. }
             | MinionKind::Created { .. }
             | MinionKind::Token { .. }
             | MinionKind::GreatBeast { .. }
@@ -833,7 +868,8 @@ impl Minion {
     }
 
     /// An ally: a library card's, a token, an imbued ("considered a mortal
-    /// ally", rulebook "Appendix: Imbued Rules" 1) or one raised as an ally.
+    /// ally", rulebook "Appendix: Imbued Rules" 1), one raised as an ally or
+    /// a minion card representing one.
     pub fn is_ally(&self) -> bool {
         matches!(
             self.kind,
@@ -841,6 +877,7 @@ impl Minion {
                 | MinionKind::Token { .. }
                 | MinionKind::Imbued(_)
                 | MinionKind::CryptAlly(_)
+                | MinionKind::Represented { .. }
         )
     }
 
@@ -878,6 +915,7 @@ impl Minion {
             MinionKind::Vampire(_)
             | MinionKind::Imbued(_)
             | MinionKind::CryptAlly(_)
+            | MinionKind::Represented { .. }
             | MinionKind::Created { .. }
             | MinionKind::Token { .. }
             | MinionKind::GreatBeast { .. }
@@ -898,6 +936,13 @@ impl Minion {
             | MinionKind::Fury { card, .. } => LIBRARY[card as usize].name,
             // "Nameless": the name on its card is ignored (LSJ 20040623).
             MinionKind::Token { .. } => "",
+            MinionKind::Represented {
+                card, crypt, of, ..
+            } => match (of.named, crypt) {
+                (false, _) => "",
+                (true, true) => CRYPT[card as usize].name,
+                (true, false) => LIBRARY[card as usize].name,
+            },
         }
     }
 
@@ -927,6 +972,7 @@ impl Minion {
             | MinionKind::CryptAlly(_)
             | MinionKind::Ally { .. }
             | MinionKind::Token { .. }
+            | MinionKind::Represented { .. }
             | MinionKind::GreatBeast { .. }
             | MinionKind::Fury { .. } => None,
         }
@@ -959,6 +1005,7 @@ impl Minion {
             | MinionKind::Imbued(_)
             | MinionKind::CryptAlly(_)
             | MinionKind::Token { .. }
+            | MinionKind::Represented { .. }
             | MinionKind::Fury { .. } => None,
         }
     }
@@ -1010,7 +1057,8 @@ impl Minion {
             MinionKind::Ally { .. }
             | MinionKind::Token { .. }
             | MinionKind::Imbued(_)
-            | MinionKind::CryptAlly(_) => None,
+            | MinionKind::CryptAlly(_)
+            | MinionKind::Represented { .. } => None,
         };
         // Only a reduction floors at 1 (Dual Form); a 0-capacity created
         // vampire stays 0 (The Becoming).
@@ -1131,6 +1179,9 @@ pub struct CardInPlay {
     /// Pool its controller burned by its effect (First Tradition: The
     /// Masquerade).
     pub tally: Sparse,
+    /// Become a retainer of this subtype on another minion (Shell Break):
+    /// a retainer and of that subtype for every card reading one.
+    pub became: SparseOption<crate::library::Label>,
 }
 
 impl CardInPlay {
@@ -1184,6 +1235,7 @@ impl CardInPlay {
             training: false,
             named: SparseOption(None),
             tally: Sparse(0),
+            became: SparseOption(None),
         }
     }
 
@@ -1227,6 +1279,23 @@ pub const ASH_GRANTED: CardId = CardId(u32::MAX - 20);
 /// Imbued Rules", card rulings: a card naming a vampire seen).
 pub fn vampire_card(c: u16) -> bool {
     !CRYPT[c as usize].imbued
+}
+
+/// The minion cards of a seat's ash heap, each once, `(card, crypt)`: its
+/// vampire and imbued crypt cards, its ally cards (never a retainer nor a
+/// created vampire's library card, LSJ 20020115).
+pub fn ash_minions(s: &Seat) -> Vec<(u16, bool)> {
+    let crypt = distinct(&s.ash_crypt, |_| true)
+        .into_iter()
+        .map(|c| (c, true));
+    let allies = distinct(&s.ash, |c| {
+        LIBRARY[c as usize]
+            .types
+            .contains(&crate::library::CardType::Ally)
+    })
+    .into_iter()
+    .map(|c| (c, false));
+    crypt.chain(allies).collect()
 }
 
 /// The virtual-hand source of a card played from `seat`'s ash heap by
@@ -1622,6 +1691,10 @@ pub struct Seat {
     /// The copies of `ash`'s allies burned from play as themselves
     /// (`Seat::to_ash` clears; Pressing Flesh, LSJ 20100325-2).
     pub burned_allies: Untracked<Vec<CopyId>>,
+    /// The copies of `ash`'s allies and retainers burned from play as
+    /// themselves, with the turn (`Seat::to_ash` clears; Compel the Spirit,
+    /// RTR 19980928).
+    pub burned_minion_cards: Untracked<Vec<(CopyId, u32)>>,
     /// The research area: library cards face down, seen by their owner
     /// (Development).
     pub research: Pile,
@@ -1787,11 +1860,12 @@ impl Seat {
         }
     }
 
-    /// A library card to the ash heap, no longer an ally burned from play
-    /// (a burn marks it after: `burned_allies`).
+    /// A library card to the ash heap, no longer a minion card burned from
+    /// play (a burn marks it after: `burned_allies`, `burned_minion_cards`).
     pub fn to_ash(&mut self, card: u16, copy: CopyId) {
         self.ash.put(card, copy);
         self.burned_allies.0.retain(|&c| c != copy);
+        self.burned_minion_cards.0.retain(|&(c, _)| c != copy);
     }
 
     /// `to_ash` for each card, in order.
@@ -1853,6 +1927,13 @@ pub struct GameState {
     /// Bleed bonuses for the rest of the turn to every vampire of a clan,
     /// one arriving later too (Annabelle Triabell G3; LSJ 20030811).
     pub clan_bleed_this_turn: Vec<(&'static str, i8)>,
+    /// Bleed bonuses for the rest of the turn, or until a bleed action is
+    /// blocked, to every minion of a seat, one arriving later too (Dream
+    /// World [PRE]).
+    pub seat_bleed_this_turn: SparseVec<(SeatId, i8)>,
+    /// Seats whose minions cannot bleed until the end of the turn
+    /// (Enticement).
+    pub no_bleed_this_turn: SparseVec<SeatId>,
     /// Each seat's half victory points as the current action was declared
     /// (Edge of the World's "gained a victory point during this action").
     pub action_vps: Vec<u32>,
@@ -1909,6 +1990,9 @@ pub struct GameState {
     /// Cards each Methuselah played that one can play only once in a game
     /// (Retribution).
     pub once_played_by: Vec<(SeatId, u16)>,
+    /// Clans whose blood cursed vampires may commit diablerie for the rest
+    /// of the game (Tajdid; D33).
+    pub curse_lifted: SparseVec<&'static str>,
     /// Cards played this turn that "can be played only once each turn"
     /// (Ashur Tablets), by LIBRARY index; cleared as each turn begins.
     pub turn_played: Vec<u16>,
@@ -2181,7 +2265,8 @@ impl GameState {
         }
         // Its subtypes as cards on it change them (Ghouled: "a ghoul and not
         // a mortal"; Pressing Flesh).
-        v.kind.ally_card().is_some() && labels.iter().any(|&l| self.has_subtype(m, l))
+        (v.kind.ally_card().is_some() || matches!(v.kind, MinionKind::Represented { .. }))
+            && labels.iter().any(|&l| self.has_subtype(m, l))
     }
 
     /// A monster: a vampire, or an ally neither mortal nor animal (rulebook
@@ -2197,18 +2282,30 @@ impl GameState {
     }
 
     /// An ally's cost: its card's pool or blood, an imbued's or a raised
-    /// imbued's starting life (ANK 20220528).
+    /// imbued's starting life (ANK 20220528); a represented crypt card's
+    /// capacity (a crypt card's cost, rules-qa 71.9, 121.131), a
+    /// represented library card's as an ally card's.
     pub fn ally_cost(&self, m: MinionId) -> u8 {
         use crate::library::Cost;
-        match self.minions[m.index()].kind {
-            MinionKind::Imbued(c) | MinionKind::CryptAlly(c) => CRYPT[c as usize].capacity,
-            MinionKind::Ally { card, .. } => {
-                let c = &crate::library::LIBRARY[card as usize];
-                match (c.pool_cost, c.blood_cost) {
-                    (Cost::Fixed(n), _) | (_, Cost::Fixed(n)) => n,
-                    _ => 0,
-                }
+        let library = |card: u16| {
+            let c = &crate::library::LIBRARY[card as usize];
+            match (c.pool_cost, c.blood_cost) {
+                // A card become an ally costs nothing (Set's Curse, LSJ
+                // 20080804).
+                _ if !c.types.contains(&crate::library::CardType::Ally) => 0,
+                (Cost::Fixed(n), _) | (_, Cost::Fixed(n)) => n,
+                _ => 0,
             }
+        };
+        match self.minions[m.index()].kind {
+            MinionKind::Imbued(c)
+            | MinionKind::CryptAlly(c)
+            | MinionKind::Represented {
+                card: c,
+                crypt: true,
+                ..
+            } => CRYPT[c as usize].capacity,
+            MinionKind::Represented { card, .. } | MinionKind::Ally { card, .. } => library(card),
             _ => u8::MAX,
         }
     }
@@ -2217,7 +2314,9 @@ impl GameState {
     /// a vampire).
     pub fn ally_body(&self, m: MinionId) -> Option<Body> {
         match self.minions[m.index()].kind {
-            MinionKind::Ally { body, .. } | MinionKind::Token { body, .. } => Some(body),
+            MinionKind::Ally { body, .. }
+            | MinionKind::Token { body, .. }
+            | MinionKind::Represented { body, .. } => Some(body),
             // Its cost its starting life; 1 strength, 1 bleed (rulebook
             // "Appendix: Imbued Rules" 1).
             MinionKind::Imbued(c) | MinionKind::CryptAlly(c) => Some(Body {
@@ -2366,7 +2465,20 @@ impl GameState {
         } else {
             0
         };
-        let sum = printed + self.discipline_grants(m).count() as u8 + raised + own;
+        // Seterpenre: his own text, while in play.
+        let cards_add =
+            !(cards::vampire_of(&self.minions[m.index()]).is_some_and(|d| {
+                d.printed
+                    .iter()
+                    .any(|p| p.stat == Stat::DisciplineCardsAddNoCapacity)
+            }) && self.printed_mod(m, Stat::DisciplineCardsAddNoCapacity, PrintedCtx::default())
+                > 0);
+        let grants = if cards_add {
+            self.discipline_grants(m).count() as u8
+        } else {
+            0
+        };
+        let sum = printed + grants + raised + own;
         let lift = (lowered + 1).saturating_sub(sum);
         let cap = sum.saturating_sub(lowered).max(1)
             + self
@@ -2513,6 +2625,17 @@ impl GameState {
                 .labels
                 .contains(&crate::library::Label::Location)
         };
+        // Khazar's Diary: every vampire of the clan, anyone's (D11).
+        let clan = self.minions[m.index()].clan();
+        if clan.is_some() && self.layers.iter().any(|l| {
+            matches!(l.modifier, Modifier::ClanSuperiorAtCounters { clan: c, discipline, counters }
+                    if discipline.eq_ignore_ascii_case(d)
+                        && clan == Some(c)
+                        && self.layer_active(l)
+                        && self.cards[l.source.index()].counters >= counters)
+        }) {
+            return 2;
+        }
         // The Sargon Fragment: superior, on a vampire.
         if self.minions[m.index()].is_vampire()
             && self.layers.iter().any(|l| {
@@ -2565,6 +2688,18 @@ impl GameState {
                 })
             })
             .count() as u8;
+        // Gwen Brand: superior while her founder counters hold, read live.
+        let superior = cards::vampire_of(&self.minions[m.index()])
+            .and_then(|v| v.superior_while)
+            .is_some_and(|w| {
+                w.disciplines.iter().any(|g| g.eq_ignore_ascii_case(d))
+                    && w.requires
+                        .iter()
+                        .all(|&r| self.printed_holds(r, m, m, PrintedCtx::default()))
+            });
+        if superior {
+            return 2;
+        }
         let levels = cards::vampire_of(&self.minions[m.index()]).map_or(0, |v| {
             v.levels
                 .iter()
@@ -2653,6 +2788,33 @@ impl GameState {
         slot.counters = slot.counters.saturating_add(n);
     }
 
+    /// The vampires in play, any Methuselah's, torpid ones too, of `clan`
+    /// and younger than `than` as `by` reads it (Condemn the Sins of the
+    /// Father).
+    pub fn younger_of_clan(&self, clan: &str, than: MinionId, by: SeatId) -> Vec<MinionId> {
+        (0..self.minions.len())
+            .map(|i| MinionId(i as u32))
+            .filter(|&m| {
+                let v = &self.minions[m.index()];
+                v.present()
+                    && v.is_vampire()
+                    && v.clan() == Some(clan)
+                    && self.younger_by(m, than, by)
+            })
+            .collect()
+    }
+
+    /// No frenzy card is played on `m`: a borne or printed immunity
+    /// (Tranquility Shield); a combat's own is read on the combat.
+    pub fn frenzy_immune(&self, m: MinionId) -> bool {
+        self.borne(m).any(|l| match l.modifier {
+            Modifier::BearerFrenzyImmune { capacity_at_least } => {
+                self.capacity_of(m).unwrap_or(0) >= capacity_at_least
+            }
+            _ => false,
+        }) || self.printed_mod(m, Stat::FrenzyImmune, PrintedCtx::default()) > 0
+    }
+
     /// `a` younger than `b`: both vampires, `a` of lower capacity.
     pub fn younger_than(&self, a: MinionId, b: MinionId) -> bool {
         matches!((self.capacity_of(a), self.capacity_of(b)), (Some(x), Some(y)) if x < y)
@@ -2683,7 +2845,7 @@ impl GameState {
     pub fn capacity_or_cost_by(&self, m: MinionId, by: SeatId) -> Option<u8> {
         match self.minions[m.index()].kind {
             MinionKind::Imbued(c) | MinionKind::CryptAlly(c) => Some(CRYPT[c as usize].capacity),
-            MinionKind::Ally { .. } => Some(self.ally_cost(m)),
+            MinionKind::Ally { .. } | MinionKind::Represented { .. } => Some(self.ally_cost(m)),
             _ => self.capacity_by(m, by),
         }
     }
@@ -2966,6 +3128,9 @@ impl GameState {
     pub fn cannot_diablerize(&self, m: MinionId) -> bool {
         self.minions[m.index()].is_ally()
             || self.blood_cursed(m)
+                && !self.minions[m.index()]
+                    .clan()
+                    .is_some_and(|c| self.curse_lifted.0.contains(&c))
             || self.bears(m, Modifier::HostCannotDiablerize)
             || self.printed_mod(m, Stat::CannotDiablerize, PrintedCtx::default()) > 0
     }
@@ -3059,6 +3224,21 @@ impl GameState {
         })
     }
 
+    /// The allies and retainers of `seat`'s ash heap burned from play since
+    /// its last turn ended, one entry per card (Compel the Spirit; LSJ
+    /// 20020429).
+    pub fn ash_minion_cards_burned_since_last_turn(&self, seat: SeatId) -> Vec<u16> {
+        let s = &self.seats[seat.index()];
+        let since: Vec<CopyId> = s
+            .burned_minion_cards
+            .0
+            .iter()
+            .filter(|&&(_, t)| t > s.previous_turn)
+            .map(|&(c, _)| c)
+            .collect();
+        marked_cards(&s.ash, &since, |_| true)
+    }
+
     /// The imbued of `seat`'s ash heap burned from play, one entry per
     /// card (Pressing Flesh; LSJ 20100211).
     pub fn ash_burned_imbued(&self, seat: SeatId) -> Vec<u16> {
@@ -3075,8 +3255,12 @@ impl GameState {
             || self.bears(m, Modifier::HostNoDirectedActions)
     }
 
-    /// The one subtype a card on `m` leaves it (Pressing Flesh's zombie).
+    /// The one subtype a card on `m` leaves it (Pressing Flesh's zombie), or
+    /// a represented minion's own.
     fn only_subtype(&self, m: MinionId) -> Option<Label> {
+        if let MinionKind::Represented { of, .. } = self.minions[m.index()].kind {
+            return Some(of.subtype);
+        }
         self.borne(m).find_map(|l| match l.modifier {
             Modifier::BearerSubtypeOnly(label) => Some(label),
             _ => None,
@@ -3084,22 +3268,30 @@ impl GameState {
     }
 
     /// The crypt cards of `seat`'s ash heap burned from play, with every
-    /// Discipline of `superior` printed at superior.
+    /// Discipline of `superior` printed at superior, none `seat` has a copy
+    /// of in play (`controls_copy`).
     pub fn ash_burned_vampires(&self, seat: SeatId, superior: &[&str]) -> Vec<u16> {
         let s = &self.seats[seat.index()];
         marked_cards(&s.ash_crypt, &s.burned_from_play.0, |c| {
             superior
                 .iter()
                 .all(|d| CRYPT[c as usize].disciplines.contains(d))
+                && !self.controls_copy(seat, c)
         })
     }
 
-    /// `m`'s lasting stealth and strength bonuses (`Minion::timed`).
+    /// `m`'s lasting stealth and strength bonuses (`Minion::timed`), a
+    /// represented minion's printed stealth with them.
     pub fn lasting(&self, m: MinionId) -> (i32, i32) {
+        // A represented minion's stealth on its actions (Khazar's Diary).
+        let carried = match self.minions[m.index()].kind {
+            MinionKind::Represented { of, .. } => of.stealth as i32,
+            _ => 0,
+        };
         self.minions[m.index()]
             .timed
             .iter()
-            .fold((0, 0), |(st, sg), &(l, ..)| match l {
+            .fold((carried, 0), |(st, sg), &(l, ..)| match l {
                 crate::cards::Lasting::Stealth(n) => (st + n as i32, sg),
                 crate::cards::Lasting::Strength(n) => (st, sg + n as i32),
                 crate::cards::Lasting::Superior(_)
@@ -3107,11 +3299,14 @@ impl GameState {
                 | crate::cards::Lasting::Bleed(_)
                 | crate::cards::Lasting::UnlockAtEndOfTurn
                 | crate::cards::Lasting::MayUnlockAfterMinionPhase
-                | crate::cards::Lasting::PlaysAsVampire(_) => (st, sg),
+                | crate::cards::Lasting::PlaysAsVampire(_)
+                | crate::cards::Lasting::Hobbled(_) => (st, sg),
             })
     }
 
-    /// The bleed `m`'s lasting bonuses add (`Minion::timed`).
+    /// The bleed `m`'s lasting bonuses add (`Minion::timed`), and the
+    /// turn's bonuses to its clan (Annabelle Triabell) or its Methuselah's
+    /// minions (Dream World [PRE]).
     pub fn lasting_bleed(&self, m: MinionId) -> i32 {
         let clan = self.minions[m.index()].clan();
         self.minions[m.index()]
@@ -3126,6 +3321,13 @@ impl GameState {
                 .clan_bleed_this_turn
                 .iter()
                 .filter(|&&(c, _)| clan == Some(c) && self.minions[m.index()].is_vampire())
+                .map(|&(_, n)| n as i32)
+                .sum::<i32>()
+            + self
+                .seat_bleed_this_turn
+                .0
+                .iter()
+                .filter(|&&(s, _)| s == self.minions[m.index()].owner)
                 .map(|&(_, n)| n as i32)
                 .sum::<i32>()
     }
@@ -3181,8 +3383,8 @@ impl GameState {
     }
 
     /// The Methuselah controlling a card in play: a master card stays its
-    /// controller's; a minion card on a minion is its host's controller's
-    /// (owner, 2026-09-06; spec §1.12.1).
+    /// controller's; a minion card or a trophy on a minion is its host's
+    /// controller's (owner, 2026-09-06; spec §1.12.1; rulebook "Trophy").
     pub fn card_controller(&self, id: CardId) -> SeatId {
         let c = &self.cards[id.index()];
         if let Some(m) = c.body {
@@ -3195,8 +3397,11 @@ impl GameState {
                 .get(c.mode as usize)
                 .is_some_and(|m| m.effects.contains(&cards::Effect::StillYours))
         });
+        // A trophy on a vampire is its controller's (rulebook "Trophy").
         match c.host {
-            Some(h) if !master && !still_yours => self.minions[h.index()].owner,
+            Some(h) if (!master || cards::is_trophy(c.card)) && !still_yours => {
+                self.minions[h.index()].owner
+            }
             _ => c.controller,
         }
     }
@@ -3403,8 +3608,9 @@ impl GameState {
         let path_off: u8 = self
             .in_play_layers()
             .map(|l| match l.modifier {
-                Modifier::HostDisciplineBloodOff { discipline, n }
+                Modifier::HostDisciplineBloodOff { discipline, n, who }
                     if self.cards[l.source.index()].host == Some(m)
+                        && who.is(self, m)
                         && tags.iter().any(|t| t.eq_ignore_ascii_case(discipline)) =>
                 {
                     n
@@ -3656,6 +3862,7 @@ impl GameState {
             }),
             R::NotFirstRound => ctx.round > 1,
             R::GehennaInPlay(n) => self.gehenna_in_play() >= n as usize,
+            R::SourceFounderCountersAtLeast(n) => src.founder_counters.0 >= n,
             R::NoGehennaInPlay => self.gehenna_in_play() == 0,
             R::FirstRound => ctx.round == 1,
             R::OtherNonHuntAction => ctx.kind.is_some() && !ctx.is_hunt() && !ctx.own_printed,
@@ -3720,6 +3927,7 @@ impl GameState {
             // The modified minion carries the corruption counters of the
             // printed vampire's Methuselah (Faruq Abd al-Qadir).
             R::ActorCorruptedBySource => me.corruption_of(src.owner) > 0,
+            R::OpponentCorruptedBySource => opp.is_some_and(|o| o.corruption_of(src.owner) > 0),
             R::OpponentTitled => ctx
                 .opponent
                 .is_some_and(|o| self.title_of(o) != Title::None),
@@ -4139,12 +4347,18 @@ impl GameState {
         layers + printed.max(0) as u8
     }
 
+    /// Blood `m`'s hunt gets from a base of `base` (the rulebook's 1, a
+    /// card hunt's own), its bonuses and minuses added, at least 0.
+    pub fn hunt_amount(&self, m: MinionId, base: u8) -> u8 {
+        (base as i16 + self.hunt_bonus(m) as i16).clamp(0, u8::MAX as i16) as u8
+    }
+
     /// Blood a hunt gains above the rulebook's 1 ("Sabbat vampires you
-    /// control get +1 hunt", The Hungry Coyote).
-    pub fn hunt_bonus(&self, m: MinionId) -> u8 {
+    /// control get +1 hunt", The Hungry Coyote; Foul Blood's -1).
+    pub fn hunt_bonus(&self, m: MinionId) -> i8 {
         let owner = self.minions[m.index()].owner;
         // This action's (Hospital Food): only one action at a time.
-        let action: u8 = self
+        let action: i8 = self
             .layers
             .iter()
             .filter(|l| l.scope == Scope::Action)
@@ -4154,7 +4368,7 @@ impl GameState {
             })
             .sum();
         action
-            + self
+            + (self
                 .in_play_layers()
                 .map(|l| match l.modifier {
                     Modifier::OwnSectHunt(sect, n)
@@ -4189,7 +4403,8 @@ impl GameState {
                 })
                 .sum::<u8>()
             // Printed "+1 hunt" (Ariadne).
-            + self.printed_mod(m, Stat::Hunt, PrintedCtx::default()).max(0) as u8
+            + self.printed_mod(m, Stat::Hunt, PrintedCtx::default()).max(0) as u8)
+                as i8
     }
 
     /// Cards over hand size, discarded down at once (rulebook "Drawing
@@ -4223,6 +4438,10 @@ impl GameState {
         let c = &self.cards[id.index()];
         Some(match req {
             Requirement::CountersAtLeast(n) => c.counters >= n,
+            Requirement::CountersAtLeastHostBlood => c
+                .host
+                .is_some_and(|h| c.counters >= self.minions[h.index()].blood),
+            Requirement::CopiesInPlayAtLeast(n) => self.copies_in_play(c.card).len() >= n as usize,
             Requirement::CountersAtMost(n) => c.counters <= n,
             Requirement::SuperiorVersion => c.mode > 0,
             Requirement::BasicVersion => c.mode == 0,
@@ -4280,6 +4499,38 @@ impl GameState {
             .iter()
             .filter(|c| c.in_play && c.host == Some(m) && holding_matches(c.card, h))
             .count() as u8
+    }
+
+    /// Contract `card` (in play or not) has chosen `m`: its chosen
+    /// vampires, every Black Hand vampire (Shakar: the Hunt), or every
+    /// vampire of a clan and sects (Haqim's Law: Judgment), read live.
+    pub fn chosen_for_contract(&self, card: CardId, m: MinionId) -> bool {
+        let c = &self.cards[card.index()];
+        let v = &self.minions[m.index()];
+        c.chosen.contains(&m)
+            || cards::lookup(c.card).is_some_and(|d| {
+                d.modes.iter().flat_map(|md| md.effects).any(|e| match *e {
+                    cards::Effect::BlackHandChosenForContract => self.is_black_hand(m),
+                    cards::Effect::ClanSectChosenForContract { clan, sects } => {
+                        v.is_vampire()
+                            && v.clan() == Some(clan)
+                            && self.sect_of(m).is_some_and(|s| sects.contains(&s))
+                    }
+                    _ => false,
+                })
+            })
+    }
+
+    /// The Disciplines (or Flight) a card must require for `m` to use a
+    /// maneuver or press from it, while hobbled (Target Leg).
+    pub fn hobbled(&self, m: MinionId) -> Option<&'static [&'static str]> {
+        self.minions[m.index()]
+            .timed
+            .iter()
+            .find_map(|&(l, ..)| match l {
+                cards::Lasting::Hobbled(tags) => Some(tags),
+                _ => None,
+            })
     }
 
     /// "A vampire can have only one" `card` (Wall of Filth, Pillars Fall,
@@ -4366,6 +4617,11 @@ impl GameState {
                 Modifier::CostSource(k) => Some(k),
                 _ => None,
             })
+            .or_else(|| {
+                (cards::is_investment(self.cards[c.index()].card)
+                    && self.seat_printed(self.card_controller(c), Stat::InvestmentsPayEquip) > 0)
+                    .then_some(cards::CostSource::Investment)
+            })
     }
 
     /// What a master card targeting `m` costs `payer` more: its Secure
@@ -4378,6 +4634,21 @@ impl GameState {
             0
         };
         self.havens_on(m) as i32 + own.max(0)
+    }
+
+    /// The pool an effect unlocking `m`, or letting it block as if
+    /// unlocked, costs its user more out of `m`'s controller's turn (Burden
+    /// the Mind; copies add up).
+    pub fn unlock_toll_on(&self, m: MinionId) -> i32 {
+        if self.active == self.minions[m.index()].owner {
+            return 0;
+        }
+        self.borne(m)
+            .map(|l| match l.modifier {
+                Modifier::HostUnlockToll(n) => i32::from(n),
+                _ => 0,
+            })
+            .sum()
     }
 
     /// Secure Havens on `m`.
@@ -4571,6 +4842,16 @@ impl GameState {
                                     && self.minions[t.index()].in_torpor
                             })
                             .count() as i32
+                    }
+                    // Unholy Penance [PRE]: "the striking vampire", against
+                    // the attached minion's controller.
+                    Modifier::ByBleedAgainstHostController(n)
+                        if c.by == Some(m)
+                            && self.minions[m.index()].is_vampire()
+                            && c.host
+                                .is_some_and(|h| self.minions[h.index()].owner == target) =>
+                    {
+                        n as i32
                     }
                     Modifier::YoungBleedAgainstController { max, n }
                         if !c.locked
@@ -5004,8 +5285,8 @@ impl GameState {
     }
 
     /// Optional presses `m` gets each combat against `opponent`: printed,
-    /// its own (Serhat Gunde) or its opponent's (Andy), and from the cards
-    /// on it (Dread Mastiff [ANI]).
+    /// its own (Serhat Gunde) or its opponent's (Andy), from the cards on it
+    /// (Dread Mastiff [ANI]) and from those choosing it (Bloodlust).
     pub fn combat_presses_of(&self, m: MinionId, opponent: MinionId) -> u8 {
         let ctx = PrintedCtx {
             opponent: Some(opponent),
@@ -5013,12 +5294,23 @@ impl GameState {
         };
         let printed = self.printed_mod(m, Stat::CombatPress, ctx).max(0) as u8;
         let hosted: u8 = sum_n!(self.borne(m), Modifier::HostCombatPress);
+        // Bloodlust: each chosen minion.
+        let chosen: u8 = self
+            .in_play_layers()
+            .map(|l| match l.modifier {
+                Modifier::ChosenStat {
+                    stat: Stat::CombatPress,
+                    n,
+                } if self.cards[l.source.index()].chosen.contains(&m) => n.max(0) as u8,
+                _ => 0,
+            })
+            .sum();
         let sect = self.sect_of(opponent);
         let vs = self
             .borne(m)
             .filter(|l| matches!(l.modifier, Modifier::HostCombatPressVsSect(s) if Some(s) == sect))
             .count() as u8;
-        printed + hosted + vs
+        printed + hosted + vs + chosen
     }
 
     /// The mandatory presses `m`'s cards give it each combat, only usable to
@@ -5224,9 +5516,20 @@ impl GameState {
     }
 
     /// Card `card` cannot target `m`: Draeven Softfoot's shun of the
-    /// Disciplines it prints, Martinelli's Ring's (`shuns_held`).
+    /// Disciplines it prints, Martinelli's Ring's (`shuns_held`), Johann
+    /// Matheson's by name.
     pub fn shuns_card(&self, m: MinionId, card: u16) -> bool {
-        self.shuns_discipline(m, LIBRARY[card as usize].disciplines) || self.shuns_held(m, card)
+        self.shuns_discipline(m, LIBRARY[card as usize].disciplines)
+            || self.shuns_held(m, card)
+            || self.printed_in_play(Stat::UntargetableByCard)
+                && self.printed_mod(
+                    m,
+                    Stat::UntargetableByCard,
+                    PrintedCtx {
+                        card: Some((card, 0)),
+                        ..PrintedCtx::default()
+                    },
+                ) > 0
     }
 
     /// `m` cannot be the target of a directed action requiring one of the
@@ -5386,8 +5689,10 @@ impl GameState {
             return true;
         }
         // Midget: acting or in combat, any animal retainer loses its text.
-        let lib = &LIBRARY[c.card as usize];
-        if lib.types.contains(&CardType::Retainer) && lib.labels.contains(&Label::Animal) {
+        if self.card_in_play_matches(
+            id,
+            cards::CardFilter::Labeled(CardType::Retainer, Label::Animal),
+        ) {
             let midget = |m: MinionId| {
                 self.minions[m.index()].present()
                     && self.printed_mod(m, Stat::AnimalRetainersLoseText, PrintedCtx::default()) > 0
@@ -5409,7 +5714,7 @@ impl GameState {
         let Some(i) = pair.iter().position(|&m| m == host) else {
             return false;
         };
-        LIBRARY[c.card as usize].types.contains(&CardType::Retainer)
+        self.is_retainer(id)
             && (self.printed_mod(
                 pair[1 - i],
                 Stat::OpposingRetainersLoseText,
@@ -5538,15 +5843,16 @@ impl GameState {
         ) > 0
     }
 
-    /// Is `m` an ally immune to non-aggravated damage (Tye Cooper)?
+    /// Is `m` immune to non-aggravated damage (Tye Cooper, Ex Nihilo)?
     pub fn immune_non_aggravated(&self, m: MinionId) -> bool {
-        self.minions[m.index()].kind.ally_card().is_some_and(|c| {
-            cards::lookup(c).is_some_and(|d| {
-                d.modes
-                    .iter()
-                    .any(|md| md.effects.contains(&cards::Effect::ImmuneNonAggravated))
+        self.bears(m, Modifier::BearerImmuneNonAggravated)
+            || self.minions[m.index()].kind.ally_card().is_some_and(|c| {
+                cards::lookup(c).is_some_and(|d| {
+                    d.modes
+                        .iter()
+                        .any(|md| md.effects.contains(&cards::Effect::ImmuneNonAggravated))
+                })
             })
-        })
     }
 
     /// Can card `id` not be moved or stolen now: its bearer ready (Eye of
@@ -5647,6 +5953,11 @@ impl GameState {
             ..PrintedCtx::default()
         };
         self.hosts(m, Modifier::HostCannotBlock)
+            // Lesser Boon: not the actions of its player's minions.
+            || self.hosted(m).any(|l| {
+                l.modifier == Modifier::HostCannotBlockCardController
+                    && self.card_controller(l.source) == self.minions[acting.index()].owner
+            })
             // Kuta: older as its player reads capacities (Orun's "cards
             // played by").
             || self.hosted(m).any(|l| {
@@ -6087,16 +6398,7 @@ impl GameState {
         let me = &self.minions[m.index()];
         // A created vampire is non-unique (advanced rules 5.1.3), and so is
         // one printing "Non-unique." (Valkyrie).
-        if matches!(me.kind, MinionKind::Created { born, .. } if !born.unique)
-            || me.vampire().is_some_and(|v| !v.unique)
-        {
-            return Vec::new();
-        }
-        if me
-            .kind
-            .ally_card()
-            .is_some_and(|c| !LIBRARY[c as usize].labels.contains(&Label::Unique))
-        {
+        if !self.is_unique_minion(m) {
             return Vec::new();
         }
         self.minions
@@ -6109,6 +6411,9 @@ impl GameState {
                     && !o.out_of_play
                     && !self.seats[o.owner.index()].ousted
                     && o.name() == me.name()
+                    // A mummy contests no non-unique vampire (LSJ
+                    // 20070928-2).
+                    && self.is_unique_minion(MinionId(*i as u32))
             })
             .map(|(i, _)| MinionId(i as u32))
             .collect()
@@ -6194,7 +6499,9 @@ impl GameState {
             opponent: Some(from),
             ..PrintedCtx::default()
         };
-        if self.printed_mod(m, Stat::NoDamageFromOpponent, ctx) > 0 {
+        if self.printed_mod(m, Stat::NoDamageFromOpponent, ctx) > 0
+            || self.bears(from, Modifier::BearerInflictsNoCombatDamage)
+        {
             return u8::MAX;
         }
         self.borne(m)
@@ -6209,6 +6516,119 @@ impl GameState {
     pub fn borne(&self, m: MinionId) -> impl Iterator<Item = &Layer> + '_ {
         self.in_play_layers()
             .filter(move |l| self.cards[l.source.index()].bearer() == Some(m))
+    }
+
+    /// The card in play `id` matches `filter`, as printed or as the
+    /// retainer it became (Shell Break).
+    pub fn card_in_play_matches(&self, id: CardId, filter: cards::CardFilter) -> bool {
+        use cards::CardFilter as F;
+        let c = &self.cards[id.index()];
+        filter.matches(c.card)
+            || c.became.0.is_some_and(|label| match filter {
+                F::Type(t) => t == crate::library::CardType::Retainer,
+                F::Labeled(t, l) => t == crate::library::CardType::Retainer && l == label,
+                F::HasLabel(l) => l == label,
+                F::AllyOrRetainer | F::MinionCard => true,
+                _ => false,
+            })
+    }
+
+    /// The card in play `id` is a retainer: printed, or made one (Shell
+    /// Break). Its cards in hand, library or ash heap read the printed type.
+    pub fn is_retainer(&self, id: CardId) -> bool {
+        self.card_in_play_matches(id, cards::CardFilter::Type(CardType::Retainer))
+    }
+
+    /// The copies in play of `card`'s name, anyone's, uncontested.
+    pub fn copies_in_play(&self, card: u16) -> Vec<CardId> {
+        let name = LIBRARY[card as usize].name;
+        (0..self.cards.len())
+            .map(|i| CardId(i as u32))
+            .filter(|&id| {
+                let c = &self.cards[id.index()];
+                c.present() && !c.effect_only && LIBRARY[c.card as usize].name == name
+            })
+            .collect()
+    }
+
+    /// Non-aggravated damage is not inflicted on the retainer `r` (Shell
+    /// Break; LSJ 20010627, advanced rules §4.5.5).
+    pub fn retainer_immune_non_aggravated(&self, r: CardId) -> bool {
+        self.in_play_layers()
+            .any(|l| l.source == r && l.modifier == cards::Modifier::RetainerImmuneNonAggravated)
+    }
+
+    /// `m` is unique: no created or "Non-unique." vampire, no ally card
+    /// lacking the label.
+    pub fn is_unique_minion(&self, m: MinionId) -> bool {
+        let me = &self.minions[m.index()];
+        if let MinionKind::Represented { of, .. } = me.kind {
+            return of.named;
+        }
+        !(matches!(me.kind, MinionKind::Created { born, .. } if !born.unique)
+            || me.vampire().is_some_and(|v| !v.unique)
+            || me
+                .kind
+                .ally_card()
+                .is_some_and(|c| !LIBRARY[c as usize].labels.contains(&Label::Unique)))
+    }
+
+    /// The blood `m` spent to play `card` in definition mode `mode` goes
+    /// onto a card on it keeping such blood (Retain the Quick Blood: the
+    /// played mode's Disciplines, either level, rules-digest D29): the one,
+    /// or the one its controller picks among several, at each payment (the
+    /// interrupt returned; rules-qa 121.127).
+    pub fn keep_spent_blood(
+        &mut self,
+        m: MinionId,
+        card: u16,
+        mode: u8,
+        n: u8,
+    ) -> Option<crate::draws::Interrupt> {
+        if n == 0 {
+            return None;
+        }
+        match self.spent_blood_keepers(m, card, mode)[..] {
+            [] => None,
+            [id] => {
+                self.cards[id.index()].counters += n;
+                None
+            }
+            _ => Some(crate::draws::Interrupt::KeepSpentBlood {
+                seat: self.minions[m.index()].owner,
+                minion: m,
+                card,
+                mode,
+                n,
+            }),
+        }
+    }
+
+    /// The cards on `m` keeping the blood it spends on `card` in mode
+    /// `mode` (`keep_spent_blood`).
+    pub fn spent_blood_keepers(&self, m: MinionId, card: u16, mode: u8) -> Vec<CardId> {
+        let tags = crate::library::LIBRARY[card as usize].modes
+            [cards::library_mode(card, mode as usize)]
+        .tags;
+        self.borne(m)
+            .filter_map(|l| match l.modifier {
+                cards::Modifier::SpentBloodToCard(ds)
+                    if tags
+                        .iter()
+                        .any(|t| ds.iter().any(|d| t.eq_ignore_ascii_case(d))) =>
+                {
+                    Some(l.source)
+                }
+                _ => None,
+            })
+            .collect()
+    }
+
+    /// May `m` bleed this turn: its bleed cap, its player not barred
+    /// (Enticement's "cannot bleed until the end of the turn").
+    pub fn may_bleed_now(&self, m: MinionId) -> bool {
+        let v = &self.minions[m.index()];
+        v.may_bleed() && !self.no_bleed_this_turn.0.contains(&v.owner)
     }
 
     /// `m` cannot bleed `t`, nor have a bleed redirected to them (Minor

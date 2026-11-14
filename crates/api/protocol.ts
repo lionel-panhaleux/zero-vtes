@@ -1,6 +1,6 @@
-/* zvtes protocol 2.29.0 (docs/protocol.md): generated from
+/* zvtes protocol 2.30.0 (docs/protocol.md): generated from
  * crates/api/schema.json by scripts/gen_ts.py, do not edit. */
-export const PROTOCOL_VERSION = '2.29.0'
+export const PROTOCOL_VERSION = '2.30.0'
 
 /**
  * A command as sent: an optional client id, echoed by an `error` it
@@ -1062,6 +1062,7 @@ export type MarkerKind =
     | 'out_of_play'
     | 'contested'
     | 'burn_counters'
+    | 'founder_counters'
     | 'unknown'
 
 export type MinionKind = 'vampire' | 'ally' | 'token' | 'created' | 'imbued' | 'unknown'
@@ -1448,6 +1449,18 @@ export type Purpose =
     | 'guess_number'
     | 'bid'
     | 'named_x'
+    | 'may_burn_blood_to_burn_pool'
+    | 'name_any_ash_minion'
+    | 'represent_picks'
+    | 'burn_copies_pick'
+    | 'replace_from_ash'
+    | 'may_burn_instead_of_unlock'
+    | 'may_burn_weapon'
+    | 'may_set_next_range'
+    | 'block_would_succeed'
+    | 'may_gain_blood'
+    | 'keep_spent_blood'
+    | 'burn_replacement'
     | 'unknown'
 
 export type Range = 'close' | 'long' | 'unknown'
@@ -1644,6 +1657,8 @@ export type StrikeKind =
     | 'card_effect'
     | 'steal_weapon'
     | 'burn_life'
+    | 'steal_equipment'
+    | 'steal_minion'
     | 'unknown'
 
 export type StruckSide = {

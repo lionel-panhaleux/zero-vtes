@@ -260,7 +260,7 @@ const DURING_ONCE_ELSEWHERE: &[(&str, &str)] = &[
     ),
     (
         "ALAN_SOVEREIGN_ADV",
-        "inert: no investment card in the pool, his base card absent",
+        "unmerged, no [MERGED] text: ALAN_SOVEREIGN_MERGED's ability, offered once a phase",
     ),
     (
         "AL_ASHRAD",
@@ -315,11 +315,19 @@ const DURING_ONCE_ELSEWHERE: &[(&str, &str)] = &[
     ),
     ("SHOW_OF_FORCE", "its strength option taken once"),
     (
+        "SHROUDSIGHT",
+        "a one-shot move after resolution: `ActionCtx::ash_to_top` taken",
+    ),
+    (
         "SPECTRAL_SERVITOR",
         "one burn-unless-pool choice each unlock phase",
     ),
     ("TRAP", "automatic presses, no choice"),
     ("UNLEASH_HELLS_FURY", "a status for the action, no choice"),
+    (
+        "FATA_AMRIA",
+        "its burn instead of unlocking asked once as its bearer would unlock in the unlock phase",
+    ),
 ];
 
 /// Whether an ability is once in its span: a `Limit`, phase windows only

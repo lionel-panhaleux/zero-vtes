@@ -393,6 +393,35 @@ impl Held {
     }
 }
 
+/// A count of banked maneuvers or presses on a `Side`.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Bank {
+    Maneuvers,
+    CombatManeuvers,
+    CloseManeuvers,
+    LongManeuvers,
+    ManeuverOrPress,
+    Presses,
+    CombatPresses,
+    ContinuePresses,
+    CombatContinuePresses,
+    EndPresses,
+}
+
+impl Bank {
+    /// Kept by a new round.
+    fn combat_long(self) -> bool {
+        matches!(
+            self,
+            Bank::CombatManeuvers
+                | Bank::LongManeuvers
+                | Bank::ManeuverOrPress
+                | Bank::CombatPresses
+                | Bank::CombatContinuePresses
+        )
+    }
+}
+
 #[derive(Clone, Debug, Default)]
 pub struct Side {
     pub minion: MinionId,
@@ -441,6 +470,12 @@ pub struct Side {
     /// Diablerized instead of going to torpor by this damage, by the
     /// opposing vampire (Amaranth).
     pub diablerized_instead_of_torpor: bool,
+    /// Taken by this Methuselah instead of leaving the ready region by this
+    /// damage (Lorenzo Detuono), an ally at no life with the life given.
+    pub taken_instead: Option<(SeatId, u8)>,
+    /// This side's strike takes the opposing minion if it is still of
+    /// capacity or cost at most n as the damage is done (Pentweret).
+    pub steals_opponent: Option<u8>,
     /// Wounded, its torpor waiting for the combat's end (Undead
     /// Persistence [for]); not in a new combat (LSJ 20030214).
     pub persisting: bool,
@@ -476,8 +511,9 @@ pub struct Side {
     /// after combat, at close range and not dodged.
     pub after_stun_rider: bool,
     /// Serpent's Numbing Kiss [PRE][SER]: its strike puts the card on the
-    /// opposing minion after combat, at close range and not dodged.
-    pub after_put_rider: Option<(Held, u8, bool)>,
+    /// opposing minion after combat, not dodged: (card, blood, lock, at
+    /// close range only, only one on a minion).
+    pub after_put_rider: Option<(Held, u8, bool, bool, bool)>,
     /// Chave de Braço [POT]: its card, put on the opposing minion as the
     /// round ends if the range is close and this side inflicted more.
     pub round_end_put: Option<Held>,
@@ -708,6 +744,9 @@ pub struct Side {
     /// This round, the opposing minion's strikes deal this side no damage
     /// (Rolling with the Punches [FOR]).
     pub strikes_prevented: bool,
+    /// Damage prevented from the opposing minion's next hand or melee
+    /// weapon strike this round (Nightstick).
+    pub guard: u8,
     /// Sent to torpor (or burned, an ally) by the opposing strike as the
     /// damage applies (Touch of Oblivion [OBL]).
     pub sent_to_torpor: bool,
@@ -904,9 +943,111 @@ pub struct Side {
     pub also_dodges: bool,
     /// No additional strike for it this round (Stutter-Step [CEL]).
     pub no_additional_round: bool,
+    /// `held` goes on only a minion with none of its name (Scorpion's
+    /// Touch; rules-qa 99.2).
+    pub held_only_one: bool,
+    /// This round's melee weapon riders on its strikes: (weapon, +n,
+    /// aggravated, hardened) (Baal's Bloody Talons, Strike at the True
+    /// Flesh).
+    pub weapon_round: Vec<(CardId, u8, bool, bool)>,
+    /// Of `pending.normal`, the damage only equipment or strikes may
+    /// prevent (Strike at the True Flesh).
+    pub hardened: u8,
+    /// Its strike's riders on damage successfully inflicted (Cobra Fangs):
+    /// the opposing ally burned later; the card whose stand-in sends the
+    /// opposing vampire to torpor at its unlock.
+    pub burn_ally_later: bool,
+    pub torpor_at_unlock: Option<Held>,
+    /// Opposing strikes at it have no effect on it, nor on its
+    /// non-retainer cards, and retainers' damage none, this round (Eyes of
+    /// Blades [AUS][CEL]).
+    pub untouchable_round: bool,
+    /// Opposing strikes at it have no effect on it on a tails, a heads
+    /// ending it, this combat (Gemini's Mirror [OBF]).
+    pub mirror: bool,
+    /// Damage from the opposing retainers on it this round, and what it may
+    /// prevent of it (Eyes of Blades [aus][cel]).
+    pub from_retainers: u8,
+    pub retainer_prevents: u8,
+    /// Damage of the opposing minion's next hand strike this round it
+    /// prevents (Forearm Block).
+    pub hand_shield: u8,
+    /// Its initial strike next round has first strike (Forearm Block).
+    pub first_strike_next_round: bool,
+    /// The chosen strike's aim clauses, applied as its damage is
+    /// successfully inflicted (Target Hand, Head, Leg).
+    pub aim_hits: Vec<cards::AimHit>,
+    /// The opposing minion's weapons inflict no damage on it this combat
+    /// (Mayaparisatya [chi]).
+    pub weapon_proof: bool,
+    /// The chosen strike inflicts at most this much (Quick Jab).
+    pub strike_cap: Option<u8>,
+    /// Of `struck_round`, the aggravated damage (Revelation of Wrath).
+    pub struck_round_aggravated: u8,
+    /// Sympathetic Agony this combat: `Some(additional strikes barred too)`.
+    pub agony: Option<bool>,
+    /// It cannot play cards requiring these Disciplines this combat
+    /// (Pseudo-Blindness [CHI]).
+    pub barred_disciplines: &'static [&'static str],
+    /// The tags of the card each banked maneuver or press came from, a card
+    /// requiring none unlisted: usable under Target Leg (rules-qa 121.161).
+    /// `bank` and `spend` keep each bank's entries within its count.
+    pub banked_from: Vec<(Bank, &'static [&'static str])>,
 }
 
 impl Side {
+    fn count(&mut self, b: Bank) -> &mut u8 {
+        match b {
+            Bank::Maneuvers => &mut self.maneuvers,
+            Bank::CombatManeuvers => &mut self.combat_maneuvers,
+            Bank::CloseManeuvers => &mut self.close_maneuvers,
+            Bank::LongManeuvers => &mut self.long_maneuvers,
+            Bank::ManeuverOrPress => &mut self.maneuver_or_press,
+            Bank::Presses => &mut self.presses,
+            Bank::CombatPresses => &mut self.combat_presses,
+            Bank::ContinuePresses => &mut self.continue_presses,
+            Bank::CombatContinuePresses => &mut self.combat_continue_presses,
+            Bank::EndPresses => &mut self.end_presses,
+        }
+    }
+
+    /// One more in bank `b`, from a card requiring `tags`.
+    pub(crate) fn bank(&mut self, b: Bank, tags: &'static [&'static str]) {
+        *self.count(b) += 1;
+        if !tags.is_empty() {
+            self.banked_from.push((b, tags));
+        }
+    }
+
+    /// One of bank `b` spent: hobbled to `only`, one banked from a card
+    /// requiring one of them; else one from no card first.
+    fn spend(&mut self, b: Bank, only: Option<&'static [&'static str]>) {
+        *self.count(b) -= 1;
+        let left = *self.count(b) as usize;
+        let at = match only {
+            Some(only) => self
+                .banked_from
+                .iter()
+                .position(|&(x, t)| x == b && requires_any(t, only)),
+            None => (self.banked_from.iter().filter(|e| e.0 == b).count() > left)
+                .then(|| self.banked_from.iter().rposition(|e| e.0 == b))
+                .flatten(),
+        };
+        if let Some(at) = at {
+            self.banked_from.remove(at);
+        }
+    }
+
+    /// The first of `banks` holding one banked from a card requiring one
+    /// of `only`.
+    fn spared(&self, banks: &[Bank], only: &'static [&'static str]) -> Option<Bank> {
+        banks.iter().copied().find(|&b| {
+            self.banked_from
+                .iter()
+                .any(|&(x, t)| x == b && requires_any(t, only))
+        })
+    }
+
     /// No additional strike for this side: Blight's, this round's
     /// (Stutter-Step [CEL]), or a card on it (Decompose), read live.
     pub(crate) fn no_additional(&self, st: &GameState) -> bool {
@@ -1009,6 +1150,9 @@ impl Side {
         // Dam the Heart's River: a damaging strike only (RTR 19960221).
         let n = if n > 0 { n + self.more_damage_taken } else { 0 };
         self.struck_round = self.struck_round.saturating_add(n);
+        if aggravated {
+            self.struck_round_aggravated = self.struck_round_aggravated.saturating_add(n);
+        }
         if self.strikes_prevented {
             return;
         }
@@ -1028,6 +1172,16 @@ impl Side {
         // Rockheart [VIS]: half of each later strike, rounded up.
         if self.halve_strikes {
             self.prevent_strike(n.div_ceil(2), true);
+        }
+    }
+
+    /// A hand or melee weapon strike of `n` landed: the guard, if any,
+    /// prevents what it can and is spent, its surplus lost (ANK
+    /// 20200318); a strike dealing none leaves it waiting.
+    fn guard_hit(&mut self, n: u8) {
+        if n > 0 && self.guard > 0 {
+            let g = std::mem::take(&mut self.guard);
+            self.prevent_strike(g, true);
         }
     }
 
@@ -1078,6 +1232,7 @@ impl Side {
         self.bars_strikes_on_hit = false;
         self.dodged_rider = 0;
         self.also_dodges = false;
+        self.strike_cap = None;
     }
 
     fn new_round(&mut self) {
@@ -1162,6 +1317,17 @@ impl Side {
             after_stun_rider: false,
             after_burn_rider: None,
             maneuvers,
+            mirror: self.mirror,
+            weapon_proof: self.weapon_proof,
+            agony: self.agony,
+            barred_disciplines: self.barred_disciplines,
+            initial_first_strike: self.first_strike_next_round,
+            banked_from: self
+                .banked_from
+                .iter()
+                .copied()
+                .filter(|e| e.0.combat_long())
+                .collect(),
             ..Self::new(self.minion, self.seat)
         };
     }
@@ -1171,6 +1337,19 @@ impl Side {
     pub fn strength(&self, base: u8) -> u8 {
         self.strength_set.unwrap_or(base)
     }
+}
+
+/// What a strike's damage successfully inflicted on side `i` owes, settled
+/// as the damage lands (`Engine::settle_hit_due`).
+#[derive(Clone, Copy, Debug)]
+enum HitDue {
+    /// An aim's clause (Target Hand, Head, Leg).
+    Aim(cards::AimHit),
+    /// The struck ally burns later (Cobra Fangs).
+    BurnLater,
+    /// The struck vampire's torpor at its unlock, the card's stand-in on
+    /// it (Cobra Fangs [SER]).
+    TorporAtUnlock(Held),
 }
 
 /// A strike effect landed (`CombatCtx::landed`).
@@ -1210,6 +1389,9 @@ pub struct CombatCtx {
     /// Minions burned in this combat: (the minion burning them, their
     /// controller) — Predator's Transformation [ABO].
     pub burned_minions: Vec<(MinionId, SeatId)>,
+    /// The titles of the vampires burned in this combat, by the minion
+    /// burning them, read as they burned (Monty Coven).
+    pub burned_titles: Vec<(MinionId, crate::crypt::Title)>,
     /// Each combatant's blood as last seen (Anathema: "reduced to 0 in
     /// combat" — a loss, not entering at 0; `Engine::settle_anathema`).
     pub anathema_seen: [u8; 2],
@@ -1224,7 +1406,6 @@ pub struct CombatCtx {
     pub fbi_damage: u8,
     /// The card inflicting it.
     pub fbi_card: Option<CardId>,
-    pub next_round_close: bool,
     /// Every round at close, the step skipped (Storm Sewers).
     pub close_each_round: bool,
     pub only_hand_strikes: bool,
@@ -1355,7 +1536,7 @@ pub struct CombatCtx {
     /// Serpent's Numbing Kiss [PRE][SER], Morphean Blow [val]: the cards put
     /// on these minions after combat ends, their strikers burning that
     /// blood, the minion locked if set.
-    pub after_combat_put: Vec<(Held, MinionId, u8, bool)>,
+    pub after_combat_put: Vec<(Held, MinionId, u8, bool, bool)>,
     /// Oubliette [OBT]: blood or life burned after combat ends, not damage
     /// (LSJ 20080226).
     pub after_combat_burn: Vec<(MinionId, u8, MinionId)>,
@@ -1428,6 +1609,15 @@ pub struct CombatCtx {
     /// Darkness Within beside a steal strike: whether the drain goes first,
     /// as the acting Methuselah ordered it for this resolution.
     pub drain_first: Option<bool>,
+    /// Weapons burned as this round ends, if still in play (Baal's Bloody
+    /// Talons; LSJ 20100211-2).
+    pub burn_at_round_end: Vec<CardId>,
+    /// The next round's range, set by the first effect setting it (Target
+    /// Head; PIB 20120214).
+    pub next_round_range: Option<Range>,
+    /// Allies whose burn waits for the combat's end, no action under way
+    /// (Cobra Fangs).
+    pub burn_allies_at_end: Vec<MinionId>,
 }
 
 /// A combat window's order: the acting Methuselah, the defending one,
@@ -1443,7 +1633,58 @@ fn poll(sides: &[Side; 2], ring: &[SeatId]) -> Vec<SeatId> {
     order
 }
 
+/// The tags of the card mode `play` played.
+pub(crate) fn played_tags(play: &PlayCtx) -> &'static [&'static str] {
+    match play.card {
+        u16::MAX => &[],
+        card => LIBRARY[card as usize]
+            .modes
+            .get(cards::library_mode(card, play.mode as usize))
+            .map_or(&[], |m| m.tags),
+    }
+}
+
+/// A card requiring `tags` requires one of `only` (Target Leg).
+pub(crate) fn requires_any(tags: &[&str], only: &[&str]) -> bool {
+    tags.iter()
+        .any(|t| only.iter().any(|o| o.eq_ignore_ascii_case(t)))
+}
+
 impl CombatCtx {
+    /// Side `i` hobbled to `only` (Target Leg): the bank its next maneuver
+    /// (or press) comes from, one banked from a card requiring one of
+    /// them, in the order they are spent (rules-qa 121.161).
+    fn spared_bank(&self, i: usize, maneuver: bool, only: &'static [&'static str]) -> Option<Bank> {
+        let banks: &[Bank] = match (maneuver, self.range, self.press_continue) {
+            (true, Range::Long, _) => &[
+                Bank::CloseManeuvers,
+                Bank::Maneuvers,
+                Bank::CombatManeuvers,
+                Bank::ManeuverOrPress,
+            ],
+            (true, Range::Close, _) => &[
+                Bank::LongManeuvers,
+                Bank::Maneuvers,
+                Bank::CombatManeuvers,
+                Bank::ManeuverOrPress,
+            ],
+            (false, _, true) => &[
+                Bank::EndPresses,
+                Bank::Presses,
+                Bank::CombatPresses,
+                Bank::ManeuverOrPress,
+            ],
+            (false, _, false) => &[
+                Bank::ContinuePresses,
+                Bank::CombatContinuePresses,
+                Bank::Presses,
+                Bank::CombatPresses,
+                Bank::ManeuverOrPress,
+            ],
+        };
+        self.sides[i].spared(banks, only)
+    }
+
     /// "The acting vampire" of this combat for the action `a`: the one
     /// considered acting (side 0: Deep Song's target, Nar-Sheptha's
     /// opponent) in a combat of its acting minion, else that minion
@@ -1825,8 +2066,26 @@ impl CombatCtx {
             .filter(|(d, _)| tags.iter().any(|t| t.eq_ignore_ascii_case(d)))
             .map(|&(_, n)| n)
             .sum::<u8>();
+        // Baal's Bloody Talons, Strike at the True Flesh: this weapon's
+        // strikes this round, none added to a strike dealing none (RTR
+        // 19960221).
+        if let Some(w) = s.strike_source {
+            for &(x, n, aggravated, _) in &s.weapon_round {
+                if x == w {
+                    if hit.n > 0 {
+                        hit.n += n;
+                    }
+                    hit.aggravated |= aggravated;
+                }
+            }
+        }
         // Remnant of the Endless Storm: the excess ignored.
         if let Some(cap) = st.damage_cap(self.sides[1 - i].minion) {
+            hit.n = hit.n.min(cap);
+        }
+        // Quick Jab: "if more than 1 damage is inflicted with this strike,
+        // ignore the excess" (LSJ 20071117).
+        if let Some(cap) = s.strike_cap {
             hit.n = hit.n.min(cap);
         }
         // Autonomic Mastery [DOM]: reduced to zero, every bonus included.
@@ -1906,7 +2165,9 @@ impl CombatCtx {
         let strength = self.strength_now(st, action, i);
         let mut h = self.strike_hit(st, action, i, k, strength)?;
         let s = &self.sides[i];
-        if (s.weapons_harmless || st.weapon_damage_immune(self.sides[1 - i].minion))
+        if (s.weapons_harmless
+            || st.weapon_damage_immune(self.sides[1 - i].minion)
+            || self.sides[1 - i].weapon_proof)
             && s.strike_source
                 .is_some_and(|w| cards::is_weapon(st.cards[w.index()].card))
         {
@@ -2288,6 +2549,7 @@ pub(crate) fn going_to_torpor(st: &crate::state::GameState, c: &CombatCtx, i: us
         || s.persisting
         || s.burn_instead_of_torpor
         || s.diablerized_instead_of_torpor
+        || s.taken_instead.is_some()
         || c.diablerie.is_some_and(|(_, v)| v == s.minion)
     {
         return false;
@@ -2449,6 +2711,20 @@ impl Engine {
                 }
             }
         }
+        // The cards on a combatant: Blithe Acceptance, Fantasy World; each
+        // new combat again (ANK 20230527).
+        for m in [acting, opposing] {
+            let on = |c: &crate::state::CardInPlay| c.host == Some(m);
+            let fired = self.fired_riders(
+                crate::cards::Hook::HostEntersCombat,
+                &crate::plays::HookAt::on(&on),
+            );
+            for (id, r) in fired {
+                for &e in r.effects {
+                    self.apply_rider_effect(id, e, crate::cards::Hook::HostEntersCombat);
+                }
+            }
+        }
         let st = &self.state;
         let mut sides = [
             Side::new(first, st.minions[first.index()].owner),
@@ -2512,6 +2788,14 @@ impl Engine {
                     s.pre_range_environmental = std::mem::take(&mut a.blocked_env_before_range);
                 }
             }
+            // Divine Image: each combat of its action.
+            s.combat_prevents += self.action.as_ref().map_or(0, |a| {
+                a.combat_prevents
+                    .iter()
+                    .filter(|&&(m, _)| m == s.minion)
+                    .map(|&(_, n)| n)
+                    .sum()
+            });
             // Barred from combat ends for the action (Mind of the Wilds).
             s.no_combat_ends_combat = self
                 .action
@@ -2830,6 +3114,14 @@ impl Engine {
         (!options.is_empty()).then_some((seat, options))
     }
 
+    /// Side `i` not hobbled (Target Leg), or holding a maneuver (or press)
+    /// banked from a card requiring what it is left.
+    fn hobble_spares(&self, c: &CombatCtx, i: usize, maneuver: bool) -> bool {
+        self.state
+            .hobbled(c.sides[i].minion)
+            .is_none_or(|only| c.spared_bank(i, maneuver, only).is_some())
+    }
+
     /// Hanna Redmonds' first-round maneuver or press, its "older vampire"
     /// read live (the counter only spends it).
     fn round_maneuver_or_press(&self, c: &CombatCtx, i: usize) -> u8 {
@@ -3063,8 +3355,13 @@ impl Engine {
                 let mut options = vec![Choice::Pass];
                 // The round's allowance covers this minion only, not its
                 // retainers.
-                if (side.round_prevents > 0 || side.combat_prevents > 0) && side.pending.total() > 0
-                    || side.round_normal_prevents > 0 && side.pending.normal > 0
+                let free = c.preventable(i);
+                let free_normal = side.pending.normal - side.hardened.min(side.pending.normal);
+                if (side.round_prevents > 0 || side.combat_prevents > 0) && free > 0
+                    || side.round_normal_prevents > 0 && free_normal > 0
+                    || side.retainer_prevents > 0
+                        && side.from_retainers > 0
+                        && side.pending.normal > side.strike_damage.normal
                 {
                     options.push(Choice::UsePrevent);
                 }
@@ -3156,6 +3453,7 @@ impl Engine {
                                     >= c.sides[i].maneuver_blood))
                             && c.last_maneuver != Some(i)
                             && c.may_maneuver(&self.state, i)
+                            && self.hobble_spares(c, i, true)
                             // "Cannot maneuver to long range" (Pedro Cortez).
                             && !(c.range == Range::Close
                                 && self.state.printed_mod(
@@ -3176,6 +3474,7 @@ impl Engine {
                     (Step::Press, Some(i))
                         if c.last_press != Some(i)
                             && c.may_press(i)
+                            && self.hobble_spares(c, i, false)
                             && !c.end_press_barred(&self.state, i)
                             && (c.sides[i].presses > 0
                                 || c.sides[i].combat_presses > 0
@@ -3337,15 +3636,31 @@ impl Engine {
                 c.sides[i].torpor_offered = true;
                 Some(c.sides[i].seat)
             }
-            // The narrower allowance first (Mythic Form: non-aggravated only).
+            // The narrowest allowance first: a retainer's damage only (Eyes
+            // of Blades [aus][cel]), non-aggravated only (Mythic Form).
             (Step::Prevent(i), Choice::UsePrevent)
-                if c.sides[i].round_normal_prevents > 0 && c.sides[i].pending.normal > 0 =>
+                if c.sides[i].retainer_prevents > 0
+                    && c.sides[i].from_retainers > 0
+                    && c.sides[i].pending.normal > c.sides[i].strike_damage.normal =>
+            {
+                let s = &mut c.sides[i];
+                s.retainer_prevents -= 1;
+                s.from_retainers -= 1;
+                s.pending.normal -= 1;
+                s.pending.gun = s.pending.gun.min(s.pending.normal);
+                None
+            }
+            (Step::Prevent(i), Choice::UsePrevent)
+                if c.sides[i].round_normal_prevents > 0
+                    && c.sides[i].pending.normal > c.sides[i].hardened =>
             {
                 c.sides[i].round_normal_prevents -= 1;
+                let shelved = c.shelve_hardened();
                 let before = c.sides[i].pending;
                 c.sides[i].pending.prevent(1, false);
                 let by = c.sides[i].seat;
                 c.settle_source(i, before, false, by, Some(i));
+                c.unshelve_hardened(shelved);
                 None
             }
             (Step::Prevent(i), Choice::UsePrevent) => {
@@ -3354,7 +3669,9 @@ impl Engine {
                 } else {
                     c.sides[i].combat_prevents -= 1;
                 }
+                let shelved = c.shelve_hardened();
                 c.prevent(i, 1);
+                c.unshelve_hardened(shelved);
                 None
             }
             (Step::Allocate { side, n, by, back }, Choice::SetX(k)) => {
@@ -3411,10 +3728,14 @@ impl Engine {
                     .expect("side");
                 // One only usable to close first, then this round's banked
                 // maneuver, then the combat-long one.
-                if c.range == Range::Long && c.sides[i].close_maneuvers > 0 {
-                    c.sides[i].close_maneuvers -= 1;
+                let only = self.state.hobbled(c.sides[i].minion);
+                if let Some(only) = only {
+                    let b = c.spared_bank(i, true, only).expect("offered hobbled");
+                    c.sides[i].spend(b, Some(only));
+                } else if c.range == Range::Long && c.sides[i].close_maneuvers > 0 {
+                    c.sides[i].spend(Bank::CloseManeuvers, None);
                 } else if c.range == Range::Close && c.sides[i].long_maneuvers > 0 {
-                    c.sides[i].long_maneuvers -= 1;
+                    c.sides[i].spend(Bank::LongManeuvers, None);
                 } else if c.sides[i].maneuvers == 0
                     && c.sides[i].combat_maneuvers == 0
                     && c.range == Range::Long
@@ -3424,13 +3745,13 @@ impl Engine {
                     let n = std::mem::take(&mut c.sides[i].close_maneuver_blood);
                     maneuver_paid = Some((c.sides[i].minion, n));
                 } else if c.sides[i].maneuvers > 0 {
-                    c.sides[i].maneuvers -= 1;
+                    c.sides[i].spend(Bank::Maneuvers, None);
                 } else if c.sides[i].combat_maneuvers > 0 {
-                    c.sides[i].combat_maneuvers -= 1;
+                    c.sides[i].spend(Bank::CombatManeuvers, None);
                 } else if c.sides[i].round_maneuver_or_press > 0 {
                     c.sides[i].round_maneuver_or_press -= 1;
                 } else if c.sides[i].maneuver_or_press > 0 {
-                    c.sides[i].maneuver_or_press -= 1;
+                    c.sides[i].spend(Bank::ManeuverOrPress, None);
                 } else {
                     // Quick Meld [PRO]: its blood as it is used.
                     let n = std::mem::take(&mut c.sides[i].maneuver_blood);
@@ -3446,24 +3767,28 @@ impl Engine {
                     .expect("side");
                 // A press only usable to continue goes first when
                 // continuing, the mandatory one before the optional.
-                if !c.press_continue && c.first_round_press(i) > 0 {
+                let only = self.state.hobbled(c.sides[i].minion);
+                if let Some(only) = only {
+                    let b = c.spared_bank(i, false, only).expect("offered hobbled");
+                    c.sides[i].spend(b, Some(only));
+                } else if !c.press_continue && c.first_round_press(i) > 0 {
                     c.sides[i].first_round_press -= 1;
                 } else if !c.press_continue && c.sides[i].mandatory_press > 0 {
                     c.sides[i].mandatory_press -= 1;
                 } else if !c.press_continue && c.sides[i].continue_presses > 0 {
-                    c.sides[i].continue_presses -= 1;
+                    c.sides[i].spend(Bank::ContinuePresses, None);
                 } else if !c.press_continue && c.sides[i].combat_continue_presses > 0 {
-                    c.sides[i].combat_continue_presses -= 1;
+                    c.sides[i].spend(Bank::CombatContinuePresses, None);
                 } else if c.press_continue && c.sides[i].end_presses > 0 {
-                    c.sides[i].end_presses -= 1;
+                    c.sides[i].spend(Bank::EndPresses, None);
                 } else if c.sides[i].presses > 0 {
-                    c.sides[i].presses -= 1;
+                    c.sides[i].spend(Bank::Presses, None);
                 } else if c.sides[i].combat_presses > 0 {
-                    c.sides[i].combat_presses -= 1;
+                    c.sides[i].spend(Bank::CombatPresses, None);
                 } else if c.sides[i].round_maneuver_or_press > 0 {
                     c.sides[i].round_maneuver_or_press -= 1;
                 } else if c.sides[i].maneuver_or_press > 0 {
-                    c.sides[i].maneuver_or_press -= 1;
+                    c.sides[i].spend(Bank::ManeuverOrPress, None);
                 } else {
                     // Lead Fist [vis]: its blood as it is used.
                     let n = std::mem::take(&mut c.sides[i].continue_press_blood);
@@ -3733,6 +4058,14 @@ impl Engine {
             // No new round once a combatant left the ready region (Disarm
             // after Telepathic Tracking): the combat ends.
             Step::EndOfRound => {
+                // Baal's Bloody Talons: burned as the round ends, unless
+                // out of play by then (LSJ 20100211-2).
+                for w in std::mem::take(&mut c.burn_at_round_end) {
+                    if self.state.cards[w.index()].present() {
+                        self.burn_card_in_play(w);
+                    }
+                }
+                let c = self.combat.as_mut().expect("combat context");
                 // Chave de Braço: as the round ends, its damage counted.
                 let close = c.range == Range::Close;
                 let puts: Vec<(Held, MinionId)> = (0..2)
@@ -3885,8 +4218,11 @@ impl Engine {
         for i in 0..2 {
             let c = self.combat.as_ref().expect("combat context");
             // Either player, the acting one first (advanced rules 5.3.1).
+            // Lorenzo Detuono: an ally burned, a vampire burned, too.
             if c.sides[i].torpor_offered
-                || !(going_to_torpor(&self.state, c, 1 - i) || going_to_torpor(&self.state, c, i))
+                || !(going_to_torpor(&self.state, c, 1 - i)
+                    || going_to_torpor(&self.state, c, i)
+                    || going_down(&self.state, c, 1 - i))
             {
                 continue;
             }
@@ -4188,9 +4524,9 @@ impl Engine {
         }
     }
 
-    /// Fast Hands: the weapon moves to the striker, if it can hold it (a
-    /// steal, not an equip: no requirement or cost).
-    fn steal_weapon(&mut self, w: CardId, to: MinionId) {
+    /// Fast Hands, Durga Syn: the equipment moves to the striker, if it can
+    /// hold it (a steal, not an equip: no requirement or cost).
+    fn steal_equipment(&mut self, w: CardId, to: MinionId) {
         let card = self.state.cards[w.index()].card;
         if self.state.minions[to.index()].present() && self.state.can_hold(to, card, &[]) {
             self.state.set_host(w, to);
@@ -4304,16 +4640,19 @@ impl Engine {
         self.aggravate_vampires();
         let st = &mut self.state;
         let mut lifeless = Vec::new();
-        for (i, card) in st.cards.iter_mut().enumerate() {
+        for i in 0..st.cards.len() {
+            let id = CardId(i as u32);
+            let card = &st.cards[i];
+            // Shell Break's retainer: immune to this non-aggravated damage.
             if card.present()
                 && card.host.is_some_and(|h| minions.contains(&h))
-                && LIBRARY[card.card as usize]
-                    .types
-                    .contains(&crate::library::CardType::Retainer)
+                && st.is_retainer(id)
+                && !st.retainer_immune_non_aggravated(id)
             {
+                let card = &mut st.cards[i];
                 card.counters = card.counters.saturating_sub(n);
                 if card.counters == 0 {
-                    lifeless.push(CardId(i as u32));
+                    lifeless.push(id);
                 }
             }
         }
@@ -4529,12 +4868,32 @@ impl Engine {
                 .strike_source
                 .is_some_and(|w| c.immune_to(1 - i, self.state.cards[w.index()].card))
         });
+        // Eyes of Blades [AUS][CEL], Gemini's Mirror [OBF] on a tails: a
+        // combat ends strike at the vampire has no effect on it, the combat
+        // going on (rules-qa 113.120's reading).
+        let mut void_ends = [false; 2];
+        for i in 0..2 {
+            if !matches!(strikes[i], Some(StrikeKind::CombatEnds { .. })) {
+                continue;
+            }
+            let j = 1 - i;
+            if c.sides[j].untouchable_round {
+                void_ends[i] = true;
+            } else if c.sides[j].mirror {
+                if self.rng.below(2) == 0 {
+                    void_ends[i] = true;
+                } else {
+                    c.sides[j].mirror = false;
+                }
+            }
+        }
         let barred: [bool; 2] = std::array::from_fn(|i| {
             self.state
                 .combat_ends_barred(c.sides[i].minion, c.sides[1 - i].minion)
                 || c.sides[i].no_combat_ends_round == Some(c.round)
                 || c.sides[i].no_combat_ends_combat
                 || immune[i]
+                || void_ends[i]
         });
         // A Flash Grenade with no effect on the opposing vampire still
         // stuns its bearer at close range and burns (owner, 2026-11-10).
@@ -4630,10 +4989,12 @@ impl Engine {
                 {
                     c.after_combat_stun.push(c.sides[1 - i].minion);
                 }
-                if let Some((h, blood, lock)) = c.sides[i].after_put_rider.take() {
-                    if c.range == Range::Close && !evades[1 - i] {
+                if let Some((h, blood, lock, close_only, only_one)) =
+                    c.sides[i].after_put_rider.take()
+                {
+                    if (c.range == Range::Close || !close_only) && !evades[1 - i] {
                         c.after_combat_put
-                            .push((h, c.sides[1 - i].minion, blood, lock));
+                            .push((h, c.sides[1 - i].minion, blood, lock, only_one));
                     }
                 }
                 // Oubliette [OBT]: even at long range, not dodged (LSJ
@@ -4741,7 +5102,7 @@ impl Engine {
                 Some(
                     StrikeKind::BurnEquipment
                         | StrikeKind::RangedBurnEquipment
-                        | StrikeKind::StealWeapon
+                        | StrikeKind::StealEquipment
                 )
             )
         };
@@ -4752,12 +5113,14 @@ impl Engine {
             .collect::<Vec<_>>()[..]
         {
             let ranged = strikes[i] == Some(StrikeKind::RangedBurnEquipment);
-            let steal = strikes[i] == Some(StrikeKind::StealWeapon);
+            let steal = strikes[i] == Some(StrikeKind::StealEquipment);
             let j = 1 - i;
+            // Eyes of Blades [AUS][CEL]: its cards untouched too.
             let dodged = evades[j]
                 && !self.state.undodgeable(c.sides[i].minion)
                 && !c.sides[i].undodgeable_strike
-                && !c.sides[i].undodgeable_round;
+                && !c.sides[i].undodgeable_round
+                || c.sides[j].untouchable_round;
             let burned = c.sides[i].strike_weapon.filter(|w| {
                 let wc = &self.state.cards[w.index()];
                 !dodged
@@ -4769,7 +5132,7 @@ impl Engine {
             if let Some(w) = burned {
                 let striker = self.combat.as_ref().expect("combat context").sides[i].minion;
                 if steal {
-                    self.steal_weapon(w, striker);
+                    self.steal_equipment(w, striker);
                 } else {
                     self.burn_card_in_play(w);
                     // Aye: the striker burned an equipment (rules-qa 109.6).
@@ -4872,14 +5235,17 @@ impl Engine {
                         }
                     }
                 }
-                // Carolina Vález: immune to retainers' damage.
+                // Carolina Vález: immune to retainers' damage; Eyes of Blades
+                // [AUS][CEL]: none has an effect.
                 let target = c.sides[1 - i].minion;
                 let immune =
-                    st.printed_mod(target, cards::Stat::NoRetainerDamage, Default::default()) > 0;
+                    st.printed_mod(target, cards::Stat::NoRetainerDamage, Default::default()) > 0
+                        || c.sides[1 - i].untouchable_round;
                 if immune {
                     n = 0;
                 }
-                let weapon_immune = immune || st.weapon_damage_immune(target);
+                let weapon_immune =
+                    immune || st.weapon_damage_immune(target) || c.sides[1 - i].weapon_proof;
                 for (_, w, strength) in uses {
                     retainer_weapon_use(st, c, i, w, strength, weapon_immune, &mut retainer_spent);
                 }
@@ -4902,6 +5268,7 @@ impl Engine {
                     n += c.sides[1 - i].more_damage_taken;
                 }
                 c.sides[1 - i].pending.add(n, false);
+                c.sides[1 - i].from_retainers += n;
                 // Environmental damage (Carrion Crows): dodge or not.
                 let mut n = c.sides[i].environmental;
                 if c.range == Range::Close {
@@ -4988,11 +5355,42 @@ impl Engine {
                 && !c.sides[i].undodgeable_strike
                 && !c.sides[i].undodgeable_round
         });
+        // A strike at the vampire with no effect on it: Eyes of Blades
+        // [AUS][CEL] (its cards too), Gemini's Mirror [OBF] on a tails, a
+        // coin each strike, heads ending it (its cards not: LSJ 20031118).
+        // Not a dodge: an undodgeable strike too.
+        let mut void = [false; 2];
+        for i in 0..2 {
+            let j = 1 - i;
+            let Some(k) = strikes[i] else { continue };
+            if matches!(k, StrikeKind::Dodge | StrikeKind::CombatEnds { .. })
+                || c.sides[i].strike_at.is_some()
+            {
+                continue;
+            }
+            let on_cards = matches!(
+                k,
+                StrikeKind::BurnEquipment
+                    | StrikeKind::RangedBurnEquipment
+                    | StrikeKind::StealEquipment
+                    | StrikeKind::BurnWeapon
+            );
+            if c.sides[j].untouchable_round {
+                void[i] = true;
+            } else if c.sides[j].mirror && !on_cards {
+                if self.rng.below(2) == 0 {
+                    void[i] = true;
+                } else {
+                    c.sides[j].mirror = false;
+                }
+            }
+        }
         // Does the strike land — in range, not dodged, not aimed at a
         // retainer?
         let lands: [bool; 2] = std::array::from_fn(|i| {
             c.sides[i].strike_at.is_none()
                 && !dodged[i]
+                && !void[i]
                 && match strikes[i] {
                     Some(StrikeKind::Hand { .. } | StrikeKind::Melee { .. }) => close,
                     Some(
@@ -5003,7 +5401,10 @@ impl Engine {
                     // A strike works at close range unless it says ranged
                     // (owner, 2026-09-26: rules-qa 21.1).
                     Some(
-                        StrikeKind::TorporOrBurn | StrikeKind::Torpor { .. } | StrikeKind::Corrupt,
+                        StrikeKind::TorporOrBurn
+                        | StrikeKind::Torpor { .. }
+                        | StrikeKind::Corrupt
+                        | StrikeKind::StealOpponent { .. },
                     ) => close,
                     Some(
                         StrikeKind::BurnWeapon
@@ -5013,7 +5414,7 @@ impl Engine {
                         | StrikeKind::Area { .. }
                         | StrikeKind::CapacityGap { .. },
                     ) => true,
-                    Some(StrikeKind::BurnEquipment | StrikeKind::StealWeapon) => close,
+                    Some(StrikeKind::BurnEquipment | StrikeKind::StealEquipment) => close,
                     Some(StrikeKind::Dodge | StrikeKind::CombatEnds { .. }) | None => false,
                 }
         });
@@ -5094,8 +5495,12 @@ impl Engine {
         let mut placed: Vec<(Held, MinionId)> = Vec::new();
         for (i, &landed) in lands.iter().enumerate() {
             if let Some(h) = c.sides[i].held.take() {
-                if landed {
-                    placed.push((h, c.sides[1 - i].minion));
+                let foe = c.sides[1 - i].minion;
+                // "A minion can have only one" (Scorpion's Touch): still
+                // played, not put on (rules-qa 99.2).
+                let one = std::mem::take(&mut c.sides[i].held_only_one);
+                if landed && !(one && st.holds_its_name(foe, h.card)) {
+                    placed.push((h, foe));
                 }
             }
             // Dodged, the strike never resolved: not placed (advanced
@@ -5164,7 +5569,7 @@ impl Engine {
         // Strikers whose strike burned an equipment (Aye, rules-qa 109.6).
         let mut equipment_burners: Vec<MinionId> = Vec::new();
         // Fast Hands: (weapon, striker) to move as the strikes land.
-        let mut steal_weapons: Vec<(CardId, MinionId)> = Vec::new();
+        let mut stolen_equipment: Vec<(CardId, MinionId)> = Vec::new();
         // Dagger: (struck side, weapon) watched for prevention.
         let mut dagger_watch: Vec<(usize, CardId)> = Vec::new();
         // Weapons losing counters per damage inflicted (Weighted Walking
@@ -5220,14 +5625,33 @@ impl Engine {
                     c.sides[i].additional_with = Some(w);
                 }
             }
-            let dodged = dodged[i];
+            let dodged = dodged[i] || void[i];
+            // Mayaparisatya [chi]: the opposing weapons inflict no damage
+            // on it, none inflicted (not an immunity).
+            let harmless_i = harmless[i]
+                || c.sides[j].weapon_proof
+                    && c.sides[i]
+                        .strike_source
+                        .is_some_and(|w| cards::is_weapon(st.cards[w.index()].card));
+            // Strike at the True Flesh: the normal damage this weapon's
+            // strike adds, preventable only by equipment or strikes.
+            let hardened = c.sides[i].strike_source.is_some_and(|w| {
+                c.sides[i]
+                    .weapon_round
+                    .iter()
+                    .any(|&(x, .., h)| x == w && h)
+            });
+            let normal_before = c.sides[j].pending.normal;
             // Aimed at a retainer: a dodge does not protect it (rulebook
             // "Dodge"); gone or moved by now, the strike has no effect.
             if let Some(r) = c.sides[i].strike_at {
                 let rc = &st.cards[r.index()];
+                // Shell Break: no non-aggravated damage inflicted on it.
+                let spared = |aggravated: bool| !aggravated && st.retainer_immune_non_aggravated(r);
                 if rc.present() && rc.host == Some(c.sides[j].minion) {
                     match k {
                         StrikeKind::Damage { .. } if harmless[i] => {}
+                        StrikeKind::Damage { aggravated, .. } if spared(aggravated) => {}
                         StrikeKind::Damage { n, ranged, .. } => {
                             let more =
                                 ranged_bonus(st, c, i, ranged, cards::Stat::RangedStrikeDamage);
@@ -5239,8 +5663,9 @@ impl Engine {
                             retainer_hits.push((r, (n as i32 + more).max(0) as u8, true, i));
                         }
                         StrikeKind::RangedStrength { .. } if !harmless[i] => {
-                            if let Some(h) =
-                                c.strike_hit(st, self.action.as_ref(), i, k, strength[i])
+                            if let Some(h) = c
+                                .strike_hit(st, self.action.as_ref(), i, k, strength[i])
+                                .filter(|h| !spared(h.aggravated))
                             {
                                 retainer_hits.push((r, h.n, false, i));
                             }
@@ -5250,8 +5675,9 @@ impl Engine {
                         StrikeKind::Hand { .. } | StrikeKind::Melee { .. }
                             if close && !harmless[i] =>
                         {
-                            if let Some(h) =
-                                c.strike_hit(st, self.action.as_ref(), i, k, strength[i])
+                            if let Some(h) = c
+                                .strike_hit(st, self.action.as_ref(), i, k, strength[i])
+                                .filter(|h| !spared(h.aggravated))
                             {
                                 retainer_hits.push((r, h.n, false, i));
                             }
@@ -5263,7 +5689,7 @@ impl Engine {
             }
             // A strike the opposing minion is immune to, not dodged: none
             // lands, but it is inflicted (rules-qa 116.138).
-            let ignored = if strike_reaches(k, close, harmless[i]) && !dodged {
+            let ignored = if strike_reaches(k, close, harmless_i) && !dodged {
                 c.immune_hit(st, self.action.as_ref(), i, k, strength[i])
             } else {
                 0
@@ -5279,22 +5705,32 @@ impl Engine {
             }
             match k {
                 StrikeKind::Hand { .. } => {
-                    if strike_reaches(k, close, harmless[i]) && !dodged && !weapon_proof[i] {
+                    if strike_reaches(k, close, harmless_i) && !dodged && !weapon_proof[i] {
                         let h = c.strike_hit(st, self.action.as_ref(), i, k, strength[i]);
                         let h = h.expect("a damage strike");
                         c.sides[j].strike_hit(h.n, h.aggravated, false);
+                        c.sides[j].guard_hit(h.n);
                         // Inflict: the amount on the striker too, normal
                         // (owner, rules-qa 102.15), prevented or not.
                         if c.sides[j].reflects {
                             c.sides[i].pending.add(h.n, false);
                         }
                     }
+                    // Forearm Block: this hand strike's damage, prevented as
+                    // it resolves (RTR 20041202), the shield spent.
+                    if strike_reaches(k, close, harmless_i) && !dodged {
+                        let n = std::mem::take(&mut c.sides[j].hand_shield);
+                        if n > 0 {
+                            c.sides[j].prevent_strike(n, true);
+                        }
+                    }
                 }
                 StrikeKind::Melee { .. } => {
-                    if strike_reaches(k, close, harmless[i]) && !dodged && !weapon_proof[i] {
+                    if strike_reaches(k, close, harmless_i) && !dodged && !weapon_proof[i] {
                         let h = c.strike_hit(st, self.action.as_ref(), i, k, strength[i]);
                         let StrikeHit { n, aggravated, .. } = h.expect("a damage strike");
                         c.sides[j].strike_hit(n, aggravated, false);
+                        c.sides[j].guard_hit(n);
                         if !aggravated
                             && cleaves(self.action.as_ref(), c.sides[i].strike_source) > 0
                         {
@@ -5340,7 +5776,7 @@ impl Engine {
                     }
                 }
                 StrikeKind::Damage { .. } | StrikeKind::CapacityGap { .. } => {
-                    if strike_reaches(k, close, harmless[i]) && !dodged && !weapon_proof[i] {
+                    if strike_reaches(k, close, harmless_i) && !dodged && !weapon_proof[i] {
                         let h = c.strike_hit(st, self.action.as_ref(), i, k, strength[i]);
                         let StrikeHit { n, aggravated, .. } = h.expect("a damage strike");
                         let gun = c.sides[i]
@@ -5365,6 +5801,8 @@ impl Engine {
                             };
                             if aggravated {
                                 c.sides[j].unpreventable_aggravated += n;
+                                c.sides[j].struck_round_aggravated =
+                                    c.sides[j].struck_round_aggravated.saturating_add(n);
                             } else {
                                 c.sides[j].unpreventable += n;
                             }
@@ -5387,9 +5825,7 @@ impl Engine {
                             for (ri, rc) in st.cards.iter().enumerate() {
                                 if rc.present()
                                     && rc.host == Some(c.sides[j].minion)
-                                    && LIBRARY[rc.card as usize]
-                                        .types
-                                        .contains(&crate::library::CardType::Retainer)
+                                    && st.is_retainer(CardId(ri as u32))
                                 {
                                     retainer_hits.push((CardId(ri as u32), r, false, i));
                                 }
@@ -5409,12 +5845,16 @@ impl Engine {
                         st.cards
                             .iter()
                             .enumerate()
-                            .filter(move |(_, rc)| {
-                                let lib = &LIBRARY[rc.card as usize];
+                            .filter(move |(ri, rc)| {
                                 rc.present()
                                     && rc.host == Some(h)
-                                    && lib.types.contains(&crate::library::CardType::Retainer)
-                                    && lib.labels.contains(&crate::library::Label::Demon)
+                                    && st.card_in_play_matches(
+                                        CardId(*ri as u32),
+                                        cards::CardFilter::Labeled(
+                                            crate::library::CardType::Retainer,
+                                            Label::Demon,
+                                        ),
+                                    )
                             })
                             .map(|(ri, _)| CardId(ri as u32))
                             .collect::<Vec<_>>()
@@ -5440,7 +5880,7 @@ impl Engine {
                 }
                 // Earthshock: strength damage at any range.
                 StrikeKind::RangedStrength { .. } => {
-                    if strike_reaches(k, close, harmless[i]) && !dodged && !weapon_proof[i] {
+                    if strike_reaches(k, close, harmless_i) && !dodged && !weapon_proof[i] {
                         let h = c.strike_hit(st, self.action.as_ref(), i, k, strength[i]);
                         let StrikeHit { n, aggravated, .. } = h.expect("a damage strike");
                         c.sides[j].strike_hit(n, aggravated, false);
@@ -5484,6 +5924,12 @@ impl Engine {
                         corrupts.push(i);
                     }
                 }
+                // Taken as the round's damage is done (`apply_damage`).
+                StrikeKind::StealOpponent { at_most } => {
+                    if close && !dodged {
+                        c.sides[i].steals_opponent = Some(at_most);
+                    }
+                }
                 // Coma: a vampire only, wounded as it is sent.
                 StrikeKind::Torpor { skip_unlock } => {
                     if close && !dodged && st.minions[c.sides[j].minion.index()].is_vampire() {
@@ -5517,12 +5963,12 @@ impl Engine {
                         }
                     }
                 }
-                StrikeKind::StealWeapon => {
+                StrikeKind::StealEquipment => {
                     if !dodged && close {
                         if let Some(w) = c.sides[i].strike_weapon {
                             let wc = &st.cards[w.index()];
                             if wc.present() && wc.host == Some(c.sides[j].minion) {
-                                steal_weapons.push((w, c.sides[i].minion));
+                                stolen_equipment.push((w, c.sides[i].minion));
                             }
                         }
                     }
@@ -5530,6 +5976,10 @@ impl Engine {
                 StrikeKind::Dodge
                 | StrikeKind::CombatEnds { .. }
                 | StrikeKind::CardEffect { .. } => {}
+            }
+            if hardened {
+                let added = c.sides[j].pending.normal.saturating_sub(normal_before);
+                c.sides[j].hardened += added;
             }
         }
         // Contagion: the counter lands with the strike; the steal, if
@@ -5592,9 +6042,17 @@ impl Engine {
         // preventable with the rest (RTR 19970630; rules-qa 55.1
         // superseded); on one dealing none, no effect (RTR 19960221).
         for i in 0..2 {
-            let aim = c.sides[1 - i].aim;
+            // Quick Jab: the excess over its cap ignored, the aim's too.
+            let landed = c.sides[i].strike_damage.total();
+            let aim = c.sides[1 - i].strike_cap.map_or(c.sides[1 - i].aim, |cap| {
+                c.sides[1 - i].aim.min(cap.saturating_sub(landed))
+            });
             if aim > 0 && c.sides[i].strike_damage.total() > 0 {
                 let aggravated = c.sides[i].strike_damage.aggravated > 0;
+                if aggravated {
+                    c.sides[i].struck_round_aggravated =
+                        c.sides[i].struck_round_aggravated.saturating_add(aim);
+                }
                 c.sides[i].pending.add(aim, aggravated);
                 c.sides[i].strike_damage.add(aim, aggravated);
                 c.sides[i].struck_round = c.sides[i].struck_round.saturating_add(aim);
@@ -5649,8 +6107,8 @@ impl Engine {
                 self.burn_one_burning(m);
             }
         }
-        for (w, to) in steal_weapons.into_iter().chain(taken_cards) {
-            self.steal_weapon(w, to);
+        for (w, to) in stolen_equipment.into_iter().chain(taken_cards) {
+            self.steal_equipment(w, to);
         }
         for (w, n) in counter_hits.into_iter().chain(retainer_spent.counters) {
             let card = &mut self.state.cards[w.index()];
@@ -5707,6 +6165,12 @@ impl Engine {
     /// The card goes on minion `on`, if still in play, out of the ash heap
     /// (rules-qa 47.1); gone from there, an effect-only stand-in.
     pub(crate) fn place_held(&mut self, h: Held, on: MinionId) {
+        self.place_held_at(h, on, None);
+    }
+
+    /// As `place_held`, on the card `on_card` in play on `on` (Forger's
+    /// Hammer on its weapon).
+    pub(crate) fn place_held_at(&mut self, h: Held, on: MinionId, on_card: Option<CardId>) {
         if !self.state.minions[on.index()].in_play {
             return;
         }
@@ -5723,6 +6187,7 @@ impl Engine {
             by: Some(h.minion),
             counters: h.counters,
             effect_only: taken.is_none(),
+            on_card,
             ..crate::state::CardInPlay::entering(h.card, copy, h.seat, Some(on), h.mode)
         });
         self.push_mode_layers(id);
@@ -5807,6 +6272,12 @@ impl Engine {
         let mut corrupted = Vec::new();
         // Immune to non-aggravated damage: none lands, none successfully
         // inflicted (Tye Cooper; rules-qa 116.138).
+        // Aggravated damage it treats as normal too (Ex Nihilo, LSJ
+        // 20040120; advanced rules §4.5.5).
+        let action_long: Vec<MinionId> = self
+            .action
+            .as_ref()
+            .map_or(Vec::new(), |a| a.aggravated_as_normal.clone());
         let c = self.combat.as_mut().expect("combat context");
         for s in &mut c.sides {
             if self.state.immune_non_aggravated(s.minion) {
@@ -5815,6 +6286,20 @@ impl Engine {
                 s.unpreventable = 0;
                 s.strike_damage.normal = 0;
                 s.strike_damage.gun = 0;
+                if s.aggravated_as_normal
+                    || action_long.contains(&s.minion)
+                    || self.state.printed_mod(
+                        s.minion,
+                        cards::Stat::AggravatedAsNormal,
+                        Default::default(),
+                    ) > 0
+                {
+                    s.pending.aggravated = 0;
+                    s.pending.gun_aggravated = 0;
+                    s.unpreventable_aggravated = 0;
+                    s.strike_damage.aggravated = 0;
+                    s.strike_damage.gun_aggravated = 0;
+                }
             }
         }
         // Retainers burn life for the damage left on them (aggravated alike,
@@ -5832,6 +6317,7 @@ impl Engine {
         let c = self.combat.as_mut().expect("combat context");
         // An aimed strike that landed (Target Vitals): no press this round
         // (rules-qa 55.1).
+        let mut hit_dues: Vec<(usize, HitDue)> = Vec::new();
         for i in 0..2 {
             let aim = std::mem::take(&mut c.sides[1 - i].aim);
             let no_press = std::mem::take(&mut c.sides[1 - i].aim_no_press);
@@ -5842,7 +6328,29 @@ impl Engine {
             if aim > 0 && no_press && landed > 0 {
                 c.sides[i].no_press_round = true;
             }
+            // Successfully inflicted (rules-qa 116.138): Target Hand, Head,
+            // Leg's clauses, Cobra Fangs' riders.
+            let hits = std::mem::take(&mut c.sides[1 - i].aim_hits);
+            let ally_burn = std::mem::take(&mut c.sides[1 - i].burn_ally_later);
+            let torpor = c.sides[1 - i].torpor_at_unlock.take();
+            if landed == 0 {
+                continue;
+            }
+            for h in hits {
+                hit_dues.push((i, HitDue::Aim(h)));
+            }
+            let struck = c.sides[i].minion;
+            if ally_burn && self.state.minions[struck.index()].is_ally() {
+                hit_dues.push((i, HitDue::BurnLater));
+            }
+            if let Some(h) = torpor.filter(|_| self.state.minions[struck.index()].is_vampire()) {
+                hit_dues.push((i, HitDue::TorporAtUnlock(h)));
+            }
         }
+        for (i, due) in hit_dues {
+            self.settle_hit_due(i, due);
+        }
+        let c = self.combat.as_mut().expect("combat context");
         let action_long = self
             .action
             .as_ref()
@@ -5889,6 +6397,11 @@ impl Engine {
             let from_strikes = d.min(c.sides[i].strike_damage.total()) + unpreventable;
             let d = d + unpreventable;
             c.sides[i].damaged_round |= d > 0;
+            // Sympathetic Agony: from this moment of the round.
+            if let Some(additional) = c.sides[i].agony.filter(|_| d > 0) {
+                c.sides[1 - i].no_press_round = true;
+                c.sides[1 - i].no_additional_round |= additional;
+            }
             c.sides[i].damage_round = c.sides[i].damage_round.saturating_add(d);
             c.sides[i].combat_damage = c.sides[i].combat_damage.saturating_add(d);
             c.sides[i].strike_damage = Damage::default();
@@ -5977,6 +6490,7 @@ impl Engine {
         let mut lifeless = Vec::new();
         let mut aye = Vec::new();
         let mut diablerized = Vec::new();
+        let mut taken = Vec::new();
         // "Burned (without going into torpor) if he takes more than n damage
         // during a single combat" (Franciscus).
         let over = c.sides.each_ref().map(|s| {
@@ -6003,6 +6517,8 @@ impl Engine {
             s.pending = Damage::default();
             s.keep_normal = 0;
             s.cleaved_hit = 0;
+            s.hardened = 0;
+            s.from_retainers = 0;
             // Sent to torpor by the strike (Touch of Oblivion [OBL]): a
             // vampire wounded, an ally burned.
             let sent = std::mem::take(&mut s.sent_to_torpor);
@@ -6010,8 +6526,15 @@ impl Engine {
             let instead = std::mem::take(&mut s.burn_instead_of_torpor);
             // Amaranth: diablerized instead, now (rules-qa 113.10).
             let eaten = std::mem::take(&mut s.diablerized_instead_of_torpor);
+            // Lorenzo Detuono: taken instead, whatever it kept.
+            let taker = s.taken_instead.take();
             s.torpor_offered = false;
-            if eaten && (r.wounded || sent) && !m.is_ally() {
+            if let Some((to, life)) = taker.filter(|_| over || r.burned || r.wounded || sent) {
+                if m.is_ally() && m.blood == 0 {
+                    self.state.minions[s.minion.index()].raise_blood(life);
+                }
+                taken.push((s.minion, to));
+            } else if eaten && (r.wounded || sent) && !m.is_ally() {
                 diablerized.push(s.minion);
             } else if let Some(n) =
                 martyrs[i].filter(|_| over || r.burned || ((r.wounded || sent) && !s.persisting))
@@ -6032,12 +6555,17 @@ impl Engine {
             .into_iter()
             .filter_map(|v| c.side_of_minion(v).map(|i| (c.sides[1 - i].minion, v)))
             .collect();
-        // Who burned whom (Predator's Transformation [ABO]).
+        // Who burned whom (Predator's Transformation [ABO]), its title
+        // read before it burns (Monty Coven).
         for i in 0..2 {
             let opp = c.sides[1 - i].minion;
             if burned.contains(&opp) {
                 let owner = self.state.minions[opp.index()].owner;
                 c.burned_minions.push((c.sides[i].minion, owner));
+                if self.state.minions[opp.index()].is_vampire() {
+                    let title = self.state.title_of(opp);
+                    c.burned_titles.push((c.sides[i].minion, title));
+                }
                 // Aye: one per minion its strikes burned (rules-qa 109.6).
                 aye.push(c.sides[i].minion);
             }
@@ -6180,21 +6708,39 @@ impl Engine {
             for (ri, card) in self.state.cards.iter().enumerate() {
                 if card.present()
                     && card.host == Some(o)
-                    && LIBRARY[card.card as usize]
-                        .types
-                        .contains(&crate::library::CardType::Retainer)
+                    && self.state.is_retainer(CardId(ri as u32))
                 {
                     c.retainer_pending.push((CardId(ri as u32), n));
+                }
+            }
+        }
+        // Pentweret: the strike's condition read again as it lands (D13).
+        for i in 0..2 {
+            if let Some(n) = c.sides[i].steals_opponent.take() {
+                let (o, seat) = (c.sides[1 - i].minion, c.sides[i].seat);
+                if self.state.capacity_or_cost_by(o, seat).unwrap_or(0) <= n {
+                    taken.push((o, seat));
                 }
             }
         }
         if !c.both_ready(&self.state) {
             c.round_over = true;
         }
-        if !wounded.is_empty() || !burned.is_empty() || !lifeless.is_empty() {
-            return self.combat_ousts();
+        if (!wounded.is_empty() || !burned.is_empty() || !lifeless.is_empty())
+            && self.combat_ousts()
+        {
+            return true;
         }
-        false
+        // Taken for good once the round's damage is done, ending the combat
+        // (LSJ 20020618), unless a card stops it.
+        let mut ended = false;
+        for (m, to) in taken {
+            if self.state.minions[m.index()].present() {
+                self.take_control(m, to, crate::control::ControlTerm::ForGood);
+                ended |= self.state.minions[m.index()].owner == to;
+            }
+        }
+        ended
     }
 
     /// After a combat effect that may have ousted a Methuselah: true when
@@ -6316,9 +6862,14 @@ impl Engine {
         for s in &mut c.sides {
             s.new_round();
         }
-        c.range = Range::Close;
-        c.range_set = c.next_round_close || c.close_each_round;
-        c.next_round_close = false;
+        // The next round's range, its first setter's (PIB 20120214).
+        let next = c.next_round_range.take();
+        c.range = if c.close_each_round {
+            Range::Close
+        } else {
+            next.unwrap_or(Range::Close)
+        };
+        c.range_set = next.is_some() || c.close_each_round;
         c.only_hand_strikes = false;
         c.last_maneuver = None;
         c.last_press = None;
@@ -6373,6 +6924,87 @@ impl Engine {
         }
         let c = self.combat.as_mut().expect("combat context");
         c.fresh_window(Step::EndOfRound);
+    }
+
+    /// The weapons in play on `m` (Target Hand's "a weapon he or she has").
+    pub(crate) fn weapons_on(&self, m: MinionId) -> Vec<CardId> {
+        (0..self.state.cards.len())
+            .map(|k| CardId(k as u32))
+            .filter(|&id| {
+                let c = &self.state.cards[id.index()];
+                c.present() && c.host == Some(m) && cards::is_weapon(c.card)
+            })
+            .collect()
+    }
+
+    /// What the opposing strike owes as its damage is successfully
+    /// inflicted on side `i`'s minion (`HitDue`).
+    fn settle_hit_due(&mut self, i: usize, due: HitDue) {
+        let c = self.combat.as_mut().expect("combat context");
+        let (struck, seat) = (c.sides[i].minion, c.sides[1 - i].seat);
+        // "This action": the combat's without one.
+        let until = if self.action.is_some() {
+            Expiry::Action
+        } else {
+            Expiry::Combat
+        };
+        let owner = self.state.minions[struck.index()].owner;
+        match due {
+            // LSJ 20011214-5: nor a card providing one.
+            HitDue::Aim(cards::AimHit::NoAdditionalNorPress) => {
+                c.sides[i].no_press_round = true;
+                c.sides[i].no_additional_round = true;
+            }
+            // An earlier setter keeps it (PIB 20120214).
+            HitDue::Aim(cards::AimHit::MaySetNextRange) => {
+                if c.next_round_range.is_none() {
+                    self.interrupts
+                        .push(crate::draws::Interrupt::MaySetNextRange { seat });
+                }
+            }
+            HitDue::Aim(cards::AimHit::StrengthThisAction(n)) => {
+                self.state.minions[struck.index()].timed.push((
+                    cards::Lasting::Strength(n),
+                    until,
+                    owner,
+                ));
+            }
+            HitDue::Aim(cards::AimHit::MayBurnWeapon) => {
+                if !self.weapons_on(struck).is_empty() {
+                    self.interrupts
+                        .push(crate::draws::Interrupt::MayBurnWeapon {
+                            seat,
+                            minion: struck,
+                        });
+                }
+            }
+            HitDue::Aim(cards::AimHit::ManeuversPressesOnlyRequiring(tags)) => {
+                self.state.minions[struck.index()].timed.push((
+                    cards::Lasting::Hobbled(tags),
+                    until,
+                    owner,
+                ));
+            }
+            HitDue::BurnLater => match self.action.as_mut() {
+                Some(a) => a.burn_minions_at_end.push(struck),
+                None => c.burn_allies_at_end.push(struck),
+            },
+            // The card itself stays in the ash heap: its effect alone on
+            // the vampire.
+            HitDue::TorporAtUnlock(h) => {
+                self.enter_play(crate::state::CardInPlay {
+                    by: Some(h.minion),
+                    effect_only: true,
+                    ..crate::state::CardInPlay::entering(
+                        h.card,
+                        crate::copies::CopyId::NONE,
+                        h.seat,
+                        Some(struck),
+                        h.mode,
+                    )
+                });
+            }
+        }
     }
 
     /// What strikes landed that burns blood or cards, after they resolved.
@@ -6834,12 +7466,17 @@ impl Engine {
         // Serpent's Numbing Kiss [PRE][SER]: the blood burned is mandatory
         // (ANK 20180420-2); locked again if unlocked meanwhile (LSJ
         // 20040601).
-        for (h, on, blood, lock) in ended.iter().flat_map(|c| c.after_combat_put.clone()) {
+        for (h, on, blood, lock, only_one) in ended.iter().flat_map(|c| c.after_combat_put.clone())
+        {
             if blood > 0 && self.state.minions[h.minion.index()].present() {
                 let by = Cause::Effect(Source::Minion(h.minion));
                 self.caused(by, |e| e.state.burn_blood(h.minion, blood));
             }
-            if self.state.minions[on.index()].present() {
+            // "A minion can have only one" (Unholy Penance): still played,
+            // not put on (rules-qa 99.2).
+            if self.state.minions[on.index()].present()
+                && !(only_one && self.state.holds_its_name(on, h.card))
+            {
                 self.place_held(h, on);
                 if lock {
                     self.state.minions[on.index()].locked = true;
@@ -6873,6 +7510,11 @@ impl Engine {
         for id in ended.iter().flat_map(|c| c.burn_at_end.clone()) {
             if self.state.cards[id.index()].present() {
                 self.burn_card_in_play(id);
+            }
+        }
+        for m in ended.iter().flat_map(|c| c.burn_allies_at_end.clone()) {
+            if self.state.minions[m.index()].present() {
+                self.burn_minion(m);
             }
         }
         for id in ended.iter().flat_map(|c| c.return_at_end.clone()) {
@@ -7113,11 +7755,7 @@ impl Engine {
             .map(|k| CardId(k as u32))
             .filter(|r| {
                 let card = &st.cards[r.index()];
-                card.present()
-                    && card.host == Some(opposing)
-                    && LIBRARY[card.card as usize]
-                        .types
-                        .contains(&crate::library::CardType::Retainer)
+                card.present() && card.host == Some(opposing) && st.is_retainer(*r)
             })
             .collect();
         if retainers.is_empty() {
@@ -7226,6 +7864,39 @@ impl Engine {
 
     /// Effects of a combat card resolved during the combat.
     pub(crate) fn apply_combat_effect(&mut self, effect: Effect, play: &PlayCtx) {
+        self.apply_combat_effect_from(effect, play, played_tags(play));
+    }
+
+    /// `apply_combat_effect`, its source requiring `tags`: an ability's,
+    /// the Disciplines its card in play was played with.
+    pub(crate) fn apply_combat_effect_from(
+        &mut self,
+        effect: Effect,
+        play: &PlayCtx,
+        tags: &'static [&'static str],
+    ) {
+        // Strike at the True Flesh: a prevention neither an equipment's nor
+        // a strike's leaves the hardened damage.
+        let equipment = play.card != u16::MAX
+            && LIBRARY[play.card as usize]
+                .types
+                .contains(&crate::library::CardType::Equipment);
+        let shelved = match self.combat.as_mut() {
+            Some(c) if effect.prevents() && !equipment => c.shelve_hardened(),
+            _ => [0; 2],
+        };
+        self.apply_combat_effect_now(effect, play, tags);
+        if let Some(c) = self.combat.as_mut() {
+            c.unshelve_hardened(shelved);
+        }
+    }
+
+    fn apply_combat_effect_now(
+        &mut self,
+        effect: Effect,
+        play: &PlayCtx,
+        tags: &'static [&'static str],
+    ) {
         // From a minion out of the combat (Alejandro Aguirre).
         if let Effect::DamageEachCombatantBeforeRange(n) = effect {
             let c = self.combat.as_mut().expect("combat context");
@@ -7365,13 +8036,15 @@ impl Engine {
                 s.set_strike(Some(k));
                 s.strike_play = Some((play.card, play.mode));
                 s.toll_due = !card;
+                s.burn_ally_later = false;
+                s.torpor_at_unlock = None;
                 // A card target: the retainer a ranged strike is aimed at,
                 // or the equipment a burn-equipment strike names.
                 match (k, play.target) {
                     (
                         StrikeKind::BurnEquipment
                         | StrikeKind::RangedBurnEquipment
-                        | StrikeKind::StealWeapon,
+                        | StrikeKind::StealEquipment,
                         cards::Target::Card(w),
                     ) => {
                         s.strike_at = None;
@@ -7395,7 +8068,9 @@ impl Engine {
                 c.maneuver(i);
                 c.sides[i].committed_card = Some(k);
             }
-            Effect::CommittedStrike(k) => self.apply_combat_effect(Effect::Strike(k), play),
+            Effect::CommittedStrike(k) => {
+                self.apply_combat_effect_now(Effect::Strike(k), play, tags)
+            }
             Effect::AdditionalStrikeOnly { kind, limited } => {
                 c.sides[i].additional += 1;
                 c.sides[i].additional_only = Some(kind);
@@ -7552,6 +8227,9 @@ impl Engine {
             Effect::DiablerizeOpponentInsteadOfTorpor => {
                 c.sides[1 - i].diablerized_instead_of_torpor = true;
             }
+            Effect::TakeOpponentInsteadOfGoingDown { ally_life } => {
+                c.sides[1 - i].taken_instead = Some((c.sides[i].seat, ally_life));
+            }
             Effect::TorporAfterCombat { quiet_rounds } => {
                 c.sides[i].persisting = true;
                 if let Some(k) = quiet_rounds {
@@ -7570,8 +8248,9 @@ impl Engine {
                     self.ousted_during_play = true;
                 }
             }
-            Effect::PutOnOpponentOnHit { counters } => {
+            Effect::PutOnOpponentOnHit { counters, only_one } => {
                 c.sides[i].held = Some(Held::from_play(play, actor, counters));
+                c.sides[i].held_only_one = only_one;
             }
             Effect::PutOnSelfAsStrikeResolves => {
                 c.sides[i].held_self = Some(Held::from_play(play, actor, 0));
@@ -7644,7 +8323,7 @@ impl Engine {
                 c.sides[i].prevent_each_round += n;
                 c.sides[i].round_prevents += n;
             }
-            Effect::PressThisRound => c.sides[i].presses += 1,
+            Effect::PressThisRound => c.sides[i].bank(Bank::Presses, tags),
             Effect::PreventOpposingStrikesThisRound | Effect::PreventStrikeDamage => {
                 let s = &mut c.sides[i];
                 s.prevent_strike(u8::MAX, true);
@@ -7653,6 +8332,9 @@ impl Engine {
                 s.strikes_prevented |= effect == Effect::PreventOpposingStrikesThisRound;
             }
             Effect::PreventStrike { n, aggravated } => c.sides[i].prevent_strike(n, aggravated),
+            Effect::GuardNextHandOrMeleeStrike(n) => {
+                c.sides[i].guard = c.sides[i].guard.saturating_add(n);
+            }
             Effect::NullifyOpposingWeapons => c.sides[i].nullifies_weapons = true,
             Effect::OpposingNoDodgeThisRound => c.sides[1 - i].no_dodge_round = Some(c.round),
             Effect::MayBurnToPreventInitialStrikes(n) => {
@@ -7721,12 +8403,12 @@ impl Engine {
                 // "Press, or prevent with 1 optional press": in the press
                 // step the card is the press itself.
                 if c.step != Step::Press {
-                    c.sides[i].presses += 1;
+                    c.sides[i].bank(Bank::Presses, tags);
                 }
             }
             Effect::NextRoundManeuver => c.sides[i].next_round_maneuvers += 1,
-            Effect::OptionalManeuver => c.sides[i].maneuvers += 1,
-            Effect::OptionalCloseManeuver => c.sides[i].close_maneuvers += 1,
+            Effect::OptionalManeuver => c.sides[i].bank(Bank::Maneuvers, tags),
+            Effect::OptionalCloseManeuver => c.sides[i].bank(Bank::CloseManeuvers, tags),
             Effect::CloseManeuverForBlood(n) => c.sides[i].close_maneuver_blood = n,
             Effect::ManeuverForBlood(n) => c.sides[i].maneuver_blood = n,
             Effect::HandStrikeDamageThisCombat(n) => c.sides[i].hand_damage_bonus += n,
@@ -7748,8 +8430,8 @@ impl Engine {
             Effect::StrikeSelfDamage { n, close_only } => {
                 c.sides[i].self_strike_damage = Some((n, close_only));
             }
-            Effect::ContinuePressThisRound => c.sides[i].continue_presses += 1,
-            Effect::EndPressThisRound => c.sides[i].end_presses += 1,
+            Effect::ContinuePressThisRound => c.sides[i].bank(Bank::ContinuePresses, tags),
+            Effect::EndPressThisRound => c.sides[i].bank(Bank::EndPresses, tags),
             Effect::OpposingNoManeuverThisRound => c.sides[1 - i].no_maneuver_round = Some(c.round),
             Effect::OpposingImprisoned => c.sides[1 - i].imprisoned += 1,
             Effect::ReflectsDamageThisCombat => c.sides[i].reflects = true,
@@ -7768,7 +8450,7 @@ impl Engine {
                 c.sides[i].prevent_strike(n, true);
             }
             Effect::HalveOpposingStrikesThisCombat => c.sides[i].halve_strikes = true,
-            Effect::CombatManeuver => c.sides[i].combat_maneuvers += 1,
+            Effect::CombatManeuver => c.sides[i].bank(Bank::CombatManeuvers, tags),
             Effect::FrenzyImmuneThisCombat => c.sides[i].frenzy_immune = true,
             // Frenzy on the opposing minion (ANK 20220409): not on one
             // immune.
@@ -7887,7 +8569,9 @@ impl Engine {
                 }
             }
             Effect::OnlyHandStrikes => c.only_hand_strikes = true,
-            Effect::NextRoundClose => c.next_round_close = true,
+            Effect::NextRoundClose => {
+                c.next_round_range.get_or_insert(Range::Close);
+            }
             Effect::NewRound => c.continued = true,
             Effect::QueueCombatWithOpponent => {
                 c.psyche = true;
@@ -7951,8 +8635,19 @@ impl Engine {
                 c.sides[i].after_damage_any = true;
             }
             Effect::StunAfterCombatIfClose => c.sides[i].after_stun_rider = true,
-            Effect::PutOnOpponentAfterCombatIfClose { blood, lock } => {
-                c.sides[i].after_put_rider = Some((Held::from_play(play, actor, 0), blood, lock));
+            Effect::PutOnOpponentAfterCombat {
+                blood,
+                lock,
+                close_only,
+                only_one,
+            } => {
+                c.sides[i].after_put_rider = Some((
+                    Held::from_play(play, actor, 0),
+                    blood,
+                    lock,
+                    close_only,
+                    only_one,
+                ));
             }
             Effect::UnpreventableStrikeDamage => c.sides[i].unpreventable_strike = true,
             Effect::ContinuePressForBloodThisRound(n) => c.sides[i].continue_press_blood = n,
@@ -7978,6 +8673,47 @@ impl Engine {
                 if let cards::Target::Card(w) = play.target {
                     c.sides[i].weapon_bonus.push((w, n, aggravated));
                 }
+            }
+            Effect::StrikingWeaponThisRound {
+                n,
+                aggravated,
+                hardened,
+                burn,
+            } => {
+                if let Some(w) = c.sides[i].strike_source {
+                    c.sides[i].weapon_round.push((w, n, aggravated, hardened));
+                    if burn && !c.burn_at_round_end.contains(&w) {
+                        c.burn_at_round_end.push(w);
+                    }
+                }
+            }
+            Effect::BurnOpposingAllyLaterIfHit => c.sides[i].burn_ally_later = true,
+            Effect::OpposingVampireTorporAtUnlockIfHit => {
+                c.sides[i].torpor_at_unlock = Some(Held::from_play(play, actor, 0));
+            }
+            Effect::ActorNoStrikeThisRound => c.sides[i].no_strike_round = Some(c.round),
+            Effect::StrikesNoEffect { coin: true } => c.sides[i].mirror = true,
+            Effect::StrikesNoEffect { coin: false } => c.sides[i].untouchable_round = true,
+            Effect::PreventRetainerDamageThisRound(n) => c.sides[i].retainer_prevents += n,
+            Effect::ShieldFromNextHandStrike(n) => c.sides[i].hand_shield += n,
+            Effect::FirstStrikeNextRound => c.sides[i].first_strike_next_round = true,
+            Effect::AimOnHit(h) => c.sides[i].aim_hits.push(h),
+            Effect::AimStrikePlus(n) => c.sides[i].raise_strike(n),
+            Effect::OpposingWeaponsHarmlessThisCombat => c.sides[i].weapon_proof = true,
+            Effect::StrikeDamageAtMost(n) => c.sides[i].strike_cap = Some(n),
+            // The player's counters, no steal offered (ANK 20200925).
+            Effect::CorruptOpposing { more_if } => {
+                let s = &c.sides[i];
+                let more = more_if
+                    .is_some_and(|(d, a)| s.struck_round >= d || s.struck_round_aggravated >= a);
+                let o = c.sides[1 - i].minion;
+                if self.state.minions[o.index()].present() {
+                    self.state.minions[o.index()].add_corruption(play.seat, 1 + u8::from(more));
+                }
+            }
+            Effect::AgonyThisCombat { additional } => {
+                let s = &mut c.sides[i];
+                s.agony = Some(additional || s.agony == Some(true));
             }
             Effect::PutOnOpponentAtRoundEndIfMore => {
                 c.sides[i].round_end_put = Some(Held::from_play(play, actor, 0));
@@ -8034,6 +8770,33 @@ impl CombatCtx {
             }
         }
         self.fresh_window(Step::ChooseStrike(0));
+    }
+
+    /// Strike at the True Flesh: each side's hardened normal damage set
+    /// aside from a prevention that cannot take it (`unshelve_hardened`
+    /// puts it back); what is left of it, a gun's points kept apart.
+    pub(crate) fn shelve_hardened(&mut self) -> [u8; 2] {
+        let mut out = [0; 2];
+        for (s, o) in self.sides.iter_mut().zip(&mut out) {
+            let free = s.pending.normal.saturating_sub(s.pending.gun);
+            s.hardened = s.hardened.min(free);
+            *o = s.hardened;
+            s.pending.normal -= *o;
+        }
+        out
+    }
+
+    pub(crate) fn unshelve_hardened(&mut self, shelved: [u8; 2]) {
+        for (s, n) in self.sides.iter_mut().zip(shelved) {
+            s.pending.normal += n;
+        }
+    }
+
+    /// Side `i`'s pending damage any prevention may take (Strike at the
+    /// True Flesh: not its hardened part).
+    pub(crate) fn preventable(&self, i: usize) -> u8 {
+        let s = &self.sides[i];
+        s.pending.total() - s.hardened.min(s.pending.normal)
     }
 
     /// A prevention of `n` (aggravated allowed) on side `i`: a partial

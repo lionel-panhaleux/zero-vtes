@@ -18,7 +18,7 @@ is created by one request and played over one WebSocket. Every game is
 recorded, anonymously, and kept two years to train and test the engine
 (§11).
 
-Version **2.29.0**. The types: the models of the
+Version **2.30.0**. The types: the models of the
 [API reference](https://engine.krcg.org/docs), also as
 [JSON Schema](https://engine.krcg.org/schema.json) (2020-12) and
 [TypeScript](https://engine.krcg.org/protocol.ts).
@@ -265,7 +265,12 @@ chosen minion gets — `lock`, `unlock`, `corruption`, `blood`, `damage`,
 onto it; `ashur_picks`: `move` `to` the hand or the library;
 `ash_to_library_top`: `move` `to` the library's top, `cut_library`:
 `set_x` the cards cut from the top to the bottom; `retake_from_ash`:
-`move` `to` the hand (the card taken back) or a draw;
+`move` `to` the hand (the card taken back) or a draw; `replace_from_ash`:
+`move` `to` the hand (the ash heap card picked), or beside Visit from the
+Capuchin `draw_library` (replaced as the rules do: its counter);
+`library_to_hand` with `about.detail` `may_search` (Porphyrion's "you
+can search"): `resolve_printed` searches, `pass` neither searches nor
+shuffles;
 `may_lock_for_blood`: `resolve_rider` the lock;
 `may_burn_looked_master`: `resolve_rider` the burn, `about.n` the blood
 — asked only on a master, so its `decided` tells every seat a master was
@@ -391,12 +396,13 @@ seat 2; burn 2 pool to keep card 9.)
   card, `apart`: the effects setting it apart from the other modes its printed
   line splits into, offered or not), `amount`, `favor`, `blood`, `zone` (where a
   card taken or played is: `find_card`'s library, hand or ash heap and whose,
-  none for a card only named, Master: Discipline, or stored on a card;
-  `take_from`'s, `ash_vampire`'s, its crypt or the ash heap and whose (Shroud of
-  Decay: the prey's); the ash heap a card is played from and whose, Spiritual
-  Guidance's own, Vestgeir's another Methuselah's), `value` (a clan, Discipline
-  or circle id), `ability`, `slot` (`{seat, slot}`: an uncontrolled vampire by
-  its place in the view's `uncontrolled`, its card face down to the others — an
+  none for a card only named (Master: Discipline, Precision) or stored on a
+  card; `take_from`'s, `ash_vampire`'s, its crypt or the ash heap and whose
+  (Shroud of Decay: the prey's), none for a vampire only named (Gramle); the
+  ash heap a card is played from and whose, Spiritual Guidance's own,
+  Vestgeir's another Methuselah's), `value` (a clan, Discipline or circle id),
+  `ability`, `slot` (`{seat, slot}`: an uncontrolled vampire by its place in
+  the view's `uncontrolled`, its card face down to the others — an
   option's `target` or `card` names it only to who sees it). Two options of a
   decision never share a key (copies alike in hand are one option: the copy a
   `play` took is its `card_moves` into limbo, §9). Each key names what its kind

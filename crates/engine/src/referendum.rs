@@ -59,6 +59,9 @@ pub enum Source {
     /// Votes a Methuselah got for a pool burned (Business Pressure): one
     /// record per pool, each its own side.
     Pool(SeatId),
+    /// Votes an event in play adds, cast by no Methuselah (Urban Jungle):
+    /// its record's seat is its controller's.
+    Event(crate::state::CardId),
 }
 
 /// Business Pressure resolving: in turn, clockwise from its player, each
@@ -100,6 +103,14 @@ pub struct VoteRecord {
     /// (rulebook "The Prisci Block"): a priscus casting's, and printed ones
     /// (Gratiano's, title or not: LSJ 20040519).
     pub ballots: u8,
+}
+
+impl VoteRecord {
+    /// Cast by its record's Methuselah: not a card's own votes (National
+    /// Guard Support's counters, Urban Jungle).
+    pub fn by_methuselah(&self) -> bool {
+        !matches!(self.source, Source::Counters(_) | Source::Event(_))
+    }
 }
 
 /// A recipient of referendum points: a Methuselah, or a card in play
@@ -569,7 +580,7 @@ pub(crate) fn chooseable_card(
     card.present()
         && !card.effect_only
         && !cards::became(card.card, card.mode)
-        && filter.matches(card.card)
+        && st.card_in_play_matches(c, filter)
 }
 
 /// Clans of the V5 crypt, in crypt order (Consanguineous Boon's choice);
@@ -789,7 +800,7 @@ impl Engine {
 
     /// The votes a blood hunt on its minion brings, counted as it is called
     /// on it: Styles Margs' printed votes in favor, Ilyana Ravidovich's
-    /// controller's votes on her.
+    /// controller's votes on her, Urban Jungle's against.
     fn hunted_votes(&self, ctx: &mut ReferendumCtx) {
         let Some(m) = ctx.blood_hunt_on() else {
             return;
@@ -812,6 +823,18 @@ impl Engine {
         let own = read(cards::Stat::OwnerVotesInOwnBloodHunt);
         if own > 0 {
             ctx.bonus.push((m, own as u8));
+        }
+        for l in self.state.in_play_layers() {
+            if let cards::Modifier::BloodHuntVotesAgainst(n) = l.modifier {
+                ctx.records.push(VoteRecord {
+                    source: Source::Event(l.source),
+                    seat: self.state.card_controller(l.source),
+                    favor: false,
+                    n,
+                    canceled: false,
+                    ballots: 0,
+                });
+            }
         }
     }
 
@@ -1965,9 +1988,9 @@ impl Engine {
         let only_against = (0..self.state.seats.len())
             .filter(|&i| {
                 let cast = |favor: bool| {
-                    ctx.records
-                        .iter()
-                        .any(|r| r.seat.index() == i && !r.canceled && r.favor == favor)
+                    ctx.records.iter().any(|r| {
+                        r.seat.index() == i && !r.canceled && r.favor == favor && r.by_methuselah()
+                    })
                 };
                 cast(false) && !cast(true)
             })
@@ -2016,7 +2039,11 @@ impl Engine {
                 // Scorn of Adonis: paid at the tally, before the effects.
                 if ctx.scorn > 0 {
                     let mut loss = vec![0i32; self.state.seats.len()];
-                    for r in ctx.records.iter().filter(|r| !r.canceled && !r.favor) {
+                    for r in ctx
+                        .records
+                        .iter()
+                        .filter(|r| !r.canceled && !r.favor && r.by_methuselah())
+                    {
                         loss[r.seat.index()] = ctx.scorn as i32;
                     }
                     self.burn_pool_batch(&loss);
@@ -2028,10 +2055,7 @@ impl Engine {
                         let s = SeatId(i as u8);
                         let cast = |favor: bool| {
                             ctx.records.iter().any(|r| {
-                                r.seat == s
-                                    && !r.canceled
-                                    && r.favor == favor
-                                    && !matches!(r.source, Source::Counters(_))
+                                r.seat == s && !r.canceled && r.favor == favor && r.by_methuselah()
                             })
                         };
                         if s != p && cast(true) && !cast(false) {
@@ -2074,7 +2098,11 @@ impl Engine {
                         .max(0);
                     if n > 0 {
                         let mut loss = vec![0i32; self.state.seats.len()];
-                        for r in ctx.records.iter().filter(|r| !r.canceled && !r.favor) {
+                        for r in ctx
+                            .records
+                            .iter()
+                            .filter(|r| !r.canceled && !r.favor && r.by_methuselah())
+                        {
                             loss[r.seat.index()] = n;
                         }
                         self.burn_pool_batch(&loss);
@@ -2100,7 +2128,10 @@ impl Engine {
                     }
                 }
                 let keeps = def.effect.keeps_by_repaying();
-                let weapons = def.effect == RefEffect::BurnWeaponsUnlessKept;
+                let weapons = matches!(
+                    def.effect,
+                    RefEffect::BurnWeaponsUnlessKept | RefEffect::BurnLocationsUnlessKept
+                );
                 if passed && (def.effect.chooses_vampires() || keeps) {
                     ctx.step = RefStep::Choose;
                     ctx.terms.pending = self
@@ -2109,7 +2140,7 @@ impl Engine {
                         .into_iter()
                         .filter(|&s| {
                             if weapons {
-                                !self.weapons_of(s).is_empty()
+                                !self.kept_candidates(def.effect, s).is_empty()
                             } else if keeps {
                                 !self.allies_of(s).is_empty()
                             } else {
@@ -2183,6 +2214,27 @@ impl Engine {
         allies + weapons
     }
 
+    /// The cards in play of `s`'s a keep-by-repaying referendum burns: the
+    /// weapons on their minions (Peace Treaty), or the locations they
+    /// control, on a minion or not (Jericho Founding).
+    fn kept_candidates(&self, effect: RefEffect, s: SeatId) -> Vec<CardId> {
+        if effect != RefEffect::BurnLocationsUnlessKept {
+            return self.weapons_of(s);
+        }
+        let st = &self.state;
+        (0..st.cards.len())
+            .map(|i| CardId(i as u32))
+            .filter(|&c| {
+                let card = &st.cards[c.index()];
+                card.present()
+                    && crate::library::LIBRARY[card.card as usize]
+                        .labels
+                        .contains(&crate::library::Label::Location)
+                    && st.card_controller(c) == s
+            })
+            .collect()
+    }
+
     /// The weapons on `s`'s minions (Peace Treaty).
     fn weapons_of(&self, s: SeatId) -> Vec<CardId> {
         let st = &self.state;
@@ -2201,15 +2253,17 @@ impl Engine {
 
     fn choose_request(&self, ctx: &ReferendumCtx) -> DecisionRequest {
         let seat = ctx.terms.pending[0];
-        let options = if ctx
-            .def
-            .is_some_and(|d| d.effect == RefEffect::BurnWeaponsUnlessKept)
-        {
-            // Each weapon kept in turn, while the pool covers its cost.
+        let options = if let Some(d) = ctx.def.filter(|d| {
+            matches!(
+                d.effect,
+                RefEffect::BurnWeaponsUnlessKept | RefEffect::BurnLocationsUnlessKept
+            )
+        }) {
+            // Each card kept in turn, while the pool covers its cost.
             let left = self.state.seats[seat.index()].pool - self.kept_cost(ctx, seat);
             std::iter::once(Choice::Pass)
                 .chain(
-                    self.weapons_of(seat)
+                    self.kept_candidates(d.effect, seat)
                         .into_iter()
                         .filter(|c| !ctx.terms.kept_cards.iter().any(|(_, k)| k == c))
                         .filter(|c| card_pool_cost(self.state.cards[c.index()].card) <= left)
@@ -2500,7 +2554,9 @@ impl Engine {
                             && !c.effect_only
                             && c.body.is_none()
                             && !cards::became(c.card, c.mode)
-                            && of.iter().any(|f| f.matches(c.card))
+                            && of
+                                .iter()
+                                .any(|&f| st.card_in_play_matches(CardId(i as u32), f))
                         {
                             loss[st.card_controller(CardId(i as u32)).index()] += 1;
                         }
@@ -2511,6 +2567,7 @@ impl Engine {
                 | RefEffect::BurnSource
                 | RefEffect::BurnAlliesUnlessKept
                 | RefEffect::BurnWeaponsUnlessKept
+                | RefEffect::BurnLocationsUnlessKept
                 | RefEffect::BurnBloodPerPick
                 | RefEffect::PutOnChosen { .. }
                 | RefEffect::PutOnCaller { .. }
@@ -2943,14 +3000,14 @@ impl Engine {
             }
             // Kept allies paid for as a batch (ousts with the referendum's),
             // then every other ally burned, in torpor too.
-            RefEffect::BurnWeaponsUnlessKept => {
+            RefEffect::BurnWeaponsUnlessKept | RefEffect::BurnLocationsUnlessKept => {
                 let mut cost = vec![0i32; self.state.seats.len()];
                 for s in self.state.clockwise_from(ctx.caller) {
                     cost[s.index()] = self.kept_cost(ctx, s);
                 }
                 self.burn_pool_batch(&cost);
                 let all: Vec<CardId> = (0..self.state.seats.len())
-                    .flat_map(|i| self.weapons_of(SeatId(i as u8)))
+                    .flat_map(|i| self.kept_candidates(effect, SeatId(i as u8)))
                     .filter(|c| !ctx.terms.kept_cards.iter().any(|(_, k)| k == c))
                     .collect();
                 for c in all {

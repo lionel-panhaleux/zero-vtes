@@ -175,8 +175,9 @@ fn abactor_hunts_at_plus_four_then_calls_a_blood_hunt_inside_the_action() {
 
 // [LSJ 20090411] Abactor: "'Successful resolution' means the action must
 // not be blocked and the vampire must have gained blood. If the vampire
-// cannot gain blood (eg. Vampiric Disease), the blood hunt is not called."
-// With a disease counter, under Punish ("cannot gain blood"), or blocked:
+// cannot gain blood (eg. Vampiric Disease, Ex Nihilo), the blood hunt is not
+// called." With a disease counter, under Punish or Ex Nihilo ("cannot gain
+// blood"), or blocked:
 // no blood hunt. At capacity it gains the blood, which drains off: called
 // (rules-qa 63.2 superseded, owner 2026-11-11; 89.1).
 #[test]
@@ -184,6 +185,7 @@ fn abactor_calls_its_blood_hunt_only_after_a_successful_hunt() {
     for (case, called) in [
         ("disease", false),
         ("punished", false),
+        ("ex nihilo", false),
         ("blocked", false),
         ("full", true),
     ] {
@@ -196,6 +198,9 @@ fn abactor_calls_its_blood_hunt_only_after_a_successful_hunt() {
             "full" => e.state.minions[a.index()].blood = e.state.capacity_of(a).unwrap(),
             "punished" => {
                 in_play(&mut e, 1, "Punish", Some(a));
+            }
+            "ex nihilo" => {
+                in_play(&mut e, 0, "Ex Nihilo", Some(a));
             }
             _ => hand(&mut e, 1, &["Eagle's Sight"]),
         }
@@ -305,7 +310,10 @@ fn abactor_records_no_diablerie() {
     decline_blood_hunt(&mut e);
     expect(&mut e, SeatId(0), WindowLabel::MinionPhase);
     let v = &e.state.minions[a.index()];
-    assert_eq!((v.diablerie_turn, v.diablerie_shield), (None, false));
+    assert_eq!(
+        (v.diableries.0.is_empty(), v.diablerie_shield),
+        (true, false)
+    );
 }
 
 // ---- Hunt bonuses ----------------------------------------------------------------

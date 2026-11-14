@@ -719,8 +719,8 @@ fn donal_g6_burns_blood_to_unlock() {
 // Murat: "Combat cards requiring Serpentis [ser] cost Followers of Set an
 // additional blood when in combat with Murat" (the Ministry, V5): Donnybrook
 // [ser] (free; steal 2 blood) costs a Ministry vampire 1 against him, 0
-// against another. No V5 Ministry vampire has Serpentis: Marcel is lent it
-// (the fixture's Discipline slot).
+// against another (rules-qa 76.23). Marcel is lent Serpentis (the
+// fixture's Discipline slot).
 #[test]
 fn murat_makes_serpentis_combat_cards_cost_the_ministry() {
     for murat in [true, false] {

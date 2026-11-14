@@ -51,6 +51,27 @@ pub enum Pending {
     Contest(Contest),
 }
 
+/// A standing replacement of a minion's burn (`Engine::burn_replacements`).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum BurnReplacement {
+    /// The burning minion's own (Byzar).
+    Own,
+    /// The Book of Going Forth by Night stealing an ally.
+    Book(CardId),
+    /// Charigger, The Axe removing a minion of its controller's prey.
+    Remover(CardId),
+}
+
+impl BurnReplacement {
+    /// Its option for `minion`'s burn.
+    pub(crate) fn choice(self, minion: crate::ids::MinionId) -> crate::decision::Choice {
+        match self {
+            Self::Own => crate::decision::Choice::ResolvePrinted { minion },
+            Self::Book(c) | Self::Remover(c) => crate::decision::Choice::ResolveRider { card: c.0 },
+        }
+    }
+}
+
 #[derive(Clone, Debug)]
 pub(crate) enum Flow {
     /// Master phase: an offer window for the active seat's master phase
@@ -90,6 +111,9 @@ pub(crate) enum Flow {
         /// The minion using it, if any (Alamut's vampire).
         user: Option<MinionId>,
         picked: Vec<u8>,
+        /// The ash heap picked from, its card next
+        /// (`Terms::RemoveFromAnyAsh`).
+        heap: Option<SeatId>,
         resume: Box<Flow>,
     },
     /// The impulse rotation closing one of the active Methuselah's phases
@@ -237,8 +261,9 @@ pub struct Engine {
     /// The Methuselahs whose minions an action card's effects burn as it
     /// resolves, its context out of `action` meanwhile: folded into the
     /// action's `burned_owners` (Smash and Grab [ani] for Predator's
-    /// Transformation [ABO] and the Trophies; ANK 20220507).
-    pub(crate) card_burns: Option<Vec<SeatId>>,
+    /// Transformation [ABO] and the Trophies; ANK 20220507), with the
+    /// titles of the vampires burned (Monty Coven).
+    pub(crate) card_burns: Option<Vec<(SeatId, crate::crypt::Title)>>,
     /// A play being opened, before its as-played window: in flight for the
     /// copy census, a play canceled as it is announced (Andrew Stuart, Two
     /// Wrongs) included.
@@ -1048,10 +1073,11 @@ impl Engine {
         }
     }
 
-    /// A card burning while its host holds more such cards than its
-    /// capacity (Orun, Aye): one at a time, the rest read again after each
-    /// burn; of two kinds, the host's controller picks which (rules-qa
-    /// 109.2).
+    /// A card burning by its host's holdings (more such cards than its
+    /// capacity: Orun, Aye; Mundane, Transcendent Laibon) or its host's
+    /// controller's pool (Lesser Boon): one at a time, the rest read again
+    /// after each burn; of two kinds, the host's controller picks which
+    /// (rules-qa 109.2).
     fn settle_over_capacity(&mut self) {
         loop {
             let st = &self.state;
@@ -1063,6 +1089,15 @@ impl Engine {
                             c.in_play
                                 && (!st.minions[m.index()].ready()
                                     || held.iter().any(|&h| st.holds_count(m, h) < n))
+                        })
+                        .map(|_| (l.source, None))
+                }
+                cards::Modifier::BurnWhileHostControllerPoolBelow(n) if st.layer_active(l) => {
+                    let c = &st.cards[l.source.index()];
+                    c.host
+                        .filter(|&m| {
+                            c.in_play
+                                && st.seats[st.minions[m.index()].owner.index()].pool < i32::from(n)
                         })
                         .map(|_| (l.source, None))
                 }
@@ -1256,6 +1291,15 @@ impl Engine {
                 target,
                 ..
             } => Some((*source, source.mode(&self.state, *ability), *target)),
+            _ => None,
+        }
+    }
+
+    /// The ash heap an in-play ability's terms picked, its card named next
+    /// (`Terms::RemoveFromAnyAsh`, Luna Giovanni), if any.
+    pub fn ability_terms_heap(&self) -> Option<SeatId> {
+        match &self.flow {
+            Flow::AbilityTerms { heap, .. } => *heap,
             _ => None,
         }
     }
@@ -1658,8 +1702,11 @@ impl Engine {
                 target,
                 seat,
                 user,
+                heap,
                 ..
-            } => Some(self.ability_terms_request(*source, *ability, *target, *seat, *user, picked)),
+            } => Some(
+                self.ability_terms_request(*source, *ability, *target, *seat, *user, picked, *heap),
+            ),
             Flow::RiderTerms { card, left, .. } => Some(self.rider_terms_request(*card, *left)),
             Flow::ActionTerms {
                 minion,
@@ -1918,6 +1965,45 @@ impl Engine {
                     resume,
                     ..
                 },
+                Choice::ChooseSeat(heap),
+            ) => {
+                self.flow = Flow::AbilityTerms {
+                    source,
+                    ability,
+                    target,
+                    seat,
+                    user,
+                    picked,
+                    heap: Some(*heap),
+                    resume,
+                };
+            }
+            (
+                Flow::AbilityTerms {
+                    source,
+                    ability,
+                    target,
+                    seat,
+                    user,
+                    picked,
+                    heap: Some(heap),
+                    resume,
+                },
+                Choice::FindCard(card),
+            ) => self.ability_ash_removal_apply(
+                source, ability, target, seat, user, picked, heap, resume, *card,
+            ),
+            (
+                Flow::AbilityTerms {
+                    source,
+                    ability,
+                    target,
+                    seat,
+                    user,
+                    picked,
+                    resume,
+                    ..
+                },
                 Choice::Pass,
             ) => self.ability_discards_done(source, ability, target, seat, user, picked, resume),
             (
@@ -2147,6 +2233,81 @@ impl Engine {
         }
     }
 
+    /// Byzar's burn counters for removal, if his own replacement applies
+    /// (`replace_burn`), else 0.
+    fn own_burn_replacement(&self, m: MinionId) -> i32 {
+        let v = &self.state.minions[m.index()];
+        if !(v.present() && v.is_vampire()) {
+            return 0;
+        }
+        self.state.printed_mod(
+            m,
+            cards::Stat::TorporInsteadOfBurn,
+            crate::state::PrintedCtx::default(),
+        )
+    }
+
+    /// The standing replacements of `m`'s burn applying now, read live: its
+    /// own (Byzar), Book of Going Forth by Night's, Charigger's.
+    pub(crate) fn burn_replacements(&self, m: MinionId) -> Vec<BurnReplacement> {
+        let mut v = Vec::new();
+        if self.own_burn_replacement(m) > 0 {
+            v.push(BurnReplacement::Own);
+        }
+        if let Some((c, _)) = self.book_steal(m) {
+            v.push(BurnReplacement::Book(c));
+        }
+        if let Some(c) = self.prey_burn_remover(m) {
+            v.push(BurnReplacement::Remover(c));
+        }
+        v
+    }
+
+    /// Whether a standing replacement takes `m`'s burn: one applies at
+    /// once; with two or more the acting Methuselah, or the one whose turn
+    /// it is outside an action, chooses which (`Interrupt::BurnReplacement`;
+    /// advanced rules §2.4.1; owner, rules-qa 121.19), and the burn waits
+    /// for the answer. `to_torpor` as in `replace_burn`.
+    pub(crate) fn burn_replaced(&mut self, m: MinionId, to_torpor: bool) -> bool {
+        match self.burn_replacements(m)[..] {
+            [] => false,
+            [r] => {
+                self.apply_burn_replacement(m, r, to_torpor);
+                true
+            }
+            _ => {
+                let seat = self.action.as_ref().map_or(self.state.active, |a| a.seat);
+                self.interrupts
+                    .push(crate::draws::Interrupt::BurnReplacement {
+                        seat,
+                        minion: m,
+                        to_torpor,
+                    });
+                true
+            }
+        }
+    }
+
+    pub(crate) fn apply_burn_replacement(
+        &mut self,
+        m: MinionId,
+        r: BurnReplacement,
+        to_torpor: bool,
+    ) {
+        match r {
+            BurnReplacement::Own => {
+                self.replace_burn(m, to_torpor);
+            }
+            BurnReplacement::Book(_) => {
+                self.book_takes_ally(m);
+            }
+            BurnReplacement::Remover(src) => {
+                self.state.cards[src.index()].counters += 1;
+                self.remove_from_game(m);
+            }
+        }
+    }
+
     /// "If Byzar would be burned, instead put 1 burn counter on him and move
     /// him to torpor. If he has 3 burn counters, remove him from the game"
     /// (`Stat::TorporInsteadOfBurn`): a replacement while controlled (LSJ
@@ -2155,15 +2316,7 @@ impl Engine {
     /// the caller moves him to torpor (Amaranth's going-to-torpor step
     /// again, ANK 20210424).
     pub(crate) fn replace_burn(&mut self, m: MinionId, to_torpor: bool) -> bool {
-        let v = &self.state.minions[m.index()];
-        if !(v.present() && v.is_vampire()) {
-            return false;
-        }
-        let n = self.state.printed_mod(
-            m,
-            cards::Stat::TorporInsteadOfBurn,
-            crate::state::PrintedCtx::default(),
-        );
+        let n = self.own_burn_replacement(m);
         if n <= 0 {
             return false;
         }
@@ -2199,10 +2352,9 @@ impl Engine {
     /// A minion is burned, the cards on it to their owners' ash heaps
     /// (spec §1.12.1); "after a ready minion is burned" riders if it was ready.
     pub(crate) fn burn_minion(&mut self, m: MinionId) {
-        if self.replace_burn(m, true) {
-            return;
-        }
-        if self.book_takes_ally(m) {
+        // Two replacements asked: the minion stays in play until the answer,
+        // the rest of the burning effect going on meanwhile.
+        if self.burn_replaced(m, true) {
             return;
         }
         let foe = self
@@ -2217,12 +2369,17 @@ impl Engine {
         if self.combat.is_none() {
             let owner = self.state.minions[m.index()].owner;
             let st = &self.state;
+            let title = if st.minions[m.index()].is_vampire() {
+                st.title_of(m)
+            } else {
+                crate::crypt::Title::None
+            };
             if let Some(a) = self.action.as_mut() {
                 if a.directed_seat(st).is_some() {
-                    a.burned_owners.push(owner);
+                    a.burned_owners.push((owner, title));
                 }
             } else if let Some(burns) = self.card_burns.as_mut() {
-                burns.push(owner);
+                burns.push((owner, title));
             }
         }
         // "After a zombie (ally or retainer) you control is burned, you can
@@ -2277,6 +2434,8 @@ impl Engine {
             }
         }
         let was_ready = self.state.minions[m.index()].ready();
+        let unique_burned =
+            self.state.minions[m.index()].present() && self.state.is_unique_minion(m);
         let (burned_vampire, burned_owner) = {
             let v = &self.state.minions[m.index()];
             (v.in_play && v.is_vampire(), v.owner)
@@ -2292,11 +2451,20 @@ impl Engine {
             )
         });
         let capuchin = capuchin.filter(|&n| n > 0);
+        // Sundervere: his controller as he burns, ready or in torpor.
+        let toll = self.state.minions[m.index()].in_play.then(|| {
+            self.state.printed_mod(
+                m,
+                crate::cards::Stat::ControllerBurnsPoolWhenBurned,
+                crate::state::PrintedCtx::default(),
+            )
+        });
+        let toll = toll.filter(|&n| n > 0);
         // The cards on it kept from its burn: Soul Gem of Etrius on a
         // vampire, then drawn for (LSJ 20010729: whatever kept it from using
         // equipment); Charnas the Imp, its controller's choice next
         // (`Interrupt::MoveOffBurnedBearer`), unless that controller is out.
-        let (mut gem, mut movers) = (None, Vec::new());
+        let (mut gem, mut movers, mut breaks) = (None, Vec::new(), Vec::new());
         if self.state.minions[m.index()].in_play {
             let on = |c: &crate::state::CardInPlay| c.host == Some(m);
             let vampire = self.state.minions[m.index()].is_vampire();
@@ -2314,6 +2482,11 @@ impl Engine {
                                 movers.push(id);
                             }
                         }
+                        crate::cards::Effect::BecomesRetainerOnBy {
+                            life,
+                            subtype,
+                            layers,
+                        } => breaks.push((id, life, subtype, layers)),
                         // Bounty: burned in combat, its opponent's whatever
                         // the cause (advanced rules §5.4.1, LSJ 20090922), or
                         // by a diablerie action.
@@ -2345,6 +2518,28 @@ impl Engine {
         });
         if let Some(g) = gem {
             self.state.cards[g.index()].host = None;
+        }
+        // Shell Break: to the vampire that played it, if still in play, a
+        // retainer from now; else it burns with its bearer.
+        for (id, life, subtype, layers) in breaks {
+            let to = self.state.cards[id.index()].by.filter(|&b| {
+                let v = &self.state.minions[b.index()];
+                b != m && v.in_play && !v.out_of_play && !v.contested
+            });
+            if let Some(b) = to {
+                let c = &mut self.state.cards[id.index()];
+                c.host = Some(b);
+                c.controller = self.state.minions[b.index()].owner;
+                c.counters = life;
+                c.became = crate::state::SparseOption(Some(subtype));
+                for &modifier in layers {
+                    self.state.layers.push(crate::cards::Layer {
+                        scope: crate::cards::Scope::InPlay,
+                        modifier,
+                        source: id,
+                    });
+                }
+            }
         }
         for &id in &movers {
             // Off its employer, still its employer's controller's.
@@ -2395,6 +2590,16 @@ impl Engine {
                 let owner = v.owner_seat();
                 self.state.seats[owner.index()].removed.put(card, *v.copy);
             }
+            // A represented minion's card to its owner's ash heap, never
+            // burned from play (PIB 20130128-2, LSJ 20100325-2).
+            if let crate::state::MinionKind::Represented { card, crypt, .. } = v.kind {
+                let heap = &mut self.state.seats[v.owner_seat().index()];
+                if crypt {
+                    heap.ash_crypt.put(card, *v.copy);
+                } else {
+                    heap.ash.put(card, *v.copy);
+                }
+            }
         }
         // The cards on it, and an ally's own card, to their owners' ash
         // heaps.
@@ -2423,9 +2628,11 @@ impl Engine {
                         .contains(&crate::library::CardType::Ally);
                 let (owner, copy) = (c.owner, *c.copy);
                 self.burn_card_in_play(CardId(ci as u32));
+                let turn = self.state.turn;
                 let heap = &mut self.state.seats[owner.index()];
                 if ally && heap.ash.pairs().any(|(_, k)| k == copy) {
                     heap.burned_allies.0.push(copy);
+                    heap.burned_minion_cards.0.push((copy, turn));
                 }
             }
         }
@@ -2461,9 +2668,75 @@ impl Engine {
                 }
             }
         }
+        // "After a unique minion in play is burned" (Khazar's Diary): any
+        // Methuselah's, ready or torpid.
+        if unique_burned {
+            for (id, r) in self.fired_riders(Hook::UniqueMinionBurned, &HookAt::ANY) {
+                for &e in r.effects {
+                    self.apply_rider_effect(id, e, Hook::UniqueMinionBurned);
+                }
+            }
+        }
         if let Some((g, seat, cap)) = gem_ctx {
             self.soul_gem(g, seat, cap);
         }
+        if let Some(n) = toll {
+            let mut loss = vec![0; self.state.seats.len()];
+            loss[burned_owner.index()] = n;
+            self.burn_separately(loss, Some(crate::notes::Source::Minion(m)));
+        }
+    }
+
+    /// The slots of `s`'s uncontrolled region holding a vampire (Spell of
+    /// Life): not an imbued, a created vampire or a banished one.
+    pub(crate) fn represent_slots(&self, s: SeatId) -> Vec<usize> {
+        let seat = &self.state.seats[s.index()];
+        (0..seat.uncontrolled.len())
+            .filter(|&i| {
+                let u = &seat.uncontrolled[i];
+                u.card != crate::state::CREATED
+                    && u.banished.is_none()
+                    && crate::state::vampire_card(u.card)
+            })
+            .collect()
+    }
+
+    /// `card` (CRYPT if `crypt`, else LIBRARY; `owner`'s) into `s`'s ready
+    /// region representing `of`: put in play, not recruited, able to act
+    /// (LSJ 20080426), contesting as it enters when unique.
+    pub(crate) fn raise_represented(
+        &mut self,
+        s: SeatId,
+        card: u16,
+        crypt: bool,
+        owner: SeatId,
+        copy: crate::copies::Untracked<crate::copies::CopyId>,
+        of: &'static crate::state::Represent,
+    ) -> MinionId {
+        let life = of
+            .life
+            .unwrap_or_else(|| crate::crypt::CRYPT[card as usize].capacity);
+        let body = crate::library::Body {
+            life,
+            strength: of.strength,
+            bleed: of.bleed,
+        };
+        let m = MinionId(self.state.minions.len() as u32);
+        let mut v = crate::state::Minion::new(
+            s,
+            crate::state::MinionKind::Represented {
+                card,
+                crypt,
+                body,
+                of,
+            },
+            life,
+        );
+        v.copy = copy;
+        v.origin = (owner != s).then_some(owner);
+        self.state.minions.push(v);
+        self.enter_card_contest(m);
+        m
     }
 
     /// Unleash Hell's Fury's token is in play only while it attempts to
@@ -2512,11 +2785,11 @@ impl Engine {
 
     /// Soul Gem of Etrius, its vampire of capacity `cap` burned: a younger
     /// crypt top card enters ready with the Gem (a new vampire, LSJ 20100213;
-    /// burned again, the Gem draws again, RTR 20010710), else the Gem burns.
+    /// burned again, the Gem draws again, RTR 20010711), else the Gem burns.
     fn soul_gem(&mut self, g: CardId, seat: SeatId, cap: u8) {
         let drawn = self.state.seats[seat.index()].crypt.take_top();
         // A copy of a vampire already theirs: it burns as it would enter,
-        // and the Gem draws again against it (RTR 20010710; 58.19).
+        // and the Gem draws again against it (RTR 20010711; 58.19).
         if let Some((card, copy)) = drawn.filter(|&(c, _)| {
             crate::crypt::CRYPT[c as usize].capacity < cap && self.state.controls_copy(seat, c)
         }) {
@@ -2645,6 +2918,9 @@ impl Engine {
         self.about_to_leave_ready(ms);
         for &m in ms {
             self.state.minions[m.index()].in_torpor = true;
+        }
+        if let Some(a) = self.action.as_mut() {
+            a.actor_torpored |= ms.contains(&a.acting);
         }
         self.leave_riders(Hook::HostToTorpor, ms);
         self.leave_riders(Hook::ReadyMinionBurnedOrTorpor, ms);
@@ -2948,11 +3224,20 @@ impl Engine {
         }
         // A lingering effect ends; its card is already in the ash heap.
         if !self.state.cards[id.index()].effect_only {
+            // A retainer burned from play as itself (Compel the Spirit).
+            let retainer = self.state.cards[id.index()].host.is_some()
+                && crate::library::LIBRARY[card as usize]
+                    .types
+                    .contains(&crate::library::CardType::Retainer);
+            let turn = self.state.turn;
             let seat = &mut self.state.seats[owner.index()];
             if removed {
                 seat.removed.put(card, copy);
             } else {
                 seat.to_ash(card, copy);
+                if retainer {
+                    seat.burned_minion_cards.0.push((copy, turn));
+                }
             }
         }
         if !self.state.cards[id.index()].effect_only {
@@ -3108,31 +3393,34 @@ impl Engine {
         false
     }
 
+    /// The Book of Going Forth by Night stealing `m` as it would burn: the
+    /// Book and the life it leaves.
+    fn book_steal(&self, m: MinionId) -> Option<(CardId, u8)> {
+        let c = self.combat.as_ref()?;
+        let st = &self.state;
+        let i = c.side_of_minion(m)?;
+        let opp = c.sides[1 - i].minion;
+        let book = st.borne(opp).find_map(|l| match l.modifier {
+            crate::cards::Modifier::HostStealsOpposingAllyOnBurn(n) => Some((l.source, n)),
+            _ => None,
+        })?;
+        (st.minions[m.index()].is_ally()
+            && st.minions[m.index()].in_play
+            && st.minions[opp.index()].is_vampire())
+        .then_some(book)
+    }
+
     /// The Book of Going Forth by Night: an ally opposing its vampire in
     /// combat, about to burn, is stolen and locked instead, 1 life if it had
     /// none; the control change ends the combat (LSJ 20020618).
     fn book_takes_ally(&mut self, m: MinionId) -> bool {
-        let Some(c) = self.combat.as_ref() else {
+        let Some((_, life)) = self.book_steal(m) else {
             return false;
         };
-        let st = &self.state;
-        let Some(i) = c.side_of_minion(m) else {
-            return false;
-        };
+        let c = self.combat.as_ref().expect("combat");
+        let i = c.side_of_minion(m).expect("in the combat");
         let opp = c.sides[1 - i].minion;
-        let life = st.borne(opp).find_map(|l| match l.modifier {
-            crate::cards::Modifier::HostStealsOpposingAllyOnBurn(n) => Some(n),
-            _ => None,
-        });
-        let (Some(life), true) = (
-            life,
-            st.minions[m.index()].is_ally()
-                && st.minions[m.index()].in_play
-                && st.minions[opp.index()].is_vampire(),
-        ) else {
-            return false;
-        };
-        let to = st.minions[opp.index()].owner;
+        let to = self.state.minions[opp.index()].owner;
         let v = &mut self.state.minions[m.index()];
         v.take_for_good(to);
         v.locked = true;
@@ -3142,6 +3430,22 @@ impl Engine {
         c.round_over = true;
         c.press_continue = false;
         true
+    }
+
+    /// The card removing `m` from the game as it would burn: `m`'s
+    /// controller the prey of that card's controller, read now.
+    fn prey_burn_remover(&self, m: MinionId) -> Option<CardId> {
+        let st = &self.state;
+        let v = &st.minions[m.index()];
+        if !v.present() {
+            return None;
+        }
+        st.in_play_layers()
+            .find(|l| {
+                l.modifier == crate::cards::Modifier::RemovesPreyBurningMinions
+                    && st.prey(st.card_controller(l.source)) == v.owner
+            })
+            .map(|l| l.source)
     }
 
     /// Pulled Fangs, Antithesis: in its controller's minion phase, a ready
@@ -3457,8 +3761,9 @@ impl Engine {
     /// turn passes.
     pub(crate) fn end_turn(&mut self) {
         let s = self.state.active;
-        // "Burn this card at the end of the turn" (Loup).
-        for (id, r) in self.fired_riders(Hook::EndOfTurn, &HookAt::ANY) {
+        // "Burn this card at the end of the turn" (Loup); "of your next
+        // turn" (Bestow Vigor: scoped to its controller).
+        for (id, r) in self.fired_riders(Hook::EndOfTurn, &HookAt::of(s)) {
             for &e in r.effects {
                 self.apply_rider_effect(id, e, Hook::EndOfTurn);
             }
@@ -3795,6 +4100,8 @@ impl Engine {
         self.state.blind_spots.clear();
         self.state.chosen_this_turn.clear();
         self.state.clan_bleed_this_turn.clear();
+        self.state.seat_bleed_this_turn.0.clear();
+        self.state.no_bleed_this_turn.0.clear();
         for i in 0..self.state.minions.len() {
             self.state.minions[i].next_action_stealth = 0;
             let unlocks = self.state.minions[i].timed.iter().any(|&(l, until, _)| {
@@ -4045,6 +4352,22 @@ impl Engine {
                 });
                 continue;
             }
+            // Fata Amria: "can burn this card … instead of unlocking as
+            // normal", unlocked or not (LSJ 20010814-3, LSJ 20020109).
+            let fata = self
+                .state
+                .borne(id)
+                .find(|l| l.modifier == cards::Modifier::MayBurnInsteadOfUnlock)
+                .map(|l| l.source);
+            if let Some(card) = fata {
+                self.interrupts
+                    .push(crate::draws::Interrupt::MayBurnInsteadOfUnlock {
+                        seat: s,
+                        minion: id,
+                        card,
+                    });
+                continue;
+            }
             // "Burns 1 counter from this card instead of unlocking as normal"
             // (Touch of Oblivion): a substitution, also for an unlocked
             // minion (advanced rules §5.2.2).
@@ -4256,7 +4579,7 @@ mod tests {
     #[test]
     fn crypt_data_is_complete() {
         // The 200 V5 vampires, then the owner's legacy additions.
-        assert_eq!(CRYPT.len(), 1180);
+        assert_eq!(CRYPT.len(), 1232);
         assert_eq!(PRECONS.len(), 14);
         for (name, list) in PRECONS.iter() {
             let n: u32 = list.iter().map(|&(_, k)| k as u32).sum();

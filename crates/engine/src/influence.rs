@@ -126,6 +126,8 @@ impl Engine {
                 }),
         );
         options.extend(self.any_impulse_options(s));
+        // After a vampire moved to the ready region (Proxy Kissed).
+        options.extend(self.play_options(s, &[Window::InfluencedOut], None));
         options.extend(self.ability_options(s, Window::InfluencePhaseOwn));
         // Abilities paid in transfers: while enough are left.
         options.extend(
@@ -272,6 +274,12 @@ impl Engine {
                     self.oust_and_pass(s);
                 }
             }
+            Choice::Play {
+                card,
+                mode,
+                actor,
+                target,
+            } => self.announce_play(s, *card, *mode, *actor, *target, Flow::Influence { left }),
             Choice::Pass => self.open_phase_rotation(Flow::Influence { left }),
             other => unreachable!("illegal influence choice {other:?}"),
         }
@@ -375,6 +383,24 @@ impl Engine {
         if self.state.sect_of(m) == Some(crate::crypt::Sect::Anarch) {
             self.anarch_arrives(s);
         }
+        // Porphyrion: "you can search", before any contest (LSJ 20080526);
+        // none with an empty library (rules-qa 78.20).
+        if let Some((filter, shown)) = entry_effects(card).find_map(|e| match *e {
+            crate::cards::Effect::SearchLibraryOnEntry { filter, shown } => Some((filter, shown)),
+            _ => None,
+        }) {
+            if !self.state.seats[s.index()].library.is_empty() {
+                self.interrupts
+                    .push(crate::draws::Interrupt::LibraryToHand {
+                        seat: s,
+                        filter,
+                        haven_on: None,
+                        top: false,
+                        shown,
+                        may: Some(m),
+                    });
+            }
+        }
         // Inez: a power requiring her virtue, from library or hand.
         if let Some(virtue) = entry_effects(card).find_map(|e| match *e {
             crate::cards::Effect::SearchPowerOnEntry(v) => Some(v),
@@ -454,6 +480,7 @@ impl Engine {
                 blood: 0,
                 below: None,
                 max_level: None,
+                name: None,
             });
         }
         // Anarch Convert: his entry ability before any contest.
@@ -473,6 +500,20 @@ impl Engine {
                 minion: m,
                 offers,
             });
+        } else if let Some(n) = entry_effects(card).find_map(|e| match *e {
+            crate::cards::Effect::DisciplineMastersOnEntry(n) => Some(n),
+            _ => None,
+        }) {
+            // Seterpenre: up to n master Discipline cards, before any
+            // contest (LSJ 20080526).
+            self.interrupts
+                .push(crate::draws::Interrupt::DisciplineSearch {
+                    seat: s,
+                    minion: m,
+                    named: &[],
+                    left: n,
+                    entering: true,
+                });
         } else if let Some((n, clan)) = entry_distribution(card) {
             // Erlik: before any contest (LSJ 20080526).
             self.interrupts

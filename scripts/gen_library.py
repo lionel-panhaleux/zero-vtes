@@ -35,7 +35,7 @@ LABELS = [
     ("Location", r"(^|\. )(unique )?location\.|represents a location|in play, this is a (unique )?location"),
     ("HuntingGround", r"(^|\. )hunting ground\."),
     ("Weapon", r"^(unique )?(melee )?weapon\b"),
-    ("Gun", r"^weapon[:,] gun"),
+    ("Gun", r"^weapon[:,.] gun"),
     ("Vehicle", r"^vehicle\."),
     ("Electronic", r"^electronic\b"),
     ("Archetype", r"\barchetype\."),
@@ -45,24 +45,25 @@ LABELS = [
     ("Gehenna", r"^gehenna\."),
     ("Title", r"(^|\. )title\."),
     ("OutOfTurn", r"^out-of-turn\."),
-    ("Frenzy", r"^(out-of-turn\. )?frenzy\."),
+    ("Frenzy", r"^(\+\d stealth action\. |out-of-turn\. )?frenzy\."),
     # Combat card kinds a card may name ("cancel a grapple or aim card",
     # Sword of the Archangel).
     ("Grapple", r"^grapple\."),
     ("Aim", r"^aim\."),
     # A Discipline master card ("Discipline. Put this card on a vampire.").
     ("Discipline", r"^discipline\."),
-    # Ally and retainer subtypes: the type line only (advanced rules 5.7.1).
-    ("Mortal", r"^(unique )?mortal with"),
-    ("Animal", r"^(unique )?animal with"),
-    ("Ghoul", r"^(unique )?ghoul with"),
-    ("Zombie", r"^(unique )?zombie with"),
-    ("Wraith", r"^(unique )?wraith with"),
-    ("Werewolf", r"^(unique )?werewolf with"),
-    ("Mummy", r"^(unique )?mummy with"),
-    ("Mage", r"^(unique )?mage with"),
-    ("Demon", r"^(unique )?demon with"),
-    ("Changeling", r"^(unique )?changeling with"),
+    # Ally and retainer subtypes: the type line only (advanced rules 5.7.1),
+    # after a requirement if one comes first (Malajit Chandramouli).
+    ("Mortal", r"^(requires [^.]*\. )?(unique )?mortal with"),
+    ("Animal", r"^(requires [^.]*\. )?(unique )?animal with"),
+    ("Ghoul", r"^(requires [^.]*\. )?(unique )?ghoul with"),
+    ("Zombie", r"^(requires [^.]*\. )?(unique )?zombie with"),
+    ("Wraith", r"^(requires [^.]*\. )?(unique )?wraith with"),
+    ("Werewolf", r"^(requires [^.]*\. )?(unique )?werewolf with"),
+    ("Mummy", r"^(requires [^.]*\. )?(unique )?mummy with"),
+    ("Mage", r"^(requires [^.]*\. )?(unique )?mage with"),
+    ("Demon", r"^(requires [^.]*\. )?(unique )?demon with"),
+    ("Changeling", r"^(requires [^.]*\. )?(unique )?changeling with"),
     # An infernal ally (Herald of Topheth): "… flight [FLIGHT]. Infernal."
     # on its type line.
     ("Infernal", r"^(unique )?\w+ with [^\n]*\. infernal\."),
@@ -101,13 +102,18 @@ LABELS = [
     # "Boon." on the type line (Blood Trade burns them, bars them entering
     # play).
     ("Boon", r"(^|\. )boon\."),
+    # "Master: investment." / "Unique investment." on the type line (Swiss
+    # Cut and Alan Sovereign key on them; Wall Street Night takes their
+    # counters).
+    ("Investment", r"^(unique )?investment\."),
 ]
 # An ally's or retainer's type line: "Unique mortal with 2 life. 1 strength,
 # 0 bleed." (a retainer prints its life only).
 # "… 3 strength, 1 bleed, flight [FLIGHT]." (Herald of Topheth): flight is
-# its `Flight` label.
+# its `Flight` label. A requirement may come first ("Requires a
+# non-Camarilla vampire. Unique mortal with 1 life.": Malajit Chandramouli).
 BODY = re.compile(
-    r"^(?:unique )?[\w ]+? with (\d+) life\.(?: (\d+) strength, (\d+) bleed(?:, flight \[FLIGHT\])?\.)?",
+    r"^(?:requires [^.]*\. )?(?:unique )?[\w ]+? with (\d+) life\.(?: (\d+) strength, (\d+) bleed(?:, flight \[FLIGHT\])?\.)?",
     re.I,
 )
 

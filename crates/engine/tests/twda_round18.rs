@@ -646,7 +646,7 @@ fn sacrificial_lamb_burns_a_torpid_vampire_for_its_capacity() {
     assert_eq!(e.state.cards[vest.index()].host, Some(a), "taken");
     assert_eq!(blood(&e, a), (6 - 3 + 3).min(cap), "its capacity's blood");
     assert!(
-        e.state.minions[a.index()].diablerie_turn.is_none(),
+        e.state.minions[a.index()].diableries.0.is_empty(),
         "not diablerie"
     );
 }

@@ -4,7 +4,7 @@
 //! answers by the rule.
 
 use zvtes::agent::{Agent, RandomLegal};
-use zvtes::cards::RefEffect;
+use zvtes::cards::{RefEffect, Term};
 use zvtes::decision::{Choice, WindowLabel};
 use zvtes::decks::Deck;
 use zvtes::game::{Engine, Step};
@@ -172,15 +172,22 @@ fn check(seats: usize, games: u64) -> Seen {
                             // Two Methuselahs left: the caller must take some.
                             assert_eq!(given(caller), least, "game {g}: the caller burns least");
                             let total: u8 = r.terms.alloc.iter().map(|(_, n)| n).sum();
+                            // Among two or more (Kine Resources Contested):
+                            // one point left for the predator; among one or
+                            // more (Lily Prelude): all to the prey.
+                            let spread = def.terms.iter().any(|t| {
+                                matches!(t, Term::Allocate { min_seats, .. } if *min_seats >= 2)
+                            });
                             if prey != predator {
+                                let last = u8::from(spread);
                                 assert_eq!(
                                     given(prey),
-                                    total - 1,
-                                    "game {g}: all but one to the prey"
+                                    total - last,
+                                    "game {g}: all but the last to the prey"
                                 );
                                 assert_eq!(
                                     given(predator),
-                                    1,
+                                    last,
                                     "game {g}: the last to the predator"
                                 );
                             }
