@@ -866,8 +866,10 @@ impl Session {
     /// the stealth, no legal no-op, no block attempt short of it, none of the
     /// acting seat's options but the pass while the attempt under way is
     /// short of it, no aggravation before the strikes are chosen, and the
-    /// abilities usable at any time only where the decision pauses anyway;
-    /// all if none is left.
+    /// abilities usable at any time only where the decision pauses anyway,
+    /// not held to between actions: one matters mid-action (Alexandra's, a
+    /// blocker locked during its attempt failing it, rules-qa 62.3; owner,
+    /// 2026-11-13); all if none is left.
     pub(crate) fn shown(&self, req: &DecisionRequest) -> Vec<usize> {
         let all = (0..req.options.len()).collect::<Vec<_>>();
         if !self.quiet.contains(&req.seat) {

@@ -190,8 +190,9 @@ fn every_option_s_key_names_what_it_is_about() {
 /// in it; none only for a card named without taking it (Master:
 /// Discipline) or one stored on a card. A library search, the seat's own
 /// ash heap and another seat's (Trochomancy) are each met; a deeper
-/// sweep's seed kept: Undele's referendum naming its caller's ash heap
-/// cards (178).
+/// sweep's seeds kept: Undele's referendum naming its caller's ash heap
+/// cards (178), a card looked at on top of the library taken to hand
+/// (239).
 #[test]
 fn a_found_card_names_the_zone_it_is_in() {
     use zvtes::decision::Choice;
@@ -208,7 +209,7 @@ fn a_found_card_names_the_zone_it_is_in() {
     let troch = zvtes_host::deck::resolve(0, &troch).expect("Trochomancy's deck");
     let lists = vec![(troch.crypt.as_slice(), troch.library.as_slice()); 4];
     let mut met: HashMap<(Zone, bool), usize> = HashMap::new();
-    let kept = [178].into_iter().filter(|&s| s > seeds);
+    let kept = [178, 239].into_iter().filter(|&s| s > seeds);
     let deck = (seeds + 1..=seeds + 12).map(|s| (s, true));
     let played = (1..=seeds).chain(kept).map(|s| (s, false)).chain(deck);
     for (seed, with_troch) in played {
@@ -367,6 +368,48 @@ fn an_ash_vampire_names_the_ash_heap_it_is_in() {
         }
     }
     assert!(met > 0, "the prey's ash heap vampire offered");
+}
+
+/// Victim of Habit names a card in the prey's ash heap: its key names the
+/// prey's heap, not its player's (docs/protocol.md §7 `zone`; egress review,
+/// 2026-11-14).
+#[test]
+fn victim_of_habit_names_the_preys_ash_heap() {
+    use zvtes::cards::Target;
+    use zvtes::decision::Choice;
+    use zvtes::ids::SeatId;
+    use zvtes::state::find_library;
+    use zvtes_api::ids::Zone;
+    let mut e = Engine::bare(3);
+    let a = e.add_minion(SeatId(0), 0, 5, false);
+    e.add_minion(SeatId(0), 1, 4, false);
+    e.state.seats[0].hand.push(find_library("Victim of Habit"));
+    // Two cards: a lone one is chosen unasked (elided).
+    e.state.seats[1].ash.push(find_library("Soak"));
+    e.state.seats[1].ash.push(find_library("Blood Doll"));
+    let victim = Choice::Play {
+        card: 0,
+        mode: 0,
+        actor: Some(a),
+        target: Target::None,
+    };
+    let mut met = 0;
+    for _ in 0..40 {
+        let Step::Decision(req) = e.run() else { break };
+        for c in &req.options {
+            if let Choice::FindCard(_) = c {
+                let z = key(&e, &req, c, &EngineNames).zone.expect("its zone");
+                assert_eq!((z.seat, z.zone), (1, Zone::AshHeap), "{c:?}");
+                met += 1;
+            }
+        }
+        if met > 0 {
+            break;
+        }
+        let i = req.options.iter().position(|o| *o == victim).unwrap_or(0);
+        e.choose(i);
+    }
+    assert!(met > 0, "the prey's ash heap card offered");
 }
 
 /// Vestgeir's play from another Methuselah's ash heap names that heap,

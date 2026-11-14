@@ -237,7 +237,9 @@ fn found_in(e: &Engine, req: &DecisionRequest) -> Option<ZoneRef> {
         Some(
             Interrupt::Reorder { seat, .. }
             | Interrupt::LibraryToHand { seat, .. }
-            | Interrupt::StoreSearch { seat, .. },
+            | Interrupt::StoreSearch { seat, .. }
+            | Interrupt::LookedToHand { seat, .. }
+            | Interrupt::BurnFromLibraryTop { of: seat, .. },
         ) => return at(seat, Zone::Library),
         Some(
             Interrupt::DiscardFromHandOf { of: Some(seat), .. }
@@ -266,9 +268,13 @@ fn found_in(e: &Engine, req: &DecisionRequest) -> Option<ZoneRef> {
             }
             | Interrupt::NameOwnAshCard { seat, .. }
             | Interrupt::NameAshPair { of: seat, .. }
-            | Interrupt::StoreFromAshOf { from: seat, .. },
+            | Interrupt::StoreFromAshOf { from: seat, .. }
+            | Interrupt::ExchangeLooked { of: seat, .. },
         ) => return at(seat, Zone::AshHeap),
         Some(Interrupt::StorePreyAsh { seat, .. }) => return at(e.state.prey(seat), Zone::AshHeap),
+        Some(Interrupt::SwapEquipFromPrey { seat, .. }) => {
+            return at(e.state.prey(seat), Zone::Hand)
+        }
         Some(Interrupt::ReplaceFromResearch { seat, .. }) => return at(seat, Zone::Research),
         Some(Interrupt::ExchangeAnarch { .. } | Interrupt::EntryRemoveOrBurn { .. }) => {
             return at(req.seat, Zone::AshHeap)
@@ -292,17 +298,17 @@ fn found_in(e: &Engine, req: &DecisionRequest) -> Option<ZoneRef> {
         return at(r.caller, Zone::AshHeap);
     }
     if let Some(p) = e.play_terms() {
-        let hold = zvtes::cards::lookup(p.card)
-            .is_some_and(|d| d.modes[p.mode as usize].terms == Some(Terms::HoldCardOfTarget));
+        let terms = zvtes::cards::lookup(p.card).and_then(|d| d.modes[p.mode as usize].terms);
         let heap = match (p.ash, p.target) {
             (Some((s, _)), _) => s,
-            (None, T::Seat(t)) if hold => t,
+            (None, T::Seat(t)) if terms == Some(Terms::HoldCardOfTarget) => t,
+            (None, _) if terms == Some(Terms::PreyAshCard) => e.state.prey(p.seat),
             _ => p.seat,
         };
         return at(heap, Zone::AshHeap);
     }
     match e.ability_terms()?.1.terms {
-        Some(Terms::AshCard) => at(req.seat, Zone::AshHeap),
+        Some(Terms::AshCard | Terms::CombatPlayedAshCard) => at(req.seat, Zone::AshHeap),
         Some(Terms::DirectedHandCard) => at(e.action()?.directed_seat(&e.state)?, Zone::Hand),
         Some(Terms::ActingHandCard(_)) => at(e.action()?.seat, Zone::Hand),
         _ => None,

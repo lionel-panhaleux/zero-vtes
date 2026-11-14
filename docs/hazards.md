@@ -111,6 +111,13 @@ review finding); one the code or a page now makes impossible leaves it.
 - A library mode's requirement tag other than a three-letter Discipline
   (`FLIGHT`) was once read as no requirement: `cards::has_disciplines`
   filters the tags it checks, so a new kind of tag needs its arm there.
+- A new interrupt or `Terms` offering `FindCard` needs its zone in
+  `crates/host/src/describe.rs` `found_in` (whose seat's library, hand or
+  ash heap): its catch-alls give none, or for play terms the player's own
+  heap, silently; the keys sweep (`a_found_card_names_the_zone_it_is_in`)
+  meets it only on the seeds that reach it, and a wrong heap only where the
+  card is absent from it (Undele and round 29's look-to-hand found by the
+  weekly sweep; Victim of Habit's prey heap and Marthe Dizier by review).
 - A layer's `source` is `CardId::NONE` for a layer of no card in play (an
   action's): match the modifier before indexing `cards[l.source]`.
 - While a polling commitment applies, the referendum context is out of
