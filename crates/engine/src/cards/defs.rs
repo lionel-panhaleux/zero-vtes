@@ -32182,7 +32182,6 @@ pub static THE_RED_QUESTION: CardDef = CardDef {
             Effect::Layer(Modifier::SectBound(Sect::Anarch)),
         ],
     )],
-    burn_option_torpid: true,
     ..CARD
 };
 

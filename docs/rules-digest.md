@@ -5012,10 +5012,13 @@ cards), §1.10 (burn and removal), §6.3 (control of a card in play).
 ### 16.8 The burn option
 
 - The burn option (rulebook, advanced): usable in any Methuselah's unlock
-  phase; "a minion who meets the requirements" = a ready controlled minion
-  (not in torpor) of the card's clan if named, with one of its Disciplines if
-  any (pool: Sight Beyond Sight) (33.8). Veneficti's per his printed clan
-  (62.30).
+  phase; "a minion who meets the requirements" = a controlled minion of the
+  card's clan if named, with one of its Disciplines if any (pool: Sight
+  Beyond Sight): ready for an action card, a reaction and every other type
+  (LSJ 20091203), in torpor too for an action modifier, playable on his own
+  leave-torpor action (LSJ 20091204, ANK 20240610: Council of Seraphim, The
+  Red Question, High Orun; Dusk Work, Unholy Radiance) (33.8, owner
+  2026-11-11). Veneficti's per his printed clan (62.30).
 - One such discard per unlock phase; not usable while one meets the
   requirement, a unique copy in play no bar (LSJ 20100203-2); the
   rulebook's "or is not a legal target" is a torpid minion where the
@@ -5027,10 +5030,11 @@ cards), §1.10 (burn and removal), §6.3 (control of a card in play).
   Watchtower: Four Ride Forth are burnable only without a ready minion
   meeting it (78.31).
 - The Red Question: its non-titled non-Anarch requirement read as a trait;
-  a torpid such vampire bars it too (LSJ 20091204) (104.8).
+  a torpid such vampire bars it too, as for any action modifier (LSJ
+  20091204) (104.8).
 - The burn option with every vampire of the level in torpor (Barrenness, Evil
-  Eye, Minor Curse, Strix); unique has no bearing on it (Code of Samiel, Command
-  Performance, Draeven) (113.49, 113.69, 113.70).
+  Eye, Minor Curse, Strix: no action modifier); unique has no bearing on it
+  (Code of Samiel, Command Performance, Draeven) (113.49, 113.69, 113.70).
 
 ## 17. Control and ownership
 
@@ -5883,6 +5887,12 @@ rules-qa batch.
   or a prevented effect and as much as possible on a cost no longer
   payable (owner, 2026-11-11; 117.1). The ledger rows keep the database's
   text; their tests assert the ruling.
+- **K53** The burn option under torpor: 33.8 read "a minion who meets the
+  requirements" as a ready one for every card, The Red Question a flagged
+  exception (104.8) — superseded by LSJ 20091203 and 20091204 and ANK
+  20240610, Rules Directors' (owner, 2026-11-11): by card type, a torpid
+  minion meeting an action modifier's requirement, never an action card's
+  or a reaction's (§16.8).
 
 ## 24. Open readings
 
@@ -6172,7 +6182,7 @@ index or an item cited nowhere.
   §6.3; 32.11 §2,§16.7; 32.12 §2,§8.1; 32.13 §2,§3.1,§8.7,§11.2
 - **33** — 33.1 §2,§5.3,§6.2,§23.2; 33.2 §2,§13.2,§21.1; 33.3 §2,§4.1,§16.4;
   33.4 §8.1; 33.5 §5.4,§14.3,§14.4,§16.4; 33.6 §12.1,§12.11; 33.7
-  §3.10,§14.3,§21.1; 33.8 §6.1,§14.1,§16.8,§23.5; 33.9 §3.3,§8.4
+  §3.10,§14.3,§21.1; 33.8 §6.1,§14.1,§16.8,§23.5,§23.7; 33.9 §3.3,§8.4
 - **34** — 34.1 §9.2; 34.2 §9.2; 34.3 §4.5; 34.4 §11.1,§14.3; 34.5
   §11.1,§16.1; 34.6 §3.12,§16.1; 34.7 §3.7,§6.4,§14.6,§14.10,§16.1,§16.7;
   34.8 §8.2
@@ -6434,9 +6444,9 @@ index or an item cited nowhere.
   103.4 §14.12; 103.5 §14.12,§24.1; 103.6 §14.12,§24.1
 - **104** — 104.1 §15.2,§24.1; 104.2 §24.1; 104.3 §11.7,§14.10,§23.4,§24.1;
   104.4 §4.5,§24.1; 104.5 §8.4; 104.6 §9.1; 104.7 §10.2,§14.10,§24.1; 104.8
-  §16.8,§24.1; 104.9 §10.4,§24.1; 104.10 §9.1; 104.11 §15.2; 104.12 §15.2;
-  104.13 §15.2; 104.14 §7.3; 104.15 §7.3; 104.16 §4.4; 104.17 §4.4,§24.1;
-  104.18 §4.4,§24.1; 104.19 §15.2,§24.1; 104.20 §15.2,§24.1
+  §16.8,§23.7,§24.1; 104.9 §10.4,§24.1; 104.10 §9.1; 104.11 §15.2; 104.12
+  §15.2; 104.13 §15.2; 104.14 §7.3; 104.15 §7.3; 104.16 §4.4; 104.17
+  §4.4,§24.1; 104.18 §4.4,§24.1; 104.19 §15.2,§24.1; 104.20 §15.2,§24.1
 - **105** — 105.1 §15.2,§24.1; 105.2 §15.2; 105.3 §7.3; 105.4 §9.1; 105.5
   §15.2; 105.6 §7.3,§24.1
 - **106** — 106.1 §15.2,§24.1; 106.2 §15.2; 106.3 §15.2; 106.4 §15.2; 106.5

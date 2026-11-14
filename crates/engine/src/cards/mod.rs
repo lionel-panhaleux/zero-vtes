@@ -9237,7 +9237,6 @@ pub const CARD: CardDef = CardDef {
     riders: &[],
     cheaper_for: None,
     lines: &[],
-    burn_option_torpid: false,
     retake_from_ash: false,
     replace_from_research: false,
 };
@@ -9263,9 +9262,6 @@ pub struct CardDef {
     /// The printed line (`LIBRARY` mode) of each mode, where the definition
     /// splits a printed choice; empty: the same index.
     pub lines: &'static [u8],
-    /// A torpid minion meeting its requirement bars its burn option too
-    /// (The Red Question: LSJ 20091204, over rules-qa 33.8's ready one).
-    pub burn_option_torpid: bool,
     /// "If you would replace this card, instead you can take this card from
     /// your ash heap" (Steely Tenacity; `Seat::retakes`).
     pub retake_from_ash: bool,

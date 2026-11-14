@@ -771,8 +771,8 @@ sources to the engine's conventions.
   resolution). The burn option reads a card's printed trait requirement
   (`cards::trait_requirements`: a Seraph, an infernal or an unmerged
   advanced vampire, a master card's `ControlsReadySeraph`, a sect or an
-  untitled one), from a ready minion, a torpid one too where the card says
-  so (`CardDef::burn_option_torpid`: The Red Question, rules-qa 104.8).
+  untitled one), from a ready minion, a torpid one too for an action
+  modifier (rules-qa 33.8).
   `GameState::master_surcharge_on` folds Walker Grimes's
   `Stat::MasterTargetingCostsYou` into the haven surcharge. Burden the Mind's
   toll (`Modifier::HostUnlockToll`, `GameState::unlock_toll_on`, out of the

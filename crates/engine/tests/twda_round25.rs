@@ -1489,6 +1489,42 @@ fn sense_vibrations_votes_once() {
 
 // ---- Unholy Radiance, Well-Marked -------------------------------------------
 
+/// The burn option under torpor by card type (owner, 2026-11-11; rules-qa
+/// 33.8): a torpid Laibon with three Aye or Orun meets an action modifier's
+/// requirement, playable on his own leave-torpor action (Dusk Work "can be
+/// played from torpor": LSJ 20030130; High Orun, ANK 20240610), so neither
+/// Dusk Work nor Unholy Radiance (an action modifier and a reaction) is
+/// burnable; Barrenness, an action, is with its vampire in torpor (113.49).
+#[test]
+fn a_torpid_laibon_bars_an_action_modifiers_burn_option() {
+    for (card, item) in [("Dusk Work", "Aye"), ("Unholy Radiance", "Orun")] {
+        let mut e = game(2);
+        let l = e.add_minion(SeatId(0), of_sect(Sect::Laibon, 0), 4, false);
+        for _ in 0..3 {
+            in_play(&mut e, 0, item, Some(l));
+        }
+        e.state.minions[l.index()].in_torpor = true;
+        e.add_minion(SeatId(0), plain("Brujah", 0), 4, false);
+        e.add_minion(SeatId(1), plain("Ventrue", 0), 4, false);
+        hand(&mut e, 0, &[card]);
+        until(&mut e, SeatId(1), WindowLabel::UnlockAbilities);
+        let req = until(&mut e, SeatId(0), WindowLabel::UnlockAbilities);
+        assert!(
+            !req.options.contains(&Choice::Discard(0)),
+            "{card}: {:?}",
+            req.options
+        );
+        // With no Laibon meeting it, burnable.
+        e.state.minions[l.index()].in_play = false;
+        let req = until(&mut e, SeatId(0), WindowLabel::UnlockAbilities);
+        assert!(
+            req.options.contains(&Choice::Discard(0)),
+            "{card} unmet: {:?}",
+            req.options
+        );
+    }
+}
+
 /// Unholy Radiance: "Requires a Laibon with three or more Orun. Only usable
 /// during a referendum. … Gain 4 votes." His Hiding in the Open passes on
 /// them.

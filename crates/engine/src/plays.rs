@@ -15352,10 +15352,13 @@ impl Engine {
                 lib.burn_option
                     && !st.minions_of(seat).any(|m| {
                         let v = &st.minions[m.index()];
-                        // Ready minions only (owner, 2026-09-26: rules-qa
-                        // 33.8), torpid ones too for The Red Question.
+                        // A torpid minion meets the requirement of any card
+                        // with an action-modifier type, an AM/reaction too
+                        // (his own leave-torpor action; High Orun, ANK
+                        // 20240610); every other card needs a ready one
+                        // (rules-qa 33.8).
                         let master = lib.types.contains(&CardType::Master);
-                        let torpid = cards::lookup(card).is_some_and(|d| d.burn_option_torpid);
+                        let torpid = lib.types.contains(&CardType::ActionModifier);
                         (v.ready() || torpid && v.in_torpor && v.in_play)
                             && (lib.clans.is_empty() || st.meets_clan(m, lib.clans, master))
                             && (lib.disciplines.is_empty()
