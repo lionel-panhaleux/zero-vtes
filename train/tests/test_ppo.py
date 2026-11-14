@@ -19,6 +19,17 @@ from train.ppo import (
 )
 
 
+# Two human wins read whole on this engine, their winners on different
+# decks, b's rushing and blocking. A record stopping partway has no winner
+# to imitate (crates/host/tests/records.rs lists the stops): an engine
+# change stopped this pair's predecessors twice (round 29, 34cdd29). The
+# corpus' one other non-owner game reading whole, 5a98a36c, is a tie.
+WON_WHOLE = (
+    "data/records/zero-vtes-replay-2026-10-08T20-32-01-306Z.json",
+    "data/records/zero-vtes-replay-2026-10-05T06-24-53-391Z.json",
+)
+
+
 def test_one_iteration(tmp_path):
     cfg = Config(
         games=8, steps=24, iterations=1, epochs=1, minibatch=64, d=32, layers=1,
@@ -611,18 +622,20 @@ def test_imitation_draws_the_weak_decks_choices_more_often():
 def test_the_owners_games_weighted(tmp_path):
     """The training board's "The owner's games weighted up in --bc": named
     games' winners drawn `W` times as often (no record names its player:
-    a player's games named by game), times a weak deck's weight."""
-    a = "data/records/zero-vtes-replay-2026-10-08T20-32-01-306Z.json"
-    b = "data/records/57b15cfc6c44ad37.json"
+    a player's games named by game, a prefix or an id), times a weak deck's
+    weight."""
+    # Both are the owner's (`zero-vtes-replay`), so the prefix weighs both:
+    # `a` is named by its id.
+    a, b = WON_WHOLE
     replays = load_replays(",".join([a, b]))
     train, _, _, _, decks, sources, combat = imitation(replays, 3, 0)
     assert len(sources) == len(train) and set(sources) == {pathlib.Path(a).name, pathlib.Path(b).name}
-    owner = games_weight("zero-vtes-replay=3")
-    assert owner == {"zero-vtes-replay": 3.0}
+    assert games_weight("zero-vtes-replay=3") == {"zero-vtes-replay": 3.0}
+    owner = games_weight("2026-10-08T20-32-01=3")
     assert sampling(decks, [], 1.0, sources, {}, combat, 1.0) is None
     p = sampling(decks, [], 1.0, sources, owner, combat, 1.0)
-    mine = [x for x, s in zip(p, sources) if "zero-vtes-replay" in s]
-    other = [x for x, s in zip(p, sources) if "zero-vtes-replay" not in s]
+    mine = [x for x, s in zip(p, sources) if "2026-10-08T20-32-01" in s]
+    other = [x for x, s in zip(p, sources) if "2026-10-08T20-32-01" not in s]
     assert mine and other and min(mine) == pytest.approx(3 * max(other))
     weak = [decks[sources.index(pathlib.Path(b).name)]]
     both = sampling(decks, weak, 2.0, sources, owner, combat, 1.0)
@@ -631,7 +644,7 @@ def test_the_owners_games_weighted(tmp_path):
         with pytest.raises(ValueError):
             games_weight(bad)
     small = dict(games=4, steps=4, d=16, layers=1, device="cpu", bc=",".join([a, b]), bc_coef=0.1, bc_holdout=0)
-    trainer = Trainer(Config(**small, out=str(tmp_path / "t"), bc_games_weight="zero-vtes-replay=3"))
+    trainer = Trainer(Config(**small, out=str(tmp_path / "t"), bc_games_weight="2026-10-08T20-32-01=3"))
     assert trainer.bc_p is not None and np.allclose(trainer.bc_p, p)
     with pytest.raises(ValueError, match="no trained game"):
         Trainer(Config(**small, out=str(tmp_path / "u"), bc_games_weight="1999-01-01=3"))
@@ -642,8 +655,7 @@ def test_imitation_draws_the_combat_entries_more_often(tmp_path):
     a combat (a block, or a rush declared in the acting seat's minion phase,
     as `waste` counts one), and the minibatches draw the winners' combat
     entries `bc_combat_weight` times as often, times the other weights."""
-    a = "data/records/zero-vtes-replay-2026-10-08T20-32-01-306Z.json"
-    b = "data/records/57b15cfc6c44ad37.json"
+    a, b = WON_WHOLE
     taken = [d for d in zvtes_py.replay_decisions(open(b).read(), 3)["decisions"] if d["chosen"] is not None]
     assert all(d["combat"] for d in taken if d["choice"].startswith("Block with"))
     rushes = [d for d in taken if d["combat"] and not d["choice"].startswith("Block with")]
