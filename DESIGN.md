@@ -1193,8 +1193,22 @@ its entry when it ends — the training skill's "A run")
   returns nor the turn-level value's reward learns more; no gain shows on the
   three human positions. The bench differs from p19 (from served p18 against it,
   0.92 VP: flat) in its learning rate (1e-4 against 3e-5), its decks, its starts
-  and p19's combat levers: which made it learn is open; the next step is the
-  owner's (asked 2026-11-15).
+  and p19's combat levers: which made it learn is open; the owner's answer: p20
+  (2026-11-15).
+- **p20, prepared** (`runs/p20`, 2026-11-15, the engine of 2.30.1, round 30;
+  5861 → 6160; owner, 2026-11-15, after the bench: λ 0.95 at `--lr 1e-4` learned
+  on five decks). One change from p18's run: `--lr 1e-4` against its 3e-5, the
+  bench's rate, on the full pool, to tell whether the learning rate or the
+  bench's narrow table made it learn. The command: p18's (with its exploiters:
+  p18's live one resumes, generation 5 on Path of Power, 30 of its 50 iterations
+  in; p18's retired copies are not at its tables), with `--out runs/p20
+  --resume runs/served-p18.pt --opponents runs/served-p18.pt --lr 1e-4`
+  `--iterations 6160 --weak-decks`
+  `100,193,155,187,134,154,143,186,185,188,145,181,123,178,161,136,119,`
+  `191,110,97,105,176,160,184,122,125,109,175,138` (the 29 recent decks under a
+  VP share of 0.10 in `served-p18.decks.json`, 2026-11-14), held out (22): p19's
+  21 and the human win since, `c7b1ab172be6436b`. Baseline: p18 (its entry);
+  judged by the training skill's "Serve", the human-facing measures first.
 
 ### 11.3 Open gaps
 
