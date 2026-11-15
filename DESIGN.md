@@ -1228,9 +1228,9 @@ its entry when it ends — the training skill's "A run")
   at all three: 0.12, 0.18, 0.15 against ± 0.09, 0.09, 0.10); the critic by
   quarter, self-play 0.07 / 0.14 / 0.33 / 0.70, the human records −0.40 / −0.11
   / 0.15 / 0.60. Degrading by its prey's R and the wins from three quarters in:
-  it fails the not-degrading test, to the owner (2026-11-15; recommended not
-  served). The learning rate alone does not move the full pool: the bench's gain
-  came with its narrow table (five decks, no starts, no exploiter).
+  it fails the not-degrading test: not served (owner, 2026-11-15). The
+  learning rate alone does not move the full pool: the bench's gain came with
+  its narrow table (five decks, no starts, no exploiter).
 
 ### 11.3 Open gaps
 
