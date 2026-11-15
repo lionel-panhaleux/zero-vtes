@@ -966,6 +966,11 @@ numbers)
   against that mixture) loses that gain, −0.15 VP at two errors (the probe,
   share 0.1): a collapsed option it tries sits under the clip's floor and
   learns almost nothing. Dropped (owner, 2026-11-11).
+- On a narrow table (the bench: five decks, against p18 frozen, `--lr
+  1e-4`, one run each, 200 iterations), Monte-Carlo returns (λ 1) and the
+  turn-level value's reward each learn less than λ 0.95 (+0.10 / +0.18
+  and +0.17 / +0.13 VP a seat at 4 / 5 seats, against +0.34 / +0.35): the
+  critic's credit is not what holds the runs flat.
 - The network departs from the human winners mostly on the turn's own
   choices, barely on blocks' and combat's passes: p17 gives the human's
   choice under 1% on 49 imitated wins (and 3 held out) for 26.2% (100%) of
@@ -1000,8 +1005,7 @@ numbers)
   on trained choices, 0.52 held out, the held-out loss rising through every
   run from p10 to p16).
 - A potential-based shaping by the position cut the rushes (p15): no shaping
-  by the position's features; the turn-level value's reward is on the
-  bench (the measures' "The turn-level value").
+  by the position's features.
 - A larger network distilled from p14 plays p14's game, no gain, nor in RL
   from it (d16, p16).
 - Search in the minion phase on legal views: +0.10 ± 0.17 VP, 10 CPU-seconds a
@@ -1167,6 +1171,30 @@ its entry when it ends — the training skill's "A run")
   (17 / 20 / 9%). The critic by quarter, self-play 0.09 / 0.16 / 0.33 /
   0.65, the human records −0.18 / −0.09 / 0.12 / 0.54. Degrading by the
   agreement and the ledger: not served (owner, 2026-11-14).
+- **The bench** (`runs/bench-a`, `-b`, `-c`; 2026-11-14 → 15, the engine of
+  2.30.1 at `5a65b6b`, `c` at `7e1c4fe` with the same engine; owner, 2026-11-14,
+  after p19: the learning signal first, on a narrow table). The learner from
+  served p18 against p18 frozen, 4 and 5 seats on five decks (`--decks
+  0,3,5,9,118`: the Hecata, Nosferatu and Tremere V5 precons, Gangrel (Anarch),
+  Ring that Bell v2.0), no starts, imitation as p19's without its combat weight
+  (held out as p19), `--lr 1e-4 --lr-final 1`, one run each of 200 iterations
+  (5861 → 6060); (a) λ 0.95, (b) λ 1, (c) λ 0.95 with
+  `--shaping runs/value/v-critic.pt`. No panics. Measured at 6060 as the probe
+  measures (one iteration at `--lr 0`, 1,024 games at 4 and at 5 seats, the same
+  seed; ± 0.09 each, ± 0.13 on a difference), VP a seat: p18 1.05 / 0.95, (a)
+  1.38 / 1.29, (b) 1.15 / 1.12, (c) 1.21 / 1.08. `humanset` on the bench decks'
+  held-out wins read whole on this engine (3: `5af4d2bd173094f6`,
+  `e79edc1df3520df7`, `7512b54e87ee02ee`; 60 games from their three positions a
+  measure, ± 13 points, ± 18 on a difference), wins from a quarter, half and
+  three quarters in: p18 35 / 62 / 70%, (a) 27 / 53 / 70%, (b) 33 / 60 / 68%,
+  (c) 35 / 53 / 77%; agreement (586 decisions, ± 4.1) 58.7%, 56.1%, 58.0%,
+  54.8%. None gains on both: λ 0.95 at `--lr 1e-4` learns on a narrow table,
+  beyond two errors (+0.34 / +0.35 VP), at bot tables only; neither Monte-Carlo
+  returns nor the turn-level value's reward learns more; no gain shows on the
+  three human positions. The bench differs from p19 (from served p18 against it,
+  0.92 VP: flat) in its learning rate (1e-4 against 3e-5), its decks, its starts
+  and p19's combat levers: which made it learn is open; the next step is the
+  owner's (asked 2026-11-15).
 
 ### 11.3 Open gaps
 
