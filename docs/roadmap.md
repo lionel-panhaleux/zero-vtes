@@ -61,9 +61,11 @@ decision: the owner's.
   opens to more players), bot-against-bot not degrading (owner,
   2026-11-09: the head-to-head against p14, flat since p10 and blind to
   the humans' 79%, is the not-degrading check only). The way there
-  (owner, 2026-11-15): the five-deck bench showed the learner gaining on
-  p18 at bot tables (DESIGN §11.2 "The bench"), so full-pool runs resume
-  at its learning rate, each judged by the serve test.
+  (owner, 2026-11-15, after p20): training has reached a plateau; the
+  next step needs the open beta's human play, far more than the 89
+  counted games (about 500 a weights to tell a 5-point change in the
+  humans' 79% at two standard errors). Until then no run; the harvest and
+  promotion go on, p18 stays served.
 
 ## Objectives
 
