@@ -145,6 +145,8 @@ impl Requirement {
             | R::ActingNotYourPredator
             | R::BleedAgainstPrey
             | R::BleedSuccessful
+            | R::BledSeatInGame
+            | R::BledLibraryNotEmpty
             | R::BleedAmountAtLeast(..)
             | R::BlocksDeclined
             | R::AfterBlocksDeclined
@@ -155,10 +157,10 @@ impl Requirement {
             | R::ActorSucceededThisTurn
             | R::NoOtherOwnAttemptedThisTurn
             | R::ControlsReadyTitled(..)
+            | R::ControlsReadySectCapacityAtLeast(..)
             | R::ControlsReadySect(..)
             | R::ControlsReadyOfSect(..)
             | R::MasterPhaseActionLeft
-            | R::HandHas(..)
             | R::PreyBurnedPool
             | R::ControlsReadyOnPath(..)
             | R::ActingFollowsPath(..)
@@ -249,6 +251,7 @@ impl Requirement {
             | R::ActingOtherController
             | R::OtherActingControlled
             | R::OwnActing
+            | R::ActingNamed(..)
             | R::NoActionUnderway
             | R::ActionUnderway
             | R::ControlsReadyVampires(..)
@@ -258,6 +261,7 @@ impl Requirement {
             | R::ActingTitleIn(..)
             | R::ActingSectNot(..)
             | R::ActingLacksDiscipline(..)
+            | R::ActingHasDiscipline(..)
             | R::ActingBlackHand
             | R::ActingNotBlackHand
             | R::ActingNotSeraph
@@ -367,6 +371,11 @@ impl Requirement {
             | R::NoWatchDamageThisAction
             | R::NoCombatQueued
             | R::AttemptingVampireWithout(..)
+            | R::AttemptingVampire
+            | R::AttemptingAlly
+            | R::BledAtLeast(..)
+            | R::IsRecruit
+            | R::NotVampireWithInterceptAbove(..)
             | R::PlayedCardIsMinionCard
             | R::PlayedByPredatorOrPrey
             | R::PlayedByMonster
@@ -387,7 +396,6 @@ impl Requirement {
             | R::IsEquipLabeledFromHand(..)
             | R::ControlsReadyBlackHand
             | R::ControlsReadySeraph
-            | R::OpponentNotSubtype(..)
             | R::OpponentHoldsNoCard(..) => &[S::Play],
             R::OpponentVampire | R::OpponentCapacityAtMost(..) | R::OpponentSectIn(..) => {
                 &[S::Play, S::Printed]
@@ -423,15 +431,18 @@ impl Requirement {
             | R::HostOutOfPlay
             | R::LifeAtLeast(..)
             | R::ChosenInPlay
+            | R::ChosenCardInPlay
+            | R::ChosenCardBearerNotYours
             | R::BoonTargetActive
             | R::FewerCopiesThanReadyOfClan(..)
             | R::CardControllerActive => &[S::Card],
             R::TargetCapacityAtMost(..)
             | R::TargetCapacityAtMostTwiceHeld(..)
             | R::TargetCapacityAtMostActorTimes(..)
+            | R::TargetEnteredSinceYourLastTurn
+            | R::TargetNeverContested
             | R::TargetHoldsAtLeast(..)
             | R::TargetAllyCard(..)
-            | R::TargetDiscipline(..)
             | R::TargetMithraic
             | R::TargetAnarch
             | R::TargetSectNot(..)
@@ -489,6 +500,7 @@ impl Requirement {
             | R::TargetCombatant
             | R::TargetControlAboutToChange
             | R::TargetHuntedToBurn
+            | R::TargetAllyWouldBurn
             | R::TargetGoingToTorpor
             | R::TargetAboutToEnterCombat
             | R::TargetFacesAggravatedStrike
@@ -578,6 +590,7 @@ impl Requirement {
             | R::PlayedInStrikeMode
             | R::DiablerizedOlder
             | R::PlayedAsCombat
+            | R::PlayedNotAsCombat
             | R::NoReadyNamed(..)
             | R::OpponentControllerHasGehenna
             | R::OtherNonHuntAction
@@ -606,11 +619,13 @@ impl Requirement {
             | R::TargetSeatHasEdge
             | R::InOwnMasterPhase => &[S::Printed],
             R::EquippedOffActionLabeled(_) => &[S::Host, S::MinionTarget],
-            R::ActiveControlsNonSect(..) | R::ActiveIsAgainst | R::NoMasterCardPlayed => {
-                &[S::Rider]
-            }
+            R::ActiveControlsNonSect(..)
+            | R::ActiveIsAgainst
+            | R::NoMasterCardPlayed
+            | R::CardUnlockedAtTurnStart => &[S::Rider],
             R::ActorReady | R::BleedTargetPoolAtMost(..) => &[S::Play, S::MinionTarget],
             R::PoolAtMost(..) | R::FirstRound => &[S::Play, S::Printed],
+            R::HandHas(..) => &[S::Play, S::Printed],
             R::DirectedAtYourMinion | R::DirectedAtYourCard(_) | R::DirectedAtCard(_) => {
                 &[S::Play, S::Printed]
             }
@@ -628,8 +643,7 @@ impl Requirement {
             R::ActorTitleIn(..) | R::ActorClan(..) => &[S::Play, S::MinionTarget, S::Printed],
             R::ActorSubtype(..) => &[S::Play, S::Printed],
             R::ActorSectIn(..) => &[S::Play, S::MinionTarget, S::UncontrolledTarget, S::Printed],
-            R::IsBleed
-            | R::NotBleed
+            R::NotBleed
             | R::ActorVampire
             | R::ActorHasSuperior
             | R::ActorImbued
@@ -646,7 +660,6 @@ impl Requirement {
             | R::NoEdge
             | R::ActionUndirected
             | R::NotFirstRound
-            | R::IsPolitical
             | R::NotPolitical
             | R::ActionDirected
             | R::PlayedRequiresDiscipline(..)
@@ -669,7 +682,6 @@ impl Requirement {
             | R::HostControllerReadyImbuedAtLeast(..)
             | R::ImbuedRecoveryGranted => &[S::Host],
             R::OpponentMonster
-            | R::OpponentNotInfernal
             | R::CombatMonsterVsMortal
             | R::CombatBothMonsters
             | R::ActorMonster
@@ -712,7 +724,8 @@ impl Requirement {
             | R::TargetTitle(..)
             | R::TargetSameCircle { .. }
             | R::TargetInfernal
-            | R::TargetClan(..) => &[S::MinionTarget, S::UncontrolledTarget],
+            | R::TargetClan(..)
+            | R::TargetDiscipline(..) => &[S::MinionTarget, S::UncontrolledTarget],
             R::TargetTitleNotIn(..) | R::TargetIsActing => &[S::MinionTarget],
             R::TargetMarkedThisTurn => &[S::CardTarget],
             R::EnteredBeforeThisTurn => &[S::Card, S::Rider],
@@ -735,7 +748,6 @@ impl Requirement {
             | R::StrikingWithSource
             | R::HandHasStoredCopy
             | R::OwnActingAllyOrYounger
-            | R::BloodHuntOnHost
             | R::HostMayWake => &[S::Engine(Site::AbilityGate)],
             R::ActingOfHostsMasterClan => &[S::Engine(Site::AbilityGate)],
             R::ActorSlaveOfHostClan | R::InitialStrikeIsOrMayBeThis => {
@@ -751,6 +763,7 @@ impl Requirement {
             R::ActionTargetsHost => &[S::Card, S::Engine(Site::AbilityGate)],
             R::DirectedAtCardItIsOn => &[S::Card],
             R::ActorIsChosen
+            | R::ActorChosenForThisAction
             | R::ActorAmongChosen
             | R::ActorOfByCircle
             | R::ActorIsBysMaster
@@ -761,6 +774,7 @@ impl Requirement {
             | R::YouControlThisCard
             | R::ActorMayEquipStored(..)
             | R::OthersControlThisCard
+            | R::UserIsAgainst
             | R::WeaponBurnedOpponent
             | R::NotPlacedThisRound
             | R::SourceHeldWhenBlocking => &[S::Engine(Site::AbilityGateCard)],
@@ -824,7 +838,22 @@ impl Requirement {
             R::BledControlsReadyTitled => {
                 &[S::Engine(Site::VampireRider(Hook::OwnBleedSuccessful))]
             }
-            R::GehennaInPlay(..) | R::NoGehennaInPlay => &[S::Play, S::Host, S::Printed],
+            R::GehennaInPlay(..) | R::NoGehennaInPlay | R::NamedInPlay(..) => {
+                &[S::Play, S::Host, S::Printed]
+            }
+            R::TargetSeatControlsNoReadyTitled(..)
+            | R::SourceBloodOdd
+            | R::ActorYoungerThanSource
+            | R::PreyControlsNoReadySect(..) => &[S::Printed],
+            R::HostHolds(..) => &[S::Host],
+            // Tears, The Dark Pierrot: read where his block is, too.
+            R::IsBleed | R::IsPolitical => &[
+                S::Play,
+                S::Printed,
+                S::Engine(Site::VampireRider(Hook::HostBlocked)),
+            ],
+            // Ysador the Foul: printed, on the maneuvering minion.
+            R::OpponentNotInfernal | R::OpponentNotSubtype(..) => &[S::Play, S::Printed],
             R::GehennaOfOthersInPlay(..) => &[S::Play, S::Host],
             R::SourceFounderCountersAtLeast(..) => &[S::Printed],
             R::PlayedActionCardAtYour(..) => &[S::Play, S::Engine(Site::AsPlayed)],
@@ -840,7 +869,7 @@ impl Requirement {
                 S::Engine(Site::AbilityGate),
             ],
             R::OwnMinionPhase => &[S::Engine(Site::AbilityWindow), S::Engine(Site::PlayOptions)],
-            R::OtherThanPlayer => &[S::Engine(Site::PlayTarget)],
+            R::OtherThanPlayer | R::TargetFoughtPlayer => &[S::Engine(Site::PlayTarget)],
             R::YoungerThanHost => &[S::Engine(Site::AbilityTargets)],
             R::PlayedStrikeByOpponent => &[S::Engine(Site::PlayOptions), S::Engine(Site::AsPlayed)],
             R::HostAttempting | R::AttemptingNotHost | R::HostOutOfCombat => {
@@ -1048,6 +1077,9 @@ mod tests {
                     Effect::AttemptFailsIf(requires) => {
                         self.check(name, at, requires, &[Slot::Play])
                     }
+                    Effect::BloodToOwnVampires { filter, .. } => {
+                        self.check(name, at, filter, &[Slot::MinionTarget])
+                    }
                     Effect::CallReferendum(d) => {
                         for t in d.terms {
                             if let Term::ChooseMinions { filter, .. }
@@ -1170,12 +1202,18 @@ mod tests {
         }
     }
 
+    /// Abilities whose blood burn is their effect, not a cost: a legal
+    /// no-op at 0 blood (D14, rules-qa 63.16, 17.4). An entry no ability
+    /// matches fails.
+    const BURN_IS_THE_EFFECT: &[&str] = &["Raphael Catarari"];
+
     // An ability paying a cost carries the requirement the cost implies, or
     // it is offered unpayable.
     #[test]
     fn every_ability_cost_carries_its_requirement() {
         use Requirement as R;
         let mut failures = Vec::new();
+        let mut exempted = Vec::new();
         let mut checked = 0;
         let abilities = DEFS
             .iter()
@@ -1194,13 +1232,24 @@ mod tests {
                     | (R::ActorBloodAtLeast(n), R::ActorBloodAtLeast(m)) => m >= n,
                     _ => r == want,
                 });
-                if !met {
+                if met {
+                    continue;
+                }
+                if BURN_IS_THE_EFFECT.contains(&name) {
+                    exempted.push(name);
+                } else {
                     failures.push(format!("{name}: {:?} without {want:?}", a.effects));
                 }
             }
         }
         assert!(checked > 100, "{checked} costs walked");
         assert!(failures.is_empty(), "{}", failures.join("\n"));
+        for name in BURN_IS_THE_EFFECT {
+            assert!(
+                exempted.contains(name),
+                "{name}: stale in BURN_IS_THE_EFFECT"
+            );
+        }
     }
 
     /// "Only when needed" is for additions: a mode or ability requiring a
@@ -1268,5 +1317,59 @@ mod tests {
             }
         }
         assert!(checked >= 3, "{checked} modes walked");
+    }
+
+    /// A card or ability whose search names a crypt or library is not
+    /// offered with that zone empty (advanced rules §1.6.5; rules-qa 78.20,
+    /// 80.9, 121.117). Great Symposium distributes its blood all the same
+    /// (LSJ 20100306); the Mithraeum's requirement finds Mithras there.
+    #[test]
+    fn every_search_needs_its_zone_not_empty() {
+        let library = |e: &Effect| {
+            matches!(
+                e,
+                Effect::SearchLibraryToHand { .. }
+                    | Effect::SearchLibraryToHandOrHavenOnActor(..)
+                    | Effect::SearchLibraryToResearch(..)
+                    | Effect::SearchLibraryToTop(..)
+                    | Effect::SearchRecruit
+            )
+        };
+        let crypt = |e: &Effect| {
+            matches!(
+                e,
+                Effect::CryptClanToUncontrolled { .. }
+                    | Effect::CryptNamedToUncontrolled(..)
+                    | Effect::CryptTopToUncontrolled
+            )
+        };
+        let modes = DEFS
+            .iter()
+            .flat_map(|d| d.modes.iter().chain(d.abilities).map(move |m| (d.name, m)))
+            .chain(
+                VAMPIRES
+                    .iter()
+                    .flat_map(|v| v.abilities.iter().map(move |m| (v.name, m))),
+            );
+        let mut checked = 0;
+        for (name, m) in modes {
+            if m.effects.iter().any(library) {
+                checked += 1;
+                assert!(
+                    m.requires.contains(&Requirement::LibraryAtLeast(1)),
+                    "{name}: a library search without LibraryAtLeast(1)"
+                );
+            }
+            if m.effects.iter().any(crypt)
+                && !["Great Symposium", "Mithraeum, London, The"].contains(&name)
+            {
+                checked += 1;
+                assert!(
+                    m.requires.contains(&Requirement::CryptNotEmpty),
+                    "{name}: a crypt search without CryptNotEmpty"
+                );
+            }
+        }
+        assert!(checked >= 15, "{checked} searches walked");
     }
 }

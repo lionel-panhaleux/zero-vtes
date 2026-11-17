@@ -344,6 +344,9 @@ pub enum Choice {
         minion: MinionId,
         key: crate::cards::MetKey,
     },
+    /// Combat, before range in the first round: end the combat, the action
+    /// card offering it put on this side's minion (Monomancy).
+    EndCombat,
 }
 
 /// Where a card is taken from (`Choice::TakeFrom`).

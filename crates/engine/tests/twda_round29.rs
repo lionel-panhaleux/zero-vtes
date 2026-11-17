@@ -2745,6 +2745,8 @@ fn the_summoning_is_a_recruit_action() {
     e.add_minion(SeatId(0), camarilla("Ventrue", 1), 4, false);
     e.add_minion(SeatId(1), camarilla("Toreador", 0), 4, false);
     hand(&mut e, 0, &["Summoning, The"]);
+    // A library to search (rules-qa 78.20).
+    e.state.seats[0].library = vec![find_library("Conditioning"); 10].into();
     pick(&mut e, play(0, 1, frau));
     request(&mut e);
     assert_eq!(e.action().expect("action").stealth(&e.state), 2);
@@ -4704,10 +4706,12 @@ fn carlak_feeds_on_the_opposition() {
     assert_eq!(blood(&e, carlak), 5);
 }
 
-/// Count Zaroff: in a blood hunt called on him, his Methuselah burns 1
-/// pool to cancel it, nothing burned, and he goes to their uncontrolled
-/// region with his blood as counters; again the same turn for another
-/// blood hunt. Backs `[RTR 20180511]`.
+/// Count Zaroff: a blood hunt called on him passed, before the burn (as
+/// Dogs of War's cancel, LSJ 20081203-2; owner, rules-qa 116.104, 122.38),
+/// his Methuselah burns 1 pool to cancel it, nothing burned, and he goes to
+/// their uncontrolled region with his blood as counters; never offered in
+/// the polling; again the same turn for another blood hunt. Backs `[RTR
+/// 20180511]`.
 #[test]
 fn count_zaroff_cancels_blood_hunts_more_than_once_a_turn() {
     let mut e = game(2);
@@ -4716,7 +4720,8 @@ fn count_zaroff_cancels_blood_hunts_more_than_once_a_turn() {
     e.add_minion(SeatId(0), camarilla("Toreador", 0), 4, false);
     let v1 = e.add_minion(SeatId(1), camarilla("Ventrue", 0), 1, true);
     let v2 = e.add_minion(SeatId(1), camarilla("Ventrue", 1), 1, true);
-    e.add_minion(SeatId(1), camarilla("Ventrue", 2), 4, false);
+    let p = e.add_minion(SeatId(1), camarilla("Ventrue", 2), 4, false);
+    e.state.minions[p.index()].granted_title = Some(Title::Prince("Atlanta"));
     for (n, v) in [(1, v1), (2, v2)] {
         let z = if n == 1 {
             z
@@ -4731,9 +4736,10 @@ fn count_zaroff_cancels_blood_hunts_more_than_once_a_turn() {
                 target: Some(v),
             },
         );
-        let cancel = vamp(z, 0, None, Target::None);
+        pick_when(&mut e, votes(p, true));
+        let cancel = vamp(z, 0, None, Target::Minion(z));
         let req = offering(&mut e, cancel);
-        assert_eq!(req.window, WindowLabel::BloodHuntPolling);
+        assert_eq!(req.window, WindowLabel::ResolutionChoice, "passed");
         let held = blood(&e, z);
         e.choose(index_of(&req, cancel));
         until(&mut e, SeatId(0), WindowLabel::MinionPhase);
@@ -4744,15 +4750,20 @@ fn count_zaroff_cancels_blood_hunts_more_than_once_a_turn() {
     }
 }
 
-/// Count Zaroff chosen by Bernard's blood hunt: his Methuselah cancels it.
+/// Count Zaroff chosen by Bernard's blood hunt: his Methuselah cancels it
+/// once it passed (owner, rules-qa 122.38).
 #[test]
 fn count_zaroff_cancels_a_political_blood_hunt_on_him() {
     let mut e = game(2);
     let b = e.add_minion(SeatId(0), find_card("Bernard, the Scourge"), 4, false);
-    e.add_minion(SeatId(0), of_cap(Sect::Camarilla, 7, 0), 4, false);
+    let p = e.add_minion(SeatId(0), of_cap(Sect::Camarilla, 7, 0), 4, false);
+    e.state.minions[p.index()].granted_title = Some(Title::Prince("Atlanta"));
     let z = e.add_minion(SeatId(1), find_card("Count Zaroff"), 3, false);
     pick(&mut e, vamp(b, 0, Some(b), Target::None));
-    pick_when(&mut e, vamp(z, 0, None, Target::None));
+    pick_when(&mut e, votes(p, true));
+    let req = offering(&mut e, vamp(z, 0, None, Target::Minion(z)));
+    assert_eq!(req.window, WindowLabel::ResolutionChoice);
+    e.choose(index_of(&req, vamp(z, 0, None, Target::Minion(z))));
     until(&mut e, SeatId(0), WindowLabel::MinionPhase);
     assert_eq!(e.state.seats[1].pool, 9);
     assert!(!e.state.minions[z.index()].in_play);
@@ -4969,11 +4980,13 @@ fn carlak_gains_nothing_from_a_canceled_or_automatic_referendum() {
 fn count_zaroff_keeps_his_cards_in_the_uncontrolled_region() {
     let mut e = game(2);
     let b = e.add_minion(SeatId(0), find_card("Bernard, the Scourge"), 4, false);
-    e.add_minion(SeatId(0), of_cap(Sect::Camarilla, 7, 0), 4, false);
+    let p = e.add_minion(SeatId(0), of_cap(Sect::Camarilla, 7, 0), 4, false);
+    e.state.minions[p.index()].granted_title = Some(Title::Prince("Atlanta"));
     let z = e.add_minion(SeatId(1), find_card("Count Zaroff"), 3, false);
     let vest = in_play(&mut e, 1, "Kevlar Vest", Some(z));
     pick(&mut e, vamp(b, 0, Some(b), Target::None));
-    pick_when(&mut e, vamp(z, 0, None, Target::None));
+    pick_when(&mut e, votes(p, true));
+    pick_when(&mut e, vamp(z, 0, None, Target::Minion(z)));
     until(&mut e, SeatId(0), WindowLabel::MinionPhase);
     assert!(!e.state.minions[z.index()].in_play);
     assert!(!ash_has(&e, 1, "Kevlar Vest"), "kept");
@@ -4982,20 +4995,25 @@ fn count_zaroff_keeps_his_cards_in_the_uncontrolled_region() {
     assert_eq!(card.host, Some(z), "with him");
 }
 
-/// Count Zaroff canceling a Veles' Hunt called on him: "If this
+/// Count Zaroff canceling a passed Veles' Hunt called on him: "If this
 /// referendum fails or is canceled, no more Veles' Hunts can be played
-/// this game" applies (the chunk's CZ4).
+/// this game" applies (the chunk's CZ4; rules-qa 122.38).
 #[test]
 fn count_zaroffs_cancel_of_veles_hunt_bars_it_for_the_game() {
     let mut e = game(2);
     let g = e.add_minion(SeatId(0), gangrel(6, 0), 4, false);
     let g2 = e.add_minion(SeatId(0), gangrel(6, 1), 4, false);
+    let p = e.add_minion(SeatId(0), of_cap(Sect::Camarilla, 7, 0), 4, false);
+    e.state.minions[p.index()].granted_title = Some(Title::Prince("Atlanta"));
     let z = e.add_minion(SeatId(1), find_card("Count Zaroff"), 3, false);
     e.add_minion(SeatId(1), of_cap(Sect::Camarilla, 4, 0), 4, false);
     hand(&mut e, 0, &["Veles' Hunt", "Veles' Hunt"]);
     pick(&mut e, play(0, 0, g));
     pick_when(&mut e, Choice::ChooseMinion(z));
-    pick_when(&mut e, vamp(z, 0, None, Target::None));
+    pick_when(&mut e, votes(p, true));
+    let req = offering(&mut e, vamp(z, 0, None, Target::Minion(z)));
+    assert_eq!(req.window, WindowLabel::ResolutionChoice);
+    e.choose(index_of(&req, vamp(z, 0, None, Target::Minion(z))));
     let req = until(&mut e, SeatId(0), WindowLabel::MinionPhase);
     assert!(!e.state.minions[z.index()].in_play, "canceled, moved");
     assert!(!req.options.contains(&play(0, 0, g2)));

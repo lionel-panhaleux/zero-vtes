@@ -110,7 +110,14 @@ impl Prompt<'_> {
                 ),
             },
             P::PayOrBurn => format!("{} burns unless you burn {} pool", self.card()?, a.n?),
+            P::PoolOrMinionBurned => {
+                format!("{} burns unless you burn {} pool", self.minion()?, a.n?)
+            }
             P::LockOrDiscard => format!("{} is locked unless you discard a card", self.minion()?),
+            P::MayDiscardForBlock => format!(
+                "{} can discard a card instead of locking for the block",
+                self.minion()?
+            ),
             P::BloodOrBurned => match self.card() {
                 Some(c) => format!("{} burns {} blood or {c} is burned", self.minion()?, a.n?),
                 None => format!("{} burns {} blood or is burned", self.minion()?, a.n?),
@@ -171,6 +178,25 @@ impl Prompt<'_> {
                 "{} would burn: choose the replacement applying",
                 self.minion()?
             ),
+            P::BloodOrNoStrike => format!(
+                "{} cannot strike this round unless it burns {} blood now",
+                self.minion()?,
+                a.n?
+            ),
+            P::NameActionDiscipline => {
+                format!("{}: which Discipline does the action gain?", self.minion()?)
+            }
+            P::NamedOntoOrDamage => format!(
+                "Move a {} from your hand or ash heap onto {}, or it takes {} damage",
+                self.card()?,
+                self.minion()?,
+                a.n?
+            ),
+            P::DamageVoterForBlood => format!(
+                "{} can burn 1 blood to inflict {} damage on a ready vampire that voted against",
+                self.minion()?,
+                a.n?
+            ),
             P::NameAshEquipment => match self.detail() {
                 Some(_) => format!("Choose the equipment in {}'s ash heap", self.seat()?),
                 None => format!("{}: choose the ash heap to equip from", self.minion()?),
@@ -191,6 +217,10 @@ impl Prompt<'_> {
                 "{}: you can get +{} hand size until the end of the turn",
                 self.minion()?,
                 a.n?
+            ),
+            P::EntryRemoveForLife => format!(
+                "{}: remove ally, retainer or vampire cards of your ash heap or hand, 1 life each",
+                self.minion()?
             ),
             P::EntryRemoveOrBurn => format!(
                 "{} burns unless you remove an ally or vampire in your ash heap from the game",
@@ -245,6 +275,9 @@ impl Prompt<'_> {
                     "oldest_gain_blood" => {
                         "Choose one of your two oldest ready vampires to gain 1 blood".into()
                     }
+                    "gain_blood" => {
+                        format!("Choose a ready vampire of yours to gain {} blood", a.n?)
+                    }
                     "burn_crowded_clan" => {
                         "Choose a vampire to burn, of a clan you control 3 or more of".into()
                     }
@@ -295,6 +328,11 @@ impl Prompt<'_> {
             P::MayDrawExtra => format!(
                 "{}: you can draw an additional card (discard afterward)",
                 self.card().or_else(|| self.minion())?
+            ),
+            P::MayLockToDiscardLooked => format!(
+                "{}: you can lock it to discard the top card of {}'s library",
+                self.card()?,
+                self.seat()?
             ),
             P::MayBurnLookedMaster => format!(
                 "{}: the top card is a master; you can burn {} blood to burn it",
@@ -535,15 +573,22 @@ impl Prompt<'_> {
                     self.seat()?
                 ),
             },
-            P::CircleBlood => match (self.minion(), self.to(), self.card()) {
-                (Some(f), Some(_), _) => format!("How much blood {f} moves"),
-                (Some(f), None, _) => format!("Choose the Blood Brother {f} moves blood to"),
-                (None, _, Some(c)) => format!("Choose the Blood Brother {c} moves to"),
-                (None, _, None) => format!(
-                    "Choose a Blood Brother of the {} Circle to move blood or equipment from \
-                     (or stop)",
-                    self.clan()?
+            P::CircleBlood => match (self.minion(), self.to(), self.card(), self.clan()) {
+                (Some(f), Some(_), ..) => format!("How much blood {f} moves"),
+                (Some(f), None, _, Some(_)) => {
+                    format!("Choose the Blood Brother {f} moves blood to")
+                }
+                (Some(f), None, _, None) => format!("Choose the vampire {f} moves blood to"),
+                (None, _, Some(c), Some(_)) => format!("Choose the Blood Brother {c} moves to"),
+                (None, _, Some(c), None) => format!("Choose the vampire {c} moves to"),
+                (None, _, None, Some(k)) => format!(
+                    "Choose a Blood Brother of the {k} Circle to move blood or equipment from \
+                     (or stop)"
                 ),
+                (None, _, None, None) => {
+                    "Choose blood or equipment to move to your other ready vampires (or stop)"
+                        .into()
+                }
             },
             P::ChooseCircle => format!("Choose the circle {} belongs to", self.minion()?),
             P::BaseSearch => format!(
@@ -671,6 +716,7 @@ impl Prompt<'_> {
                 self.card()?
             ),
             P::SecretNumber => "Secretly choose a number".into(),
+            P::RockPaperScissors => "Secretly choose rock, paper or scissors".into(),
             P::SearchEquipFor => format!(
                 "Search your library for an equipment card to put on {}",
                 self.minion()?
@@ -683,6 +729,11 @@ impl Prompt<'_> {
             P::MoveCardToOldest => format!(
                 "Move {} to one of the oldest ready untitled vampires of its clan and sect",
                 self.card()?
+            ),
+            P::MayTakeAggravatedAsNormal => format!(
+                "{} takes {} aggravated damage: treat 1 as normal?",
+                self.minion()?,
+                a.n?
             ),
             P::MayPreventForBlood => format!(
                 "{} can burn {} blood to prevent the opposing strike's damage",
@@ -826,6 +877,10 @@ impl Prompt<'_> {
                 ),
                 "second_chosen" => format!("choose the card's chosen {}", self.clan()?),
                 "meet_as" => format!("choose the requirement {} meets", self.minion()?),
+                "grant_payer" => format!(
+                    "choose the card paying the Discipline {} lacks",
+                    self.minion()?
+                ),
                 // `to` may be an uncontrolled vampire (Grooming the Protégé).
                 "blood_range" => match (self.minion(), self.a.to.map(|c| self.n.copy_bare(c))) {
                     (Some(m), Some(t)) => format!("how much blood to move from {m} to {t}"),
@@ -1006,6 +1061,7 @@ mod tests {
                 Some("host_card"),
                 Some("lock_oldest"),
                 Some("oldest_gain_blood"),
+                Some("gain_blood"),
                 Some("hunt_blood_to"),
                 Some("burn_crowded_clan"),
                 Some("damage"),
@@ -1087,6 +1143,7 @@ mod tests {
         PutInPlaySearch,
         MoveCardToOldest,
         MayPreventForBlood,
+        MayTakeAggravatedAsNormal,
         ShortfallPicks,
         MayUnlock,
         GiveCardTo,
@@ -1096,6 +1153,7 @@ mod tests {
         DiablerieEquipment,
         PayOrBurn,
         LockOrDiscard,
+        MayDiscardForBlock,
         BloodOrBurned,
         Replacement,
         DrawUp,
@@ -1189,6 +1247,11 @@ mod tests {
         MayGainBlood,
         KeepSpentBlood,
         BurnReplacement,
+        PoolOrMinionBurned,
+        BloodOrNoStrike,
+        NameActionDiscipline,
+        NamedOntoOrDamage,
+        DamageVoterForBlood,
         NameUncontrolled,
         NameSlotPair,
         BeastDisciplines,
@@ -1253,6 +1316,9 @@ mod tests {
         MayBottomLooked,
         MayReturnDiscards,
         BurnOverCapacity,
+        RockPaperScissors,
+        MayLockToDiscardLooked,
+        EntryRemoveForLife,
     );
 
     /// Every purpose prompted, the sweeps' games reaching it or not.

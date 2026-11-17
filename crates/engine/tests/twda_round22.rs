@@ -382,9 +382,9 @@ fn netwar_looks_at_the_acting_methuselahs_hand_after_the_block_decision() {
     request(&mut e);
     let looks = noted_looks(&mut e);
     assert!(
-        looks
-            .iter()
-            .any(|l| l.viewer == SeatId(2) && l.seat == SeatId(0) && !l.library),
+        looks.iter().any(|l| l.viewer == SeatId(2)
+            && l.seat == SeatId(0)
+            && l.zone == zvtes::game::LookedZone::Hand),
         "{looks:?}"
     );
 }

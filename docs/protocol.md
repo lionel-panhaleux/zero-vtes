@@ -18,7 +18,7 @@ is created by one request and played over one WebSocket. Every game is
 recorded, anonymously, and kept two years to train and test the engine
 (§11).
 
-Version **2.30.0**. The types: the models of the
+Version **2.31.0**. The types: the models of the
 [API reference](https://engine.krcg.org/docs), also as
 [JSON Schema](https://engine.krcg.org/schema.json) (2020-12) and
 [TypeScript](https://engine.krcg.org/protocol.ts).
@@ -194,12 +194,12 @@ asyncio.run(main())
 | Option | `index` | the engine's index in the pending decision |
 
 **Copies.** Cards are numbered where the viewer can follow them: on the table
-(minions, cards in play and stored on them, the viewer's own uncontrolled
-vampires; another seat's face down ones are backs), in face-up piles (ash
-heaps, removed, limbo) and in the viewer's own hand (another seat's while a
-card reveals it). A card in a hidden place — another seat's hand, any library
-or crypt — has no number: a card back, `{}`; one an effect reveals from a
-library or a crypt (a top card: Mesu Bedshet, Petra Resonance, Andrew Stuart;
+(minions, cards in play and stored on them or on a minion, the viewer's own
+uncontrolled vampires; another seat's face down ones are backs), in face-up
+piles (ash heaps, removed, limbo) and in the viewer's own hand (another seat's
+while a card reveals it). A card in a hidden place — another seat's hand, any
+library or crypt — has no number: a card back, `{}`; one an effect reveals from
+a library or a crypt (a top card: Mesu Bedshet, Petra Resonance, Andrew Stuart;
 a search's find the card says to reveal: Sakhar, Disciple of Lazarus) is told
 to every seat by a `revealed` event, its `id` without a number; another seat's
 hand an effect lets the seat look at (SchreckNET, Vaticination) is told to
@@ -277,10 +277,10 @@ shuffles;
 seen on that library (accepted: the look itself is the looker's alone);
 `x_convictions`: a conviction burned (`burn_in_play`) for `card`'s X;
 `blood_or_burned`: the blood paid, or what burns on a pass); a secret
-pick (`secret_number`, Game of Malkav) is told to the other seats
-without its amount or effects, its `index` 0. `about` holds the
-particulars a prompt names, beyond the purpose, the source and the
-options: `n` (how many: still to pay, at most, to discard), `m` (a
+pick (`secret_number`, Game of Malkav; `rock_paper_scissors`) is told to
+the other seats without its amount or effects, its `index` 0. `about`
+holds the particulars a prompt names, beyond the purpose, the source and
+the options: `n` (how many: still to pay, at most, to discard), `m` (a
 second amount), `cap`, `seat` (whose minions, ash heap or hand),
 `minion` and `to` (the minions blood moves between, a block attempt's;
 `margin_blood`: the recipient its pass skips), `card` (named or in
@@ -289,6 +289,7 @@ purpose (`minion_of`: `lock`, `lock_vampires`, `corrupt`…; a terms
 window: `blood_range` (from `minion`, to `to` or else the pool),
 `x_blood`, `x_convictions`, `discard`, `discard_any`, `put_on_source` (a
 card from the hand put on the source), `cost_reductions`,
+`grant_payer` (the `choose_card` paying the Discipline `minion` lacks),
 `cost_counters` (how many of `card`'s), an ability's count by what it
 counts — `count` (cards drawn, as many then to the library's bottom),
 `blood_on_target` (on `minion`), `hand_to_bottom`, `discard_at_random`
@@ -329,7 +330,8 @@ the previous one, never the engine's state.
   `torpor[]` and `incapacitated[]` minions (an imbued that lost its last life,
   controlled and not ready, its `blood` the life it has gained there since
   (Rejuvenate): the rulebook's incapacitated region, its own zone
-  `incapacitated`); `in_play[]` (cards on no minion).
+  `incapacitated`); `in_play[]` (cards on no minion; a lasting effect whose
+  card is in the ash heap, Deploy the Hand's target counter, with no number).
 - Minion: `card`, `kind` (`vampire`, `ally`: a library card, or a crypt
   one for an imbued raised as an ally (Pressing Flesh), `created`, `token`,
   `imbued`: a crypt card as a mortal ally, its `blood` its life), `name`,
@@ -342,7 +344,9 @@ the previous one, never the engine's state.
   included; a Red List minion marked this turn carries a
   `red_list_mark` marker, its `seat` the marking Methuselah; a minion out
   of play with its cards, an `out_of_play` one; one contested yet in play,
-  a `contested` one, its `contested` field false: a two-player game, §1).
+  a `contested` one, its `contested` field false: a two-player game, §1),
+  `stored[]` (cards stored on it face down, Hukros: hidden to the other
+  seats, top last).
 - `action`: `seat`, `acting`, `kind` (`bleed`, `hunt`, …, `card`), `step`
   (`announced`, `open`, `attempt`, `declined`, `would_succeed`,
   `blocked`, `after_combat`, `resolved`, `diablerie`: the cards played
@@ -386,38 +390,38 @@ the previous one, never the engine's state.
 (Play Govern the Unaligned at basic Dominate with minion 41, bleeding
 seat 2; burn 2 pool to keep card 9.)
 
-- **The key** — what the option is: `kind` (68 kinds: `pass`, `play`,
+- **The key** — what the option is: `kind` (69 kinds: `pass`, `play`,
   `use_ability`, `take_action`, `declare_block`, `cast_votes`, `transfer`,
   `hand_strike`, `find_card`…), and, all optional: `card` (`id`; `copy` for one
-  physical card; `from` a card it is stored on), `actor` (the minion playing or
-  acting), `minion` (the minion it is otherwise about), `target`
-  (`{"kind":"seat","seat":n}` or `{"kind":"card","copy":n}`), `action`, `mode`
-  (`index`, `line`, `disciplines` with levels, `card_type` for a multi-type
-  card, `apart`: the effects setting it apart from the other modes its printed
-  line splits into, offered or not), `amount`, `favor`, `blood`, `zone` (where a
-  card taken or played is: `find_card`'s library, hand or ash heap and whose,
-  none for a card only named (Master: Discipline, Precision) or stored on a
-  card; `take_from`'s, `ash_vampire`'s, its crypt or the ash heap and whose
-  (Shroud of Decay: the prey's), none for a vampire only named (Gramle); the
-  ash heap a card is played from and whose, Spiritual Guidance's own,
-  Vestgeir's another Methuselah's), `value` (a clan, Discipline or circle id),
-  `ability`, `slot` (`{seat, slot}`: an uncontrolled vampire by its place in
-  the view's `uncontrolled`, its card face down to the others — an
-  option's `target` or `card` names it only to who sees it). Two options of a
-  decision never share a key (copies alike in hand are one option: the copy a
-  `play` took is its `card_moves` into limbo, §9). Each key names what its kind
-  is about, so a log reads it without its English (`crates/host/tests/keys.rs`
-  holds the list): a `play` its `card` and `mode`, a `use_ability` its `card` or
-  `minion` and `ability`, a `take_action` its `actor`, `action` and, a bleed,
-  the seat bled (`target`: the prey); a choice among minions its `minion`
+  physical card; `from` a card or minion it is stored on: Hukros), `actor` (the
+  minion playing or acting), `minion` (the minion it is otherwise about),
+  `target` (`{"kind":"seat","seat":n}` or `{"kind":"card","copy":n}`), `action`,
+  `mode` (`index`, `line`, `disciplines` with levels, `card_type` for a
+  multi-type card, `apart`: the effects setting it apart from the other modes
+  its printed line splits into, offered or not), `amount`, `favor`, `blood`,
+  `zone` (where a card taken or played is: `find_card`'s library, hand or ash
+  heap and whose, none for a card only named (Master: Discipline, Precision) or
+  stored on a card; `take_from`'s, `ash_vampire`'s, its crypt or the ash heap
+  and whose (Shroud of Decay: the prey's), none for a vampire only named
+  (Gramle); the ash heap a card is played from and whose, Spiritual Guidance's
+  own, Vestgeir's another Methuselah's), `value` (a clan, Discipline or circle
+  id), `ability`, `slot` (`{seat, slot}`: an uncontrolled vampire by its place
+  in the view's `uncontrolled`, its card face down to the others — an option's
+  `target` or `card` names it only to who sees it). Two options of a decision
+  never share a key (copies alike in hand are one option: the copy a `play` took
+  is its `card_moves` into limbo, §9). Each key names what its kind is about, so
+  a log reads it without its English (`crates/host/tests/keys.rs` holds the
+  list): a `play` its `card` and `mode`, a `use_ability` its `card` or `minion`
+  and `ability`, a `take_action` its `actor`, `action` and, a bleed, the seat
+  bled (`target`: the prey); a choice among minions its `minion`
   (`declare_block`, `cast_votes`, `choose_minion`, `resolve_printed`,
   `burn_blood_from`, …); `transfer`, `withdraw`, `influence_out`, `merge` and
   `slot` their `slot` (the Great Beast's Discipline slot its `value`);
   `follow_path` its `minion` and the path's `value`; `meet_as` its `minion` and
   the requirement's `value`; a combatant's choice (`hand_strike`,
   `round_strike`, `use_maneuver`, `use_press`, `use_prevent`,
-  `strike_combat_ends`, `committed_strike`, `gain_strength`, `cancel_combat`)
-  and the acting minion's own (`continue_action`,
+  `strike_combat_ends`, `committed_strike`, `gain_strength`, `cancel_combat`,
+  `end_combat`) and the acting minion's own (`continue_action`,
   `take_damage_after_resolution`, `torpor_after_resolution`) its `actor`;
   `diablerise` the blocker diablerising as `actor`, the acting vampire as
   `minion`; a card chosen (`discard`, `bottom`, `find_card`, `take_from`,
@@ -607,14 +611,14 @@ heap (a marker on its minion, §6), no copy of its own.
 | `draw` | `seat`, `n`, `crypt` |
 | `revealed` | `seat`, `card` (its `id`, `crypt`; no number): a card of a crypt or library an effect revealed to all (a top card, a search's find) |
 | `hand` | `seat`, `open`, `cards`: `seat`'s hand as this seat sees it now, told as it turns face up (`open`) or face down for it (an open hand: Aura Reading, Revelations; a look), after the moves of its step: each card's face with its copy number, or its back; while open, a card moving into it is told with its face |
-| `looked` | `seat`, `cards` (their `id`s; no number), `zone`?: `seat`'s hand as it stood when an effect let this seat look at it (SchreckNET, Vaticination), or only the replacements it drew during a referendum (Slag), told to the looking seat only; `zone: library`, the top of `seat`'s library, top first: its own (Anna "Dictatrix11" Suljic) or the active Methuselah's (Weirding Stone) |
+| `looked` | `seat`, `cards` (their `id`s; no number), `zone`?: `seat`'s hand as it stood when an effect let this seat look at it (SchreckNET, Vaticination), or only the replacements it drew during a referendum (Slag), told to the looking seat only; `zone: library`, the top of `seat`'s library, top first: its own (Anna "Dictatrix11" Suljic) or the active Methuselah's (Weirding Stone); `zone: crypt`, the top of `seat`'s crypt (Sabbat Inquisitor) |
 | `resolved` | `seat`, `card`, `effects`? (the options' vocabulary, §7, `on` as it applies): a card played resolved — what its mode does (none when it takes no effect: its payer burned paying), the changes it makes told by the events after it, so its `pool`, `blood` and `life` effects at once are not among `effects` (their events follow, the card their `cause`; one that comes later, its `when` set, stays); an action card's end is its `action_ends` |
 | `canceled` | `seat`, `card`: a card played canceled (still played: to the ash heap) |
 | `pool` | `seat`, `delta`, `pool`, `cause`? |
 | `blood` | `minion`, `delta`, `blood` (an ally's life), `cause`? |
 | `enters_play` | `card`, `seat` (its controller), `on`?, `minion`? (its kind, for a minion), `effect`? |
 | `moves` | `card`, `on`?, `effect`? |
-| `card_moves` | `card` (as the recipient may know it: a back, `{}`, where neither place shows it), `from`, `to` (`{seat, zone, on?}`: `zone` a §6 place, `stored` on a card, `training`; `on` the card it is stored on, the minion it is on, a banished vampire's slot its cards are with, the minion a merged vampire's card is now): every card's move between places, in play included (drawn, discarded, played into limbo, entering or leaving play, a card on a minion moved to another, a card or minion changing hands, a merge: the base card onto its minion, in no view's list; a vampire moved within its uncontrolled region, a reshuffle's); `seat` the place's holder as it moved (a zone's seat, a card's controller, a minion's, the minion's for a card on it); `slot`, in an uncontrolled region: `from`'s which of its cards left (a face-down one's too), `to`'s where it goes, each from the first, the moves told before applied |
+| `card_moves` | `card` (as the recipient may know it: a back, `{}`, where neither place shows it), `from`, `to` (`{seat, zone, on?}`: `zone` a §6 place, `stored` on a card or a minion (Hukros), `training`; `on` the card or minion it is stored on, the minion it is on, a banished vampire's slot its cards are with, the minion a merged vampire's card is now): every card's move between places, in play included (drawn, discarded, played into limbo, entering or leaving play, a card on a minion moved to another, a card or minion changing hands, a merge: the base card onto its minion, in no view's list; a vampire moved within its uncontrolled region, a reshuffle's); `seat` the place's holder as it moved (a zone's seat, a card's controller, a minion's, the minion's for a card on it); `slot`, in an uncontrolled region: `from`'s which of its cards left (a face-down one's too), `to`'s where it goes, each from the first, the moves told before applied |
 | `leaves_play` | `card`, `to`? (the zone it went to), `minion`? (its kind), `contested`? (into a contest: a vampire, a unique card, or the cards on a contested minion with it, each told `enters_play` again as the contest resolves in its favor; with no `to` and not contested, out of play with its minion: Descent into Darkness, its `out_of_play` marker, `enters_play` again on return), `effect`? |
 | `torpor` | `minion`, `enters` |
 | `incapacitated` | `minion`, `enters`: an imbued into the incapacitated region (true) or out of it |

@@ -1595,7 +1595,7 @@ mod tests {
                 viewer: SeatId(0),
                 seat: SeatId(1),
                 cards,
-                library: false,
+                zone: zvtes::game::LookedZone::Hand,
             }));
         s.observe(true);
         assert!(matches!(s.undo(), Err(Refused::NoUndo)), "barred");

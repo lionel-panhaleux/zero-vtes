@@ -599,6 +599,7 @@ impl Build<'_> {
                 .collect(),
             markers,
             traits: traits(st, id),
+            stored: self.pile(&m.stored.0, false),
         }
     }
 }
@@ -692,11 +693,12 @@ pub(crate) fn minion_face(m: &zvtes::state::Minion) -> (u16, bool) {
 
 /// A library card in play shown as its own card: not an ally's or created
 /// vampire's body (the minion shows it), not an effect whose card is in
-/// the ash heap (a marker on its minion shows it).
+/// the ash heap on a minion (a marker on it shows it; one on no minion,
+/// Deploy the Hand's target counter, is shown with no copy).
 fn shown_card(st: &GameState, i: usize) -> bool {
     let c = &st.cards[i];
     c.in_play
-        && !c.effect_only
+        && (!c.effect_only || c.host.is_none())
         && c.body.is_none()
         && !st.minions.iter().any(|m| {
             m.in_play

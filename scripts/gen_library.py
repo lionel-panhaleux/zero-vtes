@@ -105,7 +105,7 @@ LABELS = [
     # "Master: investment." / "Unique investment." on the type line (Swiss
     # Cut and Alan Sovereign key on them; Wall Street Night takes their
     # counters).
-    ("Investment", r"^(unique )?investment\."),
+    ("Investment", r"(^|\. )(unique )?investment\."),
 ]
 # An ally's or retainer's type line: "Unique mortal with 2 life. 1 strength,
 # 0 bleed." (a retainer prints its life only).
@@ -113,7 +113,10 @@ LABELS = [
 # its `Flight` label. A requirement may come first ("Requires a
 # non-Camarilla vampire. Unique mortal with 1 life.": Malajit Chandramouli).
 BODY = re.compile(
-    r"^(?:requires [^.]*\. )?(?:unique )?[\w ]+? with (\d+) life\.(?: (\d+) strength, (\d+) bleed(?:, flight \[FLIGHT\])?\.)?",
+    r"^(?:requires [^.]*\. )?(?:unique )?[\w ]+? with (\d+) life\."
+    # Rafastio Ghoul prints its bleed first.
+    r"(?: (?:(?P<s>\d+) strength, (?P<b>\d+) bleed|(?P<b2>\d+) bleed, (?P<s2>\d+) strength)"
+    r"(?:, flight \[FLIGHT\])?\.)?",
     re.I,
 )
 
@@ -148,7 +151,9 @@ def body_of(c):
     m = BODY.match(krcg.text(c))
     if not m:
         raise SystemExit(f"no life on the type line of {krcg.name(c)}")
-    life, strength, bleed = m.groups()
+    life = m.group(1)
+    strength = m.group("s") or m.group("s2")
+    bleed = m.group("b") or m.group("b2")
     if "Ally" in c["types"] and strength is None:
         raise SystemExit(f"no strength and bleed on ally {krcg.name(c)}")
     return f"Some(Body {{ life: {life}, strength: {strength or 0}, bleed: {bleed or 0} }})"

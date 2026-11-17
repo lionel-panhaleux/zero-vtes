@@ -148,7 +148,8 @@ fn add(e: &E, w: Whom, when: Option<When>, out: &mut Vec<Effect>) {
         E::AddHostBlood(v) => push(on(n(K::Blood, i(v)), On::Host)),
         E::HostBloodToPool(v) => push(detail(on(n(K::Blood, -i(v)), On::Host), "to_pool")),
         E::PoolToHostBlood(v) => push(detail(on(n(K::Blood, i(v)), On::Host), "from_pool")),
-        E::BloodToTarget(v) => push(on(n(K::Blood, i(v)), On::Target)),
+        E::BloodToTarget(v) | E::BloodToTargets(v) => push(on(n(K::Blood, i(v)), On::Target)),
+        E::BloodToOwnVampires { n: v, .. } => push(detail(n(K::Blood, i(v)), "each_vampire")),
         E::BloodToUncontrolledTarget(v) => push(on(n(K::Blood, i(v)), On::Uncontrolled)),
         E::PoolToUncontrolledTarget(v) => push(detail(
             on(n(K::Counters, i(v)), On::Uncontrolled),
@@ -171,7 +172,7 @@ fn add(e: &E, w: Whom, when: Option<When>, out: &mut Vec<Effect>) {
         E::GraftOnTarget => push(detail(on(n(K::Counters, 1), On::Target), "graft")),
         E::StealTargetVampire => push(detail(on(of(K::Steal), On::Target), "vampire")),
         E::StealHost => push(detail(on(of(K::Steal), On::Host), "vampire")),
-        E::CastTargetVotes(favor) => push(Effect {
+        E::CastTargetVotes(favor) | E::ChangeTargetVotes(favor) => push(Effect {
             favor: Some(favor),
             ..on(of(K::Votes), On::Target)
         }),
@@ -220,6 +221,7 @@ fn add(e: &E, w: Whom, when: Option<When>, out: &mut Vec<Effect>) {
         E::BurnAllBoons => push(detail(of(K::Burn), "all_boons")),
         E::BurnTargetMinion => push(on(of(K::Burn), On::Target)),
         E::BurnChosenMinion => push(on(of(K::Burn), On::Chosen)),
+        E::BurnChosenCard => push(detail(on(of(K::Burn), On::Chosen), "card")),
         E::TargetLosesTitle => push(detail(on(of(K::Burn), On::Target), "title")),
         E::PlayerBurnsPool(v) | E::BurnOwnPool(v) => push(n(K::Pool, -i(v))),
         E::ActorGainsBlood(v) => push(n(K::Blood, i(v))),
@@ -333,7 +335,7 @@ fn add(e: &E, w: Whom, when: Option<When>, out: &mut Vec<Effect>) {
             ..of(K::Move)
         }),
         E::AddVotes(v) => push(n(K::Votes, i(v))),
-        E::MethuselahVotes { n: v, favor } => push(Effect {
+        E::MethuselahVotes { n: v, favor } | E::PlayerVotes { n: v, favor } => push(Effect {
             favor: Some(favor),
             ..n(K::Votes, i(v))
         }),
@@ -351,9 +353,10 @@ fn add(e: &E, w: Whom, when: Option<When>, out: &mut Vec<Effect>) {
         E::SpendMasterPhaseAction => push(cost(detail(n(K::Action, -1), "master_phase"))),
         E::HuntAction => push(of(K::Hunt)),
         E::HandSizeBonusUntilEndOfTurn(v) => push(n(K::HandSize, i(v))),
-        E::SearchEquip(_) | E::SearchEquipFree(_) | E::SearchEquipForTarget => {
-            push(detail(of(K::Search), "equipment"))
-        }
+        E::SearchEquip(_)
+        | E::SearchEquipFree(_)
+        | E::SearchEquipForTarget
+        | E::SearchEquipOntoTarget(_) => push(detail(of(K::Search), "equipment")),
         E::DrawThenBottom => push(detail(of(K::Draw), "then_bottom")),
         E::DrawCryptThenRemove => push(detail(of(K::Draw), "crypt_then_remove")),
         E::DrawCryptBloodIfBlackHand(v) => push(detail(n(K::Draw, i(v)), "crypt_black_hand")),
@@ -434,21 +437,26 @@ fn add(e: &E, w: Whom, when: Option<When>, out: &mut Vec<Effect>) {
         | E::CountersFromTargetCapacity
         | E::CryptClanToUncontrolled { .. }
         | E::DrawUpToThenDiscardDown(..)
+        | E::GainNamedDiscipline
         | E::CryptTopToUncontrolled
         | E::DerangeTarget
         | E::DescendActor
         | E::DiscardFromAllHands
         | E::DiscardFromTargetHand
+        | E::TargetDiscardsAllOf { .. }
         | E::DiseaseTarget
         | E::DualFormCopy
         | E::EnterWithCounters(..)
         | E::EnterWithCountersPerOwnAnarch
         | E::EnterWithCountersPerOwn { .. }
+        | E::EnterWithCountersPerMethuselah
         | E::EntersLocked
         | E::FourthCycle(..)
         | E::FuryEnters
         | E::GainPerUnlockedCircleMember
         | E::GameOfMalkav
+        | E::RockPaperScissors(..)
+        | E::EachMethuselahDiscardsThenDrawsUp(..)
         | E::GiveBoonPool
         | E::GreatBeastAtEleven
         | E::HoldTargetVampire
@@ -471,6 +479,7 @@ fn add(e: &E, w: Whom, when: Option<When>, out: &mut Vec<Effect>) {
         | E::PetraResonance
         | E::PoolToVampires
         | E::PutInPlay
+        | E::RemoveActorFromGame
         | E::PutOnActor
         | E::PutOnActorNow
         | E::PutOnActorNowStacking
@@ -478,6 +487,7 @@ fn add(e: &E, w: Whom, when: Option<When>, out: &mut Vec<Effect>) {
         | E::CompareCryptTopsWithBlocker { .. }
         | E::PutOnOpponent
         | E::PutOnActingNow
+        | E::PutOnAttemptingNow
         | E::RedeemAshVampire
         | E::AshVampireToReady
         | E::BloodToPickedUncontrolled(..)
@@ -496,7 +506,7 @@ fn add(e: &E, w: Whom, when: Option<When>, out: &mut Vec<Effect>) {
         | E::StealLocation
         | E::StealTargetAlly
         | E::StealTargetCard
-        | E::TargetCardToChosen
+        | E::TargetCardToChosen(..)
         | E::RetainerUsesWeapon { .. }
         | E::StolenToReadyForBlood(..)
         | E::StoreFromOwnHand
@@ -579,9 +589,12 @@ fn add(e: &E, w: Whom, when: Option<When>, out: &mut Vec<Effect>) {
         | E::EnterWithCountersPerX { .. }
         | E::GehennaPlayerBurnsPool(..)
         | E::BurnRememberedContract
-        | E::BurnTargetCryptTop
+        | E::BurnTargetCryptTop { .. }
         | E::BurnTargetOnSecondAction
         | E::CircleBloodMoves { .. }
+        | E::BloodMovesFromActing { .. }
+        | E::BloodMovesFromTarget
+        | E::PeekEachHandThisTurn
         | E::EmployNamed
         | E::EquipNamed
         | E::HandSizeUntilUnlock(..)
@@ -590,6 +603,8 @@ fn add(e: &E, w: Whom, when: Option<When>, out: &mut Vec<Effect>) {
         | E::MayBleedAgainThisTurn
         | E::PeekNeighborHands
         | E::PeekActingControllersHand
+        | E::LookAtBledLibraryTop
+        | E::PeekBledHand
         | E::PreyBurnsPool(..)
         | E::RemoveTargetForPool
         | E::SacrificeTarget
@@ -599,7 +614,9 @@ fn add(e: &E, w: Whom, when: Option<When>, out: &mut Vec<Effect>) {
         | E::TakeControlOfTargetUntilEndOfTurn
         | E::TakeControlOfTargetUntilMinionPhaseEnd
         | E::StopControlChange
-        | E::SaveFromHuntBurn
+        | E::SaveFromHuntBurn { .. }
+        | E::SaveFromCombatBurn
+        | E::TargetLifeIfNone(..)
         | E::SaveFromTorpor
         | E::TargetBecomesBlackHand
         | E::TargetBecomesRedList
@@ -634,6 +651,7 @@ fn add(e: &E, w: Whom, when: Option<When>, out: &mut Vec<Effect>) {
         | E::BurnTargetHostages
         | E::BurnUnlessControllerPays(..)
         | E::CardChoosesTarget
+        | E::ChooseTargetForAction
         | E::ChooseTargetThisTurn
         | E::ContinuePressEachCombat
         | E::DiscardAtRandom(..)
@@ -692,6 +710,8 @@ fn add(e: &E, w: Whom, when: Option<When>, out: &mut Vec<Effect>) {
         | E::LookAtTargetLibraryTopBurnOne(..)
         | E::StealFromTargetSeatSlot(..)
         | E::MayBurnLookedMaster(..)
+        | E::MayLockToDiscardLooked
+        | E::RemoveUncontrolledTarget
         | E::MayBottomLookedForBlood(..)
         | E::MarkBleedToll
         | E::MayCancelCombat
@@ -743,7 +763,8 @@ fn add(e: &E, w: Whom, when: Option<When>, out: &mut Vec<Effect>) {
         | E::AlliesCannotBlock
         | E::AlliesCannotBlockUnless(..)
         | E::AnimalBoostIfSuccessful { .. }
-        | E::PutOnRecruitedIfSuccessful(..)
+        | E::PutOnRecruitedIfSuccessful { .. }
+        | E::StealthIfTargetBurnsBlood { .. }
         | E::AttemptBlock
         | E::JointAttemptBlock
         | E::TorporAfterResolution
@@ -863,12 +884,14 @@ fn add(e: &E, w: Whom, when: Option<When>, out: &mut Vec<Effect>) {
         | E::AdditionalStrikeOnly { .. }
         | E::AdditionalStrikes { .. }
         | E::AdditionalStrikesEachRound(..)
+        | E::NoEquipmentThisCombat
         | E::AdditionalStrikesX { .. }
         | E::AggravatedHands
         | E::AggravatedHandsThisCombat
         | E::AggravatedStrike
         | E::AimExtraDamage { .. }
         | E::BurnAfterCombat(..)
+        | E::BurnSelfAtCombatEndIfResolved
         | E::BurnElectronicOnCombatants
         | E::BurnOpponentInsteadOfTorpor
         | E::TorporAfterCombat { .. }
@@ -934,6 +957,7 @@ fn add(e: &E, w: Whom, when: Option<When>, out: &mut Vec<Effect>) {
         | E::HandStrikeDamageThisCombat(..)
         | E::HandStrikeBonusPerHeld(..)
         | E::AggravatedAsNormal { .. }
+        | E::AggravatedToNormal(..)
         | E::NoFrenzyCancelNorEndPress
         | E::DamageEachCombatantBeforeRange(..)
         | E::DamageOpposingOwnCombatantNow(..)
@@ -1012,11 +1036,18 @@ fn add(e: &E, w: Whom, when: Option<When>, out: &mut Vec<Effect>) {
         | E::OpposingWeaponsHarmlessThisCombat
         | E::StrikeDamageAtMost(..)
         | E::CorruptOpposing { .. }
-        | E::AgonyThisCombat { .. } => {}
+        | E::AgonyThisCombat { .. }
+        | E::InitialFirstStrikeThisRound
+        | E::OpposingStrengthMinusThisRound(..)
+        | E::UnlockOpponentWithCombatEnds
+        | E::TorporAtCombatDamage(..)
+        | E::OpposingBurnsOrNoStrikeThisRound(..)
+        | E::PlayCombatFromOpposingAsh => {}
         // Success (the action's success).
         E::RaiseAshMinionRepresented(_)
         | E::ActingGainsConviction
         | E::ActingVampireTakesDamage(..)
+        | E::ActingMinionTakesDamage(..)
         | E::AllyFromAshLocked(..)
         | E::AshCardToHandNamed
         | E::AshCardToHandOnSuccess(..)
@@ -1073,7 +1104,6 @@ fn add(e: &E, w: Whom, when: Option<When>, out: &mut Vec<Effect>) {
         | E::CorruptTarget
         | E::BarNonSectVotes(..)
         | E::CancelReferendum { .. }
-        | E::CancelReferendumPlain
         | E::FailIfTitleRequired
         | E::GrantVotes(..)
         | E::GrantVotesAll(..)
@@ -1083,6 +1113,7 @@ fn add(e: &E, w: Whom, when: Option<When>, out: &mut Vec<Effect>) {
         | E::RevealCryptTopVoteIfOlder
         | E::PoolForVotesRound { .. }
         | E::TallyPenaltyAgainst(..)
+        | E::TallyBloodAgainst(..)
         | E::TallyBonusForOthers(..)
         | E::BloodForVotesRound { .. }
         | E::GrantForReferendum
@@ -1098,10 +1129,15 @@ fn add(e: &E, w: Whom, when: Option<When>, out: &mut Vec<Effect>) {
         | E::CannotGainLife
         | E::EntryBurnAllyOrRetainer
         | E::EntryRemoveFromAshOrBurn
+        | E::EntryRemoveForLife
+        | E::EntryStoreFromHand(..)
+        | E::UsesStoredCard
         | E::EntryRemoveAshCardsOrBurn(..)
         | E::EntryStoreEquipmentUpTo(..)
         | E::MayRepeatThisTurn
         | E::UnlockRecruiterOnFirst
+        | E::RemembersRecruiter
+        | E::LinkCounterToTargetSeat
         | E::Version(..) => {}
         // Rider (a rider's hook).
         E::BecomesRetainerOnBy { .. }
@@ -1135,6 +1171,8 @@ fn add(e: &E, w: Whom, when: Option<When>, out: &mut Vec<Effect>) {
         | E::ClearCounters
         | E::CoinFlipActionFails
         | E::ControllerChoosesMinionDamaged(..)
+        | E::ControllerChoosesVampireGainsBlood(..)
+        | E::BurnHostMinion
         | E::HostDamagesOwnReadyVampire(..)
         | E::ActiveChoosesVampireDamaged(..)
         | E::PreyPoolToController(..)
@@ -1177,6 +1215,10 @@ fn add(e: &E, w: Whom, when: Option<When>, out: &mut Vec<Effect>) {
         | E::NoEntryConviction
         | E::OtherReadyImbuedDamaged(..)
         | E::OtherReadyVampireDamaged(..)
+        | E::OtherReadyMinionDamaged(..)
+        | E::NamedOntoHostElseDamage { .. }
+        | E::BurnOneHeld(..)
+        | E::PreyAshToLibraryTop
         | E::PassesToSect(..)
         | E::PoolOrAshCardsPerCounter
         | E::PoolOrBloodPerCounter
@@ -1210,7 +1252,8 @@ fn add(e: &E, w: Whom, when: Option<When>, out: &mut Vec<Effect>) {
         | E::TortureBurnPool(..)
         | E::UnlockBurnPoolUnlessReady { .. }
         | E::HostGoesToTorpor
-        | E::BurnSelfIfControllerBlocks => {}
+        | E::BurnSelfIfControllerBlocks
+        | E::ChosenGainsHostVotes => {}
         // Marker (read by name where offered, declared or played).
         E::AdditionalStrikeWithSource
         | E::NextReferendumPassesForAll
@@ -1244,7 +1287,8 @@ fn add(e: &E, w: Whom, when: Option<When>, out: &mut Vec<Effect>) {
         | E::BurnAtInfluencePerPreyReady
         | E::BurnSourceOnDeclare
         | E::BurnSourceOnResolution
-        | E::BurnedDamagesBearer(..)
+        | E::BurnedDamagesBearer { .. }
+        | E::IncomingCopyBurns
         | E::CancelShield
         | E::CancelableByDiscardingCombat(..)
         | E::CancelableForBlockerBlood(..)
@@ -1276,6 +1320,7 @@ fn add(e: &E, w: Whom, when: Option<When>, out: &mut Vec<Effect>) {
         | E::PlayableFromStore(..)
         | E::PoolWhenHostLeaves(..)
         | E::PutOnActorIfOpposingNotReadyAfterCombat
+        | E::OpposingMayEndBeforeRangeTakingCard
         | E::RechoosesOnControlChange
         | E::RemovedAfterSuccessOrWithoutInfernal
         | E::RemovedOncePlayed
@@ -1292,6 +1337,7 @@ fn add(e: &E, w: Whom, when: Option<When>, out: &mut Vec<Effect>) {
         | E::StealthIfOwnTarget(..)
         | E::StillYours
         | E::StorePickedFromHand
+        | E::StorePickedOnHost
         | E::StoredRemovedWhenBurned
         | E::SwapPickedWithStored
         | E::TakeAnyAction

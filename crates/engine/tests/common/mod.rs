@@ -383,35 +383,71 @@ pub fn pool(e: &Engine) -> Vec<i32> {
     e.state.seats.iter().map(|s| s.pool).collect()
 }
 
-/// The `nth` V5 vampire with `disc` and no printed text implemented (a plain
-/// fixture: printed abilities would add decisions to the script).
+/// The `nth` vampire with `disc` fit for a fixture ([`fixture_vampire`]).
+#[track_caller]
 pub fn vampire_with(disc: &str, nth: usize) -> u16 {
-    CRYPT
-        .iter()
-        .enumerate()
-        .filter(|(i, c)| {
-            c.disciplines.contains(&disc) && zvtes::cards::vampire(*i as u16).is_none()
-        })
-        .nth(nth)
-        .map(|(i, _)| i as u16)
-        .unwrap_or_else(|| panic!("no vampire with {disc}"))
+    fixture_vampire(|c| c.disciplines.contains(&disc), nth)
 }
 
-/// The `nth` untitled V5 vampire of `clan` with no printed-text definition
-/// and capacity at least 4.
+/// The `nth` untitled vampire of `clan` with capacity at least 4 fit for a
+/// fixture ([`fixture_vampire`]).
+#[track_caller]
 pub fn plain(clan: &str, nth: usize) -> u16 {
-    CRYPT
+    fixture_vampire(
+        |c| c.clan == clan && c.title == zvtes::crypt::Title::None && c.capacity >= 4,
+        nth,
+    )
+}
+
+/// How fit the vampire `card` is for a fixture, best first: 0, no
+/// definition (a vanilla or text-only card); 1, a definition printing only
+/// plain bonuses to its own bleed, intercept, strength, hand size or votes;
+/// 2, the same with stealth too (it fails a fixture's block); `None`, any
+/// other text (an ability, a rider, a toll, a cost change, a borrowed clan
+/// or Discipline).
+pub fn fixture_rank(card: u16) -> Option<u8> {
+    use zvtes::cards::{Per, PrintedTo, Stat};
+    let Some(d) = zvtes::cards::vampire(card) else {
+        return Some(0);
+    };
+    let plain = d.abilities.is_empty()
+        && d.riders.is_empty()
+        && d.plays_as.is_none()
+        && d.recruits_as_if.is_none()
+        && d.levels.is_empty()
+        && d.superior_while.is_none()
+        && d.pool_surcharge.is_empty()
+        && d.printed.iter().all(|p| {
+            p.to == PrintedTo::Itself
+                && p.per == Per::One
+                && matches!(
+                    p.stat,
+                    Stat::Bleed
+                        | Stat::Stealth
+                        | Stat::Intercept
+                        | Stat::Strength
+                        | Stat::HandSize
+                        | Stat::Votes
+                )
+        });
+    let stealth = d.printed.iter().any(|p| p.stat == Stat::Stealth);
+    plain.then_some(if stealth { 2 } else { 1 })
+}
+
+/// The `nth` non-imbued vampire matching `f` fit for a fixture, the best
+/// [`fixture_rank`] first: each round defines more of the crypt, and some
+/// capacities have no undefined vampire left. A script reading a stat a
+/// printed bonus changes reads it live (`current_bleed`, …).
+#[track_caller]
+pub fn fixture_vampire(f: impl Fn(&zvtes::crypt::CryptCard) -> bool, nth: usize) -> u16 {
+    let mut fit: Vec<(u8, u16)> = CRYPT
         .iter()
         .enumerate()
-        .filter(|(i, c)| {
-            c.clan == clan
-                && c.title == zvtes::crypt::Title::None
-                && c.capacity >= 4
-                && zvtes::cards::vampire(*i as u16).is_none()
-        })
-        .nth(nth)
-        .map(|(i, _)| i as u16)
-        .unwrap_or_else(|| panic!("no plain {clan} vampire"))
+        .filter(|(_, c)| !c.imbued && f(c))
+        .filter_map(|(i, _)| fixture_rank(i as u16).map(|r| (r, i as u16)))
+        .collect();
+    fit.sort();
+    fit.get(nth).map(|&(_, i)| i).expect("a fixture vampire")
 }
 
 /// Pad `seat`'s hand up to its hand size with Form of Mist, a [pro] combat

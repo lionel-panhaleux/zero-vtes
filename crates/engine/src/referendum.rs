@@ -200,6 +200,12 @@ pub struct ReferendumCtx {
     /// The vampires that forced another's cast this referendum (Mustafa's
     /// Toreador: once each, "during the polling step").
     pub forcers: Vec<MinionId>,
+    /// Vampires not cast yet whose votes a change set to a side: they cast
+    /// on it only, if they cast (Kindred Manipulation; RTR 19991001).
+    pub sides_set: Vec<(MinionId, bool)>,
+    /// Blood each vampire casting against burns at the tally (Cheval de
+    /// Bataille).
+    pub blood_against: u8,
     /// Methuselahs who used their one political-action-card vote.
     pub card_voted: Vec<SeatId>,
     /// Only vampires of this sect vote (Closed Session, Fall of the
@@ -260,6 +266,11 @@ pub struct ReferendumCtx {
     /// The title the calling political action card represents (Praxis
     /// Seizure), for `title_given`.
     pub card_title: Option<crate::crypt::Title>,
+    /// Tallied, a choice at the tally waiting before the effects
+    /// (Terrifisto): the effects follow it as the referendum advances.
+    pub tallied: bool,
+    /// The sources used by each Methuselah (`Limit::PerReferendumEachSeat`).
+    pub seat_uses: Vec<(cards::AbilitySource, SeatId)>,
 }
 
 impl ReferendumCtx {
@@ -282,10 +293,21 @@ impl ReferendumCtx {
         }
     }
 
+    /// The side a vote change set for `m` before it cast (Kindred
+    /// Manipulation).
+    pub fn side_set(&self, m: MinionId) -> Option<bool> {
+        self.sides_set
+            .iter()
+            .find(|&&(x, _)| x == m)
+            .map(|&(_, favor)| favor)
+    }
+
     /// `m` cannot cast in favor: its bonus votes forced against (Protected
-    /// District), or not of the clans Warding the Beast [VAL] allows.
+    /// District), its votes changed against (Kindred Manipulation), or not
+    /// of the clans Warding the Beast [VAL] allows.
     pub fn barred_favor(&self, st: &crate::state::GameState, m: MinionId) -> bool {
         self.forced_against.contains(&m)
+            || self.side_set(m) == Some(false)
             || !self.favor_only_clans.is_empty()
                 && !st.minions[m.index()]
                     .clan()
@@ -383,6 +405,7 @@ impl ReferendumCtx {
         (title_votes(title) as i32 - penalty
             + st.clan_votes(m)
             + st.host_votes(m)
+            + st.lasting_votes(m)
             + bonus as i32
             + granted as i32
             + printed
@@ -663,6 +686,8 @@ impl Engine {
             forced_against: Vec::new(),
             favor_only_clans: &[],
             forcers: Vec::new(),
+            sides_set: Vec::new(),
+            blood_against: 0,
             card_voted: Vec::new(),
             only_sect: def.and_then(|d| d.only_sect),
             only_sect_caller: None,
@@ -696,6 +721,8 @@ impl Engine {
                     .and_then(|p| cards::card_title(p.card)),
                 RefKind::BloodHunt { .. } => None,
             },
+            tallied: false,
+            seat_uses: Vec::new(),
         }
     }
 
@@ -1098,7 +1125,7 @@ impl Engine {
                     .map(|n| Choice::AllocateTo { seat, n })
                     .collect()
             }
-            Term::ChooseSeatsUnchosen(name) => {
+            Term::ChooseSeatsUnchosen { name, max } => {
                 let taken = |s: SeatId| {
                     st.cards.iter().any(|c| {
                         c.present()
@@ -1110,9 +1137,11 @@ impl Engine {
                 if !ctx.terms.seats.is_empty() {
                     options.push(Choice::Pass);
                 }
-                for s in st.clockwise_from(ctx.caller) {
-                    if !ctx.terms.seats.contains(&s) && !taken(s) {
-                        options.push(Choice::ChooseSeat(s));
+                if (ctx.terms.seats.len() as u8) < max {
+                    for s in st.clockwise_from(ctx.caller) {
+                        if !ctx.terms.seats.contains(&s) && !taken(s) {
+                            options.push(Choice::ChooseSeat(s));
+                        }
                     }
                 }
                 options
@@ -1379,6 +1408,7 @@ impl Engine {
                 });
             }
             if (ctx.votes_cast(st, id, false) > 0 || ballot && !ctx.barred_against(st, id))
+                && ctx.side_set(id) != Some(true)
                 && st.minions[id.index()].blood >= self.vote_against_toll(ctx, id)
             {
                 options.push(Choice::CastVotes {
@@ -1425,7 +1455,22 @@ impl Engine {
         // Referendum abilities ("during the polling step of any referendum").
         options.extend(self.ability_options(seat, Window::Referendum));
         let window = match ctx.kind {
-            RefKind::BloodHunt { .. } => WindowLabel::BloodHuntPolling,
+            // "During a referendum": a master played from hand (Vox Senis'
+            // out-of-turn mode), no minion's card.
+            RefKind::BloodHunt { .. } => {
+                let hand = self.virtual_hand(seat);
+                options.extend(
+                    self.play_options(seat, &[Window::Referendum], None)
+                        .into_iter()
+                        .filter(|o| match *o {
+                            Choice::Play { card, .. } => LIBRARY[hand[card as usize].0 as usize]
+                                .types
+                                .contains(&CardType::Master),
+                            _ => false,
+                        }),
+                );
+                WindowLabel::BloodHuntPolling
+            }
             RefKind::Political => {
                 // Other Methuselahs' locked minions may wake to react.
                 let windows: &[Window] = if seat == ctx.caller {
@@ -1605,7 +1650,7 @@ impl Engine {
             (
                 Term::ChooseSeats { .. }
                 | Term::ChooseSeatsHalfOrMore
-                | Term::ChooseSeatsUnchosen(_),
+                | Term::ChooseSeatsUnchosen { .. },
                 Choice::ChooseSeat(s),
             ) => {
                 ctx.terms.seats.push(*s);
@@ -1614,7 +1659,7 @@ impl Engine {
             (
                 Term::ChooseSeats { .. }
                 | Term::ChooseSeatsHalfOrMore
-                | Term::ChooseSeatsUnchosen(_),
+                | Term::ChooseSeatsUnchosen { .. },
                 Choice::Pass,
             ) => true,
             (Term::ChooseSeat(_), Choice::ChooseSeat(s)) => {
@@ -1771,8 +1816,8 @@ impl Engine {
     /// Vampire `m`'s cast on `favor`'s side, its toll against paid: its
     /// votes and, a priscus, its prisci ballot on the same side ("each
     /// priscus gets -1 ballot", Eat the Rich: a cast of nothing still
-    /// spends the source). None if it may cast only against, or cannot pay
-    /// the toll.
+    /// spends the source). None if it may cast only one way (against, or
+    /// in favor: Kindred Manipulation, `side_set`), or cannot pay the toll.
     fn vampire_cast(
         &mut self,
         ctx: &ReferendumCtx,
@@ -1796,7 +1841,9 @@ impl Engine {
             } else {
                 0
             };
-        if (favor && ctx.barred_favor(&self.state, m)) || self.state.minions[m.index()].blood < toll
+        if (favor && ctx.barred_favor(&self.state, m))
+            || (!favor && ctx.side_set(m) == Some(true))
+            || self.state.minions[m.index()].blood < toll
         {
             return None;
         }
@@ -1840,8 +1887,12 @@ impl Engine {
         }
         if ctx.canceled {
             // No tally: nothing keyed to the results happens (LSJ
-            // 20010209); a blood hunt's vampire stays (Count Zaroff).
+            // 20010209).
             self.after_referendum(true);
+            return;
+        }
+        if ctx.tallied {
+            self.political_after_tally(ctx);
             return;
         }
         debug_assert!(ctx.step == RefStep::Polling && ctx.window.is_closed());
@@ -2063,17 +2114,20 @@ impl Engine {
                         }
                     }
                 }
-                // Hartmut Stover: not a cost (no blood, none burned), and
-                // Methuselah ballots burn nothing (rules-qa 49.2).
-                if let Some(c) = ctx.calling {
-                    let n = self
-                        .state
-                        .printed_mod(
-                            c,
-                            cards::Stat::AgainstCastersBurnBlood,
-                            crate::state::PrintedCtx::default(),
-                        )
-                        .max(0) as u8;
+                // Hartmut Stover, Cheval de Bataille: not a cost (no blood,
+                // none burned), and Methuselah ballots burn nothing (rules-qa
+                // 49.2).
+                {
+                    let printed = ctx.calling.map_or(0, |c| {
+                        self.state
+                            .printed_mod(
+                                c,
+                                cards::Stat::AgainstCastersBurnBlood,
+                                crate::state::PrintedCtx::default(),
+                            )
+                            .max(0) as u8
+                    });
+                    let n = printed.saturating_add(ctx.blood_against);
                     if n > 0 {
                         for r in ctx.records.iter().filter(|r| !r.canceled && !r.favor) {
                             if let Source::Vampire(m) = r.source {
@@ -2108,55 +2162,92 @@ impl Engine {
                         self.burn_pool_batch(&loss);
                     }
                 }
-                let def = ctx.def.expect("political definition");
-                if passed && def.effect == RefEffect::MoveAllocatedFromChosen {
-                    let chosen = ctx.terms.chosen.expect("chosen Methuselah");
-                    let total: u8 = ctx.terms.alloc.iter().map(|(_, n)| *n).sum();
-                    let available = self.state.seats[chosen.index()].pool.max(0) as u8;
-                    if available < total {
-                        ctx.step = RefStep::Shortfall { points: available };
-                        ctx.terms.pending = ctx
-                            .terms
-                            .alloc
-                            .iter()
-                            .filter(|(_, n)| *n > 0)
-                            .map(|(s, _)| *s)
-                            .collect();
-                        self.referendum = Some(ctx);
-                        self.flow = Flow::Referendum;
-                        return;
-                    }
-                }
-                let keeps = def.effect.keeps_by_repaying();
-                let weapons = matches!(
-                    def.effect,
-                    RefEffect::BurnWeaponsUnlessKept | RefEffect::BurnLocationsUnlessKept
-                );
-                if passed && (def.effect.chooses_vampires() || keeps) {
-                    ctx.step = RefStep::Choose;
-                    ctx.terms.pending = self
+                // Terrifisto: his choice once results are tallied, before the
+                // effects (rules-qa 51.1's moment); the effects follow it
+                // (`ReferendumCtx::tallied`).
+                if let Some(c) = ctx.calling {
+                    let n = self
                         .state
-                        .clockwise_from(ctx.caller)
-                        .into_iter()
-                        .filter(|&s| {
-                            if weapons {
-                                !self.kept_candidates(def.effect, s).is_empty()
-                            } else if keeps {
-                                !self.allies_of(s).is_empty()
-                            } else {
-                                !self.ready_vampires_of(s).is_empty()
-                            }
-                        })
-                        .collect();
-                    if !ctx.terms.pending.is_empty() {
+                        .printed_mod(
+                            c,
+                            cards::Stat::DamagesAgainstVoterForBlood,
+                            crate::state::PrintedCtx::default(),
+                        )
+                        .max(0) as u8;
+                    if n > 0 {
+                        ctx.tallied = true;
+                        let seat = self.state.minions[c.index()].owner;
                         self.referendum = Some(ctx);
                         self.flow = Flow::Referendum;
+                        self.interrupts
+                            .push(crate::draws::Interrupt::DamageVoterForBlood {
+                                seat,
+                                minion: c,
+                                n,
+                            });
                         return;
                     }
                 }
-                self.resolve_political(ctx);
+                self.political_after_tally(ctx);
             }
         }
+    }
+
+    /// A political referendum tallied: its terms' shortfall, the passed
+    /// referendum's choices, then its effects.
+    fn political_after_tally(&mut self, mut ctx: ReferendumCtx) {
+        let passed = self
+            .action
+            .as_ref()
+            .expect("political action")
+            .referendum_passed;
+        let def = ctx.def.expect("political definition");
+        if passed && def.effect == RefEffect::MoveAllocatedFromChosen {
+            let chosen = ctx.terms.chosen.expect("chosen Methuselah");
+            let total: u8 = ctx.terms.alloc.iter().map(|(_, n)| *n).sum();
+            let available = self.state.seats[chosen.index()].pool.max(0) as u8;
+            if available < total {
+                ctx.step = RefStep::Shortfall { points: available };
+                ctx.terms.pending = ctx
+                    .terms
+                    .alloc
+                    .iter()
+                    .filter(|(_, n)| *n > 0)
+                    .map(|(s, _)| *s)
+                    .collect();
+                self.referendum = Some(ctx);
+                self.flow = Flow::Referendum;
+                return;
+            }
+        }
+        let keeps = def.effect.keeps_by_repaying();
+        let weapons = matches!(
+            def.effect,
+            RefEffect::BurnWeaponsUnlessKept | RefEffect::BurnLocationsUnlessKept
+        );
+        if passed && (def.effect.chooses_vampires() || keeps) {
+            ctx.step = RefStep::Choose;
+            ctx.terms.pending = self
+                .state
+                .clockwise_from(ctx.caller)
+                .into_iter()
+                .filter(|&s| {
+                    if weapons {
+                        !self.kept_candidates(def.effect, s).is_empty()
+                    } else if keeps {
+                        !self.allies_of(s).is_empty()
+                    } else {
+                        !self.ready_vampires_of(s).is_empty()
+                    }
+                })
+                .collect();
+            if !ctx.terms.pending.is_empty() {
+                self.referendum = Some(ctx);
+                self.flow = Flow::Referendum;
+                return;
+            }
+        }
+        self.resolve_political(ctx);
     }
 
     /// The ready vampires `s` controls, arena order (a choice of
@@ -2433,10 +2524,26 @@ impl Engine {
                         loss[chosen.index()] += n as i32;
                     }
                 }
-                RefEffect::BurnPerMinion { locked_only } => {
+                RefEffect::BurnPerMinion { of, n } => {
                     for m in &st.minions {
-                        if m.present() && (!locked_only || m.locked) {
-                            loss[m.owner.index()] += 1;
+                        let counted = match of {
+                            cards::PerMinion::Any => true,
+                            cards::PerMinion::Locked => m.locked,
+                            cards::PerMinion::VampireInTorpor => m.is_vampire() && m.in_torpor,
+                        };
+                        if m.present() && counted {
+                            loss[m.owner.index()] += n as i32;
+                        }
+                    }
+                }
+                // Each Methuselah's pool read before any moves (spec §6.5.4);
+                // as much as there is (rules-qa 17.4), never the caller's own.
+                RefEffect::StealPoolFromEach { n, from } => {
+                    for s in st.clockwise_from(ctx.caller) {
+                        if s != ctx.caller && cards::seat_filter_holds(from, st, ctx.caller, s) {
+                            let k = (n as i32).min(st.seats[s.index()].pool.max(0));
+                            loss[s.index()] += k;
+                            gain[ctx.caller.index()] += k;
                         }
                     }
                 }
@@ -2575,6 +2682,7 @@ impl Engine {
                 | RefEffect::PutInPlay
                 | RefEffect::PutInPlayLockBelow(_)
                 | RefEffect::BurnSourceVampire
+                | RefEffect::StealSourceVampire
                 | RefEffect::DamageYourCorrupted(_)
                 | RefEffect::ChosenTakesChosenCard
                 | RefEffect::BurnChosenCard
@@ -2586,7 +2694,12 @@ impl Engine {
                 | RefEffect::AshChosenToHand
                 | RefEffect::BloodToCapacityAtLeast { .. }
                 | RefEffect::BurnSourceCountersInFavor
-                | RefEffect::BloodHuntChosen => {}
+                | RefEffect::BloodHuntChosen
+                | RefEffect::BurnBloodCapacityBelow { .. }
+                | RefEffect::ChosenLosesTitle
+                | RefEffect::PoolOrBurnChosen { .. }
+                | RefEffect::LastingOnChosen
+                | RefEffect::LastingAgainstEachChosenSeat => {}
                 RefEffect::CallerGainsPool(n) => gain[ctx.caller.index()] += n as i32,
                 RefEffect::CallerPoolPerReadyClanVotersBlood(clan) => {
                     gain[ctx.caller.index()] += st
@@ -2937,7 +3050,11 @@ impl Engine {
                     {
                         if equipment {
                             self.interrupts
-                                .push(crate::draws::Interrupt::SearchEquipFor { seat, minion: m });
+                                .push(crate::draws::Interrupt::SearchEquipFor {
+                                    seat,
+                                    minion: m,
+                                    linked: None,
+                                });
                         }
                         let acting = self.action.as_ref().expect("political action").acting;
                         if unlocks_caller && self.state.minions[acting.index()].present() {
@@ -2946,9 +3063,15 @@ impl Engine {
                     }
                     if let RefEffect::PutOnCaller {
                         unlocks_if: Some(clan),
+                        may,
                     } = effect
                     {
-                        self.state.minions[m.index()].unlock_at_discard_if = Some(clan);
+                        let v = &mut self.state.minions[m.index()];
+                        if may {
+                            v.may_unlock_at_discard_if = crate::state::SparseOption(Some(clan));
+                        } else {
+                            v.unlock_at_discard_if = Some(clan);
+                        }
                     }
                 }
             }
@@ -2980,6 +3103,86 @@ impl Engine {
                     }
                 }
                 self.political_card_in_play(ctx);
+            }
+            // In torpor too (rules-qa 59.9), capacity as it passes.
+            RefEffect::BurnBloodCapacityBelow { cap, n } => {
+                for i in 0..self.state.minions.len() {
+                    let m = MinionId(i as u32);
+                    let v = &self.state.minions[i];
+                    if v.present()
+                        && v.is_vampire()
+                        && self
+                            .state
+                            .capacity_by(m, ctx.caller)
+                            .is_some_and(|c| c < cap)
+                    {
+                        self.state.burn_blood(m, n);
+                    }
+                }
+            }
+            RefEffect::ChosenLosesTitle => {
+                if let Some(m) = self.chosen_still_legal(ctx) {
+                    self.lose_title(m);
+                }
+            }
+            // X read as it passes (rules-digest D13); its controller then.
+            RefEffect::PoolOrBurnChosen { from } => {
+                if let Some(m) = self.chosen_still_legal(ctx) {
+                    let cap = self.state.capacity_by(m, ctx.caller).unwrap_or(from);
+                    self.interrupts
+                        .push(crate::draws::Interrupt::PoolOrMinionBurned {
+                            seat: self.state.minions[m.index()].owner,
+                            minion: m,
+                            pool: from.saturating_sub(cap),
+                        });
+                }
+            }
+            // A copy each time chosen, stacking (LSJ 19970707).
+            RefEffect::LastingOnChosen => {
+                let a = self.action.as_ref().expect("political action");
+                let (seat, play) = (a.seat, a.card.expect("a political action card"));
+                if let Some(m) = self.chosen_still_legal(ctx) {
+                    self.place_now(
+                        crate::state::CardInPlay {
+                            effect_only: true,
+                            ..crate::state::CardInPlay::entering(
+                                play.card,
+                                crate::copies::CopyId::NONE,
+                                seat,
+                                Some(m),
+                                play.mode,
+                            )
+                        },
+                        ModeLayers::Push,
+                        false,
+                    );
+                }
+            }
+            // Each chosen Methuselah's own: it stays through the caller's
+            // oust and goes with theirs.
+            RefEffect::LastingAgainstEachChosenSeat => {
+                let a = self.action.as_ref().expect("political action");
+                let play = a.card.expect("a political action card");
+                for &s in &ctx.terms.seats {
+                    if self.state.seats[s.index()].ousted {
+                        continue;
+                    }
+                    self.place_now(
+                        crate::state::CardInPlay {
+                            effect_only: true,
+                            against: crate::ids::SeatSet::single(s),
+                            ..crate::state::CardInPlay::entering(
+                                play.card,
+                                crate::copies::CopyId::NONE,
+                                s,
+                                None,
+                                play.mode,
+                            )
+                        },
+                        ModeLayers::Push,
+                        false,
+                    );
+                }
             }
             // Montecalme: gone by now, nothing (D1).
             RefEffect::BurnChosenCard => {
@@ -3034,6 +3237,15 @@ impl Engine {
                 {
                     if self.state.minions[v.index()].present() {
                         self.burn_minion(v);
+                    }
+                }
+            }
+            RefEffect::StealSourceVampire => {
+                if let Some(crate::cards::AbilitySource::Vampire(v)) =
+                    self.action.as_ref().and_then(|a| a.source)
+                {
+                    if self.state.minions[v.index()].present() {
+                        self.take_control(v, ctx.caller, crate::control::ControlTerm::ForGood);
                     }
                 }
             }
@@ -3201,7 +3413,8 @@ impl Engine {
         if torpor {
             self.minions_to_torpor(&[diablerist]);
         } else {
-            self.burn_minion(diablerist);
+            // No "would be burned" card against it (LSJ 20070417).
+            self.burn_minion_now(diablerist);
         }
     }
 
@@ -3388,6 +3601,32 @@ impl Engine {
         });
     }
 
+    /// `m`'s votes and ballots cast on the side `favor`: a cast already made
+    /// is turned, cast again on that side (its printed side votes; no toll
+    /// again, ANK 20221019), the votes gained since it was cast kept.
+    fn force_cast(&mut self, ctx: &mut ReferendumCtx, m: MinionId, favor: bool) {
+        let old = ctx
+            .records
+            .iter()
+            .position(|r| r.source == Source::Vampire(m) && !r.canceled);
+        let extra = old.map_or(0, |i| {
+            let r = ctx.records[i];
+            r.n.saturating_sub(ctx.votes_cast(&self.state, m, r.favor))
+        });
+        let previous = old.map(|i| ctx.records.remove(i));
+        match self.vampire_cast(ctx, m, favor, previous.is_none()) {
+            Some(mut record) => {
+                record.n += extra;
+                // Forced, a vampire with nothing to cast casts nothing.
+                if record.n > 0 || record.ballots > 0 {
+                    ctx.records.push(record);
+                }
+            }
+            // The new side unpayable: its cast stands as it was.
+            None => ctx.records.extend(previous),
+        }
+    }
+
     /// Effects of a modifier / reaction resolved during the polling step.
     pub(crate) fn apply_vote_effect(&mut self, effect: cards::Effect, play: &cards::PlayCtx) {
         let mut ctx = self.referendum.take().expect("referendum context");
@@ -3455,33 +3694,37 @@ impl Engine {
                 }
             }
             cards::Effect::PoisonPill => ctx.poison.push(play.seat),
+            cards::Effect::PlayerVotes { n, favor } => ctx.records.push(VoteRecord {
+                source: Source::Card(play.seat),
+                seat: play.seat,
+                favor,
+                n,
+                canceled: false,
+                ballots: 0,
+            }),
             cards::Effect::CastTargetVotes(favor) => {
                 let m = play.target.minion();
                 ctx.forcers.extend(play.actor);
-                // A cast already made is turned: cast again on the side
-                // chosen (its printed side votes; no toll again, ANK
-                // 20221019), the votes gained since it was cast kept.
-                let old = ctx
+                ctx.sides_set.retain(|&(x, _)| x != m);
+                self.force_cast(&mut ctx, m, favor);
+            }
+            // A change compels no vampire that has not cast: it casts on that
+            // side only, if it casts (RTR 19991001, LSJ 20030828); the last
+            // change governs (advanced rules §3.7.6.3).
+            cards::Effect::ChangeTargetVotes(favor) => {
+                let m = play.target.minion();
+                ctx.sides_set.retain(|&(x, _)| x != m);
+                if ctx
                     .records
                     .iter()
-                    .position(|r| r.source == Source::Vampire(m) && !r.canceled);
-                let extra = old.map_or(0, |i| {
-                    let r = ctx.records[i];
-                    r.n.saturating_sub(ctx.votes_cast(&self.state, m, r.favor))
-                });
-                let previous = old.map(|i| ctx.records.remove(i));
-                match self.vampire_cast(&ctx, m, favor, previous.is_none()) {
-                    Some(mut record) => {
-                        record.n += extra;
-                        // Forced, a vampire with nothing to cast casts nothing.
-                        if record.n > 0 || record.ballots > 0 {
-                            ctx.records.push(record);
-                        }
-                    }
-                    // The new side unpayable: its cast stands as it was.
-                    None => ctx.records.extend(previous),
+                    .any(|r| r.source == Source::Vampire(m) && !r.canceled)
+                {
+                    self.force_cast(&mut ctx, m, favor);
+                } else if !ctx.abstaining.contains(&m) {
+                    ctx.sides_set.push((m, favor));
                 }
             }
+            cards::Effect::TallyBloodAgainst(n) => ctx.blood_against += n,
             cards::Effect::GrantVotesAll(g) => {
                 for r in ctx.records.iter_mut().filter(|r| !r.canceled) {
                     if let Source::Vampire(m) = r.source {
@@ -3695,15 +3938,6 @@ impl Engine {
                     ctx.window = PollingWindow::new(Vec::new());
                 }
             }
-            // A blood hunt too: no tally, its vampire not burned (Count
-            // Zaroff).
-            cards::Effect::CancelReferendumPlain => {
-                ctx.canceled = true;
-                canceled_call = ctx.calling;
-                if let Some(a) = self.action.as_ref() {
-                    self.hinder(play.seat, a.seat);
-                }
-            }
             cards::Effect::CancelReferendum {
                 unlock_acting,
                 forbid_repeat,
@@ -3725,6 +3959,7 @@ impl Engine {
                     // Fragments goes back to them (rules-qa 60.19).
                     let owner = card
                         .from
+                        .filter(|&f| !crate::state::virtual_source(f))
                         .and_then(|f| self.state.cards[f.index()].stored_owner)
                         .unwrap_or(a.seat);
                     self.state.seats[owner.index()]

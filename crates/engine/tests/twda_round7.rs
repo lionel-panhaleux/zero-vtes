@@ -1753,22 +1753,173 @@ fn spiritual_guidance_forces_a_choice_among_the_ash_heaps_plays() {
     );
 }
 
-// Spiritual Guidance with no combat card playable from the ash heap: a
-// legal no-op (rules-qa 17.4), nothing forced after it.
+// Spiritual Guidance with no combat card playable from the ash heap (none
+// there, or a reaction card only): never offered, no legal no-op (owner,
+// 2026-11-17: rules-qa 122.215, an exception to 17.4).
 #[test]
-fn spiritual_guidance_with_nothing_to_play_from_the_ash_heap() {
+fn spiritual_guidance_is_not_offered_with_nothing_to_play() {
+    for ash in [&[][..], &["Deflection"][..]] {
+        let mut e = game(2);
+        let a = e.add_minion(SeatId(0), giovanni("Primo Giovanni"), 4, false);
+        e.add_minion(SeatId(0), plain("Brujah", 0), 4, false);
+        let z = e.add_minion(SeatId(1), plain("Ventrue", 0), 8, false);
+        in_play(&mut e, 1, ".44 Magnum", Some(z));
+        hand(&mut e, 0, &["Spiritual Guidance"]);
+        e.state.seats[0].ash = ash.iter().map(|n| find_library(n)).collect();
+        blocked_bleed(&mut e, a, z);
+        never_offered_until(&mut e, SeatId(0), WindowLabel::MinionPhase, play(0, 0, a));
+    }
+}
+
+/// Primo Giovanni (full) bleeds, blocked by a Ventrue; seat 0 holds
+/// Spiritual Guidance, its ash heap `ash`: Primo and the Ventrue.
+fn guided(ash: &[&str]) -> (Engine, MinionId, MinionId) {
     let mut e = game(2);
-    let a = e.add_minion(SeatId(0), giovanni("Primo Giovanni"), 4, false);
+    let a = e.add_minion(SeatId(0), giovanni("Primo Giovanni"), 8, false);
     e.add_minion(SeatId(0), plain("Brujah", 0), 4, false);
     let z = e.add_minion(SeatId(1), plain("Ventrue", 0), 8, false);
-    in_play(&mut e, 1, ".44 Magnum", Some(z));
     hand(&mut e, 0, &["Spiritual Guidance"]);
-    e.state.seats[0].ash.clear();
+    e.state.seats[0].ash = ash.iter().map(|n| find_library(n)).collect();
     blocked_bleed(&mut e, a, z);
-    let req = until(&mut e, SeatId(0), WindowLabel::CombatDetermineRange);
+    (e, a, z)
+}
+
+// Spiritual Guidance is timed by the card it plays (owner, 2026-11-17:
+// rules-qa 122.215): with Burning Wrath [pot] in the ash heap, first
+// offered as Primo chooses his strike, the Wrath played at once as his
+// strike (3 blood), its 2 aggravated sending the Ventrue to torpor, the
+// card removed from the game.
+#[test]
+fn spiritual_guidance_plays_a_strike_card_as_its_strike() {
+    let (mut e, a, z) = guided(&["Burning Wrath"]);
+    let req = offering(&mut e, play(0, 0, a));
+    assert_eq!(
+        (req.seat, req.window),
+        (SeatId(0), WindowLabel::CombatStrike)
+    );
+    assert!(
+        req.options.contains(&Choice::HandStrike),
+        "before the strike"
+    );
+    let before = e.state.minions[a.index()].blood;
     e.choose(index_of(&req, play(0, 0, a)));
-    assert!(!e.state.seats[0].ash_combat_play);
     until(&mut e, SeatId(0), WindowLabel::MinionPhase);
+    assert!(e.state.minions[z.index()].in_torpor, "2 aggravated");
+    assert_eq!(e.state.minions[a.index()].blood, before - 3 - 1);
+    assert!(e.state.seats[0]
+        .removed
+        .contains(&find_library("Burning Wrath")));
+}
+
+// Spiritual Guidance in the damage prevention step: the ash heap's Skin of
+// Steel [for] (Primo lent Fortitude) prevents the Ventrue's strike, played
+// at once; never offered before (owner, 2026-11-17: rules-qa 122.215).
+#[test]
+fn spiritual_guidance_plays_a_prevention_card_in_the_prevention_step() {
+    let (mut e, a, _) = guided(&["Skin of Steel"]);
+    e.state.minions[a.index()].gained_levels = vec!["for"];
+    let req = offering(&mut e, play(0, 0, a));
+    assert_eq!(
+        (req.seat, req.window),
+        (SeatId(0), WindowLabel::CombatPrevention)
+    );
+    let before = e.state.minions[a.index()].blood;
+    e.choose(index_of(&req, play(0, 0, a)));
+    until(&mut e, SeatId(0), WindowLabel::MinionPhase);
+    assert_eq!(
+        e.state.minions[a.index()].blood,
+        before - 1,
+        "its cost; all prevented"
+    );
+    assert!(e.state.seats[0]
+        .removed
+        .contains(&find_library("Skin of Steel")));
+}
+
+// Spiritual Guidance at the aim decision, the hand strike chosen (its one
+// option, elided: no aim before it): the ash heap's Target Vitals aims it,
+// +2 damage on the Ventrue; a strike card there is no aim (owner,
+// 2026-11-17: rules-qa 122.215, 62.1).
+#[test]
+fn spiritual_guidance_plays_an_aim_on_the_chosen_strike() {
+    let (mut e, a, z) = guided(&["Target Vitals"]);
+    let req = until(&mut e, SeatId(0), WindowLabel::CombatStrike);
+    assert_eq!(
+        req.options,
+        vec![Choice::Pass, play(0, 0, a)],
+        "the aim decision"
+    );
+    assert!(e.combat().expect("combat").sides[0].chosen);
+    let before = e.state.minions[z.index()].blood;
+    e.choose(index_of(&req, play(0, 0, a)));
+    until(&mut e, SeatId(0), WindowLabel::MinionPhase);
+    assert_eq!(e.state.minions[z.index()].blood, before - 1 - 2);
+    assert!(e.state.seats[0]
+        .removed
+        .contains(&find_library("Target Vitals")));
+
+    // A strike card is no aim: the hand strike chosen, the Guidance is not
+    // offered for the ash heap's Burning Wrath.
+    let (mut e, a, z) = guided(&["Burning Wrath"]);
+    let req = until(&mut e, SeatId(0), WindowLabel::CombatStrike);
+    assert!(req.options.contains(&play(0, 0, a)));
+    e.choose(index_of(&req, Choice::HandStrike));
+    never_offered_until(&mut e, SeatId(0), WindowLabel::MinionPhase, play(0, 0, a));
+    assert!(
+        !e.state.minions[z.index()].in_torpor,
+        "the hand strike only"
+    );
+}
+
+// Spiritual Guidance's strike card canceled as it is played (Botched Move:
+// a copy of Burning Wrath revealed): Primo still chooses his strike, a
+// hand strike (its one option, elided: the Guidance's limit), 1 damage on
+// the Ventrue (owner, 2026-11-17: rules-qa 122.215, 84.3).
+#[test]
+fn spiritual_guidance_canceled_strike_card_leaves_the_strike_choice() {
+    let (mut e, a, z) = guided(&["Burning Wrath"]);
+    hand(&mut e, 1, &["Botched Move"]);
+    fill_hand(&mut e, 0);
+    let wrath = find_library("Burning Wrath");
+    // The Guidance's replacement drawn first: the Wrath below it revealed.
+    let conceal = find_library("Conceal");
+    e.state.seats[0].library = [wrath, conceal, conceal].into_iter().collect();
+    let req = until(&mut e, SeatId(0), WindowLabel::CombatStrike);
+    e.choose(index_of(&req, play(0, 0, a)));
+    let req = expect(&mut e, SeatId(1), WindowLabel::CardAsPlayed);
+    let before = e.state.minions[z.index()].blood;
+    e.choose(index_of(&req, play(0, 0, z)));
+    until(&mut e, SeatId(0), WindowLabel::MinionPhase);
+    assert!(
+        e.state.seats[0].removed.contains(&wrath),
+        "canceled, removed"
+    );
+    assert_eq!(
+        e.state.minions[z.index()].blood,
+        before - 1,
+        "the hand strike"
+    );
+    assert!(!e.state.minions[z.index()].in_torpor);
+}
+
+// Spiritual Guidance in another card's as-played window: never, that
+// window admits the cancel only (owner, 2026-11-17: rules-qa 122.215; LSJ
+// 20061207): the Ventrue's Immortal Grapple, the hand's Disengage offered,
+// the Guidance not, though the ash heap's Disengage could cancel it.
+#[test]
+fn spiritual_guidance_is_not_played_in_an_as_played_window() {
+    let mut e = game(2);
+    let a = e.add_minion(SeatId(0), giovanni("Primo Giovanni"), 8, false);
+    e.add_minion(SeatId(0), plain("Brujah", 0), 4, false);
+    let z = e.add_minion(SeatId(1), vampire_with("pot", 0), 8, false);
+    hand(&mut e, 0, &["Spiritual Guidance", "Disengage"]);
+    hand(&mut e, 1, &["Immortal Grapple"]);
+    e.state.seats[0].ash = vec![find_library("Disengage")].into();
+    blocked_bleed(&mut e, a, z);
+    pick_when(&mut e, play(0, 0, z));
+    let req = expect(&mut e, SeatId(0), WindowLabel::CardAsPlayed);
+    assert!(req.options.contains(&play(1, 1, a)), "{:?}", req.options);
+    assert!(!req.options.contains(&play(0, 0, a)));
 }
 
 // Sudario Refraction: "Choose three library cards in your ash heap by

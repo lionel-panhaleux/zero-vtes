@@ -35,29 +35,73 @@ pub struct ControlChange {
     pub stopped: bool,
 }
 
-/// A passed blood hunt about to burn `minion`.
-#[derive(Clone, Debug, PartialEq, Eq, Hash)]
-pub struct HuntBurn {
-    pub minion: MinionId,
-    /// The Methuselahs who may answer, `next` the one deciding.
+/// Who answers a wait's minion: `order` asked in turn, `next` the one
+/// deciding, `playing` while their card resolves, `saved` once a card
+/// saved it.
+#[derive(Clone, Debug, Default, PartialEq, Eq, Hash)]
+pub struct Ask {
     pub order: Vec<SeatId>,
     pub next: usize,
     pub playing: bool,
-    /// A card saved it.
     pub saved: bool,
 }
 
+/// A queued wait: `queue[0]` asked, the others in turn after it.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct Answers<T> {
+    pub queue: Vec<T>,
+    pub ask: Ask,
+}
+
+/// A passed blood hunt about to burn `minion` (one hunt resolves at a
+/// time).
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct HuntBurn {
+    pub minion: MinionId,
+    pub ask: Ask,
+}
+
+/// Allies about to be burned in combat, still in play, their burn waiting
+/// on the Methuselahs (Left for Dead), each beside the minion burning it.
+pub type CombatBurnWait = Answers<(MinionId, Option<MinionId>)>;
+
+/// What a vampire's burn, waiting on its controller (`BurnWait`), goes on
+/// with: a plain burn, or a diablerie's at its site.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+pub enum BurnThen {
+    Burn,
+    /// The diablerie action's resolution.
+    DiablerieAction {
+        diablerist: MinionId,
+    },
+    /// A blocked leave-torpor's diablerie.
+    TorporBlock {
+        blocker: MinionId,
+    },
+    /// A diablerie in combat: Amaranth's, else Liquefy the Mortal Coil's.
+    CombatDiablerie {
+        diablerist: MinionId,
+        amaranth: bool,
+    },
+    /// Sacrificial Lamb's burn of `minion` by `taker`, for `seat`.
+    Sacrifice {
+        taker: MinionId,
+        seat: SeatId,
+    },
+}
+
+/// Vampires about to be burned (but by a blood hunt, LSJ 20070417), each
+/// burn waiting on its controller's card replacing it (Abandoning the
+/// Flesh): asked before the burn and before a diablerie's steps, which
+/// nothing interrupts (advanced rules §3.7.8); never while a standing
+/// replacement applies (`Engine::burn_replacements`; rules-qa 122.2).
+pub type BurnWait = Answers<(MinionId, BurnThen)>;
+
 /// Vampires about to go to torpor, provisionally there (a combat ends on
-/// it), their torpor waiting on the other Methuselahs: `queue[0]` asked.
+/// it), their torpor waiting on the other Methuselahs.
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct TorporWait {
-    pub queue: Vec<MinionId>,
-    /// The Methuselahs who may answer, `next` the one deciding.
-    pub order: Vec<SeatId>,
-    pub next: usize,
-    pub playing: bool,
-    /// A card saved `queue[0]`.
-    pub saved: bool,
+    pub answers: Answers<MinionId>,
     /// Sent there in the combat under way: asked as it ends (RTR
     /// 19950509-2).
     pub in_combat: bool,
@@ -66,6 +110,29 @@ pub struct TorporWait {
     /// Those declined so far: their torpors land together once the queue
     /// drains, lost together (rules-qa 118.2).
     pub declined: Vec<MinionId>,
+}
+
+/// The waits a card from hand answers, in the order they are settled and
+/// asked (docs/engine.md §6.17).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum Wait {
+    Hunt,
+    CombatBurn,
+    Torpor,
+    Burn,
+}
+
+impl Wait {
+    const ALL: [Wait; 4] = [Wait::Hunt, Wait::CombatBurn, Wait::Torpor, Wait::Burn];
+
+    fn window(self) -> Window {
+        match self {
+            Wait::Hunt => Window::BloodHuntWouldBurn,
+            Wait::CombatBurn => Window::AllyWouldBurnInCombat,
+            Wait::Torpor => Window::GoingToTorpor,
+            Wait::Burn => Window::VampireWouldBurn,
+        }
+    }
 }
 
 impl Engine {
@@ -107,6 +174,14 @@ impl Engine {
     }
 
     fn change_control(&mut self, m: MinionId, to: SeatId, term: ControlTerm) {
+        // Hukros's cards go with him, still their owner's.
+        let from = self.state.minions[m.index()].owner;
+        let st = &mut self.state;
+        for copy in st.minions[m.index()].stored.0.copies().to_vec() {
+            if copy != crate::copies::CopyId::NONE && !st.foreign.iter().any(|(c, _)| c.0 == copy) {
+                st.foreign.push((crate::copies::Untracked(copy), from));
+            }
+        }
         match term {
             ControlTerm::ForGood => self.take_for_good_now(m, to),
             _ => {
@@ -131,7 +206,7 @@ impl Engine {
 
     /// Before any decision: end a finished play's wait; make the change
     /// once no play may stop it, drop it once one did.
-    pub(crate) fn settle_control_change(&mut self) {
+    fn settle_control_change(&mut self) {
         let Some(mut c) = self.state.control_change else {
             return;
         };
@@ -153,7 +228,7 @@ impl Engine {
     }
 
     /// The losing Methuselah's decision: let it change, or play a card.
-    pub(crate) fn control_request(&self) -> Option<DecisionRequest> {
+    fn control_request(&self) -> Option<DecisionRequest> {
         let c = self.state.control_change.filter(|c| !c.playing)?;
         let plays = self.control_plays(c.from);
         if plays.is_empty() {
@@ -168,7 +243,7 @@ impl Engine {
         ))
     }
 
-    pub(crate) fn control_apply(&mut self, choice: &Choice) {
+    fn control_apply(&mut self, choice: &Choice) {
         let mut c = self.state.control_change.expect("a control change");
         match *choice {
             Choice::Pass => {
@@ -191,80 +266,160 @@ impl Engine {
         }
     }
 
-    /// A passed blood hunt burns (or sends to torpor: Genina) `m` — unless
-    /// another Methuselah may still answer it: then it waits, the
-    /// referendum's end with it. True when it waits.
-    pub(crate) fn defer_hunt_burn(&mut self, m: MinionId) -> bool {
-        let owner = self.state.minions[m.index()].owner;
-        let order: Vec<SeatId> = self
-            .state
-            .clockwise_from(self.state.active)
-            .into_iter()
-            .filter(|&s| s != owner && !self.state.seats[s.index()].ousted)
-            .collect();
-        self.state.hunt_burn = Some(HuntBurn {
-            minion: m,
-            order,
-            next: 0,
-            playing: false,
-            saved: false,
-        });
-        if self.hunt_burn_next().is_some() {
-            return true;
+    /// `w`'s minion asked and who answers it, if it waits.
+    fn ask(&self, w: Wait) -> Option<(MinionId, &Ask)> {
+        let st = &self.state;
+        match w {
+            Wait::Hunt => st.hunt_burn.as_ref().map(|h| (h.minion, &h.ask)),
+            Wait::CombatBurn => st
+                .combat_burn_wait
+                .0
+                .as_ref()
+                .and_then(|a| Some((a.queue.first()?.0, &a.ask))),
+            Wait::Torpor => st
+                .torpor_wait
+                .0
+                .as_ref()
+                .and_then(|t| Some((*t.answers.queue.first()?, &t.answers.ask))),
+            Wait::Burn => st
+                .burn_wait
+                .0
+                .as_ref()
+                .and_then(|a| Some((a.queue.first()?.0, &a.ask))),
         }
-        self.state.hunt_burn = None;
-        false
     }
 
-    /// The first Methuselah from `next` on who may answer the burn, `next`
-    /// moved to them.
-    fn hunt_burn_next(&mut self) -> Option<SeatId> {
+    fn ask_mut(&mut self, w: Wait) -> Option<&mut Ask> {
+        let st = &mut self.state;
+        match w {
+            Wait::Hunt => st.hunt_burn.as_mut().map(|h| &mut h.ask),
+            Wait::CombatBurn => st.combat_burn_wait.0.as_mut().map(|a| &mut a.ask),
+            Wait::Torpor => st.torpor_wait.0.as_mut().map(|t| &mut t.answers.ask),
+            Wait::Burn => st.burn_wait.0.as_mut().map(|a| &mut a.ask),
+        }
+    }
+
+    /// Who may answer `m`'s wait: every Methuselah still in, clockwise
+    /// from the active one; a torpor's not its controller; a burn's its
+    /// controller alone.
+    fn answer_order(&self, w: Wait, m: MinionId) -> Vec<SeatId> {
+        let owner = self.state.minions[m.index()].owner;
+        let living = |s: &SeatId| !self.state.seats[s.index()].ousted;
+        match w {
+            Wait::Burn => [owner].into_iter().filter(living).collect(),
+            Wait::Hunt | Wait::CombatBurn | Wait::Torpor => self
+                .state
+                .clockwise_from(self.state.active)
+                .into_iter()
+                .filter(|s| living(s) && (w != Wait::Torpor || *s != owner))
+                .collect(),
+        }
+    }
+
+    /// A Methuselah's card (or a vampire's ability, LSJ 20081203-2:
+    /// Dogs of War) for `w` is pending: no other decision is asked.
+    pub(crate) fn answer_pending(&self) -> bool {
+        self.state.control_change.is_some() || Wait::ALL.into_iter().any(|w| self.ask(w).is_some())
+    }
+
+    /// Asked now: a torpor in combat as the combat ends (or once it is
+    /// gone), any other at once.
+    fn answer_asked(&self, w: Wait) -> bool {
+        match w {
+            Wait::Torpor => self
+                .state
+                .torpor_wait
+                .0
+                .as_ref()
+                .is_some_and(|t| !t.in_combat || t.ending || self.combat.is_none()),
+            _ => self.ask(w).is_some(),
+        }
+    }
+
+    /// The plays `seat` may make on `w`'s minion: on that minion where the
+    /// card targets one, a blood hunt's abilities too.
+    fn answer_plays(&self, w: Wait, seat: SeatId) -> Vec<Choice> {
+        let Some((m, _)) = self.ask(w) else {
+            return Vec::new();
+        };
+        let mut options = self.play_options(seat, &[w.window()], None);
+        match w {
+            Wait::CombatBurn | Wait::Torpor => options.retain(
+                |o| matches!(o, Choice::Play { target, .. } if *target == Target::Minion(m)),
+            ),
+            Wait::Hunt => options.extend(self.ability_options(seat, w.window())),
+            Wait::Burn => {}
+        }
+        options
+    }
+
+    /// Some Methuselah of `w`'s order could answer it.
+    fn answerable(&self, w: Wait) -> bool {
+        self.ask(w)
+            .is_some_and(|(_, a)| a.order.iter().any(|&s| !self.answer_plays(w, s).is_empty()))
+    }
+
+    /// The first Methuselah from `next` on who may answer, `next` moved to
+    /// them.
+    fn answer_next(&mut self, w: Wait) -> Option<SeatId> {
         loop {
-            let h = self.state.hunt_burn.as_ref()?;
-            let s = *h.order.get(h.next)?;
-            if !self.hunt_burn_plays(s).is_empty() {
+            let (_, a) = self.ask(w)?;
+            let s = *a.order.get(a.next)?;
+            if !self.answer_plays(w, s).is_empty() {
                 return Some(s);
             }
-            self.state.hunt_burn.as_mut().expect("hunt burn").next += 1;
+            self.ask_mut(w).expect("a wait").next += 1;
         }
     }
 
-    fn hunt_burn_plays(&self, seat: SeatId) -> Vec<Choice> {
-        self.play_options(seat, &[Window::BloodHuntWouldBurn], None)
+    /// Before any decision: the control change, then each wait: a finished
+    /// play's wait ended; once a card saved the minion or no one is left to
+    /// ask, the kind's own end (`answered`).
+    pub(crate) fn settle_answers(&mut self) {
+        self.settle_control_change();
+        for w in Wait::ALL {
+            self.settle_answer(w);
+        }
     }
 
-    /// Before any decision: end a finished play's wait; once one saved the
-    /// vampire or no one is left to ask, the burn (if any) and the
-    /// referendum's end.
-    pub(crate) fn settle_hunt_burn(&mut self) {
-        let Some(h) = self.state.hunt_burn.as_ref() else {
-            return;
-        };
-        if h.playing {
-            let s = h.order[h.next];
-            if crate::ousting::in_flight(&self.flow, None, s) {
+    fn settle_answer(&mut self, w: Wait) {
+        loop {
+            if !self.answer_asked(w) {
                 return;
             }
-            let h = self.state.hunt_burn.as_mut().expect("hunt burn");
-            h.playing = false;
-            h.next += 1;
+            let a = self.ask_mut(w).expect("a wait");
+            if a.playing {
+                let s = a.order[a.next];
+                if crate::ousting::in_flight(&self.flow, None, s) {
+                    return;
+                }
+                let a = self.ask_mut(w).expect("a wait");
+                a.playing = false;
+                a.next += 1;
+            }
+            let saved = self.ask(w).expect("a wait").1.saved;
+            if !saved && self.answer_next(w).is_some() {
+                return;
+            }
+            if self.answered(w) {
+                return;
+            }
         }
-        if !self.state.hunt_burn.as_ref().expect("hunt burn").saved
-            && self.hunt_burn_next().is_some()
-        {
-            return;
-        }
-        let h = self.state.hunt_burn.take().expect("hunt burn");
-        if !h.saved {
-            self.hunt_burn_now(h.minion);
-        }
-        self.end_blood_hunt();
     }
 
-    pub(crate) fn hunt_burn_request(&self) -> Option<DecisionRequest> {
-        let h = self.state.hunt_burn.as_ref().filter(|h| !h.playing)?;
-        let s = *h.order.get(h.next)?;
-        let plays = self.hunt_burn_plays(s);
+    /// The control change's request, else the first wait's.
+    pub(crate) fn answer_request(&self) -> Option<DecisionRequest> {
+        self.control_request()
+            .or_else(|| Wait::ALL.into_iter().find_map(|w| self.wait_request(w)))
+    }
+
+    fn wait_request(&self, w: Wait) -> Option<DecisionRequest> {
+        if !self.answer_asked(w) {
+            return None;
+        }
+        let (_, a) = self.ask(w).filter(|(_, a)| !a.playing)?;
+        let s = *a.order.get(a.next)?;
+        let plays = self.answer_plays(w, s);
         if plays.is_empty() {
             return None;
         }
@@ -277,23 +432,175 @@ impl Engine {
         ))
     }
 
-    pub(crate) fn hunt_burn_apply(&mut self, choice: &Choice) {
-        let h = self.state.hunt_burn.as_mut().expect("a hunt burn");
-        let s = h.order[h.next];
+    /// Applies `choice` to the request `answer_request` serves: false when
+    /// it serves none.
+    pub(crate) fn answer_apply(&mut self, choice: &Choice) -> bool {
+        if self.control_request().is_some() {
+            self.control_apply(choice);
+            return true;
+        }
+        let Some(w) = Wait::ALL
+            .into_iter()
+            .find(|&w| self.wait_request(w).is_some())
+        else {
+            return false;
+        };
+        let a = self.ask_mut(w).expect("a wait");
+        let s = a.order[a.next];
         match *choice {
-            Choice::Pass => h.next += 1,
+            Choice::Pass => {
+                a.next += 1;
+            }
             Choice::Play {
                 card,
                 mode,
                 actor,
                 target,
             } => {
-                h.playing = true;
+                a.playing = true;
                 let resume = self.flow.clone();
                 self.announce_play(s, card, mode, actor, target, resume);
             }
-            other => unreachable!("illegal blood hunt choice {other:?}"),
+            // An ability resolves at once (no terms at this moment).
+            Choice::UseAbility {
+                source,
+                ability,
+                actor,
+                target,
+            } => {
+                a.next += 1;
+                let resume = self.flow.clone();
+                self.use_ability(s, source, ability, actor, target, resume);
+            }
+            other => unreachable!("illegal {w:?} choice {other:?}"),
         }
+        true
+    }
+
+    /// A card saved `w`'s minion if it is `target`: true when it did.
+    pub(crate) fn save_answer(&mut self, w: Wait, target: Target) -> bool {
+        if self.ask(w).is_none_or(|(m, _)| Target::Minion(m) != target) {
+            return false;
+        }
+        self.ask_mut(w).expect("a wait").saved = true;
+        true
+    }
+
+    /// `w`'s minion answered: its kind's end. True when the settling
+    /// stops (a combat's end the torpors held, now run).
+    fn answered(&mut self, w: Wait) -> bool {
+        match w {
+            Wait::Hunt => {
+                let h = self.state.hunt_burn.take().expect("hunt burn");
+                if !h.ask.saved {
+                    self.hunt_burn_now(h.minion);
+                }
+                self.end_blood_hunt();
+                false
+            }
+            Wait::CombatBurn => {
+                let mut a = self.state.combat_burn_wait.0.take().expect("burn wait");
+                let (m, by) = a.queue.remove(0);
+                if !a.ask.saved && self.state.minions[m.index()].present() {
+                    self.lost_together(|e| {
+                        if let Some(by) = by {
+                            e.red_list_burned(by, m);
+                        }
+                        e.burn_minion(m);
+                    });
+                }
+                if let Some(&(n, _)) = a.queue.first() {
+                    a.ask = self.fresh_ask(w, n);
+                    self.state.combat_burn_wait.0 = Some(a);
+                }
+                false
+            }
+            Wait::Torpor => self.torpor_answered(),
+            Wait::Burn => {
+                let mut a = self.state.burn_wait.0.take().expect("burn wait");
+                let (m, then) = a.queue.remove(0);
+                if let Some(&(n, _)) = a.queue.first() {
+                    a.ask = self.fresh_ask(w, n);
+                    self.state.burn_wait.0 = Some(a);
+                }
+                if self.state.minions[m.index()].present() {
+                    self.burn_goes_on(m, then);
+                } else {
+                    self.burn_saved(then);
+                }
+                false
+            }
+        }
+    }
+
+    fn fresh_ask(&self, w: Wait, m: MinionId) -> Ask {
+        Ask {
+            order: self.answer_order(w, m),
+            ..Ask::default()
+        }
+    }
+
+    /// A passed blood hunt burns (or sends to torpor: Genina) `m` — unless
+    /// a Methuselah may still answer it: then it waits, the referendum's
+    /// end with it. True when it waits.
+    pub(crate) fn defer_hunt_burn(&mut self, m: MinionId) -> bool {
+        // Its own Methuselah too: a cancel of a hunt called on their
+        // vampire (Dogs of War; LSJ 20081203-2).
+        self.state.hunt_burn = Some(HuntBurn {
+            minion: m,
+            ask: self.fresh_ask(Wait::Hunt, m),
+        });
+        if self.answer_next(Wait::Hunt).is_some() {
+            return true;
+        }
+        self.state.hunt_burn = None;
+        false
+    }
+
+    /// The allies of `burned` a Methuselah may save as they would burn in
+    /// combat (Left for Dead) are held back, still in play, their burn
+    /// waiting; the others are returned. Only the damage resolution's
+    /// burns reach here, never a burn as the combat ends (Escaped Mental
+    /// Patient, LSJ 20070507).
+    pub(crate) fn defer_combat_burns(&mut self, burned: Vec<MinionId>) -> Vec<MinionId> {
+        let held = (0..self.state.seats.len()).any(|i| {
+            !self.state.seats[i].ousted
+                && self.holds_card_for(SeatId(i as u8), Window::AllyWouldBurnInCombat)
+        });
+        if !held {
+            return burned;
+        }
+        let mut rest = Vec::new();
+        for m in burned {
+            if !self.state.minions[m.index()].is_ally() || !self.combat_burn_savable(m) {
+                rest.push(m);
+                continue;
+            }
+            let by = self.combat.as_ref().and_then(|c| c.opponent_of(m));
+            match self.state.combat_burn_wait.0.as_mut() {
+                Some(a) => a.queue.push((m, by)),
+                None => {
+                    self.state.combat_burn_wait.0 = Some(Answers {
+                        queue: vec![(m, by)],
+                        ask: self.fresh_ask(Wait::CombatBurn, m),
+                    })
+                }
+            }
+        }
+        rest
+    }
+
+    /// Some Methuselah could play a card saving `m` from its burn, the
+    /// wait under way set aside meanwhile.
+    fn combat_burn_savable(&mut self, m: MinionId) -> bool {
+        let alone = Answers {
+            queue: vec![(m, None)],
+            ask: self.fresh_ask(Wait::CombatBurn, m),
+        };
+        let before = self.state.combat_burn_wait.0.replace(alone);
+        let any = self.answerable(Wait::CombatBurn);
+        self.state.combat_burn_wait.0 = before;
+        any
     }
 
     /// The ready vampires of `ms` another Methuselah may save from torpor
@@ -311,7 +618,7 @@ impl Engine {
                         && !s.ousted
                         && self.holds_card_for(SeatId(i as u8), Window::GoingToTorpor)
                 });
-            if !held || !self.savable(m) {
+            if !held || !self.torpor_savable(m) {
                 rest.push(m);
                 continue;
             }
@@ -321,14 +628,13 @@ impl Engine {
                 .as_ref()
                 .is_some_and(|c| c.side_of_minion(m).is_some());
             match self.state.torpor_wait.0.as_mut() {
-                Some(w) => w.queue.push(m),
+                Some(t) => t.answers.queue.push(m),
                 None => {
                     self.state.torpor_wait.0 = Some(TorporWait {
-                        order: self.torpor_order(m),
-                        queue: vec![m],
-                        next: 0,
-                        playing: false,
-                        saved: false,
+                        answers: Answers {
+                            queue: vec![m],
+                            ask: self.fresh_ask(Wait::Torpor, m),
+                        },
                         in_combat,
                         ending: false,
                         declined: Vec::new(),
@@ -339,190 +645,159 @@ impl Engine {
         rest
     }
 
-    /// Clockwise from the active Methuselah, `m`'s controller and the
-    /// ousted aside.
-    fn torpor_order(&self, m: MinionId) -> Vec<SeatId> {
-        let owner = self.state.minions[m.index()].owner;
-        self.state
-            .clockwise_from(self.state.active)
-            .into_iter()
-            .filter(|&s| s != owner && !self.state.seats[s.index()].ousted)
-            .collect()
-    }
-
-    /// Some Methuselah could play a card saving `m`, its torpor waiting.
-    fn savable(&mut self, m: MinionId) -> bool {
-        let before = self.state.torpor_wait.0.take();
-        self.state.torpor_wait.0 = Some(TorporWait {
-            queue: vec![m],
-            order: self.torpor_order(m),
-            next: 0,
-            playing: false,
-            saved: false,
+    /// Some Methuselah could play a card saving `m`, its torpor waiting
+    /// (the wait under way set aside meanwhile).
+    fn torpor_savable(&mut self, m: MinionId) -> bool {
+        let alone = TorporWait {
+            answers: Answers {
+                queue: vec![m],
+                ask: self.fresh_ask(Wait::Torpor, m),
+            },
             in_combat: false,
             ending: false,
             declined: Vec::new(),
-        });
+        };
+        let before = self.state.torpor_wait.0.replace(alone);
         self.state.minions[m.index()].in_torpor = true;
-        let any = self
-            .torpor_order(m)
-            .into_iter()
-            .any(|s| !self.torpor_plays(s).is_empty());
+        let any = self.answerable(Wait::Torpor);
         self.state.minions[m.index()].in_torpor = false;
         self.state.torpor_wait.0 = before;
         any
     }
 
-    /// The plays `seat` may make for the vampire asked about.
-    fn torpor_plays(&self, seat: SeatId) -> Vec<Choice> {
-        let Some(m) = self.state.torpor_wait.0.as_ref().map(|w| w.queue[0]) else {
-            return Vec::new();
-        };
-        self.play_options(seat, &[Window::GoingToTorpor], None)
-            .into_iter()
-            .filter(|o| matches!(o, Choice::Play { target, .. } if *target == Target::Minion(m)))
-            .collect()
-    }
-
-    /// The first Methuselah from `next` on who may answer, `next` moved to
-    /// them.
-    fn torpor_next(&mut self) -> Option<SeatId> {
-        loop {
-            let w = self.state.torpor_wait.0.as_ref()?;
-            let s = *w.order.get(w.next)?;
-            if !self.torpor_plays(s).is_empty() {
-                return Some(s);
-            }
-            self.state.torpor_wait.0.as_mut().expect("torpor wait").next += 1;
-        }
-    }
-
-    /// Asked now: out of combat at once, in combat as it ends (or once it
-    /// is gone).
-    fn torpor_asked(&self) -> bool {
-        self.state
-            .torpor_wait
-            .0
-            .as_ref()
-            .is_some_and(|w| !w.in_combat || w.ending || self.combat.is_none())
-    }
-
     /// The combat's end waits on the torpors it caused: true when it does.
     pub(crate) fn torpor_holds_combat_end(&mut self) -> bool {
         match self.state.torpor_wait.0.as_mut() {
-            Some(w) if w.in_combat && !w.ending => {
-                w.ending = true;
+            Some(t) if t.in_combat && !t.ending => {
+                t.ending = true;
                 true
             }
             _ => false,
         }
     }
 
-    /// Before any decision: end a finished play's wait; once one saved the
-    /// vampire or no one is left to ask, the next one's, then the torpors
-    /// declined, together, then the combat's end it held.
-    pub(crate) fn settle_torpor_wait(&mut self) {
-        loop {
-            if !self.torpor_asked() {
-                return;
-            }
-            let w = self.state.torpor_wait.0.as_ref().expect("torpor wait");
-            if w.playing {
-                let s = w.order[w.next];
-                if crate::ousting::in_flight(&self.flow, None, s) {
-                    return;
+    /// A torpor answered: the next one's asked, else the torpors declined
+    /// land together; then the combat's end it held. True once that end
+    /// ran.
+    fn torpor_answered(&mut self) -> bool {
+        let mut t = self.state.torpor_wait.0.take().expect("torpor wait");
+        let m = t.answers.queue.remove(0);
+        let ending = t.ending;
+        if !t.answers.ask.saved {
+            t.declined.push(m);
+        }
+        if let Some(&n) = t.answers.queue.first() {
+            t.answers.ask = self.fresh_ask(Wait::Torpor, n);
+            self.state.torpor_wait.0 = Some(t);
+        } else {
+            let declined: Vec<MinionId> = t
+                .declined
+                .into_iter()
+                .filter(|&m| {
+                    let v = &self.state.minions[m.index()];
+                    v.present() && v.in_torpor
+                })
+                .collect();
+            if !declined.is_empty() {
+                for &m in &declined {
+                    self.state.minions[m.index()].in_torpor = false;
                 }
-                let w = self.state.torpor_wait.0.as_mut().expect("torpor wait");
-                w.playing = false;
-                w.next += 1;
+                self.torpor_now(&declined);
             }
-            if !self
-                .state
-                .torpor_wait
-                .0
-                .as_ref()
-                .expect("torpor wait")
-                .saved
-                && self.torpor_next().is_some()
-            {
-                return;
-            }
-            let mut w = self.state.torpor_wait.0.take().expect("torpor wait");
-            let m = w.queue.remove(0);
-            let ending = w.ending;
-            if !w.saved {
-                w.declined.push(m);
-            }
-            if let Some(&n) = w.queue.first() {
-                w.order = self.torpor_order(n);
-                w.next = 0;
-                w.saved = false;
-                self.state.torpor_wait.0 = Some(w);
-            } else {
-                let declined: Vec<MinionId> = w
-                    .declined
-                    .into_iter()
-                    .filter(|&m| {
-                        let v = &self.state.minions[m.index()];
-                        v.present() && v.in_torpor
-                    })
-                    .collect();
-                if !declined.is_empty() {
-                    for &m in &declined {
-                        self.state.minions[m.index()].in_torpor = false;
+        }
+        if ending {
+            match self.state.torpor_wait.0.as_mut() {
+                Some(t) => t.ending = true,
+                None => {
+                    if self.combat.is_some() {
+                        self.end_combat();
                     }
-                    self.torpor_now(&declined);
+                    return true;
                 }
             }
-            if ending {
-                match self.state.torpor_wait.0.as_mut() {
-                    Some(w) => w.ending = true,
-                    None => {
-                        if self.combat.is_some() {
-                            self.end_combat();
-                        }
-                        return;
-                    }
+        }
+        false
+    }
+
+    /// `m` is about to be burned (`then` going on once it is): it waits if
+    /// its controller may play a card instead (`BurnWait`), behind any
+    /// burn already waiting (two vampires burned together). True when it
+    /// waits. Not asked while a standing replacement applies (Charigger's,
+    /// Byzar's own, Book of Going Forth by Night's): it applies, the acting
+    /// Methuselah choosing among several, and the card is not playable
+    /// (owner, rules-qa 122.2, 121.19).
+    pub(crate) fn ask_burn(&mut self, m: MinionId, then: BurnThen) -> bool {
+        let v = &self.state.minions[m.index()];
+        let seat = v.owner;
+        if !v.present()
+            || !v.is_vampire()
+            || self.state.seats[seat.index()].ousted
+            || !self.holds_card_for(seat, Window::VampireWouldBurn)
+            || !self.burn_replacements(m).is_empty()
+        {
+            return false;
+        }
+        let alone = Answers {
+            queue: vec![(m, then)],
+            ask: self.fresh_ask(Wait::Burn, m),
+        };
+        let before = self.state.burn_wait.0.replace(alone);
+        let any = self.answerable(Wait::Burn);
+        match before {
+            Some(mut a) => {
+                if any {
+                    a.queue.push((m, then));
                 }
+                self.state.burn_wait.0 = Some(a);
             }
+            None if !any => self.state.burn_wait.0 = None,
+            None => {}
+        }
+        any
+    }
+
+    /// `Actor::BurningVampire` for `seat`.
+    pub(crate) fn burning_vampire(&self, seat: SeatId) -> Option<MinionId> {
+        let (m, a) = self.ask(Wait::Burn)?;
+        if a.order.first() != Some(&seat) {
+            return None;
+        }
+        let v = &self.state.minions[m.index()];
+        if !v.present() {
+            return None;
+        }
+        if let Some(c) = &self.combat {
+            return c.side_of_minion(m).map(|_| m);
+        }
+        // An action card's effects resolve with the action out of
+        // `Engine::action`: its acting minion tells whose it is.
+        let acting = self.state.acting?;
+        let woken = self.action.as_ref().is_some_and(|a| a.woken.contains(&m));
+        (self.state.minions[acting.index()].owner != seat && (!v.locked || woken)).then_some(m)
+    }
+
+    /// The burn not replaced: as if never asked.
+    fn burn_goes_on(&mut self, m: MinionId, then: BurnThen) {
+        match then {
+            BurnThen::Burn => self.burn_minion_now(m),
+            BurnThen::DiablerieAction { diablerist } => self.diablerie_action(diablerist, m),
+            BurnThen::TorporBlock { blocker } => self.torpor_block_diablerie(blocker, m),
+            BurnThen::CombatDiablerie {
+                diablerist,
+                amaranth,
+            } => self.combat_diablerie(diablerist, m, amaranth),
+            BurnThen::Sacrifice { taker, seat } => self.sacrifice(seat, taker, m),
         }
     }
 
-    pub(crate) fn torpor_wait_request(&self) -> Option<DecisionRequest> {
-        if !self.torpor_asked() {
-            return None;
-        }
-        let w = self.state.torpor_wait.0.as_ref().filter(|w| !w.playing)?;
-        let s = *w.order.get(w.next)?;
-        let plays = self.torpor_plays(s);
-        if plays.is_empty() {
-            return None;
-        }
-        let mut options = vec![Choice::Pass];
-        options.extend(plays);
-        Some(DecisionRequest::new(
-            s,
-            WindowLabel::ResolutionChoice,
-            options,
-        ))
-    }
-
-    pub(crate) fn torpor_wait_apply(&mut self, choice: &Choice) {
-        let w = self.state.torpor_wait.0.as_mut().expect("a torpor wait");
-        let s = w.order[w.next];
-        match *choice {
-            Choice::Pass => w.next += 1,
-            Choice::Play {
-                card,
-                mode,
-                actor,
-                target,
-            } => {
-                w.playing = true;
-                let resume = self.flow.clone();
-                self.announce_play(s, card, mode, actor, target, resume);
+    /// The vampire removed instead: a diablerie action unsuccessful, as a
+    /// replaced burn makes it (rules-qa 121.20).
+    fn burn_saved(&mut self, then: BurnThen) {
+        match then {
+            BurnThen::DiablerieAction { .. } | BurnThen::TorporBlock { .. } => {
+                self.after_resolution()
             }
-            other => unreachable!("illegal torpor choice {other:?}"),
+            BurnThen::Burn | BurnThen::CombatDiablerie { .. } | BurnThen::Sacrifice { .. } => {}
         }
     }
 }

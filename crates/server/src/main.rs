@@ -828,7 +828,6 @@ mod tests {
         assert_eq!(
             names,
             [
-                "Lord Darby's Tremere (WoN event 1 - Creation Rites: Newark, 2023-06-18)",
                 "Una de Tapas (2025) Giovanni (Badalona New Blood 2025, 2025-07-13)",
                 "30th Stanislava (TCG Club Year-end event, 2024-12-28)",
             ]
@@ -839,25 +838,15 @@ mod tests {
             .iter()
             .map(|d| d["title"].as_str().unwrap())
             .collect();
-        assert_eq!(
-            titles,
-            [
-                "Lord Darby's Tremere",
-                "Una de Tapas (2025) Giovanni",
-                "30th Stanislava"
-            ]
-        );
+        assert_eq!(titles, ["Una de Tapas (2025) Giovanni", "30th Stanislava"]);
         let catalog: HashMap<_, _> = zvtes_host::catalog().into_iter().collect();
         assert_eq!(
             v["decks"][0]["list"],
             json!(catalog[names[0]]),
             "its catalog list"
         );
-        assert_eq!(v["decks"][0]["vp_share"], 0.17);
-        assert_eq!(
-            v["decks"][0]["event"],
-            "WoN event 1 - Creation Rites: Newark"
-        );
+        assert_eq!(v["decks"][0]["vp_share"], 0.2);
+        assert_eq!(v["decks"][0]["event"], "Badalona New Blood 2025");
     }
 
     /// A measure of other weights than those served, or none: not served.
@@ -909,14 +898,14 @@ mod tests {
             (StatusCode::OK, json!({"playable": true}))
         );
         let mut outside = precon.clone();
-        // Abandoning the Flesh, a card the engine does not play, by its id.
-        outside.insert("100005".into(), 1);
+        // Anthelios, The Red Star: banned, never in the pool, by its id.
+        outside.insert("100074".into(), 1);
         outside.insert("Not A Card".into(), 1);
         assert_eq!(
             checked(None, outside).await,
             (
                 StatusCode::BAD_REQUEST,
-                json!({"error": "unsupported", "seat": 0, "cards": ["100005", "Not A Card"]})
+                json!({"error": "unsupported", "seat": 0, "cards": ["100074", "Not A Card"]})
             )
         );
         let names: std::collections::HashMap<u32, String> =

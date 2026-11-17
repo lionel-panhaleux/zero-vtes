@@ -290,7 +290,8 @@ pub struct CardRef {
     pub id: Option<KrcgId>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub copy: Option<CopyId>,
-    /// Played from cards stored on this card in play, not from the hand.
+    /// Played from cards stored on this card in play (or minion: Hukros),
+    /// not from the hand.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub from: Option<CopyId>,
 }

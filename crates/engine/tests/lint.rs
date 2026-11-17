@@ -234,6 +234,18 @@ fn no_todo_in_code() {
 /// stale.
 const DURING_ONCE_ELSEWHERE: &[(&str, &str)] = &[
     (
+        "DESALLE",
+        "a printed burn each attempting Sabbat vampire uses once an action (ActionCtx::printed_burned)",
+    ),
+    (
+        "TERRIFISTO",
+        "a single choice at his referendum's tally (Interrupt::DamageVoterForBlood)",
+    ),
+    (
+        "MONOMANCY",
+        "its combat's end offered once (`Side::end_option` taken), the first round only",
+    ),
+    (
         "EMERGENCY_PREPARATIONS",
         "a card played in the minion phase, gone to the ash heap",
     ),
@@ -242,6 +254,10 @@ const DURING_ONCE_ELSEWHERE: &[(&str, &str)] = &[
         "its stay-locked choice asked once as its bearer would unlock in the unlock phase",
     ),
     ("GREY_THORNE", "an unlock phase rider, offered once a phase"),
+    (
+        "CRUSADE_ROME",
+        "its unlock asked once, as its next discard phase begins (Interrupt::MayUnlock)",
+    ),
     (
         "CONTINGENCY_PLANNING",
         "\"during your turn\" lets an out-of-turn master be played then: a card, spent",
@@ -284,7 +300,6 @@ const DURING_ONCE_ELSEWHERE: &[(&str, &str)] = &[
         "FIENDISH_TONGUE",
         "a one-shot discard-phase hook, taken as used",
     ),
-    ("GREENSLEEVES", "inert: Humo is not in the pool"),
     (
         "JOE_BOOT_HILL",
         "the maneuver his own action's combat grants, no ability",
@@ -327,6 +342,14 @@ const DURING_ONCE_ELSEWHERE: &[(&str, &str)] = &[
     (
         "FATA_AMRIA",
         "its burn instead of unlocking asked once as its bearer would unlock in the unlock phase",
+    ),
+    (
+        "GANGREL_CONSPIRACY",
+        "\"during your turn\" lets an out-of-turn master be played then: a card, spent",
+    ),
+    (
+        "HAVEN_AFFINITY",
+        "a play permission (the superior level), no ability of its own",
     ),
 ];
 

@@ -300,16 +300,6 @@ fn smudge_gets_strength_after_an_older_diablerie() {
     );
 }
 
-// Greensleeves' "give Humo +1 bleed": Humo is not in the pool, the text
-// inert (Alan Sovereign's precedent): no ability to offer.
-#[test]
-fn greensleeves_offers_nothing_without_humo() {
-    let card = find_card("Greensleeves");
-    let def = zvtes::cards::vampire(card).expect("defined");
-    assert!(def.abilities.is_empty() && def.printed.is_empty());
-    assert!(!CRYPT.iter().any(|c| c.name == "Humo"));
-}
-
 // ---- Titles -------------------------------------------------------------------
 
 /// The `nth` untitled vampire matching `f`, no printed-text definition.

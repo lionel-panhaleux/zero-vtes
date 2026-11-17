@@ -9247,7 +9247,7 @@ fn edward_neally_looks_at_his_preys_hand() {
     assert!(
         looks.iter().any(|l| l.viewer == SeatId(0)
             && l.seat == SeatId(1)
-            && !l.library
+            && l.zone == zvtes::game::LookedZone::Hand
             && l.cards == vec![find_library("Blood Doll")]),
         "{looks:?}"
     );

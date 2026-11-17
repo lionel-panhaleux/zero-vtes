@@ -1766,6 +1766,176 @@ mod tests {
         assert!(g.backlog.is_empty(), "told again");
     }
 
+    fn join(g: &mut Game) -> Vec<Out> {
+        let human = g.human();
+        g.handle(
+            human,
+            In {
+                id: None,
+                command: Command::Join {
+                    token: None,
+                    after: None,
+                },
+            },
+        )
+    }
+
+    fn answer(g: &mut Game, option: usize) -> Vec<Out> {
+        let human = g.human();
+        let decision = g.pending.as_ref().expect("a decision").decision;
+        g.handle(
+            human,
+            In {
+                id: None,
+                command: Command::Answer {
+                    decision,
+                    option: option as u32,
+                },
+            },
+        )
+    }
+
+    fn events(outs: &[Out]) -> Vec<EventKind> {
+        outs.iter()
+            .filter_map(|o| match &o.message {
+                Message::Events { events, .. } => Some(events.iter().map(|e| e.kind.clone())),
+                _ => None,
+            })
+            .flatten()
+            .collect()
+    }
+
+    /// Hukros's stash (docs/protocol.md §9 `card_moves`, §6 `stored`): the
+    /// card his ability moves from the hand is told moving from the hand
+    /// to `stored` on him, and the next view has it in his `stored[]`, out
+    /// of the hand: the last view with the event applied.
+    #[test]
+    fn a_card_stored_on_a_minion_is_told_and_shown() {
+        use zvtes::cards::AbilitySource;
+        use zvtes::decision::Choice;
+        use zvtes_api::ids::Zone;
+        let mut g = game(1);
+        join(&mut g);
+        let seat = zvtes::ids::SeatId(g.human());
+        let hukros = zvtes::state::find_card("Hukros");
+        let e = g.session.engine_mut();
+        let m = e.add_minion(seat, hukros, 4, false);
+        // A copy of its own, numbered on the wire as a dealt one is.
+        e.state.minions[m.index()].copy = zvtes::copies::Untracked(zvtes::copies::CopyId(9999));
+        let krcg = zvtes::crypt::CRYPT[hukros as usize].id;
+        let mut stored = None;
+        for _ in 0..3000 {
+            let req = g.session.request().expect("a decision").clone();
+            let use_it = req.options.iter().position(|o| {
+                matches!(o, Choice::UseAbility { source: AbilitySource::Vampire(v), .. } if *v == m)
+            });
+            if let Some(i) = use_it {
+                answer(&mut g, i);
+                let req = g.session.request().expect("the card to store").clone();
+                let i = req
+                    .options
+                    .iter()
+                    .position(|o| matches!(o, Choice::Discard(_)))
+                    .expect("a hand card offered");
+                let before = g.pending.as_ref().expect("a decision").view.clone();
+                let outs = answer(&mut g, i);
+                stored = Some((before, outs));
+                break;
+            }
+            answer(&mut g, 0);
+        }
+        let (before, outs) = stored.expect("Hukros's ability offered");
+        let human = g.human();
+        let hk = before
+            .seats
+            .iter()
+            .flat_map(|s| s.minions())
+            .find(|v| v.card.id == Some(krcg))
+            .expect("Hukros shown");
+        let on = hk.card.copy.expect("Hukros numbered");
+        let card = events(&outs)
+            .into_iter()
+            .find_map(|k| match k {
+                EventKind::CardMoves { card, from, to }
+                    if from.zone == Zone::Hand && to.zone == Zone::Stored =>
+                {
+                    assert_eq!((from.seat, to.seat, to.on), (human, human, Some(on)));
+                    Some(card)
+                }
+                _ => None,
+            })
+            .expect("the move told");
+        assert!(before.seats[human as usize].hand.contains(&card));
+        let after = &g.pending.as_ref().expect("a decision").view;
+        let v = after.seats[human as usize]
+            .minions()
+            .find(|v| v.card.copy == Some(on))
+            .expect("Hukros");
+        assert_eq!(v.stored, vec![card]);
+        assert!(!after.seats[human as usize].hand.contains(&card));
+    }
+
+    /// A look at a crypt's top card (Sabbat Inquisitor) is told to the
+    /// looking Methuselah as `looked` with `zone: crypt`, the card a crypt
+    /// card (docs/protocol.md §9).
+    #[test]
+    fn a_look_at_a_crypt_is_told_with_its_zone() {
+        use zvtes_api::ids::Zone;
+        let mut g = game(1);
+        join(&mut g);
+        let seat = zvtes::ids::SeatId(g.human());
+        let card = zvtes::state::find_card("Hukros");
+        g.session
+            .engine_mut()
+            .notes
+            .as_mut()
+            .expect("notes kept")
+            .push(zvtes::notes::Note::Look(zvtes::game::Look {
+                viewer: seat,
+                seat,
+                cards: vec![card],
+                zone: zvtes::game::LookedZone::Crypt,
+            }));
+        let outs = answer(&mut g, 0);
+        let looked = events(&outs)
+            .into_iter()
+            .find_map(|k| match k {
+                EventKind::Looked { cards, zone, .. } => Some((cards, zone)),
+                _ => None,
+            })
+            .expect("the look told");
+        assert_eq!(looked.1, Some(Zone::Crypt));
+        let [c] = looked.0[..] else {
+            panic!("one card: {:?}", looked.0)
+        };
+        assert!(c.crypt);
+        assert_eq!(c.id, Some(zvtes::crypt::CRYPT[card as usize].id));
+    }
+
+    /// A lasting effect whose card is in the ash heap and is on no minion
+    /// (Deploy the Hand's target counter) is shown in its Methuselah's
+    /// `in_play[]` with no copy (docs/protocol.md §6).
+    #[test]
+    fn a_lasting_effect_on_no_minion_is_shown_without_a_copy() {
+        let mut g = game(1);
+        join(&mut g);
+        let human = g.human();
+        let deploy = zvtes::state::find_library("Deploy the Hand");
+        let st = &mut g.session.engine_mut().state;
+        let mut c = zvtes::state::CardInPlay::new(deploy, zvtes::ids::SeatId(human), None, 0);
+        c.effect_only = true;
+        st.cards.push(c);
+        let v = g.view();
+        let krcg = zvtes::library::LIBRARY[deploy as usize].id;
+        let shown: Vec<_> = v.seats[human as usize]
+            .in_play
+            .iter()
+            .filter(|c| c.card.id == Some(krcg))
+            .collect();
+        assert_eq!(shown.len(), 1, "{:?}", v.seats[human as usize].in_play);
+        assert_eq!(shown[0].card.copy, None);
+    }
+
     #[test]
     fn the_views_keep_the_copy_rules() {
         let seeds: u32 = std::env::var("HOST_SEEDS").map_or(16, |s| s.parse().unwrap());

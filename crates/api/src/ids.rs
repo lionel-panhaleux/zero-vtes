@@ -374,6 +374,9 @@ ids!(
         /// `untitled`, `not_red_list`, `not_sterile`), or `votes` (a
         /// nondescript "X votes" title for "titled").
         MeetAs,
+        /// Combat, before range in the first round: end the combat, the
+        /// action card offering it put on the actor (Monomancy).
+        EndCombat,
     }
 );
 
@@ -394,7 +397,8 @@ ids!(
         SecretNumber,
         /// Alastor: `seat` may search their library for an equipment card
         /// to put on `minion` (`find_card`, or pass), requirements ignored,
-        /// for half its cost rounded down.
+        /// for half its cost rounded down; Bauble: a non-unique non-location
+        /// one, at no cost.
         SearchEquipFor,
         /// Summon History: `seat` may search library and/or ash heap for an
         /// ally, retainer or equipment costing `n` or less (`take_from`), or
@@ -669,7 +673,10 @@ ids!(
         /// destination); Pass ending the moves. With `equipment`, their
         /// equipment too ("move any amount of blood and equipment",
         /// Redistribution), one at a time, as many as wanted (`moving` the one
-        /// picked).
+        /// picked), only to a minion able to hold it. With no `clan` (no
+        /// circle: Rave), from the acting minion only to `seat`'s other
+        /// ready vampires, an ally's life moved as blood (its last burning
+        /// it).
         CircleBlood,
         /// "Move any number of blood counters from your pool to 1 or more
         /// vampires you control" (Gird Minions): a vampire (`to`), then the
@@ -1017,6 +1024,45 @@ ids!(
         /// (`resolve_printed`, Byzar) or a card's in play (`resolve_rider`,
         /// Charigger, The Axe).
         BurnReplacement,
+        /// Auto-da-fé: `seat` burns `about.n` pool (`burn_pool`, offered
+        /// only while they have it) or lets `minion` burn (`pass`).
+        PoolOrMinionBurned,
+        /// Cracking the Wall, Malkavian Game: `seat` secretly chooses rock
+        /// (`set_x` 1), paper (2) or scissors (3); another viewer is told a
+        /// choice was made, not which (as `secret_number`).
+        RockPaperScissors,
+        /// Courier: after a successful bleed, `seat` may lock `about.card`
+        /// (`resolve_rider`) to discard the top card of `about.seat`'s
+        /// library it looked at, or pass.
+        MayLockToDiscardLooked,
+        /// Corrupt Construction entering play: `seat` removes an ally,
+        /// retainer or vampire card of their ash heap or hand from the game
+        /// (`take_from`, `ash_vampire`), `minion` gaining 1 life, and is
+        /// asked again; or stops (`pass`).
+        EntryRemoveForLife,
+        /// Skin Trap [VIC]: `minion` burns `about.n` blood now
+        /// (`burn_blood_to_avoid`), or cannot strike this round (`pass`).
+        BloodOrNoStrike,
+        /// Nickolai's action announced: the Discipline `minion` gains,
+        /// one another ready vampire of the player's has at superior
+        /// (`choose_discipline`).
+        NameActionDiscipline,
+        /// Rico Loco: `card` from the player's hand or ash heap moved onto
+        /// `minion`, no cost (`take_from`), or `minion` takes `about.n`
+        /// damage (`pass`).
+        NamedOntoOrDamage,
+        /// Terrifisto, at his referendum's tally: `minion` burns 1 blood to
+        /// inflict `about.n` damage on a ready vampire that voted against
+        /// (`choose_minion`), or not (`pass`).
+        DamageVoterForBlood,
+        /// Lucubratio blocked: `seat` may discard a hand card of the
+        /// printed kind (`discard`) instead of locking `minion` for the
+        /// block, or pass and lock.
+        MayDiscardForBlock,
+        /// Konrad Fleischer outside his combat: `minion`, about to take
+        /// `about.n` aggravated damage, treats 1 of it as normal
+        /// (`resolve_printed`) or takes it all aggravated (`pass`).
+        MayTakeAggravatedAsNormal,
     }
 );
 ids!(

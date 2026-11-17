@@ -175,7 +175,8 @@ impl<N: Names> Ctx<'_, N> {
     }
 
     /// A card in the deciding seat's hand (copies alike are one option):
-    /// its KRCG id, and the card it is stored on when played from there.
+    /// its KRCG id, and the card (or minion: Hukros) it is stored on when
+    /// played from there.
     fn hand(&self, i: u8) -> CardRef {
         let (c, stored) = self.e.virtual_hand(self.seat)[i as usize];
         CardRef {
@@ -183,9 +184,11 @@ impl<N: Names> Ctx<'_, N> {
             copy: None,
             // From a card in play; from the ash heap, no card (the key's
             // `zone` says it).
-            from: stored
-                .filter(|&s| !zvtes::state::virtual_source(s))
-                .map(|s| self.card(s)),
+            // Hukros's: the minion they are on.
+            from: stored.and_then(|s| match zvtes::state::minion_store_of(s) {
+                Some(m) => Some(self.minion(m)),
+                None => (!zvtes::state::virtual_source(s)).then(|| self.card(s)),
+            }),
         }
     }
 }
@@ -279,9 +282,11 @@ fn found_in(e: &Engine, req: &DecisionRequest) -> Option<ZoneRef> {
             return at(e.state.prey(seat), Zone::Hand)
         }
         Some(Interrupt::ReplaceFromResearch { seat, .. }) => return at(seat, Zone::Research),
-        Some(Interrupt::ExchangeAnarch { .. } | Interrupt::EntryRemoveOrBurn { .. }) => {
-            return at(req.seat, Zone::AshHeap)
-        }
+        Some(
+            Interrupt::ExchangeAnarch { .. }
+            | Interrupt::EntryRemoveOrBurn { .. }
+            | Interrupt::EntryRemoveForLife { .. },
+        ) => return at(req.seat, Zone::AshHeap),
         Some(_) => return None,
         None => {}
     }
@@ -454,6 +459,23 @@ fn effects_of(
                 ..Effect::new(EffectKind::Move)
             }]
         }
+        // Hukros: the card picked put on him face down.
+        Choice::Discard(_)
+            if e.ability_terms().is_some_and(|(_, m, _)| {
+                m.effects.contains(&zvtes::cards::Effect::StorePickedOnHost)
+            }) =>
+        {
+            match e.ability_terms().expect("ability terms").0 {
+                zvtes::cards::AbilitySource::Vampire(m) => vec![Effect {
+                    on: Some(On::Host),
+                    copy: Some(x.minion(m)),
+                    to: Some(Zone::Stored),
+                    detail: Some("on_source".into()),
+                    ..Effect::new(EffectKind::Move)
+                }],
+                _ => Vec::new(),
+            }
+        }
         // The strike a card granted for the round (Hunger of Marduk).
         Choice::RoundStrike { at: None } => match e.combat().map(|c| (c, c.step)) {
             Some((c, zvtes::combat::Step::ChooseStrike(i))) => c.sides[i]
@@ -516,6 +538,29 @@ fn effects_of(
                 && e.cost_terms().is_some() =>
         {
             vec![Effect::new(EffectKind::Cost)]
+        }
+        // A discard-phase unlock grant's blood: Fiendish Tongue's 1,
+        // Crusade: Rome's none.
+        Choice::UnlockForBlood { minion }
+            if req.window == zvtes::decision::WindowLabel::DiscardPhase =>
+        {
+            let copy = Some(x.minion(minion));
+            let paid = st.minions[minion.index()]
+                .discard_unlock
+                .map_or(0, |(_, n)| n);
+            let blood = (paid > 0).then(|| Effect {
+                n: Some(-(paid as i32)),
+                copy,
+                cost: true,
+                ..Effect::new(EffectKind::Blood)
+            });
+            blood
+                .into_iter()
+                .chain([Effect {
+                    copy,
+                    ..Effect::new(EffectKind::Unlock)
+                }])
+                .collect()
         }
         _ if req.window == zvtes::decision::WindowLabel::ReferendumTerms => {
             referendum_terms(&x, choice)
@@ -733,14 +778,14 @@ fn asked(x: &Ctx<impl Names>, i: Interrupt, choice: &Choice) -> Vec<Effect> {
             P::Corrupt => n(1, chosen(EffectKind::Corruption)),
             P::UnlockAnarch => chosen(EffectKind::Unlock),
             P::BurnBloodOfClan(_) => n(-1, chosen(EffectKind::Blood)),
-            P::HostCard(card) | P::HolderAtSuccess(card) => Effect {
+            P::HostCard(card) | P::HolderAtSuccess(card, _) => Effect {
                 copy: Some(x.card(card)),
                 card: Some(LIBRARY[x.e.state.cards[card.index()].card as usize].id),
                 ..chosen(EffectKind::Move)
             },
             P::BurnOfCrowdedClan(_) => chosen(EffectKind::Burn),
             P::OldestHuntingGround(_) => n(1, chosen(EffectKind::Blood)),
-            P::HuntBloodTo { n: d, .. } => n(d as i32, chosen(EffectKind::Blood)),
+            P::HuntBloodTo { n: d, .. } | P::GainBlood(d) => n(d as i32, chosen(EffectKind::Blood)),
             P::BlockMark(_) => chosen(EffectKind::Intercept),
             P::JointBlocker(..) => chosen(EffectKind::Block),
             P::Damage(d)
@@ -748,6 +793,7 @@ fn asked(x: &Ctx<impl Names>, i: Interrupt, choice: &Choice) -> Vec<Effect> {
             | P::DamageVampire(d)
             | P::DamageVampireBy { n: d, .. }
             | P::DamageOtherVampire { n: d, .. }
+            | P::DamageOtherMinion { n: d, .. }
             | P::DamageImbued { n: d, .. } => n(d as i32, chosen(EffectKind::Damage)),
         }],
         // Unity: on top of the library.
@@ -830,7 +876,8 @@ fn asked(x: &Ctx<impl Names>, i: Interrupt, choice: &Choice) -> Vec<Effect> {
             detail: Some("resigned".into()),
             ..Effect::new(EffectKind::Block)
         }],
-        (Interrupt::LockOrDiscard { minion, .. }, Choice::Pass) => vec![Effect {
+        (Interrupt::LockOrDiscard { minion, .. }, Choice::Pass)
+        | (Interrupt::MayDiscardForBlock { minion, .. }, Choice::Pass) => vec![Effect {
             copy: Some(x.minion(minion)),
             ..Effect::new(EffectKind::Lock)
         }],
@@ -855,6 +902,11 @@ fn asked(x: &Ctx<impl Names>, i: Interrupt, choice: &Choice) -> Vec<Effect> {
         (Interrupt::PoolOrNoTransfers { .. }, Choice::Pass) => vec![Effect {
             detail: Some("none_next_influence".into()),
             ..Effect::new(EffectKind::Transfers)
+        }],
+        // Auto-da-fé: the vampire burned unless its pool is paid.
+        (Interrupt::PoolOrMinionBurned { minion, .. }, Choice::Pass) => vec![Effect {
+            copy: Some(x.minion(minion)),
+            ..Effect::new(EffectKind::Burn)
         }],
         // A card burned unless its pool is paid.
         (Interrupt::PayOrBurn { card, .. }, Choice::Pass) => vec![Effect {
@@ -975,7 +1027,7 @@ fn amount(x: &Ctx<impl Names>, req: &DecisionRequest, n: u8) -> Vec<Effect> {
     };
     match req.window {
         W::PlayTerms => {
-            if let Some(p) = e.play_terms().filter(|p| p.meeting.is_none()) {
+            if let Some(p) = e.play_terms().filter(|p| p.meeting.is_none() && !p.paying) {
                 let Some(terms) = zvtes::cards::lookup(p.card)
                     .and_then(|d| d.modes.get(p.mode as usize))
                     .and_then(|m| m.terms)
@@ -1456,7 +1508,8 @@ pub fn about(e: &Engine, req: &DecisionRequest, names: &impl Names) -> Option<Ab
             | I::MayTorture { minion, .. }
             | I::EntryBurn { ally: minion, .. }
             | I::BurnOverCapacity { host: minion, .. }
-            | I::EntryRemoveOrBurn { ally: minion, .. } => About {
+            | I::EntryRemoveOrBurn { ally: minion, .. }
+            | I::EntryRemoveForLife { ally: minion, .. } => About {
                 minion: m(minion),
                 ..a()
             },
@@ -1482,7 +1535,7 @@ pub fn about(e: &Engine, req: &DecisionRequest, names: &impl Names) -> Option<Ab
                     P::LockVampire => ("lock_vampires", None, None, None),
                     P::UnlockAnarch => ("unlock_anarch", None, None, None),
                     P::BurnBloodOfClan(k) => ("burn_blood", Some(k), None, None),
-                    P::HostCard(h) | P::HolderAtSuccess(h) => ("host_card", None, card(h), None),
+                    P::HostCard(h) | P::HolderAtSuccess(h, _) => ("host_card", None, card(h), None),
                     P::LockOldest(k, _) => ("lock_oldest", Some(k), None, None),
                     P::OldestHuntingGround(_) => ("oldest_gain_blood", None, None, None),
                     P::BurnOfCrowdedClan(_) => ("burn_crowded_clan", None, None, None),
@@ -1490,10 +1543,12 @@ pub fn about(e: &Engine, req: &DecisionRequest, names: &impl Names) -> Option<Ab
                     | P::WeaponDamage(d)
                     | P::DamageVampire(d)
                     | P::DamageVampireBy { n: d, .. }
-                    | P::DamageOtherVampire { n: d, .. } => ("damage", None, None, Some(d)),
+                    | P::DamageOtherVampire { n: d, .. }
+                    | P::DamageOtherMinion { n: d, .. } => ("damage", None, None, Some(d)),
                     P::DamageImbued { n: d, .. } => ("damage_imbued", None, None, Some(d)),
                     P::BlockMark(_) => ("block_mark", None, None, None),
                     P::HuntBloodTo { n: d, .. } => ("hunt_blood_to", None, None, Some(d)),
+                    P::GainBlood(d) => ("gain_blood", None, None, Some(d)),
                     P::JointBlocker(..) => ("joint_blocker", None, None, None),
                 };
                 About {
@@ -1673,7 +1728,7 @@ pub fn about(e: &Engine, req: &DecisionRequest, names: &impl Names) -> Option<Ab
                 minion: m(minion),
                 ..a()
             },
-            I::MayBurnForBlock { minion, .. } => About {
+            I::MayBurnForBlock { minion, .. } | I::MayDiscardForBlock { minion, .. } => About {
                 minion: m(minion),
                 ..a()
             },
@@ -1773,6 +1828,11 @@ pub fn about(e: &Engine, req: &DecisionRequest, names: &impl Names) -> Option<Ab
                 n: Some(n),
                 ..a()
             },
+            I::MayLockToDiscardLooked { card: c, of, .. } => About {
+                card: card(c),
+                seat: Some(of.0),
+                ..a()
+            },
             I::MayLockForBlood { card: c, .. } => About {
                 card: card(c),
                 ..a()
@@ -1826,13 +1886,16 @@ pub fn about(e: &Engine, req: &DecisionRequest, names: &impl Names) -> Option<Ab
                 ..a()
             },
             I::CircleBlood {
-                circle,
+                among,
                 from,
                 to,
                 moving,
                 ..
             } => About {
-                clan: Some(snake(circle)),
+                clan: match among {
+                    zvtes::draws::MoveAmong::Circle(c) => Some(snake(c)),
+                    zvtes::draws::MoveAmong::From(_) => None,
+                },
                 minion: from.and_then(m),
                 to: to.and_then(m),
                 card: moving.and_then(card),
@@ -1911,8 +1974,38 @@ pub fn about(e: &Engine, req: &DecisionRequest, names: &impl Names) -> Option<Ab
                 card: named(c),
                 ..a()
             },
+            I::PoolOrMinionBurned { minion, pool, .. } => About {
+                minion: m(minion),
+                n: Some(pool),
+                ..a()
+            },
             I::BurnReplacement { minion, .. } => About {
                 minion: m(minion),
+                ..a()
+            },
+            I::BloodOrNoStrike { minion, n, .. } => About {
+                minion: m(minion),
+                n: Some(n),
+                ..a()
+            },
+            I::NameActionDiscipline { minion, .. } => About {
+                minion: m(minion),
+                ..a()
+            },
+            I::NamedOntoOrDamage {
+                minion,
+                card: c,
+                damage,
+                ..
+            } => About {
+                minion: m(minion),
+                card: named(c),
+                n: Some(damage),
+                ..a()
+            },
+            I::DamageVoterForBlood { minion, n, .. } => About {
+                minion: m(minion),
+                n: Some(n),
                 ..a()
             },
             I::NameAshEquipment { minion, from, .. } => About {
@@ -1997,7 +2090,8 @@ pub fn about(e: &Engine, req: &DecisionRequest, names: &impl Names) -> Option<Ab
                 card: card(c),
                 ..a()
             },
-            I::MayPreventForBlood { minion, n, .. } => About {
+            I::MayPreventForBlood { minion, n, .. }
+            | I::MayTakeAggravatedAsNormal { minion, n, .. } => About {
                 minion: m(minion),
                 n: Some(n),
                 ..a()
@@ -2023,6 +2117,15 @@ pub fn about(e: &Engine, req: &DecisionRequest, names: &impl Names) -> Option<Ab
     match req.window {
         W::PlayTerms => {
             if let Some(p) = e.play_terms() {
+                // The card paying the Discipline its vampire lacks
+                // (Infernal Familiar, Amulet of Temporal Perception).
+                if p.paying {
+                    return Some(About {
+                        minion: p.actor.and_then(m),
+                        detail: detail("grant_payer"),
+                        ..a()
+                    });
+                }
                 // The requirement its vampire meets once (Vidal Jarbeaux).
                 if let Some(v) = p.meeting {
                     return Some(About {
@@ -2141,7 +2244,10 @@ pub fn about(e: &Engine, req: &DecisionRequest, names: &impl Names) -> Option<Ab
             let (_, mode, target) = e.ability_terms()?;
             Some(match mode.terms? {
                 // Fleshforge Chamber: the card put on it, not discarded.
-                Terms::Discard { n, .. } if mode.effects.contains(&E::StorePickedFromHand) => {
+                Terms::Discard { n, .. }
+                    if mode.effects.contains(&E::StorePickedFromHand)
+                        || mode.effects.contains(&E::StorePickedOnHost) =>
+                {
                     About {
                         detail: detail("put_on_source"),
                         n: Some(n),
@@ -2339,6 +2445,7 @@ pub fn key(e: &Engine, req: &DecisionRequest, choice: &Choice, names: &impl Name
         | Choice::StrikeCombatEnds
         | Choice::CommittedStrike
         | Choice::GainStrength
+        | Choice::EndCombat
         | Choice::CancelCombat => k.actor = combatant(),
         Choice::TakeDamageAfterResolution
         | Choice::TorporAfterResolution
@@ -2367,10 +2474,13 @@ pub fn key(e: &Engine, req: &DecisionRequest, choice: &Choice, names: &impl Name
             let (played, from) = e.virtual_hand(req.seat)[card as usize];
             k.mode = Some(mode(played, m));
             // Spiritual Guidance, a conviction: played from the ash heap;
-            // Vestgeir: from another Methuselah's.
+            // Vestgeir, Reality Mirror: from another Methuselah's.
             if let Some(f) = from.filter(|&f| zvtes::state::from_ash(f)) {
                 k.zone = Some(ZoneRef {
-                    seat: zvtes::state::others_ash(f).unwrap_or(req.seat).0,
+                    seat: zvtes::state::others_ash(f)
+                        .or_else(|| zvtes::state::mirrored_ash(f))
+                        .unwrap_or(req.seat)
+                        .0,
                     zone: Zone::AshHeap,
                 });
             }
@@ -2648,5 +2758,6 @@ pub fn kind(c: &Choice) -> OptionKind {
         Choice::BurnCorruptionToUnlock { .. } => K::BurnCorruptionToUnlock,
         Choice::Diablerise => K::Diablerise,
         Choice::CancelCombat => K::CancelCombat,
+        Choice::EndCombat => K::EndCombat,
     }
 }

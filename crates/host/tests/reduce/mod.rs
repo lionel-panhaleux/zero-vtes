@@ -161,6 +161,10 @@ impl Table {
                 pick(&mut self.v.seats[s].training, told, |c| c.card).map(Item::InPlay)
             }
             (Zone::Stored, Some(c)) => {
+                // On a minion (Hukros) or on a card in play.
+                if let Some(m) = self.minion_mut(c) {
+                    return pick(&mut m.stored, told, |c| *c).map(Item::Card);
+                }
                 let c = self.in_play_mut(c)?;
                 pick(&mut c.stored, told, |c| *c).map(Item::Card)
             }
@@ -268,6 +272,7 @@ impl Table {
                             cards,
                             markers: vec![],
                             traits: vec![],
+                            stored: vec![],
                         }
                     }
                 };
@@ -319,7 +324,9 @@ impl Table {
                 self.v.seats[s].training.push(c);
             }
             (Zone::Stored, Some(on)) => {
-                if let Some(c) = self.in_play_mut(on) {
+                if let Some(m) = self.minion_mut(on) {
+                    m.stored.push(card);
+                } else if let Some(c) = self.in_play_mut(on) {
                     c.stored.push(card);
                 }
             }
@@ -699,6 +706,7 @@ fn order_as(a: &mut TableView, b: &TableView, unordered: &mut BTreeMap<&'static 
         };
         for (m, n) in s.minions_mut().zip(t.minions()) {
             like(&mut m.cards, &n.cards, "minion cards", unordered);
+            like(&mut m.stored, &n.stored, "minion stored", unordered);
             for (c, d) in m.cards.iter_mut().zip(&n.cards) {
                 inner(c, d, unordered);
             }

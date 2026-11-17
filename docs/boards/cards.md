@@ -9,12 +9,12 @@ their readings and the ledger; a rulebook mechanism no card carries is on
 the engine board.
 
 Pool (`scripts/coverage.py`, KRCG `vtes.json` and `twda.json` of 2026-11-09; 2
-crypt and 18 library cards banned, out of scope, owner 2026-10-14): crypt 1,232
-of 1,820 (67.7%), library 1,579 of 2,372 (66.6%); 35 of 51 sets complete (KRCG's
-v5 sets: every promo in one "Promo" set, 142 of 159), Lords of the Night the last
-in (round 30). TWDA decks in the pool 1,331 of 4,709, kept 258; recent (2025+)
-502 of 644 in the pool, kept 95. Demand (the server's counts to 2026-11-12): 150
-ids asked, 60 cards not in the pool, none asked more than 3 times (Nangila Were,
+crypt and 18 library cards banned, out of scope, owner 2026-10-14): crypt 1,306
+of 1,820 (71.8%), library 1,717 of 2,372 (72.4%); 36 of 51 sets complete (KRCG's
+v5 sets: every promo in one "Promo" set, 142 of 159), Third Edition the last
+in (round 31). TWDA decks in the pool 1,609 of 4,709, kept 299; recent (2025+)
+528 of 644 in the pool, kept 93. Demand (the server's counts to 2026-11-12): 150
+ids asked, 50 cards not in the pool, none asked more than 3 times (Nangila Were,
 Palace Hunting Ground); 299999 (asked 61 times) is a client's placeholder, no
 card. VEKN's two-player allowed list all in the pool (round 20).
 
@@ -31,7 +31,6 @@ that make sense"). A line's count is the cards it adds after the lines above it
 (an older set is mostly reprinted in a newer one); done when `coverage.py
 --sets` shows its sets at 100%.
 
-- **Complete Third Edition**: 212 cards (74 crypt, 138 library). Done when `coverage.py --sets` shows it at 100%. Docs: rules-qa (a new batch), rules-digest, engine.md for a new mechanism, this header's coverage.
 - **Complete Legacies of Blood**: 236 cards (63 crypt, 173 library). Done when `coverage.py --sets` shows it at 100%. Docs: rules-qa (a new batch), rules-digest, engine.md for a new mechanism, this header's coverage.
 - **Complete Kindred Most Wanted and Tenth Anniversary**: 269 cards (163 crypt, 106 library; Tenth is mostly vampires). Done when `coverage.py --sets` shows both at 100%. Docs: rules-qa (a new batch), rules-digest, engine.md for a new mechanism, this header's coverage.
 - **Complete Black Hand and Camarilla Edition**: 209 cards (97 crypt, 112 library). Done when `coverage.py --sets` shows both at 100%. Docs: rules-qa (a new batch), rules-digest, engine.md for a new mechanism, this header's coverage.

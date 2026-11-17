@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "title": "zvtes protocol",
-  "version": "2.30.0",
+  "version": "2.31.0",
   "$defs": {
     "About": {
       "description": "What a choice is about (`Decision::about`): each field given where\nthe purpose (or the terms) has it (docs/protocol.md §5).",
@@ -622,7 +622,7 @@
           "minimum": 0
         },
         "from": {
-          "description": "Played from cards stored on this card in play, not from the hand.",
+          "description": "Played from cards stored on this card in play (or minion: Hukros),\nnot from the hand.",
           "type": [
             "integer",
             "null"
@@ -2235,7 +2235,7 @@
               "minimum": 0
             },
             "zone": {
-              "description": "`library`: the top of `seat`'s library, top first — the looking\nseat's own (Anna \"Dictatrix11\" Suljic) or the active Methuselah's\n(Weirding Stone); absent, the hand.",
+              "description": "`library`: the top of `seat`'s library, top first — the looking\nseat's own (Anna \"Dictatrix11\" Suljic) or the active Methuselah's\n(Weirding Stone); `crypt`: the top of `seat`'s crypt (Sabbat\nInquisitor); absent, the hand.",
               "anyOf": [
                 {
                   "$ref": "#/$defs/Zone"
@@ -3888,6 +3888,13 @@
           "maximum": 255,
           "minimum": 0
         },
+        "stored": {
+          "description": "Cards stored on it face down (Hukros), hidden to others, top last.",
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Card"
+          }
+        },
         "title": {
           "anyOf": [
             {
@@ -4104,6 +4111,11 @@
           "description": "As a card is played, the alternative of its requirement `minion`\nmeets once each game (§1): `value` a clan, sect, title or trait\n(`black_hand`, `seraph`, `slave`, `circle`, a path, `flight`,\n`untitled`, `not_red_list`, `not_sterile`), or `votes` (a\nnondescript \"X votes\" title for \"titled\").",
           "type": "string",
           "const": "meet_as"
+        },
+        {
+          "description": "Combat, before range in the first round: end the combat, the\naction card offering it put on the actor (Monomancy).",
+          "type": "string",
+          "const": "end_combat"
         },
         {
           "description": "A value this reader does not know.",
@@ -4549,7 +4561,7 @@
           "const": "secret_number"
         },
         {
-          "description": "Alastor: `seat` may search their library for an equipment card\nto put on `minion` (`find_card`, or pass), requirements ignored,\nfor half its cost rounded down.",
+          "description": "Alastor: `seat` may search their library for an equipment card\nto put on `minion` (`find_card`, or pass), requirements ignored,\nfor half its cost rounded down; Bauble: a non-unique non-location\none, at no cost.",
           "type": "string",
           "const": "search_equip_for"
         },
@@ -4914,7 +4926,7 @@
           "const": "distribute_from"
         },
         {
-          "description": "\"Move any amount of blood from the Blood Brothers in the <circle>\nto any other Blood Brothers in this circle\" (Jerry,\nRedistribution): one move at a time among `seat`'s — `from` the\nsource, `to` the destination, then the amount (`Choice::SetX`),\neach move a gain of its own (Slake the Thirst; owner, rules-qa\n68.10), one blood move a pair of them (`paired`, source and\ndestination); Pass ending the moves. With `equipment`, their\nequipment too (\"move any amount of blood and equipment\",\nRedistribution), one at a time, as many as wanted (`moving` the one\npicked).",
+          "description": "\"Move any amount of blood from the Blood Brothers in the <circle>\nto any other Blood Brothers in this circle\" (Jerry,\nRedistribution): one move at a time among `seat`'s — `from` the\nsource, `to` the destination, then the amount (`Choice::SetX`),\neach move a gain of its own (Slake the Thirst; owner, rules-qa\n68.10), one blood move a pair of them (`paired`, source and\ndestination); Pass ending the moves. With `equipment`, their\nequipment too (\"move any amount of blood and equipment\",\nRedistribution), one at a time, as many as wanted (`moving` the one\npicked), only to a minion able to hold it. With no `clan` (no\ncircle: Rave), from the acting minion only to `seat`'s other\nready vampires, an ally's life moved as blood (its last burning\nit).",
           "type": "string",
           "const": "circle_blood"
         },
@@ -5397,6 +5409,56 @@
           "description": "Two or more standing replacements of `minion`'s burn: `seat`,\nthe acting Methuselah, picks the one applying: `minion`'s own\n(`resolve_printed`, Byzar) or a card's in play (`resolve_rider`,\nCharigger, The Axe).",
           "type": "string",
           "const": "burn_replacement"
+        },
+        {
+          "description": "Auto-da-fé: `seat` burns `about.n` pool (`burn_pool`, offered\nonly while they have it) or lets `minion` burn (`pass`).",
+          "type": "string",
+          "const": "pool_or_minion_burned"
+        },
+        {
+          "description": "Cracking the Wall, Malkavian Game: `seat` secretly chooses rock\n(`set_x` 1), paper (2) or scissors (3); another viewer is told a\nchoice was made, not which (as `secret_number`).",
+          "type": "string",
+          "const": "rock_paper_scissors"
+        },
+        {
+          "description": "Courier: after a successful bleed, `seat` may lock `about.card`\n(`resolve_rider`) to discard the top card of `about.seat`'s\nlibrary it looked at, or pass.",
+          "type": "string",
+          "const": "may_lock_to_discard_looked"
+        },
+        {
+          "description": "Corrupt Construction entering play: `seat` removes an ally,\nretainer or vampire card of their ash heap or hand from the game\n(`take_from`, `ash_vampire`), `minion` gaining 1 life, and is\nasked again; or stops (`pass`).",
+          "type": "string",
+          "const": "entry_remove_for_life"
+        },
+        {
+          "description": "Skin Trap [VIC]: `minion` burns `about.n` blood now\n(`burn_blood_to_avoid`), or cannot strike this round (`pass`).",
+          "type": "string",
+          "const": "blood_or_no_strike"
+        },
+        {
+          "description": "Nickolai's action announced: the Discipline `minion` gains,\none another ready vampire of the player's has at superior\n(`choose_discipline`).",
+          "type": "string",
+          "const": "name_action_discipline"
+        },
+        {
+          "description": "Rico Loco: `card` from the player's hand or ash heap moved onto\n`minion`, no cost (`take_from`), or `minion` takes `about.n`\ndamage (`pass`).",
+          "type": "string",
+          "const": "named_onto_or_damage"
+        },
+        {
+          "description": "Terrifisto, at his referendum's tally: `minion` burns 1 blood to\ninflict `about.n` damage on a ready vampire that voted against\n(`choose_minion`), or not (`pass`).",
+          "type": "string",
+          "const": "damage_voter_for_blood"
+        },
+        {
+          "description": "Lucubratio blocked: `seat` may discard a hand card of the\nprinted kind (`discard`) instead of locking `minion` for the\nblock, or pass and lock.",
+          "type": "string",
+          "const": "may_discard_for_block"
+        },
+        {
+          "description": "Konrad Fleischer outside his combat: `minion`, about to take\n`about.n` aggravated damage, treats 1 of it as normal\n(`resolve_printed`) or takes it all aggravated (`pass`).",
+          "type": "string",
+          "const": "may_take_aggravated_as_normal"
         },
         {
           "description": "A value this reader does not know.",

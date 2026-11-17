@@ -6,6 +6,82 @@ server runs.
 `python3 scripts/schema_compat.py` lists what a schema change adds or
 removes; its `--check` fails a removal without a major version.
 
+## 2.31.0
+
+- Auto-da-fé adds the `Purpose` id `pool_or_minion_burned`: the chosen
+  vampire's controller burns `about.n` pool (`burn_pool`, offered only
+  while they have it) or lets `minion` burn (`pass`). No id removed.
+- Sabbat Inquisitor's look at a crypt's top card is told to the looking
+  Methuselah as `looked` with `zone: crypt`, the card a crypt card.
+- A lasting effect whose card is in the ash heap and is on no minion
+  (Deploy the Hand's target counter, its Methuselah's) is shown in its
+  controller's `in_play`, its card with no copy number.
+- Cracking the Wall and Malkavian Game add the `Purpose` id
+  `rock_paper_scissors`: `seat` secretly chooses rock (`set_x` 1), paper
+  (2) or scissors (3), told to the other seats as a `secret_number` is
+  (no amount, `index` 0). Club Zombie's unlock-phase gain is a
+  `minion_of` with the detail `gain_blood` (`about.n` blood). No id
+  removed.
+- Courier adds the `Purpose` id `may_lock_to_discard_looked`: after a
+  successful bleed, `seat` may lock `about.card` (`resolve_rider`) to
+  discard the top card of `about.seat`'s library it looked at, or pass.
+  Corrupt Construction adds `entry_remove_for_life`: as it enters play,
+  `seat` removes an ally, retainer or vampire card of their ash heap or
+  hand (`take_from`, `ash_vampire`), `minion` gaining 1 life, asked again
+  until they stop (`pass`). Shadow Court Satyr's entry is a
+  `store_own_hand` offering `pass`; his use of the card on him is a `play`
+  of it (as stored cards are). No id removed.
+- Skin Trap [VIC] adds the `Purpose` id `blood_or_no_strike`: the opposing
+  vampire `minion` burns `about.n` blood now (`burn_blood_to_avoid`), or
+  cannot strike this round (`pass`); an ally, or a vampire without the
+  blood, is not asked. Abandoning the Flesh: a vampire about to be burned
+  waits on its controller holding the card, asked in a
+  `resolution_choice` request with no purpose (as Redline's blood hunt
+  burn): `pass`, or the card played. Reality Mirror's play names the
+  opposing minion's controller's ash heap as its `zone` (as Vestgeir's).
+- Nickolai, The Survivor adds the `Purpose` id `name_action_discipline`:
+  his action announced, the player names the Discipline `minion` gains
+  (`choose_discipline`). Rico Loco adds `named_onto_or_damage`: the named
+  `card` moved from the player's hand or ash heap onto `minion`
+  (`take_from`), or `minion` takes `about.n` damage (`pass`); his master
+  phase due is a `resolve_printed` in the master phase window, no `pass`
+  while due. Terrifisto adds `damage_voter_for_blood`: at his
+  referendum's tally, before its effects, `minion` burns 1 blood to
+  inflict `about.n` damage on a ready vampire that voted against
+  (`choose_minion`), or not (`pass`); the referendum view stays at its
+  polling step meanwhile.
+- Rave reuses `circle_blood`: with no `about.clan` it moves blood (an
+  ally's life) and equipment from the acting minion (`about.minion`) to
+  the player's other ready vampires, one move at a time; equipment is
+  offered only to a minion able to hold it (Redistribution's moves too).
+- Vox Senis played out of turn to the ash heap shows its 3 votes as a
+  `card` vote source (no copy), its effect told as `votes` with `favor`;
+  a blood hunt's polling may now offer a master play (Vox Senis only).
+- A new option kind `end_combat` (Monomancy): offered to a combatant
+  before range in the first round, its `actor` the combatant; the combat
+  ends and the action card goes on that minion. `search_equip_for` also
+  serves Bauble (a non-unique non-location equipment, at no cost).
+- Lucubratio adds the `Purpose` id `may_discard_for_block`: as his block
+  succeeds, once each turn, `seat` may discard a hand card of the printed
+  kind (`discard`, the hand index) instead of locking `minion`, or pass
+  and lock (told as `lock`). `MinionView` gains `stored` (Hukros: cards
+  stored face down on the minion, backs to the other seats); a card played
+  from there names the minion in the option's `card.from`; its moves are
+  told `stored` with `on` the minion. Lord Aaron Wesley Wilkshire: a
+  frenzy card played on him may offer `burn_pool` in the play terms (the
+  +1 paid in pool instead of blood). No id removed.
+- A card played through Infernal Familiar or Amulet of Temporal
+  Perception with two such cards able to pay it (two Familiars with
+  different counters, a Familiar and an Amulet) asks the player which pays
+  in the play terms: `choose_card` options, `about.detail` `grant_payer`,
+  `about.minion` the vampire lacking the Discipline. No id added.
+- Konrad Fleischer adds the `Purpose` id `may_take_aggravated_as_normal`:
+  outside his combat, as aggravated damage would be dealt to `minion`
+  (`about.n`), his player treats 1 as normal (`resolve_printed`) or takes
+  it all aggravated (`pass`). Count Zaroff's cancel is offered once the
+  blood hunt on him passed, before the burn (a `use_ability` targeting him,
+  beside Dogs of War's), no longer in the polling. No id removed.
+
 ## 2.30.0
 
 - Precision [CEL] adds the `Purpose` id `may_burn_blood_to_burn_pool`: after

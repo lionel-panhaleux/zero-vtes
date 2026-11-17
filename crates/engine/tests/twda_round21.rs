@@ -510,7 +510,9 @@ fn augur_spends_a_conviction_to_look_and_unlocks() {
             .unwrap()
             .iter()
             .filter_map(|n| match n {
-                zvtes::notes::Note::Look(l) if l.viewer == SeatId(0) => Some((l.seat, l.library)),
+                zvtes::notes::Note::Look(l) if l.viewer == SeatId(0) => {
+                    Some((l.seat, l.zone == zvtes::game::LookedZone::Library))
+                }
                 _ => None,
             })
             .collect();

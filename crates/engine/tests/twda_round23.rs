@@ -543,9 +543,9 @@ fn count_jocalo_looks_after_a_discard_phase_action() {
     request(&mut e);
     let looks = noted_looks(&mut e);
     assert!(
-        looks
-            .iter()
-            .any(|l| l.viewer == SeatId(1) && l.seat == SeatId(0) && !l.library),
+        looks.iter().any(|l| l.viewer == SeatId(1)
+            && l.seat == SeatId(0)
+            && l.zone == zvtes::game::LookedZone::Hand),
         "{looks:?}"
     );
 }
@@ -571,9 +571,11 @@ fn count_jocalo_looks_only_at_his_predator_and_prey_while_ready() {
         pick_when(&mut e, Choice::Discard(0));
         request(&mut e);
         let looks = noted_looks(&mut e);
-        let seen = looks
-            .iter()
-            .any(|l| l.viewer == SeatId(1) && l.seat == SeatId(discarder) && !l.library);
+        let seen = looks.iter().any(|l| {
+            l.viewer == SeatId(1)
+                && l.seat == SeatId(discarder)
+                && l.zone == zvtes::game::LookedZone::Hand
+        });
         assert_eq!(seen, looked, "seat {discarder}, torpor {torpor}: {looks:?}");
     }
 }

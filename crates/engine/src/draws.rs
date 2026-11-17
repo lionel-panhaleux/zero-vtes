@@ -29,6 +29,29 @@ pub struct ExtraDraws {
     pub on_replace: [Option<DrawSource>; 2],
 }
 
+/// What the hidden picks of `Interrupt::SecretNumber` are revealed for.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum SecretGame {
+    /// Numbers (Game of Malkav's reveal; Malkavian Prank's guesses).
+    Numbers,
+    /// Rock (1), paper (2), scissors (3) between `player` and `other`
+    /// (Cracking the Wall, Malkavian Game).
+    RockPaperScissors {
+        player: SeatId,
+        other: SeatId,
+        stakes: crate::cards::RpsStakes,
+    },
+}
+
+/// Whom an `Interrupt::CircleBlood` moves blood and equipment among.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum MoveAmong {
+    /// A circle's Blood Brothers, from any to any (Redistribution, Jerry).
+    Circle(&'static str),
+    /// From this minion to its Methuselah's other ready vampires (Rave).
+    From(MinionId),
+}
+
 /// A pending choice about cards drawn, moved or stored.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Interrupt {
@@ -38,10 +61,12 @@ pub enum Interrupt {
     /// Alastor: `seat` may search their library for an equipment to put on
     /// `minion`, requirements ignored, inferior, half its cost rounded down
     /// (the blood the vampire's, X as 0: LSJ 20040518, 20100204); shuffled
-    /// afterward, found or not (LSJ 20050331-2).
+    /// afterward, found or not (LSJ 20050331-2). `linked`: Bauble's, at no
+    /// cost, of the filters, the card found its chosen one.
     SearchEquipFor {
         seat: SeatId,
         minion: crate::ids::MinionId,
+        linked: Option<(CardId, &'static [crate::cards::CardFilter])>,
     },
     /// Jara Drory: `card` looked at in `of`'s hand; `minion` may burn 1
     /// blood to exchange it with a card of `of`'s ash heap (`FindCard`).
@@ -176,8 +201,13 @@ pub enum Interrupt {
     },
     /// Game of Malkav: `seat` secretly chooses a number from 1 to `max`
     /// (`Choice::SetX`, kept apart from the state, `Engine::secret_numbers`);
-    /// the `last` pick reveals them all at once.
-    SecretNumber { seat: SeatId, max: u8, last: bool },
+    /// the `last` pick reveals them all at once, as `game` says.
+    SecretNumber {
+        seat: SeatId,
+        max: u8,
+        last: bool,
+        game: SecretGame,
+    },
     /// Charnas the Imp: its employer about to be burned, `seat` (the
     /// employer's controller) may put `card` on another minion in play, any
     /// Methuselah's; declined, it burns.
@@ -245,6 +275,8 @@ pub enum Interrupt {
         replace: bool,
         /// Only the action's `earmarked` cards (Gift of Proteus).
         earmarked: bool,
+        /// "You can": a `Pass` beside the cards (Shadow Court Satyr).
+        optional: bool,
     },
     /// Maabara: a card on `card` moved to the top of `seat`'s library.
     StoredToLibraryTop { seat: SeatId, card: CardId },
@@ -307,6 +339,14 @@ pub enum Interrupt {
         taken: u8,
         /// Any card, not only an ally or a vampire (Mulher de Branco).
         any: bool,
+    },
+    /// Corrupt Construction: `seat` removes an ally, retainer or vampire
+    /// card of their ash heap or hand from the game (`TakeFrom`,
+    /// `AshVampire`), `ally` gaining 1 life, and is asked again; or stops
+    /// (`Pass`). A hand card is not replaced (not played).
+    EntryRemoveForLife {
+        seat: SeatId,
+        ally: crate::ids::MinionId,
     },
     /// A toll landing on a block attempt under way (Where the Veil Thins
     /// [OBL], Tenebrous Form [OBT]): pay `n` blood or resign (LSJ
@@ -767,12 +807,13 @@ pub enum Interrupt {
         clan: &'static str,
         left: u8,
     },
-    /// Blood (and with `equipment`, equipment) moved among a circle's Blood
-    /// Brothers (Jerry, Redistribution): `from`, `to`, then the amount; each
-    /// move a gain of its own (rules-qa 68.10), one per pair (`paired`).
+    /// Blood (and with `equipment`, equipment) moved `among` a circle's
+    /// Blood Brothers (Jerry, Redistribution) or from one minion to the
+    /// seat's other ready vampires (Rave): `from`, `to`, then the amount;
+    /// each move a gain of its own (rules-qa 68.10), one per pair (`paired`).
     CircleBlood {
         seat: SeatId,
-        circle: &'static str,
+        among: MoveAmong,
         from: Option<MinionId>,
         to: Option<MinionId>,
         equipment: bool,
@@ -1155,6 +1196,66 @@ pub enum Interrupt {
         minion: crate::ids::MinionId,
         n: u8,
     },
+    /// Auto-da-fé: `seat` burns `pool` (`BurnPool`, offered only while they
+    /// have it: rules-digest D3) or `minion` is burned (`Pass`).
+    PoolOrMinionBurned {
+        seat: SeatId,
+        minion: crate::ids::MinionId,
+        pool: u8,
+    },
+    /// Courier: `seat` may lock `card` (`ResolveRider`) to burn the top card
+    /// of `of`'s library, the one it looked at, or pass.
+    MayLockToDiscardLooked {
+        seat: SeatId,
+        card: CardId,
+        of: SeatId,
+    },
+    /// Skin Trap [VIC]: `minion` burns `n` blood now (`BurnBloodToAvoid`)
+    /// or cannot strike this round (Pass).
+    BloodOrNoStrike {
+        seat: SeatId,
+        minion: crate::ids::MinionId,
+        n: u8,
+    },
+    /// Nickolai's action announced: the Discipline it gains, one another
+    /// ready vampire of `seat`'s has at superior (`ChooseDiscipline`;
+    /// `ActionCtx::named_discipline`, D1).
+    NameActionDiscipline {
+        seat: SeatId,
+        minion: crate::ids::MinionId,
+    },
+    /// Rico Loco: a `card` from `seat`'s hand or ash heap moved onto
+    /// `minion`, no cost (`TakeFrom`), or `minion` takes `damage` (Pass).
+    NamedOntoOrDamage {
+        seat: SeatId,
+        minion: crate::ids::MinionId,
+        card: u16,
+        damage: u8,
+    },
+    /// Terrifisto, at his referendum's tally: `minion` burns 1 blood to
+    /// inflict `n` damage on a ready vampire that cast votes against it
+    /// (`ChooseMinion`), or not (Pass).
+    DamageVoterForBlood {
+        seat: SeatId,
+        minion: crate::ids::MinionId,
+        n: u8,
+    },
+    /// Lucubratio blocked: `seat` may discard a hand card of his printed
+    /// filter instead of locking him (`Discard`), or pass and lock.
+    MayDiscardForBlock {
+        seat: SeatId,
+        minion: crate::ids::MinionId,
+    },
+    /// Konrad Fleischer outside his combat: `minion`, about to take `n`
+    /// aggravated damage, may treat 1 as normal (`ResolvePrinted`), or
+    /// takes it all aggravated (Pass); the damage waits for the answer,
+    /// dealt by `cause` (owner, rules-qa 122.96).
+    MayTakeAggravatedAsNormal {
+        seat: SeatId,
+        minion: crate::ids::MinionId,
+        n: u8,
+        cause: Option<crate::notes::Cause>,
+    },
 }
 
 /// What a minion chosen at resolution is for (`Interrupt::MinionOf`).
@@ -1252,15 +1353,22 @@ pub enum MinionPurpose {
     /// A ready vampire of theirs takes n unpreventable damage from the ally
     /// `by`, none if immune to it (Wendell Delburton; ANK 20210228): mandatory.
     DamageVampireBy { n: u8, by: crate::ids::MinionId },
-    /// A ready minion of theirs able to hold this card, recorded to receive
-    /// it as the action under way succeeds (Arcane Appraiser): mandatory.
-    HolderAtSuccess(CardId),
+    /// A minion of theirs (as the `Holder` admits) able to hold this card,
+    /// not its host, recorded to receive it as the action under way
+    /// succeeds (Arcane Appraiser, Dauntain Black Magician): mandatory.
+    HolderAtSuccess(CardId, crate::cards::Holder),
     /// As `Damage`, the damage a weapon's (Talbot's Chainsaw; LSJ
     /// 20090304-1): none on a minion immune to it (Mictlantecuhtli).
     WeaponDamage(u8),
     /// Another ready vampire of the chooser's than `except`, which takes n
     /// unpreventable damage (Shiloh Marie): mandatory.
     DamageOtherVampire { n: u8, except: crate::ids::MinionId },
+    /// A ready vampire of the chooser's gains n blood, a full one legal
+    /// (Club Zombie): mandatory.
+    GainBlood(u8),
+    /// Another ready minion of the chooser's than `except`, which takes n
+    /// damage (Rico Loco): mandatory.
+    DamageOtherMinion { n: u8, except: crate::ids::MinionId },
 }
 
 impl Interrupt {
@@ -1289,6 +1397,7 @@ impl Interrupt {
             | Interrupt::EntryBurn { seat, .. }
             | Interrupt::BurnOverCapacity { seat, .. }
             | Interrupt::EntryRemoveOrBurn { seat, .. }
+            | Interrupt::EntryRemoveForLife { seat, .. }
             | Interrupt::BlockToll { seat, .. }
             | Interrupt::CancelAttempt { seat, .. }
             | Interrupt::MarginPool { seat, .. }
@@ -1298,6 +1407,7 @@ impl Interrupt {
             | Interrupt::DiscardChosen { seat, .. }
             | Interrupt::Reorder { seat, .. }
             | Interrupt::AvoidDamage { seat, .. }
+            | Interrupt::MayTakeAggravatedAsNormal { seat, .. }
             | Interrupt::DiscardFromHandOf { seat, .. }
             | Interrupt::RemoveFromAsh { seat, .. }
             | Interrupt::DisciplineSearch { seat, .. }
@@ -1321,6 +1431,7 @@ impl Interrupt {
             | Interrupt::ExchangeLooked { seat, .. }
             | Interrupt::MayLockToFight { seat, .. }
             | Interrupt::MayBurnForBlock { seat, .. }
+            | Interrupt::MayDiscardForBlock { seat, .. }
             | Interrupt::MayReturnDiscards { seat, .. }
             | Interrupt::MayBottomLooked { seat, .. }
             | Interrupt::AshToLibraryTop { seat, .. }
@@ -1364,6 +1475,7 @@ impl Interrupt {
             | Interrupt::LockOrPay { seat, .. }
             | Interrupt::PoolOrVampire { seat, .. }
             | Interrupt::PoolOrNoTransfers { seat, .. }
+            | Interrupt::PoolOrMinionBurned { seat, .. }
             | Interrupt::BloodOrPool { seat, .. }
             | Interrupt::LibraryToHand { seat, .. }
             | Interrupt::ResearchSearch { seat, .. }
@@ -1413,6 +1525,7 @@ impl Interrupt {
             | Interrupt::BloodToCardUpTo { seat, .. }
             | Interrupt::MayLockCardForBlock { seat, .. }
             | Interrupt::MayBurnLookedMaster { seat, .. }
+            | Interrupt::MayLockToDiscardLooked { seat, .. }
             | Interrupt::MayGainPool { seat, .. }
             | Interrupt::MayBurnEdgeForPool { seat, .. }
             | Interrupt::MayBurnBloodToBurnPool { seat, .. }
@@ -1421,6 +1534,10 @@ impl Interrupt {
             | Interrupt::BurnCopiesPick { seat, .. }
             | Interrupt::KeepSpentBlood { seat, .. }
             | Interrupt::BurnReplacement { seat, .. }
+            | Interrupt::BloodOrNoStrike { seat, .. }
+            | Interrupt::NameActionDiscipline { seat, .. }
+            | Interrupt::NamedOntoOrDamage { seat, .. }
+            | Interrupt::DamageVoterForBlood { seat, .. }
             | Interrupt::SecondCopyOnto { seat, .. }
             | Interrupt::DrawUpTo { seat, .. }
             | Interrupt::BindLocation { seat, .. }
@@ -1757,7 +1874,7 @@ impl Engine {
                     if let Some(&r) = self.burn_replacements(minion).first() {
                         self.apply_burn_replacement(minion, r, to_torpor);
                     } else if self.state.minions[minion.index()].present() {
-                        self.burn_minion(minion);
+                        self.burn_minion_now(minion);
                     }
                 }
                 // The diablerie goes on without its choice.
@@ -1853,6 +1970,10 @@ impl Engine {
                 Interrupt::EntryRemoveOrBurn { ally, .. } => {
                     self.state.minions[ally.index()].in_play
                 }
+                Interrupt::EntryRemoveForLife { seat, ally } => {
+                    self.state.minions[ally.index()].in_play
+                        && !self.removable_for_life(seat).is_empty()
+                }
                 // Nothing to cancel once the attempt is over.
                 Interrupt::CancelAttempt { minion, .. } => attempting(minion),
                 Interrupt::BlockToll { minion, n, .. } => {
@@ -1910,7 +2031,8 @@ impl Engine {
                         None => (0..self.state.seats.len()).any(|i| open(SeatId(i as u8))),
                     }
                 }
-                Interrupt::AvoidDamage { minion, .. } => present(minion),
+                Interrupt::AvoidDamage { minion, .. }
+                | Interrupt::MayTakeAggravatedAsNormal { minion, .. } => present(minion),
                 // One card or one kind left to place: no choice.
                 Interrupt::Reorder {
                     seat,
@@ -2356,6 +2478,17 @@ impl Engine {
                             .iter()
                             .any(|&c| crate::library::LIBRARY[c as usize].types.contains(&of))
                 }
+                // Needs not be unlocked to look (LSJ 20001102); only to
+                // discard.
+                Interrupt::MayLockToDiscardLooked { card, of, .. } => {
+                    let st = &self.state;
+                    let c = &st.cards[card.index()];
+                    let locked = match c.body {
+                        Some(m) => st.minions[m.index()].locked,
+                        None => c.locked,
+                    };
+                    c.present() && !locked && !st.seats[of.index()].library.is_empty()
+                }
                 Interrupt::MayBurnLookedMaster { card, n, .. } => {
                     let st = &self.state;
                     let c = &st.cards[card.index()];
@@ -2487,7 +2620,8 @@ impl Engine {
                 Interrupt::MayMoveBlood { from, to, .. } => {
                     present(from) && present(to) && self.state.minions[from.index()].blood > 0
                 }
-                Interrupt::MayBurnForBlock { minion, .. } => present(minion),
+                Interrupt::MayBurnForBlock { minion, .. }
+                | Interrupt::MayDiscardForBlock { minion, .. } => present(minion),
                 Interrupt::MayReturnDiscards { .. } => true,
                 Interrupt::MayBottomLooked { seat, minion, n } => {
                     present(minion)
@@ -2568,6 +2702,9 @@ impl Engine {
                 }
                 Interrupt::PoolOrNoTransfers { seat, .. } | Interrupt::BloodOrPool { seat, .. } => {
                     !self.state.seats[seat.index()].ousted
+                }
+                Interrupt::PoolOrMinionBurned { seat, minion, .. } => {
+                    !self.state.seats[seat.index()].ousted && present(minion)
                 }
                 Interrupt::LibraryToHand { seat, .. } => !self.state.seats[seat.index()].ousted,
                 Interrupt::ResearchSearch { left, .. } => {
@@ -2694,9 +2831,13 @@ impl Engine {
                 }
                 Interrupt::SecretNumber { .. } | Interrupt::GuessNumber { .. } => true,
                 Interrupt::Bid { .. } => true,
-                Interrupt::SearchEquipFor { seat, minion } => {
+                Interrupt::SearchEquipFor {
+                    seat,
+                    minion,
+                    linked,
+                } => {
                     if self.state.minions[minion.index()].present()
-                        && !self.alastor_equipment(seat, minion).is_empty()
+                        && !self.alastor_equipment(seat, minion, linked).is_empty()
                     {
                         true
                     } else {
@@ -2759,7 +2900,7 @@ impl Engine {
                     [] => {
                         self.interrupts.remove(0);
                         if present(minion) {
-                            self.burn_minion(minion);
+                            self.burn_minion_now(minion);
                         }
                         continue;
                     }
@@ -2817,6 +2958,28 @@ impl Engine {
                 Interrupt::BloodOrCamarilla { minion, .. } => {
                     self.state.minions[minion.index()].in_play
                         && self.state.sect_of(minion) == Some(crate::crypt::Sect::Anarch)
+                }
+                Interrupt::NameActionDiscipline { minion, .. } => {
+                    self.action.as_ref().is_some_and(|a| a.acting == minion)
+                        && !self.state.others_superior_disciplines(minion).is_empty()
+                }
+                Interrupt::NamedOntoOrDamage { minion, .. } => present(minion),
+                Interrupt::DamageVoterForBlood { minion, .. } => {
+                    present(minion)
+                        && self.state.minions[minion.index()].blood >= 1
+                        && !self.against_voters().is_empty()
+                }
+                Interrupt::BloodOrNoStrike { minion, n, .. } => {
+                    let in_combat = self
+                        .combat
+                        .as_ref()
+                        .is_some_and(|c| c.side_of_minion(minion).is_some());
+                    if in_combat && self.state.minions[minion.index()].blood < n {
+                        self.interrupts.remove(0);
+                        self.bar_strike_this_round(minion);
+                        continue;
+                    }
+                    in_combat
                 }
                 Interrupt::BurnOverCapacity { host, .. } => {
                     self.over_capacity_burns(host).len() > 1
@@ -2952,6 +3115,33 @@ impl Engine {
                     vec![Choice::Pass]
                 },
             ),
+            Interrupt::BloodOrNoStrike { .. } => (
+                WindowLabel::ResolutionChoice,
+                vec![Choice::Pass, Choice::BurnBloodToAvoid],
+            ),
+            Interrupt::NameActionDiscipline { minion, .. } => (
+                WindowLabel::ActionTerms,
+                st.others_superior_disciplines(minion)
+                    .into_iter()
+                    .map(Choice::ChooseDiscipline)
+                    .collect(),
+            ),
+            Interrupt::NamedOntoOrDamage { seat, card, .. } => {
+                let s = &st.seats[seat.index()];
+                let mut options = vec![Choice::Pass];
+                for (zone, pile) in [(Zone::Hand, &s.hand), (Zone::AshHeap, &s.ash)] {
+                    if pile.contains(&card) {
+                        options.push(Choice::TakeFrom { zone, card });
+                    }
+                }
+                (WindowLabel::ResolutionChoice, options)
+            }
+            Interrupt::DamageVoterForBlood { .. } => (
+                WindowLabel::ResolutionChoice,
+                std::iter::once(Choice::Pass)
+                    .chain(self.against_voters().into_iter().map(Choice::ChooseMinion))
+                    .collect(),
+            ),
             Interrupt::BloodOrCamarilla { minion, .. } => (
                 WindowLabel::ResolutionChoice,
                 if st.minions[minion.index()].blood >= 1 {
@@ -3058,11 +3248,15 @@ impl Engine {
                     .collect(),
             ),
             // A library search: the card stays hidden from the others.
-            Interrupt::SearchEquipFor { seat, minion } => (
+            Interrupt::SearchEquipFor {
+                seat,
+                minion,
+                linked,
+            } => (
                 WindowLabel::LibrarySearch,
                 std::iter::once(Choice::Pass)
                     .chain(
-                        self.alastor_equipment(seat, minion)
+                        self.alastor_equipment(seat, minion, linked)
                             .into_iter()
                             .map(Choice::FindCard),
                     )
@@ -3485,6 +3679,14 @@ impl Engine {
                 WindowLabel::ResolutionChoice,
                 vec![Choice::BurnPool, Choice::Pass],
             ),
+            Interrupt::PoolOrMinionBurned { seat, pool, .. } => (
+                WindowLabel::ResolutionChoice,
+                if st.seats[seat.index()].pool >= pool as i32 {
+                    vec![Choice::BurnPool, Choice::Pass]
+                } else {
+                    vec![Choice::Pass]
+                },
+            ),
             Interrupt::LockOrPay { card, .. } => (
                 WindowLabel::RiderTerms,
                 if st.cards[card.index()].locked {
@@ -3605,14 +3807,14 @@ impl Engine {
             ),
             Interrupt::CircleBlood {
                 seat,
-                circle,
+                among,
                 from,
                 to,
                 equipment,
                 moving,
                 paired,
             } => {
-                let members = self.circle_members(seat, circle);
+                let (sources, members) = self.move_among(seat, among);
                 let used = |f: MinionId, t: MinionId| paired.contains(&Some((f, t)));
                 let mut options = vec![Choice::Pass];
                 if let (Some(f), Some(_)) = (from, to) {
@@ -3623,10 +3825,15 @@ impl Engine {
                         (1..=n).map(Choice::SetX).collect(),
                     ));
                 }
+                // Equipment only to a minion able to hold it.
+                let holds = |c: CardId, t: MinionId| {
+                    st.cards[c.index()].host != Some(t)
+                        && st.can_hold(t, st.cards[c.index()].card, &[])
+                };
                 match (from, moving) {
                     (None, None) => {
                         options.extend(
-                            members
+                            sources
                                 .iter()
                                 .filter(|&&m| {
                                     self.state.minions[m.index()].blood > 0
@@ -3635,12 +3842,15 @@ impl Engine {
                                 .map(|&m| Choice::ChooseMinion(m)),
                         );
                         if equipment {
-                            for &m in &members {
+                            for &m in &sources {
                                 options.extend(
                                     self.state
                                         .equipment_on(m)
                                         .into_iter()
-                                        .filter(|&c| !self.state.pinned(c))
+                                        .filter(|&c| {
+                                            !self.state.pinned(c)
+                                                && members.iter().any(|&t| holds(c, t))
+                                        })
                                         .map(|c| Choice::ChooseCard(c.0)),
                                 );
                             }
@@ -3653,11 +3863,10 @@ impl Engine {
                             .map(|&m| Choice::ChooseMinion(m)),
                     ),
                     (None, Some(c)) => {
-                        let on = st.cards[c.index()].host;
                         options.extend(
                             members
                                 .iter()
-                                .filter(|&&m| Some(m) != on)
+                                .filter(|&&m| holds(c, m))
                                 .map(|&m| Choice::ChooseMinion(m)),
                         );
                     }
@@ -3891,6 +4100,7 @@ impl Engine {
             | Interrupt::MayTorture { card, .. }
             | Interrupt::MayLockForBlood { card, .. }
             | Interrupt::MayBurnLookedMaster { card, .. }
+            | Interrupt::MayLockToDiscardLooked { card, .. }
             | Interrupt::MayStoreAim { store: card, .. }
             | Interrupt::MayBottomTop { card, .. } => (
                 WindowLabel::ResolutionChoice,
@@ -3963,9 +4173,21 @@ impl Engine {
             | Interrupt::MayBurnForBlock { minion, .. }
             | Interrupt::MayReturnDiscards { minion, .. }
             | Interrupt::MayBottomLooked { minion, .. }
+            | Interrupt::MayTakeAggravatedAsNormal { minion, .. }
             | Interrupt::ReductionAtResolution { minion, .. } => (
                 WindowLabel::ResolutionChoice,
                 vec![Choice::Pass, Choice::ResolvePrinted { minion }],
+            ),
+            Interrupt::MayDiscardForBlock { seat, minion } => (
+                WindowLabel::ResolutionChoice,
+                std::iter::once(Choice::Pass)
+                    .chain(
+                        block_discard_filter(&self.state, minion)
+                            .map_or(Vec::new(), |f| self.state.hand_picks(seat, f))
+                            .into_iter()
+                            .map(Choice::Discard),
+                    )
+                    .collect(),
             ),
             Interrupt::NamedX { minion, .. } => (
                 WindowLabel::ResolutionChoice,
@@ -4090,12 +4312,18 @@ impl Engine {
                 seat,
                 of,
                 earmarked,
+                optional,
                 ..
             } => (
                 WindowLabel::ResolutionChoice,
-                self.store_candidates(seat, of, earmarked)
+                optional
+                    .then_some(Choice::Pass)
                     .into_iter()
-                    .map(Choice::FindCard)
+                    .chain(
+                        self.store_candidates(seat, of, earmarked)
+                            .into_iter()
+                            .map(Choice::FindCard),
+                    )
                     .collect(),
             ),
             Interrupt::StoreUpTo { seat, from_ash, .. } => {
@@ -4204,11 +4432,13 @@ impl Engine {
                         | MinionPurpose::DamageVampire(_)
                         | MinionPurpose::DamageImbued { .. }
                         | MinionPurpose::DamageOtherVampire { .. }
+                        | MinionPurpose::DamageOtherMinion { .. }
                         | MinionPurpose::BlockMark(_)
                         | MinionPurpose::JointBlocker(..)
                         | MinionPurpose::DamageVampireBy { .. }
-                        | MinionPurpose::HolderAtSuccess(_)
+                        | MinionPurpose::HolderAtSuccess(..)
                         | MinionPurpose::WeaponDamage(_)
+                        | MinionPurpose::GainBlood(_)
                 ) {
                     options.insert(0, Choice::Pass);
                 }
@@ -4231,6 +4461,11 @@ impl Engine {
                     WindowLabel::Distribution,
                     vec![Choice::ChooseMinion(first), Choice::Pass],
                 )
+            }
+            Interrupt::EntryRemoveForLife { .. } => {
+                let mut options = vec![Choice::Pass];
+                options.extend(self.removable_for_life(s));
+                (WindowLabel::EntryEffect, options)
             }
             Interrupt::EntryRemoveOrBurn {
                 left, taken, any, ..
@@ -4288,10 +4523,22 @@ impl Engine {
     /// by card (the order is hidden), its half cost payable — the pool
     /// `seat`'s, the blood the vampire's. Requirements are ignored, not
     /// "only one vehicle" and its kin (rules-digest §3.17: never a second).
-    pub(crate) fn alastor_equipment(&self, seat: SeatId, minion: crate::ids::MinionId) -> Vec<u16> {
+    /// Bauble's (`linked`): of its filters, at no cost.
+    pub(crate) fn alastor_equipment(
+        &self,
+        seat: SeatId,
+        minion: crate::ids::MinionId,
+        linked: Option<(CardId, &'static [crate::cards::CardFilter])>,
+    ) -> Vec<u16> {
         let st = &self.state;
         crate::state::distinct(&st.seats[seat.index()].library, |c| {
-            let (pool, blood) = self.alastor_cost(seat, minion, c);
+            let (pool, blood) = match linked {
+                Some(_) => (0, 0),
+                None => self.alastor_cost(seat, minion, c),
+            };
+            if linked.is_some_and(|(_, f)| !f.iter().all(|f| f.matches(c))) {
+                return false;
+            }
             crate::library::LIBRARY[c as usize]
                 .types
                 .contains(&crate::library::CardType::Equipment)
@@ -4320,6 +4567,84 @@ impl Engine {
             }
         }
         self.burn_pool_batch(&loss);
+    }
+
+    /// Rock-paper-scissors revealed: paper beats rock, scissors paper, rock
+    /// scissors. `Hands`: a tie, each discards `tie_random` at random, else
+    /// the loser their hand, all replaced. `Pool`: the winner steals the
+    /// stake, as much as the loser has; a tie plays again for `raise` more.
+    fn reveal_rock_paper_scissors(
+        &mut self,
+        player: SeatId,
+        other: SeatId,
+        stakes: crate::cards::RpsStakes,
+    ) {
+        use crate::cards::RpsStakes;
+        let picks = std::mem::take(&mut self.secret_numbers);
+        let pick = |s: SeatId| picks.iter().find(|&&(o, _)| o == s).map_or(1, |&(_, n)| n);
+        let (p, o) = (pick(player), pick(other));
+        let winner = match (p + 3 - o) % 3 {
+            0 => None,
+            1 => Some((player, other)),
+            _ => Some((other, player)),
+        };
+        if [player, other]
+            .iter()
+            .any(|s| self.state.seats[s.index()].ousted)
+        {
+            return;
+        }
+        match (stakes, winner) {
+            (RpsStakes::Hands { tie_random }, None) => {
+                for s in [player, other] {
+                    let k = (tie_random as usize).min(self.state.seats[s.index()].hand.len());
+                    self.discard_at_random(s, k);
+                    self.replace(s, k, None);
+                }
+            }
+            (RpsStakes::Hands { .. }, Some((_, loser))) => {
+                let k = self.state.seats[loser.index()].hand.len();
+                self.discard_at_random(loser, k);
+                self.replace(loser, k, None);
+            }
+            (RpsStakes::Pool { stake, raise }, None) => {
+                let game = SecretGame::RockPaperScissors {
+                    player,
+                    other,
+                    stakes: RpsStakes::Pool {
+                        stake: stake.saturating_add(raise),
+                        raise,
+                    },
+                };
+                self.push_rock_paper_scissors(game);
+            }
+            (RpsStakes::Pool { stake, .. }, Some((winner, loser))) => {
+                let taken = (stake as i32).min(self.state.seats[loser.index()].pool.max(0));
+                let mut loss = vec![0i32; self.state.seats.len()];
+                loss[loser.index()] = stake as i32;
+                self.state.gain_pool(winner, taken);
+                self.burn_pool_batch(&loss);
+                // The player ousted by its own master on its turn: the turn
+                // passes, as after a deferred oust.
+                self.after_deferred_oust();
+            }
+        }
+    }
+
+    /// A round of rock-paper-scissors: the other Methuselah's pick, then
+    /// the player's, the last revealing both.
+    pub(crate) fn push_rock_paper_scissors(&mut self, game: SecretGame) {
+        let SecretGame::RockPaperScissors { player, other, .. } = game else {
+            unreachable!("not rock-paper-scissors: {game:?}");
+        };
+        for (seat, last) in [(other, false), (player, true)] {
+            self.interrupts.push(Interrupt::SecretNumber {
+                seat,
+                max: 3,
+                last,
+                game,
+            });
+        }
     }
 
     /// Hostile Takeover's auction won: the bid to the vampire's controller
@@ -4495,17 +4820,17 @@ impl Engine {
                     // Any minion, a torpid one too (RTR 19960112, rules-qa
                     // 88.9).
                     MinionPurpose::HostCard(c) => st.can_hold(*m, st.cards[c.index()].card, &[]),
-                    MinionPurpose::HolderAtSuccess(c) => {
-                        v.ready()
+                    MinionPurpose::HolderAtSuccess(c, h) => {
+                        h.admits(v)
                             && st.cards[c.index()].host != Some(*m)
                             && st.can_hold(*m, st.cards[c.index()].card, &[])
                     }
                     MinionPurpose::Damage(_)
                     | MinionPurpose::WeaponDamage(_)
                     | MinionPurpose::BlockMark(_) => v.ready(),
-                    MinionPurpose::DamageVampire(_) | MinionPurpose::DamageVampireBy { .. } => {
-                        v.ready() && v.is_vampire()
-                    }
+                    MinionPurpose::DamageVampire(_)
+                    | MinionPurpose::DamageVampireBy { .. }
+                    | MinionPurpose::GainBlood(_) => v.ready() && v.is_vampire(),
                     MinionPurpose::EquipFoundOn { card, copy } => {
                         self.equip_found_candidates(of, card, copy).contains(m)
                     }
@@ -4526,6 +4851,7 @@ impl Engine {
                     MinionPurpose::DamageOtherVampire { except, .. } => {
                         v.ready() && v.is_vampire() && *m != except
                     }
+                    MinionPurpose::DamageOtherMinion { except, .. } => v.ready() && *m != except,
                     MinionPurpose::BurnOfCrowdedClan(_) => {
                         v.is_vampire()
                             && v.clan().is_some_and(|c| {
@@ -4619,6 +4945,36 @@ impl Engine {
 
     /// The allies in `seat`'s ash heap matching one of `of` (any, if
     /// empty), one entry per card.
+    /// Corrupt Construction's removals: ally and retainer cards of the ash
+    /// heap and hand, vampires of the ash heap (crypt cards are never in
+    /// hand), one choice per card.
+    pub(crate) fn removable_for_life(&self, seat: SeatId) -> Vec<Choice> {
+        use crate::decision::Zone;
+        let s = &self.state.seats[seat.index()];
+        let minion = |c| crate::cards::CardFilter::AllyOrRetainer.matches(c);
+        let mut options: Vec<Choice> = distinct(&s.ash, minion)
+            .into_iter()
+            .map(|card| Choice::TakeFrom {
+                zone: Zone::AshHeap,
+                card,
+            })
+            .collect();
+        options.extend(
+            distinct(&s.ash_crypt, crate::state::vampire_card)
+                .into_iter()
+                .map(Choice::AshVampire),
+        );
+        options.extend(
+            distinct(&s.hand, minion)
+                .into_iter()
+                .map(|card| Choice::TakeFrom {
+                    zone: Zone::Hand,
+                    card,
+                }),
+        );
+        options
+    }
+
     pub(crate) fn ash_allies(&self, seat: SeatId, of: &[crate::cards::CardFilter]) -> Vec<u16> {
         distinct(&self.state.seats[seat.index()].ash, |c| {
             crate::cards::ash_ally(c, of)
@@ -5311,6 +5667,27 @@ impl Engine {
 
     /// The last copy of `card` taken out of `s`'s `zone`, for a search or a
     /// take from hand or ash heap.
+    /// The ready vampires that cast votes against the referendum under way,
+    /// not canceled, arena order (Terrifisto).
+    pub(crate) fn against_voters(&self) -> Vec<MinionId> {
+        let Some(r) = self.referendum.as_ref() else {
+            return Vec::new();
+        };
+        let mut out: Vec<MinionId> = r
+            .records
+            .iter()
+            .filter(|v| !v.canceled && !v.favor)
+            .filter_map(|v| match v.source {
+                crate::referendum::Source::Vampire(m) => Some(m),
+                _ => None,
+            })
+            .filter(|&m| self.state.minions[m.index()].ready())
+            .collect();
+        out.sort_by_key(|m| m.0);
+        out.dedup();
+        out
+    }
+
     fn take_from_zone(&mut self, s: SeatId, zone: Zone, card: u16) -> crate::copies::CopyId {
         let seat = &mut self.state.seats[s.index()];
         let from = match zone {
@@ -6010,6 +6387,7 @@ impl Engine {
                     of,
                     replace,
                     earmarked,
+                    optional,
                 },
                 Choice::FindCard(card),
             ) => {
@@ -6048,9 +6426,13 @@ impl Engine {
                             of,
                             replace,
                             earmarked,
+                            optional,
                         },
                     );
                 }
+            }
+            (Interrupt::StoreOwnHand { .. }, Choice::Pass) => {
+                self.interrupts.remove(0);
             }
             (
                 Interrupt::StoreUpTo {
@@ -6221,7 +6603,14 @@ impl Engine {
                 self.interrupts.remove(0);
                 self.state.set_host(card, m);
             }
-            (Interrupt::SearchEquipFor { seat, minion }, Choice::FindCard(card)) => {
+            (
+                Interrupt::SearchEquipFor {
+                    seat,
+                    minion,
+                    linked,
+                },
+                Choice::FindCard(card),
+            ) => {
                 self.interrupts.remove(0);
                 let library = &mut self.state.seats[seat.index()].library;
                 let k = library
@@ -6232,7 +6621,10 @@ impl Engine {
                 self.state.seats[seat.index()]
                     .library
                     .shuffle(&mut self.rng);
-                let (pool, blood) = self.alastor_cost(seat, minion, card);
+                let (pool, blood) = match linked {
+                    Some(_) => (0, 0),
+                    None => self.alastor_cost(seat, minion, card),
+                };
                 self.state.burn_blood(minion, blood);
                 // Put on, not equipped: its layers, inferior, nothing it
                 // does as it is equipped (no cards stored, no minion
@@ -6240,6 +6632,10 @@ impl Engine {
                 let entering =
                     crate::state::CardInPlay::entering(card, copy, seat, Some(minion), 0);
                 if let Some(id) = self.place_now(entering, crate::plays::ModeLayers::Push, false) {
+                    if let Some((by, _)) = linked {
+                        self.state.cards[by.index()].chosen_card =
+                            crate::state::SparseOption(Some(id));
+                    }
                     // Mokolé Blood, holding nothing: burned (rules-qa 11.3).
                     if cards::searches_store(card) && self.state.cards[id.index()].stored.is_empty()
                     {
@@ -6266,11 +6662,22 @@ impl Engine {
                     self.reveal_guesses(seat);
                 }
             }
-            (Interrupt::SecretNumber { seat, last, .. }, Choice::SetX(n)) => {
+            (
+                Interrupt::SecretNumber {
+                    seat, last, game, ..
+                },
+                Choice::SetX(n),
+            ) => {
                 self.interrupts.remove(0);
                 self.secret_numbers.push((seat, n));
-                if last {
-                    self.reveal_numbers();
+                match game {
+                    _ if !last => {}
+                    SecretGame::Numbers => self.reveal_numbers(),
+                    SecretGame::RockPaperScissors {
+                        player,
+                        other,
+                        stakes,
+                    } => self.reveal_rock_paper_scissors(player, other, stakes),
                 }
             }
             (Interrupt::MoveOffBurnedBearer { card, .. }, Choice::Pass) => {
@@ -6800,6 +7207,38 @@ impl Engine {
                     ash,
                 };
             }
+            (Interrupt::EntryRemoveForLife { .. }, Choice::Pass) => {
+                self.interrupts.remove(0);
+            }
+            (Interrupt::EntryRemoveForLife { seat, ally }, c) => {
+                self.interrupts.remove(0);
+                let s = &mut self.state.seats[seat.index()];
+                match c {
+                    Choice::TakeFrom { zone, card } => {
+                        let pile = match zone {
+                            crate::decision::Zone::Hand => &mut s.hand,
+                            _ => &mut s.ash,
+                        };
+                        let k = pile.iter().position(|&x| x == card).expect("the card");
+                        let (_, copy) = pile.take(k);
+                        s.removed.put(card, copy);
+                    }
+                    Choice::AshVampire(card) => {
+                        let k = s
+                            .ash_crypt
+                            .iter()
+                            .position(|&x| x == card)
+                            .expect("in the ash heap");
+                        let (_, copy) = s.ash_crypt.take(k);
+                        s.removed_crypt.put(card, copy);
+                    }
+                    other => unreachable!("illegal removal {other:?}"),
+                }
+                // "Cannot gain life" (Pressing Flesh) read as it gains.
+                self.state.gain_blood(ally, 1);
+                self.interrupts
+                    .insert(0, Interrupt::EntryRemoveForLife { seat, ally });
+            }
             (
                 Interrupt::EntryRemoveOrBurn {
                     seat: who,
@@ -6948,6 +7387,25 @@ impl Engine {
                 self.interrupts.remove(0);
                 self.damage_out_of_combat(minion, damage, true);
             }
+            (
+                Interrupt::MayTakeAggravatedAsNormal {
+                    minion, n, cause, ..
+                },
+                c,
+            ) => {
+                self.interrupts.remove(0);
+                let normal = match c {
+                    Choice::ResolvePrinted { .. } => {
+                        self.aggravated_as_normal_out_of_combat(minion)
+                    }
+                    _ => 0,
+                };
+                let deal = |e: &mut Self| e.damage_out_of_combat_split(minion, n, normal);
+                match cause {
+                    Some(cause) => self.caused(cause, deal),
+                    None => deal(self),
+                }
+            }
             (Interrupt::AvoidDamage { minion, blood, .. }, Choice::BurnBloodToAvoid) => {
                 self.interrupts.remove(0);
                 self.state.lose_blood(minion, blood);
@@ -7080,7 +7538,8 @@ impl Engine {
                     MinionPurpose::BlindSpot(first) => self.state.blind_spots.push((first, m)),
                     MinionPurpose::Damage(n)
                     | MinionPurpose::DamageImbued { n, .. }
-                    | MinionPurpose::DamageOtherVampire { n, .. } => {
+                    | MinionPurpose::DamageOtherVampire { n, .. }
+                    | MinionPurpose::DamageOtherMinion { n, .. } => {
                         self.damage_out_of_combat(m, n, false)
                     }
                     MinionPurpose::WeaponDamage(n) => {
@@ -7158,10 +7617,11 @@ impl Engine {
                         }
                     }
                     MinionPurpose::UnlockAnarch => self.unlock_minion(m),
+                    MinionPurpose::GainBlood(n) => self.state.gain_blood(m, n),
                     MinionPurpose::JointBlocker(x, y) => {
                         self.joint_blocked(m, if m == x { y } else { x })
                     }
-                    MinionPurpose::HolderAtSuccess(_) => {
+                    MinionPurpose::HolderAtSuccess(..) => {
                         if let Some(a) = self.action.as_mut() {
                             a.holder = Some(m);
                         }
@@ -7488,6 +7948,20 @@ impl Engine {
                 self.interrupts.remove(0);
                 self.state.minions[minion.index()].locked = true;
             }
+            (Interrupt::MayDiscardForBlock { seat, minion }, Choice::Discard(i)) => {
+                self.interrupts.remove(0);
+                self.state
+                    .turn_uses
+                    .push(crate::state::once_block_discard_key(minion));
+                let s = &mut self.state.seats[seat.index()];
+                let (c, copy) = s.hand.take(i as usize);
+                s.to_ash(c, copy);
+                self.replace(seat, 1, None);
+            }
+            (Interrupt::MayDiscardForBlock { minion, .. }, Choice::Pass) => {
+                self.interrupts.remove(0);
+                self.state.minions[minion.index()].locked = true;
+            }
             (Interrupt::MayBurnForBlock { minion, .. }, Choice::Pass) => {
                 self.interrupts.remove(0);
                 self.state.minions[minion.index()].locked = true;
@@ -7547,6 +8021,7 @@ impl Engine {
                 | Interrupt::MayTorture { .. }
                 | Interrupt::MayLockForBlood { .. }
                 | Interrupt::MayBurnLookedMaster { .. }
+                | Interrupt::MayLockToDiscardLooked { .. }
                 | Interrupt::MayGainPool { .. }
                 | Interrupt::MayBurnEdgeForPool { .. }
                 | Interrupt::MayBurnBloodToBurnPool { .. }
@@ -7644,6 +8119,12 @@ impl Engine {
                     }
                 }
             }
+            (Interrupt::MayLockToDiscardLooked { card, of, .. }, Choice::ResolveRider { .. }) => {
+                self.interrupts.remove(0);
+                self.lock_card(card);
+                let by = Cause::Effect(Source::Card(card));
+                self.caused(by, |e| e.burn_library_top(of, 1));
+            }
             (Interrupt::MayBurnLookedMaster { card, n, .. }, Choice::ResolveRider { .. }) => {
                 self.interrupts.remove(0);
                 let host = self.state.cards[card.index()].host.expect("a bearer");
@@ -7665,6 +8146,59 @@ impl Engine {
                 self.interrupts.remove(0);
                 let upkeep = Cause::Cost(Source::Card(card));
                 self.caused(upkeep, |e| e.pay_pool_for_ability(seat, pool as i32));
+            }
+            (Interrupt::BloodOrNoStrike { minion, n, .. }, Choice::BurnBloodToAvoid) => {
+                self.interrupts.remove(0);
+                self.state.burn_blood(minion, n);
+            }
+            (Interrupt::BloodOrNoStrike { minion, .. }, Choice::Pass) => {
+                self.interrupts.remove(0);
+                self.bar_strike_this_round(minion);
+            }
+            (Interrupt::NameActionDiscipline { .. }, Choice::ChooseDiscipline(d)) => {
+                self.interrupts.remove(0);
+                if let Some(a) = self.action.as_mut() {
+                    a.named_discipline = Some(d);
+                }
+            }
+            // Moved, not played: no cost, no equip action; a hand card
+            // replaced (spec §6.8.3).
+            (
+                Interrupt::NamedOntoOrDamage { seat, minion, .. },
+                Choice::TakeFrom { zone, card },
+            ) => {
+                self.interrupts.remove(0);
+                let copy = self.take_from_zone(seat, zone, card);
+                let play = crate::cards::PlayCtx {
+                    copy: crate::copies::Untracked(copy),
+                    ..crate::cards::PlayCtx::new(
+                        seat,
+                        card,
+                        0,
+                        Some(minion),
+                        crate::cards::Target::Minion(minion),
+                        0,
+                    )
+                };
+                self.put_equipment(seat, minion, play);
+                if zone == Zone::Hand {
+                    self.replace(seat, 1, None);
+                }
+            }
+            // Environmental, out of combat (RTR 19970630).
+            (Interrupt::NamedOntoOrDamage { minion, damage, .. }, Choice::Pass) => {
+                self.interrupts.remove(0);
+                let own = Cause::Effect(Source::Minion(minion));
+                self.caused(own, |e| e.damage_out_of_combat(minion, damage, false));
+            }
+            (Interrupt::DamageVoterForBlood { minion, n, .. }, Choice::ChooseMinion(v)) => {
+                self.interrupts.remove(0);
+                let own = Source::Minion(minion);
+                self.caused(Cause::Cost(own), |e| e.state.lose_blood(minion, 1));
+                self.caused(Cause::Effect(own), |e| e.damage_out_of_combat(v, n, false));
+            }
+            (Interrupt::DamageVoterForBlood { .. }, Choice::Pass) => {
+                self.interrupts.remove(0);
             }
             (Interrupt::BloodOrCamarilla { minion, .. }, Choice::BurnBloodToAvoid) => {
                 self.interrupts.remove(0);
@@ -7732,6 +8266,17 @@ impl Engine {
             }
             // Other effects adding blood to its uncontrolled vampires stay
             // usable (LSJ 20100527).
+            // The effect's burn, not a cost: the last pool ousts (D3).
+            (Interrupt::PoolOrMinionBurned { seat, pool, .. }, Choice::BurnPool) => {
+                self.interrupts.remove(0);
+                let mut loss = vec![0i32; self.state.seats.len()];
+                loss[seat.index()] = pool as i32;
+                self.burn_pool_batch(&loss);
+            }
+            (Interrupt::PoolOrMinionBurned { minion, .. }, Choice::Pass) => {
+                self.interrupts.remove(0);
+                self.burn_minion(minion);
+            }
             (Interrupt::PoolOrNoTransfers { seat, .. }, Choice::Pass) => {
                 self.interrupts.remove(0);
                 self.state.seats[seat.index()].no_transfers_next = true;
@@ -7991,7 +8536,7 @@ impl Engine {
             (
                 Interrupt::CircleBlood {
                     seat,
-                    circle,
+                    among,
                     from,
                     equipment,
                     moving,
@@ -8002,7 +8547,7 @@ impl Engine {
             ) => {
                 let next = |from, to| Interrupt::CircleBlood {
                     seat,
-                    circle,
+                    among,
                     from,
                     to,
                     equipment,
@@ -8022,7 +8567,7 @@ impl Engine {
             (
                 Interrupt::CircleBlood {
                     seat,
-                    circle,
+                    among,
                     from: Some(f),
                     to: Some(t),
                     equipment,
@@ -8031,7 +8576,8 @@ impl Engine {
                 },
                 Choice::SetX(n),
             ) => {
-                self.state.burn_blood(f, n);
+                // An ally moving its last life is burned (rules-qa 73.5).
+                let lifeless = self.state.burn_blood_or_life(f, n);
                 let b = self.state.minions[t.index()].blood + n;
                 self.state.set_blood(t, b);
                 if let Some(slot) = paired.iter_mut().find(|p| p.is_none()) {
@@ -8039,18 +8585,22 @@ impl Engine {
                 }
                 self.interrupts[0] = Interrupt::CircleBlood {
                     seat,
-                    circle,
+                    among,
                     from: None,
                     to: None,
                     equipment,
                     moving: None,
                     paired,
                 };
+                if lifeless {
+                    self.interrupts.remove(0);
+                    self.lifeless(f);
+                }
             }
             (
                 Interrupt::CircleBlood {
                     seat,
-                    circle,
+                    among,
                     equipment,
                     paired,
                     ..
@@ -8059,7 +8609,7 @@ impl Engine {
             ) => {
                 self.interrupts[0] = Interrupt::CircleBlood {
                     seat,
-                    circle,
+                    among,
                     from: None,
                     to: None,
                     equipment,
@@ -8509,6 +9059,34 @@ impl Engine {
         }
     }
 
+    /// The minions a `CircleBlood` move takes from and the ones it moves
+    /// to: a circle's Blood Brothers both, or one minion and the seat's
+    /// other ready vampires (Rave).
+    fn move_among(&self, seat: SeatId, among: MoveAmong) -> (Vec<MinionId>, Vec<MinionId>) {
+        match among {
+            MoveAmong::Circle(c) => {
+                let members = self.circle_members(seat, c);
+                (members.clone(), members)
+            }
+            MoveAmong::From(f) => {
+                let to = self
+                    .state
+                    .minions_of(seat)
+                    .filter(|&m| {
+                        let v = &self.state.minions[m.index()];
+                        m != f && v.ready() && v.is_vampire()
+                    })
+                    .collect();
+                let from = if self.state.minions[f.index()].present() {
+                    vec![f]
+                } else {
+                    vec![]
+                };
+                (from, to)
+            }
+        }
+    }
+
     /// `seat`'s Blood Brothers of `circle` in play (in torpor too).
     pub(crate) fn circle_members(&self, seat: SeatId, circle: &'static str) -> Vec<MinionId> {
         self.state
@@ -8651,4 +9229,22 @@ fn moving_title(card: u16) -> Option<(&'static str, crate::crypt::Sect)> {
             _ => None,
         })
     })
+}
+
+/// The hand cards Lucubratio's text discards instead of locking for a block:
+/// its printed requirement's filter (`Stat::MayDiscardInsteadOfBlockLock`).
+fn block_discard_filter(
+    st: &crate::state::GameState,
+    m: crate::ids::MinionId,
+) -> Option<crate::cards::CardFilter> {
+    let stat = crate::cards::Stat::MayDiscardInsteadOfBlockLock;
+    crate::cards::printing(&st.minions[m.index()], stat)?
+        .printed
+        .iter()
+        .filter(|p| p.stat == stat)
+        .flat_map(|p| p.requires)
+        .find_map(|r| match r {
+            crate::cards::Requirement::HandHas(f, _) => Some(*f),
+            _ => None,
+        })
 }

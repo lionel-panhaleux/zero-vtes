@@ -10,6 +10,7 @@ use zvtes::combat::{CombatNote, Range as R};
 use zvtes::copies::{CopyId, Place};
 use zvtes::crypt::CRYPT;
 use zvtes::game::Engine;
+use zvtes::game::LookedZone;
 use zvtes::ids::MinionId;
 use zvtes::library::LIBRARY;
 use zvtes::state::CardId;
@@ -138,6 +139,7 @@ impl Namer<'_> {
             // A merged vampire's base card: on the minion it is now.
             Place::Minion { id, merged: true } => (minion, Some(self.minion(MinionId(id)))),
             Place::Minion { .. } => (minion, None),
+            Place::MinionStored(id) => (Zone::Stored, Some(self.minion(MinionId(id)))),
         };
         Some(ZoneRef {
             seat: at.seat.0,
@@ -220,9 +222,13 @@ impl Namer<'_> {
                     cards: l
                         .cards
                         .iter()
-                        .map(|&c| self.card(CopyId::NONE, c, false))
+                        .map(|&c| self.card(CopyId::NONE, c, l.zone == LookedZone::Crypt))
                         .collect(),
-                    zone: l.library.then_some(Zone::Library),
+                    zone: match l.zone {
+                        LookedZone::Hand => None,
+                        LookedZone::Library => Some(Zone::Library),
+                        LookedZone::Crypt => Some(Zone::Crypt),
+                    },
                 }
             }
             Fact::Played(p) if p.canceled => EventKind::Canceled {

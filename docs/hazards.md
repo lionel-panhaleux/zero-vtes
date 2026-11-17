@@ -18,15 +18,17 @@ review finding); one the code or a page now makes impossible leaves it.
   library cards carry clan requirements (check `LIBRARY` clans before
   picking test vampires). Copies of one card in hand are offered once, at
   the first copy's index.
-- Fixture finders (`plain`, `textless`, `with_cap`, `vampire_with`) take
-  the first vampire with no definition: each round's definitions move or
-  exhaust them. One moved silently can break a fixture (blood above its
-  capacity drains). Fix by the trait: a Discipline is a plain vampire's
-  `gained_levels`, infernal its `made_infernal`, an age a capacity the
-  pool still has; a clan or a capacity no plain vampire has names its
-  vampire (`find_card`), its text read for what it bars there
-  (Hillanvale's -1 intercept makes her block of a Camarilla bleed
-  futile); a count's fodder need not be textless.
+- Fixture finders (`plain`, `textless`, `with_cap`, `vampire_with`) go
+  through `fixture_vampire` (`tests/common`): the vampires with no
+  definition first, then those printing only plain bonuses
+  (`fixture_rank`): each round's definitions move or exhaust them. One
+  moved silently can break a fixture (blood above its capacity drains).
+  Fix by the trait: a Discipline is a plain vampire's `gained_levels`,
+  infernal its `made_infernal`, an age a capacity the pool still has; a
+  clan or a capacity no plain vampire has names its vampire
+  (`find_card`), its text read for what it bars there (Hillanvale's -1
+  intercept makes her block of a Camarilla bleed futile); a count's
+  fodder need not be textless.
 - A minion's lock asserted after `until(its seat, MinionPhase)` is gone:
   that seat's unlock phase ran first. Assert it at the acting seat's next
   minion phase, or read what the lock caused (blood, pool).
@@ -136,6 +138,13 @@ review finding); one the code or a page now makes impossible leaves it.
   meets it only on the seeds that reach it, and a wrong heap only where the
   card is absent from it (Undele and round 29's look-to-hand found by the
   weekly sweep; Victim of Habit's prey heap and Marthe Dizier by review).
+- A new place a card can sit (Hukros's `Minion::stored`) needs its
+  `copies::Place` in `census` (fuzz's copy conservation, its two owner
+  maps), the host's `zone_ref` and narrator `spot` (who sees it), the
+  events reducer (`tests/reduce`), `legal_view`'s hiding, and a
+  `virtual_source` arm if cards are played from it: an index into
+  `cards` from a `PlayCtx::from` that is no card in play panics (a
+  Charming Lobby return did, guarded now).
 - A layer's `source` is `CardId::NONE` for a layer of no card in play (an
   action's): match the modifier before indexing `cards[l.source]`.
 - While a polling commitment applies, the referendum context is out of
@@ -145,7 +154,12 @@ review finding); one the code or a page now makes impossible leaves it.
 - While a choice applies, `Engine::flow` is out (`Flow::GameOver`):
   `Engine::phase()` reads `Over` in an announce or a cost-terms apply. A
   phase a printed predicate needs there is read from state
-  (`GameState::in_minion_phase`, `in_master_phase`).
+  (`GameState::in_minion_phase`, `in_master_phase`). A site that suspends
+  its own continuation for a wait (a diablerie asking `ask_burn`) sets a
+  flow before it returns, or the game ends there.
+- An action card's effects resolve in `succeed` with the action taken out
+  of `Engine::action`: code reached from them reads the acting minion from
+  `GameState::acting` (Abandoning the Flesh against Sacrificial Lamb).
 - A title card on a vampire is its title (`claimed_title` reads
   `title_card_on`): "cannot gain a title" (Persona Non Grata,
   `GameState::may_gain_title`) is a mask where the card is played or its
@@ -185,10 +199,21 @@ review finding); one the code or a page now makes impossible leaves it.
 - `Effect::FirstStrike` before its `Effect::Strike` in a mode is lost: a
   strike chosen resets the side's strike state (`Side::set_strike`). Meat
   Hook's [POT] tear lost its first strike so; list it after the strike.
+- An ally's own card locks through its body (`Engine::lock_card`,
+  `Requirement::CardUnlocked`): a reader of `CardInPlay::locked` misses it
+  (`location_intercept_reach` did, for Political Antagonist).
+- A strike's riders that need it resolved sit in `resolve_strikes`' landing
+  loop, not in the "strike: combat ends" block beside Oubliette's (Escaped
+  Mental Patient's burn was never set there).
 - A Shell Break become a retainer is no `CardType::Retainer` card: a new
   reader of a card in play asks `GameState::is_retainer` or
   `card_in_play_matches`, never the printed type (hand, library and ash
   heap only).
+- `Effect::family`'s arms are long runs of variants ending in one family:
+  a variant listed in the run ending `=> Family::Play` but implemented in
+  `apply_shared_effect` (or the reverse) compiles and passes the families
+  test, then panics as it resolves (`a play effect without its arm`:
+  Patterns in the Chaos' `PeekBledHand`). Read the run's last line.
 
 ## The shared tree
 

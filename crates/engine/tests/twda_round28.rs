@@ -7149,6 +7149,25 @@ fn strix_takes_the_bleed_into_combat() {
     assert_eq!(blood(&e, a), 4 - 1, "s's hand strike");
 }
 
+/// [rules-qa 24.4] Strix [STR]: "The bleed burns no pool (but is still
+/// successful)": Fotini's "After Fotini successfully bleeds (for 1 or more),
+/// you get +1 hand size" still applies.
+#[test]
+fn a_bleed_burning_no_pool_is_still_successful_for_its_riders() {
+    let mut e = game(2);
+    let fotini = e.add_minion(SeatId(0), find_card("Fotini Katsikaris"), 4, false);
+    e.add_minion(SeatId(0), plain("Brujah", 1), 4, false);
+    let s = e.add_minion(SeatId(1), plain("Ventrue", 0), 4, false);
+    e.add_minion(SeatId(1), plain("Ventrue", 1), 4, false);
+    striga(&mut e, 1, s, 2);
+    hand(&mut e, 1, &["Strix"]);
+    pick(&mut e, bleed(fotini));
+    pick_when(&mut e, act(0, 1, s, Target::None));
+    until(&mut e, SeatId(0), WindowLabel::MinionPhase);
+    assert_eq!(e.state.seats[1].pool, 10, "no pool burned");
+    assert_eq!(e.state.hand_size(SeatId(0)), 8);
+}
+
 /// Strix [str]: "+1 intercept, even if intercept is not yet needed. If this
 /// vampire successfully blocks this action, he or she unlocks at the end of
 /// the action." Played on a 0-stealth bleed (intercept not needed), the
@@ -10417,7 +10436,10 @@ fn myrna_goldman_looks_at_her_top_three() {
     let looks = noted_looks(&mut e);
     assert_eq!(looks.len(), 1);
     let l = &looks[0];
-    assert_eq!((l.viewer, l.seat, l.library), (SeatId(0), SeatId(0), true));
+    assert_eq!(
+        (l.viewer, l.seat, l.zone),
+        (SeatId(0), SeatId(0), zvtes::game::LookedZone::Library)
+    );
     assert_eq!(l.cards.len(), 3);
     assert_eq!(
         l.cards[0],
@@ -10690,7 +10712,10 @@ fn slag_sees_the_replacements_drawn_in_a_referendum() {
         }
         assert_eq!(looks.len(), 1);
         let l = &looks[0];
-        assert_eq!((l.viewer, l.seat, l.library), (SeatId(0), SeatId(1), false));
+        assert_eq!(
+            (l.viewer, l.seat, l.zone),
+            (SeatId(0), SeatId(1), zvtes::game::LookedZone::Hand)
+        );
         assert_eq!(l.cards, vec![find_library("Villein")]);
     }
 }
@@ -10734,7 +10759,10 @@ fn slag_sees_a_replacement_taken_from_a_draw_alternative() {
     let looks = noted_looks(&mut e);
     assert_eq!(looks.len(), 1, "{looks:?}");
     let l = &looks[0];
-    assert_eq!((l.viewer, l.seat, l.library), (SeatId(0), SeatId(1), false));
+    assert_eq!(
+        (l.viewer, l.seat, l.zone),
+        (SeatId(0), SeatId(1), zvtes::game::LookedZone::Hand)
+    );
     assert_eq!(l.cards, vec![find_library("Kevlar Vest")]);
 }
 

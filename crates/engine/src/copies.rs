@@ -109,6 +109,9 @@ pub enum Place {
     /// In `seat`'s uncontrolled region with training counters (Web of
     /// Knives Recruit), out of play.
     Training(u8),
+    /// Stored face down on a minion in play, by its arena index (Hukros:
+    /// `Minion::stored`).
+    MinionStored(u32),
 }
 
 /// Every card in the game with its copy and where it is (`NONE` for an
@@ -196,6 +199,9 @@ pub fn census(e: &Engine) -> Vec<(CopyId, u16, Place)> {
         }
         if let Some(base) = m.merged {
             add(*m.merged_copy, base, Place::Minion { id, merged: true });
+        }
+        for (card, copy) in m.stored.0.pairs() {
+            add(copy, card, Place::MinionStored(id));
         }
     }
     for p in e.in_flight().into_iter().chain(&e.opening) {

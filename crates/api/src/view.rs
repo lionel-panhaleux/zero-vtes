@@ -169,6 +169,9 @@ pub struct MinionView {
     /// Its traits as they stand (Black Hand gained included).
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub traits: Vec<Trait>,
+    /// Cards stored on it face down (Hukros), hidden to others, top last.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub stored: Vec<Card>,
 }
 
 /// A vampire's title.

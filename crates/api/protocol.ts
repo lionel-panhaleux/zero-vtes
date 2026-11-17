@@ -1,6 +1,6 @@
-/* zvtes protocol 2.30.0 (docs/protocol.md): generated from
+/* zvtes protocol 2.31.0 (docs/protocol.md): generated from
  * crates/api/schema.json by scripts/gen_ts.py, do not edit. */
-export const PROTOCOL_VERSION = '2.30.0'
+export const PROTOCOL_VERSION = '2.31.0'
 
 /**
  * A command as sent: an optional client id, echoed by an `error` it
@@ -351,7 +351,10 @@ export type Card = {
  */
 export type CardRef = {
     copy?: number | null
-    /** Played from cards stored on this card in play, not from the hand. */
+    /**
+     * Played from cards stored on this card in play (or minion: Hukros),
+     * not from the hand.
+     */
     from?: number | null
     id?: number | null
 }
@@ -770,7 +773,8 @@ export type Event = {
         /**
          * `library`: the top of `seat`'s library, top first — the looking
          * seat's own (Anna "Dictatrix11" Suljic) or the active Methuselah's
-         * (Weirding Stone); absent, the hand.
+         * (Weirding Stone); `crypt`: the top of `seat`'s crypt (Sabbat
+         * Inquisitor); absent, the hand.
          */
         zone?: Zone | null
     }
@@ -1081,6 +1085,8 @@ export type MinionView = {
     name: string
     /** The Methuselah whose ash heap it goes to, when not its controller. */
     owner?: number | null
+    /** Cards stored on it face down (Hukros), hidden to others, top last. */
+    stored?: Card[]
     title?: Title | null
     /** Its traits as they stand (Black Hand gained included). */
     traits?: Trait[]
@@ -1194,6 +1200,7 @@ export type OptionKind =
     | 'skip_turn'
     | 'torpor_after_resolution'
     | 'meet_as'
+    | 'end_combat'
     | 'unknown'
 
 /**
@@ -1461,6 +1468,16 @@ export type Purpose =
     | 'may_gain_blood'
     | 'keep_spent_blood'
     | 'burn_replacement'
+    | 'pool_or_minion_burned'
+    | 'rock_paper_scissors'
+    | 'may_lock_to_discard_looked'
+    | 'entry_remove_for_life'
+    | 'blood_or_no_strike'
+    | 'name_action_discipline'
+    | 'named_onto_or_damage'
+    | 'damage_voter_for_blood'
+    | 'may_discard_for_block'
+    | 'may_take_aggravated_as_normal'
     | 'unknown'
 
 export type Range = 'close' | 'long' | 'unknown'

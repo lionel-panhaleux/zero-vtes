@@ -152,12 +152,17 @@ fn base(
             (_, Some(_)) => "Burn 1 blood to draw a crypt card".into(),
             _ => "Draw a crypt card (4 transfers)".into(),
         },
-        // Fleshforge Chamber: put on the card, not discarded.
+        // Fleshforge Chamber: put on the card, not discarded; Hukros: on
+        // the minion.
         K::Discard => match o
             .effects
             .iter()
             .find(|e| e.detail.as_deref() == Some("on_source"))
         {
+            Some(e) if e.on == Some(On::Host) => match e.copy {
+                Some(m) => format!("Put {} on {}", card(), n.minion_bare(m)),
+                None => format!("Put {} on its minion", card()),
+            },
             Some(e) => format!("Put {} on {}", card(), n.card_id(e.card)),
             None => format!("Discard {}", card()),
         },
@@ -215,7 +220,15 @@ fn base(
         K::BurnBloodToAvoid => "Burn blood to avoid the damage".into(),
         K::Diablerise => "Diablerize the acting vampire".into(),
         K::CancelCombat => "Cancel the combat".into(),
+        K::EndCombat => "End the combat, taking the card".into(),
         K::UnlockInfernal => format!("Burn 1 pool to unlock {}", minion(k.minion)),
+        // A grant whose effects say it burns no blood (Crusade: Rome).
+        K::UnlockForBlood
+            if o.effects.iter().any(|e| e.kind == EffectKind::Unlock)
+                && !o.effects.iter().any(|e| e.kind == EffectKind::Blood) =>
+        {
+            format!("Unlock {}", minion(k.minion))
+        }
         K::UnlockForBlood => format!("{} burns blood to unlock", minion(k.minion)),
         K::BurnBloodForIntercept => {
             format!("{} burns 1 blood for +1 intercept", minion(k.minion))
@@ -498,6 +511,9 @@ fn asked(
         (P::MayLockForBlood, K::ResolveRider) => "Lock it: 1 blood".into(),
         (P::MayLockCardForBlock, K::ResolveRider) => "Lock it instead".into(),
         (P::MayBurnLookedMaster, K::ResolveRider) => "Burn blood to burn the master card".into(),
+        (P::MayLockToDiscardLooked, K::ResolveRider) => {
+            format!("Lock {} to discard the card", named()?)
+        }
         (P::MayTorture, K::ResolveRider) => "Lock The Path of Lilith: a torture counter".into(),
         (P::MayGainPool, K::ResolvePrinted) => format!("Gain {} pool", about?.n?),
         (P::LibraryToHand, K::ResolvePrinted) => "Search your library".into(),
@@ -522,6 +538,11 @@ fn asked(
         (P::ReplaceFromResearch, K::DrawLibrary) => "Draw from your library".into(),
         (P::ReplaceFromAsh, K::FindCard) => format!("Take {} from your ash heap", card()),
         (P::CutLibrary, K::SetX) => format!("Cut {} cards to the bottom", k.amount?),
+        (P::RockPaperScissors, K::SetX) => match k.amount? {
+            1 => "Rock".into(),
+            2 => "Paper".into(),
+            _ => "Scissors".into(),
+        },
         (P::BuyTitle, K::SetX) => {
             let pool = o.effects.iter().find(|e| e.cost)?.n?.unsigned_abs();
             let title = o.effects.iter().find_map(|e| e.detail.as_deref())?;
@@ -536,6 +557,7 @@ fn asked(
             format!("Burn {} blood to prevent the damage", about?.n?)
         }
         (P::MayUnlock, K::ResolvePrinted) => "Unlock".into(),
+        (P::MayTakeAggravatedAsNormal, K::ResolvePrinted) => "Treat 1 damage as normal".into(),
         (P::MaySetNextRange, K::SetX) => match k.amount? {
             0 => "Close range next round".into(),
             _ => "Long range next round".into(),
@@ -551,6 +573,10 @@ fn asked(
         (P::ReductionAtResolution, K::ResolvePrinted) => "Pay 1 blood less".into(),
         (P::EntryRemoveOrBurn, K::FindCard) => verb("Take ", "Remove ")?,
         (P::EntryRemoveOrBurn, K::AshVampire) => verb("Choose ", "Remove ")?,
+        (P::EntryRemoveForLife, K::TakeFrom) => format!("{} (1 life)", verb("Take ", "Remove ")?),
+        (P::EntryRemoveForLife, K::AshVampire) => {
+            format!("{} (1 life)", verb("Choose ", "Remove ")?)
+        }
         (P::CancelAttempt, K::ChooseMinion) => "Cancel the attempt".into(),
         (P::CorruptionOwner, K::ChooseSeat) => role("their counter burns")?,
         (P::GiveCardTo, K::ChooseSeat) => role("takes control of it")?,
@@ -582,8 +608,13 @@ fn asked(
         (P::LockOrPay, K::BurnPool) => format!("Burn {} pool", about?.n?),
         (P::PoolOrVampire, K::BurnPool) => format!("Burn {} pool", about?.n?),
         (P::PoolOrNoTransfers, K::BurnPool) => format!("Burn {} pool", about?.n?),
+        (P::PoolOrMinionBurned, K::BurnPool) => format!("Burn {} pool", about?.n?),
         (P::BloodOrPool, K::BurnPool) => format!("Burn {} pool", about?.m?),
         (P::BloodOrCamarilla, K::BurnBloodToAvoid) => "Burn 1 blood".into(),
+        (P::BloodOrNoStrike, K::BurnBloodToAvoid) => format!("Burn {} blood", about?.n?),
+        (P::DamageVoterForBlood, K::ChooseMinion) => {
+            role(&format!("burn 1 blood: takes {} damage", about?.n?))?
+        }
         (P::PoolOrVampire, K::ChooseMinion) => role("is burned")?,
         (P::BloodOrPool, K::ChooseMinion) => format!("{} burns {} blood", whom()?, about?.n?),
         (P::BaseSearch, K::AshVampire) => format!("Merge with {}", card()),
@@ -805,6 +836,9 @@ fn pass(
     Some(match p {
         // What it does.
         P::PayOrBurn => format!("Let {} burn", n.own(has(EffectKind::Burn)?.copy?)),
+        P::PoolOrMinionBurned => {
+            format!("Let {} burn", n.minion_bare(has(EffectKind::Burn)?.copy?))
+        }
         P::BloodOrBurned => {
             let e = has(EffectKind::Burn)?;
             let name = match e.card {
@@ -818,7 +852,9 @@ fn pass(
             has(EffectKind::Burn)?;
             "Let it burn".into()
         }
-        P::LockOrDiscard => format!("Lock {}", n.minion_bare(has(EffectKind::Lock)?.copy?)),
+        P::LockOrDiscard | P::MayDiscardForBlock => {
+            format!("Lock {}", n.minion_bare(has(EffectKind::Lock)?.copy?))
+        }
         P::AvoidDamage => format!("Take the {} damage", has(EffectKind::Damage)?.n?),
         P::BloodOrCamarilla => {
             has(EffectKind::Role)?;
@@ -865,10 +901,14 @@ fn pass(
         P::MayBottomTop => "Leave them on top".into(),
         P::AshToLibraryBottom => "Move no more cards".into(),
         P::StoreUpTo => "Put no more there".into(),
+        P::StoreOwnHand => "Put none there".into(),
         P::MayTorture => "No torture counter".into(),
         P::MayLockForBlood => "Leave it unlocked".into(),
         P::MayLockCardForBlock => "Lock the blocking vampire".into(),
-        P::MayBurnLookedMaster => "Leave the card on the library".into(),
+        P::EntryRemoveForLife => "Remove no more cards".into(),
+        P::MayBurnLookedMaster | P::MayLockToDiscardLooked => {
+            "Leave the card on the library".into()
+        }
         P::BurnFromLibraryTop => "Burn none".into(),
         P::CryptToReady => "Find none".into(),
         P::MayGainPool => "Gain no pool".into(),
@@ -878,9 +918,13 @@ fn pass(
         P::DrainBeforeSteals => "Steals first: the drain takes what is left".into(),
         P::BuyTitle => "Buy no title".into(),
         P::MayBurnBloodToBurnPool => "Burn no blood".into(),
+        P::BloodOrNoStrike => "Burn no blood: no strike this round".into(),
+        P::NamedOntoOrDamage => format!("Take {} damage", about?.n?),
+        P::DamageVoterForBlood => "Inflict no damage".into(),
         P::RepresentPicks => "Put no more in play".into(),
         P::MayGainHandSize => "Keep your hand size".into(),
         P::MayPreventForBlood => "Burn no blood".into(),
+        P::MayTakeAggravatedAsNormal => "Take it all aggravated".into(),
         P::MayUnlock => "Stay locked".into(),
         P::MayBurnInsteadOfUnlock => "Unlock as normal".into(),
         P::MayBurnWeapon => "Burn no weapon".into(),
@@ -1155,6 +1199,73 @@ mod tests {
         );
     }
 
+    // Crusade: Rome's discard-phase unlock costs nothing (rules-qa
+    // 122.42): no "burns blood"; Fiendish Tongue's still says it.
+    #[test]
+    fn a_free_unlock_grant_reads_as_a_plain_unlock() {
+        use zvtes_api::ids::{OptionKind, Window};
+        use zvtes_api::option::{Effect, EffectKind};
+        let mut n = Names::new(&NoCards);
+        n.minions.insert(7, "Lucian".into());
+        let with = |effects: Vec<Effect>| {
+            let mut o = bare_pass();
+            o.key.kind = OptionKind::UnlockForBlood;
+            o.key.minion = Some(7);
+            o.effects = effects;
+            super::option(&o, Window::DiscardPhase, None, None, 0, &[], &n)
+        };
+        let unlock = Effect {
+            copy: Some(7),
+            ..Effect::new(EffectKind::Unlock)
+        };
+        let blood = Effect {
+            n: Some(-1),
+            copy: Some(7),
+            cost: true,
+            ..Effect::new(EffectKind::Blood)
+        };
+        assert_eq!(with(vec![unlock.clone()]).as_deref(), Some("Unlock Lucian"));
+        assert_eq!(
+            with(vec![blood, unlock]).as_deref(),
+            Some("Lucian burns blood to unlock")
+        );
+        assert_eq!(
+            with(vec![]).as_deref(),
+            Some("Lucian burns blood to unlock")
+        );
+    }
+
+    // A discard put on its source: on the minion when the source is one
+    // (Hukros's stash), else on the card (Fleshforge Chamber).
+    #[test]
+    fn a_discard_put_on_its_source_names_the_minion_or_the_card() {
+        use zvtes_api::ids::{OptionKind, Window, Zone};
+        use zvtes_api::option::{Effect, EffectKind, On};
+        let mut n = Names::new(&NoCards);
+        n.minions.insert(7, "Hukros".into());
+        let with = |e: Effect| {
+            let mut o = bare_pass();
+            o.key.kind = OptionKind::Discard;
+            o.effects = vec![e];
+            super::option(&o, Window::UnlockAbilities, None, None, 0, &[], &n)
+        };
+        let moved = |on| Effect {
+            on: Some(on),
+            copy: Some(7),
+            to: Some(Zone::Stored),
+            detail: Some("on_source".into()),
+            ..Effect::new(EffectKind::Move)
+        };
+        assert_eq!(
+            with(moved(On::Host)).as_deref(),
+            Some("Put a card on Hukros")
+        );
+        assert_eq!(
+            with(moved(On::Card)).as_deref(),
+            Some("Put a card on a card")
+        );
+    }
+
     /// The purposes whose choice offers a pass (the engine's
     /// `interrupt_request`): each pass says what declining does, not
     /// "Pass".
@@ -1195,14 +1306,18 @@ mod tests {
             P::MayBottomTop,
             P::AshToLibraryBottom,
             P::StoreUpTo,
+            P::StoreOwnHand,
             P::MayTorture,
             P::MayLockForBlood,
             P::MayLockCardForBlock,
             P::MayBurnLookedMaster,
+            P::MayLockToDiscardLooked,
+            P::EntryRemoveForLife,
             P::BurnFromLibraryTop,
             P::CryptToReady,
             P::MayGainHandSize,
             P::MayPreventForBlood,
+            P::MayTakeAggravatedAsNormal,
             P::MayUnlock,
             P::MayBurnInsteadOfUnlock,
             P::MayBurnWeapon,
@@ -1231,6 +1346,7 @@ mod tests {
             P::LibraryToHand,
             P::LibraryToTop,
             P::LockOrDiscard,
+            P::MayDiscardForBlock,
             P::BurnBloodToAnarch,
             P::SwapEquipFromPrey,
             P::GainVictimDiscipline,
@@ -1248,6 +1364,9 @@ mod tests {
             P::MayGainPool,
             P::MayBurnEdgeForPool,
             P::MayBurnBloodToBurnPool,
+            P::BloodOrNoStrike,
+            P::NamedOntoOrDamage,
+            P::DamageVoterForBlood,
             P::RepresentPicks,
             P::SecondCopyOnto,
             P::ReturnBeforeBurn,
@@ -1268,6 +1387,7 @@ mod tests {
             P::MoveOffBurnedBearer,
             P::NameOwnAshCard,
             P::PayOrBurn,
+            P::PoolOrMinionBurned,
             P::PoolOrNoTransfers,
             P::PoolToVampires,
             P::PutInPlaySearch,
@@ -1289,10 +1409,12 @@ mod tests {
                 ..Effect::new(kind)
             };
             let effect = match p {
-                P::BloodOrBurned | P::PayOrBurn | P::EntryRemoveOrBurn | P::MoveOffBurnedBearer => {
-                    Some(does(E::Burn))
-                }
-                P::LockOrDiscard => Some(does(E::Lock)),
+                P::BloodOrBurned
+                | P::PayOrBurn
+                | P::PoolOrMinionBurned
+                | P::EntryRemoveOrBurn
+                | P::MoveOffBurnedBearer => Some(does(E::Burn)),
+                P::LockOrDiscard | P::MayDiscardForBlock => Some(does(E::Lock)),
                 P::AvoidDamage => Some(does(E::Damage)),
                 P::BloodOrCamarilla => Some(does(E::Role)),
                 P::PoolOrNoTransfers => Some(does(E::Transfers)),

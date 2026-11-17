@@ -715,9 +715,12 @@ fn drop_point_network_searches_a_minion_card() {
         e.state.seats[0].ash.push(vest);
     }
     let ghoul = find_library("Saatet-ta");
-    e.state.seats[0]
-        .library
-        .extend([find_library("Conditioning"), ghoul]);
+    // Filler around it: the hand drawn up never reaches it, the search
+    // needs a library (rules-qa 78.20).
+    let filler = find_library("Conditioning");
+    e.state.seats[0].library.extend([filler; 20]);
+    e.state.seats[0].library.extend([ghoul]);
+    e.state.seats[0].library.extend([filler; 20]);
     hand(&mut e, 0, &["Drop Point Network"]);
     until(&mut e, SeatId(0), WindowLabel::MasterPhase);
     pick(&mut e, play_at(0, 0, None, Target::None));

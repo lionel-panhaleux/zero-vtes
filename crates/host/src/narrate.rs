@@ -417,6 +417,8 @@ fn spot(e: &Engine, l: &Ledger, p: Place, copy: CopyId) -> Spot {
         | Place::Banished {
             stored: Some(id), ..
         } => stored(id),
+        // Hukros's: its controller's to look at.
+        Place::MinionStored(id) => 1 << st.minions[id as usize].owner.0,
         _ => ALL,
     };
     let at = |(seat, region): (SeatId, crate::view::Region), on| Spot {
@@ -431,7 +433,7 @@ fn spot(e: &Engine, l: &Ledger, p: Place, copy: CopyId) -> Spot {
         | Place::InFlight(s)
         | Place::Training(s)
         | Place::Banished { seat: s, .. } => at((SeatId(s), crate::view::Region::Ready), None),
-        Place::Minion { id, .. } => at(minion(MinionId(id)), None),
+        Place::Minion { id, .. } | Place::MinionStored(id) => at(minion(MinionId(id)), None),
         Place::Card { id, .. } => {
             let c = CardId(id);
             match (
@@ -647,7 +649,20 @@ pub(crate) fn changes(
                 tell(out, fact, told);
                 continue;
             }
-            (false, false) => continue,
+            (false, false) => {
+                // Contested yet in play: the view shows it in its region,
+                // its blood too (Vampiric Disease's as it unlocks).
+                if e.state.minions[i].in_play && now.blood != b.blood {
+                    let fact = Fact::Blood {
+                        minion: m,
+                        delta: i32::from(now.blood) - i32::from(b.blood),
+                        blood: now.blood,
+                        cause,
+                    };
+                    tell(out, fact, told);
+                }
+                continue;
+            }
             (true, true) => {}
         }
         if now.torpor != b.torpor {

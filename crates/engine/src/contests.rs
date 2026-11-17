@@ -201,6 +201,9 @@ impl Engine {
     /// in play and usable (`Minion::contested_in_play`), else face down
     /// and out of play.
     fn set_card_contest(&mut self, m: MinionId, contested: bool) {
+        if contested {
+            self.state.minions[m.index()].was_contested = crate::state::Unhashed(true);
+        }
         let crypt_card = matches!(
             self.state.minions[m.index()].kind,
             crate::state::MinionKind::Vampire(_)
@@ -293,6 +296,19 @@ impl Engine {
         // A unique title card contests as a card first: face down, its
         // title is not claimed, so no title contest (rules-qa 19.1).
         let rivals = self.state.library_rivals(id);
+        // San Nicolás de los Servitas: the copy that would contest is
+        // burned instead (LSJ 2006-10-16).
+        if !rivals.is_empty()
+            && crate::cards::lookup(card).is_some_and(|d| {
+                d.modes.iter().any(|md| {
+                    md.effects
+                        .contains(&crate::cards::Effect::IncomingCopyBurns)
+                })
+            })
+        {
+            self.burn_card_in_play(id);
+            return;
+        }
         if !rivals.is_empty() {
             self.state.cards[id.index()].contested = true;
             for r in rivals {

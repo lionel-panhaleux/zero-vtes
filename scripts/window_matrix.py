@@ -2429,6 +2429,223 @@ ADDED_BATCHES = [
         201429: "Vasiliy Vasilevich (G5)",
         201431: "Vassily Taltos (G4)",
     },
+    # Round 31: Third Edition completed (owner, 2026-11-09: "We aim to add
+    # all the cards ultimately. Let's work set by set."; the cards board's
+    # lines).
+    {
+        100005: "Abandoning the Flesh",
+        100008: "Ablative Skin",
+        100020: "Acrobatics",
+        100049: "Amusement Park Hunting Ground",
+        100096: "The Art of Love",
+        100116: "Auto-da-fé",
+        100124: "Backstab",
+        100142: "Bauble",
+        100166: "Black Gloves",
+        100170: "Black Spiral Buddy",
+        100182: "Blessing of Chaos",
+        100200: "Blood Feast",
+        100206: "Blood of the Sabbat",
+        100218: "Bloodbath",
+        100228: "Body Arsenal",
+        100238: "Bonecraft",
+        100246: "Brass Knuckles",
+        100271: "Burning Wrath",
+        100278: "The Call",
+        100296: "Cardinal Sin: Insubordination",
+        100337: "Cheval de Bataille",
+        100367: "Club Zombie",
+        100373: "Codex of the Damned",
+        100379: "Combat Shotgun",
+        100380: "Command",
+        100429: "Corrupt Construction",
+        100434: "Courier",
+        100438: "Cracking the Wall",
+        100458: "Crusade: Detroit",
+        100467: "Crusade: New York",
+        100469: "Crusade: Philadelphia",
+        100470: "Crusade: Pittsburgh",
+        100471: "Crusade: Rome",
+        100472: "Crusade: Toronto",
+        100479: "Cull the Herd",
+        100490: "The Damned",
+        100491: "Danse Macabre",
+        100498: "Darksight",
+        100500: "Dauntain Black Magician",
+        100525: "Deploy the Hand",
+        100554: "Disengage",
+        100558: "Dissolution",
+        100569: "Dogs of War",
+        100582: "Drain Essence",
+        100641: "Enchanted Marionette",
+        100660: "Esbat",
+        100661: "Escaped Mental Patient",
+        100672: "Excommunication",
+        100802: "Gang Tactics",
+        100803: "Gang Territory",
+        100805: "Gangrel Conspiracy",
+        100881: "Hand Intervention",
+        100895: "Haven Affinity",
+        100914: "Hexaped",
+        100917: "Hidden Pathways",
+        100970: "Inconnu Tutelage",
+        100978: "Infernal Familiar",
+        100979: "Infernal Pact",
+        100985: "Information Network",
+        101051: "Kindred Manipulation",
+        101066: "Kraken's Kiss",
+        101081: "Leather Jacket",
+        101084: "Left for Dead",
+        101086: "Legacy of Caine",
+        101093: "Legwork",
+        101116: "Lobotomy",
+        101117: "Local 1111",
+        101132: "Lunatic Eruption",
+        101133: "Lupine Assault",
+        101153: "Malkavian Game",
+        101164: "Marijava Ghoul",
+        101173: "Martial Ritus",
+        101193: "Media Influence",
+        101196: "Meld with the Land",
+        101209: "Mighty Grapple",
+        101241: "Monomancy",
+        101288: "Nimble Feet",
+        101364: "The Path of Metamorphosis",
+        101365: "The Path of Night",
+        101370: "The Path of the Feral Heart",
+        101375: "Patronage",
+        101378: "Patterns in the Chaos",
+        101383: "Pentex™ Loves You!",
+        101391: "Perpetual Care",
+        101412: "Political Antagonist",
+        101418: "Political Struggle",
+        101438: "Powerbase: Mexico City",
+        101517: "Pulse of the Canaille",
+        101520: "Purchase Pact",
+        101522: "Purity of the Beast",
+        101535: "Rabble Razing",
+        101537: "Rafastio Ghoul",
+        101549: "Rave",
+        101561: "Reality Mirror",
+        101568: "Recruiting Party",
+        101569: "Recruitment",
+        101571: "Recure of the Homeland",
+        101608: "Resilience",
+        101615: "Restructure",
+        101666: "Sabbat Inquisitor",
+        101667: "Sabbat Priest",
+        101677: "San Nicolás de los Servitas",
+        101682: "Saturday-Night Special",
+        101726: "Sermon of Caine",
+        101737: "Shadow Court Satyr",
+        101740: "Shadow of the Beast",
+        101744: "Shadow Step",
+        101745: "Shadow Strike",
+        101777: "Sibyl's Tongue",
+        101785: "Sire's Index Finger",
+        101795: "Skin Trap",
+        101802: "Slave Auction",
+        101827: "Song of Serenity",
+        101849: "Spirit Summoning Chamber",
+        101860: "Starshell Grenade Launcher",
+        101867: "Stealth Ritus",
+        101879: "Strained Vitae Supply",
+        101892: "Succubus",
+        101903: "Sunrise Service",
+        101910: "Survivalist",
+        101919: "Sword of Judgment",
+        101930: "Talaq, The Immortal",
+        101933: "Talons of the Dead",
+        101952: "Templar",
+        101986: "Tithings",
+        101997: "Total Insanity",
+        102002: "Toy Chest Test",
+        102010: "Transfer of Power",
+        102086: "Using the Advantage",
+        102101: "Vendetta",
+        102110: "Ventrue Investment",
+        102115: "Vial of Garou Blood",
+        102133: "Vox Senis",
+        102145: "War Party",
+        102153: "Waste Management Operation",
+        102179: "White Phosphorus Grenade",
+        102191: "Wolf Companion",
+        102202: "Young Bloods",
+        200138: "Armin Brenner (G4)",
+        200151: "Axel Von Anders (G4)",
+        200182: "Beauregard Krueller (G4)",
+        200187: "Bela Kardoza (G4)",
+        200197: "Bill Butler (G4)",
+        200250: "Caroline Bishops (G4)",
+        200267: "Charlie Tyne (G4)",
+        200288: "Conrad Adoula (G4)",
+        200296: "Count Vladimir Rustovitch (G4)",
+        200325: "Darvag, The Butcher of Rus (G4)",
+        200337: "DeSalle (G4)",
+        200359: "Dominique Santo Paulo (G4)",
+        200379: "Dr. Julius Sutphen (G3 ADV)",
+        200388: "Droescher One-Eye (G4)",
+        200390: "Drusilla Euphemia (G4)",
+        200429: "Eric Kressida (G4)",
+        200437: "Esoara (G4)",
+        200452: "Fabrizia Contreraz (G4)",
+        200458: "Father Juan Carlos (G4)",
+        200484: "Frère Marc (G4)",
+        200488: "Gabriel de Cambrai (G4)",
+        200535: "Gravitnir (G4)",
+        200543: "Guedado (G4)",
+        200572: "Harold Zettler, Pentex Director (G4)",
+        200584: "Hektor (G4)",
+        200612: "Hukros (G4)",
+        200613: "Humo (G4)",
+        200619: "Icarus, The Manchurian (G4)",
+        200646: "Isouda de Blaise (G4)",
+        200664: "Jacques Molay (G4)",
+        200665: "Jaggedy Andy (G4)",
+        200671: "Jane Sims (G4)",
+        200721: "Joseph Cambridge (G4)",
+        200743: "Kai Simmons (G4)",
+        200790: "Konrad Fleischer (G4)",
+        200805: "Lady Zara Slatikov (G4)",
+        200815: "Laszlo Mirac (G4)",
+        200831: "Leo Washington (G4)",
+        200833: "Lernean (G4)",
+        200845: "Little Willie (G4)",
+        200852: "Lord Aaron Wesley Wilkshire (G4)",
+        200861: "Louis de Maisonneuve (G4)",
+        200877: "Lucubratio (G4)",
+        200878: "Lucy Markowitz (G4)",
+        200881: "Luke Fellows (G4)",
+        200882: "Lula Burch (G4)",
+        200918: "Margarite (G4)",
+        200947: "Mary Johnson (G4)",
+        200970: "Melinda Galbraith (G4)",
+        200971: "Melinda Galbraith (G4 ADV)",
+        201012: "Morrow the Sage (G4)",
+        201015: "Mowgli (G4)",
+        201018: "Mugur Sabau (G4)",
+        201056: "Nickolai, The Survivor (G4)",
+        201066: "Nostoket (G4)",
+        201097: "Patrick (G4)",
+        201150: "Radu Bistri (G4)",
+        201154: "Rain (G4)",
+        201164: "Raphael Catarari (G4)",
+        201172: "Redbone McCray (G4)",
+        201189: "Rico Loco (G4)",
+        201197: "Rodrigo (G4)",
+        201216: "Ryszard (G4)",
+        201252: "Schuyler (G4)",
+        201268: "Servius Marius Pustula (G4)",
+        201270: "Sha-Ennu (G4)",
+        201300: "Smash (G4)",
+        201351: "Tears, The Dark Pierrot (G4)",
+        201358: "Terrifisto (G4)",
+        201403: "Ulrike Rothbart (G4)",
+        201417: "Urraca (G4)",
+        201418: "Uta Kovacs (G4)",
+        201479: "Xendil Charmer (G4)",
+        201491: "Ysador the Foul (G4)",
+    },
 ]
 ADDED_CARDS = {k: v for batch in ADDED_BATCHES for k, v in batch.items()}
 
@@ -2571,6 +2788,9 @@ RIDERS = [
     # A strike's own rider for the opposing minion if dodged (Pounce).
     r"gets an optional (maneuver|press)\b[^.;]*",
     r"with \d additional strikes?\b[^.]*",
+    # "Strike: dodge, with an additional strike (limited)" (Acrobatics
+    # [CEL]), as "with 1".
+    r"(?<=dodge, )with an additional strike\b[^.]*",
     # A bar on its own play, no window (Stutter-Step [CEL]).
     r"not usable as an additional strike",
     r"\d maneuver or press",
@@ -2663,6 +2883,15 @@ COMBAT_TIMING = [
     (r"after this [^.]{0,30}gains blood", "COMBAT_END_OF_ROUND"),
 ]
 COMBAT_DEFAULT = "COMBAT_UNTIMED"   # rules-qa 2.2: no printed step
+# Spiritual Guidance, Reality Mirror: timed by the card they play, every
+# combat step a combat card is played in, never another card's as-played
+# window (owner, 2026-11-17: rules-qa 122.215).
+ASH_PLAY = r"play a combat card from [^.]*ash heap as if from your hand"
+ASH_PLAY_WINDOWS = ["COMBAT_BEFORE_RANGE", "COMBAT_DETERMINE_RANGE", "COMBAT_BEFORE_STRIKES",
+                    "COMBAT_STRIKE_DECLARATION", "COMBAT_STRIKE_ANNOUNCED",
+                    "COMBAT_BEFORE_RESOLUTION", "COMBAT_DAMAGE_PREVENTION",
+                    "COMBAT_GOING_TO_TORPOR", "COMBAT_ADDITIONAL_STRIKE", "COMBAT_PRESS",
+                    "COMBAT_END_OF_ROUND", "COMBAT_WOULD_END", "COMBAT_UNTIMED"]
 
 MODIFIER_TIMING = [
     (r"as (an?|the|this)\b[^.]{0,60}?\bis announced", "ACTION_AS_ANNOUNCED"),
@@ -2767,6 +2996,11 @@ REACTION_TIMING = [
     (r"a vampire you control is about to enter combat", "ACTION_BLOCKS_DECLINED"),
     (r"a vampire you control is about to enter combat", "ACTION_QUEUED_COMBAT"),
     (r"blood hunt referendum passes and would burn", "BLOOD_HUNT_WOULD_BURN"),
+    # "Cancel a blood hunt called on a Gangrel antitribu" (Gangrel
+    # Conspiracy): once it passed, before the burn (LSJ 20081203-2).
+    (r"cancel a blood hunt", "BLOOD_HUNT_WOULD_BURN"),
+    # An ally about to be burned in combat, before it is (Left for Dead).
+    (r"only usable when an ally would be burned in combat", "ALLY_WOULD_BURN_IN_COMBAT"),
     # A vampire about to go to torpor, before it does (Minor Boon).
     (r"controlled by another methuselah is going into torpor", "GOING_TO_TORPOR"),
     # A block about to succeed, before the blocker locks (Lesser Boon).
@@ -3001,6 +3235,8 @@ def classify_mode(mtype, text, as_above=False):
     # Blade Clot's combat half: timed by the diablerie, no combat step.
     if mtype == "Combat" and re.search(r"when this anarch diablerizes", text, re.I):
         hits = ["ACTION_AFTER_DIABLERIE"]
+    if mtype == "Combat" and re.search(ASH_PLAY, text, re.I):
+        hits = list(ASH_PLAY_WINDOWS)
     if "ACTION_AFTER_COMBAT" in hits:
         hits = [w for w in hits if w != "REACTION_UNLOCK"]
     if hits:
@@ -3121,9 +3357,11 @@ def modes_for(card):
         # "Maneuver or press or burn 1 blood to cancel … as it is played"
         # (Groundfighting): the alternatives keep their own timings.
         # "Alternatively, … play this card during your minion phase"
-        # (Emergency Preparations): its own timing too.
+        # (Emergency Preparations), "Press, … Alternatively, burn 1 blood
+        # to cancel" (Disengage): its own timing too.
         if not cancels or re.search(r"\b(maneuver|press) or [^.]*\bcancel\b", raw_text, re.I) \
-                or re.search(r"alternatively, [^.]*during your minion phase", raw_text, re.I):
+                or re.search(r"alternatively, [^.]*during your minion phase", raw_text, re.I) \
+                or re.search(r"\balternatively, burn \d+ blood to cancel\b", raw_text, re.I):
             # "As above, and/or …" (I am Legion [DAI][OBF]): the added
             # effect alone is a play of its own, timed by its text.
             either = as_above and re.search(r"\band/or\b", mtext, re.I)
@@ -3137,6 +3375,10 @@ def modes_for(card):
                         {"COMBAT_BEFORE_RANGE", "COMBAT_WOULD_END"} & set(prev):
                     got = [w for w in got if w not in GRANTED_LATER]
                 mwins += got
+        # "Only usable if this vampire would be burned" (Abandoning the
+        # Flesh): that moment alone, whatever its card types.
+        if re.search(r"only usable if this vampire would be burned", raw_text, re.I):
+            mwins = ["VAMPIRE_WOULD_BURN"]
         # "As above, but usable any time during combat" (Clockwerx [SAN]):
         # the inherited step lifted.
         if as_above and re.search(r"but usable any time during combat", mtext, re.I):

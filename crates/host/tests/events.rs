@@ -31,7 +31,7 @@ fn from() -> u32 {
 /// a vampire banished and back between two views (45), one influenced into a
 /// contest (81), a unique ally played into one (95), a crypt card come with
 /// counters (111), a contested minion's cards (118), a merge (119), training
-/// counters (152), a vampire moved within its uncontrolled region (743), two
+/// counters (152), a vampire moved within its uncontrolled region (161), two
 /// Methuselahs ousted at once (239), a unique card put into a contest (299), a
 /// vampire's excess drained in one (380), an action's intercept changed between
 /// two views (63), a play canceled as it is announced (88: Andrew Stuart), a
@@ -45,8 +45,8 @@ fn from() -> u32 {
 /// press toll (246); and the view paths the events missed: an ally stolen for
 /// good (99, 300: Entrancement), a contested vampire's capacity (114, 286),
 /// Call the Great Beast become a vampire (300), a card burned to an ousted
-/// owner's ash heap (474, 933: Disarm), an open hand (138), cards into one
-/// (106, 135), one closed with a card leaving it in the same step (910, 929);
+/// owner's ash heap (474, 933: Disarm), an open hand (225), cards into one
+/// (289, 317), one closed with a card leaving it in the same step (910, 929);
 /// and a line naming no minion: an advanced vampire merged before a view (332:
 /// Helena (ADV)), Anathema's pool (392); and a contested vampire keeping its
 /// excess (386), a created vampire removed (516: Golconda), a marker gone as a
@@ -54,11 +54,12 @@ fn from() -> u32 {
 /// oust ended mid-way (389: Alastor's equipment paid with the last pool), one
 /// whose referendum ended the game, its card out of limbo (210: Kine Resources
 /// Contested); and a minion's title changed between two views (80); and a turn
-/// begun with its skip asked (78: First Tradition: The Masquerade).
-const KEPT: [u32; 50] = [
-    45, 63, 70, 78, 80, 81, 88, 95, 99, 104, 106, 111, 114, 118, 119, 132, 135, 138, 152, 172, 210,
-    219, 239, 246, 286, 294, 299, 300, 332, 346, 375, 380, 386, 389, 392, 411, 426, 474, 504, 516,
-    579, 591, 695, 728, 743, 910, 913, 929, 933, 1153,
+/// begun with its skip asked (78: First Tradition: The Masquerade); and a
+/// contested vampire's blood burned in play (176: Vampiric Disease).
+const KEPT: [u32; 51] = [
+    45, 63, 70, 78, 80, 81, 88, 95, 99, 104, 111, 114, 118, 119, 132, 152, 161, 172, 176, 210, 219,
+    225, 239, 246, 286, 289, 294, 299, 300, 317, 332, 346, 375, 380, 386, 389, 392, 411, 426, 474,
+    504, 516, 579, 591, 695, 728, 910, 913, 929, 933, 1153,
 ];
 
 /// The sweep's seeds: `HOST_SEED_FROM` to `HOST_SEEDS` (40), the kept
@@ -1225,6 +1226,9 @@ fn the_events_tell_what_the_views_show() {
         reduced += s.reduced;
         if s.into_open > 0 && std::env::var_os("HOST_REDUCE").is_some() {
             eprintln!("seed {seed}: {} into an open hand", s.into_open);
+        }
+        if s.moved[2] > 0 && std::env::var_os("HOST_REDUCE").is_some() {
+            eprintln!("seed {seed}: {} moved within a region", s.moved[2]);
         }
         into_open += s.into_open;
         for (k, (n, ex)) in s.unreduced {

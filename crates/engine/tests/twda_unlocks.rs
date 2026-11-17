@@ -1796,7 +1796,7 @@ fn schrecknet_unlocks_a_big_nosferatu_and_peeks_after_a_referendum() {
             viewer: SeatId(0),
             seat: SeatId(1),
             cards: e.state.seats[1].hand.to_vec(),
-            library: false,
+            zone: zvtes::game::LookedZone::Hand,
         }]
     );
     to_minion_phase(&mut e, SeatId(0));

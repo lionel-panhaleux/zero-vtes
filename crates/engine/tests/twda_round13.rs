@@ -1518,8 +1518,7 @@ fn molotov_cocktail_becomes_a_weapon_for_one_strike() {
 }
 
 // The opposing strike ends combat: the Cocktail's strike never resolves,
-// the card is not put on the minion [ANK 20200203-1]; nor when dodged
-// (advanced rules §4.6.2).
+// the card is not put on the minion [ANK 20200203-1].
 #[test]
 fn molotov_cocktail_is_not_put_when_combat_ends_first() {
     let mut e = game(2);
@@ -1542,25 +1541,43 @@ fn molotov_cocktail_is_not_put_when_combat_ends_first() {
         ash_has(&e, 0, "Molotov Cocktail"),
         "never left the ash heap"
     );
+}
 
-    let mut e = game(2);
-    let a = e.add_minion(SeatId(0), plain("Brujah", 0), 6, false);
-    e.add_minion(SeatId(0), plain("Brujah", 1), 4, false);
-    let z = e.add_minion(SeatId(1), vampire_with("cel", 0), 6, false);
-    hand(&mut e, 0, &["Molotov Cocktail"]);
-    hand(&mut e, 1, &["Side Strike"]);
-    pick(&mut e, bleed(a));
-    pick_when(&mut e, block(z));
-    pick_when(&mut e, play(0, 0, a));
-    pick_when(&mut e, play(0, 0, z));
-    until(&mut e, SeatId(0), WindowLabel::MinionPhase);
-    let molotov = find_library("Molotov Cocktail");
-    assert!(
-        !e.state.cards.iter().any(|c| c.card == molotov),
-        "dodged: never put on"
-    );
-    assert!(ash_has(&e, 0, "Molotov Cocktail"));
-    assert!(ash_has(&e, 1, "Side Strike"), "the dodge was played");
+// A dodged strike resolves, without effect on the dodging minion: the
+// Cocktail goes on its striker all the same (owner, rules-qa 76.10,
+// 122.62); likewise a strike that "has no effect on this vampire" (Eyes of
+// Blades [AUS][CEL]). Aidan Lyle's press stops the combat before the
+// Cocktail burns at its end.
+#[test]
+fn molotov_cocktail_is_put_on_its_striker_though_dodged() {
+    for (levels, card, mode) in [
+        (&["cel"][..], "Side Strike", 0),
+        (&["aus", "aus", "cel", "cel"][..], "Eyes of Blades", 1),
+    ] {
+        let mut e = game(2);
+        let a = e.add_minion(SeatId(0), find_card("Aidan Lyle"), 6, false);
+        e.add_minion(SeatId(0), plain("Brujah", 1), 4, false);
+        let z = e.add_minion(SeatId(1), plain("Ventrue", 0), 6, false);
+        e.state.minions[z.index()].gained_levels = levels.to_vec();
+        hand(&mut e, 0, &["Molotov Cocktail"]);
+        hand(&mut e, 1, &[card]);
+        pick(&mut e, bleed(a));
+        pick_when(&mut e, block(z));
+        if mode == 1 {
+            pick_when(&mut e, play(0, 1, z));
+        }
+        pick_when(&mut e, play(0, 0, a));
+        if mode == 0 {
+            pick_when(&mut e, play(0, 0, z));
+        }
+        let req = offering(&mut e, Choice::UsePress);
+        assert_eq!(req.window, WindowLabel::CombatPress, "{card}");
+        let molotov = molotov_in_play(&e).expect(card);
+        assert_eq!(e.state.cards[molotov.index()].host, Some(a), "{card}");
+        assert!(!ash_has(&e, 0, "Molotov Cocktail"), "{card}");
+        assert!(ash_has(&e, 1, card), "{card}: played");
+        assert_eq!(e.state.minions[z.index()].blood, 6, "{card}");
+    }
 }
 
 // "Not usable the round it is put in play": an additional strike that
