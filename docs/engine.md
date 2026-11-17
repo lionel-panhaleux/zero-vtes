@@ -1677,12 +1677,11 @@ sources to the engine's conventions.
   (`CombatCtx::acting_in`: FBI Special Affairs Division, Powerbase:
   Savannah), `ActionCtx::acting` otherwise. Blight's `Side::strength_minus`
   and `no_additional_strikes` outlast the round (a card on the minion,
-  Decompose's `HostNoAdditionalStrikes`, read live: in `allows` and as each
-  pair begins, `refresh_host_bars`); Serpent's Numbing Kiss's
-  `after_put_rider` becomes `CombatCtx::after_combat_put`, placed (and the
-  striker's blood burned, the minion locked: the effect's `blood` and
-  `lock`, none for Morphean Blow [val]) as the combat ends, lost if it
-  continues (`discard_held`).
+  Decompose's `HostNoAdditionalStrikes`, read live: `Side::no_additional`);
+  Serpent's Numbing Kiss's `after_put_rider` becomes
+  `CombatCtx::after_combat_put`, placed (and the striker's blood burned,
+  the minion locked: the effect's `blood` and `lock`, none for Morphean
+  Blow [val]) as the combat ends, lost if it continues (`discard_held`).
 - Offers as a combat ends (`end_combat`, resumed by their answers): Haven
   Hunting's new combat (`Interrupt::MayNewCombat`, `c.psyche`), Marie-Pierre's
   entry (`Interrupt::MayJoinCombat`, `c.coordinate` with `c.joined`). Each is
@@ -1925,9 +1924,10 @@ sources to the engine's conventions.
   enter-combat-at-resolution combat with it). A burn outside the damage
   resolution (at the combat's end) never waits.
 - Escaped Mental Patient's `Effect::BurnSelfAtCombatEndIfResolved`: its
-  strike resolving undodged (the landing loop of `resolve_strikes`) puts the
-  striker in `CombatCtx::burn_self_at_end`, burned in `end_combat` while the
-  combat is still set (burned by its opponent: FBI's count, the red list).
+  strike resolving, dodged or voided too (rules-qa 122.62, 122.214; the
+  landing loop of `resolve_strikes`), puts the striker in
+  `CombatCtx::burn_self_at_end`, burned in `end_combat` while the combat is
+  still set (burned by its opponent: FBI's count, the red list).
 - Young Bloods (`Modifier::BurnerVampireGainsBlood`, `burner_gains_blood` in
   `burn_minion`): the opposing vampire in combat, or the acting vampire of a
   successful action (an action card's: `GameState::acting` while

@@ -2,8 +2,8 @@
 
 Owner rulings (VEKN judge) on VTES rules questions raised while building the
 engine, in batches. Each item is the settled rule, stated as fact; the
-question framing, engine mechanics, test names and confirmations are dropped
-deliberately: the code and its tests are the reference for how a rule is
+question framing and engine mechanics are dropped (an item may name the tests
+that pin it): the code and its tests are the reference for how a rule is
 implemented, and they point back here through `rules-qa N.M` comments.
 Settled readings by mechanism: `docs/rules-digest.md`.
 

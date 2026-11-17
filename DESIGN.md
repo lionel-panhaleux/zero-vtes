@@ -535,7 +535,8 @@ Recorded so nobody mistakes them for oversights:
 ### 11.1 Phases and slices
 
 Slice IDs are cited by module docs, test section headers and rules-qa batch
-titles; `git log` has the detail.
+titles; `git log` has the detail. From round 21 on, a round is named by its
+rules-qa batch, not a slice id.
 
 | Phase / slice | Done (2026) | Scope |
 |---|---|---|

@@ -46,6 +46,16 @@ write to the main checkout's ignored `data/`.
   detached checkout. Refused (a training run) → retried the next day; a
   failure → Z-engine's `intake`.
 
+## On a date
+
+- **2026-11-20 — the eighth upkeep's proposals** (asked in the digest,
+  2026-11-17: the ledger's `n/a` reasons re-checked with the "not in the
+  pool" clauses; a batch's cross-card readings in rules-qa's Index;
+  protocol.md's counts dropped; a measured run's entry cut to its
+  settled lines; "Paths in the observation" to the open beta's watch
+  item): unanswered → asked again in the digest; each answer → made, or a
+  line on its board when it is code; then the item is deleted.
+
 ## On an event
 
 - **The platform opened to more players** (owner, 2026-11-09: planned

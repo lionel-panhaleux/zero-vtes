@@ -273,7 +273,9 @@ its skill and its task notes.
 - Conditions are evaluated live, never snapshotted — even when no pool card
   could change them yet.
 - Keep legal no-op plays (cycling a card is a real option); only illegal-target
-  actions are masked (rules-qa 17.4).
+  actions are masked (rules-qa 17.4; the owner's one exception: Spiritual
+  Guidance and Reality Mirror offered only with an ash heap card playable,
+  122.215).
 - Before designing a card, apply rules-qa's "Default readings" (choices at
   declaration; a card another card plays or puts in play is played, by that
   card and not in the normal fashion: reductions apply, no as-played window,

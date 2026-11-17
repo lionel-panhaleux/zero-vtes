@@ -82,8 +82,9 @@ Pass this, with `<RANGE>` and `<CHECKOUT>` filled in:
 >    ruling settles is implemented and recorded as a question in a new
 >    rules-qa batch.
 > 4. **Live reads and legality.** Conditions read live, never snapshotted;
->    only illegal targets masked, legal no-ops kept (rules-qa 17.4); masks
->    generated from the definitions, no hand-written mask.
+>    only illegal targets masked, legal no-ops kept (rules-qa 17.4; the one
+>    exception 122.215); masks generated from the definitions, no
+>    hand-written mask.
 > 5. **Placement.** "Put this card on … / in play": the card itself enters
 >    play through `place_now`; `place_held` only for a card already in the ash
 >    heap; the test asserts the card in play is not `effect_only` and the ash

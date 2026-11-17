@@ -63,9 +63,9 @@ decision: the owner's.
   the humans' 79%, is the not-degrading check only). The way there
   (owner, 2026-11-15, after p20): training has reached a plateau; the
   next step needs the open beta's human play, far more than the 89
-  counted games (about 500 a weights to tell a 5-point change in the
-  humans' 79% at two standard errors). Until then no run; the harvest and
-  promotion go on, p18 stays served.
+  counted games (about 500 games a weights to tell a 5-point change in
+  the humans' 79% at two standard errors). Until then no run; the harvest
+  and promotion go on, p18 stays served.
 
 ## Objectives
 

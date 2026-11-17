@@ -104,7 +104,7 @@ standing word, 2026-10-23):
   weights served), and their run's checkpoint, `<name>.pt` beside them,
   kept as `/opt/zvtes/weights/<sha>.pt` (owner, 2026-11-09: the one
   training file kept off the training machine: the checkpoint the served
-  export was made from, p17's `it-5580.pt`, p14's `best.pt`; the
+  export was made from, p18's `served-p18.pt`, before it p17's `it-5580.pt`; the
   rest of `runs/` is not kept, the harvest is rebuilt from
   the server's Postgres, the run's numbers live in DESIGN §11.2).
 
