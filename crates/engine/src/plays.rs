@@ -4401,6 +4401,29 @@ impl Engine {
         }
     }
 
+    /// May `actor` of `seat` take the action `ability` declares at `target`:
+    /// one it may direct there (`may_direct`), not at another Methuselah's
+    /// minion immune to directed actions requiring one of the ability's
+    /// Disciplines (Blessing of Chaos [DEM] at Mary Johnson's steal,
+    /// rules-qa 123.1), as a card's action is (`immune_to_directed`).
+    fn may_direct_ability(
+        &self,
+        seat: SeatId,
+        actor: MinionId,
+        target: Target,
+        ability: &cards::ModeDef,
+    ) -> bool {
+        self.may_direct(seat, actor, target)
+            && match target {
+                Target::Minion(t) => {
+                    let ds: Vec<&str> = cards::ability_disciplines(ability).collect();
+                    self.state.minions[t.index()].owner == seat
+                        || !self.state.immune_to_directed(t, &ds)
+                }
+                _ => true,
+            }
+    }
+
     /// The extra blood or life the next reaction card costs this action
     /// (Unleashing the Bestial Soul [DOM]), and a reaction mode granting
     /// intercept (Din of the Damned).
@@ -11637,7 +11660,9 @@ impl Engine {
                         let declares = declared_kind(ability);
                         // A target of its own (War Ghoul's rush).
                         for target in self.ability_targets(seat, source, ability, Some(host)) {
-                            if declares.is_some() && !self.may_direct(seat, host, target) {
+                            if declares.is_some()
+                                && !self.may_direct_ability(seat, host, target, ability)
+                            {
                                 continue;
                             }
                             out.push(use_card(id, ai, declares.map(|_| host), target));
@@ -12741,8 +12766,10 @@ impl Engine {
                     continue;
                 }
                 // An action at a minion it may not direct actions at (Secure
-                // Haven, Shadow Cloak).
-                if declared_kind(ability).is_some() && !self.may_direct(seat, m, target) {
+                // Haven, Shadow Cloak, Blessing of Chaos [DEM]).
+                if declared_kind(ability).is_some()
+                    && !self.may_direct_ability(seat, m, target, ability)
+                {
                     continue;
                 }
                 out.push(Choice::UseAbility {
@@ -12907,7 +12934,7 @@ impl Engine {
                 // itself.
                 let declares = declared_kind(ability);
                 for target in self.ability_targets(seat, source, ability, Some(m)) {
-                    if declares.is_some() && !self.may_direct(seat, m, target) {
+                    if declares.is_some() && !self.may_direct_ability(seat, m, target, ability) {
                         continue;
                     }
                     // A card with nowhere to go (Luciano Carvalho).

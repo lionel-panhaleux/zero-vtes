@@ -938,7 +938,7 @@ impl ActionCtx {
                 0
             }
             + st.black_hand_stealth(self.acting)
-            + st.discipline_action_stealth(self.acting, |d| self.requires_discipline(d))
+            + st.discipline_action_stealth(self.acting, |d| self.requires_discipline(st, d))
             + st.printed_mod(self.acting, Stat::Stealth, self.printed_ctx(st, None))
             + st.lasting(self.acting).0
             + self
@@ -1339,13 +1339,16 @@ impl ActionCtx {
         self.card_effects().contains(&Effect::PeekNeighborHands)
     }
 
-    /// Does the action card's mode require Discipline `d`, at any level?
-    pub fn requires_discipline(&self, d: &str) -> bool {
+    /// Does the action require Discipline `d`, at any level: its card's
+    /// mode, or the ability declaring it (`cards::ability_disciplines`)?
+    pub fn requires_discipline(&self, st: &crate::state::GameState, d: &str) -> bool {
         self.card.as_ref().is_some_and(|p| {
             LIBRARY[p.card as usize].modes[cards::library_mode(p.card, p.mode as usize)]
                 .tags
                 .iter()
                 .any(|t| t.eq_ignore_ascii_case(d))
+        }) || self.source.zip(self.ability).is_some_and(|(src, ab)| {
+            cards::ability_disciplines(src.mode(st, ab)).any(|t| t.eq_ignore_ascii_case(d))
         })
     }
 
@@ -4879,7 +4882,7 @@ impl Engine {
         if let Target::Minion(t) = play.target {
             if self.state.borne(t).any(|l| {
                 matches!(l.modifier, cards::Modifier::NoEffectFromActionsRequiring(ds)
-                    if ds.iter().any(|d| a.requires_discipline(d)))
+                    if ds.iter().any(|d| a.requires_discipline(&self.state, d)))
             }) {
                 return true;
             }
@@ -7807,12 +7810,7 @@ impl Engine {
         let seat = a.seat;
         a.outcome = Some(Outcome::Successful);
         // Cock Robin: once each turn, an action requiring Animalism.
-        let ani = a.card.is_some_and(|p| {
-            LIBRARY[p.card as usize].modes[cards::library_mode(p.card, p.mode as usize)]
-                .tags
-                .iter()
-                .any(|t| t.eq_ignore_ascii_case("ani"))
-        });
+        let ani = a.requires_discipline(&self.state, "ani");
         let key = crate::state::once_unlock_key(a.acting);
         if ani
             && self.state.printed_mod(

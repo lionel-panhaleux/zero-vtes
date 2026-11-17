@@ -594,6 +594,10 @@ D11; the per-card readings: 32.7, 49.5, 69.2, 71.7, 68.10, 70.2, 73.7.
 - "An action requiring a Gangrel / Hecata or Oblivion" (Keegan, Anja): an
   action card, a retainer or ally card, or a card in play's granted action
   requiring it — never a rulebook action (41.12).
+- "An action requiring a Discipline" (Maxwell, Blessing of Chaos [DEM],
+  Aggressive Corpse): an action card's mode requiring it, or an ability's
+  action its user must have it for (Mary Johnson's steal requires Presence:
+  123.1).
 - "Actions requiring an Anarch" (CrimethInc., An Anarch Manifesto): the
   rulebook action to become Anarch; an action card requiring an Anarch or a
   baron or making a vampire Anarch; a recruit, employ or equip of a card
@@ -6386,7 +6390,7 @@ an owner ruling:
 Every rules-qa item, by batch, with the digest sections citing it: the
 section stating it and those cross-referring to it (§2 the default
 readings, §22 engine modeling, §23 the contradictions, §24 the open
-readings). 1984 items, Batches 1–122 (44.11 was removed, replaced by Batch
+readings). 1985 items, Batches 1–123 (44.11 was removed, replaced by Batch
 45). The index is derived from the citations: a bare `N.M` cites rules-qa
 item N.M in the section it appears in. A new rules-qa item gets its line in
 the section stating it, then its entry here: `python3
@@ -6970,3 +6974,4 @@ index or an item cited nowhere.
   122.203 §16.5; 122.204 §16.7; 122.205 §4.6; 122.206 §13.2; 122.207 §11.8;
   122.208 §6.5; 122.209 §12.13; 122.210 §14.8; 122.211 §14.3; 122.212 §12.3;
   122.213 §2,§19.4; 122.214 §12.4,§24.1; 122.215 §7.1,§24.1
+- **123** — 123.1 §3.12

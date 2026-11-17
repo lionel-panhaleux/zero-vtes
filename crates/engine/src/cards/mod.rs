@@ -1305,12 +1305,12 @@ pub enum Requirement {
     /// The host used at least n Disciplines to play cards during the action
     /// (Dabbler).
     HostUsedDisciplines(u8),
-    /// The action's card, or granting card, requires this clan or
-    /// Discipline (Cappadocian Crypt); an empty Discipline: the clan alone
-    /// (Keegan).
+    /// The action's card, or granting card, requires this clan, or the
+    /// action requires this Discipline (`ActionCtx::requires_discipline`)
+    /// (Cappadocian Crypt); an empty Discipline: the clan alone (Keegan).
     ActionRequiresClanOrDiscipline(&'static str, &'static str),
-    /// The action's card requires this Discipline in the mode played
-    /// (Amenophobis: "any successful action requiring Serpentis").
+    /// The action requires this Discipline (`ActionCtx::requires_discipline`;
+    /// Amenophobis: "any successful action requiring Serpentis").
     ActionRequiresDiscipline(&'static str),
     /// The Methuselah the action is directed at has the Edge (Amenophobis).
     TargetSeatHasEdge,
@@ -9919,6 +9919,16 @@ pub fn card_title(card: u16) -> Option<Title> {
     })
 }
 
+/// The Disciplines the action an ability declares requires: those its user
+/// must have, as an ability's clan gate makes its action require that clan
+/// (LSJ 20080604; Mary Johnson's steal requires Presence, rules-qa 123.1).
+pub fn ability_disciplines(mode: &ModeDef) -> impl Iterator<Item = &'static str> + '_ {
+    mode.requires.iter().filter_map(|r| match r {
+        Requirement::ActorHasDiscipline(d) => Some(*d),
+        _ => None,
+    })
+}
+
 /// A Discipline tag's identity, whatever its level ("obl" for "OBL").
 pub fn discipline_key(tag: &str) -> &'static str {
     let lower = tag.to_ascii_lowercase();
@@ -11997,30 +12007,20 @@ pub fn holds(
             ActionState::Attempt(m) => a.stealth(st) > a.intercept_of(st, m),
             _ => false,
         }),
-        Requirement::ActionRequiresDiscipline(disc) => action.is_some_and(|a| {
-            a.card.is_some_and(|p| {
-                LIBRARY[p.card as usize].modes[library_mode(p.card, p.mode as usize)]
-                    .tags
-                    .iter()
-                    .any(|t| discipline_key(t) == disc)
-            })
-        }),
+        Requirement::ActionRequiresDiscipline(disc) => {
+            action.is_some_and(|a| a.requires_discipline(st, disc))
+        }
         Requirement::ActionRequiresClanOrDiscipline(clan, disc) => action.is_some_and(|a| {
-            let from_card = a.card.is_some_and(|p| {
-                let lib = &LIBRARY[p.card as usize];
-                lib.clans.contains(&clan)
-                    || lib.modes[library_mode(p.card, p.mode as usize)]
-                        .tags
-                        .iter()
-                        .any(|t| discipline_key(t) == disc)
-            });
+            let from_card = a
+                .card
+                .is_some_and(|p| LIBRARY[p.card as usize].clans.contains(&clan));
             let from_source = a.source.zip(a.ability).is_some_and(|(src, ab)| {
                 src.mode(st, ab).requires.iter().any(|r| match r {
                     Requirement::ActorClan(c) => *c == clan,
                     _ => false,
                 })
             });
-            from_card || from_source
+            from_card || from_source || a.requires_discipline(st, disc)
         }),
         Requirement::NoVampireNamedButInCrypt(name) => {
             !st.minions_of(seat)

@@ -877,6 +877,15 @@ sources to the engine's conventions.
   Dissension, Petra Resonance; Augur's predator and prey, rules-qa 102.11).
   `GameState::may_direct_at` (Shadow Cloak, Secure Haven) filters directed
   actions of every kind.
+- An action's required Disciplines (`ActionCtx::requires_discipline`): its
+  card's mode tags, or the declaring ability's `ActorHasDiscipline`
+  requirements (`cards::ability_disciplines`; LSJ 20080604, rules-qa 123.1:
+  Mary Johnson's steal requires Presence). `ActionRequiresDiscipline`,
+  `ActionRequiresClanOrDiscipline`, the stealth bonuses, Lobotomy and Cock
+  Robin's unlock read it; `GameState::immune_to_directed` (Aggressive Corpse,
+  Blessing of Chaos [DEM]) masks a card's action at another Methuselah's
+  minion by the mode's tags and an ability's by `ability_disciplines`
+  (`may_direct_ability`).
 - Windows: as-announced (acting Methuselah, then others: `ReactionAsAnnounced`)
   → block loop (`ActionBlockAttempt`, `ReactionUnlock`,
   `ReactionUnlockAttempt`) → `ActionState::Blocked` (Crypt's Sons continue as if

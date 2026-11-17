@@ -1249,9 +1249,6 @@ What the engine does not yet do or does only in part, true today.
 - **Mechanisms missing**: immunity to damage from a source.
 - **Known edges**:
   - Waiting for a pool card (none reaches them):
-    `ImmuneToDirectedActions` (Aggressive Corpse) is read on card plays only
-    (`GameState::immune_to_directed` in `plays.rs`), no granted or printed
-    directed action requiring Dominate or Presence existing;
     `Effect::PoolToHostBlood` ousts through `oust_and_pass`, its users (Blood
     Doll's master phase, Vessel's own unlock phase) the active seat; a
     cancelling ability marks the play canceled as it is used

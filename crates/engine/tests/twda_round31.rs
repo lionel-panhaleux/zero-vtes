@@ -11923,6 +11923,37 @@ fn mary_johnson_is_stolen_by_an_older_presence_vampire() {
     assert_eq!(e.state.minions[mary.index()].owner, SeatId(0));
 }
 
+/// Mary Johnson's steal requires Presence (rules-qa 123.1): Blessing of
+/// Chaos [DEM] on her ("minions cannot perform actions requiring any of
+/// those Disciplines directed at this vampire") bars it; [dem] does not.
+#[test]
+fn mary_johnson_steal_barred_by_blessing_of_chaos() {
+    for mode in [0u8, 1] {
+        let mut e = game(2);
+        let p = e.add_minion(SeatId(0), vampire_with("pre", 0), 4, false);
+        let mary = e.add_minion(SeatId(1), find_card("Mary Johnson"), 2, false);
+        e.add_minion(SeatId(1), plain("Ventrue", 0), 4, false);
+        in_play_mode(&mut e, 1, "Blessing of Chaos", Some(mary), mode);
+        let req = request(&mut e);
+        let steal = vuse(mary, 0, Some(p), Target::Minion(mary));
+        assert_eq!(req.options.contains(&steal), mode == 0, "mode {mode}");
+    }
+}
+
+/// Maxwell stealing Mary Johnson: "+1 stealth on an action that requires
+/// Presence [pre]" bought when Kurt Densch blocks (rules-qa 123.1).
+#[test]
+fn maxwell_buys_stealth_on_mary_johnsons_steal() {
+    let mut e = game(2);
+    let mx = e.add_minion(SeatId(0), find_card("Maxwell"), 4, false);
+    let mary = e.add_minion(SeatId(1), find_card("Mary Johnson"), 2, false);
+    let k = e.add_minion(SeatId(1), find_card("Kurt Densch"), 4, false);
+    pick(&mut e, vuse(mary, 0, Some(mx), Target::Minion(mary)));
+    pick_when(&mut e, block(k));
+    pick_when(&mut e, vuse(mx, 0, None, Target::None));
+    assert_eq!(blood(&e, mx), 3);
+}
+
 /// Melinda Galbraith (advanced): "During your unlock phase, Melinda can
 /// lock a Sabbat vampire with capacity 6 or less." From torpor, another
 /// Methuselah's capacity-5 Sabbat vampire locked; a capacity-7 one not
