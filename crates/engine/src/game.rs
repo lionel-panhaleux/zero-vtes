@@ -4229,6 +4229,9 @@ impl Engine {
         }
         self.cut_combat();
         self.referendum = None;
+        // A passed blood hunt's burn wait ends with its referendum (Count
+        // Zaroff's cancel paid with the last pool, in his own action).
+        self.state.hunt_burn = None;
         self.state
             .layers
             .retain(|l| l.scope != crate::cards::Scope::Action);

@@ -4750,6 +4750,37 @@ fn count_zaroff_cancels_blood_hunts_more_than_once_a_turn() {
     }
 }
 
+/// Count Zaroff's cancel paid with his Methuselah's last pool, in their own
+/// diablerie action: ousted, the turn passes and the blood hunt's burn
+/// wait goes with the action (the 29b sweep's seed 506 panicked).
+#[test]
+fn count_zaroff_cancel_ousting_his_methuselah_ends_the_blood_hunt() {
+    let mut e = game(3);
+    let z = e.add_minion(SeatId(0), find_card("Count Zaroff"), 2, false);
+    e.add_minion(SeatId(0), camarilla("Toreador", 0), 4, false);
+    let v = e.add_minion(SeatId(1), camarilla("Ventrue", 0), 1, true);
+    let p = e.add_minion(SeatId(1), camarilla("Ventrue", 2), 4, false);
+    e.add_minion(SeatId(2), camarilla("Ventrue", 1), 4, false);
+    e.state.minions[p.index()].granted_title = Some(Title::Prince("Atlanta"));
+    e.state.seats[0].pool = 1;
+    pick(
+        &mut e,
+        Choice::TakeAction {
+            minion: z,
+            action: ActionKind::Diablerie,
+            target: Some(v),
+        },
+    );
+    pick_when(&mut e, votes(p, true));
+    let cancel = vamp(z, 0, None, Target::Minion(z));
+    let req = offering(&mut e, cancel);
+    e.choose(index_of(&req, cancel));
+    until(&mut e, SeatId(1), WindowLabel::MinionPhase);
+    assert!(e.state.seats[0].ousted);
+    assert!(e.state.hunt_burn.is_none());
+    assert_eq!(e.state.active, SeatId(1));
+}
+
 /// Count Zaroff chosen by Bernard's blood hunt: his Methuselah cancels it
 /// once it passed (owner, rules-qa 122.38).
 #[test]

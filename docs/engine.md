@@ -3495,7 +3495,10 @@ CryptAlly}`.
   Methuselah asked clockwise from the active one, the hunted vampire's own
   included (§6.8): Redline, `Effect::SaveFromHuntBurn`; the referendum's end,
   `end_blood_hunt`, waits with it, `Flow::Referendum` restored over
-  `advance`'s placeholder), an ally about to burn in combat (`CombatBurnWait`,
+  `advance`'s placeholder; a turn's end drops it with the referendum, in
+  `next_turn`: Count Zaroff's cancel, its pool cost ousting the acting
+  Methuselah, the one answer that can; another wait whose answer could
+  needs the same), an ally about to burn in combat (`CombatBurnWait`,
   §6.7: Left for Dead), a vampire about to burn (`BurnWait`, its controller
   asked, §6.11: Abandoning the Flesh), and a ready vampire going to torpor
   (`minions_to_torpor` → `defer_torpor`, only when another Methuselah could
