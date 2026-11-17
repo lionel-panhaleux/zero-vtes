@@ -1026,12 +1026,14 @@ numbers)
   "more decisive", which the served temperature already cashes; the game's
   result enters none of the first quarter's advantages.
 
-**Where the bots stand** (2026-11-09, the owner's review). Humans (mostly the
-owner) win 79% of their games against p14 (39 games, 2.79 VP a seat; a fair
-share 25%), 6 of 9 against p17 by 2026-11-11; over 80 counted games the bots
-won 5 of 240 seats. At p14's tables its ledger: A&B 1.60 a round (the owner
+**Where the bots stand** (the owner's review, 2026-11-09). Humans (mostly
+the owner) win 79% of their games against p14 (39 games, 2.79 VP a seat; a
+fair share 25%). At p14's tables its ledger: A&B 1.60 a round (the owner
 3.03), its prey's R −2.18 a turn (the owner's prey −6.06), its own −2.81, its
-predator's −0.34. The order of work: the training board.
+predator's −0.34. p18, served since 2026-11-12 on a gain at bot tables only,
+is read against the humans daily (docs/watch.md). Training has reached a
+plateau: no run until the open beta's human play (owner, 2026-11-15; the
+roadmap's M:stronger-bot). The order of work: the training board.
 
 **The runs** (one entry a run, oldest first: its launch, the flags it changed,
 its numbers, what it settled; the last run's command in full, the next
@@ -1082,8 +1084,10 @@ its entry when it ends — the training skill's "A run")
   → 5580). Half the tables start from a human's win, the learner in the
   winner's seat (owner, 2026-11-02); p14 the only frozen opponent at the served
   temperature; a flat learning rate 3e-5; held out of imitation and starts, 13
-  human wins, judged on the nine p14 never met (owner, 2026-11-03; the list,
-  `runs/p17-held.txt`, lost with the machine's change). The command:
+  human wins, judged on the nine p14 never met (owner, 2026-11-03): the five
+  and `b7e783491da2fb6d`, `7241ff0d8a73da78`, `2936daa20fb8450f`,
+  `080e4d05d7125505`, `9af1ca1cf8827ba9`, `9742abeb8e049ede`,
+  `c3f7a26580067b42`, `743d9eca52788667`, `17ed0f75eae2ecae`. The command:
   `train.ppo --league true --out runs/p17 --resume runs/p14/best.pt
   --opponents runs/p14/best.pt --served-temperature 0.5 --decks
   precons,anniversary,sabbat,twda --gw-weight 5 --lam 0.95 --lr 3e-5
@@ -1140,99 +1144,42 @@ its entry when it ends — the training skill's "A run")
   a quarter in. Not degrading, a gain at bot tables by the ledger: served
   (owner, 2026-11-12), `runs/served-p18.zvp` (`0535d0a0be63`), the previous
   `runs/served-prev-2026-11-12-p17.zvp` (`f426338f6c80`).
-- **p19** (`runs/p19`, launched 2026-11-13 at `b28d786`, the engine of
-  2.29.0, round 29; 5861 → 6160; owner, 2026-11-12: the combats the bots
-  enter, "Settled by measurement"). Both levers in one run:
-  `--bc-combat-weight 3` (the human winners' rush and block declarations
-  drawn three times as often, the weak decks' weight) and
-  `--opponent-deck-rate 0.2` on 39 decks offering a rush on 30% or more of
-  their own turns under p18 (`waste --by-deck`): 34 TWDA decks (35 at
-  p18's measure, one since out of the kept TWDA) and the Banu Haqim,
-  Brujah, Gangrel (Anarch), Hecata and Nosferatu precons; already 14% of
-  the decks drawn, about one a table at 0.2. The command: p18's without
-  the exploiter's flags, with `--out runs/p19 --resume runs/served-p18.pt
-  --opponents runs/served-p18.pt --bc-combat-weight 3 --opponent-decks
-  0,3,7,8,9,42,53,70,74,75,78,80,84,92,103,104,111,113,115,116,124,130,`
-  `136,137,144,159,163,166,175,187,192,204,225,243,244,247,250,253,260
-  --opponent-deck-rate 0.2 --iterations 6160 --weak-decks`
-  `186,91,146,115,124,92,183,134,137,172,163,170,127,180,181,135,145,159,`
-  `97,112,125,184,116,179,152` (the 25 recent decks under a VP share of
-  0.10 in `served-p18.decks.json`, 2026-11-13), held out (21, of which 11
-  read whole on this engine): p18's 16 and the human wins since its launch,
-  `c6cf44988231afc0`, `2eba4903300cc1ce`, `02663047f37b00de`,
-  `ddea072d86e8dddd`, `6306d19620836c71`. Imitation reads 7,993 decisions,
-  257 of them combat entries (`bc_combat`), 79 records stopping partway,
-  `bc_weak` 0. Ended 2026-11-13, no panics (`best.pt` at 5980). Step 4 on
-  5980 against p18 (`0535d0a0be63`), on the run's engine: at one seat
-  against three p18 0.919 ± 0.086 VP, 21.5% ± 2.6 wins (1,000 games);
-  `humanset` on the 10 newer held-out wins it reads whole, wins from
-  positions 40.3% against 42.2% (600 games each, ± 4.0), agreement 47.5%
-  against 50.1% (2,425 decisions, ± 2.0); the ledger worse beyond two
-  errors on 5 of 6 lines (A&B 2.03 / 2.11 / 1.73 against 2.13 / 2.18 / 1.79
-  at 4 and 5 seats and on TWDA, its prey's R −3.23 / −3.58 / −2.90 against
-  −3.53 / −3.75 / −3.14; TWDA's A&B within). The combats moved as aimed,
-  not their outcome: rushes declared on 27 / 22 / 28% of the turns offering
-  one (p18 24 / 20 / 23%), at the prey 64 / 59 / 55% (54 / 48 / 56%), the
-  opposing minion down 37 / 37 / 32% (39 / 41 / 31%), its own 13 / 17 / 8%
-  (17 / 20 / 9%). The critic by quarter, self-play 0.09 / 0.16 / 0.33 /
-  0.65, the human records −0.18 / −0.09 / 0.12 / 0.54. Degrading by the
-  agreement and the ledger: not served (owner, 2026-11-14).
+- **p19** (`runs/p19`, 2026-11-13, `b28d786`, the engine of 2.29.0; 5861 →
+  6160; owner, 2026-11-12): p18's run without its exploiters, with
+  `--bc-combat-weight 3` and `--opponent-deck-rate 0.2` on the 39 decks
+  offering a rush on 30% or more of their own turns under p18 (`waste
+  --by-deck`); held out (21): p18's 16 and `c6cf44988231afc0`,
+  `2eba4903300cc1ce`, `02663047f37b00de`, `ddea072d86e8dddd`,
+  `6306d19620836c71`. At 5980 against p18: 0.919 ± 0.086 VP at one seat
+  against three; agreement 47.5% against 50.1% (± 2.0); the ledger worse
+  beyond two errors on 5 of 6 lines; the combats moved as aimed, not their
+  outcome (at 4 and 5 seats and on TWDA: rushes on 27 / 22 / 28% of the
+  turns offering one, p18 24 / 20 / 23%; at the prey 64 / 59 / 55%, p18 54
+  / 48 / 56%; the opposing minion down 37 / 37 / 32%, p18 39 / 41 / 31%).
+  Not served (owner, 2026-11-14).
 - **The bench** (`runs/bench-a`, `-b`, `-c`; 2026-11-14 → 15, the engine of
-  2.30.1 at `5a65b6b`, `c` at `7e1c4fe` with the same engine; owner, 2026-11-14,
-  after p19: the learning signal first, on a narrow table). The learner from
-  served p18 against p18 frozen, 4 and 5 seats on five decks (`--decks
-  0,3,5,9,118`: the Hecata, Nosferatu and Tremere V5 precons, Gangrel (Anarch),
-  Ring that Bell v2.0), no starts, imitation as p19's without its combat weight
-  (held out as p19), `--lr 1e-4 --lr-final 1`, one run each of 200 iterations
-  (5861 → 6060); (a) λ 0.95, (b) λ 1, (c) λ 0.95 with
-  `--shaping runs/value/v-critic.pt`. No panics. Measured at 6060 as the probe
-  measures (one iteration at `--lr 0`, 1,024 games at 4 and at 5 seats, the same
-  seed; ± 0.09 each, ± 0.13 on a difference), VP a seat: p18 1.05 / 0.95, (a)
-  1.38 / 1.29, (b) 1.15 / 1.12, (c) 1.21 / 1.08. `humanset` on the bench decks'
-  held-out wins read whole on this engine (3: `5af4d2bd173094f6`,
-  `e79edc1df3520df7`, `7512b54e87ee02ee`; 60 games from their three positions a
-  measure, ± 13 points, ± 18 on a difference), wins from a quarter, half and
-  three quarters in: p18 35 / 62 / 70%, (a) 27 / 53 / 70%, (b) 33 / 60 / 68%,
-  (c) 35 / 53 / 77%; agreement (586 decisions, ± 4.1) 58.7%, 56.1%, 58.0%,
-  54.8%. None gains on both: λ 0.95 at `--lr 1e-4` learns on a narrow table,
-  beyond two errors (+0.34 / +0.35 VP), at bot tables only; neither Monte-Carlo
-  returns nor the turn-level value's reward learns more; no gain shows on the
-  three human positions. The bench differs from p19 (from served p18 against it,
-  0.92 VP: flat) in its learning rate (1e-4 against 3e-5), its decks, its starts
-  and p19's combat levers: which made it learn is open; the owner's answer: p20
-  (2026-11-15).
-- **p20** (`runs/p20`, launched 2026-11-15 at `cb74d11`, the engine of 2.30.1,
-  round 30; 5861 → 6160; owner, 2026-11-15, after the bench: λ 0.95 at
-  `--lr 1e-4` learned on five decks). One change from p18's run: `--lr 1e-4`
-  against its 3e-5, the bench's rate, on the full pool, to tell whether the
-  learning rate or the bench's narrow table made it learn. The command: p18's
-  (with its exploiters: p18's live one resumes, generation 5 on Path of Power,
-  30 of its 50 iterations in; p18's retired copies are not at its tables), with
-  `--out runs/p20 --resume runs/served-p18.pt` `--opponents runs/served-p18.pt`
-  `--lr 1e-4 --iterations 6160 --weak-decks`
-  `100,193,155,187,134,154,143,186,185,188,145,181,123,178,161,136,119,`
-  `191,110,97,105,176,160,184,122,125,109,175,138` (the 29 recent decks under a
-  VP share of 0.10 in `served-p18.decks.json`, 2026-11-14), held out (22): p19's
-  21 and the human win since, `c7b1ab172be6436b`. Baseline: p18 (its entry);
-  judged by the training skill's "Serve", the human-facing measures first.
-  Imitation reads 5,753 decisions, 96 records stopping partway, `bc_weak` 0.
-  Ended 2026-11-15, no panics; level against p18 throughout (`vs_frozen4` 0.85
-  to 1.11), `vs_held` flat (1.55 to 1.77), `best.pt` at 6140. Step 4 on 6140
-  against p18 (`0535d0a0be63`), on the run's engine: at one seat against three
-  p18 0.967 ± 0.087 VP, 20.7% ± 2.6 wins (1,000 games); `humanset` on the 10
-  newer held-out wins it reads whole (none of the five reads whole), wins from a
-  quarter, half and three quarters in 16 / 44 / 57% against 18 / 46 / 64% (200
-  games each, ± 5 to 7; from three quarters 7 points under p18 against its ±
-  6.8, at the band's edge), agreement 50.0% against 50.3% (2,498 decisions, ±
-  2.0); the ledger: A&B 2.14 / 2.18 / 1.79 against 2.14 / 2.19 / 1.85 at 4 and 5
-  seats and on TWDA (within two errors, TWDA's at the band's edge), its prey's R
-  −3.41 / −3.56 / −3.07 against −3.53 / −3.74 / −3.22 (worse beyond two errors
-  at all three: 0.12, 0.18, 0.15 against ± 0.09, 0.09, 0.10); the critic by
-  quarter, self-play 0.07 / 0.14 / 0.33 / 0.70, the human records −0.40 / −0.11
-  / 0.15 / 0.60. Degrading by its prey's R and the wins from three quarters in:
-  it fails the not-degrading test: not served (owner, 2026-11-15). The
-  learning rate alone does not move the full pool: the bench's gain came with
-  its narrow table (five decks, no starts, no exploiter).
+  2.30.1; owner, 2026-11-14): from served p18 against p18 frozen, 200
+  iterations at 4 and 5 seats on five decks (the Hecata, Nosferatu and
+  Tremere V5 precons, Gangrel (Anarch), Ring that Bell v2.0), no starts,
+  `--lr 1e-4 --lr-final 1`; (a) λ 0.95, (b) λ 1, (c) λ 0.95 with `--shaping
+  runs/value/v-critic.pt`. VP a seat at 4 / 5 seats (1,024 games each, ±
+  0.09): p18 1.05 / 0.95, (a) 1.38 / 1.29, (b) 1.15 / 1.12, (c) 1.21 /
+  1.08; no gain on the three human positions `humanset` reads on its decks.
+- **p20** (`runs/p20`, 2026-11-15, `cb74d11`, the engine of 2.30.1; 5861 →
+  6160; owner, 2026-11-15): p18's run at the bench's learning rate on the
+  full pool. The command: p18's (with its exploiters: p18's live one
+  resumes, generation 5 on Path of Power, 30 of its 50 iterations in; p18's
+  retired copies are not at its tables), with `--out runs/p20 --resume
+  runs/served-p18.pt --opponents runs/served-p18.pt --lr 1e-4 --iterations
+  6160`, `--weak-decks` the 29 recent decks under a VP share of 0.10 in
+  `served-p18.decks.json` (2026-11-14), held out (22): p19's 21 and
+  `c7b1ab172be6436b`. Level against p18 throughout; at 6140 against p18:
+  0.967 ± 0.087 VP at one seat against three; `humanset`'s wins from a
+  quarter, half and three quarters in 16 / 44 / 57% against 18 / 46 / 64%
+  (± 5 to 7, the last at the band's edge), agreement 50.0% against 50.3%
+  (± 2.0); A&B within two errors, its prey's R worse beyond them at 4 and 5
+  seats and on TWDA (−3.41 / −3.56 / −3.07 against −3.53 / −3.74 / −3.22).
+  Not served (owner, 2026-11-15).
 
 ### 11.3 Open gaps
 
