@@ -2482,6 +2482,28 @@ fn jibade_shields_an_ally_with_his_aye() {
     assert_eq!(blood(&e, jb), 4);
 }
 
+/// Jibade el-Bahrawi (advanced) with no Aye on him: no X to lock, his
+/// shield is not offered (fuzz 32a seed 10 reached its empty terms).
+#[test]
+fn jibade_without_aye_has_no_shield() {
+    let mut e = game(2);
+    let jb = e.add_minion(SeatId(0), find_card_adv("Jibade el-Bahrawi"), 5, false);
+    let ally = e.add_ally(SeatId(0), find_library("Gravebound Drone"));
+    let b = e.add_minion(SeatId(1), plain("Ventrue", 0), 4, false);
+    e.add_minion(SeatId(1), plain("Ventrue", 1), 4, false);
+    let life = blood(&e, ally);
+    pick_when(&mut e, bleed(ally));
+    pick_when(&mut e, block(b));
+    let shield = Choice::UseAbility {
+        source: zvtes::cards::AbilitySource::Vampire(jb),
+        ability: 1,
+        actor: None,
+        target: Target::Minion(ally),
+    };
+    never_offered_until(&mut e, SeatId(0), WindowLabel::MinionPhase, shield);
+    assert!(blood(&e, ally) < life, "the strike landed");
+}
+
 /// Joshua Tarnopolski: "Allies and retainers cost Joshua 1 less … He gets
 /// +2 strength in combat with a Sabbat vampire."
 #[test]

@@ -11924,6 +11924,12 @@ impl Engine {
         if !st.discard_terms_met(seat, ability.terms) {
             return None;
         }
+        // X held cards to lock (Jibade's Aye): none unlocked, no X.
+        if let Some(Terms::XUnlockedHeld(h)) = ability.terms {
+            if !u.host.is_some_and(|m| st.holds_unlocked(m, h) > 0) {
+                return None;
+            }
+        }
         // "Burn X pool": payable, down to 0 at most (The Uncoiling).
         if let (true, Some(id)) = (
             ability.effects.contains(&Effect::PayPoolPerOtherEvent),
