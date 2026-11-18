@@ -3035,8 +3035,6 @@ pub enum Requirement {
     /// The player's prey has the Edge or no Methuselah has it
     /// (Instability).
     PreyHasEdgeOrNoneHas,
-    /// The user's hand holds n copies of one card (Specialization).
-    HandHasCopies(u8),
     /// The card being played changes the bleed's target as its mode
     /// resolves (Contingency Planning; `cards::mode_redirects_bleed`).
     PlayedCardRedirectsBleed,
@@ -11042,11 +11040,6 @@ pub fn holds(
                 .iter()
                 .enumerate()
                 .all(|(i, s)| !s.has_edge || SeatId(i as u8) == prey)
-        }
-        Requirement::HandHasCopies(n) => {
-            let hand = &st.seats[seat.index()].hand;
-            hand.iter()
-                .any(|c| hand.iter().filter(|&d| d == c).count() >= n as usize)
         }
         Requirement::PlayedCardRedirectsBleed => {
             played.is_some_and(|p| mode_redirects_bleed(p.card, p.mode))

@@ -3637,9 +3637,8 @@ impl Engine {
             cards::Effect::ClanCoalition(clan) => {
                 let who = play.actor.expect("voting minion");
                 let mut gave = Vec::new();
-                for i in 0..self.state.minions.len() {
+                for (i, v) in self.state.minions.iter().enumerate() {
                     let m = MinionId(i as u32);
-                    let v = &self.state.minions[i];
                     if v.ready() && v.is_vampire() && v.clan() == Some(clan) {
                         gave.push(m);
                         match ctx

@@ -3470,10 +3470,7 @@ impl Engine {
             .count() as i32;
         self.burn_card_in_play(id);
         self.state.seats[s.index()].lose_pool(loss);
-        if loss > 0 && self.state.seats[s.index()].pool <= 0 && self.oust_and_pass(s) {
-            return true;
-        }
-        false
+        loss > 0 && self.state.seats[s.index()].pool <= 0 && self.oust_and_pass(s)
     }
 
     /// The Book of Going Forth by Night stealing `m` as it would burn: the

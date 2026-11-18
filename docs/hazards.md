@@ -178,6 +178,10 @@ review finding); one the code or a page now makes impossible leaves it.
   declares the action and returns before `Flow::AbilityTerms`, so a term
   with no arm in its `DeclareAction` branch is silently skipped (Talbot's
   master discard was; it is now paid as the action resolves, `succeed`).
+- An ability whose terms can have no option (cards to discard, an
+  equipment or retainer from hand, an ash heap card) needs its check among
+  `ability_gate`'s terms checks, or it opens an empty request (Velya's
+  discard, served v2.31.1).
 - An action window opened where none opened before (a hunt's
   would-be-successful window, for Foul Blood) is offered to every card and
   ability already timed there: fuzz trajectories move and recorded games

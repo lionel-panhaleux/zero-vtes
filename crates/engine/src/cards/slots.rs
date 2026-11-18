@@ -730,7 +730,6 @@ impl Requirement {
             R::TargetMarkedThisTurn => &[S::CardTarget],
             R::EnteredBeforeThisTurn => &[S::Card, S::Rider],
             R::PreyHasEdgeOrNoneHas
-            | R::HandHasCopies(..)
             | R::PlayedCardRedirectsBleed
             | R::ActionHuntSucceeded
             | R::ActingLacksSuperior(..)

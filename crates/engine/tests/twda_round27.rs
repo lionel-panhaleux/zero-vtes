@@ -1371,9 +1371,9 @@ fn porto_de_santos_moves_a_crypt_card_for_everyone() {
     e.add_minion(SeatId(0), plain("Ventrue", 0), 4, false);
     e.add_minion(SeatId(1), plain("Ventrue", 1), 4, false);
     let crypt: Vec<u16> = (0..4).map(|k| textless(|c| c.capacity >= 4, k)).collect();
-    for s in 0..2 {
+    for seat in &mut e.state.seats[0..2] {
         for &c in &crypt {
-            e.state.seats[s].crypt.push(c);
+            seat.crypt.push(c);
         }
     }
     hand(&mut e, 0, &["Porto de Santos", "Porto de Santos"]);
@@ -1381,8 +1381,7 @@ fn porto_de_santos_moves_a_crypt_card_for_everyone() {
     // The top three: crypt[1..4]; crypt[2] kept by both.
     pick(&mut e, Choice::AshVampire(crypt[2]));
     pick(&mut e, Choice::AshVampire(crypt[2]));
-    for s in 0..2 {
-        let seat = &e.state.seats[s];
+    for seat in &e.state.seats[0..2] {
         assert_eq!(seat.uncontrolled.len(), 1);
         assert_eq!(seat.uncontrolled[0].card, crypt[2]);
         let left: Vec<u16> = seat.crypt.iter().copied().collect();

@@ -2741,8 +2741,8 @@ fuzz_tests! {
         setup: |e, _| {
             named(e, &["Alonso Petrodon", "Maila", "Gabriel Tremblay"]);
             let convert = find_card("Anarch Convert");
-            for s in 0..4 {
-                e.state.seats[s].uncontrolled.push(zvtes::state::UncontrolledSlot {
+            for seat in &mut e.state.seats[0..4] {
+                seat.uncontrolled.push(zvtes::state::UncontrolledSlot {
                     card: convert,
                     copy: Default::default(),
                     counters: 1,
@@ -5390,8 +5390,8 @@ fuzz_tests! {
                 e.state.minions[i].blood = 0;
             }
             let spare = find_card("Peter \"Outback295\" Rophail");
-            for s in 0..4 {
-                e.state.seats[s].uncontrolled.push(zvtes::state::UncontrolledSlot {
+            for seat in &mut e.state.seats[0..4] {
+                seat.uncontrolled.push(zvtes::state::UncontrolledSlot {
                     card: spare,
                     copy: Default::default(),
                     counters: 1,

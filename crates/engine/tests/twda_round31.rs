@@ -1760,9 +1760,9 @@ fn master_table(card: &str, clan: &str) -> Engine {
     e.add_minion(SeatId(0), plain("Brujah", 1), 4, false);
     e.add_minion(SeatId(1), plain("Ventrue", 0), 4, false);
     let filler = find_library("Deflection");
-    for s in 0..2 {
+    for seat in &mut e.state.seats[0..2] {
         for _ in 0..20 {
-            e.state.seats[s].library.push(filler);
+            seat.library.push(filler);
         }
     }
     hand(&mut e, 0, &[card]);

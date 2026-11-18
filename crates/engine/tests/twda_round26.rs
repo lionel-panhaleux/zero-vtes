@@ -1481,8 +1481,8 @@ fn sweeper_looks_at_each_library() {
         false,
     );
     e.add_minion(SeatId(1), plain("Ventrue", 0), 4, false);
-    for s in 0..2 {
-        e.state.seats[s].library.push(find_library("Form of Mist"));
+    for seat in &mut e.state.seats[0..2] {
+        seat.library.push(find_library("Form of Mist"));
     }
     hand(&mut e, 0, &["Sweeper"]);
     pick(&mut e, play(0, 0, a));
@@ -2424,8 +2424,7 @@ fn border_skirmish_shakes_every_hand() {
         "until the end of the turn: {req:?}"
     );
     to_window(&mut e, SeatId(1), WindowLabel::MinionPhase);
-    for s in 1..3 {
-        let seat = &e.state.seats[s];
+    for (s, seat) in e.state.seats.iter().enumerate().take(3).skip(1) {
         assert_eq!(
             (seat.ash.len(), seat.hand.len()),
             (1, 2),
@@ -6057,9 +6056,9 @@ fn on_the_brink() -> (Engine, MinionId, MinionId) {
     e.add_minion(SeatId(1), plain("Ventrue", 0), 4, false);
     e.add_minion(SeatId(2), plain("Ventrue", 1), 4, false);
     let b = e.add_minion(SeatId(3), plain("Ventrue", 2), 4, false);
-    for s in 1..4 {
+    for seat in &mut e.state.seats[1..4] {
         for _ in 0..20 {
-            e.state.seats[s].library.push(find_library("Form of Mist"));
+            seat.library.push(find_library("Form of Mist"));
         }
     }
     let brink = in_play(&mut e, 1, "Brinksmanship", None);
@@ -7946,6 +7945,21 @@ fn aeron_and_velya_press_only_in_the_press_step() {
             "{name}"
         );
     }
+}
+
+/// Velya with no card requiring Auspex in hand: his press is never offered
+/// (its discard has nothing to pick). Served v2.31.1 offered it and opened
+/// an empty choice (Z-train's deck measure, Terrifying Politics).
+#[test]
+fn velya_needs_a_card_requiring_auspex_to_press() {
+    let mut e = game(2);
+    let a = e.add_minion(SeatId(0), find_card("Velya, The Flayer"), 6, false);
+    e.add_minion(SeatId(0), plain("Brujah", 1), 4, false);
+    let b = e.add_minion(SeatId(1), elder(), 8, false);
+    e.add_minion(SeatId(1), plain("Ventrue", 1), 4, false);
+    hand(&mut e, 0, &["Deflection"]);
+    bleed_blocked(&mut e, a, b);
+    assert!(!presses_only_in_the_press_step(&mut e, a, SeatId(0)));
 }
 
 /// Aeron's additional damage is environmental: [RTR 19941109] [TOM

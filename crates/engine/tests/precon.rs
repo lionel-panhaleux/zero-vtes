@@ -14099,8 +14099,8 @@ fn an_event_takes_a_discard_phase_action_once_a_phase_and_once_a_game() {
     hand(&mut e, 0, &["Narrow Minds", "Torpid Blood"]);
     // Direct Intervention cancels minion cards: no event.
     hand(&mut e, 1, &["Narrow Minds", "Direct Intervention"]);
-    for s in 0..3 {
-        e.state.seats[s].library = vec![find_library("Soak"); 5].into();
+    for seat in &mut e.state.seats[0..3] {
+        seat.library = vec![find_library("Soak"); 5].into();
     }
     let req = until(&mut e, SeatId(0), WindowLabel::DiscardPhase);
     assert!(req.options.contains(&master(0)) && req.options.contains(&master(1)));
@@ -14442,8 +14442,8 @@ fn the_uncoiling_burns_an_event_each_discard_phase_and_can_be_bought_off() {
     e.add_minion(SeatId(0), plain("Ventrue", "", 0), 5, false);
     e.add_minion(SeatId(1), plain("Gangrel", "", 0), 5, false);
     e.add_minion(SeatId(2), plain("Brujah", "", 0), 5, false);
-    for s in 0..3 {
-        e.state.seats[s].library = vec![find_library("Soak"); 5].into();
+    for seat in &mut e.state.seats[0..3] {
+        seat.library = vec![find_library("Soak"); 5].into();
     }
     // A card in hand: seat 0's discard phase is not elided.
     hand(&mut e, 0, &["Soak"]);

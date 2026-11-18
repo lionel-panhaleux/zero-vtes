@@ -368,11 +368,12 @@ impl Net {
         let mut x = base.clone();
         for i in 0..t {
             tmp.fill(0.0);
-            for k in 2..4 {
-                let ptr = o.tok_ids[i][k].clamp(0, t as i32) as usize;
+            for &id in &o.tok_ids[i][2..4] {
+                let ptr = id.clamp(0, t as i32) as usize;
                 if ptr > 0 {
-                    for j in 0..d {
-                        tmp[j] += base[(ptr - 1) * d + j];
+                    let row = &base[(ptr - 1) * d..ptr * d];
+                    for (acc, b) in tmp[..d].iter_mut().zip(row) {
+                        *acc += b;
                     }
                 }
             }

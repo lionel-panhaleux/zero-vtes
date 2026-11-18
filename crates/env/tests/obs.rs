@@ -230,8 +230,7 @@ fn game(what: &str, mut e: Engine, agents: &mut [Box<dyn Agent>], stats: &mut St
             seeing.ctx == seeing_v3.ctx && seeing.ctx.len() == context::LEN,
             "{what}"
         );
-        for k in 0..context::SLOTS {
-            let present = seeing.ctx[k];
+        for (k, &present) in seeing.ctx.iter().enumerate().take(context::SLOTS) {
             assert!(
                 present == (k < e.state.seats.len()) as u8 as f32,
                 "{what}: slot {k}"

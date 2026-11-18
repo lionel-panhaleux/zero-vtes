@@ -496,7 +496,7 @@ pub static VOZHD_OF_SOFIA: CardDef = CardDef {
             ..mode_of(
                 &[Window::UnlockPhaseOwn],
                 Actor::Host,
-                &[Requirement::HandHas(CardFilter::AllyOrRetainer, 1)],
+                &[],
                 &[Effect::AddHostBlood(2)],
             )
         },
@@ -901,10 +901,7 @@ pub static VOZHD_OF_SZCZECIN: CardDef = CardDef {
             ..mode_of(
                 &[Window::CombatDamagePrevention],
                 Actor::Host,
-                &[
-                    Requirement::DamagePending,
-                    Requirement::HandHas(CardFilter::Discipline("pro"), 1),
-                ],
+                &[Requirement::DamagePending],
                 &[Effect::Prevent(2)],
             )
         },
@@ -4526,10 +4523,7 @@ pub static TENSION_IN_THE_RANKS: CardDef = CardDef {
         ..mode_of(
             &[Window::MasterPhase],
             Actor::Methuselah,
-            &[
-                Requirement::MasterPhaseActionLeft,
-                Requirement::HandHas(CardFilter::Type(CardType::Master), 2),
-            ],
+            &[Requirement::MasterPhaseActionLeft],
             &[Effect::SpendMasterPhaseAction, Effect::BurnSelf],
         )
     }],
@@ -4661,7 +4655,7 @@ pub static THE_BARRENS: CardDef = CardDef {
         ..mode_of(
             &[Window::AnyImpulse],
             Actor::Controller,
-            &[Requirement::CardUnlocked, Requirement::HandNotEmpty],
+            &[Requirement::CardUnlocked],
             &[Effect::LockSelf],
         )
     }],
@@ -10540,7 +10534,6 @@ pub static HAQIMS_LAW_RETRIBUTION: CardDef = CardDef {
                 Requirement::IsBleed,
                 Requirement::YouControlThisCard,
                 Requirement::ActorClan("Banu Haqim"),
-                Requirement::HandHas(CardFilter::Type(CardType::Combat), 1),
             ],
             &[bleed(1, false)],
         )
@@ -14442,10 +14435,7 @@ pub static FLESHFORGE_CHAMBER: CardDef = CardDef {
         ..mode_of(
             &[Window::MasterPhase],
             Actor::Controller,
-            &[Requirement::HandHas(
-                CardFilter::HasLabel(crate::library::Label::Ghoul),
-                1,
-            )],
+            &[],
             &[Effect::StorePickedFromHand],
         )
     }],
@@ -30236,7 +30226,6 @@ pub static THE_ADMONITIONS: CardDef = CardDef {
                 Actor::Controller,
                 &[
                     Requirement::CardUnlocked,
-                    Requirement::HandNotEmpty,
                     Requirement::ControlsReadySect(&[Sect::Sabbat]),
                 ],
                 &[Effect::LockSelf],
@@ -30815,7 +30804,7 @@ pub static STORAGE_ANNEX: CardDef = CardDef {
         ..mode_of(
             &[Window::MasterPhase],
             Actor::Controller,
-            &[Requirement::StoreNotEmpty, Requirement::HandNotEmpty],
+            &[Requirement::StoreNotEmpty],
             &[Effect::SwapPickedWithStored],
         )
     }],
@@ -39935,10 +39924,7 @@ pub static DELIVERY_TRUCK: CardDef = CardDef {
             ..mode_of(
                 &[Window::MasterPhase],
                 Actor::Controller,
-                &[
-                    Requirement::StoreEmpty,
-                    Requirement::HandHas(CardFilter::EquipmentWithout(&[]), 1),
-                ],
+                &[Requirement::StoreEmpty],
                 &[Effect::StorePickedFromHand],
             )
         },
@@ -40057,7 +40043,7 @@ pub static DOUBLE_SPIRAL_CORPORATION: CardDef = CardDef {
             ..mode_of(
                 &[Window::AnyImpulse],
                 Actor::Controller,
-                &[Requirement::CardUnlocked, Requirement::HandNotEmpty],
+                &[Requirement::CardUnlocked],
                 &[Effect::LockSelf],
             )
         },
@@ -46496,7 +46482,7 @@ pub static SPECIALIZATION: CardDef = CardDef {
         ..mode_of(
             &[Window::UnlockPhaseOwn],
             Actor::Controller,
-            &[Requirement::CardUnlocked, Requirement::HandHasCopies(2)],
+            &[Requirement::CardUnlocked],
             &[Effect::LockSelf, Effect::GainPool(1)],
         )
     }],

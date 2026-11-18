@@ -840,8 +840,8 @@ fn petra_resonance_is_blocked_from_across_the_table() {
     e.add_minion(SeatId(1), plain("Ventrue", 1), 4, false);
     let across = e.add_minion(SeatId(2), plain("Ventrue", 2), 4, false);
     e.add_minion(SeatId(3), plain("Ventrue", 3), 4, false);
-    for s in 0..4 {
-        e.state.seats[s].crypt = vec![cap(5)].into();
+    for seat in &mut e.state.seats[0..4] {
+        seat.crypt = vec![cap(5)].into();
     }
     hand(&mut e, 0, &["Petra Resonance"]);
     pick(&mut e, play(0, 0, m));

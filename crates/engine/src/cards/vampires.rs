@@ -152,11 +152,7 @@ pub static ABRAHAM_DUSABLE: VampireDef = VampireDef {
             ..mode_of(
                 &[Window::ActionDuring],
                 Actor::Host,
-                &[
-                    R::ActorActing,
-                    R::StealthNeeded,
-                    R::HandHas(CardFilter::Discipline("tha"), 1),
-                ],
+                &[R::ActorActing, R::StealthNeeded],
                 &[Effect::AddStealth(1)],
             )
         },
@@ -169,10 +165,7 @@ pub static ABRAHAM_DUSABLE: VampireDef = VampireDef {
             ..mode_of(
                 &[Window::ActionStealthIntercept],
                 Actor::Host,
-                &[
-                    R::InterceptNeeded,
-                    R::HandHas(CardFilter::Discipline("tha"), 1),
-                ],
+                &[R::InterceptNeeded],
                 &[Effect::AddIntercept(1)],
             )
         },
@@ -288,10 +281,7 @@ pub static ALEXA_DRAPER: VampireDef = VampireDef {
         ..mode_of(
             &[Window::Referendum],
             Actor::Host,
-            &[
-                R::AnyPollingStep,
-                R::HandHas(CardFilter::Discipline("dom"), 1),
-            ],
+            &[R::AnyPollingStep],
             &[Effect::AddVotes(1)],
         )
     }],
@@ -322,12 +312,7 @@ pub static ALICIA_CORTEZ: VampireDef = VampireDef {
     abilities: &[ModeDef {
         windows: &[Window::ActionAfterResolution],
         actor: Actor::Host,
-        requires: &[
-            R::ActorActing,
-            R::ActionDirected,
-            R::ActionSuccessful,
-            R::HandHas(CardFilter::Type(CardType::PoliticalAction), 1),
-        ],
+        requires: &[R::ActorActing, R::ActionDirected, R::ActionSuccessful],
         target: Some(TargetSpec {
             kind: TargetKind::Minion,
             // A locked vampire is a legal target with no effect: kept for
@@ -935,7 +920,7 @@ pub static KASIM_BAYAR: VampireDef = VampireDef {
         ..mode_of(
             &[Window::CombatBeforeRange],
             Actor::Host,
-            &[R::HandHas(CardFilter::Type(CardType::PoliticalAction), 1)],
+            &[],
             &[Effect::StrengthThisCombat(2)],
         )
     }],
@@ -1025,11 +1010,7 @@ pub static LARISSA_MOREIRA: VampireDef = VampireDef {
         ..mode_of(
             &[Window::ActionDuring],
             Actor::Host,
-            &[
-                R::ActorActing,
-                R::IsBleed,
-                R::HandHas(CardFilter::Discipline("ani"), 1),
-            ],
+            &[R::ActorActing, R::IsBleed],
             &[bleed(1, false)],
         )
     }],
@@ -1477,7 +1458,7 @@ const ROGER_MANEUVER: ModeDef = ModeDef {
     ..mode_of(
         &[Window::CombatDetermineRange],
         Actor::ForOwnCombatant,
-        &[R::HostReady, R::HandHas(CardFilter::Discipline("obl"), 1)],
+        &[R::HostReady],
         &[Effect::Maneuver],
     )
 };
@@ -1796,10 +1777,7 @@ pub static YEWON_ONG: VampireDef = VampireDef {
         ..mode_of(
             &[Window::Referendum],
             Actor::Host,
-            &[
-                R::AnyPollingStep,
-                R::HandHas(CardFilter::Discipline("obl"), 1),
-            ],
+            &[R::AnyPollingStep],
             &[Effect::AddVotes(1)],
         )
     }],
@@ -2913,10 +2891,7 @@ pub static MODIUS: VampireDef = VampireDef {
         ..mode_of(
             &[Window::Referendum],
             Actor::Host,
-            &[
-                R::AnyPollingStep,
-                R::HandHas(CardFilter::Type(CardType::Master), 1),
-            ],
+            &[R::AnyPollingStep],
             &[Effect::AddVotes(1)],
         )
     }],
@@ -3389,13 +3364,7 @@ pub static MAILA: VampireDef = VampireDef {
         ..mode_of(
             &[Window::ActionDuring],
             Actor::Host,
-            &[
-                R::HostReady,
-                R::OwnTurn,
-                R::OwnActing,
-                R::StealthNeeded,
-                R::HandHas(CardFilter::Type(CardType::PoliticalAction), 1),
-            ],
+            &[R::HostReady, R::OwnTurn, R::OwnActing, R::StealthNeeded],
             &[Effect::AddStealth(1)],
         )
     }],
@@ -3416,7 +3385,7 @@ pub static GABRIEL_TREMBLAY: VampireDef = VampireDef {
         ..mode_of(
             &[Window::CombatUntimed],
             Actor::Host,
-            &[R::HandHas(CardFilter::HasLabel(Label::RequiresAnarch), 1)],
+            &[],
             &[Effect::StrengthThisCombat(1)],
         )
     }],
@@ -3928,7 +3897,6 @@ pub static AKSINYA_DACLAU: VampireDef = VampireDef {
                 R::BlocksDeclined,
                 R::HostReady,
                 R::HostUnlocked,
-                R::HandHas(CardFilter::Type(CardType::Master), 1),
             ],
             &[Effect::RedirectBleed],
         )
@@ -4585,7 +4553,7 @@ pub static BABALAWO_ALAFIN: VampireDef = VampireDef {
         ..mode_of(
             &[Window::UnlockPhaseOwn],
             Actor::Host,
-            &[R::HostReady, R::HandHas(CardFilter::Any, 2)],
+            &[R::HostReady],
             &[Effect::OthersHandSmallerIfSame(1)],
         )
     }],
@@ -5595,11 +5563,7 @@ pub static ANGELICA: VampireDef = VampireDef {
         ..mode_of(
             &[Window::ActionStealthIntercept],
             Actor::Host,
-            &[
-                R::HostAttempting,
-                R::InterceptNeeded,
-                R::HandHas(CardFilter::Type(CardType::Master), 1),
-            ],
+            &[R::HostAttempting, R::InterceptNeeded],
             &[Effect::AddInterceptX],
         )
     }],
@@ -5965,12 +5929,7 @@ pub static VICTORIA_ASH_G7: VampireDef = VampireDef {
         ..mode_of(
             &[Window::ActionDuring, Window::ReactionDuringAction],
             Actor::Host,
-            &[
-                R::HostReady,
-                R::IsBleed,
-                R::ActingClan("Banu Haqim"),
-                R::HandHas(CardFilter::Any, 1),
-            ],
+            &[R::HostReady, R::IsBleed, R::ActingClan("Banu Haqim")],
             &[bleed(1, false)],
         )
     }],
@@ -6098,12 +6057,7 @@ pub static GIOTTO_VERDUCCI: VampireDef = VampireDef {
             n: 1,
             of: CardFilter::Any,
         }),
-        ..mode_of(
-            &[Window::OthersDiscardPhase],
-            Actor::Host,
-            &[R::HandHas(CardFilter::Any, 1)],
-            &[],
-        )
+        ..mode_of(&[Window::OthersDiscardPhase], Actor::Host, &[], &[])
     }],
     ..VAMP
 };
@@ -7064,11 +7018,7 @@ pub static CLAUDIO_SEVERINO: VampireDef = VampireDef {
         ..mode_of(
             &[Window::DiscardPhaseAction],
             Actor::Host,
-            &[
-                R::HostReady,
-                R::DiscardPhaseActionLeft,
-                R::HandHas(CardFilter::Discipline("tha"), 1),
-            ],
+            &[R::HostReady, R::DiscardPhaseActionLeft],
             &[Effect::SpendDiscardPhaseAction, Effect::GainPool(1)],
         )
     }],
@@ -7168,10 +7118,7 @@ pub static MASIKA: VampireDef = VampireDef {
         ..mode_of(
             &[Window::ActionStealthIntercept],
             Actor::Host,
-            &[
-                R::YourAttemptNeedsIntercept,
-                R::HandHas(CardFilter::Type(CardType::PoliticalAction), 1),
-            ],
+            &[R::YourAttemptNeedsIntercept],
             &[Effect::AttemptingIntercept(1)],
         )
     }],
@@ -7904,11 +7851,7 @@ pub static EDWARD_VIGNES: VampireDef = VampireDef {
         ..mode_of(
             &[Window::ReactionDuringAction],
             Actor::Host,
-            &[
-                R::ActionTargetsHost,
-                R::NoBlockAttempt,
-                R::HandHas(CardFilter::Discipline("dom"), 1),
-            ],
+            &[R::ActionTargetsHost, R::NoBlockAttempt],
             &[Effect::ActionFails],
         )
     }],
@@ -7947,11 +7890,7 @@ pub static KATHERINE_STODDARD: VampireDef = VampireDef {
         ..mode_of(
             &[Window::AnyImpulse],
             Actor::Host,
-            &[
-                R::OwnTurn,
-                R::HostReady,
-                R::HandHas(CardFilter::Discipline("aus"), 1),
-            ],
+            &[R::OwnTurn, R::HostReady],
             &[],
         )
     }],
@@ -10174,10 +10113,7 @@ pub static REBEKAH: VampireDef = VampireDef {
         ..mode_of(
             &[Window::Referendum],
             Actor::Host,
-            &[
-                R::AnyPollingStep,
-                R::HandHas(CardFilter::Discipline("aus"), 1),
-            ],
+            &[R::AnyPollingStep],
             &[Effect::AddVotes(2)],
         )
     }],
@@ -11527,11 +11463,7 @@ pub static KHALID: VampireDef = VampireDef {
         ..mode_of(
             &[Window::MasterPhase],
             Actor::Host,
-            &[
-                R::HostReady,
-                R::MasterPhaseActionLeft,
-                R::HandHas(CardFilter::Discipline("obf"), 1),
-            ],
+            &[R::HostReady, R::MasterPhaseActionLeft],
             &[Effect::SpendMasterPhaseAction, Effect::GainPool(1)],
         )
     }],
@@ -11605,7 +11537,7 @@ pub static LILLE_HAAKE: VampireDef = VampireDef {
         ..mode_of(
             &[Window::MasterPhase],
             Actor::Host,
-            &[R::MasterPhaseActionLeft, R::HandHas(CardFilter::Any, 1)],
+            &[R::MasterPhaseActionLeft],
             &[Effect::SpendMasterPhaseAction],
         )
     }],
@@ -11839,11 +11771,7 @@ pub static OLIVER_THRACE: VampireDef = VampireDef {
         ..mode_of(
             &[Window::ActionDuring],
             Actor::Host,
-            &[
-                R::ActorActing,
-                R::IsBleed,
-                R::HandHas(CardFilter::Discipline("tha"), 1),
-            ],
+            &[R::ActorActing, R::IsBleed],
             &[bleed(1, false)],
         )
     }],
@@ -13771,10 +13699,7 @@ pub static JACOB_THE_GLITCH: VampireDef = VampireDef {
         ..mode_of(
             &[Window::MasterPhase],
             Actor::HostControllersPredator,
-            &[
-                R::MasterPhaseActionLeft,
-                R::HandHas(CardFilter::Type(CardType::Master), 1),
-            ],
+            &[R::MasterPhaseActionLeft],
             &[Effect::SpendMasterPhaseAction, Effect::DiscardHand],
         )
     }],
@@ -13963,11 +13888,7 @@ pub static AISLING_STURBRIDGE_G6: VampireDef = VampireDef {
         ..mode_of(
             &[Window::ActionAfterResolution],
             Actor::Host,
-            &[
-                R::ActorActing,
-                R::ActionSuccessful,
-                R::HandHas(CardFilter::Discipline("tha"), 1),
-            ],
+            &[R::ActorActing, R::ActionSuccessful],
             &[Effect::UnlockHost],
         )
     }],
@@ -14085,12 +14006,7 @@ pub static KAISER: VampireDef = VampireDef {
         ..mode_of(
             &[Window::ReactionDuringAction],
             Actor::Host,
-            &[
-                R::HostReady,
-                R::IsBleed,
-                R::DirectedAtYou,
-                R::HandHas(CardFilter::RequiresDiscipline, 1),
-            ],
+            &[R::HostReady, R::IsBleed, R::DirectedAtYou],
             &[Effect::ReduceBleed(1)],
         )
     }],
@@ -14814,12 +14730,7 @@ pub static HILLANVALE: VampireDef = VampireDef {
         ..mode_of(
             &[Window::ActionDuring],
             Actor::Host,
-            &[
-                R::ActorActing,
-                R::IsBleed,
-                R::HostBloodAtLeast(1),
-                R::HandHas(CardFilter::Discipline("mel"), 1),
-            ],
+            &[R::ActorActing, R::IsBleed, R::HostBloodAtLeast(1)],
             &[Effect::HostBurnBlood(1), bleed(1, false)],
         )
     }],
@@ -15165,11 +15076,7 @@ pub static SYLVIE_HELGON: VampireDef = VampireDef {
             ..mode_of(
                 &[Window::ActionDuring],
                 Actor::Host,
-                &[
-                    R::ActorActing,
-                    R::StealthNeeded,
-                    R::HandHas(CardFilter::Type(CardType::PoliticalAction), 1),
-                ],
+                &[R::ActorActing, R::StealthNeeded],
                 &[Effect::AddStealth(1)],
             )
         },
@@ -15182,10 +15089,7 @@ pub static SYLVIE_HELGON: VampireDef = VampireDef {
             ..mode_of(
                 &[Window::ActionStealthIntercept],
                 Actor::Host,
-                &[
-                    R::InterceptNeeded,
-                    R::HandHas(CardFilter::Type(CardType::PoliticalAction), 1),
-                ],
+                &[R::InterceptNeeded],
                 &[Effect::AddIntercept(1)],
             )
         },
@@ -15625,10 +15529,7 @@ pub static DR_JOHN_DEE: VampireDef = VampireDef {
         ..mode_of(
             &[Window::Referendum],
             Actor::Host,
-            &[
-                R::AnyPollingStep,
-                R::HandHas(CardFilter::Discipline("tha"), 1),
-            ],
+            &[R::AnyPollingStep],
             &[Effect::AddVotes(2)],
         )
     }],
@@ -16127,7 +16028,7 @@ pub static TALBOT: VampireDef = VampireDef {
             n: 1,
             of: CardFilter::Type(CardType::Master),
         }),
-        requires: &[R::HandHas(CardFilter::Type(CardType::Master), 1)],
+        requires: &[],
         ..printed_action(
             Some(TargetSpec {
                 kind: TargetKind::Minion,
@@ -17629,7 +17530,7 @@ pub static HUKROS: VampireDef = VampireDef {
         ..mode_of(
             &[Window::UnlockPhaseOwn],
             Actor::Host,
-            &[R::HandHas(CardFilter::Any, 1)],
+            &[],
             &[Effect::StorePickedOnHost],
         )
     }],

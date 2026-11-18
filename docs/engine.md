@@ -125,7 +125,9 @@ uses an ability, read by the enumeration, `resolve_ability`'s header and
 every terms request; `use_ability` takes the seat that chose it.
 `ability_gate(seat, window, source, ability, user)` holds every check: the
 user's seat, phase requirements and phase uses, the limit ledger, cost bars
-(an ally pays no blood; `cards::plays_card_as_vampire`), `cb.allows_from`,
+(an ally pays no blood; `cards::plays_card_as_vampire`), each terms kind
+having an option (cards to discard: `GameState::discard_terms_met`; an
+equipment or retainer from hand; an ash heap card), `cb.allows_from`,
 granted-action checks (`may_take_granted`, the turn's political action,
 Delaying Tactics, a referendum feasible), then `ability_holds` (the
 requirements read by name, the card's, host's and play's evaluators).
@@ -839,8 +841,10 @@ sources to the engine's conventions.
   granted action's `Terms::Discard` is its cost, discarded as it resolves
   (`Interrupt::DiscardChosen` from `succeed`'s `Ability` arm; too few in
   hand, those there discarded and the action fizzles; Talbot, rules-digest
-  D20). A granted action requiring the Edge fizzles once its Methuselah
-  lost it (`ability_void`; Bulscu, D13).
+  D20). Any ability whose discard terms the hand cannot pay is not offered
+  (`GameState::discard_terms_met` in `ability_gate`: an empty choice
+  otherwise; Velya). A granted action requiring the Edge fizzles once its
+  Methuselah lost it (`ability_void`; Bulscu, D13).
 - The blood an action's costs took, as paid and whoever paid (a card's,
   a surcharge, a rescue's share, leaving torpor; not a continuation's
   burn): `ActionCtx::blood_cost`, recorded at each payment site, read by
@@ -3271,7 +3275,7 @@ CryptAlly}`.
 - `Effect::SearchLibraryToHand { shown }` (Shared): the card shown only
   when printed (Al's Army Apparatus, PIB 20121028).
   `Terms::DiscardSameName(n)`: the first pick names the card, masked
-  without a pair by `Requirement::HandHasCopies` (Specialization).
+  without n copies of one card (`discard_terms_met`; Specialization).
 - "Do not replace until your influence phase" (Lupine Assault):
   `Until::InfluencePhase` → `Release::InfluencePhase`, released for the
   active seat as its influence phase begins.

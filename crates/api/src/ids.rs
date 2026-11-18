@@ -289,7 +289,8 @@ ids!(
         InPlay,
 
         /// Pool burned for votes.
-        Pool,    }
+        Pool,
+    }
 );
 
 ids!(

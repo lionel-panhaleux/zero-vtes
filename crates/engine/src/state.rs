@@ -3531,6 +3531,20 @@ impl GameState {
             .min()
     }
 
+    /// Can the seat's hand pay the discards `terms` name as an ability is
+    /// used (Velya's card requiring Auspex)?
+    pub fn discard_terms_met(&self, seat: SeatId, terms: Option<cards::Terms>) -> bool {
+        let hand = &self.seats[seat.index()].hand;
+        match terms {
+            Some(cards::Terms::Discard { n, of }) => self.hand_picks(seat, of).len() >= n as usize,
+            Some(cards::Terms::DiscardAny { of }) => !self.hand_picks(seat, of).is_empty(),
+            Some(cards::Terms::DiscardSameName(n)) => hand
+                .iter()
+                .any(|&c| hand.iter().filter(|&&d| d == c).count() >= n as usize),
+            _ => true,
+        }
+    }
+
     /// Hand indices of the seat's cards `of` matches.
     pub fn hand_picks(&self, seat: SeatId, of: cards::CardFilter) -> Vec<u8> {
         self.seats[seat.index()]

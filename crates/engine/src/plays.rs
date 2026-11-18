@@ -11919,6 +11919,11 @@ impl Engine {
                 return None;
             }
         }
+        // Cards to discard from hand (Velya's card requiring Auspex): too
+        // few, nothing to choose.
+        if !st.discard_terms_met(seat, ability.terms) {
+            return None;
+        }
         // "Burn X pool": payable, down to 0 at most (The Uncoiling).
         if let (true, Some(id)) = (
             ability.effects.contains(&Effect::PayPoolPerOtherEvent),
