@@ -252,7 +252,7 @@ A JSON object with `seq`, `reply_to`? and a `type`:
 | `error` | `error`: `stale` (+ `expected`), `not_your_turn`, `option` (+ `index`), `no_undo`, `allocation` (+ `reason`: `none`, `length`, `total`, `cap`, `min_nonzero`), `no_votes`, `over`, `not_joined`, `malformed` (+ `reason`), `rate_limited`, `seat_taken` |
 
 `window` is a stable id (`minion_phase`, `action_block`, `combat_strike`,
-… 41: the schema's `Window`). `source` is the card whose terms or effect
+…: the schema's `Window`). `source` is the card whose terms or effect
 the decision chooses, when it is one (a play's or an action's terms, a
 referendum's): the options' `effects` say what each choice gets.
 `purpose` is what an effect asks the choice for, when one does (ids of
@@ -390,9 +390,9 @@ the previous one, never the engine's state.
 (Play Govern the Unaligned at basic Dominate with minion 41, bleeding
 seat 2; burn 2 pool to keep card 9.)
 
-- **The key** — what the option is: `kind` (69 kinds: `pass`, `play`,
-  `use_ability`, `take_action`, `declare_block`, `cast_votes`, `transfer`,
-  `hand_strike`, `find_card`…), and, all optional: `card` (`id`; `copy` for one
+- **The key** — what the option is: `kind` (`pass`, `play`, `use_ability`,
+  `take_action`, `declare_block`, `cast_votes`, `transfer`, `hand_strike`,
+  `find_card`…), and, all optional: `card` (`id`; `copy` for one
   physical card; `from` a card or minion it is stored on: Hukros), `actor` (the
   minion playing or acting), `minion` (the minion it is otherwise about),
   `target` (`{"kind":"seat","seat":n}` or `{"kind":"card","copy":n}`), `action`,
@@ -439,7 +439,7 @@ seat 2; burn 2 pool to keep card 9.)
   vocabulary, not the engine's own effects: each
   `{kind, n?, x?, on?, seat?, copy?, cost?, when?, card?, to?, action?,
   favor?, strike?, range?, role?, clan?, detail?}`.
-  - `kind` (39, open): `pool`, `blood`, `life`, `counters`,
+  - `kind` (open): `pool`, `blood`, `life`, `counters`,
     `transfers`, `damage`, `strike`, `strength`, `stealth`,
     `intercept`, `bleed`, `prevent`, `press`, `maneuver`, `range`,
     `end_combat`, `enter_combat`, `immune`, `burn`, `lock`, `unlock`,

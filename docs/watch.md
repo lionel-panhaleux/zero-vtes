@@ -48,14 +48,6 @@ write to the main checkout's ignored `data/`.
 
 ## On a date
 
-- **2026-11-20 — the eighth upkeep's proposals** (asked in the digest,
-  2026-11-17: the ledger's `n/a` reasons re-checked with the "not in the
-  pool" clauses; a batch's cross-card readings in rules-qa's Index;
-  protocol.md's counts dropped; a measured run's entry cut to its
-  settled lines; "Paths in the observation" to the open beta's watch
-  item): unanswered → asked again in the digest; each answer → made, or a
-  line on its board when it is code; then the item is deleted.
-
 ## On an event
 
 - **The platform opened to more players** (owner, 2026-11-09: planned
@@ -66,4 +58,13 @@ write to the main checkout's ignored `data/`.
   owner asked in the digest; started with a candidate → Z-engine's
   `intake` (the server's random choice of weights, the report's split by
   arm) and Z-train's (the candidate), and the item is deleted; no
-  candidate yet → the item stays until one exists.
+  candidate yet → the item stays until one exists. The candidate's run
+  (owner, 2026-11-18, the eighth upkeep) also brings paths into the
+  observation: a vampire's path (`Minion::path`, read live) as a
+  minion-token feature (added to `obs::Version::V4` while no network
+  reads it, else a slot shown unused or a new version: one bump for
+  both, Z-main 2026-11-08) and `Choice::FollowPath` its own choice kind
+  (folded into kind 58 today, a vampire's four paths alike), both taken
+  out of `zvtes_policy::untrained` in `crates/py` and `NetAgent`
+  together (DESIGN §5, §11.2): Z-train's board line again when the run
+  is prepared.

@@ -1191,8 +1191,8 @@ What the engine does not yet do or does only in part, true today.
   Orlando Oriundus's bar on other multipliers (no other multiplier);
   Onaedo's Otieno (not in the pool).
 - **Paths in the observations**: the policy sees a vampire's sect, not its
-  path, and the networks never follow one (`zvtes_policy::untrained`): the
-  training board's "Paths in the observation".
+  path, and the networks never follow one (`zvtes_policy::untrained`):
+  the next run's, docs/watch.md "The platform opened".
 - **Mechanisms missing**: immunity to damage from a source.
 - **Known edges**:
   - Waiting for a pool card (none reaches them):

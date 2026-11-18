@@ -193,7 +193,15 @@ Every "not in the pool" or "no … in the pool" clause in the definitions
 and pages (`grep -rn -i "in the pool" crates/engine/src/cards DESIGN.md
 docs`) is re-checked against the round's cards: one whose tenant the
 round added is implemented in the round, its rules-qa item and comment
-corrected (owner, 2026-11-11: seven were found stale at once).
+corrected (owner, 2026-11-11: seven were found stale at once). So is
+every ledger `n/a:` reason claiming no card does something (`grep -nE
+'n/a:[^"]*\b([Nn]o|none|nothing|never)\b' data/rulings-v5.csv`, read
+for the round's cards): a round card doing it turns the row into a
+`test:` (owner, 2026-11-18: an n/a reason is a pool claim, and the pool
+grows every round). The batch's cross-card readings (those reaching
+beyond their own card) go into rules-qa's Index before the round lands
+(owner, 2026-11-18: the Index is how the next round finds them, and no
+check reads it).
 Ask the red items before committing (through Z-main's digest, or the
 owner directly): a "no" lands in the same commit, and the commit waits
 for their answers only. Commit the round's files by path (CLAUDE.md

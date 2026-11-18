@@ -85,7 +85,13 @@ checks it did not get worse).
      standard errors; the other counters are diagnostics;
    - `uv run python -m train.position runs/pN/best.pt --records
      data/records,data/server-records`: the critic by stage.
-   Write the "pN run" entry in §11.2 with the numbers.
+   Write the "pN run" entry in §11.2 with the numbers. Once the run is
+   measured, its entry is cut to its settled lines: what the run showed
+   and the command the next run starts from (its held-out list stays,
+   step 1; the weak-deck list goes to the ignored `runs/pN.md`); a
+   "Settled by measurement" line names the runs it rests on (owner,
+   2026-11-18: the page is the standing record, and the entries grew
+   into a journal).
 5. **Serve** (by the measure, owner 2026-10-23; what counts, owner
    2026-11-09). Not degrading, each within two standard errors of the
    served weights: pN's VP a seat against three of them at or above even,
