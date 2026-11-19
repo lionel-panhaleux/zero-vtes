@@ -406,9 +406,12 @@ impl Build<'_> {
                     card: self.slot_card(u),
                     counters: u.counters,
                     banished: u.banished.is_some(),
+                    // A created vampire's own card is its face, not a
+                    // card on it.
                     cards: u.banished.as_ref().map_or_else(Vec::new, |b| {
                         b.cards
                             .iter()
+                            .filter(|&&c| st.cards[c.index()].body != Some(b.minion))
                             .flat_map(|&c| {
                                 let c = &st.cards[c.index()];
                                 std::iter::once(self.card(*c.copy, c.card, false))
@@ -1004,6 +1007,57 @@ mod tests {
             .position(f)
             .map(|i| i as u16)
             .expect("a vampire")
+    }
+
+    // The Embrace banished (RTR 19990712): its card the slot's face, not a
+    // card on it, the cards it carries listed (the events tell those only).
+    #[test]
+    fn a_banished_created_vampire_shows_its_card_once() {
+        use zvtes::library::LIBRARY;
+        use zvtes::state::{find_library, Banished, CardId, CardInPlay, MinionKind as Mk};
+        use zvtes::state::{UncontrolledSlot, CREATED};
+        let mut e = Engine::bare(2);
+        let m = e.add_minion(SeatId(0), crypt(|c| !c.unique), 1, false);
+        let embrace = find_library("Embrace, The");
+        let laptop = find_library("Laptop Computer");
+        let mut body = CardInPlay::new(embrace, SeatId(0), None, 0);
+        body.body = Some(m);
+        body.copy = e.state.minions[m.index()].copy;
+        e.state.cards.push(body);
+        e.state
+            .cards
+            .push(CardInPlay::new(laptop, SeatId(0), Some(m), 0));
+        let n = e.state.cards.len();
+        let v = &mut e.state.minions[m.index()];
+        v.kind = Mk::Created {
+            card: embrace,
+            id: CardId(n as u32 - 2),
+            clan: Some("Brujah"),
+            sect: zvtes::crypt::Sect::Camarilla,
+            born: &zvtes::state::NEWBORN,
+        };
+        v.in_play = false;
+        let copy = v.copy;
+        for c in &mut e.state.cards {
+            c.in_play = false;
+        }
+        e.state.seats[0].uncontrolled.push(UncontrolledSlot {
+            card: CREATED,
+            copy: zvtes::copies::Untracked(*copy),
+            counters: 1,
+            banished: Some(Banished {
+                minion: m,
+                cards: vec![CardId(n as u32 - 2), CardId(n as u32 - 1)],
+            }),
+        });
+        let names = vec!["a".to_string(), "b".to_string()];
+        let decks = Decks::dealt(&e);
+        let v = Viewer::new(Some(SeatId(0))).view(&e, &decks, &names);
+        let slot = &v.seats[0].uncontrolled[0];
+        let id = |c: u16| Some(LIBRARY[c as usize].id);
+        assert_eq!(slot.card.id, id(embrace));
+        let on: Vec<_> = slot.cards.iter().map(|c| c.id).collect();
+        assert_eq!(on, [id(laptop)]);
     }
 
     // Two uncontrolled vampires of one printed name, two cards (Helena and

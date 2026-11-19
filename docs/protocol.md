@@ -326,7 +326,8 @@ the previous one, never the engine's state.
   being played); an ousted seat's places empty (its cards out of the game);
   `training[]` (library cards in the uncontrolled region with training counters,
   Web of Knives Recruit: as `in_play[]`'s, the counters the training's);
-  `uncontrolled[]` (`card`, `counters`, `banished`, `cards`); `ready[]`,
+  `uncontrolled[]` (`card`, `counters`, `banished`, `cards`: the cards on a
+  banished vampire, a created one's own its `card`); `ready[]`,
   `torpor[]` and `incapacitated[]` minions (an imbued that lost its last life,
   controlled and not ready, its `blood` the life it has gained there since
   (Rejuvenate): the rulebook's incapacitated region, its own zone
