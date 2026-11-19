@@ -11692,7 +11692,8 @@ impl Engine {
                 self.state.minions[m.index()].locked = true;
             }
             if let Some((m, n)) = burn {
-                self.state.burn_blood(m, n);
+                let by = Cause::Effect(crate::notes::Source::Minion(m));
+                self.caused(by, |e| e.state.burn_blood(m, n));
             }
         }
         self.unsuccessful_attempt_burns();
@@ -11735,7 +11736,8 @@ impl Engine {
             if let Some(n) = n.filter(|_| !self.state.minions[a.acting.index()].ready()) {
                 let mut loss = vec![0; self.state.seats.len()];
                 loss[a.seat.index()] = n as i32;
-                self.burn_pool_batch(&loss);
+                let by = Cause::Effect(a.cause_source());
+                self.caused(by, |e| e.burn_pool_batch(&loss));
             }
         }
         // Infernal Servitor: "after it performs a successful action" (a
@@ -11791,7 +11793,8 @@ impl Engine {
             })
             .collect();
         for (m, n) in burns {
-            self.state.burn_blood(m, n);
+            let by = Cause::Effect(crate::notes::Source::Minion(m));
+            self.caused(by, |e| e.state.burn_blood(m, n));
         }
     }
 

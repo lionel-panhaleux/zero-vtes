@@ -2029,7 +2029,8 @@ fn harry_reese_hits_non_mortal_allies_harder() {
 }
 
 /// Spider: "If Spider is blocked and the blocking minion is still ready at
-/// the end of the action, Spider burns 1 blood."
+/// the end of the action, Spider burns 1 blood." His burn, by him (told
+/// with its cause).
 #[test]
 fn spider_pays_for_a_standing_blocker() {
     let mut e = game(2);
@@ -2037,10 +2038,19 @@ fn spider_pays_for_a_standing_blocker() {
     e.add_minion(SeatId(0), plain("Brujah", 1), 4, false);
     let b = e.add_minion(SeatId(1), plain("Ventrue", 0), 4, false);
     e.add_minion(SeatId(1), plain("Ventrue", 1), 4, false);
+    e.notes = Some(Vec::new());
+    let before = e.table();
     bleed_blocked(&mut e, s, b);
     to_window(&mut e, SeatId(1), WindowLabel::MinionPhase);
     // 1 damage mended, 1 for the standing blocker.
     assert_eq!(blood(&e, s), 4 - 1 - 1);
+    let burns: Vec<_> = noted_changes(&mut e, before)
+        .into_iter()
+        .filter(|&(_, at, n)| at == Err(s) && n < 0)
+        .map(|(cause, ..)| cause)
+        .collect();
+    let by = zvtes::notes::Cause::Effect(zvtes::notes::Source::Minion(s));
+    assert_eq!(burns.last(), Some(&Some(by)), "{burns:?}");
 }
 
 /// Muhandis: "must burn 1 blood to attempt to block a vampire."

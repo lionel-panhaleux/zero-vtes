@@ -4546,11 +4546,21 @@ fn maskini_burns_after_a_failed_block() {
     let a = e.add_minion(SeatId(0), plain("Brujah", 0), 1, false);
     e.add_minion(SeatId(0), plain("Brujah", 1), 4, false);
     let m = e.add_minion(SeatId(1), find_card("Maskini"), 4, false);
+    e.notes = Some(Vec::new());
+    let before = e.table();
     pick(&mut e, action(a, ActionKind::Hunt));
     pick_when(&mut e, block(m));
     assert_eq!(blood(&e, m), 4, "not yet");
     until(&mut e, SeatId(0), WindowLabel::MinionPhase);
     assert_eq!(blood(&e, m), 4 - 1);
+    // Told with its cause, Maskini.
+    let burns: Vec<_> = noted_changes(&mut e, before)
+        .into_iter()
+        .filter(|&(_, at, n)| at == Err(m) && n < 0)
+        .map(|(cause, ..)| cause)
+        .collect();
+    let by = zvtes::notes::Cause::Effect(zvtes::notes::Source::Minion(m));
+    assert_eq!(burns, [Some(by)]);
 }
 
 /// Matata: "Matata gets an optional press each combat. +1 strength." One

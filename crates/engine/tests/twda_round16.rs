@@ -459,12 +459,26 @@ fn rumble_burns_a_pool_if_its_vampire_is_down() {
     let z = e.add_minion(SeatId(1), plain("Ventrue", 0), 4, false);
     e.add_minion(SeatId(1), plain("Ventrue", 1), 4, false);
     hand(&mut e, 0, &["Rumble"]);
+    e.notes = Some(Vec::new());
+    let before = e.table();
     pick(&mut e, play_at(0, 0, r, Target::Minion(z)));
     // No blood left to take the hit: torpor.
     e.state.minions[r.index()].blood = 0;
     until(&mut e, SeatId(1), WindowLabel::MinionPhase);
     assert!(!e.state.minions[r.index()].ready(), "sent to torpor");
     assert_eq!(pool(&e)[0], 10 - 1);
+    // Told with its cause, Rumble.
+    let burns: Vec<_> = noted_changes(&mut e, before)
+        .into_iter()
+        .filter(|&(_, at, n)| at == Ok(SeatId(0)) && n < 0)
+        .map(|(cause, ..)| cause)
+        .collect();
+    let rumble = find_library("Rumble");
+    assert!(
+        matches!(burns.as_slice(), [Some(zvtes::notes::Cause::Effect(
+            zvtes::notes::Source::Played { card, .. }))] if *card == rumble),
+        "{burns:?}"
+    );
 }
 
 // Wrong and Crosswise: "[dem] Reduce a bleed against you by 2."

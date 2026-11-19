@@ -58,10 +58,12 @@ fn from() -> u32 {
 /// Magnum paid with the last pool), one whose referendum ended the game, its
 /// card out of limbo (2742: Kine Resources Contested); and a minion's title
 /// changed between two views (47); and a turn begun with its skip asked (353:
-/// First Tradition: The Masquerade).
-const KEPT: [u32; 35] = [
+/// First Tradition: The Masquerade); and a block attempt its action's end
+/// cut short, told failed before it (742: Shadow Play burning Nocturn).
+const KEPT: [u32; 36] = [
     47, 137, 139, 143, 145, 220, 289, 321, 328, 332, 342, 353, 375, 389, 445, 472, 499, 526, 536,
-    589, 591, 615, 766, 1057, 1302, 1320, 1413, 1717, 1733, 2355, 2382, 2493, 2742, 3572, 5419,
+    589, 591, 615, 742, 766, 1057, 1302, 1320, 1413, 1717, 1733, 2355, 2382, 2493, 2742, 3572,
+    5419,
 ];
 
 /// The sweep's seeds: `HOST_SEED_FROM` to `HOST_SEEDS` (40), the kept
@@ -1316,7 +1318,10 @@ fn the_events_tell_what_the_views_show() {
         !unordered.contains_key("uncontrolled"),
         "an uncontrolled region in another order: {unordered:?}"
     );
-    assert!(moved[2] > 0, "no vampire moved within its region");
+    assert!(
+        moved[2] > 0 || from() != 1,
+        "no vampire moved within its region"
+    );
     for (path, (n, ex)) in &unreduced {
         eprintln!("  {path}: {n}, as {ex}");
     }

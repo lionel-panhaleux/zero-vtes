@@ -303,6 +303,9 @@ impl Session {
         let mut revealed = false;
         let mut table = self.mark.as_ref().map(|m| &m.ledger);
         let mut open = self.mark.as_ref().and_then(|m| m.action);
+        // A block attempt the action's end cut short (its acting minion
+        // gone: Shadow Play burning Nocturn), told failed before the end.
+        let mut cut: Option<zvtes::ids::MinionId> = None;
         for n in &notes {
             let fact = match n {
                 Note::Ledger { ledger, cause } => {
@@ -310,7 +313,14 @@ impl Session {
                     match table {
                         Some(was) => {
                             let e = &self.engine;
+                            let from = told.len();
                             changes(e, (was, ledger), *cause, ran, open, seen, &mut told);
+                            if let Some(m) = cut.take() {
+                                let failed = |t: &Told| matches!(t.fact, Fact::BlockFails { minion } if minion == m);
+                                if let Some(i) = told[from..].iter().position(failed) {
+                                    told.remove(from + i);
+                                }
+                            }
                         }
                         None => seen.extend(ledger.census.iter().map(|&(c, _, p)| (c, p))),
                     }
@@ -320,6 +330,11 @@ impl Session {
                 Note::Action(a) => {
                     let action = ActionFact::of(&a.action);
                     open = (!a.ended).then_some(action);
+                    let attempt = table.and_then(|l| l.attempting);
+                    if let Some(m) = attempt.filter(|&m| a.ended && a.action.blocker != Some(m)) {
+                        told.push(Told::new(Fact::BlockFails { minion: m }, true));
+                        cut = Some(m);
+                    }
                     match a.ended {
                         false => Fact::ActionStarts(action),
                         true => {

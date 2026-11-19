@@ -645,7 +645,7 @@ heap (a marker on its minion, §6), no copy of its own.
 | `withdrawal_broken` | `seat`: the withdrawal broken (pool or a vampire's blood lost or spent, a minion in combat) |
 | `withdrew` | `seat`: out of the game by the withdrawal (in place of `ousted`: the seat's `ousted` and `withdrew` true; no `victory_points` for the predator) |
 | `edge` | `seat`? (who holds the Edge now; absent: burned) |
-| `block_fails` | `minion` (its block attempt ended, the action goes on) |
+| `block_fails` | `minion` (its block attempt ended without a block; the action goes on, or ends) |
 | `action_starts` | `seat`, `acting` (the minion's card, numbered by its name, as `enters_play` tells one: it may have come into play in the same run), `minion` (its kind), `action`: an action announced, by a decision or by the engine itself (a forced action: a hunt, Elen Kamjian's bleed); its `action_ends` follows, however short the action, before the next is announced |
 | `acting_changes` | `seat`, `acting`, `minion` (as `action_starts` tells them): another minion of the action's Methuselah now acting in it (Mask of a Thousand Faces); the action goes on as theirs, its `action_ends` naming them |
 | `action_state` | `action` (§6's): the action under way as it stands, told when it changed since the last view (its step, stealth and intercept, the bleed, the seats that declined) |

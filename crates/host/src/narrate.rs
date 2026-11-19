@@ -537,7 +537,9 @@ pub(crate) fn changes(
         tell(out, Fact::Transfers(left), false);
     }
     // A block attempt that ended with no block (short of the stealth,
-    // or given up): the action goes on, or ends unblocked.
+    // or given up): the action goes on, or ends unblocked. One its
+    // action's end cut short is told by `Session::observe` at that end,
+    // which drops this one: keep the two alike.
     if let Some(m) = before.attempting {
         if after.attempting != Some(m) && after.blocker != Some(m) {
             tell(out, Fact::BlockFails { minion: m }, true);
@@ -1034,7 +1036,9 @@ pub(crate) fn changes(
         }
     }
     // A card come into a contest at once (a unique card put on a minion
-    // while another copy is in play), told contested once on the table.
+    // while another copy is in play), told contested once on the table,
+    // its counters before (Mr. Winthrop's life: no ledger holds a
+    // contested card's).
     let on_table = |copy: CopyId, census: &[(CopyId, u16, Place)]| {
         census
             .iter()
@@ -1044,6 +1048,15 @@ pub(crate) fn changes(
         let new = !matches!(was.get(&c.copy), Some(Place::Card { .. }));
         if c.in_play && c.contested && c.body.is_none() && new && on_table(*c.copy, &after.census) {
             let card = CardId(i as u32);
+            if c.counters > 0 {
+                let fact = Fact::Counters {
+                    what: Held::Card(card),
+                    delta: i32::from(c.counters),
+                    counters: c.counters,
+                    cause,
+                };
+                tell(out, fact, false);
+            }
             let fact = Fact::CardLeaves {
                 card,
                 to: None,
@@ -1180,9 +1193,6 @@ mod tests {
         until(e, |r| r.options.iter().position(|o| *o == want));
     }
 
-    // A strike declared is marked with what it inflicts as declared (the
-    // `strike_declared` event's `n`): Torn Signpost [POT] sets a strength of
-    // 3, the hand strike for 3.
     /// The cards on a minion going into a contest are told leaving
     /// contested with it (rules-qa 83.1).
     #[test]
@@ -1219,6 +1229,40 @@ mod tests {
             )),
             "{out:?}"
         );
+    }
+
+    /// A retainer employed straight into a contest (a second Mr. Winthrop)
+    /// tells its life counter before it goes contested: no ledger holds a
+    /// contested card's counters.
+    #[test]
+    fn a_card_entering_a_contest_tells_its_counters() {
+        let mut e = Engine::bare(2);
+        let m = e.add_minion(SeatId(1), find_card("Monica Giovanni"), 4, false);
+        e.add_minion(SeatId(0), find_card("Farah Sarroub"), 4, false);
+        let before = Mark::of(&e);
+        let mut winthrop = CardInPlay::new(find_library("Mr. Winthrop"), SeatId(1), Some(m), 0);
+        winthrop.counters = 1;
+        winthrop.contested = true;
+        e.state.cards.push(winthrop);
+        let card = zvtes::state::CardId(e.state.cards.len() as u32 - 1);
+        let after = Mark::of(&e).ledger;
+        let mut out = Vec::new();
+        super::changes(
+            &e,
+            (&before.ledger, &after),
+            None,
+            true,
+            None,
+            &mut Default::default(),
+            &mut out,
+        );
+        let counters = out.iter().position(|t| {
+            matches!(t.fact, super::Fact::Counters { what: super::Held::Card(c), counters: 1, .. } if c == card)
+        });
+        let contested = out.iter().position(|t| {
+            matches!(t.fact, super::Fact::CardLeaves { card: c, contested: true, .. } if c == card)
+        });
+        assert!(counters.is_some() && counters < contested, "{out:?}");
     }
 
     /// A card's face told as its places showed it as it moved: drawn
