@@ -10,7 +10,7 @@ use zvtes::crypt::CRYPT;
 use zvtes::decision::{ActionKind, Choice, DecisionRequest, WindowLabel};
 use zvtes::game::{Engine, Step};
 use zvtes::ids::{MinionId, SeatId};
-use zvtes::state::{find_library, CardId};
+use zvtes::state::{find_library, CardId, CardInPlay};
 
 // ---- Driving the decision loop -----------------------------------------------
 
@@ -369,6 +369,37 @@ pub fn uses(req: &DecisionRequest, card: u32) -> Vec<Choice> {
 
 // ---- Fixtures and state ------------------------------------------------------
 
+/// A card already in play for `seat`, on `host` if given, in mode `mode`
+/// with that mode's layers (no play): its id.
+pub fn in_play_mode(
+    e: &mut Engine,
+    seat: u8,
+    name: &str,
+    host: Option<MinionId>,
+    mode: u8,
+) -> CardId {
+    let card = find_library(name);
+    e.state
+        .cards
+        .push(CardInPlay::new(card, SeatId(seat), host, mode));
+    let id = CardId(e.state.cards.len() as u32 - 1);
+    for effect in zvtes::cards::lookup(card).expect("definition").modes[mode as usize].effects {
+        if let zvtes::cards::Effect::Layer(modifier) = effect {
+            e.state.layers.push(zvtes::cards::Layer {
+                scope: zvtes::cards::Scope::InPlay,
+                modifier: *modifier,
+                source: id,
+            });
+        }
+    }
+    id
+}
+
+/// [`in_play_mode`] in its first mode.
+pub fn in_play(e: &mut Engine, seat: u8, name: &str, host: Option<MinionId>) -> CardId {
+    in_play_mode(e, seat, name, host, 0)
+}
+
 pub fn hand(e: &mut Engine, seat: u8, cards: &[&str]) {
     for c in cards {
         e.state.seats[seat as usize].hand.push(find_library(c));
@@ -417,6 +448,7 @@ pub fn fixture_rank(card: u16) -> Option<u8> {
         && d.levels.is_empty()
         && d.superior_while.is_none()
         && d.pool_surcharge.is_empty()
+        && d.lends_basic.is_none()
         && d.printed.iter().all(|p| {
             p.to == PrintedTo::Itself
                 && p.per == Per::One

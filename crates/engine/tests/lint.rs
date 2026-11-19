@@ -175,6 +175,32 @@ fn pool_and_blood_go_down_through_their_primitives() {
     );
 }
 
+/// The Edge is lost only through `Engine::lose_edge`: Sennadurek reads
+/// every loss (`Hook::MethuselahLosesEdge`).
+#[test]
+fn the_edge_is_lost_through_lose_edge() {
+    let mut found = Vec::new();
+    for (file, src) in engine_sources() {
+        let code = src.split("#[cfg(test)]").next().unwrap_or(&src);
+        let mut within = "";
+        for (n, line) in code.lines().enumerate() {
+            let line = line.split("//").next().unwrap_or("");
+            if let Some((_, name)) = line.split_once("fn ") {
+                within = name.split(['(', '<']).next().unwrap_or("");
+            }
+            let lost = line.contains("has_edge = false") || line.contains("has_edge, false");
+            if lost && within != "lose_edge" {
+                found.push(format!("{file}:{}: {}", n + 1, line.trim()));
+            }
+        }
+    }
+    assert!(
+        found.is_empty(),
+        "the Edge cleared in place (use Engine::lose_edge):\n{}",
+        found.join("\n")
+    );
+}
+
 /// No to-do markers in the repository's code: work found on the way is
 /// done now or goes on a board through the `intake` skill (CLAUDE.md
 /// "Harness"). The markers are spelled in pieces so this file passes.
@@ -233,6 +259,22 @@ fn no_todo_in_code() {
 /// with how it is once all the same. An entry no longer flagged fails as
 /// stale.
 const DURING_ONCE_ELSEWHERE: &[(&str, &str)] = &[
+    (
+        "WINGED_SECOND",
+        "\"during normal strike resolution\" its strike in the normal pair of each round, no ability (Side::second)",
+    ),
+    (
+        "INTERNAL_RECURSION",
+        "a reaction card's strike granted for one combat, no ability (BlockRider::CombatEndsStrike)",
+    ),
+    (
+        "STATIC_VIRTUE",
+        "\"during your last influence phase\" its condition, no ability: a master card's one play",
+    ),
+    (
+        "INFORMANT",
+        "its unlock-phase look a rider, fired once in the phase (Effect::HandSeenByReadyClanControllers)",
+    ),
     (
         "DESALLE",
         "a printed burn each attempting Sabbat vampire uses once an action (ActionCtx::printed_burned)",
@@ -477,7 +519,8 @@ fn during_abilities_are_once() {
 // prints. Chameleon's "take control" may take one's own vampire, its ruling
 // over the glossary (LSJ 20080803-2: "to make it Anarch").
 // New Management's "take control" may take one's own location (LSJ
-// 20080803-2), a legal no-op.
+// 20080803-2), a legal no-op. Reindoctrination takes control "if another
+// Methuselah controls" its Gargoyle, its own re-enslaved, not stolen.
 #[test]
 fn steals_never_target_ones_own_cards() {
     use zvtes::cards::{defs::DEFS, vampires::VAMPIRES, Effect, ModeDef, Requirement};
@@ -508,6 +551,7 @@ fn steals_never_target_ones_own_cards() {
             if steals(m)
                 && name != "Chameleon"
                 && name != "New Management"
+                && name != "Reindoctrination"
                 && !m
                     .target
                     .is_some_and(|t| t.filter.contains(&Requirement::NotControlled))

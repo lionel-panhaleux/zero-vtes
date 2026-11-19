@@ -105,6 +105,12 @@ impl Engine {
     pub(crate) fn settle_contest(&mut self, item: Contest, pay: bool) -> bool {
         let s = self.state.active;
         match (item, pay) {
+            // Olugbenga: blood as pool, chosen as it is paid.
+            (Contest::Card(m), true) if !self.contest_blood_sources(m).is_empty() => {
+                self.interrupts
+                    .push(crate::draws::Interrupt::ContestPayment { seat: s, minion: m });
+                return false;
+            }
             (Contest::Card(_) | Contest::Library(_), true) => {
                 let contest = Cause::Cost(Source::Rule(Rule::Contest));
                 self.caused(contest, |e| e.state.seats[s.index()].lose_pool(1));
@@ -128,6 +134,37 @@ impl Engine {
             return self.oust_and_pass(s);
         }
         false
+    }
+
+    /// The vampires whose blood may pay the contest of vampire `m` as pool
+    /// (Olugbenga: "the blood on that vampire or on Olugbenga"): with
+    /// an uncontested Olugbenga of its controller's (his text, ready or
+    /// torpid), `m` and each such Olugbenga, those with blood.
+    pub(crate) fn contest_blood_sources(&self, m: MinionId) -> Vec<MinionId> {
+        let st = &self.state;
+        let s = st.minions[m.index()].owner;
+        if !st.minions[m.index()].is_vampire() {
+            return Vec::new();
+        }
+        let olugbengas: Vec<MinionId> = st
+            .minions_of(s)
+            .filter(|&o| {
+                let v = &st.minions[o.index()];
+                !v.contested
+                    && st.printed_mod(
+                        o,
+                        crate::cards::Stat::ContestPaidWithBlood,
+                        crate::state::PrintedCtx::default(),
+                    ) > 0
+            })
+            .collect();
+        if olugbengas.is_empty() {
+            return Vec::new();
+        }
+        let mut out: Vec<MinionId> = std::iter::once(m).chain(olugbengas).collect();
+        out.dedup();
+        out.retain(|&v| st.minions[v.index()].blood > 0);
+        out
     }
 
     /// A copy of a unique vampire entering play while another Methuselah has

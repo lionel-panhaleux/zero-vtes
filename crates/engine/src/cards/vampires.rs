@@ -7,10 +7,10 @@
 //! quoted in `incomplete`.
 
 use super::{
-    bleed, mode_of, target, Actor, BlockRider, CardFilter, Effect, Hook, Lasting, Limit, ModeDef,
-    Per, PlaysAs, Printed, PrintedTo, RefEffect, ReferendumDef, Requirement as R, Rider,
-    RiderScope, Stat, StrikeKind, SuperiorWhile, TargetKind, TargetSpec, Term, Terms, TitleClass,
-    VampireDef, Window, CITY_TITLES, VAMP,
+    bleed, mode_of, target, Actor, BlockRider, CardFilter, Effect, Hook, Lasting, LendsBasic,
+    Limit, ModeDef, Per, PlaysAs, Printed, PrintedTo, RefEffect, ReferendumDef, Requirement as R,
+    Rider, RiderScope, Stat, StrikeKind, SuperiorWhile, TargetKind, TargetSpec, Term, Terms,
+    TitleClass, VampireDef, Window, CITY_TITLES, VAMP,
 };
 use crate::crypt::{Sect, Title};
 use crate::decision::ActionKind;
@@ -1031,7 +1031,7 @@ pub static LENELLE: VampireDef = VampireDef {
                 Effect::DeclareAction(ActionKind::Ability),
                 Effect::AddStealth(1),
                 Effect::PayBlood(1),
-                Effect::ExchangeHandForAsh,
+                Effect::ExchangeHandForAsh(CardFilter::Any),
             ],
         )
     }],
@@ -1794,7 +1794,7 @@ pub static PARIJAT: VampireDef = VampireDef {
     ..VAMP
 };
 
-pub static VAMPIRES: [&VampireDef; 916] = [
+pub static VAMPIRES: [&VampireDef; 963] = [
     &JOSEF_VON_BAUREN,
     &GABRIELLE_DI_RIGHETTI,
     &HAROLD_TANNER,
@@ -2657,7 +2657,7 @@ pub static VAMPIRES: [&VampireDef; 916] = [
     &SUNDERVERE,
     &VASILIY_VASILEVICH,
     &VASSILY_TALTOS,
-    // ---- Round 31, track B
+    // ---- Round 31: Third Edition vampires, Morrow the Sage onward
     &MORROW_THE_SAGE,
     &MOWGLI,
     &MUGUR_SABAU,
@@ -2693,7 +2693,7 @@ pub static VAMPIRES: [&VampireDef; 916] = [
     &GRAVITNIR,
     &HAROLD_ZETTLER,
     &HEKTOR,
-    // ---- Round 31, track C
+    // ---- Round 31: Third Edition vampires, Hukros onward
     &HUKROS,
     &HUMO,
     &ICARUS_THE_MANCHURIAN,
@@ -2714,6 +2714,55 @@ pub static VAMPIRES: [&VampireDef; 916] = [
     &MARGARITE,
     &MARY_JOHNSON,
     &MELINDA_GALBRAITH_ADV,
+    // ---- Round 32: Legacies of Blood vampires, Iniko to Olugbenga
+    &INIKO,
+    &JACK_DAWSON_ADV,
+    &JIBADE_EL_BAHRAWI,
+    &JUBAL,
+    &KAMIRI_WA_ITHERERO,
+    &THE_KIKIYAON,
+    &MARIA_STONE_ADV,
+    &MASKINI,
+    &MATATA,
+    &MR_NOIR,
+    &MURICIA,
+    &NANGILA_WERE,
+    &NKULE_GALADIMA,
+    &OLUGBENGA,
+    // ---- Round 32: Legacies of Blood vampires, Otieno onward
+    &OTIENO,
+    &PHAGIAN,
+    &PREJUDICE,
+    &ROSEMARIE,
+    &SAYSHILA,
+    &SENNADUREK,
+    &SHASA_ABU_BADR,
+    &UCHENNA,
+    &UGADJA,
+    &WAMUKOTA,
+    &YAVU_MATEBO,
+    &YSEULT,
+    &ZHARA,
+    &ZHENGA,
+    &ZYGODAT,
+    &AGRU_KABERA,
+    &AIMEE_LAROUX,
+    &AIYANA_THE_WOLFCATCHER,
+    &AL_MUNTAQUIM,
+    &AMAVI,
+    &ANTOINETTE_DUBOIS,
+    &AREN_PRIEST_OF_ESHU,
+    &AYO_IGOLI,
+    &BATSHEVA,
+    &BUPE_KUILA,
+    &DELA_EDEN,
+    &DEMDEMEH,
+    &EZE_THE_DEMON_PRINCE,
+    &FALHU_SHIBABA,
+    &GANHURU,
+    &GENTHA_SHALE,
+    &GUALTIERO_GHIBERTI,
+    &IBN_KHALDUN,
 ];
 
 /// "Anarch Baron of Miami: During your influence phase, Gilbert can burn 1
@@ -5771,7 +5820,7 @@ pub static APPOLONIUS_MERGED: VampireDef = VampireDef {
 /// Merged vampires (rulebook "Advanced"): the base card's text and the
 /// advanced card's in full, its [MERGED] clauses with them — the
 /// definition `cards::vampire_of` reads for a merged vampire.
-pub static MERGED: [&VampireDef; 31] = [
+pub static MERGED: [&VampireDef; 34] = [
     &APPOLONIUS_MERGED,
     &HELENA_MERGED,
     &XAVIAR_MERGED,
@@ -5803,6 +5852,9 @@ pub static MERGED: [&VampireDef; 31] = [
     &ALAN_SOVEREIGN_MERGED,
     &DR_JULIUS_SUTPHEN_MERGED,
     &MELINDA_GALBRAITH_MERGED,
+    &JIBADE_EL_BAHRAWI_MERGED,
+    &KAMIRI_WA_ITHERERO_MERGED,
+    &BATSHEVA_MERGED,
 ];
 
 // ---- Round 10: the 2025-2026 TWDA decks ------------------------------------
@@ -7313,8 +7365,9 @@ pub static ANDREW_STUART: VampireDef = VampireDef {
 
 /// "Sabbat bishop: During a referendum, if Orlando is ready, your vampires'
 /// votes are doubled when results are tallied, and other multipliers may
-/// not be played on your vampires. +1 bleed." Read as it is tallied; no
-/// other multiplier is in the pool (the bar inert).
+/// not be played on your vampires. +1 bleed." Read as it is tallied; the
+/// bar is read through the doubling's stat (Hall of Hades' Court [TEM]:
+/// `Requirement::MultiplierAllowedOnActing`).
 pub static ORLANDO_ORIUNDUS: VampireDef = VampireDef {
     name: "Orlando Oriundus",
     printed: &[
@@ -7617,7 +7670,9 @@ pub static BABA_YAGA: VampireDef = VampireDef {
         hook: Hook::HostRecruitsOrEmploys,
         scope: RiderScope::Every,
         requires: &[],
-        effects: &[Effect::MayUnlockOncePerTurn],
+        effects: &[Effect::MayUnlock {
+            once_each_turn: true,
+        }],
     }],
     ..VAMP
 };
@@ -7691,7 +7746,7 @@ pub static JUNIPER: VampireDef = VampireDef {
 };
 
 /// "Laibon: While /Otieno/ is ready, Onaedo gets +1 stealth during diablerie
-/// actions." Any Methuselah's Otieno (D11, 73.7); none is in the pool.
+/// actions." Any Methuselah's Otieno (D11, 73.7), read live.
 pub static ONAEDO: VampireDef = VampireDef {
     name: "Onaedo",
     printed: &[own(
@@ -10873,8 +10928,7 @@ pub static BARTH: VampireDef = VampireDef {
 
 /// "Advanced, Laibon: Batsheva gets +1 strength in combat with a
 /// Malkavian. [MERGED] +1 strength (in addition to her bonus against
-/// Malkavian and Tzimisce)." Her base card is not in the pool: no
-/// [MERGED] text applies.
+/// Malkavian and Tzimisce)." Merged: `BATSHEVA_MERGED`.
 pub static BATSHEVA_ADV: VampireDef = VampireDef {
     name: "Batsheva",
     adv: true,
@@ -10905,7 +10959,8 @@ const CASINO_FILTER: &[R] = &[R::Younger, R::TargetClan("Nosferatu")];
 /// to a younger Nosferatu in your uncontrolled region as an action. Casino
 /// inflicts +1 damage with ranged strikes (even at close range)." The
 /// amount named as the action is declared, what he has of it moved as it
-/// resolves (D1, rules-qa 111.51): one action a count, 1 to 3, as Zayyat's.
+/// resolves (D1, rules-qa 111.51): one action a count, 1 to 3, as Zayyat's,
+/// and 0, a legal no-op (D14, rules-qa 68.5, 73.3).
 pub static CASINO_REEDS: VampireDef = VampireDef {
     name: "Casino Reeds",
     printed: &[own(Stat::RangedStrikeDamage, 1, &[])],
@@ -10932,6 +10987,14 @@ pub static CASINO_REEDS: VampireDef = VampireDef {
             &[
                 Effect::DeclareAction(ActionKind::Ability),
                 Effect::HostBloodToUncontrolledTarget(3),
+            ],
+        ),
+        uncontrolled_move(
+            CASINO_FILTER,
+            &[],
+            &[
+                Effect::DeclareAction(ActionKind::Ability),
+                Effect::HostBloodToUncontrolledTarget(0),
             ],
         ),
     ],
@@ -11367,8 +11430,8 @@ const fn jibade(kind: TargetKind, actor: Actor) -> ModeDef {
 }
 
 /// "Advanced, Laibon: If Jibade is ready, he may burn a blood and lock X Aye
-/// on him to prevent X damage to any ally or retainer in combat." His base
-/// card is not in the pool.
+/// on him to prevent X damage to any ally or retainer in combat." Merged:
+/// `JIBADE_EL_BAHRAWI_MERGED`.
 pub static JIBADE_EL_BAHRAWI_ADV: VampireDef = VampireDef {
     name: "Jibade el-Bahrawi",
     adv: true,
@@ -11423,8 +11486,8 @@ pub static JULIO_MARTINEZ: VampireDef = VampireDef {
 
 /// "Advanced, Laibon: Kamiri can inflict 2 unpreventable damage on a minion
 /// as a Ⓓ action. [MERGED] Once each action, Kamiri may burn 1 blood to
-/// give an acting Laibon +1 stealth." His base card is not in the pool:
-/// no [MERGED] text applies.
+/// give an acting Laibon +1 stealth." Unmerged, the [MERGED] text does
+/// nothing (`KAMIRI_WA_ITHERERO_MERGED`).
 pub static KAMIRI_WA_ITHERERO_ADV: VampireDef = VampireDef {
     name: "Kamiri wa Itherero",
     adv: true,
@@ -12515,7 +12578,7 @@ pub static VELYA_THE_FLAYER: VampireDef = VampireDef {
 /// 20180719-4); the votes generated, kept through a sect change (LSJ
 /// 20010714). The amount named as the action is declared, what he has of
 /// it moved as it resolves (D1, rules-qa 111.51): one action a count, 1 to
-/// 3, as Casino Reeds' move.
+/// 3, as Casino Reeds' move, and 0, a legal no-op (D14, rules-qa 68.5).
 pub static ZAYYAT_THE_SANDSTORM: VampireDef = VampireDef {
     name: "Zayyat, The Sandstorm",
     abilities: &[
@@ -12552,6 +12615,15 @@ pub static ZAYYAT_THE_SANDSTORM: VampireDef = VampireDef {
             &[R::ActorActing, R::StealthNeeded, R::HostBloodAtLeast(2)],
             Limit::PerTurn,
             &[Effect::HostBurnBlood(2), Effect::AddStealth(2)],
+        ),
+        uncontrolled_move(
+            &[R::Younger],
+            &[],
+            &[
+                Effect::DeclareAction(ActionKind::Ability),
+                Effect::AddStealth(1),
+                Effect::HostBloodToUncontrolledTarget(0),
+            ],
         ),
     ],
     ..VAMP
@@ -16903,7 +16975,7 @@ pub static VASSILY_TALTOS: VampireDef = VampireDef {
     ..VAMP
 };
 
-// ---- Round 31, track B ----
+// ---- Round 31: Third Edition vampires, Morrow the Sage onward ---------------
 
 // Patrick, Rodrigo, Smash and Ulrike Rothbart ("Sabbat.") and Xendil Charmer
 // ("Sabbat priscus.") print no text.
@@ -17507,7 +17579,7 @@ pub static HEKTOR: VampireDef = VampireDef {
     ..VAMP
 };
 
-// ---- Round 31, track C ----
+// ---- Round 31: Third Edition vampires, Hukros onward ------------------------
 //
 // Little Willie, Louis de Maisonneuve, Lucy Markowitz, Lula Burch
 // ("Sabbat.") and Melinda Galbraith ("Sabbat cardinal.", the base card)
@@ -17854,6 +17926,961 @@ pub static MELINDA_GALBRAITH_MERGED: VampireDef = VampireDef {
     adv: true,
     printed: &[own(Stat::Bleed, 2, &[])],
     abilities: MELINDA_GALBRAITH_ADV.abilities,
+    ..VAMP
+};
+
+// ---- Round 32: Legacies of Blood vampires, Iniko to Olugbenga ---------------
+//
+// Ismitta, Kamaria, Kamau Jafari, Kenyatta, Lumumba, Meno Ngari and Misrak
+// print no text ("Laibon.").
+
+/// "Laibon: +1 stealth."
+pub static INIKO: VampireDef = VampireDef {
+    name: "Iniko, The Black Lion",
+    printed: &[own(Stat::Stealth, 1, &[])],
+    ..VAMP
+};
+
+/// "Independent: Jack can burn 1 blood to get 1 additional strike
+/// (limited), only usable to strike with the a weapon he used this round.
+/// He gets first strike in combat with a werewolf." A weapon he used this
+/// round, still on him: struck with, dodged or not, or used otherwise
+/// (Bundi's prevention; owner, rules-qa 124.122); the strike declinable;
+/// once a round by the "(limited)" (rules-qa 121.82). His base card is not
+/// in the pool.
+pub static JACK_DAWSON_ADV: VampireDef = VampireDef {
+    name: "Jack Dawson",
+    adv: true,
+    printed: &[own(
+        Stat::FirstStrike,
+        1,
+        &[R::OpponentSubtype(Label::Werewolf)],
+    )],
+    abilities: &[mode_of(
+        &[Window::CombatAdditionalStrike],
+        Actor::Host,
+        &[R::HostBloodAtLeast(1), R::UsedWeaponThisRound],
+        &[
+            Effect::HostBurnBlood(1),
+            Effect::AdditionalStrikeWithUsedWeapon,
+        ],
+    )],
+    ..VAMP
+};
+
+/// "Laibon: Jibade gets +1 stealth when recruiting, employing, or taking an
+/// action to put a vampire in play. Allies and retainers cost him 1 less
+/// blood or pool." A card's recruit too: The Summoning [PRE] (LSJ
+/// 20091207); the actions the Sterile trait bars (João Bilé's).
+pub static JIBADE_EL_BAHRAWI: VampireDef = VampireDef {
+    name: "Jibade el-Bahrawi",
+    printed: &[
+        own(Stat::Stealth, 1, &[R::IsRecruitOrEmploy]),
+        own(Stat::Stealth, 1, &[R::ActionPutsVampireInPlay]),
+        own(
+            Stat::CostOff,
+            1,
+            &[R::PlayedCard(CardFilter::AllyOrRetainer)],
+        ),
+    ],
+    ..VAMP
+};
+
+/// Merged Jibade (rulebook "Advanced"): the base card's stealth and
+/// discount, the advanced card's Aye shield; Laibon either way.
+pub static JIBADE_EL_BAHRAWI_MERGED: VampireDef = VampireDef {
+    name: "Jibade el-Bahrawi",
+    adv: true,
+    printed: JIBADE_EL_BAHRAWI.printed,
+    abilities: JIBADE_EL_BAHRAWI_ADV.abilities,
+    ..VAMP
+};
+
+/// "Laibon: Jubal gets +1 intercept when attempting to block a Ministry."
+/// The acting vampire's clan, read live.
+pub static JUBAL: VampireDef = VampireDef {
+    name: "Jubal",
+    printed: &[own(Stat::Intercept, 1, &[R::OpponentClan("Ministry")])],
+    ..VAMP
+};
+
+/// "Laibon: Younger vampires must burn 1 blood to attempt to block Kamiri.
+/// If an ally blocks Kamiri and combat occurs, burn the ally at the end of
+/// the action." Mithras's toll (rules-qa 41.3, 42.4); the ally burned by
+/// the rule, not by Kamiri (ANK 20181022).
+pub static KAMIRI_WA_ITHERERO: VampireDef = VampireDef {
+    name: "Kamiri wa Itherero",
+    printed: &[JULIUS_TOLL, own(Stat::AllyBlockerBurnsAtActionEnd, 1, &[])],
+    ..VAMP
+};
+
+/// Merged Kamiri (rulebook "Advanced"): the base card's toll and ally
+/// burn, the advanced card's damage action and its [MERGED] stealth: any
+/// Methuselah's acting Laibon, himself too, when stealth is needed
+/// (rules-qa 3.2), in torpor too.
+pub static KAMIRI_WA_ITHERERO_MERGED: VampireDef = VampireDef {
+    name: "Kamiri wa Itherero",
+    adv: true,
+    printed: KAMIRI_WA_ITHERERO.printed,
+    abilities: &[
+        KAMIRI_WA_ITHERERO_ADV.abilities[0],
+        ModeDef {
+            limit: Some(Limit::PerAction),
+            ..mode_of(
+                &[Window::ActionDuring, Window::ReactionDuringAction],
+                Actor::Host,
+                &[
+                    R::HostBloodAtLeast(1),
+                    R::ActingSectIn(&[Sect::Laibon]),
+                    R::StealthNeeded,
+                ],
+                &[Effect::HostBurnBlood(1), Effect::AddStealth(1)],
+            )
+        },
+    ],
+    ..VAMP
+};
+
+/// "Laibon: Once each combat, The Kikiyaon may burn a blood to get a
+/// maneuver. Flight [FLIGHT]." Tharmas's; Flight generated (rules-qa
+/// 84.37).
+pub static THE_KIKIYAON: VampireDef = VampireDef {
+    name: "Kikiyaon, The",
+    abilities: THARMAS.abilities,
+    ..VAMP
+};
+
+/// "Advanced, Sabbat: -1 strength. Sterile. [MERGED] Maria doesn't suffer
+/// -1 strength from her special text, and she has superior Spiritus
+/// [SPI]." Sterile generated; her base card is not in the pool, the
+/// [MERGED] text applies to nothing (rules-qa 104.20).
+pub static MARIA_STONE_ADV: VampireDef = VampireDef {
+    name: "Maria Stone",
+    adv: true,
+    printed: &[own(Stat::Strength, -1, &[])],
+    ..VAMP
+};
+
+/// "Laibon: If Maskini attempts an unsuccessful action, or attempts to
+/// block but is not successful, he burns 1 blood at the end of that
+/// action." Once an action, however many attempts failed.
+pub static MASKINI: VampireDef = VampireDef {
+    name: "Maskini",
+    printed: &[own(Stat::BurnsAfterUnsuccessfulAttempt, 1, &[])],
+    ..VAMP
+};
+
+/// "Laibon: Matata gets an optional press each combat. +1 strength."
+pub static MATATA: VampireDef = VampireDef {
+    name: "Matata",
+    printed: &[own(Stat::CombatPress, 1, &[]), own(Stat::Strength, 1, &[])],
+    ..VAMP
+};
+
+/// "Independent: After Mr. Noir is burned in combat, you gain 2 pool.
+/// Scarce." Burned while in combat, whatever burns him (Hector Trelane's
+/// reading); scarcity generated (LSJ 20011015).
+pub static MR_NOIR: VampireDef = VampireDef {
+    name: "Mr. Noir",
+    printed: &[own(Stat::ControllerGainsPoolIfBurnedInCombat, 2, &[])],
+    ..VAMP
+};
+
+/// "Sabbat: During your unlock phase, a Gangrel antitribu you control may
+/// burn 1 blood to become a sterile Ahrimane and gain 1 level of Spiritus
+/// [spi]. +1 strength. Sterile." As Tabitha Fisk's: once each unlock
+/// phase, in torpor too; the change for good (Barbaro Lucchese's clan).
+pub static MURICIA: VampireDef = VampireDef {
+    name: "Muricia",
+    printed: &[own(Stat::Strength, 1, &[])],
+    abilities: &[ModeDef {
+        target: target(
+            TargetKind::Minion,
+            &[
+                R::Controlled,
+                R::TargetVampire,
+                R::TargetClan("Gangrel antitribu"),
+                R::BloodAtLeast(1),
+            ],
+        ),
+        ..mode_of(
+            &[Window::UnlockPhaseOwn],
+            Actor::Host,
+            &[],
+            &[
+                Effect::TargetBurnsBlood(1),
+                Effect::TargetBecomesClan("Ahrimane"),
+                Effect::TargetBecomesSterile,
+                Effect::TargetGainsLevel("spi"),
+            ],
+        )
+    }],
+    ..VAMP
+};
+
+/// "Laibon: Nangila may enter combat with a minion controlled by another
+/// Methuselah as a Ⓓ action. While Nangila is ready, your hand size is one
+/// card larger."
+pub static NANGILA_WERE: VampireDef = VampireDef {
+    name: "Nangila Were",
+    printed: &[own(Stat::HandSize, 1, &[R::ThisVampireReady])],
+    abilities: &[enter_combat(&[R::NotControlled, R::ActorReady])],
+    ..VAMP
+};
+
+/// "Laibon magaji: Lasombra cannot cast votes or ballots in referendums
+/// called by Nkule. While he is ready, if you burn the Edge for a vote, you
+/// gain an additional 2 votes." Legba's bar, any Methuselah's Lasombra
+/// (the text names none); Fiorenza Savona's Edge bonus.
+pub static NKULE_GALADIMA: VampireDef = VampireDef {
+    name: "Nkule Galadima",
+    printed: &[
+        Printed {
+            stat: Stat::CastsNoVotesInCallersReferendum,
+            n: 1,
+            to: PrintedTo::Opponent,
+            per: Per::One,
+            requires: &[R::ActorClan("Lasombra")],
+        },
+        own(Stat::EdgeVoteBonus, 2, &[R::ThisVampireReady]),
+    ],
+    ..VAMP
+};
+
+/// "Laibon magaji: If you are contesting a vampire, you can use the blood
+/// on that vampire or on Olugbenga as pool to pay for that contest. He gets
+/// +1 intercept during bleed actions." A vampire's contest each unlock
+/// phase, unit by unit, from either, he ready or torpid (no "if ready");
+/// contested, his text is suspended.
+pub static OLUGBENGA: VampireDef = VampireDef {
+    name: "Olugbenga",
+    printed: &[
+        own(Stat::ContestPaidWithBlood, 1, &[]),
+        own(Stat::Intercept, 1, &[R::IsBleed]),
+    ],
+    ..VAMP
+};
+
+// ---- Round 32: Legacies of Blood vampires, Otieno onward --------------------
+
+// Panya, The Wicked, Sanjo and Urenna Bunu ("Laibon."), Sobayifa, Tsunda and
+// Ubende ("Laibon magaji.") print no text.
+
+/// "Laibon: Otieno gets +1 bleed against a Methuselah who controls a ready
+/// Guruhi." The bleed's target as it resolves, read live.
+pub static OTIENO: VampireDef = VampireDef {
+    name: "Otieno",
+    printed: &[own(
+        Stat::Bleed,
+        1,
+        &[R::TargetSeatControlsReadyClan {
+            clans: &["Guruhi"],
+            not: false,
+        }],
+    )],
+    ..VAMP
+};
+
+/// "Sabbat: Any vampire you control may play cards that require Necromancy
+/// [nec] at the basic level, with the cost increased by 1 blood." A grant
+/// of play, not the Discipline (Amulet's LSJ 19980303), to his controller's
+/// vampires, never an ally (D16); torpid too (D25); the +1 part of the cost,
+/// paid with it (`PlayCtx::grant_surcharge`); beside another grant its
+/// player picks (rules-qa 122.85).
+pub static PHAGIAN: VampireDef = VampireDef {
+    name: "Phagian",
+    lends_basic: Some(LendsBasic {
+        discipline: "nec",
+        surcharge: 1,
+    }),
+    ..VAMP
+};
+
+/// "Independent: Once each action, Prejudice may remove an ally or retainer
+/// in your prey's ash heap from the game to get +2 bleed for the current
+/// action. Scarce." His own bleed, before resolution (ANK 20180514, ANK
+/// 20231124, LSJ 19970718); the card removed as used, a cost (D20); scarce
+/// generated (LSJ 20011015).
+pub static PREJUDICE: VampireDef = VampireDef {
+    name: "Prejudice",
+    abilities: &[ModeDef {
+        terms: Some(Terms::RemoveFromPreyAsh {
+            of: CardFilter::AllyOrRetainer,
+        }),
+        limit: Some(Limit::PerAction),
+        ..mode_of(
+            &[Window::ActionDuring],
+            Actor::Host,
+            &[R::ActorActing, R::IsBleed],
+            &[bleed(2, false)],
+        )
+    }],
+    ..VAMP
+};
+
+/// "Camarilla: Combat cards that do not require Fortitude [for] cost
+/// Rosemarie +1 blood." The mode played (rules-qa 38.4), a card of two
+/// types by the type played (PIB 20150924-2).
+pub static ROSEMARIE: VampireDef = VampireDef {
+    name: "Rosemarie",
+    printed: &[own(
+        Stat::BloodCostMore,
+        1,
+        &[R::PlayedAsCombat, R::PlayedRequiresNone(&["for"])],
+    )],
+    ..VAMP
+};
+
+/// "Independent: If Sayshila is ready during the polling step of any
+/// referendum, she can lock to give another titled vampire you control +2
+/// votes. Minions in combat with her cannot press to continue combat." Once
+/// each referendum, none passing automatically (PIB 20150105, LSJ
+/// 19980107); the votes the target's, as Emissary's; the press bar on the
+/// presses her opponent uses: a press a card provides (Frenzy, Trap) still
+/// continues combat (LSJ 20040521, Mukhtar Bey's).
+pub static SAYSHILA: VampireDef = VampireDef {
+    name: "Sayshila",
+    printed: &[Printed {
+        stat: Stat::NoPressToContinue,
+        n: 1,
+        to: PrintedTo::Opponent,
+        per: Per::One,
+        requires: &[],
+    }],
+    abilities: &[ModeDef {
+        target: target(
+            TargetKind::Minion,
+            &[
+                R::Controlled,
+                R::NotHost,
+                R::TargetVampire,
+                R::TargetTitleIn(&[TitleClass::Any]),
+            ],
+        ),
+        limit: Some(Limit::PerReferendum),
+        ..mode_of(
+            &[Window::Referendum],
+            Actor::Host,
+            &[R::AnyPollingStep, R::HostReady, R::HostUnlocked],
+            &[Effect::LockHost, Effect::TargetGainsVotes(2)],
+        )
+    }],
+    ..VAMP
+};
+
+/// "Sabbat. Black Hand: Whenever a Methuselah loses the Edge when it is not
+/// your turn, Sennadurek unlocks, and you may look at that Methuselah's
+/// hand. Scarce." Every loss (`Engine::lose_edge`), his own controller's
+/// too, an oust's included; in torpor too (D25); the look unasked (a look is
+/// never worse, Troglodytia's). Black Hand and scarce generated (LSJ
+/// 20070322, LSJ 20011015).
+pub static SENNADUREK: VampireDef = VampireDef {
+    name: "Sennadurek",
+    riders: &[Rider {
+        hook: Hook::MethuselahLosesEdge,
+        scope: RiderScope::Others,
+        requires: &[],
+        effects: &[Effect::UnlockHost, Effect::PeekEdgeLoserHand],
+    }],
+    ..VAMP
+};
+
+/// "Laibon: Shasa gets +1 bleed when bleeding with an action card that
+/// requires Presence [pre]." The mode played (rules-qa 38.4); a granted
+/// action is no action card.
+pub static SHASA_ABU_BADR: VampireDef = VampireDef {
+    name: "Shasa Abu Badr",
+    printed: &[own(
+        Stat::Bleed,
+        1,
+        &[R::ActionCardRequiresDiscipline("pre")],
+    )],
+    ..VAMP
+};
+
+/// "Laibon magaji: During your master phase, Uchenna may burn a blood to
+/// burn a card from your hand. Draw up to your hand size afterward." Once in
+/// it (rules-qa 6.6), in torpor too (D25); the card to the ash heap and
+/// replaced, as Edward Vignes' (rules-qa 8.3). The title generated.
+pub static UCHENNA: VampireDef = VampireDef {
+    name: "Uchenna",
+    abilities: &[ModeDef {
+        terms: Some(Terms::Discard {
+            n: 1,
+            of: CardFilter::Any,
+        }),
+        ..mode_of(
+            &[Window::MasterPhase],
+            Actor::Host,
+            &[R::HostBloodAtLeast(1)],
+            &[Effect::HostBurnBlood(1)],
+        )
+    }],
+    ..VAMP
+};
+
+const UGADJA_FILTER: &[R] = &[R::Younger, R::TargetSect(Sect::Laibon)];
+
+/// "Laibon magaji: Ugadja may move up to 2 blood from himself to a younger
+/// Laibon in your uncontrolled region as a +1 stealth action." The amount
+/// named as the action is declared, what he has of it moved as it resolves
+/// (D1, rules-qa 111.51): one action a count, as Zayyat's, 0 included (D14,
+/// rules-qa 68.5). The title generated.
+pub static UGADJA: VampireDef = VampireDef {
+    name: "Ugadja",
+    abilities: &[
+        uncontrolled_move(
+            UGADJA_FILTER,
+            &[R::HostBloodAtLeast(1)],
+            &[
+                Effect::DeclareAction(ActionKind::Ability),
+                Effect::AddStealth(1),
+                Effect::HostBloodToUncontrolledTarget(1),
+            ],
+        ),
+        uncontrolled_move(
+            UGADJA_FILTER,
+            &[R::HostBloodAtLeast(2)],
+            &[
+                Effect::DeclareAction(ActionKind::Ability),
+                Effect::AddStealth(1),
+                Effect::HostBloodToUncontrolledTarget(2),
+            ],
+        ),
+        uncontrolled_move(
+            UGADJA_FILTER,
+            &[],
+            &[
+                Effect::DeclareAction(ActionKind::Ability),
+                Effect::AddStealth(1),
+                Effect::HostBloodToUncontrolledTarget(0),
+            ],
+        ),
+    ],
+    ..VAMP
+};
+
+/// "Laibon: If another Laibon you control is blocked while equipping,
+/// recruiting, or employing, you can lock Wamukota before block resolution
+/// to lock the blocking minion and have that Laibon continue the action as
+/// if unblocked. +1 bleed." From torpor too (LSJ 20011022); modifiers,
+/// reactions and declines standing (RTR 19941109, ANK 20190116); not for a
+/// Laibon the block sent to torpor (rules-qa 93.5).
+pub static WAMUKOTA: VampireDef = VampireDef {
+    name: "Wamukota",
+    printed: &[own(Stat::Bleed, 1, &[])],
+    abilities: &[mode_of(
+        &[Window::ActionBlocked],
+        Actor::Host,
+        &[
+            R::HostUnlocked,
+            R::OtherActingControlled,
+            R::ActingSectIn(&[Sect::Laibon]),
+            R::AnyOf(&[&[R::IsEquipAction], &[R::IsRecruitOrEmploy]]),
+            R::NotContinued,
+            R::ActingReady,
+        ],
+        &[
+            Effect::LockHost,
+            Effect::LockBlocker,
+            Effect::ContinueUnblocked,
+        ],
+    )],
+    ..VAMP
+};
+
+/// "Independent: While ready, Yavu may burn 2 blood to cause an ally or
+/// younger vampire's action to fail as it is announced. If he does so, Yavu
+/// moves to the uncontrolled region (after breaking any temporary control
+/// effects on him). Scarce." Any Methuselah's action; the failed action
+/// reached resolution, not blocked (Yoruba Shrine's ANK 20211015, LSJ
+/// 20070219); to his permanent controller's uncontrolled region with his
+/// blood and cards (`Engine::banish_home`, ANK 20200408-2). Scarce
+/// generated (LSJ 20011015).
+pub static YAVU_MATEBO: VampireDef = VampireDef {
+    name: "Yavu Matebo",
+    abilities: &[mode_of(
+        &[Window::ActionAsAnnounced, Window::ReactionAsAnnounced],
+        Actor::Host,
+        &[R::HostReady, R::HostBloodAtLeast(2), R::ActingAllyOrYounger],
+        &[
+            Effect::HostBurnBlood(2),
+            Effect::ActionFails,
+            Effect::HostToUncontrolled,
+        ],
+    )],
+    ..VAMP
+};
+
+/// "Sabbat: After you replace a card requiring Melpominee [mel] Yseult
+/// played, you can draw 1 additional card. She cannot block vampires with
+/// capacity 5 or more." The mode played (rules-qa 38.4), a canceled card
+/// too; capacity read live (D30).
+pub static YSEULT: VampireDef = VampireDef {
+    name: "Yseult",
+    printed: &[
+        own(
+            Stat::ExtraDrawOnReplace,
+            1,
+            &[R::PlayedRequiresDiscipline("mel")],
+        ),
+        own(
+            Stat::CannotBlock,
+            1,
+            &[R::OpponentVampire, R::OpponentCapacityAtLeast(5)],
+        ),
+    ],
+    ..VAMP
+};
+
+/// "Laibon: The leave torpor action costs Zhara 1 less blood." Her own
+/// action, not a rescue.
+pub static ZHARA: VampireDef = VampireDef {
+    name: "Zhara",
+    printed: &[own(Stat::LeaveTorporDiscount, 1, &[])],
+    ..VAMP
+};
+
+/// "Laibon: As Zhenga announces a recruit or employ action, she can burn X
+/// blood. If the action is successful, she can recruit and employ up to X
+/// additional allies and retainers from your hand (requirements and cost
+/// apply as normal)." X burned as announced, whatever follows; the cards one
+/// at a time in her player's order, replaced after the last (LSJ 20070707,
+/// LSJ 20060530-1), not played in the normal way (LSJ 20060530-2); never
+/// with Piper, no action (LSJ 20090115-1, ANK 20170309).
+pub static ZHENGA: VampireDef = VampireDef {
+    name: "Zhenga",
+    abilities: &[ModeDef {
+        terms: Some(Terms::XBlood),
+        limit: Some(Limit::PerAction),
+        ..mode_of(
+            &[Window::ActionAsAnnounced],
+            Actor::Host,
+            &[R::ActorActing, R::IsRecruitOrEmploy],
+            &[Effect::ActorBurnsBloodX, Effect::HiresOnSuccessX],
+        )
+    }],
+    ..VAMP
+};
+
+/// "Sabbat: When Zygodat successfully bleeds a Methuselah, she may burn the
+/// top two cards of that Methuselah's library." After resolution, once that
+/// action (Hecate's shape); fewer with fewer there.
+pub static ZYGODAT: VampireDef = VampireDef {
+    name: "Zygodat",
+    abilities: &[ModeDef {
+        limit: Some(Limit::PerAction),
+        ..mode_of(
+            &[Window::ActionAfterResolution],
+            Actor::Host,
+            &[
+                R::ActorActing,
+                R::IsBleed,
+                R::BleedSuccessful,
+                R::BledLibraryNotEmpty,
+            ],
+            &[Effect::BurnBledLibraryTop(2)],
+        )
+    }],
+    ..VAMP
+};
+
+// Dolie, Hasani and Honorine Ateba print no text ("Laibon.").
+
+/// "Laibon: +1 bleed."
+pub static AGRU_KABERA: VampireDef = VampireDef {
+    name: "Agru Kabera",
+    printed: &[own(Stat::Bleed, 1, &[])],
+    ..VAMP
+};
+
+/// "Independent: You can burn 1 pool and use 4 transfers to give Aimee +1
+/// level of Melpominee [mel]. She cannot play reaction cards." In the
+/// influence phase, as often as paid (rules-digest D7), from torpor too
+/// (D25); a use at superior a legal no-op (D14); the level hers while she
+/// is in play (Nickolai's `GainNamedDiscipline`). A card with two types is
+/// barred only played as a reaction (D18).
+pub static AIMEE_LAROUX: VampireDef = VampireDef {
+    name: "Aimee Laroux",
+    printed: &[own(Stat::CannotPlay, 1, &[R::PlayedAsReaction])],
+    abilities: &[mode_of(
+        &[Window::Transfers],
+        Actor::Host,
+        &[R::PoolAtLeast(1)],
+        &[
+            Effect::SpendTransfers(4),
+            Effect::PayPool(1),
+            Effect::HostGainsLevel("mel"),
+        ],
+    )],
+    ..VAMP
+};
+
+/// "Sabbat: Aiyana gets an optional press each combat when opposing a
+/// werewolf, and she can burn a blood each round to prevent all damage a
+/// werewolf inflicts on her that round. Sterile." A werewolf an ally of
+/// the subtype, any Methuselah's; its strikes this round, the only damage a
+/// werewolf of the pool deals (rules-qa 77.23), offered with strike damage
+/// pending (Rolling with the Punches, LSJ 20001114). Sterile generated.
+pub static AIYANA_THE_WOLFCATCHER: VampireDef = VampireDef {
+    name: "Aiyana, The Wolfcatcher",
+    printed: &[own(
+        Stat::CombatPress,
+        1,
+        &[R::OpponentSubtype(Label::Werewolf)],
+    )],
+    abilities: &[ability(
+        &[Window::CombatDamagePrevention],
+        Actor::Host,
+        &[
+            R::HostBloodAtLeast(1),
+            R::OpponentSubtype(Label::Werewolf),
+            R::StrikeDamagePending,
+        ],
+        Limit::PerRound,
+        &[
+            Effect::HostBurnBlood(1),
+            Effect::PreventOpposingStrikesThisRound,
+        ],
+    )],
+    ..VAMP
+};
+
+/// "Independent: During your unlock phase, you can burn a Caitiff you
+/// control to give Al-Muntaquim +1 bleed until the end of the game. After a
+/// Gehenna event is played, he can unlock. He cannot use cards requiring
+/// Celerity [cel]. Scarce." Once in the phase, any Caitiff of his
+/// controller's, torpid too (D28), the bleed for good and stacking; after
+/// any Methuselah's Gehenna event, a canceled one too (rules-qa 111.2), not
+/// offered while unlocked (48.7); a card's [cel] mode only barred (LSJ
+/// 20050322-2). Scarce generated (LSJ 20011015).
+pub static AL_MUNTAQUIM: VampireDef = VampireDef {
+    name: "Al-Muntaquim, The Avenger",
+    printed: &[own(
+        Stat::CannotPlay,
+        1,
+        &[R::PlayedRequiresDiscipline("cel")],
+    )],
+    abilities: &[ModeDef {
+        target: target(
+            TargetKind::Minion,
+            &[R::Controlled, R::TargetClan("Caitiff")],
+        ),
+        ..mode_of(
+            &[Window::UnlockPhaseOwn],
+            Actor::Host,
+            &[],
+            &[
+                Effect::BurnTargetMinion,
+                Effect::ActorLasting(Lasting::Bleed(1), crate::state::Expiry::Never),
+            ],
+        )
+    }],
+    riders: &[Rider {
+        hook: Hook::GehennaPlayed,
+        scope: RiderScope::Every,
+        requires: &[],
+        effects: &[Effect::MayUnlock {
+            once_each_turn: false,
+        }],
+    }],
+    ..VAMP
+};
+
+/// "Laibon: +1 bleed."
+pub static AMAVI: VampireDef = VampireDef {
+    name: "Amavi",
+    printed: &[own(Stat::Bleed, 1, &[])],
+    ..VAMP
+};
+
+/// "Independent: Toreador and Toreador antitribu cannot block Antoinette.
+/// -1 intercept." Any Methuselah's, read on the minion attempting, live.
+pub static ANTOINETTE_DUBOIS: VampireDef = VampireDef {
+    name: "Antoinette Dubois",
+    printed: &[
+        own(Stat::CannotBeBlockedBy, 1, &[R::OpponentClan("Toreador")]),
+        own(
+            Stat::CannotBeBlockedBy,
+            1,
+            &[R::OpponentClan("Toreador antitribu")],
+        ),
+        own(Stat::Intercept, -1, &[]),
+    ],
+    ..VAMP
+};
+
+/// "Laibon: Aren gets +1 stealth on political actions. Any vampire casting
+/// votes or ballots against a referendum called by Aren burns 1 blood when
+/// the results are tallied." Hartmut Stover's burn, no cost (rules-qa
+/// 49.2).
+pub static AREN_PRIEST_OF_ESHU: VampireDef = VampireDef {
+    name: "Aren, Priest of Eshu",
+    printed: &[
+        own(Stat::Stealth, 1, &[R::IsPolitical]),
+        own(Stat::AgainstCastersBurnBlood, 1, &[]),
+    ],
+    ..VAMP
+};
+
+/// "Laibon: Ayo gets an additional vote for each ready titled vampire you
+/// control. You may use a discard phase action to move 2 blood from Ayo to
+/// a Laibon in your uncontrolled region." Himself counted if titled, read
+/// live; each use spends one (Ayse Dhanial's, ANK 20190725), from torpor
+/// too (D25), not offered without the 2 blood (Menele's).
+pub static AYO_IGOLI: VampireDef = VampireDef {
+    name: "Ayo Igoli",
+    printed: &[Printed {
+        stat: Stat::Votes,
+        n: 1,
+        to: PrintedTo::Itself,
+        per: Per::OwnReadyTitled,
+        requires: &[],
+    }],
+    abilities: &[ModeDef {
+        target: target(TargetKind::Uncontrolled, &[R::TargetSect(Sect::Laibon)]),
+        ..mode_of(
+            &[Window::DiscardPhaseAction],
+            Actor::Host,
+            &[R::DiscardPhaseActionLeft, R::HostBloodAtLeast(2)],
+            &[
+                Effect::SpendDiscardPhaseAction,
+                Effect::HostBloodToUncontrolledTarget(2),
+            ],
+        )
+    }],
+    ..VAMP
+};
+
+/// "Laibon: Batsheva gets +1 strength in combat with a Tzimisce." Merged:
+/// `BATSHEVA_MERGED`.
+pub static BATSHEVA: VampireDef = VampireDef {
+    name: "Batsheva",
+    printed: &[own(Stat::Strength, 1, &[R::OpponentClan("Tzimisce")])],
+    ..VAMP
+};
+
+/// Merged Batsheva (rulebook "Advanced"): the base card's bonus against a
+/// Tzimisce, the advanced card's against a Malkavian, and the [MERGED] +1
+/// strength.
+pub static BATSHEVA_MERGED: VampireDef = VampireDef {
+    name: "Batsheva",
+    adv: true,
+    printed: &[
+        own(Stat::Strength, 1, &[R::OpponentClan("Tzimisce")]),
+        own(Stat::Strength, 1, &[R::OpponentClan("Malkavian")]),
+        own(Stat::Strength, 1, &[]),
+    ],
+    ..VAMP
+};
+
+/// "Laibon: +1 intercept."
+pub static BUPE_KUILA: VampireDef = VampireDef {
+    name: "Bupe Kuila",
+    printed: &[own(Stat::Intercept, 1, &[])],
+    ..VAMP
+};
+
+/// "Laibon: +1 strength."
+pub static DELA_EDEN: VampireDef = VampireDef {
+    name: "Dela Eden",
+    printed: &[own(Stat::Strength, 1, &[])],
+    ..VAMP
+};
+
+/// Demdemeh's retainer become "an animal ally with 1 strength and 1 bleed",
+/// its starting life its printed one (LSJ 20051116-1).
+static DEMDEMEH_ALLY: crate::state::Represent = crate::state::Represent {
+    subtype: Label::Animal,
+    life: None,
+    strength: 1,
+    bleed: 1,
+    stealth: 0,
+    named: false,
+    rush: false,
+};
+
+/// "Laibon: If any Gehenna events are in play during your unlock phase,
+/// you can move an animal retainer on Demdemeh to your ready region; it
+/// becomes an animal ally with 1 strength and 1 bleed, and +1 strength
+/// while it has 3 or more life." Once in the phase (D7), any Methuselah's
+/// Gehenna event, from torpor too (D25). Its life counters kept, its
+/// printed starting life remembered, its text and the effects on it
+/// (Tainted Spring's) lost (LSJ 20051116-1, LSJ 20081213-3); moved, not
+/// entering play: no entry riders, free to act (Jake Washington's).
+pub static DEMDEMEH: VampireDef = VampireDef {
+    name: "Demdemeh",
+    abilities: &[ModeDef {
+        target: target(
+            TargetKind::Card,
+            &[
+                R::TargetCard(CardFilter::Labeled(CardType::Retainer, Label::Animal)),
+                R::TargetOnActor,
+            ],
+        ),
+        ..mode_of(
+            &[Window::UnlockPhaseOwn],
+            Actor::Host,
+            &[R::GehennaInPlay(1)],
+            &[Effect::TargetRetainerRepresents {
+                of: &DEMDEMEH_ALLY,
+                strength_at_life: (3, 1),
+            }],
+        )
+    }],
+    ..VAMP
+};
+
+/// "Laibon magaji: Eze gets 1 additional vote. Once each turn when Eze
+/// successfully performs a non-hunt action, he unlocks after resolving that
+/// action." Mandatory, the once spent even if the action unlocked him (LSJ
+/// 20051211), each player's turn (ANK 20180719-4); a card hunt is a hunt
+/// (D17); unlocked as the action ends (Cock Robin's). The bonus vote
+/// counts for Political Struggle and Leadership Vacuum (ANK 20211009).
+pub static EZE_THE_DEMON_PRINCE: VampireDef = VampireDef {
+    name: "Eze, The Demon Prince",
+    printed: &[
+        own(Stat::Votes, 1, &[]),
+        own(Stat::UnlockAfterNonHuntSuccess, 1, &[]),
+    ],
+    ..VAMP
+};
+
+/// "Laibon magaji: Any Laibon may take a Ⓓ action that costs 1 blood to
+/// lock Falhu and cause him not to unlock as normal on his next unlock
+/// phase." Any Methuselah's Laibon vampire, Falhu himself included (the
+/// text excludes no one); directed only when another Methuselah's Laibon
+/// takes it (rules-digest D12); the blood paid as it resolves (rules-qa
+/// 42.1).
+pub static FALHU_SHIBABA: VampireDef = VampireDef {
+    name: "Falhu Shibaba",
+    abilities: &[ModeDef {
+        windows: &[Window::ActionDeclare],
+        actor: Actor::AnyMethuselahsMinion,
+        requires: &[R::ActorVampire, R::ActorSectIn(&[Sect::Laibon])],
+        target: target(TargetKind::Minion, &[R::TargetIsHost]),
+        terms: None,
+        waives_needed: false,
+        limit: None,
+        effects: &[
+            Effect::DeclareAction(ActionKind::Ability),
+            Effect::PayBlood(1),
+            Effect::LockTargetsSkipUnlock,
+        ],
+    }],
+    ..VAMP
+};
+
+/// "Laibon: Ganhuru can prevent 1 non-aggravated damage each combat. If
+/// Ubende is ready, you gain a pool whenever Ganhuru successfully bleeds
+/// your prey." Never aggravated damage, even treated as normal (LSJ
+/// 20040812-2, PIB 20130327); any Methuselah's Ubende (D11), read as the
+/// bleed succeeds; the prey as resolved, a deflected bleed not (rules-qa
+/// 50.3).
+pub static GANHURU: VampireDef = VampireDef {
+    name: "Ganhuru",
+    abilities: &[ability(
+        &[Window::CombatDamagePrevention],
+        Actor::Host,
+        &[R::NonAggravatedDamagePending],
+        Limit::PerCombat,
+        &[Effect::PreventNonAggravated(1)],
+    )],
+    riders: &[Rider {
+        hook: Hook::OwnBleedSuccessful,
+        scope: RiderScope::Every,
+        requires: &[R::ReadyNamed("Ubende"), R::BleedAgainstPrey],
+        effects: &[Effect::GainPool(1)],
+    }],
+    ..VAMP
+};
+
+/// "Sabbat: Gentha gets +1 bleed when bleeding a Methuselah who controls a
+/// ready Ministry. Sterile." The bleed's target read live (a redirect
+/// re-reads it). Sterile generated.
+pub static GENTHA_SHALE: VampireDef = VampireDef {
+    name: "Gentha Shale",
+    printed: &[own(
+        Stat::Bleed,
+        1,
+        &[R::TargetSeatControlsReadyClan {
+            clans: &["Ministry"],
+            not: false,
+        }],
+    )],
+    ..VAMP
+};
+
+/// "Independent: Once each turn as another Giovanni announces an action or
+/// strike requiring Necromancy [nec], Gualtiero can burn 1 blood to give
+/// that action +1 stealth, even if stealth is not yet needed, or increase
+/// the damage inflicted or blood burned by that action or strike by 1."
+/// Any Methuselah's Giovanni (D11), each player's turn (ANK 20180719-4), one
+/// use whichever branch (`Limit::PerTurnCard`, rules-qa 62.32); the strike
+/// raised in its own kind (TOM 19960225), from out of the combat (Randall's)
+/// in the windows after it is chosen. No action requiring Necromancy in
+/// the pool inflicts damage or burns blood: that branch is never offered
+/// (re-checked each round, add-cards §6).
+pub static GUALTIERO_GHIBERTI: VampireDef = VampireDef {
+    name: "Gualtiero Ghiberti",
+    abilities: &[
+        ModeDef {
+            waives_needed: true,
+            ..ability(
+                &[Window::ActionAsAnnounced, Window::ReactionAsAnnounced],
+                Actor::Host,
+                &[
+                    R::HostBloodAtLeast(1),
+                    R::OtherActingClan("Giovanni"),
+                    R::ActionRequiresDiscipline("nec"),
+                ],
+                Limit::PerTurnCard,
+                &[Effect::HostBurnBlood(1), Effect::AddStealth(1)],
+            )
+        },
+        ModeDef {
+            target: target(
+                TargetKind::Minion,
+                &[
+                    R::TargetCombatant,
+                    R::NotHost,
+                    R::TargetClan("Giovanni"),
+                    R::TargetStrikeRequiresDiscipline("nec"),
+                ],
+            ),
+            ..ability(
+                &[
+                    Window::CombatStrikeAnnounced,
+                    Window::CombatBeforeResolution,
+                ],
+                Actor::HostOutOfCombat,
+                &[R::HostBloodAtLeast(1)],
+                Limit::PerTurnCard,
+                &[Effect::HostBurnBlood(1), Effect::TargetStrikeDamagePlus(1)],
+            )
+        },
+    ],
+    ..VAMP
+};
+
+/// "Independent: During your discard phase, Ibn Khaldun can burn 1 blood to
+/// unlock. He cannot use cards requiring Celerity [cel]. Scarce." Once in
+/// the phase, from torpor too (D25, Pherydima's), not offered while
+/// unlocked (rules-qa 48.7); a card's [cel] mode only barred (LSJ
+/// 20050322-2). Scarce generated (LSJ 20011015).
+pub static IBN_KHALDUN: VampireDef = VampireDef {
+    name: "Ibn Khaldun, Scholar",
+    printed: &[own(
+        Stat::CannotPlay,
+        1,
+        &[R::PlayedRequiresDiscipline("cel")],
+    )],
+    abilities: &[mode_of(
+        &[Window::DiscardPhase],
+        Actor::Host,
+        &[R::HostLocked, R::HostBloodAtLeast(1)],
+        &[Effect::HostBurnBlood(1), Effect::UnlockHost],
+    )],
     ..VAMP
 };
 

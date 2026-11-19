@@ -847,7 +847,8 @@ ids!(
         /// `to` (`resolve_printed`), or pass.
         MayLockToFight,
         /// Nkishi: `seat` may take an Aye or an Orun from its library or ash
-        /// heap onto `minion` (`take_from`), or pass.
+        /// heap onto `minion` (`take_from`), or pass; Static Virtue: from
+        /// its hand or library, the second card of a pair owed (no pass).
         SearchOnto,
         /// Aisata Swanou: `seat` moves a hand card to its ash heap
         /// (`discard`) or the top of its library (`take_from` the hand).
@@ -1064,6 +1065,42 @@ ids!(
         /// `about.n` aggravated damage, treats 1 of it as normal
         /// (`resolve_printed`) or takes it all aggravated (`pass`).
         MayTakeAggravatedAsNormal,
+        /// Duma Rafiki before the strikes resolve: `seat`'s retainer `card`
+        /// burns a weapon `minion` has (`burn_in_play`) or inflicts its
+        /// damage on it (`pass`).
+        RetainerBurnsWeaponOrDamage,
+        /// Bima entering play: `seat` puts a master Discipline card from
+        /// hand on `minion` (`take_from`), or burns it (`pass`).
+        MasterFromHandOrBurn,
+        /// Reliquary: Biague: `minion` may burn 1 blood (`resolve_printed`)
+        /// for `seat` to look at Methuselah `about.seat`'s hand, or not
+        /// (`pass`).
+        MayBurnBloodToPeek,
+        /// Ohoyo Hopoksia: `seat` may lock the ally `card` to fight the
+        /// acting minion instead of `minion` (`resolve_rider`), or not
+        /// (`pass`).
+        CombatStandIn,
+        /// Muricia's Call, Children of Stone [vis]: `seat` searches the
+        /// library (and the hand, Children of Stone) for a retainer `minion`
+        /// employs, its cost paid (`take_from`), or none (`pass`); the
+        /// library shuffled either way.
+        RetainerSearch,
+        /// Lazarene Inquisitor's action resolving: `seat` sets how much
+        /// blood `minion` burns, 1 to `about.n` (`set_x`).
+        BurnBloodUpTo,
+        /// Igoli's Loyalty: `seat` casts all its vampires' votes and ballots
+        /// in favor for `about.n` pool (`set_x`), or declines (`pass`), the
+        /// Ishtarri `minion` then burning 1 blood to raise the price.
+        FavorAuction,
+        /// Olugbenga: `seat` pays the contest of vampire `minion` with 1
+        /// pool (`burn_pool`) or 1 blood from it or from Olugbenga
+        /// (`burn_blood_from`).
+        ContestPayment,
+        /// Zhenga's successful action: `minion` recruits or employs one
+        /// more ally or retainer from the player's hand, cost and
+        /// requirements as normal (`employ_from_hand`), `about.n` the most
+        /// it may still bring; or stops (`pass`).
+        ExtraHires,
     }
 );
 ids!(
@@ -1116,5 +1153,8 @@ ids!(
         /// Founder counters (`n`; Gwen Brand: at 4, her Disciplines, bleed
         /// and capacity).
         FounderCounters,
+        /// Transfusion counters (`seat`: whose, `n`; Transfusion: at 3 of
+        /// one Methuselah's, they burn and that Methuselah takes the minion).
+        TransfusionCounters,
     }
 );

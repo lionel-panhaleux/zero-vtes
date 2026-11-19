@@ -392,6 +392,7 @@ pub fn table(seed: u64, slice: &[&str], extra: &[&str]) -> Engine {
             became: Default::default(),
             named: Default::default(),
             chosen_card: Default::default(),
+            extra_life: Default::default(),
         });
     }
     untwin(&mut e);

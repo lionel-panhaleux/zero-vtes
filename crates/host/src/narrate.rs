@@ -316,21 +316,34 @@ impl Mark {
             strikes: e
                 .combat()
                 .map(|c| {
-                    c.sides
-                        .iter()
-                        .enumerate()
-                        .map(|(i, s)| {
+                    let mut strikes: Vec<_> = (0..2)
+                        .map(|i| {
+                            let s = c.combatant_side(i);
                             let declared = s.chosen.then(|| Declared {
                                 strike: s.strike,
                                 source: s.strike_source,
                                 told: s
                                     .strike
-                                    .filter(|_| s.strike_at.is_none())
+                                    .filter(|_| {
+                                        s.strike_at.is_none()
+                                            && !s.strike_at_second
+                                            && c.second_swap.as_ref().is_none_or(|sw| sw.0 != i)
+                                    })
                                     .and_then(|k| c.strike_told(&e.state, e.action(), i, k)),
                             });
                             (s.minion, c.round, c.pair, declared)
                         })
-                        .collect()
+                        .collect();
+                    // A Winged Second's, beside its side's.
+                    strikes.extend((0..2).filter_map(|i| c.second_side(i)).map(|s| {
+                        let declared = s.chosen.then_some(Declared {
+                            strike: s.strike,
+                            source: s.strike_source,
+                            told: None,
+                        });
+                        (s.minion, c.round, 0, declared)
+                    }));
+                    strikes
                 })
                 .unwrap_or_default(),
         }

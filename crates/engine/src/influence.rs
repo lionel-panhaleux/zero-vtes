@@ -127,7 +127,11 @@ impl Engine {
         );
         options.extend(self.any_impulse_options(s));
         // After a vampire moved to the ready region (Proxy Kissed).
-        options.extend(self.play_options(s, &[Window::InfluencedOut], None));
+        options.extend(self.play_options(
+            s,
+            &[Window::InfluencedOut, Window::InfluencePhaseOwn],
+            None,
+        ));
         options.extend(self.ability_options(s, Window::InfluencePhaseOwn));
         // Abilities paid in transfers: while enough are left.
         options.extend(
@@ -263,9 +267,7 @@ impl Engine {
                     .merge_partner(s, *slot as usize)
                     .expect("merge partner");
                 let (slot, on) = self.state.take_slot(s, *slot as usize);
-                for c in on {
-                    self.state.cards[c.index()].host = Some(m);
-                }
+                self.slot_cards_onto(on, m);
                 self.merge(m, slot.card, *slot.copy);
                 self.flow = Flow::Influence { left: left - 4 };
                 let merged = Cause::Cost(Source::Minion(m));
@@ -322,17 +324,37 @@ impl Engine {
                 m
             }
         };
-        for c in on {
-            self.state.cards[c.index()].host = Some(m);
-        }
+        self.slot_cards_onto(on, m);
         self.vampire_entered(s, m, out.card, forced);
         m
+    }
+
+    /// The cards on an uncontrolled vampire leaving the region onto it as a
+    /// minion; Founders of the Ebony Kingdom's burns instead.
+    pub(crate) fn slot_cards_onto(
+        &mut self,
+        on: Vec<crate::state::CardId>,
+        m: crate::ids::MinionId,
+    ) {
+        for c in on {
+            let burns = crate::cards::lookup(self.state.cards[c.index()].card).is_some_and(|d| {
+                d.modes[self.state.cards[c.index()].mode as usize]
+                    .effects
+                    .contains(&crate::cards::Effect::BurnsLeavingUncontrolled)
+            });
+            if burns {
+                self.burn_card_in_play(c);
+            } else {
+                self.state.cards[c.index()].host = Some(m);
+            }
+        }
     }
 
     /// Scarce: 3 pool for each vampire of its clan already controlled —
     /// the apparent clan (LSJ 20011015) — as it leaves the uncontrolled
     /// region; whether the pool ran out.
     pub(crate) fn scarce_toll(&mut self, s: SeatId, m: crate::ids::MinionId) -> bool {
+        self.state.minions[m.index()].scarce_paid = crate::state::Sparse(0);
         let card = self.state.minions[m.index()].crypt_card();
         if !card.is_some_and(|c| c != crate::state::CREATED && CRYPT[c as usize].scarce) {
             return false;
@@ -351,6 +373,8 @@ impl Engine {
             return false;
         }
         let scarce = Cause::Effect(Source::Minion(m));
+        let paid = (3 * k).min(self.state.seats[s.index()].pool.max(0));
+        self.state.minions[m.index()].scarce_paid = crate::state::Sparse(paid as u8);
         self.caused(scarce, |e| e.state.seats[s.index()].lose_pool(3 * k));
         self.state.seats[s.index()].pool <= 0
     }
@@ -513,6 +537,7 @@ impl Engine {
                     named: &[],
                     left: n,
                     entering: true,
+                    hand_or_burn: false,
                 });
         } else if let Some((n, clan)) = entry_distribution(card) {
             // Erlik: before any contest (LSJ 20080526).
@@ -576,9 +601,7 @@ impl Engine {
         {
             let (slot, on) = self.state.take_slot(s, i);
             blood = slot.counters;
-            for c in on {
-                self.state.cards[c.index()].host = Some(m);
-            }
+            self.slot_cards_onto(on, m);
             Some((slot.card, *slot.copy))
         } else {
             seat.ash_crypt

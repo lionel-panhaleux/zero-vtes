@@ -2646,6 +2646,247 @@ ADDED_BATCHES = [
         201479: "Xendil Charmer (G4)",
         201491: "Ysador the Foul (G4)",
     },
+    # Round 32: Legacies of Blood completed (owner, 2026-11-09: "We aim to add
+    # all the cards ultimately. Let's work set by set."; the cards board's
+    # lines).
+    {
+        100028: "Ahrimane Protectorate",
+        100034: "Akunanse Kholo",
+        100051: "Ananasi Vampirephile",
+        100061: "Ancestor Spirit",
+        100062: "Ancestor's Insight",
+        100087: "Armor of Caine's Fury",
+        100088: "Armor of Terra",
+        100100: "Art's Traumatic Essence",
+        100103: "Asanbonsam Ghoul",
+        100105: "Ashes to Ashes",
+        100118: "Aversion",
+        100138: "Basilisk's Touch",
+        100140: "Bastille Opera House",
+        100141: "Battle Frenzy",
+        100150: "Belonging Grants Protection",
+        100160: "Bima",
+        100161: "Bind the Night-Walker",
+        100179: "Blessed Audience",
+        100257: "Brother's Blood",
+        100270: "Burning Touch",
+        100321: "Chameleon's Colors",
+        100345: "Choir",
+        100349: "Circle",
+        100357: "Cleansing Ritual",
+        100359: "Clio's Kiss",
+        100365: "Clotho's Gift",
+        100377: "Collapse the Arches",
+        100393: "Concert Tour",
+        100402: "Conductor",
+        100412: "Conscripted Statue",
+        100417: "Consume the Dead",
+        100439: "Crawling Chamber",
+        100443: "Creeping Infection",
+        100496: "Darkling Trickery",
+        100507: "The Death of My Conscience",
+        100508: "Death of the Drum",
+        100537: "Devil-Channel: Back",
+        100539: "Devil-Channel: Hands",
+        100540: "Devil-Channel: Throat",
+        100546: "Dirty Contract",
+        100593: "Duma Rafiki",
+        100596: "Dust to Dust",
+        100602: "Earth Swords",
+        100603: "Earth-Feeder",
+        100608: "Echo of Harmonies",
+        100623: "The Eldest Command Undeath",
+        100626: "Elephant Guardian",
+        100637: "Emergency Rations",
+        100642: "Enforcer",
+        100670: "Excellent Thirst",
+        100694: "Falcon's Eye",
+        100721: "Feral Spirit",
+        100735: "Fire on the Mountain",
+        100751: "Flow Within the Mountain",
+        100780: "Founders of the Ebony Kingdom",
+        100784: "Fractured Armament",
+        100789: "Free Fight",
+        100795: "Frozen Object",
+        100816: "Ghost-Eater",
+        100818: "Ghoul Messenger",
+        100825: "Gift of Bellona",
+        100835: "Glare of Lies",
+        100839: "Glutton",
+        100849: "The Grandest Trick",
+        100873: "The Guruhi Are the Land",
+        100874: "Guruhi Kholo",
+        100878: "Hall of Hades' Court",
+        100883: "Hanging Fermata",
+        100901: "Healing Touch",
+        100907: "Heaven's Gate",
+        100924: "High Aye",
+        100927: "High Orun",
+        100929: "High Top",
+        100941: "Hourglass of the Mind",
+        100950: "Igoli's Loyalty",
+        100977: "Infection",
+        100983: "Informant",
+        100998: "Internal Recursion",
+        101006: "Invoking the Beast",
+        101011: "Ishtarri Kholo",
+        101030: "Jungle Hunting Ground",
+        101037: "Kduva's Mask",
+        101039: "Kerrie",
+        101058: "King's Favor",
+        101061: "Kiss of Lachesis",
+        101076: "Lazarene Inquisitor",
+        101079: "Leapfrog",
+        101090: "Legend of the Leopard",
+        101141: "Madrigal",
+        101160: "Manstopper Rounds",
+        101176: "Masai Blood Milk",
+        101186: "Massassi's Honor",
+        101226: "The Missing Voice",
+        101255: "Muricia's Call",
+        101276: "Neutral Guard",
+        101278: "New in Town",
+        101291: "No Secrets From the Magaji",
+        101317: "Ohoyo Hopoksia (Bastet)",
+        101339: "Overseer",
+        101344: "Palace Hunting Ground",
+        101348: "Panacea",
+        101349: "Pandora's Whisper",
+        101352: "Paris Opera House",
+        101369: "The Path of Tears",
+        101381: "Peacemaker",
+        101392: "Persistent Echo",
+        101397: "Phantom Speaker",
+        101408: "Poker",
+        101414: "Political Flux",
+        101421: "Port Hunting Ground",
+        101443: "Powerbase: Tshwane",
+        101477: "Predator's Communion",
+        101478: "Predator's Mastery",
+        101493: "Projectile",
+        101509: "Psychic Projection",
+        101526: "Putrescent Servitude",
+        101533: "Quicksilver Contemplation",
+        101555: "Rayzeel's Song",
+        101572: "Recurring Contemplation",
+        101576: "Redcap Wilder",
+        101586: "Regenerative Blood",
+        101589: "Reindoctrination",
+        101596: "Reliquary: Akunanse Remains",
+        101597: "Reliquary: Biague",
+        101617: "Resurrection",
+        101634: "Riddle Phantastique",
+        101636: "Rigor Mortis",
+        101637: "Riposte",
+        101648: "Roll",
+        101709: "The Secret Must Be Kept",
+        101710: "Secret Passage",
+        101720: "Sense Vitality",
+        101739: "Shadow of Taint",
+        101750: "Shaman",
+        101786: "Siren's Lure",
+        101787: "Sires Command, Childer Inherit",
+        101794: "Skin of the Chameleon",
+        101800: "The Slaughterhouse",
+        101818: "Soar",
+        101840: "Speak with Spirits",
+        101846: "Spike-Thrower",
+        101848: "Spirit Marionette",
+        101858: "Squirrel Balance",
+        101862: "Static Virtue",
+        101865: "Steal the Mind",
+        101873: "Stone Dog",
+        101874: "Stone Quills",
+        101880: "Strange Day",
+        101883: "Strength of the Bear",
+        101899: "Summon Spirit Beast",
+        101914: "Swarm",
+        101916: "Swiftness of the Stag",
+        101918: "Swoop",
+        101959: "Terra Incognita",
+        101975: "Those Who Endure Judge",
+        101991: "Toreador's Bane",
+        102000: "Tourette's Voice",
+        102003: "Tracker's Mark",
+        102011: "Transfusion",
+        102013: "Travelers Obey the Tenets",
+        102056: "Unburdening the Bestial Soul",
+        102059: "Uncontrolled Impulse",
+        102081: "Unseen Hibernation",
+        102089: "Vampiric Speed",
+        102127: "Vitae Block",
+        102132: "Vox Domini",
+        102135: "Vulture's Buffet",
+        102143: "Wanderer's Counsel",
+        102177: "Whistling Up the Beast",
+        102181: "The Wildebeest",
+        102186: "Winged Second",
+        102187: "Wise Spider",
+        102188: "Withering",
+        200023: "Agru Kabera (G4)",
+        200026: "Aimee Laroux (G4)",
+        200032: "Aiyana, The Wolfcatcher (G4)",
+        200037: "Al-Muntaquim, The Avenger (G4)",
+        200066: "Amavi (G4)",
+        200111: "Antoinette Dubois (G4)",
+        200130: "Aren, Priest of Eshu (G4)",
+        200153: "Ayo Igoli (G4)",
+        200176: "Batsheva (G4)",
+        200228: "Bupe Kuila (G4)",
+        200329: "Dela Eden (G3)",
+        200333: "Demdemeh (G4)",
+        200353: "Dolie (G4)",
+        200448: "Eze, The Demon Prince (G3)",
+        200456: "Falhu Shibaba (G3)",
+        200493: "Ganhuru (G4)",
+        200505: "Gentha Shale (G4)",
+        200542: "Gualtiero Ghiberti (G4)",
+        200576: "Hasani (G4)",
+        200602: "Honorine Ateba (G4)",
+        200618: "Ibn Khaldun, Scholar (G4)",
+        200636: "Iniko, The Black Lion (G4)",
+        200645: "Ismitta (G4)",
+        200654: "Jack Dawson (G2 ADV)",
+        200703: "Jibade el-Bahrawi (G4)",
+        200731: "Jubal (G4)",
+        200747: "Kamaria (G4)",
+        200748: "Kamau Jafari (G4)",
+        200749: "Kamiri wa Itherero (G4)",
+        200772: "Kenyatta (G4)",
+        200783: "The Kikiyaon (G4)",
+        200884: "Lumumba (G4)",
+        200923: "Maria Stone (G3 ADV)",
+        200953: "Maskini (G4)",
+        200957: "Matata (G3)",
+        200977: "Meno Ngari (G4)",
+        200996: "Misrak (G4)",
+        201016: "Mr. Noir (G4)",
+        201023: "Muricia (G4)",
+        201036: "Nangila Were (G4)",
+        201064: "Nkule Galadima (G4)",
+        201078: "Olugbenga (G4)",
+        201086: "Otieno (G4)",
+        201091: "Panya, The Wicked (G4)",
+        201119: "Phagian (G4)",
+        201132: "Prejudice (G4)",
+        201206: "Rosemarie (G4)",
+        201234: "Sanjo (G3)",
+        201250: "Sayshila (G4)",
+        201263: "Sennadurek (G4)",
+        201277: "Shasa Abu Badr (G4)",
+        201302: "Sobayifa (G3)",
+        201392: "Tsunda (G4)",
+        201399: "Ubende (G4)",
+        201401: "Uchenna (G4)",
+        201402: "Ugadja (G4)",
+        201414: "Urenna Bunu (G4)",
+        201463: "Wamukota (G4)",
+        201484: "Yavu Matebo (G4)",
+        201492: "Yseult (G3)",
+        201505: "Zhara (G3)",
+        201506: "Zhenga (G4)",
+        201511: "Zygodat (G4)",
+    },
 ]
 ADDED_CARDS = {k: v for batch in ADDED_BATCHES for k, v in batch.items()}
 
@@ -2803,6 +3044,11 @@ RIDERS = [
     # Block): resolved with it, no window of its own.
     r"prevent \d damage from the opposing minion's next hand strike[^.]*",
     r"can burn this card to prevent[^.]*",                # granted prevention (Wall of Filth)
+    # A bar the card in play grants, no prevention (Creeping Infection).
+    r"burn this card to prevent this minion from blocking",
+    # A granted ability, playable before any damage (Brother's Blood;
+    # advanced rules 4.5.1).
+    r"can burn his or her own blood to heal or prevent[^.]*",
     # A strike's own prevention, resolved with it, and the opposing
     # minion's burn against it (Stunt Cycle): no window of their own.
     r"\band prevent \d damage from the opposing minion's strike[^.]*",
@@ -2842,6 +3088,9 @@ COMBAT_TIMING = [
     # "Grapple." is a label, no timing (Chave de Braço's strike): Immortal
     # Grapple's timing is its "before strikes are chosen".
     (r"before strikes are chosen", "COMBAT_BEFORE_STRIKES"),
+    # A combat card's replacement of an ally's burn (Heaven's Gate [obe]):
+    # Left for Dead's moment.
+    (r"only usable (?:when|if) an ally would be burned in combat", "ALLY_WOULD_BURN_IN_COMBAT"),
     # "Usable after strikes have been chosen" (Sanguinary Wind [CEL]).
     (r"usable after strikes have been chosen", "COMBAT_BEFORE_RESOLUTION"),
     (r"additional strike", "COMBAT_ADDITIONAL_STRIKE"),
@@ -2872,10 +3121,16 @@ COMBAT_TIMING = [
     # (Amaranth); "when this vampire should go into torpor" (Undead
     # Persistence [for]): the same moment.
     (r"vampire should go (in)?to torpor", "COMBAT_GOING_TO_TORPOR"),
+    # "Only usable by a vampire being burned" (Ashes to Ashes [for]): the
+    # same moment, its own burn about to land.
+    (r"only usable by a vampire being burned", "COMBAT_GOING_TO_TORPOR"),
     # Ammo, "Only usable before resolution of a gun's strike" (Scattershot,
     # Caseless Rounds), a melee weapon's (Baal's Bloody Talons): the strike
     # chosen, before it resolves.
     (r"before resolution of a (gun|melee weapon)'s strike", "COMBAT_BEFORE_RESOLUTION"),
+    # "Only usable if the opposing minion strikes with a weapon" (Darkling
+    # Trickery [MYT]): the strike chosen, before it resolves.
+    (r"only usable if the opposing minion strikes with a weapon", "COMBAT_BEFORE_RESOLUTION"),
     # "Only usable after this Blood Brother gains blood" (Slake the
     # Thirst): any step after the gain, the round's end too (Taste of
     # Vitae's gain; LSJ 20100206-2, rules-qa 94.2).
@@ -2897,7 +3152,8 @@ MODIFIER_TIMING = [
     (r"as (an?|the|this)\b[^.]{0,60}?\bis announced", "ACTION_AS_ANNOUNCED"),
     # "Only usable when the action is announced" (Shell Game); "when the
     # action to recruit a mortal ally is announced" (Ghouled).
-    (r"when the action\b[^.]{0,40}?\bis announced", "ACTION_AS_ANNOUNCED"),
+    # "Only usable when an action is announced" (The Grandest Trick).
+    (r"when (an?|the) action\b[^.]{0,40}?\bis announced", "ACTION_AS_ANNOUNCED"),
     # "Only usable when an older non-Anarch vampire successfully blocks"
     # (Bear-Baiting): the block made, before its resolution.
     (r"when an? [^.]{0,40}?successfully blocks", "ACTION_BLOCKED"),
@@ -2908,6 +3164,10 @@ MODIFIER_TIMING = [
     # "… another one who has just been blocked, before block resolution"
     # (Claiming the Body).
     (r"has just been blocked", "ACTION_BLOCKED"),
+    # "Only usable when an action is blocked" (Conscripted Statue); "when
+    # an action to equip with a weapon from your hand is blocked" (Gift of
+    # Bellona [VAL]).
+    (r"only usable when an action\b[^.]{0,60}?\bis blocked", "ACTION_BLOCKED"),
     # "As above, but usable as an action modifier" (Slake the Thirst
     # [SAN]); "As above, but usable any time before the action is
     # resolved" (Walk of Caine [SAN]).
@@ -3000,7 +3260,10 @@ REACTION_TIMING = [
     # Conspiracy): once it passed, before the burn (LSJ 20081203-2).
     (r"cancel a blood hunt", "BLOOD_HUNT_WOULD_BURN"),
     # An ally about to be burned in combat, before it is (Left for Dead).
-    (r"only usable when an ally would be burned in combat", "ALLY_WOULD_BURN_IN_COMBAT"),
+    (r"only usable (?:when|if) an ally would be burned in combat", "ALLY_WOULD_BURN_IN_COMBAT"),
+    # A minion or retainer about to be burned, but by a diablerie (Consume
+    # the Dead).
+    (r"only usable when a minion or retainer is being burned", "MINION_WOULD_BURN"),
     # A vampire about to go to torpor, before it does (Minor Boon).
     (r"controlled by another methuselah is going into torpor", "GOING_TO_TORPOR"),
     # A block about to succeed, before the blocker locks (Lesser Boon).
@@ -3009,6 +3272,8 @@ REACTION_TIMING = [
     # Kissed).
     (r"after you move an? \w+ from your uncontrolled region to your ready region",
      "INFLUENCED_OUT"),
+    # In its player's own influence phase (Hanging Fermata).
+    (r"only usable during your influence phase", "INFLUENCE_PHASE_OWN"),
     # "Under the control of another Methuselah during his or her unlock
     # phase" (Regarhagan's Hold).
     (r"another Methuselah during his or her unlock phase", "UNLOCK_PHASE_ANY"),
@@ -3038,6 +3303,12 @@ REACTION_TIMING = [
     # "These two vampires attempt to block" (Coterie Tactics).
     (r"these two \w+ attempt to block", "ACTION_STEALTH_INTERCEPT"),
     (r"unlock this (vampire|minion)|burns? \d blood to unlock\.", "REACTION_UNLOCK"),
+    # "Only usable by a locked vampire … This reacting vampire unlocks"
+    # (Predator's Communion [ABO]).
+    (r"\bthis (reacting )?(vampire|minion) unlocks\.", "REACTION_UNLOCK"),
+    # "Only usable when another minion you control enters combat with a
+    # minion without flight" (Winged Second): as the combat begins.
+    (r"\benters combat with a minion\b", "COMBAT_BEFORE_RANGE"),
     (r"after blocks are declined", "ACTION_BLOCKS_DECLINED"),
     # Another Methuselah's, after the acting one's own (Car Bomb; LSJ
     # 20081105).
@@ -3093,6 +3364,9 @@ REACTION_TIMING = [
     (r"play this card during your minion phase", "ANY_IMPULSE"),
     # An out-of-turn master before range (Frenzy).
     (r"only usable before range is (determined|chosen)", "COMBAT_BEFORE_RANGE"),
+    # An out-of-turn master on a combatant, any time in the combat (Battle
+    # Frenzy); not Frenzy's, timed before range.
+    (r"(?<!chosen\. )choose an? \w+ in combat", "COMBAT_UNTIMED"),
     # An out-of-turn master triggered by the opposing strike (Rötschreck),
     # before or after the vampire's own strike (LSJ 19990217).
     (r"attempts to inflict aggravated damage", "COMBAT_STRIKE_ANNOUNCED"),
@@ -3144,7 +3418,12 @@ FLAGS = [
 # hunt/equip variants); MPA/DPA-consuming abilities excluded; "as an action …
 # is announced" timing clauses are not grants.
 # "… as a vampire until the end of this action" (Mouthpiece) grants none.
-IN_PLAY_ACTION = (r"\bas an? (?!vampire\b)[^.;]{0,40}?\baction\b(?! to )(?! modifier)"
+# "Treated as a mortal ally for the duration of the action" (The Grandest
+# Trick) is no action.
+# "… as a +1 stealth action to get +1 strength" (Masai Blood Milk) grants one;
+# "… action to recruit or employ" and "… action to give" name another's.
+IN_PLAY_ACTION = (r"\bas an? (?!vampire\b)(?!mortal ally\b)[^.;]{0,40}?\baction\b"
+                  r"(?! to (?:recruit|employ|give)\b)(?! modifier)"
                   r"(?![^.]* is announced)"
                   # "… as a +1 stealth action to turn this card into a
                   # Gargoyle" (Raw Recruit).
@@ -3155,7 +3434,7 @@ IN_PLAY_ACTION = (r"\bas an? (?!vampire\b)[^.;]{0,40}?\baction\b(?! to )(?! modi
 
 # "[cel] or [for]" (the Sabbat V5 layout): either Discipline, one mode
 # (rules-qa 52.1); side by side, a combo (rules-qa 25.2).
-MODE_LINE = re.compile(r"^(\[[^\]]+\]\s*(or\s+(?=\[))?)+")
+MODE_LINE = re.compile(r"^(\[[^\]]+\]:?\s*(or\s+(?=\[))?)+")
 TYPE_TAGS = {"COMBAT": "Combat", "ACTION MODIFIER": "Action Modifier",
              "REACTION": "Reaction", "ACTION": "Action",
              "POLITICAL ACTION": "Political Action"}
@@ -3313,6 +3592,12 @@ def modes_for(card):
     for tags, raw, mtext in modes:
         raw_text = preamble + " " + mtext
         stripped = strip_riders(raw_text)
+        # "As above, with an additional strike (limited)" over a strike
+        # (Projectile [CEL]): played as the strike; over a non-strike
+        # (Backstab [CEL]) the additional strike keeps its window.
+        if "COMBAT_STRIKE_DECLARATION" in prev and \
+                re.match(r"\s*as above, with an additional strike\b", mtext, re.I):
+            stripped = re.sub(r"with an additional strike\b[^.]*", " ", stripped, flags=re.I)
         # "As above", or "As [dai][obf] above" (I am Legion).
         as_above = bool(re.match(r"\s*as (?:\[\w+\])*\s*above", mtext, re.I))
         # "As above" over a [COMBAT] mode, a [REACTION] with its own printed
@@ -3358,10 +3643,12 @@ def modes_for(card):
         # (Groundfighting): the alternatives keep their own timings.
         # "Alternatively, … play this card during your minion phase"
         # (Emergency Preparations), "Press, … Alternatively, burn 1 blood
-        # to cancel" (Disengage): its own timing too.
+        # to cancel" (Disengage), "Reduce a bleed … or burn a blood to cancel"
+        # (Terra Incognita): its own timing too.
         if not cancels or re.search(r"\b(maneuver|press) or [^.]*\bcancel\b", raw_text, re.I) \
                 or re.search(r"alternatively, [^.]*during your minion phase", raw_text, re.I) \
-                or re.search(r"\balternatively, burn \d+ blood to cancel\b", raw_text, re.I):
+                or re.search(r"\balternatively, burn \d+ blood to cancel\b", raw_text, re.I) \
+                or re.search(r"\bor burn (?:a|\d+) blood to cancel\b", raw_text, re.I):
             # "As above, and/or …" (I am Legion [DAI][OBF]): the added
             # effect alone is a play of its own, timed by its text.
             either = as_above and re.search(r"\band/or\b", mtext, re.I)

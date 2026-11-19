@@ -299,7 +299,8 @@ fn juniper_steals_an_ally_of_her_predator_or_prey() {
 }
 
 // Onaedo: "While /Otieno/ is ready, Onaedo gets +1 stealth during diablerie
-// actions." No Otieno in the pool: never.
+// actions." Without Otieno: none (with him: twda_round32_b's
+// onaedo_sneaks_into_diablerie_while_otieno_is_ready).
 #[test]
 fn onaedo_has_no_stealth_without_otieno() {
     let mut e = game(2);

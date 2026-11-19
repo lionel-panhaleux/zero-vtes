@@ -1414,7 +1414,8 @@ fn blood_cult_awareness_network_taxes_the_great_beasts_eleventh_counter() {
         &mut e,
         Choice::UseAbility {
             source: AbilitySource::Card(beast),
-            ability: 0,
+            // The 11th counter's action (rules-qa Batch 124).
+            ability: 1,
             actor: Some(n),
             target: Target::None,
         },

@@ -1455,7 +1455,10 @@ fn hatch_the_viper_superior_bites_through_a_dodge() {
     e.state.cards[hatch.index()].counters = 1;
     e.state.layers.push(zvtes::cards::Layer {
         scope: zvtes::cards::Scope::InPlay,
-        modifier: zvtes::cards::Modifier::RetainerDamageClose(2),
+        modifier: zvtes::cards::Modifier::RetainerDamageClose {
+            n: 2,
+            when: zvtes::cards::RetainerWhen::ALWAYS,
+        },
         source: hatch,
     });
     hand(&mut e, 0, &["Form of Mist"]);

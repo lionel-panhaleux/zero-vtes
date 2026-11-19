@@ -3432,7 +3432,8 @@ fn call_the_great_beast_rises_at_eleven_counters() {
     assert_eq!(e.state.cards[beast.index()].host, Some(n));
     assert_eq!(e.state.cards[beast.index()].counters, 10);
     e.state.minions[n.index()].locked = false;
-    pick(&mut e, use_at(beast, 0, Some(n), Target::None));
+    // The 11th counter's action (rules-qa Batch 124).
+    pick(&mut e, use_at(beast, 1, Some(n), Target::None));
     for _ in 0..3 {
         let req = to_window(&mut e, SeatId(0), WindowLabel::ResolutionChoice);
         let pick_first = req.options[0];

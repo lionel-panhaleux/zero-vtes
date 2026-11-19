@@ -2042,6 +2042,21 @@ fn alastor_blood_cost_is_the_chosen_vampires() {
     assert!(on_minion(&e, "Zaire River Ferry", j).is_some());
 }
 
+// Alastor's half cost takes its payer's reductions (owner, rules-qa 124.7):
+// the pool half the caller's: Eye of Hazimel, half of 3: 1, less the
+// caller's British Museum's 1: nothing paid.
+#[test]
+fn alastor_pool_half_takes_the_callers_reductions() {
+    let (mut e, j) = alastor_search(&["Eye of Hazimel"]);
+    in_play(&mut e, 0, "British Museum, London, The", None);
+    let eye = Choice::FindCard(find_library("Eye of Hazimel"));
+    offering(&mut e, eye);
+    let pool_before = pool(&e, 0);
+    pick(&mut e, eye);
+    assert_eq!(pool(&e, 0), pool_before);
+    assert!(on_minion(&e, "Eye of Hazimel", j).is_some());
+}
+
 // Alastor's equipment paid with the last pool (AK-47, half of 5: 2) ousts
 // its caller, and the action is over at once (rules-qa 51.5): no step
 // shows it under way without them; the turn passes.

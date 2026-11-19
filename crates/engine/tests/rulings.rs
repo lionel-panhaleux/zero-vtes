@@ -2502,7 +2502,7 @@ fn call_the_great_beast_needs_a_baali_host() {
         let req = expect(&mut e, SeatId(0), WindowLabel::MinionPhase);
         assert_eq!(
             req.options
-                .contains(&use_at(call, 0, Some(n), Target::None)),
+                .contains(&use_at(call, 1, Some(n), Target::None)),
             !deranged
         );
     }

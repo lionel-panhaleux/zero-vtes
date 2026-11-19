@@ -11647,6 +11647,28 @@ fn grooming_the_protege_feeds_a_younger_clanmate() {
     assert!(!e.state.minions[a.index()].locked, "no action");
 }
 
+// Grooming the Protégé's X is named at play, never above the giving
+// vampire's blood then (rules-qa 33.4, 124.240): a 2-blood giver is offered
+// 1 or 2, not 3.
+#[test]
+fn grooming_the_protege_offers_no_more_than_the_givers_blood() {
+    let mut e = Engine::bare(3);
+    let card = plain("Ventrue", "", 0);
+    let a = e.add_minion(SeatId(0), card, 2, false);
+    e.add_minion(SeatId(1), plain("", "", 1), 4, false);
+    let cap = CRYPT[card as usize].capacity;
+    let young = uncontrolled(
+        &mut e,
+        0,
+        vampire(|c| c.clan == "Ventrue" && c.capacity < cap, 0),
+    );
+    hand(&mut e, 0, &["Grooming the Protégé"]);
+    e.at_master_phase();
+    pick(&mut e, play_at(0, 0, Some(a), Target::Uncontrolled(young)));
+    let req = request(&mut e);
+    assert_eq!(req.options, vec![Choice::SetX(1), Choice::SetX(2)]);
+}
+
 // Gangrel Revel: "Gangrel you control get +1 strength. Non-Ravnos minions
 // can burn this card as a Ⓓ action." The Khabar: Community: "Assamites get
 // +1 stealth when bleeding." New Carthage: "Titled Brujah get +1 bleed and

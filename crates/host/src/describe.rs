@@ -279,7 +279,7 @@ fn found_in(e: &Engine, req: &DecisionRequest) -> Option<ZoneRef> {
         // Khazar's Diary: the heap chosen first, any Methuselah's.
         Some(Interrupt::NameAnyAshMinion { from: Some(t), .. }) => return at(t, Zone::AshHeap),
         Some(Interrupt::SwapEquipFromPrey { seat, .. }) => {
-            return at(e.state.prey(seat), Zone::Hand)
+            return at(e.state.prey(seat), Zone::Hand);
         }
         Some(Interrupt::ReplaceFromResearch { seat, .. }) => return at(seat, Zone::Research),
         Some(
@@ -320,8 +320,10 @@ fn found_in(e: &Engine, req: &DecisionRequest) -> Option<ZoneRef> {
     }
     match e.ability_terms()?.1.terms {
         Some(Terms::AshCard | Terms::CombatPlayedAshCard) => at(req.seat, Zone::AshHeap),
-        // Luna Giovanni: the heap picked first.
-        Some(Terms::RemoveFromAnyAsh { .. }) => at(e.ability_terms_heap()?, Zone::AshHeap),
+        // Luna Giovanni: the heap picked first; Prejudice: his prey's.
+        Some(Terms::RemoveFromAnyAsh { .. } | Terms::RemoveFromPreyAsh { .. }) => {
+            at(e.ability_terms_heap()?, Zone::AshHeap)
+        }
         Some(Terms::DirectedHandCard) => at(e.action()?.directed_seat(&e.state)?, Zone::Hand),
         Some(Terms::ActingHandCard(_)) => at(e.action()?.seat, Zone::Hand),
         _ => None,
@@ -757,9 +759,19 @@ fn asked(x: &Ctx<impl Names>, i: Interrupt, choice: &Choice) -> Vec<Effect> {
     let library = |c: u16| Some(LIBRARY[c as usize].id);
     match (i, *choice) {
         (Interrupt::MinionOf { purpose, .. }, Choice::ChooseMinion(_)) => vec![match purpose {
-            P::Lock | P::LockVampire | P::LockOtherAnarch(_) | P::LockYoungerThan(_) => {
-                chosen(EffectKind::Lock)
-            }
+            P::Lock
+            | P::LockReady
+            | P::LockVampire
+            | P::LockOtherAnarch(_)
+            | P::LockYoungerThan(_) => chosen(EffectKind::Lock),
+            P::BecomeCombatant { .. } => Effect {
+                detail: Some("become_combatant".into()),
+                ..chosen(EffectKind::Move)
+            },
+            P::CancelManeuver(_) => Effect {
+                detail: Some("maneuver".into()),
+                ..chosen(EffectKind::Cancel)
+            },
             P::BurnAllyUpTo(_) => chosen(EffectKind::Burn),
             P::StealFromTorpid { .. } => chosen(EffectKind::Steal),
             P::EquipFoundOn { .. } => chosen(EffectKind::Move),
@@ -970,6 +982,7 @@ pub(crate) fn count_of(mode: &zvtes::cards::ModeDef) -> Option<zvtes::cards::Eff
                 | E::BloodToTargetX
                 | E::HandToBottomX
                 | E::ActingControllerDiscardsAtRandom
+                | E::MoveChosenBloodX
         )
     })
 }
@@ -1098,6 +1111,11 @@ fn amount(x: &Ctx<impl Names>, req: &DecisionRequest, n: u8) -> Vec<Effect> {
                     Some(E::BloodToTargetX) => vec![Effect {
                         on: Some(On::Target),
                         copy: Some(x.minion(target.minion())),
+                        ..of(EffectKind::Blood, n)
+                    }],
+                    // King's Favor: between the vampires the card chose.
+                    Some(E::MoveChosenBloodX) => vec![Effect {
+                        detail: Some("chosen_blood".into()),
                         ..of(EffectKind::Blood, n)
                     }],
                     // Nehemiah.
@@ -1357,6 +1375,25 @@ pub fn about(e: &Engine, req: &DecisionRequest, names: &impl Names) -> Option<Ab
                 minion: m(minion),
                 ..a()
             },
+            I::CombatStandIn {
+                card: c, replaced, ..
+            } => About {
+                minion: m(replaced),
+                card: card(c),
+                ..a()
+            },
+            I::MayBurnBloodToPeek { minion, of, .. } => About {
+                minion: m(minion),
+                seat: Some(of.0),
+                ..a()
+            },
+            I::RetainerBurnsWeaponOrDamage {
+                retainer, minion, ..
+            } => About {
+                minion: m(minion),
+                card: card(retainer),
+                ..a()
+            },
             I::BlockWouldSucceed { blocker, .. } => About {
                 minion: m(blocker),
                 ..a()
@@ -1438,6 +1475,10 @@ pub fn about(e: &Engine, req: &DecisionRequest, names: &impl Names) -> Option<Ab
                 ..a()
             },
             I::LibraryToHand { .. } => a(),
+            I::ContestPayment { minion, .. } => About {
+                minion: m(minion),
+                ..a()
+            },
             I::BloodOrCamarilla { minion, .. } => About {
                 minion: m(minion),
                 ..a()
@@ -1487,6 +1528,7 @@ pub fn about(e: &Engine, req: &DecisionRequest, names: &impl Names) -> Option<Ab
             | I::CancelAttempt { minion, .. }
             | I::CorruptionOwner { minion, .. }
             | I::DisciplineSearch { minion, .. }
+            | I::RetainerSearch { minion, .. }
             | I::AllySearch { minion, .. }
             | I::GainConviction { minion, .. }
             | I::BurnConvictions { minion, .. }
@@ -1520,7 +1562,7 @@ pub fn about(e: &Engine, req: &DecisionRequest, names: &impl Names) -> Option<Ab
             },
             I::MinionOf { of, purpose, .. } => {
                 let (d, clan, c, n) = match purpose {
-                    P::Lock => ("lock", None, None, None),
+                    P::Lock | P::LockReady => ("lock", None, None, None),
                     P::BurnAllyUpTo(k) => ("burn_ally_up_to", None, None, Some(k)),
                     P::HealHost(_) => ("heal_host", None, None, None),
                     P::MoveOntoAny(c, _) => ("move_onto_any", None, card(c), None),
@@ -1550,6 +1592,8 @@ pub fn about(e: &Engine, req: &DecisionRequest, names: &impl Names) -> Option<Ab
                     P::HuntBloodTo { n: d, .. } => ("hunt_blood_to", None, None, Some(d)),
                     P::GainBlood(d) => ("gain_blood", None, None, Some(d)),
                     P::JointBlocker(..) => ("joint_blocker", None, None, None),
+                    P::BecomeCombatant { .. } => ("become_combatant", None, None, None),
+                    P::CancelManeuver(_) => ("cancel_maneuver", None, None, None),
                 };
                 About {
                     seat: Some(of.0),
@@ -1613,6 +1657,11 @@ pub fn about(e: &Engine, req: &DecisionRequest, names: &impl Names) -> Option<Ab
                     minion: m(v),
                     ..a()
                 },
+                zvtes::draws::DrawSource::Card { card, n } => About {
+                    card: named(card),
+                    n: Some(n),
+                    ..a()
+                },
             },
             I::PursuitDraw { .. } => About {
                 card: by_name("Infernal Pursuit"),
@@ -1636,6 +1685,11 @@ pub fn about(e: &Engine, req: &DecisionRequest, names: &impl Names) -> Option<Ab
             I::StealUpTo { from, to, max, .. } | I::MoveBloodUpTo { from, to, max, .. } => About {
                 minion: m(from),
                 to: m(to),
+                n: Some(max),
+                ..a()
+            },
+            I::BurnBloodUpTo { from, max, .. } => About {
+                minion: m(from),
                 n: Some(max),
                 ..a()
             },
@@ -1797,6 +1851,11 @@ pub fn about(e: &Engine, req: &DecisionRequest, names: &impl Names) -> Option<Ab
             I::StoreFromAshOf { card: c, from, .. } => About {
                 card: card(c),
                 seat: Some(from.0),
+                ..a()
+            },
+            I::FavorAuction { offer, by, .. } => About {
+                n: Some(offer),
+                minion: m(by),
                 ..a()
             },
             I::BloodForVotes { min, more, .. } => About {
@@ -2047,7 +2106,13 @@ pub fn about(e: &Engine, req: &DecisionRequest, names: &impl Names) -> Option<Ab
                 n: Some(n),
                 ..a()
             },
-            I::Draws { left: n, .. } | I::Bottom { left: n, .. } => About { n: Some(n), ..a() },
+            I::Draws { left: n, .. } => About { n: Some(n), ..a() },
+            // Hourglass of the Mind [tem]: to the library's top.
+            I::Bottom { left: n, top, .. } => About {
+                n: Some(n),
+                detail: top.then(|| "top".to_string()),
+                ..a()
+            },
             I::MarginPool {
                 left, cap, clan, ..
             } => About {
@@ -2088,6 +2153,11 @@ pub fn about(e: &Engine, req: &DecisionRequest, names: &impl Names) -> Option<Ab
             },
             I::MoveCardToOldest { card: c, .. } => About {
                 card: card(c),
+                ..a()
+            },
+            I::ExtraHires { minion, left, .. } => About {
+                minion: m(minion),
+                n: Some(left),
                 ..a()
             },
             I::MayPreventForBlood { minion, n, .. }
@@ -2199,6 +2269,17 @@ pub fn about(e: &Engine, req: &DecisionRequest, names: &impl Names) -> Option<Ab
                         }),
                         ..a()
                     },
+                    Terms::AnyAshPick(_) => About {
+                        detail: detail(match p.ash {
+                            None => "ash_heap_pick",
+                            Some(_) => "ash_pick",
+                        }),
+                        ..a()
+                    },
+                    Terms::OwnContestedVampire => About {
+                        detail: detail("contested_vampire"),
+                        ..a()
+                    },
                     Terms::EquipFromHand { .. } => match p.named {
                         None => About {
                             detail: detail("equipment"),
@@ -2271,6 +2352,10 @@ pub fn about(e: &Engine, req: &DecisionRequest, names: &impl Names) -> Option<Ab
                     },
                     Some(E::HandToBottomX) => About {
                         detail: detail("hand_to_bottom"),
+                        ..a()
+                    },
+                    Some(E::MoveChosenBloodX) => About {
+                        detail: detail("chosen_blood"),
                         ..a()
                     },
                     Some(E::ActingControllerDiscardsAtRandom) => About {

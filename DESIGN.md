@@ -1187,9 +1187,7 @@ What the engine does not yet do or does only in part, true today.
 
 - **Inert clauses, no pool tenant**: self-damaging weapons (rows n/a); an
   advanced vampire's [MERGED] text while its base card is not in the pool
-  (rules-qa 104.20);
-  Orlando Oriundus's bar on other multipliers (no other multiplier);
-  Onaedo's Otieno (not in the pool).
+  (rules-qa 104.20).
 - **Paths in the observations**: the policy sees a vampire's sect, not its
   path, and the networks never follow one (`zvtes_policy::untrained`):
   the next run's, docs/watch.md "The platform opened".
@@ -1222,7 +1220,7 @@ What the engine does not yet do or does only in part, true today.
 
 The objectives still open are the roadmap's (`docs/roadmap.md`).
 
-Definitions: 1717 library, 916 vampires
+Definitions: 1890 library, 963 vampires
 
 ## Outlook: deck building (post-v1)
 

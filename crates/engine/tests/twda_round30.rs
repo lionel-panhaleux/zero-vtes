@@ -2103,7 +2103,7 @@ fn possession_raises_a_burned_mummy() {
     assert!(e.state.seats[0].uncontrolled.iter().any(|u| u.card == x));
 }
 
-// ---- action_a: cards on a vampire ------------------------------------------
+// ---- Action cards on a vampire ----------------------------------------------
 
 /// Blithe Acceptance [obf]: on the acting vampire, itself; a second is not
 /// played by a vampire with one (rules-qa 99.1).
@@ -2492,7 +2492,7 @@ fn fantasy_world_burns_as_its_minion_enters_combat() {
     assert!(ash_has(&e, 0, "Fantasy World"));
 }
 
-// ---- action_a: removals, damage, bleeds ----------------------------------------
+// ---- Action cards: removals, damage, bleeds ---------------------------------
 
 /// Chair of Hades [nec]: a mortal ally of the prey's removed from the game
 /// (not burned), the action directed at its controller; a ghoul retainer
@@ -3738,7 +3738,7 @@ fn gramle_finds_a_named_vampire_to_the_uncontrolled_region() {
     assert!(!e.state.seats[0].crypt.contains(&v));
 }
 
-// ---- Action modifiers (modifier) --------------------------------------------------------
+// ---- Action modifiers -------------------------------------------------------
 
 /// The `nth` textless vampire with `disc` (case read) of exactly `cap`.
 #[track_caller]
@@ -4704,7 +4704,7 @@ fn will_o_the_wisp_superior_bars_chosen_minions() {
     }
 }
 
-// ---- Minions and equipment (minions_equip) ----------------------------------
+// ---- Minions and equipment --------------------------------------------------
 
 /// A bleeds, X blocks: their combat begins.
 fn bleed_blocked(e: &mut Engine, a: MinionId, x: MinionId) {
@@ -6342,7 +6342,7 @@ fn mokole_blood_leaving_play_burns_its_cards() {
     assert!(ash_has(&e, 0, "Typhonic Beast"));
 }
 
-// ---- Vampires (vamp_a) ---------------------------------------------------------------
+// ---- Vampires, Arnulf onward ------------------------------------------------
 
 /// The crypt card `name` (not advanced).
 #[track_caller]
@@ -10878,7 +10878,7 @@ fn donnybrook_serpentis_steals_from_a_minion_with_less_than_two() {
     assert!(blood(&e, a) >= 4, "the stolen blood");
 }
 
-// ---- Vampires (vamp_b) -------------------------------------------------------
+// ---- Vampires, Lizette onward -----------------------------------------------
 
 /// Vampire `m`'s printed ability `ability`, no target.
 fn vamp(m: MinionId, ability: u8) -> Choice {
@@ -12208,7 +12208,7 @@ fn wall_street_night_takes_a_counter_from_an_investment_as_an_action() {
     assert!(ash_has(&e, 1, "Swiss Cut"));
 }
 
-// ---- Gaps closed after the merge -------------------------------------------------
+// ---- Further cases, Johann Matheson to Pentweret ----------------------------
 
 /// Johann Matheson: "Cards named Ecstasy, The Jones and XTC-Laced Blood
 /// cannot target Johann." Neither names a target; the engine reads both as
@@ -12392,7 +12392,7 @@ fn pentweret_steals_an_ally_costing_three_or_less() {
     }
 }
 
-// ---- The graders' untested readings ------------------------------------------------
+// ---- Further cases, Enticement onward ---------------------------------------
 
 /// Enticement: its Methuselah does not hold the Edge (the prey does): not
 /// offered; holding it, offered.
@@ -12690,11 +12690,11 @@ fn soul_feasting_fizzles_with_its_wraith_gone() {
     assert_eq!(blood(&e, a), 1, "no hunt");
 }
 
-/// Precision: its prey (the target seat at declaration) ousted before
-/// resolution: the action fizzles; the new prey discards nothing.
-/// [rules-qa 117.1] cause 1/: the target no longer legal.
+/// Precision: its prey ousted before resolution: "your prey" read as it
+/// resolves, the new prey discards the named card.
+/// [rules-qa 121.120] corrected (owner, Batch 124).
 #[test]
-fn precision_fizzles_once_its_prey_is_ousted() {
+fn precision_makes_the_new_prey_discard_once_its_prey_is_ousted() {
     let mut e = game(3);
     let a = e.add_minion(SeatId(0), vampire_with("cel", 0), 4, false);
     e.add_minion(SeatId(1), plain("Ventrue", 0), 4, false);
@@ -12707,8 +12707,9 @@ fn precision_fizzles_once_its_prey_is_ousted() {
     e.state.seats[1].pool = 0;
     e.state.seats[1].ousted = true;
     until(&mut e, SeatId(0), WindowLabel::MinionPhase);
-    assert_eq!(e.last_outcome, Some(zvtes::actions::Outcome::Fizzled));
-    assert!(e.state.seats[2].hand.contains(&find_library("Conceal")));
+    assert_eq!(e.last_outcome, Some(zvtes::actions::Outcome::Successful));
+    assert!(!e.state.seats[2].hand.contains(&find_library("Conceal")));
+    assert!(ash_has(&e, 2, "Conceal"));
 }
 
 /// Set's Curse [SER]: a capacity-2 vampire in torpor is a target, burned.

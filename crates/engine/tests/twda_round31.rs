@@ -897,7 +897,7 @@ fn transfer_of_power_steals_from_the_richer_all_at_once() {
     assert_eq!(pool(&e), vec![22, 20, 20, 20]);
 }
 
-// ---- Master cards (master_a) ------------------------------------------------
+// ---- Master cards, Amusement Park Hunting Ground onward ---------------------
 
 /// A master card from hand slot `card`, on `target`.
 fn master_on(card: u8, target: Target) -> Choice {
@@ -3650,6 +3650,7 @@ fn allies_with_grants_never_play_a_combo_card_by_two() {
                     strike_only: false,
                     once_per_combat: false,
                     combat_only: false,
+                    once_per_turn: false,
                 }),
                 source: card,
             });
@@ -4652,7 +4653,7 @@ fn lam_into_vicissitude_presses_into_a_close_round() {
     }
 }
 
-// ---- Track B (combat, equipment, vamp_c, vamp_a): helpers -------------------
+// ---- Combat helpers ---------------------------------------------------------
 
 /// A bleeds, X blocks: their combat begins.
 fn bleed_blocked(e: &mut Engine, a: MinionId, x: MinionId) {
@@ -6711,7 +6712,7 @@ fn white_phosphorus_grenade_is_kept_when_combat_ends_first() {
     );
 }
 
-// ---- Vampires (vamp_c) --------------------------------------------------------
+// ---- Vampires, Morrow onward ------------------------------------------------
 
 /// `m`'s printed ability `ability` offered in `req`, whatever its actor and
 /// target.
@@ -7629,7 +7630,7 @@ fn ysador_keeps_mundane_opponents_at_long_range() {
     }
 }
 
-// ---- Vampires (vamp_a) --------------------------------------------------------
+// ---- Vampires, Armin Brenner onward -----------------------------------------
 
 /// The advanced crypt card `name`.
 fn va_adv(name: &str) -> u16 {
@@ -8180,7 +8181,7 @@ fn hektor_strikes_aggravated_and_draws_baali_bleeds() {
     assert_eq!(e.state.seats[1].pool, 10 - 2);
 }
 
-// ---- Track C (action_b, master_b, action_a, vamp_b): helpers ----------------
+// ---- Helpers: princes, plays, uses ------------------------------------------
 
 /// The `nth` fixture prince (2 votes).
 #[track_caller]
@@ -8214,7 +8215,7 @@ fn pick_use_of(e: &mut Engine, source: CardId, ability: u8) {
     panic!("ability {ability} of {source:?} never offered");
 }
 
-// ---- Action cards (action_b) ------------------------------------------------
+// ---- Action cards, Patronage onward -----------------------------------------
 
 /// Patronage: "Unlock a younger Toreador antitribu and this acting vampire.
 /// You may play only one Patronage per turn." Another Methuselah's locked
@@ -9032,7 +9033,7 @@ fn war_party_lets_any_vampire_rush_its_bearer() {
     assert!(e.state.minions[t.index()].in_torpor);
 }
 
-// ---- Master cards (master_b) ------------------------------------------------
+// ---- Master cards, the paths onward -----------------------------------------
 
 /// The `nth` library card whose first mode requires Discipline `d`.
 fn requiring(d: &str, nth: usize) -> u16 {
@@ -9981,7 +9982,7 @@ fn waste_management_operation_draws_at_once_into_an_empty_library() {
     assert!(e.state.seats[0].hand.contains(&dodge));
 }
 
-// ---- Action cards (action_a) ------------------------------------------------
+// ---- Action cards, Blood Feast onward ---------------------------------------
 
 /// A textless Sabbat vampire with a capacity in `caps`, made a priscus.
 fn sabbat_priscus(
@@ -11097,7 +11098,7 @@ fn monomancy_not_put_on_when_combat_ends_otherwise() {
     assert_eq!(e.state.bearer_mod(t, Stat::Bleed, ActionKind::Bleed), 0);
 }
 
-// ---- Vampires (vamp_b) ------------------------------------------------------
+// ---- Vampires, Hukros onward ------------------------------------------------
 
 /// The abilities of vampire `m` offered.
 fn vuses(req: &zvtes::decision::DecisionRequest, m: MinionId) -> Vec<Choice> {

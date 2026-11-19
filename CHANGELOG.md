@@ -6,6 +6,83 @@ server runs.
 `python3 scripts/schema_compat.py` lists what a schema change adds or
 removes; its `--check` fails a removal without a major version.
 
+## 2.32.0
+
+- Round 32 adds the combat side fields `second` (a minion out of the
+  combat striking beside the side's, Winged Second) and `second_strike`
+  (its strike this round, once declared). The second chooses its strike
+  in a `combat_strike` request of its own, after its side's: `pass` (no
+  strike), `hand_strike`, a melee weapon's `use_ability` or a strike
+  card's `play`, the options naming the second as their `minion`; the
+  `combat` view keeps the side's own minion and range meanwhile. Target
+  Retainer gets a third mode, aimed at the opposing second; a ranged
+  strike may be aimed at it as at a retainer (`target` the minion). No id
+  added or removed.
+- Round 32 adds the `Purpose` ids `retainer_burns_weapon_or_damage` (Duma
+  Rafiki, before the strikes resolve: `seat`'s retainer `about.card`
+  burns a weapon `minion` has, `burn_in_play`, or inflicts its damage,
+  `pass`), `master_from_hand_or_burn` (Bima entering play: a master
+  Discipline card from hand put on `minion`, `take_from`, or `minion`
+  burned, `pass`), `may_burn_blood_to_peek` (Reliquary: Biague: `minion`
+  burns 1 blood, `resolve_printed`, for `seat` to look at `about.seat`'s
+  hand, or `pass`), `combat_stand_in` (Ohoyo Hopoksia: `seat` locks
+  the ally `about.card`, `resolve_rider`, to fight the acting minion
+  instead of `minion`, or `pass`), `retainer_search` (Children of Stone
+  [vis]: `seat` searches library and hand for a gargoyle creature retainer
+  `minion` employs, `take_from` the library or the hand, or none, `pass`).
+  `may_set_next_range` may come without its `pass` (Ananasi Vampirephile sets
+  the range). No id removed.
+- Round 32 adds the `Purpose` id `burn_blood_up_to` (Lazarene
+  Inquisitor's action resolving: `seat` sets how much blood `minion` burns,
+  1 to `about.n`, `set_x`). A `search_onto` may come without its `pass`
+  (Static Virtue: the second card of an Aye and Orun pair is owed), from
+  `seat`'s hand too (`take_from` the hand). No id removed.
+- Round 32 adds the `Purpose` id `favor_auction` (Igoli's Loyalty: `seat`
+  casts all its vampires' votes and ballots in favor for `about.n` pool,
+  `set_x`, or declines, `pass`, the Ishtarri `minion` then burning 1 blood
+  to raise the price for the next Methuselah), and the terms detail
+  `chosen_blood` (King's Favor's count: blood from the vampire the card
+  chose to the other). No id removed.
+- Round 32 adds the `MarkerKind` id `transfusion_counters` (Transfusion
+  [THN]: `seat`'s counters on the minion, `n`; at 3 of one Methuselah's
+  they burn and that Methuselah takes the minion). A minion phase may come
+  without its `pass` while a Massassi's Honor hand-off is owed (`dues`
+  names its minion). No id removed.
+- Round 32 adds the `Purpose` ids `extra_hires` (Zhenga, after her
+  successful recruit or employ action: `minion` recruits or employs one
+  more ally or retainer from the player's hand, `employ_from_hand`, cost
+  and requirements as normal, `about.n` the most still allowed, or stops,
+  `pass`; the cards replaced after the last) and `contest_payment`
+  (Olugbenga: `seat` pays the contest of vampire `minion` with
+  `burn_pool` or `burn_blood_from`, the contested vampire or Olugbenga).
+  `retainer_search` also serves Muricia's Call (the library only, the
+  library shuffled either way). No id removed.
+- Round 32's `minion_of` details: `become_combatant` (Free Fight: one of
+  the Blood Brothers it locked becomes the chooser's combatant, before
+  range each round or as the combatant leaves the ready region; `pass`
+  declines) and `cancel_maneuver` (Rigor Mortis [THN]: the opposing
+  minion's maneuver just used canceled, the maneuvering minion offered,
+  `pass` declines; the option's effect `cancel`, detail `maneuver`); the
+  "lock" role also for a mandatory lock of a ready minion (Spirit
+  Marionette [obe]). A `burn_equipment` strike may carry `n`, the damage
+  it inflicts beside burning the equipment (Fractured Armament [POT]).
+- Round 32's play terms: the grant payer choice (`detail: grant_payer`)
+  may offer a vampire (`choose_minion`) beside the cards (Phagian lending
+  basic Necromancy, the card's cost 1 blood more); the details
+  `ash_heap_pick` (choose the ash heap) and `ash_pick` (the card in it: a
+  `find_card`, or an `ash_vampire` for a crypt card; Emergency Rations,
+  Ghost-Eater, Kiss of Lachesis [TEM]), and `contested_vampire` (Clio's
+  Kiss [TEM]: the player's contested vampire, `choose_minion`).
+- Round 32's other shapes: `about.detail` `top` on the `bottom` purpose
+  (Hourglass of the Mind [tem]: the hand cards go to the top of the
+  library, one at a time, the last on top; the options stay `bottom`);
+  `may_draw_extra` may come with a card (`about.card`) and a count
+  (`about.n`; Pandora's Whisper [myt]: "can draw 2 cards", all or none);
+  `ash_to_library_top` also offers the cards just discarded down
+  (Pandora's Whisper [MYT]); Hanging Fermata is played in the
+  `influence_transfers` window (its own influence phase); the effect kind
+  `pool` is told for Clio's Kiss [dom] (on the target).
+
 ## 2.31.0
 
 - Auto-da-fé adds the `Purpose` id `pool_or_minion_burned`: the chosen

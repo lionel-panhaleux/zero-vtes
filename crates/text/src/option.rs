@@ -434,6 +434,9 @@ fn asked(
     let has = |kind| o.effects.iter().find(|e| e.kind == kind);
     Some(match (p, k.kind) {
         (P::RemoveUncontrolled, K::Slot) => verb("Choose ", "Remove ")?,
+        (P::Bottom, K::Bottom) if about.and_then(|a| a.detail.as_deref()) == Some("top") => {
+            format!("Put {} on top of the library", card())
+        }
         (P::RemoveFromAsh, K::FindCard) => verb("Take ", "Remove ")?,
         (P::RemoveFromAsh, K::AshVampire) => verb("Choose ", "Remove ")?,
         (P::MinionOf, K::ChooseMinion) => {
@@ -509,6 +512,7 @@ fn asked(
         (P::StoreUpTo, K::FindCard) => format!("Put {} face down on it", card()),
         (P::MayBottomTop, K::ResolveRider) => "Move them to the bottom of your library".into(),
         (P::MayLockForBlood, K::ResolveRider) => "Lock it: 1 blood".into(),
+        (P::CombatStandIn, K::ResolveRider) => format!("Lock {} to fight instead", named()?),
         (P::MayLockCardForBlock, K::ResolveRider) => "Lock it instead".into(),
         (P::MayBurnLookedMaster, K::ResolveRider) => "Burn blood to burn the master card".into(),
         (P::MayLockToDiscardLooked, K::ResolveRider) => {
@@ -548,6 +552,7 @@ fn asked(
             let title = o.effects.iter().find_map(|e| e.detail.as_deref())?;
             format!("Pay {pool} pool: {}", title.replace('_', " "))
         }
+        (P::MayBurnBloodToPeek, K::ResolvePrinted) => "Burn 1 blood to look at the hand".into(),
         (P::MayBurnBloodToBurnPool, K::ResolvePrinted) => {
             format!("Burn {} blood to burn {} pool", about?.m?, about?.n?)
         }
@@ -610,6 +615,7 @@ fn asked(
         (P::PoolOrNoTransfers, K::BurnPool) => format!("Burn {} pool", about?.n?),
         (P::PoolOrMinionBurned, K::BurnPool) => format!("Burn {} pool", about?.n?),
         (P::BloodOrPool, K::BurnPool) => format!("Burn {} pool", about?.m?),
+        (P::ContestPayment, K::BurnPool) => "Burn 1 pool".into(),
         (P::BloodOrCamarilla, K::BurnBloodToAvoid) => "Burn 1 blood".into(),
         (P::BloodOrNoStrike, K::BurnBloodToAvoid) => format!("Burn {} blood", about?.n?),
         (P::DamageVoterForBlood, K::ChooseMinion) => {
@@ -722,13 +728,13 @@ fn amount(o: &OptionView, n: &Names) -> Option<String> {
             return Some(format!(
                 "Burn {a} card(s) at random from your hand and {} pool",
                 rest()
-            ))
+            ));
         }
         Some("ash_at_random") => {
             return Some(format!(
                 "Remove {a} card(s) at random from your ash heap and burn {} pool",
                 rest()
-            ))
+            ));
         }
         _ => {}
     }
@@ -892,7 +898,7 @@ fn pass(
         P::CryptSearch | P::BaseSearch | P::LibraryToHand | P::LibraryToTop => "Find none".into(),
         P::ChooseCircle => "Keep his own circle".into(),
         P::StoreSearch | P::DisciplineSearch | P::ResearchSearch => "Stop searching".into(),
-        P::AllySearch => "Find nothing".into(),
+        P::AllySearch | P::RetainerSearch => "Find nothing".into(),
         P::MayDrawExtra => "Draw no more".into(),
         P::Redraw => format!("Keep {}", named()?),
         P::MayPutOn | P::MayStoreAim => format!("Leave {} in the ash heap", named()?),
@@ -925,6 +931,11 @@ fn pass(
         P::MayGainHandSize => "Keep your hand size".into(),
         P::MayPreventForBlood => "Burn no blood".into(),
         P::MayTakeAggravatedAsNormal => "Take it all aggravated".into(),
+        P::RetainerBurnsWeaponOrDamage => "Inflict the damage".into(),
+        P::MasterFromHandOrBurn => format!("Burn {}", n.minion_bare(about?.minion?)),
+        P::MayBurnBloodToPeek => "Burn no blood".into(),
+        P::CombatStandIn => format!("{} fights", n.minion_bare(about?.minion?)),
+        P::ExtraHires => "Bring no more".into(),
         P::MayUnlock => "Stay locked".into(),
         P::MayBurnInsteadOfUnlock => "Unlock as normal".into(),
         P::MayBurnWeapon => "Burn no weapon".into(),
@@ -1266,6 +1277,38 @@ mod tests {
         );
     }
 
+    /// A pass naming the minion reads the minion the host puts in
+    /// `about.minion`: the vampire burned without a master, the combatant
+    /// keeping its place.
+    #[test]
+    fn a_declined_pass_names_its_minion() {
+        use zvtes_api::ids::{Purpose as P, Window};
+        use zvtes_api::message::About;
+        let mut n = Names::new(&NoCards);
+        n.minions.insert(7, "Lucian".into());
+        let about = About {
+            minion: Some(7),
+            ..About::default()
+        };
+        let pass = bare_pass();
+        let says = |p| {
+            super::option(
+                &pass,
+                Window::ResolutionChoice,
+                Some(p),
+                Some(&about),
+                0,
+                &[],
+                &n,
+            )
+        };
+        assert_eq!(
+            says(P::MasterFromHandOrBurn).as_deref(),
+            Some("Burn Lucian")
+        );
+        assert_eq!(says(P::CombatStandIn).as_deref(), Some("Lucian fights"));
+    }
+
     /// The purposes whose choice offers a pass (the engine's
     /// `interrupt_request`): each pass says what declining does, not
     /// "Pass".
@@ -1293,6 +1336,7 @@ mod tests {
         let pass = bare_pass();
         let declined = [
             P::AllySearch,
+            P::RetainerSearch,
             P::AnarchConvert,
             P::AshurPicks,
             P::AvoidDamage,
@@ -1318,6 +1362,11 @@ mod tests {
             P::MayGainHandSize,
             P::MayPreventForBlood,
             P::MayTakeAggravatedAsNormal,
+            P::RetainerBurnsWeaponOrDamage,
+            P::MasterFromHandOrBurn,
+            P::MayBurnBloodToPeek,
+            P::CombatStandIn,
+            P::ExtraHires,
             P::MayUnlock,
             P::MayBurnInsteadOfUnlock,
             P::MayBurnWeapon,

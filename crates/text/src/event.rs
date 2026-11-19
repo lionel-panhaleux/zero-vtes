@@ -387,6 +387,7 @@ pub fn marker(m: &Marker, n: &Names) -> String {
         MarkerKind::Taint => counters("taint"),
         MarkerKind::BurnCounters => counters("burn"),
         MarkerKind::FounderCounters => counters("founder"),
+        MarkerKind::TransfusionCounters => format!("{}{}", counters("transfusion"), of(m.seat)),
         MarkerKind::Disease => "a disease counter".into(),
         MarkerKind::TitleContested => "its title contested".into(),
         MarkerKind::Expelled => "expelled".into(),
@@ -687,6 +688,9 @@ mod tests {
                 K::Taint => (m(k, None, Some(2), None), "2 taint counters"),
                 K::BurnCounters => (m(k, None, Some(1), None), "1 burn counter"),
                 K::FounderCounters => (m(k, None, Some(4), None), "4 founder counters"),
+                K::TransfusionCounters => {
+                    (m(k, Some(1), Some(2), None), "2 transfusion counters (Ben)")
+                }
                 K::Disease => (m(k, None, None, None), "a disease counter"),
                 K::TitleContested => (m(k, None, None, None), "its title contested"),
                 K::Expelled => (m(k, None, None, None), "expelled"),
@@ -724,6 +728,7 @@ mod tests {
             Taint,
             BurnCounters,
             FounderCounters,
+            TransfusionCounters,
             Disease,
             TitleContested,
             Expelled,

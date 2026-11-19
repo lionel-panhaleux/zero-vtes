@@ -224,28 +224,36 @@ impl Build<'_> {
                     self.minion_ref(c.sides[1].minion),
                 ],
                 round: c.round,
-                range: Some(match c.range {
+                range: Some(match c.combat_range() {
                     R::Close => Range::Close,
                     R::Long => Range::Long,
                 }),
-                sides: c
-                    .sides
-                    .iter()
-                    .enumerate()
+                sides: (0..2)
+                    .map(|i| (i, c.combatant_side(i)))
                     .map(|(i, s)| CombatSide {
                         minion: self.minion_ref(s.minion),
                         strike: s.chosen.then_some(s.strike).flatten().map(|k| {
                             let card = s
                                 .strike_source
                                 .map(|c| LIBRARY[e.state.cards[c.index()].card as usize].id);
-                            let hit = s
-                                .strike_at
-                                .is_none()
+                            // Its second choosing: not readable now.
+                            let standing = c.second_swap.as_ref().is_none_or(|sw| sw.0 != i);
+                            let hit = (s.strike_at.is_none() && !s.strike_at_second && standing)
                                 .then(|| c.strike_told(&e.state, e.action(), i, k));
                             told(strike(k, card), hit.flatten())
                         }),
                         maneuvers: s.maneuvers,
                         presses: s.presses,
+                        second: s.second.map(|m| self.minion_ref(m)),
+                        second_strike: c
+                            .second_side(i)
+                            .and_then(|w| w.chosen.then_some(w.strike).flatten().map(|k| (w, k)))
+                            .map(|(w, k)| {
+                                let card = w
+                                    .strike_source
+                                    .map(|c| LIBRARY[e.state.cards[c.index()].card as usize].id);
+                                strike(k, card)
+                            }),
                     })
                     .collect(),
             }),
@@ -531,6 +539,10 @@ impl Build<'_> {
                 ..marker(MarkerKind::Corruption, n)
             })
             .collect();
+        markers.extend(m.transfusion.0.iter().map(|&(s, n)| Marker {
+            seat: Some(s.0),
+            ..marker(MarkerKind::TransfusionCounters, n)
+        }));
         for (kind, n) in [
             (MarkerKind::Hostage, m.hostage),
             (MarkerKind::Nightmare, m.nightmare),
@@ -796,7 +808,10 @@ pub(crate) fn strike(k: Sk, card: Option<u32>) -> Strike {
         Sk::CardEffect { .. } => StrikeKind::CardEffect,
         Sk::BurnWeapon => StrikeKind::BurnWeapon,
         Sk::StealEquipment => StrikeKind::StealEquipment,
-        Sk::BurnEquipment => StrikeKind::BurnEquipment,
+        Sk::BurnEquipment { damage } => {
+            s.n = (damage > 0).then_some(damage);
+            StrikeKind::BurnEquipment
+        }
         Sk::RangedBurnEquipment => {
             s.ranged = true;
             StrikeKind::RangedBurnEquipment

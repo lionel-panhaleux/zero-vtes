@@ -1421,7 +1421,7 @@ impl Game {
         let held = waiting
             .and(c.held_strike.as_ref())
             .map(|&(i, _)| c.sides[i].minion);
-        for (side, view) in c.sides.iter().zip(&mut cv.sides) {
+        for (side, view) in (0..2).map(|i| c.combatant_side(i)).zip(&mut cv.sides) {
             let Some(j) = minions.iter().position(|&m| m == side.minion) else {
                 continue;
             };
@@ -1589,7 +1589,10 @@ fn tell_state(e: &mut EventKind, known: &zvtes_text::Names) {
 
 fn tell_combat(c: &mut zvtes_api::view::CombatView, known: &zvtes_text::Names) {
     for side in &mut c.sides {
-        if let Some(s) = side.strike.as_mut() {
+        for s in [side.strike.as_mut(), side.second_strike.as_mut()]
+            .into_iter()
+            .flatten()
+        {
             s.text = Some(zvtes_text::strike_declared(s, known));
         }
     }

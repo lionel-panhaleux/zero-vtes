@@ -102,6 +102,7 @@ impl Requirement {
                 | R::TargetAllyOrCapacityAtMost(_)
                 | R::TargetCapacityAtLeast(_)
                 | R::TargetCapacityAtMost(_)
+                | R::TargetCapacityBelowX
                 | R::TargetCapacityAtMostTwiceHeld(_)
                 | R::TargetCapacityAtMostActorTimes(_)
         )
@@ -137,13 +138,13 @@ impl Requirement {
             | R::BurnedAllyInAnyAsh
             | R::OwnAshMinionCardBurnedSinceLastTurn
             | R::UniqueVampireInAnyAsh
+            | R::AshPickInAnyAsh(..)
             | R::AshHasAlly(..)
             | R::PlayedCardIsMaster
             | R::PlayedByOtherSeat
             | R::NotOwnTurn
             | R::DirectedAtYou
             | R::ActingNotYourPredator
-            | R::BleedAgainstPrey
             | R::BleedSuccessful
             | R::BledSeatInGame
             | R::BledLibraryNotEmpty
@@ -213,6 +214,12 @@ impl Requirement {
             | R::PoolAtLeast(..)
             | R::RangeClose
             | R::RangeLong
+            | R::ActorBeingBurned
+            | R::ActorBlockedThisCombat
+            | R::OpposingStrikingWithRangedWeapon
+            | R::OwnCombatantDamagePending { .. }
+            | R::InflictedThisRound
+            | R::OpponentJustLostToDamage
             | R::BothCombatantsReady
             | R::BothCombatantsSect(..)
             | R::BothCombatantsOthersVampires
@@ -353,6 +360,7 @@ impl Requirement {
             | R::ControlsPrinceOf(..)
             | R::NotInCombat
             | R::NotContinued
+            | R::ActingReady
             | R::NotInDamageResolution
             | R::ActorNotBlocking
             | R::RecruitingTzimisceGhoul
@@ -397,9 +405,10 @@ impl Requirement {
             | R::ControlsReadyBlackHand
             | R::ControlsReadySeraph
             | R::OpponentHoldsNoCard(..) => &[S::Play],
-            R::OpponentVampire | R::OpponentCapacityAtMost(..) | R::OpponentSectIn(..) => {
-                &[S::Play, S::Printed]
-            }
+            R::OpponentVampire
+            | R::OpponentCapacityAtMost(..)
+            | R::OpponentSectIn(..)
+            | R::OpponentClan(..) => &[S::Play, S::Printed],
             R::ActorBlackHand | R::ActorSlave | R::ActorNotSlave | R::ActorTitleNotIn(..) => {
                 &[S::Play, S::MinionTarget]
             }
@@ -416,7 +425,6 @@ impl Requirement {
             | R::HostControllerPutNoGehenna
             | R::HostControllerHasEdge
             | R::OwnCombatantOtherCopy
-            | R::HostReady
             | R::ActivePoxed
             | R::HostAlly
             | R::HostVampire => &[S::Host],
@@ -437,6 +445,7 @@ impl Requirement {
             | R::FewerCopiesThanReadyOfClan(..)
             | R::CardControllerActive => &[S::Card],
             R::TargetCapacityAtMost(..)
+            | R::TargetCapacityBelowX
             | R::TargetCapacityAtMostTwiceHeld(..)
             | R::TargetCapacityAtMostActorTimes(..)
             | R::TargetEnteredSinceYourLastTurn
@@ -462,6 +471,7 @@ impl Requirement {
             | R::TargetNotRedList
             | R::TargetNotBlocker
             | R::TargetNotActing
+            | R::TargetCouldTakeAction
             | R::TargetNotAttempting
             | R::TargetHostage
             | R::ControlledByPrey
@@ -527,6 +537,7 @@ impl Requirement {
             | R::TargetSeatLostTitled
             | R::CanSaveTarget
             | R::TargetPrey
+            | R::TargetSeatContestsWithYou { .. }
             | R::TargetPredator
             | R::TargetPredatorOrPrey
             | R::TargetAshAtLeast(..)
@@ -543,6 +554,7 @@ impl Requirement {
             | R::ActorMayHoldTarget
             | R::TargetWeapon
             | R::TargetOnVampire
+            | R::TargetOnAlly
             | R::TargetOnTorpidVampire
             | R::TargetOnLockedMinion
             | R::TargetOnAllyOrYounger
@@ -566,7 +578,6 @@ impl Requirement {
             | R::TargetSeatControlsClan(..)
             | R::ThisVampireReady
             | R::ActorGraftedAlly
-            | R::OpponentClan(..)
             | R::OpponentNotClan(..)
             | R::OpponentNamed(..)
             | R::ActorOfOtherMethuselah
@@ -617,7 +628,10 @@ impl Requirement {
             | R::SourceTitleIn(..)
             | R::SourceSectIn(..)
             | R::TargetSeatHasEdge
+            | R::OpponentCapacityAtLeast(..)
+            | R::ActionCardRequiresDiscipline(..)
             | R::InOwnMasterPhase => &[S::Printed],
+            R::PlayedRequiresNone(..) => &[S::Play, S::Printed],
             R::EquippedOffActionLabeled(_) => &[S::Host, S::MinionTarget],
             R::ActiveControlsNonSect(..)
             | R::ActiveIsAgainst
@@ -630,6 +644,7 @@ impl Requirement {
                 &[S::Play, S::Printed]
             }
             R::ActorDamagedThisRound
+            | R::UsedWeaponThisRound
             | R::StrikingWithUnloadedGun
             | R::StrikingWithGun
             | R::StrikingWithMeleeWeapon
@@ -665,14 +680,12 @@ impl Requirement {
             | R::PlayedRequiresDiscipline(..)
             | R::PlayedRequiresAnyDiscipline
             | R::PlayedCard(..)
-            | R::PlayedRequiresNone(..)
             | R::PlayedByMinionWithout(..)
             | R::ActorUntitled
             | R::ActorFollowsNoPath
             | R::ActorNotRedList
             | R::ActorFoughtItsContractsMinion
             | R::OpponentSubtype(..)
-            | R::ReadyNamed(..)
             | R::IsEquipAction
             | R::OwnReadyNamed(..) => &[S::Play, S::Printed],
             R::HostLocked | R::HostUnlocked => &[S::Host, S::Printed],
@@ -694,12 +707,12 @@ impl Requirement {
             R::ActionNotEnteringCombat => &[S::Printed],
             R::HostMayReactLocked => &[S::Engine(Site::AbilityGate)],
             R::HostMayReact => &[S::Engine(Site::AbilityGate)],
-            R::HostClan(..) | R::HostDiscipline(..) => &[S::Card, S::Host],
+            R::HostClan(..) | R::HostDiscipline(..) | R::HostReady => &[S::Card, S::Host],
             R::ActorHasDiscipline(..) => &[S::Printed, S::Card, S::Play],
             R::CountersAtLeast(..) => &[S::Card, S::Rider, S::Engine(Site::AbilityGateCard)],
+            R::CountersAtMost(..) => &[S::Card, S::Rider, S::Engine(Site::AbilityGateCard)],
             R::CountersAtLeastHostBlood
             | R::CopiesInPlayAtLeast(..)
-            | R::CountersAtMost(..)
             | R::BasicVersion
             | R::EnteredBeforeThisAction => &[S::Card, S::Rider],
             // Any user's ability of a card in play (Shadowed Eyes' burn).
@@ -736,7 +749,25 @@ impl Requirement {
             | R::ActingNotClan(..)
             | R::ActingNotAllyOf(..)
             | R::HuntWouldSucceed
-            | R::ActorChosenForContractOnActing => &[S::Play],
+            | R::ActorChosenForContractOnActing
+            | R::ActorBloodAtMost(..)
+            | R::AttemptingNotAllyOf(..)
+            | R::DirectedAtActorOrItsCard
+            | R::PlayedNotByActing
+            | R::PlayedByLacksDiscipline(..)
+            | R::MultiplierAllowedOnActing
+            | R::IsWeaponEquip
+            | R::ActionAllyCouldTake
+            | R::NotActingMethuselah
+            | R::DirectedAtActor
+            | R::ActingNotOlder
+            | R::BlockerNotOlder
+            | R::ControlsNoReadyVampireNotOfSect(..)
+            | R::PlayedRedirectsBleedToYou
+            | R::PlayedByNotOfSect(..)
+            | R::ActorInflictedInLastCombat
+            | R::OpponentWithoutFlight => &[S::Play],
+            R::ActionWeaponEquippable | R::PoliticalCardToAsh => &[S::Engine(Site::PlayOptions)],
             R::TargetOnActing => &[S::Engine(Site::CardTargetQualifies)],
             R::CanAttemptBlockLocked => &[S::Engine(Site::PlayOptions)],
             R::HoldRecipient(..) => &[S::Engine(Site::PlayOptions)],
@@ -783,7 +814,8 @@ impl Requirement {
             R::TargetIsHost
             | R::TargetChosenByHostThisTurn
             | R::TargetMarkedByHost
-            | R::TargetInCombatWithNormalDamage => &[S::Engine(Site::AbilityTargets)],
+            | R::TargetInCombatWithNormalDamage
+            | R::TargetStrikeRequiresDiscipline(_) => &[S::Engine(Site::AbilityTargets)],
             R::OthersMinionPhase | R::InMasterPhase => &[S::Engine(Site::AbilityWindow)],
             R::PlayedLabeledByOpponent(_)
             | R::PlayedCombatByOpponent
@@ -797,6 +829,7 @@ impl Requirement {
             R::TargetOnOpposingCombatant => &[S::Engine(Site::CardTargetQualifies)],
             R::NotPlayedThisGame
             | R::NotPlayedThisGameBySeat
+            | R::NotPlayedByYouLastTurn
             | R::NotPlayedThisTurn
             | R::OnePerMethuselah
             | R::NoCopyInPlay
@@ -837,6 +870,13 @@ impl Requirement {
             R::BledControlsReadyTitled => {
                 &[S::Engine(Site::VampireRider(Hook::OwnBleedSuccessful))]
             }
+            // Ganhuru: read on the bled seat (`Engine::own_bleed_riders`).
+            R::BleedAgainstPrey => &[
+                S::Play,
+                S::Engine(Site::VampireRider(Hook::OwnBleedSuccessful)),
+            ],
+            // Ganhuru's printed rider (`holds_for_host`).
+            R::ReadyNamed(..) => &[S::Play, S::Printed, S::Host],
             R::GehennaInPlay(..) | R::NoGehennaInPlay | R::NamedInPlay(..) => {
                 &[S::Play, S::Host, S::Printed]
             }
@@ -879,6 +919,7 @@ impl Requirement {
                 S::Engine(Site::PlayTarget),
                 S::Engine(Site::AbilityGate),
             ],
+            R::TargetOpposingSecond => &[S::Engine(Site::PlayTarget)],
             R::TargetInCombatWithDamage => &[
                 S::Engine(Site::PlayTarget),
                 S::Engine(Site::CardTargetQualifies),
@@ -887,6 +928,8 @@ impl Requirement {
             R::TargetWeaponStrikeUsable | R::WeaponFreeThisRound => {
                 &[S::Engine(Site::CardTargetQualifies)]
             }
+            R::ControlsNoReadyClan(..) => &[S::Play],
+            R::TargetInfluencedSinceYourLastTurn => &[S::MinionTarget],
         }
     }
 }
@@ -1321,7 +1364,9 @@ mod tests {
     /// A card or ability whose search names a crypt or library is not
     /// offered with that zone empty (advanced rules §1.6.5; rules-qa 78.20,
     /// 80.9, 121.117). Great Symposium distributes its blood all the same
-    /// (LSJ 20100306); the Mithraeum's requirement finds Mithras there.
+    /// (LSJ 20100306); the Mithraeum's requirement finds Mithras there. A
+    /// draw from the crypt's top is no search (Clotho's Gift [obf], from an
+    /// empty crypt too: LSJ 20060620).
     #[test]
     fn every_search_needs_its_zone_not_empty() {
         let library = |e: &Effect| {
@@ -1337,9 +1382,7 @@ mod tests {
         let crypt = |e: &Effect| {
             matches!(
                 e,
-                Effect::CryptClanToUncontrolled { .. }
-                    | Effect::CryptNamedToUncontrolled(..)
-                    | Effect::CryptTopToUncontrolled
+                Effect::CryptClanToUncontrolled { .. } | Effect::CryptNamedToUncontrolled(..)
             )
         };
         let modes = DEFS

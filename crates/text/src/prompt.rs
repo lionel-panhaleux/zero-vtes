@@ -295,6 +295,10 @@ impl Prompt<'_> {
                     "joint_blocker" => {
                         "Choose which of your two vampires is the blocking one".into()
                     }
+                    "become_combatant" => {
+                        "Choose a Blood Brother to become your combatant".into()
+                    }
+                    "cancel_maneuver" => "Cancel the opposing minion's maneuver?".into(),
                     _ => return None,
                 }
             }
@@ -325,10 +329,25 @@ impl Prompt<'_> {
                 "You can search for a Discipline master card to put on {}",
                 self.minion()?
             ),
-            P::MayDrawExtra => format!(
-                "{}: you can draw an additional card (discard afterward)",
-                self.card().or_else(|| self.minion())?
+            P::MasterFromHandOrBurn => format!(
+                "Put a Discipline master card from your hand on {}, or burn it",
+                self.minion()?
             ),
+            P::ExtraHires => format!(
+                "{} can recruit or employ up to {} more allies and retainers from your hand",
+                self.minion()?,
+                a.n?
+            ),
+            P::MayDrawExtra => match a.n {
+                Some(n) if n > 1 => format!(
+                    "{}: you can draw {n} cards (discard afterward)",
+                    self.card().or_else(|| self.minion())?
+                ),
+                _ => format!(
+                    "{}: you can draw an additional card (discard afterward)",
+                    self.card().or_else(|| self.minion())?
+                ),
+            },
             P::MayLockToDiscardLooked => format!(
                 "{}: you can lock it to discard the top card of {}'s library",
                 self.card()?,
@@ -358,6 +377,11 @@ impl Prompt<'_> {
                 "Choose the card of {}'s ash heap to move onto {}",
                 self.seat()?,
                 self.card()?
+            ),
+            P::FavorAuction => format!(
+                "Igoli's Loyalty: cast all your vampires' votes and ballots in favor \
+                 for {} pool, or decline",
+                a.n?
             ),
             P::BloodForVotes => format!(
                 "Mob Rule: burn 1 blood of a vampire of capacity above {} for votes \
@@ -402,8 +426,13 @@ impl Prompt<'_> {
                 self.to()?,
                 self.minion()?
             ),
+            P::BurnBloodUpTo => format!("How much blood does {} burn?", self.minion()?),
             P::AllySearch => format!(
                 "{}: you can search for an ally to put in play",
+                self.minion()?
+            ),
+            P::RetainerSearch => format!(
+                "{}: you can search for a retainer to employ",
                 self.minion()?
             ),
             P::GainConviction => format!("{}: you can give them a conviction", self.minion()?),
@@ -543,6 +572,10 @@ impl Prompt<'_> {
                 self.minion()?,
                 a.n?,
                 a.m?
+            ),
+            P::ContestPayment => format!(
+                "Pay the contest of {}: 1 pool, or 1 blood from it or from Olugbenga",
+                self.minion()?
             ),
             P::PoolOrNoTransfers => format!(
                 "Burn {} pool, or lose all transfers in your next influence phase",
@@ -735,6 +768,21 @@ impl Prompt<'_> {
                 self.minion()?,
                 a.n?
             ),
+            P::CombatStandIn => format!(
+                "You can lock {} to fight in {}'s place",
+                self.card()?,
+                self.minion()?
+            ),
+            P::MayBurnBloodToPeek => format!(
+                "{} can burn 1 blood for you to look at {}'s hand",
+                self.minion()?,
+                self.seat()?
+            ),
+            P::RetainerBurnsWeaponOrDamage => format!(
+                "{} burns a weapon {} has, or damages it",
+                self.card()?,
+                self.minion()?
+            ),
             P::MayPreventForBlood => format!(
                 "{} can burn {} blood to prevent the opposing strike's damage",
                 self.minion()?,
@@ -821,6 +869,10 @@ impl Prompt<'_> {
                 "Draw {} more card(s); then as many as you drew go to the bottom of your library",
                 a.n?
             ),
+            P::Bottom if self.detail() == Some("top") => format!(
+                "Put {} more card(s) from your hand on top of your library, the last one on top",
+                a.n?
+            ),
             P::Bottom => format!(
                 "Put {} more card(s) from your hand on the bottom of your library",
                 a.n?
@@ -878,7 +930,7 @@ impl Prompt<'_> {
                 "second_chosen" => format!("choose the card's chosen {}", self.clan()?),
                 "meet_as" => format!("choose the requirement {} meets", self.minion()?),
                 "grant_payer" => format!(
-                    "choose the card paying the Discipline {} lacks",
+                    "choose the card or vampire paying the Discipline {} lacks",
                     self.minion()?
                 ),
                 // `to` may be an uncontrolled vampire (Grooming the Protégé).
@@ -895,6 +947,9 @@ impl Prompt<'_> {
                 "burn_named" => format!("which {} to burn", self.card()?),
                 "ash_heap_ally" => "the ash heap to take an ally from".into(),
                 "ally" => "the ally".into(),
+                "ash_heap_pick" => "the ash heap to take a card from".into(),
+                "ash_pick" => "the card".into(),
+                "contested_vampire" => "your contested vampire".into(),
                 "equipment" => "the equipment".into(),
                 "equipment_cost" => format!(
                     "how much of the cost {} pays in blood",
@@ -914,6 +969,9 @@ impl Prompt<'_> {
                             of your library"
                     .into(),
                 "blood_on_target" => format!("how much blood to put on {}", self.minion()?),
+                "chosen_blood" => {
+                    "how much blood to move from the vampire the card chose to the other".into()
+                }
                 "hand_to_bottom" => {
                     "how many cards to move from your hand to the bottom of your library".into()
                 }
@@ -1068,12 +1126,15 @@ mod tests {
                 Some("damage_imbued"),
                 Some("block_mark"),
                 Some("joint_blocker"),
+                Some("become_combatant"),
+                Some("cancel_maneuver"),
             ],
             Purpose::ChooseForCard => &[
                 Some("unblockable_non_bleed"),
                 Some("does_not_unlock"),
                 Some("chosen"),
             ],
+            Purpose::Bottom => &[None, Some("top")],
             _ => &[None],
         }
     }
@@ -1144,6 +1205,13 @@ mod tests {
         MoveCardToOldest,
         MayPreventForBlood,
         MayTakeAggravatedAsNormal,
+        RetainerBurnsWeaponOrDamage,
+        MasterFromHandOrBurn,
+        MayBurnBloodToPeek,
+        CombatStandIn,
+        RetainerSearch,
+        BurnBloodUpTo,
+        ExtraHires,
         ShortfallPicks,
         MayUnlock,
         GiveCardTo,
@@ -1295,10 +1363,12 @@ mod tests {
         CryptToReady,
         StealFromSlot,
         BloodForVotes,
+        FavorAuction,
         StoreFromAshOf,
         BloodToCardUpTo,
         MayLockCardForBlock,
         BloodOrPool,
+        ContestPayment,
         MayMoveBlood,
         MayFailAction,
         MayLockToFight,

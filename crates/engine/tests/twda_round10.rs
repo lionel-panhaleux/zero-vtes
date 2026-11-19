@@ -246,6 +246,25 @@ fn malabranca_fizzles_once_the_prey_is_no_longer_richer() {
     assert_eq!(pool(&e)[..2], [6, 5]);
 }
 
+// Malabranca, the prey ousted before resolution: "your prey" read as the
+// action resolves (rules-qa 121.120 corrected, owner, Batch 124): the new
+// prey, richer, gives the pool.
+#[test]
+fn malabranca_takes_from_the_new_prey_once_the_prey_is_ousted() {
+    let mut e = game(3);
+    e.state.seats[0].pool = 6;
+    let m = e.add_minion(SeatId(0), find_card("Malabranca"), 4, false);
+    e.add_minion(SeatId(0), plain("Brujah", 0), 4, false);
+    e.add_minion(SeatId(1), plain("Ventrue", 0), 4, false);
+    e.add_minion(SeatId(2), plain("Ventrue", 1), 4, false);
+    pick(&mut e, printed(m, 0, Target::Seat(SeatId(1))));
+    request(&mut e);
+    e.state.seats[1].pool = 0;
+    e.state.seats[1].ousted = true;
+    until(&mut e, SeatId(0), WindowLabel::MinionPhase);
+    assert_eq!((e.state.seats[0].pool, e.state.seats[2].pool), (7, 9));
+}
+
 // Hardestadt (G4): "+1 bleed. +2 strength." His bleed burns 2 pool.
 #[test]
 fn hardestadt_bleeds_for_two() {

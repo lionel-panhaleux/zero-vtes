@@ -5,6 +5,7 @@ use crate::cards::{Target, Window};
 use crate::decision::{Choice, DecisionRequest, WindowLabel};
 use crate::game::Engine;
 use crate::ids::{MinionId, SeatId};
+use crate::state::CardId;
 
 /// How long the control taken lasts.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
@@ -20,6 +21,9 @@ pub enum ControlTerm {
     ForGood,
     /// Back as the current minion phase ends (Miguel Cordovera).
     UntilMinionPhaseEnd,
+    /// Back as the next action ends, any minion's, else with the turn
+    /// (Spirit Marionette [OBE]; owner, rules-qa 124.218).
+    UntilNextActionEnd,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
@@ -88,6 +92,16 @@ pub enum BurnThen {
         taker: MinionId,
         seat: SeatId,
     },
+    /// The retainer card on the waiting minion burns (Consume the Dead's
+    /// "a minion or retainer").
+    Retainer(CardId),
+}
+
+/// What a replacing card saves from its burn (Consume the Dead).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum Burning {
+    Minion(MinionId),
+    Retainer(CardId),
 }
 
 /// Vampires about to be burned (but by a blood hunt, LSJ 20070417), each
@@ -125,12 +139,15 @@ pub(crate) enum Wait {
 impl Wait {
     const ALL: [Wait; 4] = [Wait::Hunt, Wait::CombatBurn, Wait::Torpor, Wait::Burn];
 
-    fn window(self) -> Window {
+    /// The windows its answers are played in: a burn's also any
+    /// Methuselah's replacement (Consume the Dead); a blood hunt's burn opens
+    /// no such window (advanced rules §5.4.4, rules-qa 122.1).
+    fn windows(self) -> &'static [Window] {
         match self {
-            Wait::Hunt => Window::BloodHuntWouldBurn,
-            Wait::CombatBurn => Window::AllyWouldBurnInCombat,
-            Wait::Torpor => Window::GoingToTorpor,
-            Wait::Burn => Window::VampireWouldBurn,
+            Wait::Hunt => &[Window::BloodHuntWouldBurn],
+            Wait::CombatBurn => &[Window::AllyWouldBurnInCombat],
+            Wait::Torpor => &[Window::GoingToTorpor],
+            Wait::Burn => &[Window::VampireWouldBurn, Window::MinionWouldBurn],
         }
     }
 }
@@ -192,6 +209,11 @@ impl Engine {
                     ControlTerm::UntilUnlock => v.temp_until_unlock = true,
                     ControlTerm::UntilMinionPhaseEnd => {
                         v.temp_until_minion_phase_end = crate::state::Sparse(1)
+                    }
+                    // Taken during an action: that one is not the next.
+                    ControlTerm::UntilNextActionEnd => {
+                        v.temp_until_action_end =
+                            crate::state::Sparse(if self.state.acting.is_some() { 2 } else { 1 })
                     }
                     _ => {}
                 }
@@ -301,12 +323,22 @@ impl Engine {
 
     /// Who may answer `m`'s wait: every Methuselah still in, clockwise
     /// from the active one; a torpor's not its controller; a burn's its
-    /// controller alone.
+    /// controller first.
     fn answer_order(&self, w: Wait, m: MinionId) -> Vec<SeatId> {
         let owner = self.state.minions[m.index()].owner;
         let living = |s: &SeatId| !self.state.seats[s.index()].ousted;
         match w {
-            Wait::Burn => [owner].into_iter().filter(living).collect(),
+            // Its controller first (Abandoning the Flesh), then the others
+            // clockwise (Consume the Dead).
+            Wait::Burn => std::iter::once(owner)
+                .chain(
+                    self.state
+                        .clockwise_from(self.state.active)
+                        .into_iter()
+                        .filter(|&s| s != owner),
+                )
+                .filter(living)
+                .collect(),
             Wait::Hunt | Wait::CombatBurn | Wait::Torpor => self
                 .state
                 .clockwise_from(self.state.active)
@@ -342,12 +374,20 @@ impl Engine {
         let Some((m, _)) = self.ask(w) else {
             return Vec::new();
         };
-        let mut options = self.play_options(seat, &[w.window()], None);
+        // A diablerie's burn: its controller's card only (Consume the Dead:
+        // "by any means except diablerie").
+        let windows = match self.state.burn_wait.0.as_ref().map(|a| a.queue[0].1) {
+            Some(BurnThen::Burn | BurnThen::Sacrifice { .. }) | None => w.windows(),
+            Some(BurnThen::Retainer(_)) if w == Wait::Burn => &w.windows()[1..],
+            Some(_) if w == Wait::Burn => &w.windows()[..1],
+            Some(_) => w.windows(),
+        };
+        let mut options = self.play_options(seat, windows, None);
         match w {
             Wait::CombatBurn | Wait::Torpor => options.retain(
                 |o| matches!(o, Choice::Play { target, .. } if *target == Target::Minion(m)),
             ),
-            Wait::Hunt => options.extend(self.ability_options(seat, w.window())),
+            Wait::Hunt => options.extend(self.ability_options(seat, Window::BloodHuntWouldBurn)),
             Wait::Burn => {}
         }
         options
@@ -477,6 +517,21 @@ impl Engine {
         true
     }
 
+    /// The minion whose burn waits on the card now resolving (Consume the
+    /// Dead), and that wait marked saved.
+    pub(crate) fn save_burning(&mut self) -> Option<Burning> {
+        let (m, a) = self.ask(Wait::Burn)?;
+        if !a.playing {
+            return None;
+        }
+        let retainer = match self.state.burn_wait.0.as_ref().map(|a| a.queue[0].1) {
+            Some(BurnThen::Retainer(c)) => Some(c),
+            _ => None,
+        };
+        self.ask_mut(Wait::Burn).expect("a wait").saved = true;
+        Some(retainer.map_or(Burning::Minion(m), Burning::Retainer))
+    }
+
     /// A card saved `w`'s minion if it is `target`: true when it did.
     pub(crate) fn save_answer(&mut self, w: Wait, target: Target) -> bool {
         if self.ask(w).is_none_or(|(m, _)| Target::Minion(m) != target) {
@@ -518,12 +573,17 @@ impl Engine {
             Wait::Torpor => self.torpor_answered(),
             Wait::Burn => {
                 let mut a = self.state.burn_wait.0.take().expect("burn wait");
+                let saved = a.ask.saved;
                 let (m, then) = a.queue.remove(0);
                 if let Some(&(n, _)) = a.queue.first() {
                     a.ask = self.fresh_ask(w, n);
                     self.state.burn_wait.0 = Some(a);
                 }
-                if self.state.minions[m.index()].present() {
+                if let BurnThen::Retainer(c) = then {
+                    if !saved && self.state.cards[c.index()].in_play {
+                        self.burn_card_in_play_now(c);
+                    }
+                } else if self.state.minions[m.index()].present() {
                     self.burn_goes_on(m, then);
                 } else {
                     self.burn_saved(then);
@@ -719,8 +779,10 @@ impl Engine {
         false
     }
 
-    /// `m` is about to be burned (`then` going on once it is): it waits if
-    /// its controller may play a card instead (`BurnWait`), behind any
+    /// `m` (or, `BurnThen::Retainer`, a retainer on it) is about to be
+    /// burned (`then` going on once it is): it waits if its controller may
+    /// play a card instead, or any Methuselah one replacing a minion's
+    /// burn (`BurnWait`; Consume the Dead, not a diablerie's), behind any
     /// burn already waiting (two vampires burned together). True when it
     /// waits. Not asked while a standing replacement applies (Charigger's,
     /// Byzar's own, Book of Going Forth by Night's): it applies, the acting
@@ -729,12 +791,19 @@ impl Engine {
     pub(crate) fn ask_burn(&mut self, m: MinionId, then: BurnThen) -> bool {
         let v = &self.state.minions[m.index()];
         let seat = v.owner;
-        if !v.present()
-            || !v.is_vampire()
-            || self.state.seats[seat.index()].ousted
-            || !self.holds_card_for(seat, Window::VampireWouldBurn)
-            || !self.burn_replacements(m).is_empty()
-        {
+        let retainer = matches!(then, BurnThen::Retainer(_));
+        let own = v.is_vampire()
+            && !retainer
+            && !self.state.seats[seat.index()].ousted
+            && self.holds_card_for(seat, Window::VampireWouldBurn);
+        let any = matches!(
+            then,
+            BurnThen::Burn | BurnThen::Sacrifice { .. } | BurnThen::Retainer(_)
+        ) && (0..self.state.seats.len()).any(|i| {
+            !self.state.seats[i].ousted
+                && self.holds_card_for(SeatId(i as u8), Window::MinionWouldBurn)
+        });
+        if !v.present() || !own && !any || !retainer && !self.burn_replacements(m).is_empty() {
             return false;
         }
         let alone = Answers {
@@ -787,6 +856,7 @@ impl Engine {
                 amaranth,
             } => self.combat_diablerie(diablerist, m, amaranth),
             BurnThen::Sacrifice { taker, seat } => self.sacrifice(seat, taker, m),
+            BurnThen::Retainer(c) => self.burn_card_in_play_now(c),
         }
     }
 
@@ -797,7 +867,10 @@ impl Engine {
             BurnThen::DiablerieAction { .. } | BurnThen::TorporBlock { .. } => {
                 self.after_resolution()
             }
-            BurnThen::Burn | BurnThen::CombatDiablerie { .. } | BurnThen::Sacrifice { .. } => {}
+            BurnThen::Burn
+            | BurnThen::CombatDiablerie { .. }
+            | BurnThen::Sacrifice { .. }
+            | BurnThen::Retainer(_) => {}
         }
     }
 }

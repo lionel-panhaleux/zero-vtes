@@ -18,7 +18,7 @@ is created by one request and played over one WebSocket. Every game is
 recorded, anonymously, and kept two years to train and test the engine
 (§11).
 
-Version **2.31.0**. The types: the models of the
+Version **2.32.0**. The types: the models of the
 [API reference](https://engine.krcg.org/docs), also as
 [JSON Schema](https://engine.krcg.org/schema.json) (2020-12) and
 [TypeScript](https://engine.krcg.org/protocol.ts).
@@ -261,8 +261,9 @@ effect choice the engine asks). The purpose says the verb
 (`remove_uncontrolled`: the slot chosen is removed); where it has
 parameters, each option's `effects` give them (`minion_of`: what the
 chosen minion gets — `lock`, `unlock`, `corruption`, `blood`, `damage`,
-`burn`, `intercept`, `block` (a joint block's blocker), a card `move`d
-onto it; `ashur_picks`: `move` `to` the hand or the library;
+`burn`, `intercept`, `block` (a joint block's blocker), `cancel`
+(`detail` `maneuver`: its maneuver canceled), a card `move`d onto it;
+`ashur_picks`: `move` `to` the hand or the library;
 `ash_to_library_top`: `move` `to` the library's top, `cut_library`:
 `set_x` the cards cut from the top to the bottom; `retake_from_ash`:
 `move` `to` the hand (the card taken back) or a draw; `replace_from_ash`:
@@ -288,24 +289,23 @@ play), `clan` (or a circle), and `detail`, what sets it apart within its
 purpose (`minion_of`: `lock`, `lock_vampires`, `corrupt`…; a terms
 window: `blood_range` (from `minion`, to `to` or else the pool),
 `x_blood`, `x_convictions`, `discard`, `discard_any`, `put_on_source` (a
-card from the hand put on the source), `cost_reductions`,
-`grant_payer` (the `choose_card` paying the Discipline `minion` lacks),
-`cost_counters` (how many of `card`'s), an ability's count by what it
-counts — `count` (cards drawn, as many then to the library's bottom),
-`blood_on_target` (on `minion`), `hand_to_bottom`, `discard_at_random`
-(from `seat`'s hand) —, a rider paid unit by unit by its units —
-`pool_or_blood`, `pool_or_hand_cards`, `pool_or_ash_cards`,
-`pool_or_burn` (or the source burned) —, `burn_allocated`,
-`gains_pool`…). A client tells its prompt from these alone, as the
-server's English rendering (the `text` setting) does. `due` says why a
-minion phase offers no `pass`: what it must do before it ends, each
-`{kind, copy}` — `hunt` (a vampire with no blood, or one a card says
-must hunt, hunts before any other action: rules-qa 17.2; other minions'
-actions wait), `action` (a vampire's printed mandatory action, Elen
-Kamjian's bleed), `take_control` (the card taking control of its host
-this phase, Puppet Master), `bleed` (a vampire a card put in play must
-bleed before the phase ends: Chain of Command); empty whenever `pass` is
-offered.
+card from the hand put on the source), `cost_reductions`, `grant_payer` (the
+`choose_card`, or a lending vampire's `choose_minion`, paying the Discipline
+`minion` lacks), `cost_counters` (how many of `card`'s), an ability's count by
+what it counts — `count` (cards drawn, as many then to the library's bottom),
+`blood_on_target` (on `minion`), `hand_to_bottom`, `discard_at_random` (from
+`seat`'s hand), `chosen_blood` (between the vampires the card chose) —, a rider
+paid unit by unit by its units — `pool_or_blood`, `pool_or_hand_cards`,
+`pool_or_ash_cards`, `pool_or_burn` (or the source burned) —, `burn_allocated`,
+`gains_pool`…). A client tells its prompt from these alone, as the server's
+English rendering (the `text` setting) does. `due` says why a minion phase
+offers no `pass`: what it must do before it ends, each `{kind, copy}` — `hunt`
+(a vampire with no blood, or one a card says must hunt, hunts before any other
+action: rules-qa 17.2; other minions' actions wait), `action` (a vampire's
+printed mandatory action, Elen Kamjian's bleed), `take_control` (the card taking
+control of its host this phase, Puppet Master), `bleed` (a vampire a card put in
+play must bleed before the phase ends: Chain of Command); empty whenever `pass`
+is offered.
 
 ## 6. The view
 
@@ -365,7 +365,10 @@ the previous one, never the engine's state.
   (other seats' interrupts, a Life Boon) have settled.
 - `combat`: `minions` (acting first), `round`, `range`, `sides[]`
   (`strike` once declared — the blocker chooses knowing the acting
-  minion's — `maneuvers`, `presses`). A strike: `kind`, `n`, `ranged`,
+  minion's — `maneuvers`, `presses`, and a minion out of the combat
+  striking beside it, `second` (Winged Second), with its `second_strike`
+  once declared: its strike request is the side's `combat_strike`, its
+  options naming it). A strike: `kind`, `n`, `ranged`,
   `aggravated`, `card`, `resolved`, `text`. In a combat, a damage
   strike's (`hand`, `melee`, `damage`) `n` and `aggravated` are what it
   inflicts now if it lands, before prevention: the minion's strength and

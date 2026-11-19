@@ -163,6 +163,16 @@ Diff the two reads yourself, item by item, then grade each reading. A
   - a combination case (two copies, dual type, played by another card)
     with no ruling (69.12, 70.17).
 
+Before a reading is graded red (or wherever the two reads disagree),
+search the rulings archive (owner, 2026-11-19): Primogen's
+`vtes_rules_case` for the cards, then `vtes_rulings_archive` with the
+card names and the scenario's own words (a director's post first). A
+thread whose question matches is read whole (usenet.krcg.org/t/<id>/):
+a director's answer rarely repeats the card name (round 32's Political
+Flux: the 2001 thread found by the card name, its answer "Yes."). A
+sitting director's post that settles it makes the reading green, cited.
+Not for green or amber readings: a few calls per red.
+
 Red items go to the owner as one concrete scenario each, the engine's
 outcome, a yes/no, and the test name a "no" would flip. Aim for a handful
 per round. Every reading, green to red, still goes in the round's rules-qa

@@ -24,42 +24,38 @@ fn from() -> u32 {
     std::env::var("HOST_SEED_FROM").map_or(1, |s| s.parse().unwrap())
 }
 
-/// Seeds past the default a deeper sweep failed on (`HOST_SEEDS=400`), kept: a
-/// banished created vampire (70), Mask of a Thousand Faces (132), Victor
-/// Pelletier's price (172), the strikes shown after an undo (219), Spiritual
-/// Guidance's play from the ash heap (346); and the table kept from the events:
-/// a vampire banished and back between two views (45), one influenced into a
-/// contest (81), a unique ally played into one (95), a crypt card come with
-/// counters (111), a contested minion's cards (118), a merge (119), training
-/// counters (152), a vampire moved within its uncontrolled region (161), two
-/// Methuselahs ousted at once (239), a unique card put into a contest (299), a
-/// vampire's excess drained in one (380), an action's intercept changed between
-/// two views (63), a play canceled as it is announced (88: Andrew Stuart), a
-/// cost reduced by a lasting effect whose card is in the ash heap (104: Inner
-/// Essence); and the causes a deeper sweep found missing: Camarilla Threat's
-/// discard toll (294), blood to an uncontrolled vampire (375), a diablerie in a
-/// torpor block (411), Yawp Court's yawp (591), a burn to prevent (728), a
-/// rider fired as its bearer blocks (913), a diseased vampire's paid infernal
-/// unlock (504), a discard-phase rider's damage (579), Paragon's younger
-/// blocker's blood (1153), Amelia's or Jason's after-combat burn (426), Petra's
-/// press toll (246); and the view paths the events missed: an ally stolen for
-/// good (99, 300: Entrancement), a contested vampire's capacity (114, 286),
-/// Call the Great Beast become a vampire (300), a card burned to an ousted
-/// owner's ash heap (474, 933: Disarm), an open hand (225), cards into one
-/// (289, 317), one closed with a card leaving it in the same step (910, 929);
-/// and a line naming no minion: an advanced vampire merged before a view (332:
-/// Helena (ADV)), Anathema's pool (392); and a contested vampire keeping its
-/// excess (386), a created vampire removed (516: Golconda), a marker gone as a
-/// vampire returns (695: Descent into Darkness); and an action its Methuselah's
-/// oust ended mid-way (389: Alastor's equipment paid with the last pool), one
-/// whose referendum ended the game, its card out of limbo (210: Kine Resources
-/// Contested); and a minion's title changed between two views (80); and a turn
-/// begun with its skip asked (78: First Tradition: The Masquerade); and a
-/// contested vampire's blood burned in play (176: Vampiric Disease).
-const KEPT: [u32; 51] = [
-    45, 63, 70, 78, 80, 81, 88, 95, 99, 104, 111, 114, 118, 119, 132, 152, 161, 172, 176, 210, 219,
-    225, 239, 246, 286, 289, 294, 299, 300, 317, 332, 346, 375, 380, 386, 389, 392, 411, 426, 474,
-    504, 516, 579, 591, 695, 728, 910, 913, 929, 933, 1153,
+/// Seeds past the default a deeper sweep failed on, kept: Mask of a Thousand
+/// Faces (145), Victor Pelletier's price (289), the strikes shown after an
+/// undo (137), Spiritual Guidance's play from the ash heap (137); and the
+/// table kept from the events: a vampire banished and back between two views
+/// (47), one influenced into a contest (137), a unique ally played into one
+/// (328), a contested minion's cards (137), a merge (47), training counters
+/// (499), a vampire moved within its uncontrolled region (389), two
+/// Methuselahs ousted at once (2382), a unique card put into a contest (289), a
+/// vampire's excess drained in one (137), an action's intercept changed between
+/// two views (143), a play canceled as it is announced (3572: Andrew Stuart), a
+/// cost reduced by a lasting effect whose card is in the ash heap (139: Inner
+/// Essence); and the causes a deeper sweep found missing: blood to an
+/// uncontrolled vampire (375), a diablerie in a torpor block (321), Yawp
+/// Court's yawp (591), a burn to prevent (2355), a rider fired as its bearer
+/// blocks (1733), a diseased vampire's paid infernal unlock (1320), Assad
+/// Salhoum's blood as he blocks (589), Amelia's or Jason's after-combat burn
+/// (766), Burning Touch's burn as its action is blocked (1057), a searched
+/// ally paid once its cost reductions are asked (1302); and the view paths the
+/// events missed: an ally stolen for good (1717: Entrancement), a contested
+/// vampire's capacity (5419), Call the Great Beast become a vampire (1413), a
+/// card burned to an ousted owner's ash heap (342, 445: Disarm), an open hand
+/// (375), cards into one (526, 536, 615); and a line naming no minion: an
+/// advanced vampire merged before a view (472: Helena (ADV)), Anathema's pool
+/// (332); and a marker gone as a vampire returns (2493: Descent into
+/// Darkness); and an action its Methuselah's oust ended mid-way (220: .44
+/// Magnum paid with the last pool), one whose referendum ended the game, its
+/// card out of limbo (2742: Kine Resources Contested); and a minion's title
+/// changed between two views (47); and a turn begun with its skip asked (353:
+/// First Tradition: The Masquerade).
+const KEPT: [u32; 35] = [
+    47, 137, 139, 143, 145, 220, 289, 321, 328, 332, 342, 353, 375, 389, 445, 472, 499, 526, 536,
+    589, 591, 615, 766, 1057, 1302, 1320, 1413, 1717, 1733, 2355, 2382, 2493, 2742, 3572, 5419,
 ];
 
 /// The sweep's seeds: `HOST_SEED_FROM` to `HOST_SEEDS` (40), the kept

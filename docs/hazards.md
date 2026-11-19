@@ -74,11 +74,21 @@ review finding); one the code or a page now makes impossible leaves it.
   is about twice the seed where its last key first appears (at most
   300); `FUZZ_SEEDS=n` sweeps deeper (checked against the goldens'
   seeds). Every 4th seed is replayed.
+- A round's regenerated tables move fixtures it never touched: fuzz's
+  `per_seat` picks from all of `CRYPT`, not bounded by `FIXTURE_CRYPT`, so
+  an appended vampire matching its filter joins a seat and reshuffles the
+  whole fixture (14a, 15a in round 32); a card-naming term (Precision,
+  Sibyl's Tongue) offers every `LIBRARY` entry, so library growth names
+  another card at the same index (30b, 31b). Expected each round: attribute
+  each move before blessing.
 - The host events sweep (`crates/host/tests/events.rs`) deals its decks by
   seed modulo the catalog's size: a catalog size change (a TWDA refresh, a
   round changing the kept decks) reshuffles every `KEPT` seed's game while
-  the test may stay green. Re-probe each kept seed's cause at
-  `HOST_SEEDS=400` and replace the ones that lost it.
+  the test may stay green. Re-probe each kept seed's cause on its own
+  (`HOST_SEED_FROM=n HOST_SEEDS=n HOST_REDUCE=1`, the sweep stopping at its
+  first failing seed; run alone, a seed fails the cross-seed totals, to
+  ignore: only the checks inside its game count) and replace the ones that
+  lost it.
 - Refactors: the fuzz golden replays and perft counts (`tests/golden/`,
   DESIGN §7.3/§7.5) must stay green; a failure names the seed and
   decision range (`FUZZ_TRACE=1 SEED_FROM=n` traces it, on one thread).
@@ -102,6 +112,18 @@ review finding); one the code or a page now makes impossible leaves it.
   Prove a master-phase non-offer at a real master phase (`until` it).
 - A vampire that must hunt is offered only its hunt: that minion phase
   window elides and the hunt is taken on the way (`until` passes it).
+- `Minion::gained_levels` counts one level per entry: a superior level is
+  two entries (`vec!["aus", "aus"]`); an upper-case name is still one.
+- An influence phase whose only option is a due (a Choir's burn: no Pass
+  while one waits) elides, resolved on the way: give the seat an
+  uncontrolled vampire to transfer to, so the window is a decision.
+- A minion phase offering only a forced action (Spirit Marionette's
+  taken minion with a single bleed) elides: the action is taken on the
+  way. Give it a second way to bleed (a bleed card) to stop there.
+- A block attempt short of the stealth is pending until its seat's
+  change-of-blocker window closes, and passing that window declines the
+  seat: `failed_attempts` is empty after the `DeclareBlock` pick, and the
+  same minion's second attempt (rules-qa 48.6) is not reachable by passing.
 
 ## Cards
 
@@ -124,6 +146,9 @@ review finding); one the code or a page now makes impossible leaves it.
   silently dropped.
 - `data/rulings-v5.csv` is CRLF: edit it byte-wise. Tests in
   `tests/rulings.rs` must back a ledger row; put regressions elsewhere.
+- A definition is a plain `pub static NAME: CardDef = CardDef { name: …`:
+  `scripts/rulings_v5.py` reads the printed name there, and a static a
+  macro generates is unreadable to it (the round-32 Kholos).
 - A Discipline new to the crypt data (Thanatosis in round 26, Melpominee
   and Valeren in round 28) needs its seat-context feature appended in
   `crates/env` (`context::LATE_DISCIPLINES`; `tests/context.rs` fails
@@ -165,6 +190,9 @@ review finding); one the code or a page now makes impossible leaves it.
   `GameState::may_gain_title`) is a mask where the card is played or its
   vampire chosen, and a guard at each site moving a title card (Regent,
   `oldest_for`); `gain_title` only no-ops a title gained without a card.
+- An action card canceled as played declares no action (rules-qa 73.2):
+  what ends "with its next action" (Spirit Marionette's control) also ends
+  in `settle_canceled`, not only in `end_action`.
 - An action card is out of play for its whole action and reaches the ash
   heap only as the action ends (`place_action_card`): a card reading "the
   action card … in your ash heap" during the action reads where it is
@@ -213,11 +241,35 @@ review finding); one the code or a page now makes impossible leaves it.
   reader of a card in play asks `GameState::is_retainer` or
   `card_in_play_matches`, never the printed type (hand, library and ash
   heap only).
+- `Engine::note_play` runs before a play's effects: a "once" spent there is
+  already spent for a card the play brings in (Pack Alpha's Raven Spy for
+  Ananasi Vampirephile's once-each-turn grant): spend after the effects
+  loop (`Engine::spend_turn_grant`).
+- A political action card's effects other than its referendum never run
+  (`succeed`'s political branch): an `Effect::ActionLayer` there was
+  silently dropped until pushed as the referendum starts.
+- `Engine::announce_paid` rebuilds the play's `PlayCtx` from its card,
+  mode, actor and target: a field set before it (a grant payment's
+  `grant_surcharge`, Phagian) is lost unless carried there by name.
 - `Effect::family`'s arms are long runs of variants ending in one family:
   a variant listed in the run ending `=> Family::Play` but implemented in
   `apply_shared_effect` (or the reverse) compiles and passes the families
   test, then panics as it resolves (`a play effect without its arm`:
   Patterns in the Chaos' `PeekBledHand`). Read the run's last line.
+- A card a search pays for outside a play (Antonio d'Erlette's mage ally,
+  Magic of the Smith's equipment) takes its cost reductions only through
+  the cost terms (`CostThen::AllyFound`, `EquipFound`): the ally search
+  paid its cost directly, The Shard and Powerbase: Tshwane never offered.
+- The burn option also reads the card's target filter
+  (`trait_target_requirements`): a plays-as vampire barring it (Lisandro,
+  LSJ 20050225) hid behind a targeted master's clan filter (Regenerative
+  Blood's "a Samedi you control"); test such a fix with an untargeted card
+  (Blessings of the Loa, Dirty Contract).
+- While a Winged Second chooses its strike, `CombatCtx::sides[i]` is the
+  second's own `Side` and `range` reads close (`second_swap`): a reader of
+  the combatant or the range outside that request (the host's view and
+  narration) goes through `combatant_side` / `combat_range`, or it shows
+  the second as the combatant.
 
 ## The shared tree
 

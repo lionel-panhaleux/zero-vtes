@@ -1,6 +1,6 @@
-/* zvtes protocol 2.31.0 (docs/protocol.md): generated from
+/* zvtes protocol 2.32.0 (docs/protocol.md): generated from
  * crates/api/schema.json by scripts/gen_ts.py, do not edit. */
-export const PROTOCOL_VERSION = '2.31.0'
+export const PROTOCOL_VERSION = '2.32.0'
 
 /**
  * A command as sent: an optional client id, echoed by an `error` it
@@ -452,6 +452,13 @@ export type CombatSide = {
     maneuvers: number
     minion: number
     presses: number
+    /**
+     * A minion out of the combat striking beside this one (Winged
+     * Second).
+     */
+    second?: number | null
+    /** The second's strike this round, once declared. */
+    second_strike?: Strike | null
     /**
      * Its strike once declared (the blocker chooses knowing the acting
      * minion's), kept shown once resolved until the next pair.
@@ -1067,6 +1074,7 @@ export type MarkerKind =
     | 'contested'
     | 'burn_counters'
     | 'founder_counters'
+    | 'transfusion_counters'
     | 'unknown'
 
 export type MinionKind = 'vampire' | 'ally' | 'token' | 'created' | 'imbued' | 'unknown'
@@ -1478,6 +1486,15 @@ export type Purpose =
     | 'damage_voter_for_blood'
     | 'may_discard_for_block'
     | 'may_take_aggravated_as_normal'
+    | 'retainer_burns_weapon_or_damage'
+    | 'master_from_hand_or_burn'
+    | 'may_burn_blood_to_peek'
+    | 'combat_stand_in'
+    | 'retainer_search'
+    | 'burn_blood_up_to'
+    | 'favor_auction'
+    | 'contest_payment'
+    | 'extra_hires'
     | 'unknown'
 
 export type Range = 'close' | 'long' | 'unknown'

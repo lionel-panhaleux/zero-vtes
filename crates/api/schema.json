@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "title": "zvtes protocol",
-  "version": "2.31.0",
+  "version": "2.32.0",
   "$defs": {
     "About": {
       "description": "What a choice is about (`Decision::about`): each field given where\nthe purpose (or the terms) has it (docs/protocol.md §5).",
@@ -965,6 +965,26 @@
           "format": "uint8",
           "maximum": 255,
           "minimum": 0
+        },
+        "second": {
+          "description": "A minion out of the combat striking beside this one (Winged\nSecond).",
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint32",
+          "minimum": 0
+        },
+        "second_strike": {
+          "description": "The second's strike this round, once declared.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Strike"
+            },
+            {
+              "type": "null"
+            }
+          ]
         },
         "strike": {
           "description": "Its strike once declared (the blocker chooses knowing the acting\nminion's), kept shown once resolved until the next pair.",
@@ -3798,6 +3818,11 @@
           "const": "founder_counters"
         },
         {
+          "description": "Transfusion counters (`seat`: whose, `n`; Transfusion: at 3 of\none Methuselah's, they burn and that Methuselah takes the minion).",
+          "type": "string",
+          "const": "transfusion_counters"
+        },
+        {
           "description": "A value this reader does not know.",
           "type": "string",
           "const": "unknown"
@@ -5161,7 +5186,7 @@
           "const": "may_lock_to_fight"
         },
         {
-          "description": "Nkishi: `seat` may take an Aye or an Orun from its library or ash\nheap onto `minion` (`take_from`), or pass.",
+          "description": "Nkishi: `seat` may take an Aye or an Orun from its library or ash\nheap onto `minion` (`take_from`), or pass; Static Virtue: from\nits hand or library, the second card of a pair owed (no pass).",
           "type": "string",
           "const": "search_onto"
         },
@@ -5459,6 +5484,51 @@
           "description": "Konrad Fleischer outside his combat: `minion`, about to take\n`about.n` aggravated damage, treats 1 of it as normal\n(`resolve_printed`) or takes it all aggravated (`pass`).",
           "type": "string",
           "const": "may_take_aggravated_as_normal"
+        },
+        {
+          "description": "Duma Rafiki before the strikes resolve: `seat`'s retainer `card`\nburns a weapon `minion` has (`burn_in_play`) or inflicts its\ndamage on it (`pass`).",
+          "type": "string",
+          "const": "retainer_burns_weapon_or_damage"
+        },
+        {
+          "description": "Bima entering play: `seat` puts a master Discipline card from\nhand on `minion` (`take_from`), or burns it (`pass`).",
+          "type": "string",
+          "const": "master_from_hand_or_burn"
+        },
+        {
+          "description": "Reliquary: Biague: `minion` may burn 1 blood (`resolve_printed`)\nfor `seat` to look at Methuselah `about.seat`'s hand, or not\n(`pass`).",
+          "type": "string",
+          "const": "may_burn_blood_to_peek"
+        },
+        {
+          "description": "Ohoyo Hopoksia: `seat` may lock the ally `card` to fight the\nacting minion instead of `minion` (`resolve_rider`), or not\n(`pass`).",
+          "type": "string",
+          "const": "combat_stand_in"
+        },
+        {
+          "description": "Muricia's Call, Children of Stone [vis]: `seat` searches the\nlibrary (and the hand, Children of Stone) for a retainer `minion`\nemploys, its cost paid (`take_from`), or none (`pass`); the\nlibrary shuffled either way.",
+          "type": "string",
+          "const": "retainer_search"
+        },
+        {
+          "description": "Lazarene Inquisitor's action resolving: `seat` sets how much\nblood `minion` burns, 1 to `about.n` (`set_x`).",
+          "type": "string",
+          "const": "burn_blood_up_to"
+        },
+        {
+          "description": "Igoli's Loyalty: `seat` casts all its vampires' votes and ballots\nin favor for `about.n` pool (`set_x`), or declines (`pass`), the\nIshtarri `minion` then burning 1 blood to raise the price.",
+          "type": "string",
+          "const": "favor_auction"
+        },
+        {
+          "description": "Olugbenga: `seat` pays the contest of vampire `minion` with 1\npool (`burn_pool`) or 1 blood from it or from Olugbenga\n(`burn_blood_from`).",
+          "type": "string",
+          "const": "contest_payment"
+        },
+        {
+          "description": "Zhenga's successful action: `minion` recruits or employs one\nmore ally or retainer from the player's hand, cost and\nrequirements as normal (`employ_from_hand`), `about.n` the most\nit may still bring; or stops (`pass`).",
+          "type": "string",
+          "const": "extra_hires"
         },
         {
           "description": "A value this reader does not know.",

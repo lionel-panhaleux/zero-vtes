@@ -3641,7 +3641,7 @@ fn highway_haven_rv_presses_out_of_the_first_round() {
         modifier: zvtes::cards::Modifier::BearerFirstRoundEndPress,
         source: rv,
     });
-    hand(&mut e, 0, &["Frenzy"]);
+    hand(&mut e, 1, &["Frenzy"]);
     pick_when(&mut e, bleed(a));
     pick_when(&mut e, block(z));
     // Frenzy on its opponent: a press to continue the round has; the RV's
@@ -5121,6 +5121,7 @@ fn ghouled_ally_strikes_with_potence_once_a_combat() {
             strike_only: true,
             once_per_combat: true,
             combat_only: false,
+            once_per_turn: false,
         }),
     ] {
         e.state.layers.push(zvtes::cards::Layer {
@@ -5129,15 +5130,14 @@ fn ghouled_ally_strikes_with_potence_once_a_combat() {
             source: card,
         });
     }
-    hand(&mut e, 1, &["Thrown Gate", "Thrown Gate"]);
-    hand(&mut e, 0, &["Frenzy"]);
+    hand(&mut e, 1, &["Thrown Gate", "Thrown Gate", "Frenzy"]);
     pick_when(&mut e, bleed(a));
     pick_when(&mut e, block(g));
-    // Frenzy: a second round.
+    // Frenzy (seat 1's: out-of-turn): a second round.
     pick_when(
         &mut e,
         Choice::Play {
-            card: 0,
+            card: 2,
             mode: 0,
             actor: None,
             target: Target::Minion(a),
@@ -8462,7 +8462,8 @@ fn mukhtar_bey_gets_the_presses_of_frenzy_and_trap() {
         e.add_minion(SeatId(0), plain("Brujah", 1), 4, false);
         let z = e.add_minion(SeatId(1), plain("Ventrue", 0), 6, false);
         e.add_minion(SeatId(1), plain("Ventrue", 1), 4, false);
-        hand(&mut e, 0, &[card]);
+        // Frenzy by the other Methuselah (out-of-turn).
+        hand(&mut e, if card == "Frenzy" { 1 } else { 0 }, &[card]);
         bleed_blocked(&mut e, mk, z);
         let target = if card == "Frenzy" {
             Target::Minion(mk)
@@ -8488,7 +8489,8 @@ fn frenzys_press_leaves_boxed_in_for_the_next_round() {
     e.add_minion(SeatId(0), plain("Brujah", 1), 4, false);
     let z = e.add_minion(SeatId(1), plain("Ventrue", 0), 6, false);
     e.add_minion(SeatId(1), plain("Ventrue", 1), 4, false);
-    hand(&mut e, 0, &["Frenzy", "Boxed In"]);
+    hand(&mut e, 0, &["Boxed In"]);
+    hand(&mut e, 1, &["Frenzy"]);
     bleed_blocked(&mut e, a, z);
     pick_when(&mut e, play_at(0, 0, None, Target::Minion(a)));
     let boxed = play(0, 0, a);

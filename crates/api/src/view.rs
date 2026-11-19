@@ -309,6 +309,13 @@ pub struct CombatSide {
     pub strike: Option<Strike>,
     pub maneuvers: u8,
     pub presses: u8,
+    /// A minion out of the combat striking beside this one (Winged
+    /// Second).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub second: Option<CopyId>,
+    /// The second's strike this round, once declared.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub second_strike: Option<Strike>,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]

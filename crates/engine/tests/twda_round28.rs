@@ -317,7 +317,7 @@ fn blessed_resilience_ignores_vampires_never_in_play() {
     assert!(e.state.seats[0].ash_crypt.contains(&card));
     // Never in play, its text cannot apply.
     let never = find_card("Hecate");
-    e.state.seats[0].burn_vampire(never, zvtes::copies::CopyId::NONE, false);
+    e.state.seats[0].burn_vampire(never, zvtes::copies::CopyId::NONE, None);
     hand(&mut e, 0, &["Blessed Resilience"]);
     e.at_master_phase();
     never_offered_until(&mut e, SeatId(0), WindowLabel::MinionPhase, master_play(0));
