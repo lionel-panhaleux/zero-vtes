@@ -14,7 +14,8 @@ removes; its `--check` fails a removal without a major version.
   id of `GET /cards`), required by `name_card` and refused with any other
   option by the new error `card` (+ `id`). Taken, the option (`decided`)
   names the card; a record keeps it as the `find_card` of that card, as
-  before, and reads as before. No id removed.
+  before, and reads as before. No id removed. A client must answer it
+  (§14): one that ignores it stalls at Precision.
 
 ## 2.32.0
 

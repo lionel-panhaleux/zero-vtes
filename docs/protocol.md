@@ -865,17 +865,18 @@ the protocol: the engine's internal state, card images, layout.
 
 ## 14. Versioning
 
-`protocol` is semver: a new field or a new id in a set is a minor
-version (readers ignore what they do not know), and so is a route's
-new refusal by a status its clients already handle, or a request field
-the server now decides itself (`POST /games`'s seed); a removed or
-renamed field or a changed meaning, a major one (2.0.0: the seeds'
-range widened past 32 bits). The api crate's own readers,
-1.3.0 on, read past a record entry type they do not know, and read an
-end reason, an error or a value of a §12 closed set (a decision's `by`
-among them) they do not know as `unknown` (never sent); any other new
-value still fails the read, and a reader built before 1.3.0 needs
-records no newer than its engine. `engine` is the commit: rules
-fixes ship without a protocol change. `CHANGELOG.md` lists every version;
-`scripts/schema_compat.py --check` fails a schema change that removes or
-renames a field or an id unless the major moves.
+`protocol` is semver: a new field or a new id in a set is a minor version
+(readers ignore what they do not know), and so is a route's new refusal by a
+status its clients already handle, or a request field the server now decides
+itself (`POST /games`'s seed); a removed or renamed field or a changed meaning,
+a major one (2.0.0: the seeds' range widened past 32 bits). An option kind a
+client cannot answer is the exception to ignoring: its decision waits on that
+client (2.33.0's `name_card` needs `card`), so the host serves one only once its
+known clients answer it. The api crate's own readers, 1.3.0 on, read past a
+record entry type they do not know, and read an end reason, an error or a value
+of a §12 closed set (a decision's `by` among them) they do not know as `unknown`
+(never sent); any other new value still fails the read, and a reader built
+before 1.3.0 needs records no newer than its engine. `engine` is the commit:
+rules fixes ship without a protocol change. `CHANGELOG.md` lists every version;
+`scripts/schema_compat.py --check` fails a schema change that removes or renames
+a field or an id unless the major moves.
