@@ -310,6 +310,9 @@ ids!(
         SetX,
         Discard,
         FindCard,
+        /// Any library card named, the answer's `card` (Precision): one
+        /// option for every name.
+        NameCard,
         TakeFrom,
         Slot,
         AshVampire,

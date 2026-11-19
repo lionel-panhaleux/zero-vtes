@@ -93,7 +93,10 @@ player must choose, then emits a **decision request**
 (`DecisionRequest { seat, window: WindowLabel, options: Vec<Choice> }`; the
 observation, built from the requester's legal view, is §5's). The answer is an
 index into `options`: the entire interface for the network, scripted bots, the
-fuzzer and human clients.
+fuzzer and human clients. One exception, at the protocol only (owner,
+2026-11-14): a play naming any library card is one `name_card` option answered
+with the card, the host mapping it to the engine's `FindCard` of that name
+(docs/protocol.md §7); the engine and its log keep the index.
 
 **Factoring rule**: combinatorial choices are decomposed into unit choices
 (1 pool at a time, one target at a time, terms stepwise). No decision enumerates

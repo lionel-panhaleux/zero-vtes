@@ -1206,7 +1206,8 @@ sources to the engine's conventions.
   `Effect::BlockerControllerDiscardsAtRandomHeld` applies in `blocked` after
   the host-blocked riders, the discards held to `Release::EndOfAction`;
   Precision names any library card as played (`Terms::AnyCardName`, one
-  `FindCard` per name, kept in `PlayCtx::ash_names[0]`) and asks its optional
+  `FindCard` per name, kept in `PlayCtx::ash_names[0]`; the host shows them
+  as one `name_card` option, `describe::names_any_card`) and asks its optional
   burn with `Interrupt::MayBurnBloodToBurnPool`; Possession's
   `Effect::NamedAshVampireTo` moves the vampire named as played
   (`Terms::OwnAshVampire`), the action fizzling if it left (`card_void`

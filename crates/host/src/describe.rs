@@ -330,6 +330,27 @@ fn found_in(e: &Engine, req: &DecisionRequest) -> Option<ZoneRef> {
     }
 }
 
+/// A play's terms naming any library card (Precision): its one `FindCard`
+/// per name shown as one `name_card` option, answered with the card
+/// (docs/protocol.md §7). Not its payer or Vidal Jarbeaux's requirement,
+/// asked before the name under the same terms (`terms_request`).
+pub fn names_any_card(e: &Engine) -> bool {
+    e.play_terms().is_some_and(|p| {
+        !p.paying
+            && p.meeting.is_none()
+            && zvtes::cards::lookup(p.card).and_then(|d| d.modes[p.mode as usize].terms)
+                == Some(zvtes::cards::Terms::AnyCardName)
+    })
+}
+
+/// The option of a `names_any_card` decision naming the library card
+/// `id` (a KRCG id).
+pub fn naming(req: &DecisionRequest, id: zvtes_api::ids::KrcgId) -> Option<usize> {
+    req.options
+        .iter()
+        .position(|c| matches!(*c, Choice::FindCard(l) if LIBRARY[l as usize].id == id))
+}
+
 /// A play's terms naming a card, taking none: its library or crypt card in
 /// no zone (Precision, Gramle).
 fn names_only(e: &Engine) -> bool {

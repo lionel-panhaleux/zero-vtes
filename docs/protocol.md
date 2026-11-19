@@ -18,7 +18,7 @@ is created by one request and played over one WebSocket. Every game is
 recorded, anonymously, and kept two years to train and test the engine
 (§11).
 
-Version **2.32.0**. The types: the models of the
+Version **2.33.0**. The types: the models of the
 [API reference](https://engine.krcg.org/docs), also as
 [JSON Schema](https://engine.krcg.org/schema.json) (2020-12) and
 [TypeScript](https://engine.krcg.org/protocol.ts).
@@ -65,8 +65,8 @@ Version **2.32.0**. The types: the models of the
   98; from 2.15.0).
 - The engine asks one **decision** at a time, of one seat: a list of
   **options**, every legal move, each a whole move (card, mode, actor,
-  target). The seat answers with an option's `index`. Nothing else
-  changes the game.
+  target). The seat answers with an option's `index` (a `name_card` option
+  with the card it names, §7). Nothing else changes the game.
 - A client sends **commands** for its seat and receives **messages**
   addressed to it. Between two of the human's decisions the host answers
   the bots' and sends what happened as **events**.
@@ -230,7 +230,7 @@ an `error`).
 | `type` | Fields | Effect |
 |---|---|---|
 | `join` | `token`?, `after`? | take the seat (the first frame on a server connection: the seat's token); `after`: resend the messages after that `seq` |
-| `answer` | `decision`, `option` | take an option |
+| `answer` | `decision`, `option`, `card`? | take an option; a `name_card` option with `card`, the library card named (a KRCG id of `GET /cards`) |
 | `allocate` | `decision`, `amounts` | an allocation of points answered whole (one amount per `allocation.recipients`) |
 | `vote_all` | `decision`, `favor` | all the votes `votes` counts, one way; holds for the rest of the polling |
 | `undo` | `decision` | take back the seat's previous decision, from the pending `decision` (when `undo` is true); sent twice, undoes once. With every bot decision, vote order (`vote_all`'s, taken back with its decision) and pass since, whatever was revealed or drawn since; one decision of its own back at each undo, as far as 64 of them; the bots answer again as they did (a game has one human seat); the view as first sent at that decision, the numbers given since never given again (§3) |
@@ -249,7 +249,7 @@ A JSON object with `seq`, `reply_to`? and a `type`:
 | `decision` | `decision`, `seat`, `window`, `source`?, `purpose`?, `about`?, `due`?, `options`, `undo`, `allocation`?, `votes`?, `view`; `prompt` with `text` |
 | `over` | `vp_halves` (per seat), `winner`? (the most VPs, at least 2, alone), `reason` (`{"type": …}`: `last_standing`, `time_limit`, `humans_ousted`, `abandoned` + `seat`, `engine_error`; in a record only, `server_restart`), `view` |
 | `noted` | `decision`: the seat's `feedback` recorded, at that decision (`reply_to` its `id`) |
-| `error` | `error`: `stale` (+ `expected`), `not_your_turn`, `option` (+ `index`), `no_undo`, `allocation` (+ `reason`: `none`, `length`, `total`, `cap`, `min_nonzero`), `no_votes`, `over`, `not_joined`, `malformed` (+ `reason`), `rate_limited`, `seat_taken` |
+| `error` | `error`: `stale` (+ `expected`), `not_your_turn`, `option` (+ `index`), `card` (+ `id`: a `name_card` answer without a library card of the host's, or a card sent with another option), `no_undo`, `allocation` (+ `reason`: `none`, `length`, `total`, `cap`, `min_nonzero`), `no_votes`, `over`, `not_joined`, `malformed` (+ `reason`), `rate_limited`, `seat_taken` |
 
 `window` is a stable id (`minion_phase`, `action_block`, `combat_strike`,
 …: the schema's `Window`). `source` is the card whose terms or effect
@@ -403,8 +403,8 @@ seat 2; burn 2 pool to keep card 9.)
   multi-type card, `apart`: the effects setting it apart from the other modes
   its printed line splits into, offered or not), `amount`, `favor`, `blood`,
   `zone` (where a card taken or played is: `find_card`'s library, hand or ash
-  heap and whose, none for a card only named (Master: Discipline, Precision) or
-  stored on a card; `take_from`'s, `ash_vampire`'s, its crypt or the ash heap
+  heap and whose, none for a card only named (Master: Discipline, `name_card`)
+  or stored on a card; `take_from`'s, `ash_vampire`'s, its crypt or the ash heap
   and whose (Shroud of Decay: the prey's), none for a vampire only named
   (Gramle); the ash heap a card is played from and whose, Spiritual Guidance's
   own, Vestgeir's another Methuselah's), `value` (a clan, Discipline or circle
@@ -432,11 +432,17 @@ seat 2; burn 2 pool to keep card 9.)
   `pay_rescue` their `amount`; `allocate_to` and `allocate_to_card` their
   `target` and `amount`; `choose_seat` its `target`; `choose_clan`,
   `choose_circle`, `choose_discipline` their `value`; `cast_edge`,
-  `cast_card_vote` their `favor`; a contest's its `minion` or `card`. The rest
+  `cast_card_vote` their `favor`; a contest's its `minion` or `card`;
+  `name_card` none as offered, the card named once taken (`decided`). The rest
   (`pass`, `edge_pool`, `withdraw_from_game`, `skip_turn`, `burn_pool`,
   `draw_library`, `draw_crypt`, `pay_block_toll`, `pay_to_cancel`,
   `burn_blood_to_avoid`) read from their `effects` and the decision's `source`
   and `purpose`, which `decided` repeats.
+- **`name_card`** — a play naming any library card (Precision, Sibyl's
+  Tongue) asks one option, `name_card`, for every name: the `answer` carries
+  the card (`card`), any library card of `GET /cards` (a crypt card or none
+  refused, `card`); the name is the client's to complete. A record keeps it as
+  the `find_card` of the card named (§11).
 - **`effects`** — what taking it does: an ability's effects, a play's
   mode's, a cost, what a chosen Methuselah or minion gets. A curated
   vocabulary, not the engine's own effects: each
@@ -775,10 +781,11 @@ once the game is over (§10): the spec with its seed (53 bits from 2.0.0,
 request named by its id from 2.12.0), the bot profiles (weights' hash,
 temperature, seed, also at most `SEED_MAX`, a network's nudges by name), each
 decision answered — seat, time, option index, its key with the engine's copy
-numbers, by whom (`human`, `bot`, `order`, `auto`), the options shown when
-settings hid some, from 2.4.0 its window and the digest of the position it was
-taken on — undos (recorded before the decisions the game takes on from them,
-decision numbers then repeating from `to`: a reader drops what they take
+numbers (a `name_card` answer as the `find_card` of its card), by whom
+(`human`, `bot`, `order`, `auto`), the options shown when settings hid some,
+from 2.4.0 its window and the digest of the position it was taken on —
+undos (recorded before the decisions the game takes on from them, decision
+numbers then repeating from `to`: a reader drops what they take
 back), settings changes, refused commands, the players' feedback (at
 its decision), the result (with the turn the game ended on, `turns`; for a
 game a restart ended, the turn its record reads to) and any engine failure. A

@@ -72,6 +72,12 @@ fn game(seed: u32, settings: Settings) -> Game {
     .unwrap()
 }
 
+/// The card a sweep names at a `name_card` decision (Precision, Sibyl's
+/// Tongue): the library's first.
+fn named(d: &zvtes_api::Decision) -> Option<u32> {
+    (d.options.first()?.key.kind == OptionKind::NameCard).then(|| zvtes::library::LIBRARY[0].id)
+}
+
 fn cmd(c: Command) -> In {
     In {
         id: None,
@@ -157,6 +163,7 @@ fn games_play_to_their_end_through_handle() {
                 cmd(Command::Answer {
                     decision: d.decision,
                     option: pick.index,
+                    card: named(&d),
                 }),
             );
             check(&outs, &mut last);
@@ -167,6 +174,7 @@ fn games_play_to_their_end_through_handle() {
                     cmd(Command::Answer {
                         decision: d.decision,
                         option: pick.index,
+                        card: named(&d),
                     }),
                 );
                 check(&again, &mut last);
@@ -217,6 +225,7 @@ fn a_rejoin_resends_what_followed() {
         cmd(Command::Answer {
             decision: d.decision,
             option: d.options[0].index,
+            card: named(&d),
         }),
     );
     let after = first.last().unwrap().seq;
@@ -278,6 +287,7 @@ fn an_undo_sent_twice_undoes_once() {
                 cmd(Command::Answer {
                     decision: d.decision,
                     option: pick,
+                    card: named(&d),
                 }),
             );
         }
@@ -391,6 +401,7 @@ fn each_decision(
                 cmd(Command::Answer {
                     decision: d.decision,
                     option: o.index,
+                    card: named(&d),
                 }),
             );
         }
@@ -669,6 +680,7 @@ fn a_game_resumed_from_its_record_plays_on_as_it_was() {
                 Command::Answer {
                     decision: d.decision,
                     option: d.options[rng.below(d.options.len())].index,
+                    card: named(&d),
                 }
             };
             outs = g.handle(human, cmd(c));
@@ -706,7 +718,13 @@ fn a_game_resumed_from_its_record_plays_on_as_it_was() {
             };
             assert_eq!(keys(&a), keys(&b), "seed {seed} step {step}: the options");
             let option = a.options[rng.below(a.options.len())].index;
-            let answer = |decision| cmd(Command::Answer { decision, option });
+            let answer = |decision| {
+                cmd(Command::Answer {
+                    decision,
+                    option,
+                    card: named(&a),
+                })
+            };
             outs = g.handle(human, answer(a.decision));
             routs = r.handle(human, answer(b.decision));
         }
@@ -765,6 +783,7 @@ fn an_undo_to_a_decision_now_passed_resumes_as_it_was() {
             let answer = Command::Answer {
                 decision: d.decision,
                 option,
+                card: named(&d),
             };
             send(&mut g, cmd(answer))?;
             let b = send(&mut g, opportunities(false))?;
@@ -845,6 +864,7 @@ fn a_resumed_game_keeps_its_vote_orders_and_allocations() {
                 _ => Command::Answer {
                     decision: d.decision,
                     option: d.options[rng.below(d.options.len())].index,
+                    card: named(&d),
                 },
             };
             outs = g.handle(human, cmd(c));
@@ -894,7 +914,13 @@ fn a_resumed_game_keeps_its_vote_orders_and_allocations() {
             };
             assert_eq!(a.decision, b.decision, "seed {seed} ({kind}) step {step}");
             let option = a.options[rng.below(a.options.len())].index;
-            let answer = |decision| cmd(Command::Answer { decision, option });
+            let answer = |decision| {
+                cmd(Command::Answer {
+                    decision,
+                    option,
+                    card: named(&a),
+                })
+            };
             outs = g.handle(human, answer(a.decision));
             routs = r.handle(human, answer(b.decision));
         }
@@ -970,6 +996,7 @@ fn a_resumed_games_bots_take_their_recorded_moves() {
                 cmd(Command::Answer {
                     decision: d.decision,
                     option,
+                    card: named(&d),
                 }),
             );
         }
@@ -1051,6 +1078,7 @@ fn played(
                 cmd(Command::Answer {
                     decision: d.decision,
                     option,
+                    card: named(&d),
                 }),
             );
         }
@@ -1464,6 +1492,7 @@ fn undo_against_bots_walks_back_across_their_decisions_and_reveals() {
                 cmd(Command::Answer {
                     decision: d.decision,
                     option,
+                    card: named(&d),
                 }),
             );
             if pending(&outs).is_none() && !g.is_over() {
@@ -1519,6 +1548,7 @@ fn undo_against_bots_walks_back_across_their_decisions_and_reveals() {
             cmd(Command::Answer {
                 decision: d.decision,
                 option,
+                card: named(&d),
             }),
         );
         let d = pending(&outs).cloned().expect("asked again");
@@ -1654,6 +1684,7 @@ fn undo_against_bots_takes_back_a_vote_order() {
                     Command::Answer {
                         decision: d.decision,
                         option: o.index,
+                        card: named(&d),
                     }
                 }
             };

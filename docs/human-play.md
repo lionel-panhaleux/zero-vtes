@@ -30,12 +30,12 @@ audit and spectators are the roadmap's "Deferred by the owner".
 
 ## The host's human ergonomics
 
-The commands a human seat has beyond `answer` (`allocate`, `vote_all`,
-`undo`, protocol §4), the options it is offered (copies alike in hand
-one option, a search's zone, protocol §7) and its settings (the
-opportunities filter and the lone pass passing by itself, protocol §8)
-are the protocol's. What the host (`crates/host/src/session.rs`) adds
-to them:
+The commands a human seat has beyond `answer` (`allocate`, `vote_all`, `undo`,
+protocol §4), the options it is offered (copies alike in hand one option, a
+search's zone, any card named in one `name_card` answer, protocol §7) and its
+settings (the opportunities filter and the lone pass passing by itself, protocol
+§8) are the protocol's. What the host (`crates/host/src/session.rs`) adds to
+them:
 
 - **A wake's moment** (a reaction's unlock's too, but never as a card is
   played: that window admits wakes and cancels only, rules-qa 2.4),

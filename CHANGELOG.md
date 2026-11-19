@@ -6,6 +6,16 @@ server runs.
 `python3 scripts/schema_compat.py` lists what a schema change adds or
 removes; its `--check` fails a removal without a major version.
 
+## 2.33.0
+
+- A play naming any library card (Precision, Sibyl's Tongue) asks one
+  option, the new `OptionKind` `name_card`, instead of one `find_card` per
+  name: `answer` takes an optional `card`, the library card named (a KRCG
+  id of `GET /cards`), required by `name_card` and refused with any other
+  option by the new error `card` (+ `id`). Taken, the option (`decided`)
+  names the card; a record keeps it as the `find_card` of that card, as
+  before, and reads as before. No id removed.
+
 ## 2.32.0
 
 - Round 32 adds the combat side fields `second` (a minion out of the

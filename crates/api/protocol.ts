@@ -1,6 +1,6 @@
-/* zvtes protocol 2.32.0 (docs/protocol.md): generated from
+/* zvtes protocol 2.33.0 (docs/protocol.md): generated from
  * crates/api/schema.json by scripts/gen_ts.py, do not edit. */
-export const PROTOCOL_VERSION = '2.32.0'
+export const PROTOCOL_VERSION = '2.33.0'
 
 /**
  * A command as sent: an optional client id, echoed by an `error` it
@@ -15,6 +15,7 @@ export type In = {
         type: 'join'
     }
     | {
+        card?: number | null
         decision: number
         option: number
         type: 'answer'
@@ -699,6 +700,9 @@ export type Error = {
     error: 'option'
     index: number
 } | {
+    error: 'card'
+    id?: number | null
+} | {
     error: 'no_undo'
 } | {
     error: 'allocation'
@@ -1203,6 +1207,7 @@ export type OptionKind =
     | 'burn_corruption_to_unlock'
     | 'diablerise'
     | 'cancel_combat'
+    | 'name_card'
     | 'withdraw_from_game'
     | 'follow_path'
     | 'skip_turn'

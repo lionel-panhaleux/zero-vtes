@@ -2,7 +2,7 @@
 
 use serde::{Deserialize, Serialize};
 
-use crate::ids::DecisionNo;
+use crate::ids::{DecisionNo, KrcgId};
 use crate::spec::SettingsPatch;
 
 /// A command as sent: an optional client id, echoed by an `error` it
@@ -30,8 +30,14 @@ pub enum Command {
         #[serde(default, skip_serializing_if = "Option::is_none")]
         after: Option<u64>,
     },
-    /// Take an option of the pending decision, by its `index`.
-    Answer { decision: DecisionNo, option: u32 },
+    /// Take an option of the pending decision, by its `index`; a
+    /// `name_card` option with the library card named.
+    Answer {
+        decision: DecisionNo,
+        option: u32,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        card: Option<KrcgId>,
+    },
     /// Answer an allocation under way whole: one amount per recipient, in
     /// the decision's `allocation.recipients` order.
     Allocate {

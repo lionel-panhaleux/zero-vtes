@@ -168,6 +168,7 @@ fn base(
         },
         K::Bottom => format!("Put {} on the bottom of the library", card()),
         K::FindCard => format!("Take {}", card()),
+        K::NameCard => format!("Name {}", card()),
         K::DeclareBlock => format!("Block with {}", minion(k.minion)),
         K::TakeAction => {
             let mut s = format!(

@@ -79,6 +79,15 @@ fn commands_read_from_json() {
             Command::Answer {
                 decision: 12,
                 option: 3,
+                card: None,
+            },
+        ),
+        (
+            json!({"type": "answer", "decision": 12, "option": 0, "card": 101474}),
+            Command::Answer {
+                decision: 12,
+                option: 0,
+                card: Some(101474),
             },
         ),
         (

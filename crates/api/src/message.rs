@@ -3,7 +3,7 @@
 use serde::{Deserialize, Serialize};
 
 use crate::event::Event;
-use crate::ids::{CopyId, DecisionNo, DueKind, Purpose, Seat, Window};
+use crate::ids::{CopyId, DecisionNo, DueKind, KrcgId, Purpose, Seat, Window};
 use crate::option::{Allocation, CardRef, OptionView, VoteTotals};
 use crate::spec::Settings;
 use crate::view::TableView;
@@ -212,6 +212,12 @@ pub enum Error {
     /// No option with that index.
     Option {
         index: u32,
+    },
+    /// A `name_card` answer without a library card of the host's (`GET
+    /// /cards`), or a card sent with another option.
+    Card {
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        id: Option<KrcgId>,
     },
     /// Nothing to take back.
     NoUndo,

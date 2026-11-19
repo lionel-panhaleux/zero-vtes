@@ -106,7 +106,9 @@ enum Opportunity {
 /// Why an answer is refused.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Refused {
-    Stale { expected: u64 },
+    Stale {
+        expected: u64,
+    },
     NotYours,
     Option,
     Over,
@@ -114,6 +116,9 @@ pub enum Refused {
     NoAllocation,
     Allocation,
     NoVotes,
+    /// A `name_card` answer's card missing or no library card, or a card
+    /// with another option.
+    Card(Option<u32>),
 }
 
 pub struct Session {
@@ -450,9 +455,30 @@ impl Session {
         self.step();
     }
 
-    /// A human seat's answer to the pending decision `decision`: checked,
-    /// not applied (`take`).
-    pub fn check(&mut self, decision: u64, index: usize) -> Result<(), Refused> {
+    /// A human seat's answer to the pending decision `decision`, with the
+    /// card a `name_card` option names: checked, not applied (`take`); the
+    /// option to take.
+    pub fn check(
+        &mut self,
+        decision: u64,
+        index: usize,
+        card: Option<u32>,
+    ) -> Result<usize, Refused> {
+        self.seat_asked(decision)?;
+        let req = self.pending.as_ref().expect("checked");
+        if index >= req.options.len() {
+            return Err(Refused::Option);
+        }
+        match (crate::describe::names_any_card(&self.engine), card) {
+            (true, _) if index != 0 => Err(Refused::Option),
+            (true, Some(id)) => crate::describe::naming(req, id).ok_or(Refused::Card(Some(id))),
+            (false, None) => Ok(index),
+            (_, card) => Err(Refused::Card(card)),
+        }
+    }
+
+    /// The pending decision is `decision`, a human seat's.
+    fn seat_asked(&mut self, decision: u64) -> Result<(), Refused> {
         self.step();
         let Some(req) = self.pending.as_ref() else {
             return Err(Refused::Over);
@@ -463,9 +489,6 @@ impl Session {
         }
         if self.agents[req.seat.index()].is_some() {
             return Err(Refused::NotYours);
-        }
-        if index >= req.options.len() {
-            return Err(Refused::Option);
         }
         Ok(())
     }
@@ -869,8 +892,13 @@ impl Session {
     /// abilities usable at any time only where the decision pauses anyway,
     /// not held to between actions: one matters mid-action (Alexandra's, a
     /// blocker locked during its attempt failing it, rules-qa 62.3; owner,
-    /// 2026-11-13); all if none is left.
+    /// 2026-11-13); all if none is left. A play naming any library card
+    /// shows its first option alone, as the `name_card` its answer's card
+    /// picks among the rest (`check`).
     pub(crate) fn shown(&self, req: &DecisionRequest) -> Vec<usize> {
+        if crate::describe::names_any_card(&self.engine) {
+            return vec![0];
+        }
         let all = (0..req.options.len()).collect::<Vec<_>>();
         if !self.quiet.contains(&req.seat) {
             return all;
@@ -940,7 +968,7 @@ impl Session {
     /// seat's own answer (`human()`); the order stands from then on, its
     /// later casts `Taken::Order`.
     pub fn vote_all(&mut self, decision: u64, favor: bool) -> Result<usize, Refused> {
-        self.check(decision, 0)?;
+        self.seat_asked(decision)?;
         let req = self.pending.as_ref().expect("checked");
         let Some(&(i, _)) = self.casts(req, favor).first() else {
             return Err(Refused::NoVotes);
@@ -968,7 +996,7 @@ impl Session {
     /// its recipients' order), one per step the engine asks — a recipient
     /// with a single possible amount is not asked — found on a copy.
     pub fn allocate(&mut self, decision: u64, amounts: &[u8]) -> Result<Vec<usize>, Refused> {
-        self.check(decision, 0)?;
+        self.seat_asked(decision)?;
         let req = self.pending.clone().expect("checked");
         let a = self.allocation(&req).ok_or(Refused::NoAllocation)?;
         if amounts.len() != a.recipients.len()

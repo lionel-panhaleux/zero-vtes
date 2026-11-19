@@ -456,6 +456,7 @@ mod tests {
                 Command::Answer {
                     decision: d.decision,
                     option: d.options[0].index,
+                    card: None,
                 },
             )
             .await;
@@ -522,6 +523,7 @@ mod tests {
             Command::Answer {
                 decision: after.decision,
                 option: after.options[0].index,
+                card: None,
             },
         )
         .await;

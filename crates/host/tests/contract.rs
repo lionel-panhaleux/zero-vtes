@@ -46,6 +46,12 @@ impl Rng {
     }
 }
 
+/// The card a sweep names at a `name_card` decision (Precision, Sibyl's
+/// Tongue): the library's first.
+fn named(d: &zvtes_api::Decision) -> Option<u32> {
+    (d.options.first()?.key.kind == OptionKind::NameCard).then(|| zvtes::library::LIBRARY[0].id)
+}
+
 fn game(seed: u32) -> Game {
     let decks = zvtes_host::catalog();
     let styles = ["aggro_bleed", "wall", "random"];
@@ -142,6 +148,7 @@ fn play_game(mut g: Game, seed: u32) -> (Vec<Out>, Game) {
             Command::Answer {
                 decision: d.decision,
                 option: o.index,
+                card: named(&d),
             }
         };
         outs = g.handle(human, cmd(c));

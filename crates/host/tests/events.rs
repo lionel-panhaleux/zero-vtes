@@ -19,6 +19,12 @@ use zvtes_text::Names;
 
 mod reduce;
 
+/// The card a sweep names at a `name_card` decision (Precision, Sibyl's
+/// Tongue): the library's first.
+fn named(d: &zvtes_api::Decision) -> Option<u32> {
+    (d.options.first()?.key.kind == OptionKind::NameCard).then(|| zvtes::library::LIBRARY[0].id)
+}
+
 /// The first seed a sweep plays (`HOST_SEED_FROM`, to look at one).
 fn from() -> u32 {
     std::env::var("HOST_SEED_FROM").map_or(1, |s| s.parse().unwrap())
@@ -1181,6 +1187,7 @@ fn the_events_tell_what_the_views_show() {
                 Command::Answer {
                     decision: d.decision,
                     option: o.index,
+                    card: named(&d),
                 }
             };
             outs = g.handle(human, cmd(c));
@@ -1519,6 +1526,7 @@ fn every_option_and_choice_is_told() {
                 cmd(Command::Answer {
                     decision: d.decision,
                     option: o.index,
+                    card: named(&d),
                 }),
             );
         }

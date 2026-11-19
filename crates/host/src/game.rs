@@ -346,11 +346,18 @@ impl Game {
                         send(&mut g, Command::VoteAll { decision, favor });
                         continue;
                     }
+                    let (option, card) = match req.options[i] {
+                        Choice::FindCard(l) if describe::names_any_card(g.session.engine()) => {
+                            (0, Some(zvtes::library::LIBRARY[l as usize].id))
+                        }
+                        _ => (i as u32, None),
+                    };
                     send(
                         &mut g,
                         Command::Answer {
                             decision,
-                            option: i as u32,
+                            option,
+                            card,
                         },
                     );
                 }
@@ -748,12 +755,17 @@ impl Game {
         };
         match c {
             Command::Join { .. } | Command::Feedback { .. } => unreachable!(),
-            Command::Answer { decision, option } => {
-                if let Err(e) = self.session.check(decision, option as usize) {
-                    return vec![Message::Error(refused(e, option))];
-                }
+            Command::Answer {
+                decision,
+                option,
+                card,
+            } => {
+                let index = match self.session.check(decision, option as usize, card) {
+                    Ok(i) => i,
+                    Err(e) => return vec![Message::Error(refused(e, option))],
+                };
                 let taken = self.session.human();
-                let mut m = self.take(option as usize, taken, By::Human);
+                let mut m = self.take(index, taken, By::Human);
                 m.extend(self.advance());
                 m
             }
@@ -902,13 +914,15 @@ impl Game {
     /// Option `i` of `req` as the viewer knows it (its copies), what it
     /// does; a decision of another seat's told as the table may know it.
     fn option(&self, req: &DecisionRequest, i: usize) -> OptionView {
-        option_view(
+        let mut view = option_view(
             self.session.engine(),
             req,
             i,
             &self.viewer.numbering,
             self.human,
-        )
+        );
+        unnamed(self.session.engine(), &mut view);
+        view
     }
 
     /// Runs the game to the human's next decision or the end.
@@ -1057,9 +1071,16 @@ impl Game {
                 decks: &self.decks,
                 e,
             };
-            let offered = (0..req.options.len())
-                .map(|i| option_view(e, &req, i, &telling, human))
-                .collect::<Vec<_>>();
+            let offered = match describe::names_any_card(e) {
+                true => {
+                    let mut v = option_view(e, &req, 0, &telling, human);
+                    unnamed(e, &mut v);
+                    vec![v]
+                }
+                false => (0..req.options.len())
+                    .map(|i| option_view(e, &req, i, &telling, human))
+                    .collect::<Vec<_>>(),
+            };
             (describe::about(e, &req, &telling), offered)
         });
         let key = describe::key(
@@ -1073,7 +1094,10 @@ impl Game {
             .pending
             .as_ref()
             .filter(|d| {
-                by != By::Bot && d.decision == decision && d.options.len() < req.options.len()
+                by != By::Bot
+                    && d.decision == decision
+                    && d.options.len() < req.options.len()
+                    && !describe::names_any_card(self.session.engine())
             })
             .map(|d| d.options.iter().map(|o| o.index).collect());
         if let Some((about, offered)) = asked {
@@ -1512,8 +1536,13 @@ fn option_view(
     if secret {
         key.amount = None;
     }
+    // A card named: answered as the one option shown.
+    let named = describe::names_any_card(e);
+    if named {
+        key.kind = OptionKind::NameCard;
+    }
     OptionView {
-        index: if secret { 0 } else { i as u32 },
+        index: if secret || named { 0 } else { i as u32 },
         key,
         effects: if secret {
             Vec::new()
@@ -1524,6 +1553,13 @@ fn option_view(
         apart: describe::ability_apart(e, c),
         user: describe::ability_user(e, req, c, names),
         text: None,
+    }
+}
+
+/// A `name_card` option as offered: the card left to the answer.
+fn unnamed(e: &zvtes::game::Engine, view: &mut OptionView) {
+    if describe::names_any_card(e) {
+        view.key.card = None;
     }
 }
 
@@ -1625,6 +1661,7 @@ fn refused(e: Refused, option: u32) -> Error {
             reason: AllocationError::Total,
         },
         Refused::NoVotes => Error::NoVotes,
+        Refused::Card(id) => Error::Card { id },
     }
 }
 
@@ -1649,6 +1686,12 @@ mod tests {
         fn make(&self, _: &str, _: u64) -> Option<(Box<dyn Agent>, BotRecord)> {
             None
         }
+    }
+
+    /// The card a sweep names at a `name_card` decision (Precision,
+    /// Sibyl's Tongue): the library's first.
+    fn named(d: &zvtes_api::Decision) -> Option<u32> {
+        (d.options.first()?.key.kind == OptionKind::NameCard).then(|| LIBRARY[0].id)
     }
 
     fn game(seed: u64) -> Game {
@@ -1713,6 +1756,149 @@ mod tests {
         out
     }
 
+    /// A play naming any library card asks one `name_card` option, answered
+    /// with the card (docs/protocol.md §4, §7): no card, a crypt card or
+    /// another option refused; the card named is the engine's `find_card`
+    /// of it, recorded so, and the game resumes from its record.
+    #[test]
+    fn precision_names_its_card_in_one_answer() {
+        use zvtes::crypt::CRYPT;
+        let precision = LIBRARY.iter().find(|c| c.name == "Precision").unwrap().id;
+        let mut deck: zvtes_api::DeckList = CRYPT
+            .iter()
+            .filter(|c| c.group == 2 && c.capacity <= 6 && !c.imbued && !c.adv)
+            .filter(|c| c.disciplines.iter().any(|d| d.eq_ignore_ascii_case("cel")))
+            .take(12)
+            .map(|c| (c.id.to_string(), 1))
+            .collect();
+        deck.insert(precision.to_string(), 40);
+        let decks = crate::catalog();
+        let spec = GameSpec {
+            seed: Some(7),
+            time_limit: Some(40),
+            client: None,
+            seats: (0..4)
+                .map(|i| SeatSpec {
+                    name: format!("s{i}"),
+                    deck: if i == 0 {
+                        deck.clone()
+                    } else {
+                        decks[i * 5].1.clone()
+                    },
+                    player: match i {
+                        0 => Player::Human {
+                            settings: Settings::default(),
+                        },
+                        _ => Player::Bot {
+                            profile: "wall".into(),
+                        },
+                    },
+                })
+                .collect(),
+        };
+        let mut g = Game::new("p".into(), spec, &NoBots, Box::new(SystemClock)).unwrap();
+        let send = |g: &mut Game, option: u32, card: Option<u32>| {
+            let decision = g.pending.as_ref().expect("a decision").decision;
+            g.handle(
+                0,
+                In {
+                    id: None,
+                    command: Command::Answer {
+                        decision,
+                        option,
+                        card,
+                    },
+                },
+            )
+        };
+        let error = |outs: &[Out]| {
+            outs.iter().find_map(|o| match &o.message {
+                Message::Error(e) => Some(e.clone()),
+                _ => None,
+            })
+        };
+        g.handle(
+            0,
+            In {
+                id: None,
+                command: Command::Join {
+                    token: None,
+                    after: None,
+                },
+            },
+        );
+        let first = g.pending.clone().expect("a decision");
+        assert_eq!(
+            error(&send(&mut g, first.options[0].index, Some(precision))),
+            Some(Error::Card {
+                id: Some(precision)
+            }),
+            "a card with another option"
+        );
+        let prey = g.session.engine().state.prey(zvtes::ids::SeatId(0));
+        let mut steps = 0;
+        let d = loop {
+            let d = g.pending.clone().expect("a decision");
+            if d.options[0].key.kind == OptionKind::NameCard {
+                break d;
+            }
+            let by = |k: OptionKind| d.options.iter().find(|o| o.key.kind == k);
+            let o = d
+                .options
+                .iter()
+                .find(|o| {
+                    o.key.kind == OptionKind::Play
+                        && o.key.card.as_ref().and_then(|c| c.id) == Some(precision)
+                })
+                .or_else(|| by(OptionKind::InfluenceOut))
+                .or_else(|| by(OptionKind::Transfer))
+                .or_else(|| by(OptionKind::Pass))
+                .unwrap_or(&d.options[0]);
+            send(&mut g, o.index, None);
+            steps += 1;
+            assert!(steps < 2000, "Precision never played");
+        };
+        assert_eq!(d.options.len(), 1, "one option for every name");
+        assert_eq!(d.options[0].key.card, None);
+        assert_eq!(
+            error(&send(&mut g, d.options[0].index, None)),
+            Some(Error::Card { id: None })
+        );
+        let vampire = CRYPT[0].id;
+        assert_eq!(
+            error(&send(&mut g, d.options[0].index, Some(vampire))),
+            Some(Error::Card { id: Some(vampire) })
+        );
+        assert_eq!(
+            error(&send(&mut g, 1, Some(precision))),
+            Some(Error::Option { index: 1 })
+        );
+        let held = g.session.engine().state.seats[prey.index()].hand[0];
+        let named = LIBRARY[held as usize].id;
+        assert_eq!(error(&send(&mut g, d.options[0].index, Some(named))), None);
+        let entry = g.record.entries.iter().rev().find_map(|e| match e {
+            Entry::Decision {
+                decision,
+                choice,
+                shown,
+                ..
+            } if *decision == d.decision => Some((choice.clone(), shown.clone())),
+            _ => None,
+        });
+        let (choice, shown) = entry.expect("the naming recorded");
+        assert_eq!(choice.kind, OptionKind::FindCard);
+        assert_eq!(choice.card.and_then(|c| c.id), Some(named));
+        assert_eq!(shown, None, "every name offered");
+        let mut record = g.record.clone();
+        record.result = None;
+        let r = Game::resume("q".into(), &record, &NoBots, Box::new(SystemClock))
+            .expect("resumed from its record");
+        assert_eq!(
+            crate::digest::digest(r.session.engine()),
+            crate::digest::digest(g.session.engine())
+        );
+    }
+
     /// A minion's traits read live, told when they change (docs/protocol.md
     /// §9 `traits`): a vampire gaining Black Hand between two views.
     #[test]
@@ -1748,7 +1934,11 @@ mod tests {
                 human,
                 In {
                     id: None,
-                    command: Command::Answer { decision, option },
+                    command: Command::Answer {
+                        decision,
+                        option,
+                        card: None,
+                    },
                 },
             );
             steps += 1;
@@ -1793,6 +1983,7 @@ mod tests {
                 command: Command::Answer {
                     decision,
                     option: option as u32,
+                    card: None,
                 },
             },
         )
@@ -2018,6 +2209,7 @@ mod tests {
                         command: Command::Answer {
                             decision: d.decision,
                             option: pick,
+                            card: named(&d),
                         },
                     },
                 );
@@ -2061,6 +2253,7 @@ mod tests {
                         command: Command::Answer {
                             decision: d.decision,
                             option: pick,
+                            card: named(&d),
                         },
                     },
                 );
@@ -2255,6 +2448,7 @@ mod tests {
                     cmd(Command::Answer {
                         decision: d.decision,
                         option: pick,
+                        card: named(&d),
                     }),
                 );
                 assert!(
