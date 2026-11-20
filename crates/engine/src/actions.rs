@@ -654,8 +654,8 @@ pub struct ActionCtx {
     pub ash_to_hand_on_name: bool,
     /// WMRH Talk Radio's intercept: the minion given it, the blocks before
     /// (not counted, ANK 20230319), and the Methuselah burning 1 pool after
-    /// resolution if it did not block.
-    pub pool_if_no_block: Vec<(MinionId, usize, SeatId)>,
+    /// resolution if it did not block, by the card's effect.
+    pub pool_if_no_block: Vec<(MinionId, usize, SeatId, crate::notes::Source)>,
     /// The combatants of the last combat of the action (Monster).
     pub last_combat: Option<[MinionId; 2]>,
     /// The combatants of every combat of the action, "after a combat
@@ -6043,19 +6043,25 @@ impl Engine {
         // WMRH Talk Radio: the minion given intercept did not block since.
         if let Some(a) = self.action.as_mut() {
             let due = std::mem::take(&mut a.pool_if_no_block);
-            let losses: Vec<SeatId> = due
+            let losses: Vec<(SeatId, crate::notes::Source)> = due
                 .iter()
-                .filter(|&&(m, since, _)| {
+                .filter(|&&(m, since, ..)| {
                     !a.blocked_by[since.min(a.blocked_by.len())..].contains(&m)
                 })
-                .map(|&(_, _, s)| s)
+                .map(|&(_, _, s, card)| (s, card))
                 .collect();
-            let mut loss = vec![0; self.state.seats.len()];
-            for s in losses {
-                loss[s.index()] += 1;
+            let mut sources: Vec<crate::notes::Source> = Vec::new();
+            for &(_, card) in &losses {
+                if !sources.contains(&card) {
+                    sources.push(card);
+                }
             }
-            if loss.iter().any(|&n| n > 0) {
-                self.burn_pool_batch(&loss);
+            for card in sources {
+                let mut loss = vec![0; self.state.seats.len()];
+                for &(s, _) in losses.iter().filter(|&&(_, c)| c == card) {
+                    loss[s.index()] += 1;
+                }
+                self.caused(Cause::Effect(card), |e| e.burn_pool_batch(&loss));
             }
         }
         // Warsaw Station, Hag's Wrinkles: a successful action (a fizzled one
@@ -7322,7 +7328,12 @@ impl Engine {
             }
             Effect::PoolIfAttemptingDoesNotBlock => {
                 if let ActionState::Attempt(m) = a.state {
-                    a.pool_if_no_block.push((m, a.blocked_by.len(), play.seat));
+                    let card = crate::notes::Source::Played {
+                        card: play.card,
+                        copy: *play.copy,
+                    };
+                    a.pool_if_no_block
+                        .push((m, a.blocked_by.len(), play.seat, card));
                 }
             }
             Effect::LockIfNoBlock => a.lock_if_no_block.push(play.actor.expect("actor")),

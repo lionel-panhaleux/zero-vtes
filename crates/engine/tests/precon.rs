@@ -11973,6 +11973,8 @@ fn wmrh_talk_radio_charges_a_pool_for_a_failed_block() {
         if !blocked {
             hand(&mut e, 0, &["Lost in Crowds"]);
         }
+        e.notes = Some(Vec::new());
+        let before = e.table();
         pick(&mut e, action(a, ActionKind::Hunt));
         pick(&mut e, Choice::DeclareBlock { minion: z });
         pick_when(&mut e, use_on(radio, 0, None, Target::None));
@@ -11982,6 +11984,20 @@ fn wmrh_talk_radio_charges_a_pool_for_a_failed_block() {
         }
         to_minion_phase(&mut e, 1);
         assert_eq!(pool(&e, 2), if blocked { 30 } else { 29 });
+        let burns: Vec<_> = noted_changes(&mut e, before)
+            .into_iter()
+            .filter(|&(_, at, n)| at == Ok(SeatId(2)) && n < 0)
+            .map(|(cause, ..)| cause)
+            .collect();
+        let wmrh = find_library("WMRH Talk Radio");
+        assert!(
+            burns
+                .iter()
+                .all(|c| matches!(c, Some(zvtes::notes::Cause::Effect(
+                zvtes::notes::Source::Played { card, .. })) if *card == wmrh)),
+            "{burns:?}"
+        );
+        assert_eq!(burns.len(), usize::from(!blocked));
     }
 }
 

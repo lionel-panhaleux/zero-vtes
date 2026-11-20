@@ -1770,8 +1770,9 @@ pub struct CombatCtx {
     /// A diablerie of this combat under way (`combat_diablerie`).
     pub diablerizing: bool,
     /// Damage an effect of a burn in that diablerie deals once its blood
-    /// hunt is over: (minion, n, aggravated) (Nakova; LSJ 20020411).
-    pub after_hunt_damage: Vec<(MinionId, u8, bool)>,
+    /// hunt is over: (minion, n, aggravated, the burned vampire dealing
+    /// it) (Nakova; LSJ 20020411).
+    pub after_hunt_damage: Vec<(MinionId, u8, bool, MinionId)>,
     /// Games of Instinct: at the end, the only ready combatant gains blood
     /// equal to the opposing vampire's capacity.
     pub lone_ready_gains_capacity: bool,
@@ -8948,9 +8949,10 @@ impl Engine {
             .combat
             .as_mut()
             .map_or(Vec::new(), |c| std::mem::take(&mut c.after_hunt_damage));
-        for (m, n, aggravated) in held {
+        for (m, n, aggravated, by) in held {
             if self.state.minions[m.index()].present() {
-                self.damage_out_of_combat(m, n, aggravated);
+                let by = crate::notes::Cause::Effect(crate::notes::Source::Minion(by));
+                self.caused(by, |e| e.damage_out_of_combat(m, n, aggravated));
             }
         }
         if !self.combat_ousts() && ending {

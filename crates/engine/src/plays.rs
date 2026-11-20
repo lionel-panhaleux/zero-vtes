@@ -3526,16 +3526,18 @@ impl Engine {
                 return;
             }
         };
-        self.state.lose_blood(m, blood);
-        let familiar = self.state.layers.iter().any(|l| {
-            l.source == source && l.modifier == cards::Modifier::BearerPlaysMissingAsBasic
+        self.caused(Cause::Cost(Source::Card(source)), |e| {
+            e.state.lose_blood(m, blood);
+            let familiar = e.state.layers.iter().any(|l| {
+                l.source == source && l.modifier == cards::Modifier::BearerPlaysMissingAsBasic
+            });
+            let c = &mut e.state.cards[source.index()];
+            if familiar {
+                c.counters = c.counters.saturating_add(1);
+            } else {
+                c.spent_turn = e.state.turn;
+            }
         });
-        let c = &mut self.state.cards[source.index()];
-        if familiar {
-            c.counters = c.counters.saturating_add(1);
-        } else {
-            c.spent_turn = self.state.turn;
-        }
     }
 
     /// The payment chosen among several (rules-qa 122.85): the card in

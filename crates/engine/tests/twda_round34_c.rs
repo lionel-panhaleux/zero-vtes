@@ -1413,6 +1413,44 @@ fn nakova_burned_in_combat_deals_four_unpreventable_damage() {
     assert_eq!(blood(&e, a), 9 - 2 - 1 - 4);
 }
 
+/// Nakova: [LSJ 20020411] burned by an Amaranth's diablerie, her 4 damage
+/// waits for the whole diablerie, its blood hunt included, then lands on the
+/// diablerist, by her.
+#[test]
+fn nakova_diablerized_deals_her_damage_after_the_hunt() {
+    let mut e = game(3);
+    let a = e.add_minion(
+        SeatId(0),
+        fixture_vampire(|c| c.capacity >= 9 && no_stealth(c), 0),
+        9,
+        false,
+    );
+    e.add_minion(SeatId(0), plain4(0), 4, false);
+    let nk = e.add_minion(
+        SeatId(1),
+        find_card("Nakova, Advocate of Golconda"),
+        0,
+        false,
+    );
+    e.add_minion(SeatId(1), plain4(1), 4, false);
+    e.add_minion(SeatId(2), plain4(2), 4, false);
+    hand(&mut e, 0, &["Amaranth"]);
+    e.notes = Some(Vec::new());
+    let before = e.table();
+    fight(&mut e, a, nk);
+    pick_when(&mut e, play(0, 0, a));
+    // No votes anywhere: the hunt fails, the diablerist stays.
+    until(&mut e, SeatId(1), WindowLabel::MinionPhase);
+    assert!(!e.state.minions[nk.index()].in_play, "diablerized");
+    let hits: Vec<_> = noted_changes(&mut e, before)
+        .into_iter()
+        .filter(|&(_, at, n)| at == Err(a) && n == -4)
+        .map(|(cause, ..)| cause)
+        .collect();
+    let by = zvtes::notes::Cause::Effect(zvtes::notes::Source::Minion(nk));
+    assert_eq!(hits, [Some(by)]);
+}
+
 /// Nakova with her burn replaced: [LSJ 19980427] "since this happens
 /// 'instead' of burning her, the opposing minion takes no damage". Seat 0's
 /// Charigger, The Axe removes her from the game instead of her burn: A

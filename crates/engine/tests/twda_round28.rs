@@ -8332,7 +8332,7 @@ fn amulet_burns_its_blood_as_the_card_is_played() {
     let a = e.add_minion(SeatId(0), plain("Brujah", 0), 4, false);
     e.add_minion(SeatId(0), plain("Brujah", 1), 4, false);
     e.add_minion(SeatId(1), plain("Ventrue", 0), 4, false);
-    on_with(
+    let amulet = on_with(
         &mut e,
         0,
         "Amulet of Temporal Perception",
@@ -8344,9 +8344,18 @@ fn amulet_burns_its_blood_as_the_card_is_played() {
     );
     hand(&mut e, 0, &["Cheat the Fates"]);
     hand(&mut e, 1, &["Direct Intervention"]);
+    e.notes = Some(Vec::new());
+    let before = e.table();
     pick(&mut e, play(0, 1, a));
     let req = expect(&mut e, SeatId(1), WindowLabel::CardAsPlayed);
     assert_eq!(blood(&e, a), 3, "burned as played");
+    let paid: Vec<_> = noted_changes(&mut e, before)
+        .into_iter()
+        .filter(|&(_, at, n)| at == Err(a) && n < 0)
+        .map(|(cause, ..)| cause)
+        .collect();
+    let cost = zvtes::notes::Cause::Cost(zvtes::notes::Source::Card(amulet));
+    assert_eq!(paid, [Some(cost)]);
     assert!(req.options.contains(&master_play(0)));
     pick(&mut e, master_play(0));
     request(&mut e);

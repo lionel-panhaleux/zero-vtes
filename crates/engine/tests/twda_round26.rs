@@ -1648,7 +1648,8 @@ fn sandra_white_costs_an_older_victims_pool() {
 }
 
 /// Hector Trelane: "If Hector is sent to torpor or burned in combat, he is
-/// burned, and the controller of the opposing minion gains 4 pool."
+/// burned, and the controller of the opposing minion gains 4 pool." By him
+/// (not the strikes').
 #[test]
 fn hector_trelane_burns_and_pays_his_opponent() {
     let mut e = game(2);
@@ -1657,11 +1658,20 @@ fn hector_trelane_burns_and_pays_his_opponent() {
     let b = e.add_minion(SeatId(1), vampire_with("pot", 0), 4, false);
     e.add_minion(SeatId(1), plain("Ventrue", 1), 4, false);
     hand(&mut e, 1, &["Undead Strength"]);
+    e.notes = Some(Vec::new());
+    let before = e.table();
     bleed_blocked(&mut e, h, b);
     pick_when(&mut e, play_at(0, 0, Some(b), Target::None));
     until(&mut e, SeatId(0), WindowLabel::MinionPhase);
     assert!(!e.state.minions[h.index()].present(), "burned");
     assert_eq!(e.state.seats[1].pool, 14);
+    let gains: Vec<_> = noted_changes(&mut e, before)
+        .into_iter()
+        .filter(|&(_, at, n)| at == Ok(SeatId(1)) && n == 4)
+        .map(|(cause, ..)| cause)
+        .collect();
+    let by = zvtes::notes::Cause::Effect(zvtes::notes::Source::Minion(h));
+    assert_eq!(gains, [Some(by)]);
 }
 
 // ---- Merged vampires --------------------------------------------------------

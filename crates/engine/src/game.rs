@@ -2538,6 +2538,7 @@ impl Engine {
     /// controller, Mr. Noir's to his own (a blood hunt's burn in it too,
     /// LSJ 20091210).
     pub(crate) fn burned_in_combat_gift(&mut self, m: MinionId, foe: MinionId) {
+        let outer = self.begin_cause(Cause::Effect(crate::notes::Source::Minion(m)));
         let gift = self.state.printed_mod(
             m,
             cards::Stat::PoolToOpponentIfBurnedInCombat,
@@ -2559,7 +2560,7 @@ impl Engine {
             let c = self.combat.as_mut().expect("combat context");
             let aggravated = c.all_aggravated && self.state.minions[foe.index()].is_vampire();
             if c.diablerizing {
-                c.after_hunt_damage.push((foe, n as u8, aggravated));
+                c.after_hunt_damage.push((foe, n as u8, aggravated, m));
             } else {
                 self.damage_out_of_combat(foe, n as u8, aggravated);
             }
@@ -2574,6 +2575,7 @@ impl Engine {
             let s = self.state.minions[m.index()].owner;
             self.state.gain_pool(s, own);
         }
+        self.end_cause(outer);
     }
 
     /// Young Bloods: burned in combat with `foe` or by the effect of an action
