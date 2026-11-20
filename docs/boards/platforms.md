@@ -15,3 +15,5 @@ on its own as a separate platform, bots only for now): what the community beta
 needs from the fork first, then the fork's remaining interface items, then other
 platforms.
 
+
+- The fork shows protocol 2.28–2.33's view additions it ignores today: a card's `stored` face-down cards (Hukros, hidden to others), a combat side's `second` and `second_strike` (Winged Second), a block's `joint_blocker` (Coterie Tactics). Done when each is drawn on the table or in the combat panel, and logged. Pages: docs/platforms/sc.md.
