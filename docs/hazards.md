@@ -35,6 +35,12 @@ review finding); one the code or a page now makes impossible leaves it.
 - A fixture's hand cards (`hand`) carry `CopyId::NONE`: a copy id is no
   sentinel for "taken from hand" (Charming Lobby's named card: an explicit
   `ActionCtx::named_played`).
+- A minion with a crypt text pushed into `state.minions` past
+  `add_minion`, or its `kind` rewritten to another name's card, on a dealt
+  table (`Engine::new`): the `printable` gate does not hold its text, so
+  its printed stats read nothing, silently in a unit test (the fuzz
+  invariant fires: "prints past the gate"). Use `add_minion`,
+  `cards::widen`, or build from `Engine::bare`.
 - A card put in play by a fixture (`CardInPlay::new`) carries none of its
   mode's layers: a retainer's damage (Ghoul Retainer's bite) or a bearer
   modifier is missing until the mode's `Effect::Layer`s are pushed too (an

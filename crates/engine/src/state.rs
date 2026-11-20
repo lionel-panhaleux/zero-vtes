@@ -2175,6 +2175,10 @@ pub struct GameState {
     pub seats: Vec<Seat>,
     /// The next copy number (`copies`): the dealt cards took the first.
     pub copy_counter: Untracked<CopyCounter>,
+    /// The stats the crypt texts in play so far may print, widened as each
+    /// enters (`add_minion`, a crypt ally; `cards::widen`): `printers` skips
+    /// the others without a scan. `None` (a bare fixture) gates nothing.
+    pub printable: Untracked<Option<cards::StatSet>>,
     /// Arena: minions are never removed, only marked out of play.
     pub minions: Vec<Minion>,
     /// Arena of library cards in play.
@@ -3970,12 +3974,19 @@ impl GameState {
         &self,
         stat: Stat,
     ) -> impl Iterator<Item = (MinionId, &Minion, &'static cards::VampireDef)> {
-        self.minions.iter().enumerate().filter_map(move |(i, v)| {
-            (v.present() && v.crypt_card().is_some())
-                .then(|| cards::printing(v, stat))
-                .flatten()
-                .map(|def| (MinionId(i as u32), v, def))
-        })
+        let none = self
+            .printable
+            .is_some_and(|set| !cards::holds_stat(&set, stat));
+        let scanned = if none { 0 } else { self.minions.len() };
+        self.minions[..scanned]
+            .iter()
+            .enumerate()
+            .filter_map(move |(i, v)| {
+                (v.present() && v.crypt_card().is_some())
+                    .then(|| cards::printing(v, stat))
+                    .flatten()
+                    .map(|def| (MinionId(i as u32), v, def))
+            })
     }
 
     /// A vampire in play prints a modifier to `stat`: what a caller asking

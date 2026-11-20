@@ -237,6 +237,17 @@ fn copies_conserved(
 
 fn invariants(e: &Engine, totals: &[usize], seed: u64, req: &DecisionRequest) {
     let (st, window) = (&e.state, req.window);
+    // Each present minion's printed stats lie inside `GameState::printable`:
+    // one past it would read nothing.
+    if let Some(gate) = *st.printable {
+        for (i, v) in st.minions.iter().enumerate().filter(|(_, v)| v.present()) {
+            let prints = zvtes::cards::minion_stats(v).copied().unwrap_or_default();
+            assert!(
+                prints.iter().zip(&gate).all(|(p, g)| p & !g == 0),
+                "minion {i} prints past the gate (seed {seed})"
+            );
+        }
+    }
     // First Tradition's skip is asked before the turn begins, the previous
     // turn's seat still active, ousted perhaps.
     assert!(

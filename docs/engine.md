@@ -3277,7 +3277,11 @@ CryptAlly}`.
   `GameState::printed_mod`, so nothing is pushed or retracted on torpor, contest,
   burn or oust; it reads only the minions whose text prints the stat
   (`cards::printing`, a static index of the definitions, never a state
-  cache). Printed text applies in torpor; a contested vampire gives nothing.
+  cache), and none for a stat no crypt text in play so far prints
+  (`GameState::printable`, widened as each enters, every text of its name,
+  merged and advanced; a bare fixture has none, no gate): the card texts a
+  game has brought in, not a condition. Printed text applies in torpor; a
+  contested vampire gives nothing.
   Abilities are `ModeDef`s with actor `Host` = the vampire;
   `AbilitySource::{Card, Vampire}` keys uses and resolution.
 - A vampire may land with part of its text, the rest quoted in `incomplete`

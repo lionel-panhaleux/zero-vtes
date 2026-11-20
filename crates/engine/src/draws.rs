@@ -5532,6 +5532,7 @@ impl Engine {
             origin: (from != s).then_some(from),
             ..crate::state::Minion::new(s, crate::state::MinionKind::CryptAlly(card), life)
         });
+        crate::cards::widen(&mut self.state.printable.0, card);
         self.enter_card_contest(m);
         self.entered_play_riders(m);
         m

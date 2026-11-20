@@ -11981,7 +11981,50 @@ pub fn vampire_of(m: &crate::state::Minion) -> Option<&'static VampireDef> {
 }
 
 /// A bit per `Stat`.
-type StatSet = [u64; 4];
+pub type StatSet = [u64; 4];
+
+/// `set` holds `stat`.
+pub fn holds_stat(set: &StatSet, stat: Stat) -> bool {
+    set[stat as usize / 64] >> (stat as usize % 64) & 1 == 1
+}
+
+fn union(a: &mut StatSet, b: &StatSet) {
+    for (x, y) in a.iter_mut().zip(b) {
+        *x |= y;
+    }
+}
+
+/// What any text of crypt card `card`'s name prints: its own, the other
+/// cards of the name (an advanced one), their merged definition.
+pub fn name_stats(card: u16) -> StatSet {
+    static TABLE: std::sync::OnceLock<Vec<StatSet>> = std::sync::OnceLock::new();
+    TABLE.get_or_init(|| {
+        let crypt = &crate::crypt::CRYPT;
+        (0..crypt.len())
+            .map(|c| {
+                let name = crypt[c].name;
+                let mut set = [0; 4];
+                for (k, other) in crypt.iter().enumerate() {
+                    if other.name == name {
+                        union(&mut set, &stat_set(vampire(k as u16)));
+                    }
+                }
+                for d in vampires::MERGED.iter().filter(|d| d.name == name) {
+                    union(&mut set, &stat_set(Some(d)));
+                }
+                set
+            })
+            .collect()
+    })[card as usize]
+}
+
+/// `gate` (`GameState::printable`), if any, widened to what crypt card
+/// `card`'s name prints: a minion of that card entering play.
+pub fn widen(gate: &mut Option<StatSet>, card: u16) {
+    if let Some(set) = gate.as_mut() {
+        union(set, &name_stats(card));
+    }
+}
 
 fn stat_set(d: Option<&VampireDef>) -> StatSet {
     let mut set = [0; 4];
@@ -11995,6 +12038,14 @@ fn stat_set(d: Option<&VampireDef>) -> StatSet {
 /// index: `GameState::printed_mod` asks it of every minion on every stat
 /// read, and most stats are printed by one to three vampires.
 pub fn printing(m: &crate::state::Minion, stat: Stat) -> Option<&'static VampireDef> {
+    minion_stats(m)
+        .is_some_and(|set| holds_stat(set, stat))
+        .then(|| vampire_of(m))
+        .flatten()
+}
+
+/// The stats `m`'s text prints modifiers to (`printing`'s index).
+pub fn minion_stats(m: &crate::state::Minion) -> Option<&'static StatSet> {
     struct Index {
         beast: StatSet,
         slave: StatSet,
@@ -12013,7 +12064,7 @@ pub fn printing(m: &crate::state::Minion, stat: Stat) -> Option<&'static Vampire
                 .collect(),
         }
     });
-    let set = match text_of(m)? {
+    Some(match text_of(m)? {
         TextOf::GreatBeast => &i.beast,
         TextOf::Slave => &i.slave,
         // It prints no modifier.
@@ -12021,10 +12072,7 @@ pub fn printing(m: &crate::state::Minion, stat: Stat) -> Option<&'static Vampire
         TextOf::Crypt { card, merged } => merged
             .and_then(|b| i.merged[b as usize].as_ref())
             .unwrap_or(&i.card[card as usize]),
-    };
-    (set[stat as usize / 64] >> (stat as usize % 64) & 1 == 1)
-        .then(|| vampire_of(m))
-        .flatten()
+    })
 }
 
 /// Whether crypt card `card` prints `stat` unconditionally, read out of

@@ -683,6 +683,7 @@ impl Engine {
                 format,
                 seats,
                 copy_counter: Untracked(copies),
+                printable: Untracked(Some([0; 4])),
                 ..Default::default()
             },
             log: Vec::new(),
@@ -740,6 +741,7 @@ impl Engine {
             seat.library.clear();
             seat.hand.clear();
         }
+        e.state.printable = Untracked(None);
         e.flow = Flow::MinionPhase;
         e.state.in_minion_phase = true;
         e.state.format = crate::state::Format::Standard;
@@ -759,6 +761,7 @@ impl Engine {
             in_torpor,
             ..Minion::new(owner, kind, blood)
         });
+        crate::cards::widen(&mut self.state.printable.0, card);
         MinionId(self.state.minions.len() as u32 - 1)
     }
 
