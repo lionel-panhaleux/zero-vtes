@@ -22,15 +22,32 @@ use zvtes::ids::{MinionId, SeatId};
 use zvtes::library::LIBRARY;
 use zvtes::state::{find_card, CardId};
 
-/// The opening's seeds; a fixture sets its own (`Fixture::seeds`): about
-/// twice the seed by which its last coverage key is first taken, in
-/// hundreds (at most 300: the midgame's last key comes at seed 163). `FUZZ_SEEDS=n` plays n seeds everywhere instead (a deeper
-/// sweep; the golden check covers the seeds it pins).
+/// The openings' seeds; a fixture's own (`Fixture::seeds`): DESIGN §7.2.
 const SEEDS: u64 = 300;
 /// Every `REPLAY_EVERY`th seed is replayed from its decision log alone (the
 /// goldens pin the rest across runs).
 const REPLAY_EVERY: u64 = 4;
 const DECISION_BUDGET: u64 = 200_000;
+/// `FUZZ_QUICK=1`'s seeds a fixture: DESIGN §7.2.
+const QUICK_SEEDS: u64 = 16;
+
+fn quick() -> bool {
+    std::env::var("FUZZ_QUICK").is_ok()
+}
+
+/// `FUZZ_STATS=<file>`: a line a fixture appended to it (whole lines: the
+/// fixtures run at once), what `Fixture::seeds` is tuned from.
+fn stats(line: String) {
+    use std::io::Write;
+    if let Ok(path) = std::env::var("FUZZ_STATS") {
+        let mut f = std::fs::OpenOptions::new()
+            .create(true)
+            .append(true)
+            .open(path)
+            .unwrap();
+        f.write_all(format!("{line}\n").as_bytes()).unwrap();
+    }
+}
 
 /// Library-card conservation baseline per seat (library, hand, ash heap,
 /// removed, research area, cards in play), fixed at the start of a game.
@@ -683,16 +700,25 @@ fn play(seed: u64, start: &dyn Fn(u64) -> Engine) -> Played {
 
 /// Plays `seeds` seeds (replaying every `REPLAY_EVERY`th) across threads,
 /// each seed its own game, then checks the games against the golden file of
-/// `name` in seed order: the decision kinds taken, and whether a game ended
-/// before the time limit with an oust and a full VP awarded.
-fn fuzz(name: &str, seeds: u64, start: &(dyn Fn(u64) -> Engine + Sync)) -> (HashSet<String>, bool) {
+/// `name` in seed order (not under `FUZZ_QUICK`): the decision kinds taken,
+/// each with the first seed taking it, and whether a game ended before the
+/// time limit with an oust and a full VP awarded.
+fn fuzz(
+    name: &str,
+    seeds: u64,
+    start: &(dyn Fn(u64) -> Engine + Sync),
+) -> (HashMap<String, u64>, bool) {
+    let began = std::time::Instant::now();
     use std::sync::atomic::{AtomicU64, Ordering::SeqCst};
     // `SEED_FROM=n` starts the sweep at seed n (debugging one failure).
     let from = std::env::var("SEED_FROM").ok().and_then(|v| v.parse().ok());
     let sweep = std::env::var("FUZZ_SEEDS")
         .ok()
         .and_then(|v| v.parse().ok());
-    let seeds = sweep.unwrap_or(seeds);
+    let seeds = match quick() {
+        true => seeds.min(QUICK_SEEDS),
+        false => sweep.unwrap_or(seeds),
+    };
     // A trace is one game's decisions in order: one thread.
     let threads = match std::env::var("FUZZ_TRACE") {
         Ok(_) => 1,
@@ -702,7 +728,7 @@ fn fuzz(name: &str, seeds: u64, start: &(dyn Fn(u64) -> Engine + Sync)) -> (Hash
     // Seeds are taken in order: when one fails every lower one is taken
     // already, so the lowest failure is found; no higher seed starts after.
     let failed = AtomicU64::new(u64::MAX);
-    let mut games: Vec<(u64, Result<Seed, String>)> = std::thread::scope(|s| {
+    let mut games: Vec<SeedRun> = std::thread::scope(|s| {
         let workers: Vec<_> = (0..threads)
             .map(|_| {
                 s.spawn(|| {
@@ -713,6 +739,7 @@ fn fuzz(name: &str, seeds: u64, start: &(dyn Fn(u64) -> Engine + Sync)) -> (Hash
                         if seed >= seeds || seed > failed.load(SeqCst) {
                             return games;
                         }
+                        let t = std::time::Instant::now();
                         let one = std::panic::AssertUnwindSafe(|| one_seed(seed, start));
                         let game = std::panic::catch_unwind(one).map_err(|p| {
                             failed.fetch_min(seed, SeqCst);
@@ -729,7 +756,7 @@ fn fuzz(name: &str, seeds: u64, start: &(dyn Fn(u64) -> Engine + Sync)) -> (Hash
                                 format!("{what} (seed {seed})")
                             }
                         });
-                        games.push((seed, game));
+                        games.push((seed, t.elapsed(), game));
                     }
                 })
             })
@@ -739,17 +766,26 @@ fn fuzz(name: &str, seeds: u64, start: &(dyn Fn(u64) -> Engine + Sync)) -> (Hash
             .flat_map(|w| w.join().unwrap())
             .collect()
     });
-    games.sort_by_key(|&(seed, _)| seed);
-    let (mut seen, mut ousted, mut lines) = (HashSet::new(), false, Vec::new());
-    for (_, game) in games {
+    games.sort_by_key(|&(seed, ..)| seed);
+    let (mut seen, mut ousted, mut lines) = (HashMap::new(), false, Vec::new());
+    let mut spent = std::time::Duration::ZERO;
+    for (seed, took, game) in games {
         let game = game.unwrap_or_else(|what| panic!("{what}"));
-        seen.extend(game.seen);
+        spent += took;
+        for k in game.seen {
+            seen.entry(k).or_insert(seed);
+        }
         ousted |= game.ousted;
         lines.push(game.line);
     }
-    if from.is_none() {
+    if from.is_none() && !quick() {
         golden(name, &lines, sweep.is_none());
     }
+    stats(format!(
+        "{name} seeds={seeds} core_s={:.1} wall_s={:.1}",
+        spent.as_secs_f64(),
+        began.elapsed().as_secs_f64()
+    ));
     (seen, ousted)
 }
 
@@ -791,6 +827,9 @@ struct Seed {
     ousted: bool,
     line: String,
 }
+
+/// A seed, its wall time (a core's, `FUZZ_STATS`) and its game or failure.
+type SeedRun = (u64, std::time::Duration, Result<Seed, String>);
 
 /// One seed of `fuzz`: played, replayed every `REPLAY_EVERY`th.
 fn one_seed(seed: u64, start: &dyn Fn(u64) -> Engine) -> Seed {
@@ -981,10 +1020,19 @@ fn golden(name: &str, lines: &[String], full: bool) {
 }
 
 /// Coverage: random play must actually take every listed kind of decision,
-/// or the invariants are not being exercised there.
-fn covers(seen: &HashSet<String>, kinds: &[&str]) {
-    let missing: Vec<&&str> = kinds.iter().filter(|k| !seen.contains(**k)).collect();
-    let mut taken: Vec<&String> = seen.iter().collect();
+/// or the invariants are not being exercised there (not under
+/// `FUZZ_QUICK`); the seed taking the last one first, to `FUZZ_STATS`.
+fn covers(name: &str, seen: &HashMap<String, u64>, kinds: &[&str]) {
+    let last = kinds
+        .iter()
+        .filter_map(|k| seen.get(*k).map(|&s| (s, *k)))
+        .max();
+    stats(format!("{name} last_key={last:?}"));
+    if quick() {
+        return;
+    }
+    let missing: Vec<&&str> = kinds.iter().filter(|k| !seen.contains_key(**k)).collect();
+    let mut taken: Vec<&String> = seen.keys().collect();
     taken.sort();
     assert!(
         missing.is_empty(),
@@ -1033,9 +1081,9 @@ fn run(name: &str, f: &Fixture) {
         .map(String::as_str)
         .chain(f.covers.iter().copied())
         .collect();
-    covers(&seen, &kinds);
+    covers(name, &seen, &kinds);
     assert!(
-        !f.ousts || ousted,
+        !f.ousts || ousted || quick(),
         "no oust in {} mid-game random games",
         f.seeds
     );
@@ -1106,6 +1154,7 @@ fn random_games_from_the_opening_terminate_hold_invariants_and_replay() {
         &opening,
     );
     covers(
+        "random_games_from_the_opening_terminate_hold_invariants_and_replay",
         &seen,
         &[
             "pass",
@@ -1132,6 +1181,7 @@ fn random_two_player_games_from_the_opening_terminate_hold_invariants_and_replay
         &|seed| Engine::new(seed, 2),
     );
     covers(
+        "random_two_player_games_from_the_opening_terminate_hold_invariants_and_replay",
         &seen,
         &[
             "pass",
@@ -1342,7 +1392,7 @@ fuzz_tests! {
             // no key.)
         ],
         ousts: true,
-        seeds: 300,
+        seeds: 230,
         ..BASE
     };
     /// Slice 10: random tables whose libraries are the allies and retainers.
@@ -1400,9 +1450,7 @@ fuzz_tests! {
             "rider:Spectral Servitor",
             "play:Owl Companion",
         ],
-        // City Star Taxi's play first comes between seeds 400 and 500 since
-        // the Become Anarch action (slice 16k).
-        seeds: 500,
+        seeds: 300,
         ..BASE
     };
     /// Slice 11a: random tables whose libraries are the pre-built decks' cards
@@ -1483,7 +1531,7 @@ fuzz_tests! {
             "ability:Market Square",
             "set_x",
         ],
-        seeds: 200,
+        seeds: 170,
         ..BASE
     };
     /// Slices 11e and 11ab: title cards, vote locations and archetypes, the
@@ -1563,7 +1611,7 @@ fuzz_tests! {
                 e.add_minion(SeatId((seed % 4) as u8), valerius, 4, false);
             }
         },
-        seeds: 300,
+        seeds: 110,
         ..BASE
     };
     /// Slice 11f: the combat staples, with weapons, dodges, additional strikes
@@ -1628,6 +1676,7 @@ fuzz_tests! {
                 4,
             )
         },
+        seeds: 30,
         ..BASE
     };
     /// Slices 11k, 11l and 11n: action modifiers and reactions, the cards
@@ -1671,6 +1720,7 @@ fuzz_tests! {
                 4,
             )
         },
+        seeds: 70,
         ..BASE
     };
     /// Slice 11o: action cards — bleeds with riders, combat-entering actions,
@@ -1707,6 +1757,7 @@ fuzz_tests! {
             "play:Touch of Valeren",
             "play:Revelations",
         ],
+        seeds: 30,
         ..BASE
     };
     /// Slice 11m: corruption counters and the multi-Discipline Anarch bleeds;
@@ -1737,7 +1788,7 @@ fuzz_tests! {
                 ],
             )
         },
-        seeds: 400,
+        seeds: 100,
         ..BASE
     };
     /// Slice 11p and the hunting grounds: the second wave of action cards,
@@ -1805,7 +1856,7 @@ fuzz_tests! {
                 ],
             )
         },
-        seeds: 300,
+        seeds: 240,
         ..BASE
     };
     /// Slice 11q: the precon masters (and Childe of the Revolution, which
@@ -1879,6 +1930,7 @@ fuzz_tests! {
             "ability:KRCG News Radio",
             "play:Carver's Meat Packing and Storage",
         ],
+        seeds: 40,
         ..BASE
     };
     /// Slice 11s: the second wave of combat cards.
@@ -1916,6 +1968,7 @@ fuzz_tests! {
         covers: &[
             "ability:Disarm",
         ],
+        seeds: 60,
         ..BASE
     };
     /// Slice 11t: the second wave of reactions and action modifiers.
@@ -1950,7 +2003,7 @@ fuzz_tests! {
             "ability:Dogged Pursuit",
             "ability:Melange",
         ],
-        seeds: 300,
+        seeds: 100,
         ..BASE
     };
     /// Slice 11u: the pool's actions, wave 1.
@@ -1979,6 +2032,7 @@ fuzz_tests! {
         plays: 14,
         covers: &[
         ],
+        seeds: 30,
         ..BASE
     };
     /// Slice 11v: the pool's actions, wave 2.
@@ -2017,7 +2071,7 @@ fuzz_tests! {
             "rider:Judgment: Camarilla Segregation",
             "rider:Khabar: Glory",
         ],
-        seeds: 250,
+        seeds: 60,
         ..BASE
     };
     /// Slice 11w: the pool's masters, wave 1.
@@ -2061,7 +2115,7 @@ fuzz_tests! {
             "ability:Parthenon, The",
             "rider:Black Throne, The",
         ],
-        seeds: 200,
+        seeds: 150,
         ..BASE
     };
     /// Slice 11x: the pool's masters, wave 2.
@@ -2096,7 +2150,7 @@ fuzz_tests! {
             "ability:Twilight Camp",
             "ability:WMRH Talk Radio",
         ],
-        seeds: 300,
+        seeds: 80,
         ..BASE
     };
     /// Slice 11y: the pool's masters, wave 3.
@@ -2127,6 +2181,7 @@ fuzz_tests! {
             "ability:Cave of Apples",
             "ability:Yoruba Shrine",
         ],
+        seeds: 60,
         ..BASE
     };
     /// Slice 11z: the cost-reduction masters.
@@ -2156,8 +2211,7 @@ fuzz_tests! {
             "rider:Ravnos Cache",
             "rider:Ravnos Carnival",
         ],
-        // Ravnos Cache's rider first comes near seed 120.
-        seeds: 240,
+        seeds: 30,
         ..BASE
     };
     /// Slice 11aa: the pool's last allies and equipment, Mobile HQ and Minion
@@ -2193,7 +2247,7 @@ fuzz_tests! {
             // tests/precon.rs ritual_goblet_discounts_a_rescue_and_unlocks_once_a_turn
             // scripts it.
         ],
-        seeds: 300,
+        seeds: 60,
         ..BASE
     };
     /// Slices 11ac–11ae: the pool's events.
@@ -2234,7 +2288,7 @@ fuzz_tests! {
             "ability:Rise of the Nephtali",
             "ability:Conquest of Humanity",
         ],
-        seeds: 200,
+        seeds: 70,
         ..BASE
     };
     /// Slice 12a: the last vampires' printed text, all of them dealt at the
@@ -2313,7 +2367,7 @@ fuzz_tests! {
                 ],
             )
         },
-        seeds: 300,
+        seeds: 50,
         ..BASE
     };
     /// Slices 16a and 16b: the legacy additions for tournament decks, Life
@@ -2344,7 +2398,7 @@ fuzz_tests! {
             "play:Jake Washington",
         ],
         ousts: true,
-        seeds: 200,
+        seeds: 30,
         ..BASE
     };
     /// Reign of Stanislava (25th Anniversary): the deck's new cards, its
@@ -2391,7 +2445,7 @@ fuzz_tests! {
                 ],
             )
         },
-        seeds: 100,
+        seeds: 30,
         ..BASE
     };
     /// The Endless Dance (30th Anniversary): the deck's new cards, its
@@ -2440,7 +2494,7 @@ fuzz_tests! {
                 ],
             )
         },
-        seeds: 100,
+        seeds: 30,
         ..BASE
     };
     /// Sabbat V5, the Path of Power and the Inner Voice: the deck's new
@@ -2515,7 +2569,7 @@ fuzz_tests! {
                 ],
             )
         },
-        seeds: 100,
+        seeds: 30,
         ..BASE
     };
     /// Sabbat V5, the Path of Cathari: the deck's new cards, its vampires
@@ -2571,7 +2625,7 @@ fuzz_tests! {
                 ],
             )
         },
-        seeds: 100,
+        seeds: 80,
         ..BASE
     };
     /// Sabbat V5, the Path of Caine: the deck's new cards, its bishops and
@@ -2638,7 +2692,7 @@ fuzz_tests! {
                 ],
             )
         },
-        seeds: 100,
+        seeds: 40,
         ..BASE
     };
     /// Sabbat V5, the Path of Death and the Soul: the deck's new cards, its
@@ -2711,7 +2765,7 @@ fuzz_tests! {
                 e.add_ally(SeatId(s), zvtes::state::find_library("Double Deuce"));
             }
         },
-        seeds: 200,
+        seeds: 50,
         ..BASE
     };
     /// Legacy cards for TWDA decks, staples and steps 1-3 (slice 16j): the
@@ -2757,7 +2811,7 @@ fuzz_tests! {
                 });
             }
         },
-        seeds: 20,
+        seeds: 30,
         ..BASE
     };
     /// Legacy cards for TWDA decks, steps 4-9 (slice 16k): the cards and
@@ -2810,7 +2864,7 @@ fuzz_tests! {
                 ],
             );
         },
-        seeds: 20,
+        seeds: 30,
         ..BASE
     };
     /// Legacy cards for TWDA decks, steps 10-15 (slice 16l): the cards and
@@ -2871,7 +2925,7 @@ fuzz_tests! {
                 ],
             );
         },
-        seeds: 100,
+        seeds: 30,
         ..BASE
     };
     /// Legacy cards for TWDA decks, steps 16-20 (slice 16m): the cards and
@@ -2944,7 +2998,7 @@ fuzz_tests! {
                     banished: None,
                 });
         },
-        seeds: 300,
+        seeds: 50,
         ..BASE
     };
     /// Legacy cards for TWDA decks, round 2 (slice 16n): Nephandus and
@@ -3044,7 +3098,7 @@ fuzz_tests! {
                 ));
             }
         },
-        seeds: 100,
+        seeds: 30,
         ..BASE
     };
     /// Legacy cards for TWDA decks, round 3 (slice 16o): the owner's list —
@@ -3124,7 +3178,7 @@ fuzz_tests! {
                 ],
             );
         },
-        seeds: 240,
+        seeds: 50,
         ..BASE
     };
     /// Legacy cards for TWDA decks, rounds 4–5 (slices 16p–16q): the Gangrel
@@ -3182,7 +3236,7 @@ fuzz_tests! {
                 ],
             );
         },
-        seeds: 40,
+        seeds: 30,
         ..BASE
     };
     /// Legacy cards for TWDA decks, round 7 (slice 16s), steps 1–5: the
@@ -3266,7 +3320,7 @@ fuzz_tests! {
                 ],
             );
         },
-        seeds: 152,
+        seeds: 90,
         ..BASE
     };
     /// Legacy cards for TWDA decks, round 7 (slice 16s), steps 6–11: the
@@ -3367,7 +3421,7 @@ fuzz_tests! {
                 ],
             );
         },
-        seeds: 190,
+        seeds: 60,
         ..BASE
     };
     /// Legacy cards for TWDA decks, round 8 (slice 16t), steps 1–5: Blood
@@ -3447,7 +3501,7 @@ fuzz_tests! {
                 });
             }
         },
-        seeds: 8,
+        seeds: 30,
         ..BASE
     };
     /// Legacy cards for TWDA decks, round 8 (slice 16t), steps 6–10: the
@@ -3516,7 +3570,7 @@ fuzz_tests! {
                 ],
             );
         },
-        seeds: 8,
+        seeds: 30,
         ..BASE
     };
     /// Legacy cards for TWDA decks, round 9 (slice 16u): Shadow Play and
@@ -3596,7 +3650,7 @@ fuzz_tests! {
                 ],
             );
         },
-        seeds: 24,
+        seeds: 30,
         ..BASE
     };
     /// Legacy cards for TWDA decks, round 9 (slice 16u): Popó's Appolonius
@@ -3649,7 +3703,7 @@ fuzz_tests! {
                 e.state.seats[1].crypt.push(base);
             }
         },
-        seeds: 8,
+        seeds: 30,
         ..BASE
     };
     /// Legacy cards for TWDA decks, round 10 (slice 16v): the Anarch
@@ -3719,7 +3773,7 @@ fuzz_tests! {
             }
             per_seat(e, |c| c.clan == "Banu Haqim", 4);
         },
-        seeds: 186,
+        seeds: 60,
         ..BASE
     };
     /// Legacy cards for TWDA decks, round 10 (slice 16v): the referendums
@@ -3757,7 +3811,7 @@ fuzz_tests! {
                 &["Genevieve", "Dark Selina", "Hardestadt", "Annabelle Triabell", "Drozodny"],
             );
         },
-        seeds: 16,
+        seeds: 30,
         ..BASE
     };
     /// Legacy cards for TWDA decks, round 11 (slice 16w): the minion cards
@@ -3846,7 +3900,7 @@ fuzz_tests! {
                 }
             }
         },
-        seeds: 36,
+        seeds: 30,
         ..BASE
     };
     /// Legacy cards for TWDA decks, round 11 (slice 16w): the masters, the
@@ -3887,7 +3941,7 @@ fuzz_tests! {
             // Maabara is a Harbinger of Skulls card.
             per_seat(e, |c| c.clan == "Harbinger of Skulls", 4);
         },
-        seeds: 40,
+        seeds: 30,
         ..BASE
     };
     /// Legacy cards for TWDA decks, round 12 (slice 16x): the actions,
@@ -3945,7 +3999,7 @@ fuzz_tests! {
             per_seat(e, |c| has(c, "obe") || has(c, "aus"), 4);
             per_seat(e, |c| c.clan == "Ventrue", 4);
         },
-        seeds: 14,
+        seeds: 30,
         ..BASE
     };
     /// Legacy cards for TWDA decks, round 12 (slice 16x): the modifiers and
@@ -4015,7 +4069,7 @@ fuzz_tests! {
             per_seat(e, |c| has(c, "obe") || has(c, "pre"), 4);
             per_seat(e, |c| c.sect == Some(zvtes::crypt::Sect::Camarilla), 4);
         },
-        seeds: 10,
+        seeds: 30,
         ..BASE
     };
     /// Legacy cards for TWDA decks, round 13 (slice 16y): the library cards.
@@ -4094,7 +4148,7 @@ fuzz_tests! {
                 4,
             );
         },
-        seeds: 170,
+        seeds: 50,
         ..BASE
     };
     /// Legacy cards for TWDA decks, round 13 (slice 16y): the vampires.
@@ -4158,7 +4212,7 @@ fuzz_tests! {
                 e.add_ally(SeatId(s), zvtes::state::find_library("Aggressive Corpse"));
             }
         },
-        seeds: 120,
+        seeds: 40,
         ..BASE
     };
     /// Legacy cards for TWDA decks, round 14 (slice 16z): the library cards.
@@ -4238,7 +4292,7 @@ fuzz_tests! {
             per_seat(e, |c| has(c, "tem"), 4);
             per_seat(e, |c| has(c, "for"), 4);
         },
-        seeds: 300,
+        seeds: 170,
         ..BASE
     };
     /// Legacy cards for TWDA decks, round 14 (slice 16z): the vampires.
@@ -4338,7 +4392,7 @@ fuzz_tests! {
                 ));
             }
         },
-        seeds: 120,
+        seeds: 70,
         ..BASE
     };
     /// Legacy cards for TWDA decks, round 15 (slice 16aa): the library cards.
@@ -4435,7 +4489,7 @@ fuzz_tests! {
                 e.add_ally(SeatId(s), zvtes::state::find_library("Underbridge Stray"));
             }
         },
-        seeds: 300,
+        seeds: 50,
         ..BASE
     };
     /// Legacy cards for TWDA decks, round 15 (slice 16aa): the vampires.
@@ -4493,7 +4547,7 @@ fuzz_tests! {
             per_seat(e, |c| c.sect == Some(zvtes::crypt::Sect::Sabbat) && c.capacity >= 4, 4);
             per_seat(e, |c| c.title != zvtes::crypt::Title::None, 4);
         },
-        seeds: 100,
+        seeds: 30,
         ..BASE
     };
     /// Legacy cards for TWDA decks, round 16 (slice 16ab): the library cards.
@@ -4625,7 +4679,7 @@ fuzz_tests! {
                 }
             }
         },
-        seeds: 240,
+        seeds: 110,
         ..BASE
     };
     /// Legacy cards for TWDA decks, round 16 (slice 16ab): the vampires.
@@ -4683,7 +4737,7 @@ fuzz_tests! {
                 ));
             }
         },
-        seeds: 20,
+        seeds: 30,
         ..BASE
     };
     /// Legacy cards for TWDA decks, round 17 (slice 16ac): the library cards.
@@ -4838,7 +4892,7 @@ fuzz_tests! {
                 e.state.seats[0].ash.push(zvtes::state::find_library("Conceal"));
             }
         },
-        seeds: 150,
+        seeds: 70,
         ..BASE
     };
     /// Legacy cards for TWDA decks, round 17 (slice 16ac): the vampires.
@@ -4921,9 +4975,7 @@ fuzz_tests! {
             per_seat(e, |c| c.clan == "Tremere", 4);
             per_seat(e, |c| c.clan == "Werewolf" || c.clan == "Gargoyle", 4);
         },
-        // Seed 156: White Lily paying her Methuselah's last pool in
-        // another's turn.
-        seeds: 157,
+        seeds: 120,
         ..BASE
     };
     /// Legacy cards, round 18 (slice 16ad): the library cards (Hatch the
@@ -5003,7 +5055,7 @@ fuzz_tests! {
             per_seat(e, |c| has(c, "pro") && has(c, "ser"), 4);
             per_seat(e, |c| has(c, "pot") || has(c, "dai"), 4);
         },
-        seeds: 78,
+        seeds: 60,
         ..BASE
     };
     /// Legacy cards, round 18 (slice 16ad): the vampires.
@@ -5038,7 +5090,7 @@ fuzz_tests! {
             per_seat(e, |c| c.sect == Some(zvtes::crypt::Sect::Sabbat), 4);
             per_seat(e, |c| c.clan == "Gangrel", 4);
         },
-        seeds: 8,
+        seeds: 30,
         ..BASE
     };    /// Legacy cards, round 19 (slice 16ae): the powers and convictions, on
     /// imbued covering every virtue.
@@ -5124,7 +5176,7 @@ fuzz_tests! {
                 ],
             );
         },
-        seeds: 200,
+        seeds: 40,
         ..BASE
     };
     /// Legacy cards, round 19 (slice 16ae): the imbued, convictions to pay
@@ -5175,7 +5227,7 @@ fuzz_tests! {
                 ],
             );
         },
-        seeds: 300,
+        seeds: 150,
         ..BASE
     };
     /// Legacy cards, round 20 (slice 16af): the cards players asked for,
@@ -5245,7 +5297,7 @@ fuzz_tests! {
                 4,
             );
         },
-        seeds: 300,
+        seeds: 110,
         ..BASE
     };
     /// Legacy cards, round 20 (slice 16af): the vampires, Winterlich with
@@ -5276,7 +5328,7 @@ fuzz_tests! {
                 ],
             );
         },
-        seeds: 80,
+        seeds: 50,
         ..BASE
     };
     /// Legacy cards, round 20 (slice 16af): Stone Travel [MYT]'s cancel of
@@ -5288,7 +5340,7 @@ fuzz_tests! {
         setup: |e, _| {
             per_seat(e, |c| c.clan == "Kiasyd", 4);
         },
-        seeds: 12,
+        seeds: 30,
         ..BASE
     };
     /// Legacy cards, round 21 (slice 16ag): Nights of Reckoning's cards,
@@ -5406,7 +5458,7 @@ fuzz_tests! {
                 });
             }
         },
-        seeds: 300,
+        seeds: 100,
         ..BASE
     };
     /// Legacy cards, round 21 (slice 16ag): the Kiasyd and Faerie Wards.
@@ -5431,7 +5483,7 @@ fuzz_tests! {
             );
             per_seat(e, |c| c.clan == "Pander", 4);
         },
-        seeds: 100,
+        seeds: 30,
         ..BASE
     };
     /// Round 22 (slice 16ah): Anarch Unbound's library cards and its
@@ -5476,7 +5528,7 @@ fuzz_tests! {
             );
             per_seat(e, |c| c.sect == Some(zvtes::crypt::Sect::Camarilla), 4);
         },
-        seeds: 8,
+        seeds: 30,
         ..BASE
     };
     /// Round 22 (slice 16ah): Victor Gerard and Philip van Vermeer IV
@@ -5499,7 +5551,7 @@ fuzz_tests! {
             );
             per_seat(e, |c| c.sect == Some(zvtes::crypt::Sect::Sabbat), 4);
         },
-        seeds: 8,
+        seeds: 30,
         ..BASE
     };
     /// Round 26 (slice 16al): Gehenna's events, masters and actions, with
@@ -5553,7 +5605,7 @@ fuzz_tests! {
                 ],
             );
         },
-        seeds: 8,
+        seeds: 30,
         ..BASE
     };
     /// Round 26 (slice 16al): Anarchs' cards and vampires, with strikes,
@@ -5609,7 +5661,7 @@ fuzz_tests! {
             );
             per_seat(e, |c| c.sect == Some(zvtes::crypt::Sect::Anarch), 2);
         },
-        seeds: 8,
+        seeds: 30,
         ..BASE
     };
     /// Round 27 (slice 16am): Noites Brasileiras' cards and vampires.
@@ -5650,7 +5702,7 @@ fuzz_tests! {
                 ],
             );
         },
-        seeds: 8,
+        seeds: 30,
         ..BASE
     };
     /// Round 27 (slice 16am): Secrets of New York's cards and vampires.
@@ -5691,7 +5743,7 @@ fuzz_tests! {
                 ],
             );
         },
-        seeds: 8,
+        seeds: 30,
         ..BASE
     };
     /// Round 28 (slice 16an): Heirs to the Blood's library — Darkness
@@ -5789,7 +5841,7 @@ fuzz_tests! {
                 }
             }
         },
-        seeds: 48,
+        seeds: 40,
         ..BASE
     };
     /// Round 28 (slice 16an): Heirs to the Blood's vampires — Byzar's burn
@@ -5888,7 +5940,7 @@ fuzz_tests! {
                 ));
             }
         },
-        seeds: 58,
+        seeds: 50,
         ..BASE
     };
     /// Round 31 (slice 16aq): Third Edition's combat cards, equipment,
@@ -6144,7 +6196,7 @@ fuzz_tests! {
                 ],
             );
         },
-        seeds: 204,
+        seeds: 230,
         ..BASE
     };
     /// Round 31 (slice 16aq): Third Edition's masters, political actions
@@ -6360,7 +6412,7 @@ fuzz_tests! {
                 ],
             );
         },
-        seeds: 172,
+        seeds: 140,
         ..BASE
     };
     /// Round 32 (slice 16ar): Legacies of Blood's combat cards, equipment,
@@ -6923,7 +6975,7 @@ fuzz_tests! {
                 }
             }
         },
-        seeds: 300,
+        seeds: 240,
         ..BASE
     };
     /// Round 33 (Kindred Most Wanted, Tenth Anniversary): the combat cards,
@@ -7122,7 +7174,7 @@ fuzz_tests! {
             per_seat(e, |c| c.clan == "Banu Haqim", 4);
             per_seat(e, |c| c.clan == "Giovanni", 4);
         },
-        seeds: 70,
+        seeds: 100,
         ..BASE
     };
     /// Round 33 (Kindred Most Wanted, Tenth Anniversary): the actions, the
@@ -7358,7 +7410,7 @@ fuzz_tests! {
             per_seat(e, |c| c.clan == "Giovanni", 4);
             per_seat(e, |c| c.clan == "Baali", 4);
         },
-        seeds: 70,
+        seeds: 110,
         ..BASE
     };
     /// Round 30 (slice 16ap): Lords of the Night's Ravnos and Giovanni —
@@ -7521,7 +7573,7 @@ fuzz_tests! {
                 ],
             );
         },
-        seeds: 190,
+        seeds: 150,
         ..BASE
     };
     /// Round 30 (slice 16ap): Lords of the Night's Banu Haqim and Ministry —
@@ -7717,7 +7769,7 @@ fuzz_tests! {
                 ],
             );
         },
-        seeds: 180,
+        seeds: 140,
         ..BASE
     };
     /// Round 29 (slice 16ao): Keepers of Tradition's library — Veles' Hunt
@@ -7778,7 +7830,7 @@ fuzz_tests! {
             "ability:Bundi",
             "ability:Ghoul Retainer",
         ],
-        seeds: 130,
+        seeds: 120,
         ..BASE
     };
     /// Round 29 (slice 16ao): Keepers of Tradition's vampires — the Ankou's
@@ -7865,11 +7917,11 @@ fuzz_tests! {
                 ],
             );
         },
-        seeds: 216,
+        seeds: 180,
         ..BASE
     };
     /// Round 25 (slice 16ak): Ebony Kingdom's Orun and Aye and the cards
-    /// built on them, played by Laibon (Familial Bond first near seed 105).
+    /// built on them, played by Laibon.
     random_games_with_twda_round_25a_hold_invariants_and_replay: Fixture {
         slice: &[
             "Orun",
@@ -7911,7 +7963,7 @@ fuzz_tests! {
             );
             per_seat(e, |c| c.sect == Some(zvtes::crypt::Sect::Laibon), 4);
         },
-        seeds: 210,
+        seeds: 30,
         ..BASE
     };
     /// Round 25 (slice 16ak): the sets' vampires and their abilities, with
@@ -7968,7 +8020,7 @@ fuzz_tests! {
                 ],
             );
         },
-        seeds: 16,
+        seeds: 30,
         ..BASE
     };
     /// Round 24 (slice 16aj): the sets' combat, bleed and equip cards, with
@@ -8014,7 +8066,7 @@ fuzz_tests! {
             );
             per_seat(e, |c| c.sect == Some(zvtes::crypt::Sect::Anarch), 4);
         },
-        seeds: 8,
+        seeds: 30,
         ..BASE
     };
     /// Round 24 (slice 16aj): the sets' politics, masters and combat-entry
@@ -8042,7 +8094,7 @@ fuzz_tests! {
         setup: |e, _| {
             per_seat(e, |c| c.sect == Some(zvtes::crypt::Sect::Anarch), 4);
         },
-        seeds: 8,
+        seeds: 30,
         ..BASE
     };
     /// Round 23 (slice 16ai): The Unaligned's combat and bleed cards, Gift
@@ -8093,7 +8145,7 @@ fuzz_tests! {
             );
             per_seat(e, |c| c.sect == Some(zvtes::crypt::Sect::Anarch), 4);
         },
-        seeds: 8,
+        seeds: 30,
         ..BASE
     };
     /// Round 23 (slice 16ai): The Unaligned's politics and masters, its
@@ -8145,7 +8197,7 @@ fuzz_tests! {
                 ],
             );
         },
-        seeds: 130,
+        seeds: 110,
         ..BASE
     };
 }

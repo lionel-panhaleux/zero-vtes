@@ -372,10 +372,11 @@ generators' `--check` (`gen_crypt.py`, `gen_library.py`, `gen_twda.py`).
    run the `--check`.
 7. **Fuzz**: add the card to a fixture's `slice` and a `covers` key
    (`"play:<card>"`, `"ability:<name>"`, …) for what random play must
-   reach; `seeds` about twice the seed where the last key first appears
-   (at most 300). Adding a card reshuffles the fixture's games: re-bless
-   with `GOLDEN_BLESS=1`, the change explained in the commit. Also diff a
-   `{:#?}` dump of `DEFS`/`VAMPIRES` for a refactor.
+   reach; `seeds` one and a half times the seed where the last key first
+   appears (DESIGN §7.2; `FUZZ_STATS=<file>` names it). Adding a card
+   reshuffles the fixture's games: re-bless with `GOLDEN_BLESS=1`, the
+   change explained in the commit. Also diff a `{:#?}` dump of
+   `DEFS`/`VAMPIRES` for a refactor.
 8. **Unsettled readings**: a reading no ruling settles is implemented and
    recorded as a question in a new rules-qa batch; an issue met on the way
    is fixed in the change, or, clearly outside its line, goes through the

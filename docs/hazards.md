@@ -74,9 +74,12 @@ review finding); one the code or a page now makes impossible leaves it.
   carries (`AsVampire`) is hashed only when set.
 - Adding a card to a fuzz fixture reshuffles its random games: rare
   coverage keys may starve and latent bugs surface. A fixture's `seeds`
-  is about twice the seed where its last key first appears (at most
-  300); `FUZZ_SEEDS=n` sweeps deeper (checked against the goldens'
-  seeds). Every 4th seed is replayed.
+  is one and a half times the seed where its last key first appears
+  (DESIGN §7.2), a thin margin: a starved key after a reshuffle is
+  re-tuned from `FUZZ_SEEDS=n FUZZ_STATS=<file>` (n past its seeds: the
+  key taken; its seeds raised, the golden re-blessed); `FUZZ_SEEDS=n`
+  sweeps deeper (checked against the goldens' seeds). Every 4th seed is
+  replayed.
 - A round's regenerated tables move fixtures it never touched: fuzz's
   `per_seat` picks from all of `CRYPT`, not bounded by `FIXTURE_CRYPT`, so
   an appended vampire matching its filter joins a seat and reshuffles the

@@ -408,15 +408,21 @@ negative resources, capacity ceilings, every card in play has a living
 controller, a game ends only with ≤1 Methuselah or at the time limit, step budget
 (every window terminates), no empty request, decision-log resimulation reproduces
 identical state hashes (every 4th seed; the goldens pin the rest). A fixture
-plays about twice the seed where its last coverage key first appears (the
-midgame's at 163; the opening plays 300); `FUZZ_SEEDS=n` sweeps deeper:
+plays one and a half times the seed where its last coverage key first
+appears, rounded up to ten, 30 to 300 (`FUZZ_STATS=<file>` appends each
+fixture's last key and CPU time; the openings play 300): depth is the weekly
+sweep's, not every run's (owner, 2026-11-20: "fuzz is far too long").
+`FUZZ_QUICK=1` plays each fixture's first 16 seeds, checking the invariants
+and replays only (no goldens, coverage keys or ousts): the confirmation run
+in the middle of a change. `FUZZ_SEEDS=n` sweeps deeper:
 weekly at `main`'s tip, with the host's `HOST_SEEDS` (`scripts/sweeps.py`, 600
 and 400 seeds; Z-main's schedule, never beside a training run), its report in
 the main checkout's `data/sweeps/`, a failure through `intake` and its seed
 kept. A fixture's seeds play across threads, a seed a core over all the
 fixtures (`Core`), merged in seed order; a failure is the lowest failing
-seed's, and `FUZZ_TRACE` plays on one thread. The suite runs in under 300 s
-wall on the 12-core machine, most of its CPU the engine's.
+seed's, and `FUZZ_TRACE` plays on one thread. On the 12-core machine the
+suite takes about 2,900 core-seconds (5 minutes' wall, more under load),
+the quick run about 500 (a minute), most of it the engine's (2026-11-20).
 
 `tests/elision.rs`: elision's observational equivalence (§4.3), from the opening
 and three fuzz tables (`tests/common/tables.rs`), 100 seeds each. At every real
