@@ -1232,6 +1232,14 @@ impl Game {
                 _ => None,
             })
             .collect();
+        // The reducer clears the action, combat or referendum at its `*_ends`
+        // (protocol §9): the one shown after an end is told even alike (a
+        // vampire hunting again).
+        let ended =
+            |f: fn(&EventKind) -> bool| named.iter().any(|(_, k)| k.as_ref().is_some_and(f));
+        let action_ended = ended(|k| matches!(k, EventKind::ActionEnds { .. }));
+        let combat_ended = ended(|k| matches!(k, EventKind::CombatEnds));
+        let referendum_ended = ended(|k| matches!(k, EventKind::ReferendumEnds { .. }));
         for (t, kind) in named {
             let told = match kind {
                 Some(kind) => Told::Event(Box::new(Event {
@@ -1254,7 +1262,7 @@ impl Game {
         if let Some(a) = v
             .action
             .as_ref()
-            .filter(|&a| last.and_then(|l| l.action.as_ref()) != Some(a))
+            .filter(|&a| action_ended || last.and_then(|l| l.action.as_ref()) != Some(a))
         {
             state.push(EventKind::ActionState {
                 action: Box::new(a.clone()),
@@ -1263,7 +1271,7 @@ impl Game {
         if let Some(c) = v
             .combat
             .as_ref()
-            .filter(|&c| last.and_then(|l| l.combat.as_ref()) != Some(c))
+            .filter(|&c| combat_ended || last.and_then(|l| l.combat.as_ref()) != Some(c))
         {
             state.push(EventKind::CombatState {
                 combat: Box::new(c.clone()),
@@ -1272,7 +1280,7 @@ impl Game {
         if let Some(r) = v
             .referendum
             .as_ref()
-            .filter(|&r| last.and_then(|l| l.referendum.as_ref()) != Some(r))
+            .filter(|&r| referendum_ended || last.and_then(|l| l.referendum.as_ref()) != Some(r))
         {
             state.push(EventKind::ReferendumState {
                 referendum: Box::new(r.clone()),

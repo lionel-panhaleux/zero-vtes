@@ -660,12 +660,12 @@ heap (a marker on its minion, §6), no copy of its own.
 | `block_fails` | `minion` (its block attempt ended without a block; the action goes on, or ends) |
 | `action_starts` | `seat`, `acting` (the minion's card, numbered by its name, as `enters_play` tells one: it may have come into play in the same run), `minion` (its kind), `action`: an action announced, by a decision or by the engine itself (a forced action: a hunt, Elen Kamjian's bleed); its `action_ends` follows, however short the action, before the next is announced |
 | `acting_changes` | `seat`, `acting`, `minion` (as `action_starts` tells them): another minion of the action's Methuselah now acting in it (Mask of a Thousand Faces); the action goes on as theirs, its `action_ends` naming them |
-| `action_state` | `action` (§6's): the action under way as it stands, told when it changed since the last view (its step, stealth and intercept, the bleed, the seats that declined) |
+| `action_state` | `action` (§6's): the action under way as it stands, told when it changed since the last view, or again after a `action_ends` (its step, stealth and intercept, the bleed, the seats that declined) |
 | `action_ends` | `seat`, `acting`, `action`, `outcome` (`succeeds`, `blocked`, `fails`, `fizzles`, `ousted`, `ends`), `blocker`? |
-| `referendum_state` | `referendum` (§6's): the referendum under way as it stands, told when it changed since the last view (its step, terms and votes) |
+| `referendum_state` | `referendum` (§6's): the referendum under way as it stands, told when it changed since the last view, or again after a `referendum_ends` (its step, terms and votes) |
 | `referendum_ends` | `outcome` (`passes`, `fails`, `canceled`), `votes_for`, `votes_against`, `action`? (the political action), `hunted`? (a blood hunt's diablerist) |
 | `combat_begins` | `minions` |
-| `combat_state` | `combat` (§6's): the combat under way as it stands, told when it changed since the last view (its round, range, each side's strike, maneuvers and presses) |
+| `combat_state` | `combat` (§6's): the combat under way as it stands, told when it changed since the last view, or again after a `combat_ends` (its round, range, each side's strike, maneuvers and presses) |
 | `strike_declared` | `minion`, `strike`? (none: no strike) |
 | `strikes` | `round`, `pair`, `range`, `sides` (`minion`, `strike`?, `damage`: before prevention, its retainers' and environmental damage included; `strike_damage`: the strike's share) |
 | `combat_ends` | — |

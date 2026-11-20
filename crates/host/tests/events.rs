@@ -64,11 +64,12 @@ fn from() -> u32 {
 /// created vampire banished with a card on it (488: Trophy: Progeny); and
 /// an action in another's turn after an as-played window (944: Madness
 /// Network), a neighbour's contest yielded (987: Mina Grotius), a trophy in
-/// play become a vampire (1081: Trophy: Progeny).
-const KEPT: [u32; 40] = [
+/// play become a vampire (1081: Trophy: Progeny); and an action shown alike
+/// after another ended (837: a hunt again).
+const KEPT: [u32; 41] = [
     47, 137, 139, 143, 145, 220, 265, 289, 321, 328, 332, 342, 353, 354, 358, 375, 397, 445, 472,
-    488, 499, 589, 591, 742, 766, 944, 987, 1057, 1081, 1302, 1320, 1413, 1717, 1733, 2355, 2382,
-    2493, 2742, 3572, 5419,
+    488, 499, 589, 591, 742, 766, 837, 944, 987, 1057, 1081, 1302, 1320, 1413, 1717, 1733, 2355,
+    2382, 2493, 2742, 3572, 5419,
 ];
 
 /// The sweep's seeds: `HOST_SEED_FROM` to `HOST_SEEDS` (40), the kept
