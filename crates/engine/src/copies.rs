@@ -82,19 +82,15 @@ pub enum Place {
     /// A seat's zone: crypt, library, hand, ash heap (and its crypt
     /// cards), removed cards (and vampires), research area.
     Zone(u8, &'static str),
+    /// An uncontrolled vampire's card: a crypt card, or a banished created
+    /// vampire's own library card.
     Uncontrolled(u8),
     /// A card in play, by its arena index; `stored`: a card stored on it
     /// (or on a training card).
-    Card {
-        id: u32,
-        stored: bool,
-    },
+    Card { id: u32, stored: bool },
     /// A crypt vampire or a token in play, by its arena index; `merged`:
     /// its base card.
-    Minion {
-        id: u32,
-        merged: bool,
-    },
+    Minion { id: u32, merged: bool },
     /// A card a Methuselah is playing (announced, in its as-played window,
     /// or the action under way's card).
     InFlight(u8),
@@ -143,19 +139,25 @@ pub fn census(e: &Engine) -> Vec<(CopyId, u16, Place)> {
                 add(*slot.copy, slot.card, Place::Uncontrolled(i));
             }
             if let Some(b) = &slot.banished {
-                banished.extend(b.cards.iter().map(|&c| (c.0, i, *slot.copy)));
+                for &c in &b.cards {
+                    let own = st.cards[c.index()].body == Some(b.minion);
+                    banished.push((c.0, i, *slot.copy, own));
+                }
             }
         }
     }
     for (id, c) in st.cards.iter().enumerate() {
         let id = id as u32;
-        let away = banished.iter().find(|&&(b, _, _)| b == id);
+        let away = banished.iter().find(|&&(b, ..)| b == id);
         let (at, stored) = match away {
-            Some(&(_, seat, slot)) => (
-                Place::Banished {
-                    seat,
-                    slot,
-                    stored: None,
+            Some(&(_, seat, slot, own)) => (
+                match own {
+                    true => Place::Uncontrolled(seat),
+                    false => Place::Banished {
+                        seat,
+                        slot,
+                        stored: None,
+                    },
                 },
                 Place::Banished {
                     seat,

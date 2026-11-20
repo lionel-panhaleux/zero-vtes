@@ -4532,7 +4532,8 @@ are in DESIGN §11.2.
   (`number_unnumbered`) before a game and before its replay alike: two
   games apart there diverge under equal hashes.
 - `census` lists every card with its copy and place (`Place`: a seat's
-  zone, the uncontrolled region, a card or minion in play, stored on a card or a
+  zone, the uncontrolled region (a banished created vampire's own card too,
+  its slot that card's copy), a card or minion in play, stored on a card or a
   minion, in flight, on a banished vampire, in training); the fuzz tests check,
   at each decision, each dealt copy stays its card and is found exactly once,
   until its Methuselah is ousted (their cards are removed from every zone).

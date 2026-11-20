@@ -122,7 +122,7 @@ impl Namer<'_> {
             Place::Zone(..) | Place::Uncontrolled(_) => (zone(p)?, None),
             Place::InFlight(_) => (Zone::Limbo, None),
             Place::Training(_) => (Zone::Training, None),
-            // With the banished vampire (a created one's slot unnumbered).
+            // With the banished vampire, by its slot's copy.
             Place::Banished { slot, .. } => {
                 let on = self.viewer.numbering.get(slot).map(|(w, _)| w);
                 (Zone::Uncontrolled, on)

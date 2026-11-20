@@ -571,6 +571,58 @@ fn reckless_agitation_needs_two_opponents() {
     assert!(plays(&req).is_empty());
 }
 
+// Banishment of a created vampire (The Embrace's, RTR 19990712): its
+// slot is its card's copy, a created minion having none of its own; in the
+// census its card is the uncontrolled vampire, a card on it with it there.
+#[test]
+fn banishment_keeps_a_created_vampires_card_as_its_slot() {
+    use zvtes::copies::{census, CopyId, Place, Untracked};
+    use zvtes::state::{CardId, Minion, MinionKind, NEWBORN};
+    let Table { mut e, alexa, .. } = table();
+    let embrace = find_library("Embrace, The");
+    let id = CardId(e.state.cards.len() as u32);
+    let m = MinionId(e.state.minions.len() as u32);
+    e.state.cards.push(CardInPlay {
+        copy: Untracked(CopyId(901)),
+        body: Some(m),
+        ..CardInPlay::new(embrace, SeatId(1), None, 0)
+    });
+    e.state.minions.push(Minion::new(
+        SeatId(1),
+        MinionKind::Created {
+            card: embrace,
+            id,
+            clan: Some("Brujah"),
+            sect: zvtes::crypt::Sect::Camarilla,
+            born: &NEWBORN,
+        },
+        1,
+    ));
+    let laptop = find_library("Laptop Computer");
+    e.state.cards.push(CardInPlay {
+        copy: Untracked(CopyId(902)),
+        ..CardInPlay::new(laptop, SeatId(1), Some(m), 0)
+    });
+    hand(&mut e, 0, &["Banishment"]);
+    pick(&mut e, play(0, 0, alexa));
+    pick(&mut e, Choice::ChooseMinion(m));
+    pick(&mut e, votes(alexa, true));
+    close_polling(&mut e);
+    let slot = &e.state.seats[1].uncontrolled[0];
+    assert_eq!(*slot.copy, CopyId(901));
+    let places = census(&e);
+    let at = |c: u16| places.iter().find(|p| p.0 == CopyId(c)).map(|p| p.2);
+    assert_eq!(at(901), Some(Place::Uncontrolled(1)));
+    assert_eq!(
+        at(902),
+        Some(Place::Banished {
+            seat: 1,
+            slot: CopyId(901),
+            stored: None
+        })
+    );
+}
+
 // Banishment: a ready vampire younger than the acting one goes to its
 // controller's uncontrolled region with its blood.
 // Rulings: [PIB 20140122] [TOM 19951209]; [LSJ 20060213] [LSJ 20060908].

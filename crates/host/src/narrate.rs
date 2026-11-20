@@ -923,12 +923,14 @@ pub(crate) fn changes(
         {
             continue;
         }
-        // A crypt card's places: a crypt pile, the uncontrolled region,
-        // a vampire (its own card's face: a token's is a library card).
+        // A crypt card's places: a crypt pile, the uncontrolled region
+        // (but a banished created vampire's own card, to or from play as a
+        // card), a vampire (its own card's face: a token's is a library
+        // card).
+        let as_card = [from, to].iter().any(|p| matches!(p, Place::Card { .. }));
         let crypt = [from, to].iter().any(|&p| match p {
-            Place::Zone(_, "crypt" | "ash_crypt" | "removed_crypt") | Place::Uncontrolled(_) => {
-                true
-            }
+            Place::Zone(_, "crypt" | "ash_crypt" | "removed_crypt") => true,
+            Place::Uncontrolled(_) => !as_card,
             Place::Minion { merged: true, .. } => true,
             Place::Minion { id, .. } => crate::view::minion_face(&e.state.minions[id as usize]).1,
             _ => false,
@@ -1263,6 +1265,81 @@ mod tests {
             matches!(t.fact, super::Fact::CardLeaves { card: c, contested: true, .. } if c == card)
         });
         assert!(counters.is_some() && counters < contested, "{out:?}");
+    }
+
+    /// A created vampire banished (The Embrace's): its own card told as a
+    /// library card into the uncontrolled region, a card on it onto its slot
+    /// (the census's places, `banish`'s state).
+    #[test]
+    fn a_banished_created_vampire_is_told_by_its_library_card() {
+        use zvtes::copies::{CopyId, Place, Untracked};
+        use zvtes::state::{Banished, Minion, MinionKind, UncontrolledSlot, CREATED, NEWBORN};
+        let mut e = Engine::bare(2);
+        e.add_minion(SeatId(1), find_card("Monica Giovanni"), 4, false);
+        let embrace = find_library("Embrace, The");
+        let id = zvtes::state::CardId(e.state.cards.len() as u32);
+        let m = zvtes::ids::MinionId(e.state.minions.len() as u32);
+        e.state.cards.push(CardInPlay {
+            copy: Untracked(CopyId(901)),
+            body: Some(m),
+            ..CardInPlay::new(embrace, SeatId(0), None, 0)
+        });
+        e.state.minions.push(Minion::new(
+            SeatId(0),
+            MinionKind::Created {
+                card: embrace,
+                id,
+                clan: Some("Brujah"),
+                sect: zvtes::crypt::Sect::Camarilla,
+                born: &NEWBORN,
+            },
+            1,
+        ));
+        let laptop = zvtes::state::CardId(e.state.cards.len() as u32);
+        e.state.cards.push(CardInPlay {
+            copy: Untracked(CopyId(902)),
+            ..CardInPlay::new(find_library("Laptop Computer"), SeatId(0), Some(m), 0)
+        });
+        let before = Mark::of(&e);
+        e.state.minions[m.index()].in_play = false;
+        e.state.minions[m.index()].blood = 0;
+        e.state.cards[id.index()].in_play = false;
+        e.state.cards[laptop.index()].in_play = false;
+        e.state.seats[0].uncontrolled.push(UncontrolledSlot {
+            card: CREATED,
+            copy: Untracked(CopyId(901)),
+            counters: 1,
+            banished: Some(Banished {
+                minion: m,
+                cards: vec![id, laptop],
+            }),
+        });
+        let after = Mark::of(&e).ledger;
+        let mut out = Vec::new();
+        super::changes(
+            &e,
+            (&before.ledger, &after),
+            None,
+            true,
+            None,
+            &mut Default::default(),
+            &mut out,
+        );
+        let moved = |c: u16| {
+            out.iter().find_map(|t| match t.fact {
+                super::Fact::Zoned {
+                    copy, crypt, to, ..
+                } if copy == CopyId(c) => Some((crypt, to)),
+                _ => None,
+            })
+        };
+        assert_eq!(moved(901), Some((false, Place::Uncontrolled(0))), "{out:?}");
+        let on = Place::Banished {
+            seat: 0,
+            slot: CopyId(901),
+            stored: None,
+        };
+        assert_eq!(moved(902), Some((false, on)), "{out:?}");
     }
 
     /// A card's face told as its places showed it as it moved: drawn

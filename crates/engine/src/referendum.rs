@@ -4014,10 +4014,10 @@ impl Engine {
         if was_ready {
             self.by_left_ready(m);
         }
+        let copy = crate::copies::minion_copy(&self.state, m.index());
         let v = &mut self.state.minions[m.index()];
         v.in_play = false;
         let card = v.crypt_card().unwrap_or(crate::state::CREATED);
-        let copy = *v.copy;
         let blood = v.blood;
         v.clear_blood();
         // The cards on it go out of play until it returns, a created

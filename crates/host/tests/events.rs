@@ -60,10 +60,11 @@ fn from() -> u32 {
 /// card out of limbo (2742: Kine Resources Contested); and a minion's title
 /// changed between two views (47); and a turn begun with its skip asked (353:
 /// First Tradition: The Masquerade); and a block attempt its action's end cut
-/// short, told failed before it (742: Shadow Play burning Nocturn).
-const KEPT: [u32; 36] = [
+/// short, told failed before it (742: Shadow Play burning Nocturn); and a
+/// created vampire banished with a card on it (488: Trophy: Progeny).
+const KEPT: [u32; 37] = [
     47, 137, 139, 143, 145, 220, 265, 289, 321, 328, 332, 342, 353, 358, 375, 397, 445, 446, 472,
-    499, 589, 591, 742, 766, 1057, 1302, 1320, 1413, 1717, 1733, 2355, 2382, 2493, 2742, 3572,
+    488, 499, 589, 591, 742, 766, 1057, 1302, 1320, 1413, 1717, 1733, 2355, 2382, 2493, 2742, 3572,
     5419,
 ];
 
