@@ -1808,11 +1808,11 @@ fn blind_spot_bars_a_block_this_turn() {
     pick(&mut e, play_at(0, 0, None, Target::Minion(a)));
     pick_when(&mut e, Choice::ChooseMinion(y));
     until(&mut e, SeatId(0), WindowLabel::MinionPhase);
-    assert!(e.state.cannot_block(y, a));
-    assert!(!e.state.cannot_block(z, a));
-    assert!(!e.state.cannot_block(y, o));
+    assert!(e.state.cannot_block(y, a, true));
+    assert!(!e.state.cannot_block(z, a, true));
+    assert!(!e.state.cannot_block(y, o, true));
     until(&mut e, SeatId(1), WindowLabel::MinionPhase);
-    assert!(!e.state.cannot_block(y, a), "this turn only");
+    assert!(!e.state.cannot_block(y, a, true), "this turn only");
 }
 
 /// Prison of the Mind [DEM]: on the vampire, -1 stealth, -2 intercept; three

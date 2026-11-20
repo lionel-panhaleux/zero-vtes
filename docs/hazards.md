@@ -42,6 +42,9 @@ review finding); one the code or a page now makes impossible leaves it.
 - A non-strike ability used in the strike step (Ghoul Retainer's weapon
   use) leaves the strike to choose; a single strike left (the hand strike)
   elides, its request never seen.
+- A vampire's printed ability in a strike window is offered with `actor:
+  None`: a test matching `Some(m)` never finds it; match the source and
+  ability (`uses_printed`).
 - A committed strike (a weapon's maneuver, Joumlon's Axe's cancel) left
   with one option elides, its pair-0 request never seen: assert the damage
   it dealt, or read the next pair's optional request (a `Pass` first).
@@ -124,6 +127,11 @@ review finding); one the code or a page now makes impossible leaves it.
   change-of-blocker window closes, and passing that window declines the
   seat: `failed_attempts` is empty after the `DeclareBlock` pick, and the
   same minion's second attempt (rules-qa 48.6) is not reachable by passing.
+- One out-of-turn master per Methuselah between their master phases
+  (`Seat::out_of_turn`): a second copy is never offered that turn, so a
+  test of two modes of one such card (Warning Sirens) needs two turns or
+  two games. A master phase offering only a pass elides: `until` its
+  `MasterPhase` never stops; keep a playable master in hand.
 
 ## Cards
 
@@ -220,6 +228,30 @@ review finding); one the code or a page now makes impossible leaves it.
   if the contest is staged with it; such an entry stages its contests once
   it ends (`Interrupt::DisciplineSearch::entering`, Victor Pelletier's
   `BuyTitle`), "before contest" (LSJ 20080526).
+- A range long by default (`CombatCtx::long_by_default`: Fear of the Void
+  Below [dai]) is not `range_set`: determine range still opens. A reader
+  of "the range set long" (the Flamethrower's pre-range backfire, LSJ
+  20100709) reads both, or misses the default.
+- A title card's title is `CardInPlay::represented_title`, not
+  `cards::card_title` of its card: Anarch Secession's is computed as it
+  enters play (baron of its vampire's city); a reader of the printed one
+  misses it.
+- A "come into play with" bonus (Carmine's wraiths, Ashur-uballit's
+  zombies) is a starting life, fixed as the card enters
+  (`CardInPlay::extra_life`); a restore to starting life that re-reads the
+  bonus giver live gives it to a card that entered without it.
+- An effect reading the picks or the title it changes runs before the
+  change: Inquisition's damage reads "each pick still a bishop", so it is
+  listed before the title loss, or it hits no one.
+- While a choice applies, `Engine::flow` is `Flow::GameOver` (taken by
+  `choose`): `Engine::phase()` read from code under an influence-out says
+  nothing; read the phase from state (`GameState::in_influence_phase`,
+  `in_minion_phase`, `in_master_phase`).
+- A mandatory action of a type (Phillipe Rigaud's diablerie: any
+  diablerie action, a card's too) is no ability: the forced hunt's path
+  offers only `ability_options`' mandatory ones, so it builds the type's
+  options itself (`diableries_due` over `free_action_options(s, Some(m))`)
+  or the hunt runs first, out of its player's order (rules-qa 17.2).
 - An immunity is not a reduction: `Stat::DamageImmuneFromOpponent`
   (`GameState::damage_immune`), not `NoDamageFromOpponent`, or Haymaker,
   the Walking Stick and the Flamethrower miss it (rules-qa 116.138).
@@ -245,6 +277,10 @@ review finding); one the code or a page now makes impossible leaves it.
   already spent for a card the play brings in (Pack Alpha's Raven Spy for
   Ananasi Vampirephile's once-each-turn grant): spend after the effects
   loop (`Engine::spend_turn_grant`).
+- A record of "the cards played" made before a play's effects lists the
+  play itself to them: Permanency [chi] read its own copy as "the modifier
+  just played" until `ActionCtx::resolved_modifiers` was pushed after the
+  effects loop.
 - A political action card's effects other than its referendum never run
   (`succeed`'s political branch): an `Effect::ActionLayer` there was
   silently dropped until pushed as the referendum starts.
@@ -265,11 +301,23 @@ review finding); one the code or a page now makes impossible leaves it.
   LSJ 20050225) hid behind a targeted master's clan filter (Regenerative
   Blood's "a Samedi you control"); test such a fix with an untargeted card
   (Blessings of the Loa, Dirty Contract).
+- `cards::holds` meets Vlad Tepes's sect and title as if, for any card he
+  uses: a card another card puts in play (The Summoning's ally) reads the
+  vampire's own sect and title (`recruit_versions`), as a retainer employed
+  by a card or from the ash heap reads its sect, title and path
+  (`employable_from`): Crypt's Sons and Twisted Bloodhound were offered to
+  anyone.
 - While a Winged Second chooses its strike, `CombatCtx::sides[i]` is the
   second's own `Side` and `range` reads close (`second_swap`): a reader of
   the combatant or the range outside that request (the host's view and
   narration) goes through `combatant_side` / `combat_range`, or it shows
   the second as the combatant.
+- An action's last pool paid at resolution holds its oust for the effect
+  (`ActionCtx::oust_held`): a new resolution path that ends the action
+  without `after_resolution`, or begins a combat or a referendum, releases
+  it first (`release_held_oust`); `start_combat_at_resolution` returns
+  false when the release ended the action — check it before touching
+  `self.combat`.
 
 ## The shared tree
 

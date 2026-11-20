@@ -180,9 +180,12 @@ fn chandler_christine_and_navar_printed_blocks() {
         st.printed_mod(christine, Stat::Intercept, on(ActionKind::Hunt)),
         0
     );
-    assert!(st.cannot_block(navar, gangrel), "an older vampire");
+    assert!(st.cannot_block(navar, gangrel, true), "an older vampire");
     let younger = e.add_minion(SeatId(0), find_card("Smudge the Ignored"), 1, false);
-    assert!(!e.state.cannot_block(navar, younger), "not an older one");
+    assert!(
+        !e.state.cannot_block(navar, younger, true),
+        "not an older one"
+    );
 }
 
 // Eurayle: "can unlock a minion as an action; that action gets +2 stealth

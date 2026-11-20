@@ -42,6 +42,7 @@ fn names_a_token(c: &Choice) -> bool {
             | Choice::PayRescue { .. }
             | Choice::CastEdge { .. }
             | Choice::CastCardVote { .. }
+            | Choice::CastGrantedVotes { .. }
             | Choice::ChooseClan(_)
             | Choice::DrawCrypt
             | Choice::HandStrike

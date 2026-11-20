@@ -603,7 +603,7 @@ fn encode_as(e: &Engine, req: &DecisionRequest, v: Version, omniscient: bool) ->
 
 /// Choice variant ids (`opt_ids[0]`) are 1-based: `N_CHOICE_KINDS` counts the
 /// padding 0.
-pub const N_CHOICE_KINDS: usize = 63;
+pub const N_CHOICE_KINDS: usize = 65;
 
 /// `choice` as `viewer` would be offered it; `played`: the card its hand
 /// index named, for a past choice (`Event::card`).
@@ -831,6 +831,14 @@ fn option(
             [61, clan.unwrap_or(0), ix.minion(minion), 0, 0]
         }
         Choice::EndCombat => [62, 0, 0, 0, 0],
+        Choice::CastGrantedVotes { favor } => {
+            f[O_FAVOR] = flag(favor);
+            [63, 0, 0, 0, 0]
+        }
+        Choice::Version { card, mode } => {
+            f[O_MODE] = mode as f32;
+            [64, library_id(card), 0, 0, 0]
+        }
     };
     (ids, f)
 }

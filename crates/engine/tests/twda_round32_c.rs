@@ -2908,7 +2908,8 @@ fn muricias_call_offers_jenna_cross_no_retainer_she_cannot_pay() {
 /// unlock this acting vampire at the end of the turn." [LSJ 20080803]
 /// "When choosing a card whose effect depend on Discipline level, the
 /// vampire decides in respect to his disciplines the normal way": a
-/// superior vampire's Raven Spy at its 2 life, plus 1; the vampire unlocked
+/// superior vampire's Raven Spy taken at [ANI] (its player's choice,
+/// rules-qa 125.17), its 2 life plus 1; the vampire unlocked
 /// as the turn ends. [ANK 20180817] "Does not prevent the acting vampire
 /// from playing the equipment/retainer/ally directly this turn if he
 /// unlocks": unlocked, it employs another Raven Spy from hand.
@@ -2930,7 +2931,13 @@ fn muricias_call_superior_raven_spy_has_three_life_and_unlocks_at_end_of_turn() 
             card: find_library("Raven Spy"),
         },
     );
-    request(&mut e);
+    pick(
+        &mut e,
+        Choice::Version {
+            card: find_library("Raven Spy"),
+            mode: 1,
+        },
+    );
     let c = placed_on(&e, "Raven Spy", Some(a));
     assert_eq!(e.state.cards[c.index()].mode, 1);
     assert_eq!(e.state.cards[c.index()].counters, 3);
@@ -2986,7 +2993,13 @@ fn an_additional_life_raises_a_retainers_starting_life() {
             card: find_library("Raven Spy"),
         },
     );
-    request(&mut e);
+    pick(
+        &mut e,
+        Choice::Version {
+            card: find_library("Raven Spy"),
+            mode: 1,
+        },
+    );
     let c = placed_on(&e, "Raven Spy", Some(a));
     assert_eq!(e.state.cards[c.index()].counters, 3);
     heal(&mut e, b, c);
@@ -3927,13 +3940,14 @@ fn an_action_card_played_from_the_erciyes_fragments_is_canceled_as_played() {
 /// Truck: [LSJ 20080803] "When choosing a card whose effect depend on
 /// Discipline level, the vampire decides in respect to his disciplines the
 /// normal way": Tinglestripe ([myt], [MYT]) equipped by a vampire with
-/// superior Mytherceria at either version, by one with basic at [myt] only.
+/// superior Mytherceria at [MYT], his player's choice (rules-qa 125.17), by
+/// one with basic at [myt] only, the found card's version never asked.
 #[test]
 fn an_equip_action_takes_tinglestripes_version_by_the_vampires_disciplines() {
     let tingle = find_library("Tinglestripe");
-    let superior_version = Choice::EmployFromHand {
-        card: tingle,
-        mode: 1,
+    let superior_version = |o: &Choice| {
+        matches!(o, Choice::EmployFromHand { card, mode: 1 } | Choice::Version { card, mode: 1 }
+            if *card == tingle)
     };
     for superior in [false, true] {
         let levels: &[&str] = if superior {
@@ -3967,7 +3981,7 @@ fn an_equip_action_takes_tinglestripes_version_by_the_vampires_disciplines() {
                 if (req.seat, req.window) == (SeatId(0), WindowLabel::MinionPhase) {
                     break;
                 }
-                if let Some(i) = req.options.iter().position(|o| *o == superior_version) {
+                if let Some(i) = req.options.iter().position(superior_version) {
                     offered = true;
                     e.choose(i);
                 } else if let Some(i) = req
@@ -3980,7 +3994,7 @@ fn an_equip_action_takes_tinglestripes_version_by_the_vampires_disciplines() {
                     e.choose(fallback(&req));
                 }
             }
-            let _ = offered;
+            assert_eq!(offered, superior, "{card}");
             let t = placed_on(&e, "Tinglestripe", Some(a));
             assert_eq!(e.state.cards[t.index()].mode, u8::from(superior), "{card}");
         }
@@ -4008,7 +4022,7 @@ fn an_equip_action_takes_tinglestripes_version_by_the_vampires_disciplines() {
             if (req.seat, req.window) == (SeatId(0), WindowLabel::MinionPhase) {
                 break;
             }
-            match req.options.iter().position(|o| *o == superior_version) {
+            match req.options.iter().position(superior_version) {
                 Some(i) => e.choose(i),
                 None => e.choose(fallback(&req)),
             }
@@ -4020,6 +4034,91 @@ fn an_equip_action_takes_tinglestripes_version_by_the_vampires_disciplines() {
             "Delivery Truck"
         );
     }
+}
+
+/// Rules-qa 125.17 (owner, 2026-11-19): a card a search or a storage card
+/// puts in play enters at the version its player chooses among those the
+/// vampire's Disciplines meet, as from hand: with superior Mytherceria, a
+/// Tinglestripe found by Magic of the Smith or on Delivery Truck, with
+/// superior Animalism a Raven Spy found by Muricia's Call, each offered at
+/// both versions and taken at the basic one.
+#[test]
+fn a_searched_card_enters_at_the_version_its_player_chooses() {
+    /// Pass until the version request of `card`, take its basic version,
+    /// then pass to the minion phase.
+    fn choose_basic(e: &mut Engine, card: u16, find: Choice) {
+        let both = vec![
+            Choice::Version { card, mode: 0 },
+            Choice::Version { card, mode: 1 },
+        ];
+        loop {
+            let req = request(e);
+            assert_ne!(req.window, WindowLabel::MinionPhase, "no version asked");
+            if req.options == both {
+                e.choose(0);
+                break;
+            }
+            match req.options.iter().position(|o| *o == find) {
+                Some(i) => e.choose(i),
+                None => e.choose(fallback(&req)),
+            }
+        }
+        until(e, SeatId(0), WindowLabel::MinionPhase);
+    }
+    let tingle = find_library("Tinglestripe");
+    for truck in [false, true] {
+        let mut e = game(2);
+        let a = e.add_minion(SeatId(0), plain("Brujah", 0), 4, false);
+        e.state.minions[a.index()].gained_levels = vec!["myt", "myt"];
+        e.add_minion(SeatId(0), plain("Brujah", 1), 4, false);
+        e.add_minion(SeatId(1), plain("Ventrue", 0), 4, false);
+        if truck {
+            let h = e.add_minion(SeatId(0), plain("Brujah", 2), 4, false);
+            let t = in_play(&mut e, 0, "Delivery Truck", Some(h));
+            e.state.cards[t.index()].stored.push(tingle);
+            let req = request(&mut e);
+            let i = req
+                .options
+                .iter()
+                .position(|o| {
+                    matches!(o, Choice::UseAbility { source: AbilitySource::Card(c), actor: Some(x), .. }
+                        if *c == t && *x == a)
+                })
+                .expect("the truck's equip");
+            e.choose(i);
+        } else {
+            hand(&mut e, 0, &["Magic of the Smith"]);
+            fill_hand(&mut e, 0);
+            stack(&mut e, 0, &["Tinglestripe"], 2);
+            pick(&mut e, play(0, 0, a));
+        }
+        choose_basic(&mut e, tingle, Choice::FindCard(tingle));
+        let t = placed_on(&e, "Tinglestripe", Some(a));
+        assert_eq!(e.state.cards[t.index()].mode, 0, "truck {truck}");
+    }
+    let spy = find_library("Raven Spy");
+    let mut e = game(2);
+    let a = e.add_minion(SeatId(0), plain("Brujah", 2), 4, false);
+    e.state.minions[a.index()].gained_levels = vec!["ani", "ani"];
+    e.add_minion(SeatId(0), plain("Brujah", 0), 4, false);
+    e.add_minion(SeatId(1), plain("Ventrue", 0), 4, false);
+    hand(&mut e, 0, &["Muricia's Call"]);
+    fill_hand(&mut e, 0);
+    stack(&mut e, 0, &["Raven Spy"], 3);
+    pick(&mut e, play(0, 0, a));
+    let take = Choice::TakeFrom {
+        zone: zvtes::decision::Zone::Library,
+        card: spy,
+    };
+    choose_basic(&mut e, spy, take);
+    let c = placed_on(&e, "Raven Spy", Some(a));
+    assert_eq!(
+        (
+            e.state.cards[c.index()].mode,
+            e.state.cards[c.index()].counters
+        ),
+        (0, 1)
+    );
 }
 
 // ---- Round 32 vampires, Iniko to Olugbenga ----------------------------------

@@ -1482,6 +1482,37 @@ mod tests {
         assert!(matches!(s.undo(), Err(Refused::NoUndo)), "barred");
     }
 
+    /// Grendel's crypt top, seen by his controller (round 33): a top newly
+    /// seen bars the undo as a reveal does; one he does not see (in
+    /// torpor) does not.
+    #[test]
+    fn a_crypt_top_seen_bars_the_undo() {
+        let (mut s, _) = session();
+        to_undoable(&mut s);
+        let seat = s.pending.as_ref().expect("a decision").seat;
+        let grendel = find_card("Grendel the Worm-Eaten");
+        let g = s.engine.add_minion(seat, grendel, 4, true);
+        assert!(s.undo_depth().is_some(), "in torpor: unseen");
+        s.engine.state.minions[g.index()].in_torpor = false;
+        assert!(s.undo_depth().is_none(), "barred");
+    }
+
+    /// Tusk's library top, likewise.
+    #[test]
+    fn a_library_top_seen_bars_the_undo() {
+        let (mut s, _) = session();
+        to_undoable(&mut s);
+        let seat = s.pending.as_ref().expect("a decision").seat;
+        let tusk = zvtes::crypt::CRYPT
+            .iter()
+            .position(|c| c.name == "Tusk, The Talebearer" && !c.adv)
+            .expect("Tusk") as u16;
+        let t = s.engine.add_minion(seat, tusk, 4, true);
+        assert!(s.undo_depth().is_some(), "in torpor: unseen");
+        s.engine.state.minions[t.index()].in_torpor = false;
+        assert!(s.undo_depth().is_none(), "barred");
+    }
+
     /// A fact names its minion by the copy it had when told: a merge
     /// before the next view (the bots' turns between two of the human's)
     /// gives the minion the advanced card's copy, one the viewer never

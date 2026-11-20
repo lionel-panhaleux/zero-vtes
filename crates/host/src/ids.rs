@@ -173,6 +173,10 @@ pub fn purpose(i: &Interrupt) -> Purpose {
         I::StealForCorruption { .. } => Purpose::StealForCorruption,
         I::MakeAnarch { .. } => Purpose::MakeAnarch,
         I::BurnBloodToAnarch { .. } => Purpose::BurnBloodToAnarch,
+        I::MayJoinSect { .. } => Purpose::MayJoinSect,
+        I::BurnLocationsForPool { .. } => Purpose::BurnLocationsForPool,
+        I::PlacedClan { .. } => Purpose::PlacedClan,
+        I::RetainerDamageOrder { .. } => Purpose::RetainerDamageOrder,
         I::GainVictimDiscipline { .. } => Purpose::GainVictimDiscipline,
         I::MayJoinCombat { .. } => Purpose::MayJoinCombat,
         I::MoveClot { .. } => Purpose::MoveClot,
@@ -300,5 +304,9 @@ pub fn purpose(i: &Interrupt) -> Purpose {
         I::ReadyTitledLeft { .. } => Purpose::ReadyTitledLeft,
         I::MoveForBlood { .. } => Purpose::MoveForBlood,
         I::Redraw { .. } => Purpose::Redraw,
+        I::MayMoveEdgePool { .. } => Purpose::MayMoveEdgePool,
+        I::NameAshRetainer { .. } => Purpose::NameAshRetainer,
+        I::FoundVersion { .. } => Purpose::FoundVersion,
+        I::MayHuntBloodToPool { .. } => Purpose::MayHuntBloodToPool,
     }
 }

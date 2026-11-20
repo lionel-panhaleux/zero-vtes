@@ -18,7 +18,7 @@ is created by one request and played over one WebSocket. Every game is
 recorded, anonymously, and kept two years to train and test the engine
 (§11).
 
-Version **2.33.0**. The types: the models of the
+Version **2.34.0**. The types: the models of the
 [API reference](https://engine.krcg.org/docs), also as
 [JSON Schema](https://engine.krcg.org/schema.json) (2020-12) and
 [TypeScript](https://engine.krcg.org/protocol.ts).
@@ -28,12 +28,12 @@ Version **2.33.0**. The types: the models of the
 - A **game** has 2 to 6 seats in seating order (0, 1, …), each a human
   or a bot. The server hosts one human per game. A game of 2 seats plays
   VEKN's two-player variant: a contested vampire stays in play and acts
-  (a `contested` marker, 1 pool in each of its controller's unlock
-  phases or yielded; no `leaves_play`), two contested copies' title is not
-  contested, and the first player gets 3 transfers in their first
-  influence phase, then everyone 4. Its decks follow the variant: a
-  library of 40 to 60 cards, every card on VEKN's list of allowed cards
-  in 2-player VTES (else `SpecError` `two_player_deck`: `seat`, `cards`
+  (a `contested` marker, its contest cost, 1 pool or more by Democritus,
+  in each of its controller's unlock phases or yielded; no `leaves_play`),
+  two contested copies' title is not contested, and the first player gets 3
+  transfers in their first influence phase, then everyone 4. Its decks follow
+  the variant: a library of 40 to 60 cards, every card on VEKN's list of allowed
+  cards in 2-player VTES (else `SpecError` `two_player_deck`: `seat`, `cards`
   off the list, `library`); `GET /catalog?seats=2` lists VEKN's suggested
   2-player decklists.
 - A Methuselah whose library is exhausted and whose turn began short of
@@ -321,7 +321,9 @@ the previous one, never the engine's state.
   pool a shattered counter burns each unlock phase, Shatter the Gate),
   `prey`, `predator`; zones as cards `{copy?, id?, crypt?, nth?, numbered?}` —
   `crypt`, `library` (top last; while the seat searches it, the cards it may
-  take show their `id`), `hand`, `research`? (Research's face-down area: backs
+  take show their `id`; the top of its own crypt or library a seat sees,
+  Grendel the Worm-Eaten's or Tusk's, shows its `id` and number to that
+  seat), `hand`, `research`? (Research's face-down area: backs
   to the other seats; zone `research`), `ash_heap`, `removed`, `limbo` (cards
   being played); an ousted seat's places empty (its cards out of the game);
   `training[]` (library cards in the uncontrolled region with training counters,
@@ -379,7 +381,9 @@ the previous one, never the engine's state.
 - `referendum`: `caller`, `step` (`terms`, `polling`, `shortfall`),
   `calling`, `card`, `votes_for`, `votes_against`, `terms` (`seats`,
   `cards`, `clan`, `allocated`), every `vote` cast (`seat`, `source`,
-  `copy`, `favor`, `n`, `canceled`).
+  `copy`, `favor`, `n`, `canceled`). A vote counted per something (ready
+  Anarchs, counters, Red List minions) is counted again until the tally:
+  its `n`, and the totals, are the count now, not the count at the cast.
 
 ## 7. Options
 
@@ -415,10 +419,11 @@ seat 2; burn 2 pool to keep card 9.)
   never share a key (copies alike in hand are one option: the copy a `play` took
   is its `card_moves` into limbo, §9). Each key names what its kind is about, so
   a log reads it without its English (`crates/host/tests/keys.rs` holds the
-  list): a `play` its `card` and `mode`, a `use_ability` its `card` or `minion`
-  and `ability`, a `take_action` its `actor`, `action` and, a bleed, the seat
-  bled (`target`: the prey); a choice among minions its `minion`
-  (`declare_block`, `cast_votes`, `choose_minion`, `resolve_printed`,
+  list): a `play` its `card` and `mode`, a `version` the `card` a search or a
+  storage card puts in play and the `mode` it enters at, a `use_ability` its
+  `card` or `minion` and `ability`, a `take_action` its `actor`, `action` and,
+  a bleed, the seat bled (`target`: the prey); a choice among minions its
+  `minion` (`declare_block`, `cast_votes`, `choose_minion`, `resolve_printed`,
   `burn_blood_from`, …); `transfer`, `withdraw`, `influence_out`, `merge` and
   `slot` their `slot` (the Great Beast's Discipline slot its `value`);
   `follow_path` its `minion` and the path's `value`; `meet_as` its `minion` and
@@ -433,10 +438,10 @@ seat 2; burn 2 pool to keep card 9.)
   `pay_rescue` their `amount`; `allocate_to` and `allocate_to_card` their
   `target` and `amount`; `choose_seat` its `target`; `choose_clan`,
   `choose_circle`, `choose_discipline` their `value`; `cast_edge`,
-  `cast_card_vote` their `favor`; a contest's its `minion` or `card`;
-  `name_card` none as offered, the card named once taken (`decided`). The rest
-  (`pass`, `edge_pool`, `withdraw_from_game`, `skip_turn`, `burn_pool`,
-  `draw_library`, `draw_crypt`, `pay_block_toll`, `pay_to_cancel`,
+  `cast_card_vote`, `cast_granted_votes` their `favor`; a contest's its
+  `minion` or `card`; `name_card` none as offered, the card named once taken
+  (`decided`). The rest (`pass`, `edge_pool`, `withdraw_from_game`, `skip_turn`,
+  `burn_pool`, `draw_library`, `draw_crypt`, `pay_block_toll`, `pay_to_cancel`,
   `burn_blood_to_avoid`) read from their `effects` and the decision's `source`
   and `purpose`, which `decided` repeats.
 - **`name_card`** — a play naming any library card (Precision, Sibyl's

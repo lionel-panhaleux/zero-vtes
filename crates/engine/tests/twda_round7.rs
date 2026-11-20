@@ -272,9 +272,9 @@ fn banshee_ironwail_burns_an_acting_ally_and_leaves_the_blocker_unlocked() {
 // Poacher's Hunting Ground: "choose up to X ready anarchs you control who
 // each gain 1 blood, where X is the number of non-derivative hunting
 // grounds controlled by other Methuselahs." [ANK 20170430] A Trophy:
-// Hunting Ground counts (not in the pool): any non-derivative one does,
-// its own copy (derivative) does not. One hunting ground across the
-// table: one anarch fed; two: both.
+// Hunting Ground counts, unawarded too (twda_round33): any non-derivative
+// one does, its own copy (derivative) does not. One hunting ground across
+// the table: one anarch fed; two: both.
 #[test]
 fn poachers_hunting_ground_feeds_one_anarch_per_rival_hunting_ground() {
     for rivals in [1usize, 2] {

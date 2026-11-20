@@ -296,7 +296,9 @@ impl Scripted {
                     -5
                 }
             }
-            Choice::CastVotes { favor, .. } | Choice::CastCardVote { favor } => {
+            Choice::CastVotes { favor, .. }
+            | Choice::CastCardVote { favor }
+            | Choice::CastGrantedVotes { favor } => {
                 if favor == mine {
                     50
                 } else {

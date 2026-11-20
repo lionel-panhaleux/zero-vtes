@@ -6,6 +6,77 @@ server runs.
 `python3 scripts/schema_compat.py` lists what a schema change adds or
 removes; its `--check` fails a removal without a major version.
 
+## 2.34.0
+
+- Round 33 adds the `Purpose` ids `may_join_sect` (Ravnos Acceptance,
+  Giovanni Acceptance, Invitation Accepted, Revocation of Tyre: `minion`,
+  entering play, joins the sect `about.detail`, `choose_minion`, or keeps
+  its sect, `pass`; those in play as the card passes are picked in the
+  referendum's `choose` step),
+  `burn_locations_for_pool` (Insurance Scam: `choose_card` burns a
+  location the chooser controls, `about.n` the count so far; `pass` stops
+  and gains that much pool), `placed_clan` (a trophy awarded from out of
+  play choosing its clan, Trophy: Clan Respect: `choose_clan`,
+  `about.card` the trophy), `retainer_damage_order` (Bloodstorm of
+  Chorazin: damage on `minion` and on the Ilomba `card` on it at once, its
+  controller picking which takes it first, `choose_minion` or
+  `choose_card`), `may_move_edge_pool` (Heather Florent: the Edge's pool
+  moved to `minion` as blood, `resolve_printed`, or gained as pool,
+  `pass`), `name_ash_retainer` (Patrizia Giovanni: the retainer of the ash
+  heap she will employ, named as her action is declared, `find_card`) and
+  `may_hunt_blood_to_pool` (Rabbat's hunt: 1 blood to `seat`'s pool,
+  `resolve_printed`, or kept, `pass`). No id removed.
+- Round 33 adds the `OptionKind` id `cast_granted_votes` (Trumped-Up
+  Charges: the chosen minion's controller casts the votes the card gives
+  them, 2 per Red List minion in play, all on `favor`'s side; once a
+  referendum) and the `VoteSource` id `granted` (that cast's record).
+- The `OptionKind` id `version` and the `Purpose` id `found_version`: a card
+  a search or a storage card puts in play (Magic of the Smith, Delivery
+  Truck, Muricia's Call, Children of Stone, Trophy: Retainers, The
+  Summoning; Patrizia Giovanni's named retainer) enters at the version its
+  player chooses, asked (`about.minion`, `about.card`) only when the
+  vampire's Disciplines meet more than one; each option names its `card`
+  and `mode`. Such a card no longer enters at the highest version met.
+- `minion_of`'s `about.detail` gains `blood_from_to` (Glass Walker Pact: a
+  ready vampire of `about.clan` receives `about.n` blood, mandatory),
+  `guess_chosen` (Betrayer: burn `about.n` pool to guess `about.card`'s
+  hidden vampire among one's own, or `pass`; Betrayer's chosen vampire is
+  in no view or event but its player's) and `baron_city` (`card` the title
+  card: Vlad Tepes's Anarch Secession makes him baron of a city held in
+  play, the option a vampire holding that city's title, or of a made-up
+  city, `pass`). `minion_of` `corrupt` may offer the minions of every
+  Methuselah an action was directed at (Weigh the Heart [AUS][SER]).
+- An option's effects tell `prevent` `detail: strike` (Ignore the Searing
+  Flames [dai]: all the opposing strike's aggravated damage, no `n`),
+  `immune` `detail: this_round` (its [DAI]), `press` `detail: each_round`
+  (Fear of the Void Below [dai]) and `votes` `on: chosen` with `favor`
+  (Distant Friend's burn).
+- A seat's own crypt or library top card it sees (Grendel, Tusk, while
+  ready) carries its `id` and number in `seats[].crypt` / `seats[].library`
+  (last), for that seat only; seeing it bars an undo.
+- Behaviour clients see: the strike-choice order may be swapped for a pair
+  (Rapid Thought [CEL]: the opposing side's `combat_strike` request comes
+  first); a play's terms may name an uncontrolled vampire of another
+  Methuselah's region (Undue Influence [chi]: `choose_seat`, then `slot`
+  in that seat's region); a `resolution_choice` of `host_card` may move a
+  card just taken onto a vampire of the player's (Shepherd's Innocence
+  [ANI]); a minion phase's `due` `action` may name a vampire whose
+  mandatory action is any diablerie (Phillipe Rigaud); a card contest may
+  cost more than 1 pool (Democritus), `pay_contest` withheld when the pool
+  (Olugbenga's blood counted) falls short and `contest_payment` asked once
+  per unit owed; a vampire may be offered a block an action's bars deny
+  vampires, change control in a discard phase by its controller's
+  predator's `use_ability` and land in its owner's removed crypt cards
+  (Sonja Blue); a stolen master card's `InPlayView.controller` is the
+  taker (Ethan Locke); Shared Nightmare [CHI] asks exactly three picks;
+  per-count votes (Aisha az-Zahra, Powerbase: Madrid, Bastille Opera
+  House, Trumped-Up Charges, Ayo Igoli, Gerald Windham, Carter
+  Vanderweyden, Xeper) are read again through the polling, the referendum
+  view's totals and each vote's `n` the count now; an action's cost paid
+  with its Methuselah's last pool ousts them as its effect resolves, not
+  before (Lorrie Dunsirn's bleed ousts both Methuselahs at 1 pool at once);
+  a look at a library's top is not offered with that library empty.
+
 ## 2.33.0
 
 - A play naming any library card (Precision, Sibyl's Tongue) asks one

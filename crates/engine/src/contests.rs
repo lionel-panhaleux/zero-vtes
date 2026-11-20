@@ -45,8 +45,9 @@ impl Engine {
     }
 
     /// The upkeep choices for one contested object: none without a rival,
-    /// a forced yield for a title on a torpid or empty vampire, else pay or
-    /// yield (a card's payment always: paying down to 0 is legal).
+    /// a forced yield for a title on a torpid or empty vampire or a card
+    /// whose cost its Methuselah lacks (Democritus's toll; Olugbenga's
+    /// blood counted), else pay or yield (paying down to 0 is legal, D3).
     pub(crate) fn contest_choices(&self, item: Contest) -> Vec<Choice> {
         let st = &self.state;
         match item {
@@ -54,7 +55,20 @@ impl Engine {
             Contest::Title(m) if st.title_rivals(m).is_empty() => vec![],
             Contest::Library(c) if st.library_rivals(c).is_empty() => vec![],
             Contest::Card(_) | Contest::Library(_) => {
-                vec![Choice::PayContest(item), Choice::YieldContest(item)]
+                let blood: i32 = match item {
+                    Contest::Card(m) => self
+                        .contest_blood_sources(m)
+                        .iter()
+                        .map(|v| st.minions[v.index()].blood as i32)
+                        .sum(),
+                    _ => 0,
+                };
+                let has = st.seats[st.active.index()].pool + blood;
+                if has < st.card_contest_cost(item) as i32 {
+                    vec![Choice::YieldContest(item)]
+                } else {
+                    vec![Choice::PayContest(item), Choice::YieldContest(item)]
+                }
             }
             Contest::Title(m) => {
                 let v = &st.minions[m.index()];
@@ -90,7 +104,7 @@ impl Engine {
                 card.contested = false;
                 card.locked = false;
                 // A title card face up again: its vampire gains the title.
-                if let (Some(t), Some(h)) = (crate::cards::card_title(card.card), card.host) {
+                if let (Some(t), Some(h)) = (card.represented_title(), card.host) {
                     self.gain_title(h, t, Some(c));
                 }
                 // Its hand size applies again: draw up at once.
@@ -107,13 +121,19 @@ impl Engine {
         match (item, pay) {
             // Olugbenga: blood as pool, chosen as it is paid.
             (Contest::Card(m), true) if !self.contest_blood_sources(m).is_empty() => {
+                let left = self.state.card_contest_cost(item);
                 self.interrupts
-                    .push(crate::draws::Interrupt::ContestPayment { seat: s, minion: m });
+                    .push(crate::draws::Interrupt::ContestPayment {
+                        seat: s,
+                        minion: m,
+                        left,
+                    });
                 return false;
             }
             (Contest::Card(_) | Contest::Library(_), true) => {
+                let cost = self.state.card_contest_cost(item) as i32;
                 let contest = Cause::Cost(Source::Rule(Rule::Contest));
-                self.caused(contest, |e| e.state.seats[s.index()].lose_pool(1));
+                self.caused(contest, |e| e.state.seats[s.index()].lose_pool(cost));
             }
             (Contest::Title(m), true) => {
                 let cost = self.state.title_contest_cost(m);
@@ -168,7 +188,8 @@ impl Engine {
     }
 
     /// A copy of a unique vampire entering play while another Methuselah has
-    /// one: every copy is contested (face down, out of play).
+    /// one: every copy is contested (face down, out of play), but one in play
+    /// removed as it leaves (Sonja Blue).
     pub(crate) fn enter_card_contest(&mut self, m: MinionId) {
         // Jimmy Dunn: the copy already in play burns instead (any
         // Methuselah's; the newcomer's controller does not burn it, LSJ
@@ -208,7 +229,16 @@ impl Engine {
         if !rivals.is_empty() {
             self.set_card_contest(m, true);
             for r in rivals {
-                self.set_card_contest(r, true);
+                // Sonja Blue: the copy in play leaves it as the contest
+                // starts, removed, the incoming copy contested still (LSJ
+                // 20070829-2); a two-player contest leaves it in play.
+                if self.state.format != crate::state::Format::TwoPlayer
+                    && self.removed_on_leaving(r)
+                {
+                    self.remove_from_game(r);
+                } else {
+                    self.set_card_contest(r, true);
+                }
             }
         }
     }
@@ -478,6 +508,6 @@ impl Engine {
 /// (contested as its vampire's title, rules-qa 19.1).
 fn contests_as_card(c: &crate::state::CardInPlay) -> bool {
     c.body.is_none()
-        && (crate::cards::card_title(c.card).is_none()
+        && (c.represented_title().is_none()
             || LIBRARY[c.card as usize].labels.contains(&Label::Unique))
 }

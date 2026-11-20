@@ -208,6 +208,23 @@ impl Prompt<'_> {
                 a.n?,
                 self.seat()?
             ),
+            P::MayMoveEdgePool => format!(
+                "{}: you gain pool from the Edge, you can move it to her",
+                self.minion()?
+            ),
+            P::NameAshRetainer => format!(
+                "{}: name the retainer in your ash heap to employ",
+                self.minion()?
+            ),
+            P::FoundVersion => format!(
+                "{}: choose the version {} enters play at",
+                self.minion()?,
+                self.card()?
+            ),
+            P::MayHuntBloodToPool => format!(
+                "{} hunts: you can move 1 of the blood to your pool",
+                self.minion()?
+            ),
             P::MayGainBlood => format!(
                 "{}: a wraith enters play, you can gain {} blood",
                 self.minion()?,
@@ -292,12 +309,26 @@ impl Prompt<'_> {
                     "block_mark" => {
                         "Choose a ready minion your vampire gets intercept against until your next unlock".into()
                     }
+                    "baron_city" => format!(
+                        "You can choose a vampire whose city {} makes yours baron of",
+                        self.card()?
+                    ),
                     "joint_blocker" => {
                         "Choose which of your two vampires is the blocking one".into()
                     }
                     "become_combatant" => {
                         "Choose a Blood Brother to become your combatant".into()
                     }
+                    "guess_chosen" => format!(
+                        "You can burn {} pool to guess {}'s vampire",
+                        a.n?,
+                        self.card()?
+                    ),
+                    "blood_from_to" => format!(
+                        "Choose a ready {} to receive {} blood",
+                        self.clan()?,
+                        a.n?
+                    ),
                     "cancel_maneuver" => "Cancel the opposing minion's maneuver?".into(),
                     _ => return None,
                 }
@@ -510,6 +541,11 @@ impl Prompt<'_> {
             P::BurnBloodToAnarch => {
                 format!("{} can burn 1 blood to become Anarch", self.minion()?)
             }
+            P::MayJoinSect => format!(
+                "{} can choose to become {}",
+                self.minion()?,
+                capitalize(self.detail()?)
+            ),
             P::MakeAnarch => format!(
                 "You can burn 1 blood from {} to make {} Anarch",
                 self.card()?,
@@ -550,6 +586,16 @@ impl Prompt<'_> {
                 "Replace the card discarded with another library card of your ash heap".into()
             }
             P::PlacedDiscipline => format!("{}: choose its Discipline", self.card()?),
+            P::PlacedClan => format!("{}: choose its clan", self.card()?),
+            P::RetainerDamageOrder => format!(
+                "{} and {} take damage at once: choose which takes it first",
+                self.minion()?,
+                self.card()?
+            ),
+            P::BurnLocationsForPool => format!(
+                "You can burn a location you control for 1 pool ({} burned so far)",
+                a.n?
+            ),
             P::ResearchSearch => format!(
                 "Search your library for a card to put in your research area ({} more at most)",
                 a.n?
@@ -1126,8 +1172,11 @@ mod tests {
                 Some("damage_imbued"),
                 Some("block_mark"),
                 Some("joint_blocker"),
+                Some("baron_city"),
                 Some("become_combatant"),
                 Some("cancel_maneuver"),
+                Some("blood_from_to"),
+                Some("guess_chosen"),
             ],
             Purpose::ChooseForCard => &[
                 Some("unblockable_non_bleed"),
@@ -1135,6 +1184,7 @@ mod tests {
                 Some("chosen"),
             ],
             Purpose::Bottom => &[None, Some("top")],
+            Purpose::MayJoinSect => &[Some("camarilla")],
             _ => &[None],
         }
     }
@@ -1264,6 +1314,10 @@ mod tests {
         StealForCorruption,
         MakeAnarch,
         BurnBloodToAnarch,
+        MayJoinSect,
+        BurnLocationsForPool,
+        PlacedClan,
+        RetainerDamageOrder,
         SwapEquipFromPrey,
         GainVictimDiscipline,
         MayJoinCombat,
@@ -1313,6 +1367,10 @@ mod tests {
         MaySetNextRange,
         BlockWouldSucceed,
         MayGainBlood,
+        MayMoveEdgePool,
+        NameAshRetainer,
+        FoundVersion,
+        MayHuntBloodToPool,
         KeepSpentBlood,
         BurnReplacement,
         PoolOrMinionBurned,

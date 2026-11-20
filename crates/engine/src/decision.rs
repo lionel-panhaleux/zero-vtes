@@ -347,6 +347,18 @@ pub enum Choice {
     /// Combat, before range in the first round: end the combat, the action
     /// card offering it put on this side's minion (Monomancy).
     EndCombat,
+    /// Polling commitment: the votes the calling card gives this
+    /// Methuselah, all one way (Trumped-Up Charges).
+    CastGrantedVotes {
+        favor: bool,
+    },
+    /// The version (mode) a card a search or a storage card puts in play
+    /// enters at, among those its vampire's Disciplines meet (owner,
+    /// 2026-11-19: Magic of the Smith, Muricia's Call, Patrizia Giovanni).
+    Version {
+        card: u16,
+        mode: u8,
+    },
 }
 
 /// Where a card is taken from (`Choice::TakeFrom`).

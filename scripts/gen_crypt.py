@@ -62,6 +62,14 @@ def merged_title(text):
     return "None"
 
 
+def merged_sect(text):
+    """The sect an advanced card prints for its merged vampire, over its own
+    ("[MERGED] Anarch Baron of Los Angeles", Jeremy MacNeil; "[MERGED]
+    Independent:", Valerius Maior; ANK 20180524)."""
+    m = re.search(r"\[MERGED\] (Anarch|Camarilla|Sabbat|Independent|Laibon)\b", text)
+    return f"Some(Sect::{m.group(1)})" if m else "None"
+
+
 def parse(card):
     # An imbued has no sect nor title (rulebook "Appendix: Imbued Rules").
     if "Imbued" in card["types"]:
@@ -181,6 +189,9 @@ def generate(cards):
     out.append("    /// The title an advanced vampire holds only merged (\"[MERGED] Baron of")
     out.append("    /// London\", Appolonius): it takes precedence over the printed one.")
     out.append("    pub merged_title: Option<Title>,")
+    out.append("    /// The sect an advanced vampire takes merged (\"[MERGED] Anarch:\",")
+    out.append("    /// Count Germaine): it takes precedence over the printed one.")
+    out.append("    pub merged_sect: Option<Sect>,")
     out.append("    /// An advanced vampire (KRCG `advanced`): the same vampire as its base")
     out.append("    /// card for contests (rulebook \"Advanced Vampires\").")
     out.append("    pub adv: bool,")
@@ -240,6 +251,7 @@ def generate(cards):
         out.append(f"        imbued: {'true' if 'Imbued' in c['types'] else 'false'},")
         out.append(f"        title: {title},")
         out.append(f"        merged_title: {merged_title(text)},")
+        out.append(f"        merged_sect: {merged_sect(text)},")
         out.append(f"        adv: {'true' if c['advanced'] else 'false'},")
         path = f"Some({rust_str(krcg.path(c))})" if krcg.path(c) else "None"
         out.append(f"        path: {path},")

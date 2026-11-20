@@ -121,10 +121,11 @@ impl Requirement {
             | R::OwnMinionInCombat
             | R::AnyAttemptNeedsIntercept
             | R::StrikeNormalDamagePending
+            | R::StrikeAggravatedDamagePending
+            | R::ChoosesStrikeFirst
             | R::EffectNormalDamagePending
             | R::ActorAllyCard(..)
             | R::ActionRequiresClanOrDiscipline(..)
-            | R::ActionRequiresDiscipline(..)
             | R::NoVampireNamedButInCrypt(..)
             | R::DirectedAtYourReadyClan(..)
             | R::DirectedAtYourOtherOfSect(..)
@@ -285,6 +286,7 @@ impl Requirement {
             | R::AshNotEmpty
             | R::ActionRequiresAnarch
             | R::LibraryAtLeast(..)
+            | R::LookedLibraryNotEmpty(..)
             | R::AshAtLeast(..)
             | R::NoVotesCast
             | R::CallerTitledOfSect(..)
@@ -386,6 +388,7 @@ impl Requirement {
             | R::NotVampireWithInterceptAbove(..)
             | R::PlayedCardIsMinionCard
             | R::PlayedByPredatorOrPrey
+            | R::PlayedByPredatorsVampire
             | R::PlayedByMonster
             | R::ActorBloodAtLeast(..)
             | R::ActorNotSterile
@@ -408,7 +411,8 @@ impl Requirement {
             R::OpponentVampire
             | R::OpponentCapacityAtMost(..)
             | R::OpponentSectIn(..)
-            | R::OpponentClan(..) => &[S::Play, S::Printed],
+            | R::OpponentClan(..)
+            | R::ActionRequiresDiscipline(..) => &[S::Play, S::Printed],
             R::ActorBlackHand | R::ActorSlave | R::ActorNotSlave | R::ActorTitleNotIn(..) => {
                 &[S::Play, S::MinionTarget]
             }
@@ -422,6 +426,7 @@ impl Requirement {
             | R::HostDidNotHunt
             | R::HostAnnouncedNoAction
             | R::HostControllerActive
+            | R::HostControllersPreyActive
             | R::HostControllerPutNoGehenna
             | R::HostControllerHasEdge
             | R::OwnCombatantOtherCopy
@@ -470,6 +475,7 @@ impl Requirement {
             | R::TargetUnmerged
             | R::TargetNotRedList
             | R::TargetNotBlocker
+            | R::TargetIsBlocker
             | R::TargetNotActing
             | R::TargetCouldTakeAction
             | R::TargetNotAttempting
@@ -508,6 +514,7 @@ impl Requirement {
             | R::TargetHasYourCorruption
             | R::AllyOrYounger
             | R::TargetCombatant
+            | R::TargetIsActionTargetNeedingIntercept
             | R::TargetControlAboutToChange
             | R::TargetHuntedToBurn
             | R::TargetAllyWouldBurn
@@ -525,9 +532,10 @@ impl Requirement {
             | R::TargetNotOfPredator
             | R::TargetNotOfOpposingController => &[S::MinionTarget],
             R::YoungerThanPlayer | R::SameSectAsPlayer => &[S::Engine(Site::PlayTarget)],
-            R::TargetCirclelessBloodBrother | R::TargetUnique | R::TargetWouldNotContest => {
-                &[S::UncontrolledTarget]
-            }
+            R::TargetCirclelessBloodBrother
+            | R::TargetUnique
+            | R::TargetWouldNotContest
+            | R::TargetCopyControlledByOther => &[S::UncontrolledTarget],
             R::TargetImbued => &[S::MinionTarget, S::UncontrolledTarget],
             R::NotActingController
             | R::NotSelf
@@ -542,6 +550,7 @@ impl Requirement {
             | R::TargetPredatorOrPrey
             | R::TargetAshAtLeast(..)
             | R::TargetHasUncontrolled
+            | R::TargetSeatHasEdgeAsDeclared
             | R::PredatorsPredator => &[S::SeatTarget],
             R::CardControlledByPrey
             | R::CardControllerMoreLocations
@@ -608,6 +617,8 @@ impl Requirement {
             | R::TargetSeatControlsReadyClan { .. }
             | R::TargetSeatControlsReadySect { .. }
             | R::TargetSeatControlsReadyTitled(..)
+            | R::TargetSeatControlsTitledOutside(..)
+            | R::ControllersPreyHasMorePool
             | R::TargetIsSourceController
             | R::TargetSeatControlsReadyAlly
             | R::TargetSeatControlsReadyMinion
@@ -627,9 +638,10 @@ impl Requirement {
             | R::ControlsNoReadyTitled(..)
             | R::SourceTitleIn(..)
             | R::SourceSectIn(..)
-            | R::TargetSeatHasEdge
             | R::OpponentCapacityAtLeast(..)
             | R::ActionCardRequiresDiscipline(..)
+            | R::PlayedPutsVampireInPlay
+            | R::EntrantLabeled(..)
             | R::InOwnMasterPhase => &[S::Printed],
             R::PlayedRequiresNone(..) => &[S::Play, S::Printed],
             R::EquippedOffActionLabeled(_) => &[S::Host, S::MinionTarget],
@@ -653,7 +665,8 @@ impl Requirement {
             | R::OpponentIsActing
             | R::PreviousRoundLong
             | R::ActorUndamagedLastRound
-            | R::EquipFromHand(..) => &[S::Play],
+            | R::EquipFromHand(..)
+            | R::EdgeUncontrolled => &[S::Play],
             R::AnyOf(..) => &[S::Play, S::MinionTarget, S::CardTarget, S::Printed],
             R::ActorTitleIn(..) | R::ActorClan(..) => &[S::Play, S::MinionTarget, S::Printed],
             R::ActorSubtype(..) => &[S::Play, S::Printed],
@@ -692,6 +705,7 @@ impl Requirement {
             R::ActingMonster | R::ActingImbued => &[S::Play],
             R::HostConvictionAtLeast(..)
             | R::HostIncapacitated
+            | R::HostUnlockedAtTurnStart
             | R::HostControllerReadyImbuedAtLeast(..)
             | R::ImbuedRecoveryGranted => &[S::Host],
             R::OpponentMonster
@@ -703,7 +717,8 @@ impl Requirement {
             | R::CombatFromSuccess
             | R::PlayedTargetsActor
             | R::PlayedTakesControlOfActor => &[S::Play],
-            R::HostNameUnusedThisAction | R::HostInCombat => &[S::Engine(Site::AbilityGate)],
+            R::HostNameUnusedThisAction => &[S::Engine(Site::AbilityGate)],
+            R::HostInCombat => &[S::Engine(Site::AbilityGate), S::Printed],
             R::ActionNotEnteringCombat => &[S::Printed],
             R::HostMayReactLocked => &[S::Engine(Site::AbilityGate)],
             R::HostMayReact => &[S::Engine(Site::AbilityGate)],
@@ -766,13 +781,23 @@ impl Requirement {
             | R::PlayedRedirectsBleedToYou
             | R::PlayedByNotOfSect(..)
             | R::ActorInflictedInLastCombat
-            | R::OpponentWithoutFlight => &[S::Play],
+            | R::OpponentWithoutFlight
+            | R::OwnCombatantClan(..)
+            | R::OwnCombatantVampire
+            | R::BlockerAllyOrYounger
+            | R::ActorRedList
+            | R::OwnResolvedModifierInAsh(..)
+            | R::ActionCardInPlayRequiring(..) => &[S::Play],
+            R::ActingCapacityBelowCounters => &[S::Rider],
+            // Esteem: the action's target seats; Amenophobis: its bleed's.
+            R::TargetSeatHasEdge => &[S::Play, S::Printed],
             R::ActionWeaponEquippable | R::PoliticalCardToAsh => &[S::Engine(Site::PlayOptions)],
             R::TargetOnActing => &[S::Engine(Site::CardTargetQualifies)],
             R::CanAttemptBlockLocked => &[S::Engine(Site::PlayOptions)],
             R::HoldRecipient(..) => &[S::Engine(Site::PlayOptions)],
             // A card's host or a vampire's own (Dive into Madness, Mustafa).
             R::ActorOlderThanHost
+            | R::ActorOlderThanHostControllersReadyClan(..)
             | R::ActorOlderThanChosen
             | R::StrikingWithItsGun
             | R::StrikingWithSource
@@ -852,6 +877,9 @@ impl Requirement {
                 S::Engine(Site::VampireRider(Hook::HostBlocked)),
             ],
             R::BlocksOlder => &[S::Engine(Site::VampireRider(Hook::HostEntersCombat))],
+            // Hermana Hambrienta, Sonja Blue: read where she enters play
+            // (`Engine::vampire_entered`).
+            R::InOwnInfluencePhase => &[S::Engine(Site::VampireRider(Hook::EntersPlay))],
             R::ReferendumFailed => &[S::Engine(Site::VampireRider(Hook::OwnReferendumFailed))],
             R::BlockerOlderNonAnarchCrypts => &[S::Play],
             R::BlockerTitleIn(..) => &[
@@ -1046,12 +1074,12 @@ mod tests {
     }
 
     /// As `card_rider_readers`, for a vampire's printed riders:
-    /// `Engine::printed_riders`' (`None`: read on the crypt card before the
-    /// vampire is in play).
+    /// `Engine::printed_riders`' (an entry rider: read on the crypt card by
+    /// `Engine::vampire_entered`, its gate only).
     fn vampire_rider_readers(hook: Hook) -> Option<Vec<Slot>> {
         use Slot::*;
         if hook == Hook::EntersPlay {
-            return None;
+            return Some(vec![Engine(Site::VampireRider(hook))]);
         }
         let mut readers = if hook.reads_action(true) {
             vec![Play, Host]
@@ -1413,5 +1441,45 @@ mod tests {
             }
         }
         assert!(checked >= 15, "{checked} searches walked");
+    }
+
+    /// A look at a library's top is not offered with that library empty
+    /// (rules-qa 122.139: a card naming an object there is none of; D14).
+    /// Tapestry of Blood's look is one effect of an action, not the whole.
+    #[test]
+    fn every_library_look_needs_a_card_there() {
+        use super::super::LibraryOf;
+        let needs = |e: &Effect| match e {
+            Effect::LookAtLibraryTop(_) | Effect::LookAtLibraryTopPerGehenna => {
+                Some(Requirement::LibraryAtLeast(1))
+            }
+            Effect::LookAtPreyLibraryTop => {
+                Some(Requirement::LookedLibraryNotEmpty(LibraryOf::Prey))
+            }
+            Effect::LookAtTurnLibraryTop => {
+                Some(Requirement::LookedLibraryNotEmpty(LibraryOf::Active))
+            }
+            Effect::LookAtEachLibraryTop => {
+                Some(Requirement::LookedLibraryNotEmpty(LibraryOf::Any))
+            }
+            Effect::LookAtBledLibraryTop => Some(Requirement::BledLibraryNotEmpty),
+            _ => None,
+        };
+        let modes = DEFS
+            .iter()
+            .flat_map(|d| d.modes.iter().chain(d.abilities).map(move |m| (d.name, m)))
+            .chain(
+                VAMPIRES
+                    .iter()
+                    .flat_map(|v| v.abilities.iter().map(move |m| (v.name, m))),
+            );
+        let mut checked = 0;
+        for (name, m) in modes {
+            for r in m.effects.iter().filter_map(needs) {
+                checked += 1;
+                assert!(m.requires.contains(&r), "{name}: a look without {r:?}");
+            }
+        }
+        assert!(checked >= 9, "{checked} looks walked");
     }
 }

@@ -185,9 +185,16 @@ ledger refs it backs; at least one test per card and per rules-qa reading;
 write them in chunks of ~10 and run as you go (they find engine bugs).
 Elision breaks naive tests (add a second minion; `never_offered_until`).
 Every new ledger row gets a status (`--check` at 0). Two fuzz fixtures per
-round from the new cards' decks (seeds ≈ 2× the last coverage key's first
-seed, ≤ 300); re-bless goldens and confirm unrelated fixtures moved only in
-hashes (a trajectory change there is a behaviour change to explain).
+round from the new cards' decks (≤ 100 seeds each, no wide sweep); re-bless
+goldens and confirm unrelated fixtures moved only in hashes (a trajectory
+change there is a behaviour change to explain).
+
+Fuzz runs twice a round, no more (owner, 2026-11-20: "far too long… don't
+you fuzz far too often?"; round 33 ran it about 25 times): implementers,
+fix passes and parallel tracks run the suites without it (`cargo test
+--profile ci --no-fail-fast -- --skip random_games`); fuzz runs once on the
+merged round (invariants checked, moved goldens listed) and once to
+attribute and re-bless, after the last fix changing engine behaviour.
 
 ## 6. Finish
 

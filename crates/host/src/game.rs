@@ -1214,6 +1214,24 @@ impl Game {
                 _ => None,
             })
             .collect();
+        // The merges since: the minion a base vampire's card went onto,
+        // that base's copy.
+        let merged: HashMap<u32, u32> = named
+            .iter()
+            .filter_map(|(_, k)| match k {
+                Some(EventKind::CardMoves { card, from, to })
+                    if card.crypt
+                        && from.zone == zvtes_api::ids::Zone::Ready
+                        && matches!(
+                            to.zone,
+                            zvtes_api::ids::Zone::Ready | zvtes_api::ids::Zone::Torpor
+                        ) =>
+                {
+                    Some((to.on?, card.copy?))
+                }
+                _ => None,
+            })
+            .collect();
         for (t, kind) in named {
             let told = match kind {
                 Some(kind) => Told::Event(Box::new(Event {
@@ -1352,21 +1370,26 @@ impl Game {
                 let b = was.get(&minion);
                 let back = b.is_some_and(|b| b.contested) || entered.contains(&minion);
                 if b.is_none() || back && !m.contested {
+                    // A merged vampire is the base's state (protocol §9):
+                    // what differs from the base's told, a trait lost too
+                    // (Valerius Maior merged, neither infernal nor Red List).
+                    let base = merged.get(&minion).and_then(|c| was.get(c));
                     if let Some(capacity) = m.capacity {
                         let capacity = Some(capacity);
                         state.push(EventKind::Capacity { minion, capacity });
                     }
-                    if let Some(title) = m.title.clone() {
-                        let title = Some(title);
+                    if base.map_or(m.title.is_some(), |x| x.title != m.title) {
+                        let title = m.title.clone();
                         state.push(EventKind::Title { minion, title });
                     }
                     // On a return, every list: an empty one too (an
                     // `out_of_play` marker gone).
-                    if b.is_some() || !m.markers.is_empty() {
+                    if b.is_some() || base.map_or(!m.markers.is_empty(), |x| x.markers != m.markers)
+                    {
                         let markers = m.markers.clone();
                         state.push(EventKind::Markers { minion, markers });
                     }
-                    if b.is_some() || !m.traits.is_empty() {
+                    if b.is_some() || base.map_or(!m.traits.is_empty(), |x| x.traits != m.traits) {
                         let traits = m.traits.clone();
                         state.push(EventKind::Traits { minion, traits });
                     }

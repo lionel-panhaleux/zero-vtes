@@ -79,8 +79,10 @@ LABELS = [
     # (a baron card requires an Anarch, LSJ 20080603); a negative one such
     # as "non-Camarilla" does not (ANK 20250320).
     ("RequiresAnarch", r"\brequires? (?:an?|two) [^.]*(?<!non-)\b(?:anarch|baron)\b"),
-    # A card "making a vampire Anarch" (Powerbase: Los Angeles).
-    ("MakesAnarch", r"\bmake (?:that|a|this) [^.]*\bvampire (?:you control )?anarch\b"),
+    # A card "making a vampire Anarch" (Powerbase: Los Angeles; Anarch
+    # Secession's "This vampire becomes Anarch", Go Anarch's "they become
+    # Anarch").
+    ("MakesAnarch", r"\b(?:make (?:that|a|this) [^.]*\bvampire (?:you control )?|(?:this vampire|they) becomes? )anarch\b"),
     # The Operation Antigen cards (Mobile HQ keys on them): the sentence on
     # the type line, not "An Operation Antigen ally" in the text.
     ("OperationAntigen", r"\boperation antigen\."),

@@ -290,6 +290,8 @@ ids!(
 
         /// Pool burned for votes.
         Pool,
+        /// Votes the calling card gives a Methuselah (Trumped-Up Charges).
+        Granted,
     }
 );
 
@@ -381,6 +383,13 @@ ids!(
         /// Combat, before range in the first round: end the combat, the
         /// action card offering it put on the actor (Monomancy).
         EndCombat,
+        /// Polling: the votes the calling card gives this Methuselah, all
+        /// on `favor`'s side (Trumped-Up Charges).
+        CastGrantedVotes,
+        /// The version (`mode`) library card `card`, put in play by a
+        /// search or a storage card, enters at, among those its vampire's
+        /// Disciplines meet (`found_version`).
+        Version,
     }
 );
 
@@ -1104,6 +1113,37 @@ ids!(
         /// requirements as normal (`employ_from_hand`), `about.n` the most
         /// it may still bring; or stops (`pass`).
         ExtraHires,
+        /// Ravnos Acceptance, Giovanni Acceptance, Invitation Accepted or
+        /// Revocation of Tyre in play: vampire `minion` of its clan,
+        /// entering play, may join the sect `about.detail` (`choose_minion`)
+        /// or not (`pass`). Those in play as the card passes are picked in
+        /// the referendum's `choose` step instead.
+        MayJoinSect,
+        /// Insurance Scam: burn a location the chooser controls
+        /// (`choose_card`), `about.n` burned so far; or stop and gain that
+        /// much pool (`pass`).
+        BurnLocationsForPool,
+        /// A trophy moved to a vampire from out of play choosing its clan
+        /// (Trophy: Clan Respect): `card`'s clan (`choose_clan`).
+        PlacedClan,
+        /// Damage on `minion` and on the Ilomba `card` on it at once
+        /// (Bloodstorm of Chorazin): which takes it first, the minion
+        /// (`choose_minion`) or the Ilomba (`choose_card`).
+        RetainerDamageOrder,
+        /// Heather Florent: `seat`'s pool from the Edge moved to `minion`
+        /// as blood (`resolve_printed`), or put in their pool (`pass`).
+        MayMoveEdgePool,
+        /// Patrizia Giovanni's action announced: the retainer of the
+        /// player's ash heap `minion` will employ, named (`find_card`).
+        NameAshRetainer,
+        /// Rabbat's hunt: 1 of the blood `minion` gains goes to `seat`'s
+        /// pool (`resolve_printed`), or to her (`pass`).
+        MayHuntBloodToPool,
+        /// A card a search or a storage card puts in play (Magic of the
+        /// Smith, Delivery Truck, Muricia's Call; Patrizia Giovanni's named
+        /// retainer): the version it enters at (`version`), when `minion`'s
+        /// Disciplines meet more than one; `card` the card.
+        FoundVersion,
     }
 );
 ids!(

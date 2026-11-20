@@ -1767,6 +1767,24 @@ fn groundfighting_does_not_cancel_a_range_setting() {
     never_offered_until(&mut e, SeatId(0), WindowLabel::MinionPhase, play(0, 1, a));
 }
 
+// Groundfighting cancels a card restricting the anarch's strikes "this
+// round": Grasp of the Python [SER]'s hand-strikes-only bar is the next
+// round's, never canceled (rules-qa 71.6, 125.90).
+#[test]
+fn groundfighting_does_not_cancel_grasp_of_the_python() {
+    let mut e = game(2);
+    let a = e.add_minion(SeatId(0), with_disc("", Some(Sect::Anarch), 0), 4, false);
+    e.add_minion(SeatId(0), plain("Brujah", 1), 4, false);
+    let z = e.add_minion(SeatId(1), with_disc("ser", None, 0), 4, false);
+    superior(&mut e, z, "ser");
+    hand(&mut e, 0, &["Groundfighting"]);
+    hand(&mut e, 1, &["Grasp of the Python"]);
+    pick(&mut e, bleed(a));
+    pick_when(&mut e, block(z));
+    pick_when(&mut e, play(0, 1, z));
+    never_offered_until(&mut e, SeatId(0), WindowLabel::MinionPhase, play(0, 1, a));
+}
+
 // Leandro: [LSJ 20100527] "When a Methuselah decides to get no transfer,
 // he can still use other effects that put blood on his uncontrolled
 // vampires (eg. [DOM] Govern the Unaligned)": after losing the transfers,

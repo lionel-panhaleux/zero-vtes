@@ -60,6 +60,8 @@ pub enum BurnReplacement {
     Book(CardId),
     /// Charigger, The Axe removing a minion of its controller's prey.
     Remover(CardId),
+    /// The Name Forgotten removing its vampire and every other of its name.
+    Forgotten(CardId),
 }
 
 impl BurnReplacement {
@@ -67,7 +69,9 @@ impl BurnReplacement {
     pub(crate) fn choice(self, minion: crate::ids::MinionId) -> crate::decision::Choice {
         match self {
             Self::Own => crate::decision::Choice::ResolvePrinted { minion },
-            Self::Book(c) | Self::Remover(c) => crate::decision::Choice::ResolveRider { card: c.0 },
+            Self::Book(c) | Self::Remover(c) | Self::Forgotten(c) => {
+                crate::decision::Choice::ResolveRider { card: c.0 }
+            }
         }
     }
 }
@@ -376,6 +380,7 @@ pub fn public_choice(c: &Choice) -> bool {
             | CastVotes { .. }
             | CastEdge { .. }
             | CastCardVote { .. }
+            | CastGrantedVotes { .. }
             | BurnForVote { .. }
             | AllocateTo { .. }
             | ChooseSeat(_)
@@ -974,12 +979,59 @@ impl Engine {
     /// host is no longer infernal (Maleficia); a card a Martinelli's Ring on
     /// its host shuns; a haven on Lynn Thompson; the vampire under an Infernal
     /// Familiar with more counters than its capacity; a card with as many
-    /// counters as the Methuselahs in the game (Strained Vitae Supply).
+    /// counters as the Methuselahs in the game (Strained Vitae Supply); a
+    /// mortal under Mercy for Seth; Glass Walker Pact. Read with them: The
+    /// Treatment's damage on its prince's unlock, Betrayer's `against`
+    /// following its chosen.
     fn settle_bound_burns(&mut self) {
         for c in self.failed_block_burns() {
             self.burn_card_in_play(c);
         }
         let unlocked = std::mem::take(&mut self.state.unlocked_now.0);
+        // The Treatment: each unlock of its prince, read as one now (LSJ
+        // 19980209); nothing on an empty torpid one (TOM 19960423).
+        let st = &self.state;
+        let treated: Vec<(MinionId, u8, CardId)> = st
+            .in_play_layers()
+            .filter_map(|l| match l.modifier {
+                cards::Modifier::HostDamagedOnUnlock { n, title } => {
+                    let c = &st.cards[l.source.index()];
+                    c.host
+                        .filter(|h| {
+                            c.present()
+                                && unlocked.contains(h)
+                                && st.minions[h.index()].present()
+                                && title.matches(st.title_of(*h))
+                        })
+                        .map(|h| (h, n, l.source))
+                }
+                _ => None,
+            })
+            .collect();
+        for (h, n, c) in treated {
+            let card = crate::notes::Cause::Effect(crate::notes::Source::Card(c));
+            self.caused(card, |e| e.damage_out_of_combat(h, n, false));
+        }
+        // Betrayer: against its chosen's controller, none while contested
+        // (RTR 19941109).
+        let follow: Vec<(CardId, crate::ids::SeatSet)> = self
+            .state
+            .in_play_layers()
+            .filter(|l| l.modifier == cards::Modifier::AgainstFollowsChosen)
+            .filter_map(|l| {
+                let m = *self.state.cards[l.source.index()].chosen.first()?;
+                let v = &self.state.minions[m.index()];
+                let against = if v.present() {
+                    crate::ids::SeatSet::single(v.owner)
+                } else {
+                    Default::default()
+                };
+                Some((l.source, against))
+            })
+            .collect();
+        for (c, against) in follow {
+            self.state.cards[c.index()].against = against;
+        }
         // The Becoming: once its picks are over.
         let picking: Vec<MinionId> = self
             .interrupts
@@ -1008,6 +1060,14 @@ impl Engine {
                     c.host.filter(|&h| {
                         st.minions[h.index()].present()
                             && st.capacity_of(h).is_some_and(|cap| c.counters > cap)
+                    })
+                }
+                // Mercy for Seth: "If the attached minion is a mortal, they
+                // are burned", read live.
+                cards::Modifier::HostBurnedIfMortal if st.layer_active(l) => {
+                    let c = &st.cards[l.source.index()];
+                    c.host.filter(|&h| {
+                        c.in_play && st.minions[h.index()].present() && st.is_mortal(h)
                     })
                 }
                 _ => None,
@@ -1059,6 +1119,21 @@ impl Engine {
                     c.host
                         .filter(|&h| c.in_play && !st.is_infernal(h))
                         .map(|_| l.source)
+                }
+                // Glass Walker Pact: an ally of the subtype, another
+                // Methuselah's (rules-qa 124.4).
+                cards::Modifier::BurnIfOthersControlSubtype(label) if st.layer_active(l) => {
+                    let owner = st.card_controller(l.source);
+                    (st.cards[l.source.index()].in_play
+                        && (0..st.minions.len()).any(|i| {
+                            let m = MinionId(i as u32);
+                            let v = &st.minions[i];
+                            v.present()
+                                && v.owner != owner
+                                && v.is_ally()
+                                && st.has_subtype(m, label)
+                        }))
+                    .then_some(l.source)
                 }
                 cards::Modifier::SectBound(sect) if st.layer_active(l) => {
                     let c = &st.cards[l.source.index()];
@@ -2174,7 +2249,8 @@ impl Engine {
     /// The unlock-phase effects window (rules-qa 3.7, 6.1, 7.8): the active
     /// Methuselah's mandatory effects in their chosen order (each copy of a
     /// card in play, whoever controls it, spec §1.15), those read as the
-    /// phase ends as they pass (88.5), then the others'.
+    /// phase ends as they pass (88.5), then the others'; Uriah Winter's
+    /// defection before any of them.
     pub(crate) fn start_unlock_effects(&mut self) {
         // Blade Clot: an ally cannot go to torpor, it burns (LSJ 20080612-3).
         let s = self.state.active;
@@ -2191,7 +2267,26 @@ impl Engine {
         }
         self.state.unlock_phase = true;
         self.state.in_master_phase = crate::state::Sparse(0);
+        self.state.in_influence_phase = crate::state::Unhashed(false);
         let s = self.state.active;
+        // Uriah Winter: to a richer prey, compared as the phase begins, in
+        // torpor too (RTR 19941109), before any unlock-phase effect.
+        if self.state.printed_in_play(cards::Stat::DefectsToRicherPrey) {
+            let ctx = crate::state::PrintedCtx::default();
+            let defecting: Vec<MinionId> = self
+                .state
+                .minions_of(s)
+                .filter(|&m| {
+                    self.state
+                        .printed_mod(m, cards::Stat::DefectsToRicherPrey, ctx)
+                        > 0
+                })
+                .collect();
+            let prey = self.state.prey(s);
+            for m in defecting {
+                self.take_control(m, prey, crate::control::ControlTerm::ForGood);
+            }
+        }
         for seat in &mut self.state.seats {
             seat.burn_option_used = false;
         }
@@ -2293,7 +2388,8 @@ impl Engine {
     }
 
     /// The standing replacements of `m`'s burn applying now, read live: its
-    /// own (Byzar), Book of Going Forth by Night's, Charigger's.
+    /// own (Byzar), Book of Going Forth by Night's, Charigger's, The Name
+    /// Forgotten's.
     pub(crate) fn burn_replacements(&self, m: MinionId) -> Vec<BurnReplacement> {
         let mut v = Vec::new();
         if self.own_burn_replacement(m) > 0 {
@@ -2304,6 +2400,15 @@ impl Engine {
         }
         if let Some(c) = self.prey_burn_remover(m) {
             v.push(BurnReplacement::Remover(c));
+        }
+        if self.state.minions[m.index()].present() {
+            if let Some(l) = self
+                .state
+                .hosted(m)
+                .find(|l| l.modifier == crate::cards::Modifier::HostForgottenWhenBurned)
+            {
+                v.push(BurnReplacement::Forgotten(l.source));
+            }
         }
         v
     }
@@ -2349,6 +2454,30 @@ impl Engine {
             BurnReplacement::Remover(src) => {
                 self.state.cards[src.index()].counters += 1;
                 self.remove_from_game(m);
+            }
+            // Every copy found (LSJ 20050611), the crypts shuffled.
+            BurnReplacement::Forgotten(_) => {
+                let name = self.state.minions[m.index()].name();
+                self.remove_from_game(m);
+                let same = |c: u16| {
+                    c != crate::state::CREATED && crate::crypt::CRYPT[c as usize].name == name
+                };
+                for t in 0..self.state.seats.len() {
+                    let seat = SeatId(t as u8);
+                    let s = &mut self.state.seats[t];
+                    let crypt = s.crypt.take_unless(|c| !same(c));
+                    let ash = s.ash_crypt.take_unless(|c| !same(c));
+                    s.removed_crypt.put_all(crypt.into_iter().chain(ash));
+                    let mut i = 0;
+                    while i < self.state.seats[t].uncontrolled.len() {
+                        if same(self.state.seats[t].uncontrolled[i].card) {
+                            self.remove_uncontrolled(seat, i);
+                        } else {
+                            i += 1;
+                        }
+                    }
+                    self.state.seats[t].crypt.shuffle(&mut self.rng);
+                }
             }
         }
     }
@@ -2564,6 +2693,9 @@ impl Engine {
             )
         });
         let toll = toll.filter(|&n| n > 0);
+        // Sonja Blue: burned, then removed from the game, every burn
+        // trigger fired (advanced rules §1.10.1).
+        let removed = self.removed_on_leaving(m);
         // The cards on it kept from its burn: Soul Gem of Etrius on a
         // vampire, then drawn for (LSJ 20010729: whatever kept it from using
         // equipment); Charnas the Imp, its controller's choice next
@@ -2678,6 +2810,12 @@ impl Engine {
                         },
                     );
                     self.state.seats[controller.index()].transfers_next += n as u8;
+                } else if removed {
+                    let out = &mut self.state.seats[owner.index()].removed_crypt;
+                    out.put(card, *v.copy);
+                    if let Some(base) = v.merged {
+                        out.put(base, *v.merged_copy);
+                    }
                 } else {
                     let from_play = (!v.contested).then_some(self.state.turn);
                     let heap = &mut self.state.seats[owner.index()];
@@ -2780,6 +2918,22 @@ impl Engine {
                 }
             }
         }
+        // Betrayer: "If the vampire chosen for Betrayer is burned, so is
+        // Betrayer" (RTR 19941109).
+        let with: Vec<CardId> = self
+            .state
+            .in_play_layers()
+            .filter(|l| {
+                l.modifier == crate::cards::Modifier::BurnsWithChosen
+                    && self.state.cards[l.source.index()].chosen.first() == Some(&m)
+            })
+            .map(|l| l.source)
+            .collect();
+        for c in with {
+            if self.state.cards[c.index()].present() {
+                self.burn_card_in_play(c);
+            }
+        }
         // "After a unique minion in play is burned" (Khazar's Diary): any
         // Methuselah's, ready or torpid.
         if unique_burned {
@@ -2816,7 +2970,8 @@ impl Engine {
     /// `card` (CRYPT if `crypt`, else LIBRARY; `owner`'s) into `s`'s ready
     /// region representing `of`: put in play, not recruited, able to act
     /// (LSJ 20080426), contesting as it enters when unique; its starting
-    /// life `of`'s, else its card's (a crypt card's capacity).
+    /// life `of`'s, else its card's (a crypt card's capacity), plus any
+    /// entrant bonus (`GameState::entrant_life_bonus`).
     pub(crate) fn raise_represented(
         &mut self,
         s: SeatId,
@@ -2836,6 +2991,10 @@ impl Engine {
                     .map_or(0, |b| b.life)
             }
         });
+        let life = life
+            + self
+                .state
+                .entrant_life_bonus(std::slice::from_ref(&of.subtype));
         let body = crate::library::Body {
             life,
             strength: of.strength,
@@ -3135,8 +3294,25 @@ impl Engine {
         }
     }
 
+    /// The controller of a present card on `id` returning it to hand
+    /// instead of its burn (`Effect::ReturnsHostCardToHand`).
+    fn returned_instead_of_burned(&self, id: CardId) -> Option<SeatId> {
+        let st = &self.state;
+        (0..st.cards.len()).find_map(|i| {
+            let c = &st.cards[i];
+            let returns = c.present()
+                && c.on_card == Some(id)
+                && cards::lookup(c.card).is_some_and(|d| {
+                    d.modes[c.mode as usize]
+                        .effects
+                        .contains(&cards::Effect::ReturnsHostCardToHand)
+                });
+            returns.then(|| st.card_controller(CardId(i as u32)))
+        })
+    }
+
     /// The present host of a card whose life its host pays (Ilomba).
-    fn life_from_host(&self, card: CardId) -> Option<MinionId> {
+    pub(crate) fn life_from_host(&self, card: CardId) -> Option<MinionId> {
         let st = &self.state;
         let c = &st.cards[card.index()];
         let h = c
@@ -3177,11 +3353,28 @@ impl Engine {
     }
 
     /// Burn a card in play: to its owner's ash heap with the cards on it
-    /// (LSJ 20021128), its layers dropped.
+    /// (LSJ 20021128), its layers dropped; returned to a hand instead
+    /// (Permanency [CHI]), the cards on it still burned.
     pub(crate) fn burn_card_in_play(&mut self, id: CardId) {
         // Ilomba "would otherwise be burned": its host pays instead.
         if let Some(h) = self.life_from_host(id) {
             self.host_pays_life(h);
+            return;
+        }
+        // Permanency [CHI]: to its controller's hand instead, the cards on
+        // it burned as it leaves play (LSJ 20021128).
+        if let Some(to) = self.returned_instead_of_burned(id) {
+            let c = &self.state.cards[id.index()];
+            let (owner, card, copy) = (c.owner, c.card, *c.copy);
+            self.card_leaves_play(id, false);
+            let ash = &mut self.state.seats[owner.index()].ash;
+            let at = (0..ash.len())
+                .rev()
+                .find(|&i| ash[i] == card && ash.copy(i) == copy);
+            if let Some(i) = at {
+                let (card, copy) = ash.take(i);
+                self.state.seats[to.index()].hand.put(card, copy);
+            }
             return;
         }
         // An ally's card burned is the ally burned (its card with it).
@@ -3229,7 +3422,18 @@ impl Engine {
                 })
             })
         });
+        // Mind of a Killer [DEM]: in the mode it was played in.
+        let lock = c.host.filter(|_| {
+            cards::lookup(c.card).is_some_and(|d| {
+                d.modes[c.mode as usize]
+                    .effects
+                    .contains(&cards::Effect::BurnedLocksBearer)
+            })
+        });
         self.card_leaves_play(id, false);
+        if let Some(h) = lock.filter(|h| self.state.minions[h.index()].present()) {
+            self.state.minions[h.index()].locked = true;
+        }
         if let Some((h, n)) = hit {
             if self.state.minions[h.index()].present() {
                 self.damage_out_of_combat(h, n, false);
@@ -3278,6 +3482,16 @@ impl Engine {
                 self.burn_card_in_play(CardId(ci as u32));
             }
         }
+    }
+
+    /// Is `m`, in play, removed from the game as it leaves play (Sonja
+    /// Blue's `Stat::RemovedOnLeavingPlay`)?
+    pub(crate) fn removed_on_leaving(&self, m: MinionId) -> bool {
+        self.state.printed_mod(
+            m,
+            crate::cards::Stat::RemovedOnLeavingPlay,
+            crate::state::PrintedCtx::default(),
+        ) > 0
     }
 
     /// A vampire of `owner`'s was burned: the vampires in play whose
@@ -3343,6 +3557,13 @@ impl Engine {
             let v = &mut self.state.minions[h.index()];
             if v.sect_override == Some(wrote) {
                 v.sect_override = before;
+            }
+        }
+        let c = &mut self.state.cards[id.index()];
+        if let (Some((before, wrote)), Some(h)) = (c.clan_change.0.take(), c.host) {
+            let v = &mut self.state.minions[h.index()];
+            if v.clan_change == Some(wrote) {
+                v.clan_change = before;
             }
         }
         let c = &mut self.state.cards[id.index()];
@@ -3672,6 +3893,7 @@ impl Engine {
                 self.flow = Flow::Influence {
                     left: if none { 0 } else { earned },
                 };
+                self.state.in_influence_phase = crate::state::Unhashed(true);
                 // The Meddling of Semsith's held replacements.
                 self.release_held(Release::MinionPhaseEnd);
                 // "Do not replace until your influence phase" (Lupine
@@ -3913,6 +4135,7 @@ impl Engine {
 
     /// End of the influence phase: on to the discard phase.
     pub(crate) fn end_influence(&mut self) {
+        self.state.in_influence_phase = crate::state::Unhashed(false);
         let s = self.state.active;
         // Legendary Vampire: the vampires in play so far entered by now.
         self.state.settle_entries();
@@ -3929,6 +4152,20 @@ impl Engine {
         self.state.seats[s.index()].phase_discards = Some(Vec::new());
         let printed = self.state.printed_discard_actions(s);
         self.state.seats[s.index()].dpa = (1 + printed).max(0) as u8;
+        // Ruins of Charizel: "during your predator's discard phase, burn all
+        // the counters from this card".
+        let wiped: Vec<CardId> = self
+            .state
+            .in_play_layers()
+            .filter(|l| {
+                l.modifier == crate::cards::Modifier::CountersBurnedInPredatorsDiscardPhase
+                    && self.state.predator(self.state.card_controller(l.source)) == s
+            })
+            .map(|l| l.source)
+            .collect();
+        for c in wiped {
+            self.state.cards[c.index()].counters = 0;
+        }
         self.state.seats[s.index()].granted_dpa = 0;
         self.state.seats[s.index()].event_played = false;
         self.state.seats[s.index()].gehenna_put = false;
@@ -4018,6 +4255,10 @@ impl Engine {
         }
         let owner = self.state.minions[m.index()].owner;
         self.state.cards[card.index()].controller = owner;
+        if self.removed_on_leaving(m) {
+            self.remove_from_game(m);
+            return;
+        }
         self.about_to_leave_ready(&[m]);
         self.state.minions[m.index()].out_of_play = true;
         self.cards_out_with(m, Some(card));
@@ -4565,8 +4806,29 @@ impl Engine {
             .map(|i| CardId(i as u32))
             .filter(|&id| {
                 let c = &self.state.cards[id.index()];
-                c.in_play && !c.locked && self.state.card_controller(id) == s && reads(c.card)
+                // An ally's own card: the ally's lock (Caiaphas Smith).
+                let locked = c
+                    .body
+                    .map_or(c.locked, |m| self.state.minions[m.index()].locked);
+                c.in_play && !locked && self.state.card_controller(id) == s && reads(c.card)
             })
+            .collect();
+        // Dr. Jest's: the same moment, for a vampire whose text reads it.
+        let reads = |m: MinionId| {
+            self.state.minions[m.index()]
+                .crypt_card()
+                .and_then(cards::vampire)
+                .is_some_and(|d| {
+                    d.abilities.iter().any(|a| {
+                        a.requires
+                            .contains(&cards::Requirement::HostUnlockedAtTurnStart)
+                    })
+                })
+        };
+        self.state.vampires_unlocked_at_turn_start.0 = self
+            .state
+            .minions_of(s)
+            .filter(|&m| !self.state.minions[m.index()].locked && reads(m))
             .collect();
         // "If Bartholomew is unlocked at the beginning of your turn, you gain
         // 1 pool": read before anything unlocks.
@@ -4853,7 +5115,7 @@ mod tests {
     #[test]
     fn crypt_data_is_complete() {
         // The 200 V5 vampires, then the owner's legacy additions.
-        assert_eq!(CRYPT.len(), 1369);
+        assert_eq!(CRYPT.len(), 1532);
         assert_eq!(PRECONS.len(), 14);
         for (name, list) in PRECONS.iter() {
             let n: u32 = list.iter().map(|&(_, k)| k as u32).sum();

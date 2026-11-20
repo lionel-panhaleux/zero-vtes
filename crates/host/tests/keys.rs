@@ -144,6 +144,7 @@ fn every_option_s_key_names_what_it_is_about() {
                             | C::DrawStored { .. }
                             | C::AshVampire(_)
                             | C::EmployFromHand { .. } => k.card.is_some(),
+                            C::Version { .. } => k.card.is_some() && k.mode.is_some(),
                             C::SetX(_) | C::PayRescue { .. } => k.amount.is_some(),
                             C::AllocateTo { .. } | C::AllocateToCard { .. } => {
                                 k.target.is_some() && k.amount.is_some()
@@ -155,7 +156,9 @@ fn every_option_s_key_names_what_it_is_about() {
                             C::ChooseClan(_) | C::ChooseCircle(_) | C::ChooseDiscipline(_) => {
                                 k.value.is_some()
                             }
-                            C::CastEdge { .. } | C::CastCardVote { .. } => k.favor.is_some(),
+                            C::CastEdge { .. }
+                            | C::CastCardVote { .. }
+                            | C::CastGrantedVotes { .. } => k.favor.is_some(),
                             C::PayContest(_) | C::YieldContest(_) => {
                                 k.minion.is_some() || k.card.is_some()
                             }

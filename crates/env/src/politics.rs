@@ -318,7 +318,7 @@ fn vote_mask(e: &Engine, req: &DecisionRequest) -> Option<Vec<bool>> {
             s => s > 0,
         }
     };
-    let free = |o: &Choice| matches!(*o, Choice::CastVotes { favor: f, .. } | Choice::CastCardVote { favor: f } if f == favor);
+    let free = |o: &Choice| matches!(*o, Choice::CastVotes { favor: f, .. } | Choice::CastCardVote { favor: f } | Choice::CastGrantedVotes { favor: f } if f == favor);
     let has_free = req.options.iter().any(free);
     let mask: Vec<bool> = req
         .options
@@ -326,6 +326,7 @@ fn vote_mask(e: &Engine, req: &DecisionRequest) -> Option<Vec<bool>> {
         .map(|o| match *o {
             Choice::CastVotes { favor: f, .. }
             | Choice::CastCardVote { favor: f }
+            | Choice::CastGrantedVotes { favor: f }
             | Choice::CastEdge { favor: f }
             | Choice::BurnForVote { favor: f, .. } => f == favor,
             Choice::Play { card, mode, .. } => {

@@ -4015,7 +4015,8 @@ fn celerity_on(e: &mut Engine, z: MinionId) -> CardId {
 /// Absorb the Mind [MYT]: "Strike: ranged. Steal 1 blood and steal 1
 /// master: Discipline card from the opposing vampire (put it on this
 /// striking vampire)." The Celerity card named with the strike moves to the
-/// striker, its level with it; 1 blood stolen.
+/// striker, its level with it, under the striker's Methuselah; 1 blood
+/// stolen.
 #[test]
 fn absorb_the_mind_steals_blood_and_a_master_discipline_card() {
     let mut e = game(2);
@@ -4036,6 +4037,9 @@ fn absorb_the_mind_steals_blood_and_a_master_discipline_card() {
     pick(&mut e, at_card(0, 2, a, cel));
     until(&mut e, SeatId(0), WindowLabel::MinionPhase);
     assert_eq!(e.state.cards[cel.index()].host, Some(a));
+    // A stolen master card is its taker's controller's (advanced rules
+    // §6.3.3).
+    assert_eq!(e.state.card_controller(cel), SeatId(0));
     assert_eq!(e.state.discipline_level(a, "cel"), level + 1);
     assert_eq!(blood(&e, z), 4 - 1, "1 blood stolen, no damage");
 }

@@ -55,6 +55,7 @@ impl Viewer {
         };
         let probe = Build {
             e,
+            viewer: self.seat,
             st: &st,
             names,
             numbering: None,
@@ -66,6 +67,7 @@ impl Viewer {
         let minion_names = RefCell::new(std::mem::take(&mut self.names));
         let v = Build {
             e,
+            viewer: self.seat,
             st: &st,
             names,
             numbering: Some((&self.numbering, &minion_names)),
@@ -93,6 +95,7 @@ impl Viewer {
 
 struct Build<'a> {
     e: &'a Engine,
+    viewer: Option<SeatId>,
     st: &'a GameState,
     names: &'a [String],
     /// `None`: the first pass, collecting; then the numbering, and the
@@ -144,6 +147,36 @@ impl Build<'_> {
         p.pairs()
             .map(|(c, copy)| self.card(copy, c, crypt))
             .collect()
+    }
+
+    /// Seat `s`'s crypt: backs, but the top its controller sees (Grendel),
+    /// its card numbered.
+    fn crypt(&self, s: SeatId) -> Vec<Card> {
+        let seen = self
+            .viewer
+            .is_some_and(|v| self.e.state.crypt_top_seen_by(s, v));
+        self.seen_top(&self.st.seats[s.index()].crypt, seen, true)
+    }
+
+    /// Seat `s`'s library: backs, but the top its controller sees (Tusk),
+    /// its card numbered.
+    fn library(&self, s: SeatId) -> Vec<Card> {
+        let seen = self
+            .viewer
+            .is_some_and(|v| self.e.state.library_top_seen_by(s, v));
+        self.seen_top(&self.st.seats[s.index()].library, seen, false)
+    }
+
+    /// A pile of backs, its top card shown when `seen`.
+    fn seen_top(&self, pile: &zvtes::copies::Pile, seen: bool, crypt: bool) -> Vec<Card> {
+        match pile.pairs().next_back() {
+            Some((card, copy)) if seen => {
+                let mut v = self.backs(pile.len() - 1, crypt);
+                v.push(self.card(copy, card, crypt));
+                v
+            }
+            _ => self.backs(pile.len(), crypt),
+        }
     }
 
     /// A pile the viewer never looks through (libraries, crypts): backs.
@@ -263,7 +296,7 @@ impl Build<'_> {
                     r.records
                         .iter()
                         .filter(|v| v.favor == favor && !v.canceled)
-                        .map(|v| v.n as u32)
+                        .map(|v| r.n_of(&e.state, v))
                         .sum()
                 };
                 let mut seats: Vec<u8> = r.terms.chosen.iter().map(|s| s.0).collect();
@@ -332,13 +365,14 @@ impl Build<'_> {
                                     (VoteSource::InPlay, Some(self.card_ref(c)))
                                 }
                                 Source::Pool(_) => (VoteSource::Pool, None),
+                                Source::Granted(_) => (VoteSource::Granted, None),
                             };
                             Vote {
                                 seat: v.seat.0,
                                 source,
                                 copy,
                                 favor: v.favor,
-                                n: v.n,
+                                n: r.n_of(&e.state, v).min(u8::MAX as u32) as u8,
                                 canceled: v.canceled,
                             }
                         })
@@ -393,8 +427,8 @@ impl Build<'_> {
             shattered: seat.shattered.0,
             prey: st.prey(sid).0,
             predator: st.predator(sid).0,
-            crypt: self.backs(seat.crypt.len(), true),
-            library: self.backs(seat.library.len(), false),
+            crypt: self.crypt(sid),
+            library: self.library(sid),
             hand: self.pile(&seat.hand, false),
             research: self.pile(&seat.research, false),
             ash_heap: ash,

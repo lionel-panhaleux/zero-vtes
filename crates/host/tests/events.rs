@@ -31,38 +31,39 @@ fn from() -> u32 {
 }
 
 /// Seeds past the default a deeper sweep failed on, kept: Mask of a Thousand
-/// Faces (145), Victor Pelletier's price (289), the strikes shown after an
-/// undo (137), Spiritual Guidance's play from the ash heap (137); and the
-/// table kept from the events: a vampire banished and back between two views
-/// (47), one influenced into a contest (137), a unique ally played into one
-/// (328), a contested minion's cards (137), a merge (47), training counters
-/// (499), a vampire moved within its uncontrolled region (389), two
-/// Methuselahs ousted at once (2382), a unique card put into a contest (289), a
-/// vampire's excess drained in one (137), an action's intercept changed between
-/// two views (143), a play canceled as it is announced (3572: Andrew Stuart), a
-/// cost reduced by a lasting effect whose card is in the ash heap (139: Inner
-/// Essence); and the causes a deeper sweep found missing: blood to an
-/// uncontrolled vampire (375), a diablerie in a torpor block (321), Yawp
-/// Court's yawp (591), a burn to prevent (2355), a rider fired as its bearer
-/// blocks (1733), a diseased vampire's paid infernal unlock (1320), Assad
-/// Salhoum's blood as he blocks (589), Amelia's or Jason's after-combat burn
-/// (766), Burning Touch's burn as its action is blocked (1057), a searched
-/// ally paid once its cost reductions are asked (1302); and the view paths the
-/// events missed: an ally stolen for good (1717: Entrancement), a contested
-/// vampire's capacity (5419), Call the Great Beast become a vampire (1413), a
-/// card burned to an ousted owner's ash heap (342, 445: Disarm), an open hand
-/// (375), cards into one (526, 536, 615); and a line naming no minion: an
-/// advanced vampire merged before a view (472: Helena (ADV)), Anathema's pool
-/// (332); and a marker gone as a vampire returns (2493: Descent into
+/// Faces (145), Victor Pelletier's price (289), the strikes shown after an undo
+/// (137), Spiritual Guidance's play from the ash heap (137); and the table kept
+/// from the events: a vampire banished and back between two views (47), one
+/// influenced into a contest (137), a unique ally played into one (328), a
+/// contested minion's cards (137), a merge (47), training counters (499), a
+/// vampire moved within its uncontrolled region (446), two Methuselahs ousted
+/// at once (2382), a unique card put into a contest (289), a vampire's excess
+/// drained in one (137), an action's intercept changed between two views (143),
+/// a play canceled as it is announced (3572: Andrew Stuart), a cost reduced by
+/// a lasting effect whose card is in the ash heap (139: Inner Essence); and the
+/// causes a deeper sweep found missing: blood to an uncontrolled vampire (375),
+/// a diablerie in a torpor block (321), Yawp Court's yawp (591), a burn to
+/// prevent (2355), a rider fired as its bearer blocks (1733), a diseased
+/// vampire's paid infernal unlock (1320), Assad Salhoum's blood as he blocks
+/// (589), Amelia's or Jason's after-combat burn (766), Burning Touch's burn as
+/// its action is blocked (1057), a searched ally paid once its cost reductions
+/// are asked (1302), a Gehenna rider's pool burn (358: Afifa, The Herald); and
+/// the view paths the events missed: an ally stolen for good (1717:
+/// Entrancement), a contested vampire's capacity (5419), Call the Great Beast
+/// become a vampire (1413), a card burned to an ousted owner's ash heap (342,
+/// 445: Disarm), an open hand and cards into it (265), a merged vampire's
+/// traits lost (397: Valerius Maior, Hell's Fool); and a line naming no minion:
+/// an advanced vampire merged before a view (472: Helena (ADV)), Anathema's
+/// pool (332); and a marker gone as a vampire returns (2493: Descent into
 /// Darkness); and an action its Methuselah's oust ended mid-way (220: .44
 /// Magnum paid with the last pool), one whose referendum ended the game, its
 /// card out of limbo (2742: Kine Resources Contested); and a minion's title
 /// changed between two views (47); and a turn begun with its skip asked (353:
-/// First Tradition: The Masquerade); and a block attempt its action's end
-/// cut short, told failed before it (742: Shadow Play burning Nocturn).
+/// First Tradition: The Masquerade); and a block attempt its action's end cut
+/// short, told failed before it (742: Shadow Play burning Nocturn).
 const KEPT: [u32; 36] = [
-    47, 137, 139, 143, 145, 220, 289, 321, 328, 332, 342, 353, 375, 389, 445, 472, 499, 526, 536,
-    589, 591, 615, 742, 766, 1057, 1302, 1320, 1413, 1717, 1733, 2355, 2382, 2493, 2742, 3572,
+    47, 137, 139, 143, 145, 220, 265, 289, 321, 328, 332, 342, 353, 358, 375, 397, 445, 446, 472,
+    499, 589, 591, 742, 766, 1057, 1302, 1320, 1413, 1717, 1733, 2355, 2382, 2493, 2742, 3572,
     5419,
 ];
 
@@ -1397,7 +1398,8 @@ fn every_option_and_choice_is_told() {
                 .replace("a minion of", "")
                 .replace("bottom a card", "")
                 .replace("a card in your library", "")
-                .replace("Discard a card from", "");
+                .replace("Discard a card from", "")
+                .replace("unless you discard a card", "");
             for bare in ["a card", "a minion"] {
                 if text.contains(bare) {
                     let e = unnamed

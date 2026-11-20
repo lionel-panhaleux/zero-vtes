@@ -1360,6 +1360,75 @@ mod tests {
         (v, named.into_iter().filter_map(|(_, k)| k).collect())
     }
 
+    /// Betrayer's chosen vampire is hidden (owner's reading asked, rules-qa
+    /// Batch 125): seat 0 plays it on its uncontrolled Monica Giovanni,
+    /// seat 1's in play; told to seat 1, neither the events nor the view nor
+    /// the play's key name that vampire's card, its copy, or the slot's.
+    #[test]
+    fn betrayers_chosen_vampire_is_never_told_to_its_victim() {
+        use zvtes::copies::{CopyId, Untracked};
+        let mut e = Engine::bare(2);
+        e.add_minion(SeatId(0), find_card("Farah Sarroub"), 4, false);
+        let monica = find_card("Monica Giovanni");
+        let v = e.add_minion(SeatId(1), monica, 4, false);
+        e.add_minion(SeatId(1), find_card("Octane"), 4, false);
+        e.state.minions[v.index()].copy = Untracked(CopyId(700));
+        e.state.seats[0]
+            .uncontrolled
+            .push(zvtes::state::UncontrolledSlot {
+                card: monica,
+                copy: Untracked(CopyId(701)),
+                counters: 1,
+                banished: None,
+            });
+        e.state.seats[0]
+            .hand
+            .put(find_library("Betrayer"), CopyId(702));
+        e.state.turn = 4;
+        e.at_master_phase();
+        let play = Choice::Play {
+            card: 0,
+            mode: 0,
+            actor: None,
+            target: Target::Uncontrolled(0),
+        };
+        let Step::Decision(req) = e.run() else {
+            panic!("a decision")
+        };
+        let mut viewer = crate::view::Viewer::new(Some(SeatId(1)));
+        let before = viewer.view(&e, &Default::default(), &[]);
+        let key = crate::describe::key(&e, &req, &play, &viewer.numbering);
+        let i = req
+            .options
+            .iter()
+            .position(|o| *o == play)
+            .expect("offered");
+        let step = |e: &mut Engine| {
+            e.choose(i);
+            let _ = e.run();
+        };
+        let (after, events) = told_to(&mut viewer, &mut e, &[&step]);
+        let betrayer = (0..e.state.cards.len())
+            .find(|&c| e.state.cards[c].card == find_library("Betrayer"))
+            .expect("in play");
+        assert_eq!(e.state.cards[betrayer].chosen, vec![v], "chosen");
+        let id = CRYPT[monica as usize].id;
+        assert!(!events.is_empty(), "the play told");
+        let told = format!("{events:?} {key:?}");
+        assert!(
+            !told.contains("CopyId(700)") && !told.contains("CopyId(701)"),
+            "{told}"
+        );
+        assert!(!told.contains(&format!("{id}")), "{told}");
+        // The view: seat 1's own Monica as before, nothing tying it to it.
+        let json = |v: &zvtes_api::view::TableView| serde_json::to_string(&v.seats[0]).unwrap();
+        assert!(!json(&after).contains(&format!("{id}")), "{}", json(&after));
+        assert_eq!(
+            serde_json::to_string(&before.seats[1]).unwrap(),
+            serde_json::to_string(&after.seats[1]).unwrap()
+        );
+    }
+
     /// A card in play going to another seat's hand: its leaving and its
     /// move name the number it had in sight.
     #[test]

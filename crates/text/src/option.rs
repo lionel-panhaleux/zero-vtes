@@ -201,6 +201,10 @@ fn base(
             let m = k.mode.as_ref()?;
             format!("Employ {}{}{}", card(), mode(m), apart(m, n))
         }
+        K::Version => {
+            let m = k.mode.as_ref()?;
+            format!("{}{}{}", card(), mode(m), apart(m, n))
+        }
         K::UseManeuver => match o.effects.iter().find_map(|e| e.range) {
             Some(Range::Long) => "Use a maneuver to long range".into(),
             Some(Range::Close) => "Use a maneuver to close range".into(),
@@ -271,6 +275,7 @@ fn base(
             }
             s
         }
+        K::CastGrantedVotes => format!("The votes the card gives you {}", votes(k.favor)),
         K::CastCardVote => {
             let v = o.effects.iter().find(|e| e.kind == EffectKind::Votes)?;
             match v.on {
@@ -476,6 +481,7 @@ fn asked(
         (P::DualFormKept, K::ChooseMinion) => verb("Choose ", "Keep ")?,
         (P::RedirectFirst, K::ChooseMinion) => format!("{}'s first", verb("Choose ", "")?),
         (P::MoveBetween, K::ChooseCard) => role("moves")?,
+        (P::BurnLocationsForPool, K::ChooseCard) => role("burns")?,
         (P::ChooseForCard, K::ChooseMinion) => {
             let e = has(EffectKind::Role)?;
             let clan = e.clan.as_deref().map_or("vampire".into(), |c| n.value(c));
@@ -559,6 +565,8 @@ fn asked(
         }
         (P::MayGainHandSize, K::ResolvePrinted) => format!("Get +{} hand size", about?.n?),
         (P::MayGainBlood, K::ResolvePrinted) => format!("Gain {} blood", about?.n?),
+        (P::MayMoveEdgePool, K::ResolvePrinted) => "Move the Edge's pool to her as blood".into(),
+        (P::MayHuntBloodToPool, K::ResolvePrinted) => "Move 1 blood to your pool".into(),
         (P::MayPreventForBlood, K::ResolvePrinted) => {
             format!("Burn {} blood to prevent the damage", about?.n?)
         }
@@ -608,6 +616,9 @@ fn asked(
         (P::ClotFate, K::ChooseMinion) => format!("Burn {}", whom()?),
         (P::MayJoinCombat, K::ChooseMinion) => format!("{} locks to enter combat", whom()?),
         (P::BurnBloodToAnarch, K::ChooseMinion) => format!("{} burns 1 blood", whom()?),
+        (P::MayJoinSect, K::ChooseMinion) => format!("{} joins it", whom()?),
+        (P::RetainerDamageOrder, K::ChooseMinion) => format!("{} first", whom()?),
+        (P::RetainerDamageOrder, K::ChooseCard) => format!("{} first", named()?),
         (P::BecomesAnarch, K::ChooseMinion) => role("becomes Anarch")?,
         (P::UncontrolledBlood, K::Slot) => role(&format!("gets {} blood", about?.n?))?,
         (P::LockOrPay, K::ResolveRider) => format!("Lock {}", named()?),
@@ -943,6 +954,8 @@ fn pass(
         P::MaySetNextRange => "Leave the range".into(),
         P::BlockWouldSucceed => "Let the block succeed".into(),
         P::MayGainBlood => "Gain no blood".into(),
+        P::MayMoveEdgePool => "Gain 1 pool".into(),
+        P::MayHuntBloodToPool => "Keep the blood on her".into(),
         P::MayMoveBlood => "Move no blood".into(),
         P::MayFailAction => "Let the action go on".into(),
         P::MayLockToFight => "Stay out of combat".into(),
@@ -956,6 +969,8 @@ fn pass(
         P::PoolForCard | P::LockForPool => "No pool".into(),
         P::StealForCorruption => "Don't steal".into(),
         P::MakeAnarch | P::BurnBloodToAnarch => "No Anarch".into(),
+        P::MayJoinSect => "Keep its sect".into(),
+        P::BurnLocationsForPool => "Stop burning locations".into(),
         P::SwapEquipFromPrey => "Keep the equipment".into(),
         P::GainVictimDiscipline => "Gain no Discipline".into(),
         P::MayJoinCombat => "Stay out".into(),
@@ -1374,6 +1389,8 @@ mod tests {
             P::MaySetNextRange,
             P::BlockWouldSucceed,
             P::MayGainBlood,
+            P::MayMoveEdgePool,
+            P::MayHuntBloodToPool,
             P::MayMoveBlood,
             P::MayFailAction,
             P::MayLockToFight,
@@ -1398,6 +1415,8 @@ mod tests {
             P::LockOrDiscard,
             P::MayDiscardForBlock,
             P::BurnBloodToAnarch,
+            P::MayJoinSect,
+            P::BurnLocationsForPool,
             P::SwapEquipFromPrey,
             P::GainVictimDiscipline,
             P::MayJoinCombat,

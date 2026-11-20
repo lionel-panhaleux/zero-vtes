@@ -152,6 +152,7 @@ impl Effect {
             | E::SearchToHand { .. }
             | E::ExchangeHandForAsh(_)
             | E::AllyFromAshLocked(_)
+            | E::EmployFromOwnAsh(_)
             | E::AshVampireToUncontrolled
             | E::RaiseAshMinionRepresented(_)
             | E::EnterCombatWithTarget
@@ -204,6 +205,7 @@ impl Effect {
             | E::RemoveHostFromGame
             | E::GainNamedDiscipline
             | E::TargetBurnsBloodUpTo(_)
+            | E::GainEdge
             | E::BurnSource => Granted::Own,
             E::StealTargetAlly
             | E::StealPoolFromTarget(_)
@@ -240,6 +242,11 @@ impl Effect {
             | E::PutOnTarget
             | E::ConvictionOnTarget
             | E::TargetSeatTakesCard
+            | E::AshPickSeatTakesCard
+            | E::UncontrolledSourceBloodToTarget(..)
+            | E::UncontrolledTargetToReadyIfFull
+            | E::TakeControlOfTargetCard
+            | E::TakeControlOfAllRequiring(..)
             | E::DualFormCopy
             | E::DescendActor
             | E::DerangeTarget
@@ -335,6 +342,8 @@ impl Effect {
             | E::ActorTakesAggravated { .. }
             | E::PutOnActor
             | E::PutOnActorRemembering
+            | E::PutOnActorOnlyOne
+            | E::BaronOfActorCity
             | E::CompareCryptTopsWithBlocker { .. }
             | E::If { .. }
             | E::GameOfMalkav
@@ -380,6 +389,9 @@ impl Effect {
             | E::AshVampireToReadyWithActorBlood
             | E::SearchNamedToHandOrUncontrolled
             | E::LockXPicks
+            | E::PicksLoseTitle
+            | E::DamagePicks(..)
+            | E::PicksLasting(..)
             | E::LockYoungerOfChosenClan { .. }
             | E::LiftBloodCurse(..)
             | E::BlockVoided
@@ -387,6 +399,7 @@ impl Effect {
             | E::BloodToOwnVampires { .. }
             | E::TargetDiscardsAllOf { .. }
             | E::BloodToTargets(..)
+            | E::PutOnActionCard
             | E::SearchEquipOntoTarget(..) => (Family::Play, false, None),
             E::TargetLeavesTorpor
             | E::PeekNeighborHands
@@ -408,6 +421,7 @@ impl Effect {
             | E::PoolToUncontrolledTarget(..)
             | E::BloodToTarget(..)
             | E::LockActor
+            | E::CombatantsDamageAfterCombat(..)
             | E::EndCombat
             | E::BloodToTargetToStart(..)
             | E::TargetBurnsBlood(..)
@@ -464,9 +478,11 @@ impl Effect {
             | E::BurnTargetCryptTop { .. }
             | E::ActorBecomesClan(..)
             | E::TargetBecomesClan(..)
+            | E::TargetBecomesActingClan
             | E::TargetBecomesSterile
             | E::TargetGainsLevel(..)
             | E::TargetBecomesRedList
+            | E::TargetNoLongerRedList
             | E::ActorBloodToCapacity
             | E::BurnRememberedContract
             | E::DamageTarget(..)
@@ -499,6 +515,7 @@ impl Effect {
             | E::LookAtBledLibraryTop
             | E::PeekBledHand
             | E::PeekEachHandThisTurn
+            | E::GainEdgeAsPlayed
             | E::BloodMovesFromActing { .. } => (Family::Shared, false, None),
             E::CounterToTarget(..)
             | E::BloodPerHostage
@@ -521,6 +538,7 @@ impl Effect {
             | E::PayConviction
             | E::SpendMasterPhaseAction
             | E::LockSelf
+            | E::SearchDisciplineMasterOntoTarget
             | E::BurnConviction(..)
             | E::BurnTargetConviction(..)
             | E::FailsIntoCombatWithHost
@@ -529,6 +547,7 @@ impl Effect {
             | E::DamageOpponentByStrength
             | E::LookAtLibraryTop(..)
             | E::LookAtTurnLibraryTop
+            | E::LookAtPreyLibraryTop
             | E::LookAtEachLibraryTop
             | E::LookAtTargetLibraryTopBurnOne(..)
             | E::StealFromTargetSeatSlot(..)
@@ -620,6 +639,7 @@ impl Effect {
             | E::ShuffleHandDrawUp
             | E::PreyUncontrolledBloodToPool(..)
             | E::PeekHandsOfReadyClan(..)
+            | E::PeekCardControllersHand
             | E::MarkBleedToll
             | E::HostBleedThisTurn(..)
             | E::BleedToRemembered
@@ -666,6 +686,7 @@ impl Effect {
             | E::MarkTargetCardThisTurn
             | E::HostToUncontrolled
             | E::StealHost
+            | E::StealHostToReady
             | E::HealAggravatedForBlood(..)
             | E::BurnChosenMinion
             | E::BurnChosenCard
@@ -812,6 +833,12 @@ impl Effect {
             | E::AttemptBlockLocked
             | E::CorruptActingMayStealAtCapacity
             | E::StealthIfTargetBurnsBlood { .. }
+            | E::DamageActingAndRetainers(..)
+            | E::BurnBledLibraryPerPoolLost
+            | E::DamageBlocker(..)
+            | E::NoBloodHuntThisAction
+            | E::ResolvedModifierToHand(..)
+            | E::CorruptMinionOfTargetIfSuccessful
             | E::AttemptingMayCancel => (Family::Action, false, None),
             E::Strike(..)
             | E::Maneuver
@@ -822,6 +849,8 @@ impl Effect {
             | E::AdditionalStrikes { .. }
             | E::SetStrength(..)
             | E::OpposingStrengthMinus(..)
+            | E::OpposingBarredDisciplines(..)
+            | E::OpposingWerewolfStrengthMinus(..)
             | E::OpposingNoAdditionalStrikes
             | E::AggravatedHands
             | E::AggravatedHandsThisCombat
@@ -1000,7 +1029,17 @@ impl Effect {
             | E::MayCancelOpposingManeuverEachRound
             | E::InitialStrikeStrengthThisRound(..)
             | E::MendOwnCombatant { .. }
-            | E::TargetStrikeDamagePlus(..) => (Family::Combat, false, None),
+            | E::CombatantVampiresToTorporAfterCombat
+            | E::TargetStrikeDamagePlus(..)
+            | E::LongRangeDefaultThisCombat
+            | E::EndPressEachRoundThisCombat
+            | E::OpposingDiscardsAtRandomEachRound(..)
+            | E::NextRoundOnlyHandStrikes
+            | E::OpposingBarredLabelThisCombat(..)
+            | E::StrikeAggravatedAsNormal
+            | E::ImmuneAggravatedThisRound
+            | E::HandMeleeFirstStrikeThisRound
+            | E::OpponentChoosesStrikeFirst => (Family::Combat, false, None),
             E::Prevent(..)
             | E::PreventXPlus(..)
             | E::PreventNonAggravated(..)
@@ -1017,6 +1056,7 @@ impl Effect {
             | E::GuardNextHandOrMeleeStrike(..)
             | E::PreventRetainerDamageThisRound(..)
             | E::PreventStrikeEachRound(..)
+            | E::PreventStrikeAggravated
             | E::FleshOfMarble { .. } => (Family::Combat, true, None),
             E::AggravatedToNormal(..) => (Family::Combat, false, None),
             E::PreventGunStrikeAllowance(..) | E::PreventMeleeWeaponStrike(..) => {
@@ -1059,6 +1099,7 @@ impl Effect {
             | E::CancelReferendum { .. }
             | E::TallyBloodAgainst(..)
             | E::ChangeTargetVotes(..) => (Family::Vote, false, None),
+            E::ChangeChosenVotes(..) | E::CastChosenVotes(..) => (Family::Ability, false, None),
             E::BleedPoolCap(..)
             | E::BurnPoolAtEndIfNotReady(..)
             | E::BurnSource
@@ -1078,6 +1119,7 @@ impl Effect {
             | E::LinkCounterToTargetSeat
             | E::ReorderTop { unlock: false, .. }
             | E::AllyFromAshLocked(..)
+            | E::EmployFromOwnAsh(..)
             | E::AshVampireToUncontrolled
             | E::RaiseAshMinionRepresented(_)
             | E::CorruptTargetMayStealAtCapacity
@@ -1136,6 +1178,7 @@ impl Effect {
             | E::PoolOrBloodPerCounter
             | E::PoolOrRandomCardsPerCounter
             | E::TheirControllerBurnsPool(..)
+            | E::EachMethuselahBurnsPool(..)
             | E::HostBloodToBy(..)
             | E::BurnSelfUnlessPool(..)
             | E::PreyChoosesMinionDamaged(..)
@@ -1150,6 +1193,7 @@ impl Effect {
             | E::OtherReadyVampireDamaged(..)
             | E::OtherReadyMinionDamaged(..)
             | E::NamedOntoHostElseDamage { .. }
+            | E::DiscardOfElseLockHost(..)
             | E::BurnOneHeld(..)
             | E::PreyAshToLibraryTop
             | E::HostBurnsConviction(..)
@@ -1169,6 +1213,7 @@ impl Effect {
             | E::HandSizeUntilDiscard(..)
             | E::DamageBledAnarchs(..)
             | E::BurnPoolPerHuntingGround
+            | E::BurnPoolPerCounter
             | E::PreyBurnsPoolPerTorpor
             | E::BurnPoolTowardBurnSelf { .. }
             | E::EnvironmentalDamageBeforeRange(..)
@@ -1178,7 +1223,7 @@ impl Effect {
             | E::BurnPoolPerGehennaOrSelf
             | E::ClearChosen
             | E::AnarchMayHealHost
-            | E::HostBurnsBloodOrBurnSelf(..)
+            | E::HostBurnsBloodOrBurnSelf { .. }
             | E::FramesBlocker
             | E::MayBurnForNewCombat
             | E::AddCounterForEnteringClan(..)
@@ -1188,6 +1233,7 @@ impl Effect {
             | E::MayLockForTorture
             | E::HostBurnsBloodOrBurnedThenMoves(..)
             | E::HostBurnsBloodOrIsBurned(..)
+            | E::HostBurnsBloodOrLifeElseTorpor(..)
             | E::HostBurnsBloodOrThisBurns(..)
             | E::ByBurnsBloodOrThisBurns(..)
             | E::CountersFromOwnBleed(..)
@@ -1203,6 +1249,7 @@ impl Effect {
             | E::BloodByPoolParity { .. }
             | E::BurnHostVampire
             | E::OtherVampireBloodOrPool { .. }
+            | E::PreyBelowCapacityVampireAndHostGainBlood(..)
             | E::GehennaPlayerBurnsPool(..)
             | E::DistributeToUncontrolled { .. }
             | E::PreyPaysOrBurnsLocations(..)
@@ -1240,6 +1287,7 @@ impl Effect {
             | E::RemoveSelfWithoutCounters
             | E::BecomesRetainerOnBy { .. }
             | E::ActingNoModifiersRequiring(..)
+            | E::ActingNoCombatCardsRequiring(..)
             | E::HostFounderCounter
             | E::HostGoesToTorpor
             | E::BurnSelfIfControllerBlocks
@@ -1256,6 +1304,7 @@ impl Effect {
             | E::RescueAction
             | E::StealthForTitled(..)
             | E::StealthForClan { .. }
+            | E::StealthForSect { .. }
             | E::DeclareAction(..)
             | E::NoOtherEquipmentBleed
             | E::EmployRetainer { .. }
@@ -1273,7 +1322,11 @@ impl Effect {
             | E::DueThisMinionPhase
             | E::UsesStoredCard
             | E::CancelCombatIfBlocked
-            | E::FavorIgnoredFromTitled(..) => (Family::Marker, false, None),
+            | E::FavorIgnoredFromTitled(..)
+            | E::CallerBurnsBloodIfReferendumFails(..)
+            | E::ChosenControllerVotesPerRedList(..)
+            | E::ReturnsHostCardToHand
+            | E::EquipOntoTarget => (Family::Marker, false, None),
             // Read as the card is played: what cancels it, what it cancels,
             // where it is played from (`as_played_request`, `resolve_play`,
             // `cancel_shield`, `virtual_hand`).
@@ -1294,6 +1347,7 @@ impl Effect {
             | E::CancelableForPoolByAny(..)
             | E::MovesToOldestUntitled { .. }
             | E::LockCanceledActor
+            | E::CanceledFrenzyTargetEndPress
             | E::BarCanceledForActorThisAction => (Family::Marker, false, None),
             // What the card is (`card_title`, `becomes_weapon`, `is_gun`).
             E::RepresentsTitle(..)
@@ -1346,6 +1400,7 @@ impl Effect {
             | E::PinnedWhileBearerReady
             | E::PinnedAlways
             | E::BurnedSendsBearerToTorpor
+            | E::BurnedLocksBearer
             | E::BurnedDamagesBearer { .. }
             | E::IncomingCopyBurns
             | E::ControllerGivesCard
@@ -1411,7 +1466,9 @@ impl Effect {
             E::UnlockRecruiterOnFirst => (Family::Entry, false, Some(Unlocks::Acting)),
             E::RemembersRecruiter => (Family::Entry, false, None),
             E::RecruiterUnlocksAtEndOfTurn => (Family::Entry, false, Some(Unlocks::Actor)),
-            E::EquipActionUnlocksEndOfTurn => (Family::Marker, false, Some(Unlocks::Acting)),
+            E::EquipActionUnlocksEndOfTurn | E::EquipActionUnlocksAtDiscard => {
+                (Family::Marker, false, Some(Unlocks::Acting))
+            }
             E::DiscardUnlockIfBleedSuccessful { .. } => (Family::Marker, false, Some(Unlocks::Actor)),
             E::TrophyBlood(..) => (Family::Marker, false, Some(Unlocks::Target)),
             E::UnlockActorIfClanCapacity { .. } => (Family::Play, false, Some(Unlocks::Actor)),
@@ -1430,7 +1487,6 @@ impl Effect {
             | E::LockTargets
             | E::ActorBloodToTargetX
             | E::BurnActorRetainers
-            | E::SearchEmploy { .. }
             | E::EachOtherMayDraw(..)
             | E::DrawAfterOthers { .. }
             | E::StoreOneFromHand(..) => (Family::Play, false, None),
@@ -1489,6 +1545,22 @@ impl Effect {
             | E::SeatCounterOnLastOpponent { .. } => (Family::Action, false, None),
             E::HandOffAction => (Family::Play, false, None),
             E::JoinAsSecond => (Family::Combat, false, None),
+            E::OwnReadyOfClanBloodToUncontrolledTarget(..) | E::DiscardOwnHandReplaced => {
+                (Family::Play, false, None)
+            }
+            E::CounterToTargetBloodFed => (Family::Ability, false, None),
+            E::HostHuntingGroundBlood(..) => (Family::Rider, false, None),
+            E::SearchEmploy { .. } => (Family::Shared, false, None),
+            E::BurnOwnLocationsForPool
+            | E::BurnOwnLibraryTopBurnSelfIf(..)
+            | E::TargetBloodToReadyOfClan { .. } => (Family::Ability, false, None),
+            E::GuessChosenForPool(..) => (Family::Rider, false, None),
+            E::TargetRoundStrikeOnce(..) | E::ChooseInPlayCopyOfTarget => {
+                (Family::Play, false, None)
+            }
+            E::CountersWhenAwarded(..) | E::AwardBecomesVampire { .. } => {
+                (Family::Marker, false, None)
+            }
         }
     }
 }
@@ -1554,6 +1626,7 @@ mod tests {
                 | E::MandatoryAction
                 | E::LockSelf
                 | E::StealthForClan { .. }
+                | E::StealthForSect { .. }
                 | E::StealthForTitled(_)
         );
         declared

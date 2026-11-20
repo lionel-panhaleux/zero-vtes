@@ -24,6 +24,9 @@ pub enum ControlTerm {
     /// Back as the next action ends, any minion's, else with the turn
     /// (Spirit Marionette [OBE]; owner, rules-qa 124.218).
     UntilNextActionEnd,
+    /// For good, moved to the taker's ready region, out of torpor, not a
+    /// rescue (Sonja Blue).
+    ForGoodToReady,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
@@ -201,6 +204,13 @@ impl Engine {
         }
         match term {
             ControlTerm::ForGood => self.take_for_good_now(m, to),
+            ControlTerm::ForGoodToReady => {
+                self.take_for_good_now(m, to);
+                let v = &self.state.minions[m.index()];
+                if v.in_play && v.in_torpor && v.owner == to {
+                    self.leave_torpor(m);
+                }
+            }
             _ => {
                 self.take_control_now(m, to);
                 let v = &mut self.state.minions[m.index()];

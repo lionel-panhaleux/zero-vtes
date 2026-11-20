@@ -402,6 +402,23 @@ impl Engine {
             self.interrupts
                 .push(crate::draws::Interrupt::BurnBloodToAnarch { seat: s, minion: m });
         }
+        // Ravnos Acceptance: one offer, whatever the copies in play.
+        let clan = self.state.minions[m.index()].clan();
+        let joins = self.state.in_play_layers().find_map(|l| match l.modifier {
+            crate::cards::Modifier::ClanMayJoinSect { clan: c, sect }
+                if clan == Some(c) && self.state.minions[m.index()].actual_sect() != Some(sect) =>
+            {
+                Some(sect)
+            }
+            _ => None,
+        });
+        if let Some(sect) = joins {
+            self.interrupts.push(crate::draws::Interrupt::MayJoinSect {
+                seat: s,
+                minion: m,
+                sect,
+            });
+        }
         // An Anarch entering play: counted first, the Convert's
         // ability next (Hackerspace, ANK 20210410).
         if self.state.sect_of(m) == Some(crate::crypt::Sect::Anarch) {
@@ -461,9 +478,12 @@ impl Engine {
             self.interrupts
                 .push(crate::draws::Interrupt::ChooseCircle { seat: s, minion: m });
         }
+        // "Moved to the ready region in your influence phase": any way
+        // there in it (RTR 20080809).
+        let own_influence = self.state.in_influence_phase.0 && self.state.active == s;
         // Hermana Hambrienta: "burns 2 blood or is burned", after
         // the excess drained (LSJ 20051126).
-        if let Some(n) = entry_burn(card) {
+        if let Some(n) = entry_burn(card, own_influence) {
             self.interrupts
                 .push(crate::draws::Interrupt::BloodOrBurned {
                     seat: s,
@@ -494,6 +514,13 @@ impl Engine {
             if self.state.seats[s.index()].ousted {
                 return;
             }
+        }
+        // Sonja Blue: before any contest, the copy contesting gaining it
+        // (LSJ 20070829-2).
+        if let Some(n) = entry_pool_gain(card, own_influence) {
+            self.caused(Cause::Effect(Source::Minion(m)), |e| {
+                e.state.gain_pool(s, n as i32)
+            });
         }
         // Verbruch: "as he enters play, you can search your crypt", before
         // any contest (LSJ 20080526); the search reads nothing of him.
@@ -538,6 +565,7 @@ impl Engine {
                     left: n,
                     entering: true,
                     hand_or_burn: false,
+                    no_hand: false,
                 });
         } else if let Some((n, clan)) = entry_distribution(card) {
             // Erlik: before any contest (LSJ 20080526).
@@ -650,14 +678,29 @@ fn is_anarch_convert(card: u16) -> bool {
 }
 
 /// The effects of a crypt card's entry riders (none for a created
-/// vampire).
+/// vampire), but those gated on its controller's influence phase.
 fn entry_effects(card: u16) -> impl Iterator<Item = &'static crate::cards::Effect> {
+    entry_effects_in(card, false)
+}
+
+/// As `entry_effects`, those gated on the controller's influence phase
+/// (`Requirement::InOwnInfluencePhase`) too if `own_influence`.
+fn entry_effects_in(
+    card: u16,
+    own_influence: bool,
+) -> impl Iterator<Item = &'static crate::cards::Effect> {
     (card != crate::state::CREATED)
         .then(|| crate::cards::vampire(card))
         .flatten()
         .into_iter()
         .flat_map(|d| d.riders)
-        .filter(|r| r.hook == crate::cards::Hook::EntersPlay)
+        .filter(move |r| {
+            r.hook == crate::cards::Hook::EntersPlay
+                && (own_influence
+                    || !r
+                        .requires
+                        .contains(&crate::cards::Requirement::InOwnInfluencePhase))
+        })
         .flat_map(|r| r.effects)
 }
 
@@ -672,9 +715,18 @@ fn entry_distribution(card: u16) -> Option<(u8, &'static str)> {
 
 /// A vampire's "when moved to the ready region in your influence phase,
 /// this vampire burns n blood or is burned" (Hermana Hambrienta).
-fn entry_burn(card: u16) -> Option<u8> {
-    entry_effects(card).find_map(|e| match *e {
+fn entry_burn(card: u16, own_influence: bool) -> Option<u8> {
+    entry_effects_in(card, own_influence).find_map(|e| match *e {
         crate::cards::Effect::BurnsBloodOrIsBurnedOnEntry(n) => Some(n),
+        _ => None,
+    })
+}
+
+/// A vampire's "gain n pool when moved to the ready region in your
+/// influence phase" (Sonja Blue).
+fn entry_pool_gain(card: u16, own_influence: bool) -> Option<u8> {
+    entry_effects_in(card, own_influence).find_map(|e| match *e {
+        crate::cards::Effect::GainPool(n) => Some(n),
         _ => None,
     })
 }

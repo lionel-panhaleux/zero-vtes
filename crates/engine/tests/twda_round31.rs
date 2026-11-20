@@ -3627,7 +3627,7 @@ fn shadow_court_satyr_meets_animalism_for_pack_alpha_and_its_raven_spy() {
 // Rulings: [LSJ 20011217] [LSJ 20090508] [LSJ 20020218].
 #[test]
 fn allies_with_grants_never_play_a_combo_card_by_two() {
-    for name in ["Talaq, The Immortal", "Rafastio Ghoul"] {
+    for name in ["Talaq, The Immortal", "Rafastio Ghoul", "Samuel Haight"] {
         let mut e = game(2);
         e.add_minion(SeatId(0), plain("Brujah", 0), 4, false);
         let t = e.add_ally(SeatId(0), find_library(name));
@@ -3651,6 +3651,7 @@ fn allies_with_grants_never_play_a_combo_card_by_two() {
                     once_per_combat: false,
                     combat_only: false,
                     once_per_turn: false,
+                    one_of_combo: false,
                 }),
                 source: card,
             });

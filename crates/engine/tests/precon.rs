@@ -15322,7 +15322,13 @@ fn forced_block_attempts_are_not_offered_under_daring_the_dawn() {
 // nor its maneuver is offered.
 #[test]
 fn a_guns_maneuver_is_not_used_while_its_strike_is_barred() {
-    for gun in [".44 Magnum", "AK-47", "Assault Rifle", "Kpist m/45"] {
+    for gun in [
+        ".44 Magnum",
+        "AK-47",
+        "Assault Rifle",
+        "Kpist m/45",
+        "Submachine Gun",
+    ] {
         let mut e = Engine::bare(3);
         let a = e.add_minion(SeatId(0), plain("Brujah", "", 0), 5, false);
         e.add_minion(SeatId(0), plain("Brujah", "", 1), 4, false);

@@ -1481,8 +1481,10 @@ fn sweeper_looks_at_each_library() {
         false,
     );
     e.add_minion(SeatId(1), plain("Ventrue", 0), 4, false);
+    // Kept past the draws before the look (an empty library offers none,
+    // rules-qa 122.139).
     for seat in &mut e.state.seats[0..2] {
-        seat.library.push(find_library("Form of Mist"));
+        seat.library.extend([find_library("Form of Mist"); 8]);
     }
     hand(&mut e, 0, &["Sweeper"]);
     pick(&mut e, play(0, 0, a));
@@ -5132,6 +5134,7 @@ fn ghouled_ally_strikes_with_potence_once_a_combat() {
             once_per_combat: true,
             combat_only: false,
             once_per_turn: false,
+            one_of_combo: false,
         }),
     ] {
         e.state.layers.push(zvtes::cards::Layer {
@@ -5337,22 +5340,22 @@ fn jack_of_both_sides_equips_for_less() {
     assert_eq!(pool(&e)[0], 10 - 1);
 }
 
-/// Jack of Both Sides, employing: a Twisted Bloodhound (1 pool) for nothing.
+/// Jack of Both Sides, employing: a Ghoul Retainer (2 pool) for 1 (Twisted
+/// Bloodhound needs a follower of Caine).
 #[test]
 fn jack_of_both_sides_employs_for_less() {
     let mut e = game(2);
     let a = e.add_minion(SeatId(0), plain("Brujah", 0), 4, false);
     e.add_minion(SeatId(0), plain("Brujah", 1), 4, false);
     e.add_minion(SeatId(1), plain("Ventrue", 0), 4, false);
-    hand(&mut e, 0, &["Jack of Both Sides", "Twisted Bloodhound"]);
+    hand(&mut e, 0, &["Jack of Both Sides", "Ghoul Retainer"]);
     pick_when(&mut e, play(0, 1, a));
     to_window(&mut e, SeatId(0), WindowLabel::MinionPhase);
-    assert_eq!(on(&e, "Twisted Bloodhound", a).len(), 1, "employed");
-    let printed =
-        match zvtes::library::LIBRARY[find_library("Twisted Bloodhound") as usize].pool_cost {
-            zvtes::library::Cost::Fixed(n) => n as i32,
-            _ => 0,
-        };
+    assert_eq!(on(&e, "Ghoul Retainer", a).len(), 1, "employed");
+    let printed = match zvtes::library::LIBRARY[find_library("Ghoul Retainer") as usize].pool_cost {
+        zvtes::library::Cost::Fixed(n) => n as i32,
+        _ => 0,
+    };
     assert_eq!(pool(&e)[0], 10 - (printed - 1).max(0));
 }
 
@@ -6601,7 +6604,7 @@ fn jack_of_both_sides_employs_as_an_employ_action() {
     let r = e.add_minion(SeatId(0), find_card("Rosa Hernández"), 4, false);
     e.add_minion(SeatId(0), plain("Brujah", 1), 4, false);
     e.add_minion(SeatId(1), plain("Ventrue", 0), 4, false);
-    hand(&mut e, 0, &["Jack of Both Sides", "Twisted Bloodhound"]);
+    hand(&mut e, 0, &["Jack of Both Sides", "Ghoul Retainer"]);
     pick_when(&mut e, play(0, 1, r));
     request(&mut e);
     let a = e.action().expect("the employ");

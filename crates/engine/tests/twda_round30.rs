@@ -10821,8 +10821,8 @@ fn lesser_boon_bars_its_minion_and_burns() {
     let p = e.add_minion(SeatId(1), plain("Ventrue", 0), 4, false);
     let q = e.add_minion(SeatId(2), plain("Toreador", 0), 4, false);
     let lb = in_play(&mut e, 1, "Lesser Boon", Some(a));
-    assert!(e.state.cannot_block(a, p));
-    assert!(!e.state.cannot_block(a, q));
+    assert!(e.state.cannot_block(a, p, true));
+    assert!(!e.state.cannot_block(a, q, true));
     e.state.seats[0].pool = 5;
     request(&mut e);
     assert!(!e.state.cards[lb.index()].in_play, "below 6");
@@ -13503,8 +13503,8 @@ fn lesser_boon_two_copies_from_two_players() {
     let q = e.add_minion(SeatId(2), plain("Toreador", 0), 4, false);
     let one = in_play(&mut e, 1, "Lesser Boon", Some(a));
     let two = in_play(&mut e, 2, "Lesser Boon", Some(a));
-    assert!(e.state.cannot_block(a, p));
-    assert!(e.state.cannot_block(a, q));
+    assert!(e.state.cannot_block(a, p, true));
+    assert!(e.state.cannot_block(a, q, true));
     e.state.seats[0].pool = 5;
     request(&mut e);
     assert!(!e.state.cards[one.index()].in_play);
