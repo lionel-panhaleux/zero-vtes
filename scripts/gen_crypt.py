@@ -257,8 +257,8 @@ def generate(cards):
         out.append(f"        path: {path},")
         flag = lambda b: "true" if b else "false"
         out.append(f"        infernal: {flag(re.search(r'(^|[.:] )Infernal\.', text))},")
-        out.append(f"        black_hand: {flag(re.search(r'(^|[.:] )Black Hand[.:]', text))},")
-        out.append(f"        seraph: {flag(re.search(r'(^|[.:] )Seraph[.:]', text))},")
+        out.append(f"        black_hand: {flag(re.search(r'(^|[.:] )Black Hand( Seraph)?[.:]', text))},")
+        out.append(f"        seraph: {flag(re.search(r'(^|[.:] )(Black Hand )?Seraph[.:]', text))},")
         # "Non-unique." (Valkyrie) or "Tupdogs are not unique." (Tupdog).
         out.append(f"        unique: {flag(not re.search(r'(^|[.:] )(Non-unique|[A-Z]\w*s are not unique)\.', text))},")
         out.append(f"        blood_cursed: {flag(re.search(r'(^|[.:] )Blood cursed\.', text, re.I))},")

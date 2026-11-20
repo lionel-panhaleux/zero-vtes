@@ -77,6 +77,10 @@ pub fn event(e: &EventKind, n: &Names) -> Option<String> {
         | EventKind::ActionState { .. }
         | EventKind::ReferendumState { .. } => return None,
         EventKind::Turn { turn, active } => format!("Turn {turn}: {}", n.seat(*active)),
+        EventKind::TurnOrder { reversed } => match reversed {
+            true => "Turns now go to the right".to_string(),
+            false => "Turns go to the left again".to_string(),
+        },
         EventKind::Draw { seat, n: k, crypt } => {
             let cards = match (crypt, k) {
                 (false, 1) => "card",
@@ -387,6 +391,8 @@ pub fn marker(m: &Marker, n: &Names) -> String {
         MarkerKind::Taint => counters("taint"),
         MarkerKind::BurnCounters => counters("burn"),
         MarkerKind::FounderCounters => counters("founder"),
+        MarkerKind::ResearchCounters => counters("research"),
+        MarkerKind::SeductionCounters => counters("seduction"),
         MarkerKind::TransfusionCounters => format!("{}{}", counters("transfusion"), of(m.seat)),
         MarkerKind::Disease => "a disease counter".into(),
         MarkerKind::TitleContested => "its title contested".into(),
@@ -688,6 +694,8 @@ mod tests {
                 K::Taint => (m(k, None, Some(2), None), "2 taint counters"),
                 K::BurnCounters => (m(k, None, Some(1), None), "1 burn counter"),
                 K::FounderCounters => (m(k, None, Some(4), None), "4 founder counters"),
+                K::ResearchCounters => (m(k, None, Some(2), None), "2 research counters"),
+                K::SeductionCounters => (m(k, None, Some(1), None), "1 seduction counter"),
                 K::TransfusionCounters => {
                     (m(k, Some(1), Some(2), None), "2 transfusion counters (Ben)")
                 }
@@ -729,6 +737,8 @@ mod tests {
             BurnCounters,
             FounderCounters,
             TransfusionCounters,
+            ResearchCounters,
+            SeductionCounters,
             Disease,
             TitleContested,
             Expelled,

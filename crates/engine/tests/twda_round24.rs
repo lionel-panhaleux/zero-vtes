@@ -1128,7 +1128,7 @@ fn cadet_makes_a_controlled_sabbat_vampire_black_hand() {
         .find(|&c| e.state.cards[c.index()].card == find_library("Cadet"))
         .expect("in play");
     placed(&e, c);
-    assert_eq!(e.state.cards[c.index()].on_slot, Some(0));
+    assert_eq!(e.state.cards[c.index()].on_slot, Some((SeatId(0), 0)));
     pick_when(&mut e, Choice::InfluenceOut { slot: 0 });
     request(&mut e);
     let m = e.state.cards[c.index()].host.expect("on the vampire");
@@ -4856,7 +4856,7 @@ fn cadet_keeps_to_its_own_copy() {
     assert_eq!(e.state.cards[c.index()].host, None, "not on the other copy");
     assert_eq!(
         e.state.cards[c.index()].on_slot,
-        Some(0),
+        Some((SeatId(0), 0)),
         "its slot, moved up"
     );
 }
@@ -4886,14 +4886,18 @@ fn cadet_follows_its_slot_merged() {
     }
     let on_merged = in_play(&mut e, 0, "Cadet", None);
     let on_next = in_play(&mut e, 0, "Cadet", None);
-    e.state.cards[on_merged.index()].on_slot = Some(0);
-    e.state.cards[on_next.index()].on_slot = Some(1);
+    e.state.cards[on_merged.index()].on_slot = Some((SeatId(0), 0));
+    e.state.cards[on_next.index()].on_slot = Some((SeatId(0), 1));
     let req = to_window(&mut e, SeatId(0), WindowLabel::InfluenceTransfers);
     e.choose(index_of(&req, Choice::Merge { slot: 0 }));
     let c = &e.state.cards[on_merged.index()];
     assert_eq!((c.in_play, c.host, c.on_slot), (true, Some(ap), None));
     let c = &e.state.cards[on_next.index()];
-    assert_eq!((c.host, c.on_slot), (None, Some(0)), "its slot, moved up");
+    assert_eq!(
+        (c.host, c.on_slot),
+        (None, Some((SeatId(0), 0))),
+        "its slot, moved up"
+    );
 }
 
 /// Kaymakli Nightmares: "any cards on them are burned": a Cadet on an
@@ -4913,7 +4917,7 @@ fn cadet_burns_with_its_slot_reshuffled() {
             banished: None,
         });
     let c = in_play(&mut e, 1, "Cadet", None);
-    e.state.cards[c.index()].on_slot = Some(0);
+    e.state.cards[c.index()].on_slot = Some((SeatId(1), 0));
     hand(&mut e, 0, &["Kaymakli Nightmares"]);
     to_window(&mut e, SeatId(1), WindowLabel::MinionPhase);
     to_window(&mut e, SeatId(0), WindowLabel::MasterPhase);

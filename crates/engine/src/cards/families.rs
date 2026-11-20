@@ -70,6 +70,44 @@ pub enum Granted {
 }
 
 impl Effect {
+    /// Does this effect act on the play's target minion (its effects a
+    /// minion immune to the card escapes: Resilient Mind)?
+    pub fn acts_on_target(self) -> bool {
+        matches!(
+            self,
+            Effect::PutOnTarget
+                | Effect::LockTarget
+                | Effect::UnlockTarget
+                | Effect::TargetToTorpor
+                | Effect::TargetBurnsBlood(_)
+                | Effect::DamageTarget(_)
+                | Effect::DerangeTarget
+                | Effect::TargetClanAndSect { .. }
+                | Effect::StealTargetVampire
+                | Effect::StealTargetAlly
+                | Effect::StealBloodFromTarget(_)
+                | Effect::StealBloodUpTo(_)
+                | Effect::TakeControlOfTargetUntilUnlock
+                | Effect::TakeControlOfTargetUntilMinionPhaseEnd
+                | Effect::TakeControlOfTargetUntilEndOfTurn
+                | Effect::TakeControlOfTargetUntilNextTurn
+                | Effect::BloodToTarget(_)
+                | Effect::BloodToTargetFull
+                | Effect::BloodToTargetToStart(_)
+                | Effect::ActorBloodToTargetX
+                | Effect::EnterCombatWithTarget
+                | Effect::BurnTargetMinion
+                | Effect::TargetBurnsBloodUpTo(_)
+                | Effect::TargetLeavesTorpor
+                | Effect::CorruptTargetMayStealAtCapacity
+                | Effect::StolenToReadyForBlood(_)
+                | Effect::TargetCannotBlock
+                | Effect::TakeControlOfTargetUntilNextActionEnd { .. }
+                | Effect::UnlockTargetAtDiscard
+                | Effect::ChooseTarget
+        )
+    }
+
     /// The interpreter resolving this effect.
     pub fn family(self) -> Family {
         self.class().0
@@ -183,6 +221,10 @@ impl Effect {
             | E::SearchEquipFree(_)
             | E::BurnCorruptionFromTarget
             | E::GraftOnTarget
+            | E::SeduceTarget
+            | E::BurnActorSeduction
+            | E::StealTargetRetainerLife
+            | E::ExchangeRandomHandForNamedAsh
             | E::StealTargetTitle
             | E::StealBloodFromTarget(_)
             | E::StealBloodUpTo(_)
@@ -192,6 +234,7 @@ impl Effect {
             | E::ActorBloodToSourceCardUpTo { .. }
             | E::ActorBloodToSourceCard(_)
             | E::StealFromTargetSeatSlot(_)
+            | E::BurnFromTargetSeatSlot(_)
             | E::LookAtTargetLibraryTopBurnOne(_)
             | E::CryptNamedToUncontrolled(_)
             | E::TargetSeatTakesSourceAlly
@@ -206,6 +249,8 @@ impl Effect {
             | E::GainNamedDiscipline
             | E::TargetBurnsBloodUpTo(_)
             | E::GainEdge
+            | E::LockTargetCard
+            | E::SearchPutInPlayPaid(_)
             | E::BurnSource => Granted::Own,
             E::StealTargetAlly
             | E::StealPoolFromTarget(_)
@@ -214,6 +259,7 @@ impl Effect {
             | E::TargetCardToOwnersLibraryForCost
             | E::CryptClanToUncontrolled { .. }
             | E::BloodToUncontrolledTarget(_)
+            | E::BloodToOwnVampires { .. }
             | E::LockTargetsSkipUnlock => Granted::Play,
             e if e.family() == Family::Shared => Granted::Shared,
             _ => return None,
@@ -236,6 +282,7 @@ impl Effect {
             | E::BecomesAlly(..)
             | E::AshurTablets
             | E::GiveBoonPool
+            | E::BoonAuction
             | E::RotschreckEndsCombat
             | E::FrenzyRound
             | E::BecomesVampire { .. }
@@ -354,6 +401,9 @@ impl Effect {
             | E::ActingBloodToNew(..)
             | E::BankBloodToNew(..)
             | E::PutOnTargetCard
+            | E::PutOnNamedSlot
+            | E::UncontrolledToCryptBottom { .. }
+            | E::ActorClanFromTerms
             | E::PreyBurnsPoolPerNamed { .. }
             | E::BloodToOwnUncontrolled { .. }
             | E::GainEdgeOrBurnItForPool(..)
@@ -444,6 +494,7 @@ impl Effect {
             | E::DrawThenDiscardDown(..)
             | E::LockTarget
             | E::TargetToTorpor
+            | E::RevealPreyCryptTopBands(..)
             | E::BurnOwnCorruptionFromTarget(..)
             | E::CorruptTargetMinion
             | E::BurnTargetMinion
@@ -496,7 +547,8 @@ impl Effect {
             | E::AllySkipsNextUnlock
             | E::DiscardUpTo(..)
             | E::ClanBleedThisTurn(..)
-            | E::LookAtRandomPreyHandCard
+            | E::LookAtRandomPreyHandCard { .. }
+            | E::ShowHandButOne { .. }
             | E::DrawThenHandCardAway
             | E::LockActorHeld(..)
             | E::LockTargetCardHost
@@ -512,10 +564,12 @@ impl Effect {
             | E::BurnEdgeForTargetPool(_)
             | E::OwnMinionsCannotBleedThisTurn
             | E::OwnMinionsBleedThisTurn(_)
-            | E::LookAtBledLibraryTop
+            | E::LookAtBledLibraryTop(..)
             | E::PeekBledHand
             | E::PeekEachHandThisTurn
             | E::GainEdgeAsPlayed
+            | E::PeekOpponentControllersHand
+            | E::ReadyVampiresGainBurnedBlood
             | E::BloodMovesFromActing { .. } => (Family::Shared, false, None),
             E::CounterToTarget(..)
             | E::BloodPerHostage
@@ -533,24 +587,31 @@ impl Effect {
             | E::BloodToTargetX
             | E::LockTargetCard
             | E::StealPoolFromBoonTarget
+            | E::StealPoolFromControllerX
+            | E::GivePoolToAgainst(..)
             | E::PoolToCounter(..)
             | E::PayPool(..)
             | E::PayConviction
             | E::SpendMasterPhaseAction
+            | E::HostResearchCounter
+            | E::HostBurnBloodPlayedCost
+            | E::ActorBurnsBloodXPlus(..)
             | E::LockSelf
             | E::SearchDisciplineMasterOntoTarget
             | E::BurnConviction(..)
             | E::BurnTargetConviction(..)
             | E::FailsIntoCombatWithHost
-            | E::PeekOpponentControllersHand
             | E::MayCancelCombat
             | E::DamageOpponentByStrength
             | E::LookAtLibraryTop(..)
+            | E::LookAtTargetLibraryTop(..)
+            | E::LookAtPreyUncontrolled
             | E::LookAtTurnLibraryTop
-            | E::LookAtPreyLibraryTop
+            | E::LookAtPreyLibraryTop(..)
             | E::LookAtEachLibraryTop
             | E::LookAtTargetLibraryTopBurnOne(..)
             | E::StealFromTargetSeatSlot(..)
+            | E::BurnFromTargetSeatSlot(..)
             | E::ActorBloodToSourceCardUpTo { .. }
             | E::ActorBloodToSourceCard(..)
             | E::RemoveHostFromGame
@@ -699,7 +760,8 @@ impl Effect {
             | E::HostCannotBlockThisAction
             | E::HiresOnSuccessX
             | E::HostGainsLevel(..)
-            | E::TargetRetainerRepresents { .. } => (Family::Ability, false, None),
+            | E::TargetRetainerRepresents { .. }
+            | E::TakeControlOfSourceUnlessKept => (Family::Ability, false, None),
             E::TakeOverAction
             | E::CloseEachRoundIfBlocked
             | E::PoolForInterceptThisAction
@@ -839,7 +901,8 @@ impl Effect {
             | E::NoBloodHuntThisAction
             | E::ResolvedModifierToHand(..)
             | E::CorruptMinionOfTargetIfSuccessful
-            | E::AttemptingMayCancel => (Family::Action, false, None),
+            | E::AttemptingMayCancel
+            | E::ActingBurnsXForStealthThisTurn => (Family::Action, false, None),
             E::Strike(..)
             | E::Maneuver
             | E::Press
@@ -855,6 +918,11 @@ impl Effect {
             | E::AggravatedHands
             | E::AggravatedHandsThisCombat
             | E::FortitudeProofStrike
+            | E::EquipmentProofStrike
+            | E::StrikePlusX
+            | E::TargetCombatManeuver
+            | E::OpposingControllerDiscardsAtRandomHeld(..)
+            | E::OpposingControllerDiscardsChosen
             | E::NullifyOpposingWeapons
             | E::EnvironmentalDamage { .. }
             | E::EnvironmentalDamageWhileTarget(..)
@@ -902,7 +970,7 @@ impl Effect {
             | E::DamageOpposingOwnCombatantNow(..)
             | E::HandSizeThisCombat(..)
             | E::AimExtraDamage { .. }
-            | E::OpponentToTorpor
+            | E::OpponentToTorporOrBurned
             | E::DamageOpponentNow(..)
             | E::PreRangeDamage(..)
             | E::ShieldFromOpposingStrike(..)
@@ -1152,6 +1220,10 @@ impl Effect {
             | E::TargetMethuselahDiscards(..)
             | E::BurnCorruptionFromTarget
             | E::GraftOnTarget
+            | E::SeduceTarget
+            | E::BurnActorSeduction
+            | E::StealTargetRetainerLife
+            | E::ExchangeRandomHandForNamedAsh
             | E::IfBleedSuccessful(..)
             | E::LockMinionOfTarget
             | E::CorruptMinionOfTarget
@@ -1296,7 +1368,8 @@ impl Effect {
             | E::HandSeenByReadyClanControllers(..)
             | E::RetainerDwindlesElseFeeds
             | E::ChooseCardDiscipline(..)
-            | E::PeekEdgeLoserHand => (Family::Rider, false, None),
+            | E::PeekEdgeLoserHand
+            | E::MoveToYoungerLockedUnlessUnlockPaid => (Family::Rider, false, None),
             // Read where the action is declared or offered: its kind, its
             // cost, its stealth, its bleed (`declare_action`, `stealth`,
             // `bleed_amount`).
@@ -1355,7 +1428,8 @@ impl Effect {
             | E::BecomesGun
             | E::NotAgainstFlight
             | E::EquipFromAnyAsh
-            | E::TorporIfReferendumFails => (Family::Marker, false, None),
+            | E::TorporIfReferendumFails
+            | E::HostImmuneToPlayed => (Family::Marker, false, None),
             // Read by the referendum Charming Lobby calls (`start_referendum`,
             // the tally).
             E::NextReferendumPassesForAll | E::ActingVotesInReferendum(..) => {
@@ -1561,6 +1635,31 @@ impl Effect {
             E::CountersWhenAwarded(..) | E::AwardBecomesVampire { .. } => {
                 (Family::Marker, false, None)
             }
+            E::TargetLosesHuntBlood | E::TargetToControllersUncontrolled => {
+                (Family::Play, false, None)
+            }
+            E::MayLockForDisciplineSearch { .. } => (Family::Rider, false, None),
+            E::AbstainPicks
+            | E::CoercePicks
+            | E::LockVampiresAsTheyVote { .. }
+            | E::ActingBloodToActorIfReferendumFails { .. }
+            | E::CallerBurnsPoolIfPasses(..)
+            | E::TallyPenaltyFavorOthers(..)
+            | E::LockTargetAtEndIfReferendumPasses => (Family::Vote, false, None),
+            E::BledDiscardsFromLibraryTop { .. } => (Family::Shared, false, None),
+            E::PlayedCardToHandIfSuccessful => (Family::Action, false, None),
+            E::LockOwnCopies => (Family::Rider, false, None),
+            E::HostChosenLevelUntilUnlock => (Family::Ability, false, None),
+            E::StoreOneFromHandPaid(..) => (Family::Play, false, None),
+            E::BearerUsesStoredAsIf { .. } => (Family::Marker, false, None),
+            E::ShuffleLibraryTop(..) => (Family::Ability, false, None),
+            E::ReadyOfClanBurnBlood { .. } => (Family::Rider, false, None),
+            E::GainPoolTargetCardCost => (Family::Ability, false, None),
+            E::SearchPutInPlayPaid(..) => (Family::Success, false, None),
+            E::UnlockControlledInfernal
+            | E::AttemptingInterceptX
+            | E::AddCountersPerX(..)
+            | E::DamageActingNowPerCounter => (Family::Ability, false, None),
         }
     }
 }
@@ -1703,6 +1802,7 @@ mod tests {
                             Effect::BleedMod { .. }
                                 | Effect::AddIntercept(_)
                                 | Effect::ReduceBleed(_)
+                                | Effect::AddStealth(_)
                         ) {
                             self.failures
                                 .push(format!("{name}: {then:?} not a live conditional bonus"));
@@ -1730,6 +1830,80 @@ mod tests {
             let at = declared(a).map_or(At::Ability, At::Granted);
             self.effects(name, at, a.effects);
         }
+    }
+
+    // Resilient Mind skips a card's effects on its vampire by
+    // `acts_on_target`: every effect of a vampire-targeting mode it can
+    // answer (rules-qa 126.157) is on that list or acts elsewhere.
+    #[test]
+    fn resilient_mind_reaches_every_effect_on_its_vampire() {
+        use crate::cards::{discipline_key, Requirement, TargetKind};
+        use crate::library::{CardType as T, LIBRARY};
+        let elsewhere = |e: Effect| {
+            matches!(
+                e,
+                Effect::DeclareAction(_)
+                    | Effect::AddStealth(_)
+                    | Effect::BleedMod { .. }
+                    | Effect::RescueAction
+                    | Effect::UnlockActor
+                    | Effect::ActorLasting(..)
+                    // On the card, which a skipped `PutOnTarget` leaves out
+                    // of play.
+                    | Effect::PutInPlay
+                    | Effect::Layer(_)
+                    | Effect::EnterWithCounters(_)
+                    | Effect::StillYours
+                    | Effect::BurnedLocksBearer
+                    | Effect::BecomesAllyIfTargetBurned(_)
+            )
+        };
+        let mut missing = Vec::new();
+        for d in DEFS.iter() {
+            let id = LIBRARY.iter().position(|c| c.name == d.name).unwrap() as u16;
+            if !LIBRARY[id as usize].types.iter().any(|t| {
+                matches!(
+                    t,
+                    T::Action
+                        | T::PoliticalAction
+                        | T::Ally
+                        | T::Equipment
+                        | T::Retainer
+                        | T::Combat
+                )
+            }) {
+                continue;
+            }
+            for (i, m) in d.modes.iter().enumerate() {
+                let answered = crate::plays::played_disciplines(id, i as u8)
+                    .iter()
+                    .any(|t| ["dem", "dom", "obe", "ser"].contains(&discipline_key(t)));
+                let on_vampire = m.target.is_some_and(|t| {
+                    t.kind == TargetKind::Minion
+                        && !t.filter.iter().any(|r| {
+                            matches!(
+                                r,
+                                Requirement::TargetAlly | Requirement::TargetAllyWouldBurn
+                            )
+                        })
+                });
+                if !answered || !on_vampire {
+                    continue;
+                }
+                for &e in m.effects {
+                    let inner = match e {
+                        Effect::IfBleedSuccessful(then) => then,
+                        _ => std::slice::from_ref(&e),
+                    };
+                    for &e in inner {
+                        if !e.acts_on_target() && !elsewhere(e) {
+                            missing.push((d.name, e));
+                        }
+                    }
+                }
+            }
+        }
+        assert!(missing.is_empty(), "{missing:?}");
     }
 
     // A definition's mode reads its card's text line (`library_mode`): one

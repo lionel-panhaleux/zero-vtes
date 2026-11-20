@@ -54,6 +54,11 @@ pub enum EventKind {
         turn: u32,
         active: Seat,
     },
+    /// The turn order reversed or restored (Reversal of Fortunes):
+    /// `TableView.turns_reversed`.
+    TurnOrder {
+        reversed: bool,
+    },
     /// A phase begun (the unlock phase is its turn's `turn`).
     Phase {
         phase: Phase,
@@ -87,7 +92,8 @@ pub enum EventKind {
         /// `library`: the top of `seat`'s library, top first — the looking
         /// seat's own (Anna "Dictatrix11" Suljic) or the active Methuselah's
         /// (Weirding Stone); `crypt`: the top of `seat`'s crypt (Sabbat
-        /// Inquisitor); absent, the hand.
+        /// Inquisitor); `uncontrolled`: a card of `seat`'s uncontrolled
+        /// region (Harrod); absent, the hand.
         #[serde(default, skip_serializing_if = "Option::is_none")]
         zone: Option<crate::ids::Zone>,
     },

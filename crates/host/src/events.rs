@@ -130,9 +130,13 @@ impl Namer<'_> {
             Place::Card { id, stored: true } => {
                 (Zone::Stored, Some(self.in_play(CardId(id)).copy?))
             }
-            // An ally: a minion. A card become one this step (Call the Great
-            // Beast) is still on its old host in `at`: told in play there.
-            Place::Card { id, .. } if st.cards[id as usize].body.is_some() && at.on.is_none() => {
+            // An ally: a minion. A card become one this step is still where
+            // the ledger had it in `at`, on its old host (Call the Great
+            // Beast) or on none (`was_card`: Trophy: Progeny): told in play
+            // there.
+            Place::Card { id, .. }
+                if st.cards[id as usize].body.is_some() && at.on.is_none() && !at.was_card =>
+            {
                 (minion, None)
             }
             Place::Card { .. } => (Zone::InPlay, at.on.map(|m| self.minion(m))),
@@ -200,6 +204,7 @@ impl Namer<'_> {
                 turn,
                 active: active.0,
             },
+            Fact::TurnOrder(reversed) => EventKind::TurnOrder { reversed },
             Fact::Phase(p) => EventKind::Phase {
                 phase: crate::view::phase(p),
             },
@@ -222,12 +227,19 @@ impl Namer<'_> {
                     cards: l
                         .cards
                         .iter()
-                        .map(|&c| self.card(CopyId::NONE, c, l.zone == LookedZone::Crypt))
+                        .map(|&c| {
+                            let crypt = matches!(
+                                l.zone,
+                                LookedZone::Crypt | LookedZone::Uncontrolled { crypt: true }
+                            );
+                            self.card(CopyId::NONE, c, crypt)
+                        })
                         .collect(),
                     zone: match l.zone {
                         LookedZone::Hand => None,
                         LookedZone::Library => Some(Zone::Library),
                         LookedZone::Crypt => Some(Zone::Crypt),
+                        LookedZone::Uncontrolled { .. } => Some(Zone::Uncontrolled),
                     },
                 }
             }

@@ -90,6 +90,7 @@ impl Engine {
         for (i, slot) in seat.uncontrolled.iter().enumerate() {
             let i = i as u8;
             let (capacity, _) = st.slot_vampire(s, i as usize);
+            let moves = moves && !st.slot_transfers_barred(s, i as usize);
             // Any amount, over capacity too (rules-qa 28.3).
             if moves && left >= 1 && seat.pool > 0 {
                 options.push(Choice::Transfer { slot: i });
@@ -251,7 +252,7 @@ impl Engine {
                         }
                     }
                 }
-                if self.scarce_toll(s, m) {
+                if self.entry_tolls(s, m) {
                     self.oust_and_pass(s);
                 }
             }
@@ -353,7 +354,32 @@ impl Engine {
     /// Scarce: 3 pool for each vampire of its clan already controlled —
     /// the apparent clan (LSJ 20011015) — as it leaves the uncontrolled
     /// region; whether the pool ran out.
-    pub(crate) fn scarce_toll(&mut self, s: SeatId, m: crate::ids::MinionId) -> bool {
+    /// The pool `s` burns bringing vampire `m` out of their uncontrolled
+    /// region: Masquerade Enforcement's, a copy each (any Methuselah;
+    /// merging is no such move, LSJ 20030527), then the scarce toll;
+    /// whether the pool ran out.
+    pub(crate) fn entry_tolls(&mut self, s: SeatId, m: crate::ids::MinionId) -> bool {
+        let tolls: Vec<(crate::state::CardId, u8)> = if self.state.minions[m.index()].is_vampire() {
+            self.state
+                .in_play_layers()
+                .filter_map(|l| match l.modifier {
+                    crate::cards::Modifier::ToControlledBurnsPool(n) => Some((l.source, n)),
+                    _ => None,
+                })
+                .collect()
+        } else {
+            Vec::new()
+        };
+        let paid = !tolls.is_empty();
+        for (id, n) in tolls {
+            self.caused(Cause::Effect(Source::Card(id)), |e| {
+                e.state.seats[s.index()].lose_pool(n as i32)
+            });
+        }
+        self.scarce_toll(s, m) || paid && self.state.seats[s.index()].pool <= 0
+    }
+
+    fn scarce_toll(&mut self, s: SeatId, m: crate::ids::MinionId) -> bool {
         self.state.minions[m.index()].scarce_paid = crate::state::Sparse(0);
         let card = self.state.minions[m.index()].crypt_card();
         if !card.is_some_and(|c| c != crate::state::CREATED && CRYPT[c as usize].scarce) {

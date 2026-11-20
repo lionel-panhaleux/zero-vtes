@@ -236,6 +236,14 @@ fn no_todo_in_code() {
             if !code.iter().any(|ext| name.ends_with(ext)) {
                 continue;
             }
+            // The tables generated from KRCG's data carry its names verbatim
+            // (a TWDA event's name ends in the third marker).
+            let generated = ["crypt.rs", "library.rs", "twda.rs"];
+            if path.parent().is_some_and(|p| p.ends_with("engine/src"))
+                && generated.contains(&name.as_str())
+            {
+                continue;
+            }
             let Ok(src) = std::fs::read_to_string(&path) else {
                 continue;
             };
@@ -259,6 +267,10 @@ fn no_todo_in_code() {
 /// with how it is once all the same. An entry no longer flagged fails as
 /// stale.
 const DURING_ONCE_ELSEWHERE: &[(&str, &str)] = &[
+    (
+        "EBONY_FOX_HUNT",
+        "\"you may play this card during your turn\" a permission to play it, no ability: one play",
+    ),
     (
         "WINGED_SECOND",
         "\"during normal strike resolution\" its strike in the normal pair of each round, no ability (Side::second)",
@@ -392,6 +404,10 @@ const DURING_ONCE_ELSEWHERE: &[(&str, &str)] = &[
     (
         "HAVEN_AFFINITY",
         "a play permission (the superior level), no ability of its own",
+    ),
+    (
+        "SHOTGUN_RITUAL",
+        "a combat card's permission for its round (Lasting::FirstRoundSorceryStrikes), no ability",
     ),
 ];
 

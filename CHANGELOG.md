@@ -6,6 +6,44 @@ server runs.
 `python3 scripts/schema_compat.py` lists what a schema change adds or
 removes; its `--check` fails a removal without a major version.
 
+## 2.35.0
+
+- Round 34 adds the `Purpose` ids `may_discard_to_keep` (Brothers Grimm
+  taken: its controller discards a master card to keep it, `discard`, or
+  passes), `boon_auction` (Extremis Boon: a bid, `set_x`, to keep
+  `about.seat` in the game over the high bid `about.n`, or a pass for
+  good), `hide_one_card` (Celestial Harmony: the hand card the player keeps
+  hidden, `discard`, the others shown to `about.seat`), `look_prey_slot`
+  (Harrod: the card of `about.seat`'s uncontrolled region to look at,
+  `slot`), `may_lock_for_discipline_search` (Path of Death and the Soul,
+  `card`: a ready vampire of the chooser's, `choose_minion`, gets 1 blood
+  and a Master: Discipline card searched, or `pass`), `coerced_side`
+  (Kindred Coercion [DOM]: the pick `minion` abstains, `pass`, or its
+  votes turn to a side, `cast_votes`), `played_card_to_hand` (The Art of
+  Memory: a card `minion` played this action, from the chooser's ash heap
+  to hand, the action card included, `find_card`), `name_target_ash_card`
+  (Imogen: the library card of `about.seat`'s ash heap, `find_card`) and
+  `may_cancel_hunting_ground` (Klaus van der Veken: `resolve_rider`
+  cancels a use of the prey's hunting ground `card`, `pass` lets it
+  resolve). No id removed.
+- Round 34 adds the `MarkerKind` ids `research_counters` (Nahir) and
+  `seduction_counters` (Makarios).
+- `TableView.turns_reversed` (omitted when false): turns go to the right,
+  Reversal of Fortunes passed an odd number of times; the prey is still to
+  the left. Event `turn_order` (`reversed`) tells it as it changes.
+- Details: `steal_from_slot` gains `burn` (Cairo Int'l Airport: the
+  uncontrolled minion burns `about.n` blood); `minion_of` gains
+  `move_to_younger_locked` (Kindred Society Games moving on); a terms
+  window gains `title_grant` (Matteus, Flesh Sculptor: `pass`, or the
+  vampire's `choose_minion` paying the title grant's blood when the card's
+  requirement is met otherwise) and the count `steal_pool` (Extremis
+  Boon).
+- Event `looked` gains `zone: uncontrolled` (Harrod: a crypt card, or a
+  banished created vampire's library card).
+- Behaviour clients see: an uncontrolled-slot index a play's terms name
+  may point into the player's prey's region (Brainwash, Memory's Fading
+  Glimpse): the slot's keys and faces are that region's.
+
 ## 2.34.0
 
 - Round 33 adds the `Purpose` ids `may_join_sect` (Ravnos Acceptance,

@@ -3161,6 +3161,220 @@ ADDED_BATCHES = [
         201498: "Zack North (G1)",
         201503: "Zebulon (G1)",
     },
+    # Round 34: Black Hand and Camarilla Edition completed (owner,
+    # 2026-11-09: "We aim to add all the cards ultimately. Let's work set
+    # by set."; the cards board's lines).
+    {
+        100012: "Absolution of the Diabolist",
+        100014: "Abyssal Hunter",
+        100069: "Animal Magnetism",
+        100097: "The Art of Memory",
+        100104: "Ascendance",
+        100122: "Babble",
+        100214: "Blood to Water",
+        100220: "Blooding",
+        100225: "Bloodwork",
+        100245: "Brainwash",
+        100258: "Brothers Grimm",
+        100269: "Bureaucratic Overload",
+        100277: "Cairo Int'l Airport",
+        100284: "Camarilla Exemplary",
+        100302: "Carthage Remembered",
+        100305: "Cat Burglary",
+        100309: "Cauldron of Blood",
+        100313: "Celestial Harmony",
+        100319: "Chalice of Kinship",
+        100346: "Chronicle of the Lost Tribe",
+        100350: "Circumspect Revelation",
+        100353: "Clan Impersonation",
+        100382: "Command of the Harpies",
+        100386: "Communal Haven: Temple",
+        100427: "Corpse Balloon",
+        100433: "Council of Seraphim",
+        100442: "Creep Show",
+        100454: "Crusade: Barcelona",
+        100456: "Crusade: Brussels",
+        100466: "Crusade: Miami",
+        100477: "Cryptic Mission",
+        100514: "Deep Cover Agent",
+        100550: "Disarming Presence",
+        100560: "Distraction",
+        100574: "Dominion",
+        100606: "Ebony Fox Hunt",
+        100624: "Eldritch Glimmer",
+        100676: "Extremis Boon",
+        100738: "Fists of Death",
+        100766: "Forest of Shadows",
+        100811: "Gas-Powered Chainsaw",
+        100836: "Glaser Rounds",
+        100857: "Grenade",
+        100872: "Guru",
+        100898: "Hawg",
+        100951: "Illegal Search and Seizure",
+        100989: "Inscription",
+        101034: "Kaymakli Barrier",
+        101049: "Kindred Coercion",
+        101054: "Kindred Society Games",
+        101063: "The Knights",
+        101074: "Last Stand",
+        101096: "Lessons in the Steel",
+        101099: "Lextalionis",
+        101130: "Loyalist",
+        101165: "Marijava Thuggee",
+        101178: "Mask Empathy",
+        101181: "Masque of Judas",
+        101183: "Masquerade Endangered",
+        101184: "Masquerade Enforcement",
+        101190: "Meat Cleaver",
+        101200: "Memory's Fading Glimpse",
+        101205: "Mesmerize",
+        101212: "Mind of a Child",
+        101218: "Ministry",
+        101228: "Mistrust",
+        101301: "Nosferatu Performance Art",
+        101315: "Of Noble Blood",
+        101360: "Path of Death and the Soul",
+        101361: "Path of Evil Revelations",
+        101395: "Personal Scourge",
+        101413: "Political Backlash",
+        101422: "The Portrait",
+        101432: "Powerbase: Berlin",
+        101444: "Powerbase: Washington, D.C.",
+        101452: "Praxis Seizure: Boston",
+        101456: "Praxis Seizure: Cleveland",
+        101457: "Praxis Seizure: Dallas",
+        101469: "Praxis Seizure: Seattle",
+        101476: "Precognizant Mobility",
+        101502: "Protracted Investment",
+        101516: "Pulling Strings",
+        101540: "Random Patterns",
+        101601: "Remover",
+        101609: "Resilient Mind",
+        101612: "Resplendent Protector",
+        101621: "Reunion Kamut",
+        101629: "Reversal of Fortunes",
+        101642: "Ritual of the Bitter Rose",
+        101702: "Scrying of Secrets",
+        101723: "Seraph",
+        101760: "Shattering Blow",
+        101769: "Short-Term Investment",
+        101770: "Shotgun Ritual",
+        101799: "The Slashers",
+        101823: "Sociopath",
+        101825: "Song in the Dark",
+        101839: "The Spawning Pool",
+        101844: "Speed of Thought",
+        101868: "Steam Tunnels",
+        101909: "Surprise Influence",
+        101971: "Thin-Blooded Seer",
+        102007: "Trainer",
+        102014: "Treachery",
+        102064: "Under the Skin",
+        102080: "Unnatural Disaster",
+        102108: "Ventrue Directorate Assembly",
+        102114: "Vial of Elder Vitae",
+        102154: "Watch Commander",
+        102155: "Watchtower: Chosen are Called",
+        102157: "Watchtower: Greatest Fall",
+        102167: "Weeping Stone",
+        200033: "Akram (G2)",
+        200064: "Amadeo (G2)",
+        200075: "Ana Rita Montaña (G3)",
+        200079: "Anatole, Prophet of Gehenna (G2)",
+        200137: "Aristotle de Laurent (G3)",
+        200143: "Artemis (G2)",
+        200199: "Bindusara, Historian of the Kindred (G2)",
+        200215: "Boy Toy (G2)",
+        200216: "Brachah (G2)",
+        200221: "Brooke (G2)",
+        200225: "Bryan Van Duesen (G2)",
+        200232: "Cailean (G2)",
+        200234: "Calebos (G2)",
+        200266: "Charice Fontaigne (G3)",
+        200272: "Christanius Lionel, The Mad Chronicler (G2)",
+        200287: "The Colonel (G3)",
+        200289: "Constanza Vinti (G2)",
+        200309: "Daliyah (G2)",
+        200310: "Damaskenos, Herald of Leandro (G2)",
+        200315: "Dani (G2)",
+        200351: "Doctor Streck (G3)",
+        200358: "Dominique (G2 ADV)",
+        200364: "Dónal O'Connor (G2)",
+        200367: "Donatien (G2)",
+        200412: "Elisabetta Romano (G2)",
+        200440: "Etrius (G2)",
+        200449: "Ezekiel, Lord of Montreal (G3)",
+        200529: "Goratrix (G2 ADV)",
+        200538: "Greger Anderssen (G2)",
+        200540: "Greta Kircher (G2)",
+        200554: "Gwendolyn (G2)",
+        200565: "Hannibal (G2)",
+        200573: "Harrod (G2)",
+        200583: "Heinrick Schlempt (G2)",
+        200589: "Henri Lavenant (G3)",
+        200590: "Henry Taylor (G3)",
+        200616: "Ian Forestal (G2)",
+        200617: "Ian Wallingford (G2)",
+        200624: "Ignazio Giovanni (G3)",
+        200631: "Imogen (G2)",
+        200633: "Ingram Frizer (G3)",
+        200647: "Itzahk Levine (G2)",
+        200667: "Jalan-Aajav (G3)",
+        200669: "Jan Pieterzoon (G2)",
+        200680: "Javier Montoya (G2)",
+        200719: "Josef (G2)",
+        200732: "Judah (G2)",
+        200766: "Kazimir Savostin (G3)",
+        200771: "Kendrick (G2)",
+        200782: "Kij Dansky (G2)",
+        200788: "Klaus van der Veken (G2)",
+        200796: "Kurt Strauss (G2)",
+        200817: "Laurent de Valois (G2)",
+        200899: "Makarios, The Seducer (G2)",
+        200926: "Mariano Pomposo (G3)",
+        200931: "Marino Reymundo Vásquez (G3)",
+        200958: "Mateusz Gryzbowsky (G3)",
+        200960: "Matteus, Flesh Sculptor (G2)",
+        200987: "Miguel Santo Domingo (G3)",
+        200989: "Miller Delmardigan, Teacher of Bahari (G2)",
+        201017: "Muaziz, Archon of Ulugh Beg (G2)",
+        201030: "Nahir (G3)",
+        201034: "Nakova, Advocate of Golconda (G2)",
+        201075: "Olga Triminov (G3)",
+        201077: "Olivia (G2)",
+        201126: "Piotr Andreikov (G3)",
+        201149: "Radeyah (G2)",
+        201162: "Ranjan Rishi, Camarilla Scholar (G2)",
+        201169: "Raziya Samater (G2)",
+        201171: "Rebekka, Chantry Elder of Munich (G2)",
+        201174: "Regilio, The Seeker of Akhenaten (G2)",
+        201182: "Reverend Blackwood (G2)",
+        201198: "Roger Farnsworth (G3)",
+        201204: "Rosa Martínez (G3)",
+        201218: "Sabrina (G3)",
+        201258: "Sébastien Goulet (G3 ADV)",
+        201260: "Sela (G2 ADV)",
+        201286: "Sigrid Bekker (G2)",
+        201294: "Sister Evelyn (G3)",
+        201304: "Soldat (G3)",
+        201310: "Spiridonas (G2)",
+        201333: "Szechenyi Jolán, Mother of Horrors (G3)",
+        201354: "Teresita, The Godmother (G3)",
+        201356: "Terrell Harding (G3)",
+        201360: "Thelonius (G2)",
+        201377: "Tock (G3)",
+        201428: "Vasilis, The Traitor of Don Cruez (G2)",
+        201443: "Victoria (G2)",
+        201451: "Virgil (G2)",
+        201458: "Volker, The Puppet Prince (G2)",
+        201461: "Wah Chun-Yuen (G3)",
+        201464: "Watenda (G2)",
+        201468: "Wilhelm Waldburg (G2)",
+        201483: "Yasmin the Black (G3)",
+        201485: "Yazid Tamari (G3)",
+        201487: "Yitzak (G3)",
+        201489: "Yong-Sun, Harmonist (G2 ADV)",
+    },
 ]
 ADDED_CARDS = {k: v for batch in ADDED_BATCHES for k, v in batch.items()}
 
@@ -3460,8 +3674,9 @@ MODIFIER_TIMING = [
     (r"after this [^.]{0,30}gains blood", "ACTION_AFTER_DIABLERIE"),
     (r"if a minion attempts to block", "ACTION_BLOCK_ATTEMPT"),
     # "As above, but usable if a minion is attempting to block" (Day
-    # Operation [FOR]).
-    (r"usable if an? [^.]{0,40}?is attempting to block", "ACTION_BLOCK_ATTEMPT"),
+    # Operation [FOR]); "Only usable when a minion is attempting to block"
+    # (Council of Seraphim).
+    (r"usable (if|when) an? [^.]{0,40}?is attempting to block", "ACTION_BLOCK_ATTEMPT"),
     # "Only usable if an ally or younger vampire attempts to block"
     # (Crocodile's Tongue).
     (r"if an? [^.]{0,40}? attempts to block", "ACTION_BLOCK_ATTEMPT"),
@@ -3502,6 +3717,9 @@ MODIFIER_TIMING = [
     (r"is acting, after resolution", "ACTION_AFTER_RESOLUTION"),
     # "Only usable when this anarch diablerizes" (Blade Clot).
     (r"when this anarch diablerizes", "ACTION_AFTER_DIABLERIE"),
+    # "Only usable when this vampire successfully bleeds a Methuselah"
+    # (Scrying of Secrets): the bleed resolved (its KRCG ruling).
+    (r"only usable when this vampire successfully bleeds", "ACTION_AFTER_RESOLUTION"),
     # "Only usable after a successful directed action" (Marked Path).
     (r"only usable after a successful (directed )?action", "ACTION_AFTER_RESOLUTION"),
     # "Only usable on a successful referendum" (Cryptic Rider): after the
@@ -3555,6 +3773,9 @@ REACTION_TIMING = [
     # "Cancel a blood hunt called on a Gangrel antitribu" (Gangrel
     # Conspiracy): once it passed, before the burn (LSJ 20081203-2).
     (r"cancel a blood hunt", "BLOOD_HUNT_WOULD_BURN"),
+    # "Only usable when a vampire is about to be burned by a blood hunt"
+    # (Absolution of the Diabolist).
+    (r"about to be burned by a blood hunt", "BLOOD_HUNT_WOULD_BURN"),
     # An ally about to be burned in combat, before it is (Left for Dead).
     (r"only usable (?:when|if) an ally would be burned in combat", "ALLY_WOULD_BURN_IN_COMBAT"),
     # A minion or retainer about to be burned, but by a diablerie (Consume
@@ -3625,9 +3846,15 @@ REACTION_TIMING = [
     # "Only usable if a minion controlled by your predator successfully
     # bleeds you" (Burnt Offerings [AUS]): the bleed resolved.
     (r"successfully bleeds you", "ACTION_AFTER_RESOLUTION"),
+    # "Only usable when a referendum fails" (Political Backlash): after the
+    # political action's resolution, its referendum failed.
+    (r"only usable when a referendum fails", "ACTION_AFTER_RESOLUTION"),
     # "Only usable when a vampire successfully hunts" (XTC-Laced Blood): the
     # hunt resolved, its blood gained.
     (r"only usable when a vampire successfully hunts", "ACTION_AFTER_RESOLUTION"),
+    # "Put this card on a vampire who successfully hunts" (Masquerade
+    # Endangered): after the hunt resolved, like XTC-Laced Blood.
+    (r"put this card on a vampire who successfully hunts", "ACTION_AFTER_RESOLUTION"),
     # "Only usable when a bleed against you is about to be successful"
     # (Strix [STR]): the bleed would succeed.
     (r"is about to be successful", "ACTION_WOULD_BE_SUCCESSFUL"),
@@ -3681,6 +3908,8 @@ REACTION_TIMING = [
     (r"attempts to inflict aggravated damage", "COMBAT_BEFORE_RESOLUTION"),
     # An out-of-turn master saving a Methuselah from an oust (Life Boon).
     (r"methuselah with no pool to keep them in the game", "OUSTING"),
+    # "Only usable when you are being ousted" (Extremis Boon).
+    (r"only usable when you are being ousted", "OUSTING"),
 ]
 REACTION_GENERIC = [
     # "+X intercept" (Gestalt) too.
@@ -3819,6 +4048,15 @@ def classify_mode(mtype, text, as_above=False):
     # strike it commits no play of its own.
     if mtype == "Combat" and re.search(r"play after range is determined", text, re.I):
         hits = ["COMBAT_BEFORE_STRIKES"]
+    # "Only usable at close range, before strike resolution" (Blood to
+    # Water): from range set to the strikes' resolution.
+    if mtype == "Combat" and re.search(r"before strike resolution", text, re.I):
+        hits = ["COMBAT_BEFORE_STRIKES", "COMBAT_BEFORE_RESOLUTION"]
+    # "… a vampire being burned either by diablerie or while in combat with
+    # this vampire" (Ritual of the Bitter Rose): the diablerie, or the
+    # round's end as the opposing vampire burns.
+    if re.search(r"being burned either by diablerie or while in combat", text, re.I):
+        hits = ["ACTION_AFTER_DIABLERIE", "COMBAT_END_OF_ROUND"]
     # Blade Clot's combat half: timed by the diablerie, no combat step.
     if mtype == "Combat" and re.search(r"when this anarch diablerizes", text, re.I):
         hits = ["ACTION_AFTER_DIABLERIE"]

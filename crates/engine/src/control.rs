@@ -243,7 +243,7 @@ impl Engine {
             return;
         };
         if c.playing {
-            if crate::ousting::in_flight(&self.flow, None, c.from) {
+            if crate::ousting::in_flight(&self.flow, c.from) {
                 return;
             }
             c.playing = false;
@@ -440,7 +440,7 @@ impl Engine {
             let a = self.ask_mut(w).expect("a wait");
             if a.playing {
                 let s = a.order[a.next];
-                if crate::ousting::in_flight(&self.flow, None, s) {
+                if crate::ousting::in_flight(&self.flow, s) {
                     return;
                 }
                 let a = self.ask_mut(w).expect("a wait");

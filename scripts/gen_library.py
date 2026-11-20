@@ -96,8 +96,9 @@ LABELS = [
     # Haven, Zaire River Ferry).
     ("Haven", r"(^|\. )haven\."),
     # "Master: watchtower." (Watchtower: Four Ride Forth burns as another
-    # enters play).
-    ("Watchtower", r"^watchtower\."),
+    # enters play); after a requirement too ("Requires a Seraph.
+    # Watchtower.": Watchtower: Greatest Fall).
+    ("Watchtower", r"(^|\. )watchtower\."),
     # "Ammo." (Caseless Rounds, Scattershot: one ammo card on a gun each
     # combat; Magazine holds one).
     ("Ammo", r"^ammo\."),
@@ -108,6 +109,9 @@ LABELS = [
     # Cut and Alan Sovereign key on them; Wall Street Night takes their
     # counters).
     ("Investment", r"(^|\. )(unique )?investment\."),
+    # "Melee weapon." on the type line (Gas-Powered Chainsaw, Rowan Ring):
+    # a melee weapon whatever its strike (Wendell's +2, Decapitate).
+    ("Melee", r"^(unique )?melee weapon\b"),
 ]
 # An ally's or retainer's type line: "Unique mortal with 2 life. 1 strength,
 # 0 bleed." (a retainer prints its life only).

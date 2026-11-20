@@ -97,7 +97,10 @@ impl Engine {
                 self.set_card_contest(m, false);
                 self.enter_title_contest(m);
             }
-            Contest::Title(m) => self.set_title_contested(m, false),
+            Contest::Title(m) => {
+                self.set_title_contested(m, false);
+                self.title_became_effective(m);
+            }
             // "Unlocked and turned face up during your next unlock phase".
             Contest::Library(c) => {
                 let card = &mut self.state.cards[c.index()];
@@ -259,6 +262,7 @@ impl Engine {
             for r in self.state.title_rivals(m) {
                 if self.state.title_rivals(r).is_empty() {
                     self.set_title_contested(r, false);
+                    self.title_became_effective(r);
                 }
             }
         }
@@ -432,8 +436,11 @@ impl Engine {
     /// A vampire's title contest state; its title card, if any, follows it
     /// (face down and out of play: its abilities are suspended).
     fn set_title_contested(&mut self, m: MinionId, contested: bool) {
+        // The card found while the flag still shows it: a contested card is
+        // found only while its vampire's title is contested.
+        let card = self.state.title_card_on(m).map(|(id, _)| id);
         self.state.minions[m.index()].title_contested = contested;
-        if let Some((id, _)) = self.state.title_card_on(m) {
+        if let Some(id) = card.or_else(|| self.state.title_card_on(m).map(|(id, _)| id)) {
             self.state.cards[id.index()].contested = contested;
         }
     }
@@ -500,6 +507,39 @@ impl Engine {
         v.title_lost = true;
         v.granted_title = if card.is_some() { None } else { Some(title) };
         self.enter_title_contest(m);
+        if !self.state.minions[m.index()].title_contested {
+            self.title_became_effective(m);
+        }
+    }
+
+    /// `m` now holds its claimed title, uncontested: its printed
+    /// `HostGainsTitle` riders (Damaskenos; a contested gain makes no holder,
+    /// rules-qa 76.3).
+    pub(crate) fn title_became_effective(&mut self, m: MinionId) {
+        if !self.state.minions[m.index()].present() {
+            return;
+        }
+        let title = self.state.claimed_title(m);
+        for r in self.printed_riders(m, crate::cards::Hook::HostGainsTitle(title), None) {
+            for &e in r.effects {
+                match e {
+                    crate::cards::Effect::ReadyOfClanBurnBlood { clan, n } => {
+                        let ready: Vec<MinionId> = (0..self.state.minions.len())
+                            .map(|i| MinionId(i as u32))
+                            .filter(|&v| {
+                                let x = &self.state.minions[v.index()];
+                                x.in_play && x.ready() && x.is_vampire() && x.clan() == Some(clan)
+                            })
+                            .collect();
+                        let by = Cause::Effect(Source::Minion(m));
+                        for v in ready {
+                            self.caused(by, |e| e.state.burn_blood(v, n));
+                        }
+                    }
+                    other => unreachable!("not a title-gained rider effect: {other:?}"),
+                }
+            }
+        }
     }
 }
 

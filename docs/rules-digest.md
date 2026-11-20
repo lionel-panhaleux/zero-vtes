@@ -334,6 +334,8 @@ below rely on these and do not repeat them.
   (59.4): a hunt stealing blood still takes it, to the blood bank (LSJ
   20010809-1).
 - Hunting grounds are not hunts (§16.2).
+- Round 34's cards: Amadeo +1 blood on every hunt of his, a card's hunt too,
+  from its target (126.22).
 
 ### 3.2 Success, failure, fizzle, cancel (of an action)
 
@@ -377,6 +379,11 @@ below rely on these and do not repeat them.
   chosen as the prey becomes the new prey after an oust: Precision's discard,
   Choir [MEL]'s and Harmony's burn, Malabranca's steal (121.120 corrected,
   124.42).
+- "Unsuccessful" action: blocked or failed, ended as blocked included; a fizzle
+  and a bleed of 0 are successful; a canceled action is neither (124.140, 53.6,
+  24.4; LSJ 20010406, LSJ 20110419: "the canceled attempt is neither successful
+  nor failed"): Donatien's "unsuccessful bleeding action" marked on the acting
+  seat (126.11, 126.69).
 
 ### 3.3 A bleed; "a bleed against your prey"
 
@@ -576,6 +583,8 @@ below rely on these and do not repeat them.
   locked too, never torpid (121.6).
 - Round 32's cards: Ancestor's Insight a reaction reducing a bleed or an
   action modifier adding one, by mode (124.10).
+- Round 34's cards: Random Patterns' levels each their own card type, its -1
+  intercept needing no need (126.154).
 
 ### 3.9 Controller, owner
 
@@ -685,6 +694,8 @@ one), 26.8 (younger than the acting vampire), 60.11, 60.13, 71.1.
   Hard Case's than the blocker (121.6, 121.89, 121.48, 121.65).
 - Round 32's cards: Basilisk's Touch: younger than its player's vampire,
   checked at play (124.25).
+- Round 34's cards: Terrell Harding steals from any younger vampire, torpid or
+  empty too (126.184).
 
 ### 3.14 A cost, an effect, a toll
 
@@ -748,6 +759,11 @@ one), 26.8 (younger than the acting vampire), 60.11, 60.13, 71.1.
   city, Vlad Tepes's city made up or held in play (PIB 20150306), another
   title dormant (125.25); Count Germaine reads an effective title (125.56);
   Mata Hari titled in the sect she plays as (125.134).
+- A vampire "becomes" a title holder when the title becomes effective for him:
+  an uncontested gain, a title contest released to him, or every rival leaving
+  the contest; a title taken contested fires nothing (owner, 2026-11-20; 76.3):
+  Damaskenos; a released contested title card gives its title again (126.8,
+  126.60, 126.61).
 
 ### 3.16 "The same action"
 
@@ -779,6 +795,13 @@ rulebook actions by kind and target for card texts (23.2). §8.5.
   (64.2) (124.128).
 - Round 33's cards: Polaris Coach a haven and a vehicle, one haven a vampire
   (89.10) (125.165).
+- A card whose type line says "Melee weapon" is a melee weapon for every
+  reader: a close fixed-damage strike from one is a melee weapon strike
+  (Bundi's prevention, Armor of Vitality, Silence of Death) and takes the melee
+  weapon damage bonuses: Gas-Powered Chainsaw; Rowan Ring's torpor strike takes
+  Baal's Bloody Talons and Strike at the True Flesh (126.6, 126.79, 126.167).
+- Round 34's cards: Hawg a press each combat, the bearer read live, never a
+  second vehicle (126.88).
 
 ### 3.18 Ash heap cards, card kinds
 
@@ -851,6 +874,9 @@ minion. Its strength bonus is a frenzy effect like the rest (70.16).
   its next unlock (124.215); Conscripted Statue: [vis]'s close-range damage
   environmental (124.52); Transfusion [THN] counts strike damage successfully
   inflicted over a combat (124.236).
+- Round 34's cards: Lessons in the Steel after damage successfully inflicted on
+  its vampire this round, any source, untimed after the round's damage; its
+  press this round (126.112).
 
 ### 3.21 The acting minion, the opposing minion
 
@@ -1063,6 +1089,10 @@ limit:
   and Gangrel cards normally only (106.20) (125.205); Mata Hari plays as any
   sect and clan for the card she plays, her Methuselah's master cards too; an
   in-play chooser never takes her for playing as the clan (125.134).
+- Round 34's cards: Matteus, Flesh Sculptor meets an archbishop-or-cardinal
+  requirement, an either/or included, for that card only, the blood burned as
+  he plays it, kept if blocked or canceled, offered when already titled (LSJ
+  20090722, LSJ 20020223) (126.126).
 
 ### 4.5 Discipline layouts and modes
 
@@ -1100,6 +1130,9 @@ limit:
   at superior (122.74); Infernal Pact plays a chosen Discipline at superior
   (122.86).
 - Round 32's cards: Glare of Lies a combo, both Disciplines (124.97).
+- Round 34's cards: Ian Forestal's printed grant meets one requirement of a
+  combo card at most, no Infernal Familiar counter beside it (122.84, 122.85),
+  and only Master: Discipline cards raise him to superior (126.91).
 
 ### 4.6 Bars, immunities, "cannot"
 
@@ -1156,6 +1189,10 @@ limit:
   card only played as a reaction (D18) (124.3).
 - Round 33's cards: Orb of Ulain: directed actions requiring its five
   Disciplines cannot target its ally (125.151).
+- Round 34's cards: Mind of a Child bars cards played using a Discipline (D29),
+  its [DEM] -1 capacity floored at 1 (126.132); Resilient Mind's immunity to
+  the one card played, offered on every play of any action card type (60.4), a
+  card meant to go on it falling off (LSJ 20040729, PIB 20120519) (126.157).
 
 ## 5. Timing: impulse, windows, ordering, duration
 
@@ -1198,6 +1235,17 @@ simultaneous effects, §2.5 duration). The engine's window primitives are in
 - A minion outside a combat is not offered its abilities there unless they
   say so (15.2: Kalinda; 59.8: Randall's step for minions out of the
   combat; 41.10: Tommaso Sforza).
+- The turn order: the next turn goes to the active Methuselah's prey, or to its
+  predator while Reversal of Fortunes has passed an odd number of times (LSJ
+  20001012), prey and predator unchanged; only turns reverse, the impulse,
+  every polling and the oust's holders staying clockwise (owner, 2026-11-20);
+  Last Stand cuts the turn after the action, the next turn the predator of the
+  first Methuselah ousted clockwise from the active one's left (LSJ 20090731,
+  LSJ 20050808) (126.2, 126.110, 126.161, 126.162).
+- Round 34's cards: Reversal of Fortunes reverses the turns only, prey and
+  predator unchanged, the impulse and polling still clockwise, a second copy
+  restoring the order, the view told by a `turn_order` event (owner, question
+  2; LSJ 20001012, PIB 20121217, PIB 20121029) (126.161, 126.162).
 
 ### 5.2 Windows
 
@@ -1267,6 +1315,10 @@ simultaneous effects, §2.5 duration). The engine's window primitives are in
   there, else one opened for it (the press step's damage) (124.235); The
   Grandest Trick in the as-announced window, before other modifiers
   (124.100).
+- Going to torpor is a combat window: Amaranth and Decapitate [POT] played as
+  the opponent goes to torpor are combat cards to every reader of a combat card
+  played (Asguresh's and Watenda's cancels, Focus the Blood, Eye of Hazimel,
+  the Ankara Citadel) (126.13, 126.202).
 
 ### 5.3 Mandatory effects and their order
 
@@ -1345,6 +1397,8 @@ simultaneous effects, §2.5 duration). The engine's window primitives are in
   action' holds from the announcement, a blocked action's combat too (124.73);
   High Orun: a player's 'for this action' effects end with the action
   (124.109).
+- Round 34's cards: Vial of Elder Vitae's superior level until its controller's
+  next unlock phase, outliving the card (ANK 20200616) (126.194).
 
 ### Open or contested
 
@@ -1425,6 +1479,10 @@ simultaneous effects, §2.5 duration). The engine's window primitives are in
   library empty (125.209); Uriah Winter defects for good at the start of the
   unlock phase, before ordered effects, unlocked, a torpid one staying torpid
   (125.231).
+- Round 34's cards: Rötschreck's burn rider on another Methuselah's vampire
+  fires in that vampire's controller's unlock phase, as Left for Dead's (LSJ
+  20080821) (126.166); Rosa Martínez's blood once each unlock phase while
+  another ready vampire of hers is regent, from torpor too (126.165).
 
 ### 6.2 Master phase
 
@@ -1485,6 +1543,15 @@ simultaneous effects, §2.5 duration). The engine's window primitives are in
   phase's effects (125.207); Basir's +1 blood after a master Discipline card
   played on him in his controller's master phase (125.32); Pariah's
   master-phase discard or lock (125.153).
+- Round 34's cards: Ascendance gains its player 1 pool (126.28); Anatole
+  shuffles the top five only, the rest in place, not with an empty library
+  (126.24); Path of Evil Revelations unlocks infernals, not the infernal unlock
+  (Ruins of Charizel collects none), and saves The Textbook Damnation (125.207)
+  (126.142); Steam Tunnels not with the prey's library empty (126.180);
+  Watchtower: Chosen are Called draws what a short library holds (126.200);
+  Kendrick discards and replaces a political action card he sees (126.102);
+  Nahir's research counters once per master phase action, +1 hand size each,
+  not while contested (126.136).
 
 ### 6.3 Minion phase
 
@@ -1634,6 +1701,9 @@ simultaneous effects, §2.5 duration). The engine's window primitives are in
   unless a Toreador's action succeeded first (51.7).
 - "Your next turn" is the one after the turn the effect resolves in
   (Ayelea's control until the end of your next turn, 69.3).
+- Round 34's cards: Last Stand ends the turn after the action, the minion
+  phase's end effects run, no influence or discard phase (LSJ 20090731)
+  (126.110).
 
 ## 7. Playing cards, cancellations, costs
 
@@ -1689,6 +1759,8 @@ Advanced rules §1.7 (costs and payment), §1.8 (playing and canceling).
 - Round 31's cards: Reality Mirror plays an opposing ash heap combat card,
   lending one Discipline (122.154), Burning Wrath as its strike with basic
   Potence (122.155).
+- Round 34's cards: The Art of Memory's removal: a card removed from the game
+  once played leaves the game as it resolves, whatever its type (126.27).
 
 ### 7.2 Cancellation
 
@@ -1786,6 +1858,10 @@ Advanced rules §1.7 (costs and payment), §1.8 (playing and canceling).
   [OBF][VIC] cancels an Auspex card once each action, unpaid (125.199); Louhi
   cancels her predator's vampire's action card, unpaid, once each turn, never
   a card another card plays nor an ally's (125.126).
+- Round 34's cards: Watenda cancels a combat card for its cost as the opposing
+  minion pays it, every modification in, a pool cost in blood, the card's own
+  cost still paid, once each combat in his own combat, going to torpor too (LSJ
+  20091124, LSJ 20071015-2, ANK 20221021) (126.202).
 
 ### 7.3 Costs and reductions
 
@@ -1894,9 +1970,13 @@ Advanced rules §1.7 (costs and payment), §1.8 (playing and canceling).
   Amulet of Temporal Perception's blood spent as the card is announced, not
   refunded on a cancel (owner, 113.47).
 - Zelios pays a location's pool cost with his blood, announced with the card
-  (116.132); Jann Berger's reduction against a strike toll only as the strike is
-  chosen (116.109); New Management's printed cost (116.63); an equipment's cost
-  read with its bearer's reductions (Bulscu, Ivan Krenyenko) (116.102).
+  (116.132); Jann Berger's reduction against a strike toll only as the strike
+  is chosen (116.109); New Management's printed cost (116.63); an equipment's
+  cost read with its bearer's reductions (Bulscu, Ivan Krenyenko) (116.102); a
+  location's, blood or pool, a locquipment too, less its controller's standing
+  location reduction in effect now, a reduction paid at the play not counted
+  (Therbold Realty: Bulscu, Dominique; LSJ 20091124, LSJ 20080107) (corrected
+  2026-11-20, Batch 126: 126.7, 126.37, 126.67).
 - Retain the Quick Blood stores a Celerity or Quietus card's paid cost,
   surcharges included, never a burn effect (121.126); always, nothing asked,
   with two or more copies its controller picking the one taking each payment
@@ -1936,6 +2016,9 @@ Advanced rules §1.7 (costs and payment), §1.8 (playing and canceling).
   Magdelena Schaefer's +1 blood on a card played in a [tha] mode (42.2)
   (125.129); Mitru the Hunter: 1 blood less on a [cel] mode (125.143); Rex
   pays +1 blood for combat cards by the type played as (125.179).
+- Round 34's cards: Thin-Blooded Seer doubles blood costs before reductions
+  (PIB 20150917), an X cost once chosen (70.17) (126.186); Miller Delmardigan's
+  [cel] cards 1 blood less, the mode played (126.131).
 
 ## 8. Actions
 
@@ -2017,6 +2100,9 @@ actions), §3.9 (mandatory actions), §3.10 (changing the acting minion).
 - Round 33's cards: Inquisition picks bishops of any Methuselah as played,
   directed at each pick's controller (125.108); Shared Nightmare [CHI] picks
   exactly three, not offered with fewer (owner) (125.190).
+- Round 34's cards: Imogen names the Methuselah and a library card of the ash
+  heap at announcement, the hand card random at resolution; an exchange, not a
+  discard (LSJ 19971027) (126.94).
 
 ### 8.2 Directed actions
 
@@ -2063,6 +2149,9 @@ actions), §3.9 (mandatory actions), §3.10 (changing the acting minion).
   a card on her (125.171).
 - A directed action includes the rulebook Red List hunt and an imbued's burn
   at another's minion (125.15).
+- Round 34's cards: Celestial Harmony [AUS] directed at every other Methuselah
+  (80.35), its target hiding one card as it resolves, a look noted (126.45);
+  Watch Commander needs a directed action, read live (126.199).
 
 ### 8.3 An action's costs
 
@@ -2116,6 +2205,9 @@ actions), §3.9 (mandatory actions), §3.10 (changing the acting minion).
   damages him (122.166).
 - Round 33's cards: Lorrie Dunsirn's surcharge, a last pool paid with the
   effect (125.125, 125.12).
+- Round 34's cards: Bureaucratic Overload's +1 blood on every political action,
+  granted referendums included, a surcharge at resolution (42.6, 117.2), none
+  on a blood hunt (126.38).
 
 ### 8.4 An action's stealth
 
@@ -2156,6 +2248,14 @@ actions), §3.9 (mandatory actions), §3.10 (changing the acting minion).
   (124.102); Iniko's +1 stealth stands on every action of his (124.117).
 - Round 33's cards: Dylan's +1 stealth on bleeds only (125.72); Natasha
   Volfchek's +1 stealth on any political action, a card's too (125.146).
+- Round 34's cards: Carthage Remembered's +1 stealth for Brujah (not antitribu)
+  effective princes and justicars on bleeds only, read live (126.42); Forest of
+  Shadows' X capped one above the attempting minion's intercept, checked at
+  use, again once unlocked (TOM 19960109) (126.78); Nosferatu Performance Art's
+  +1 stealth read live on the actor's capacity, an action card's conditional
+  stealth read in the action's stealth (126.138); Sela's +1 stealth against a
+  Methuselah with a ready bishop, the bishop title only, any directed target
+  (126.170).
 
 ### 8.5 No repeat action (NRA)
 
@@ -2232,6 +2332,9 @@ actions), §3.9 (mandatory actions), §3.10 (changing the acting minion).
   every reader reads that; Priority Shift lifts every source, burning the
   cards that make it so; a later Public Enemy or Trumped-Up Charges makes it
   Red List again (125.2; corrects 64.6, 71.22).
+- Round 34's cards: Chalice of Kinship's action needs the title live, fizzles
+  without the Chalice (RTR 19960221), feeds each other ready Sabbat vampire
+  (126.46).
 
 ### 8.7 Mandatory actions
 
@@ -2259,6 +2362,9 @@ actions), §3.9 (mandatory actions), §3.10 (changing the acting minion).
   in torpor, read live (125.230); Phillipe Rigaud must take a diablerie action
   while one at an older torpid vampire is offered; any diablerie discharges
   it, at his own Methuselah's vampire too (owner) (125.162, 125.163, 125.164).
+- Round 34's cards: The Portrait's forced bleed is cardless, its +1 bleed and
+  +1 stealth on that bleed and its taker only (LSJ 20020221, LSJ 20030922)
+  (126.146).
 
 ### 8.8 Changing the acting minion
 
@@ -2366,6 +2472,13 @@ Advanced rules §3.2 (stealth and intercept), §3.3 (blocking).
 - 'Cannot block undirected actions' (Allonzo Montoya, Benedict Giovanni,
   Phillipe Rigaud) reads the action's own directedness, the same for every
   Methuselah (LSJ 20080809) (125.6).
+- Round 34's cards: Communal Haven: Temple's +1 intercept only for its
+  controller's Sabbat blockers against an action targeting a Sabbat vampire
+  they control, a bleed of them not one (126.53); Kaymakli Barrier's vampire
+  blocks no undirected action, directed actions at it +1 blood (Kuta's toll)
+  (126.100); Speed of Thought bars blockers without Celerity, allies too
+  (113.66's shape) (126.178); Volker cannot block a primogen, the effective
+  title (126.198).
 
 ### 9.2 Only when needed
 
@@ -2490,6 +2603,11 @@ Advanced rules §3.2 (stealth and intercept), §3.3 (blocking).
   Miranda Sanova's -1 intercept to their clan's blockers, from torpor too
   (125.123); Nik's intercept to clan Brujah blockers, from torpor (125.149);
   Tura Vaughn's intercept against clan Brujah only (80.2) (125.226).
+- Round 34's cards: Babble's intercept to another Methuselah's blocker, its
+  unlock any other ready minion (126.29); Ministry's extra intercept against a
+  Sabbat actor read live, locked as the action ends unless it blocked (ANK
+  20190416) (126.133); Teresita, The Godmother's intercept against a Camarilla
+  actor read live (ANK 20190416) (126.183).
 
 ### 9.4 The block loop
 
@@ -2557,6 +2675,8 @@ Advanced rules §3.2 (stealth and intercept), §3.3 (blocking).
   committed (122.183).
 - Round 32's cards: Devil-Channel: Throat fails a younger blocker's attempt,
   no new attempt from it (124.64).
+- Round 34's cards: Circumspect Revelation and Council of Seraphim fail a
+  Sabbat vampire's block attempt, no second attempt (126.50, 126.56).
 
 ### 9.5 Block tolls
 
@@ -2591,6 +2711,13 @@ Advanced rules §3.2 (stealth and intercept), §3.3 (blocking).
   tolls a younger blocker 1 blood as its block would succeed; unable, the
   block fails, unbarred (121.85, 48.6) (124.231); Kamiri tolls younger vampire
   blockers 1 blood, Mithras's toll (124.126).
+- Round 34's cards: Camarilla Exemplary, Sabbat Priest's stand-in toll at the
+  attempt, copies adding, a 0-blood blocker still blocking; Unleash Hell's Fury
+  may block it (ANK 20230226) (126.41); Dominion's toll a cost (advanced rules
+  §3.3.3: a blood-less vampire offered no attempt), "this Black Hand vampire"
+  read live (D31) (126.66); Dónal O'Connor (G2)'s blocker burns 1 on the block,
+  combat or not, an empty one still blocking (RTR 19960530, TOM 19951215-1)
+  (126.68).
 
 ### 9.6 When a block succeeds
 
@@ -2790,6 +2917,8 @@ Vocabulary: §3.2.
   fizzle, unpaid (117.1) (124.33); Choir [MEL]/Harmony read the prey at
   resolution (owner) (124.42); Fire on the Mountain: a diablerie fizzles with
   no blood hunt (28.7) (124.83).
+- Round 34's cards: Cryptic Mission's fizzle runs no effect, [THA]'s gain
+  included; a no-op still gains (D14) (126.59).
 
 ### 10.3 Failed, ended, canceled
 
@@ -2925,6 +3054,11 @@ Vocabulary: §3.2.
   empty, 122.139 extended (Tiberius, Kurt Densch, Anna Suljic, Myrna Goldman,
   Reverend Adams, Weirding Stone, Sweeper, Courier; Tapestry of Blood's action
   a legal no-op) (125.13, 125.209).
+- Round 34's cards: Henry Taylor returns a combat card he played in the
+  action's combats to the library's top, a dual card played as an action
+  modifier not one (LSJ 20031221) (126.90); The Art of Memory after the action
+  and its combats, a card the vampire played this action chosen as it applies,
+  nothing when blocked (LSJ 20031112) (126.27).
 
 ### 10.5 Continuing as if unblocked
 
@@ -3087,6 +3221,21 @@ torpor actions, diablerie). Referendums: §13.
   Toby's shape on his own Methuselah's bleeds (125.156); Rafaele's bleed at
   his predator stays on the predator declared, fizzling if ousted (24.1)
   (125.172).
+- Round 34's cards: Bloodwork caps the pool burned at 2, the amount kept, its
+  stealth read live on the bleed's target; Cat Burglary [CEL] and Speed of
+  Thought cap it at 1 (80.23's shape) (126.33, 126.43, 126.178); Greta Kircher
+  reduces a bleed at her controller by a younger vampire or an ally, Kaiser's
+  frame (112.17) (126.83); Doctor Streck's random discard from the bled
+  Methuselah, replaced at once (126.65); Constanza Vinti and Elisabetta Romano
+  read the bled Methuselah after redirects (50.3) (126.54, 126.72); Scrying of
+  Secrets after a successful bleed, an action card with a bleed mode discarded
+  (126.168); Miguel Santo Domingo's +1 bleed once each bleed to another acting
+  Sabbat vampire, from torpor too (126.130); Ranjan Rishi, Rebekka and Sigrid
+  Bekker +1 bleed against a ready vampire of the clan named, read at resolution
+  (126.155); Spiridonas after the blocks, once each player's turn, X from 0
+  (126.179); Vasilis's +1 bleed to every Giovanni against a Methuselah with a
+  ready Brujah (126.192); Yong-Sun's bleed per crypt vampire in the target's
+  ash heap, read at resolution (126.208).
 
 ### 11.2 Hunt
 
@@ -3160,6 +3309,10 @@ torpor actions, diablerie). Referendums: §13.
   toll after (125.203); Igo's rulebook hunt loses its +1, a card hunt keeps
   its stealth (72.2) (125.104); Jayne Jonestown +1 stealth on every hunt, a
   card's too (125.112); Rabbat's hunt blood may go to the pool (125.171).
+- Round 34's cards: Masquerade Endangered played after the hunt: the blood it
+  left back to the bank, the hunt still successful, copies by others stacking
+  (owner, 2026-11-20); not on a hunt that gained nothing (LSJ 20050720-2)
+  (126.122, 126.123).
 
 ### 11.3 Equip
 
@@ -3277,6 +3430,9 @@ torpor actions, diablerie). Referendums: §13.
   in play by a search or from storage enters at the version its player chooses
   among those the vampire's Disciplines meet, as from hand (LSJ 20080803;
   owner, 2026-11-19) (125.17).
+- Round 34's cards: Szechenyi Jolán unlocks in the discard phase after her
+  recruit or employ action, fizzled too; a card put in play by another card is
+  not one (126.182).
 
 ### 11.5 Steal actions
 
@@ -3326,6 +3482,11 @@ torpor actions, diablerie). Referendums: §13.
   equip action (125.21); Ethan Locke's steal is directed at the card's
   controller (125.77); Petru Sipos steals a blood from a torpid vampire
   (125.161).
+- Round 34's cards: Hannibal's "up to 2" and Etrius's "up to 3" chosen at
+  resolution (62.4) (126.86, 126.73); Mesmerize not offered with no equipment
+  to take (RTR 19980928) (126.129); Virgil steals a retainer or all its life,
+  Ilomba's replacement applying, his blood burned before the gain (owner)
+  (126.196, 126.197).
 
 ### 11.6 Leave torpor, rescue
 
@@ -3361,6 +3522,8 @@ torpor actions, diablerie). Referendums: §13.
   fizzling off torpor unpaid (ANK 20181017) (124.106); Sense Vitality rescues
   without the rulebook's blood (ANK 20181017) (124.203); Zhara leaves torpor
   for one blood less, her own action only (124.258).
+- Round 34's cards: Javier Montoya's rescue discount whoever pays, read by
+  every rescue path (PIB 20110918, LSJ 20020304-2) (126.99).
 
 ### 11.7 Diablerie and the blood hunt
 
@@ -3418,6 +3581,14 @@ torpor actions, diablerie). Referendums: §13.
   no blood hunt (125.176); Trophy: Diablerie bars the Red List victim's blood
   hunt and Abactor's (125.214); Phillipe Rigaud's forced diablerie (125.162);
   The Name Forgotten makes a diablerie unsuccessful (121.20) (125.145).
+- Round 34's cards: Absolution of the Diabolist and Ebony Fox Hunt cancel a
+  passed blood hunt at Gangrel Conspiracy's moment, after the votes, before the
+  burn, own turn too (122.68) (126.19, 126.70); Ritual of the Bitter Rose gives
+  the victim's blood before it was taken, in combat the blood on the vampire as
+  it burns (0 after an aggravated burn, LSJ 19970410), at the after-diablerie
+  window for an in-combat diablerie; two copies both pay (owner) (126.163,
+  126.164); Muaziz: no blood hunt referendum on her, the Blood Hunt card still
+  lands (TOM 19960604) (126.135).
 
 ### 11.8 Entering combat as an action (rushes)
 
@@ -3478,6 +3649,9 @@ torpor actions, diablerie). Referendums: §13.
   prey (125.182); Ebanezer Roush rushes a neighbour's ready vampire of
   capacity 3 or less, fizzling if it grows to 4 (125.73); Wynn's rush at a
   neighbour's ready vampire, never a torpid one (17.3, §4.9.3) (125.243).
+- Round 34's cards: Ignazio Giovanni rushes a ready vampire of capacity 6 or
+  less of his predator or prey (125.182's filter) (126.92); Radeyah's rush as
+  Janni's: another Methuselah's ready Ministry (126.153).
 
 ### 11.9 Other rulebook actions: become Anarch, merge
 
@@ -3685,6 +3859,9 @@ round (rulebook "Combat").
   125.91); Don Cruez buys one maneuver for a blood over the whole combat
   (125.68); Michael diCarlo's long range in his own action's combat, an
   earlier setter first (84.1) (125.139).
+- Round 34's cards: Cailean sets each round's range, an earlier setter
+  prevailing (126.39); Song in the Dark's close strike offered at long range, a
+  no-op (126.176).
 
 ### 12.4 Choosing strikes
 
@@ -3702,22 +3879,22 @@ round (rulebook "Combat").
   before never resolves (122.214). So dodged, Molotov Cocktail goes on its
   striker and Escaped Mental Patient burns (76.10, 122.62); a "burn after
   use" weapon burns (84.2); combat ended first, neither (ANK 20200203-1).
-- Range: close unless the strike says (D23; 21.1). Heroic Might's "strike:
-  burn equipment": close range, the equipment named as the strike is
-  chosen, a dodge stops it (26.6). Kaymakli Fragment's "an opposing minion
-  can strike: steal this equipment" — the strike of the minion in combat
-  with its bearer, at close range, dodgeable (71.23). Fast Hands' "steal
-  weapon": the weapon named with the strike moves to the striker as it lands
-  (a steal: no requirement or cost), not if the striker cannot have it;
-  with first strike, a strike with that weapon resolves no more (70.11).
-  Canine Horde [ANI]: the opposing minion's equipment named with the strike
-  (Weighted Walking Stick included, a location not); with first strike, at
-  either range; not offered against a minion with none (RTR 19980928)
-  (62.18). Donnybrook [obf]: the equipment or retainer is the opposing
-  minion's, named with the strike; resolved with first strike, it burns
-  before the opposing strike resolves (a weapon so burned strikes for
-  nothing), unless dodged (44.9). Voracious Vermin [ANI]'s additional strike
-  (burn weapon): the superior version only if the opposing minion has a
+- Range: close unless the strike says (D23; 21.1). Heroic Might's "strike: burn
+  equipment": close range, the equipment named as the strike is chosen, a dodge
+  stops it (26.6). Kaymakli Fragment's "an opposing minion can strike: steal
+  this equipment" — the strike of the minion in combat with its bearer, at
+  close range, dodgeable (71.23). Fast Hands' "steal weapon": the weapon named
+  with the strike moves to the striker as it lands (a steal: no requirement or
+  cost), not if the striker cannot have it; with first strike, a strike with
+  that weapon resolves no more (70.11). Canine Horde [ANI]: the opposing
+  minion's equipment named with the strike (Weighted Walking Stick included, a
+  location not); with first strike, at either range; not offered against a
+  minion with none (RTR 19980928) (62.18). Donnybrook [obf]: the equipment or
+  retainer is the opposing minion's, named with the strike; resolved with first
+  strike, it burns before the opposing strike resolves (a weapon so burned
+  strikes for nothing), a dodge protecting an equipment, not a retainer (44.9;
+  corrected 2026-11-20, Batch 126: 126.12). Voracious Vermin [ANI]'s additional
+  strike (burn weapon): the superior version only if the opposing minion has a
   weapon; not optional once chosen; none if no weapon is left by then; any
   range; a dodge stops it (22.3).
 - Strikes with a price: the unnamed's strike blood paid as it is chosen, not
@@ -3788,6 +3965,8 @@ round (rulebook "Combat").
   Immense Size bars grapples from the play on, a grapple in force standing
   (125.105); Rapid Thought [CEL] swaps who chooses first, once a pair, beside
   a committed strike (125.174).
+- Round 34's cards: Shotgun Ritual opens its vampire's round-1 [tha] strike
+  cards, Blood to Water (no strike) still barred (126.173).
 
 ### 12.5 Aims and plays on a chosen strike
 
@@ -3881,11 +4060,13 @@ round (rulebook "Combat").
   still reduced by Nephandus (LSJ 20100519) (62.26). Dawn Operation
   aggravates every damage on the vampires in the combat, environmental and
   retainer damage too (PIB 20150603-1) (90.1).
-- Nephandus's reduction is its own step, before prevention, for each strike
-  of the opposing minion — hand, melee weapon, ranged, unpreventable
-  included — and a strike's damage after combat (Catatonic Fear); not
-  environmental damage (Carrion Crows); an aim's add-on joins the strike's
-  damage, not reduced separately (LSJ 20091123-2) (62.24).
+- Nephandus's reduction is its own step, before prevention, for each strike of
+  the opposing minion — hand, melee weapon, ranged, unpreventable included —
+  and a strike's damage after combat (Catatonic Fear); not environmental damage
+  (Carrion Crows); an aim's add-on joins the strike's damage, not reduced
+  separately (LSJ 20091123-2) (62.24); after the strike's ammo and Joaquin's
+  gun bonus, off the loaded strike's whole amount (LSJ 20100519; corrected
+  2026-11-20, Batch 126: 126.16), Mateusz Gryzbowsky's likewise (126.125).
 - FBI Special Affairs Division: the 2 damage dealt as the combat ends,
   before after-combat effects (40.9). Zip Gun: its bearer takes 1
   environmental damage the first time it strikes with it each combat, none
@@ -3917,8 +4098,9 @@ round (rulebook "Combat").
   successful action, still in it (LSJ 19981028, ANK 20190425); one superior
   play per vampire each turn (78.27).
 - Elie Sansaricq's corruption on her strikes' damage landing; Hálito Negro's
-  retainers hit with its strike; Ron Zertnert's unpreventable point at the press
-  step from out of the combat (112.12, 112.46, 112.54).
+  retainers hit with its strike, through a dodge (112.46 corrected 2026-11-20,
+  Batch 126: 126.12); Ron Zertnert's unpreventable point at the press step from
+  out of the combat (112.12, 112.46, 112.54).
 - Environmental each round through a dodge: Blissful Agony [val], Groaning
   Corpse, Razor Bat; Eye of Unforgiving Heaven on both combatants and their
   demon retainers, a dodge sparing the dodger only (owner), the striker's own
@@ -3950,6 +4132,12 @@ round (rulebook "Combat").
 - Going to torpor is read on the damage as it will land, after immunity and
   the aggravated-as-normal conversion: a vampire mending it is not going into
   torpor, so Decapitate is not offered (125.5).
+- Round 34's cards: Cauldron of Blood's +2/+4 hand strike inherits aggravated
+  hands (TOM 19960225) (126.44); Eldritch Glimmer's X burned as the strike is
+  played, kept if dodged or canceled, +X ranged of the strike's kind (126.71);
+  Mateusz Gryzbowsky's strikes at long range 1 less, off the loaded strike's
+  whole amount (126.125); Reverend Blackwood: a strike requiring [tha] is a
+  strike card played using it, a weapon's none (126.160).
 
 ### 12.8 Prevention and immunity
 
@@ -4084,6 +4272,15 @@ round (rulebook "Combat").
   strike's or not (125.195); 'once each combat' abilities work in combat only
   (Merrill Molitor, LSJ 19981105), Konrad's 'once each round' outside too
   (122.96) (125.138).
+- Round 34's cards: Abyssal Hunter's damage an ally's, Carolina Vález immune to
+  it out of combat too (ANK 20210228); his burn on any ranged aggravated damage
+  inflicted, prevented, at close range, Smite's and Dragon's Breath Rounds'
+  included (126.20); Personal Scourge bars Fortitude prevention cards and
+  equipment prevention abilities for the round, an ally's weapons untouched, a
+  Zip Gun's own damage still landing (126.143); Resplendent Protector prevents
+  1 of its employer's damage each combat (126.158); Jalan-Aajav as Konrad
+  Fleischer (122.96), outside combat once per damaging effect, in combat all
+  aggravated damage that round for 1 blood (LSJ 20110102) (126.97).
 
 ### 12.9 Additional strikes
 
@@ -4137,11 +4334,12 @@ round (rulebook "Combat").
 
 ### 12.10 Dodge
 
-- A dodge is a strike card (42.2); with no opposing strike it is a legal
-  no-op (4.3). A dodge opposing a first strike resolves at once (58.2). A
-  dodge stops a strike's burn, steal or put-on riders (21.1, 22.3, 26.6,
-  44.9, 70.11, 71.23); Righteous Blade's press is kept if the strike is
-  dodged (10.4). Advanced rules §4.6.
+- A dodge is a strike card (42.2); with no opposing strike it is a legal no-op
+  (4.3). A dodge opposing a first strike resolves at once (58.2). A dodge stops
+  a strike's burn, steal or put-on riders on the dodger and its possessions,
+  never on a retainer (corrected 2026-11-20, Batch 126: the rulebook's "Dodge";
+  113.86, 126.12) (21.1, 22.3, 26.6, 44.9, 70.11, 71.23); Righteous Blade's
+  press is kept if the strike is dodged (10.4). Advanced rules §4.6.
 - Fata Amria and Shadow Feint [CEL][OBF] undodgeable: the dodge played, no
   effect (121.45, 121.140); Amria [CHI] and The Jones [ser] dodge with a press
   only to end, this round (121.4, 121.76); Flesh Bond (121.49).
@@ -4156,6 +4354,16 @@ round (rulebook "Combat").
   combatant, an ally too (125.31); Crusher's dodge as Marie Faucigny's
   (125.58); Elihu's melee weapon strikes cannot be dodged, a melee weapon's
   ranged strike and Bundi's hand strike included (LSJ 20091006) (125.74).
+- A dodge protects the dodging minion and their possessions, retainers excepted
+  (rulebook "Dodge": "Retainers are not protected, however."; TOM 960403;
+  owner, 113.86): a strike burning or damaging a retainer lands on it through a
+  dodge, an equipment still protected; a strike voided on the dodger (Eyes of
+  Blades) spares both: Mask Empathy [pre], Morlock (113.29), Donnybrook [obf]'s
+  retainer half (44.9), Hálito Negro (112.46); 122.214's "possessions" are
+  retainers excepted (126.12, 126.120).
+- Round 34's cards: Creep Show gains on the opposing minion's resolved dodge (a
+  dodging strike too) or its combat-ending strike, once each turn (126.57);
+  Mask Empathy [pre]'s retainer burns through a dodge (126.120).
 
 ### 12.11 Presses
 
@@ -4207,6 +4415,9 @@ round (rulebook "Combat").
   to end combat (125.235); Lazarus merged: the [MERGED] press in the press
   step only, to continue (125.119); Terry's press for Marty Lechtansi
   (125.132); Lorrie Dunsirn's mandatory press (125.125).
+- Round 34's cards: Masque of Judas [AUS][OBF]'s random discards not replaced
+  until the combat ends; its press this round (126.121); Kazimir Savostin's
+  press only in the combat his block began (126.101).
 
 ### 12.12 End of round, end of combat, after combat
 
@@ -4333,6 +4544,9 @@ round (rulebook "Combat").
   Legacy of Power's torpor lost to a new combat (125.121); Mariel's
   after-combat damage to each combatant and retainer, lost to a continued or
   queued combat (125.131).
+- Round 34's cards: Akram's combat after his own queued as Pocket Out of
+  Time's, the first's continuation lost (126.21); Sociopath feeds its vampire
+  as its opponent leaves the ready region, once each player's turn (126.174).
 
 ### 12.13 Weapons and equipment in combat
 
@@ -4400,6 +4614,14 @@ round (rulebook "Combat").
   its abilities (LSJ 19980206; Spider, Durga Syn, Fast Hands, Lucian); a
   minion that cannot have equipment is offered no strike stealing it (125.14,
   125.128).
+- Round 34's cards: Illegal Search and Seizure reads a weapon's regular strike
+  against a generic opponent and its cost as modified in play (RTR 19980623,
+  ANK 20181215) (126.93); Glaser Rounds from the gun's second use, a maneuver
+  or a committed strike a use (124.122), the striker's own gun, one ammo a gun
+  (126.80); Grenade burns and hurts its bearer dodged too, kept if the combat
+  ends first (126.82); Meat Cleaver strength+1, a melee weapon (126.127);
+  Shattering Blow's named equipment, dodged like any strike, [POT] burning a
+  gun before it fires (126.172).
 
 ### 12.14 Frenzy cards
 
@@ -4465,6 +4687,8 @@ round (rulebook "Combat").
   strength this combat, chosen as played, replaced after combat (124.58).
 - Round 33's cards: Fear of the Void Below [DAI]'s random discards each round
   (125.78).
+- Round 34's cards: Fists of Death's strength for the combat, copies stacking
+  (126.77).
 
 ### Open or contested
 
@@ -4682,6 +4906,12 @@ prisci's alone (52.9, 70.6) — read "a Methuselah's ballots" in rules-qa as
   at 0; plain votes, title votes and fixed bonuses stay fixed at the cast
   (owner, 2026-11-19) (125.1; overturns 124.27's count and Aisha's, read as
   they resolve).
+- Round 34's cards: Animal Magnetism in any referendum's polling, none in a
+  blood hunt (124.261); Surprise Influence in a political action's polling only
+  (126.25, 126.181); Ventrue Directorate Assembly's votes in a political
+  action's referendum only, none in a blood hunt (advanced rules §3.7.8.2)
+  (126.193); Watchtower: Greatest Fall +2 votes per ready Seraph, burned as
+  another watchtower enters (126.201).
 
 ### 13.3 Polling
 
@@ -4780,6 +5010,15 @@ prisci's alone (52.9, 70.6) — read "a Methuselah's ballots" in rules-qa as
 - Round 33's cards: Distant Friend changes its vampire's cast in polling
   (125.67); Neferu, as Kindred Manipulation, restricts an uncast vampire,
   never compels it (122.94) (125.147).
+- Round 34's cards: Disarming Presence locks each vampire as it first casts, a
+  ballot-only priscus too (LSJ 20050607) (126.63); Kindred Coercion [DOM]
+  treats each pick its own way, chosen as it applies, mixed allowed (PIB
+  20131014); Helena picks freely; a turned cast pays no De Sade toll (77.25)
+  (126.9, 126.103); Loyalist's and Wrong and Crosswise's against-only votes
+  drop while the cast is turned in favor (LSJ 20031115) (126.115); Pulling
+  Strings cancels a cast, keeps an uncast vampire abstaining (126.152); Under
+  the Skin's pick younger than the actor, locked at the end on a pass
+  (126.190).
 
 ### 13.4 Tally and costs of voting
 
@@ -4828,6 +5067,9 @@ prisci's alone (52.9, 70.6) — read "a Methuselah's ballots" in rules-qa as
   Manipulation, Distant Friend) giving way in either order, a 'cannot' keeping
   its side, votes gained only against silenced when the record moves in favor
   (LSJ 20090304-2, LSJ 20031115; 122.94) (125.7).
+- Round 34's cards: Treachery [PRE] burns every Methuselah in favor but the
+  caller's controller, its own player too, at the tally (owner, 2026-11-20)
+  (126.188, 126.189).
 
 ### 13.5 After the referendum
 
@@ -4873,6 +5115,9 @@ prisci's alone (52.9, 70.6) — read "a Methuselah's ballots" in rules-qa as
 - Round 33's cards: The Final Nights burns a blood from every vampire in play,
   torpor too; failed (not canceled), the actor's (125.79); Sabbat Threat's
   counters (125.184); Sacrifice reads the actor's actual clan (125.186).
+- Round 34's cards: Guru's blood after the passed referendum's effects (LSJ
+  20090115-2) (126.84); Political Backlash on a political referendum held and
+  failed, never a blood hunt or a canceled one, copies adding (126.145).
 
 ### Open or contested
 
@@ -4964,6 +5209,12 @@ retainers, traits, titles, trait changes).
 - Round 32's cards: Panacea [OBE] unlocks its ally in this turn's discard
   phase, as Feral Hound (124.161); Internal Recursion: [TEM] skips the actor's
   next unlock (124.118).
+- Round 34's cards: Kindred Society Games paid in its controller's unlock
+  phase, an unlocked host too (owner, question 10), else moved to a younger
+  locked vampire; two copies 2 blood, one paid and one moved unlocking (owner,
+  question 8) (126.104, 126.105, 126.106); Precognizant Mobility [AUS] may
+  unlock the actor itself (121.10) (126.150); Yitzak's lock on a torpid or
+  locked younger vampire still skips its unlock (LSJ 20040321) (126.207).
 
 ### 14.2 Torpor
 
@@ -5073,6 +5324,14 @@ retainers, traits, titles, trait changes).
   74.2), not Kamiri burning it (124.126); Mr. Noir pays his controller when
   burned while a combatant, whatever the cause, Hector Trelane's scope
   (124.145).
+- A yielded contested vampire is no controlled vampire burned from play
+  (advanced rules §1.13.3; 124.94's reading): Mina Grotius and Virolax Facility
+  gain nothing from a contest yield (126.17); Path of Death and the Soul's burn
+  from play of another Methuselah's minion likewise, a contest yield none
+  (126.141).
+- Round 34's cards: Nakova burned in combat deals 4 unpreventable at once, none
+  if the burn is replaced, after the blood hunt of an in-combat diablerie
+  (126.137).
 
 ### 14.4 Blood, capacity
 
@@ -5225,6 +5484,11 @@ retainers, traits, titles, trait changes).
   Discipline of a combo card, Talaq's and Grey Thorne's too (LSJ 20011217)
   (125.246); Carmine's wraiths enter with +1 life, recorded as starting life
   (125.49).
+- Round 34's cards: Blood to Water [tha] burns an opposing ally (sent to
+  torpor, an ally burns), [THA] has no object in one (126.31); The Knights and
+  The Slashers vanilla (126.109); Marijava Thuggee plays basic [obf] as an
+  Independent vampire of capacity 1, one Discipline of a combo, locking when
+  outnumbering its controller's Black Hand, torpid ones counted (126.118).
 
 ### 14.6 The uncontrolled region, banishment
 
@@ -5310,6 +5574,25 @@ retainers, traits, titles, trait changes).
   Influence: no influence, taxed by BCAN; [chi] directed at another region's
   owner (125.229); Sonja Blue removed from the game as she leaves play,
   banished too (125.196).
+- A card naming a card of the prey's uncontrolled region names it by position
+  as played (D1, LSJ 20040728), directed at the prey (17.2), re-checked by card
+  at resolution; a card may sit on another Methuselah's uncontrolled slot,
+  burned with the region as its Methuselah is ousted (advanced rules §6.5.3); a
+  banished created vampire's slot is its own library card: Brainwash, Cairo
+  Int'l Airport, Memory's Fading Glimpse, Harrod (126.1).
+- Round 34's cards: Brainwash put on the prey's uncontrolled slot, no transfers
+  to or from it, banished too (LSJ 20010211), Solomon Batanea's transfer-paid
+  move barred there (126.34); Cairo Int'l Airport burns 1 blood from a prey's
+  uncontrolled slot named as announced, an empty slot a legal no-op (126.40);
+  Harrod's look at a prey's uncontrolled card, picked by position, private, not
+  offered with the region empty (122.139 extended) (126.87); Masquerade
+  Enforcement's pool an effect on every uncontrolled-to-controlled vampire
+  move, a merge none (LSJ 20030527) (126.124); Memory's Fading Glimpse sends a
+  prey's uncontrolled card to its crypt's bottom, a merged one both cards, a
+  created vampire burned, fizzling once its prey is ousted (124.42) (126.128);
+  Reunion Kamut's blood uncapped in the uncontrolled region (28.3) (126.159);
+  Mistrust banishes to the last permanent controller's region (124.263), the
+  scarce trait printed (113.3) (126.134).
 
 ### 14.7 Created and new vampires
 
@@ -5350,6 +5633,10 @@ retainers, traits, titles, trait changes).
   Baali (LSJ 20060815) (124.38).
 - Round 33's cards: Tumnimos: a young Ravnos who must hunt, a master
   Discipline card put on it (119.1) (125.225).
+- A created vampire sent to a crypt (Embrace, Waters of Duat, Childe of the
+  Revolution, Thin-Blooded Seer) is burned, its card to its owner's ash heap,
+  the cards on it burned (LSJ 20041201-2, LSJ 20041201, SFC 19960919): Memory's
+  Fading Glimpse the first to reach it (126.5).
 
 ### 14.8 Retainers
 
@@ -5390,6 +5677,9 @@ retainers, traits, titles, trait changes).
 - An entry life bonus (Carmine Giovanni's wraiths, Ashur-uballit's zombies) is
   starting life, recorded as the card enters, never re-read at a restore
   (124.147) (125.8).
+- Round 34's cards: Trainer silences other minions' animal retainers while
+  acting or in combat, Midget's (49.3) (126.187); Corpse Balloon's first-round
+  maneuver granted at the block, kept if it leaves (126.55).
 
 ### 14.9 Merging and versions
 
@@ -5440,6 +5730,17 @@ retainers, traits, titles, trait changes).
   merged vampire's sect is the one its [MERGED] clause prints, else the
   advanced card's (ANK 20180524, ANK 20180523); the traits, title and
   markers a merge loses are told (125.10).
+- Round 34's merges: Sébastien Goulet, Yazid Tamari, Yong-Sun, Jan Pieterzoon,
+  Javier Montoya, Goratrix and Hannibal, their base cards in the pool since
+  this round, merge as 115.5's and 124.268's do: both cards' text, the sect
+  their [MERGED] clause prints, else the advanced card's (125.10; ANK
+  20180524): Yazid Anarch, Jan Independent, Javier the Anarch Baron of
+  Barcelona, Goratrix Camarilla, an anarch token burned (126.18); a trait the
+  base card prints (Seraph) is the merged vampire's (126.14).
+- Round 34's cards: Goratrix merged Camarilla, an anarch token burned (ANK
+  20180524), his [MERGED] +1 bleed Sundervere's (121.151) (126.81); Sébastien
+  Goulet's [MERGED] steal only merged (126.169); Yazid Tamari merged Anarch,
+  Black Hand, Seraph through his base (126.206).
 
 ### 14.10 Traits, sects, clans
 
@@ -5473,12 +5774,13 @@ retainers, traits, titles, trait changes).
 - Derange: either clan plays it (ANK 20190203); on a younger vampire, torpid
   too; its clan and sect set as played, kept as it moves (LSJ 20070707), over
   the underlying ones and a later sect change (LSJ 20100811, ANK 20190619; the
-  most recent of two overrides wins, LSJ 20021209: Derange and Feral Spirit
-  since round 32; owner, 111.54, 124.82), gone with the card (RTR 20201130); a
-  title off its new sect suspended (RTR 20201130, LSJ 20060904); its move to
-  another vampire of any age, never a Malkavian or Malkavian antitribu; one
-  blood unlocks in its unlock phase, a disease's or an infernal's unlock still
-  one (ANK 20221210-2) (78.44).
+  most recent override wins, LSJ 20021209: Derange and Feral Spirit since round
+  32, Clan Impersonation's clan beside them since round 34 (126.3, 126.51);
+  owner, 111.54, 124.82), gone with the card (RTR 20201130); a title off its
+  new sect suspended (RTR 20201130, LSJ 20060904); its move to another vampire
+  of any age, never a Malkavian or Malkavian antitribu; one blood unlocks in
+  its unlock phase, a disease's or an infernal's unlock still one (ANK
+  20221210-2) (78.44).
 - Sect changes by card are actual (LSJ 20100811), kept once the card is
   gone, an old sect's title idle (LSJ 20060904), a sect-bound trait kept
   (Black Hand; 111.32).
@@ -5521,6 +5823,21 @@ retainers, traits, titles, trait changes).
   of Acceptance, Derange, Feral Spirit), the latest applying (111.54, 124.82);
   what a card reads as the sect is the effective one, whether a change would
   change anything the actual one (125.3).
+- "Black Hand Seraph:" on a crypt card is both traits, Black Hand and Seraph
+  (Jalan-Aajav, Teresita, The Godmother) (126.15).
+- Round 34's cards: Blooding's Black Hand only while Sabbat, read live (LSJ
+  20070322) (126.32); Clan Impersonation a clan-only override on the
+  clan-override stack, the latest of it, Derange and Feral Spirit governing,
+  sect and slave status kept, a justicar or Inner Circle title idle off its
+  clan (RTR 20201130, LSJ 20060904) (126.3, 126.51); Malkavian Dementia's
+  Malkavian goes back whatever its clan (ANK 20221208-2) (126.117); Seraph a
+  trait while the card is on, non-Sabbat vampires casting nothing in its
+  referendum (126.171); the text-only vampires, traits generated, Black Hand
+  kept through a sect change (LSJ 20070322, ANK 20180807): Ezekiel and the
+  others (126.76), Ana Rita Montaña and the others (126.23), Charice Fontaigne
+  and the others (126.47), Ingram Frizer and the others (126.95), Laurent de
+  Valois and the others (126.111), Piotr Andreikov and the others (126.144),
+  Thelonius, Tock, Wah Chun-Yuen (126.185), Yasmin the Black (126.205).
 
 ### 14.11 Counters on minions
 
@@ -5548,6 +5865,8 @@ retainers, traits, titles, trait changes).
 - Round 33's cards: Weigh the Heart's corruption counter on a target
   Methuselah's minion chosen after success (125.241); Cagliostro corrupts his
   blocker after the block's combat (125.44).
+- Round 34's cards: Makarios's seduction counters stack, one burned per action;
+  the block bar read at each attempt (126.116).
 
 ### 14.12 The Imbued
 
@@ -5643,6 +5962,7 @@ readings (vampires, allies, library cards) no mechanism section states.
   generated, no definition (124.164).
 - Round 33's cards: text-only vampires carry only generated traits, Skryta
   Zyleta's Black Hand off-sect (125.20, 125.39, 125.180).
+- Round 34's cards: Gwendolyn's +2 bleed a plain printed bonus (13.2) (126.85).
 
 ### 15.2 Card readings not stated elsewhere
 
@@ -5654,13 +5974,14 @@ readings (vampires, allies, library cards) no mechanism section states.
 - Round 22's cards: Field Training's Discipline and vampire chosen as played,
   its level no capacity, kept with equipment barred (104.1, 105.2); Thirst's
   burn told with its cause (105.1); Daliah once each combat as it begins, a
-  second combat in the action too (104.11, 105.5); Gengis's skipped unlock,
-  the title read as he is blocked (104.12); Javier Montoya's younger than him,
-  any Methuselah's (104.13); Vulture's unfizzled vehicle equip, once each turn
+  second combat in the action too (104.11, 105.5); Gengis's skipped unlock, the
+  title read as he is blocked (104.12); Javier Montoya's younger than him, any
+  Methuselah's (104.13); Vulture's unfizzled vehicle equip, once each turn
   (104.19); [MERGED] text inert without the base card (104.20; Louis Fortier,
   Gengis and Marguerite Foccart merge since their base cards came in, 115.5;
   Dancin' Dana and Zack North since round 33, corrected 2026-11-19, Batch 125:
-  125.59, 125.244).
+  125.59, 125.244; Javier Montoya since round 34, corrected 2026-11-20, Batch
+  126: 126.99).
 - Round 26's cards: combat Discipline cards' levels and presses (111.24);
   Aura of Invincibility's counter and Bear-Baiting's bound bonus (111.27);
   the Crusades' unlock, Curmudgeon, Ecstatic Agony, Esgrima (111.30);
@@ -5917,6 +6238,8 @@ readings (vampires, allies, library cards) no mechanism section states.
   Paciola and kin: standing bonuses (125.127); Rake's and Ransam's strength
   against a clan, antitribu excluded (125.173); Vardar Vardarian -1 strength
   against Ministry (125.236).
+- Round 34's cards: Bryan Van Duesen and Calebos as printed (126.36); Marino
+  Reymundo Vásquez +1 bleed (126.119).
 
 ## 16. Cards in play
 
@@ -5977,6 +6300,10 @@ cards), §1.10 (burn and removal), §6.3 (control of a card in play).
 - Round 33's cards: Insurance Scam burns X locations picked as it resolves
   (125.109); Ruins of Charizel banks only the infernal trait's unlock pool
   (125.183).
+- Round 34's cards: Unnatural Disaster any location, its own too, a locquipment
+  included (126.191); The Spawning Pool's unpreventable damage in round 2 of
+  the block's combat (126.177); Dominique gains a location's blood or pool cost
+  less the standing reduction now (LSJ 20061207, LSJ 20091124) (126.67).
 
 ### 16.2 Hunting grounds
 
@@ -6000,6 +6327,9 @@ cards), §1.10 (burn and removal), §6.3 (control of a card in play).
 - Round 33's cards: Campground Hunting Ground as every ground (125.48);
   Kingston Penitentiary feeds another Methuselah's vampire for a pool
   (125.118); Threestar Cab Company's master-phase lock no action (125.208).
+- Round 34's cards: Klaus van der Veken cancels each use of a prey's hunting
+  ground, the use spent, from torpor too (owner, question 1) (126.107,
+  126.108).
 
 ### 16.3 Equipment
 
@@ -6180,6 +6510,8 @@ cards), §1.10 (burn and removal), §6.3 (control of a card in play).
   counts for Poacher's Hunting Ground unawarded; Trophy: Domain, Discipline,
   Retainers, Safe Passage as their text (125.213, 125.214, 125.215, 125.216,
   125.217, 125.218, 125.219, 125.220, 125.221).
+- Round 34's cards: Remover's granted action locks any card in play, directed
+  at its controller (126.156).
 
 ### 16.7 Counters on cards; moving them
 
@@ -6209,6 +6541,9 @@ cards), §1.10 (burn and removal), §6.3 (control of a card in play).
 - Round 31's cards: Powerbase: Mexico City pays a blood each unlock, raided by
   Sabbat (122.144); Ventrue Investment holds a blood per Ventrue antitribu its
   player controls (122.204).
+- Round 34's cards: Powerbase: Washington, D.C. one of two abilities each
+  unlock phase, X from 0 (126.148); Protracted and Short-Term Investment pay
+  per master phase action (126.151).
 
 ### 16.8 The burn option
 
@@ -6249,6 +6584,8 @@ cards), §1.10 (burn and removal), §6.3 (control of a card in play).
   and a Samedi master, LSJ 20050225) (124.264); a card requiring "a Laibon
   with three or more Aye" (or Orun) is burnable unless its player controls
   such a Laibon, any other Laibon no bar (ANK 20240610) (124.265).
+- Round 34's cards: Deep Cover Agent's burn option only with no ready Seraph,
+  torpid ones not counting (LSJ 20091203, ANK 20240610) (126.62).
 
 ## 17. Control and ownership
 
@@ -6338,6 +6675,8 @@ minions), §6.3 (of a card in play), §6.4 (leaving and re-entering play).
   shape (78.8) (125.34); Sonja Blue taken by the predator from torpor, into
   their ready region (owner) (125.198); Uriah Winter defects for good
   (125.231).
+- Round 34's cards: Olga Triminov taken for good by another Methuselah's Black
+  Hand vampire, the pool paid at resolution (126.140).
 
 ### 17.3 Taking control of cards in play
 
@@ -6359,6 +6698,9 @@ minions), §6.3 (of a card in play), §6.4 (leaving and re-entering play).
   of the vampire that took it (advanced rules §6.3.3; Ethan Locke, Absorb the
   Mind [MYT]) (125.18, 125.77); Shepherd's Innocence takes an ally requiring
   Animalism (PIB 20121028) (125.192).
+- Round 34's cards: Brothers Grimm taken by another Methuselah for a master
+  phase action and a master card discarded, kept by its controller's master
+  discard, the counters staying (126.35).
 
 ## 18. Contests, uniqueness, titles
 
@@ -6392,6 +6734,8 @@ Advanced rules §1.13 (contests), §5.8 (titles).
   Methuselah controlling another copy (121.119).
 - Round 33's cards: Sonja Blue: no self-contest (57.9, owner); contested by
   another, the copy in play removed (125.196, 125.197).
+- Round 34's cards: Powerbase: Berlin's steal referendum never into a
+  self-contest (121.119) (126.147).
 
 ### 18.2 Contested cards
 
@@ -6442,6 +6786,8 @@ Advanced rules §1.13 (contests), §5.8 (titles).
 - Rafael de Corazon: each title rival of his yields in its controller's
   unlock phase (no pay option); Rafael himself pays or yields as usual
   (62.8). Ephor's action strips a contested title (59.13).
+- Round 34's cards: Wilhelm Waldburg's +1 blood on each rival's contest upkeep,
+  in torpor too (126.204).
 
 ### 18.4 Titles
 
@@ -6500,6 +6846,12 @@ Advanced rules §1.13 (contests), §5.8 (titles).
   (125.108); Rastacourere on a titled vampire (125.175); Lena Rowe takes no
   title, a title card on her not played, a cardless one a legal no-op (116.67)
   (125.122).
+- Round 34's cards: Command of the Harpies takes the effective prince title,
+  its title card burned (19.6), not played with no ready prince (126.52);
+  Crusades Barcelona, Brussels, Miami and Praxis Seizures Boston, Cleveland,
+  Dallas, Seattle as Istanbul's and York's, distinct cities not contesting
+  (126.58, 126.149); Of Noble Blood on another's vampire directed (ANK
+  20190606) (126.139).
 
 ### 18.5 The two-player variant
 
@@ -6616,6 +6968,8 @@ Advanced rules §1.9 (replacement), §6.8 (hand, draw and discard).
 - Round 32's cards: Hourglass of the Mind: [tem] draws what the library holds
   (LSJ 20060620) (124.111); Yseult draws an extra card after a Melpominee
   card's replacement (124.257).
+- Round 34's cards: Distraction [cel] draws what the library holds (LSJ
+  20060620) (126.64).
 
 ### 19.3 Hand size
 
@@ -6643,6 +6997,13 @@ Advanced rules §1.9 (replacement), §6.8 (hand, draw and discard).
   while ready (124.148).
 - Round 33's cards: Cassandra's +1 hand size while ready (125.51); merged
   Dancin' Dana's hand size while a combatant (125.59).
+- Round 34's cards: Chronicle of the Lost Tribe's +1 hand size follows its
+  controller, the old one discarding down at once (TOM 19951212) (126.49);
+  Henri Lavenant's +1 hand size in combat, Dancin' Dana's (125.59) (126.89);
+  Aristotle de Laurent widens every hand while ready (126.26); Christanius
+  Lionel's +1 hand size while ready (126.48); Weeping Stone's +1 hand size
+  suspended while contested (126.203); Jan Pieterzoon's -1 hand size on every
+  Methuselah while ready, merged Independent (126.98).
 
 ### 19.4 Searches and stored cards
 
@@ -6706,6 +7067,16 @@ Advanced rules §1.9 (replacement), §6.8 (hand, draw and discard).
   the top card while it holds, read live, never stored, other seats seeing it
   hidden; a newly seen top bars an undo (122.80's precedent) (125.11, 125.92,
   125.227).
+- A stored card's use plays no card (122.173 extended): a card an equipment or
+  ally lets its bearer use "as if from hand" (Inscription, Shadow Court Satyr)
+  opens no as-played window but the used card's own cancel, writes no "played"
+  records and no D26 count (LSJ 20031203: "It is not a card play."; ANK
+  20180627-1); Inscription's used card then goes to its owner's ash heap
+  (126.10, 126.96).
+- Round 34's cards: Bindusara puts a library card in play paying its pool cost,
+  standing reductions applied, no as-played window, a unique in play not
+  offered (126.30); Inscription stores a [tha] card earmarked as declared, paid
+  by the actor (126.96).
 
 ## 20. Events and Gehenna
 
@@ -6764,19 +7135,20 @@ Advanced rules §6.5 (pool, the Edge and ousting).
   before it is given (101.3), Life Boon played right before the oust
   (45.1). A torpor ousting the active Methuselah inside a play ousts at
   once, the turn passing (101.2).
-- An oust happens as the pool reaches 0, part of the effect that ran it
-  out: nothing is played in between but Life Boon, right before it (ANK
-  20220210; owner, 2026-11-11): each holder in turn, clockwise from the
-  active Methuselah, never the active one (out-of-turn), nor one ousted
-  by the same effect; one pass over the holders; those saved leave the
-  batch and the rest are ousted together, as one simultaneous oust; a
-  Methuselah may save any Methuselah of the batch (45.1).
-  Life Boon's pool is chosen as it is played (its terms): at least
-  what keeps the Methuselah in — what they owe below 0, plus 1 — and at most
-  the Boon player's pool less 1: giving never ousts the Boon player (45.2).
-  The pool moves as the Boon resolves (a gift, not a cost: no reduction);
-  canceled as played, the out-of-turn master phase action is spent and the
-  next holder may still save them (45.3).
+- An oust happens as the pool reaches 0, part of the effect that ran it out:
+  nothing is played in between but a card with an oust window, right before it:
+  Life Boon, Extremis Boon (played by the Methuselah being ousted) (ANK
+  20220210; owner, 2026-11-11; corrected 2026-11-20, Batch 126: 126.4, 126.74):
+  each holder in turn, clockwise from the active Methuselah, never the active
+  one (out-of-turn), nor one ousted by the same effect; one pass over the
+  holders; those saved leave the batch and the rest are ousted together, as one
+  simultaneous oust; a Methuselah may save any Methuselah of the batch (45.1).
+  Life Boon's pool is chosen as it is played (its terms): at least what keeps
+  the Methuselah in — what they owe below 0, plus 1 — and at most the Boon
+  player's pool less 1: giving never ousts the Boon player (45.2). The pool
+  moves as the Boon resolves (a gift, not a cost: no reduction); canceled as
+  played, the out-of-turn master phase action is spent and the next holder may
+  still save them (45.3).
 - The Boon is the first thing asked once a pool has run out, ahead of
   any choice left pending; declined, the oust applies before anything
   else is asked or played — on their own turn, the turn passes then; a
@@ -6819,6 +7191,10 @@ Advanced rules §6.5 (pool, the Edge and ousting).
   once; the held oust is released on every resolution path, never dropped
   with its action, an oust by the action's own pool checks being that one
   (125.12, 125.125; revises 45.1, 69.8).
+- Round 34's cards: Extremis Boon, played by the Methuselah being ousted in the
+  oust's decision point; an auction clockwise from their left, +1 raises, a
+  pass final, the high bidder paying (owner, question 7); no bid ousts (126.74,
+  126.75).
 
 ### 21.2 Victory points, game end
 
@@ -6856,6 +7232,9 @@ Advanced rules §6.5 (pool, the Edge and ousting).
 - Gambit Accepted's victory point lost an effect, its end-of-game point
   counted toward the game win (amber); a withdrawal gives the predator its
   point too (RTR 20040501) (111.33).
+- Round 34's cards: Lextalionis's "received a victory point" a whole point
+  since the caller's last turn, halves summed (owner, question 11; 109.11); its
+  locks skip the next normal unlock (126.113, 126.114).
 
 ### 21.3 The Edge
 
@@ -6886,6 +7265,9 @@ Advanced rules §6.5 (pool, the Edge and ousting).
   (125.97); Jazz Wentworth takes an uncontrolled Edge, not offered while one
   holds it (125.113); Tereza Rostas steals the Edge, still got when burned
   mid-action (90.7, now reachable) (125.206).
+- Round 34's cards: Soldat and Victoria burn the Edge only while holding it
+  (PIB 20130306); Soldat's maneuver to a Black Hand combatant, out of the
+  combat too (126.175, 126.195).
 
 ## 22. Engine modeling (see docs/engine.md)
 
@@ -7480,7 +7862,7 @@ an owner ruling:
 Every rules-qa item, by batch, with the digest sections citing it: the
 section stating it and those cross-referring to it (§2 the default
 readings, §22 engine modeling, §23 the contradictions, §24 the open
-readings). 2501 items, Batches 1–125 (44.11 was removed, replaced by Batch
+readings). 2709 items, Batches 1–126 (44.11 was removed, replaced by Batch
 45). The index is derived from the citations: a bare `N.M` cites rules-qa
 item N.M in the section it appears in. A new rules-qa item gets its line in
 the section stating it, then its entry here: `python3
@@ -7526,7 +7908,7 @@ index or an item cited nowhere.
   §2,§3.2,§3.4,§4.2,§10.4,§11.6,§11.7; 16.5
   §3.10,§6.5,§9.6,§10.4,§12.1,§13.4,§13.5; 16.6 §4.2,§8.5,§14.10,§15.2
 - **17** — 17.1 §2,§6.3,§8.1,§8.7,§14.4,§15.1,§19.4,§23.3; 17.2
-  §2,§3.4,§5.3,§6.3,§8.7; 17.3
+  §2,§3.4,§5.3,§6.3,§8.7,§14.6; 17.3
   §3.1,§3.2,§3.4,§3.15,§9.1,§10.2,§10.5,§11.2,§11.8,§15.1; 17.4
   §2,§3.2,§3.4,§3.5,§3.7,§3.12,§3.17,§4.4,§7.1,§8.1,§8.3,§10.2,§11.5,§14.1,§14.4,§15.1,§16.1,§17.3,§23.2,§23.5,§23.7
 - **18** — 18.1 §7.2,§9.4,§23.1; 18.2 §2,§21.1; 18.3 §4.6,§12.13; 18.4
@@ -7654,8 +8036,8 @@ index or an item cited nowhere.
   §3.15,§4.4,§18.4,§23.7; 59.15 §9.1,§14.4,§16.3; 59.16 §4.2,§11.1,§19.1;
   59.17 §4.6,§12.11,§12.12,§16.7; 59.18 §4.2,§13.3; 59.19 §3.15,§4.3,§13.3
 - **60** — 60.1 §14.9; 60.2 §5.5,§13.1,§19.3; 60.3 §3.6,§3.18,§7.3,§15.2;
-  60.4 §3.8,§3.18,§15.2; 60.5 §3.12,§7.3,§14.1; 60.6 §2,§4.2,§14.1; 60.7
-  §4.2,§7.3,§24.1; 60.8 §6.4,§14.3; 60.9 §18.1; 60.10 §8.1; 60.11
+  60.4 §3.8,§3.18,§4.6,§15.2; 60.5 §3.12,§7.3,§14.1; 60.6 §2,§4.2,§14.1;
+  60.7 §4.2,§7.3,§24.1; 60.8 §6.4,§14.3; 60.9 §18.1; 60.10 §8.1; 60.11
   §3.13,§4.2,§12.4; 60.12 §9.2,§16.4; 60.13 §2,§3.13,§9.5,§14.5; 60.14
   §13.5,§16.4; 60.15 §3.2,§4.5; 60.16 §2,§13.1; 60.17 §2,§8.1,§19.4; 60.18
   §2,§3.13,§14.4,§14.7,§23.4; 60.19 §3.9,§5.1,§7.1,§16.1,§17.1,§19.4,§24.1;
@@ -7738,9 +8120,9 @@ index or an item cited nowhere.
   77.6 §2; 77.7 §7.2; 77.8 §2; 77.9 §7.2; 77.10 §10.3; 77.11 §7.2; 77.12
   §3.5; 77.13 §18.4; 77.14 §13.3; 77.15 §13.1; 77.16 §11.8; 77.17 §6.1;
   77.18 §9.2; 77.19 §9.2; 77.20 §2,§9.2; 77.21 §12.7; 77.22 §12.7; 77.23
-  §12.7; 77.24 §7.3; 77.25 §13.4; 77.26 §13.2; 77.27 §24.1; 77.28 §24.1;
-  77.29 §24.1; 77.30 §11.2; 77.31 §3.15; 77.32 §15.2; 77.33 §15.2; 77.34
-  §4.4; 77.35 §23.4,§24.1
+  §12.7; 77.24 §7.3; 77.25 §13.3,§13.4; 77.26 §13.2; 77.27 §24.1; 77.28
+  §24.1; 77.29 §24.1; 77.30 §11.2; 77.31 §3.15; 77.32 §15.2; 77.33 §15.2;
+  77.34 §4.4; 77.35 §23.4,§24.1
 - **78** — 78.1 §3.15; 78.2 §14.1; 78.3 §7.3; 78.4 §17.2; 78.5 §15.2; 78.6
   §6.5; 78.7 §18.4; 78.8 §6.1,§17.2; 78.9 §14.1; 78.10 §6.2; 78.11 §6.3;
   78.12 §13.5; 78.13 §10.3; 78.14 §9.6; 78.15 §19.2; 78.16 §11.1; 78.17
@@ -7857,16 +8239,16 @@ index or an item cited nowhere.
 - **108** — 108.1 §18.2
 - **109** — 109.1 §15.2,§24.1; 109.2 §15.2,§24.1; 109.3 §15.2,§24.1; 109.4
   §15.2,§24.1; 109.5 §15.2,§24.1; 109.6 §15.2,§24.1; 109.7 §15.2,§24.1;
-  109.8 §15.2; 109.9 §15.2; 109.10 §15.2; 109.11 §3.19,§15.2; 109.12 §15.2;
-  109.13 §15.2; 109.14 §15.2; 109.15 §15.2; 109.16 §15.2; 109.17 §15.2;
-  109.18 §15.2; 109.19 §15.2; 109.20 §15.2; 109.21 §15.2; 109.22 §15.2;
-  109.23 §15.2; 109.24 §15.2; 109.25 §15.2; 109.26 §15.2; 109.27 §15.2;
-  109.28 §15.2; 109.29 §15.2; 109.30 §15.2; 109.31 §15.2; 109.32 §15.2;
-  109.33 §15.2; 109.34 §15.2; 109.35 §15.2; 109.36 §15.2; 109.37 §15.2;
-  109.38 §15.2; 109.39 §15.2,§24.1; 109.40 §15.2,§24.1; 109.41 §15.2,§24.1;
-  109.42 §15.2; 109.43 §14.6,§15.2,§24.1; 109.44 §15.2,§24.1; 109.45
-  §15.2,§24.1; 109.46 §15.2; 109.47 §15.2; 109.48 §15.2; 109.49 §15.2;
-  109.50 §15.2,§24.1
+  109.8 §15.2; 109.9 §15.2; 109.10 §15.2; 109.11 §3.19,§15.2,§21.2; 109.12
+  §15.2; 109.13 §15.2; 109.14 §15.2; 109.15 §15.2; 109.16 §15.2; 109.17
+  §15.2; 109.18 §15.2; 109.19 §15.2; 109.20 §15.2; 109.21 §15.2; 109.22
+  §15.2; 109.23 §15.2; 109.24 §15.2; 109.25 §15.2; 109.26 §15.2; 109.27
+  §15.2; 109.28 §15.2; 109.29 §15.2; 109.30 §15.2; 109.31 §15.2; 109.32
+  §15.2; 109.33 §15.2; 109.34 §15.2; 109.35 §15.2; 109.36 §15.2; 109.37
+  §15.2; 109.38 §15.2; 109.39 §15.2,§24.1; 109.40 §15.2,§24.1; 109.41
+  §15.2,§24.1; 109.42 §15.2; 109.43 §14.6,§15.2,§24.1; 109.44 §15.2,§24.1;
+  109.45 §15.2,§24.1; 109.46 §15.2; 109.47 §15.2; 109.48 §15.2; 109.49
+  §15.2; 109.50 §15.2,§24.1
 - **110** — 110.1 §5.2
 - **111** — 111.1 §20,§24.1; 111.2 §7.2,§20,§24.1; 111.3 §20,§24.1; 111.4
   §7.2,§20; 111.5 §11.7,§17.2,§24.1; 111.6 §17.2,§24.1; 111.7 §11.7,§24.1;
@@ -7884,54 +8266,55 @@ index or an item cited nowhere.
 - **112** — 112.1 §22; 112.2 §18.4; 112.3 §4.4; 112.4 §11.8; 112.5 §4.2;
   112.6 §12.1; 112.7 §9.6; 112.8 §13.2; 112.9 §7.3; 112.10 §8.2; 112.11
   §4.2; 112.12 §12.7; 112.13 §9.2; 112.14 §13.5; 112.15 §4.2; 112.16 §6.4;
-  112.17 §4.4; 112.18 §7.3; 112.19 §8.1; 112.20 §11.8,§12.9; 112.21 §18.4;
-  112.22 §12.8; 112.23 §8.2; 112.24 §4.2; 112.25 §13.3; 112.26 §12.12;
-  112.27 §18.4; 112.28 §13.2; 112.29 §11.5; 112.30 §19.3; 112.31 §14.6;
-  112.32 §8.1; 112.33 §4.4; 112.34 §10.4; 112.35 §18.4; 112.36 §9.6; 112.37
-  §11.5; 112.38 §12.12; 112.39 §16.2; 112.40 §7.3; 112.41 §10.4; 112.42
-  §9.2; 112.43 §6.4; 112.44 §9.2; 112.45 §7.3; 112.46 §12.7; 112.47 §9.6;
-  112.48 §13.5; 112.49 §9.2; 112.50 §12.9; 112.51 §14.5; 112.52 §4.2; 112.53
-  §18.4; 112.54 §12.7; 112.55 §19.4; 112.56 §16.3
-- **113** — 113.1 §3.12,§24.1; 113.2 §8.8,§9.6; 113.3 §14.10; 113.4 §14.10;
-  113.5 §12.2; 113.6 §8.2,§8.5,§11.5; 113.7 §11.2,§12.11; 113.8 §11.8; 113.9
-  §11.7,§14.3; 113.10 §11.7,§12.8,§24.1,§24.3; 113.11 §12.12; 113.12 §12.8;
-  113.13 §7.3; 113.14 §8.3,§9.5,§19.4; 113.15 §4.2,§12.3; 113.16 §6.1;
-  113.17 §14.3,§16.1; 113.18 §9.3,§11.7; 113.19 §11.3; 113.20 §4.2,§9.3;
-  113.21 §11.1; 113.22 §8.3,§11.5; 113.23 §3.5; 113.24 §3.18,§15.2,§19.4;
-  113.25 §15.2,§24.1; 113.26 §4.2; 113.27 §4.2,§6.2,§7.3; 113.28 §12.5;
-  113.29 §12.4; 113.30 §4.2,§6.1,§19.3; 113.31 §11.2,§14.10; 113.32 §9.3;
-  113.33 §4.2; 113.34 §4.2,§6.5; 113.35 §13.3,§19.1; 113.36 §4.2; 113.37
-  §8.5,§12.4; 113.38 §11.5; 113.39 §9.1; 113.40 §6.2; 113.41 §4.2,§12.15;
-  113.42 §11.5,§13.2; 113.43 §12.4,§17.3; 113.44 §16.6,§18.2; 113.45
-  §3.6,§17.2; 113.46 §16.3; 113.47 §7.3,§24.1; 113.48 §12.4; 113.49
-  §8.2,§14.4,§16.8; 113.50 §13.5; 113.51 §12.11,§16.5; 113.52 §14.7; 113.53
-  §19.4; 113.54 §6.1,§12.7; 113.55 §12.14; 113.56 §12.7; 113.57
-  §12.12,§24.1; 113.58 §5.3; 113.59 §3.12,§12.7; 113.60 §12.8,§24.1; 113.61
-  §14.4; 113.62 §6.1,§14.7; 113.63 §15.2; 113.64 §7.3,§24.1; 113.65
-  §10.2,§12.4; 113.66 §3.2,§9.1; 113.67 §12.13; 113.68 §12.13,§17.3,§24.1;
-  113.69 §6.1,§16.8,§24.1; 113.70 §3.4,§13.1,§16.8; 113.71 §12.7; 113.72
-  §15.2,§19.4; 113.73 §13.3; 113.74 §14.7; 113.75 §12.13; 113.76
-  §5.3,§12.12,§16.5; 113.77 §12.12,§24.1; 113.78 §7.3,§12.9,§16.4; 113.79
-  §8.2,§9.3; 113.80 §19.1,§19.4; 113.81 §9.3,§9.5,§24.1; 113.82 §4.4,§12.8;
-  113.83 §7.3,§12.11; 113.84 §10.3,§16.1,§16.5,§24.1; 113.85 §7.2; 113.86
-  §12.7,§24.1; 113.87 §12.7,§24.1; 113.88 §13.1,§18.2; 113.89 §12.3,§16.3;
-  113.90 §12.9; 113.91 §10.3; 113.92 §7.3,§16.4; 113.93 §12.7; 113.94 §15.2;
-  113.95 §10.4,§24.1; 113.96 §12.8; 113.97 §10.3; 113.98 §14.5; 113.99
-  §6.1,§17.2,§24.1; 113.100 §11.2,§20; 113.101 §12.13; 113.102 §12.4;
-  113.103 §3.2,§3.7,§16.3; 113.104 §13.1; 113.105 §14.6; 113.106
-  §9.1,§10.2,§11.6; 113.107 §12.12; 113.108 §16.6; 113.109 §9.2; 113.110
-  §9.1,§9.6; 113.111 §8.2,§16.4,§19.1; 113.112 §10.5,§24.1; 113.113
-  §9.1,§10.5,§12.12,§16.5; 113.114 §9.2; 113.115 §21.3; 113.116 §12.3,§14.8;
-  113.117 §18.4; 113.118 §15.2; 113.119 §4.4; 113.120 §4.6,§12.8,§24.1;
-  113.121 §12.7; 113.122 §12.4; 113.123 §14.5; 113.124 §15.2; 113.125 §12.7;
-  113.126 §14.5; 113.127 §19.4,§20; 113.128 §20; 113.129 §3.6,§11.2; 113.130
-  §12.4; 113.131 §8.3,§9.3,§16.5; 113.132 §3.18,§19.4; 113.133 §10.3;
-  113.134 §12.7,§12.14; 113.135 §12.7,§24.1; 113.136 §9.2; 113.137
-  §11.5,§16.3; 113.138 §3.12,§16.4; 113.139 §8.3,§21.1; 113.140 §10.2;
-  113.141 §7.3,§24.1; 113.142 §7.3,§24.1; 113.143 §12.3,§16.5,§18.1; 113.144
-  §9.2,§9.5; 113.145 §9.2; 113.146 §12.7; 113.147 §14.6; 113.148 §14.7;
-  113.149 §10.2,§17.3; 113.150 §12.9; 113.151 §7.2,§24.1; 113.152 §9.2;
-  113.153 §15.2; 113.154 §10.2,§11.6,§13.3; 113.155 §12.8,§24.1
+  112.17 §4.4,§11.1; 112.18 §7.3; 112.19 §8.1; 112.20 §11.8,§12.9; 112.21
+  §18.4; 112.22 §12.8; 112.23 §8.2; 112.24 §4.2; 112.25 §13.3; 112.26
+  §12.12; 112.27 §18.4; 112.28 §13.2; 112.29 §11.5; 112.30 §19.3; 112.31
+  §14.6; 112.32 §8.1; 112.33 §4.4; 112.34 §10.4; 112.35 §18.4; 112.36 §9.6;
+  112.37 §11.5; 112.38 §12.12; 112.39 §16.2; 112.40 §7.3; 112.41 §10.4;
+  112.42 §9.2; 112.43 §6.4; 112.44 §9.2; 112.45 §7.3; 112.46 §12.7,§12.10;
+  112.47 §9.6; 112.48 §13.5; 112.49 §9.2; 112.50 §12.9; 112.51 §14.5; 112.52
+  §4.2; 112.53 §18.4; 112.54 §12.7; 112.55 §19.4; 112.56 §16.3
+- **113** — 113.1 §3.12,§24.1; 113.2 §8.8,§9.6; 113.3 §14.6,§14.10; 113.4
+  §14.10; 113.5 §12.2; 113.6 §8.2,§8.5,§11.5; 113.7 §11.2,§12.11; 113.8
+  §11.8; 113.9 §11.7,§14.3; 113.10 §11.7,§12.8,§24.1,§24.3; 113.11 §12.12;
+  113.12 §12.8; 113.13 §7.3; 113.14 §8.3,§9.5,§19.4; 113.15 §4.2,§12.3;
+  113.16 §6.1; 113.17 §14.3,§16.1; 113.18 §9.3,§11.7; 113.19 §11.3; 113.20
+  §4.2,§9.3; 113.21 §11.1; 113.22 §8.3,§11.5; 113.23 §3.5; 113.24
+  §3.18,§15.2,§19.4; 113.25 §15.2,§24.1; 113.26 §4.2; 113.27 §4.2,§6.2,§7.3;
+  113.28 §12.5; 113.29 §12.4,§12.10; 113.30 §4.2,§6.1,§19.3; 113.31
+  §11.2,§14.10; 113.32 §9.3; 113.33 §4.2; 113.34 §4.2,§6.5; 113.35
+  §13.3,§19.1; 113.36 §4.2; 113.37 §8.5,§12.4; 113.38 §11.5; 113.39 §9.1;
+  113.40 §6.2; 113.41 §4.2,§12.15; 113.42 §11.5,§13.2; 113.43 §12.4,§17.3;
+  113.44 §16.6,§18.2; 113.45 §3.6,§17.2; 113.46 §16.3; 113.47 §7.3,§24.1;
+  113.48 §12.4; 113.49 §8.2,§14.4,§16.8; 113.50 §13.5; 113.51 §12.11,§16.5;
+  113.52 §14.7; 113.53 §19.4; 113.54 §6.1,§12.7; 113.55 §12.14; 113.56
+  §12.7; 113.57 §12.12,§24.1; 113.58 §5.3; 113.59 §3.12,§12.7; 113.60
+  §12.8,§24.1; 113.61 §14.4; 113.62 §6.1,§14.7; 113.63 §15.2; 113.64
+  §7.3,§24.1; 113.65 §10.2,§12.4; 113.66 §3.2,§9.1; 113.67 §12.13; 113.68
+  §12.13,§17.3,§24.1; 113.69 §6.1,§16.8,§24.1; 113.70 §3.4,§13.1,§16.8;
+  113.71 §12.7; 113.72 §15.2,§19.4; 113.73 §13.3; 113.74 §14.7; 113.75
+  §12.13; 113.76 §5.3,§12.12,§16.5; 113.77 §12.12,§24.1; 113.78
+  §7.3,§12.9,§16.4; 113.79 §8.2,§9.3; 113.80 §19.1,§19.4; 113.81
+  §9.3,§9.5,§24.1; 113.82 §4.4,§12.8; 113.83 §7.3,§12.11; 113.84
+  §10.3,§16.1,§16.5,§24.1; 113.85 §7.2; 113.86 §12.7,§12.10,§24.1; 113.87
+  §12.7,§24.1; 113.88 §13.1,§18.2; 113.89 §12.3,§16.3; 113.90 §12.9; 113.91
+  §10.3; 113.92 §7.3,§16.4; 113.93 §12.7; 113.94 §15.2; 113.95 §10.4,§24.1;
+  113.96 §12.8; 113.97 §10.3; 113.98 §14.5; 113.99 §6.1,§17.2,§24.1; 113.100
+  §11.2,§20; 113.101 §12.13; 113.102 §12.4; 113.103 §3.2,§3.7,§16.3; 113.104
+  §13.1; 113.105 §14.6; 113.106 §9.1,§10.2,§11.6; 113.107 §12.12; 113.108
+  §16.6; 113.109 §9.2; 113.110 §9.1,§9.6; 113.111 §8.2,§16.4,§19.1; 113.112
+  §10.5,§24.1; 113.113 §9.1,§10.5,§12.12,§16.5; 113.114 §9.2; 113.115 §21.3;
+  113.116 §12.3,§14.8; 113.117 §18.4; 113.118 §15.2; 113.119 §4.4; 113.120
+  §4.6,§12.8,§24.1; 113.121 §12.7; 113.122 §12.4; 113.123 §14.5; 113.124
+  §15.2; 113.125 §12.7; 113.126 §14.5; 113.127 §19.4,§20; 113.128 §20;
+  113.129 §3.6,§11.2; 113.130 §12.4; 113.131 §8.3,§9.3,§16.5; 113.132
+  §3.18,§19.4; 113.133 §10.3; 113.134 §12.7,§12.14; 113.135 §12.7,§24.1;
+  113.136 §9.2; 113.137 §11.5,§16.3; 113.138 §3.12,§16.4; 113.139
+  §8.3,§21.1; 113.140 §10.2; 113.141 §7.3,§24.1; 113.142 §7.3,§24.1; 113.143
+  §12.3,§16.5,§18.1; 113.144 §9.2,§9.5; 113.145 §9.2; 113.146 §12.7; 113.147
+  §14.6; 113.148 §14.7; 113.149 §10.2,§17.3; 113.150 §12.9; 113.151
+  §7.2,§24.1; 113.152 §9.2; 113.153 §15.2; 113.154 §10.2,§11.6,§13.3;
+  113.155 §12.8,§24.1
 - **114** — 114.1 §9.4,§23.3,§24.1; 114.2 §9.4,§22,§24.1
 - **115** — 115.1 §14.1; 115.2 §15.2; 115.3 §11.4,§15.2; 115.4 §15.2; 115.5
   §14.9,§15.2; 115.6 §15.2; 115.7 §15.2
@@ -7971,8 +8354,8 @@ index or an item cited nowhere.
   §14.10; 116.129 §14.10,§24.1; 116.130 §14.10,§24.1; 116.131 §6.5; 116.132
   §7.3; 116.133 §12.2; 116.134 §3.4; 116.135 §14.4; 116.136 §8.3; 116.137
   §8.3; 116.138 §3.20,§7.3,§12.8,§12.11
-- **117** — 117.1 §10.2,§23.7,§24.1; 117.2 §10.2; 117.3 §8.1,§10.2,§24.1;
-  117.4 §10.2; 117.5 §11.6; 117.6 §10.2
+- **117** — 117.1 §10.2,§23.7,§24.1; 117.2 §8.3,§10.2; 117.3
+  §8.1,§10.2,§24.1; 117.4 §10.2; 117.5 §11.6; 117.6 §10.2
 - **118** — 118.1 §21.1,§24.1; 118.2 §5.3,§5.4,§14.2; 118.3
   §5.4,§21.1,§24.1; 118.4 §21.1,§24.1
 - **119** — 119.1 §2,§3.7,§7.1,§14.7,§23.4,§24.1; 119.2
@@ -7980,11 +8363,11 @@ index or an item cited nowhere.
 - **120** — 120.1 §14.10
 - **121** — 121.1 §7.3,§16.7; 121.2 §10.5; 121.3 §14.12,§24.1; 121.4
   §12.3,§12.10; 121.5 §12.8; 121.6 §3.8,§3.13,§10.3; 121.7 §4.6; 121.8
-  §12.5,§12.12; 121.9 §8.3; 121.10 §14.5; 121.11 §15.2; 121.12 §4.5,§9.4;
-  121.13 §15.2; 121.14 §3.4,§3.19,§12.11; 121.15 §14.1; 121.16 §14.1; 121.17
-  §3.4,§14.5; 121.18 §14.3; 121.19 §3.22,§24.1; 121.20 §11.7,§24.1; 121.21
-  §8.4; 121.22 §3.4,§6.5,§10.2,§12.8,§14.1; 121.23 §16.6; 121.24
-  §3.20,§12.12,§14.1; 121.25 §3.4,§10.2; 121.26 §4.4; 121.27
+  §12.5,§12.12; 121.9 §8.3; 121.10 §14.1,§14.5; 121.11 §15.2; 121.12
+  §4.5,§9.4; 121.13 §15.2; 121.14 §3.4,§3.19,§12.11; 121.15 §14.1; 121.16
+  §14.1; 121.17 §3.4,§14.5; 121.18 §14.3; 121.19 §3.22,§24.1; 121.20
+  §11.7,§24.1; 121.21 §8.4; 121.22 §3.4,§6.5,§10.2,§12.8,§14.1; 121.23
+  §16.6; 121.24 §3.20,§12.12,§14.1; 121.25 §3.4,§10.2; 121.26 §4.4; 121.27
   §3.4,§10.2,§14.5,§14.8; 121.28 §3.4,§4.4; 121.29 §10.4; 121.30
   §4.5,§8.4,§11.1,§12.8; 121.31 §8.4,§12.8; 121.32 §15.2; 121.33 §12.13;
   121.34 §11.1; 121.35 §3.4,§10.2,§12.8; 121.36 §21.3; 121.37 §4.4,§24.1;
@@ -8016,7 +8399,7 @@ index or an item cited nowhere.
   121.139 §19.4; 121.140 §12.6,§12.10; 121.141 §14.5; 121.142 §14.1; 121.143
   §3.4,§14.8; 121.144 §10.4,§18.4; 121.145 §4.5,§10.4; 121.146 §10.4,§24.1;
   121.147 §3.2,§11.2; 121.148 §3.6,§15.2; 121.149 §12.5; 121.150
-  §12.8,§24.1; 121.151 §11.1,§14.3; 121.152 §15.2; 121.153 §7.2,§16.7;
+  §12.8,§24.1; 121.151 §11.1,§14.3,§14.9; 121.152 §15.2; 121.153 §7.2,§16.7;
   121.154 §16.7,§24.1; 121.155 §3.20,§12.9,§12.11; 121.156 §11.7; 121.157
   §12.13; 121.158 §3.20,§12.5; 121.159 §12.3,§12.5,§12.9; 121.160
   §12.3,§12.5; 121.161 §12.3,§24.1; 121.162 §3.4,§17.2; 121.163 §15.2;
@@ -8040,34 +8423,34 @@ index or an item cited nowhere.
   §14.6; 122.68 §11.7; 122.69 §24.1; 122.70 §13.3; 122.71 §11.1; 122.72
   §19.3; 122.73 §11.1; 122.74 §4.5,§12.11; 122.75 §12.7; 122.76 §11.1;
   122.77 §24.1; 122.78 §24.1; 122.79 §8.4; 122.80 §19.4; 122.81 §8.4; 122.82
-  §11.1; 122.83 §19.4; 122.84 §3.12; 122.85 §3.12; 122.86 §4.5; 122.87 §9.2;
-  122.88 §21.3; 122.89 §11.8; 122.90 §14.2; 122.91 §7.3; 122.92 §8.4; 122.93
-  §17.2; 122.94 §13.3,§13.4; 122.95 §12.11; 122.96 §12.8; 122.97 §3.20;
-  122.98 §11.8; 122.99 §13.2; 122.100 §11.3; 122.101 §14.3; 122.102 §24.1;
-  122.103 §11.2; 122.104 §9.3; 122.105 §12.3; 122.106 §12.9; 122.107 §14.10;
-  122.108 §11.4; 122.109 §24.1; 122.110 §16.1; 122.111 §12.14; 122.112 §9.6;
-  122.113 §14.1; 122.114 §8.7; 122.115 §24.1; 122.116 §19.1; 122.117 §15.2;
-  122.118 §11.8; 122.119 §8.4; 122.120 §16.5; 122.121 §24.1; 122.122 §17.2;
-  122.123 §14.4; 122.124 §12.12; 122.125 §14.1; 122.126 §12.13; 122.127
-  §12.2; 122.128 §9.2; 122.129 §12.3; 122.130 §11.7; 122.131 §13.3; 122.132
-  §15.2; 122.133 §12.11; 122.134 §3.4; 122.135 §7.3; 122.136 §7.3; 122.137
-  §15.1; 122.138 §14.1; 122.139 §10.4; 122.140 §11.1; 122.141 §13.5; 122.142
-  §9.3; 122.143 §13.2; 122.144 §16.7; 122.145 §15.2; 122.146 §12.2; 122.147
-  §11.8; 122.148 §13.5; 122.149 §6.1; 122.150 §14.5; 122.151 §8.4; 122.152
-  §6.1; 122.153 §14.4; 122.154 §7.1; 122.155 §7.1,§24.1; 122.156 §14.6;
-  122.157 §19.4; 122.158 §11.6; 122.159 §11.8; 122.160 §12.8; 122.161 §14.1;
-  122.162 §6.2; 122.163 §9.1; 122.164 §8.6; 122.165 §9.5; 122.166 §8.3;
-  122.167 §24.1; 122.168 §12.3; 122.169 §9.6; 122.170 §14.4; 122.171 §19.3;
-  122.172 §9.1; 122.173 §19.4; 122.174 §12.3; 122.175 §12.3; 122.176 §12.3;
-  122.177 §19.4; 122.178 §12.14; 122.179 §4.6; 122.180 §4.3; 122.181
-  §12.7,§14.5; 122.182 §19.4; 122.183 §9.4; 122.184 §8.4; 122.185 §11.2;
-  122.186 §11.5; 122.187 §3.20; 122.188 §12.3; 122.189 §12.9; 122.190 §14.5;
-  122.191 §16.6; 122.192 §9.6; 122.193 §11.8; 122.194 §13.4; 122.195 §13.5;
-  122.196 §4.6; 122.197 §3.7; 122.198 §24.1; 122.199 §5.4; 122.200 §21.3;
-  122.201 §21.3; 122.202 §7.3; 122.203 §16.5; 122.204 §16.7; 122.205 §4.6;
-  122.206 §13.2; 122.207 §11.8; 122.208 §6.5; 122.209 §12.13; 122.210 §14.8;
-  122.211 §14.3; 122.212 §12.3; 122.213 §2,§19.4; 122.214 §12.4,§16.4,§24.1;
-  122.215 §7.1,§24.1
+  §11.1; 122.83 §19.4; 122.84 §3.12,§4.5; 122.85 §3.12,§4.5; 122.86 §4.5;
+  122.87 §9.2; 122.88 §21.3; 122.89 §11.8; 122.90 §14.2; 122.91 §7.3; 122.92
+  §8.4; 122.93 §17.2; 122.94 §13.3,§13.4; 122.95 §12.11; 122.96 §12.8;
+  122.97 §3.20; 122.98 §11.8; 122.99 §13.2; 122.100 §11.3; 122.101 §14.3;
+  122.102 §24.1; 122.103 §11.2; 122.104 §9.3; 122.105 §12.3; 122.106 §12.9;
+  122.107 §14.10; 122.108 §11.4; 122.109 §24.1; 122.110 §16.1; 122.111
+  §12.14; 122.112 §9.6; 122.113 §14.1; 122.114 §8.7; 122.115 §24.1; 122.116
+  §19.1; 122.117 §15.2; 122.118 §11.8; 122.119 §8.4; 122.120 §16.5; 122.121
+  §24.1; 122.122 §17.2; 122.123 §14.4; 122.124 §12.12; 122.125 §14.1;
+  122.126 §12.13; 122.127 §12.2; 122.128 §9.2; 122.129 §12.3; 122.130 §11.7;
+  122.131 §13.3; 122.132 §15.2; 122.133 §12.11; 122.134 §3.4; 122.135 §7.3;
+  122.136 §7.3; 122.137 §15.1; 122.138 §14.1; 122.139 §10.4,§14.6; 122.140
+  §11.1; 122.141 §13.5; 122.142 §9.3; 122.143 §13.2; 122.144 §16.7; 122.145
+  §15.2; 122.146 §12.2; 122.147 §11.8; 122.148 §13.5; 122.149 §6.1; 122.150
+  §14.5; 122.151 §8.4; 122.152 §6.1; 122.153 §14.4; 122.154 §7.1; 122.155
+  §7.1,§24.1; 122.156 §14.6; 122.157 §19.4; 122.158 §11.6; 122.159 §11.8;
+  122.160 §12.8; 122.161 §14.1; 122.162 §6.2; 122.163 §9.1; 122.164 §8.6;
+  122.165 §9.5; 122.166 §8.3; 122.167 §24.1; 122.168 §12.3; 122.169 §9.6;
+  122.170 §14.4; 122.171 §19.3; 122.172 §9.1; 122.173 §19.4; 122.174 §12.3;
+  122.175 §12.3; 122.176 §12.3; 122.177 §19.4; 122.178 §12.14; 122.179 §4.6;
+  122.180 §4.3; 122.181 §12.7,§14.5; 122.182 §19.4; 122.183 §9.4; 122.184
+  §8.4; 122.185 §11.2; 122.186 §11.5; 122.187 §3.20; 122.188 §12.3; 122.189
+  §12.9; 122.190 §14.5; 122.191 §16.6; 122.192 §9.6; 122.193 §11.8; 122.194
+  §13.4; 122.195 §13.5; 122.196 §4.6; 122.197 §3.7; 122.198 §24.1; 122.199
+  §5.4; 122.200 §21.3; 122.201 §21.3; 122.202 §7.3; 122.203 §16.5; 122.204
+  §16.7; 122.205 §4.6; 122.206 §13.2; 122.207 §11.8; 122.208 §6.5; 122.209
+  §12.13; 122.210 §14.8; 122.211 §14.3; 122.212 §12.3; 122.213 §2,§19.4;
+  122.214 §12.4,§12.10,§16.4,§24.1; 122.215 §7.1,§24.1
 - **123** — 123.1 §3.12
 - **124** — 124.1 §15.2; 124.2 §9.2,§10.3,§10.4; 124.3 §4.6,§6.4; 124.4
   §3.6,§12.8; 124.5 §13.3,§18.4; 124.6 §6.1,§20; 124.7 §7.3,§24.1; 124.8
@@ -8079,58 +8462,59 @@ index or an item cited nowhere.
   §12.14; 124.30 §3.15,§14.6; 124.31 §2,§14.5; 124.32 §10.3; 124.33
   §8.1,§10.2; 124.34 §12.11; 124.35 §13.3; 124.36 §14.2; 124.37 §12.8;
   124.38 §14.7; 124.39 §10.5; 124.40 §11.4; 124.41 §6.4,§15.2; 124.42
-  §3.2,§10.2,§24.1; 124.43 §12.11; 124.44 §6.5,§8.2; 124.45 §8.1,§18.2;
-  124.46 §18.2,§24.1; 124.47 §19.4; 124.48 §12.11; 124.49 §6.1; 124.50
-  §24.1; 124.51 §13.2; 124.52 §3.20,§9.6; 124.53 §3.22; 124.54 §3.20; 124.55
-  §16.4; 124.56 §12.5,§12.13; 124.57 §24.1; 124.58 §12.15; 124.59 §12.8;
-  124.60 §14.8,§20; 124.61 §12.9; 124.62 §24.1; 124.63 §3.19,§12.7; 124.64
-  §9.4; 124.65 §13.1; 124.66 §15.2; 124.67 §12.13; 124.68 §16.8; 124.69
-  §12.10; 124.70 §12.4; 124.71 §11.2; 124.72 §13.2,§19.4; 124.73 §5.5,§13.1;
-  124.74 §12.7; 124.75 §3.6,§3.18; 124.76 §16.4; 124.77 §7.2; 124.78 §11.2;
-  124.79 §10.4; 124.80 §9.1; 124.81 §8.6; 124.82 §14.10; 124.83 §10.2,§11.7;
-  124.84 §10.5; 124.85 §14.6; 124.86 §12.13; 124.87 §12.1; 124.88
-  §12.1,§24.1; 124.89 §12.1,§24.1; 124.90 §6.2; 124.91 §3.3,§9.6; 124.92
-  §11.1,§12.8; 124.93 §11.1; 124.94 §11.2,§14.3; 124.95 §8.6; 124.96 §11.3;
-  124.97 §4.5; 124.98 §24.1; 124.99 §16.1; 124.100 §5.2,§14.5; 124.101
-  §24.1; 124.102 §3.12,§8.4,§12.5; 124.103 §11.2; 124.104 §7.2,§13.4;
-  124.105 §4.4,§6.2,§6.4; 124.106 §11.6; 124.107 §12.8,§14.3; 124.108 §8.4;
-  124.109 §5.5,§7.3; 124.110 §11.8; 124.111 §19.2,§19.3; 124.112 §6.5;
-  124.113 §13.3,§13.4; 124.114 §24.1; 124.115 §9.1,§12.8; 124.116 §14.5;
-  124.117 §8.4; 124.118 §12.3,§14.1; 124.119 §12.14; 124.120 §15.1; 124.121
-  §12.6,§12.9; 124.122 §12.9,§24.1; 124.123 §11.4; 124.124 §9.3; 124.125
-  §16.2; 124.126 §9.5,§14.3; 124.127 §3.12; 124.128 §3.17,§12.13; 124.129
-  §12.3; 124.130 §9.1,§13.4; 124.131 §7.3,§16.3; 124.132 §16.6,§16.8;
-  124.133 §12.3; 124.134 §3.20,§17.2; 124.135 §16.8; 124.136 §13.4; 124.137
-  §12.13; 124.138 §14.9; 124.139 §8.6; 124.140 §10.3; 124.141 §10.3,§24.1;
-  124.142 §8.7,§19.4; 124.143 §12.11; 124.144 §9.3; 124.145 §14.3; 124.146
-  §14.10; 124.147 §11.4,§14.8; 124.148 §11.8,§19.3; 124.149 §9.1,§9.5,§12.3;
-  124.150 §3.7,§16.6; 124.151 §13.2; 124.152 §9.1; 124.153 §9.6; 124.154
-  §9.6,§24.1; 124.155 §9.3,§18.2; 124.156 §15.2; 124.157 §13.4; 124.158
-  §11.1,§15.2; 124.159 §13.2,§18.4; 124.160 §16.2; 124.161 §14.1; 124.162
-  §19.1; 124.163 §24.1; 124.164 §15.1; 124.165 §9.2; 124.166 §4.4; 124.167
-  §10.5; 124.168 §19.4; 124.169 §4.4; 124.170 §9.6; 124.171 §12.8; 124.172
-  §21.1; 124.173 §21.1,§24.1; 124.174 §16.2; 124.175 §7.3; 124.176 §12.14;
-  124.177 §9.2,§12.14; 124.178 §9.1; 124.179 §11.1; 124.180 §12.13; 124.181
-  §9.3; 124.182 §14.5; 124.183 §13.3; 124.184 §14.5; 124.185 §4.2; 124.186
-  §7.3,§9.5; 124.187 §14.4; 124.188 §17.2; 124.189 §6.1; 124.190 §6.1;
-  124.191 §3.18; 124.192 §16.8; 124.193 §12.9; 124.194 §12.3,§24.1; 124.195
-  §12.12; 124.196 §19.1; 124.197 §7.3; 124.198 §12.11,§13.2; 124.199 §13.1;
-  124.200 §10.3; 124.201 §21.3; 124.202 §21.3,§24.1; 124.203 §11.6; 124.204
-  §11.6,§24.1; 124.205 §17.3; 124.206 §24.1; 124.207 §9.2; 124.208 §11.1;
-  124.209 §12.12; 124.210 §8.1; 124.211 §12.3; 124.212 §16.1; 124.213 §8.4;
-  124.214 §4.2; 124.215 §3.20; 124.216 §17.2; 124.217 §24.1; 124.218
-  §17.2,§24.1; 124.219 §9.3,§12.3; 124.220 §3.7; 124.221 §16.4; 124.222
-  §11.8; 124.223 §12.3; 124.224 §9.1; 124.225 §12.7; 124.226 §14.8; 124.227
-  §11.4; 124.228 §8.4; 124.229 §12.3; 124.230 §7.2,§11.1; 124.231
-  §9.5,§13.2; 124.232 §10.5; 124.233 §9.2; 124.234 §16.4; 124.235
-  §5.2,§24.1; 124.236 §3.20,§10.4,§17.2; 124.237 §10.4; 124.238 §6.2;
-  124.239 §14.6; 124.240 §8.1; 124.241 §6.3; 124.242 §24.1; 124.243 §10.3;
-  124.244 §12.11; 124.245 §12.12; 124.246 §13.3; 124.247 §11.2; 124.248
-  §10.5; 124.249 §11.2,§13.3; 124.250 §12.14; 124.251 §4.6,§14.8; 124.252
-  §24.1; 124.253 §12.2,§12.4,§14.8; 124.254 §19.3; 124.255 §16.4; 124.256
-  §10.3; 124.257 §9.1,§19.2; 124.258 §11.6; 124.259 §11.4; 124.260 §10.4;
-  124.261 §13.3; 124.262 §7.3; 124.263 §14.6; 124.264 §16.8; 124.265 §16.8;
-  124.266 §12.8; 124.267 §14.4; 124.268 §14.9; 124.269 §15.2
+  §3.2,§10.2,§14.6,§24.1; 124.43 §12.11; 124.44 §6.5,§8.2; 124.45
+  §8.1,§18.2; 124.46 §18.2,§24.1; 124.47 §19.4; 124.48 §12.11; 124.49 §6.1;
+  124.50 §24.1; 124.51 §13.2; 124.52 §3.20,§9.6; 124.53 §3.22; 124.54 §3.20;
+  124.55 §16.4; 124.56 §12.5,§12.13; 124.57 §24.1; 124.58 §12.15; 124.59
+  §12.8; 124.60 §14.8,§20; 124.61 §12.9; 124.62 §24.1; 124.63 §3.19,§12.7;
+  124.64 §9.4; 124.65 §13.1; 124.66 §15.2; 124.67 §12.13; 124.68 §16.8;
+  124.69 §12.10; 124.70 §12.4; 124.71 §11.2; 124.72 §13.2,§19.4; 124.73
+  §5.5,§13.1; 124.74 §12.7; 124.75 §3.6,§3.18; 124.76 §16.4; 124.77 §7.2;
+  124.78 §11.2; 124.79 §10.4; 124.80 §9.1; 124.81 §8.6; 124.82 §14.10;
+  124.83 §10.2,§11.7; 124.84 §10.5; 124.85 §14.6; 124.86 §12.13; 124.87
+  §12.1; 124.88 §12.1,§24.1; 124.89 §12.1,§24.1; 124.90 §6.2; 124.91
+  §3.3,§9.6; 124.92 §11.1,§12.8; 124.93 §11.1; 124.94 §11.2,§14.3; 124.95
+  §8.6; 124.96 §11.3; 124.97 §4.5; 124.98 §24.1; 124.99 §16.1; 124.100
+  §5.2,§14.5; 124.101 §24.1; 124.102 §3.12,§8.4,§12.5; 124.103 §11.2;
+  124.104 §7.2,§13.4; 124.105 §4.4,§6.2,§6.4; 124.106 §11.6; 124.107
+  §12.8,§14.3; 124.108 §8.4; 124.109 §5.5,§7.3; 124.110 §11.8; 124.111
+  §19.2,§19.3; 124.112 §6.5; 124.113 §13.3,§13.4; 124.114 §24.1; 124.115
+  §9.1,§12.8; 124.116 §14.5; 124.117 §8.4; 124.118 §12.3,§14.1; 124.119
+  §12.14; 124.120 §15.1; 124.121 §12.6,§12.9; 124.122 §12.9,§12.13,§24.1;
+  124.123 §11.4; 124.124 §9.3; 124.125 §16.2; 124.126 §9.5,§14.3; 124.127
+  §3.12; 124.128 §3.17,§12.13; 124.129 §12.3; 124.130 §9.1,§13.4; 124.131
+  §7.3,§16.3; 124.132 §16.6,§16.8; 124.133 §12.3; 124.134 §3.20,§17.2;
+  124.135 §16.8; 124.136 §13.4; 124.137 §12.13; 124.138 §14.9; 124.139 §8.6;
+  124.140 §3.2,§10.3; 124.141 §10.3,§24.1; 124.142 §8.7,§19.4; 124.143
+  §12.11; 124.144 §9.3; 124.145 §14.3; 124.146 §14.10; 124.147 §11.4,§14.8;
+  124.148 §11.8,§19.3; 124.149 §9.1,§9.5,§12.3; 124.150 §3.7,§16.6; 124.151
+  §13.2; 124.152 §9.1; 124.153 §9.6; 124.154 §9.6,§24.1; 124.155 §9.3,§18.2;
+  124.156 §15.2; 124.157 §13.4; 124.158 §11.1,§15.2; 124.159 §13.2,§18.4;
+  124.160 §16.2; 124.161 §14.1; 124.162 §19.1; 124.163 §24.1; 124.164 §15.1;
+  124.165 §9.2; 124.166 §4.4; 124.167 §10.5; 124.168 §19.4; 124.169 §4.4;
+  124.170 §9.6; 124.171 §12.8; 124.172 §21.1; 124.173 §21.1,§24.1; 124.174
+  §16.2; 124.175 §7.3; 124.176 §12.14; 124.177 §9.2,§12.14; 124.178 §9.1;
+  124.179 §11.1; 124.180 §12.13; 124.181 §9.3; 124.182 §14.5; 124.183 §13.3;
+  124.184 §14.5; 124.185 §4.2; 124.186 §7.3,§9.5; 124.187 §14.4; 124.188
+  §17.2; 124.189 §6.1; 124.190 §6.1; 124.191 §3.18; 124.192 §16.8; 124.193
+  §12.9; 124.194 §12.3,§24.1; 124.195 §12.12; 124.196 §19.1; 124.197 §7.3;
+  124.198 §12.11,§13.2; 124.199 §13.1; 124.200 §10.3; 124.201 §21.3; 124.202
+  §21.3,§24.1; 124.203 §11.6; 124.204 §11.6,§24.1; 124.205 §17.3; 124.206
+  §24.1; 124.207 §9.2; 124.208 §11.1; 124.209 §12.12; 124.210 §8.1; 124.211
+  §12.3; 124.212 §16.1; 124.213 §8.4; 124.214 §4.2; 124.215 §3.20; 124.216
+  §17.2; 124.217 §24.1; 124.218 §17.2,§24.1; 124.219 §9.3,§12.3; 124.220
+  §3.7; 124.221 §16.4; 124.222 §11.8; 124.223 §12.3; 124.224 §9.1; 124.225
+  §12.7; 124.226 §14.8; 124.227 §11.4; 124.228 §8.4; 124.229 §12.3; 124.230
+  §7.2,§11.1; 124.231 §9.5,§13.2; 124.232 §10.5; 124.233 §9.2; 124.234
+  §16.4; 124.235 §5.2,§24.1; 124.236 §3.20,§10.4,§17.2; 124.237 §10.4;
+  124.238 §6.2; 124.239 §14.6; 124.240 §8.1; 124.241 §6.3; 124.242 §24.1;
+  124.243 §10.3; 124.244 §12.11; 124.245 §12.12; 124.246 §13.3; 124.247
+  §11.2; 124.248 §10.5; 124.249 §11.2,§13.3; 124.250 §12.14; 124.251
+  §4.6,§14.8; 124.252 §24.1; 124.253 §12.2,§12.4,§14.8; 124.254 §19.3;
+  124.255 §16.4; 124.256 §10.3; 124.257 §9.1,§19.2; 124.258 §11.6; 124.259
+  §11.4; 124.260 §10.4; 124.261 §13.2,§13.3; 124.262 §7.3; 124.263 §14.6;
+  124.264 §16.8; 124.265 §16.8; 124.266 §12.8; 124.267 §14.4; 124.268 §14.9;
+  124.269 §15.2
 - **125** — 125.1 §4.3,§13.2,§13.3; 125.2 §8.6,§14.10; 125.3 §14.10; 125.4
   §22; 125.5 §12.7; 125.6 §9.1; 125.7 §13.4; 125.8 §14.8; 125.9 §3.12;
   125.10 §14.9; 125.11 §19.4; 125.12 §2,§8.3,§21.1; 125.13 §10.4; 125.14
@@ -8188,3 +8572,46 @@ index or an item cited nowhere.
   §12.11; 125.236 §15.2; 125.237 §9.1; 125.238 §9.1; 125.239 §9.3,§12.10;
   125.240 §14.8; 125.241 §14.11; 125.242 §14.10; 125.243 §11.8; 125.244
   §14.9,§15.2; 125.245 §12.7,§12.8; 125.246 §14.5; 125.247 §20
+- **126** — 126.1 §14.6; 126.2 §5.1; 126.3 §14.10; 126.4 §21.1; 126.5 §14.7;
+  126.6 §3.17; 126.7 §7.3; 126.8 §3.15; 126.9 §13.3; 126.10 §19.4; 126.11
+  §3.2; 126.12 §12.4,§12.7,§12.10; 126.13 §5.2; 126.14 §14.9; 126.15 §14.10;
+  126.16 §12.7; 126.17 §14.3; 126.18 §14.9; 126.19 §11.7; 126.20 §12.8;
+  126.21 §12.12; 126.22 §3.1; 126.23 §14.10; 126.24 §6.2; 126.25 §13.2;
+  126.26 §19.3; 126.27 §7.1,§10.4; 126.28 §6.2; 126.29 §9.3; 126.30 §19.4;
+  126.31 §14.5; 126.32 §14.10; 126.33 §11.1; 126.34 §14.6; 126.35 §17.3;
+  126.36 §15.2; 126.37 §7.3; 126.38 §8.3; 126.39 §12.3; 126.40 §14.6; 126.41
+  §9.5; 126.42 §8.4; 126.43 §11.1; 126.44 §12.7; 126.45 §8.2; 126.46 §8.6;
+  126.47 §14.10; 126.48 §19.3; 126.49 §19.3; 126.50 §9.4; 126.51 §14.10;
+  126.52 §18.4; 126.53 §9.1; 126.54 §11.1; 126.55 §14.8; 126.56 §9.4; 126.57
+  §12.10; 126.58 §18.4; 126.59 §10.2; 126.60 §3.15; 126.61 §3.15; 126.62
+  §16.8; 126.63 §13.3; 126.64 §19.2; 126.65 §11.1; 126.66 §9.5; 126.67
+  §7.3,§16.1; 126.68 §9.5; 126.69 §3.2; 126.70 §11.7; 126.71 §12.7; 126.72
+  §11.1; 126.73 §11.5; 126.74 §21.1; 126.75 §21.1; 126.76 §14.10; 126.77
+  §12.15; 126.78 §8.4; 126.79 §3.17; 126.80 §12.13; 126.81 §14.9; 126.82
+  §12.13; 126.83 §11.1; 126.84 §13.5; 126.85 §15.1; 126.86 §11.5; 126.87
+  §14.6; 126.88 §3.17; 126.89 §19.3; 126.90 §10.4; 126.91 §4.5; 126.92
+  §11.8; 126.93 §12.13; 126.94 §8.1; 126.95 §14.10; 126.96 §19.4; 126.97
+  §12.8; 126.98 §19.3; 126.99 §11.6,§15.2; 126.100 §9.1; 126.101 §12.11;
+  126.102 §6.2; 126.103 §13.3; 126.104 §14.1; 126.105 §14.1; 126.106 §14.1;
+  126.107 §16.2; 126.108 §16.2; 126.109 §14.5; 126.110 §5.1,§6.6; 126.111
+  §14.10; 126.112 §3.20; 126.113 §21.2; 126.114 §21.2; 126.115 §13.3;
+  126.116 §14.11; 126.117 §14.10; 126.118 §14.5; 126.119 §15.2; 126.120
+  §12.10; 126.121 §12.11; 126.122 §11.2; 126.123 §11.2; 126.124 §14.6;
+  126.125 §12.7; 126.126 §4.4; 126.127 §12.13; 126.128 §14.6; 126.129 §11.5;
+  126.130 §11.1; 126.131 §7.3; 126.132 §4.6; 126.133 §9.3; 126.134 §14.6;
+  126.135 §11.7; 126.136 §6.2; 126.137 §14.3; 126.138 §8.4; 126.139 §18.4;
+  126.140 §17.2; 126.141 §14.3; 126.142 §6.2; 126.143 §12.8; 126.144 §14.10;
+  126.145 §13.5; 126.146 §8.7; 126.147 §18.1; 126.148 §16.7; 126.149 §18.4;
+  126.150 §14.1; 126.151 §16.7; 126.152 §13.3; 126.153 §11.8; 126.154 §3.8;
+  126.155 §11.1; 126.156 §16.6; 126.157 §4.6; 126.158 §12.8; 126.159 §14.6;
+  126.160 §12.7; 126.161 §5.1; 126.162 §5.1; 126.163 §11.7; 126.164 §11.7;
+  126.165 §6.1; 126.166 §6.1; 126.167 §3.17; 126.168 §11.1; 126.169 §14.9;
+  126.170 §8.4; 126.171 §14.10; 126.172 §12.13; 126.173 §12.4; 126.174
+  §12.12; 126.175 §21.3; 126.176 §12.3; 126.177 §16.1; 126.178 §9.1,§11.1;
+  126.179 §11.1; 126.180 §6.2; 126.181 §13.2; 126.182 §11.4; 126.183 §9.3;
+  126.184 §3.13; 126.185 §14.10; 126.186 §7.3; 126.187 §14.8; 126.188 §13.4;
+  126.189 §13.4; 126.190 §13.3; 126.191 §16.1; 126.192 §11.1; 126.193 §13.2;
+  126.194 §5.5; 126.195 §21.3; 126.196 §11.5; 126.197 §11.5; 126.198 §9.1;
+  126.199 §8.2; 126.200 §6.2; 126.201 §13.2; 126.202 §5.2,§7.2; 126.203
+  §19.3; 126.204 §18.3; 126.205 §14.10; 126.206 §14.9; 126.207 §14.1;
+  126.208 §11.1

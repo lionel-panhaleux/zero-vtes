@@ -9,11 +9,11 @@ their readings and the ledger; a rulebook mechanism no card carries is on
 the engine board.
 
 Pool (`scripts/coverage.py`, KRCG `vtes.json` and `twda.json` of 2026-11-09; 2
-crypt and 18 library cards banned, out of scope, owner 2026-10-14): crypt 1,532
-of 1,820 (84.2%), library 1,996 of 2,372 (84.1%); 39 of 51 sets complete (KRCG's
-v5 sets: every promo in one "Promo" set, 142 of 159), Kindred Most Wanted and
-Tenth Anniversary the last in (round 33). TWDA decks in the pool 2,192 of 4,709,
-kept 434; recent (2025+) 577 of 644 in the pool, kept 91. Demand (the server's
+crypt and 18 library cards banned, out of scope, owner 2026-10-14): crypt 1,629
+of 1,820 (89.5%), library 2,108 of 2,372 (88.9%); 41 of 51 sets complete (KRCG's
+v5 sets: every promo in one "Promo" set, 142 of 159), Black Hand and Camarilla
+Edition the last in (round 34). TWDA decks in the pool 2,715 of 4,709, kept
+546; recent (2025+) 595 of 644 in the pool, kept 89. Demand (the server's
 counts to 2026-11-12): 150 ids asked, 50 cards then not in the pool, none asked
 more than 3 times (Nangila Were, Palace Hunting Ground, both in since round 32);
 299999 (asked 61 times) is a client's placeholder, no card. VEKN's two-player
@@ -32,7 +32,6 @@ that make sense"). A line's count is the cards it adds after the lines above it
 (an older set is mostly reprinted in a newer one); done when `coverage.py
 --sets` shows its sets at 100%.
 
-- **Complete Black Hand and Camarilla Edition**: 209 cards (97 crypt, 112 library). Done when `coverage.py --sets` shows both at 100%. Docs: rules-qa (a new batch), rules-digest, engine.md for a new mechanism, this header's coverage.
 - **Complete Bloodlines and Final Nights**: 234 cards (127 crypt, 107 library). Done when `coverage.py --sets` shows both at 100%. Docs: rules-qa (a new batch), rules-digest, engine.md for a new mechanism, this header's coverage.
 - **Complete the 1994–2000 sets and Print on Demand** (Sabbat War, Sabbat, Ancient Hearts, Dark Sovereigns, Vampire: The Eternal Struggle, Jyhad): 208 cards (64 crypt, 144 library; their other cards reprinted above). Done when `coverage.py --sets` shows every one of them at 100%. Docs: rules-qa (a new batch), rules-digest, engine.md for a new mechanism, this header's coverage.
 - **Complete the promo-only cards**: 13 library cards, the last of the pool (promos were skipped until the owner's 2026-11-09 "all the cards"). Done when `coverage.py` shows crypt and library at 100% and 51 of 51 sets complete. Docs: rules-qa (a new batch), rules-digest, this header's coverage.

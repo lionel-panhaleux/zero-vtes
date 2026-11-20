@@ -1623,6 +1623,7 @@ fn empty_view(viewer: Seat) -> TableView {
         combat: None,
         referendum: None,
         transfers: None,
+        turns_reversed: false,
     }
 }
 

@@ -525,7 +525,7 @@ fn ethan_locke_cannot_steal_a_discipline_he_has_at_superior() {
 /// ("Camarilla."), Jeffrey Mullins, Jesús Alcalá ("Sabbat."): no
 /// definition, their sect generated.
 #[test]
-fn round33_c_vamp_d_textless_vampires_carry_only_their_sect() {
+fn round33_textless_vampires_hector_to_jesus_carry_only_their_sect() {
     use zvtes::crypt::Sect;
     for (name, group, sect) in [
         ("Hector Sosa", 1, Sect::Camarilla),
@@ -3301,7 +3301,7 @@ fn rex_pays_more_for_combat_cards() {
 /// Prentiss, Vliam Andor, Yuri, The Talon and Zebulon ("Camarilla."): no
 /// definition, their sect and title generated.
 #[test]
-fn round33_c_vamp_h_textless_vampires_carry_only_their_sect_and_title() {
+fn round33_textless_vampires_timothy_to_zebulon_carry_only_their_sect_and_title() {
     use zvtes::crypt::Sect;
     for (name, title) in [
         ("Timothy Crowley", Title::Prince("Dallas")),

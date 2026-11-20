@@ -1,12 +1,13 @@
 //! Card copies (docs/online-plan.md "Copies"): each physical card's number,
-//! dealt in decklist order (independent of the seed) and carried through
-//! every zone. Bookkeeping for clients and records, never part of the
-//! game's identity: a `Pile` hashes its card ids alone, `Untracked` nothing.
-//! Four rules read them: a hand card's owner (`GameState::foreign`,
-//! rules-qa 96.2) and the ash heap card a replacement takes back
-//! (`Seat::retakes`, Steely Tenacity; `GameState::ash_index`), each
-//! skipped for a card with no copy; the hand cards an action card
-//! announced (`Seat::earmarked`, Gift of Proteus); and the ash heap cards
+//! dealt in decklist order (independent of the seed) and carried through every
+//! zone. Bookkeeping for clients and records, never part of the game's
+//! identity: a `Pile` hashes its card ids alone, `Untracked` nothing. Five
+//! rules read them: a hand card's owner (`GameState::foreign`, rules-qa 96.2),
+//! the ash heap card a replacement takes back (`Seat::retakes`, Steely
+//! Tenacity; `GameState::ash_index`) and the card a vampire is immune to
+//! (`GameState::immune_to`, Resilient Mind: until a turn ends with the card out
+//! of play), each skipped for a card with no copy; the hand cards an action
+//! card announced (`Seat::earmarked`, Gift of Proteus); and the ash heap cards
 //! burned from play (`Seat::burned_from_play`, `burned_allies`: Blessed
 //! Resilience, Pressing Flesh), a fixture's unnumbered copies alike until
 //! `number_unnumbered`. A fixture's game and its replay are numbered alike:
@@ -427,6 +428,19 @@ impl Pile {
     pub fn clear(&mut self) {
         self.cards.clear();
         self.copies.clear();
+    }
+
+    /// Shuffle the top `n` cards (the end), the rest in place.
+    pub fn shuffle_top(&mut self, n: usize, rng: &mut Rng) {
+        let from = self.cards.len().saturating_sub(n);
+        let mut order: Vec<usize> = (from..self.cards.len()).collect();
+        rng.shuffle(&mut order);
+        let cards: Vec<u16> = order.iter().map(|&i| self.cards[i]).collect();
+        let copies: Vec<CopyId> = order.iter().map(|&i| self.copies[i]).collect();
+        self.cards.truncate(from);
+        self.copies.truncate(from);
+        self.cards.extend(cards);
+        self.copies.extend(copies);
     }
 
     /// Shuffle, copies following their cards: the same random draws as

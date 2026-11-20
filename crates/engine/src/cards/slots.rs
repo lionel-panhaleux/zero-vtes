@@ -345,10 +345,13 @@ impl Requirement {
             | R::NoReadyBlackHand
             | R::BlackHandVampireInPlay
             | R::ControlsLockedMinion
+            | R::ControlsLockedInfernal
+            | R::BlockCombatRound(..)
             | R::DirectedAtYourAlly
             | R::ActingByPredatorOrPrey
             | R::ActorUnmergedAdvanced
             | R::ActorPassedReferendumThisTurn
+            | R::ActorHiredByActionThisTurn
             | R::OwnUncontrolledVampire
             | R::PlayedByAllyOrCapacityAtMost(..)
             | R::PlayedByVampireCapacityAtMost(..)
@@ -358,6 +361,7 @@ impl Requirement {
             | R::OwnAshBurnedVampire(..)
             | R::ActionCostBlood
             | R::OpposingAllyBurned
+            | R::OpposingVampireBurned
             | R::OwnAshHas(..)
             | R::ControlsPrinceOf(..)
             | R::NotInCombat
@@ -401,7 +405,8 @@ impl Requirement {
             | R::NoSlaveTookCombat
             | R::ActorStayedReady
             | R::OthersHuntingGroundsAtLeast(..)
-            | R::PreyUncontrolledHasBlood
+            | R::PreyUncontrolledHasBlood { .. }
+            | R::PreyHasUncontrolled
             | R::BleedTargetAshAtLeast(..)
             | R::NoOlderReadyUntitled { .. }
             | R::IsEquipLabeledFromHand(..)
@@ -471,7 +476,8 @@ impl Requirement {
             | R::TargetConvictionAtLeast(..)
             | R::TargetRedList
             | R::TargetNotBlackHand
-            | R::TargetBlackHand
+            | R::TargetNotSeraph
+            | R::TargetScarce
             | R::TargetUnmerged
             | R::TargetNotRedList
             | R::TargetNotBlocker
@@ -540,6 +546,7 @@ impl Requirement {
             R::NotActingController
             | R::NotSelf
             | R::NotPrey
+            | R::TargetSeatFailedBleedSinceYourLastTurn
             | R::TargetPoolMoreThanYours
             | R::TargetSeatOusting
             | R::TargetSeatLostTitled
@@ -549,8 +556,11 @@ impl Requirement {
             | R::TargetPredator
             | R::TargetPredatorOrPrey
             | R::TargetAshAtLeast(..)
+            | R::TargetAshHasLibraryCard
             | R::TargetHasUncontrolled
             | R::TargetSeatHasEdgeAsDeclared
+            | R::TargetSelf
+            | R::TargetLibraryNotEmpty
             | R::PredatorsPredator => &[S::SeatTarget],
             R::CardControlledByPrey
             | R::CardControllerMoreLocations
@@ -574,11 +584,11 @@ impl Requirement {
             | R::TargetCardPlayedByOther
             | R::TargetCardWithout(..)
             | R::TargetDisciplineNotSuperiorOnActor
-            | R::TargetOnSameCircle { .. } => &[S::CardTarget],
-            R::ControlsReadyTitledOther(..)
-            | R::OtherReadyTitled(..)
+            | R::TargetOnSameCircle { .. }
+            | R::TargetWeaponSeizable { .. } => &[S::CardTarget],
+            R::ControlsReadyTitledOther(..) => &[S::Printed, S::Host],
+            R::OtherReadyTitled(..)
             | R::ActorOfSourcesPreyOrPredator
-            | R::ActorCapacityAtMost(..)
             | R::OpponentTitleIn(..)
             | R::SourceHoldsNone(..)
             | R::PredatorMoreReadyMinions
@@ -599,6 +609,7 @@ impl Requirement {
             | R::OpponentTitled
             | R::ActorCorruptedBySource
             | R::OpponentCorruptedBySource
+            | R::OpponentSeduced
             | R::ControlsLocation
             | R::ControlsNoLocation
             | R::ControlsVampireNamed(..)
@@ -647,17 +658,22 @@ impl Requirement {
             R::EquippedOffActionLabeled(_) => &[S::Host, S::MinionTarget],
             R::ActiveControlsNonSect(..)
             | R::ActiveIsAgainst
+            | R::OwnCopiesOutnumberOwnBlackHand
             | R::NoMasterCardPlayed
             | R::CardUnlockedAtTurnStart => &[S::Rider],
-            R::ActorReady | R::BleedTargetPoolAtMost(..) => &[S::Play, S::MinionTarget],
+            R::ActorReady | R::BleedTargetPoolAtMost(..) | R::BleedTargetControlsReadySect(..) => {
+                &[S::Play, S::MinionTarget]
+            }
             R::PoolAtMost(..) | R::FirstRound => &[S::Play, S::Printed],
             R::HandHas(..) => &[S::Play, S::Printed],
             R::DirectedAtYourMinion | R::DirectedAtYourCard(_) | R::DirectedAtCard(_) => {
                 &[S::Play, S::Printed]
             }
             R::ActorDamagedThisRound
+            | R::ActorSeduced
             | R::UsedWeaponThisRound
             | R::StrikingWithUnloadedGun
+            | R::StrikingWeaponUsedBefore
             | R::StrikingWithGun
             | R::StrikingWithMeleeWeapon
             | R::ActorChosenForContractOnOpponent
@@ -691,6 +707,7 @@ impl Requirement {
             | R::NotPolitical
             | R::ActionDirected
             | R::PlayedRequiresDiscipline(..)
+            | R::PlayedByOtherMinion
             | R::PlayedRequiresAnyDiscipline
             | R::PlayedCard(..)
             | R::PlayedByMinionWithout(..)
@@ -809,6 +826,8 @@ impl Requirement {
                 &[S::Engine(Site::AbilityGateCard)]
             }
             R::ActorNotBlackHand => &[S::Play, S::MinionTarget, S::UncontrolledTarget],
+            R::TargetBlackHand => &[S::MinionTarget, S::UncontrolledTarget],
+            R::ActorCapacityAtMost(..) => &[S::Printed, S::Play],
             R::TargetActedSuccessfully => &[S::MinionTarget],
             R::SlotWithout(..) => &[S::UncontrolledTarget],
             R::ActingIsHost | R::HostNotInvolved => &[
@@ -844,11 +863,13 @@ impl Requirement {
             R::OthersMinionPhase | R::InMasterPhase => &[S::Engine(Site::AbilityWindow)],
             R::PlayedLabeledByOpponent(_)
             | R::PlayedCombatByOpponent
+            | R::HostBloodAtLeastPlayedCost
             | R::PlayedFrenzyOnYour(..)
             | R::PlayedFrenzyOnHost => &[S::Engine(Site::AsPlayed)],
             R::OncePerTurn => &[
                 S::Engine(Site::CardRider(Hook::HostBlocks)),
                 S::Engine(Site::CardRider(Hook::OwnBleedSuccessful)),
+                S::Engine(Site::CardRider(Hook::CombatOpponentLeftReady)),
             ],
             R::OneCopyPerTurn => &[S::Engine(Site::CardRider(Hook::UnlockPhase))],
             R::TargetOnOpposingCombatant => &[S::Engine(Site::CardTargetQualifies)],
@@ -880,7 +901,10 @@ impl Requirement {
             // Hermana Hambrienta, Sonja Blue: read where she enters play
             // (`Engine::vampire_entered`).
             R::InOwnInfluencePhase => &[S::Engine(Site::VampireRider(Hook::EntersPlay))],
-            R::ReferendumFailed => &[S::Engine(Site::VampireRider(Hook::OwnReferendumFailed))],
+            R::ReferendumFailed => &[
+                S::Play,
+                S::Engine(Site::VampireRider(Hook::OwnReferendumFailed)),
+            ],
             R::BlockerOlderNonAnarchCrypts => &[S::Play],
             R::BlockerTitleIn(..) => &[
                 S::Play,
@@ -928,6 +952,7 @@ impl Requirement {
             R::ReferendumToBurnThisCard => &[S::Card],
             R::NotFirstChosen | R::TargetHasCorruption => &[S::MinionTarget],
             R::HostCombatOpponentNotReady => &[S::Card, S::Engine(Site::VampireAbility)],
+            R::HostInLastCombat => &[S::Engine(Site::VampireAbility)],
             R::SuperiorVersion => &[S::Card, S::Rider],
             R::NotHost => &[
                 S::CardTarget,
@@ -937,7 +962,7 @@ impl Requirement {
             ],
             R::OwnMinionPhase => &[S::Engine(Site::AbilityWindow), S::Engine(Site::PlayOptions)],
             R::OtherThanPlayer | R::TargetFoughtPlayer => &[S::Engine(Site::PlayTarget)],
-            R::YoungerThanHost => &[S::Engine(Site::AbilityTargets)],
+            R::YoungerThanHost | R::NotOlderThanPlayer => &[S::Engine(Site::AbilityTargets)],
             R::PlayedStrikeByOpponent => &[S::Engine(Site::PlayOptions), S::Engine(Site::AsPlayed)],
             R::HostAttempting | R::AttemptingNotHost | R::HostOutOfCombat => {
                 &[S::Engine(Site::AbilityGate)]
@@ -971,6 +996,7 @@ pub fn implied_requirement(payer: Actor, cost: Effect) -> Option<Requirement> {
         Effect::LockHostHeld(h, n) => Some(Requirement::HostHoldsUnlocked(h, n)),
         Effect::BurnConviction(n) => Some(Requirement::HostConvictionAtLeast(n)),
         Effect::BurnActorBlood(n) => Some(Requirement::ActorBloodAtLeast(n)),
+        Effect::ActorBurnsBloodXPlus(n) => Some(Requirement::HostBloodAtLeast(n)),
         Effect::HostBurnBlood(n) | Effect::HostBurnLife(n) => Some(match payer {
             Actor::AnyReadyVampire | Actor::ActingMinion => Requirement::ActorBloodAtLeast(n),
             _ => Requirement::HostBloodAtLeast(n),
@@ -1453,7 +1479,7 @@ mod tests {
             Effect::LookAtLibraryTop(_) | Effect::LookAtLibraryTopPerGehenna => {
                 Some(Requirement::LibraryAtLeast(1))
             }
-            Effect::LookAtPreyLibraryTop => {
+            Effect::LookAtPreyLibraryTop(_) => {
                 Some(Requirement::LookedLibraryNotEmpty(LibraryOf::Prey))
             }
             Effect::LookAtTurnLibraryTop => {
@@ -1462,7 +1488,7 @@ mod tests {
             Effect::LookAtEachLibraryTop => {
                 Some(Requirement::LookedLibraryNotEmpty(LibraryOf::Any))
             }
-            Effect::LookAtBledLibraryTop => Some(Requirement::BledLibraryNotEmpty),
+            Effect::LookAtBledLibraryTop(_) => Some(Requirement::BledLibraryNotEmpty),
             _ => None,
         };
         let modes = DEFS

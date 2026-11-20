@@ -216,6 +216,26 @@ impl Prompt<'_> {
                 "{}: name the retainer in your ash heap to employ",
                 self.minion()?
             ),
+            P::LookPreySlot => format!(
+                "Choose a card of {}'s uncontrolled region to look at",
+                self.seat()?
+            ),
+            P::HideOneCard => format!(
+                "Celestial Harmony: choose the hand card you keep hidden from {}",
+                self.seat()?
+            ),
+            P::MayDiscardToKeep => format!(
+                "{} takes {}: you can discard a master card to keep it",
+                self.seat()?,
+                self.card()?
+            ),
+            P::BoonAuction => match a.n {
+                Some(n) => format!(
+                    "Extremis Boon: bid more than {n} pool to keep {} in the game",
+                    self.seat()?
+                ),
+                None => format!("Extremis Boon: bid pool to keep {} in the game", self.seat()?),
+            },
             P::FoundVersion => format!(
                 "{}: choose the version {} enters play at",
                 self.minion()?,
@@ -258,6 +278,9 @@ impl Prompt<'_> {
                 match self.detail()? {
                     "lock" => format!("You can lock a minion {of}"),
                     "move_onto_any" => format!("Choose any minion to get {}", self.card()?),
+                    "move_to_younger_locked" => {
+                        format!("Choose a younger locked vampire to get {}", self.card()?)
+                    }
                     "heal_host" => "You can have a ready Anarch burn 1 blood to add 1 life".into(),
                     "burn_ally_up_to" => format!("You can burn an ally {of}"),
                     "lock_other_anarch" => "Choose another ready Anarch of yours to lock".into(),
@@ -389,6 +412,18 @@ impl Prompt<'_> {
                 self.card()?,
                 a.n?
             ),
+            P::CoercedSide => format!(
+                "Kindred Coercion: {} abstains, or its votes go to the side you choose",
+                self.minion()?
+            ),
+            P::PlayedCardToHand => format!(
+                "The Art of Memory: move a card {} played this action to your hand",
+                self.minion()?
+            ),
+            P::MayLockForDisciplineSearch => format!(
+                "{}: you can lock it for a ready vampire of yours to get 1 blood and a Master: Discipline card",
+                self.card()?
+            ),
             P::MayLockForBlood => format!(
                 "{}: you can lock it to move 1 blood from the blood bank to its vampire",
                 self.card()?
@@ -420,6 +455,11 @@ impl Prompt<'_> {
                 a.n?, a.m?
             ),
             P::StealFromSlot => match self.detail() {
+                Some("burn") => format!(
+                    "Choose an uncontrolled minion of {} to burn {} blood from",
+                    self.seat()?,
+                    a.n?
+                ),
                 Some(_) => format!("How much blood {} steals (up to {})", self.minion()?, a.n?),
                 None => format!(
                     "Choose an uncontrolled minion of {} to steal up to {} blood from",
@@ -784,6 +824,11 @@ impl Prompt<'_> {
             P::NameAshPair => {
                 "Name the card two copies of which in your prey's ash heap to remove".into()
             }
+            P::NameTargetAshCard => "Name the library card of their ash heap to exchange".into(),
+            P::MayCancelHuntingGround => format!(
+                "{}: you can cancel this use of your prey's hunting ground",
+                self.minion()?
+            ),
             P::MoveForBlood => format!(
                 "{} can burn {} blood to move {} to your ready region",
                 self.minion()?,
@@ -979,6 +1024,10 @@ impl Prompt<'_> {
                     "choose the card or vampire paying the Discipline {} lacks",
                     self.minion()?
                 ),
+                "title_grant" => format!(
+                    "choose whether {} burns the additional blood its title grant costs",
+                    self.minion()?
+                ),
                 // `to` may be an uncontrolled vampire (Grooming the Protégé).
                 "blood_range" => match (self.minion(), self.a.to.map(|c| self.n.copy_bare(c))) {
                     (Some(m), Some(t)) => format!("how much blood to move from {m} to {t}"),
@@ -1026,6 +1075,7 @@ impl Prompt<'_> {
                     self.whose()?
                 ),
                 "x_pool" => "how much pool to pay".into(),
+                "steal_pool" => "how much pool to steal".into(),
                 "x_counters" => "how many counters to use".into(),
                 "life_from_target" => format!("how much blood to move from {}", self.minion()?),
                 "ash_card" => "a card in your ash heap".into(),
@@ -1153,6 +1203,7 @@ mod tests {
                 Some("burn_ally_up_to"),
                 Some("heal_host"),
                 Some("move_onto_any"),
+                Some("move_to_younger_locked"),
                 Some("corrupt"),
                 Some("lock_vampires"),
                 Some("lock_younger"),
@@ -1184,6 +1235,7 @@ mod tests {
                 Some("chosen"),
             ],
             Purpose::Bottom => &[None, Some("top")],
+            Purpose::StealFromSlot => &[None, Some("named"), Some("burn")],
             Purpose::MayJoinSect => &[Some("camarilla")],
             _ => &[None],
         }
@@ -1228,6 +1280,7 @@ mod tests {
                 combat: None,
                 referendum: None,
                 transfers: None,
+                turns_reversed: false,
             },
         }
     }
@@ -1371,6 +1424,15 @@ mod tests {
         NameAshRetainer,
         FoundVersion,
         MayHuntBloodToPool,
+        MayDiscardToKeep,
+        BoonAuction,
+        HideOneCard,
+        LookPreySlot,
+        MayLockForDisciplineSearch,
+        CoercedSide,
+        PlayedCardToHand,
+        NameTargetAshCard,
+        MayCancelHuntingGround,
         KeepSpentBlood,
         BurnReplacement,
         PoolOrMinionBurned,

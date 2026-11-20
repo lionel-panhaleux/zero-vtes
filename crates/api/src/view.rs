@@ -30,6 +30,10 @@ pub struct TableView {
     /// The active seat's transfers left, during its influence phase.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub transfers: Option<u8>,
+    /// Turns go to the right, to each seat's predator (Reversal of
+    /// Fortunes); the prey is still to the left.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub turns_reversed: bool,
 }
 
 /// A physical card: its copy where the viewer may follow it, its KRCG id

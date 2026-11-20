@@ -68,8 +68,10 @@ fn zone_totals(e: &Engine) -> Vec<usize> {
         .iter()
         .enumerate()
         .map(|(i, s)| {
-            // A card in play with the library cards stored on it, or out of
-            // play on a banished vampire.
+            // A card in play with the library cards stored on it (their
+            // owner's: an Inscription on another Methuselah's vampire, its
+            // inscribed card used to equip there), or out of play on a
+            // banished vampire.
             let in_play: usize = e
                 .state
                 .cards
@@ -77,11 +79,15 @@ fn zone_totals(e: &Engine) -> Vec<usize> {
                 .enumerate()
                 // An effect-only card is a lingering effect; its card is in
                 // the ash heap.
-                .filter(|(ci, c)| {
-                    c.owner.index() == i && !c.effect_only && (c.in_play || banished(*ci))
+                .filter(|(ci, c)| !c.effect_only && (c.in_play || banished(*ci)))
+                .map(|(_, c)| {
+                    usize::from(c.owner.index() == i)
+                        + if c.stored_owner.unwrap_or(c.owner).index() == i {
+                            c.stored.len()
+                        } else {
+                            0
+                        }
                 })
-                .map(|(_, c)| c)
-                .map(|c| 1 + c.stored.len())
                 .sum();
             // An Absimiliard's Army ghoul: its card, in play as the minion.
             let tokens = e
@@ -605,12 +611,19 @@ fn play(seed: u64, start: &dyn Fn(u64) -> Engine) -> Played {
                 );
                 invariants(&e, &totals, seed, &req);
                 // Nothing is asked between a pool reaching 0 and its oust
-                // but the Boon and its play (ANK 20220210).
+                // but the Boons and their plays (ANK 20220210), Extremis
+                // Boon's bids among them.
                 if e.state.seats.iter().any(|s| s.oust_pending) {
-                    let boon = |c: &Choice| kind(&e, req.seat, c).1 == Some("Life Boon");
+                    let boon = |c: &Choice| {
+                        matches!(kind(&e, req.seat, c).1, Some("Life Boon" | "Extremis Boon"))
+                    };
+                    let bids = matches!(
+                        e.interrupt(),
+                        Some(zvtes::draws::Interrupt::BoonAuction { .. })
+                    );
                     assert!(
                         match req.window {
-                            WindowLabel::ResolutionChoice => req.options.iter().any(boon),
+                            WindowLabel::ResolutionChoice => bids || req.options.iter().any(boon),
                             w => matches!(w, WindowLabel::PlayTerms | WindowLabel::CardAsPlayed),
                         },
                         "asked before an oust: {:?} (seed {seed}, decision {})",
@@ -7422,6 +7435,479 @@ fuzz_tests! {
             per_seat(e, |c| c.clan == "Baali", 4);
         },
         seeds: 110,
+        ..BASE
+    };
+    /// Round 34 (Black Hand, Camarilla Edition): the combat cards, the
+    /// allies, retainers and equipment, the modifiers and reactions outside
+    /// referendums, on the round's vampires A to K and a Black Hand and a
+    /// Seraph per seat.
+    random_games_with_twda_round_34a_hold_invariants_and_replay: Fixture {
+        slice: &[
+            "Blood to Water",
+            "Cauldron of Blood",
+            "Eldritch Glimmer",
+            "Fists of Death",
+            "Glaser Rounds",
+            "Lessons in the Steel",
+            "Mask Empathy",
+            "Masque of Judas",
+            "Personal Scourge",
+            "Ritual of the Bitter Rose",
+            "Shattering Blow",
+            "Shotgun Ritual",
+            "Song in the Dark",
+            "Abyssal Hunter",
+            "Chalice of Kinship",
+            "Corpse Balloon",
+            "Gas-Powered Chainsaw",
+            "Grenade",
+            "Hawg",
+            "Inscription",
+            "Knights, The",
+            "Marijava Thuggee",
+            "Meat Cleaver",
+            "Resplendent Protector",
+            "Slashers, The",
+            "Vial of Elder Vitae",
+            "Art of Memory, The",
+            "Babble",
+            "Circumspect Revelation",
+            "Council of Seraphim",
+            "Ministry",
+            "Random Patterns",
+            "Scrying of Secrets",
+            "Watch Commander",
+            "Illegal Search and Seizure",
+            "Mesmerize",
+            // Partners: a gun for Glaser Rounds, a weapon Illegal Search and
+            // Seizure burns.
+            ".44 Magnum",
+            "Flamethrower",
+        ],
+        covers: &[
+            "play:Abyssal Hunter",
+            "play:Art of Memory, The",
+            "play:Babble",
+            "play:Blood to Water",
+            "play:Cauldron of Blood",
+            "play:Chalice of Kinship",
+            "play:Circumspect Revelation",
+            "play:Corpse Balloon",
+            "play:Council of Seraphim",
+            "play:Eldritch Glimmer",
+            "play:Fists of Death",
+            "play:Gas-Powered Chainsaw",
+            "play:Glaser Rounds",
+            "play:Grenade",
+            "play:Hawg",
+            "play:Illegal Search and Seizure",
+            "play:Inscription",
+            "play:Knights, The",
+            "play:Lessons in the Steel",
+            "play:Marijava Thuggee",
+            "play:Mask Empathy",
+            "play:Masque of Judas",
+            "play:Meat Cleaver",
+            "play:Mesmerize",
+            "play:Ministry",
+            "play:Personal Scourge",
+            "play:Random Patterns",
+            "play:Resplendent Protector",
+            "play:Ritual of the Bitter Rose",
+            "play:Scrying of Secrets",
+            "play:Shattering Blow",
+            "play:Shotgun Ritual",
+            "play:Slashers, The",
+            "play:Song in the Dark",
+            "play:Vial of Elder Vitae",
+            "play:Watch Commander",
+            "ability:Abyssal Hunter",
+            "ability:Akram",
+            "ability:Anatole, Prophet of Gehenna",
+            "ability:Bindusara, Historian of the Kindred",
+            "ability:Cailean",
+            "ability:Donatien",
+            "ability:Dónal O'Connor",
+            "ability:Etrius",
+            "ability:Gas-Powered Chainsaw",
+            "ability:Goratrix",
+            "ability:Grenade",
+            "ability:Greta Kircher",
+            "ability:Hannibal",
+            "ability:Harrod",
+            "ability:Henry Taylor",
+            "ability:Ignazio Giovanni",
+            "ability:Imogen",
+            "ability:Jalan-Aajav",
+            "ability:Kazimir Savostin",
+            "ability:Kendrick",
+            "ability:Marijava Thuggee",
+            "ability:Meat Cleaver",
+            "ability:Resplendent Protector",
+            "ability:Slashers, The",
+            "ability:Vial of Elder Vitae",
+            "rider:Abyssal Hunter",
+        ],
+        setup: |e, _| {
+            named(
+                e,
+                &[
+                    "Akram",
+                    "Amadeo",
+                    "Ana Rita Montaña",
+                    "Anatole, Prophet of Gehenna",
+                    "Aristotle de Laurent",
+                    "Artemis",
+                    "Bindusara, Historian of the Kindred",
+                    "Boy Toy",
+                    "Brachah",
+                    "Brooke",
+                    "Bryan Van Duesen",
+                    "Cailean",
+                    "Calebos",
+                    "Charice Fontaigne",
+                    "Christanius Lionel, The Mad Chronicler",
+                    "Colonel, The",
+                    "Constanza Vinti",
+                    "Daliyah",
+                    "Damaskenos, Herald of Leandro",
+                    "Dani",
+                    "Doctor Streck",
+                    "Dominique",
+                    "Donatien",
+                    "Dónal O'Connor",
+                    "Elisabetta Romano",
+                    "Etrius",
+                    "Ezekiel, Lord of Montreal",
+                    "Greger Anderssen",
+                    "Greta Kircher",
+                    "Gwendolyn",
+                    "Harrod",
+                    "Heinrick Schlempt",
+                    "Henri Lavenant",
+                    "Henry Taylor",
+                    "Ian Forestal",
+                    "Ian Wallingford",
+                    "Ignazio Giovanni",
+                    "Imogen",
+                    "Ingram Frizer",
+                    "Itzahk Levine",
+                    "Jalan-Aajav",
+                    "Josef",
+                    "Judah",
+                    "Kazimir Savostin",
+                    "Kendrick",
+                    "Kij Dansky",
+                    "Klaus van der Veken",
+                    "Kurt Strauss",
+                ],
+            );
+            per_seat(
+                e,
+                |c| c.adv && ["Goratrix"].contains(&c.name),
+                4,
+            );
+            per_seat(
+                e,
+                |c| !c.adv && ["Hannibal", "Jan Pieterzoon", "Javier Montoya"].contains(&c.name),
+                4,
+            );
+            per_seat(e, |c| c.black_hand, 4);
+            per_seat(e, |c| c.seraph, 4);
+        },
+        seeds: 300,
+        ..BASE
+    };
+    /// Round 34 (Black Hand, Camarilla Edition): the actions, the masters, the
+    /// political actions and the referendum modifiers and reactions, on the
+    /// round's vampires L to Z and a Black Hand and a Seraph per seat.
+    random_games_with_twda_round_34b_hold_invariants_and_replay: Fixture {
+        slice: &[
+            "Blooding",
+            "Bloodwork",
+            "Cat Burglary",
+            "Celestial Harmony",
+            "Chronicle of the Lost Tribe",
+            "Clan Impersonation",
+            "Cryptic Mission",
+            "Deep Cover Agent",
+            "Distraction",
+            "Kaymakli Barrier",
+            "Memory's Fading Glimpse",
+            "Mind of a Child",
+            "Nosferatu Performance Art",
+            "Of Noble Blood",
+            "Portrait, The",
+            "Precognizant Mobility",
+            "Resilient Mind",
+            "Reunion Kamut",
+            "Speed of Thought",
+            "Thin-Blooded Seer",
+            "Trainer",
+            "Absolution of the Diabolist",
+            "Ascendance",
+            "Brainwash",
+            "Brothers Grimm",
+            "Bureaucratic Overload",
+            "Cairo Int'l Airport",
+            "Carthage Remembered",
+            "Communal Haven: Temple",
+            "Creep Show",
+            "Dominion",
+            "Ebony Fox Hunt",
+            "Extremis Boon",
+            "Forest of Shadows",
+            "Guru",
+            "Kindred Society Games",
+            "Last Stand",
+            "Masquerade Endangered",
+            "Mistrust",
+            "Path of Death and the Soul",
+            "Path of Evil Revelations",
+            "Powerbase: Berlin",
+            "Powerbase: Washington, D.C.",
+            "Protracted Investment",
+            "Remover",
+            "Short-Term Investment",
+            "Sociopath",
+            "Spawning Pool, The",
+            "Steam Tunnels",
+            "Unnatural Disaster",
+            "Ventrue Directorate Assembly",
+            "Watchtower: Chosen are Called",
+            "Weeping Stone",
+            "Camarilla Exemplary",
+            "Command of the Harpies",
+            "Crusade: Barcelona",
+            "Crusade: Brussels",
+            "Crusade: Miami",
+            "Lextalionis",
+            "Masquerade Enforcement",
+            "Praxis Seizure: Boston",
+            "Praxis Seizure: Cleveland",
+            "Praxis Seizure: Dallas",
+            "Praxis Seizure: Seattle",
+            "Reversal of Fortunes",
+            "Seraph",
+            "Watchtower: Greatest Fall",
+            "Animal Magnetism",
+            "Disarming Presence",
+            "Kindred Coercion",
+            "Loyalist",
+            "Political Backlash",
+            "Pulling Strings",
+            "Surprise Influence",
+            "Treachery",
+            "Under the Skin",
+        ],
+        covers: &[
+            "play:Absolution of the Diabolist",
+            "play:Animal Magnetism",
+            "play:Ascendance",
+            "play:Blooding",
+            "play:Bloodwork",
+            "play:Brainwash",
+            "play:Brothers Grimm",
+            "play:Bureaucratic Overload",
+            "play:Cairo Int'l Airport",
+            "play:Camarilla Exemplary",
+            "play:Carthage Remembered",
+            "play:Cat Burglary",
+            "play:Celestial Harmony",
+            "play:Chronicle of the Lost Tribe",
+            "play:Clan Impersonation",
+            "play:Command of the Harpies",
+            "play:Communal Haven: Temple",
+            "play:Creep Show",
+            "play:Crusade: Barcelona",
+            "play:Crusade: Brussels",
+            "play:Crusade: Miami",
+            "play:Cryptic Mission",
+            "play:Deep Cover Agent",
+            "play:Disarming Presence",
+            "play:Distraction",
+            "play:Dominion",
+            "play:Ebony Fox Hunt",
+            "play:Extremis Boon",
+            "play:Forest of Shadows",
+            "play:Guru",
+            "play:Kaymakli Barrier",
+            "play:Kindred Coercion",
+            "play:Kindred Society Games",
+            "play:Last Stand",
+            "play:Lextalionis",
+            "play:Loyalist",
+            "play:Masquerade Endangered",
+            "play:Masquerade Enforcement",
+            "play:Memory's Fading Glimpse",
+            "play:Mind of a Child",
+            "play:Mistrust",
+            "play:Nosferatu Performance Art",
+            "play:Of Noble Blood",
+            "play:Path of Death and the Soul",
+            "play:Path of Evil Revelations",
+            "play:Political Backlash",
+            "play:Portrait, The",
+            "play:Powerbase: Berlin",
+            "play:Powerbase: Washington, D.C.",
+            "play:Praxis Seizure: Boston",
+            "play:Praxis Seizure: Cleveland",
+            "play:Praxis Seizure: Dallas",
+            "play:Praxis Seizure: Seattle",
+            "play:Precognizant Mobility",
+            "play:Protracted Investment",
+            "play:Pulling Strings",
+            "play:Remover",
+            "play:Resilient Mind",
+            "play:Reunion Kamut",
+            "play:Reversal of Fortunes",
+            "play:Seraph",
+            "play:Short-Term Investment",
+            "play:Sociopath",
+            "play:Spawning Pool, The",
+            "play:Speed of Thought",
+            "play:Steam Tunnels",
+            "play:Surprise Influence",
+            "play:Thin-Blooded Seer",
+            "play:Trainer",
+            "play:Treachery",
+            "play:Under the Skin",
+            "play:Unnatural Disaster",
+            "play:Ventrue Directorate Assembly",
+            "play:Watchtower: Chosen are Called",
+            "play:Watchtower: Greatest Fall",
+            "play:Weeping Stone",
+            "ability:Brainwash",
+            "ability:Brothers Grimm",
+            "ability:Bureaucratic Overload",
+            "ability:Cairo Int'l Airport",
+            "ability:Carthage Remembered",
+            "ability:Chronicle of the Lost Tribe",
+            "ability:Clan Impersonation",
+            "ability:Deep Cover Agent",
+            "ability:Extremis Boon",
+            "ability:Forest of Shadows",
+            "ability:Kindred Society Games",
+            "ability:Makarios, The Seducer",
+            "ability:Masquerade Enforcement",
+            "ability:Miguel Santo Domingo",
+            "ability:Mind of a Child",
+            "ability:Nahir",
+            "ability:Olga Triminov",
+            "ability:Path of Evil Revelations",
+            "ability:Powerbase: Berlin",
+            "ability:Powerbase: Washington, D.C.",
+            "ability:Protracted Investment",
+            "ability:Radeyah",
+            "ability:Remover",
+            "ability:Resilient Mind",
+            "ability:Short-Term Investment",
+            "ability:Soldat",
+            "ability:Spawning Pool, The",
+            "ability:Spiridonas",
+            "ability:Steam Tunnels",
+            "ability:Terrell Harding",
+            "ability:Thin-Blooded Seer",
+            "ability:Ventrue Directorate Assembly",
+            "ability:Victoria",
+            "ability:Watchtower: Chosen are Called",
+            "ability:Watchtower: Greatest Fall",
+            "ability:Weeping Stone",
+            "ability:Yitzak",
+            "rider:Brothers Grimm",
+            "rider:Masquerade Endangered",
+        ],
+        setup: |e, _| {
+            named(
+                e,
+                &[
+                    "Laurent de Valois",
+                    "Makarios, The Seducer",
+                    "Mariano Pomposo",
+                    "Marino Reymundo Vásquez",
+                    "Mateusz Gryzbowsky",
+                    "Matteus, Flesh Sculptor",
+                    "Miguel Santo Domingo",
+                    "Miller Delmardigan, Teacher of Bahari",
+                    "Muaziz, Archon of Ulugh Beg",
+                    "Nahir",
+                    "Nakova, Advocate of Golconda",
+                    "Olga Triminov",
+                    "Olivia",
+                    "Piotr Andreikov",
+                    "Radeyah",
+                    "Ranjan Rishi, Camarilla Scholar",
+                    "Raziya Samater",
+                    "Rebekka, Chantry Elder of Munich",
+                    "Regilio, The Seeker of Akhenaten",
+                    "Reverend Blackwood",
+                    "Roger Farnsworth",
+                    "Rosa Martínez",
+                    "Sabrina",
+                    "Sela",
+                    "Sigrid Bekker",
+                    "Sister Evelyn",
+                    "Soldat",
+                    "Spiridonas",
+                    "Szechenyi Jolán, Mother of Horrors",
+                    "Teresita, The Godmother",
+                    "Terrell Harding",
+                    "Thelonius",
+                    "Tock",
+                    "Vasilis, The Traitor of Don Cruez",
+                    "Victoria",
+                    "Virgil",
+                    "Volker, The Puppet Prince",
+                    "Wah Chun-Yuen",
+                    "Watenda",
+                    "Wilhelm Waldburg",
+                    "Yasmin the Black",
+                    "Yitzak",
+                ],
+            );
+            per_seat(
+                e,
+                |c| c.adv && ["Sébastien Goulet", "Yong-Sun, Harmonist"].contains(&c.name),
+                4,
+            );
+            per_seat(
+                e,
+                |c| !c.adv && ["Yazid Tamari"].contains(&c.name),
+                4,
+            );
+            per_seat(e, |c| c.black_hand, 4);
+            per_seat(e, |c| c.seraph, 4);
+            // Partners: a scarce vampire (Mistrust), a justicar or Inner
+            // Circle member (Absolution of the Diabolist), a Black Hand
+            // vampire uncontrolled (Reunion Kamut).
+            per_seat(e, |c| c.scarce, 4);
+            per_seat(
+                e,
+                |c| {
+                    matches!(
+                        c.title,
+                        zvtes::crypt::Title::Justicar(_) | zvtes::crypt::Title::InnerCircle(_)
+                    )
+                },
+                4,
+            );
+            let uncontrolled: Vec<u16> = CRYPT
+                .iter()
+                .enumerate()
+                .filter(|(i, c)| c.black_hand && absent(e, *i as u16))
+                .map(|(i, _)| i as u16)
+                .take(4)
+                .collect();
+            for (s, card) in uncontrolled.into_iter().enumerate() {
+                e.state.seats[s].uncontrolled.push(zvtes::state::UncontrolledSlot {
+                    card,
+                    copy: Default::default(),
+                    counters: 0,
+                    banished: None,
+                });
+            }
+        },
+        seeds: 300,
         ..BASE
     };
     /// Round 30 (slice 16ap): Lords of the Night's Ravnos and Giovanni —

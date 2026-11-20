@@ -273,6 +273,8 @@ pub fn purpose(i: &Interrupt) -> Purpose {
         I::GiveCardTo { .. } => Purpose::GiveCardTo,
         I::BurnOrder { .. } => Purpose::BurnOrder,
         I::NameAshPair { .. } => Purpose::NameAshPair,
+        I::NameTargetAshCard { .. } => Purpose::NameTargetAshCard,
+        I::MayCancelHuntingGround { .. } => Purpose::MayCancelHuntingGround,
         I::MayPutOn { .. } => Purpose::MayPutOn,
         I::PutFoundOn { .. } => Purpose::PutFoundOn,
         I::MayAddCounter { .. } => Purpose::MayAddCounter,
@@ -307,6 +309,13 @@ pub fn purpose(i: &Interrupt) -> Purpose {
         I::MayMoveEdgePool { .. } => Purpose::MayMoveEdgePool,
         I::NameAshRetainer { .. } => Purpose::NameAshRetainer,
         I::FoundVersion { .. } => Purpose::FoundVersion,
+        I::MayDiscardToKeep { .. } => Purpose::MayDiscardToKeep,
+        I::BoonAuction { .. } => Purpose::BoonAuction,
+        I::HideOneCard { .. } => Purpose::HideOneCard,
+        I::LookPreySlot { .. } => Purpose::LookPreySlot,
         I::MayHuntBloodToPool { .. } => Purpose::MayHuntBloodToPool,
+        I::MayLockForDisciplineSearch { .. } => Purpose::MayLockForDisciplineSearch,
+        I::CoercedSide { .. } => Purpose::CoercedSide,
+        I::PlayedCardToHand { .. } => Purpose::PlayedCardToHand,
     }
 }

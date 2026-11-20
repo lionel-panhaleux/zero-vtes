@@ -1,5 +1,6 @@
-//! The decision point before an oust (docs/engine.md §6.17): Life Boon is
-//! played as a pool reaches 0, right before the oust (ANK 20220210).
+//! The decision point before an oust (docs/engine.md §6.17): Life Boon,
+//! Extremis Boon and any other card played as a pool reaches 0, right
+//! before the oust (ANK 20220210; rules-qa 126.4).
 
 use crate::cards::{Target, Window};
 use crate::decision::{Choice, DecisionRequest, WindowLabel};
@@ -55,26 +56,24 @@ pub fn life_boon() -> u16 {
     })
 }
 
-/// Is a play of `card` (any card if `None`) by `seat` still under way
-/// somewhere in `flow`?
-pub(crate) fn in_flight(flow: &Flow, card: Option<u16>, seat: SeatId) -> bool {
-    let is = |c: u16| card.is_none_or(|k| k == c);
+/// Is a play by `seat` still under way somewhere in `flow`?
+pub(crate) fn in_flight(flow: &Flow, seat: SeatId) -> bool {
     match flow {
         Flow::PlayTerms { ctx, resume } | Flow::CostTerms { ctx, resume, .. } => {
-            (is(ctx.card) && ctx.seat == seat) || in_flight(resume, card, seat)
+            ctx.seat == seat || in_flight(resume, seat)
         }
         Flow::AsPlayed { stack, resume } => {
-            stack.iter().any(|p| is(p.ctx.card) && p.ctx.seat == seat)
-                || in_flight(resume, card, seat)
+            stack.iter().any(|p| p.ctx.seat == seat) || in_flight(resume, seat)
         }
         _ => false,
     }
 }
 
 impl Engine {
-    /// Should the oust of `seats` wait on a Life Boon (one held outside the
-    /// batch, not by the active Methuselah)? Behind an oust already waiting
-    /// it waits its turn, a batch of its own.
+    /// Should the oust of `seats` wait on a card playable at it (any card
+    /// with a `Window::Ousting` mode, held by a Methuselah other than the
+    /// active one, inside the batch too: `boon_holders`)? Behind an oust
+    /// already waiting it waits its turn, a batch of its own.
     pub(crate) fn defer_oust(&mut self, seats: &[SeatId]) -> bool {
         let st = &mut self.state;
         let batch: Vec<Pending> = seats
@@ -86,7 +85,7 @@ impl Engine {
             })
             .collect();
         if self.ousting.is_none() {
-            let order = self.boon_holders(seats);
+            let order = self.boon_holders();
             if order.is_empty() {
                 return false;
             }
@@ -106,33 +105,35 @@ impl Engine {
         true
     }
 
-    /// Who may save a Methuselah of `batch`: the Boon holders outside it,
-    /// clockwise from the active Methuselah, never the active one.
-    fn boon_holders(&self, batch: &[SeatId]) -> Vec<SeatId> {
-        let boon = life_boon();
+    /// Who may play a card at an oust (`Window::Ousting`): its holders
+    /// still in the game, the batch's too (`boon_plays`), clockwise from
+    /// the active Methuselah, never the active one.
+    fn boon_holders(&self) -> Vec<SeatId> {
         let st = &self.state;
+        let at_oust = |c: u16| {
+            crate::cards::lookup(c)
+                .is_some_and(|d| d.modes.iter().any(|m| m.windows.contains(&Window::Ousting)))
+        };
         st.clockwise_from(st.active)
             .into_iter()
             .filter(|&h| {
                 h != st.active
-                    && !batch.contains(&h)
                     && !st.seats[h.index()].ousted
-                    && self.virtual_hand(h).iter().any(|&(c, _)| c == boon)
+                    && self.virtual_hand(h).iter().any(|&(c, _)| at_oust(c))
             })
             .collect()
     }
 
     /// The Boon plays `h` may make now, each on a Methuselah of the front
-    /// batch.
+    /// batch: one of the batch saves none but themself (Extremis Boon).
     fn boon_plays(&self, h: SeatId) -> Vec<Choice> {
-        let boon = life_boon();
-        let hand = self.virtual_hand(h);
         let front = &self.ousting.as_ref().expect("ousting").batches[0];
+        let inside = front.iter().any(|p| p.seat == h);
         self.play_options(h, &[Window::Ousting], None)
             .into_iter()
             .filter(|o| {
-                matches!(o, Choice::Play { card, target: Target::Seat(t), .. }
-                    if hand[*card as usize].0 == boon && front.iter().any(|p| p.seat == *t))
+                matches!(o, Choice::Play { target: Target::Seat(t), .. }
+                    if front.iter().any(|p| p.seat == *t) && (!inside || *t == h))
             })
             .collect()
     }
@@ -144,7 +145,12 @@ impl Engine {
             return;
         };
         if o.playing {
-            if in_flight(&self.flow, Some(life_boon()), o.order[o.next]) {
+            // Extremis Boon's bids part of its play.
+            let bids = self
+                .interrupts
+                .iter()
+                .any(|i| matches!(i, crate::draws::Interrupt::BoonAuction { .. }));
+            if bids || in_flight(&self.flow, o.order[o.next]) {
                 return;
             }
             self.ousting.as_mut().expect("ousting").playing = false;
@@ -199,12 +205,11 @@ impl Engine {
                 }
                 o.batches.remove(0);
             }
-            let Some(next) = o.batches.first() else {
+            if o.batches.is_empty() {
                 self.ousting = None;
                 return;
-            };
-            let batch: Vec<SeatId> = next.iter().map(|p| p.seat).collect();
-            let order = self.boon_holders(&batch);
+            }
+            let order = self.boon_holders();
             let o = self.ousting.as_mut().expect("ousting");
             o.order = order;
             o.next = 0;
@@ -374,6 +379,83 @@ impl Engine {
         self.state.cards[card.index()].against = crate::ids::SeatSet::single(target);
     }
 
+    /// Extremis Boon `card` played by `target`: the other Methuselahs bid,
+    /// clockwise from its left (rules-qa 126.75).
+    pub(crate) fn start_boon_auction(&mut self, target: SeatId, card: CardId) {
+        match self.next_boon_bidder(target, target, None, crate::ids::SeatSet::default()) {
+            // Asked before what the oust holds back (`asking_queued`).
+            Some(seat) => self.interrupts.insert(
+                0,
+                crate::draws::Interrupt::BoonAuction {
+                    seat,
+                    target,
+                    card,
+                    high: None,
+                    out: crate::ids::SeatSet::default(),
+                },
+            ),
+            None => self.burn_card_in_play(card),
+        }
+    }
+
+    /// The next bidder after `after`, clockwise: a living Methuselah other
+    /// than the target and the high bidder who has not passed; none, the
+    /// auction is over.
+    pub(crate) fn next_boon_bidder(
+        &self,
+        target: SeatId,
+        after: SeatId,
+        high: Option<(SeatId, u8)>,
+        out: crate::ids::SeatSet,
+    ) -> Option<SeatId> {
+        let st = &self.state;
+        st.clockwise_from(st.prey(after)).into_iter().find(|&s| {
+            s != target
+                && !st.seats[s.index()].ousted
+                && !out.contains(s)
+                && high.is_none_or(|(h, _)| h != s)
+        })
+    }
+
+    /// The bids `seat` may make: at least what keeps the target in the game
+    /// (ANK 20190827), a raise of 1 over the high bid, up to their pool.
+    pub(crate) fn boon_bids(
+        &self,
+        seat: SeatId,
+        target: SeatId,
+        high: Option<(SeatId, u8)>,
+    ) -> Vec<u8> {
+        let keep = 1 - self.state.seats[target.index()].pool;
+        let low = high.map_or(keep, |(_, b)| (b as i32 + 1).max(keep)).max(1);
+        let pool = self.state.seats[seat.index()].pool.min(u8::MAX as i32);
+        (low..=pool).map(|b| b as u8).collect()
+    }
+
+    /// The auction over: the high bid moves to the target, kept in the
+    /// game, the card against its bidder (LSJ 20031121-1); none, the card
+    /// burns and the oust goes on (LSJ 20040601).
+    pub(crate) fn settle_boon_auction(
+        &mut self,
+        target: SeatId,
+        card: CardId,
+        high: Option<(SeatId, u8)>,
+    ) {
+        match high {
+            Some((by, b)) if self.state.seats[target.index()].oust_pending => {
+                self.caused(Cause::Effect(Source::Card(card)), |e| {
+                    e.state.seats[by.index()].lose_pool(b as i32);
+                    e.state.gain_pool(target, b as i32);
+                });
+                self.state.seats[target.index()].oust_pending = false;
+                self.state.cards[card.index()].against = crate::ids::SeatSet::single(by);
+                if self.state.seats[by.index()].pool <= 0 {
+                    self.oust(by);
+                }
+            }
+            _ => self.burn_card_in_play(card),
+        }
+    }
+
     /// `seat` gains `n` half VPs, or its Life Boons' players do, oldest
     /// first, each until 1 VP (then burned); an ousted Boon player gets none.
     pub(crate) fn gain_half_vps(&mut self, seat: SeatId, n: u32) {
@@ -395,12 +477,22 @@ impl Engine {
             let take = left.min(2u32.saturating_sub(c.counters as u32));
             c.counters += take as u8;
             let full = c.counters >= 2;
-            self.state.seats[by.index()].half_vps += take;
+            let turn = self.state.turn;
+            let by_seat = &mut self.state.seats[by.index()];
+            by_seat.half_vps += take;
+            if take > 0 {
+                by_seat.vps_received.0.push((turn, take));
+            }
             left -= take;
             if full {
                 self.burn_card_in_play(id);
             }
         }
-        self.state.seats[seat.index()].half_vps += left;
+        let turn = self.state.turn;
+        let s = &mut self.state.seats[seat.index()];
+        s.half_vps += left;
+        if left > 0 {
+            s.vps_received.0.push((turn, left));
+        }
     }
 }

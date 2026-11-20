@@ -296,6 +296,15 @@ pub struct ReferendumCtx {
     /// Elder Kindred Network: the caller's pool burn if this referendum
     /// fails, (base, per vote it failed by), one per copy.
     pub fail_pool: Vec<(u8, u8)>,
+    /// Disarming Presence: (its player, sparing their vampires) — each
+    /// vampire casting locks.
+    pub lock_casters: Vec<(SeatId, bool)>,
+    /// Treachery [PRE]: pool burned at the tally by each Methuselah but the
+    /// caller's controller with a cast in favor, one per copy.
+    pub favor_penalty: Vec<u8>,
+    /// Loyalist: (its player, its vampire, up to, the acting vampire's sect)
+    /// — blood moved if this referendum fails.
+    pub fail_moves: Vec<(SeatId, MinionId, u8, crate::crypt::Sect)>,
     /// Aura of Invincibility: cards put on the calling vampire if this
     /// referendum passes, from the ash heap.
     pub place_if_passes: Vec<crate::combat::Held>,
@@ -556,7 +565,7 @@ impl ReferendumCtx {
             .map(|&(_, n, _)| n as i32)
             .sum();
         (title_votes(title) as i32 - penalty
-            + st.clan_votes(m)
+            + st.clan_votes_in(m, self.kind == RefKind::Political)
             + st.host_votes(m)
             + st.lasting_votes(m)
             + bonus as i32
@@ -612,7 +621,18 @@ impl ReferendumCtx {
                 side += read(crate::cards::Stat::VotesAgainstBloodHunt);
             }
         }
-        (self.votes_of(st, m) as i32 + side).max(0) as u8
+        // Votes against only, uncounted in favor (a cast turned: LSJ
+        // 20031115).
+        let against_only: i32 = if favor {
+            self.against_only
+                .iter()
+                .filter(|&&(x, _)| x == m)
+                .map(|&(_, n)| n as i32)
+                .sum()
+        } else {
+            0
+        };
+        (self.votes_of(st, m) as i32 + side - against_only).max(0) as u8
     }
 
     /// "Cannot cast votes or ballots against blood hunt referendums"
@@ -968,6 +988,9 @@ impl Engine {
             bribes: Vec::new(),
             fail_damage: Vec::new(),
             fail_pool: Vec::new(),
+            lock_casters: Vec::new(),
+            favor_penalty: Vec::new(),
+            fail_moves: Vec::new(),
             place_if_passes: Vec::new(),
             narrow_pass: Vec::new(),
             poison: Vec::new(),
@@ -2227,6 +2250,17 @@ impl Engine {
             return None;
         }
         self.state.lose_blood(m, toll);
+        // Disarming Presence: locked as it votes, a side effect (RTR
+        // 19941109, RTR 19970425); a turned cast is no new vote.
+        let owner = self.state.minions[m.index()].owner;
+        if first
+            && ctx
+                .lock_casters
+                .iter()
+                .any(|&(s, spare)| !(spare && s == owner))
+        {
+            self.state.minions[m.index()].locked = true;
+        }
         Some(VoteRecord {
             source: Source::Vampire(m),
             seat: self.state.minions[m.index()].owner,
@@ -2365,6 +2399,27 @@ impl Engine {
             for &(m, n) in &ctx.fail_damage {
                 if self.state.minions[m.index()].present() {
                     self.damage_out_of_combat(m, n, false);
+                }
+            }
+            // Loyalist: the acting vampire's sect read now (D13); up to its
+            // blood, 0 offered (rules-qa 124.267).
+            if let Some(acting) = self.action.as_ref().map(|a| a.acting) {
+                for &(seat, to, up_to, sect) in &ctx.fail_moves {
+                    let a = &self.state.minions[acting.index()];
+                    if a.present()
+                        && a.is_vampire()
+                        && self.state.sect_of(acting) == Some(sect)
+                        && self.state.minions[to.index()].present()
+                        && to != acting
+                    {
+                        self.interrupts
+                            .push(crate::draws::Interrupt::MoveBloodUpTo {
+                                seat,
+                                from: acting,
+                                to,
+                                max: up_to.min(a.blood),
+                            });
+                    }
                 }
             }
             // The Final Nights: held and failed, not canceled (rules-qa 43.1).
@@ -2527,6 +2582,22 @@ impl Engine {
                         .filter(|r| !r.canceled && !r.favor && r.by_methuselah())
                     {
                         loss[r.seat.index()] = ctx.scorn as i32;
+                    }
+                    self.burn_pool_batch(&loss);
+                }
+                // Treachery [PRE]: at the tally, before the effects (RTR
+                // 20010711), every Methuselah but the caller's controller.
+                if !ctx.favor_penalty.is_empty() {
+                    let n: i32 = ctx.favor_penalty.iter().map(|&n| n as i32).sum();
+                    let mut loss = vec![0i32; self.state.seats.len()];
+                    for r in ctx
+                        .records
+                        .iter()
+                        .filter(|r| !r.canceled && r.favor && r.by_methuselah())
+                    {
+                        if r.seat != ctx.caller {
+                            loss[r.seat.index()] = n;
+                        }
                     }
                     self.burn_pool_batch(&loss);
                 }
@@ -2764,7 +2835,7 @@ impl Engine {
 
     /// The ready vampires `s` controls, arena order (a choice of
     /// `RefStep::Choose`).
-    fn ready_vampires_of(&self, s: SeatId) -> Vec<MinionId> {
+    pub(crate) fn ready_vampires_of(&self, s: SeatId) -> Vec<MinionId> {
         self.state
             .minions_of(s)
             .filter(|&m| {
@@ -3216,6 +3287,7 @@ impl Engine {
                 | RefEffect::PutInPlayLockBelow(_)
                 | RefEffect::BurnSourceVampire
                 | RefEffect::StealSourceVampire
+                | RefEffect::StealSource
                 | RefEffect::BurnChosenMinion
                 | RefEffect::NextOustPool
                 | RefEffect::DamageYourCorrupted(_)
@@ -3238,7 +3310,9 @@ impl Engine {
                 | RefEffect::PutInPlayClanMayJoinSect
                 | RefEffect::EachBurnsOwnUncontrolledVampire
                 | RefEffect::CounterAgainstEachChosenSeat { .. }
-                | RefEffect::SourceAllyBecomesRedList => {}
+                | RefEffect::SourceAllyBecomesRedList
+                | RefEffect::ChosenSeatLocksAllSkipUnlock
+                | RefEffect::ReverseTurnOrder => {}
                 RefEffect::CallerGainsPool(n) => gain[ctx.caller.index()] += n as i32,
                 RefEffect::CallerPoolPerReadyClanVotersBlood(clan) => {
                     gain[ctx.caller.index()] += st
@@ -3608,7 +3682,7 @@ impl Engine {
                         .as_mut()
                         .expect("political action")
                         .card_entered_play = true;
-                    self.place_now(
+                    let placed = self.place_now(
                         crate::state::CardInPlay::entering(
                             play.card,
                             *play.copy,
@@ -3624,8 +3698,14 @@ impl Engine {
                     if let RefEffect::PutOnChosen {
                         equipment,
                         unlocks_caller,
+                        blood,
                     } = effect
                     {
+                        if let Some(id) = placed.filter(|_| blood > 0) {
+                            self.caused(Cause::Effect(notes::Source::Card(id)), |e| {
+                                e.state.gain_blood(m, blood)
+                            });
+                        }
                         if equipment {
                             self.interrupts
                                 .push(crate::draws::Interrupt::SearchEquipFor {
@@ -3735,6 +3815,22 @@ impl Engine {
                         ModeLayers::Push,
                         false,
                     );
+                }
+            }
+            RefEffect::ReverseTurnOrder => {
+                let r = &mut self.state.turn_reversed.0;
+                *r = 1 - *r;
+            }
+            // Lextalionis: every minion of theirs, torpid too; an infernal
+            // one may still pay to unlock (LSJ 20050114).
+            RefEffect::ChosenSeatLocksAllSkipUnlock => {
+                if let Some(s) = ctx.terms.chosen {
+                    let ms: Vec<MinionId> = self.state.minions_of(s).collect();
+                    for m in ms {
+                        let v = &mut self.state.minions[m.index()];
+                        v.locked = true;
+                        v.skip_unlock = true;
+                    }
                 }
             }
             // Each chosen Methuselah's own: it stays through the caller's
@@ -3932,6 +4028,17 @@ impl Engine {
                     if self.state.minions[m.index()].present() {
                         self.state.minions[m.index()].made_red_list = true;
                     }
+                }
+            }
+            RefEffect::StealSource => {
+                let src = self
+                    .action
+                    .as_ref()
+                    .and_then(|a| a.source)
+                    .expect("granted action's source")
+                    .card();
+                if self.state.cards[src.index()].present() {
+                    self.give_location(src, ctx.caller);
                 }
             }
             RefEffect::BurnSource | RefEffect::BurnSourceCountersInFavor => {
@@ -4165,6 +4272,14 @@ impl Engine {
                 }
             }
         }
+        // Treachery: the calling vampire's controller, after the effects
+        // (LSJ 20090115-2).
+        let a = self.action.as_ref().expect("action");
+        let caller = self.state.minions[a.acting.index()].owner;
+        let seat = &self.state.seats[caller.index()];
+        if !seat.ousted && !seat.oust_pending {
+            loss[caller.index()] += a.caller_pool_if_passed as i32;
+        }
         if loss.iter().any(|&n| n > 0) {
             self.burn_pool_batch(&loss);
         }
@@ -4193,6 +4308,26 @@ impl Engine {
             });
             if bars && !self.state.once_played.contains(&p.card) {
                 self.state.once_played.push(p.card);
+            }
+        }
+        // Guru: after the effects (LSJ 20090115-2), in torpor too (no "if
+        // ready"); its "once per turn" is the rulebook's one political
+        // action a minion a turn.
+        if self.action.as_ref().expect("action").referendum_passed {
+            let on = |x: &crate::state::CardInPlay| x.bearer() == Some(m);
+            for (id, r) in self.fired_riders(
+                cards::Hook::OwnReferendumPassedAfterEffects,
+                &HookAt::on(&on),
+            ) {
+                for &e in r.effects {
+                    match e {
+                        cards::Effect::AddHostBlood(n) => {
+                            let cause = crate::notes::Cause::Effect(crate::notes::Source::Card(id));
+                            self.caused(cause, |e| e.state.gain_blood(m, n))
+                        }
+                        other => unreachable!("not a referendum rider: {other:?}"),
+                    }
+                }
             }
         }
         let a = self.action.as_ref().expect("action");
@@ -4291,6 +4426,31 @@ impl Engine {
         if let Some(seat) = next {
             self.interrupts
                 .insert(0, crate::draws::Interrupt::FavorAuction { seat, offer, by });
+        }
+    }
+
+    /// `m` abstains: its casts canceled, kept from casting (Abstain).
+    pub(crate) fn abstain_minion(ctx: &mut ReferendumCtx, m: MinionId) {
+        for r in &mut ctx.records {
+            if r.source == Source::Vampire(m) {
+                r.canceled = true;
+            }
+        }
+        ctx.abstaining.push(m);
+    }
+
+    /// `m`'s votes changed to `favor`'s side: a cast turned, an uncast one
+    /// restricted to it (RTR 19991001, LSJ 20030828).
+    pub(crate) fn change_votes(&mut self, ctx: &mut ReferendumCtx, m: MinionId, favor: bool) {
+        ctx.sides_set.retain(|&(x, _)| x != m);
+        if ctx
+            .records
+            .iter()
+            .any(|r| r.source == Source::Vampire(m) && !r.canceled)
+        {
+            self.force_cast(ctx, m, favor);
+        } else if !ctx.abstaining.contains(&m) {
+            ctx.sides_set.push((m, favor));
         }
     }
 
@@ -4413,17 +4573,7 @@ impl Engine {
             // side only, if it casts (RTR 19991001, LSJ 20030828); the last
             // change governs (advanced rules §3.7.6.3).
             cards::Effect::ChangeTargetVotes(favor) => {
-                let m = play.target.minion();
-                ctx.sides_set.retain(|&(x, _)| x != m);
-                if ctx
-                    .records
-                    .iter()
-                    .any(|r| r.source == Source::Vampire(m) && !r.canceled)
-                {
-                    self.force_cast(&mut ctx, m, favor);
-                } else if !ctx.abstaining.contains(&m) {
-                    ctx.sides_set.push((m, favor));
-                }
+                self.change_votes(&mut ctx, play.target.minion(), favor)
             }
             cards::Effect::TallyBloodAgainst(n) => ctx.blood_against += n,
             cards::Effect::TallyBloodBySide { gain, burn } => {
@@ -4456,8 +4606,11 @@ impl Engine {
             cards::Effect::AddVotesAgainst(n) => {
                 // Votes against only: they join a cast against, or force
                 // the vampire's cast against (LSJ 20031119).
+                // Its votes either way (`votes_of`), never counted in a
+                // cast in favor (`votes_cast`; LSJ 20031115).
                 let m = play.actor.expect("voting minion");
                 ctx.against_only.push((m, n));
+                ctx.bonus.push((m, n));
                 match ctx
                     .records
                     .iter_mut()
@@ -4467,26 +4620,61 @@ impl Engine {
                         debug_assert!(!r.favor);
                         r.n += n;
                     }
-                    None => {
-                        ctx.bonus.push((m, n));
-                        ctx.forced_against.push(m);
-                    }
+                    None => ctx.forced_against.push(m),
                 }
             }
             cards::Effect::Abstain { lock, burn } => {
                 let t = play.target.minion();
-                for r in &mut ctx.records {
-                    if r.source == Source::Vampire(t) {
-                        r.canceled = true;
-                    }
-                }
-                ctx.abstaining.push(t);
+                Self::abstain_minion(&mut ctx, t);
                 if lock {
                     self.state.minions[t.index()].locked = true;
                 }
                 self.state.burn_blood(t, burn);
             }
             cards::Effect::TallyPenaltyAgainst(n) => ctx.scorn += n,
+            cards::Effect::TallyPenaltyFavorOthers(n) => ctx.favor_penalty.push(n),
+            cards::Effect::LockVampiresAsTheyVote { spare_own } => {
+                ctx.lock_casters.push((play.seat, spare_own))
+            }
+            cards::Effect::ActingBloodToActorIfReferendumFails { up_to, sect } => {
+                let m = play.actor.expect("the reacting vampire");
+                ctx.fail_moves.push((play.seat, m, up_to, sect));
+            }
+            cards::Effect::CallerBurnsPoolIfPasses(n) => {
+                if let Some(a) = self.action.as_mut() {
+                    a.caller_pool_if_passed += n;
+                }
+            }
+            cards::Effect::LockTargetAtEndIfReferendumPasses => {
+                if let Some(a) = self.action.as_mut() {
+                    a.lock_if_passed.push(play.target.minion());
+                }
+            }
+            cards::Effect::AbstainPicks | cards::Effect::CoercePicks => {
+                let spec = cards::TargetSpec {
+                    kind: cards::TargetKind::Minion,
+                    filter: match cards::lookup(play.card)
+                        .and_then(|d| d.modes[play.mode as usize].terms)
+                    {
+                        Some(cards::Terms::XMinionPicks { filter, .. }) => filter,
+                        _ => &[],
+                    },
+                };
+                // A pick no longer qualifying is spared (D13).
+                for p in play.picks.iter().flatten().copied() {
+                    if !self.minion_target_qualifies(play.seat, spec, play.actor, p) {
+                        continue;
+                    }
+                    if effect == cards::Effect::AbstainPicks {
+                        Self::abstain_minion(&mut ctx, p);
+                    } else {
+                        self.interrupts.push(crate::draws::Interrupt::CoercedSide {
+                            seat: play.seat,
+                            minion: p,
+                        });
+                    }
+                }
+            }
             cards::Effect::TallyBonusForOthers(n) => ctx.bribes.push((play.seat, n)),
             cards::Effect::FavorAuction { start } => {
                 let by = play.actor.expect("the Ishtarri");

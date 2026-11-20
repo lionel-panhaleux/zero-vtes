@@ -1537,7 +1537,7 @@ fn founders_of_the_ebony_kingdom_stays_on_the_slot_and_burns_as_it_leaves() {
         .position(|c| c.card == founders && c.in_play && !c.effect_only)
         .map(|i| CardId(i as u32))
         .expect("in play");
-    assert_eq!(e.state.cards[c.index()].on_slot, Some(slot));
+    assert_eq!(e.state.cards[c.index()].on_slot, Some((SeatId(0), slot)));
     assert_eq!(e.state.seats[0].uncontrolled[slot as usize].counters, 4);
     let cap = CRYPT[young as usize].capacity;
     e.state.seats[0].uncontrolled[slot as usize].counters = cap;

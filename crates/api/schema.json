@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "title": "zvtes protocol",
-  "version": "2.34.0",
+  "version": "2.35.0",
   "$defs": {
     "About": {
       "description": "What a choice is about (`Decision::about`): each field given where\nthe purpose (or the terms) has it (docs/protocol.md §5).",
@@ -2165,6 +2165,23 @@
           ]
         },
         {
+          "description": "The turn order reversed or restored (Reversal of Fortunes):\n`TableView.turns_reversed`.",
+          "type": "object",
+          "properties": {
+            "kind": {
+              "type": "string",
+              "const": "turn_order"
+            },
+            "reversed": {
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "kind",
+            "reversed"
+          ]
+        },
+        {
           "description": "A phase begun (the unlock phase is its turn's `turn`).",
           "type": "object",
           "properties": {
@@ -2276,7 +2293,7 @@
               "minimum": 0
             },
             "zone": {
-              "description": "`library`: the top of `seat`'s library, top first — the looking\nseat's own (Anna \"Dictatrix11\" Suljic) or the active Methuselah's\n(Weirding Stone); `crypt`: the top of `seat`'s crypt (Sabbat\nInquisitor); absent, the hand.",
+              "description": "`library`: the top of `seat`'s library, top first — the looking\nseat's own (Anna \"Dictatrix11\" Suljic) or the active Methuselah's\n(Weirding Stone); `crypt`: the top of `seat`'s crypt (Sabbat\nInquisitor); `uncontrolled`: a card of `seat`'s uncontrolled\nregion (Harrod); absent, the hand.",
               "anyOf": [
                 {
                   "$ref": "#/$defs/Zone"
@@ -3850,6 +3867,16 @@
           "description": "Transfusion counters (`seat`: whose, `n`; Transfusion: at 3 of\none Methuselah's, they burn and that Methuselah takes the minion).",
           "type": "string",
           "const": "transfusion_counters"
+        },
+        {
+          "description": "Research counters (`n`; Nahir: +1 hand size each).",
+          "type": "string",
+          "const": "research_counters"
+        },
+        {
+          "description": "Seduction counters (`n`; Makarios: it cannot block him).",
+          "type": "string",
+          "const": "seduction_counters"
         },
         {
           "description": "A value this reader does not know.",
@@ -5615,6 +5642,51 @@
           "const": "found_version"
         },
         {
+          "description": "Brothers Grimm taken by `seat`'s Methuselah: its controller may\ndiscard a master card (`discard`) to keep `card`, or pass.",
+          "type": "string",
+          "const": "may_discard_to_keep"
+        },
+        {
+          "description": "Extremis Boon: a bid (`set_x`) to keep `seat`'s Methuselah in\nthe game over the high bid `n` (when given), or a pass for good.",
+          "type": "string",
+          "const": "boon_auction"
+        },
+        {
+          "description": "Celestial Harmony: the hand card (`discard`) the player keeps\nhidden, the others shown to `seat`'s Methuselah.",
+          "type": "string",
+          "const": "hide_one_card"
+        },
+        {
+          "description": "Harrod: the card of `seat`'s uncontrolled region the player\nlooks at (`slot`).",
+          "type": "string",
+          "const": "look_prey_slot"
+        },
+        {
+          "description": "Path of Death and the Soul `card`, a minion of another Methuselah\nburned: lock it for a ready vampire of `seat`'s (`choose_minion`)\nto get 1 blood and a Master: Discipline card searched, or pass.",
+          "type": "string",
+          "const": "may_lock_for_discipline_search"
+        },
+        {
+          "description": "Kindred Coercion [DOM]'s pick `minion`: it abstains (`pass`) or\nits votes go to a side (`cast_votes`).",
+          "type": "string",
+          "const": "coerced_side"
+        },
+        {
+          "description": "The Art of Memory: a card `minion` played this action, moved from\n`seat`'s ash heap to hand (`find_card`; the action card too).",
+          "type": "string",
+          "const": "played_card_to_hand"
+        },
+        {
+          "description": "The library card of `seat`'s ash heap the action names (Imogen's\nexchange): `find_card`.",
+          "type": "string",
+          "const": "name_target_ash_card"
+        },
+        {
+          "description": "Cancel (`resolve_rider`) this use of `card`, a hunting ground of\nthe chooser's prey (Klaus van der Veken, `minion`), the use spent;\nor let it resolve (`pass`).",
+          "type": "string",
+          "const": "may_cancel_hunting_ground"
+        },
+        {
           "description": "A value this reader does not know.",
           "type": "string",
           "const": "unknown"
@@ -6545,6 +6617,10 @@
           "type": "integer",
           "format": "uint32",
           "minimum": 0
+        },
+        "turns_reversed": {
+          "description": "Turns go to the right, to each seat's predator (Reversal of\nFortunes); the prey is still to the left.",
+          "type": "boolean"
         },
         "viewer": {
           "description": "The viewing seat; absent: every card shown (records, tests).",

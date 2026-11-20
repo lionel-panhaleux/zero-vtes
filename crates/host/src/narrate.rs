@@ -42,6 +42,7 @@ pub enum Fact {
         turn: u32,
         active: SeatId,
     },
+    TurnOrder(bool),
     Phase(zvtes::game::Phase),
     Transfers(u8),
     Draw {
@@ -386,6 +387,9 @@ pub struct Spot {
     /// (these two read from the table as it stands: a slot gone, a card
     /// changed hands since, is read so).
     pub shown: u8,
+    /// The ledger had this card in play on no minion: still a card to it,
+    /// whatever it is now (a minion's body since: Trophy: Progeny).
+    pub was_card: bool,
 }
 
 /// Every seat.
@@ -439,6 +443,7 @@ fn spot(e: &Engine, l: &Ledger, p: Place, copy: CopyId) -> Spot {
         region,
         on,
         shown,
+        was_card: false,
     };
     match p {
         Place::Zone(s, _)
@@ -457,7 +462,10 @@ fn spot(e: &Engine, l: &Ledger, p: Place, copy: CopyId) -> Spot {
                 // minion since: Call the Great Beast).
                 (Some(card), _) => match card.host {
                     Some(m) => at((minion(m).0, crate::view::Region::Ready), Some(m)),
-                    None => at((card.controller, crate::view::Region::Ready), None),
+                    None => Spot {
+                        was_card: true,
+                        ..at((card.controller, crate::view::Region::Ready), None)
+                    },
                 },
                 (None, Some(m)) => at(minion(m), None),
                 (None, None) => at(
@@ -525,6 +533,9 @@ pub(crate) fn changes(
             active: after.turn.1,
         };
         tell(out, fact, true);
+    }
+    if after.turns_reversed != before.turns_reversed {
+        tell(out, Fact::TurnOrder(after.turns_reversed), true);
     }
     // The unlock phase is its turn's (`turn` tells it).
     if after.phase != before.phase && after.phase != zvtes::game::Phase::Unlock {

@@ -121,7 +121,8 @@ impl<N: Names> Ctx<'_, N> {
 
     /// The region an uncontrolled-slot index points into: the
     /// interrupt's seat's (a vampire of another Methuselah named), else
-    /// the one a play's terms chose first (Undue Influence), else the
+    /// the one a play's terms chose first (Undue Influence) or its
+    /// player's prey's (Brainwash, Memory's Fading Glimpse), else the
     /// deciding seat's.
     fn region(&self) -> SeatId {
         match self.e.interrupt() {
@@ -133,18 +134,24 @@ impl<N: Names> Ctx<'_, N> {
                 Interrupt::PreySlotToPool { of, .. }
                 | Interrupt::PreySlotHalf { of, .. }
                 | Interrupt::NameSlotPair { of, from: None, .. }
-                | Interrupt::StealFromSlot { of, slot: None, .. },
+                | Interrupt::StealFromSlot { of, slot: None, .. }
+                | Interrupt::LookPreySlot { of, .. },
             ) => of,
             // Undue Influence's chosen seat rides in `PlayTerms::ash`.
-            _ => self
-                .e
-                .play_terms()
-                .filter(|p| {
+            _ => {
+                let terms = |p: &zvtes::cards::PlayCtx| {
                     zvtes::cards::lookup(p.card).and_then(|d| d.modes[p.mode as usize].terms)
-                        == Some(zvtes::cards::Terms::UncontrolledSourceAny)
-                })
-                .and_then(|p| p.ash)
-                .map_or(self.seat, |(s, _)| s),
+                };
+                match self.e.play_terms() {
+                    Some(p) if terms(p) == Some(zvtes::cards::Terms::PreySlot) => {
+                        self.e.state.prey(p.seat)
+                    }
+                    Some(p) if terms(p) == Some(zvtes::cards::Terms::UncontrolledSourceAny) => {
+                        p.ash.map_or(self.seat, |(s, _)| s)
+                    }
+                    _ => self.seat,
+                }
+            }
         }
     }
 
@@ -283,7 +290,9 @@ fn found_in(e: &Engine, req: &DecisionRequest) -> Option<ZoneRef> {
             | Interrupt::NameOwnAshCard { seat, .. }
             | Interrupt::NameAshRetainer { seat, .. }
             | Interrupt::NameAshPair { of: seat, .. }
+            | Interrupt::NameTargetAshCard { of: seat, .. }
             | Interrupt::StoreFromAshOf { from: seat, .. }
+            | Interrupt::PlayedCardToHand { seat, .. }
             | Interrupt::ExchangeLooked { of: seat, .. },
         ) => return at(seat, Zone::AshHeap),
         Some(Interrupt::StorePreyAsh { seat, .. }) => return at(e.state.prey(seat), Zone::AshHeap),
@@ -330,7 +339,9 @@ fn found_in(e: &Engine, req: &DecisionRequest) -> Option<ZoneRef> {
         return at(heap, Zone::AshHeap);
     }
     match e.ability_terms()?.1.terms {
-        Some(Terms::AshCard | Terms::CombatPlayedAshCard) => at(req.seat, Zone::AshHeap),
+        Some(Terms::AshCard | Terms::CombatPlayedAshCard | Terms::ActionCombatPlayedAshCard) => {
+            at(req.seat, Zone::AshHeap)
+        }
         // Luna Giovanni: the heap picked first; Prejudice: his prey's.
         Some(Terms::RemoveFromAnyAsh { .. } | Terms::RemoveFromPreyAsh { .. }) => {
             at(e.ability_terms_heap()?, Zone::AshHeap)
@@ -348,6 +359,7 @@ fn found_in(e: &Engine, req: &DecisionRequest) -> Option<ZoneRef> {
 pub fn names_any_card(e: &Engine) -> bool {
     e.play_terms().is_some_and(|p| {
         !p.paying
+            && !p.titling
             && p.meeting.is_none()
             && zvtes::cards::lookup(p.card).and_then(|d| d.modes[p.mode as usize].terms)
                 == Some(zvtes::cards::Terms::AnyCardName)
@@ -816,7 +828,7 @@ fn asked(x: &Ctx<impl Names>, i: Interrupt, choice: &Choice) -> Vec<Effect> {
                 ..Effect::new(EffectKind::Pool)
             },
             P::HealHost(_) => n(-1, chosen(EffectKind::Blood)),
-            P::MoveOntoAny(..) => chosen(EffectKind::Move),
+            P::MoveOntoAny(..) | P::MoveToYoungerLocked(_) => chosen(EffectKind::Move),
             P::BlindSpot(_) => Effect {
                 detail: Some("blind_spot".into()),
                 ..chosen(EffectKind::Lock)
@@ -1027,6 +1039,7 @@ pub(crate) fn count_of(mode: &zvtes::cards::ModeDef) -> Option<zvtes::cards::Eff
                 | E::HandToBottomX
                 | E::ActingControllerDiscardsAtRandom
                 | E::MoveChosenBloodX
+                | E::StealPoolFromControllerX
         )
     })
 }
@@ -1084,7 +1097,10 @@ fn amount(x: &Ctx<impl Names>, req: &DecisionRequest, n: u8) -> Vec<Effect> {
     };
     match req.window {
         W::PlayTerms => {
-            if let Some(p) = e.play_terms().filter(|p| p.meeting.is_none() && !p.paying) {
+            if let Some(p) = e
+                .play_terms()
+                .filter(|p| p.meeting.is_none() && !p.paying && !p.titling)
+            {
                 let Some(terms) = zvtes::cards::lookup(p.card)
                     .and_then(|d| d.modes.get(p.mode as usize))
                     .and_then(|m| m.terms)
@@ -1141,7 +1157,7 @@ fn amount(x: &Ctx<impl Names>, req: &DecisionRequest, n: u8) -> Vec<Effect> {
                     ..of(EffectKind::Counters, -n)
                 }];
             }
-            let Some((_, mode, target)) = e.ability_terms() else {
+            let Some((source, mode, target)) = e.ability_terms() else {
                 return Vec::new();
             };
             match mode.terms {
@@ -1173,6 +1189,11 @@ fn amount(x: &Ctx<impl Names>, req: &DecisionRequest, n: u8) -> Vec<Effect> {
                         seat: e.action().map(|a| a.seat.0),
                         detail: Some("at_random".into()),
                         ..of(EffectKind::Discard, n)
+                    }],
+                    // Extremis Boon: from the card's controller.
+                    Some(E::StealPoolFromControllerX) => vec![Effect {
+                        seat: Some(e.state.card_controller(source.card()).0),
+                        ..of(EffectKind::Steal, n)
                     }],
                     _ => Vec::new(),
                 },
@@ -1459,6 +1480,24 @@ pub fn about(e: &Engine, req: &DecisionRequest, names: &impl Names) -> Option<Ab
                 minion: m(blocker),
                 ..a()
             },
+            I::MayDiscardToKeep { card: c, taker, .. } => About {
+                card: card(c),
+                seat: Some(taker.0),
+                ..a()
+            },
+            I::LookPreySlot { of, .. } => About {
+                seat: Some(of.0),
+                ..a()
+            },
+            I::HideOneCard { viewer, .. } => About {
+                seat: Some(viewer.0),
+                ..a()
+            },
+            I::BoonAuction { target, high, .. } => About {
+                seat: Some(target.0),
+                n: high.map(|(_, b)| b),
+                ..a()
+            },
             I::Bid { target, high, .. } => About {
                 minion: m(target),
                 seat: high.map(|(s, _)| s.0),
@@ -1609,6 +1648,8 @@ pub fn about(e: &Engine, req: &DecisionRequest, names: &impl Names) -> Option<Ab
             | I::ChooseCircle { minion, .. }
             | I::BaseSearch { minion, .. }
             | I::MayTorture { minion, .. }
+            | I::CoercedSide { minion, .. }
+            | I::PlayedCardToHand { minion, .. }
             | I::EntryBurn { ally: minion, .. }
             | I::BurnOverCapacity { host: minion, .. }
             | I::EntryRemoveOrBurn { ally: minion, .. }
@@ -1627,6 +1668,7 @@ pub fn about(e: &Engine, req: &DecisionRequest, names: &impl Names) -> Option<Ab
                     P::BurnAllyUpTo(k) => ("burn_ally_up_to", None, None, Some(k)),
                     P::HealHost(_) => ("heal_host", None, None, None),
                     P::MoveOntoAny(c, _) => ("move_onto_any", None, card(c), None),
+                    P::MoveToYoungerLocked(c) => ("move_to_younger_locked", None, card(c), None),
                     P::LockOtherAnarch(_) => ("lock_other_anarch", None, None, None),
                     P::LockYoungerThan(_) => ("lock_younger", None, None, None),
                     P::StealFromTorpid { steal, .. } => ("siphon", None, None, Some(steal)),
@@ -1689,8 +1731,16 @@ pub fn about(e: &Engine, req: &DecisionRequest, names: &impl Names) -> Option<Ab
             },
             I::PreySlotToPool { of, .. }
             | I::PreySlotHalf { of, .. }
-            | I::NameAshPair { of, .. } => About {
+            | I::NameAshPair { of, .. }
+            | I::NameTargetAshCard { of, .. } => About {
                 seat: Some(of.0),
+                ..a()
+            },
+            I::MayCancelHuntingGround {
+                minion, card: c, ..
+            } => About {
+                minion: m(minion),
+                card: card(c),
                 ..a()
             },
             I::NameSlotPair { of, from, .. } => About {
@@ -1932,12 +1982,21 @@ pub fn about(e: &Engine, req: &DecisionRequest, names: &impl Names) -> Option<Ab
                 ..a()
             },
             I::StealFromSlot {
-                of, to, n, slot, ..
+                of,
+                to,
+                n,
+                slot,
+                burn,
+                ..
             } => About {
                 seat: Some(of.0),
                 minion: m(to),
                 n: Some(n),
-                detail: slot.map(|_| "named".to_string()),
+                detail: match (slot, burn) {
+                    (Some(_), _) => detail("named"),
+                    (None, true) => detail("burn"),
+                    (None, false) => None,
+                },
                 ..a()
             },
             I::CryptToReady { below, blood, .. } => About {
@@ -1960,10 +2019,12 @@ pub fn about(e: &Engine, req: &DecisionRequest, names: &impl Names) -> Option<Ab
                 seat: Some(of.0),
                 ..a()
             },
-            I::MayLockForBlood { card: c, .. } => About {
-                card: card(c),
-                ..a()
-            },
+            I::MayLockForBlood { card: c, .. } | I::MayLockForDisciplineSearch { card: c, .. } => {
+                About {
+                    card: card(c),
+                    ..a()
+                }
+            }
             I::RetakeFromAsh { card: c, .. } => About {
                 card: named(c),
                 ..a()
@@ -2271,6 +2332,15 @@ pub fn about(e: &Engine, req: &DecisionRequest, names: &impl Names) -> Option<Ab
                         ..a()
                     });
                 }
+                // Whether its vampire pays for a title it meets otherwise
+                // (Matteus).
+                if p.titling {
+                    return Some(About {
+                        minion: p.actor.and_then(m),
+                        detail: detail("title_grant"),
+                        ..a()
+                    });
+                }
                 // The requirement its vampire meets once (Vidal Jarbeaux).
                 if let Some(v) = p.meeting {
                     return Some(About {
@@ -2440,6 +2510,10 @@ pub fn about(e: &Engine, req: &DecisionRequest, names: &impl Names) -> Option<Ab
                     },
                     Some(E::DrawThenBottom) => About {
                         detail: detail("count"),
+                        ..a()
+                    },
+                    Some(E::StealPoolFromControllerX) => About {
+                        detail: detail("steal_pool"),
                         ..a()
                     },
                     _ => return None,

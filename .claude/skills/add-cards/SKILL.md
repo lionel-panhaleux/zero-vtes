@@ -185,16 +185,23 @@ ledger refs it backs; at least one test per card and per rules-qa reading;
 write them in chunks of ~10 and run as you go (they find engine bugs).
 Elision breaks naive tests (add a second minion; `never_offered_until`).
 Every new ledger row gets a status (`--check` at 0). Two fuzz fixtures per
-round from the new cards' decks (≤ 100 seeds each, no wide sweep); re-bless
-goldens and confirm unrelated fixtures moved only in hashes (a trajectory
-change there is a behaviour change to explain).
+round from the new cards' decks, their seeds set by DESIGN §7.2's rule
+(the full run with `FUZZ_STATS=<file>` gives the seed of each fixture's last
+coverage key first taken); re-bless goldens (`GOLDEN_BLESS=1`, a fixture
+name after `--` for one) and confirm unrelated fixtures moved only in hashes
+(a trajectory change there is a behaviour change to explain). A fixture
+whose new cards starve a key is re-tuned from `FUZZ_STATS`, never stripped
+of the key.
 
-Fuzz runs twice a round, no more (owner, 2026-11-20: "far too long… don't
-you fuzz far too often?"; round 33 ran it about 25 times): implementers,
-fix passes and parallel tracks run the suites without it (`cargo test
---profile ci --no-fail-fast -- --skip random_games`); fuzz runs once on the
+The full fuzz run (`cargo test --profile ci -p zero-vtes-engine --test
+fuzz`) runs twice a round, no more (owner, 2026-11-20: "far too long… don't
+you fuzz far too often?"; round 33 ran it about 25 times): once on the
 merged round (invariants checked, moved goldens listed) and once to
 attribute and re-bless, after the last fix changing engine behaviour.
+Implementers, fix passes and parallel tracks run the suites without it
+(`cargo test --profile ci --no-fail-fast -- --skip random_games`); a
+behaviour fix between the two runs is confirmed by the quick mode
+(`FUZZ_QUICK=1`, each fixture's first seeds, invariants and replays only).
 
 ## 6. Finish
 

@@ -648,3 +648,45 @@ fn precision_names_a_card_in_no_zone() {
     let (req, c) = drive(&mut e, &[play], |_, o| matches!(o, Choice::FindCard(_)));
     assert_eq!(key(&e, &req, &c, &EngineNames).zone, None);
 }
+
+/// Brainwash names a slot of its player's prey's uncontrolled region: each
+/// slot option's key points into the prey's region, not the player's
+/// (docs/protocol.md §7 `slot`; `Terms::PreySlot`).
+#[test]
+fn brainwash_names_the_preys_uncontrolled_slots() {
+    use zvtes::cards::Target;
+    use zvtes::copies::{CopyId, Untracked};
+    use zvtes::decision::Choice;
+    use zvtes::ids::SeatId;
+    use zvtes::state::{find_library, UncontrolledSlot};
+    let mut e = Engine::bare(2);
+    e.add_minion(SeatId(0), 0, 4, false);
+    e.add_minion(SeatId(1), 1, 4, false);
+    for seat in &mut e.state.seats {
+        for card in [2, 3] {
+            seat.uncontrolled.push(UncontrolledSlot {
+                card,
+                copy: Untracked(CopyId::NONE),
+                counters: 2,
+                banished: None,
+            });
+        }
+    }
+    e.state.seats[0].hand.push(find_library("Brainwash"));
+    e.at_master_phase();
+    let brainwash = Choice::Play {
+        card: 0,
+        mode: 0,
+        actor: None,
+        target: Target::None,
+    };
+    let (req, _) = drive(&mut e, &[brainwash], |_, c| matches!(c, Choice::Slot(_)));
+    let slots: Vec<_> = req
+        .options
+        .iter()
+        .filter(|c| matches!(c, Choice::Slot(_)))
+        .map(|c| key(&e, &req, c, &EngineNames).slot.expect("its slot"))
+        .collect();
+    assert_eq!(slots.len(), 2);
+    assert!(slots.iter().all(|s| s.seat == 1), "{slots:?}");
+}

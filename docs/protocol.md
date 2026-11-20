@@ -18,7 +18,7 @@ is created by one request and played over one WebSocket. Every game is
 recorded, anonymously, and kept two years to train and test the engine
 (§11).
 
-Version **2.34.0**. The types: the models of the
+Version **2.35.0**. The types: the models of the
 [API reference](https://engine.krcg.org/docs), also as
 [JSON Schema](https://engine.krcg.org/schema.json) (2020-12) and
 [TypeScript](https://engine.krcg.org/protocol.ts).
@@ -44,7 +44,7 @@ Version **2.34.0**. The types: the models of the
   their predator gaining nothing (rules-qa 95; tournament rules).
 - While a First Tradition: The Masquerade is in play, each Methuselah's
   turn begins with the `may_skip_turn` decision: `skip_turn` skips their
-  entire turn (nothing of it happens, the prey's turn begins), `pass`
+  entire turn (nothing of it happens, the next Methuselah's turn begins), `pass`
   plays it.
 - In their influence phase, a Methuselah's Sabbat vampire following no
   **path** may burn 1 blood to follow one (`follow_path`: its `minion`,
@@ -291,10 +291,13 @@ window: `blood_range` (from `minion`, to `to` or else the pool),
 `x_blood`, `x_convictions`, `discard`, `discard_any`, `put_on_source` (a
 card from the hand put on the source), `cost_reductions`, `grant_payer` (the
 `choose_card`, or a lending vampire's `choose_minion`, paying the Discipline
-`minion` lacks), `cost_counters` (how many of `card`'s), an ability's count by
+`minion` lacks), `title_grant` (a `pass` or the `choose_minion` of `minion`
+paying the blood its title grant costs, the card's requirement met
+otherwise), `cost_counters` (how many of `card`'s), an ability's count by
 what it counts — `count` (cards drawn, as many then to the library's bottom),
 `blood_on_target` (on `minion`), `hand_to_bottom`, `discard_at_random` (from
-`seat`'s hand), `chosen_blood` (between the vampires the card chose) —, a rider
+`seat`'s hand), `chosen_blood` (between the vampires the card chose),
+`steal_pool` (from the card's controller, Extremis Boon) —, a rider
 paid unit by unit by its units — `pool_or_blood`, `pool_or_hand_cards`,
 `pool_or_ash_cards`, `pool_or_burn` (or the source burned) —, `burn_allocated`,
 `gains_pool`…). A client tells its prompt from these alone, as the server's
@@ -314,7 +317,10 @@ the previous one, never the engine's state.
 
 - `turn`, `active`, `phase` (`unlock`, `master`, `minion`, `influence`,
   `discard`; `over` in the `over` message's view, however the game
-  ended), `decision` (the next one's number).
+  ended), `decision` (the next one's number), `transfers`? (the active
+  seat's transfers left, during its influence phase), `turns_reversed`?
+  (turns go to the right, to each seat's predator: Reversal of Fortunes;
+  the prey still to the left).
 - `seats[]`: `name`, `pool`, `vp_halves`, `ousted` (out of the game:
   ousted, or withdrawn), `withdrawing`? (a withdrawal announced, not
   broken), `withdrew`? (out by a withdrawal), `edge`, `shattered`? (the
@@ -621,6 +627,7 @@ heap (a marker on its minion, §6), no copy of its own.
 | `auto_passed` | `decision`, `seat`, `window` |
 | `undone` | `seat`, `to`: drop what was shown since decision `to` |
 | `turn` | `turn`, `active`: its unlock phase begun |
+| `turn_order` | `reversed`: the turn order reversed or restored (Reversal of Fortunes), the view's `turns_reversed` |
 | `phase` | `phase`: a phase begun (never `unlock`, its `turn`'s; never `over`, the `over` message's) |
 | `transfers` | `left`: the active seat's transfers left, as its influence phase begins and at each change |
 | `draw` | `seat`, `n`, `crypt` |
@@ -726,8 +733,8 @@ tests hold every view to it. What it applies:
   minion in a contest too), `counters` (a card's, in training too; a slot by
   its place), `controller`, `capacity`, `title`, `markers`, `traits`, `hand`
   (a hand turned face up or down for the viewer), `victory_points`, `edge`,
-  `turn` (its unlock phase) and `phase`, `transfers` (none once a phase
-  begins), a decision's number after `decided` and `auto_passed`, and the
+  `turn` (its unlock phase), `turn_order` and `phase`, `transfers` (none once a
+  phase begins), a decision's number after `decided` and `auto_passed`, and the
   action, combat and referendum under way: `*_state` to set it, `action_ends`,
   `combat_ends`, `referendum_ends` to end it; `over`'s view the phase `over`;
 - what follows from other events: prey and predator from the seats

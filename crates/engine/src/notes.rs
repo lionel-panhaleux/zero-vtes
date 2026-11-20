@@ -108,6 +108,8 @@ impl ActionCtx {
 pub struct Ledger {
     /// Game turn and active seat.
     pub turn: (u32, SeatId),
+    /// The turn order reversed (Reversal of Fortunes).
+    pub turns_reversed: bool,
     pub phase: Phase,
     /// The active seat's transfers left, in its influence phase.
     pub transfers: Option<u8>,
@@ -182,6 +184,7 @@ impl Engine {
             .filter(|_| self.phase() == Phase::Over);
         Ledger {
             turn: (st.turn, st.active),
+            turns_reversed: st.turn_reversed.0 > 0,
             phase: parked.map_or(self.phase(), |l| l.phase),
             transfers: parked.map_or(self.transfers_left(), |l| l.transfers),
             pools: st.seats.iter().map(|s| s.pool).collect(),

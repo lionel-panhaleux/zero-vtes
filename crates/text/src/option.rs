@@ -519,6 +519,9 @@ fn asked(
         (P::StoreUpTo, K::FindCard) => format!("Put {} face down on it", card()),
         (P::MayBottomTop, K::ResolveRider) => "Move them to the bottom of your library".into(),
         (P::MayLockForBlood, K::ResolveRider) => "Lock it: 1 blood".into(),
+        (P::MayLockForDisciplineSearch, K::ChooseMinion) => {
+            format!("Lock it: {} gets 1 blood and a Discipline", whom()?)
+        }
         (P::CombatStandIn, K::ResolveRider) => format!("Lock {} to fight instead", named()?),
         (P::MayLockCardForBlock, K::ResolveRider) => "Lock it instead".into(),
         (P::MayBurnLookedMaster, K::ResolveRider) => "Burn blood to burn the master card".into(),
@@ -652,6 +655,8 @@ fn asked(
             )
         }
         (P::NameAshPair, K::FindCard) => format!("Remove two {}", card()),
+        (P::NameTargetAshCard, K::FindCard) => format!("Take {}", card()),
+        (P::MayCancelHuntingGround, K::ResolveRider) => "Cancel its effects".into(),
         (P::AllyFromAsh, K::FindCard) => format!("Move {} to your ready region", card()),
         (P::MoveForBlood, K::ChooseMinion) => format!(
             "{} burns {} blood: move {} to your ready region",
@@ -921,7 +926,8 @@ fn pass(
         P::StoreUpTo => "Put no more there".into(),
         P::StoreOwnHand => "Put none there".into(),
         P::MayTorture => "No torture counter".into(),
-        P::MayLockForBlood => "Leave it unlocked".into(),
+        P::MayLockForBlood | P::MayLockForDisciplineSearch => "Leave it unlocked".into(),
+        P::CoercedSide => "It abstains".into(),
         P::MayLockCardForBlock => "Lock the blocking vampire".into(),
         P::EntryRemoveForLife => "Remove no more cards".into(),
         P::MayBurnLookedMaster | P::MayLockToDiscardLooked => {
@@ -991,9 +997,11 @@ fn pass(
         P::LookedToHand => "Take no more".into(),
         P::MastersFromHand => "Put no more".into(),
         P::MayTakeTitle => "Keep the card".into(),
+        P::MayCancelHuntingGround => "Let it resolve".into(),
         P::MayTakeEdge => "Leave the Edge uncontrolled".into(),
         P::TorporMassacre => "Burn no vampire".into(),
-        P::Bid => "Bid no more".into(),
+        P::Bid | P::BoonAuction => "Bid no more".into(),
+        P::MayDiscardToKeep => "Let them take it".into(),
         P::NameOwnAshCard => "Name none".into(),
         P::PutInPlaySearch => "Put nothing in play".into(),
         P::ReadyTitledLeft => "Play no card for it".into(),
@@ -1369,6 +1377,8 @@ mod tests {
             P::StoreOwnHand,
             P::MayTorture,
             P::MayLockForBlood,
+            P::MayLockForDisciplineSearch,
+            P::CoercedSide,
             P::MayLockCardForBlock,
             P::MayBurnLookedMaster,
             P::MayLockToDiscardLooked,
@@ -1448,9 +1458,12 @@ mod tests {
             P::LookedToHand,
             P::MastersFromHand,
             P::MayTakeTitle,
+            P::MayCancelHuntingGround,
             P::MayTakeEdge,
             P::TorporMassacre,
             P::Bid,
+            P::BoonAuction,
+            P::MayDiscardToKeep,
             P::MinionOf,
             P::MoveBetween,
             P::MoveOffBurnedBearer,

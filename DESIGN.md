@@ -1229,7 +1229,7 @@ What the engine does not yet do or does only in part, true today.
 
 The objectives still open are the roadmap's (`docs/roadmap.md`).
 
-Definitions: 1996 library, 1061 vampires
+Definitions: 2108 library, 1126 vampires
 
 ## Outlook: deck building (post-v1)
 

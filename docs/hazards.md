@@ -327,6 +327,11 @@ review finding); one the code or a page now makes impossible leaves it.
   it first (`release_held_oust`); `start_combat_at_resolution` returns
   false when the release ended the action — check it before touching
   `self.combat`.
+- A Methuselah being ousted holds a pool below 0 (`defer_oust`): a cost
+  test `cost <= pool` bars even a free card (Extremis Boon was never
+  offered); and while an oust waits no interrupt is asked
+  (`asking_queued`): a choice a Boon's play needs is let through there
+  explicitly (`Interrupt::BoonAuction`), or the game plays on past it.
 
 ## The shared tree
 

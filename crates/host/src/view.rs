@@ -291,6 +291,7 @@ impl Build<'_> {
                     .collect(),
             }),
             transfers: e.transfers_left(),
+            turns_reversed: st.turn_reversed.0 > 0,
             referendum: e.referendum().map(|r| {
                 let tally = |favor: bool| {
                     r.records
@@ -588,6 +589,8 @@ impl Build<'_> {
             (MarkerKind::Taint, m.taint),
             (MarkerKind::BurnCounters, m.burn_counters.0),
             (MarkerKind::FounderCounters, m.founder_counters.0),
+            (MarkerKind::ResearchCounters, m.research.0),
+            (MarkerKind::SeductionCounters, m.seduction.0),
         ] {
             if n > 0 {
                 markers.push(marker(kind, n));

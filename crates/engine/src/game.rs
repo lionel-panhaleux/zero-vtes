@@ -172,6 +172,8 @@ pub(crate) enum Flow {
         /// The hand searched too, an equipment from it offered as
         /// `EmployFromHand` (Moise Kasavubu).
         hand: bool,
+        /// A card of these put in play, paid (Bindusara); empty otherwise.
+        in_play: &'static [crate::cards::CardFilter],
     },
     /// The cards an exchange action names as it is announced (Lenelle):
     /// the ash card, then the hand card.
@@ -448,6 +450,11 @@ pub enum LookedZone {
     Hand,
     Library,
     Crypt,
+    /// A card of an uncontrolled region (Harrod): a crypt card, else a
+    /// banished created vampire's own library card.
+    Uncontrolled {
+        crypt: bool,
+    },
 }
 
 /// A seat an engine before rules-qa 82.1 asked again after a block attempt
@@ -1461,6 +1468,11 @@ impl Engine {
     /// but the Boon and its play (ANK 20220210).
     pub(crate) fn asking_queued(&self) -> bool {
         self.ousting.is_none()
+            || self.ousting.as_ref().is_some_and(|o| o.playing)
+                && matches!(
+                    self.interrupts.first(),
+                    Some(crate::draws::Interrupt::BoonAuction { .. })
+                )
     }
 
     /// The referendum under way, if any (read-only).
@@ -1515,6 +1527,9 @@ impl Engine {
             self.settle_ousting();
             self.settle_acting_ousted();
             self.settle_combat_diablerie();
+            if self.settle_turn_cut() {
+                continue;
+            }
             if self.settle_draw_up() {
                 continue;
             }
@@ -1844,6 +1859,9 @@ impl Engine {
                 pending,
                 edge_taken,
             } => self.abilities_request(window, pending, *edge_taken),
+            Flow::LibrarySearch { in_play, .. } if !in_play.is_empty() => {
+                Some(self.in_play_search_request(in_play))
+            }
             Flow::LibrarySearch {
                 minion,
                 equip,
@@ -1851,6 +1869,7 @@ impl Engine {
                 free,
                 archetype: false,
                 hand,
+                ..
             } => Some(self.search_request(*minion, equip, to_hand.map(|(f, _)| f), *free, *hand)),
             Flow::LibrarySearch {
                 minion,
@@ -2211,6 +2230,9 @@ impl Engine {
                 },
                 c,
             ) => self.abilities_apply(window, pending, edge_taken, c),
+            (Flow::LibrarySearch { in_play, .. }, c) if !in_play.is_empty() => {
+                self.in_play_search_apply(c)
+            }
             (
                 Flow::LibrarySearch {
                     minion,
@@ -2525,6 +2547,23 @@ impl Engine {
             let s = self.state.minions[foe.index()].owner;
             self.state.gain_pool(s, gift);
         }
+        // Nakova: the damage at once, in the combat (LSJ 19980427), Dawn
+        // Operation's aggravated too (LSJ 19980413); after the whole of an
+        // Amaranth's diablerie, its blood hunt included (LSJ 20020411).
+        let n = self.state.printed_mod(
+            m,
+            cards::Stat::DamageToOpponentIfBurnedInCombat,
+            Default::default(),
+        );
+        if n > 0 {
+            let c = self.combat.as_mut().expect("combat context");
+            let aggravated = c.all_aggravated && self.state.minions[foe.index()].is_vampire();
+            if c.diablerizing {
+                c.after_hunt_damage.push((foe, n as u8, aggravated));
+            } else {
+                self.damage_out_of_combat(foe, n as u8, aggravated);
+            }
+        }
         // Mr. Noir: "you gain 2 pool", his controller as he burns.
         let own = self.state.printed_mod(
             m,
@@ -2591,11 +2630,16 @@ impl Engine {
         if self.burn_replaced(m, true) {
             return;
         }
+        let blood = self.state.minions[m.index()].blood;
+        let vampire = self.state.minions[m.index()].is_vampire();
         self.host_burned_or_to_torpor(&[m]);
-        let foe = self
-            .combat
-            .as_ref()
-            .and_then(|c| c.side_of_minion(m).map(|i| c.sides[1 - i].minion));
+        let foe = self.combat.as_mut().and_then(|c| {
+            let i = c.side_of_minion(m)?;
+            if vampire {
+                c.sides[i].burned_blood = Some(blood);
+            }
+            Some(c.sides[1 - i].minion)
+        });
         if let Some(f) = foe {
             self.burned_in_combat_gift(m, f);
         }
@@ -2672,10 +2716,13 @@ impl Engine {
         let was_ready = self.state.minions[m.index()].ready();
         let unique_burned =
             self.state.minions[m.index()].present() && self.state.is_unique_minion(m);
+        // A contested vampire yielded is no controlled vampire burned
+        // (advanced rules §1.13.3; rules-qa 124.94): no Mina, no Virolax.
         let (burned_vampire, burned_owner) = {
             let v = &self.state.minions[m.index()];
-            (v.in_play && v.is_vampire(), v.owner)
+            (v.in_play && v.is_vampire() && !v.contested, v.owner)
         };
+        let burned_from_play = self.state.minions[m.index()].in_play;
         let burned_capacity = self.state.capacity_of(m).unwrap_or(0);
         // The Capuchin: to his owner's uncontrolled region, a new vampire,
         // his controller's transfers next influence phase (ANK 20200417).
@@ -2943,6 +2990,25 @@ impl Engine {
             for (id, r) in self.fired_riders(Hook::UniqueMinionBurned, &HookAt::ANY) {
                 for &e in r.effects {
                     self.apply_rider_effect(id, e, Hook::UniqueMinionBurned);
+                }
+            }
+        }
+        // "When a minion controlled by another Methuselah is burned" (Path
+        // of Death and the Soul): ready or torpid, any burn from play.
+        if burned_from_play {
+            for (id, r) in self.fired_riders(Hook::MinionBurned, &HookAt::of(burned_owner)) {
+                for e in r.effects {
+                    match *e {
+                        crate::cards::Effect::MayLockForDisciplineSearch { blood } => {
+                            let seat = self.state.card_controller(id);
+                            self.interrupts.push(Interrupt::MayLockForDisciplineSearch {
+                                seat,
+                                card: id,
+                                blood,
+                            });
+                        }
+                        other => unreachable!("not a minion-burned effect: {other:?}"),
+                    }
                 }
             }
         }
@@ -3520,7 +3586,8 @@ impl Engine {
             }
         }
         for (m, n) in gains {
-            self.state.gain_blood(m, n);
+            let own = crate::notes::Cause::Effect(crate::notes::Source::Minion(m));
+            self.caused(own, |e| e.state.gain_blood(m, n));
         }
     }
 
@@ -3542,7 +3609,16 @@ impl Engine {
             self.burn_card_in_play(o);
         }
         // Derange gone: back to the underlying clan and sect (RTR 20201130),
-        // or the latest other Feral Spirit's on it.
+        // or the latest other Feral Spirit's on it; any clan override gone.
+        for v in &mut self.state.minions {
+            v.clan_overrides.0.retain(|&(_, c)| c != id);
+            if v.clan_overrides.0.len() == 1
+                && v.deranged
+                    .is_some_and(|(.., d)| Some(d) == v.clan_overrides.0.first().map(|o| o.1))
+            {
+                v.clan_overrides.0.clear();
+            }
+        }
         for i in 0..self.state.minions.len() {
             if self.state.minions[i]
                 .deranged
@@ -3874,17 +3950,7 @@ impl Engine {
                 self.flow = Flow::MinionPhase
             }
             Flow::MinionPhase => {
-                self.state.in_minion_phase = false;
-                // Chameleon: the minions in play so far entered before it.
-                self.state.settle_entries();
-                self.state.entry_clock += 1;
-                let a = self.state.active;
-                self.state.seats[a.index()].minion_phase_end = self.state.entry_clock;
-                self.thirst();
-                self.minion_phase_end_riders();
-                self.summoned_phase_end();
-                self.minion_phase_controls_end();
-                self.unlocks_after_minion_phase();
+                self.end_minion_phase();
                 // "During your influence phase" abilities: once per phase.
                 self.state.phase_uses.clear();
                 let a = self.state.active;
@@ -3933,6 +3999,22 @@ impl Engine {
         }
     }
 
+    /// The active Methuselah's minion phase ends: its end effects, before
+    /// the influence phase or Last Stand's cut (`settle_turn_cut`).
+    fn end_minion_phase(&mut self) {
+        self.state.in_minion_phase = false;
+        // Chameleon: the minions in play so far entered before it.
+        self.state.settle_entries();
+        self.state.entry_clock += 1;
+        let a = self.state.active;
+        self.state.seats[a.index()].minion_phase_end = self.state.entry_clock;
+        self.thirst();
+        self.minion_phase_end_riders();
+        self.summoned_phase_end();
+        self.minion_phase_controls_end();
+        self.unlocks_after_minion_phase();
+    }
+
     /// Thirst: as the minion phase ends, each ready vampire of the active
     /// Methuselah with capacity below the Gehenna events in play that did
     /// not hunt this turn burns 1 blood (an unsuccessful hunt counts, LSJ
@@ -3962,10 +4044,6 @@ impl Engine {
         }
     }
 
-    /// "After the end of your minion phase, burn Tupdog and move the top
-    /// card from your crypt to your uncontrolled region": each such vampire
-    /// of the active Methuselah, in torpor too; an empty crypt moves
-    /// nothing.
     /// "At the end of your master phase" (Winchester Mansion): the active
     /// seat's cards' riders.
     fn master_phase_end_riders(&mut self) {
@@ -4007,6 +4085,46 @@ impl Engine {
         }
     }
 
+    /// Last Stand's cut, once no action, combat or referendum is under way
+    /// (LSJ 20090731: post-resolution plays first): the minion phase ends,
+    /// no influence or discard phase follows, the turn ends.
+    fn settle_turn_cut(&mut self) -> bool {
+        let idle = matches!(
+            self.flow,
+            Flow::MasterPhase
+                | Flow::MinionPhase
+                | Flow::Influence { .. }
+                | Flow::Discard
+                | Flow::Abilities { .. }
+        );
+        if self.state.turn_cut.0.is_none()
+            || !idle
+            || self.action.is_some()
+            || self.combat.is_some()
+            || self.referendum.is_some()
+            || !self.interrupts.is_empty()
+            || self.ousting.is_some()
+        {
+            return false;
+        }
+        if self.state.in_minion_phase {
+            self.end_minion_phase();
+            self.release_held(Release::MinionPhaseEnd);
+            // Code of Samiel's unlock answered first; the turn ends after.
+            if !self.interrupts.is_empty() {
+                return true;
+            }
+        }
+        self.state.in_master_phase = crate::state::Sparse(0);
+        self.state.in_influence_phase = crate::state::Unhashed(false);
+        self.end_turn();
+        true
+    }
+
+    /// "After the end of your minion phase, burn Tupdog and move the top
+    /// card from your crypt to your uncontrolled region": each such vampire
+    /// of the active Methuselah, in torpor too; an empty crypt moves
+    /// nothing.
     fn minion_phase_end_riders(&mut self) {
         let s = self.state.active;
         let ms: Vec<MinionId> = self.state.minions_of(s).collect();
@@ -4228,6 +4346,15 @@ impl Engine {
             self.return_temporary(i, back);
         }
         self.state.forced_bleeds.0.clear();
+        self.state.cardless_bleeds.0.clear();
+        // Resilient Mind: the immunity to a card ends with the turn once
+        // the card is out of play (kept through its own resolution: Form
+        // of Corruption burns itself before it steals).
+        let cards = &self.state.cards;
+        self.state
+            .immune_to
+            .0
+            .retain(|&(copy, _)| cards.iter().any(|c| c.in_play && *c.copy == copy));
         // Dreams of the Sphinx's hand size (LSJ 20100812); any Methuselah's,
         // gained in another's turn too (Sascha Vykos, Shahid).
         for seat in &mut self.state.seats {
@@ -4343,6 +4470,10 @@ impl Engine {
         m.temp_until_action_end = crate::state::Sparse(0);
         m.owner = back;
         self.state.forced_bleeds.0.retain(|&(f, _)| f.index() != i);
+        self.state
+            .cardless_bleeds
+            .0
+            .retain(|&(f, ..)| f.index() != i);
         // Removed: every card on it burned, its owner's too (rulebook
         // "Burn"; rules-qa 27.4 superseded).
         if self.state.seats[back.index()].ousted {
@@ -4383,6 +4514,14 @@ impl Engine {
     /// every one paid, owner, rules-qa 124.173) goes only to surviving
     /// predators, and only for their own prey.
     pub(crate) fn oust_now(&mut self, seats: &[SeatId]) {
+        // Last Stand: another Methuselah's oust, its controller standing.
+        let stands: Vec<CardId> = self
+            .state
+            .in_play_layers()
+            .filter(|l| l.modifier == cards::Modifier::TurnEndsOnOtherOust)
+            .map(|l| l.source)
+            .filter(|&c| !seats.contains(&self.state.card_controller(c)))
+            .collect();
         let preds: Vec<(SeatId, SeatId)> =
             seats.iter().map(|&s| (s, self.state.predator(s))).collect();
         let gambits: Vec<(SeatId, u32)> = preds
@@ -4394,6 +4533,20 @@ impl Engine {
             self.caused(oust, |e| e.remove_seat(s));
         }
         self.release_unmeddled();
+        if !stands.is_empty() && self.state.living() > 1 {
+            for c in stands {
+                self.burn_card_in_play(c);
+            }
+            // The first ousted clockwise from the active one's left, the
+            // active one last: its predator now (LSJ 20050808).
+            let n = self.state.seats.len();
+            let active = self.state.active.index();
+            let first = (1..=n)
+                .map(|k| SeatId(((active + k) % n) as u8))
+                .find(|s| seats.contains(s))
+                .expect("an ousted seat");
+            self.state.turn_cut.0 = Some(self.state.predator(first));
+        }
         // "Do not replace until a Methuselah is ousted" (Absimiliard's Army).
         self.release_held(Release::MethuselahOusted);
         // "After a Methuselah is ousted, burn this card."
@@ -4572,6 +4725,7 @@ impl Engine {
             } else if c
                 .host
                 .is_some_and(|h| self.state.minions[h.index()].owner == s)
+                || c.on_slot.is_some_and(|(r, _)| r == s)
             {
                 self.burn_card_in_play(id);
             }
@@ -4637,7 +4791,13 @@ impl Engine {
             .retain(|l| l.scope != crate::cards::Scope::Action);
         // The turn's end noted apart from the next turn's start.
         self.checkpoint();
-        self.start_turn(self.state.prey(self.state.active));
+        let next = self
+            .state
+            .turn_cut
+            .0
+            .take()
+            .unwrap_or_else(|| self.state.next_in_turn(self.state.active));
+        self.start_turn(next);
     }
 
     /// Seat `s`'s turn starts: made active only as it begins (a turn it
@@ -4671,7 +4831,7 @@ impl Engine {
                 self.oust_now(&losers);
             }
             if self.state.living() > 1 {
-                self.start_turn(self.state.prey(s));
+                self.start_turn(self.state.next_in_turn(s));
             }
             return;
         }
@@ -4679,7 +4839,7 @@ impl Engine {
         if forced && withdrawal == crate::state::Withdrawal::Broken {
             self.oust_now(&[s]);
             if self.state.living() > 1 {
-                self.start_turn(self.state.prey(s));
+                self.start_turn(self.state.next_in_turn(s));
             }
             return;
         }
@@ -4781,6 +4941,7 @@ impl Engine {
             m.referendum_passed_turn = false;
             m.political_this_turn = false;
             m.recruited_ally_this_turn = false;
+            m.hired_this_turn = crate::state::Unhashed(false);
             m.expelled = false;
             m.hunting_ground_fed = false;
             m.conviction_played = false;
@@ -4943,8 +5104,8 @@ impl Engine {
 
     /// `s` skips their entire turn (First Tradition: The Masquerade): a
     /// counter on each copy they control, burned at its count (LSJ
-    /// 20031011, RTR 19941222); nothing of the turn happens, the prey's
-    /// begins.
+    /// 20031011, RTR 19941222); nothing of the turn happens, the next
+    /// Methuselah's begins (`next_in_turn`).
     pub(crate) fn skip_turn(&mut self, s: SeatId) {
         let copies: Vec<(CardId, u8)> = self
             .state
@@ -4965,7 +5126,7 @@ impl Engine {
                 self.burn_card_in_play(c);
             }
         }
-        self.start_turn(self.state.prey(s));
+        self.start_turn(self.state.next_in_turn(s));
     }
 }
 
@@ -5118,7 +5279,7 @@ mod tests {
     #[test]
     fn crypt_data_is_complete() {
         // The 200 V5 vampires, then the owner's legacy additions.
-        assert_eq!(CRYPT.len(), 1532);
+        assert_eq!(CRYPT.len(), 1629);
         assert_eq!(PRECONS.len(), 14);
         for (name, list) in PRECONS.iter() {
             let n: u32 = list.iter().map(|&(_, k)| k as u32).sum();

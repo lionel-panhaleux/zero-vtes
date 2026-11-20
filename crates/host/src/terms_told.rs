@@ -697,6 +697,7 @@ fn counted(f: &E) -> bool {
             | E::HandToBottomX
             | E::ActingControllerDiscardsAtRandom
             | E::MoveChosenBloodX
+            | E::StealPoolFromControllerX
     )
 }
 

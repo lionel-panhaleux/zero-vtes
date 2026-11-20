@@ -36,7 +36,7 @@ fn from() -> u32 {
 /// from the events: a vampire banished and back between two views (47), one
 /// influenced into a contest (137), a unique ally played into one (328), a
 /// contested minion's cards (137), a merge (47), training counters (499), a
-/// vampire moved within its uncontrolled region (446), two Methuselahs ousted
+/// vampire moved within its uncontrolled region (354), two Methuselahs ousted
 /// at once (2382), a unique card put into a contest (289), a vampire's excess
 /// drained in one (137), an action's intercept changed between two views (143),
 /// a play canceled as it is announced (3572: Andrew Stuart), a cost reduced by
@@ -61,11 +61,14 @@ fn from() -> u32 {
 /// changed between two views (47); and a turn begun with its skip asked (353:
 /// First Tradition: The Masquerade); and a block attempt its action's end cut
 /// short, told failed before it (742: Shadow Play burning Nocturn); and a
-/// created vampire banished with a card on it (488: Trophy: Progeny).
-const KEPT: [u32; 37] = [
-    47, 137, 139, 143, 145, 220, 265, 289, 321, 328, 332, 342, 353, 358, 375, 397, 445, 446, 472,
-    488, 499, 589, 591, 742, 766, 1057, 1302, 1320, 1413, 1717, 1733, 2355, 2382, 2493, 2742, 3572,
-    5419,
+/// created vampire banished with a card on it (488: Trophy: Progeny); and
+/// an action in another's turn after an as-played window (944: Madness
+/// Network), a neighbour's contest yielded (987: Mina Grotius), a trophy in
+/// play become a vampire (1081: Trophy: Progeny).
+const KEPT: [u32; 40] = [
+    47, 137, 139, 143, 145, 220, 265, 289, 321, 328, 332, 342, 353, 354, 358, 375, 397, 445, 472,
+    488, 499, 589, 591, 742, 766, 944, 987, 1057, 1081, 1302, 1320, 1413, 1717, 1733, 2355, 2382,
+    2493, 2742, 3572, 5419,
 ];
 
 /// The sweep's seeds: `HOST_SEED_FROM` to `HOST_SEEDS` (40), the kept
@@ -445,10 +448,16 @@ impl Stream {
             source,
             purpose,
             decision,
+            window,
             ..
         } = &e.kind
         {
-            self.decided = Some(*seat);
+            // Another seat's answer in the card's as-played window comes
+            // between the play and its action (Madness Network's action in
+            // another's turn: seed 944).
+            if *window != zvtes_api::ids::Window::CardAsPlayed {
+                self.decided = Some(*seat);
+            }
             assert!(sees_its_copies(choice), "seed {seed}: {e:?}");
             assert!(
                 source.as_ref().and_then(|c| c.copy) != Some(u32::MAX),

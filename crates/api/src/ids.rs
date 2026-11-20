@@ -1144,6 +1144,35 @@ ids!(
         /// retainer): the version it enters at (`version`), when `minion`'s
         /// Disciplines meet more than one; `card` the card.
         FoundVersion,
+        /// Brothers Grimm taken by `seat`'s Methuselah: its controller may
+        /// discard a master card (`discard`) to keep `card`, or pass.
+        MayDiscardToKeep,
+        /// Extremis Boon: a bid (`set_x`) to keep `seat`'s Methuselah in
+        /// the game over the high bid `n` (when given), or a pass for good.
+        BoonAuction,
+        /// Celestial Harmony: the hand card (`discard`) the player keeps
+        /// hidden, the others shown to `seat`'s Methuselah.
+        HideOneCard,
+        /// Harrod: the card of `seat`'s uncontrolled region the player
+        /// looks at (`slot`).
+        LookPreySlot,
+        /// Path of Death and the Soul `card`, a minion of another Methuselah
+        /// burned: lock it for a ready vampire of `seat`'s (`choose_minion`)
+        /// to get 1 blood and a Master: Discipline card searched, or pass.
+        MayLockForDisciplineSearch,
+        /// Kindred Coercion [DOM]'s pick `minion`: it abstains (`pass`) or
+        /// its votes go to a side (`cast_votes`).
+        CoercedSide,
+        /// The Art of Memory: a card `minion` played this action, moved from
+        /// `seat`'s ash heap to hand (`find_card`; the action card too).
+        PlayedCardToHand,
+        /// The library card of `seat`'s ash heap the action names (Imogen's
+        /// exchange): `find_card`.
+        NameTargetAshCard,
+        /// Cancel (`resolve_rider`) this use of `card`, a hunting ground of
+        /// the chooser's prey (Klaus van der Veken, `minion`), the use spent;
+        /// or let it resolve (`pass`).
+        MayCancelHuntingGround,
     }
 );
 ids!(
@@ -1199,5 +1228,9 @@ ids!(
         /// Transfusion counters (`seat`: whose, `n`; Transfusion: at 3 of
         /// one Methuselah's, they burn and that Methuselah takes the minion).
         TransfusionCounters,
+        /// Research counters (`n`; Nahir: +1 hand size each).
+        ResearchCounters,
+        /// Seduction counters (`n`; Makarios: it cannot block him).
+        SeductionCounters,
     }
 );

@@ -440,6 +440,7 @@ impl Table {
                 v.transfers = None;
             }
             EventKind::Transfers { left } => v.transfers = Some(*left),
+            EventKind::TurnOrder { reversed } => v.turns_reversed = *reversed,
             EventKind::Pool { seat, pool, .. } => v.seats[*seat as usize].pool = *pool,
             EventKind::Blood { minion, blood, .. } => {
                 if let Some(m) = self.minion_mut(*minion) {
