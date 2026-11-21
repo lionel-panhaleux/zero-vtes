@@ -743,8 +743,7 @@ mod tests {
 
     /// `GET /catalog/decks`: the catalog's decks in its order, each with
     /// its kind (the New Blood starters apart from the precons) and title,
-    /// a tournament winner with its archive's id, event and date (a title
-    /// and an event with parentheses of their own).
+    /// a tournament winner with its archive's id, event and date.
     #[tokio::test]
     async fn the_catalog_says_what_each_deck_is() {
         let Json(decks) = catalog_decks().await;
@@ -763,17 +762,29 @@ mod tests {
             (&precon.twda, &precon.event, &precon.date),
             (&None, &None, &None)
         );
-        let tapas = decks
+        let bell = decks
             .iter()
-            .find(|d| {
-                d.name == "Una de Tapas (2025) Giovanni (Badalona New Blood 2025, 2025-07-13)"
-            })
+            .find(|d| d.name == "Ring that Bell v2.0 (WoN Event 1 2025, 2025-06-15)")
             .expect("a TWDA deck");
-        assert_eq!(tapas.kind, zvtes_api::DeckKind::Twda);
-        assert_eq!(tapas.title, "Una de Tapas (2025) Giovanni");
-        assert_eq!(tapas.twda.as_deref(), Some("12472"));
-        assert_eq!(tapas.event.as_deref(), Some("Badalona New Blood 2025"));
-        assert_eq!(tapas.date.as_deref(), Some("2025-07-13"));
+        assert_eq!(bell.kind, zvtes_api::DeckKind::Twda);
+        assert_eq!(bell.title, "Ring that Bell v2.0");
+        assert_eq!(bell.twda.as_deref(), Some("12062"));
+        assert_eq!(bell.event.as_deref(), Some("WoN Event 1 2025"));
+        assert_eq!(bell.date.as_deref(), Some("2025-06-15"));
+        // A title and an event with parentheses of their own.
+        let named = |n: &str| decks.iter().find(|d| d.name == n).expect("a TWDA deck");
+        let fistful = named(
+            "Fistful of Salmiakki (Sérgio made me do it) (Fee Stake: Jyväskylä 6, 2024-11-30)",
+        );
+        assert_eq!(fistful.title, "Fistful of Salmiakki (Sérgio made me do it)");
+        assert_eq!(fistful.event.as_deref(), Some("Fee Stake: Jyväskylä 6"));
+        let shadows =
+            named("What we do in the shadows (Liga Chilanga 2024 Jornada 2 (MX), 2024-04-28)");
+        assert_eq!(shadows.title, "What we do in the shadows");
+        assert_eq!(
+            shadows.event.as_deref(),
+            Some("Liga Chilanga 2024 Jornada 2 (MX)")
+        );
         let starter = decks
             .iter()
             .find(|d| d.name == zvtes::decks::Deck::mini(0).name)
@@ -828,7 +839,7 @@ mod tests {
         assert_eq!(
             names,
             [
-                "Una de Tapas (2025) Giovanni (Badalona New Blood 2025, 2025-07-13)",
+                "Ring that Bell v2.0 (WoN Event 1 2025, 2025-06-15)",
                 "30th Stanislava (TCG Club Year-end event, 2024-12-28)",
             ]
         );
@@ -838,7 +849,7 @@ mod tests {
             .iter()
             .map(|d| d["title"].as_str().unwrap())
             .collect();
-        assert_eq!(titles, ["Una de Tapas (2025) Giovanni", "30th Stanislava"]);
+        assert_eq!(titles, ["Ring that Bell v2.0", "30th Stanislava"]);
         let catalog: HashMap<_, _> = zvtes_host::catalog().into_iter().collect();
         assert_eq!(
             v["decks"][0]["list"],
@@ -846,7 +857,7 @@ mod tests {
             "its catalog list"
         );
         assert_eq!(v["decks"][0]["vp_share"], 0.2);
-        assert_eq!(v["decks"][0]["event"], "Badalona New Blood 2025");
+        assert_eq!(v["decks"][0]["event"], "WoN Event 1 2025");
     }
 
     /// A measure of other weights than those served, or none: not served.
@@ -864,15 +875,15 @@ mod tests {
     fn a_measure_misnaming_an_event_is_not_served() {
         let file = std::fs::read_to_string(FIXTURE).unwrap();
         let wrong = file.replace(
-            r#""event": "Badalona New Blood 2025""#,
-            r#""event": "Badalona New Blood""#,
+            r#""event": "WoN Event 1 2025""#,
+            r#""event": "WoN Event 1""#,
         );
         assert_ne!(file, wrong);
         let path = std::env::temp_dir().join(format!("taught-{}.json", std::process::id()));
         std::fs::write(&path, wrong).unwrap();
         let r = load_taught(&path, Some(MEASURED));
         std::fs::remove_file(&path).unwrap();
-        assert!(r.unwrap_err().starts_with("Una de Tapas"));
+        assert!(r.unwrap_err().starts_with("Ring that Bell"));
     }
 
     async fn checked(

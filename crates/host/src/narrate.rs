@@ -419,6 +419,14 @@ fn spot(e: &Engine, l: &Ledger, p: Place, copy: CopyId) -> Spot {
     };
     let shown = match p {
         Place::Zone(_, "library" | "crypt") => 0,
+        // A card drawn face up (Agaitas), or one leaving the hand so: all.
+        Place::Zone(s, "hand")
+            if st.seats[s as usize].face_up.0.contains(&copy)
+                || st.left_face_up.0.contains(&copy)
+                    && !st.seats[s as usize].hand.copies().contains(&copy) =>
+        {
+            ALL
+        }
         Place::Zone(s, "hand") => l.hands_seen.get(s as usize).copied().unwrap_or(1 << s),
         Place::Uncontrolled(s) => {
             let slots = &st.seats[s as usize].uncontrolled;

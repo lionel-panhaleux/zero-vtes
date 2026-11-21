@@ -197,22 +197,22 @@ asyncio.run(main())
 (minions, cards in play and stored on them or on a minion, the viewer's own
 uncontrolled vampires; another seat's face down ones are backs), in face-up
 piles (ash heaps, removed, limbo) and in the viewer's own hand (another seat's
-while a card reveals it). A card in a hidden place — another seat's hand, any
-library or crypt — has no number: a card back, `{}`; one an effect reveals from
-a library or a crypt (a top card: Mesu Bedshet, Petra Resonance, Andrew Stuart;
-a search's find the card says to reveal: Sakhar, Disciple of Lazarus) is told
-to every seat by a `revealed` event, its `id` without a number; another seat's
-hand an effect lets the seat look at (SchreckNET, Vaticination) is told to
-that seat alone by a `looked` event, the cards as they stood, ids without
-numbers (the look lasts while the action does); a `hand` event tells another
-seat's hand turning face up or down for the viewer (an open hand, a look),
-each card's number while it is open. A card coming into a numbered place from
-a hidden one takes a fresh number, never used before for this viewer, once a
-view has shown it out of sight; one out of sight and back between two views
-keeps its number (its moves in and out told: the same physical copy, nothing
-more). So a number tells nothing the card's face and its moves do not. Two
-seats may number the same card differently; records use the engine's own
-numbers.
+while a card reveals it, or a card in it drawn face up: Agaitas). A card in a
+hidden place — another seat's hand, any library or crypt — has no number: a card
+back, `{}`; one an effect reveals from a library or a crypt (a top card: Mesu
+Bedshet, Petra Resonance, Andrew Stuart; a search's find the card says to
+reveal: Sakhar, Disciple of Lazarus) is told to every seat by a `revealed`
+event, its `id` without a number; another seat's hand an effect lets the seat
+look at (SchreckNET, Vaticination) is told to that seat alone by a `looked`
+event, the cards as they stood, ids without numbers (the look lasts while the
+action does); a `hand` event tells another seat's hand turning face up or down
+for the viewer (an open hand, a look), each card's number while it is open. A
+card coming into a numbered place from a hidden one takes a fresh number, never
+used before for this viewer, once a view has shown it out of sight; one out of
+sight and back between two views keeps its number (its moves in and out told:
+the same physical copy, nothing more). So a number tells nothing the card's face
+and its moves do not. Two seats may number the same card differently; records
+use the engine's own numbers.
 
 **Labels.** A card whose face the viewer sees carries `nth`: its label
 among the copies of that card from the same deck ("Embrace #2"), the
@@ -618,8 +618,10 @@ Events are public: a card they name is shown (`id`), numbered as the
 recipient knows it (§3), a card that came and went between two views
 numbered fresh; but a `card_moves` (and a `looked`) is told to each
 seat as it may know the card: a back where neither place shows it to
-that seat, as its places showed it when it moved. `effect`: a lasting effect whose card is in the ash
-heap (a marker on its minion, §6), no copy of its own.
+that seat, as its places showed it when it moved (a card from a library
+into another seat's hand told with its face was drawn face up, Agaitas:
+it stays face up there until it leaves). `effect`: a lasting effect whose
+card is in the ash heap (a marker on its minion, §6), no copy of its own.
 
 | `kind` | Fields |
 |---|---|

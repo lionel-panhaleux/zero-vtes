@@ -1289,8 +1289,8 @@ fn general_perfidio_dios_unlocks_to_guard_a_location() {
 
 // Nefertiti (ADV): "can search your crypt for a card named Aabbt Kindred
 // (shuffle afterward), reveal it and move it to your uncontrolled region
-// as a +1 stealth action": none in the pool, the search finds nothing, a
-// legal action — not with an empty crypt (rules-qa 78.20).
+// as a +1 stealth action": a crypt holding none, the search finds nothing,
+// a legal action — not with an empty crypt (rules-qa 78.20).
 #[test]
 fn nefertiti_searches_her_crypt_but_not_an_empty_one() {
     for crypt in [true, false] {

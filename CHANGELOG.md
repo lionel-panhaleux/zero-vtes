@@ -6,6 +6,37 @@ server runs.
 `python3 scripts/schema_compat.py` lists what a schema change adds or
 removes; its `--check` fails a removal without a major version.
 
+## 2.36.0
+
+- Round 35 adds the `Purpose` ids `may_gain_pool_for_card` (The Realm of
+  the Black Sun, `card`: its controller's prey gained pool in their master
+  phase; `resolve_rider` gains `about.n` pool, `pass` declines),
+  `may_ready_chosen` (Tomb of Rameses III, `card`: at the end of the
+  chooser's influence phase, its chosen vampire to the ready region,
+  `resolve_rider`, or `pass`), `choose_uncontrolled_for_card` (Tomb of
+  Rameses III, `card`, its control changed: the vampire of the chooser's
+  uncontrolled region it now chooses, `slot`), `action_x` (The Ghouls of
+  Plaza Morería: the X `minion`'s granted action names as it is
+  announced, `set_x`, 1 up to the card's counters),
+  `may_put_discarded_on_actor` (Sleight of Hand [CHI]: one of the
+  equipment cards just discarded from `about.seat`'s hand put on
+  `minion`, `find_card` in that Methuselah's ash heap, or `pass`),
+  `prey_replacement` (Agaitas: a played card's replacement from the own
+  library, `draw_library`, or the prey's, `choose_seat`),
+  `equip_from_hand_on_entry` (Jack Dawson: a vampire leaving the
+  uncontrolled region may equip a weapon from hand, `employ_from_hand`,
+  its cost paid, or `pass`) and `name_clan` (Qadir ul-Ghani: the clan,
+  any other than his, his action names as it is declared,
+  `choose_clan`). No id removed.
+- Round 35 adds the `MarkerKind` ids `status_counters` (Aziz),
+  `allegiance_counters` (Tegyrius), `derangement_counters` (Theron),
+  `trap_counters` (Unre) and `pathos_counters` (Grasp the Ghostly: on the
+  minion bearing the equipment, `card` that equipment, `n` its counters).
+- A card drawn face up (Agaitas's replacement from the prey's library) is
+  shown in another seat's hand to every viewer, its id and copy.
+- The influence phase may offer `ash_vampire` (Qufur am-Heru: back from
+  the ash heap to the uncontrolled region, no transfer spent).
+
 ## 2.35.0
 
 - Round 34 adds the `Purpose` ids `may_discard_to_keep` (Brothers Grimm

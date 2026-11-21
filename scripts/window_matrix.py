@@ -3375,6 +3375,245 @@ ADDED_BATCHES = [
         201487: "Yitzak (G3)",
         201489: "Yong-Sun, Harmonist (G2 ADV)",
     },
+    # Round 35: Bloodlines and Final Nights completed (owner, 2026-11-09:
+    # "We aim to add all the cards ultimately. Let's work set by set."; the
+    # cards board's lines).
+    {
+        100033: "Akhenaten, The Sun Pharaoh",
+        100042: "Amam the Devourer",
+        100044: "Ambrosius, The Ferryman",
+        100063: "The Ancestor's Talisman",
+        100109: "Atonement",
+        100127: "Baleful Doll",
+        100132: "Banner of Neutrality",
+        100173: "Blackmail",
+        100183: "Blessing of Durga Syn",
+        100192: "Blood Agony",
+        100197: "Blood Clots",
+        100205: "Blood of the Cobra",
+        100211: "Blood Sweat",
+        100235: "Bond with the Mountain",
+        100254: "Brigitte Gebauer",
+        100291: "Canopic Jar",
+        100354: "Clan Loyalty",
+        100368: "Coagulate Blood",
+        100397: "Condemnation: Betrayed",
+        100398: "Condemnation: Doomed",
+        100399: "Condemnation: Languid",
+        100420: "Contract",
+        100430: "Corruption",
+        100447: "Crimson Fury",
+        100486: "Daemonic Possession",
+        100488: "Dagon's Call",
+        100523: "Denial of Aphrodite's Favor",
+        100553: "Disease",
+        100556: "Dismemberment of Osiris",
+        100578: "Draba",
+        100584: "Draught of the Soul",
+        100614: "Edge Vitiation",
+        100625: "Elemental Stoicism",
+        100658: "Erosion",
+        100659: "Eruption of Vitae",
+        100675: "Extortion",
+        100677: "Exuding Blood",
+        100702: "Far Fatuus",
+        100718: "Feline Saboteur",
+        100719: "Felix \"Fix\" Hessian",
+        100746: "Fleecing the Gaje",
+        100773: "Form of the Serpent",
+        100822: "The Ghouls of Plaza Morería",
+        100833: "Giuseppe, Gravedigger",
+        100848: "Grand Temple of Set",
+        100851: "Grasp the Ghostly",
+        100864: "Guard Duty",
+        100893: "Haunt",
+        100906: "Heartblood of the Clan",
+        100935: "Horrid Reality",
+        100954: "Illusions of the Kindred",
+        100962: "Imposing Phantasm",
+        100968: "Inbase Discotek, Frankfurt",
+        101009: "Iron Heart",
+        101021: "Jar the Soul",
+        101045: "Khabar: Loyalty",
+        101057: "King of the Mountain",
+        101094: "Leonardo, Mortician",
+        101134: "Lure of the Serpent",
+        101138: "Madman's Quill",
+        101159: "Malleable Visage",
+        101166: "Mark of Damnation",
+        101182: "Masquer",
+        101185: "Mass Reality",
+        101187: "The Mausoleum, Venice",
+        101252: "Mummy's Tongue",
+        101373: "The Path of Typhon",
+        101376: "Patshiv",
+        101399: "Phobia",
+        101441: "Powerbase: Rome",
+        101484: "Priestess of Sekhmet",
+        101519: "Puppeteer",
+        101525: "Putrefaction",
+        101527: "Qetu the Evil Doer",
+        101560: "Reality",
+        101562: "The Realm of the Black Sun",
+        101573: "Red Herring",
+        101684: "Save Face",
+        101721: "Sensory Deprivation",
+        101722: "Sensory Overload",
+        101730: "Set's Call",
+        101742: "Shadow Parasite",
+        101766: "Shilmulo Deception",
+        101773: "Shroud Mastery",
+        101806: "Sleight of Hand",
+        101814: "Smoke Grenade",
+        101834: "Soul Painting",
+        101836: "Soul Stealing",
+        101881: "The Stranger Among Us",
+        101894: "Succulent Vitae",
+        101898: "Summon Soul",
+        101901: "Summon the Serpent",
+        101981: "Thrones Crumble",
+        101987: "Tomb of Rameses III",
+        101988: "Tongue of the Serpent",
+        101992: "Torment the Soul",
+        101996: "Tortured Confession",
+        102001: "Tower of London",
+        102024: "The Trick of the Danya",
+        102040: "True Faith",
+        102091: "Vascular Explosion",
+        102096: "Veil of Silence",
+        102104: "Venenation",
+        102105: "Venetian Conference",
+        102122: "Violation of Trust",
+        102161: "Wave of Lethargy",
+        102210: "Zombie",
+        200001: "Aabbt Kindred (G2)",
+        200004: "Abd al-Rashid (G2)",
+        200019: "Agaitas, The Scholar of Antiquities (G2)",
+        200029: "Aisha (G2)",
+        200035: "Al-Ashrad, Amr of Alamut (G2)",
+        200068: "Ambrogino Giovanni (G2)",
+        200074: "Amisa (G2)",
+        200082: "Andrea Giovanni (G2)",
+        200091: "Angela Preston (G2)",
+        200096: "Anisa Marianna Lopez (G2)",
+        200100: "Ankla Hotep (G2)",
+        200121: "Anwar (G2)",
+        200149: "Augustus Giovanni (G2)",
+        200155: "Aziz, Dammar of Istanbul (G2)",
+        200161: "Badr al-Budur (G2)",
+        200162: "Bajazet al-Nasir (G2)",
+        200180: "Béatrice L'Angou (G2)",
+        200206: "Blanche Hill (G2)",
+        200245: "Carlotta Giovanni (G2)",
+        200258: "Céleste, The Voice of a Secret (G2)",
+        200260: "Celine Chevalier (G2)",
+        200268: "Chas Giovanni Tello (G2)",
+        200295: "Count Ormonde (G2)",
+        200306: "Cynthia Ingold (G2)",
+        200318: "Danny Larkshill (G2)",
+        200320: "Darius Styx (G2)",
+        200328: "Dedefra (G2)",
+        200331: "Delilah Monroe (G2)",
+        200369: "Doris McMillon (G2)",
+        200405: "Egothha (G2)",
+        200425: "Enzo Giovanni, Pentex Board of Directors (G2)",
+        200433: "Erinyi (G2)",
+        200450: "Ezmerelda (G2)",
+        200464: "Ferox, The Rock Lord (G2)",
+        200466: "Fida'i (G2)",
+        200467: "Fidus, The Shrunken Beast (G2)",
+        200474: "Francesca Giovanni (G2)",
+        200490: "Gabrin (G2)",
+        200491: "Gaël Pilet (G2)",
+        200495: "Gaspare Giovanni (G2)",
+        200506: "George Frederick (G2)",
+        200518: "Gillespi Giovanni (G2)",
+        200522: "Gisela Harden, The Winnower (G2)",
+        200525: "Gloria Giovanni (G2)",
+        200551: "Gustav Mallenhous (G2)",
+        200557: "Haakon Mortensen (G2)",
+        200558: "Hadrian Garrick (G2)",
+        200569: "Harika Guljan (G2)",
+        200597: "High Priest Angra Mainyu (G2)",
+        200607: "Howler (G2)",
+        200611: "Huitzilopochtli (G2)",
+        200614: "Husamettin (G2)",
+        200637: "Intisar (G2)",
+        200643: "Isabel Giovanni (G2)",
+        200648: "Ivan Krenyenko (G2)",
+        200653: "Jack Dawson (G2)",
+        200666: "Jalal Sayad (G2)",
+        200709: "Joaquina Amaya (G2)",
+        200718: "Jorge De La Muerte, The Agent (G2)",
+        200730: "Juanita Santiago (G2)",
+        200735: "Julian Sanders (G2)",
+        200745: "Kalinda (G2)",
+        200751: "Kanimana Belghazi (G2)",
+        200752: "Kanya Akhtar (G2)",
+        200769: "Kemintiri (G2)",
+        200773: "Kephamos, High Priest of Marrakech (G2)",
+        200774: "Kervos, The Lieutenant (G2)",
+        200777: "Khalil Anvari (G2)",
+        200780: "Khay'tall, Snake of Eden (G2)",
+        200792: "Kostantin, Baro of the Caravan (G2)",
+        200793: "Krassimir (G2)",
+        200809: "Lalitha (G2)",
+        200843: "Lithrac (G2)",
+        200883: "Luma, Stone Beauty (G2)",
+        200925: "Marianna (G2)",
+        200932: "Mario Giovanni (G2)",
+        200948: "Mary the Black (G2)",
+        200963: "Matthias (G2)",
+        200965: "Max Lowell (G2)",
+        200969: "Melek (G2)",
+        200972: "Melisande (G2)",
+        200995: "Miriam Benyona (G2)",
+        201025: "Muse (G2)",
+        201037: "Natalia (G2)",
+        201042: "Nefertiti (G2)",
+        201045: "Nehsi (G2)",
+        201047: "Nepata (G2)",
+        201051: "Nettie Hale (G2)",
+        201071: "Obsidian (G2)",
+        201095: "Parmenides (G2)",
+        201096: "Parnassus (G2)",
+        201101: "Paul DiCarlo, The Alpha (G2)",
+        201127: "Pochtli (G2)",
+        201136: "Pugfar (G2)",
+        201137: "Qadir ul-Ghani (G2)",
+        201143: "Qufur am-Heru (G2)",
+        201153: "Raful al-Zarqa (G2)",
+        201173: "Reg Driscoll (G2)",
+        201175: "Regina Giovanni, The Right Hand of Augustus (G2)",
+        201209: "Rudolfo Giovanni (G2)",
+        201229: "Samat Ramal-Ra, Archon (G2)",
+        201236: "Saqqaf, Keeper of the Grand Temple of Set (G2)",
+        201240: "Sargon (G2)",
+        201241: "Sarisha Veliku (G2)",
+        201242: "Sarrasine (G2)",
+        201249: "Saxum, Master of Slaves (G2)",
+        201285: "The Siamese (G2)",
+        201288: "Silvia Giovanni (G2)",
+        201290: "Sir Marriot D'Urban (G2)",
+        201309: "Spider-Killer (G2)",
+        201314: "Stefano Giovanni (G2)",
+        201327: "Sutekh, The Dark God (G2)",
+        201331: "Synesios (G2)",
+        201340: "Tansu Bekir (G2)",
+        201344: "Tariq, The Silent (G2)",
+        201352: "Tegyrius, Vizier (G2)",
+        201364: "Theron (G2)",
+        201365: "Thetmes, Caliph of Alamut (G2)",
+        201367: "Thomas Steed, The Angry (G2)",
+        201400: "Ublo-Satha (G2)",
+        201412: "Unre, Keeper of Golgotha (G2)",
+        201413: "Ur-Shulgi, The Shepherd (G2)",
+        201420: "Vaclav Petalengro (G2)",
+        201455: "Vittorio Giovanni (G2)",
+        201473: "Wolf Valentine (G2)",
+        201495: "Yusuf, Scribe of Alamut (G2)",
+        201500: "Zahir, Hand of the Silsila (G2)",
+    },
 ]
 ADDED_CARDS = {k: v for batch in ADDED_BATCHES for k, v in batch.items()}
 
@@ -3523,8 +3762,8 @@ RIDERS = [
     # A bar on its own play, no window (Stutter-Step [CEL]).
     r"not usable as an additional strike",
     r"\d maneuver or press",
-    # Damage in the press step, no play there (Necrosis [THN]).
-    r"during the press step this round[^.]*",
+    # Damage in the press step, no play there (Necrosis [THN], Dagon's Call).
+    r"during the press step (this|each) round[^.]*",
     r"(cannot|can't) [^.]*",                              # "cannot maneuver…, press…"
     r"can (also )?strike(, ranged)?:[^.]*",                          # granted strike ability
     r"(can|could|may) prevent \d[^.]*",                   # granted prevention
@@ -3538,8 +3777,9 @@ RIDERS = [
     # advanced rules 4.5.1).
     r"can burn his or her own blood to heal or prevent[^.]*",
     # A strike's own prevention, resolved with it, and the opposing
-    # minion's burn against it (Stunt Cycle): no window of their own.
-    r"\band prevent \d damage from the opposing minion's strike[^.]*",
+    # minion's burn against it (Stunt Cycle; Far Fatuus [CHI]'s "all
+    # damage from opponent's strikes"): no window of their own.
+    r"\band prevent (\d|all) damage from (the opposing minion's|opponent's) strike[^.]*",
     r"can burn \d blood to prevent all damage from this strike",
     # A card in play burned for votes (Propaganda of the Deed): no play
     # window.
@@ -3604,14 +3844,16 @@ COMBAT_TIMING = [
     # the same moment, before it ends.
     (r"combat is about to end", "COMBAT_WOULD_END"),
     # "Only usable when this vampire burns a minion … in combat"
-    # (Predator's Transformation [ABO]): after the round's damage.
-    (r"when this vampire burns a minion", "COMBAT_END_OF_ROUND"),
+    # (Predator's Transformation [ABO]); "if this vampire burns a vampire"
+    # (Soul Stealing [NEC]): after the round's damage.
+    (r"(when|if) this vampire burns a (minion|vampire)", "COMBAT_END_OF_ROUND"),
     # "Only usable if the opposing ally is being burned" (Orgy of Blood):
     # the round's damage done, the ally burning.
     (r"opposing ally is being burned", "COMBAT_END_OF_ROUND"),
     # "Only usable when the opposing vampire is going into torpor"
-    # (Decapitate [POT]): after the preventions, the damage about to land.
-    (r"opposing vampire is going into torpor", "COMBAT_GOING_TO_TORPOR"),
+    # (Decapitate [POT]); "when the opposing vampire goes into torpor"
+    # (Tortured Confession): after the preventions, the damage about to land.
+    (r"opposing vampire (is going|goes) into torpor", "COMBAT_GOING_TO_TORPOR"),
     # "Only usable when the opposing vampire should go to torpor"
     # (Amaranth); "when this vampire should go into torpor" (Undead
     # Persistence [for]): the same moment.
@@ -3683,19 +3925,23 @@ MODIFIER_TIMING = [
     # "Only usable when a vampire who does not have Fortitude attempts to
     # block" (The Kiss of Ra).
     (r"when an? [^.]{0,60}? attempts to block", "ACTION_BLOCK_ATTEMPT"),
-    # "… burns a minion … as a Ⓓ action" (Predator's Transformation [ABO]).
-    (r"when this vampire burns a minion", "ACTION_AFTER_RESOLUTION"),
+    # "… burns a minion … as a Ⓓ action" (Predator's Transformation [ABO]);
+    # "if this vampire burns a vampire" (Soul Stealing [nec]).
+    (r"(when|if) this vampire burns a (minion|vampire)", "ACTION_AFTER_RESOLUTION"),
     # … and a skin played on a diablerie, before its blood hunt (Taking
     # the Skin: Minion, RTR 19991206).
     (r"skin\. play when this vampire burns a minion", "ACTION_AFTER_DIABLERIE"),
+    # … and Soul Stealing's vampire burned by a diablerie (RTR 19991206).
+    (r"if this vampire burns a vampire", "ACTION_AFTER_DIABLERIE"),
     (r"if (this|the acting) minion is blocked", "ACTION_BLOCKED"),
     # "when an acting Laibon you control is blocked (before combat)" (Make
-    # an Example).
-    (r"when an acting \w+ you control is blocked", "ACTION_BLOCKED"),
+    # an Example); "if an ally you control is blocked" (Malleable Visage).
+    (r"(when an acting|if an?) \w+ you control is blocked", "ACTION_BLOCKED"),
     # "Only usable if this Anarch is blocked, before block resolution"
     # (Power of One [obt]); "Only usable when this vampire is blocked"
-    # (Horrific Countenance).
-    (r"only usable (if|when) this \w+ is blocked", "ACTION_BLOCKED"),
+    # (Horrific Countenance); "… is successfully blocked by …" (Clan
+    # Loyalty).
+    (r"only usable (if|when) this \w+ is (successfully )?blocked", "ACTION_BLOCKED"),
     # "Only usable after a combat resulting from a block" (Shadow Boxing
     # [OBF][POT]).
     (r"after a combat resulting from a block", "ACTION_AFTER_COMBAT"),
@@ -3882,11 +4128,13 @@ REACTION_TIMING = [
     # "Only usable if this vampire blocks, before block resolution"
     # (Diabolic Lure [dai]).
     # "… blocks an ally or younger vampire bleeding you, before block
-    # resolution" (Shattered Mirror).
-    (r"if this \w+ blocks\b[^.]{0,60}?before block resolution", "ACTION_BLOCKED"),
+    # resolution" (Shattered Mirror); "if a minion you control blocks,
+    # before block resolution" (Shilmulo Deception).
+    (r"if (this|an?) \w+ (you control )?blocks\b[^.]{0,60}?before block resolution",
+     "ACTION_BLOCKED"),
     # "Only usable when this vampire successfully blocks …" (Minor
-    # Irritation).
-    (r"when this \w+ successfully blocks", "ACTION_BLOCKED"),
+    # Irritation); "by a vampire who successfully blocks" (Veil of Silence).
+    (r"(when this \w+|by a vampire who) successfully blocks", "ACTION_BLOCKED"),
     # "Not usable during combat" with no other timing (Angel of Berlin):
     # any time its player holds the impulse, outside combat (owner,
     # rules-qa 103.6).
@@ -4053,9 +4301,11 @@ def classify_mode(mtype, text, as_above=False):
     if mtype == "Combat" and re.search(r"before strike resolution", text, re.I):
         hits = ["COMBAT_BEFORE_STRIKES", "COMBAT_BEFORE_RESOLUTION"]
     # "… a vampire being burned either by diablerie or while in combat with
-    # this vampire" (Ritual of the Bitter Rose): the diablerie, or the
+    # this vampire" (Ritual of the Bitter Rose); "after this acting vampire
+    # burns another vampire" (Draught of the Soul): the diablerie, or the
     # round's end as the opposing vampire burns.
-    if re.search(r"being burned either by diablerie or while in combat", text, re.I):
+    if re.search(r"being burned either by diablerie or while in combat"
+                 r"|after this acting vampire burns another vampire", text, re.I):
         hits = ["ACTION_AFTER_DIABLERIE", "COMBAT_END_OF_ROUND"]
     # Blade Clot's combat half: timed by the diablerie, no combat step.
     if mtype == "Combat" and re.search(r"when this anarch diablerizes", text, re.I):
@@ -4209,8 +4459,10 @@ def modes_for(card):
                     got = [w for w in got if w not in GRANTED_LATER]
                 mwins += got
         # "Only usable if this vampire would be burned" (Abandoning the
-        # Flesh): that moment alone, whatever its card types.
-        if re.search(r"only usable if this vampire would be burned", raw_text, re.I):
+        # Flesh); "when this vampire is being diablerized" (Crimson Fury):
+        # that moment alone, whatever its card types.
+        if re.search(r"only usable (if this vampire would be burned"
+                     r"|when this vampire is being diablerized)", raw_text, re.I):
             mwins = ["VAMPIRE_WOULD_BURN"]
         # "As above, but usable any time during combat" (Clockwerx [SAN]):
         # the inherited step lifted.

@@ -1,6 +1,6 @@
-/* zvtes protocol 2.35.0 (docs/protocol.md): generated from
+/* zvtes protocol 2.36.0 (docs/protocol.md): generated from
  * crates/api/schema.json by scripts/gen_ts.py, do not edit. */
-export const PROTOCOL_VERSION = '2.35.0'
+export const PROTOCOL_VERSION = '2.36.0'
 
 /**
  * A command as sent: an optional client id, echoed by an `error` it
@@ -1086,6 +1086,11 @@ export type MarkerKind =
     | 'transfusion_counters'
     | 'research_counters'
     | 'seduction_counters'
+    | 'status_counters'
+    | 'allegiance_counters'
+    | 'derangement_counters'
+    | 'trap_counters'
+    | 'pathos_counters'
     | 'unknown'
 
 export type MinionKind = 'vampire' | 'ally' | 'token' | 'created' | 'imbued' | 'unknown'
@@ -1526,6 +1531,14 @@ export type Purpose =
     | 'played_card_to_hand'
     | 'name_target_ash_card'
     | 'may_cancel_hunting_ground'
+    | 'may_gain_pool_for_card'
+    | 'may_ready_chosen'
+    | 'choose_uncontrolled_for_card'
+    | 'action_x'
+    | 'may_put_discarded_on_actor'
+    | 'prey_replacement'
+    | 'equip_from_hand_on_entry'
+    | 'name_clan'
     | 'unknown'
 
 export type Range = 'close' | 'long' | 'unknown'

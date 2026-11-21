@@ -10061,7 +10061,9 @@ fn tegyrius_merged_keeps_his_base_cards_strength() {
 
 /// A merged vampire has both cards' text (rules-qa 111.19, 115.5): every
 /// base and advanced pair in the pool whose base card's text does
-/// something reads a merged definition, not the advanced card's alone.
+/// something reads a merged definition, not the advanced card's alone,
+/// holding the base card's abilities and riders — each base of the name,
+/// whatever its group (Tegyrius G2 and G6).
 #[test]
 fn every_merge_keeps_its_base_cards_text() {
     use zvtes::cards::{vampire, vampire_of};
@@ -10074,18 +10076,26 @@ fn every_merge_keeps_its_base_cards_text() {
     };
     let mut missing = Vec::new();
     for (adv, c) in CRYPT.iter().enumerate().filter(|(_, c)| c.adv) {
-        let Some(base) = CRYPT.iter().position(|b| !b.adv && b.name == c.name) else {
-            continue;
-        };
-        if !vampire(base as u16).is_some_and(acts) {
-            continue;
-        }
-        let mut e = game(2);
-        let m = e.add_minion(SeatId(0), adv as u16, 4, false);
-        e.state.minions[m.index()].merged = Some(base as u16);
-        let merged = vampire_of(&e.state.minions[m.index()]);
-        if merged.is_none_or(|d| vampire(adv as u16).is_some_and(|a| std::ptr::eq(a, d))) {
-            missing.push(c.name);
+        let bases = CRYPT
+            .iter()
+            .enumerate()
+            .filter(|(_, b)| !b.adv && b.name == c.name);
+        for (base, b) in bases {
+            let Some(own) = vampire(base as u16).filter(|&d| acts(d)) else {
+                continue;
+            };
+            let mut e = game(2);
+            let m = e.add_minion(SeatId(0), adv as u16, 4, false);
+            e.state.minions[m.index()].merged = Some(base as u16);
+            let merged = vampire_of(&e.state.minions[m.index()]);
+            let kept = merged.is_some_and(|d| {
+                !vampire(adv as u16).is_some_and(|a| std::ptr::eq(a, d))
+                    && own.abilities.iter().all(|a| d.abilities.contains(a))
+                    && own.riders.iter().all(|r| d.riders.contains(r))
+            });
+            if !kept {
+                missing.push((c.name, b.group));
+            }
         }
     }
     assert!(missing.is_empty(), "no merged definition: {missing:?}");

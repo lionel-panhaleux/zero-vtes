@@ -823,7 +823,8 @@ fn the_crusader_sword_bars_opposing_vampires_from_closing() {
 
 // Its strike: 2 aggravated damage from a 1-strength imbued, sending the
 // blocker to torpor; a vampire bearing it is not offered the strike (only
-// usable by an imbued; equipped by anyone, LSJ 20030607).
+// usable by an imbued or a True Faith bearer; equipped by anyone, LSJ
+// 20030607).
 // Rulings: [LSJ 20030607].
 #[test]
 fn the_crusader_sword_strikes_aggravated_for_an_imbued_only() {

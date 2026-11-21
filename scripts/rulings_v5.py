@@ -26,7 +26,7 @@ implemented card (crates/engine/src/cards/defs.rs `DEFS`) has a status, and
 no `blocked:` one; an `n/a:` row saying its mentioning card is "not in" the
 pool fails once that card is implemented; every `test:` name is exactly one
 test function whose doc comment cites the references; every test in
-tests/rulings.rs backs at least one row.
+tests/rulings.rs backs at least one row; every line ends CRLF.
 """
 import csv
 import os
@@ -136,7 +136,9 @@ KEY = ("card_id", "via", "references", "ruling")
 def implemented():
     """Printed names of the cards in `DEFS`, from the defs source."""
     src = open(os.path.join(ENGINE, "src", "cards", "defs.rs"), encoding="utf-8").read()
-    names = dict(re.findall(r"pub static ([A-Z_0-9]+): CardDef = CardDef \{\s*name: \"([^\"]+)\"", src))
+    # A name may hold escaped quotes ("Felix \"Fix\" Hessian").
+    names = {k: v.replace('\\"', '"') for k, v in re.findall(
+        r'pub static ([A-Z_0-9]+): CardDef = CardDef \{\s*name: "((?:[^"\\]|\\.)*)"', src)}
     for m in re.finditer(r"(?:political|hunting_ground|stealth_location|vote_location|discipline_master|influence_location|any_stealth_location|fee_stake|crusade)!\(\s*([A-Z_0-9]+)\s*,\s*\"([^\"]+)\"", src):
         names[m.group(1)] = m.group(2)
     m = re.search(r"DEFS: \[&CardDef; (\d+)\] = \[(.*?)\];", src, re.S)
@@ -197,6 +199,12 @@ def check(path):
     cards = implemented()
     found = tests()
     bad, used = 0, set()
+    # CRLF, as regeneration writes it: round 34 committed it LF (e105727).
+    raw = open(path, "rb").read()
+    lf = raw.count(b"\n") - raw.count(b"\r\n")
+    if lf:
+        print(f"{path}: {lf} lines end LF, not CRLF")
+        bad += 1
     for r in rows:
         st = r["status"]
         # A status with a comma must be quoted: unquoted, its tail is a

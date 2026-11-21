@@ -268,6 +268,10 @@ fn no_todo_in_code() {
 /// stale.
 const DURING_ONCE_ELSEWHERE: &[(&str, &str)] = &[
     (
+        "QUFUR_AM_HERU",
+        "\"during your next influence phase\" one move out of the ash heap, no ability (GameState::ash_returns: one card, gone once moved)",
+    ),
+    (
         "EBONY_FOX_HUNT",
         "\"you may play this card during your turn\" a permission to play it, no ability: one play",
     ),
@@ -396,6 +400,10 @@ const DURING_ONCE_ELSEWHERE: &[(&str, &str)] = &[
     (
         "FATA_AMRIA",
         "its burn instead of unlocking asked once as its bearer would unlock in the unlock phase",
+    ),
+    (
+        "PUTREFACTION",
+        "its burn instead of unlocking asked once in its bearer's unlock phase (Fata Amria's)",
     ),
     (
         "GANGREL_CONSPIRACY",

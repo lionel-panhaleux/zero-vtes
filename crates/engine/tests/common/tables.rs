@@ -387,6 +387,8 @@ pub fn table(seed: u64, slice: &[&str], extra: &[&str]) -> Engine {
             hold: None,
             on_card: None,
             chosen_crypt: None,
+            chosen_copy: zvtes::copies::Untracked(zvtes::copies::CopyId::NONE),
+            pathos: zvtes::state::Sparse(0),
             chosen: Vec::new(),
             tally: Default::default(),
             became: Default::default(),

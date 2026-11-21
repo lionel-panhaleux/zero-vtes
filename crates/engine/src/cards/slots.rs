@@ -199,6 +199,7 @@ impl Requirement {
             | R::ActorBurnedPreyMinion
             | R::ActorBurnedMinion
             | R::ActorBurnedTitled { .. }
+            | R::ActorBurnedContracted
             | R::OpponentGoingDownUnreplaced
             | R::OpponentCapacityOrCostAtMost(..)
             | R::ControlsReadyClan(..)
@@ -213,6 +214,7 @@ impl Requirement {
             | R::AnarchCardInAshAndHand
             | R::SectCombatWithYours(..)
             | R::PoolAtLeast(..)
+            | R::OutOfTurnMasterLeft
             | R::RangeClose
             | R::RangeLong
             | R::ActorBeingBurned
@@ -352,16 +354,22 @@ impl Requirement {
             | R::ActorUnmergedAdvanced
             | R::ActorPassedReferendumThisTurn
             | R::ActorHiredByActionThisTurn
+            | R::ActorEquippedByActionThisTurn(..)
             | R::OwnUncontrolledVampire
             | R::PlayedByAllyOrCapacityAtMost(..)
             | R::PlayedByVampireCapacityAtMost(..)
             | R::PlayedByYoungerVampire
             | R::PlayedActionCardTargetsYou
             | R::OwnAshVampire
-            | R::OwnAshBurnedVampire(..)
+            | R::OwnAshBurnedVampire { .. }
             | R::ActionCostBlood
             | R::OpposingAllyBurned
             | R::OpposingVampireBurned
+            | R::BeingDiablerized
+            | R::ActorBurnedPreyVampire
+            | R::BlockerVampireOfActingClan
+            | R::ActorMayBlockActing
+            | R::ActorCouldPlayBlockersReactions
             | R::OwnAshHas(..)
             | R::ControlsPrinceOf(..)
             | R::NotInCombat
@@ -413,8 +421,12 @@ impl Requirement {
             | R::ControlsReadyBlackHand
             | R::ControlsReadySeraph
             | R::OpponentHoldsNoCard(..) => &[S::Play],
-            R::OpponentVampire
-            | R::OpponentCapacityAtMost(..)
+            R::OpponentVampire => &[
+                S::Play,
+                S::Printed,
+                S::Engine(Site::VampireRider(Hook::CombatOpponentBurned)),
+            ],
+            R::OpponentCapacityAtMost(..)
             | R::OpponentSectIn(..)
             | R::OpponentClan(..)
             | R::ActionRequiresDiscipline(..) => &[S::Play, S::Printed],
@@ -436,6 +448,7 @@ impl Requirement {
             | R::HostControllerHasEdge
             | R::OwnCombatantOtherCopy
             | R::ActivePoxed
+            | R::ActiveControlsReadyClan(_)
             | R::HostAlly
             | R::HostVampire => &[S::Host],
             R::HostCombatOpposingVampireNotReady
@@ -450,6 +463,8 @@ impl Requirement {
             | R::LifeAtLeast(..)
             | R::ChosenInPlay
             | R::ChosenCardInPlay
+            | R::DirectedAtChosenCardYouControl
+            | R::HostInterceptWouldBeNeeded
             | R::ChosenCardBearerNotYours
             | R::BoonTargetActive
             | R::FewerCopiesThanReadyOfClan(..)
@@ -489,6 +504,7 @@ impl Requirement {
             | R::ControlledByPrey
             | R::NotAbstaining
             | R::ControlledByDirectedSeat
+            | R::TargetHoldsActionEquipment
             | R::DirectedSeatHuntedSinceYourLastTurn
             | R::HasCastVotes
             | R::TargetWithout(..)
@@ -537,7 +553,9 @@ impl Requirement {
             | R::TargetUniqueMinion
             | R::TargetNotOfPredator
             | R::TargetNotOfOpposingController => &[S::MinionTarget],
-            R::YoungerThanPlayer | R::SameSectAsPlayer => &[S::Engine(Site::PlayTarget)],
+            R::YoungerThanPlayer | R::SameSectAsPlayer | R::SameClanAsPlayer => {
+                &[S::Engine(Site::PlayTarget)]
+            }
             R::TargetCirclelessBloodBrother
             | R::TargetUnique
             | R::TargetWouldNotContest
@@ -590,6 +608,7 @@ impl Requirement {
             R::OtherReadyTitled(..)
             | R::ActorOfSourcesPreyOrPredator
             | R::OpponentTitleIn(..)
+            | R::OpponentTitleNotIn(..)
             | R::SourceHoldsNone(..)
             | R::PredatorMoreReadyMinions
             | R::PreyPoolAtMost(..)
@@ -608,6 +627,7 @@ impl Requirement {
             | R::OpponentAllyOrYounger
             | R::OpponentTitled
             | R::ActorCorruptedBySource
+            | R::ActorCorrupted
             | R::OpponentCorruptedBySource
             | R::OpponentSeduced
             | R::ControlsLocation
@@ -683,7 +703,13 @@ impl Requirement {
             | R::ActorUndamagedLastRound
             | R::EquipFromHand(..)
             | R::EdgeUncontrolled => &[S::Play],
-            R::AnyOf(..) => &[S::Play, S::MinionTarget, S::CardTarget, S::Printed],
+            R::AnyOf(..) => &[
+                S::Play,
+                S::MinionTarget,
+                S::CardTarget,
+                S::UncontrolledTarget,
+                S::Printed,
+            ],
             R::ActorTitleIn(..) | R::ActorClan(..) => &[S::Play, S::MinionTarget, S::Printed],
             R::ActorSubtype(..) => &[S::Play, S::Printed],
             R::ActorSectIn(..) => &[S::Play, S::MinionTarget, S::UncontrolledTarget, S::Printed],
@@ -717,6 +743,7 @@ impl Requirement {
             | R::ActorFoughtItsContractsMinion
             | R::OpponentSubtype(..)
             | R::IsEquipAction
+            | R::ActingGotEquipment
             | R::OwnReadyNamed(..) => &[S::Play, S::Printed],
             R::HostLocked | R::HostUnlocked => &[S::Host, S::Printed],
             R::ActingMonster | R::ActingImbued => &[S::Play],
@@ -801,13 +828,16 @@ impl Requirement {
             | R::OpponentWithoutFlight
             | R::OwnCombatantClan(..)
             | R::OwnCombatantVampire
+            | R::OwnCombatant
+            | R::PreyMinionsWithout(..)
+            | R::PreySlotAffordable
             | R::BlockerAllyOrYounger
             | R::ActorRedList
             | R::OwnResolvedModifierInAsh(..)
             | R::ActionCardInPlayRequiring(..) => &[S::Play],
             R::ActingCapacityBelowCounters => &[S::Rider],
             // Esteem: the action's target seats; Amenophobis: its bleed's.
-            R::TargetSeatHasEdge => &[S::Play, S::Printed],
+            R::TargetSeatHasEdge => &[S::Play, S::Printed, S::SeatTarget],
             R::ActionWeaponEquippable | R::PoliticalCardToAsh => &[S::Engine(Site::PlayOptions)],
             R::TargetOnActing => &[S::Engine(Site::CardTargetQualifies)],
             R::CanAttemptBlockLocked => &[S::Engine(Site::PlayOptions)],
@@ -837,6 +867,8 @@ impl Requirement {
             R::ActionTargetsHost => &[S::Card, S::Engine(Site::AbilityGate)],
             R::DirectedAtCardItIsOn => &[S::Card],
             R::ActorIsChosen
+            | R::ActingIsChosen
+            | R::HostActing
             | R::ActorChosenForThisAction
             | R::ActorAmongChosen
             | R::ActorOfByCircle
@@ -929,9 +961,10 @@ impl Requirement {
             ],
             // Ganhuru's printed rider (`holds_for_host`).
             R::ReadyNamed(..) => &[S::Play, S::Printed, S::Host],
-            R::GehennaInPlay(..) | R::NoGehennaInPlay | R::NamedInPlay(..) => {
-                &[S::Play, S::Host, S::Printed]
-            }
+            R::GehennaInPlay(..)
+            | R::NoGehennaInPlay
+            | R::NamedInPlay(..)
+            | R::NoneNamedInPlay(..) => &[S::Play, S::Host, S::Printed],
             R::TargetSeatControlsNoReadyTitled(..)
             | R::SourceBloodOdd
             | R::ActorYoungerThanSource
@@ -952,7 +985,6 @@ impl Requirement {
             R::ReferendumToBurnThisCard => &[S::Card],
             R::NotFirstChosen | R::TargetHasCorruption => &[S::MinionTarget],
             R::HostCombatOpponentNotReady => &[S::Card, S::Engine(Site::VampireAbility)],
-            R::HostInLastCombat => &[S::Engine(Site::VampireAbility)],
             R::SuperiorVersion => &[S::Card, S::Rider],
             R::NotHost => &[
                 S::CardTarget,
@@ -1427,6 +1459,7 @@ mod tests {
             matches!(
                 e,
                 Effect::SearchLibraryToHand { .. }
+                    | Effect::SearchDisciplineMasterOntoHost
                     | Effect::SearchLibraryToHandOrHavenOnActor(..)
                     | Effect::SearchLibraryToResearch(..)
                     | Effect::SearchLibraryToTop(..)

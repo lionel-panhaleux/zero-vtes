@@ -550,6 +550,10 @@ fn asked(
             format!("Take {} from your research area", card())
         }
         (P::ReplaceFromResearch, K::DrawLibrary) => "Draw from your library".into(),
+        (P::PreyReplacement, K::DrawLibrary) => "Draw from your library".into(),
+        (P::PreyReplacement, K::ChooseSeat) => {
+            verb("Choose ", "Draw face up from the library of ")?
+        }
         (P::ReplaceFromAsh, K::FindCard) => format!("Take {} from your ash heap", card()),
         (P::CutLibrary, K::SetX) => format!("Cut {} cards to the bottom", k.amount?),
         (P::RockPaperScissors, K::SetX) => match k.amount? {
@@ -557,6 +561,7 @@ fn asked(
             2 => "Paper".into(),
             _ => "Scissors".into(),
         },
+        (P::EquipFromHandOnEntry, K::EmployFromHand) => verb("Employ ", "Equip with ")?,
         (P::BuyTitle, K::SetX) => {
             let pool = o.effects.iter().find(|e| e.cost)?.n?.unsigned_abs();
             let title = o.effects.iter().find_map(|e| e.detail.as_deref())?;
@@ -657,6 +662,11 @@ fn asked(
         (P::NameAshPair, K::FindCard) => format!("Remove two {}", card()),
         (P::NameTargetAshCard, K::FindCard) => format!("Take {}", card()),
         (P::MayCancelHuntingGround, K::ResolveRider) => "Cancel its effects".into(),
+        (P::MayGainPoolForCard, K::ResolveRider) => format!("Gain {} pool", about?.n?),
+        (P::MayReadyChosen, K::ResolveRider) => {
+            "Move the chosen vampire to your ready region".into()
+        }
+        (P::ChooseUncontrolledForCard, K::Slot) => role(&format!("chosen for {}", named()?))?,
         (P::AllyFromAsh, K::FindCard) => format!("Move {} to your ready region", card()),
         (P::MoveForBlood, K::ChooseMinion) => format!(
             "{} burns {} blood: move {} to your ready region",
@@ -941,6 +951,7 @@ fn pass(
         P::ReturnBeforeBurn => "Burn first: it is spared".into(),
         P::DrainBeforeSteals => "Steals first: the drain takes what is left".into(),
         P::BuyTitle => "Buy no title".into(),
+        P::EquipFromHandOnEntry => "Equip nothing".into(),
         P::MayBurnBloodToBurnPool => "Burn no blood".into(),
         P::BloodOrNoStrike => "Burn no blood: no strike this round".into(),
         P::NamedOntoOrDamage => format!("Take {} damage", about?.n?),
@@ -998,6 +1009,9 @@ fn pass(
         P::MastersFromHand => "Put no more".into(),
         P::MayTakeTitle => "Keep the card".into(),
         P::MayCancelHuntingGround => "Let it resolve".into(),
+        P::MayGainPoolForCard => "Gain nothing".into(),
+        P::MayReadyChosen => "Leave it uncontrolled".into(),
+        P::MayPutDiscardedOnActor => "Put none on it".into(),
         P::MayTakeEdge => "Leave the Edge uncontrolled".into(),
         P::TorporMassacre => "Burn no vampire".into(),
         P::Bid | P::BoonAuction => "Bid no more".into(),
@@ -1459,6 +1473,8 @@ mod tests {
             P::MastersFromHand,
             P::MayTakeTitle,
             P::MayCancelHuntingGround,
+            P::MayGainPoolForCard,
+            P::MayReadyChosen,
             P::MayTakeEdge,
             P::TorporMassacre,
             P::Bid,

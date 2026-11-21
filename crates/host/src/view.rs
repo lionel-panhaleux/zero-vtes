@@ -596,6 +596,26 @@ impl Build<'_> {
                 markers.push(marker(kind, n));
             }
         }
+        for &(k, n) in &m.counters.0 {
+            let kind = match k {
+                zvtes::cards::MinionCounter::Status => MarkerKind::StatusCounters,
+                zvtes::cards::MinionCounter::Allegiance => MarkerKind::AllegianceCounters,
+                zvtes::cards::MinionCounter::Derangement => MarkerKind::DerangementCounters,
+                zvtes::cards::MinionCounter::Trap => MarkerKind::TrapCounters,
+            };
+            if n > 0 {
+                markers.push(marker(kind, n));
+            }
+        }
+        for &(c, _, n) in &st.pathos.0 {
+            let card = &st.cards[c.index()];
+            if n > 0 && card.present() && card.host == Some(id) {
+                markers.push(Marker {
+                    card: Some(LIBRARY[card.card as usize].id),
+                    ..marker(MarkerKind::PathosCounters, n)
+                });
+            }
+        }
         for &(s, _) in st.red_list_marks.iter().filter(|&&(_, t)| t == id) {
             markers.push(Marker {
                 seat: Some(s.0),
@@ -1123,6 +1143,35 @@ mod tests {
             .map(|u| n.copy(u.card.copy.expect("seen")))
             .collect();
         assert_eq!(told, ["Helena", "Helena (ADV)"]);
+    }
+
+    // Grasp the Ghostly's pathos counters, shown on the minion bearing the
+    // equipment: the card and its count.
+    #[test]
+    fn grasp_the_ghostly_pathos_counters_are_a_marker() {
+        let mut e = Engine::bare(2);
+        let m = e.add_minion(SeatId(0), crypt(|c| !c.unique), 4, false);
+        let gun = zvtes::state::find_library(".44 Magnum");
+        e.state
+            .cards
+            .push(zvtes::state::CardInPlay::new(gun, SeatId(0), Some(m), 0));
+        let id = zvtes::state::CardId(e.state.cards.len() as u32 - 1);
+        e.state.pathos.0.push((id, SeatId(0), 3));
+        let names = vec!["a".to_string(), "b".to_string()];
+        let decks = Decks::dealt(&e);
+        let v = Viewer::new(Some(SeatId(1))).view(&e, &decks, &names);
+        assert_eq!(
+            v.seats[0].ready[0]
+                .markers
+                .iter()
+                .map(|k| (k.kind, k.n, k.card))
+                .collect::<Vec<_>>(),
+            [(
+                zvtes_api::ids::MarkerKind::PathosCounters,
+                Some(3),
+                Some(zvtes::library::LIBRARY[gun as usize].id)
+            )]
+        );
     }
 
     // Minions of one name told apart (docs/protocol.md §3): the second and

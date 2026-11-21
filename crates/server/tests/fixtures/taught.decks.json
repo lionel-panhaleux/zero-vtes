@@ -10,7 +10,7 @@
      "games": 100, "wins": 2, "vp": 0.2, "vp_share": 0.05},
     {"name": "Lord Darby's Tremere (WoN event 1 - Creation Rites: Newark, 2023-06-18)", "twda": "10657", "event": "WoN event 1 - Creation Rites: Newark", "date": "2023-06-18", "recent": false,
      "games": 100, "wins": 7, "vp": 0.85, "vp_share": 0.17},
-    {"name": "Una de Tapas (2025) Giovanni (Badalona New Blood 2025, 2025-07-13)", "twda": "12472", "event": "Badalona New Blood 2025", "date": "2025-07-13", "recent": true,
+    {"name": "Ring that Bell v2.0 (WoN Event 1 2025, 2025-06-15)", "twda": "12062", "event": "WoN Event 1 2025", "date": "2025-06-15", "recent": true,
      "games": 100, "wins": 9, "vp": 1.0, "vp_share": 0.2}
   ]
 }

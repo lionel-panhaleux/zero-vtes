@@ -1173,6 +1173,35 @@ ids!(
         /// the chooser's prey (Klaus van der Veken, `minion`), the use spent;
         /// or let it resolve (`pass`).
         MayCancelHuntingGround,
+        /// The Realm of the Black Sun `card`: its controller `seat`'s prey
+        /// gained pool in their master phase; `seat` gains `n` pool
+        /// (`resolve_rider`) or not (`pass`).
+        MayGainPoolForCard,
+        /// Tomb of Rameses III `card`, at the end of `seat`'s influence
+        /// phase: its chosen vampire to the ready region (`resolve_rider`),
+        /// or not (`pass`).
+        MayReadyChosen,
+        /// Tomb of Rameses III `card`, its control changed: the vampire of
+        /// `seat`'s uncontrolled region it now chooses (`slot`).
+        ChooseUncontrolledForCard,
+        /// The X `minion`'s granted action names as it is announced
+        /// (`set_x`, 1 up to the card's counters: The Ghouls of Plaza
+        /// Morería).
+        ActionX,
+        /// Sleight of Hand [CHI]: one of the equipment cards just discarded
+        /// from `seat`'s hand to their ash heap put on `minion`
+        /// (`find_card`), or none (`pass`).
+        MayPutDiscardedOnActor,
+        /// A played card's replacement (Agaitas): from `seat`'s own library
+        /// (`draw_library`) or their prey's (`choose_seat`), face up.
+        PreyReplacement,
+        /// `minion` entering out of the uncontrolled region may equip a card
+        /// from `seat`'s hand, its cost paid (`employ_from_hand`), or pass
+        /// (Jack Dawson).
+        EquipFromHandOnEntry,
+        /// The clan, any other than `minion`'s, its action names as it is
+        /// declared (`choose_clan`; Qadir ul-Ghani).
+        NameClan,
     }
 );
 ids!(
@@ -1232,5 +1261,18 @@ ids!(
         ResearchCounters,
         /// Seduction counters (`n`; Makarios: it cannot block him).
         SeductionCounters,
+        /// Status counters (`n`; Aziz: +1 vote each).
+        StatusCounters,
+        /// Allegiance counters (`n`; Tegyrius: a Banu Haqim with any is
+        /// considered Camarilla).
+        AllegianceCounters,
+        /// Derangement counters (`n`; Theron: as many as its capacity, a
+        /// Malkavian).
+        DerangementCounters,
+        /// Trap counters (`n`; Unre: +1 intercept each).
+        TrapCounters,
+        /// Pathos counters on an equipment it bears (`card`: which, `n`;
+        /// Grasp the Ghostly: removed from the game at none).
+        PathosCounters,
     }
 );

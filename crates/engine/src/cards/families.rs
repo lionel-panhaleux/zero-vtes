@@ -222,6 +222,10 @@ impl Effect {
             | E::BurnCorruptionFromTarget
             | E::GraftOnTarget
             | E::SeduceTarget
+            | E::ActorCounter(..)
+            | E::TargetCounter(..)
+            | E::NamedAshCardsToLibraryShuffled(..)
+            | E::ActorBecomesNamedClan
             | E::BurnActorSeduction
             | E::StealTargetRetainerLife
             | E::ExchangeRandomHandForNamedAsh
@@ -233,6 +237,9 @@ impl Effect {
             | E::PreySlotToOwnSlot
             | E::ActorBloodToSourceCardUpTo { .. }
             | E::ActorBloodToSourceCard(_)
+            | E::CountersXToActorBlood
+            | E::AshRetainerOntoTarget(_)
+            | E::BurnNamedSlotForItsBlood
             | E::StealFromTargetSeatSlot(_)
             | E::BurnFromTargetSeatSlot(_)
             | E::LookAtTargetLibraryTopBurnOne(_)
@@ -251,6 +258,7 @@ impl Effect {
             | E::GainEdge
             | E::LockTargetCard
             | E::SearchPutInPlayPaid(_)
+            | E::HostResearchCounter
             | E::BurnSource => Granted::Own,
             E::StealTargetAlly
             | E::StealPoolFromTarget(_)
@@ -260,7 +268,8 @@ impl Effect {
             | E::CryptClanToUncontrolled { .. }
             | E::BloodToUncontrolledTarget(_)
             | E::BloodToOwnVampires { .. }
-            | E::LockTargetsSkipUnlock => Granted::Play,
+            | E::LockTargetsSkipUnlock
+            | E::AshVampireToReady => Granted::Play,
             e if e.family() == Family::Shared => Granted::Shared,
             _ => return None,
         })
@@ -289,8 +298,11 @@ impl Effect {
             | E::PutOnTarget
             | E::ConvictionOnTarget
             | E::TargetSeatTakesCard
+            | E::ActingSeatTakesCard
             | E::AshPickSeatTakesCard
             | E::UncontrolledSourceBloodToTarget(..)
+            | E::UncontrolledSourceBloodToPool(..)
+            | E::ShuffleAshIntoLibraryUpTo(..)
             | E::UncontrolledTargetToReadyIfFull
             | E::TakeControlOfTargetCard
             | E::TakeControlOfAllRequiring(..)
@@ -299,6 +311,17 @@ impl Effect {
             | E::DerangeTarget
             | E::PutInPlay
             | E::RemoveActorFromGame
+            | E::CancelDiablerie { .. }
+            | E::GainHalfBurnedPreyVampireCapacity
+            | E::ReadyOfTargetClanBurnBlood(..)
+            | E::TargetSeatBurnsEdge
+            | E::TargetSeatDiscardsAtRandomBurnsTop { .. }
+            | E::AshPickToReady { .. }
+            | E::AshEquipmentMovedToActor
+            | E::RememberTargetCard
+            | E::BurnedCardHostLosesBloodOrLife(..)
+            | E::BurnDiablerist
+            | E::RememberBurnedController
             | E::EnterWithCounters(..)
             | E::EnterWithCountersPerX { .. }
             | E::EnterWithCountersPerMethuselah
@@ -333,7 +356,6 @@ impl Effect {
             | E::TrapPresses
             | E::BeastPresses { .. }
             | E::EatAshAllyToTarget(..)
-            | E::Stun
             | E::StealLocation
             | E::StolenToReadyForBlood(..)
             | E::EatAshAlly { .. }
@@ -548,6 +570,7 @@ impl Effect {
             | E::DiscardUpTo(..)
             | E::ClanBleedThisTurn(..)
             | E::LookAtRandomPreyHandCard { .. }
+            | E::RandomTargetHandCardOntoActor
             | E::ShowHandButOne { .. }
             | E::DrawThenHandCardAway
             | E::LockActorHeld(..)
@@ -570,7 +593,9 @@ impl Effect {
             | E::GainEdgeAsPlayed
             | E::PeekOpponentControllersHand
             | E::ReadyVampiresGainBurnedBlood
-            | E::BloodMovesFromActing { .. } => (Family::Shared, false, None),
+            | E::BloodMovesFromActing { .. }
+            | E::Stun
+            | E::BurnCopiesYouControl => (Family::Shared, false, None),
             E::CounterToTarget(..)
             | E::BloodPerHostage
             | E::BurnTargetHostages
@@ -578,10 +603,12 @@ impl Effect {
             | E::ExchangeForAnarchCard
             | E::GrantDiscardAction
             | E::BloodToChosen(..)
+            | E::ChosenBurnsBlood(..)
             | E::GiveToPrey
             | E::LockPreyVampires(..)
             | E::BloodToCard(..)
             | E::CountersToUncontrolledTarget
+            | E::CountersXToUncontrolledTarget
             | E::DrawCryptThenRemove
             | E::RemoveCryptTopAnarch(..)
             | E::BloodToTargetX
@@ -598,6 +625,7 @@ impl Effect {
             | E::ActorBurnsBloodXPlus(..)
             | E::LockSelf
             | E::SearchDisciplineMasterOntoTarget
+            | E::SearchDisciplineMasterOntoHost
             | E::BurnConviction(..)
             | E::BurnTargetConviction(..)
             | E::FailsIntoCombatWithHost
@@ -614,6 +642,9 @@ impl Effect {
             | E::BurnFromTargetSeatSlot(..)
             | E::ActorBloodToSourceCardUpTo { .. }
             | E::ActorBloodToSourceCard(..)
+            | E::CountersXToActorBlood
+            | E::AshRetainerOntoTarget(..)
+            | E::BurnNamedSlotForItsBlood
             | E::RemoveHostFromGame
             | E::MayBurnLookedMaster(..)
             | E::MayLockToDiscardLooked
@@ -668,6 +699,8 @@ impl Effect {
             | E::ShuffleHostIntoLibrary
             | E::DamageActingNow(..)
             | E::PayPoolToCardController(..)
+            | E::GivePoolToTargetController(..)
+            | E::ActionEquipmentToTarget
             | E::ReorderTopMayBottom(..)
             | E::ReduceBleedX
             | E::SearchMageAlly
@@ -791,6 +824,7 @@ impl Effect {
             | E::DamageActingAndBlocker(..)
             | E::TargetInterceptThisAction(..)
             | E::ActionFails
+            | E::SpendOutOfTurnMaster
             | E::ActingBurnsOrFails { .. }
             | E::SplitBloodGain
             | E::ActingSkipsNextUnlock
@@ -891,9 +925,16 @@ impl Effect {
             | E::FightActingAtResolution
             | E::BurnActingAfterZeroBleed(..)
             | E::CancelBlockCombat
+            | E::UserBurnsLifeIfBlockCombat(..)
             | E::ActingLasting(..)
             | E::AttemptBlockLocked
             | E::CorruptActingMayStealAtCapacity
+            | E::BarBlockersClanThisTurn
+            | E::BarSameActionForOwnVampires
+            | E::ActorTakesBlockedCombat
+            | E::ActorBecomesBlocker
+            | E::CorruptBlockerMayStealAtCapacity
+            | E::BlockedActionSucceedsForBlocker
             | E::StealthIfTargetBurnsBlood { .. }
             | E::DamageActingAndRetainers(..)
             | E::BurnBledLibraryPerPoolLost
@@ -1021,7 +1062,7 @@ impl Effect {
             | E::BurnSelfAtCombatEndIfResolved
             | E::ContinueAfterCombat { .. }
             | E::DamageAfterCombatIfClose(..)
-            | E::PressDamageIfClose(..)
+            | E::PressDamageIfClose { .. }
             | E::LiquefyOnHit(..)
             | E::DistillOnHit(..)
             | E::StrikeDiablerizesNextRound
@@ -1107,7 +1148,21 @@ impl Effect {
             | E::StrikeAggravatedAsNormal
             | E::ImmuneAggravatedThisRound
             | E::HandMeleeFirstStrikeThisRound
-            | E::OpponentChoosesStrikeFirst => (Family::Combat, false, None),
+            | E::OpponentChoosesStrikeFirst
+            | E::StrikePlusVsAlly(..)
+            | E::AggravatedNextHandOrMeleeStrike
+            | E::AggravatedMeleeThisCombat
+            | E::StrikePlusNormalX
+            | E::ActorDiscardsXAtRandom
+            | E::PlayStrikeFromHandAsRanged(..)
+            | E::ReflectsHandDamageThisRound
+            | E::CombatEndsAsDamageLands
+            | E::TargetMandatoryContinuePress
+            | E::TargetGainsAfterCombat(..)
+            | E::OpposingRegainsLostAfterCombat
+            | E::OpposingCardsCostThisRound { .. }
+            | E::EquipFirstWeaponFound { .. }
+            | E::IllusionaryCombat { .. } => (Family::Combat, false, None),
             E::Prevent(..)
             | E::PreventXPlus(..)
             | E::PreventNonAggravated(..)
@@ -1221,6 +1276,10 @@ impl Effect {
             | E::BurnCorruptionFromTarget
             | E::GraftOnTarget
             | E::SeduceTarget
+            | E::ActorCounter(..)
+            | E::TargetCounter(..)
+            | E::NamedAshCardsToLibraryShuffled(..)
+            | E::ActorBecomesNamedClan
             | E::BurnActorSeduction
             | E::StealTargetRetainerLife
             | E::ExchangeRandomHandForNamedAsh
@@ -1262,6 +1321,7 @@ impl Effect {
             | E::ActiveChoosesVampireDamaged(..)
             | E::PreyPoolToController(..)
             | E::OtherReadyImbuedDamaged(..)
+            | E::PreyBurnsLibraryTopHostGainsIf { .. }
             | E::OtherReadyVampireDamaged(..)
             | E::OtherReadyMinionDamaged(..)
             | E::NamedOntoHostElseDamage { .. }
@@ -1330,12 +1390,14 @@ impl Effect {
             | E::BurnPoolOrNoTransfers(..)
             | E::LockOrBurnPool(..)
             | E::DrawCryptOnEntry
+            | E::ToPredatorUntilYourUnlock
             | E::ChooseCircleOnEntry
             | E::BindLocationOnEntry
             | E::NoEntryConviction
             | E::SearchPowerOnEntry(..)
             | E::DisciplineMastersOnEntry(..)
             | E::SearchLibraryOnEntry { .. }
+            | E::EquipFromHandOnEntry(..)
             | E::MayAddHostBlood(..)
             | E::BurnsBloodOrIsBurnedOnEntry(..)
             | E::AnarchsBloodOrCamarillaAlliesBurn
@@ -1475,6 +1537,8 @@ impl Effect {
             | E::PinnedAlways
             | E::BurnedSendsBearerToTorpor
             | E::BurnedLocksBearer
+            | E::BurnedChosenBurnsBlood(..)
+            | E::RemoveThisCardOnResolution
             | E::BurnedDamagesBearer { .. }
             | E::IncomingCopyBurns
             | E::ControllerGivesCard
@@ -1573,6 +1637,9 @@ impl Effect {
             E::PutOnActorIfHuntSuccessful => (Family::Success, false, None),
             E::UnlockActorIfHuntSuccessful => (Family::Success, false, Some(Unlocks::Actor)),
             E::HostBloodToCapacity => (Family::Rider, false, None),
+            E::HostControllerBurnsLibraryTop(..) | E::HostControllerBurnsPool(..) => {
+                (Family::Rider, false, None)
+            }
             // Read by the influence-phase dues and the uncontrolled region's
             // moves.
             E::BurnAtInfluence | E::BurnsLeavingUncontrolled => (Family::Marker, false, None),
@@ -1660,6 +1727,8 @@ impl Effect {
             | E::AttemptingInterceptX
             | E::AddCountersPerX(..)
             | E::DamageActingNowPerCounter => (Family::Ability, false, None),
+            // ---- Round 35, track C ----
+            E::HostCounter(..) => (Family::Rider, false, None),
         }
     }
 }
@@ -1754,6 +1823,7 @@ mod tests {
                         | E::BurnEdge
                         | E::UnlockActor
                         | E::ActorLasting(..)
+                        | E::BurnedCardHostLosesBloodOrLife(_)
                 ),
                 K::EquipFound => {
                     matches!(
@@ -1855,7 +1925,12 @@ mod tests {
                     | Effect::EnterWithCounters(_)
                     | Effect::StillYours
                     | Effect::BurnedLocksBearer
+                    | Effect::BurnedChosenBurnsBlood(_)
                     | Effect::BecomesAllyIfTargetBurned(_)
+                    // Its clanmates and its controller (Dismemberment of
+                    // Osiris).
+                    | Effect::ReadyOfTargetClanBurnBlood(_)
+                    | Effect::TargetControllerBurnsPool(_)
             )
         };
         let mut missing = Vec::new();

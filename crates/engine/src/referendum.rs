@@ -649,6 +649,7 @@ impl ReferendumCtx {
                 crate::cards::Stat::NoVotesAgainst,
                 crate::state::PrintedCtx {
                     calling: self.calling,
+                    opponent: self.calling,
                     ..Default::default()
                 },
             ) > 0
@@ -772,11 +773,20 @@ impl ReferendumCtx {
                 && matches!(r.source, Source::Vampire(m)
                     if self.favor_ignored.iter().any(|t| t.matches(st.title_of(m))))
         };
+        // A corruption counter gained after casting voids the cast, the
+        // vampire abstaining (PIB 20141026-2: Velvet Tongue, Khay'tall).
+        let voided = |r: &&VoteRecord| {
+            matches!(r.source, Source::Vampire(m) if {
+                let corrupted = st.minions[m.index()].corruption.iter().any(|&(_, n)| n > 0);
+                corrupted && (self.corrupted_barred || !r.favor && self.barred_against(st, m))
+            })
+        };
         let live = self
             .records
             .iter()
             .filter(|r| !r.canceled)
-            .filter(|r| !ignored(r));
+            .filter(|r| !ignored(r))
+            .filter(|r| !voided(r));
         let (mut f, mut a) = live.clone().fold((0, 0), |(f, a), r| {
             let k = if matches!(r.source, Source::Vampire(m)
                 if doubles(r.seat) || self.doubled.contains(&m))
@@ -2518,6 +2528,33 @@ impl Engine {
                         other => self.apply_rider_effect(id, other, hook),
                     }
                 }
+            }
+        }
+        // Merged Enzo Giovanni: any referendum failed, a forced fail too;
+        // each vampire's controller's prey, read now (rules-qa 124.42).
+        if !passed {
+            let mut loss = vec![0i32; self.state.seats.len()];
+            for m in 0..self.state.minions.len() {
+                let v = &self.state.minions[m];
+                if !v.present() {
+                    continue;
+                }
+                let s = v.owner;
+                let hook = cards::Hook::AnyReferendumFailed;
+                for r in self.printed_riders(MinionId(m as u32), hook, None) {
+                    for e in r.effects {
+                        match *e {
+                            cards::Effect::PreyBurnsPool(n) if self.state.prey(s) != s => {
+                                loss[self.state.prey(s).index()] += n as i32;
+                            }
+                            cards::Effect::PreyBurnsPool(_) => {}
+                            other => unreachable!("not a referendum rider effect: {other:?}"),
+                        }
+                    }
+                }
+            }
+            if loss.iter().any(|&n| n > 0) {
+                self.burn_pool_batch(&loss);
             }
         }
         // Carlak: any referendum's tally, a blood hunt's too; a Methuselah

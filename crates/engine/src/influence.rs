@@ -111,6 +111,8 @@ impl Engine {
         if left >= 4 && seat.pool > 0 && !seat.crypt.is_empty() {
             options.push(Choice::DrawCrypt);
         }
+        // Qufur am-Heru: back to the uncontrolled region, no transfer spent.
+        options.extend(st.ash_returns(s).into_iter().map(Choice::AshVampire));
         if left >= 4 && seat.pool > 0 {
             options.extend(
                 (0..seat.uncontrolled.len())
@@ -172,6 +174,21 @@ impl Engine {
                 }
             }
             Choice::Transfer { slot } => {
+                // Tomb of Rameses III: a transfer to its chosen vampire
+                // (its 1999 text; LSJ 20030312 "Card text is correct").
+                let tombs: Vec<crate::state::CardId> = self
+                    .state
+                    .in_play_layers()
+                    .filter(|l| {
+                        l.modifier == crate::cards::Modifier::CounterPerOwnTransfer
+                            && self.state.card_controller(l.source) == s
+                            && self.state.chosen_slot(l.source) == Some(*slot as usize)
+                    })
+                    .map(|l| l.source)
+                    .collect();
+                for t in tombs {
+                    self.state.cards[t.index()].counters += 1;
+                }
                 let seat = &mut self.state.seats[s.index()];
                 seat.lose_pool(1);
                 seat.uncontrolled[*slot as usize].counters += 1;
@@ -190,6 +207,29 @@ impl Engine {
                 self.caused(cost, |e| e.state.lose_blood(*minion, 1));
                 self.state.minions[minion.index()].path_override =
                     Some(crate::state::SABBAT_PATHS[*path as usize]);
+                self.flow = Flow::Influence { left };
+            }
+            Choice::AshVampire(card) => {
+                let seat = &mut self.state.seats[s.index()];
+                let copies = seat.ash_crypt.copies().to_vec();
+                let i = seat
+                    .ash_crypt
+                    .iter()
+                    .zip(copies)
+                    .position(|(&c, copy)| {
+                        c == *card
+                            && seat.was_burned_from_play(copy)
+                            && !seat.ash_return_spent.0.contains(&copy)
+                    })
+                    .expect("a vampire to return");
+                let (card, copy) = seat.ash_crypt.take(i);
+                seat.unmark_burned(copy);
+                seat.uncontrolled.push(UncontrolledSlot {
+                    card,
+                    copy: crate::copies::Untracked(copy),
+                    counters: 0,
+                    banished: None,
+                });
                 self.flow = Flow::Influence { left };
             }
             Choice::DrawCrypt => {
@@ -326,7 +366,7 @@ impl Engine {
             }
         };
         self.slot_cards_onto(on, m);
-        self.vampire_entered(s, m, out.card, forced);
+        self.vampire_entered_from(s, m, out.card, forced, true);
         m
     }
 
@@ -409,6 +449,19 @@ impl Engine {
     /// effects, then any contest (influenced out, or put in play: Summon
     /// History); `forced`: another copy already controlled.
     pub(crate) fn vampire_entered(&mut self, s: SeatId, m: MinionId, card: u16, forced: bool) {
+        self.vampire_entered_from(s, m, card, forced, false);
+    }
+
+    /// `vampire_entered`, `from_uncontrolled` its move out of the
+    /// uncontrolled region (Jack Dawson's entry equip).
+    pub(crate) fn vampire_entered_from(
+        &mut self,
+        s: SeatId,
+        m: MinionId,
+        card: u16,
+        forced: bool,
+        from_uncontrolled: bool,
+    ) {
         self.entered_play_riders(m);
         // Jack Drake, whichever way it came out of the uncontrolled region.
         let turned = (0..self.state.minions.len())
@@ -558,7 +611,19 @@ impl Engine {
                 below: None,
                 max_level: None,
                 name: None,
+                scarce: false,
+                with: None,
             });
+        }
+        // Parmenides: to the predator before any contest (LSJ 20010623); a
+        // copy the predator holds from this Methuselah goes back, one burned
+        // (LSJ 20030305; `take_control_now`).
+        if entry_has(card, crate::cards::Effect::ToPredatorUntilYourUnlock) {
+            let to = self.state.predator(s);
+            self.take_control(m, to, crate::control::ControlTerm::UntilGiversUnlock);
+            if !self.state.minions[m.index()].in_play {
+                return;
+            }
         }
         // Anarch Convert: his entry ability before any contest.
         if is_anarch_convert(card) {
@@ -592,6 +657,21 @@ impl Engine {
                     entering: true,
                     hand_or_burn: false,
                     no_hand: false,
+                    library_only: false,
+                });
+        } else if let Some(filter) = entry_effects(card)
+            .find_map(|e| match *e {
+                crate::cards::Effect::EquipFromHandOnEntry(f) => Some(f),
+                _ => None,
+            })
+            .filter(|&f| from_uncontrolled && !self.equippable_from_hand(s, m, f, false).is_empty())
+        {
+            // Jack Dawson: before any contest (LSJ 20080526).
+            self.interrupts
+                .push(crate::draws::Interrupt::EquipFromHandOnEntry {
+                    seat: s,
+                    minion: m,
+                    filter,
                 });
         } else if let Some((n, clan)) = entry_distribution(card) {
             // Erlik: before any contest (LSJ 20080526).

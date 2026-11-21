@@ -36,7 +36,9 @@ V5_CLAN = {"Assamite": "Banu Haqim"}
 TITLE = re.compile(
     r"^(?:Advanced, )?(Camarilla|Anarch|Independent|Sabbat|Laibon)"
     r"(?: (Prince|Baron|Archbishop) of ((?:[^:.]|\.(?=\w))+)| ([Pp]rimogen)| (\w+(?: \w+)?) Justicar"
-    r"| (\w+(?: \w+)?) Inner Circle| (bishop|cardinal|priscus|regent|magaji))?[:.]"
+    r"| (\w+(?: \w+)?) Inner Circle| (bishop|cardinal|priscus|regent|magaji)"
+    # "Camarilla Tremere Slave:" (Fidus, Pugfar): a slave clause, no title.
+    r"| [A-Z]\w+(?: antitribu)? Slave)?[:.]"
 )
 
 
@@ -44,7 +46,8 @@ def merged_title(text):
     """The title an advanced card holds only merged: "[MERGED] Baron of
     Berlin", "Anarch Baron of Los Angeles" (Jeremy MacNeil), "Sabbat
     cardinal" (Sascha Vykos), "Assamite Justicar" (Tegyrius), "Imperator
-    (3 votes)" (Karsh)."""
+    (3 votes)" (Karsh), "Banu Haqim Inner Circle" (Al-Ashrad), "3 votes
+    (titled)" (Kemintiri)."""
     m = re.search(r"\[MERGED\] (?:Anarch |Camarilla |Sabbat |Independent )?"
                   r"(Prince|Baron|Archbishop) of ((?:[^:.]|\.(?=\w))+)[:.]", text)
     if m:
@@ -55,10 +58,18 @@ def merged_title(text):
     m = re.search(r"\[MERGED\] (\w+(?: \w+)?) Justicar\b", text)
     if m:
         return f'Some(Title::Justicar("{V5_CLAN.get(m.group(1), m.group(1))}"))'
+    # "[MERGED] Banu Haqim Inner Circle" (Al-Ashrad, Amr of Alamut).
+    m = re.search(r"\[MERGED\] (\w+(?: \w+)?) Inner Circle\b", text)
+    if m:
+        return f'Some(Title::InnerCircle("{V5_CLAN.get(m.group(1), m.group(1))}"))'
     # "[MERGED] Imperator (3 votes)" (Karsh): a named Camarilla title.
     m = re.search(r"\[MERGED\] ([A-Z]\w+) \((\d+) votes\)", text)
     if m and text.startswith("Camarilla"):
         return f'Some(Title::Camarilla {{ name: "{m.group(1)}", votes: {m.group(2)} }})'
+    # "[MERGED] 3 votes (titled)" (Kemintiri): a titled vote count.
+    m = re.search(r"\[MERGED\] (\d+) votes \(titled\)", text)
+    if m:
+        return f"Some(Title::Votes({m.group(1)}))"
     return "None"
 
 
@@ -267,7 +278,8 @@ def generate(cards):
         out.append(f"        red_list: {flag(re.search(r'(^|[.:] )Red List[.:]', text))},")
         circle = "Blood Brother" in krcg.clans(c) and re.search(r"(?:^|[.:] )([A-Z][a-z]+(?: City)?) [Cc]ircle[.:]", text)
         out.append(f"        circle: {f'Some({rust_str(circle.group(1))})' if circle else 'None'},")
-        slave = re.search(r"(?:^|[.:] )([A-Z]\w+(?: antitribu)?) slave[.:]", text)
+        slave = re.search(r"(?:^|[.:] )([A-Z]\w+(?: antitribu)?) slave[.:]", text) or re.search(
+            r"^(?:Camarilla|Sabbat|Anarch|Independent) ([A-Z]\w+(?: antitribu)?) Slave:", text)
         out.append(f"        slave: {f'Some({rust_str(slave.group(1))})' if slave else 'None'},")
         out.append("    },")
     out.append("];")

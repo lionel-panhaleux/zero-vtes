@@ -137,7 +137,11 @@ impl Table {
 
     fn take(&mut self, r: &ZoneRef, told: &Card) -> Option<Item> {
         fn pick<T>(v: &mut Vec<T>, told: &Card, card: impl Fn(&T) -> Card) -> Option<T> {
-            let i = v.iter().rposition(|x| same(&card(x), told))?;
+            // Its own copy first: a face-up card among backs (Agaitas).
+            let i = v
+                .iter()
+                .position(|x| told.copy.is_some() && card(x).copy == told.copy)
+                .or_else(|| v.iter().rposition(|x| same(&card(x), told)))?;
             Some(v.remove(i))
         }
         let s = r.seat as usize;
@@ -203,7 +207,16 @@ impl Table {
     }
 
     fn put(&mut self, from: &ZoneRef, r: &ZoneRef, told: Card, item: Option<Item>) {
-        let card = if self.hides(r) { back(told) } else { told };
+        // Into another seat's hand from a library, told with its face:
+        // drawn face up (Agaitas), it stays so.
+        let face_up = r.zone == Zone::Hand
+            && told.id.is_some()
+            && matches!(from.zone, Zone::Library | Zone::Crypt);
+        let card = if self.hides(r) && !face_up {
+            back(told)
+        } else {
+            told
+        };
         let s = r.seat as usize;
         // An ousted Methuselah's places are out of the game: gone.
         if self.v.seats[s].ousted {

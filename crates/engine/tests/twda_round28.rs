@@ -301,6 +301,26 @@ fn blessed_resilience_returns_a_burned_necromancer() {
     assert_eq!(v.blood, 0);
 }
 
+/// Blessed Resilience reads no controller (round 35's controller-at-burn
+/// record): seat 0's own necromancer, burned while seat 1 controlled it,
+/// lies in seat 0's ash heap and is returned.
+#[test]
+fn blessed_resilience_returns_one_burned_under_another() {
+    let mut e = game(2);
+    let card = necromancer();
+    e.add_minion(SeatId(0), plain("Brujah", 0), 4, false);
+    e.add_minion(SeatId(1), plain("Ventrue", 0), 4, false);
+    let n = e.add_minion(SeatId(1), card, 3, false);
+    e.state.minions[n.index()].origin = Some(SeatId(0));
+    e.burn(n);
+    assert!(e.state.seats[0].ash_crypt.contains(&card));
+    hand(&mut e, 0, &["Blessed Resilience"]);
+    e.at_master_phase();
+    pick(&mut e, master_play(0));
+    request(&mut e);
+    assert!(!e.state.seats[0].ash_crypt.contains(&card));
+}
+
 /// [ANK 20210813] "Only a controlled vampire can be burned from play.
 /// Uncontrolled and contested vampires do not qualify." A contested copy
 /// burned and a crypt card burned from the region: no Blessed Resilience to

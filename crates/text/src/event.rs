@@ -393,6 +393,11 @@ pub fn marker(m: &Marker, n: &Names) -> String {
         MarkerKind::FounderCounters => counters("founder"),
         MarkerKind::ResearchCounters => counters("research"),
         MarkerKind::SeductionCounters => counters("seduction"),
+        MarkerKind::StatusCounters => counters("status"),
+        MarkerKind::AllegianceCounters => counters("allegiance"),
+        MarkerKind::DerangementCounters => counters("derangement"),
+        MarkerKind::TrapCounters => counters("trap"),
+        MarkerKind::PathosCounters => format!("{} on {}", counters("pathos"), n.card_id(m.card)),
         MarkerKind::TransfusionCounters => format!("{}{}", counters("transfusion"), of(m.seat)),
         MarkerKind::Disease => "a disease counter".into(),
         MarkerKind::TitleContested => "its title contested".into(),
@@ -696,6 +701,14 @@ mod tests {
                 K::FounderCounters => (m(k, None, Some(4), None), "4 founder counters"),
                 K::ResearchCounters => (m(k, None, Some(2), None), "2 research counters"),
                 K::SeductionCounters => (m(k, None, Some(1), None), "1 seduction counter"),
+                K::StatusCounters => (m(k, None, Some(2), None), "2 status counters"),
+                K::AllegianceCounters => (m(k, None, Some(1), None), "1 allegiance counter"),
+                K::DerangementCounters => (m(k, None, Some(3), None), "3 derangement counters"),
+                K::TrapCounters => (m(k, None, Some(1), None), "1 trap counter"),
+                K::PathosCounters => (
+                    m(k, None, Some(3), Some(2)),
+                    "3 pathos counters on Torn Signpost",
+                ),
                 K::TransfusionCounters => {
                     (m(k, Some(1), Some(2), None), "2 transfusion counters (Ben)")
                 }
@@ -739,6 +752,11 @@ mod tests {
             TransfusionCounters,
             ResearchCounters,
             SeductionCounters,
+            StatusCounters,
+            AllegianceCounters,
+            DerangementCounters,
+            TrapCounters,
+            PathosCounters,
             Disease,
             TitleContested,
             Expelled,

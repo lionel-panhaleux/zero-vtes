@@ -78,7 +78,11 @@ submodules initialised).
 ## 2. Research each card, in this order
 
 1. Its text and every KRCG ruling (`vtes.json`), and the
-   `../vtes-advanced-rules` rulings YAML for its id (group rulings too).
+   `../vtes-advanced-rules` rulings YAML for its id (group rulings too). Its
+   history of text changes (Primogen `vtes_cards`'s "Changes"): a ruling older
+   than the latest change is read against the current text, one the change
+   reverts ignored, and a change KRCG's text has not caught up with governs
+   (digest D34; owner, 2026-11-20).
 2. Its ledger rows (`data/rulings-v5.csv`), those mentioning it included
    (`via`: `mention in <card>`): the rulings are the test plan, each row
    `test:` or `n/a:` before the round lands (`--check` refuses `blocked:`;

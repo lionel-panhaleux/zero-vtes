@@ -29,6 +29,9 @@ review finding); one the code or a page now makes impossible leaves it.
   (`find_card`), its text read for what it bars there (Hillanvale's -1
   intercept makes her block of a Camarilla bleed futile); a count's
   fodder need not be textless.
+- `Engine::bare` leaves `Seat::this_turn` at 0 whatever `GameState::turn`
+  says: "since your last turn" (`previous_turn`) then reaches back to the
+  game's start after one round. A test of it sets `this_turn` to the turn.
 - A minion's lock asserted after `until(its seat, MinionPhase)` is gone:
   that seat's unlock phase ran first. Assert it at the acting seat's next
   minion phase, or read what the lock caused (blood, pool).
@@ -327,6 +330,16 @@ review finding); one the code or a page now makes impossible leaves it.
   it first (`release_held_oust`); `start_combat_at_resolution` returns
   false when the release ended the action — check it before touching
   `self.combat`.
+- "Cannot use weapons" bars a weapon's layers too, not only its strikes
+  and abilities: a new such bar goes into `GameState::weapon_unusable`
+  (read by `layer_active` and `ability_gate`), or a press or a hunt bar of
+  the weapon still applies (Howler with Talbot's Chainsaw, round 35); a
+  combat-scoped bar reads `GameState::combatants`, set before the sides
+  read their cards in `begin_combat`.
+- "Not ready" for an end-of-combat card (an Illusions vampire removed as
+  its combat ends: Psyche!) is read in `Requirement::BothCombatantsReady`,
+  never in `CombatCtx::both_ready`: the combat's own flow reads that one
+  and ends the combat at once.
 - A Methuselah being ousted holds a pool below 0 (`defer_oust`): a cost
   test `cost <= pool` bars even a free card (Extremis Boon was never
   offered); and while an oust waits no interrupt is asked

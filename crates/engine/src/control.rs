@@ -27,6 +27,8 @@ pub enum ControlTerm {
     /// For good, moved to the taker's ready region, out of torpor, not a
     /// rescue (Sonja Blue).
     ForGoodToReady,
+    /// Back as its giver's next unlock phase begins (Parmenides).
+    UntilGiversUnlock,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
@@ -217,6 +219,9 @@ impl Engine {
                 match term {
                     ControlTerm::UntilNextTurn => v.temp_skip = 1,
                     ControlTerm::UntilUnlock => v.temp_until_unlock = true,
+                    ControlTerm::UntilGiversUnlock => {
+                        v.temp_until_givers_unlock = crate::state::Sparse(1)
+                    }
                     ControlTerm::UntilMinionPhaseEnd => {
                         v.temp_until_minion_phase_end = crate::state::Sparse(1)
                     }
@@ -593,10 +598,10 @@ impl Engine {
                     if !saved && self.state.cards[c.index()].in_play {
                         self.burn_card_in_play_now(c);
                     }
-                } else if self.state.minions[m.index()].present() {
+                } else if !saved && self.state.minions[m.index()].present() {
                     self.burn_goes_on(m, then);
                 } else {
-                    self.burn_saved(then);
+                    self.burn_saved(m, then);
                 }
                 false
             }
@@ -835,8 +840,9 @@ impl Engine {
         any
     }
 
-    /// `Actor::BurningVampire` for `seat`.
-    pub(crate) fn burning_vampire(&self, seat: SeatId) -> Option<MinionId> {
+    /// `Actor::BurningVampire` for `seat`; `locked_ok`: "usable by a locked
+    /// vampire" (Crimson Fury).
+    pub(crate) fn burning_vampire(&self, seat: SeatId, locked_ok: bool) -> Option<MinionId> {
         let (m, a) = self.ask(Wait::Burn)?;
         if a.order.first() != Some(&seat) {
             return None;
@@ -852,7 +858,8 @@ impl Engine {
         // `Engine::action`: its acting minion tells whose it is.
         let acting = self.state.acting?;
         let woken = self.action.as_ref().is_some_and(|a| a.woken.contains(&m));
-        (self.state.minions[acting.index()].owner != seat && (!v.locked || woken)).then_some(m)
+        (self.state.minions[acting.index()].owner != seat && (!v.locked || woken || locked_ok))
+            .then_some(m)
     }
 
     /// The burn not replaced: as if never asked.
@@ -870,17 +877,39 @@ impl Engine {
         }
     }
 
-    /// The vampire removed instead: a diablerie action unsuccessful, as a
-    /// replaced burn makes it (rules-qa 121.20).
-    fn burn_saved(&mut self, then: BurnThen) {
+    /// The vampire removed instead, or its diablerie canceled (Crimson Fury
+    /// [ani]): a diablerie action unsuccessful, as a replaced burn makes it
+    /// (rules-qa 121.20); Amaranth's victim back to torpor.
+    fn burn_saved(&mut self, m: MinionId, then: BurnThen) {
         match then {
             BurnThen::DiablerieAction { .. } | BurnThen::TorporBlock { .. } => {
                 self.after_resolution()
+            }
+            BurnThen::CombatDiablerie { amaranth: true, .. } => {
+                if let Some(c) = self.combat.as_mut() {
+                    if let Some(i) = c
+                        .side_of_minion(m)
+                        .filter(|_| self.state.minions[m.index()].ready())
+                    {
+                        c.sides[i].sent_to_torpor = true;
+                        c.back_to_torpor = true;
+                    }
+                }
             }
             BurnThen::Burn
             | BurnThen::CombatDiablerie { .. }
             | BurnThen::Sacrifice { .. }
             | BurnThen::Retainer(_) => {}
+        }
+    }
+
+    /// The diablerist of the diablerie waiting on the vampire answering it.
+    pub(crate) fn burning_diablerist(&self) -> Option<MinionId> {
+        match self.state.burn_wait.0.as_ref()?.queue[0].1 {
+            BurnThen::DiablerieAction { diablerist }
+            | BurnThen::CombatDiablerie { diablerist, .. } => Some(diablerist),
+            BurnThen::TorporBlock { blocker } => Some(blocker),
+            BurnThen::Burn | BurnThen::Sacrifice { .. } | BurnThen::Retainer(_) => None,
         }
     }
 }

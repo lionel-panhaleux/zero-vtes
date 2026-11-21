@@ -3407,7 +3407,10 @@ fn compel_the_spirit_superior_returns_reanimated_corpse_with_no_pathos() {
     // Burned from play this turn (a fixture: its burn removes it).
     let none = zvtes::copies::CopyId::NONE;
     e.state.seats[0].ash.put(corpse, none);
-    e.state.seats[0].burned_minion_cards.0.push((none, 4));
+    e.state.seats[0]
+        .burned_minion_cards
+        .0
+        .push((none, 4, SeatId(0)));
     hand(&mut e, 0, &["Compel the Spirit"]);
     pick(&mut e, play(0, 1, a));
     until(&mut e, SeatId(0), WindowLabel::MinionPhase);

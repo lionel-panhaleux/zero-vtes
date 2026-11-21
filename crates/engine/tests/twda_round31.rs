@@ -2424,7 +2424,10 @@ fn succubus_steals_life_and_burns_an_empty_ally() {
         .into_iter()
         .find(|n| n.action.acting == s && n.ended)
         .expect("the action");
-    assert_eq!(note.action.burned_owners, vec![(SeatId(1), Title::None)]);
+    assert_eq!(
+        note.action.burned_owners,
+        vec![(SeatId(1), Title::None, None)]
+    );
 }
 
 /// Succubus's action at a vampire with no blood: offered, successful,

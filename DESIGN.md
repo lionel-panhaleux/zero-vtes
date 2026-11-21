@@ -296,21 +296,21 @@ the league and the remaining-deck tokens included.
   contents, sorted (owner: a Methuselah knows their decklist and
   sees every card leaving or entering their library and crypt — what remains
   is theirs to know, its order is not; a client shows them face down); another
-  seat's hand unless `hand_visible_to` (Revelations [AUS], Owl Companion);
-  another seat's research area (Research); another seat's face-down uncontrolled
-  vampires (rulebook: a Methuselah looks at their own), a banished vampire's
-  slot excepted (it left play in view of all); cards stored face down on a card
-  (Shilmulo Tarot, `Effect::StoreTopCards`) or a minion (Hukros) except to its
-  controller. Public: ash heaps, removed cards, minions and cards in play
-  (contested cards keep their identity), counters, `held` counts. The rng is on
-  `Engine`, not in the state. The action, combat and referendum contexts and the
-  as-played stack are public (announced plays, targets, windows) except a card
-  named from hand as a play or action is announced (`PlayCtx::named`,
-  `ActionCtx::exchange`'s hand card), which need not be shown (advanced rules
-  §1.14.2): the observation must redact it when it adds the contexts. Owner's
-  calls: the banished slot and contested cards kept public; a vampire revealed
-  on its way to the uncontrolled region (`RevealCryptTop`) hidden like any
-  other.
+  seat's hand unless `hand_visible_to` (Revelations [AUS], Owl Companion), but
+  for its cards face up (Agaitas); another seat's research area (Research);
+  another seat's face-down uncontrolled vampires (rulebook: a Methuselah looks
+  at their own), a banished vampire's slot excepted (it left play in view of
+  all); cards stored face down on a card (Shilmulo Tarot,
+  `Effect::StoreTopCards`) or a minion (Hukros) except to its controller.
+  Public: ash heaps, removed cards, minions and cards in play (contested cards
+  keep their identity), counters, `held` counts. The rng is on `Engine`, not in
+  the state. The action, combat and referendum contexts and the as-played stack
+  are public (announced plays, targets, windows) except a card named from hand
+  as a play or action is announced (`PlayCtx::named`, `ActionCtx::exchange`'s
+  hand card), which need not be shown (advanced rules §1.14.2): the observation
+  must redact it when it adds the contexts. Owner's calls: the banished slot and
+  contested cards kept public; a vampire revealed on its way to the uncontrolled
+  region (`RevealCryptTop`) hidden like any other.
 - **Dual observations**: every request carries the decider's legal view; training
   can also request the omniscient view for the asymmetric critic. Nothing
   omniscient reaches the policy.
@@ -1229,7 +1229,7 @@ What the engine does not yet do or does only in part, true today.
 
 The objectives still open are the roadmap's (`docs/roadmap.md`).
 
-Definitions: 2108 library, 1126 vampires
+Definitions: 2215 library, 1226 vampires
 
 ## Outlook: deck building (post-v1)
 

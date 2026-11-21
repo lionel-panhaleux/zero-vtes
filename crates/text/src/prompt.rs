@@ -148,6 +148,11 @@ impl Prompt<'_> {
             P::MayGainPool => format!("{}: you can gain {} pool", self.minion()?, a.n?),
             P::MayBurnEdgeForPool => format!("You can burn the Edge to gain {} pool", a.n?),
             P::BuyTitle => format!("{}: you may pay pool for a title", self.minion()?),
+            P::NameClan => format!("{}: name the clan he changes to", self.minion()?),
+            P::EquipFromHandOnEntry => format!(
+                "{}: you may equip a weapon from your hand, its cost paid",
+                self.minion()?
+            ),
             P::ReadyTitledLeft => format!(
                 "A titled vampire of {} left the ready region: you may play a card",
                 self.seat()?
@@ -320,6 +325,9 @@ impl Prompt<'_> {
                     }
                     "burn_crowded_clan" => {
                         "Choose a vampire to burn, of a clan you control 3 or more of".into()
+                    }
+                    "burn_self_contested" => {
+                        "Choose which of your two copies of this vampire to burn".into()
                     }
                     "damage" => format!(
                         "Choose a ready minion of yours to take {} unpreventable damage",
@@ -825,9 +833,30 @@ impl Prompt<'_> {
                 "Name the card two copies of which in your prey's ash heap to remove".into()
             }
             P::NameTargetAshCard => "Name the library card of their ash heap to exchange".into(),
+            P::PreyReplacement => {
+                "Draw the replacement from your library or, face up, from your prey's".into()
+            }
             P::MayCancelHuntingGround => format!(
                 "{}: you can cancel this use of your prey's hunting ground",
                 self.minion()?
+            ),
+            P::ActionX => format!("Choose X for {}'s action", self.minion()?),
+            P::MayPutDiscardedOnActor => format!(
+                "You can put one of the equipment cards discarded on {}",
+                self.minion()?
+            ),
+            P::MayReadyChosen => format!(
+                "{}: its counters and its vampire's reach that vampire's capacity; you can move it to your ready region",
+                self.card()?
+            ),
+            P::ChooseUncontrolledForCard => format!(
+                "{}: choose a vampire in your uncontrolled region",
+                self.card()?
+            ),
+            P::MayGainPoolForCard => format!(
+                "{}: your prey gained pool in their master phase; you can gain {} pool",
+                self.card()?,
+                a.n?
             ),
             P::MoveForBlood => format!(
                 "{} can burn {} blood to move {} to your ready region",
@@ -1219,6 +1248,7 @@ mod tests {
                 Some("gain_blood"),
                 Some("hunt_blood_to"),
                 Some("burn_crowded_clan"),
+                Some("burn_self_contested"),
                 Some("damage"),
                 Some("damage_imbued"),
                 Some("block_mark"),
@@ -1433,6 +1463,14 @@ mod tests {
         PlayedCardToHand,
         NameTargetAshCard,
         MayCancelHuntingGround,
+        MayGainPoolForCard,
+        MayReadyChosen,
+        ChooseUncontrolledForCard,
+        ActionX,
+        MayPutDiscardedOnActor,
+        PreyReplacement,
+        EquipFromHandOnEntry,
+        NameClan,
         KeepSpentBlood,
         BurnReplacement,
         PoolOrMinionBurned,

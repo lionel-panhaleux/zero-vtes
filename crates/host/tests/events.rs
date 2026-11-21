@@ -51,7 +51,8 @@ fn from() -> u32 {
 /// the view paths the events missed: an ally stolen for good (1717:
 /// Entrancement), a contested vampire's capacity (5419), Call the Great Beast
 /// become a vampire (1413), a card burned to an ousted owner's ash heap (342,
-/// 445: Disarm), an open hand and cards into it (265), a merged vampire's
+/// 445: Disarm), an open hand and cards into it (265, 153), a card drawn face
+/// up into another's hand and gone again (224: Agaitas), a merged vampire's
 /// traits lost (397: Valerius Maior, Hell's Fool); and a line naming no minion:
 /// an advanced vampire merged before a view (472: Helena (ADV)), Anathema's
 /// pool (332); and a marker gone as a vampire returns (2493: Descent into
@@ -66,10 +67,10 @@ fn from() -> u32 {
 /// Network), a neighbour's contest yielded (987: Mina Grotius), a trophy in
 /// play become a vampire (1081: Trophy: Progeny); and an action shown alike
 /// after another ended (837: a hunt again).
-const KEPT: [u32; 41] = [
-    47, 137, 139, 143, 145, 220, 265, 289, 321, 328, 332, 342, 353, 354, 358, 375, 397, 445, 472,
-    488, 499, 589, 591, 742, 766, 837, 944, 987, 1057, 1081, 1302, 1320, 1413, 1717, 1733, 2355,
-    2382, 2493, 2742, 3572, 5419,
+const KEPT: [u32; 43] = [
+    47, 137, 139, 143, 145, 153, 220, 224, 265, 289, 321, 328, 332, 342, 353, 354, 358, 375, 397,
+    445, 472, 488, 499, 589, 591, 742, 766, 837, 944, 987, 1057, 1081, 1302, 1320, 1413, 1717,
+    1733, 2355, 2382, 2493, 2742, 3572, 5419,
 ];
 
 /// The sweep's seeds: `HOST_SEED_FROM` to `HOST_SEEDS` (40), the kept

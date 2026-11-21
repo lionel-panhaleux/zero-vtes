@@ -281,6 +281,7 @@ fn found_in(e: &Engine, req: &DecisionRequest) -> Option<ZoneRef> {
                 from: Some(seat), ..
             }
             | Interrupt::AllyFromAsh { seat, .. }
+            | Interrupt::MayPutDiscardedOnActor { from: seat, .. }
             | Interrupt::StoreOwnAsh { seat, .. }
             | Interrupt::StoreUpTo {
                 seat,
@@ -845,7 +846,7 @@ fn asked(x: &Ctx<impl Names>, i: Interrupt, choice: &Choice) -> Vec<Effect> {
                 card: Some(LIBRARY[x.e.state.cards[card.index()].card as usize].id),
                 ..chosen(EffectKind::Move)
             },
-            P::BurnOfCrowdedClan(_) => chosen(EffectKind::Burn),
+            P::BurnOfCrowdedClan(_) | P::BurnSelfContested(_) => chosen(EffectKind::Burn),
             P::OldestHuntingGround(_) => n(1, chosen(EffectKind::Blood)),
             P::HuntBloodTo { n: d, .. } | P::GainBlood { n: d, .. } => {
                 n(d as i32, chosen(EffectKind::Blood))
@@ -1137,7 +1138,9 @@ fn amount(x: &Ctx<impl Names>, req: &DecisionRequest, n: u8) -> Vec<Effect> {
                         copy: Some(x.minion(p.target.minion())),
                         ..of(EffectKind::Blood, -n)
                     }],
-                    Terms::XBlood | Terms::XBloodIn { .. } => vec![per_x(EffectKind::Blood, -1)],
+                    Terms::XBlood | Terms::XBloodWithinHand | Terms::XBloodIn { .. } => {
+                        vec![per_x(EffectKind::Blood, -1)]
+                    }
                     // The referendum's margin, as blood to the pool.
                     Terms::UpToMargin(_) => vec![Effect {
                         detail: Some("from_blood".into()),
@@ -1198,7 +1201,9 @@ fn amount(x: &Ctx<impl Names>, req: &DecisionRequest, n: u8) -> Vec<Effect> {
                     _ => Vec::new(),
                 },
                 Some(Terms::XPool) => vec![per_x(EffectKind::Pool, -1)],
-                Some(Terms::XCounters) => vec![per_x(EffectKind::Counters, 1)],
+                Some(Terms::XCounters | Terms::XCountersAboveTargetCapacity) => {
+                    vec![per_x(EffectKind::Counters, 1)]
+                }
                 // The Vozhd: blood from the target to the host.
                 Some(Terms::LifeFromTarget) => vec![Effect {
                     on: Some(On::Host),
@@ -1686,6 +1691,7 @@ pub fn about(e: &Engine, req: &DecisionRequest, names: &impl Names) -> Option<Ab
                     P::LockOldest(k, _) => ("lock_oldest", Some(k), None, None),
                     P::OldestHuntingGround(_) => ("oldest_gain_blood", None, None, None),
                     P::BurnOfCrowdedClan(_) => ("burn_crowded_clan", None, None, None),
+                    P::BurnSelfContested(_) => ("burn_self_contested", None, None, None),
                     P::Damage(d)
                     | P::WeaponDamage(d)
                     | P::DamageVampire(d)
@@ -1734,6 +1740,22 @@ pub fn about(e: &Engine, req: &DecisionRequest, names: &impl Names) -> Option<Ab
             | I::NameAshPair { of, .. }
             | I::NameTargetAshCard { of, .. } => About {
                 seat: Some(of.0),
+                ..a()
+            },
+            I::MayPutDiscardedOnActor { from, minion, .. } => About {
+                seat: Some(from.0),
+                minion: m(minion),
+                ..a()
+            },
+            I::MayReadyChosen { card: c, .. } | I::ChooseUncontrolledForCard { card: c, .. } => {
+                About {
+                    card: card(c),
+                    ..a()
+                }
+            }
+            I::MayGainPoolForCard { card: c, n, .. } => About {
+                card: card(c),
+                n: Some(n),
                 ..a()
             },
             I::MayCancelHuntingGround {
@@ -2206,7 +2228,9 @@ pub fn about(e: &Engine, req: &DecisionRequest, names: &impl Names) -> Option<Ab
                 detail: from.map(|_| "named".to_string()),
                 ..a()
             },
-            I::BuyTitle { minion, .. } => About {
+            I::BuyTitle { minion, .. }
+            | I::EquipFromHandOnEntry { minion, .. }
+            | I::NameClan { minion, .. } => About {
                 minion: m(minion),
                 ..a()
             },
@@ -2274,6 +2298,7 @@ pub fn about(e: &Engine, req: &DecisionRequest, names: &impl Names) -> Option<Ab
             | I::BeastDisciplines { .. }
             | I::NameOwnAshCard { .. }
             | I::NameAshVampire { .. }
+            | I::PreyReplacement { .. }
             | I::SecretNumber { .. } => return None,
             I::SearchEquipFor { minion, .. } => About {
                 minion: m(minion),
@@ -2309,6 +2334,7 @@ pub fn about(e: &Engine, req: &DecisionRequest, names: &impl Names) -> Option<Ab
             | I::MayHuntBloodToPool { minion, .. }
             | I::ReductionAtResolution { minion, .. }
             | I::NamedX { minion, .. }
+            | I::ActionX { minion, .. }
             | I::DualFormKept { root: minion, .. } => About {
                 minion: m(minion),
                 ..a()
@@ -2386,7 +2412,7 @@ pub fn about(e: &Engine, req: &DecisionRequest, names: &impl Names) -> Option<Ab
                         minion: m(p.target.minion()),
                         ..a()
                     },
-                    Terms::XBlood | Terms::XBloodIn { .. } => About {
+                    Terms::XBlood | Terms::XBloodWithinHand | Terms::XBloodIn { .. } => About {
                         detail: detail("x_blood"),
                         ..a()
                     },
@@ -2522,7 +2548,7 @@ pub fn about(e: &Engine, req: &DecisionRequest, names: &impl Names) -> Option<Ab
                     detail: detail("x_pool"),
                     ..a()
                 },
-                Terms::XCounters => About {
+                Terms::XCounters | Terms::XCountersAboveTargetCapacity => About {
                     detail: detail("x_counters"),
                     ..a()
                 },

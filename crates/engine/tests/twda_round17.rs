@@ -182,7 +182,7 @@ fn round_seventeen_printed_action_stats() {
     assert_eq!(st.printed_mod(hesha, Stat::Hunt, PrintedCtx::default()), 1);
     assert_eq!(st.printed_mod(hesha, Stat::Bleed, PrintedCtx::default()), 0);
     assert_eq!(
-        st.printed_mod(mitchell, Stat::RescueCostMore, PrintedCtx::default()),
+        st.printed_mod(mitchell, Stat::RescueCost, PrintedCtx::default()),
         1
     );
 }

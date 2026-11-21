@@ -194,6 +194,11 @@ impl Engine {
     /// one: every copy is contested (face down, out of play), but one in play
     /// removed as it leaves (Sonja Blue).
     pub(crate) fn enter_card_contest(&mut self, m: MinionId) {
+        // Illusions of the Kindred: no contest, no Jimmy Dunn burn (LSJ
+        // 19991110, LSJ 20100213).
+        if self.state.illusions.0.contains(&m) {
+            return;
+        }
         // Jimmy Dunn: the copy already in play burns instead (any
         // Methuselah's; the newcomer's controller does not burn it, LSJ
         // 19990719).
@@ -208,7 +213,11 @@ impl Engine {
                 .map(|i| MinionId(i as u32))
                 .filter(|&o| {
                     let v = &self.state.minions[o.index()];
-                    o != m && v.in_play && !v.out_of_play && v.name() == name
+                    o != m
+                        && v.in_play
+                        && !v.out_of_play
+                        && v.name() == name
+                        && !self.state.illusions.0.contains(&o)
                 })
                 .collect();
             // Burned by the rule, not by the acting minion (LSJ 19990719):
@@ -293,6 +302,17 @@ impl Engine {
     /// so do the cards on it, unless it is out of play already (rules-qa
     /// 83.1).
     fn set_minion_contested(&mut self, m: MinionId, contested: bool) {
+        // Out of play, temporary control broken: face down to its permanent
+        // controller (advanced rules §6.4.1; LSJ 20030305).
+        if let Some(back) = self.state.minions[m.index()]
+            .temp_from
+            .filter(|_| contested)
+        {
+            self.return_temporary(m.index(), back);
+            if !self.state.minions[m.index()].in_play {
+                return;
+            }
+        }
         self.state.minions[m.index()].contested = contested;
         if let Some(id) = self.state.minions[m.index()].ally_id() {
             self.state.cards[id.index()].contested = contested;
@@ -360,6 +380,11 @@ impl Engine {
     /// copy: every copy is contested (rulebook "Contested Cards"), once
     /// the card's own entry effects have resolved (spec §1.13.2).
     pub(crate) fn enter_library_contest(&mut self, id: CardId) {
+        // Horrid Reality's weapon: no contest, either way.
+        if std::mem::take(&mut self.uncontested_entry) {
+            self.state.uncontesting.0.push(id);
+            return;
+        }
         let card = self.state.cards[id.index()].card;
         if !LIBRARY[card as usize].labels.contains(&Label::Unique) {
             return;

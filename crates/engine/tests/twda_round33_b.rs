@@ -4619,9 +4619,11 @@ fn covenant_of_blood_offers_no_torpid_target() {
 
 /// Distant Friend: "burn this card during a referendum to change the votes
 /// and ballots of the chosen vampire": its chosen vampire burned, the burn
-/// never offered (a legal no-op otherwise, D14; `ChosenInPlay`).
+/// still offered, burning the card for nothing (round 35: the burn the
+/// cost, as Baleful Doll's, LSJ 20011105 "The target need only exist when
+/// the card is played"; rules-qa 125.67 corrected).
 #[test]
-fn distant_friend_is_not_burned_once_its_vampire_is_gone() {
+fn distant_friend_burns_for_nothing_once_its_vampire_is_gone() {
     let (mut e, [a, _, x, y]) = four(|c| c.sect == Some(zvtes::crypt::Sect::Camarilla));
     e.state.minions[a.index()].gained_levels = vec!["dom", "pre"];
     hand(&mut e, 0, &["Distant Friend"]);
@@ -4631,13 +4633,11 @@ fn distant_friend_is_not_burned_once_its_vampire_is_gone() {
     e.burn(x);
     hand(&mut e, 1, &["Kine Resources Contested"]);
     kine_polling(&mut e, y);
-    never_offered_until(
-        &mut e,
-        SeatId(1),
-        WindowLabel::MinionPhase,
-        ability(card.0, 1),
-    );
-    assert!(e.state.cards[card.index()].in_play);
+    let req = offering(&mut e, ability(card.0, 1));
+    assert_eq!(req.seat, SeatId(0));
+    pick(&mut e, ability(card.0, 1));
+    request(&mut e);
+    assert!(!e.state.cards[card.index()].in_play, "burned");
 }
 
 // ---- Fire Dance -------------------------------------------------------------

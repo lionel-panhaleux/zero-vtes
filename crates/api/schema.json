@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "title": "zvtes protocol",
-  "version": "2.35.0",
+  "version": "2.36.0",
   "$defs": {
     "About": {
       "description": "What a choice is about (`Decision::about`): each field given where\nthe purpose (or the terms) has it (docs/protocol.md §5).",
@@ -3879,6 +3879,31 @@
           "const": "seduction_counters"
         },
         {
+          "description": "Status counters (`n`; Aziz: +1 vote each).",
+          "type": "string",
+          "const": "status_counters"
+        },
+        {
+          "description": "Allegiance counters (`n`; Tegyrius: a Banu Haqim with any is\nconsidered Camarilla).",
+          "type": "string",
+          "const": "allegiance_counters"
+        },
+        {
+          "description": "Derangement counters (`n`; Theron: as many as its capacity, a\nMalkavian).",
+          "type": "string",
+          "const": "derangement_counters"
+        },
+        {
+          "description": "Trap counters (`n`; Unre: +1 intercept each).",
+          "type": "string",
+          "const": "trap_counters"
+        },
+        {
+          "description": "Pathos counters on an equipment it bears (`card`: which, `n`;\nGrasp the Ghostly: removed from the game at none).",
+          "type": "string",
+          "const": "pathos_counters"
+        },
+        {
           "description": "A value this reader does not know.",
           "type": "string",
           "const": "unknown"
@@ -5685,6 +5710,46 @@
           "description": "Cancel (`resolve_rider`) this use of `card`, a hunting ground of\nthe chooser's prey (Klaus van der Veken, `minion`), the use spent;\nor let it resolve (`pass`).",
           "type": "string",
           "const": "may_cancel_hunting_ground"
+        },
+        {
+          "description": "The Realm of the Black Sun `card`: its controller `seat`'s prey\ngained pool in their master phase; `seat` gains `n` pool\n(`resolve_rider`) or not (`pass`).",
+          "type": "string",
+          "const": "may_gain_pool_for_card"
+        },
+        {
+          "description": "Tomb of Rameses III `card`, at the end of `seat`'s influence\nphase: its chosen vampire to the ready region (`resolve_rider`),\nor not (`pass`).",
+          "type": "string",
+          "const": "may_ready_chosen"
+        },
+        {
+          "description": "Tomb of Rameses III `card`, its control changed: the vampire of\n`seat`'s uncontrolled region it now chooses (`slot`).",
+          "type": "string",
+          "const": "choose_uncontrolled_for_card"
+        },
+        {
+          "description": "The X `minion`'s granted action names as it is announced\n(`set_x`, 1 up to the card's counters: The Ghouls of Plaza\nMorería).",
+          "type": "string",
+          "const": "action_x"
+        },
+        {
+          "description": "Sleight of Hand [CHI]: one of the equipment cards just discarded\nfrom `seat`'s hand to their ash heap put on `minion`\n(`find_card`), or none (`pass`).",
+          "type": "string",
+          "const": "may_put_discarded_on_actor"
+        },
+        {
+          "description": "A played card's replacement (Agaitas): from `seat`'s own library\n(`draw_library`) or their prey's (`choose_seat`), face up.",
+          "type": "string",
+          "const": "prey_replacement"
+        },
+        {
+          "description": "`minion` entering out of the uncontrolled region may equip a card\nfrom `seat`'s hand, its cost paid (`employ_from_hand`), or pass\n(Jack Dawson).",
+          "type": "string",
+          "const": "equip_from_hand_on_entry"
+        },
+        {
+          "description": "The clan, any other than `minion`'s, its action names as it is\ndeclared (`choose_clan`; Qadir ul-Ghani).",
+          "type": "string",
+          "const": "name_clan"
         },
         {
           "description": "A value this reader does not know.",

@@ -565,6 +565,9 @@ pub struct Minion {
     /// (`Engine::successful_hunt_riders`; Songs of the Distant Vitae,
     /// rules-qa 89.26).
     pub hunted_turn: Option<u32>,
+    /// The `GameState::action_serial` of its last successful hunt (Blanche
+    /// Hill: this hunt's, not an earlier one's that turn).
+    pub hunted_action: Unhashed<u32>,
     /// The game turn it last played a card requiring a Discipline (Veil
     /// of Darkness: "his or her first card that turn").
     pub discipline_card_turn: Option<u32>,
@@ -593,6 +596,9 @@ pub struct Minion {
     /// The temporary control ends as its controller's next unlock phase
     /// begins, not at a turn's end (Malkavian Dementia).
     pub temp_until_unlock: bool,
+    /// Under temporary control until its giver's (`temp_from`) next unlock
+    /// phase (Parmenides).
+    pub temp_until_givers_unlock: Sparse,
     /// The temporary control ends as the minion phase it was taken in ends
     /// (Miguel Cordovera).
     pub temp_until_minion_phase_end: Sparse,
@@ -709,6 +715,14 @@ pub struct Minion {
     /// A recruit or employ action of its succeeded this turn (Szechenyi
     /// Jolán).
     pub hired_this_turn: Unhashed<bool>,
+    /// Counters printed text puts on it, by kind (Aziz's status).
+    pub counters: SparseVec<(cards::MinionCounter, u8)>,
+    /// The clan its derangement counters make it, as last settled against
+    /// its live capacity (Theron; `GameState::settle_counter_clans`).
+    pub counter_clan: SparseOption<&'static str>,
+    /// The equipment cards its successful equip actions equipped this turn
+    /// (Yusuf).
+    pub equipped_this_turn: Unhashed<Vec<u16>>,
 }
 
 /// Identity of an action for the no-repeat-action rule (spec §3.5.2).
@@ -756,6 +770,7 @@ impl Minion {
         self.temp_from = None;
         self.temp_until_minion_phase_end = Sparse(0);
         self.temp_until_action_end = Sparse(0);
+        self.temp_until_givers_unlock = Sparse(0);
         self.owner = s;
     }
 
@@ -867,6 +882,7 @@ impl Minion {
             diablerie_shield: false,
             diableries: SparseVec::default(),
             hunted_turn: None,
+            hunted_action: Unhashed(0),
             discipline_card_turn: None,
             diablerized_older: false,
             bleeds: Vec::new(),
@@ -882,6 +898,7 @@ impl Minion {
             freed_slave: false,
             temp_from: None,
             temp_until_unlock: false,
+            temp_until_givers_unlock: Sparse(0),
             temp_until_minion_phase_end: Sparse(0),
             as_mortal_ally: Sparse(0),
             temp_until_action_end: Sparse(0),
@@ -923,6 +940,26 @@ impl Minion {
             research: Sparse(0),
             seduction: Sparse(0),
             hired_this_turn: Unhashed(false),
+            counters: SparseVec::default(),
+            counter_clan: SparseOption(None),
+            equipped_this_turn: Unhashed(Vec::new()),
+        }
+    }
+
+    /// The counters of kind `k` on it (`Minion::counters`).
+    pub fn counter(&self, k: cards::MinionCounter) -> u8 {
+        self.counters
+            .0
+            .iter()
+            .find(|&&(c, _)| c == k)
+            .map_or(0, |&(_, n)| n)
+    }
+
+    /// `n` more counters of kind `k` on it.
+    pub fn add_counter(&mut self, k: cards::MinionCounter, n: u8) {
+        match self.counters.0.iter_mut().find(|(c, _)| *c == k) {
+            Some((_, m)) => *m = m.saturating_add(n),
+            None => self.counters.0.push((k, n)),
         }
     }
 
@@ -1067,6 +1104,10 @@ impl Minion {
             return Some(clan);
         }
         if let Some((clan, ..)) = self.deranged.filter(|_| !self.is_ally()) {
+            return Some(clan);
+        }
+        // Theron's counters, under a card's clan (rules-qa Batch 127).
+        if let Some(clan) = self.counter_clan.0.filter(|_| !self.is_ally()) {
             return Some(clan);
         }
         if let Some(clan) = self.clan_change.filter(|_| !self.is_ally()) {
@@ -1296,6 +1337,12 @@ pub struct CardInPlay {
     pub on_card: Option<CardId>,
     /// The crypt card it chose in its player's uncontrolled region (Gather).
     pub chosen_crypt: Option<u16>,
+    /// That card's copy, the slot told apart from another of the name (Tomb
+    /// of Rameses III; `GameState::chosen_slot`).
+    pub chosen_copy: Untracked<CopyId>,
+    /// Pathos counters, apart from a retainer's life (Ambrosius, The
+    /// Ferryman; `Engine::wane_pathos`).
+    pub pathos: Sparse,
     /// The library card named as it was played (Victim of Habit).
     pub named: SparseOption<u16>,
     /// Pool its controller burned by its effect (First Tradition: The
@@ -1365,6 +1412,8 @@ impl CardInPlay {
             hold: None,
             on_card: None,
             chosen_crypt: None,
+            chosen_copy: Untracked(CopyId::NONE),
+            pathos: Sparse(0),
             discipline: None,
             sect_change: None,
             chosen: Vec::new(),
@@ -1422,6 +1471,10 @@ pub const LIBRARY_PLAY: CardId = CardId(u32::MAX - 19);
 /// The virtual-hand source of a card a minion's text plays from its
 /// player's ash heap (Karsh: Blood Hunt; `Stat::PlaysFromOwnAsh`).
 pub const ASH_GRANTED: CardId = CardId(u32::MAX - 20);
+
+/// The `Minion::considered` entry of Tegyrius's allegiance counters: no
+/// card (`GameState::considered_sect` reads the counters).
+pub const ALLEGIANCE: CardId = CardId(u32::MAX - 40);
 
 /// A crypt card that is a vampire, not an imbued (rulebook "Appendix:
 /// Imbued Rules", card rulings: a card naming a vampire seen).
@@ -1893,9 +1946,16 @@ pub struct Seat {
     /// Burned vampires (CRYPT indices): the ash heap's crypt cards.
     pub ash_crypt: Pile,
     /// The copies of `ash_crypt` burned from play while controlled, with
-    /// the turn (`Seat::burn_vampire`; Blessed Resilience, ANK 20210813;
-    /// Ghost-Eater's "since your last turn", LSJ 20020429).
-    pub burned_from_play: Untracked<Vec<(CopyId, u32)>>,
+    /// the turn and their controller then (`Seat::burn_vampire`; Blessed
+    /// Resilience, ANK 20210813; Ghost-Eater's "since your last turn", LSJ
+    /// 20020429; Daemonic Possession's, LSJ 20081014).
+    pub burned_from_play: Untracked<Vec<(CopyId, u32, SeatId)>>,
+    /// The copies of `burned_from_play` an influence phase of this seat
+    /// passed since they burned (Qufur am-Heru's "next" one spent).
+    pub ash_return_spent: Untracked<Vec<CopyId>>,
+    /// Hand cards drawn from the prey's library, face up, seen by all
+    /// (Agaitas; `GameState::foreign` holds their owner).
+    pub face_up: Untracked<Vec<CopyId>>,
     /// The cards played with `Requirement::NotPlayedByYouLastTurn`, with
     /// the turn (Hanging Fermata).
     pub played_at: SparseVec<(u16, u32)>,
@@ -1911,9 +1971,9 @@ pub struct Seat {
     /// (`Seat::to_ash` clears; Pressing Flesh, LSJ 20100325-2).
     pub burned_allies: Untracked<Vec<CopyId>>,
     /// The copies of `ash`'s allies and retainers burned from play as
-    /// themselves, with the turn (`Seat::to_ash` clears; Compel the Spirit,
-    /// RTR 19980928).
-    pub burned_minion_cards: Untracked<Vec<(CopyId, u32)>>,
+    /// themselves, with the turn and their controller then (`Seat::to_ash`
+    /// clears; Compel the Spirit, RTR 19980928).
+    pub burned_minion_cards: Untracked<Vec<(CopyId, u32, SeatId)>>,
     /// The research area: library cards face down, seen by their owner
     /// (Development).
     pub research: Pile,
@@ -2105,28 +2165,44 @@ impl Seat {
     }
 
     /// A vampire card to the ash heap: `from_play`, the turn it burned from
-    /// play while controlled (ANK 20210813: not uncontrolled, not contested).
-    pub fn burn_vampire(&mut self, card: u16, copy: CopyId, from_play: Option<u32>) {
+    /// play while controlled and its controller then (ANK 20210813: not
+    /// uncontrolled, not contested).
+    pub fn burn_vampire(&mut self, card: u16, copy: CopyId, from_play: Option<(u32, SeatId)>) {
         self.ash_crypt.put(card, copy);
         self.unmark_burned(copy);
-        if let Some(turn) = from_play {
-            self.burned_from_play.0.push((copy, turn));
+        if let Some((turn, controller)) = from_play {
+            self.burned_from_play.0.push((copy, turn, controller));
         }
+    }
+
+    /// The copies of `burned` burned after turn `since`, by a controller
+    /// `by` accepts.
+    pub fn burned_since(
+        burned: &[(CopyId, u32, SeatId)],
+        since: u32,
+        by: impl Fn(SeatId) -> bool,
+    ) -> Vec<CopyId> {
+        burned
+            .iter()
+            .filter(|&&(_, t, c)| t > since && by(c))
+            .map(|&(c, _, _)| c)
+            .collect()
     }
 
     /// `copy` no longer a vampire burned from play (it left the ash heap).
     pub fn unmark_burned(&mut self, copy: CopyId) {
-        self.burned_from_play.0.retain(|&(c, _)| c != copy);
+        self.burned_from_play.0.retain(|&(c, _, _)| c != copy);
+        self.ash_return_spent.0.retain(|&c| c != copy);
     }
 
     /// Whether `copy` in the ash heap was burned from play.
     pub fn was_burned_from_play(&self, copy: CopyId) -> bool {
-        self.burned_from_play.0.iter().any(|&(c, _)| c == copy)
+        self.burned_from_play.0.iter().any(|&(c, _, _)| c == copy)
     }
 
     /// The copies in `ash_crypt` burned from play.
     fn burned_copies(&self) -> Vec<CopyId> {
-        self.burned_from_play.0.iter().map(|&(c, _)| c).collect()
+        self.burned_from_play.0.iter().map(|&(c, _, _)| c).collect()
     }
 
     /// A library card to the ash heap, no longer a minion card burned from
@@ -2134,7 +2210,7 @@ impl Seat {
     pub fn to_ash(&mut self, card: u16, copy: CopyId) {
         self.ash.put(card, copy);
         self.burned_allies.0.retain(|&c| c != copy);
-        self.burned_minion_cards.0.retain(|&(c, _)| c != copy);
+        self.burned_minion_cards.0.retain(|&(c, _, _)| c != copy);
     }
 
     /// `to_ash` for each card, in order.
@@ -2253,6 +2329,13 @@ pub struct GameState {
     /// (Matthew: a cost is announced while a choice applies, the flow out):
     /// 1 while it is.
     pub in_master_phase: Sparse,
+    /// The active Methuselah gained pool in this master phase: 1 until the
+    /// engine settles it, then 2 (The Realm of the Black Sun;
+    /// `Engine::settle_master_pool_gain`).
+    pub master_pool_gain: Unhashed<u8>,
+    /// The end of the active Methuselah's influence phase offered its
+    /// moves (Tomb of Rameses III; `Engine::offer_influence_end_moves`).
+    pub influence_end_asked: Unhashed<bool>,
     /// Ticks with each minion entering play and each minion phase ending,
     /// ordering the two (Chameleon).
     pub entry_clock: u32,
@@ -2352,6 +2435,17 @@ pub struct GameState {
     /// A vampire's burn waiting on its controller (Abandoning the Flesh;
     /// `crate::control`).
     pub burn_wait: SparseOption<crate::control::BurnWait>,
+    /// Cards in play contesting nothing and contested by nothing (Horrid
+    /// Reality's weapon), and minions (Illusions of the Kindred's vampire,
+    /// "considered different for all purposes", LSJ 20100213).
+    pub uncontesting: SparseVec<CardId>,
+    pub illusions: SparseVec<MinionId>,
+    /// (acting vampire, clan): no vampire of the clan may block it the rest
+    /// of the turn (Clan Loyalty), cleared as the turn ends.
+    pub clan_block_bans: SparseVec<(MinionId, &'static str)>,
+    /// Grasp the Ghostly's equipment: (card, its player, pathos counters),
+    /// one off in that player's unlock phase, removed from the game at none.
+    pub pathos: SparseVec<(CardId, SeatId, u8)>,
     /// Charming Lobby passed: the next referendum a vampire calls passes
     /// automatically, whenever it comes.
     pub auto_pass_any: Sparse,
@@ -2431,6 +2525,9 @@ pub struct GameState {
     /// the owner (`settle_foreign_cards`; LSJ 20001031, PIB 20121220; owner,
     /// 2026-10-25: keyed by copy, rules-qa 96.2).
     pub foreign: Vec<(crate::copies::Untracked<CopyId>, SeatId)>,
+    /// `foreign` cards drawn face up (Agaitas) that left the hand since:
+    /// back in a hand, their owner's.
+    pub left_face_up: Untracked<Vec<CopyId>>,
     /// Minions woken in an action card's as-played window, before its
     /// action is declared: woken for it once declared, dropped if it is not
     /// (LSJ 20021011, rules-qa 2.4, 96.4).
@@ -3716,13 +3813,7 @@ impl GameState {
     /// 20020429).
     pub fn ash_minion_cards_burned_since_last_turn(&self, seat: SeatId) -> Vec<u16> {
         let s = &self.seats[seat.index()];
-        let since: Vec<CopyId> = s
-            .burned_minion_cards
-            .0
-            .iter()
-            .filter(|&&(_, t)| t > s.previous_turn)
-            .map(|&(c, _)| c)
-            .collect();
+        let since = Seat::burned_since(&s.burned_minion_cards.0, s.previous_turn, |_| true);
         marked_cards(&s.ash, &since, |_| true)
     }
 
@@ -3730,17 +3821,16 @@ impl GameState {
     /// library cards, then its crypt cards (`Terms::AnyAshPick`).
     pub fn ash_picks(&self, user: SeatId, heap: SeatId, pick: AshPick) -> (Vec<u16>, Vec<u16>) {
         let s = &self.seats[heap.index()];
-        if s.ousted {
+        let others = matches!(pick, AshPick::OthersNonLocationEquipment { .. });
+        if s.ousted || others && heap == user {
             return (Vec::new(), Vec::new());
         }
         let since = self.seats[user.index()].previous_turn;
-        let recent = |burned: &[(CopyId, u32)]| -> Vec<CopyId> {
-            burned
-                .iter()
-                .filter(|&&(_, t)| t > since)
-                .map(|&(c, _)| c)
-                .collect()
-        };
+        let recent = |burned: &[(CopyId, u32, SeatId)]| Seat::burned_since(burned, since, |_| true);
+        // "Controlled by another Methuselah" when burned, in any ash heap,
+        // its own included (LSJ 20081014, LSJ 20010717, ANK 20220922).
+        let by_others =
+            |burned: &[(CopyId, u32, SeatId)]| Seat::burned_since(burned, since, |c| c != user);
         let minion = |c: u16| {
             let t = LIBRARY[c as usize].types;
             t.contains(&CardType::Ally) || t.contains(&CardType::Retainer)
@@ -3768,6 +3858,22 @@ impl GameState {
                 })
             }
             AshPick::Vampire => Vec::new(),
+            AshPick::OthersMinionBurnedSinceYourLastTurn => {
+                marked_cards(&s.ash, &by_others(&s.burned_minion_cards.0), |c| {
+                    LIBRARY[c as usize].types.contains(&CardType::Ally)
+                })
+            }
+            AshPick::OthersNonLocationEquipment { unique } => s
+                .ash
+                .iter()
+                .copied()
+                .filter(|&c| {
+                    let lib = &LIBRARY[c as usize];
+                    lib.types.contains(&CardType::Equipment)
+                        && !lib.labels.contains(&Label::Location)
+                        && (unique || !lib.labels.contains(&Label::Unique))
+                })
+                .collect(),
         };
         library.sort_unstable();
         library.dedup();
@@ -3803,7 +3909,12 @@ impl GameState {
                 v.dedup();
                 v
             }
-            AshPick::NonUniqueEquipment | AshPick::BurnedSinceYourLastTurnOf(_) => Vec::new(),
+            AshPick::OthersMinionBurnedSinceYourLastTurn => {
+                marked_cards(&s.ash_crypt, &by_others(&s.burned_from_play.0), |_| true)
+            }
+            AshPick::NonUniqueEquipment
+            | AshPick::BurnedSinceYourLastTurnOf(_)
+            | AshPick::OthersNonLocationEquipment { .. } => Vec::new(),
         };
         (library, crypt)
     }
@@ -3859,6 +3970,86 @@ impl GameState {
         })
     }
 
+    /// One counter of kind `k` on `m`: Tegyrius's allegiance enters the
+    /// considered sects in arrival order (rules-qa 111.54), Theron's
+    /// derangement is settled against the capacity at once.
+    pub fn add_minion_counter(&mut self, m: MinionId, k: cards::MinionCounter) {
+        let writs: Vec<(Sect, CardId)> = self
+            .borne(m)
+            .filter_map(|l| match l.modifier {
+                Modifier::BearerConsideredSect(s) => Some((s, l.source)),
+                _ => None,
+            })
+            .collect();
+        let v = &mut self.minions[m.index()];
+        v.add_counter(k, 1);
+        let entry = (Sect::Camarilla, ALLEGIANCE);
+        if k == cards::MinionCounter::Allegiance && !v.considered.0.contains(&entry) {
+            // The Writs arrived before it, listed first (`Engine::consider`).
+            for w in writs {
+                if !v.considered.0.contains(&w) {
+                    v.considered.0.push(w);
+                }
+            }
+            v.considered.0.push(entry);
+        }
+        self.settle_counter_clans();
+    }
+
+    /// Theron: "If the number of derangement counters equals or exceeds the
+    /// vampire's capacity, that vampire is considered to be Malkavian
+    /// antitribu": the capacity read live at each settle (LSJ 20060209, PIB
+    /// 20110918); cached on the minion, as capacity reads the clan.
+    pub fn settle_counter_clans(&mut self) {
+        for i in 0..self.minions.len() {
+            let m = MinionId(i as u32);
+            let n = self.minions[i].counter(cards::MinionCounter::Derangement);
+            if n == 0 || !self.minions[i].in_play {
+                continue;
+            }
+            let deranged = self.capacity_of(m).is_some_and(|cap| n >= cap);
+            self.minions[i].counter_clan =
+                SparseOption(deranged.then_some(cards::vampires::DERANGED_CLAN));
+        }
+    }
+
+    /// The vampires of `s`'s ash heap that may move to its uncontrolled
+    /// region in this influence phase: burned from play since its last
+    /// influence phase ended, this turn's before it included, printing
+    /// `Stat::ReturnsFromAshNextInfluence` (Qufur am-Heru: "your next
+    /// influence phase", once).
+    pub fn ash_returns(&self, s: SeatId) -> Vec<u16> {
+        let seat = &self.seats[s.index()];
+        marked_cards(&seat.ash_crypt, &self.ash_return_copies(s), |_| true)
+    }
+
+    /// `ash_returns`' copies.
+    pub(crate) fn ash_return_copies(&self, s: SeatId) -> Vec<CopyId> {
+        let seat = &self.seats[s.index()];
+        seat.ash_crypt
+            .pairs()
+            .filter(|&(c, copy)| {
+                seat.was_burned_from_play(copy)
+                    && !seat.ash_return_spent.0.contains(&copy)
+                    && cards::vampire(c).is_some_and(|d| {
+                        d.printed
+                            .iter()
+                            .any(|p| p.stat == Stat::ReturnsFromAshNextInfluence)
+                    })
+            })
+            .map(|(_, copy)| copy)
+            .collect()
+    }
+
+    /// A card with the Contract label on `m` (Husamettin).
+    pub fn bears_contract(&self, m: MinionId) -> bool {
+        self.cards.iter().any(|c| {
+            c.in_play
+                && c.host == Some(m)
+                && LIBRARY[c.card as usize].labels.contains(&Label::Contract)
+        })
+    }
+
     /// "Cannot perform directed actions": printed (The Guardian) or from a
     /// card on it (Shadowed Eyes).
     pub fn no_directed_actions(&self, m: MinionId) -> bool {
@@ -3879,11 +4070,22 @@ impl GameState {
     }
 
     /// The crypt cards of `seat`'s ash heap burned from play, with every
-    /// Discipline of `superior` printed at superior, none `seat` has a copy
-    /// of in play (`controls_copy`).
-    pub fn ash_burned_vampires(&self, seat: SeatId, superior: &[&str]) -> Vec<u16> {
+    /// Discipline of `superior` printed at superior, none `seat` has a copy of
+    /// in play (`controls_copy`); `yours_since_last_turn`: burned under
+    /// `seat`'s control since its last turn (Augustus Giovanni).
+    pub fn ash_burned_vampires(
+        &self,
+        seat: SeatId,
+        superior: &[&str],
+        yours_since_last_turn: bool,
+    ) -> Vec<u16> {
         let s = &self.seats[seat.index()];
-        marked_cards(&s.ash_crypt, &s.burned_copies(), |c| {
+        let burned = if yours_since_last_turn {
+            Seat::burned_since(&s.burned_from_play.0, s.previous_turn, |c| c == seat)
+        } else {
+            s.burned_copies()
+        };
+        marked_cards(&s.ash_crypt, &burned, |c| {
             superior
                 .iter()
                 .all(|d| CRYPT[c as usize].disciplines.contains(d))
@@ -3990,6 +4192,13 @@ impl GameState {
     /// Strength before modifiers (rulebook "Hand Strike": vampires have a
     /// default strength of 1; an ally has its printed strength).
     pub fn base_strength(&self, m: MinionId) -> u8 {
+        // Erosion: a strength of n, the modifiers on top (LSJ 19971211-2).
+        if let Some(n) = self.borne(m).find_map(|l| match l.modifier {
+            Modifier::HostBaseStrength(n) => Some(n),
+            _ => None,
+        }) {
+            return n;
+        }
         if matches!(self.minions[m.index()].kind, MinionKind::GreatBeast { .. }) {
             return 4;
         }
@@ -4233,6 +4442,31 @@ impl GameState {
         self.printed_mod(t, Stat::CostOffPlayedOn, ctx).max(0) as u8
     }
 
+    /// The type card `card` is played as in `mode` by `m` (rules-digest
+    /// D18): a single type its own; an action modifier by the acting minion
+    /// out of combat, a combat card in combat windows, else a reaction.
+    pub fn played_as(&self, m: Option<MinionId>, card: u16, mode: u8) -> Option<CardType> {
+        let lib = &LIBRARY[card as usize];
+        if lib.types.len() == 1 {
+            return lib.types.first().copied();
+        }
+        let combat = cards::lookup(card)
+            .and_then(|d| d.modes.get(mode as usize))
+            .is_some_and(|md| md.windows.iter().all(|w| w.is_combat()));
+        if combat && lib.types.contains(&CardType::Combat) {
+            Some(CardType::Combat)
+        } else if lib.types.contains(&CardType::ActionModifier) && m.is_some() && self.acting == m {
+            Some(CardType::ActionModifier)
+        } else if lib.types.contains(&CardType::Reaction) {
+            Some(CardType::Reaction)
+        } else {
+            lib.types
+                .iter()
+                .copied()
+                .find(|&t| t != CardType::Combat || combat)
+        }
+    }
+
     /// As `printed_cost_off`, an X cost chosen at `x` (The Ankara Citadel
     /// halves it once chosen; owner, 2026-10-14: rules-qa 70.17).
     pub fn printed_cost_off_x(&self, m: MinionId, card: u16, mode: u8, x: u8) -> CostOff {
@@ -4351,6 +4585,9 @@ impl GameState {
             return;
         }
         self.seats[seat.index()].pool += n;
+        if seat == self.active && self.in_master_phase.0 > 0 && self.master_pool_gain.0 == 0 {
+            self.master_pool_gain = Unhashed(1);
+        }
     }
 
     /// Would `seat` lose a pool gain in its own turn (The Rising)?
@@ -4390,10 +4627,15 @@ impl GameState {
     }
 
     /// Is a vampire (not a created one, rules-qa 41.5) of this name ready,
-    /// `of` this Methuselah's or any's?
+    /// `of` this Methuselah's or any's? A named mummy's name is in play
+    /// "for anything that cares" (Spell of Life; LSJ 20070928-2).
     pub fn ready_named(&self, name: &str, of: Option<SeatId>) -> bool {
         self.minions.iter().any(|o| {
-            o.ready() && o.is_vampire() && o.name() == name && of.is_none_or(|s| o.owner == s)
+            o.ready()
+                && (o.is_vampire()
+                    || matches!(o.kind, MinionKind::Represented { of: r, .. } if r.named))
+                && o.name() == name
+                && of.is_none_or(|s| o.owner == s)
         })
     }
 
@@ -4541,6 +4783,9 @@ impl GameState {
             R::OpponentTitleIn(classes) => ctx
                 .opponent
                 .is_some_and(|o| classes.iter().any(|c| c.matches(self.title_of(o)))),
+            R::OpponentTitleNotIn(classes) => ctx
+                .opponent
+                .is_some_and(|o| !classes.iter().any(|c| c.matches(self.title_of(o)))),
             R::ActorHasDiscipline(d) => self.has_discipline(actor, d),
             R::TargetIsSourceController => ctx.target == Some(src.owner),
             R::TargetSeatControlsReadySect { sect, not } => ctx.target.is_some_and(|s| {
@@ -4598,6 +4843,7 @@ impl GameState {
             R::NotFirstRound => ctx.round > 1,
             R::GehennaInPlay(n) => self.gehenna_in_play() >= n as usize,
             R::NamedInPlay(name) => self.named_in_play(name),
+            R::NoneNamedInPlay(name) => !self.named_in_play(name),
             R::SourceBloodOdd => src.blood % 2 == 1,
             R::ActorYoungerThanSource => me.is_vampire() && self.younger_than(actor, source),
             R::PreyControlsNoReadySect(sect) => {
@@ -4699,6 +4945,7 @@ impl GameState {
             // The modified minion carries the corruption counters of the
             // printed vampire's Methuselah (Faruq Abd al-Qadir).
             R::ActorCorruptedBySource => me.corruption_of(src.owner) > 0,
+            R::ActorCorrupted => me.corruption.iter().any(|&(_, n)| n > 0),
             R::OpponentCorruptedBySource => opp.is_some_and(|o| o.corruption_of(src.owner) > 0),
             R::OpponentSeduced => opp.is_some_and(|o| o.seduction.0 > 0),
             R::OpponentTitled => ctx
@@ -4800,6 +5047,7 @@ impl GameState {
             cards::Per::GehennaInPlay => self.gehenna_in_play() as i32,
             cards::Per::Diableries => self.minions[source.index()].diableries.0.len() as i32,
             cards::Per::ResearchCounters => self.minions[source.index()].research.0 as i32,
+            cards::Per::Counters(k) => self.minions[source.index()].counter(k) as i32,
             cards::Per::VampiresInTargetAsh => ctx.target.map_or(0, |t| {
                 self.seats[t.index()]
                     .ash_crypt
@@ -5036,7 +5284,7 @@ impl GameState {
             .map(|l| match l.modifier {
                 Modifier::HostActionToll(n) => n,
                 Modifier::HostDirectedToll(n) if directed => n,
-                Modifier::HostBleedToll(n) if bleed => n,
+                Modifier::HostBleedToll(n) | Modifier::HostBleedTollBloodOnly(n) if bleed => n,
                 _ => 0,
             })
             .sum()
@@ -5764,6 +6012,24 @@ impl GameState {
                     {
                         n as i32
                     }
+                    Modifier::VampiresBleedAgainstHostController { n, who }
+                        if self.minions[m.index()].is_vampire()
+                            && who.is(self, m)
+                            && c.host
+                                .is_some_and(|h| self.minions[h.index()].owner == target) =>
+                    {
+                        n as i32
+                    }
+                    Modifier::HostBleedAgainstSeatWithReadySect { sect, n, who }
+                        if c.bearer() == Some(m)
+                            && who.is(self, m)
+                            && self.minions_of(target).any(|t| {
+                                let v = &self.minions[t.index()];
+                                v.ready() && v.is_vampire() && self.sect_of(t) == Some(sect)
+                            }) =>
+                    {
+                        n as i32
+                    }
                     Modifier::BearerBleedAgainstByController(n)
                         if c.bearer() == Some(m)
                             && c.by.is_some_and(|b| {
@@ -5938,6 +6204,7 @@ impl GameState {
             return false;
         }
         self.borne(m).all(|l| match l.modifier {
+            Modifier::NotDirectedAt => false,
             Modifier::DirectedOnlyBy(ds) => ds.iter().any(|d| self.has_discipline(actor, d)),
             Modifier::UntargetableByOthersWhileReady => {
                 !self.minions[m.index()].ready()
@@ -6137,8 +6404,10 @@ impl GameState {
                 {
                     n as i32
                 }
-                Modifier::BearerStealthOnActionsRequiring { discipline, n }
-                    if self.cards[l.source.index()].bearer() == Some(m) && req(discipline) =>
+                Modifier::BearerStealthOnActionsRequiring { discipline, n, who }
+                    if self.cards[l.source.index()].bearer() == Some(m)
+                        && who.is(self, m)
+                        && req(discipline) =>
                 {
                     n as i32
                 }
@@ -6205,7 +6474,15 @@ impl GameState {
         } else {
             0
         };
-        let vs_sect = vs_sect + vs_bearer;
+        // Mark of Damnation: any minion against its bearer.
+        let vs_marked: i32 = self
+            .borne(foe)
+            .map(|l| match l.modifier {
+                Modifier::BearersOpponents { strength, .. } => strength as i32,
+                _ => 0,
+            })
+            .sum();
+        let vs_sect = vs_sect + vs_bearer + vs_marked;
         if !v.is_vampire()
             || self.title_of(m) == crate::crypt::Title::None
             || self.sect_of(m) == Some(crate::crypt::Sect::Anarch)
@@ -6430,6 +6707,19 @@ impl GameState {
         printed + hosted + vs + chosen
     }
 
+    /// Optional presses to continue `m` gets each combat against
+    /// `opponent` (Mark of Damnation on it).
+    pub fn continue_presses_vs(&self, opponent: MinionId) -> u8 {
+        self.borne(opponent)
+            .map(|l| match l.modifier {
+                Modifier::BearersOpponents {
+                    continue_presses, ..
+                } => continue_presses,
+                _ => 0,
+            })
+            .sum()
+    }
+
     /// The mandatory presses `m`'s cards give it each combat, only usable to
     /// continue in the first round (Talbot's Chainsaw).
     pub fn first_round_presses_of(&self, m: MinionId) -> u8 {
@@ -6454,9 +6744,12 @@ impl GameState {
     /// announced but never shown (advanced rules §1.14.2).
     pub fn legal_view(&self, viewer: SeatId) -> GameState {
         let mut v = self.clone();
-        // The foreign cards' copies of another's hand would tell them.
-        v.foreign
-            .retain(|(c, _)| v.seats[viewer.index()].hand.copies().contains(&c.0));
+        // The foreign cards' copies of another's hand would tell them, but
+        // for the cards face up (Agaitas).
+        v.foreign.retain(|(c, _)| {
+            v.seats[viewer.index()].hand.copies().contains(&c.0)
+                || v.seats.iter().any(|s| s.face_up.0.contains(&c.0))
+        });
         // Hidden cards keep no copy either: a copy would tell which card
         // it is, or where it went.
         let hide = |cards: &mut Pile| {
@@ -6493,7 +6786,15 @@ impl GameState {
                 hide(&mut seat.crypt);
             }
             if !self.hand_visible_to(s, viewer) {
-                hide(&mut seat.hand);
+                // Agaitas's cards face up, seen by all.
+                let cards = seat.hand.take_all();
+                for (card, copy) in cards {
+                    if seat.face_up.0.contains(&copy) {
+                        seat.hand.put(card, copy);
+                    } else {
+                        seat.hand.put(HIDDEN, CopyId::NONE);
+                    }
+                }
             }
             if s != viewer {
                 hide(&mut seat.research);
@@ -7258,12 +7559,23 @@ impl GameState {
             .sum()
     }
 
-    /// `m` cannot block (Pentex™ Subversion): a card on it, its own text,
-    /// or the acting minion's (Aisling Sturbridge). `directed`: the
-    /// action's own, the same for every Methuselah ("cannot block
-    /// undirected actions": Allonzo Montoya; LSJ 20080809).
+    /// `m` cannot block (Pentex™ Subversion): a card on it, its own text, the
+    /// acting minion's (Aisling Sturbridge, True Faith), or a Clan Loyalty's
+    /// ban. `directed`: the action's own, the same for every Methuselah
+    /// ("cannot block undirected actions": Allonzo Montoya; LSJ 20080809).
     pub fn cannot_block(&self, m: MinionId, acting: MinionId, directed: bool) -> bool {
         if self.blind_spots.contains(&(acting, m)) {
+            return true;
+        }
+        // Clan Loyalty: the attempting vampire's clan read live.
+        let v = &self.minions[m.index()];
+        if v.is_vampire()
+            && self
+                .clan_block_bans
+                .0
+                .iter()
+                .any(|&(a, c)| a == acting && v.clan() == Some(c))
+        {
             return true;
         }
         let ctx = PrintedCtx {
@@ -7295,6 +7607,9 @@ impl GameState {
                     && self.cards[l.source.index()].chosen_clan.0.is_some()
                     && self.minions[m.index()].clan() == self.cards[l.source.index()].chosen_clan.0
             })
+            // True Faith: an infernal minion, read live.
+            || self.is_infernal(m)
+                && self.bears(acting, Modifier::InfernalCannotBlockOrStrikeBearer)
             // Shared Nightmare: this turn.
             || self.minions[m.index()]
                 .timed
@@ -7328,6 +7643,43 @@ impl GameState {
                     && self.cards[l.source.index()].chosen.get(1) == Some(&m)
                     && self.of_card_clan(m, self.cards[l.source.index()].card)
             })
+    }
+
+    /// The slot of the card in play `id`'s chosen vampire in its
+    /// controller's uncontrolled region, if still there (Tomb of Rameses
+    /// III).
+    pub fn chosen_slot(&self, id: CardId) -> Option<usize> {
+        let c = &self.cards[id.index()];
+        let card = c.chosen_crypt?;
+        self.seats[self.card_controller(id).index()]
+            .uncontrolled
+            .iter()
+            .position(|u| u.card == card && *u.copy == *c.chosen_copy)
+    }
+
+    /// `m` cannot strike in a combat against `opponent`: infernal against a
+    /// True Faith bearer, read live.
+    pub fn cannot_strike_against(&self, m: MinionId, opponent: MinionId) -> bool {
+        self.is_infernal(m) && self.bears(opponent, Modifier::InfernalCannotBlockOrStrikeBearer)
+    }
+
+    /// Damage `from` inflicts on `to` is aggravated: its printed text
+    /// against that opponent (Petra), or, `in_combat`, a card it bears
+    /// (True Faith on an infernal, ANK 20210620; Akhenaten on a Ministry).
+    pub fn inflicts_aggravated_on(&self, from: MinionId, to: MinionId, in_combat: bool) -> bool {
+        let ctx = PrintedCtx {
+            opponent: Some(to),
+            ..PrintedCtx::default()
+        };
+        self.printed_mod(from, Stat::AggravatedDamage, ctx) > 0
+            || in_combat
+                && self.borne(from).any(|l| match l.modifier {
+                    Modifier::BearerDamageAggravatedOnInfernal => self.is_infernal(to),
+                    Modifier::BearerAggravatedVsClan(c) => {
+                        self.minions[to.index()].clan() == Some(c)
+                    }
+                    _ => false,
+                })
     }
 
     /// `m` cannot block vampires (Vagabond Mystic's own text).
@@ -7677,6 +8029,13 @@ impl GameState {
             })
             .or_else(|| {
                 v.considered.0.iter().rev().find_map(|&(s, id)| {
+                    // Tegyrius's allegiance counters: on a Banu Haqim, read
+                    // live (ANK 20180626-2: through a change of sect).
+                    if id == ALLEGIANCE {
+                        return (v.counter(cards::MinionCounter::Allegiance) > 0
+                            && v.clan() == Some("Banu Haqim"))
+                        .then_some(s);
+                    }
                     let c = &self.cards[id.index()];
                     (c.present() && c.bearer() == Some(m)).then_some(s)
                 })
@@ -7845,7 +8204,7 @@ impl GameState {
         let me = &self.minions[m.index()];
         // A created vampire is non-unique (advanced rules 5.1.3), and so is
         // one printing "Non-unique." (Valkyrie).
-        if !self.is_unique_minion(m) {
+        if !self.is_unique_minion(m) || self.illusions.0.contains(&m) {
             return Vec::new();
         }
         self.minions
@@ -7853,6 +8212,7 @@ impl GameState {
             .enumerate()
             .filter(|(i, o)| {
                 *i != m.index()
+                    && !self.illusions.0.contains(&MinionId(*i as u32))
                     && o.owner != me.owner
                     && o.in_play
                     && !o.out_of_play
@@ -7872,11 +8232,15 @@ impl GameState {
         let me = &self.cards[id.index()];
         let name = LIBRARY[me.card as usize].name;
         let mine = self.card_controller(id);
+        if self.uncontesting.0.contains(&id) {
+            return Vec::new();
+        }
         self.cards
             .iter()
             .enumerate()
             .filter(|(i, o)| {
                 *i != id.index()
+                    && !self.uncontesting.0.contains(&CardId(*i as u32))
                     && o.in_play
                     && !o.out_of_play
                     && self.card_controller(CardId(*i as u32)) != mine
@@ -7886,11 +8250,49 @@ impl GameState {
             .collect()
     }
 
-    /// A layer applies: action-scoped, or sourced by a card in play that
-    /// is not contested (a contested card's effects are suspended).
+    /// A layer applies: action-scoped, or sourced by a card in play that is not
+    /// contested (a contested card's effects are suspended) nor a weapon its
+    /// bearer cannot use (`weapon_unusable`).
     pub fn layer_active(&self, l: &Layer) -> bool {
         l.scope == Scope::Action
-            || (self.cards[l.source.index()].present() && !self.text_suppressed(l.source))
+            || (self.cards[l.source.index()].present()
+                && !self.text_suppressed(l.source)
+                && !self.weapon_unusable(l.source))
+    }
+
+    /// The weapon `id`'s bearer cannot use it: no strike, ability or layer
+    /// of it applies, its riders still fire (Howler, LSJ 20040608, PIB
+    /// 20110928; Count Germaine's opponents; Erosion's melee weapons,
+    /// rules-qa 124.252).
+    pub fn weapon_unusable(&self, id: CardId) -> bool {
+        let c = &self.cards[id.index()];
+        let lib = &LIBRARY[c.card as usize];
+        if !(cards::is_weapon(c.card) || lib.labels.contains(&Label::Gun)) {
+            return false;
+        }
+        let Some(m) = c.bearer() else {
+            return false;
+        };
+        let no_melee = || {
+            cards::is_melee_weapon(c.card)
+                && self.layers.iter().any(|l| {
+                    l.modifier == Modifier::HostNoMeleeWeapons
+                        && l.scope == Scope::InPlay
+                        && self.cards[l.source.index()].present()
+                        && self.cards[l.source.index()].bearer() == Some(m)
+                        && !self.text_suppressed(l.source)
+                })
+        };
+        self.printed_mod(m, Stat::CannotUseWeapons, PrintedCtx::default()) > 0
+            || self.combatants.is_some_and(|pair| {
+                pair.contains(&m)
+                    && pair.iter().any(|&o| {
+                        o != m
+                            && self.printed_mod(o, Stat::OpponentsNoWeapons, PrintedCtx::default())
+                                > 0
+                    })
+            })
+            || no_melee()
     }
 
     /// The layers of the uncontested cards in play (`Scope::InPlay`).
@@ -8328,12 +8730,16 @@ impl GameState {
             return Vec::new();
         };
         let me = &self.minions[m.index()];
+        if self.illusions.0.contains(&m) {
+            return Vec::new();
+        }
         self.minions
             .iter()
             .enumerate()
             .filter(|(i, o)| {
                 *i != m.index()
                     && o.present()
+                    && !self.illusions.0.contains(&MinionId(*i as u32))
                     // Two-player: two contested copies' title is not
                     // contested (their card contest entered first).
                     && !(me.contested_in_play && o.contested_in_play && o.name() == me.name())
@@ -8353,9 +8759,39 @@ impl GameState {
         if self.foreign.is_empty() {
             return;
         }
+        // A face-up card gone from the hand is face down wherever it lands;
+        // back in a hand, its owner's (RTR 19970425, LSJ 20060921).
+        for s in &mut self.seats {
+            let hand = s.hand.copies().to_vec();
+            let gone: Vec<CopyId> = s
+                .face_up
+                .0
+                .iter()
+                .copied()
+                .filter(|c| !hand.contains(c))
+                .collect();
+            s.face_up.0.retain(|c| hand.contains(c));
+            self.left_face_up.0.extend(gone);
+        }
         let entries = std::mem::take(&mut self.foreign);
         for (copy, owner) in entries {
             let copy = copy.0;
+            if self.left_face_up.0.contains(&copy) {
+                let at = (0..self.seats.len()).find_map(|s| {
+                    let i = self.seats[s]
+                        .hand
+                        .copies()
+                        .iter()
+                        .position(|&c| c == copy)?;
+                    (s != owner.index()).then_some((s, i))
+                });
+                if let Some((s, i)) = at {
+                    let (card, copy) = self.seats[s].hand.take(i);
+                    self.seats[owner.index()].hand.put(card, copy);
+                    self.left_face_up.0.retain(|&c| c != copy);
+                    continue;
+                }
+            }
             let held = self.seats.iter().any(|s| s.hand.copies().contains(&copy))
                 || self.cards.iter().any(|c| c.stored.copies().contains(&copy))
                 || self
